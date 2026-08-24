@@ -33,6 +33,7 @@ ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts/v1"
 ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
 ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 ORPHAN_HOLD_NAME = "orphan-hold.json"
+ORPHAN_HOLD_DIR_NAME = "orphan-holds"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RECEIPT_LINE_RE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (.+) へ保存しました \(child rc=(-?\d+)\)$"
@@ -187,6 +188,39 @@ def _dispatch_orphan_hold_path(repo: Path) -> Path:
     return repo / "output" / "pegasus-dispatch" / ORPHAN_HOLD_NAME
 
 
+def _dispatch_orphan_hold_present(repo: Path) -> bool:
+    """canonical control root 内の aggregate/request ledger を fail-closed で調べる。"""
+
+    control_root = repo / "output" / "pegasus-dispatch"
+    if _path_present_fail_closed(control_root / ORPHAN_HOLD_NAME):
+        return True
+    ledger = control_root / ORPHAN_HOLD_DIR_NAME
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        return True
+    try:
+        descriptor = os.open(
+            ledger,
+            os.O_RDONLY | nofollow | directory | getattr(os, "O_CLOEXEC", 0),
+        )
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    blocker = False
+    try:
+        with os.scandir(descriptor) as entries:
+            blocker = any(entry.name.endswith(".json") for entry in entries)
+    except OSError:
+        blocker = True
+    try:
+        os.close(descriptor)
+    except OSError:
+        blocker = True
+    return blocker
+
+
 def _path_present_fail_closed(path: Path) -> bool:
     try:
         os.lstat(path)
@@ -279,7 +313,7 @@ def _dispatch_orphan_stop(
     timed_out = result is not None and result.get("timed_out") is True
     hold = _dispatch_orphan_hold_path(repo)
     if runner_mode != "dispatch":
-        if _path_present_fail_closed(hold):
+        if _dispatch_orphan_hold_present(repo):
             return OrphanHoldStop(
                 phase=phase,
                 mutation_id=mutation_id,
@@ -323,7 +357,7 @@ def _dispatch_orphan_stop(
             hold_reason = "dispatch-runner-timeout"
         else:
             hold_reason = "dispatch-receipt-job-may-remain"
-        if not _path_present_fail_closed(hold):
+        if not _dispatch_orphan_hold_present(repo):
             hold, hold_error = _latch_dispatch_orphan_hold(
                 repo,
                 phase=phase,
@@ -340,7 +374,7 @@ def _dispatch_orphan_stop(
             active_record=result,
             hold_error=hold_error,
         )
-    if _path_present_fail_closed(hold):
+    if _dispatch_orphan_hold_present(repo):
         return OrphanHoldStop(
             phase=phase,
             mutation_id=mutation_id,
@@ -1058,8 +1092,9 @@ def _validate_registrations(
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for mutation in spec.mutations:
-        _mutated, diff, counts = _mutated_sources(mutation, originals)
         normalized_nodes = [_normalize_node(node, repo) for node in mutation.expected_nodes]
+        _reject_flaky_hold_expected_nodes(normalized_nodes, repo)
+        _mutated, diff, counts = _mutated_sources(mutation, originals)
         if len({_match_key(node, repo) for node in normalized_nodes}) != len(normalized_nodes):
             raise HarnessError(f"{mutation.id}: expected_nodes が正規化後に重複")
         result[mutation.id] = {
@@ -1220,6 +1255,50 @@ def _collected_nodes(output: str, repo: Path) -> list[str]:
         if normalized not in found:
             found.append(normalized)
     return found
+
+
+def _flaky_hold_node_ids_for_policy(repo: Path) -> frozenset[str]:
+    """Load the current checkout's exact flaky-node set for the policy guard."""
+    registry_path = repo / "orchestrator" / "tests" / "flaky_test_holds.py"
+    if not registry_path.is_file():
+        # A different checkout may legitimately predate the quarantine
+        # registry.  Its mutations cannot intersect this checkout's holds.
+        return frozenset()
+    module_name = (
+        "_izanagi_flaky_test_holds_"
+        + hashlib.sha256(str(registry_path).encode("utf-8")).hexdigest()[:16]
+    )
+    module = sys.modules.get(module_name)
+    if module is None:
+        spec = importlib.util.spec_from_file_location(module_name, registry_path)
+        if spec is None or spec.loader is None:
+            raise HarnessError("flaky hold registry cannot be loaded")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(module_name, None)
+            raise
+    node_ids = getattr(module, "FLAKY_TEST_HOLD_NODE_IDS", None)
+    if not isinstance(node_ids, frozenset) or any(
+        not isinstance(node_id, str) for node_id in node_ids
+    ):
+        raise HarnessError("flaky hold registry node set is invalid")
+    return node_ids
+
+
+def _reject_flaky_hold_expected_nodes(
+    expected: Sequence[str],
+    repo: Path,
+) -> None:
+    expected_keys = {_match_key(node, repo) for node in expected}
+    held = expected_keys.intersection(_flaky_hold_node_ids_for_policy(repo))
+    if held:
+        raise HarnessError(
+            "policy mismatch: mutation expected failure node is isolated: "
+            f"{sorted(held)!r}"
+        )
 
 
 def _artifact(result: dict[str, Any], output: str, runner_mode: str) -> dict[str, Any]:
@@ -2136,7 +2215,7 @@ def _apply_mutation(
     finally:
         hold_present = (
             runner_mode == "dispatch"
-            and _path_present_fail_closed(_dispatch_orphan_hold_path(repo))
+            and _dispatch_orphan_hold_present(repo)
         )
         preserve = pending_stop is not None or hold_present
         if preserve:

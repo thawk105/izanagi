@@ -1,0 +1,724 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7d5cbb080cc71dd3001419c799588c1b/izdw-7d5cbb080c.o941771",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7d5cbb080cc71dd3001419c799588c1b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............ss.                                                         [100%]\n14 passed, 2 skipped in 5.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "f21cb73cda97b6808ce62ad584d6559464c481a01b401b1b2ef1b25c13d44a82"
+    },
+    "artifact_error": null,
+    "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+    "duration_s": 26.937,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "953b600522f5b91440e91dcf2ab6e87947c08affa2bbf4bba5b39f6f4d1f6667",
+    "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+    "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+    "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+    "status": "PASSED",
+    "test_output_sha256": "f21cb73cda97b6808ce62ad584d6559464c481a01b401b1b2ef1b25c13d44a82",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+  },
+  "date": "2026-08-23T17:12:40.016685+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/babf96aa054bfc92cb50bb886c08be9a/izdw-babf96aa05.o941772",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/babf96aa054bfc92cb50bb886c08be9a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F....ss.                                                         [100%]\n=================================== FAILURES ===================================\n__ test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty __\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty():\n        filenames = (\"test_campaign.py\", \"test_s1_direct_comparison.py\")\n        cases = (\n            (\"g++-13\", \"g++-13\", [\"g++-13\"]),\n            (\"g++-12\", \"g++-12\", [\"g++-13\", \"g++-12\"]),\n            (\"g++\", \"g++\", [\"g++-13\", \"g++-12\", \"g++\"]),\n            (None, None, [\"g++-13\", \"g++-12\", \"g++\"]),\n        )\n        for filename in filenames:\n            function = _function_node(filename, \"_any_cxx\")\n            docstring = ast.get_docstring(function) or \"\"\n            assert \"compiler 版をまたぐ関係は保証しない\" in docstring, filename\n            for available, expected, expected_calls in cases:\n                calls = []\n    \n                def which(candidate):\n                    calls.append(candidate)\n                    return (\n                        f\"/fixture/{candidate}\"\n                        if candidate == available else None\n                    )\n    \n                helper, _ = _compiled_any_cxx(filename, which)\n                if expected is None:\n                    try:\n                        helper()\n                        assert False, f\"全候補不在なら skip すべき: {filename}\"\n                    except _HelperSkip as exc:\n                        assert \"全滅\" in str(exc), filename\n                else:\n>                   assert helper() == expected, (filename, available)\n\norchestrator/tests/test_skip_classification.py:250: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntest_campaign.py:10879: in _any_cxx\n    ???\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)'\n\n    def raise_skip(reason):\n>       raise _HelperSkip(reason)\nE       test_skip_classification._HelperSkip: C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)\n\norchestrator/tests/test_skip_classification.py:179: _HelperSkip\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty\n1 failed, 13 passed, 2 skipped in 4.94s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=2067 retained_bytes=2067 omitted_bytes=0 rendered_excerpt_bytes=2291 sha256=f58a2d9540540aef1600aabbf1b30e0f6c67826e6fd52125518d7cccc76731ac\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty():\n>         filenames = (\"test_campaign.py\", \"test_s1_direct_comparison.py\")\n>         cases = (\n>             (\"g++-13\", \"g++-13\", [\"g++-13\"]),\n>             (\"g++-12\", \"g++-12\", [\"g++-13\", \"g++-12\"]),\n>             (\"g++\", \"g++\", [\"g++-13\", \"g++-12\", \"g++\"]),\n>             (None, None, [\"g++-13\", \"g++-12\", \"g++\"]),\n>         )\n>         for filename in filenames:\n>             function = _function_node(filename, \"_any_cxx\")\n>             docstring = ast.get_docstring(function) or \"\"\n>             assert \"compiler \\u7248\\u3092\\u307e\\u305f\\u3050\\u95a2\\u4fc2\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044\" in docstring, filename\n>             for available, expected, expected_calls in cases:\n>                 calls = []\n>     \n>                 def which(candidate):\n>                     calls.append(candidate)\n>                     return (\n>                         f\"/fixture/{candidate}\"\n>                         if candidate == available else None\n>                     )\n>     \n>                 helper, _ = _compiled_any_cxx(filename, which)\n>                 if expected is None:\n>                     try:\n>                         helper()\n>                         assert False, f\"\\u5168\\u5019\\u88dc\\u4e0d\\u5728\\u306a\\u3089 skip \\u3059\\u3079\\u304d: {filename}\"\n>                     except _HelperSkip as exc:\n>                         assert \"\\u5168\\u6ec5\" in str(exc), filename\n>                 else:\n> >                   assert helper() == expected, (filename, available)\n> \n> orchestrator/tests/test_skip_classification.py:250: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> test_campaign.py:10879: in _any_cxx\n>     ???\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'C++ toolchain \\u5168\\u6ec5 (g++-13/g++-12/g++ \\u3044\\u305a\\u308c\\u3082 PATH \\u306b\\u7121\\u3044)'\n> \n>     def raise_skip(reason):\n> >       raise _HelperSkip(reason)\n> E       test_skip_classification._HelperSkip: C++ toolchain \\u5168\\u6ec5 (g++-13/g++-12/g++ \\u3044\\u305a\\u308c\\u3082 PATH \\u306b\\u7121\\u3044)\n> \n> orchestrator/tests/test_skip_classification.py:179: _HelperSkip\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2067 retained_bytes=2067 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3041 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c2186d65a95513352d4a51d725411614f0f66ca8e1838243e5ca4982ec95bbcb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 57.525,
+      "expected_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "d93b6b911f844914cd9a9482ecb41968e187e9a075a6c3b2af273c88406c628b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bd6c6a972126c9d1856b127c911b178490ba30d1f03416e2c3847c7d593ef161",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_campaign.py",
+          "new": "    for c in (\"g++-13\", \"g++\"):\n",
+          "old": "    for c in (\"g++-13\", \"g++-12\", \"g++\"):\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "c2186d65a95513352d4a51d725411614f0f66ca8e1838243e5ca4982ec95bbcb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/caba823a89a09990ca170e50d6aab8fd/izdw-caba823a89.o941774",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/caba823a89a09990ca170e50d6aab8fd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F....ss.                                                         [100%]\n=================================== FAILURES ===================================\n__ test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty __\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty():\n        filenames = (\"test_campaign.py\", \"test_s1_direct_comparison.py\")\n        cases = (\n            (\"g++-13\", \"g++-13\", [\"g++-13\"]),\n            (\"g++-12\", \"g++-12\", [\"g++-13\", \"g++-12\"]),\n            (\"g++\", \"g++\", [\"g++-13\", \"g++-12\", \"g++\"]),\n            (None, None, [\"g++-13\", \"g++-12\", \"g++\"]),\n        )\n        for filename in filenames:\n            function = _function_node(filename, \"_any_cxx\")\n            docstring = ast.get_docstring(function) or \"\"\n            assert \"compiler 版をまたぐ関係は保証しない\" in docstring, filename\n            for available, expected, expected_calls in cases:\n                calls = []\n    \n                def which(candidate):\n                    calls.append(candidate)\n                    return (\n                        f\"/fixture/{candidate}\"\n                        if candidate == available else None\n                    )\n    \n                helper, _ = _compiled_any_cxx(filename, which)\n                if expected is None:\n                    try:\n                        helper()\n>                       assert False, f\"全候補不在なら skip すべき: {filename}\"\nE                       AssertionError: 全候補不在なら skip すべき: test_campaign.py\nE                       assert False\n\norchestrator/tests/test_skip_classification.py:246: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty\n1 failed, 13 passed, 2 skipped in 4.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1481 retained_bytes=1481 omitted_bytes=0 rendered_excerpt_bytes=1647 sha256=385eabacfd831f92110ce1b38ea2ce0580cd2b84ca335d2bc8e62a5819f8f349\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty():\n>         filenames = (\"test_campaign.py\", \"test_s1_direct_comparison.py\")\n>         cases = (\n>             (\"g++-13\", \"g++-13\", [\"g++-13\"]),\n>             (\"g++-12\", \"g++-12\", [\"g++-13\", \"g++-12\"]),\n>             (\"g++\", \"g++\", [\"g++-13\", \"g++-12\", \"g++\"]),\n>             (None, None, [\"g++-13\", \"g++-12\", \"g++\"]),\n>         )\n>         for filename in filenames:\n>             function = _function_node(filename, \"_any_cxx\")\n>             docstring = ast.get_docstring(function) or \"\"\n>             assert \"compiler \\u7248\\u3092\\u307e\\u305f\\u3050\\u95a2\\u4fc2\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044\" in docstring, filename\n>             for available, expected, expected_calls in cases:\n>                 calls = []\n>     \n>                 def which(candidate):\n>                     calls.append(candidate)\n>                     return (\n>                         f\"/fixture/{candidate}\"\n>                         if candidate == available else None\n>                     )\n>     \n>                 helper, _ = _compiled_any_cxx(filename, which)\n>                 if expected is None:\n>                     try:\n>                         helper()\n> >                       assert False, f\"\\u5168\\u5019\\u88dc\\u4e0d\\u5728\\u306a\\u3089 skip \\u3059\\u3079\\u304d: {filename}\"\n> E                       AssertionError: \\u5168\\u5019\\u88dc\\u4e0d\\u5728\\u306a\\u3089 skip \\u3059\\u3079\\u304d: test_campaign.py\n> E                       assert False\n> \n> orchestrator/tests/test_skip_classification.py:246: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1481 retained_bytes=1481 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2397 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "adfd9a5c283d8df6745d4d81304d07cc9ec396c675face43f677ebbf74985bc0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.869,
+      "expected_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "244bad66a67addffed25330f242749e2a9543605e5dfc029e437f4807480d686",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f29e014d7a49aa34384a5dd0df042c854e95481ff0b4ca760687ae71c661eace",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_campaign.py",
+          "new": "    return \"g++\"\n",
+          "old": "    skip(\"C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)\")\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "adfd9a5c283d8df6745d4d81304d07cc9ec396c675face43f677ebbf74985bc0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6efeea04f935d4c6c094ad4fc683f20c/izdw-6efeea04f9.o941775",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6efeea04f935d4c6c094ad4fc683f20c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F....ss.                                                         [100%]\n=================================== FAILURES ===================================\n_____ test_conditional_preprocess_nodes_classify_before_compiler_selection _____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_conditional_preprocess_nodes_classify_before_compiler_selection():\n        for filename, functions in _CONDITIONAL_NODES.items():\n            for function_name in functions:\n                calls = _calls_in_function(filename, function_name)\n                assert \"skip_conditional_unrun\" in calls, (\n                    f\"条件付き未実走 helper の結線が無い: {filename}::{function_name}\"\n                )\n        for filename, functions in _CONDITIONAL_PREPROCESS_NODES.items():\n            for function_name in functions:\n                function = _function_node(filename, function_name)\n                selected_name, selection = _selected_cxx_assignment(function)\n                assert selected_name == \"cxx\"\n                conditional_calls = _calls_named(function, {\"skip_conditional_unrun\"})\n                assert len(conditional_calls) == 1\n                consumer_names = set(\n                    _SELECTED_CXX_CONSUMERS[(filename, function_name)]\n                )\n                consumers = _calls_named(function, consumer_names)\n                assert consumers\n>               assert conditional_calls[0].lineno < selection.lineno, (\n                    \"conditional skip より先に compiler を選んでいる: \"\n                    f\"{filename}::{function_name}\"\n                )\nE               AssertionError: conditional skip より先に compiler を選んでいる: test_campaign.py::test_source_digest_fixed_variant_distinct\nE               assert 10938 < 10933\nE                +  where 10938 = <ast.Call object at 0x14bbac37be50>.lineno\nE                +  and   10933 = <ast.Call object at 0x14bbac37ba90>.lineno\n\norchestrator/tests/test_skip_classification.py:210: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection\n1 failed, 13 passed, 2 skipped in 4.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1787 retained_bytes=1787 omitted_bytes=0 rendered_excerpt_bytes=1949 sha256=38228ae83522e121a372a4374099ae674fce6057b45618b0d9f346c90600b1f5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_conditional_preprocess_nodes_classify_before_compiler_selection():\n>         for filename, functions in _CONDITIONAL_NODES.items():\n>             for function_name in functions:\n>                 calls = _calls_in_function(filename, function_name)\n>                 assert \"skip_conditional_unrun\" in calls, (\n>                     f\"\\u6761\\u4ef6\\u4ed8\\u304d\\u672a\\u5b9f\\u8d70 helper \\u306e\\u7d50\\u7dda\\u304c\\u7121\\u3044: {filename}::{function_name}\"\n>                 )\n>         for filename, functions in _CONDITIONAL_PREPROCESS_NODES.items():\n>             for function_name in functions:\n>                 function = _function_node(filename, function_name)\n>                 selected_name, selection = _selected_cxx_assignment(function)\n>                 assert selected_name == \"cxx\"\n>                 conditional_calls = _calls_named(function, {\"skip_conditional_unrun\"})\n>                 assert len(conditional_calls) == 1\n>                 consumer_names = set(\n>                     _SELECTED_CXX_CONSUMERS[(filename, function_name)]\n>                 )\n>                 consumers = _calls_named(function, consumer_names)\n>                 assert consumers\n> >               assert conditional_calls[0].lineno < selection.lineno, (\n>                     \"conditional skip \\u3088\\u308a\\u5148\\u306b compiler \\u3092\\u9078\\u3093\\u3067\\u3044\\u308b: \"\n>                     f\"{filename}::{function_name}\"\n>                 )\n> E               AssertionError: conditional skip \\u3088\\u308a\\u5148\\u306b compiler \\u3092\\u9078\\u3093\\u3067\\u3044\\u308b: test_campaign.py::test_source_digest_fixed_variant_distinct\n> E               assert 10938 < 10933\n> E                +  where 10938 = <ast.Call object at 0x14bbac37be50>.lineno\n> E                +  and   10933 = <ast.Call object at 0x14bbac37ba90>.lineno\n> \n> orchestrator/tests/test_skip_classification.py:210: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1787 retained_bytes=1787 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2693 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "517eff57807f3c912ff9185976cb2b70e491c79653a34bda5dc2d5b5993b1297"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.892,
+      "expected_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "7c22255c2f92aef4b55dcb41b015e415e222d51b0cc0b55545eea319f8561323",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0099b7f81d8f15c52e5e2c697d1ac9567acb629dfffd031e1713d68f06a51ea9",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_campaign.py",
+          "new": "    cxx = _any_cxx()\n    wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), \"include/backoff.hh\"))\n    if \"#if BACKOFF_FIXED\" not in wt:\n        # 受入 suite は共有 submodule に template patch の窓を開けないため、\n        # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。\n        skip_conditional_unrun(\"template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し\")\n    # 条件付き未実走を先に分類し、窓が開いた後だけ compiler 不在を依存物 skip にする。\n",
+          "old": "    wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), \"include/backoff.hh\"))\n    if \"#if BACKOFF_FIXED\" not in wt:\n        # 受入 suite は共有 submodule に template patch の窓を開けないため、\n        # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。\n        skip_conditional_unrun(\"template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し\")\n    # 条件付き未実走を先に分類し、窓が開いた後だけ compiler 不在を依存物 skip にする。\n    cxx = _any_cxx()\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "517eff57807f3c912ff9185976cb2b70e491c79653a34bda5dc2d5b5993b1297",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/486c89c347a9fd938126aa2f5270a3c5/izdw-486c89c347.o941776",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/486c89c347a9fd938126aa2f5270a3c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F..Fss......                                                         [100%]\n=================================== FAILURES ===================================\n_____________ test_selected_cxx_is_bound_to_every_target_consumer ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_selected_cxx_is_bound_to_every_target_consumer():\n        matcher_fixture = ast.parse(\n            \"def target():\\n\"\n            \"    source_digest.resolve(genome, head, cxx=cxx)\\n\"\n            \"    other.resolve(genome, head, cxx=cxx)\\n\"\n            \"    def nested():\\n\"\n            \"        source_digest.resolve(genome, head, cxx=cxx)\\n\"\n            \"    decoy = lambda: source_digest.resolve(genome, head, cxx=cxx)\\n\"\n        ).body[0]\n        assert len(_calls_named(\n            matcher_fixture, {\"source_digest.resolve\"},\n        )) == 1\n    \n        assert len(_SELECTED_CXX_CONSUMERS) == 9\n        for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():\n            function = _function_node(filename, function_name)\n            selected_name, selection = _selected_cxx_assignment(function)\n            consumer_names = set(expected_counts)\n            consumers = _calls_named(function, consumer_names)\n            actual_counts = {\n                name: sum(\n                    _qualified_name(call.func) == name for call in consumers\n                )\n                for name in consumer_names\n            }\n            assert actual_counts == expected_counts, (\n                f\"compiler consumer census が変わった: {filename}::{function_name}: \"\n                f\"{actual_counts!r} != {expected_counts!r}\"\n            )\n            assert selection.lineno < min(call.lineno for call in consumers)\n            for call in consumers:\n                qualified = _qualified_name(call.func)\n                bound = _cxx_argument(call)\n>               assert isinstance(bound, ast.Name) and bound.id == selected_name, (\n                    \"選択 compiler が consumer の cxx 引数へ届いていない: \"\n                    f\"{filename}::{function_name}:{call.lineno} {qualified}\"\n                )\nE               AssertionError: 選択 compiler が consumer の cxx 引数へ届いていない: test_campaign.py::test_source_digest_stock_roundtrip:10923 source_digest.src_token\nE               assert (False)\nE                +  where False = isinstance(None, <class 'ast.Name'>)\nE                +    where <class 'ast.Name'> = ast.Name\n\norchestrator/tests/test_skip_classification.py:287: AssertionError\n______________________ test_source_digest_stock_roundtrip ______________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nsource_text = '#pragma once\\n\\n#include <x86intrin.h>\\n\\n#include <atomic>\\n#include <cmath>\\n#include <iostream>\\n\\n#include \"atomi...backoff(sum_committed_txs);\\n  }\\n}\\n\\n#ifdef GLOBAL_VALUE_DEFINE\\nstd::atomic<double> Backoff::Backoff_(0);\\n#endif\\n'\ndefines = {'ADD_ANALYSIS': '0', 'TRACE': '0', 'BACK_OFF': '0', 'KEY_SIZE': '8', ...}\ncxx = 'g++-13'\n\n    def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:\n        \"\"\"#include を除去し preprocess (#if/#else 解決 + コメント除去) した正規化出力を返す。\n    \n        -nostdinc で系ヘッダは辿らないが、**組込 builtin (__x86_64__ 等) は実ビルドと同じく\n        定義済みのままにする** (D34 / 案A)。旧 -undef は builtin を全消しして環境非依存に\n        していたが、digest 環境と実ビルドが乖離し、EVOLVE-BLOCK 内の生 `#ifdef __x86_64__` が\n        digest では stock 枝・実ビルドでは別枝を取る**偽 cache hit** を生んだ (方針 A で hook の\n        payload 検査を削除し道Y の「生 #ifdef を hook で禁止」前提が消えた後は一次防壁がこれを\n        塞げず critical、2026-07-04 敵対検証)。builtin を実環境と揃えれば `#ifdef`/`defined()` が\n        digest に正直に反映され偽 hit しない。-Werror=undef は #if/#elif の未定義マクロ参照\n        (= 骨格 BACKOFF_FIXED 等の defines 供給漏れ) を rc≠0 にして fails-closed (D23 / 規律6)。\n        代償 = digest 値が cxx/環境に依存する (別環境で別値) が、cache は env/<tag> 軸で環境別\n        (D13) ゆえ実害なし。非決定 builtin (__DATE__ 等) は churn するが偽 hit しない\n        (毎回 cache-miss = 新規ビルド+verify、正しさ不変)。g++ 不在・preprocess 失敗は\n        RuntimeError (identity 核に best-effort skip を持ち込まない)。\n        \"\"\"\n        stripped = _INCLUDE_RE.sub(\"\", source_text)\n        args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n        for k in sorted(defines):\n            args.append(f\"-D{k}={defines[k]}\")\n        args += [\"-x\", \"c++\", \"-\"]\n        try:\n>           r = subprocess.run(args, input=stripped, capture_output=True, text=True)\n\norchestrator/campaign/source_digest.py:1120: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/subprocess.py:503: in run\n    with Popen(*popenargs, **kwargs) as process:\n/usr/lib/python3.10/subprocess.py:971: in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: 255 args: ['g++-13', '-E', '-P', '-nostdinc', '-Werror=u...>\nargs = ['g++-13', '-E', '-P', '-nostdinc', '-Werror=undef', '-std=c++20', ...]\nexecutable = b'g++-13', preexec_fn = None, close_fds = True, pass_fds = ()\ncwd = None, env = None, startupinfo = None, creationflags = 0, shell = False\np2cread = 13, p2cwrite = 14, c2pread = 15, c2pwrite = 16, errread = 17\nerrwrite = 18, restore_signals = True, gid = None, gids = None, uid = None\numask = -1, start_new_session = False\n\n    def _execute_child(self, args, executable, preexec_fn, close_fds,\n                       pass_fds, cwd, env,\n                       startupinfo, creationflags, shell,\n                       p2cread, p2cwrite,\n                       c2pread, c2pwrite,\n                       errread, errwrite,\n                       restore_signals,\n                       gid, gids, uid, umask,\n                       start_new_session):\n        \"\"\"Execute program (POSIX version)\"\"\"\n    \n        if isinstance(args, (str, bytes)):\n            args = [args]\n        elif isinstance(args, os.PathLike):\n            if shell:\n                raise TypeError('path-like args is not allowed when '\n                                'shell is true')\n            args = [args]\n        else:\n            args = list(args)\n    \n        if shell:\n            # On Android the default shell is at '/system/bin/sh'.\n            unix_shell = ('/system/bin/sh' if\n                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')\n            args = [unix_shell, \"-c\"] + args\n            if executable:\n                args[0] = executable\n    \n        if executable is None:\n            executable = args[0]\n    \n        sys.audit(\"subprocess.Popen\", executable, args, cwd, env)\n    \n        if (_USE_POSIX_SPAWN\n                and os.path.dirname(executable)\n                and preexec_fn is None\n                and not close_fds\n                and not pass_fds\n                and cwd is None\n                and (p2cread == -1 or p2cread > 2)\n                and (c2pwrite == -1 or c2pwrite > 2)\n                and (errwrite == -1 or errwrite > 2)\n                and not start_new_session\n                and gid is None\n                and gids is None\n                and uid is None\n                and umask < 0):\n            self._posix_spawn(args, executable, env, restore_signals,\n                              p2cread, p2cwrite,\n                              c2pread, c2pwrite,\n                              errread, errwrite)\n            return\n    \n        orig_executable = executable\n    \n        # For transferring possible exec failure from child to parent.\n        # Data format: \"exception name:hex errno:description\"\n        # Pickle is not used; it is complex and involves memory allocation.\n        errpipe_read, errpipe_write = os.pipe()\n        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.\n        low_fds_to_close = []\n        while errpipe_write < 3:\n            low_fds_to_close.append(errpipe_write)\n            errpipe_write = os.dup(errpipe_write)\n        for low_fd in low_fds_to_close:\n            os.close(low_fd)\n        try:\n            try:\n                # We must avoid complex work that could involve\n                # malloc or free in the child process to avoid\n                # potential deadlocks, thus we do all this here.\n                # and pass it to fork_exec()\n    \n                if env is not None:\n                    env_list = []\n                    for k, v in env.items():\n                        k = os.fsencode(k)\n                        if b'=' in k:\n                            raise ValueError(\"illegal environment variable name\")\n                        env_list.append(k + b'=' + os.fsencode(v))\n                else:\n                    env_list = None  # Use execv instead of execve.\n                executable = os.fsencode(executable)\n                if os.path.dirname(executable):\n                    executable_list = (executable,)\n                else:\n                    # This matches the behavior of os._execvpe().\n                    executable_list = tuple(\n                        os.path.join(os.fsencode(dir), executable)\n                        for dir in os.get_exec_path(env))\n                fds_to_keep = set(pass_fds)\n                fds_to_keep.add(errpipe_write)\n                self.pid = _posixsubprocess.fork_exec(\n                        args, executable_list,\n                        close_fds, tuple(sorted(map(int, fds_to_keep))),\n                        cwd, env_list,\n                        p2cread, p2cwrite, c2pread, c2pwrite,\n                        errread, errwrite,\n                        errpipe_read, errpipe_write,\n                        restore_signals, start_new_session,\n                        gid, gids, uid, umask,\n                        preexec_fn)\n                self._child_created = True\n            finally:\n                # be sure the FD is closed no matter what\n                os.close(errpipe_write)\n    \n            self._close_pipe_fds(p2cread, p2cwrite,\n                                 c2pread, c2pwrite,\n                                 errread, errwrite)\n    \n            # Wait for exec to fail or succeed; possibly raising an\n            # exception (limited in size)\n            errpipe_data = bytearray()\n            while True:\n                part = os.read(errpipe_read, 50000)\n                errpipe_data += part\n                if not part or len(errpipe_data) > 50000:\n                    break\n        finally:\n            # be sure the FD is closed no matter what\n            os.close(errpipe_read)\n    \n        if errpipe_data:\n            try:\n                pid, sts = os.waitpid(self.pid, 0)\n                if pid == self.pid:\n                    self._handle_exitstatus(sts)\n                else:\n                    self.returncode = sys.maxsize\n            except ChildProcessError:\n                pass\n    \n            try:\n                exception_name, hex_errno, err_msg = (\n                        errpipe_data.split(b':', 2))\n                # The encoding here should match the encoding\n                # written in by the subprocess implementations\n                # like _posixsubprocess\n                err_msg = err_msg.decode()\n            except ValueError:\n                exception_name = b'SubprocessError'\n                hex_errno = b'0'\n                err_msg = 'Bad exception data from child: {!r}'.format(\n                              bytes(errpipe_data))\n            child_exception_type = getattr(\n                    builtins, exception_name.decode('ascii'),\n                    SubprocessError)\n            if issubclass(child_exception_type, OSError) and hex_errno:\n                errno_num = int(hex_errno, 16)\n                child_exec_never_called = (err_msg == \"noexec\")\n                if child_exec_never_called:\n                    err_msg = \"\"\n                    # The error must be from chdir(cwd).\n                    err_filename = cwd\n                else:\n                    err_filename = orig_executable\n                if errno_num != 0:\n                    err_msg = os.strerror(errno_num)\n>               raise child_exception_type(errno_num, err_msg, err_filename)\nE               FileNotFoundError: [Errno 2] No such file or directory: 'g++-13'\n\n/usr/lib/python3.10/subprocess.py:1863: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_source_digest_stock_roundtrip():\n        \"\"\"実 working-tree (inert) で silo 8 genome は src_token='stock' = 旧 id 不変 (後方互換)。\"\"\"\n        head = _ccbench_head_or_skip()\n        if head is None:\n            skip(\"submodule 未 init — src_token roundtrip は実 working-tree が要る\")\n        cxx = _any_cxx()\n        for g in genome.SILO_SPACE.enumerate():\n>           st = source_digest.src_token(g, head)\n\norchestrator/tests/test_campaign.py:10923: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/source_digest.py:1614: in src_token\n    cur = compute(genome, ccbench_dir, cxx)\norchestrator/campaign/source_digest.py:1501: in compute\n    parts.append(_normalize_contexts(_read(os.path.join(sub, rel)), defines, cxx))\norchestrator/campaign/source_digest.py:1149: in _normalize_contexts\n    parts.append(f\"[ctx:{tag}]\\n\" + _cpp_normalize(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource_text = '#pragma once\\n\\n#include <x86intrin.h>\\n\\n#include <atomic>\\n#include <cmath>\\n#include <iostream>\\n\\n#include \"atomi...backoff(sum_committed_txs);\\n  }\\n}\\n\\n#ifdef GLOBAL_VALUE_DEFINE\\nstd::atomic<double> Backoff::Backoff_(0);\\n#endif\\n'\ndefines = {'ADD_ANALYSIS': '0', 'TRACE': '0', 'BACK_OFF': '0', 'KEY_SIZE': '8', ...}\ncxx = 'g++-13'\n\n    def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:\n        \"\"\"#include を除去し preprocess (#if/#else 解決 + コメント除去) した正規化出力を返す。\n    \n        -nostdinc で系ヘッダは辿らないが、**組込 builtin (__x86_64__ 等) は実ビルドと同じく\n        定義済みのままにする** (D34 / 案A)。旧 -undef は builtin を全消しして環境非依存に\n        していたが、digest 環境と実ビルドが乖離し、EVOLVE-BLOCK 内の生 `#ifdef __x86_64__` が\n        digest では stock 枝・実ビルドでは別枝を取る**偽 cache hit** を生んだ (方針 A で hook の\n        payload 検査を削除し道Y の「生 #ifdef を hook で禁止」前提が消えた後は一次防壁がこれを\n        塞げず critical、2026-07-04 敵対検証)。builtin を実環境と揃えれば `#ifdef`/`defined()` が\n        digest に正直に反映され偽 hit しない。-Werror=undef は #if/#elif の未定義マクロ参照\n        (= 骨格 BACKOFF_FIXED 等の defines 供給漏れ) を rc≠0 にして fails-closed (D23 / 規律6)。\n        代償 = digest 値が cxx/環境に依存する (別環境で別値) が、cache は env/<tag> 軸で環境別\n        (D13) ゆえ実害なし。非決定 builtin (__DATE__ 等) は churn するが偽 hit しない\n        (毎回 cache-miss = 新規ビルド+verify、正しさ不変)。g++ 不在・preprocess 失敗は\n        RuntimeError (identity 核に best-effort skip を持ち込まない)。\n        \"\"\"\n        stripped = _INCLUDE_RE.sub(\"\", source_text)\n        args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n        for k in sorted(defines):\n            args.append(f\"-D{k}={defines[k]}\")\n        args += [\"-x\", \"c++\", \"-\"]\n        try:\n            r = subprocess.run(args, input=stripped, capture_output=True, text=True)\n        except (OSError, subprocess.SubprocessError) as e:\n>           raise RuntimeError(\n                f\"source_digest: preprocess を起動できない ({cxx}: {e}) — identity を確定\"\n                \"できないため fails-closed で停止 (D23)\") from e\nE           RuntimeError: source_digest: preprocess を起動できない (g++-13: [Errno 2] No such file or directory: 'g++-13') — identity を確定できないため fails-closed で停止 (D23)\n\norchestrator/campaign/source_digest.py:1122: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip@real-repo\n2 failed, 12 passed, 2 skipped in 4.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip@real-repo\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=14049 retained_bytes=3003 omitted_bytes=11046 rendered_excerpt_bytes=4096 sha256=11ea8339c6275dd90298634df05cce545732cc3a20db35f6f67aa2cff50219db\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> ))\n> orchestrator/campaign/source_digest.py:1149: in _normalize_contexts\n>     parts.append(f\"[ctx:{tag}]\\x5cn\" + _cpp_normalize(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> source_text = '#pragma once\\x5cn\\x5cn#include <x86intrin.h>\\x5cn\\x5cn#include <atomic>\\x5cn#include <cmath>\\x5cn#include <iostream>\\x5cn\\x5cn#include \"atomi...backoff(sum_committed_txs);\\x5cn  }\\x5cn}\\x5cn\\x5cn#ifdef GLOBAL_VALUE_DEFINE\\x5cnstd::atomic<double> Backoff::Backoff_(0);\\x5cn#endif\\x5cn'\n> defines = {'ADD_ANALYSIS': '0', 'TRACE': '0', 'BACK_OFF': '0', 'KEY_SIZE': '8', ...}\n> cxx = 'g++-13'\n> \n>     def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:\n>         \"\"\"#include \\u3092\\u9664\\u53bb\\u3057 preprocess (#if/#else \\u89e3\\u6c7a + \\u30b3\\u30e1\\u30f3\\u30c8\\u9664\\u53bb) \\u3057\\u305f\\u6b63\\u898f\\u5316\\u51fa\\u529b\\u3092\\u8fd4\\u3059\\u3002\n>     \n>         -nostdinc \\u3067\\u7cfb\\u30d8\\u30c3\\u30c0\\u306f\\u8fbf\\u3089\\u306a\\u3044\\u304c\\u3001**\\u7d44\\u8fbc builtin (__x86_64__ \\u7b49) \\u306f\\u5b9f\\u30d3\\u30eb\\u30c9\\u3068\\u540c\\u3058\\u304f\n>         \\u5b9a\\u7fa9\\u6e08\\u307f\\u306e\\u307e\\u307e\\u306b\\u3059\\u308b** (D34 / \\u6848A)\\u3002\\u65e7 -undef \\u306f builtin \\u3092\\u5168\\u6d88\\u3057\\u3057\\u3066\\u74b0\\u5883\\u975e\\u4f9d\\u5b58\\u306b\n>         \\u3057\\u3066\\u3044\\u305f\\u304c\\u3001digest \\u74b0\\u5883\\u3068\\u5b9f\\u30d3\\u30eb\\u30c9\\u304c\\u4e56\\u96e2\\u3057\\u3001EVOLVE-BLOCK \\u5185\\u306e\\u751f `#ifdef __x86_64__` \\u304c\n>         digest \\u3067\\u306f stock \\u679d\\u30fb\\u5b9f\\u30d3\\u30eb\\u30c9\\u3067\\u306f\\u5225\\u679d\\u3092\\u53d6\\u308b**\\u507d cache hit** \\u3092\\u751f\\u3093\\u3060 (\\u65b9\\u91dd A \\u3067 hook \\u306e\n>         payload \\u691c\\u67fb\\u3092\\u524a\\u9664\\u3057\\u9053Y \\u306e\\u300c\\u751f #ifdef \\u3092 hook \\u3067\\u7981\\u6b62\\u300d\\u524d\\u63d0\\u304c\\u6d88\\u3048\\u305f\\u5f8c\\u306f\\u4e00\\u6b21\\u9632\\u58c1\\u304c\\u3053\\u308c\\u3092\n>         \\u585e\\u3052\\u305a critical\\u30012026-07-04 \\u6575\\u5bfe\\u691c\\u8a3c)\\u3002builtin \\u3092\\u5b9f\\u74b0\\u5883\\u3068\\u63c3\\u3048\\u308c\\u3070 `#ifdef`/`defined()` \\u304c\n>         digest \\u306b\\u6b63\\u76f4\\u306b\\u53cd\\u6620\\u3055\\u308c\\u507d hit \\u3057\\u306a\\u3044\\u3002-Werror=undef \\u306f #if/#elif \\u306e\\u672a\\u5b9a\\u7fa9\\u30de\\u30af\\u30ed\\u53c2\\u7167\n>         (= \\u9aa8\\u683c BACKOFF_FIXED \\u7b49\\u306e defines \\u4f9b\\u7d66\\u6f0f\\u308c) \\u3092 rc\\u22600 \\u306b\\u3057\\u3066 fails-closed (D23 / \\u898f\\u5f8b6)\\u3002\n>         \\u4ee3\\u511f = digest \\u5024\\u304c cxx/\\u74b0\\u5883\\u306b\\u4f9d\\u5b58\\u3059\\u308b (\\u5225\\u74b0\\u5883\\u3067\\u5225\\u5024) \\u304c\\u3001cache \\u306f env/<tag> \\u8ef8\\u3067\\u74b0\\u5883\\u5225\n>         (D13) \\u3086\\u3048\\u5b9f\\u5bb3\\u306a\\u3057\\u3002\\u975e\\u6c7a\\u5b9a builtin (__DATE__ \\u7b49) \\u306f churn \\u3059\\u308b\\u304c\\u507d hit \\u3057\\u306a\\u3044\n>         (\\u6bce\\u56de cache-miss = \\u65b0\\u898f\\u30d3\\u30eb\\u30c9+verify\\u3001\\u6b63\\u3057\\u3055\\u4e0d\\u5909)\\u3002g++ \\u4e0d\\u5728\\u30fbpreprocess \\u5931\\u6557\\u306f\n>         RuntimeError (identity \\u6838\\u306b best-effort skip \\u3092\\u6301\\u3061\\u8fbc\\u307e\\u306a\\u3044)\\u3002\n>         \"\"\"\n>         stripped = _INCLUDE_RE.sub(\"\", source_text)\n>         args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n>         for k in sorted(defines):\n>             args.append(f\"-D{k}={defines[k]}\")\n>         args += [\"-x\", \"c++\", \"-\"]\n>         try:\n>             r = subprocess.run(args, input=stripped, capture_output=True, text=True)\n>         except (OSError, subprocess.SubprocessError) as e:\n> >           raise RuntimeError(\n>                 f\"source_digest: preprocess \\u3092\\u8d77\\u52d5\\u3067\\u304d\\u306a\\u3044 ({cxx}: {e}) \\u2014 identity \\u3092\\u78ba\\u5b9a\"\n>                 \"\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 fails-closed \\u3067\\u505c\\u6b62 (D23)\") from e\n> E           RuntimeError: source_digest: preprocess \\u3092\\u8d77\\u52d5\\u3067\\u304d\\u306a\\u3044 (g++-13: [Errno 2] No such file or directory: 'g++-13') \\u2014 identity \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 fails-closed \\u3067\\u505c\\u6b62 (D23)\n> \n> orchestrator/campaign/source_digest.py:1122: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=2317 retained_bytes=2317 omitted_bytes=0 rendered_excerpt_bytes=2519 sha256=146819150c87e67921a58b6a9efa37c990bff3d41a4b3b1c0be437d91ea2f6ef\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_selected_cxx_is_bound_to_every_target_consumer():\n>         matcher_fixture = ast.parse(\n>             \"def target():\\x5cn\"\n>             \"    source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"\n>             \"    other.resolve(genome, head, cxx=cxx)\\x5cn\"\n>             \"    def nested():\\x5cn\"\n>             \"        source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"\n>             \"    decoy = lambda: source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"\n>         ).body[0]\n>         assert len(_calls_named(\n>             matcher_fixture, {\"source_digest.resolve\"},\n>         )) == 1\n>     \n>         assert len(_SELECTED_CXX_CONSUMERS) == 9\n>         for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():\n>             function = _function_node(filename, function_name)\n>             selected_name, selection = _selected_cxx_assignment(function)\n>             consumer_names = set(expected_counts)\n>             consumers = _calls_named(function, consumer_names)\n>             actual_counts = {\n>                 name: sum(\n>                     _qualified_name(call.func) == name for call in consumers\n>                 )\n>                 for name in consumer_names\n>             }\n>             assert actual_counts == expected_counts, (\n>                 f\"compiler consumer census \\u304c\\u5909\\u308f\\u3063\\u305f: {filename}::{function_name}: \"\n>                 f\"{actual_counts!r} != {expected_counts!r}\"\n>             )\n>             assert selection.lineno < min(call.lineno for call in consumers)\n>             for call in consumers:\n>                 qualified = _qualified_name(call.func)\n>                 bound = _cxx_argument(call)\n> >               assert isinstance(bound, ast.Name) and bound.id == selected_name, (\n>                     \"\\u9078\\u629e compiler \\u304c consumer \\u306e cxx \\u5f15\\u6570\\u3078\\u5c4a\\u3044\\u3066\\u3044\\u306a\\u3044: \"\n>                     f\"{filename}::{function_name}:{call.lineno} {qualified}\"\n>                 )\n> E               AssertionError: \\u9078\\u629e compiler \\u304c consumer \\u306e cxx \\u5f15\\u6570\\u3078\\u5c4a\\u3044\\u3066\\u3044\\u306a\\u3044: test_campaign.py::test_source_digest_stock_roundtrip:10923 source_digest.src_token\n> E               assert (False)\n> E                +  where False = isinstance(None, <class 'ast.Name'>)\n> E                +    where <class 'ast.Name'> = ast.Name\n> \n> orchestrator/tests/test_skip_classification.py:287: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=16366 retained_bytes=5320 omitted_bytes=11046 budget_bytes=49152 rendered_bytes=7772 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "59a67d904b095eabcb94d9cf4b60fcd67398962eeb36d4684576352b2201b9a6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.873,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip",
+        "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer",
+        "orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip@real-repo"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "67678edfe89a949de7c1b0087c58631f9c911d9bbabe47ebea3beeebe9cea364",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "8741b7b36e482549b12d2fdbe309a0d72fb820fc5fa4163a33f9742d2de8aa96",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_campaign.py",
+          "new": "        st = source_digest.src_token(g, head)\n",
+          "old": "        st = source_digest.src_token(g, head, cxx=cxx)\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "MISMATCH",
+      "test_output_sha256": "59a67d904b095eabcb94d9cf4b60fcd67398962eeb36d4684576352b2201b9a6",
+      "test_output_tail": [
+        ">         \"\"\"#include \\u3092\\u9664\\u53bb\\u3057 preprocess (#if/#else \\u89e3\\u6c7a + \\u30b3\\u30e1\\u30f3\\u30c8\\u9664\\u53bb) \\u3057\\u305f\\u6b63\\u898f\\u5316\\u51fa\\u529b\\u3092\\u8fd4\\u3059\\u3002",
+        ">     ",
+        ">         -nostdinc \\u3067\\u7cfb\\u30d8\\u30c3\\u30c0\\u306f\\u8fbf\\u3089\\u306a\\u3044\\u304c\\u3001**\\u7d44\\u8fbc builtin (__x86_64__ \\u7b49) \\u306f\\u5b9f\\u30d3\\u30eb\\u30c9\\u3068\\u540c\\u3058\\u304f",
+        ">         \\u5b9a\\u7fa9\\u6e08\\u307f\\u306e\\u307e\\u307e\\u306b\\u3059\\u308b** (D34 / \\u6848A)\\u3002\\u65e7 -undef \\u306f builtin \\u3092\\u5168\\u6d88\\u3057\\u3057\\u3066\\u74b0\\u5883\\u975e\\u4f9d\\u5b58\\u306b",
+        ">         \\u3057\\u3066\\u3044\\u305f\\u304c\\u3001digest \\u74b0\\u5883\\u3068\\u5b9f\\u30d3\\u30eb\\u30c9\\u304c\\u4e56\\u96e2\\u3057\\u3001EVOLVE-BLOCK \\u5185\\u306e\\u751f `#ifdef __x86_64__` \\u304c",
+        ">         digest \\u3067\\u306f stock \\u679d\\u30fb\\u5b9f\\u30d3\\u30eb\\u30c9\\u3067\\u306f\\u5225\\u679d\\u3092\\u53d6\\u308b**\\u507d cache hit** \\u3092\\u751f\\u3093\\u3060 (\\u65b9\\u91dd A \\u3067 hook \\u306e",
+        ">         payload \\u691c\\u67fb\\u3092\\u524a\\u9664\\u3057\\u9053Y \\u306e\\u300c\\u751f #ifdef \\u3092 hook \\u3067\\u7981\\u6b62\\u300d\\u524d\\u63d0\\u304c\\u6d88\\u3048\\u305f\\u5f8c\\u306f\\u4e00\\u6b21\\u9632\\u58c1\\u304c\\u3053\\u308c\\u3092",
+        ">         \\u585e\\u3052\\u305a critical\\u30012026-07-04 \\u6575\\u5bfe\\u691c\\u8a3c)\\u3002builtin \\u3092\\u5b9f\\u74b0\\u5883\\u3068\\u63c3\\u3048\\u308c\\u3070 `#ifdef`/`defined()` \\u304c",
+        ">         digest \\u306b\\u6b63\\u76f4\\u306b\\u53cd\\u6620\\u3055\\u308c\\u507d hit \\u3057\\u306a\\u3044\\u3002-Werror=undef \\u306f #if/#elif \\u306e\\u672a\\u5b9a\\u7fa9\\u30de\\u30af\\u30ed\\u53c2\\u7167",
+        ">         (= \\u9aa8\\u683c BACKOFF_FIXED \\u7b49\\u306e defines \\u4f9b\\u7d66\\u6f0f\\u308c) \\u3092 rc\\u22600 \\u306b\\u3057\\u3066 fails-closed (D23 / \\u898f\\u5f8b6)\\u3002",
+        ">         \\u4ee3\\u511f = digest \\u5024\\u304c cxx/\\u74b0\\u5883\\u306b\\u4f9d\\u5b58\\u3059\\u308b (\\u5225\\u74b0\\u5883\\u3067\\u5225\\u5024) \\u304c\\u3001cache \\u306f env/<tag> \\u8ef8\\u3067\\u74b0\\u5883\\u5225",
+        ">         (D13) \\u3086\\u3048\\u5b9f\\u5bb3\\u306a\\u3057\\u3002\\u975e\\u6c7a\\u5b9a builtin (__DATE__ \\u7b49) \\u306f churn \\u3059\\u308b\\u304c\\u507d hit \\u3057\\u306a\\u3044",
+        ">         (\\u6bce\\u56de cache-miss = \\u65b0\\u898f\\u30d3\\u30eb\\u30c9+verify\\u3001\\u6b63\\u3057\\u3055\\u4e0d\\u5909)\\u3002g++ \\u4e0d\\u5728\\u30fbpreprocess \\u5931\\u6557\\u306f",
+        ">         RuntimeError (identity \\u6838\\u306b best-effort skip \\u3092\\u6301\\u3061\\u8fbc\\u307e\\u306a\\u3044)\\u3002",
+        ">         \"\"\"",
+        ">         stripped = _INCLUDE_RE.sub(\"\", source_text)",
+        ">         args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]",
+        ">         for k in sorted(defines):",
+        ">             args.append(f\"-D{k}={defines[k]}\")",
+        ">         args += [\"-x\", \"c++\", \"-\"]",
+        ">         try:",
+        ">             r = subprocess.run(args, input=stripped, capture_output=True, text=True)",
+        ">         except (OSError, subprocess.SubprocessError) as e:",
+        "> >           raise RuntimeError(",
+        ">                 f\"source_digest: preprocess \\u3092\\u8d77\\u52d5\\u3067\\u304d\\u306a\\u3044 ({cxx}: {e}) \\u2014 identity \\u3092\\u78ba\\u5b9a\"",
+        ">                 \"\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 fails-closed \\u3067\\u505c\\u6b62 (D23)\") from e",
+        "> E           RuntimeError: source_digest: preprocess \\u3092\\u8d77\\u52d5\\u3067\\u304d\\u306a\\u3044 (g++-13: [Errno 2] No such file or directory: 'g++-13') \\u2014 identity \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 fails-closed \\u3067\\u505c\\u6b62 (D23)",
+        "> ",
+        "> orchestrator/campaign/source_digest.py:1122: RuntimeError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=2317 retained_bytes=2317 omitted_bytes=0 rendered_excerpt_bytes=2519 sha256=146819150c87e67921a58b6a9efa37c990bff3d41a4b3b1c0be437d91ea2f6ef",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw9] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_selected_cxx_is_bound_to_every_target_consumer():",
+        ">         matcher_fixture = ast.parse(",
+        ">             \"def target():\\x5cn\"",
+        ">             \"    source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"",
+        ">             \"    other.resolve(genome, head, cxx=cxx)\\x5cn\"",
+        ">             \"    def nested():\\x5cn\"",
+        ">             \"        source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"",
+        ">             \"    decoy = lambda: source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"",
+        ">         ).body[0]",
+        ">         assert len(_calls_named(",
+        ">             matcher_fixture, {\"source_digest.resolve\"},",
+        ">         )) == 1",
+        ">     ",
+        ">         assert len(_SELECTED_CXX_CONSUMERS) == 9",
+        ">         for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():",
+        ">             function = _function_node(filename, function_name)",
+        ">             selected_name, selection = _selected_cxx_assignment(function)",
+        ">             consumer_names = set(expected_counts)",
+        ">             consumers = _calls_named(function, consumer_names)",
+        ">             actual_counts = {",
+        ">                 name: sum(",
+        ">                     _qualified_name(call.func) == name for call in consumers",
+        ">                 )",
+        ">                 for name in consumer_names",
+        ">             }",
+        ">             assert actual_counts == expected_counts, (",
+        ">                 f\"compiler consumer census \\u304c\\u5909\\u308f\\u3063\\u305f: {filename}::{function_name}: \"",
+        ">                 f\"{actual_counts!r} != {expected_counts!r}\"",
+        ">             )",
+        ">             assert selection.lineno < min(call.lineno for call in consumers)",
+        ">             for call in consumers:",
+        ">                 qualified = _qualified_name(call.func)",
+        ">                 bound = _cxx_argument(call)",
+        "> >               assert isinstance(bound, ast.Name) and bound.id == selected_name, (",
+        ">                     \"\\u9078\\u629e compiler \\u304c consumer \\u306e cxx \\u5f15\\u6570\\u3078\\u5c4a\\u3044\\u3066\\u3044\\u306a\\u3044: \"",
+        ">                     f\"{filename}::{function_name}:{call.lineno} {qualified}\"",
+        ">                 )",
+        "> E               AssertionError: \\u9078\\u629e compiler \\u304c consumer \\u306e cxx \\u5f15\\u6570\\u3078\\u5c4a\\u3044\\u3066\\u3044\\u306a\\u3044: test_campaign.py::test_source_digest_stock_roundtrip:10923 source_digest.src_token",
+        "> E               assert (False)",
+        "> E                +  where False = isinstance(None, <class 'ast.Name'>)",
+        "> E                +    where <class 'ast.Name'> = ast.Name",
+        "> ",
+        "> orchestrator/tests/test_skip_classification.py:287: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=16366 retained_bytes=5320 omitted_bytes=11046 budget_bytes=49152 rendered_bytes=7772 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/650712cadc38abb37f8842fc1aa0eb02/izdw-650712cadc.o941777",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/650712cadc38abb37f8842fc1aa0eb02/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F........ss.                                                         [100%]\n=================================== FAILURES ===================================\n_________ test_real_source_digest_unifies_all_outer_whitespace_tokens __________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\npath = '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc'\n\n    def _read(path: str) -> str:\n        \"\"\"identity 経路のファイル読取。失敗は RuntimeError に正規化する。\n    \n        呼び手 (`loop`・`pipeline.evaluate`・`buildcache._recheck_src_token`) は identity 確定の\n        失敗を `except RuntimeError` で受けて variant 単位の abort に隔離する。`OSError` を\n        そのまま投げると campaign 全体が落ち、build dir の破棄 (`_discard_build_dir`) も走らない\n        (段 6 レビュー A should 4)。HEAD 側 (`_git_show`) は既に RuntimeError 化してあり、\n        working-tree 側だけ非対称だった。\"\"\"\n        try:\n>           with open(path, encoding=\"utf-8\") as f:\nE           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc'\n\norchestrator/campaign/source_digest.py:1374: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0')\n\n    def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):\n        from orchestrator.campaign import p3_s4_loop as loop_axis\n    \n        cxx = _any_cxx()\n        sub, head = _fake_ccbench_repo(tmp_path / \"fake-ccbench\")\n        source = sub / axis_trigger_gating.SOURCE_REL\n        predicate = emit_predicate(TriggerGateIR(20))\n        genome = Genome(\"silo\", {\"BACK_OFF\": 1, \"BACKOFF_TRIGGER_GATING\": 1})\n    \n        exact_result, *_ = loop_axis.quarantine(\n            str(sub), predicate,\n            marker_id=axis_trigger_gating.MARKER_ID,\n            source_rel=axis_trigger_gating.SOURCE_REL,\n            write=True,\n        )\n        assert exact_result.passed\n        exact_source = source.read_bytes()\n>       exact_token = S.source_digest.resolve(\n            genome, head, ccbench_dir=str(sub), cxx=cxx)\n\norchestrator/tests/test_s1_direct_comparison.py:797: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/source_digest.py:1747: in resolve\n    assert_includes_match_head(genome, ccbench_commit, ccbench_dir, cxx)  # #include 死角 (最小案)\norchestrator/campaign/source_digest.py:1517: in assert_includes_match_head\n    cur = _include_lines(_read(os.path.join(sub, rel)))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npath = '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc'\n\n    def _read(path: str) -> str:\n        \"\"\"identity 経路のファイル読取。失敗は RuntimeError に正規化する。\n    \n        呼び手 (`loop`・`pipeline.evaluate`・`buildcache._recheck_src_token`) は identity 確定の\n        失敗を `except RuntimeError` で受けて variant 単位の abort に隔離する。`OSError` を\n        そのまま投げると campaign 全体が落ち、build dir の破棄 (`_discard_build_dir`) も走らない\n        (段 6 レビュー A should 4)。HEAD 側 (`_git_show`) は既に RuntimeError 化してあり、\n        working-tree 側だけ非対称だった。\"\"\"\n        try:\n            with open(path, encoding=\"utf-8\") as f:\n                return f.read()\n        except OSError as e:\n>           raise RuntimeError(\n                f\"source_digest: {path} を読めない ({e}) — identity を確定できないため \"\n                \"fails-closed で停止 (D23)\") from e\nE           RuntimeError: source_digest: /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc を読めない ([Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc') — identity を確定できないため fails-closed で停止 (D23)\n\norchestrator/campaign/source_digest.py:1377: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens\n1 failed, 13 passed, 2 skipped in 4.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=4123 retained_bytes=3491 omitted_bytes=632 rendered_excerpt_bytes=4095 sha256=bcfc1c9520c43d314916d2092c6bd162c20fdd3736c78d7b7be575d66592f15b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>         (\\u6bb5 6 \\u30ec\\u30d3\\u30e5\\u30fc A should 4)\\u3002HEAD \\u5074 (`_git_show`) \\u306f\\u65e2\\u306b RuntimeError \\u5316\\u3057\\u3066\\u3042\\u308a\\u3001\n>         working-tree \\u5074\\u3060\\u3051\\u975e\\u5bfe\\u79f0\\u3060\\u3063\\u305f\\u3002\"\"\"\n>         try:\n> >           with open(path, encoding=\"utf-8\") as f:\n> E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc'\n> \n> orchestrator/campaign/source_digest.py:1374: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0')\n> \n>     def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):\n>         from orchestrator.campaign import p3_s4_loop as loop_axis\n>     \n>         cxx = _any_cxx()\n>         sub, head = _fake_ccbench_repo(tmp_path / \"fake-ccbench\")\n>         source = sub / axis_trigger_gating.SOURCE_REL\n>         predicate = emit_predicate(TriggerGateIR(20))\n>         genome = Genome(\"silo\", {\"BACK_OFF\": 1, \"BACKOFF_TRIGGER_GATING\": 1})\n>     \n>         exact_result, *_ = loop_axis.quarantine(\n>             str(sub), predicate,\n>             marker_id=axis_trigger_gating.MARKER_ID,\n>             source_rel=axis_trigger_gating.SOURCE_REL,\n>             write=True,\n>         )\n>         assert exact_result.passed\n>         exact_source = source.read_bytes()\n> >       exact_token = S.source_digest.resolve(\n>             genome, head, ccbench_dir=str(sub), cxx=cxx)\n> \n> orchestrator/tests/test_s1_direct_comparison.py:797: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/source_digest.py:1747: in resolve\n>     assert_includes_match_head(genome, ccbench_commit, ccbench_dir, cxx)  # #include \\u6b7b\\u89d2 (\\u6700\\u5c0f\\u6848)\n> orchestrator/campaign/source_digest.py:1517: in assert_includes_match_head\n>     cur = _include_lines(_read(os.path.join(sub, rel)))\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> path = '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc'\n> \n>     def _read(path: str) -> str:\n>         \"\"\"identity \\u7d4c\\u8def\\u306e\\u30d5\\u30a1\\u30a4\\u30eb\\u8aad\\u53d6\\u3002\\u5931\\u6557\\u306f RuntimeError \\u306b\\u6b63\\u898f\\u5316\\u3059\\u308b\\u3002\n>     \n>         \\u547c\\u3073\\u624b (`loop`\\u30fb`pipeline.evaluate`\\u30fb`buildcache._recheck_src_token`) \\u306f identity \\u78ba\\u5b9a\\u306e\n>         \\u5931\\u6557\\u3092 `except RuntimeError` \\u3067\\u53d7\\u3051\\u3066 variant \\u5358\\u4f4d\\u306e abort \\u306b\\u9694\\u96e2\\u3059\\u308b\\u3002`OSError` \\u3092\n>         \\u305d\\u306e\\u307e\\u307e\\u6295\\u3052\\u308b\\u3068 campaign \\u5168\\u4f53\\u304c\\u843d\\u3061\\u3001build dir \\u306e\\u7834\\u68c4 (`_discard_build_dir`) \\u3082\\u8d70\\u3089\\u306a\\u3044\n>         (\\u6bb5 6 \\u30ec\\u30d3\\u30e5\\u30fc A should 4)\\u3002HEAD \\u5074 (`_git_show`) \\u306f\\u65e2\\u306b RuntimeError \\u5316\\u3057\\u3066\\u3042\\u308a\\u3001\n>         working-tree \\u5074\\u3060\\u3051\\u975e\\u5bfe\\u79f0\\u3060\\u3063\\u305f\\u3002\"\"\"\n>         try:\n>             with open(path, encoding=\"utf-8\") as f:\n>                 return f.read()\n>         except OSError as e:\n> >           raise RuntimeError(\n>                 f\"source_digest: {path} \\u3092\\u8aad\\u3081\\u306a\\u3044 ({e}) \\u2014 identity \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 \"\n>                 \"fails-closed \\u3067\\u505c\\u6b62 (D23)\") from e\n> E           RuntimeError: source_digest: /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc \\u3092\\u8aad\\u3081\\u306a\\u3044 ([Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/transaction.cc') \\u2014 identity \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 fails-closed \\u3067\\u505c\\u6b62 (D23)\n> \n> orchestrator/campaign/source_digest.py:1377: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4123 retained_bytes=3491 omitted_bytes=632 budget_bytes=49152 rendered_bytes=4835 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bc236388896e91a8ea675842af5c9394a93133569bf51658528b894ad2ac6739"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.923,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "339e30a4b01ac981d2c123f6d9b965f242c3f122a3d4bbb8f1c8831dafd41206",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "39e60d724f90b28db00641e0ad61876583e3749f872d9c01af0a5a936b464d14",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s1_direct_comparison.py",
+          "new": "",
+          "old": "    (root / \"cc\" / \"mocc\" / \"transaction.cc\").write_text(\n        _FAKE_MOCC_TRANSACTION_CC, encoding=\"utf-8\"\n    )\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "bc236388896e91a8ea675842af5c9394a93133569bf51658528b894ad2ac6739",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d3a65621e7156a7e951c341e133a47da/izdw-d3a65621e7.o941778",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d3a65621e7156a7e951c341e133a47da/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F........ss.                                                         [100%]\n=================================== FAILURES ===================================\n_________ test_real_source_digest_unifies_all_outer_whitespace_tokens __________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\npath = '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt'\n\n    def _read(path: str) -> str:\n        \"\"\"identity 経路のファイル読取。失敗は RuntimeError に正規化する。\n    \n        呼び手 (`loop`・`pipeline.evaluate`・`buildcache._recheck_src_token`) は identity 確定の\n        失敗を `except RuntimeError` で受けて variant 単位の abort に隔離する。`OSError` を\n        そのまま投げると campaign 全体が落ち、build dir の破棄 (`_discard_build_dir`) も走らない\n        (段 6 レビュー A should 4)。HEAD 側 (`_git_show`) は既に RuntimeError 化してあり、\n        working-tree 側だけ非対称だった。\"\"\"\n        try:\n>           with open(path, encoding=\"utf-8\") as f:\nE           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt'\n\norchestrator/campaign/source_digest.py:1374: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0')\n\n    def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):\n        from orchestrator.campaign import p3_s4_loop as loop_axis\n    \n        cxx = _any_cxx()\n        sub, head = _fake_ccbench_repo(tmp_path / \"fake-ccbench\")\n        source = sub / axis_trigger_gating.SOURCE_REL\n        predicate = emit_predicate(TriggerGateIR(20))\n        genome = Genome(\"silo\", {\"BACK_OFF\": 1, \"BACKOFF_TRIGGER_GATING\": 1})\n    \n        exact_result, *_ = loop_axis.quarantine(\n            str(sub), predicate,\n            marker_id=axis_trigger_gating.MARKER_ID,\n            source_rel=axis_trigger_gating.SOURCE_REL,\n            write=True,\n        )\n        assert exact_result.passed\n        exact_source = source.read_bytes()\n>       exact_token = S.source_digest.resolve(\n            genome, head, ccbench_dir=str(sub), cxx=cxx)\n\norchestrator/tests/test_s1_direct_comparison.py:797: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/source_digest.py:1748: in resolve\n    assert_conditional_macros_covered(genome, ccbench_dir, cxx)           # マクロ文脈死角 (T-148)\norchestrator/campaign/source_digest.py:1348: in assert_conditional_macros_covered\n    defines = _worktree_defines(sub, genome, rel)\norchestrator/campaign/source_digest.py:1465: in _worktree_defines\n    proto_text = _read(os.path.join(sub, _protocol_cmake_rel(protocol)))\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npath = '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt'\n\n    def _read(path: str) -> str:\n        \"\"\"identity 経路のファイル読取。失敗は RuntimeError に正規化する。\n    \n        呼び手 (`loop`・`pipeline.evaluate`・`buildcache._recheck_src_token`) は identity 確定の\n        失敗を `except RuntimeError` で受けて variant 単位の abort に隔離する。`OSError` を\n        そのまま投げると campaign 全体が落ち、build dir の破棄 (`_discard_build_dir`) も走らない\n        (段 6 レビュー A should 4)。HEAD 側 (`_git_show`) は既に RuntimeError 化してあり、\n        working-tree 側だけ非対称だった。\"\"\"\n        try:\n            with open(path, encoding=\"utf-8\") as f:\n                return f.read()\n        except OSError as e:\n>           raise RuntimeError(\n                f\"source_digest: {path} を読めない ({e}) — identity を確定できないため \"\n                \"fails-closed で停止 (D23)\") from e\nE           RuntimeError: source_digest: /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt を読めない ([Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt') — identity を確定できないため fails-closed で停止 (D23)\n\norchestrator/campaign/source_digest.py:1377: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens\n1 failed, 13 passed, 2 skipped in 5.00s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=4265 retained_bytes=3527 omitted_bytes=738 rendered_excerpt_bytes=4093 sha256=d61eb34e6d6a0acf83e4c181e38b78a0777a3b4afbdf2998815b6ce21ed70c4f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> \n>         working-tree \\u5074\\u3060\\u3051\\u975e\\u5bfe\\u79f0\\u3060\\u3063\\u305f\\u3002\"\"\"\n>         try:\n> >           with open(path, encoding=\"utf-8\") as f:\n> E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt'\n> \n> orchestrator/campaign/source_digest.py:1374: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0')\n> \n>     def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):\n>         from orchestrator.campaign import p3_s4_loop as loop_axis\n>     \n>         cxx = _any_cxx()\n>         sub, head = _fake_ccbench_repo(tmp_path / \"fake-ccbench\")\n>         source = sub / axis_trigger_gating.SOURCE_REL\n>         predicate = emit_predicate(TriggerGateIR(20))\n>         genome = Genome(\"silo\", {\"BACK_OFF\": 1, \"BACKOFF_TRIGGER_GATING\": 1})\n>     \n>         exact_result, *_ = loop_axis.quarantine(\n>             str(sub), predicate,\n>             marker_id=axis_trigger_gating.MARKER_ID,\n>             source_rel=axis_trigger_gating.SOURCE_REL,\n>             write=True,\n>         )\n>         assert exact_result.passed\n>         exact_source = source.read_bytes()\n> >       exact_token = S.source_digest.resolve(\n>             genome, head, ccbench_dir=str(sub), cxx=cxx)\n> \n> orchestrator/tests/test_s1_direct_comparison.py:797: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/source_digest.py:1748: in resolve\n>     assert_conditional_macros_covered(genome, ccbench_dir, cxx)           # \\u30de\\u30af\\u30ed\\u6587\\u8108\\u6b7b\\u89d2 (T-148)\n> orchestrator/campaign/source_digest.py:1348: in assert_conditional_macros_covered\n>     defines = _worktree_defines(sub, genome, rel)\n> orchestrator/campaign/source_digest.py:1465: in _worktree_defines\n>     proto_text = _read(os.path.join(sub, _protocol_cmake_rel(protocol)))\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> path = '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt'\n> \n>     def _read(path: str) -> str:\n>         \"\"\"identity \\u7d4c\\u8def\\u306e\\u30d5\\u30a1\\u30a4\\u30eb\\u8aad\\u53d6\\u3002\\u5931\\u6557\\u306f RuntimeError \\u306b\\u6b63\\u898f\\u5316\\u3059\\u308b\\u3002\n>     \n>         \\u547c\\u3073\\u624b (`loop`\\u30fb`pipeline.evaluate`\\u30fb`buildcache._recheck_src_token`) \\u306f identity \\u78ba\\u5b9a\\u306e\n>         \\u5931\\u6557\\u3092 `except RuntimeError` \\u3067\\u53d7\\u3051\\u3066 variant \\u5358\\u4f4d\\u306e abort \\u306b\\u9694\\u96e2\\u3059\\u308b\\u3002`OSError` \\u3092\n>         \\u305d\\u306e\\u307e\\u307e\\u6295\\u3052\\u308b\\u3068 campaign \\u5168\\u4f53\\u304c\\u843d\\u3061\\u3001build dir \\u306e\\u7834\\u68c4 (`_discard_build_dir`) \\u3082\\u8d70\\u3089\\u306a\\u3044\n>         (\\u6bb5 6 \\u30ec\\u30d3\\u30e5\\u30fc A should 4)\\u3002HEAD \\u5074 (`_git_show`) \\u306f\\u65e2\\u306b RuntimeError \\u5316\\u3057\\u3066\\u3042\\u308a\\u3001\n>         working-tree \\u5074\\u3060\\u3051\\u975e\\u5bfe\\u79f0\\u3060\\u3063\\u305f\\u3002\"\"\"\n>         try:\n>             with open(path, encoding=\"utf-8\") as f:\n>                 return f.read()\n>         except OSError as e:\n> >           raise RuntimeError(\n>                 f\"source_digest: {path} \\u3092\\u8aad\\u3081\\u306a\\u3044 ({e}) \\u2014 identity \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 \"\n>                 \"fails-closed \\u3067\\u505c\\u6b62 (D23)\") from e\n> E           RuntimeError: source_digest: /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt \\u3092\\u8aad\\u3081\\u306a\\u3044 ([Errno 2] No such file or directory: '/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_real_source_digest_unifie0/fake-ccbench/cc/mocc/CMakeLists.txt') \\u2014 identity \\u3092\\u78ba\\u5b9a\\u3067\\u304d\\u306a\\u3044\\u305f\\u3081 fails-closed \\u3067\\u505c\\u6b62 (D23)\n> \n> orchestrator/campaign/source_digest.py:1377: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4265 retained_bytes=3527 omitted_bytes=738 budget_bytes=49152 rendered_bytes=4833 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1d0f8d566a6554f65036521eca1d50e72ab1153643097fd53be493a3f758d35f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.949,
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "17f10f75684ba0803c40b397298f5910dd678d61ea167ab89dadcb494ed620c4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "98e3a60326695fc91d7c90e29b63a75c4907dff813f5c62bb7588f06a8243eb3",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s1_direct_comparison.py",
+          "new": "",
+          "old": "    (root / \"cc\" / \"mocc\" / \"CMakeLists.txt\").write_text(\n        _FAKE_MOCC_CMAKE, encoding=\"utf-8\"\n    )\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "1d0f8d566a6554f65036521eca1d50e72ab1153643097fd53be493a3f758d35f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c1a067fdd80aa7001a0b24970fc6e11a/izdw-c1a067fdd8.o941779",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c1a067fdd80aa7001a0b24970fc6e11a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F.........ss.                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_cache_key_separates_compiler_request_name ________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cache_key_separates_compiler_request_name():\n        genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n        commit = \"abc123\"\n        src_token = \"1\" * 64\n        admission = _admission_for(\n            genome_value, commit, src_token=src_token,\n        )\n        common = {\n            \"trace\": False,\n            \"src_token\": src_token,\n            \"admission\": admission,\n        }\n    \n>       assert buildcache.cache_key(\n            genome_value, commit, cxx=\"g++-13\", **common,\n        ) != buildcache.cache_key(\n            genome_value, commit, cxx=\"g++-13\", **common,\n        )\nE       assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\nE        +  where 'silo_1096b7306b_t0' = <function cache_key at 0x149e25a9e050>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-13', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\nE        +    where <function cache_key at 0x149e25a9e050> = buildcache.cache_key\nE        +  and   'silo_1096b7306b_t0' = <function cache_key at 0x149e25a9e050>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-13', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\nE        +    where <function cache_key at 0x149e25a9e050> = buildcache.cache_key\n\norchestrator/tests/test_campaign.py:3049: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name\n1 failed, 13 passed, 2 skipped in 5.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=1721 retained_bytes=1721 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=5b9350a49f014d966c3ded02ee5e97033331d1b1c39bb61ff8c6f190fe404e00\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cache_key_separates_compiler_request_name():\n>         genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         commit = \"abc123\"\n>         src_token = \"1\" * 64\n>         admission = _admission_for(\n>             genome_value, commit, src_token=src_token,\n>         )\n>         common = {\n>             \"trace\": False,\n>             \"src_token\": src_token,\n>             \"admission\": admission,\n>         }\n>     \n> >       assert buildcache.cache_key(\n>             genome_value, commit, cxx=\"g++-13\", **common,\n>         ) != buildcache.cache_key(\n>             genome_value, commit, cxx=\"g++-13\", **common,\n>         )\n> E       assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\n> E        +  where 'silo_1096b7306b_t0' = <function cache_key at 0x149e25a9e050>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-13', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\n> E        +    where <function cache_key at 0x149e25a9e050> = buildcache.cache_key\n> E        +  and   'silo_1096b7306b_t0' = <function cache_key at 0x149e25a9e050>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-13', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\n> E        +    where <function cache_key at 0x149e25a9e050> = buildcache.cache_key\n> \n> orchestrator/tests/test_campaign.py:3049: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1721 retained_bytes=1721 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2486 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "43c2d8844c7e6ebddd1e72392243f93173ca39c6a1abef0295bfabae1faac6c4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.995,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "949ecff116e7f679fa3b02c0b73e1d89924b7a96217834c6ebaf3eee1fecbfcb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b3a787d8c12b21d8edd74f1760244fe8a799c70af20b363ea0e1c31ef9a007df",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_campaign.py",
+          "new": "        genome_value, commit, cxx=\"g++-13\", **common,\n",
+          "old": "        genome_value, commit, cxx=\"g++-12\", **common,\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "43c2d8844c7e6ebddd1e72392243f93173ca39c6a1abef0295bfabae1faac6c4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c8ccf59e1fa8055eb99f998a251fe7af/izdw-c8ccf59e1f.o941782",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c8ccf59e1fa8055eb99f998a251fe7af/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F........ss.                                                         [100%]\n=================================== FAILURES ===================================\n_____________ test_selected_cxx_is_bound_to_every_target_consumer ______________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_selected_cxx_is_bound_to_every_target_consumer():\n        matcher_fixture = ast.parse(\n            \"def target():\\n\"\n            \"    source_digest.resolve(genome, head, cxx=cxx)\\n\"\n            \"    other.resolve(genome, head, cxx=cxx)\\n\"\n            \"    def nested():\\n\"\n            \"        source_digest.resolve(genome, head, cxx=cxx)\\n\"\n            \"    decoy = lambda: source_digest.resolve(genome, head, cxx=cxx)\\n\"\n        ).body[0]\n        assert len(_calls_named(\n            matcher_fixture, {\"source_digest.resolve\"},\n        )) == 1\n    \n        assert len(_SELECTED_CXX_CONSUMERS) == 9\n        for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():\n            function = _function_node(filename, function_name)\n            selected_name, selection = _selected_cxx_assignment(function)\n            consumer_names = set(expected_counts)\n            consumers = _calls_named(function, consumer_names)\n            actual_counts = {\n                name: sum(\n                    _qualified_name(call.func) == name for call in consumers\n                )\n                for name in consumer_names\n            }\n>           assert actual_counts == expected_counts, (\n                f\"compiler consumer census が変わった: {filename}::{function_name}: \"\n                f\"{actual_counts!r} != {expected_counts!r}\"\n            )\nE           AssertionError: compiler consumer census が変わった: test_campaign.py::test_source_digest_stock_roundtrip: {'src_token': 0} != {'src_token': 1}\nE           assert {'src_token': 0} == {'src_token': 1}\nE             \nE             Differing items:\nE             {'src_token': 0} != {'src_token': 1}\nE             Use -v to get more diff\n\norchestrator/tests/test_skip_classification.py:279: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer\n1 failed, 13 passed, 2 skipped in 4.95s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1849 retained_bytes=1849 omitted_bytes=0 rendered_excerpt_bytes=1976 sha256=2db70396736895bba5790f20cb27bf43e9eb4c44c92507ba2673a2c62112a382\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_selected_cxx_is_bound_to_every_target_consumer():\n>         matcher_fixture = ast.parse(\n>             \"def target():\\x5cn\"\n>             \"    source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"\n>             \"    other.resolve(genome, head, cxx=cxx)\\x5cn\"\n>             \"    def nested():\\x5cn\"\n>             \"        source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"\n>             \"    decoy = lambda: source_digest.resolve(genome, head, cxx=cxx)\\x5cn\"\n>         ).body[0]\n>         assert len(_calls_named(\n>             matcher_fixture, {\"source_digest.resolve\"},\n>         )) == 1\n>     \n>         assert len(_SELECTED_CXX_CONSUMERS) == 9\n>         for (filename, function_name), expected_counts in _SELECTED_CXX_CONSUMERS.items():\n>             function = _function_node(filename, function_name)\n>             selected_name, selection = _selected_cxx_assignment(function)\n>             consumer_names = set(expected_counts)\n>             consumers = _calls_named(function, consumer_names)\n>             actual_counts = {\n>                 name: sum(\n>                     _qualified_name(call.func) == name for call in consumers\n>                 )\n>                 for name in consumer_names\n>             }\n> >           assert actual_counts == expected_counts, (\n>                 f\"compiler consumer census \\u304c\\u5909\\u308f\\u3063\\u305f: {filename}::{function_name}: \"\n>                 f\"{actual_counts!r} != {expected_counts!r}\"\n>             )\n> E           AssertionError: compiler consumer census \\u304c\\u5909\\u308f\\u3063\\u305f: test_campaign.py::test_source_digest_stock_roundtrip: {'src_token': 0} != {'src_token': 1}\n> E           assert {'src_token': 0} == {'src_token': 1}\n> E             \n> E             Differing items:\n> E             {'src_token': 0} != {'src_token': 1}\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_skip_classification.py:279: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1849 retained_bytes=1849 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2702 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9ed0dbe17b9f3392ce55d3042a8d99b1d99806ad602f6b2d4c1930ceda00210c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "078039704f752f47dd68f6c0157ad92df0db025a21f55254e3c7668bca11700d",
+      "duration_s": 26.914,
+      "expected_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "ce8deb9f0713620490c450df37acaa745a9ac8bae6ebd43cb66b8c36b67207cd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "35c91e3b557f60dcca5b7d3cd306ad1f8e67bb53795837a2851ea840dd60712e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_skip_classification.py",
+          "new": "    (\"test_campaign.py\", \"test_source_digest_stock_roundtrip\"): {\n        \"src_token\": 1,\n    },\n",
+          "old": "    (\"test_campaign.py\", \"test_source_digest_stock_roundtrip\"): {\n        \"source_digest.src_token\": 1,\n    },\n"
+        }
+      ],
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "KILLED",
+      "test_output_sha256": "9ed0dbe17b9f3392ce55d3042a8d99b1d99806ad602f6b2d4c1930ceda00210c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e05d23902d4d3477b35183ddd327b27e/izdw-e05d23902d.o941768",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e05d23902d4d3477b35183ddd327b27e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name\norchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip\norchestrator/tests/test_campaign.py::test_source_digest_fixed_variant_distinct\norchestrator/tests/test_campaign.py::test_source_digest_failsclosed_on_missing_define\norchestrator/tests/test_campaign.py::test_source_digest_semantic_comment_vs_behavior\norchestrator/tests/test_campaign.py::test_source_digest_builtin_ifdef_not_aliased_to_stock\norchestrator/tests/test_campaign.py::test_source_digest_include_change_rejected_by_resolve\norchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_predicate\norchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit\norchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens\norchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection\norchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty\norchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer\norchestrator/tests/test_skip_classification.py::test_conditional_unrun_reason_has_classification_reason_and_pointer\norchestrator/tests/test_skip_classification.py::test_readme_conditional_unrun_census_names_all_nodes\norchestrator/tests/test_skip_classification.py::test_real_silo_node_always_verifies_tracked_fixture_without_skip\n\n16 tests collected in 1.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "97b3a90b11d42962bc255c0d0ebbcbced6d9db1fa022c69905c9f4c7525769db"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+        "orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip",
+        "orchestrator/tests/test_campaign.py::test_source_digest_fixed_variant_distinct",
+        "orchestrator/tests/test_campaign.py::test_source_digest_failsclosed_on_missing_define",
+        "orchestrator/tests/test_campaign.py::test_source_digest_semantic_comment_vs_behavior",
+        "orchestrator/tests/test_campaign.py::test_source_digest_builtin_ifdef_not_aliased_to_stock",
+        "orchestrator/tests/test_campaign.py::test_source_digest_include_change_rejected_by_resolve",
+        "orchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_predicate",
+        "orchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens",
+        "orchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection",
+        "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty",
+        "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer",
+        "orchestrator/tests/test_skip_classification.py::test_conditional_unrun_reason_has_classification_reason_and_pointer",
+        "orchestrator/tests/test_skip_classification.py::test_readme_conditional_unrun_census_names_all_nodes",
+        "orchestrator/tests/test_skip_classification.py::test_real_silo_node_always_verifies_tracked_fixture_without_skip"
+      ],
+      "duration_s": 266.472,
+      "rc": 0,
+      "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+      "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+      "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+      "status": "PASSED",
+      "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d93b6b911f844914cd9a9482ecb41968e187e9a075a6c3b2af273c88406c628b",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_campaign.py",
+            "new": "    for c in (\"g++-13\", \"g++\"):\n",
+            "old": "    for c in (\"g++-13\", \"g++-12\", \"g++\"):\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_skip_classification.py::test_site_compiler_helpers_choose_first_available_and_skip_only_when_empty"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "244bad66a67addffed25330f242749e2a9543605e5dfc029e437f4807480d686",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_campaign.py",
+            "new": "    return \"g++\"\n",
+            "old": "    skip(\"C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)\")\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_skip_classification.py::test_conditional_preprocess_nodes_classify_before_compiler_selection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7c22255c2f92aef4b55dcb41b015e415e222d51b0cc0b55545eea319f8561323",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_campaign.py",
+            "new": "    cxx = _any_cxx()\n    wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), \"include/backoff.hh\"))\n    if \"#if BACKOFF_FIXED\" not in wt:\n        # 受入 suite は共有 submodule に template patch の窓を開けないため、\n        # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。\n        skip_conditional_unrun(\"template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し\")\n    # 条件付き未実走を先に分類し、窓が開いた後だけ compiler 不在を依存物 skip にする。\n",
+            "old": "    wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), \"include/backoff.hh\"))\n    if \"#if BACKOFF_FIXED\" not in wt:\n        # 受入 suite は共有 submodule に template patch の窓を開けないため、\n        # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。\n        skip_conditional_unrun(\"template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し\")\n    # 条件付き未実走を先に分類し、窓が開いた後だけ compiler 不在を依存物 skip にする。\n    cxx = _any_cxx()\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip",
+          "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "67678edfe89a949de7c1b0087c58631f9c911d9bbabe47ebea3beeebe9cea364",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_campaign.py",
+            "new": "        st = source_digest.src_token(g, head)\n",
+            "old": "        st = source_digest.src_token(g, head, cxx=cxx)\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "339e30a4b01ac981d2c123f6d9b965f242c3f122a3d4bbb8f1c8831dafd41206",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s1_direct_comparison.py",
+            "new": "",
+            "old": "    (root / \"cc\" / \"mocc\" / \"transaction.cc\").write_text(\n        _FAKE_MOCC_TRANSACTION_CC, encoding=\"utf-8\"\n    )\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "17f10f75684ba0803c40b397298f5910dd678d61ea167ab89dadcb494ed620c4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s1_direct_comparison.py",
+            "new": "",
+            "old": "    (root / \"cc\" / \"mocc\" / \"CMakeLists.txt\").write_text(\n        _FAKE_MOCC_CMAKE, encoding=\"utf-8\"\n    )\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "949ecff116e7f679fa3b02c0b73e1d89924b7a96217834c6ebaf3eee1fecbfcb",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_campaign.py",
+            "new": "        genome_value, commit, cxx=\"g++-13\", **common,\n",
+            "old": "        genome_value, commit, cxx=\"g++-12\", **common,\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_skip_classification.py::test_selected_cxx_is_bound_to_every_target_consumer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ce8deb9f0713620490c450df37acaa745a9ac8bae6ebd43cb66b8c36b67207cd",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_skip_classification.py",
+            "new": "    (\"test_campaign.py\", \"test_source_digest_stock_roundtrip\"): {\n        \"src_token\": 1,\n    },\n",
+            "old": "    (\"test_campaign.py\", \"test_source_digest_stock_roundtrip\"): {\n        \"source_digest.src_token\": 1,\n    },\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "953b600522f5b91440e91dcf2ab6e87947c08affa2bbf4bba5b39f6f4d1f6667",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+      "orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip",
+      "orchestrator/tests/test_campaign.py::test_source_digest_fixed_variant_distinct",
+      "orchestrator/tests/test_campaign.py::test_source_digest_failsclosed_on_missing_define",
+      "orchestrator/tests/test_campaign.py::test_source_digest_semantic_comment_vs_behavior",
+      "orchestrator/tests/test_campaign.py::test_source_digest_builtin_ifdef_not_aliased_to_stock",
+      "orchestrator/tests/test_campaign.py::test_source_digest_include_change_rejected_by_resolve",
+      "orchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_predicate",
+      "orchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit",
+      "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens",
+      "orchestrator/tests/test_skip_classification.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "ddbc66ca7e8d2102a81cc9dfcefb8a4b1f5f343d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+      "orchestrator/tests/test_campaign.py::test_source_digest_stock_roundtrip",
+      "orchestrator/tests/test_campaign.py::test_source_digest_fixed_variant_distinct",
+      "orchestrator/tests/test_campaign.py::test_source_digest_failsclosed_on_missing_define",
+      "orchestrator/tests/test_campaign.py::test_source_digest_semantic_comment_vs_behavior",
+      "orchestrator/tests/test_campaign.py::test_source_digest_builtin_ifdef_not_aliased_to_stock",
+      "orchestrator/tests/test_campaign.py::test_source_digest_include_change_rejected_by_resolve",
+      "orchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_predicate",
+      "orchestrator/tests/test_campaign.py::test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit",
+      "orchestrator/tests/test_s1_direct_comparison.py::test_real_source_digest_unifies_all_outer_whitespace_tokens",
+      "orchestrator/tests/test_skip_classification.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "531c793ae8cf37eb163c6599288382ff08d80a0702ecce1f4a8417db2c6c94d2",
+    "dispatch_head_blob_sha256": "531c793ae8cf37eb163c6599288382ff08d80a0702ecce1f4a8417db2c6c94d2",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "20947657eb67b208fb19805eaf37a4d41aa2cfa21b71d9dd0fb8f5dd70256f3a",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "20947657eb67b208fb19805eaf37a4d41aa2cfa21b71d9dd0fb8f5dd70256f3a",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "1c8e9974ca1eab5bc732beab1f8d2ddf95f3254a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "f048c55b4afc6a508e4ffed16b4153f891bb872f8df77c893525d2787a32abbb",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f96768836e907cbca8cb3fcc3d5d62cd0e5676abb44eab78d3d9e7907c2d4cc2",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 7,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "018992241713143cb44d6f8f031e5389f1b835fb7e24e388cfaa5db6ef264b3a",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1526/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "018992241713143cb44d6f8f031e5389f1b835fb7e24e388cfaa5db6ef264b3a"
+  },
+  "tool_sha256": "a89e2fba4f1e0d871372429c20bf909c47b9570f9656394e1d62d28983c1bcb3",
+  "updated_at": "2026-08-23T17:17:40.020017+00:00"
+}

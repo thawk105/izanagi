@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""受入 log の赤を tested main と wave tip の単独再走で判定する。"""
+"""受入 log の赤を tested main との全走差分で判定する。"""
 from __future__ import annotations
 
 import argparse
@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, NamedTuple, Sequence
@@ -28,6 +29,7 @@ _MAX_PROBE_DIAGNOSTIC_BYTES = 8192
 # 3600s RUN time + 300s grace, followed by 60s of accounting.  Keep this
 # outer timeout above that 4860s authority so dispatch reports its own timeout.
 _DISPATCH_TIMEOUT_SECONDS = 5100.0
+_WORKTREE_RETRY_DELAY_SECONDS = 1.0
 _SUMMARY_HEADER = re.compile(r"^={3,} short test summary info ={3,}$")
 _SUMMARY_LINE = re.compile(r"^={3,} (?P<body>.+) ={3,}$")
 _OUTCOME_LINE = re.compile(
@@ -39,6 +41,8 @@ _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _SHA1 = re.compile(r"[0-9a-f]{40}")
 _DISPATCH_LINE_PREFIX = "| "
 _DISPATCH_CONTROL_PREFIX = "[Pegasus dispatch] "
+_EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
 _DISPATCH_RECEIPT_LINE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (?P<path>/[^\r\n]*) "
     r"へ保存しました \(child rc=(?P<rc>[0-9]+)\)$"
@@ -59,12 +63,22 @@ _PYTEST_SELECTION_ENV = frozenset({
     "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
     "PYTEST_PLUGINS",
     "IZANAGI_RUN_GROWTH_HELD_TESTS",
+    # 履歴側 tested_main の旧 opt-in へ ambient 値を漏らさない。
     "IZANAGI_T080_E2E",
 })
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
-NodeRunner = Callable[[Path, str], int]
+
+
+class _PytestRunResult(NamedTuple):
+    returncode: int
+    references: tuple[str, ...]
+
+
+FullRunner = Callable[[Path], _PytestRunResult]
+NodeRunner = Callable[[Path, Sequence[str]], _PytestRunResult]
 SubmoduleReceipt = tuple[Mapping[str, str], ...]
+Sleeper = Callable[[float], None]
 
 
 class _CollectionEvidence(NamedTuple):
@@ -81,15 +95,12 @@ class _CollectionResult(NamedTuple):
     evidence: _CollectionEvidence
 
 
-CollectionRunner = Callable[[Path, str], Sequence[str] | _CollectionResult]
+CollectionRunner = Callable[[Path], Sequence[str] | _CollectionResult]
 
 
-class _NodeProbeResult(NamedTuple):
-    selector: str
-    logged_nodeid: str
-    rerun_rc: int
-    submodules: SubmoduleReceipt
-    collection: _CollectionEvidence | None
+class _MainProbeResult(NamedTuple):
+    references: tuple[str, ...]
+    collection: _CollectionResult
 
 
 class _DispatchArtifacts(NamedTuple):
@@ -98,6 +109,7 @@ class _DispatchArtifacts(NamedTuple):
     submission_dir: Path
     fallback_receipt: Path | None
     nonce: str
+    control_root: Path
 
 
 class InvalidInput(RuntimeError):
@@ -286,6 +298,7 @@ def _dispatch_artifacts(receipt_path: Path, worktree: Path) -> _DispatchArtifact
         submission_dir=submission_dir,
         fallback_receipt=fallback_receipt,
         nonce=nonce,
+        control_root=worktree_resolved / "output" / "pegasus-dispatch",
     )
 
 
@@ -391,23 +404,51 @@ def _read_dispatch_receipt(
 
 
 def _orphan_hold_present(dispatch_root: Path) -> bool:
-    """hold の存在または stat 判定不能なら destructive cleanup を拒否する。"""
+    """aggregate/request ledger の存在・判定不能を blocker にする。"""
 
     hold = dispatch_root / "orphan-hold.json"
     try:
         os.lstat(hold)
     except FileNotFoundError:
+        pass
+    except OSError:
+        return True
+    else:
+        return True
+
+    ledger = dispatch_root / "orphan-holds"
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        return True
+    try:
+        descriptor = os.open(
+            ledger,
+            os.O_RDONLY | nofollow | directory | getattr(os, "O_CLOEXEC", 0),
+        )
+    except FileNotFoundError:
         return False
     except OSError:
         return True
-    return True
+    blocker = False
+    try:
+        with os.scandir(descriptor) as entries:
+            blocker = any(entry.name.endswith(".json") for entry in entries)
+    except OSError:
+        blocker = True
+    try:
+        os.close(descriptor)
+    except OSError:
+        blocker = True
+    return blocker
 
 
 def _cleanup_dispatch_artifacts(artifacts: _DispatchArtifacts) -> None:
-    if _orphan_hold_present(artifacts.root):
+    if _orphan_hold_present(artifacts.control_root):
         raise InvalidInput(
             "orphan-hold: dispatch artifacts are preserved; "
-            f"hold={artifacts.root / 'orphan-hold.json'}"
+            f"control={artifacts.control_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
         )
     failures: list[str] = []
     try:
@@ -488,6 +529,38 @@ def _terminal_counts(line: str) -> Mapping[str, int] | None:
             raise InvalidInput(f"duplicate terminal summary category: {kind}")
         counts[kind] = int(count_match.group("count"), 10)
     return counts
+
+
+def _no_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise InvalidInput("duplicate JSON key in pytest collection metadata")
+        result[key] = value
+    return result
+
+
+def _is_collection_metadata(line: str) -> bool:
+    """pytest の collection 出力に付く正規化済み診断 marker を検証する。"""
+
+    if not line.startswith(_EFFECTIVE_SCHEDULER_PREFIX):
+        return False
+    payload_text = line[len(_EFFECTIVE_SCHEDULER_PREFIX):]
+    try:
+        payload = json.loads(
+            payload_text,
+            object_pairs_hook=_no_duplicate_json_keys,
+        )
+    except (json.JSONDecodeError, UnicodeError, ValueError, RecursionError) as exc:
+        raise InvalidInput("pytest collection scheduler marker is invalid") from exc
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != {"effective_scheduler"}
+        or not isinstance(payload["effective_scheduler"], str)
+        or payload["effective_scheduler"] not in _EFFECTIVE_SCHEDULERS
+    ):
+        raise InvalidInput("pytest collection scheduler marker is invalid")
+    return True
 
 
 def _outcome_reference(body: str) -> str:
@@ -727,10 +800,25 @@ def _absolute_pytest_target(worktree: Path, target: str) -> str:
     return str(absolute_path) + (separator + suffix if separator else "")
 
 
-def _expected_dispatch_args(worktree: Path, pytest_args: Sequence[str]) -> list[str]:
+def _expected_dispatch_args(
+    worktree: Path,
+    pytest_args: Sequence[str],
+    *,
+    target_indices: Sequence[int] | None = None,
+) -> list[str]:
     if not pytest_args:
         raise InvalidInput("pytest dispatch argv has no target")
-    return [*pytest_args[:-1], _absolute_pytest_target(worktree, pytest_args[-1])]
+    expected = list(pytest_args)
+    indices = (
+        (len(pytest_args) - 1,)
+        if target_indices is None
+        else tuple(target_indices)
+    )
+    for index in indices:
+        if index < 0 or index >= len(pytest_args):
+            raise InvalidInput("pytest dispatch target index is out of range")
+        expected[index] = _absolute_pytest_target(worktree, pytest_args[index])
+    return expected
 
 
 def _git(
@@ -881,6 +969,77 @@ def _registered_worktrees(
     }
 
 
+def _worktree_add(
+    repo: Path,
+    worktree: Path,
+    tip: str,
+    *,
+    command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
+) -> subprocess.CompletedProcess[str]:
+    """一過性の worktree add rc=128 だけを一度再試行する。"""
+
+    command = ["worktree", "add", "--detach", str(worktree), tip]
+    added = _git(repo, command, command_runner=command_runner)
+    if added.returncode != 128:
+        return added
+    if worktree.exists() or worktree.is_symlink():
+        raise InvalidInput(
+            "git worktree add rc=128 left a worktree path residue; refusing retry"
+        )
+    if os.path.realpath(worktree) in _registered_worktrees(
+        repo, command_runner=command_runner
+    ):
+        raise InvalidInput(
+            "git worktree add rc=128 left a registered worktree residue; refusing retry"
+        )
+    sleeper(_WORKTREE_RETRY_DELAY_SECONDS)
+    return _git(repo, command, command_runner=command_runner)
+
+
+def _worktree_remove(
+    repo: Path,
+    worktree: Path,
+    *,
+    command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
+    deferred_signals: list[int] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """一過性の worktree remove rc=128 だけを一度再試行する。"""
+
+    command = ["worktree", "remove", "--force", str(worktree)]
+    removed = _git(repo, command, command_runner=command_runner)
+    if removed.returncode != 128:
+        return removed
+    dispatch_root = worktree / "output" / "pegasus-dispatch"
+    if _orphan_hold_present(dispatch_root):
+        raise InvalidInput(
+            "orphan-hold: refusing worktree remove retry; "
+            f"control={dispatch_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
+        )
+    path_present = worktree.exists() or worktree.is_symlink()
+    registered = _registered_worktrees(repo, command_runner=command_runner)
+    if not path_present and os.path.realpath(worktree) not in registered:
+        raise InvalidInput(
+            "git worktree remove rc=128 left no removable worktree residue"
+        )
+    try:
+        sleeper(_WORKTREE_RETRY_DELAY_SECONDS)
+    except _TerminationSignal as exc:
+        if deferred_signals is None:
+            raise
+        if not deferred_signals:
+            deferred_signals.append(exc.signum)
+    if _orphan_hold_present(dispatch_root):
+        raise InvalidInput(
+            "orphan-hold: refusing worktree remove retry; "
+            f"control={dispatch_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
+        )
+    return _git(repo, command, command_runner=command_runner)
+
+
 def _cleanup_probe(
     repo: Path,
     parent: Path,
@@ -888,20 +1047,25 @@ def _cleanup_probe(
     *,
     added: bool,
     command_runner: CommandRunner,
+    sleeper: Sleeper = time.sleep,
+    deferred_signals: list[int] | None = None,
 ) -> None:
     dispatch_root = worktree / "output" / "pegasus-dispatch"
     if _orphan_hold_present(dispatch_root):
         raise InvalidInput(
             "orphan-hold: probe worktree is preserved; "
-            f"hold={dispatch_root / 'orphan-hold.json'}"
+            f"control={dispatch_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
         )
     failures: list[str] = []
     if added or worktree.exists():
         try:
-            removed = _git(
+            removed = _worktree_remove(
                 repo,
-                ["worktree", "remove", "--force", str(worktree)],
+                worktree,
                 command_runner=command_runner,
+                sleeper=sleeper,
+                deferred_signals=deferred_signals,
             )
         except InvalidInput as exc:
             failures.append(f"worktree remove failed: {exc}")
@@ -932,7 +1096,9 @@ def _cleanup_probe(
         raise InvalidInput("probe cleanup failed: " + "; ".join(failures))
 
 
-def _complete_collected_nodeids(stdout: str, path_text: str) -> tuple[str, ...]:
+def _complete_collected_nodeids(
+    stdout: str, path_text: str | None = None,
+) -> tuple[str, ...]:
     lines = [
         _ANSI_ESCAPE.sub("", _payload_line(line)).strip()
         for line in stdout.splitlines()
@@ -962,11 +1128,30 @@ def _complete_collected_nodeids(stdout: str, path_text: str) -> tuple[str, ...]:
     if selected == 0:
         raise InvalidInput("pytest collection selected zero tests")
 
-    nodeids = [
-        line
-        for line in lines
-        if line == path_text or line.startswith(f"{path_text}::")
-    ]
+    body_lines = []
+    metadata_count = 0
+    for line in lines:
+        if line == footer_candidates[0]:
+            continue
+        if _is_collection_metadata(line):
+            metadata_count += 1
+            continue
+        body_lines.append(line)
+    if metadata_count > 1:
+        raise InvalidInput("pytest collection scheduler marker is non-unique")
+    if path_text is None:
+        nodeids = []
+        for line in body_lines:
+            if not line:
+                continue
+            _outcome_reference(line)
+            nodeids.append(line)
+    else:
+        nodeids = [
+            line
+            for line in body_lines
+            if line == path_text or line.startswith(f"{path_text}::")
+        ]
     if len(nodeids) != len(set(nodeids)):
         raise InvalidInput("pytest collect-only returned duplicate nodeids")
     if len(nodeids) != selected:
@@ -977,31 +1162,75 @@ def _complete_collected_nodeids(stdout: str, path_text: str) -> tuple[str, ...]:
     return tuple(sorted(nodeids))
 
 
-def _rerun_output_proves_red(stdout: str, selector: str) -> bool:
-    try:
-        references = parse_pytest_log(stdout.encode("utf-8"))
-    except (InvalidInput, UnicodeEncodeError):
-        return False
-    for reference in references:
-        try:
-            selected, _logged = _selector_from_collection(reference, (selector,))
-        except InvalidInput:
-            continue
-        if selected == selector:
-            return True
-    return False
+def _pytest_run_result(
+    result: subprocess.CompletedProcess[str],
+    *,
+    worktree: Path,
+    expected_args: Sequence[str],
+    label: str,
+) -> _PytestRunResult:
+    authoritative_stdout, _evidence = _authoritative_command_stdout(
+        result,
+        worktree=worktree,
+        expected_args=expected_args,
+    )
+    if result.returncode not in {0, 1}:
+        raise InvalidInput(
+            f"{label} did not produce pytest rc 0 or 1: rc={result.returncode}"
+        )
+    references = parse_pytest_log(authoritative_stdout.encode("utf-8"))
+    if (result.returncode == 0) != (not references):
+        raise InvalidInput(
+            f"{label} rc and FAILED/ERROR outcomes are inconsistent: "
+            f"rc={result.returncode} references={references!r}"
+        )
+    return _PytestRunResult(int(result.returncode), tuple(references))
+
+
+def _default_full_runner(
+    worktree: Path,
+    *,
+    command_runner: CommandRunner,
+) -> _PytestRunResult:
+    pytest_args = ["-p", "no:cacheprovider"]
+    command = [
+        sys.executable,
+        str(worktree / "tools" / "run_tests.py"),
+        "--force-dispatch",
+        *pytest_args,
+    ]
+    environment_overrides, environment_removals = _pytest_environment()
+    result = _completed(
+        command_runner,
+        command,
+        cwd=worktree,
+        capture_output=True,
+        timeout=_DISPATCH_TIMEOUT_SECONDS,
+        environment_overrides=environment_overrides,
+        environment_removals=environment_removals,
+    )
+    return _pytest_run_result(
+        result,
+        worktree=worktree,
+        expected_args=_expected_dispatch_args(
+            worktree, pytest_args, target_indices=()
+        ),
+        label="main full run",
+    )
 
 
 def _default_node_runner(
     worktree: Path,
-    nodeid: str,
+    nodeids: Sequence[str],
     *,
     command_runner: CommandRunner,
-) -> int:
+) -> _PytestRunResult:
+    if not nodeids:
+        raise InvalidInput("batch rerun received no nodeids")
     pytest_args = [
         "-p",
         "no:cacheprovider",
-        nodeid,
+        *nodeids,
     ]
     command = [
         sys.executable,
@@ -1019,23 +1248,20 @@ def _default_node_runner(
         environment_overrides=environment_overrides,
         environment_removals=environment_removals,
     )
-    authoritative_stdout, _evidence = _authoritative_command_stdout(
+    return _pytest_run_result(
         result,
         worktree=worktree,
-        expected_args=_expected_dispatch_args(worktree, pytest_args),
+        expected_args=_expected_dispatch_args(
+            worktree,
+            pytest_args,
+            target_indices=range(2, len(pytest_args)),
+        ),
+        label="wave batch rerun",
     )
-    if result.returncode == 1 and not _rerun_output_proves_red(
-        authoritative_stdout, nodeid
-    ):
-        raise InvalidInput(
-            f"single-node rerun rc=1 lacks matching FAILED/ERROR outcome: {nodeid!r}"
-        )
-    return int(result.returncode)
 
 
 def _default_collection_runner(
     worktree: Path,
-    path_text: str,
     *,
     command_runner: CommandRunner,
 ) -> _CollectionResult:
@@ -1044,7 +1270,6 @@ def _default_collection_runner(
         "no:cacheprovider",
         "--collect-only",
         "-q",
-        path_text,
     ]
     command = [
         sys.executable,
@@ -1064,17 +1289,17 @@ def _default_collection_runner(
     authoritative_stdout, evidence = _authoritative_command_stdout(
         result,
         worktree=worktree,
-        expected_args=_expected_dispatch_args(worktree, pytest_args),
+        expected_args=_expected_dispatch_args(
+            worktree, pytest_args, target_indices=()
+        ),
     )
     if result.returncode != 0:
-        raise InvalidInput(
-            f"pytest collect-only failed for logged path: {path_text!r} rc={result.returncode}"
-        )
-    nodeids = _complete_collected_nodeids(authoritative_stdout, path_text)
+        raise InvalidInput(f"pytest collect-only failed: rc={result.returncode}")
+    nodeids = _complete_collected_nodeids(authoritative_stdout)
     return _CollectionResult(
         nodeids=nodeids,
         evidence=_CollectionEvidence(
-            path=path_text,
+            path="",
             source=evidence.source,
             deleted_receipt_path=evidence.deleted_receipt_path,
             submission_nonce=evidence.submission_nonce,
@@ -1082,6 +1307,49 @@ def _default_collection_runner(
             stdout_sha256=evidence.stdout_sha256,
         ),
     )
+
+
+def _collection_result_from_output(
+    collection_output: Sequence[str] | _CollectionResult,
+) -> _CollectionResult:
+    if isinstance(collection_output, _CollectionResult):
+        return collection_output
+    return _CollectionResult(
+        nodeids=tuple(collection_output),
+        evidence=_CollectionEvidence(
+            path="",
+            source="injected-runner",
+            deleted_receipt_path=None,
+            submission_nonce=None,
+            request_id=None,
+            stdout_sha256=None,
+        ),
+    )
+
+
+@contextlib.contextmanager
+def _defer_cleanup_signals(deferred: list[int]) -> Any:
+    """cleanup 中の signal を記録し、破壊的操作の途中では再送しない。"""
+
+    signals = tuple(
+        candidate
+        for candidate in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
+        if candidate is not None
+    )
+    previous: dict[signal.Signals, Any] = {}
+
+    def defer(signum: int, _frame: Any) -> None:
+        if not deferred:
+            deferred.append(signum)
+
+    try:
+        for candidate in signals:
+            previous[candidate] = signal.getsignal(candidate)
+            signal.signal(candidate, defer)
+        yield
+    finally:
+        for candidate, handler in previous.items():
+            signal.signal(candidate, handler)
 
 
 def _initialize_submodules_cache_only(
@@ -1232,33 +1500,75 @@ def _initialize_submodules_cache_only(
     return tuple(receipt)
 
 
-def _probe_node(
+def _coerce_run_result(value: Any, *, label: str) -> _PytestRunResult:
+    if isinstance(value, _PytestRunResult):
+        result = value
+    elif (
+        isinstance(value, Sequence)
+        and not isinstance(value, (str, bytes, bytearray))
+        and len(value) == 2
+    ):
+        result = _PytestRunResult(value[0], tuple(value[1]))
+    else:
+        raise InvalidInput(f"{label} returned an invalid result")
+    if type(result.returncode) is not int or result.returncode not in {0, 1}:
+        raise InvalidInput(
+            f"{label} did not produce pytest rc 0 or 1: "
+            f"rc={result.returncode!r}"
+        )
+    if isinstance(result.references, (str, bytes, bytearray)):
+        raise InvalidInput(f"{label} returned invalid pytest references")
+    references = tuple(result.references)
+    if any(type(reference) is not str for reference in references):
+        raise InvalidInput(f"{label} returned a non-string pytest reference")
+    if (result.returncode == 0) != (not references):
+        raise InvalidInput(
+            f"{label} rc and FAILED/ERROR outcomes are inconsistent: "
+            f"rc={result.returncode} references={references!r}"
+        )
+    return _PytestRunResult(result.returncode, references)
+
+
+def _validate_collection_result(
+    collection: _CollectionResult,
+) -> _CollectionResult:
+    nodeids = tuple(collection.nodeids)
+    if not nodeids:
+        raise InvalidInput("pytest collect-only returned no nodeids")
+    if any(type(nodeid) is not str for nodeid in nodeids):
+        raise InvalidInput("pytest collect-only returned a non-string nodeid")
+    if len(nodeids) != len(set(nodeids)):
+        raise InvalidInput("pytest collect-only returned duplicate nodeids")
+    for nodeid in nodeids:
+        _outcome_reference(nodeid)
+    return _CollectionResult(tuple(sorted(nodeids)), collection.evidence)
+
+
+def _run_probe_worktree(
     repo: Path,
     probe_root: Path,
     tip: str,
-    reference: str,
     *,
     tip_label: str,
-    node_runner: NodeRunner,
-    collection_runner: CollectionRunner | None,
-    selector: str | None = None,
-    logged_nodeid: str | None = None,
+    operation: Callable[[Path], Any],
     command_runner: CommandRunner,
-) -> _NodeProbeResult:
-    if (selector is None) != (logged_nodeid is None):
-        raise InvalidInput("probe selector and logged nodeid must be provided together")
+    sleeper: Sleeper = time.sleep,
+) -> tuple[Any, SubmoduleReceipt]:
     parent = Path(
         tempfile.mkdtemp(prefix="izanagi-acceptance-reds-", dir=probe_root)
     )
     worktree = parent / "worktree"
     added = False
     pending: BaseException | None = None
-    result: _NodeProbeResult | None = None
+    result: Any = None
+    submodules: SubmoduleReceipt = ()
     try:
-        add = _git(
+        add = _worktree_add(
             repo,
-            ["worktree", "add", "--detach", str(worktree), tip],
+            worktree,
+            tip,
             command_runner=command_runner,
+            sleeper=sleeper,
         )
         if add.returncode != 0:
             raise InvalidInput(f"git worktree add failed with rc={add.returncode}")
@@ -1272,177 +1582,229 @@ def _probe_node(
             tip_label=tip_label,
             command_runner=command_runner,
         )
-        collection_evidence: _CollectionEvidence | None = None
-        if collection_runner is not None:
-            path_text = reference.split("::", 1)[0]
-            collection_output = collection_runner(worktree, path_text)
-            if isinstance(collection_output, _CollectionResult):
-                collected = collection_output.nodeids
-                collection_evidence = collection_output.evidence
-            else:
-                collected = tuple(collection_output)
-                collection_evidence = _CollectionEvidence(
-                    path=path_text,
-                    source="injected-runner",
-                    deleted_receipt_path=None,
-                    submission_nonce=None,
-                    request_id=None,
-                    stdout_sha256=None,
-                )
-            selector, logged_nodeid = _selector_from_collection(reference, collected)
-        assert selector is not None and logged_nodeid is not None
-        _assert_probe_identity(
-            worktree,
-            tip,
-            tip_label=tip_label,
-            command_runner=command_runner,
-        )
-        before_fingerprint, _ = _probe_fingerprint(
-            worktree, command_runner=command_runner
-        )
-        rerun_rc = node_runner(worktree, selector)
-        if type(rerun_rc) is not int or rerun_rc not in {0, 1}:
-            raise InvalidInput(
-                "single-node rerun did not produce pytest rc 0 or 1: "
-                f"{logged_nodeid!r} rc={rerun_rc!r}"
-            )
-        _assert_probe_identity(
-            worktree,
-            tip,
-            tip_label=tip_label,
-            command_runner=command_runner,
-        )
-        after_fingerprint, _ = _probe_fingerprint(
-            worktree, command_runner=command_runner
-        )
-        if before_fingerprint != after_fingerprint:
-            raise InvalidInput("probe worktree fingerprint changed during rerun")
-        result = _NodeProbeResult(
-            selector=selector,
-            logged_nodeid=logged_nodeid,
-            rerun_rc=rerun_rc,
-            submodules=submodules,
-            collection=collection_evidence,
-        )
+        result = operation(worktree)
     except BaseException as exc:
         pending = exc
+    deferred_signals: list[int] = []
     try:
-        _cleanup_probe(
-            repo,
-            parent,
-            worktree,
-            added=added,
-            command_runner=command_runner,
-        )
+        with _defer_cleanup_signals(deferred_signals):
+            _cleanup_probe(
+                repo,
+                parent,
+                worktree,
+                added=added,
+                command_runner=command_runner,
+                sleeper=sleeper,
+                deferred_signals=deferred_signals,
+            )
+    except _TerminationSignal:
+        raise
     except BaseException as exc:
         raise InvalidInput(
             f"probe worktree cleanup did not complete: {exc}"
         ) from pending
+    if deferred_signals and pending is None:
+        pending = _TerminationSignal(deferred_signals[0])
     if pending is not None:
         if isinstance(pending, (KeyboardInterrupt, SystemExit, _TerminationSignal)):
             raise pending
         if isinstance(pending, InvalidInput):
             raise pending
         raise InvalidInput(
-            f"single-node rerun failed: {type(pending).__name__}: {pending}"
+            f"probe operation failed: {type(pending).__name__}: {pending}"
         ) from pending
-    assert result is not None
+    if result is None:
+        raise InvalidInput("probe operation returned no result")
+    return result, submodules
+
+
+def _run_with_fingerprint(
+    worktree: Path,
+    tip: str,
+    *,
+    tip_label: str,
+    operation: Callable[[], Any],
+    command_runner: CommandRunner,
+    description: str,
+) -> Any:
+    _assert_probe_identity(
+        worktree,
+        tip,
+        tip_label=tip_label,
+        command_runner=command_runner,
+    )
+    before_fingerprint, _ = _probe_fingerprint(
+        worktree, command_runner=command_runner
+    )
+    result = operation()
+    _assert_probe_identity(
+        worktree,
+        tip,
+        tip_label=tip_label,
+        command_runner=command_runner,
+    )
+    after_fingerprint, _ = _probe_fingerprint(
+        worktree, command_runner=command_runner
+    )
+    if before_fingerprint != after_fingerprint:
+        raise InvalidInput(f"probe worktree fingerprint changed during {description}")
     return result
 
 
-def _probe_nodes(
+def _run_main_probe(
     repo: Path,
     probe_root: Path,
     tested_main: str,
-    wave_tip: str,
-    nodeids: Sequence[str],
     *,
-    node_runner: NodeRunner | None,
-    collection_runner: CollectionRunner | None,
+    full_runner: FullRunner,
+    collection_runner: CollectionRunner,
     command_runner: CommandRunner,
-) -> tuple[
-    dict[str, int],
-    dict[str, int],
-    tuple[str, ...],
-    tuple[str, ...],
-    tuple[str, ...],
-    SubmoduleReceipt,
-    tuple[_CollectionEvidence, ...],
-]:
-    selected_runner = (
-        (lambda path, node: _default_node_runner(
-            path, node, command_runner=command_runner
-        ))
-        if node_runner is None
-        else node_runner
-    )
-    selected_collection_runner = (
-        (lambda path, target: _default_collection_runner(
-            path, target, command_runner=command_runner
-        ))
-        if collection_runner is None
-        else collection_runner
-    )
-    main_rerun_rcs: dict[str, int] = {}
-    wave_rerun_rcs: dict[str, int] = {}
-    attributable: list[str] = []
-    flakes: list[str] = []
-    logged_nodeids: list[str] = []
-    collection_evidence: list[_CollectionEvidence] = []
-    submodule_receipt: SubmoduleReceipt | None = None
-    for reference in sorted(nodeids):
-        main_probe = _probe_node(
-            repo,
-            probe_root,
+    sleeper: Sleeper,
+) -> tuple[_MainProbeResult, SubmoduleReceipt]:
+    def operation(worktree: Path) -> _MainProbeResult:
+        full = _run_with_fingerprint(
+            worktree,
             tested_main,
-            reference,
             tip_label="--tested-main",
-            node_runner=selected_runner,
-            collection_runner=selected_collection_runner,
+            operation=lambda: _coerce_run_result(
+                full_runner(worktree), label="main full run"
+            ),
             command_runner=command_runner,
+            description="main full run",
         )
-        logged_nodeid = main_probe.logged_nodeid
-        if logged_nodeid in main_rerun_rcs:
-            raise InvalidInput(
-                f"pytest FAILED/ERROR nodeids contain duplicates: {logged_nodeid!r}"
-            )
-        main_rerun_rcs[logged_nodeid] = main_probe.rerun_rc
-        if submodule_receipt is None:
-            submodule_receipt = main_probe.submodules
-        elif main_probe.submodules != submodule_receipt:
-            raise InvalidInput(
-                "reference submodule initialization state changed between probes"
-            )
-        assert main_probe.collection is not None
-        collection_evidence.append(main_probe.collection)
-        if main_probe.rerun_rc == 0:
-            wave_probe = _probe_node(
-                repo,
-                probe_root,
-                wave_tip,
-                reference,
-                tip_label="--wave-tip",
-                node_runner=selected_runner,
-                collection_runner=None,
-                selector=main_probe.selector,
-                logged_nodeid=logged_nodeid,
-                command_runner=command_runner,
-            )
-            wave_rerun_rcs[logged_nodeid] = wave_probe.rerun_rc
-            if wave_probe.rerun_rc == 1:
-                attributable.append(logged_nodeid)
-            else:
-                flakes.append(logged_nodeid)
-        logged_nodeids.append(logged_nodeid)
-    return (
-        main_rerun_rcs,
-        wave_rerun_rcs,
-        tuple(sorted(attributable)),
-        tuple(sorted(flakes)),
-        tuple(sorted(logged_nodeids)),
-        submodule_receipt or (),
-        tuple(collection_evidence),
+        collection = _run_with_fingerprint(
+            worktree,
+            tested_main,
+            tip_label="--tested-main",
+            operation=lambda: _validate_collection_result(
+                _collection_result_from_output(collection_runner(worktree))
+            ),
+            command_runner=command_runner,
+            description="main collect-only run",
+        )
+        return _MainProbeResult(full.references, collection)
+
+    return _run_probe_worktree(
+        repo,
+        probe_root,
+        tested_main,
+        tip_label="--tested-main",
+        operation=operation,
+        command_runner=command_runner,
+        sleeper=sleeper,
     )
+
+
+def _resolve_red_references(
+    main_references: Sequence[str],
+    tip_references: Sequence[str],
+    collected_nodeids: Sequence[str],
+) -> tuple[dict[str, str], dict[str, str]]:
+    main_by_nodeid: dict[str, str] = {}
+    for reference in main_references:
+        _outcome_reference(reference)
+        try:
+            selector, nodeid = _selector_from_collection(
+                reference, collected_nodeids
+            )
+        except InvalidInput as exc:
+            raise InvalidInput(
+                f"main red reference cannot be resolved by collection: {reference!r}"
+            ) from exc
+        if nodeid in main_by_nodeid:
+            raise InvalidInput(
+                f"main red references resolve to duplicate nodeid: {nodeid!r}"
+            )
+        main_by_nodeid[nodeid] = selector
+
+    tip_by_nodeid: dict[str, str] = {}
+    for reference in tip_references:
+        _outcome_reference(reference)
+        try:
+            selector, nodeid = _selector_from_collection(
+                reference, collected_nodeids
+            )
+        except InvalidInput:
+            # A test added only by the wave is absent from the tested-main
+            # collection.  Keep its original reference for the wave batch.
+            selector, nodeid = reference, reference
+        if nodeid in tip_by_nodeid:
+            raise InvalidInput(
+                f"tip red references resolve to duplicate nodeid: {nodeid!r}"
+            )
+        tip_by_nodeid[nodeid] = selector
+    return main_by_nodeid, tip_by_nodeid
+
+
+def _batch_rerun_rcs(
+    result: _PytestRunResult,
+    nodeid_selectors: Mapping[str, str],
+) -> dict[str, int]:
+    selectors = tuple(nodeid_selectors.values())
+    if len(selectors) != len(set(selectors)):
+        raise InvalidInput("wave batch contains duplicate pytest selectors")
+    failed_selectors: set[str] = set()
+    for reference in result.references:
+        _outcome_reference(reference)
+        try:
+            selector, _nodeid = _selector_from_collection(reference, selectors)
+        except InvalidInput as exc:
+            raise InvalidInput(
+                f"wave batch red reference is outside the selected D set: "
+                f"{reference!r}"
+            ) from exc
+        if selector in failed_selectors:
+            raise InvalidInput(
+                f"wave batch red reference resolves to a duplicate selector: "
+                f"{selector!r}"
+            )
+        failed_selectors.add(selector)
+    return {
+        nodeid: 1 if selector in failed_selectors else 0
+        for nodeid, selector in nodeid_selectors.items()
+    }
+
+
+def _run_wave_batch(
+    repo: Path,
+    probe_root: Path,
+    wave_tip: str,
+    nodeid_selectors: Mapping[str, str],
+    *,
+    node_runner: NodeRunner,
+    command_runner: CommandRunner,
+    sleeper: Sleeper,
+) -> dict[str, int]:
+    selectors = tuple(nodeid_selectors.values())
+    if not selectors:
+        raise InvalidInput("wave batch rerun received no D nodeids")
+
+    def operation(worktree: Path) -> dict[str, int]:
+        return _run_with_fingerprint(
+            worktree,
+            wave_tip,
+            tip_label="--wave-tip",
+            operation=lambda: _batch_rerun_rcs(
+                _coerce_run_result(
+                    node_runner(worktree, selectors),
+                    label="wave batch rerun",
+                ),
+                nodeid_selectors,
+            ),
+            command_runner=command_runner,
+            description="wave batch rerun",
+        )
+
+    result, _submodules = _run_probe_worktree(
+        repo,
+        probe_root,
+        wave_tip,
+        tip_label="--wave-tip",
+        operation=operation,
+        command_runner=command_runner,
+        sleeper=sleeper,
+    )
+    return result
 
 
 def _canonical_json(document: Mapping[str, Any]) -> bytes:
@@ -1546,9 +1908,11 @@ def check_acceptance_reds(
     receipt: str,
     probe_root: str,
     repo_root: Path,
+    full_runner: FullRunner | None = None,
     node_runner: NodeRunner | None = None,
     collection_runner: CollectionRunner | None = None,
     command_runner: CommandRunner = subprocess.run,
+    sleeper: Sleeper = time.sleep,
 ) -> tuple[int, str, tuple[str, ...]]:
     log_path, receipt_path, probe, repo = _validate_paths(
         log, receipt, probe_root, repo_root
@@ -1562,33 +1926,73 @@ def check_acceptance_reds(
     ):
         raise InvalidInput("--probe-root must be outside every registered worktree")
     raw, log_sha256 = _read_log(log_path)
-    references = parse_pytest_log(raw)
-    main_rerun_rcs: dict[str, int] = {}
+    tip_references = parse_pytest_log(raw)
     wave_rerun_rcs: dict[str, int] = {}
-    attributable: tuple[str, ...] = ()
-    flakes: tuple[str, ...] = ()
-    nodeids: tuple[str, ...] = ()
+    attributable: list[str] = []
+    flakes: list[str] = []
+    nodeids: tuple[str, ...] = tuple(tip_references)
+    main_by_nodeid: dict[str, str] = {}
     submodules: SubmoduleReceipt = ()
     collections: tuple[_CollectionEvidence, ...] = ()
-    if references:
-        (
-            main_rerun_rcs,
-            wave_rerun_rcs,
-            attributable,
-            flakes,
-            nodeids,
-            submodules,
-            collections,
-        ) = _probe_nodes(
+    if tip_references:
+        selected_full_runner = (
+            (lambda worktree: _default_full_runner(
+                worktree, command_runner=command_runner
+            ))
+            if full_runner is None
+            else full_runner
+        )
+        selected_node_runner = (
+            (lambda worktree, selected: _default_node_runner(
+                worktree, selected, command_runner=command_runner
+            ))
+            if node_runner is None
+            else node_runner
+        )
+        selected_collection_runner = (
+            (lambda worktree: _default_collection_runner(
+                worktree, command_runner=command_runner
+            ))
+            if collection_runner is None
+            else collection_runner
+        )
+        main_probe, submodules = _run_main_probe(
             repo,
             probe,
             tested_main,
-            wave_tip,
-            references,
-            node_runner=node_runner,
-            collection_runner=collection_runner,
+            full_runner=selected_full_runner,
+            collection_runner=selected_collection_runner,
             command_runner=command_runner,
+            sleeper=sleeper,
         )
+        main_by_nodeid, tip_by_nodeid = _resolve_red_references(
+            main_probe.references,
+            tip_references,
+            main_probe.collection.nodeids,
+        )
+        nodeids = tuple(sorted(tip_by_nodeid))
+        difference = {
+            nodeid: tip_by_nodeid[nodeid]
+            for nodeid in nodeids
+            if nodeid not in main_by_nodeid
+        }
+        if difference:
+            _assert_wave_identity(repo, wave_tip, command_runner=command_runner)
+            wave_rerun_rcs = _run_wave_batch(
+                repo,
+                probe,
+                wave_tip,
+                difference,
+                node_runner=selected_node_runner,
+                command_runner=command_runner,
+                sleeper=sleeper,
+            )
+            for nodeid in sorted(difference):
+                if wave_rerun_rcs[nodeid] == 1:
+                    attributable.append(nodeid)
+                else:
+                    flakes.append(nodeid)
+        collections = (main_probe.collection.evidence,)
     _resolve_tested_main(repo, tested_main, command_runner=command_runner)
     _assert_wave_identity(repo, wave_tip, command_runner=command_runner)
     if not nodeids:
@@ -1597,26 +2001,24 @@ def check_acceptance_reds(
         rc, status = 1, "attributable-red"
     else:
         rc, status = 0, "non-attributable-only"
-    flake_set = set(flakes)
     nodes = []
     for nodeid in sorted(nodeids):
-        main_rc = main_rerun_rcs[nodeid]
-        if main_rc == 1:
+        if nodeid in main_by_nodeid:
             nodes.append(
                 {
                     "classification": "non-attributable",
                     "nodeid": nodeid,
-                    "rerun_rc": main_rc,
+                    "rerun_rc": 1,
                 }
             )
             continue
         wave_rc = wave_rerun_rcs[nodeid]
         nodes.append(
             {
-                "classification": "flake" if nodeid in flake_set else "attributable",
-                "main_rerun_rc": main_rc,
+                "classification": "flake" if nodeid in flakes else "attributable",
+                "main_rerun_rc": 0,
                 "nodeid": nodeid,
-                "rerun_rc": main_rc,
+                "rerun_rc": 0,
                 "wave_rerun_rc": wave_rc,
             }
         )
@@ -1650,8 +2052,8 @@ def check_acceptance_reds(
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "受入 log の赤を tested main と wave tip で単独再走し、"
-            "差分への帰属を判定する。"
+            "受入 log の赤を tested main の全走との差分で分類し、"
+            "差分だけを wave tip で batch 再走して帰属を判定する。"
         )
     )
     parser.add_argument("--log", required=True)
@@ -1688,9 +2090,11 @@ def main(
     argv: Sequence[str] | None = None,
     *,
     repo_root: Path | None = None,
+    full_runner: FullRunner | None = None,
     node_runner: NodeRunner | None = None,
     collection_runner: CollectionRunner | None = None,
     command_runner: CommandRunner = subprocess.run,
+    sleeper: Sleeper = time.sleep,
 ) -> int:
     try:
         args = _parser().parse_args(argv)
@@ -1706,9 +2110,11 @@ def main(
                 receipt=args.receipt,
                 probe_root=args.probe_root,
                 repo_root=root,
+                full_runner=full_runner,
                 node_runner=node_runner,
                 collection_runner=collection_runner,
                 command_runner=command_runner,
+                sleeper=sleeper,
             )
     except _TerminationSignal as exc:
         print("status=invalid-input", file=sys.stderr)

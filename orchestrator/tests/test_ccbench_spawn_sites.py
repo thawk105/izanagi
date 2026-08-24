@@ -121,6 +121,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8b_floor_campaign.py", "<module>._observe_floor_tool"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._pre_oracle_blob"): 2,
     ("campaign/s8b_floor_campaign.py", "<module>._verify_floor_oracle_dependency_source"): 1,
+    # Sanitized read-only Git identity/status probes for staged dependencies;
+    # neither command names nor executes CCBench.
+    ("campaign/s8b_floor_campaign.py", "<module>._verify_pristine_floor_dependency_sources"): 2,
     ("campaign/s8b_holdout_admission.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git_bytes"): 1,
@@ -139,9 +142,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/sort_swo_oracle.py", "<module>._compile"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compiler_version"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._run_matrix"): 1,
+    # Read-only Git metadata queries use fixed argv and a sanitized environment.
+    ("campaign/source_digest.py", "<module>._checkout_gitlink_oid"): 2,
     ("campaign/source_digest.py", "<module>._cpp_normalize"): 1,
     ("campaign/source_digest.py", "<module>._dump_macros"): 1,
     ("campaign/source_digest.py", "<module>._git_show"): 1,
+    ("campaign/source_digest.py", "<module>._git_tree_entries"): 1,
     ("campaign/source_digest.py", "<module>._tracked_diff_sha256"): 1,
     ("campaign/source_digest.py", "<module>._tracked_status_paths"): 1,
     ("campaign/t080_freeze_migration.py", "<module>._git"): 1,
@@ -267,6 +273,113 @@ def _process_launch_sites(
     return sites
 
 
+_CALIBRATION_ISSUER_MODULE = "orchestrator.holdout_observation"
+_CALIBRATION_ISSUER_NAME = (
+    "_issue_calibration_observation_capability_from_receipt"
+)
+
+
+def _qualified_name(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _qualified_name(node.value)
+        return None if parent is None else parent + "." + node.attr
+    return None
+
+
+class _CalibrationIssuerVisitor(ast.NodeVisitor):
+    """Find direct issuer imports/calls without changing spawn inventory.
+
+    Dynamic paths, including assignment-based alias tracking and
+    ``getattr``/``importlib``/``eval`` access (変数代入等を含む), are outside this
+    visitor's scope.  This is limited to partial detection of accidental
+    production call-site inclusion, not a complete dynamic call-graph check.
+    """
+
+    def __init__(self, relative_path: str):
+        self.relative_path = relative_path
+        self.scopes = ["<module>"]
+        self.issuer_aliases: set[str] = set()
+        self.module_aliases: dict[str, str] = {}
+        self.calls: Counter[tuple[str, str]] = Counter()
+        self.imports: Counter[tuple[str, str]] = Counter()
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            bound = alias.asname or alias.name.split(".", 1)[0]
+            self.module_aliases[bound] = alias.name
+            if alias.name == _CALIBRATION_ISSUER_MODULE:
+                self.imports[(self.relative_path, ".".join(self.scopes))] += 1
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module == "orchestrator":
+            for alias in node.names:
+                if alias.name == "holdout_observation":
+                    self.module_aliases[alias.asname or alias.name] = (
+                        _CALIBRATION_ISSUER_MODULE
+                    )
+        if node.module != _CALIBRATION_ISSUER_MODULE:
+            return
+        for alias in node.names:
+            if alias.name == _CALIBRATION_ISSUER_NAME:
+                self.issuer_aliases.add(alias.asname or alias.name)
+                self.imports[(self.relative_path, ".".join(self.scopes))] += 1
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.scopes.append(node.name)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    def _visit_function(self, node) -> None:
+        self.scopes.append(node.name)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    visit_FunctionDef = _visit_function
+    visit_AsyncFunctionDef = _visit_function
+
+    def _is_issuer_call(self, node: ast.AST) -> bool:
+        if isinstance(node, ast.Name):
+            return node.id in self.issuer_aliases
+        if not isinstance(node, ast.Attribute) or node.attr != _CALIBRATION_ISSUER_NAME:
+            return False
+        qualified = _qualified_name(node.value)
+        if qualified == _CALIBRATION_ISSUER_MODULE:
+            return True
+        if qualified is None:
+            return False
+        for alias, module in self.module_aliases.items():
+            if qualified == alias and module == _CALIBRATION_ISSUER_MODULE:
+                return True
+            if (module == "orchestrator"
+                    and qualified == alias + ".holdout_observation"):
+                return True
+        return False
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if self._is_issuer_call(node.func):
+            self.calls[(self.relative_path, ".".join(self.scopes))] += 1
+        self.generic_visit(node)
+
+
+def _calibration_issuer_sites(
+    directories: tuple[Path, ...] = _PRODUCTION_DIRS,
+    *, orchestrator_root: Path = _ROOT / "orchestrator",
+) -> tuple[Counter[tuple[str, str]], Counter[tuple[str, str]]]:
+    calls: Counter[tuple[str, str]] = Counter()
+    imports: Counter[tuple[str, str]] = Counter()
+    for directory in directories:
+        for path in sorted(directory.rglob("*.py")):
+            relative = path.relative_to(orchestrator_root).as_posix()
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            visitor = _CalibrationIssuerVisitor(relative)
+            visitor.visit(tree)
+            calls.update(visitor.calls)
+            imports.update(visitor.imports)
+    return calls, imports
+
+
 def _flags(mapping) -> list[str]:
     return [f"-{key}={value}" for key, value in mapping.items()]
 
@@ -279,6 +392,16 @@ def test_reviewed_process_launch_inventory_is_recursive_and_exact():
         + _EXPLICIT_NON_CCBENCH_PROCESS_SITES
     )
     assert _process_launch_sites() == expected
+
+
+def test_calibration_capability_issuer_has_one_certify_call_site():
+    calls, imports = _calibration_issuer_sites()
+    assert calls == Counter({
+        ("calibrator/cli.py", "<module>._certify_main"): 1,
+    })
+    assert imports == Counter({
+        ("calibrator/cli.py", "<module>"): 1,
+    })
 
 
 def test_reviewed_ccbench_measurement_launches_use_bounded_sites():

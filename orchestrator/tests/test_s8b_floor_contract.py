@@ -191,9 +191,9 @@ def test_refreeze_disqualifying_seam_closed_set_is_exact():
         "execution_receipt_fn", "build_fn", "repo_root",
         "after_certificate_issued_fn", "durable_root_policy",
         "_floor_preflight_fn", "perf_preflight_fn", "_holdout_repo_root",
-        "_holdout_signature_source",
+        "_holdout_signature_source", "fetchcontent_base_dir",
     })
-    assert len(s8b_floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES) == 17
+    assert len(s8b_floor_contract.REFREEZE_DISQUALIFYING_SEAM_NAMES) == 18
 
 
 def test_leaf_full_validator_normalizes_18_keys_and_projects_exact_7_scalars():

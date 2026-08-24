@@ -626,9 +626,37 @@ def _path_present_fail_closed(path: Path) -> bool:
 def _orphan_hold_present(preflight: Preflight) -> bool:
     """container 内 hold または外部 sidecar を保全側へ写像する。"""
 
-    hold = _dispatch_root(preflight) / "orphan-hold.json"
+    control_root = _dispatch_root(preflight)
+    hold = control_root / "orphan-hold.json"
     sidecar = Path(f"{preflight.out}.orphan-stop.json")
-    return _path_present_fail_closed(hold) or _path_present_fail_closed(sidecar)
+    if _path_present_fail_closed(hold) or _path_present_fail_closed(sidecar):
+        return True
+
+    ledger = control_root / "orphan-holds"
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        return True
+    try:
+        descriptor = os.open(
+            ledger,
+            os.O_RDONLY | nofollow | directory | getattr(os, "O_CLOEXEC", 0),
+        )
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    blocker = False
+    try:
+        with os.scandir(descriptor) as entries:
+            blocker = any(entry.name.endswith(".json") for entry in entries)
+    except OSError:
+        blocker = True
+    try:
+        os.close(descriptor)
+    except OSError:
+        blocker = True
+    return blocker
 
 
 def _rehydrate_dispatch_evidence(preflight: Preflight) -> bool:

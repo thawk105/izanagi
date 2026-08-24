@@ -8,7 +8,10 @@ dev harness 専用の薄い submitter であり、certification submitter は置
 from __future__ import annotations
 
 import argparse
+import fcntl
+import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -64,7 +67,13 @@ _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
 _COMPUTE_MARKER_NAME = "compute-visible.json"
 _ORPHAN_HOLD_NAME = "orphan-hold.json"
+_ORPHAN_HOLD_DIR_NAME = "orphan-holds"
 _ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
+_CONTROL_LOCK_NAME = "submission.lock"
+_INTENT_SCHEMA = "pegasus-dispatch-intent/v1"
+_INTENT_CONFIRM_SCHEMA = "pegasus-dispatch-intent-confirm/v1"
+_INTENT_HANDLED_SCHEMA = "pegasus-dispatch-intent-handled/v1"
+_INTENT_RECOVERY_SCHEMA = "pegasus-dispatch-intent-recovery/v1"
 
 
 class _DispatchResult(int):
@@ -100,8 +109,6 @@ TASKS = {
             _TASK_RUN_AUTO_RECORD_ENV,
             # 計算ノードに bytecode を書かせない指定を伝える。
             "PYTHONDONTWRITEBYTECODE",
-            # T-080 E2E の opt-in を計算ノードへ伝える。
-            "IZANAGI_T080_E2E",
             # 成長比例テストの明示 opt-in を計算ノードへ伝える。
             "IZANAGI_RUN_GROWTH_HELD_TESTS",
         }),
@@ -188,7 +195,7 @@ class DispatchError(RuntimeError):
 
 
 class _OrphanHoldError(DispatchError):
-    """orphan hold の create/promote/release を fail-closed にする専用例外。"""
+    """orphan hold の create/promote/release を fail-closed にする。"""
 
     def __init__(
         self,
@@ -514,17 +521,13 @@ def _write_json_atomic_replace(
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-
+        _fsync_dir(path.parent)
         if create_only:
-            # hard-link の公開は target が既にあれば失敗し、既存の final hold を
-            # 置き換えない。temporary と target は同じ directory にある。
-            _fsync_dir(path.parent)
             os.link(temporary, path)
             _fsync_dir(path.parent)
             temporary.unlink()
             _fsync_dir(path.parent)
         else:
-            _fsync_dir(path.parent)
             os.replace(temporary, path)
             _fsync_dir(path.parent)
     finally:
@@ -534,6 +537,64 @@ def _write_json_atomic_replace(
             temporary.unlink()
         except FileNotFoundError:
             pass
+
+
+def _intent_path(registry_root: Path, shard_index: int, suffix: str) -> Path:
+    return registry_root / f"shard-{shard_index}.{suffix}.json"
+
+
+def _register_dispatch_intent(
+    registry_root: Path,
+    *,
+    group_id: str,
+    shard_index: int,
+    job_name: str,
+    submission_dir: Path,
+) -> Path:
+    path = _intent_path(registry_root, shard_index, "intent")
+    _write_json_x(path, {
+        "schema_version": _INTENT_SCHEMA,
+        "group_id": group_id,
+        "shard_index": shard_index,
+        "job_name": job_name,
+        "submission_dir": str(submission_dir),
+    })
+    _fsync_dir(registry_root)
+    return path
+
+
+def _confirm_dispatch_intent(
+    registry_root: Path,
+    *,
+    shard_index: int,
+    request_id: str,
+) -> Path:
+    path = _intent_path(registry_root, shard_index, "confirm")
+    _write_json_x(path, {
+        "schema_version": _INTENT_CONFIRM_SCHEMA,
+        "shard_index": shard_index,
+        "request_id": request_id,
+    })
+    _fsync_dir(registry_root)
+    return path
+
+
+def _mark_dispatch_intent_handled(
+    registry_root: Path,
+    *,
+    shard_index: int,
+    request_id: Optional[str],
+) -> None:
+    path = _intent_path(registry_root, shard_index, "handled")
+    try:
+        _write_json_x(path, {
+            "schema_version": _INTENT_HANDLED_SCHEMA,
+            "shard_index": shard_index,
+            "request_id": request_id,
+        })
+        _fsync_dir(registry_root)
+    except FileExistsError:
+        pass
 
 
 def _write_text_x(path: Path, text: str, *, mode: int) -> None:
@@ -1125,37 +1186,97 @@ def _latch_submission_disabled(
     reason: str,
     submission_dir: Path,
     request_id: Optional[str],
+    lock_fd: Optional[int] = None,
 ) -> Path:
-    path = output_root / "submission-disabled.json"
-    payload = {
-        "schema_version": "pegasus-submission-disabled/v1",
-        "reason": reason,
-        "submission_dir": str(submission_dir),
-        "request_id": request_id,
-        "recovery": "ユーザー自身の端末から qsub し、有効性を確認してください",
-    }
+    owned_lock = None
     try:
-        _write_json_x(path, payload)
-    except FileExistsError:
-        pass
-    return path
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        path = output_root / "submission-disabled.json"
+        payload = {
+            "schema_version": "pegasus-submission-disabled/v1",
+            "reason": reason,
+            "submission_dir": str(submission_dir),
+            "request_id": request_id,
+            "recovery": "ユーザー自身の端末から qsub し、有効性を確認してください",
+        }
+        try:
+            _write_json_x(path, payload)
+        except FileExistsError:
+            pass
+        return path
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
+
+
+def _acquire_control_lock(output_root: Path) -> int:
+    output_root.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(
+        output_root / _CONTROL_LOCK_NAME,
+        os.O_RDWR | os.O_CREAT,
+        0o600,
+    )
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _release_control_lock(descriptor: int) -> None:
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def _orphan_hold_path(output_root: Path) -> Path:
     return output_root / _ORPHAN_HOLD_NAME
 
 
+def _orphan_hold_request_path(
+    output_root: Path,
+    *,
+    request_id: Optional[str],
+    job_name: str,
+    submission_dir: Path,
+) -> Path:
+    leaf: Optional[str] = None
+    if request_id is not None:
+        try:
+            candidate = _normalize_request_id(request_id)
+        except DispatchError:
+            candidate = ""
+        if _GATE_REQUEST_ID_RE.fullmatch(candidate) is not None:
+            leaf = candidate
+    if leaf is None:
+        material = f"{job_name}\0{submission_dir}".encode("utf-8", errors="strict")
+        leaf = "unknown-" + hashlib.sha256(material).hexdigest()[:24]
+    return output_root / _ORPHAN_HOLD_DIR_NAME / f"{leaf}.json"
+
+
 def _orphan_hold_present(output_root: Path) -> bool:
-    """hold は latch であり相互排他 lock ではない。判定不能も成立側へ倒す。"""
+    """request 別 hold または互換 marker の判定不能も成立側へ倒す。"""
 
     path = _orphan_hold_path(output_root)
     try:
         os.lstat(path)
     except FileNotFoundError:
+        pass
+    except OSError:
+        return True
+    else:
+        return True
+    directory = output_root / _ORPHAN_HOLD_DIR_NAME
+    try:
+        with os.scandir(directory) as entries:
+            return any(True for _entry in entries)
+    except FileNotFoundError:
         return False
     except OSError:
         return True
-    return True
 
 
 def _orphan_hold_required(qdel: Mapping[str, Any]) -> bool:
@@ -1235,15 +1356,42 @@ def _orphan_hold_error(
     )
 
 
+def _orphan_hold_is_owned(
+    payload: Mapping[str, Any],
+    *,
+    submission_dir: Path,
+    job_name: str,
+) -> bool:
+    return (
+        payload.get("submission_dir") == str(submission_dir)
+        and payload.get("job_name") == job_name
+    )
+
+
+def _read_orphan_hold_optional(path: Path) -> Optional[dict[str, Any]]:
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return None
+    return _read_json_object(path)
+
+
 def _arm_pending_orphan_hold(
     output_root: Path,
     *,
     submission_dir: Path,
     job_name: str,
+    lock_fd: Optional[int] = None,
 ) -> Path:
-    """qsub 直前に pending hold を create-only で durable 化する。"""
+    """qsub 直前に request 別 ledger と互換 marker を durable 化する。"""
 
-    path = _orphan_hold_path(output_root)
+    path = _orphan_hold_request_path(
+        output_root,
+        request_id=None,
+        job_name=job_name,
+        submission_dir=submission_dir,
+    )
+    compatibility_path = _orphan_hold_path(output_root)
     payload = _orphan_hold_payload(
         qdel={
             "attempted": False,
@@ -1255,8 +1403,19 @@ def _arm_pending_orphan_hold(
         job_name=job_name,
         phase="pending-qsub",
     )
+    owned_lock = None
     try:
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        _write_json_atomic_replace(
+            compatibility_path,
+            payload,
+            create_only=True,
+        )
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         _write_json_atomic_replace(path, payload, create_only=True)
+        _fsync_dir(path.parent)
+        _fsync_dir(output_root)
     except _SignalAbort:
         raise
     except BaseException as exc:
@@ -1269,6 +1428,9 @@ def _arm_pending_orphan_hold(
             exc=exc,
         )
         raise error from exc
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
     print(
         f"Pegasus pending orphan hold を create-only で保存しました: {path}",
         file=sys.stderr,
@@ -1284,32 +1446,74 @@ def _promote_pending_orphan_hold(
     submission_dir: Path,
     request_id: Optional[str],
     job_name: str,
+    lock_fd: Optional[int] = None,
 ) -> Path:
-    """自分の pending hold を、final payload へ原子的に昇格させる。"""
+    """自分の pending ledger だけを request 別 final hold へ昇格する。"""
 
-    path = _orphan_hold_path(output_root)
+    pending_path = _orphan_hold_request_path(
+        output_root,
+        request_id=None,
+        job_name=job_name,
+        submission_dir=submission_dir,
+    )
+    final_path = _orphan_hold_request_path(
+        output_root,
+        request_id=request_id,
+        job_name=job_name,
+        submission_dir=submission_dir,
+    )
+    compatibility_path = _orphan_hold_path(output_root)
+    final_payload = _orphan_hold_payload(
+        qdel=qdel,
+        submission_dir=submission_dir,
+        request_id=request_id,
+        job_name=job_name,
+    )
+    owned_lock = None
     try:
-        pending = _read_json_object(path)
-        if pending.get("phase") != "pending-qsub":
-            raise ValueError("hold phase is not pending-qsub")
-        if pending.get("job_name") != job_name:
-            raise ValueError("pending hold job_name mismatch")
-        if pending.get("submission_dir") != str(submission_dir):
-            raise ValueError("pending hold submission_dir mismatch")
-        pending_request_id = pending.get("request_id")
-        if pending_request_id is not None:
-            if request_id is None or (
-                _normalize_request_id(str(pending_request_id))
-                != _normalize_request_id(str(request_id))
-            ):
-                raise ValueError("pending hold request_id mismatch")
-        final_payload = _orphan_hold_payload(
-            qdel=qdel,
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        pending = _read_json_object(pending_path)
+        if pending.get("phase") not in {None, "pending-qsub"}:
+            raise ValueError("hold phase is not promotable")
+        if not _orphan_hold_is_owned(
+            pending,
             submission_dir=submission_dir,
-            request_id=request_id,
             job_name=job_name,
-        )
-        _write_json_atomic_replace(path, final_payload)
+        ):
+            raise ValueError("pending hold ownership mismatch")
+
+        if final_path == pending_path:
+            _write_json_atomic_replace(final_path, final_payload)
+        else:
+            try:
+                _write_json_atomic_replace(
+                    final_path,
+                    final_payload,
+                    create_only=True,
+                )
+            except FileExistsError:
+                existing_final = _read_json_object(final_path)
+                if not _orphan_hold_is_owned(
+                    existing_final,
+                    submission_dir=submission_dir,
+                    job_name=job_name,
+                ):
+                    raise ValueError("request hold ownership mismatch")
+
+        compatibility = _read_json_object(compatibility_path)
+        if _orphan_hold_is_owned(
+            compatibility,
+            submission_dir=submission_dir,
+            job_name=job_name,
+        ):
+            if compatibility.get("phase") not in {None, "pending-qsub"}:
+                raise ValueError("compatibility hold phase is not promotable")
+            _write_json_atomic_replace(compatibility_path, final_payload)
+        if final_path != pending_path:
+            pending_path.unlink()
+            _fsync_dir(pending_path.parent)
+        _fsync_dir(output_root)
     except _SignalAbort:
         raise
     except BaseException as exc:
@@ -1318,74 +1522,209 @@ def _promote_pending_orphan_hold(
         error = _orphan_hold_error(
             "orphan-hold-promote-failed",
             operation="promote",
-            path=path,
+            path=pending_path,
             exc=exc,
         )
         raise error from exc
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
     print(
-        f"Pegasus orphan hold を pending から昇格しました: {path}",
+        f"Pegasus orphan hold を pending から昇格しました: {final_path}",
         file=sys.stderr,
         flush=True,
     )
-    return path
+    return final_path
 
 
 def _release_pending_orphan_hold(
     output_root: Path,
     *,
-    expect_phase: str = "pending-qsub",
-    submission_dir: Optional[Path] = None,
-    job_name: Optional[str] = None,
+    submission_dir: Path,
+    job_name: str,
+    request_id: Optional[str] = None,
+    expect_phase: Optional[str] = "pending-qsub",
+    require_present: bool = True,
+    lock_fd: Optional[int] = None,
 ) -> Optional[Path]:
-    """自分が作った pending hold だけを durable に削除する。"""
+    """終端証拠を得た request 所有の hold だけを durable に削除する。"""
 
-    path = _orphan_hold_path(output_root)
-    try:
-        os.lstat(path)
-    except FileNotFoundError:
-        return None
-    except _SignalAbort:
-        raise
-    except BaseException as exc:
-        error = _orphan_hold_error(
-            "orphan-hold-release-failed",
-            operation="release",
-            path=path,
-            exc=exc,
+    pending_path = _orphan_hold_request_path(
+        output_root,
+        request_id=None,
+        job_name=job_name,
+        submission_dir=submission_dir,
+    )
+    candidates = [pending_path]
+    if request_id is not None:
+        final_path = _orphan_hold_request_path(
+            output_root,
+            request_id=request_id,
+            job_name=job_name,
+            submission_dir=submission_dir,
         )
-        raise error from exc
+        if final_path != pending_path:
+            candidates.append(final_path)
+    compatibility_path = _orphan_hold_path(output_root)
+    owned_lock = None
+    owned_payloads: list[tuple[Path, dict[str, Any]]] = []
+    compatibility: Optional[dict[str, Any]] = None
+    compatibility_owned = False
+    release_started = False
+
+    def restore_release_state() -> None:
+        """途中失敗前の blocking state を control lock 内で durable に戻す。"""
+
+        failures: list[BaseException] = []
+        blocking_restored = compatibility is not None and not compatibility_owned
+        restoration_payload: Optional[dict[str, Any]] = None
+        if compatibility_owned and compatibility is not None:
+            restoration_payload = compatibility
+        elif compatibility is None and owned_payloads:
+            restoration_payload = owned_payloads[0][1]
+        if restoration_payload is not None:
+            # aggregate を最初に戻し、ledger directory の再作成中にも consumer から
+            # blocking marker が消えないようにする。
+            try:
+                _write_json_atomic_replace(
+                    compatibility_path,
+                    restoration_payload,
+                )
+                blocking_restored = True
+            except _SignalAbort:
+                raise
+            except BaseException as exc:
+                failures.append(exc)
+        if owned_payloads:
+            ledger_published = False
+            try:
+                pending_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                for path, payload in owned_payloads:
+                    try:
+                        _write_json_atomic_replace(path, payload)
+                        ledger_published = True
+                    except _SignalAbort:
+                        raise
+                    except BaseException as exc:
+                        failures.append(exc)
+                _fsync_dir(pending_path.parent)
+                _fsync_dir(output_root)
+                blocking_restored = blocking_restored or ledger_published
+            except _SignalAbort:
+                raise
+            except BaseException as exc:
+                failures.append(exc)
+        elif blocking_restored:
+            try:
+                _fsync_dir(output_root)
+            except _SignalAbort:
+                raise
+            except BaseException as exc:
+                failures.append(exc)
+        if not blocking_restored:
+            if failures:
+                raise failures[0]
+            raise OSError("release rollback did not restore a blocking marker")
+
     try:
-        payload = _read_json_object(path)
-        if payload.get("phase") != expect_phase:
-            return None
-        if submission_dir is not None and payload.get("submission_dir") != str(
-            submission_dir
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        for path in candidates:
+            payload = _read_orphan_hold_optional(path)
+            if payload is None:
+                continue
+            if not _orphan_hold_is_owned(
+                payload,
+                submission_dir=submission_dir,
+                job_name=job_name,
+            ):
+                raise ValueError(f"hold ownership mismatch: {path.name}")
+            if expect_phase is not None and payload.get("phase") != expect_phase:
+                raise ValueError(f"hold phase mismatch: {path.name}")
+            owned_payloads.append((path, payload))
+
+        compatibility = _read_orphan_hold_optional(compatibility_path)
+        if compatibility is not None and _orphan_hold_is_owned(
+            compatibility,
+            submission_dir=submission_dir,
+            job_name=job_name,
         ):
-            raise ValueError("pending hold submission_dir mismatch")
-        if job_name is not None and payload.get("job_name") != job_name:
-            raise ValueError("pending hold job_name mismatch")
-        path.unlink()
+            if (
+                expect_phase is not None
+                and compatibility.get("phase") != expect_phase
+            ):
+                raise ValueError("compatibility hold phase mismatch")
+            compatibility_owned = True
+
+        if not owned_payloads and not compatibility_owned:
+            if require_present:
+                raise FileNotFoundError(pending_path)
+            return None
+        if require_present and not compatibility_owned:
+            raise ValueError("compatibility hold ownership mismatch")
+        replacement_payload: Optional[dict[str, Any]] = None
+        if compatibility_owned:
+            excluded = {path for path, _payload in owned_payloads}
+            for other_path in sorted(pending_path.parent.glob("*.json")):
+                if other_path not in excluded:
+                    replacement_payload = _read_json_object(other_path)
+                    break
+        for path, _payload in owned_payloads:
+            release_started = True
+            path.unlink()
+        if owned_payloads:
+            _fsync_dir(pending_path.parent)
+            with os.scandir(pending_path.parent) as entries:
+                ledger_empty = not any(True for _entry in entries)
+            if ledger_empty:
+                pending_path.parent.rmdir()
+                _fsync_dir(output_root)
+        if compatibility_owned:
+            if replacement_payload is None:
+                release_started = True
+                compatibility_path.unlink()
+            else:
+                release_started = True
+                _write_json_atomic_replace(
+                    compatibility_path,
+                    replacement_payload,
+                )
+            _fsync_dir(output_root)
         _fsync_dir(output_root)
-    except FileNotFoundError:
-        return None
-    except _SignalAbort:
-        raise
     except BaseException as exc:
+        restoration_error: Optional[BaseException] = None
+        if release_started:
+            try:
+                restore_release_state()
+            except BaseException as rollback_exc:
+                restoration_error = rollback_exc
+        if isinstance(restoration_error, _SignalAbort):
+            raise restoration_error from exc
+        if isinstance(exc, _SignalAbort):
+            raise
         if isinstance(exc, _OrphanHoldError):
             raise
         error = _orphan_hold_error(
             "orphan-hold-release-failed",
             operation="release",
-            path=path,
+            path=pending_path,
             exc=exc,
         )
+        if restoration_error is not None:
+            error.detail += (
+                "; release rollback failed: "
+                f"{type(restoration_error).__name__}: {restoration_error}"
+            )
         raise error from exc
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
     print(
-        f"Pegasus pending orphan hold を削除しました: {path}",
+        f"Pegasus orphan hold を削除しました: {pending_path}",
         file=sys.stderr,
         flush=True,
     )
-    return path
+    return pending_path
 
 
 def _latch_orphan_hold(
@@ -1395,95 +1734,100 @@ def _latch_orphan_hold(
     submission_dir: Path,
     request_id: Optional[str],
     job_name: str,
+    lock_fd: Optional[int] = None,
 ) -> Optional[Path]:
-    """job が残り得る証拠を create-only で保存する。
-
-    この file は lifecycle の相互排他ではない。同一 checkout で harness を
-    経由しない並行 dispatch を運用上作らない契約の下で、後続 consumer を
-    fail-closed に止める latch である。
-    """
+    """job が残り得る証拠を request 別 ledger と互換 marker に保存する。"""
 
     if not _orphan_hold_required(qdel):
         return None
-    path = _orphan_hold_path(output_root)
-    try:
-        os.lstat(path)
-    except FileNotFoundError:
-        pass
-    except OSError as exc:
-        error = _orphan_hold_error(
-            "orphan-hold-promote-failed",
-            operation="inspect",
-            path=path,
-            exc=exc,
-        )
-        qdel["hold_error"] = error.detail
-        raise error from exc
-    else:
-        try:
-            existing = _read_json_object(path)
-        except BaseException as exc:
-            error = _orphan_hold_error(
-                "orphan-hold-promote-failed",
-                operation="inspect",
-                path=path,
-                exc=exc,
-            )
-            qdel["hold_error"] = error.detail
-            raise error from exc
-        if existing.get("phase") == "pending-qsub":
-            try:
-                promoted = _promote_pending_orphan_hold(
-                    output_root,
-                    qdel=qdel,
-                    submission_dir=submission_dir,
-                    request_id=request_id,
-                    job_name=job_name,
-                )
-            except _OrphanHoldError as exc:
-                qdel["hold_error"] = exc.detail
-                print(
-                    f"Pegasus orphan hold を {path} へ昇格できませんでした: {exc.detail}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                raise
-            qdel["hold_promoted"] = True
-            return promoted
-        # 既存 final hold は従来どおり create-only で保持する。
-        return path
-
+    path = _orphan_hold_request_path(
+        output_root,
+        request_id=request_id,
+        job_name=job_name,
+        submission_dir=submission_dir,
+    )
+    compatibility_path = _orphan_hold_path(output_root)
     payload = _orphan_hold_payload(
         qdel=qdel,
         submission_dir=submission_dir,
         request_id=request_id,
         job_name=job_name,
     )
+    owned_lock = None
     try:
-        _write_json_x(path, payload)
-        _fsync_dir(output_root)
-    except FileExistsError:
-        return path
-    except OSError as exc:
-        error = _orphan_hold_error(
-            "orphan-hold-write-failed",
-            operation="create",
-            path=path,
-            exc=exc,
+        if lock_fd is None:
+            owned_lock = _acquire_control_lock(output_root)
+        pending_path = _orphan_hold_request_path(
+            output_root,
+            request_id=None,
+            job_name=job_name,
+            submission_dir=submission_dir,
         )
+        pending = _read_orphan_hold_optional(pending_path)
+        if pending is not None:
+            promoted = _promote_pending_orphan_hold(
+                output_root,
+                qdel=qdel,
+                submission_dir=submission_dir,
+                request_id=request_id,
+                job_name=job_name,
+                lock_fd=lock_fd if lock_fd is not None else owned_lock,
+            )
+            qdel["hold_promoted"] = True
+            return promoted
+        try:
+            _write_json_atomic_replace(
+                compatibility_path,
+                payload,
+                create_only=True,
+            )
+        except FileExistsError:
+            pass
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            _write_json_atomic_replace(path, payload, create_only=True)
+        except FileExistsError:
+            existing = _read_json_object(path)
+            if not _orphan_hold_is_owned(
+                existing,
+                submission_dir=submission_dir,
+                job_name=job_name,
+            ):
+                raise ValueError("request hold ownership mismatch")
+        _fsync_dir(path.parent)
+        _fsync_dir(output_root)
+    except _SignalAbort:
+        raise
+    except BaseException as exc:
+        if isinstance(exc, _OrphanHoldError):
+            error = exc
+        else:
+            error = _orphan_hold_error(
+                "orphan-hold-write-failed",
+                operation="create",
+                path=path,
+                exc=exc,
+            )
         qdel["hold_error"] = error.detail
         print(
-            f"Pegasus orphan hold を {path} へ保存できませんでした: {exc}",
+            f"Pegasus orphan hold を {path} へ保存できませんでした: {error.detail}",
             file=sys.stderr,
             flush=True,
         )
+        if error is exc:
+            raise
         raise error from exc
+    finally:
+        if owned_lock is not None:
+            _release_control_lock(owned_lock)
     print(
         f"Pegasus orphan hold を create-only で保存しました: {path}",
         file=sys.stderr,
         flush=True,
     )
-    return path
+    # 既存 consumer はこの aggregate marker を表示用 path として使う。
+    # request の完全な台帳は orphan-holds/ 以下であり、二本目以降も失わない。
+    return compatibility_path
 
 
 def _print_terminal_handoff(latch: Path, reason: str) -> None:
@@ -1519,6 +1863,8 @@ def _best_effort_qdel(
     except BaseException as exc:
         qdel["exception"] = f"{type(exc).__name__}: {exc}"
         qdel["job_may_remain"] = True
+        if isinstance(exc, _SignalAbort):
+            raise
         return qdel
     try:
         captured = _capture(result)
@@ -1556,7 +1902,9 @@ def _fresh_qstat_gated_qdel(
 
     qstat と qdel は別 scheduler command であり atomic ではない。したがって保証は
     fresh snapshot が QUE/HLD だったことまでで、qdel 時点まで RUN へ遷移しない
-    ことは保証しない。
+    ことは保証しない。対象 request に束縛された fresh END は qdel 不要の終端証拠
+    とする。既存 terminal history との矛盾は、その後の fresh snapshot
+    が QUE/HLD に戻った場合だけ閉じる。
 
     qstat/parse の判定例外境界を qdel primitive と分離する。qdel の結果を得た後は
     cleanup 時刻の再取得を含む gate 側の例外でその結果を上書きしない。
@@ -1671,6 +2019,8 @@ def _fresh_qstat_gated_qdel(
                     cwd=cwd,
                     environ=environ,
                 )
+            except _SignalAbort:
+                raise
             except BaseException as exc:
                 gate["qstat"] = {
                     "attempted": True,
@@ -1708,12 +2058,34 @@ def _fresh_qstat_gated_qdel(
             if classification == "permission":
                 return denied("qstat-permission", normalized=normalized)
             if classification == "success-request-absent":
+                response = result.stdout or ""
+                if (
+                    _QSTAT_REQUEST_ID_RE.search(response) is not None
+                    or _GATE_STATE_FIELD_RE.search(response) is not None
+                ):
+                    # target ID を含まない ID/state field は absent の
+                    # 証拠ではない。wrong/no-ID の END も terminal
+                    # history で救済せず target binding 不能として閉じる。
+                    gate["request_present"] = None
+                    return denied(
+                        "target-binding-ambiguous",
+                        normalized=normalized,
+                    )
                 gate["request_present"] = False
                 return denied("request-absent", normalized=normalized)
 
             gate["request_present"] = True
             state = _target_bound_qstat_state(result.stdout or "", normalized)
             gate["scheduler_state"] = state or "UNKNOWN"
+            if state == "END":
+                terminal = denied(
+                    "state-not-cancellable",
+                    normalized=normalized,
+                )
+                if "cleanup_elapsed_exception" not in terminal:
+                    gate["terminal_evidence"] = "target-bound-end-before-qdel"
+                    terminal["job_may_remain"] = False
+                return terminal
             if state not in {"QUE", "HLD"}:
                 return denied(
                     "target-state-unknown"
@@ -1725,6 +2097,8 @@ def _fresh_qstat_gated_qdel(
             gate["allowed"] = True
             gate["reason"] = "fresh-cancellable-snapshot"
             break
+    except _SignalAbort:
+        raise
     except BaseException as exc:
         gate["reason"] = "gate-exception"
         gate["exception"] = f"{type(exc).__name__}: {exc}"
@@ -1767,8 +2141,11 @@ def _fresh_qstat_gated_qdel(
     post_terminal = False
     post_reason = "post-qstat-not-evaluated"
 
-    def post_sleep() -> bool:
+    def post_retry(attempt: int) -> bool:
         nonlocal post_reason
+        if attempt >= qstat_attempts:
+            qdel["post_qstat_hard_cap_exhausted"] = True
+            return False
         try:
             remaining_budget = max(0.0, cleanup_budget_s - elapsed())
         except BaseException as exc:
@@ -1783,6 +2160,8 @@ def _fresh_qstat_gated_qdel(
             return False
         try:
             sleep(min(max(0.0, retry_interval_s), remaining_budget))
+        except _SignalAbort:
+            raise
         except BaseException as exc:
             post_reason = "post-qstat-sleep-exception"
             qdel["post_qstat_exception"] = f"{type(exc).__name__}: {exc}"
@@ -1792,16 +2171,15 @@ def _fresh_qstat_gated_qdel(
     try:
         for attempt in range(1, qstat_attempts + 1):
             try:
-                budget_elapsed = elapsed()
+                if elapsed() >= cleanup_budget_s:
+                    post_reason = "post-qstat-budget-exhausted"
+                    break
             except BaseException as exc:
                 post_reason = "post-qstat-clock-exception"
                 qdel["cleanup_elapsed_s"] = None
                 qdel["cleanup_elapsed_exception"] = (
                     f"{type(exc).__name__}: {exc}"
                 )
-                break
-            if budget_elapsed >= cleanup_budget_s:
-                post_reason = "post-qstat-budget-exhausted"
                 break
             try:
                 result = _run(
@@ -1810,17 +2188,6 @@ def _fresh_qstat_gated_qdel(
                     cwd=cwd,
                     environ=environ,
                 )
-            except BaseException as exc:
-                post_record = {
-                    "attempted": True,
-                    "attempt": attempt,
-                    "exception": f"{type(exc).__name__}: {exc}",
-                }
-                post_qstat_attempts.append(post_record)
-                qdel["post_qstat"] = post_record
-                post_reason = "post-qstat-exception"
-                break
-            try:
                 classification = _classify_qstat_response(result, normalized)
                 post_record = {
                     "attempted": True,
@@ -1828,6 +2195,8 @@ def _fresh_qstat_gated_qdel(
                     "classification": classification,
                     **_capture(result),
                 }
+            except _SignalAbort:
+                raise
             except BaseException as exc:
                 post_record = {
                     "attempted": True,
@@ -1840,6 +2209,7 @@ def _fresh_qstat_gated_qdel(
                 break
             post_qstat_attempts.append(post_record)
             qdel["post_qstat"] = post_record
+
             try:
                 if elapsed() >= cleanup_budget_s:
                     post_reason = "post-qstat-budget-exhausted"
@@ -1851,24 +2221,20 @@ def _fresh_qstat_gated_qdel(
                     f"{type(exc).__name__}: {exc}"
                 )
                 break
-
             if classification == "permission":
                 post_reason = "post-qstat-permission"
                 break
             if classification == "transient":
                 post_reason = "post-qstat-transient-retries-exhausted"
-                if attempt < qstat_attempts and post_sleep():
+                if post_retry(attempt):
                     continue
                 break
             if classification == "success-request-absent":
                 post_record["request_present"] = False
-                # qdel rc=0 を取消受理の裏付けとし、最終 absent だけを終端証拠にする。
-                if attempt == qstat_attempts:
-                    post_terminal = True
-                    post_reason = "success-request-absent-after-qdel"
-                    break
-                post_reason = "post-qstat-request-absent-retry"
-                if post_sleep():
+                # qdel rc=0 は取消要求の受理にすぎず、対象 request の独立した
+                # 終端証拠ではないため absent 単体では hold を解除しない。
+                post_reason = "post-qstat-request-absent-unconfirmed"
+                if post_retry(attempt):
                     continue
                 break
 
@@ -1883,9 +2249,11 @@ def _fresh_qstat_gated_qdel(
                 "post-qstat-target-state-unknown"
                 if state is None else "post-qstat-nonterminal"
             )
-            if attempt < qstat_attempts and post_sleep():
+            if post_retry(attempt):
                 continue
             break
+    except _SignalAbort:
+        raise
     except BaseException as exc:
         post_reason = "post-qstat-exception"
         qdel["post_qstat_exception"] = f"{type(exc).__name__}: {exc}"
@@ -1899,6 +2267,162 @@ def _fresh_qstat_gated_qdel(
         qdel["cleanup_elapsed_exception"] = f"{type(exc).__name__}: {exc}"
         qdel["job_may_remain"] = True
     return qdel
+
+
+def recover_dispatch_intents(
+    registry_root: Path,
+    control_root: Path,
+    *,
+    deadline_at: float,
+    run_command: CommandRunner = subprocess.run,
+    environ: Optional[Mapping[str, str]] = None,
+    clock: Clock = time.monotonic,
+    sleep: Sleeper = time.sleep,
+) -> tuple[dict[str, Any], ...]:
+    """異常死した shard worker の未処理 intent を deadline 内で回収する。"""
+
+    registry = Path(registry_root).resolve()
+    controls = Path(control_root).resolve()
+    command_env = dict(os.environ if environ is None else environ)
+    outcomes: list[dict[str, Any]] = []
+    try:
+        intent_paths = sorted(registry.glob("shard-*.intent.json"))
+    except OSError as exc:
+        return ({"error": f"{type(exc).__name__}: {exc}"},)
+    for intent_path in intent_paths:
+        try:
+            intent = _read_json_object(intent_path)
+            if set(intent) != {
+                "schema_version", "group_id", "shard_index", "job_name",
+                "submission_dir",
+            } or intent["schema_version"] != _INTENT_SCHEMA:
+                raise DispatchError("intent-schema")
+            shard_index = intent["shard_index"]
+            job_name = intent["job_name"]
+            submission_dir = Path(intent["submission_dir"]).resolve()
+            expected_artifact_root = (
+                registry.parent / f"shard-{shard_index}" / "dispatch"
+            ).resolve()
+            if (
+                type(shard_index) is not int
+                or shard_index < 0
+                or type(job_name) is not str
+                or not job_name
+                or not submission_dir.is_dir()
+                or intent.get("group_id") != registry.parent.name
+                or intent_path != _intent_path(registry, shard_index, "intent")
+            ):
+                raise DispatchError("intent-value")
+            try:
+                submission_dir.relative_to(expected_artifact_root)
+            except ValueError as exc:
+                raise DispatchError("intent-submission-dir") from exc
+            if job_name != _job_name(submission_dir.name):
+                raise DispatchError("intent-job-name")
+            handled_path = _intent_path(registry, shard_index, "handled")
+            if handled_path.exists():
+                continue
+
+            request_id: Optional[str] = None
+            confirm_path = _intent_path(registry, shard_index, "confirm")
+            if confirm_path.exists():
+                confirm = _read_json_object(confirm_path)
+                if set(confirm) != {
+                    "schema_version", "shard_index", "request_id",
+                } or confirm["schema_version"] != _INTENT_CONFIRM_SCHEMA:
+                    raise DispatchError("intent-confirm-schema")
+                if confirm["shard_index"] != shard_index:
+                    raise DispatchError("intent-confirm-index")
+                request_id = confirm["request_id"]
+                if type(request_id) is not str:
+                    raise DispatchError("intent-confirm-request-id")
+
+            def bounded_run(command: Sequence[str], **kwargs: Any):
+                remaining = deadline_at - clock()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, 0)
+                requested = float(kwargs.get("timeout", remaining))
+                kwargs["timeout"] = min(requested, remaining)
+                return run_command(command, **kwargs)
+
+            discovery: Optional[dict[str, Any]] = None
+            if request_id is None and clock() < deadline_at:
+                discovery_attempts: list[dict[str, Any]] = []
+                for attempt in range(1, DEFAULT_IMMEDIATE_QSTAT_ATTEMPTS + 1):
+                    request_id, discovery = _discover_request_id(
+                        bounded_run,
+                        job_name=job_name,
+                        submission_dir=submission_dir,
+                        environ=command_env,
+                    )
+                    discovery_attempts.append({
+                        "attempt": attempt,
+                        **({} if discovery is None else discovery),
+                    })
+                    if request_id is not None or clock() >= deadline_at:
+                        break
+                    remaining_before_retry = max(0.0, deadline_at - clock())
+                    sleep(min(DEFAULT_POLL_INTERVAL_S, remaining_before_retry))
+                discovery = {"attempts": discovery_attempts}
+            remaining = max(0.0, deadline_at - clock())
+            qdel = _fresh_qstat_gated_qdel(
+                bounded_run,
+                request_id=request_id,
+                cwd=submission_dir,
+                environ=command_env,
+                cleanup_budget_s=remaining,
+                retry_interval_s=min(DEFAULT_POLL_INTERVAL_S, remaining),
+                job_name=job_name,
+                submission_dir=submission_dir,
+                clock=clock,
+                sleep=sleep,
+            )
+            outcome = {
+                "schema_version": _INTENT_RECOVERY_SCHEMA,
+                "shard_index": shard_index,
+                "request_id": request_id,
+                "discovery": discovery,
+                "qdel": qdel,
+            }
+            transition_error: Optional[_OrphanHoldError] = None
+            try:
+                if qdel.get("job_may_remain") is True:
+                    _latch_orphan_hold(
+                        controls,
+                        qdel=qdel,
+                        submission_dir=submission_dir,
+                        request_id=request_id,
+                        job_name=job_name,
+                    )
+                else:
+                    _release_pending_orphan_hold(
+                        controls,
+                        submission_dir=submission_dir,
+                        request_id=request_id,
+                        job_name=job_name,
+                        expect_phase=None,
+                        require_present=False,
+                    )
+            except _OrphanHoldError as exc:
+                transition_error = exc
+                qdel["hold_error"] = exc.detail
+                outcome["orphan_hold_error"] = _orphan_hold_error_record(exc)
+            recovery_path = _intent_path(registry, shard_index, "recovery")
+            _write_json_atomic_replace(recovery_path, outcome)
+            _fsync_dir(registry)
+            outcomes.append(outcome)
+            if transition_error is None and qdel.get("job_may_remain") is False:
+                _mark_dispatch_intent_handled(
+                    registry,
+                    shard_index=shard_index,
+                    request_id=request_id,
+                )
+        except BaseException as exc:
+            outcomes.append({
+                "intent_path": str(intent_path),
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+    return tuple(outcomes)
 
 
 def _print_qdel_remaining_warning(
@@ -1948,6 +2472,12 @@ def _dispatch_impl(
     repo_root: Optional[Path] = None,
     environ: Optional[Mapping[str, str]] = None,
     output_root: Optional[Path] = None,
+    artifact_root: Optional[Path] = None,
+    control_root: Optional[Path] = None,
+    intent_registry_root: Optional[Path] = None,
+    intent_group_id: Optional[str] = None,
+    intent_shard_index: Optional[int] = None,
+    deadline_at: Optional[float] = None,
     walltime: str = DEFAULT_WALLTIME,
     queue_wait_timeout_s: float = DEFAULT_QUEUE_WAIT_TIMEOUT_S,
     overall_grace_s: float = DEFAULT_OVERALL_GRACE_S,
@@ -1972,10 +2502,52 @@ def _dispatch_impl(
         Path(__file__).resolve().parents[2]
         if repo_root is None else Path(repo_root).resolve()
     )
-    root = (
-        repo / "output" / "pegasus-dispatch"
-        if output_root is None else Path(output_root).resolve()
+    if artifact_root is not None or control_root is not None:
+        if output_root is not None or artifact_root is None or control_root is None:
+            raise ValueError(
+                "split dispatch requires artifact_root and control_root only"
+            )
+        root = Path(artifact_root).resolve()
+        controls = Path(control_root).resolve()
+        canonical_controls = repo / "output" / "pegasus-dispatch"
+        if controls != canonical_controls or root == controls:
+            raise ValueError(
+                "split dispatch control_root must be repo/output/pegasus-dispatch"
+            )
+        try:
+            root.relative_to(repo)
+        except ValueError:
+            pass
+        else:
+            raise ValueError("split dispatch artifact_root must be outside repo")
+    else:
+        root = (
+            repo / "output" / "pegasus-dispatch"
+            if output_root is None else Path(output_root).resolve()
+        )
+        controls = root
+    intent_registry: Optional[Path] = None
+    intent_enabled = any(
+        value is not None
+        for value in (intent_registry_root, intent_group_id, intent_shard_index)
     )
+    if intent_enabled:
+        if (
+            artifact_root is None
+            or intent_registry_root is None
+            or type(intent_group_id) is not str
+            or re.fullmatch(r"[A-Za-z0-9._-]+", intent_group_id) is None
+            or type(intent_shard_index) is not int
+            or intent_shard_index < 0
+        ):
+            raise ValueError("split dispatch intent registry contract is incomplete")
+        intent_registry = Path(intent_registry_root).resolve()
+        expected_registry = root.parent.parent / "dispatch-intents"
+        if (
+            intent_registry != expected_registry
+            or intent_group_id != expected_registry.parent.name
+        ):
+            raise ValueError("split dispatch intent registry is not session-bound")
     walltime_s = _walltime_seconds(walltime)
     if min(
         queue_wait_timeout_s,
@@ -1989,6 +2561,26 @@ def _dispatch_impl(
         raise ValueError("poll interval は 0 にできません")
     if immediate_qstat_attempts <= 0:
         raise ValueError("immediate qstat attempts は正でなければなりません")
+    if deadline_at is not None:
+        if not math.isfinite(deadline_at) or deadline_at <= clock():
+            raise ValueError("parent deadline は将来の有限な monotonic 値が必要です")
+        base_run_command = run_command
+        base_sleep = sleep
+
+        def deadline_bounded_run(command: Sequence[str], **kwargs: Any):
+            remaining = deadline_at - clock()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(command, 0)
+            requested = float(kwargs.get("timeout", remaining))
+            kwargs["timeout"] = min(requested, remaining)
+            return base_run_command(command, **kwargs)
+
+        def deadline_bounded_sleep(seconds: float) -> None:
+            remaining = max(0.0, deadline_at - clock())
+            base_sleep(min(seconds, remaining))
+
+        run_command = deadline_bounded_run
+        sleep = deadline_bounded_sleep
 
     command_env = dict(os.environ if environ is None else environ)
     request_env = {
@@ -1998,29 +2590,34 @@ def _dispatch_impl(
     command_env.pop(_TASK_RUN_ENV, None)
     command_env.pop(_TASK_RUN_ROOT_ENV, None)
 
+    controls.mkdir(parents=True, exist_ok=True)
     root.mkdir(parents=True, exist_ok=True)
-    latch = root / "submission-disabled.json"
-    if latch.exists():
-        _print_terminal_handoff(latch, "既存の F47 型ラッチ")
-        return _return_infra(
-            "submission-disabled",
-            child_started=False,
-            allow_unstarted=True,
-        )
-    orphan_hold = _orphan_hold_path(root)
-    if _orphan_hold_present(root):
-        print(
-            "Pegasus orphan hold があるため scheduler command を起動しません。"
-            f"hold: {orphan_hold}。qstat で対象の不在または終端を確認し、"
-            "source を復元してから hold を手動削除してください。",
-            file=sys.stderr,
-            flush=True,
-        )
-        return _return_infra(
-            "orphan-hold",
-            child_started=False,
-            allow_unstarted=True,
-        )
+    latch = controls / "submission-disabled.json"
+    orphan_hold = _orphan_hold_path(controls)
+    quick_lock_fd = _acquire_control_lock(controls)
+    try:
+        if latch.exists():
+            _print_terminal_handoff(latch, "既存の F47 型ラッチ")
+            return _return_infra(
+                "submission-disabled",
+                child_started=False,
+                allow_unstarted=True,
+            )
+        if _orphan_hold_present(controls):
+            print(
+                "Pegasus orphan hold があるため scheduler command を起動しません。"
+                f"hold: {orphan_hold}。qstat で対象の不在または終端を確認し、"
+                "source を復元してから hold を手動削除してください。",
+                file=sys.stderr,
+                flush=True,
+            )
+            return _return_infra(
+                "orphan-hold",
+                child_started=False,
+                allow_unstarted=True,
+            )
+    finally:
+        _release_control_lock(quick_lock_fd)
 
     nonce_value = nonce or secrets.token_hex(16)
     if re.fullmatch(r"[A-Za-z0-9._-]+", nonce_value) is None:
@@ -2068,6 +2665,15 @@ def _dispatch_impl(
     )
     _fsync_dir(submission_dir)
     _fsync_dir(root)
+    if intent_registry is not None:
+        intent_registry.mkdir(mode=0o700, parents=True, exist_ok=True)
+        _register_dispatch_intent(
+            intent_registry,
+            group_id=intent_group_id,
+            shard_index=intent_shard_index,
+            job_name=job_name,
+            submission_dir=submission_dir,
+        )
 
     request_id: Optional[str] = None
     active = False
@@ -2079,9 +2685,11 @@ def _dispatch_impl(
     run_deadline_rebased = False
     terminal_history_end = False
     cleanup_claimed = False
+    control_lock_fd: Optional[int] = None
     pending_cleanup_signal: Optional[int] = None
     pending_hold_armed = False
     pending_hold_release_blocked = False
+    hold_transition_complete = True
     stdout_record: Optional[dict[str, Any]] = None
     stderr_record: Optional[dict[str, Any]] = None
     observed_child_rc: Optional[int] = None
@@ -2102,48 +2710,33 @@ def _dispatch_impl(
         *,
         qdel: Optional[dict[str, Any]] = None,
     ) -> None:
-        nonlocal pending_hold_release_blocked
-        record = _orphan_hold_error_record(error)
-        receipt["orphan_hold_error"] = record
+        nonlocal pending_hold_release_blocked, hold_transition_complete
+        receipt["orphan_hold_error"] = _orphan_hold_error_record(error)
         if qdel is not None:
             qdel["hold_error"] = error.detail
-        if pending_hold_armed:
-            pending_hold_release_blocked = True
+        pending_hold_release_blocked = True
+        hold_transition_complete = False
 
-    def persist_receipt_then_release_pending() -> tuple[
-        Optional[Path], Optional[_OrphanHoldError]
-    ]:
+    def release_pending_after_durable_evidence(
+        *,
+        persisted: Optional[Path] = None,
+    ) -> Optional[_OrphanHoldError]:
         nonlocal pending_hold_armed, pending_hold_release_blocked
-        persisted = _persist_receipt(submission_dir, root, receipt)
-        if (
-            persisted is None
-            or not pending_hold_armed
-            or pending_hold_release_blocked
-        ):
-            return persisted, None
+        nonlocal hold_transition_complete
+        if not pending_hold_armed or pending_hold_release_blocked:
+            return None
         try:
             _release_pending_orphan_hold(
-                root,
+                controls,
                 submission_dir=submission_dir,
                 job_name=job_name,
+                lock_fd=control_lock_fd,
             )
-        except _SignalAbort as signal_error:
+        except _SignalAbort:
             pending_hold_release_blocked = True
-            # Release は receipt の初回永続化後に行うため、signal がここで
-            # 到達した場合も同じ receipt path を即時に更新してから再送出する。
-            if pending_cleanup_signal is None:
-                receipt["outcome"] = {
-                    "kind": "infra",
-                    "reason": f"_SignalAbort: signal {signal_error.signum}",
-                    "rc": INFRA_RC,
-                }
-            try:
-                _write_json_atomic_replace(persisted, receipt)
-            except OSError:
-                _persist_receipt(submission_dir, root, receipt)
+            hold_transition_complete = False
             raise
         except _OrphanHoldError as error:
-            pending_hold_release_blocked = True
             qdel_record = receipt.get("qdel")
             record_orphan_hold_error(
                 error,
@@ -2155,16 +2748,25 @@ def _dispatch_impl(
                     "reason": error.reason,
                     "rc": INFRA_RC,
                 }
-            # The first receipt is already durable.  Replace that exact path so
-            # the consumer-visible primary receipt also carries the failure;
-            # retain the existing fallback path only if the replacement fails.
-            try:
-                _write_json_atomic_replace(persisted, receipt)
-            except OSError:
-                _persist_receipt(submission_dir, root, receipt)
-            return persisted, error
+            if persisted is not None:
+                try:
+                    _write_json_atomic_replace(persisted, receipt)
+                except OSError:
+                    _persist_receipt(submission_dir, root, receipt)
+            return error
         pending_hold_armed = False
-        return persisted, None
+        hold_transition_complete = True
+        return None
+
+    def persist_receipt_then_release_pending() -> tuple[
+        Optional[Path], Optional[_OrphanHoldError]
+    ]:
+        persisted = _persist_receipt(submission_dir, root, receipt)
+        if persisted is None:
+            return None, None
+        return persisted, release_pending_after_durable_evidence(
+            persisted=persisted,
+        )
 
     def abort_on_signal(signum, _frame):
         nonlocal pending_cleanup_signal
@@ -2184,7 +2786,7 @@ def _dispatch_impl(
 
     def claim_cleanup_once() -> dict[str, Any]:
         nonlocal cleanup_claimed, pending_hold_armed
-        nonlocal pending_hold_release_blocked
+        nonlocal hold_transition_complete
         if cleanup_claimed:
             return receipt["qdel"]
         qdel_record: dict[str, Any] = {
@@ -2197,13 +2799,19 @@ def _dispatch_impl(
         cleanup_claimed = True
         primary: Optional[BaseException] = None
         try:
+            effective_cleanup_budget = cleanup_budget_s
+            if deadline_at is not None:
+                effective_cleanup_budget = min(
+                    effective_cleanup_budget,
+                    max(0.0, deadline_at - clock()),
+                )
             result = _fresh_qstat_gated_qdel(
                 run_command,
                 request_id=request_id,
                 cwd=submission_dir if submission_dir.exists() else root,
                 environ=command_env,
                 qstat_attempts=immediate_qstat_attempts,
-                cleanup_budget_s=cleanup_budget_s,
+                cleanup_budget_s=effective_cleanup_budget,
                 retry_interval_s=poll_interval_s,
                 terminal_history_end=terminal_history_end,
                 clock=clock,
@@ -2215,7 +2823,6 @@ def _dispatch_impl(
             return result
         except _SignalAbort as exc:
             primary = exc
-            pending_hold_release_blocked = True
             raise
         except BaseException as exc:
             primary = exc
@@ -2223,22 +2830,23 @@ def _dispatch_impl(
         finally:
             try:
                 _latch_orphan_hold(
-                    root,
+                    controls,
                     qdel=qdel_record,
                     submission_dir=submission_dir,
                     request_id=request_id,
                     job_name=job_name,
+                    lock_fd=control_lock_fd,
                 )
                 if qdel_record.get("hold_promoted") is True:
                     pending_hold_armed = False
+                    hold_transition_complete = True
             except _SignalAbort:
-                pending_hold_release_blocked = True
+                hold_transition_complete = False
                 raise
             except _OrphanHoldError as error:
                 record_orphan_hold_error(error, qdel=qdel_record)
                 if pending_cleanup_signal is not None:
-                    # The signal is the logical primary reason.  Keep the
-                    # pending marker when promotion itself failed.
+                    # deferred signal が論理上の一次理由で、hold failure は別証拠。
                     pass
                 elif primary is not None:
                     raise primary from error
@@ -2254,6 +2862,14 @@ def _dispatch_impl(
     started = 0.0
     submitted_at = 0.0
     try:
+        # 既存の quick check 後に待機した peer もあるため、投入直前に mutex
+        # 内で再検査し、immediate visibility の確定まで同じ lock を保持する。
+        control_lock_fd = _acquire_control_lock(controls)
+        if latch.exists():
+            _print_terminal_handoff(latch, "既存の F47 型ラッチ")
+            raise DispatchError("submission-disabled")
+        if _orphan_hold_present(controls):
+            raise DispatchError("orphan-hold")
         started = clock()
         preflight = _run(
             run_command,
@@ -2266,11 +2882,13 @@ def _dispatch_impl(
             raise DispatchError(f"qstat -Q preflight rc={preflight.returncode}")
 
         _progress(f"job を {DEFAULT_QUEUE} へ投入します ({job_name})")
+        hold_transition_complete = False
         try:
             _arm_pending_orphan_hold(
-                root,
+                controls,
                 submission_dir=submission_dir,
                 job_name=job_name,
+                lock_fd=control_lock_fd,
             )
             pending_hold_armed = True
         except _SignalAbort:
@@ -2302,23 +2920,15 @@ def _dispatch_impl(
         qsub_result_unknown = False
         receipt["qsub"] = _capture(qsub)
         if qsub.returncode != 0:
-            if pending_hold_armed:
-                try:
-                    _release_pending_orphan_hold(
-                        root,
-                        submission_dir=submission_dir,
-                        job_name=job_name,
-                    )
-                except _SignalAbort:
-                    pending_hold_release_blocked = True
-                    raise
-                except _OrphanHoldError as error:
-                    record_orphan_hold_error(error)
-                    raise
-                pending_hold_armed = False
             raise DispatchError(f"qsub rc={qsub.returncode}")
         submitted_at = clock()
         request_id = _parse_request_id(qsub.stdout or "")
+        if intent_registry is not None:
+            _confirm_dispatch_intent(
+                intent_registry,
+                shard_index=intent_shard_index,
+                request_id=request_id,
+            )
         normalized_id = _normalize_request_id(request_id)
         receipt["request_id"] = request_id
         receipt["normalized_request_id"] = normalized_id
@@ -2368,10 +2978,11 @@ def _dispatch_impl(
             receipt["qdel"] = claim_cleanup_once()
             active = False
             latched = _latch_submission_disabled(
-                root,
+                controls,
                 reason=reason,
                 submission_dir=submission_dir,
                 request_id=request_id,
+                lock_fd=control_lock_fd,
             )
             _, pending_release_error = persist_receipt_then_release_pending()
             if pending_cleanup_signal is not None:
@@ -2396,10 +3007,11 @@ def _dispatch_impl(
             receipt["qdel"] = claim_cleanup_once()
             active = False
             latched = _latch_submission_disabled(
-                root,
+                controls,
                 reason=reason,
                 submission_dir=submission_dir,
                 request_id=request_id,
+                lock_fd=control_lock_fd,
             )
             _, pending_release_error = persist_receipt_then_release_pending()
             if pending_cleanup_signal is not None:
@@ -2417,9 +3029,18 @@ def _dispatch_impl(
             )
             return _return_infra(reason, child_started=True)
 
+        if intent_registry is not None:
+            pending_release_error = release_pending_after_durable_evidence()
+            if pending_release_error is not None:
+                raise pending_release_error
+        _release_control_lock(control_lock_fd)
+        control_lock_fd = None
+
         current = visible
         queue_started = submitted_at
         total_deadline = submitted_at + walltime_s + overall_grace_s
+        if deadline_at is not None:
+            total_deadline = min(total_deadline, deadline_at)
         announced_state: Optional[str] = None
         terminal_at: Optional[float] = None
         while True:
@@ -2470,6 +3091,8 @@ def _dispatch_impl(
                     total_deadline = (
                         run_observed_at + walltime_s + overall_grace_s
                     )
+                    if deadline_at is not None:
+                        total_deadline = min(total_deadline, deadline_at)
                 if not run_seen:
                     run_seen = True
                     receipt["queue_wait_s"] = max(0.0, now - queue_started)
@@ -2505,6 +3128,8 @@ def _dispatch_impl(
             receipt["queue_wait_observed"] = False
         _progress(f"request {normalized_id} の成果物収集を開始します")
         collection_deadline = clock() + accounting_grace_s
+        if deadline_at is not None:
+            collection_deadline = min(collection_deadline, deadline_at)
         result: Optional[dict[str, Any]] = None
         marker_valid = False
         marker_record: dict[str, Any] = {}
@@ -2561,10 +3186,11 @@ def _dispatch_impl(
                     receipt["qdel"] = claim_cleanup_once()
                     active = False
                     latched = _latch_submission_disabled(
-                        root,
+                        controls,
                         reason=reason,
                         submission_dir=submission_dir,
                         request_id=request_id,
+                        lock_fd=control_lock_fd,
                     )
                     _, pending_release_error = (
                         persist_receipt_then_release_pending()
@@ -2680,17 +3306,19 @@ def _dispatch_impl(
             receipt["qdel"] = qdel_record
             try:
                 _latch_orphan_hold(
-                    root,
+                    controls,
                     qdel=qdel_record,
                     submission_dir=submission_dir,
                     request_id=request_id,
                     job_name=job_name,
+                    lock_fd=control_lock_fd,
                 )
                 if qdel_record.get("hold_promoted") is True:
                     pending_hold_armed = False
+                    hold_transition_complete = True
             except _SignalAbort as hold_signal:
-                # Signal は hold failure へ変換せず、一次理由として保全する。
                 pending_hold_release_blocked = True
+                hold_transition_complete = False
                 primary_for_return = hold_signal
                 if pending_cleanup_signal is None:
                     receipt["outcome"] = {
@@ -2699,8 +3327,6 @@ def _dispatch_impl(
                         "rc": INFRA_RC,
                     }
             except _OrphanHoldError as hold_error:
-                # qsub の一次原因を保全したまま hold failure を receipt へ
-                # 記録し、pending marker は削除せず consumer を止める。
                 record_orphan_hold_error(hold_error, qdel=qdel_record)
             discovered, discovery = _discover_request_id(
                 run_command,
@@ -2716,6 +3342,25 @@ def _dispatch_impl(
                     receipt["normalized_request_id"] = _normalize_request_id(discovered)
                 except DispatchError:
                     pass
+                if not pending_hold_release_blocked:
+                    try:
+                        _latch_orphan_hold(
+                            controls,
+                            qdel=qdel_record,
+                            submission_dir=submission_dir,
+                            request_id=request_id,
+                            job_name=job_name,
+                            lock_fd=control_lock_fd,
+                        )
+                        if qdel_record.get("hold_promoted") is True:
+                            pending_hold_armed = False
+                            hold_transition_complete = True
+                    except _SignalAbort as hold_signal:
+                        pending_hold_release_blocked = True
+                        hold_transition_complete = False
+                        primary_for_return = hold_signal
+                    except _OrphanHoldError as hold_error:
+                        record_orphan_hold_error(hold_error, qdel=qdel_record)
         elif active:
             if request_id is None:
                 discovered, discovery = _discover_request_id(
@@ -2754,9 +3399,7 @@ def _dispatch_impl(
                         ),
                         "rc": INFRA_RC,
                     }
-        persisted, pending_release_error = (
-            persist_receipt_then_release_pending()
-        )
+        persisted, pending_release_error = persist_receipt_then_release_pending()
         if persisted is not None:
             _progress(f"receipt を {persisted} へ保存しました (child rc={INFRA_RC})")
         if pending_cleanup_signal is not None:
@@ -2794,6 +3437,27 @@ def _dispatch_impl(
             allow_unstarted=True,
         )
     finally:
+        if intent_registry is not None:
+            qdel = receipt.get("qdel")
+            handled = hold_transition_complete and (
+                (not qsub_submitted and not qsub_result_unknown)
+                or (
+                    isinstance(qdel, Mapping)
+                    and qdel.get("job_may_remain") is False
+                )
+                or (
+                    isinstance(receipt.get("outcome"), Mapping)
+                    and receipt["outcome"].get("kind") == "child"
+                )
+            )
+            if handled:
+                _mark_dispatch_intent_handled(
+                    intent_registry,
+                    shard_index=intent_shard_index,
+                    request_id=request_id,
+                )
+        if control_lock_fd is not None:
+            _release_control_lock(control_lock_fd)
         for signum, handler in old_handlers.items():
             try:
                 signal.signal(signum, handler)
@@ -2808,6 +3472,12 @@ def dispatch(
     repo_root: Optional[Path] = None,
     environ: Optional[Mapping[str, str]] = None,
     output_root: Optional[Path] = None,
+    artifact_root: Optional[Path] = None,
+    control_root: Optional[Path] = None,
+    intent_registry_root: Optional[Path] = None,
+    intent_group_id: Optional[str] = None,
+    intent_shard_index: Optional[int] = None,
+    deadline_at: Optional[float] = None,
     walltime: str = DEFAULT_WALLTIME,
     queue_wait_timeout_s: float = DEFAULT_QUEUE_WAIT_TIMEOUT_S,
     overall_grace_s: float = DEFAULT_OVERALL_GRACE_S,
@@ -2840,6 +3510,12 @@ def dispatch(
             repo_root=repo_root,
             environ=environ,
             output_root=output_root,
+            artifact_root=artifact_root,
+            control_root=control_root,
+            intent_registry_root=intent_registry_root,
+            intent_group_id=intent_group_id,
+            intent_shard_index=intent_shard_index,
+            deadline_at=deadline_at,
             walltime=walltime,
             queue_wait_timeout_s=queue_wait_timeout_s,
             overall_grace_s=overall_grace_s,
@@ -2858,10 +3534,13 @@ def dispatch(
             Path(__file__).resolve().parents[2]
             if repo_root is None else Path(repo_root).resolve()
         )
-        root = (
-            repo / "output" / "pegasus-dispatch"
-            if output_root is None else Path(output_root).resolve()
-        )
+        if artifact_root is not None:
+            root = Path(artifact_root).resolve()
+        else:
+            root = (
+                repo / "output" / "pegasus-dispatch"
+                if output_root is None else Path(output_root).resolve()
+            )
         try:
             root.mkdir(parents=True, exist_ok=True)
             receipt_nonce = (

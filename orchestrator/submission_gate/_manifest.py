@@ -14,12 +14,14 @@ from types import MappingProxyType
 from typing import Final
 
 from orchestrator.preregistration.approval_payload import (
-    APPROVED_BLOB_ROLES,
-    APPROVED_ERRATUM_ORDER,
-    D282_DECISIONS_REF,
-    load_approval_payload,
+    APPROVED_BLOB_ROLES, APPROVED_ERRATUM_ORDER, D282_DECISIONS_REF,
+    T139_APPROVAL_MANIFEST_REF, T139_VECTOR_APPROVAL_REF,
+    _ApprovalManifestProjection, _VectorApprovalProjection,
+    _load_effective_approval_projections_from_refs, load_approval_payload,
 )
-from orchestrator.preregistration.blobref import BlobRef, InvalidBlobRefError
+from orchestrator.preregistration.blobref import (
+    BlobRef, BlobRefError, InvalidBlobRefError, read_pinned_blob,
+)
 
 
 _COMMIT_RE: Final = re.compile(r"[0-9a-f]{40}\Z")
@@ -31,10 +33,18 @@ _ERRATUM_ROLE: Final = {
 }
 # Module-private convention only; importing this name is not prevented.
 _MANIFEST_CAPABILITY_TOKEN: Final = object()
+_D574_AUTHORITY_REF: Final = BlobRef("docs/decisions.md", "b261b293f40548d7fc44293df3806df69acb7bc9", "68896d97b84050630370e1545c1082a9f2ddab3b25a00a071048261766107d69")
 
 
 class ManifestError(ValueError):
     """manifest または approval view の構造が不正である。"""
+
+
+class VectorAuthorityMismatchError(ManifestError):
+    def __init__(self, message: str, *, reason_code: str) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.code = reason_code
 
 
 def _commit(value: object, label: str) -> str:
@@ -138,7 +148,7 @@ class PreregistrationRecord:
 
 @dataclass(frozen=True, slots=True, init=False)
 class ApprovedManifest:
-    """D282 approval payload に束縛された opaque capability。"""
+    """D282 base と固定 D574 projection に束縛された opaque capability。"""
 
     approval_ref: BlobRef
     target_core: BlobRef
@@ -146,6 +156,12 @@ class ApprovedManifest:
     erratum_application_order: tuple[str, ...]
     composed_sha256: str
     prereg_commit: str | None = None
+    manifest_ref: BlobRef
+    projection_ref: BlobRef
+    base_approval_fold_commit: str
+    effective_approval_fold_commit: str
+    canonical_authority: BlobRef
+    vector_index: BlobRef
     _seal: object = field(repr=False, compare=False)
 
     def __init__(
@@ -157,16 +173,22 @@ class ApprovedManifest:
         approved_blobs: Mapping[str, BlobRef],
         erratum_application_order: tuple[str, ...],
         composed_sha256: str,
+        manifest_ref: BlobRef,
+        projection_ref: BlobRef,
+        base_approval_fold_commit: str,
+        effective_approval_fold_commit: str,
+        canonical_authority: BlobRef,
+        vector_index: BlobRef,
         prereg_commit: str | None = None,
     ) -> None:
         if type(self) is not ApprovedManifest or token is not _MANIFEST_CAPABILITY_TOKEN:
             raise TypeError("ApprovedManifest は内部 token からのみ発行される")
-        object.__setattr__(self, "approval_ref", approval_ref)
-        object.__setattr__(self, "target_core", target_core)
-        object.__setattr__(self, "approved_blobs", approved_blobs)
-        object.__setattr__(self, "erratum_application_order", erratum_application_order)
-        object.__setattr__(self, "composed_sha256", composed_sha256)
-        object.__setattr__(self, "prereg_commit", prereg_commit)
+        names = ("approval_ref", "target_core", "approved_blobs", "erratum_application_order",
+                 "composed_sha256", "prereg_commit", "manifest_ref", "projection_ref",
+                 "base_approval_fold_commit", "effective_approval_fold_commit",
+                 "canonical_authority", "vector_index")
+        for name in names:
+            object.__setattr__(self, name, locals()[name])
         object.__setattr__(self, "_seal", token)
         self.__post_init__()
 
@@ -196,6 +218,10 @@ class ApprovedManifest:
         )
         anchor = self.approval_ref.commit if self.prereg_commit is None else self.prereg_commit
         object.__setattr__(self, "prereg_commit", _commit(anchor, "prereg_commit"))
+        for name in ("manifest_ref", "projection_ref", "canonical_authority", "vector_index"):
+            object.__setattr__(self, name, _blob_ref(getattr(self, name), name))
+        object.__setattr__(self, "base_approval_fold_commit", _commit(self.base_approval_fold_commit, "base_approval_fold_commit"))
+        object.__setattr__(self, "effective_approval_fold_commit", _commit(self.effective_approval_fold_commit, "effective_approval_fold_commit"))
 
 
 def _is_sealed_approved_manifest(value: object) -> bool:
@@ -206,15 +232,13 @@ def _is_sealed_approved_manifest(value: object) -> bool:
 
 
 def _load_approved_manifest(repository_root: str) -> ApprovedManifest:
-    """固定した approval payload から承認済み view を構築する。
-
-    approval payload を含む固定 approval ref の commit が anchor である。作業木の
-    manifest が自分の commit を自己申告する経路はここにはない。将来の payload が
-    明示的な anchor field を持つ場合は、その approval 値を優先する。
-    """
-
+    """固定 D282/D574 refs だけから承認済み view を構築する。"""
     payload = load_approval_payload(repository_root)
-    explicit_anchor = getattr(payload, "prereg_commit", D282_DECISIONS_REF.commit)
+    manifest, projection = _resolve_projection_authority(
+        repository_root,
+        manifest_ref=T139_APPROVAL_MANIFEST_REF,
+        projection_ref=T139_VECTOR_APPROVAL_REF,
+    )
     return ApprovedManifest(
         token=_MANIFEST_CAPABILITY_TOKEN,
         approval_ref=D282_DECISIONS_REF,
@@ -222,8 +246,101 @@ def _load_approved_manifest(repository_root: str) -> ApprovedManifest:
         approved_blobs=payload.approved_blobs,
         erratum_application_order=payload.erratum_application_order,
         composed_sha256=payload.composed_sha256,
-        prereg_commit=explicit_anchor,
+        prereg_commit=D282_DECISIONS_REF.commit,
+        manifest_ref=T139_APPROVAL_MANIFEST_REF,
+        projection_ref=T139_VECTOR_APPROVAL_REF,
+        base_approval_fold_commit=projection.base_approval_fold_commit,
+        effective_approval_fold_commit=projection.approval_fold_commit,
+        canonical_authority=projection.canonical_authority,
+        vector_index=projection.vector_index,
     )
+
+
+def _resolve_projection_authority(repository_root: str, *, manifest_ref: BlobRef, projection_ref: BlobRef) -> tuple[_ApprovalManifestProjection, _VectorApprovalProjection]:
+    manifest, projection = _load_effective_approval_projections_from_refs(
+        repository_root, manifest_ref=manifest_ref, projection_ref=projection_ref
+    )
+    if manifest.predecessor != D282_DECISIONS_REF or projection.predecessor != D282_DECISIONS_REF:
+        raise VectorAuthorityMismatchError(
+            "structured predecessor が D282 exact ref でない",
+            reason_code="d282_predecessor_mismatch",
+        )
+    expected = (D282_DECISIONS_REF.commit, _D574_AUTHORITY_REF.commit, _D574_AUTHORITY_REF)
+    if (
+        (manifest.base_approval_fold_commit, manifest.approval_fold_commit, manifest.canonical_authority)
+        != expected
+        or (projection.base_approval_fold_commit, projection.approval_fold_commit, projection.canonical_authority)
+        != expected
+    ):
+        raise VectorAuthorityMismatchError(
+            "base/effective fold または canonical authority が固定値と不一致",
+            reason_code="effective_authority_mismatch",
+        )
+    _require_vector_index(repository_root, manifest.vector_index, projection.vector_index)
+    return manifest, projection
+
+
+def _ref_resolves(repository_root: str, ref: BlobRef) -> bool:
+    try:
+        read_pinned_blob(repository_root, ref)
+    except BlobRefError:
+        return False
+    return True
+
+
+def _require_vector_index(repository_root: str, manifest_ref: BlobRef, payload_ref: BlobRef) -> None:
+    if manifest_ref == payload_ref:
+        if not _ref_resolves(repository_root, payload_ref):
+            raise VectorAuthorityMismatchError(
+                "payload-pinned historical index blob digest が不一致",
+                reason_code="vector_index_blob_digest_mismatch",
+            )
+        return
+    payload_ok = _ref_resolves(repository_root, payload_ref)
+    manifest_ok = _ref_resolves(repository_root, manifest_ref)
+    reason = "manifest_index_ref_mismatch" if payload_ok else (
+        "payload_index_ref_mismatch" if manifest_ok else "vector_index_blob_digest_mismatch"
+    )
+    raise VectorAuthorityMismatchError("manifest/payload index ref が不一致", reason_code=reason)
+
+
+def _assert_approved_manifest_intact(repository_root: str, approved: ApprovedManifest) -> None:
+    if not _is_sealed_approved_manifest(approved):
+        raise ManifestError("approval authority の seal が不正である")
+    required = ("manifest_ref", "projection_ref", "base_approval_fold_commit", "effective_approval_fold_commit", "canonical_authority", "vector_index")
+    present = tuple(hasattr(approved, name) for name in required)
+    if not any(present):
+        read_pinned_blob(repository_root, approved.approval_ref)
+        return  # sealed legacy D282 authority; writer rejects it before publication
+    if not all(present) or (
+        approved.manifest_ref,
+        approved.projection_ref,
+    ) != (T139_APPROVAL_MANIFEST_REF, T139_VECTOR_APPROVAL_REF):
+        raise VectorAuthorityMismatchError(
+            "sealed approval authority の fixed projection refs が不正",
+            reason_code="sealed_authority_mismatch",
+        )
+    payload = load_approval_payload(repository_root)
+    manifest, projection = _resolve_projection_authority(
+        repository_root, manifest_ref=T139_APPROVAL_MANIFEST_REF, projection_ref=T139_VECTOR_APPROVAL_REF
+    )
+    d282_actual = (
+        approved.approval_ref, approved.target_core, dict(approved.approved_blobs),
+        approved.erratum_application_order, approved.composed_sha256, approved.prereg_commit,
+    )
+    d282_expected = (
+        D282_DECISIONS_REF, payload.target_core, dict(payload.approved_blobs),
+        payload.erratum_application_order, payload.composed_sha256, D282_DECISIONS_REF.commit,
+    )
+    d574_actual = (approved.base_approval_fold_commit, approved.effective_approval_fold_commit,
+                   approved.canonical_authority, approved.vector_index)
+    d574_expected = (projection.base_approval_fold_commit, projection.approval_fold_commit,
+                     projection.canonical_authority, projection.vector_index)
+    if d282_actual != d282_expected or d574_actual != d574_expected or manifest.vector_index != projection.vector_index:
+        raise VectorAuthorityMismatchError(
+            "sealed approval authority が historical projections と不一致",
+            reason_code="sealed_authority_mismatch",
+        )
 
 
 def _parse_blob_ref(value: object, label: str) -> BlobRef:
@@ -304,8 +421,9 @@ def _require_manifest_matches_approval(
         raise ManifestError("manifest view の型が不正である")
     if record.prereg_commit != approved.prereg_commit:
         raise ManifestError("prereg_commit が approval anchor と一致しない")
-    if not _same_blob(record.approval_manifest, approved.approval_ref, include_commit=True):
-        raise ManifestError("approval_manifest が approval payload と一致しない")
+    approval_manifest = getattr(approved, "manifest_ref", approved.approval_ref)
+    if not _same_blob(record.approval_manifest, approval_manifest, include_commit=True):
+        raise ManifestError("approval_manifest が approval authority と一致しない")
     if not _same_blob(record.core, approved.target_core):
         raise ManifestError("core の path/digest が承認済み target_core と一致しない")
     if "addendum_a" not in approved.approved_blobs:

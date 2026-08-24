@@ -1,4 +1,4 @@
-## 2026-08-18 (660) — COMMIT へ verifier 発行の一回限り receipt を要求し、新 lock を批准済み digest と比較し、ident の第 3 経路を塞いだ — 焦点走 1388 passed の下で門は開いたままだった (コード + テスト + 記録、branch worktree-dev-wave-t1286-commit-receipt、変異 matrix = baseline PASSED・9/9 KILLED・SURVIVED 0・MISMATCH 0)
+## 2026-08-18 (660) — COMMIT へ verifier 発行の ledger 内で一回限りの receipt を要求し、新 lock を批准済み digest と比較し、ident の第 3 経路を塞いだ — 焦点走 1388 passed の下で門は開いたままだった (コード + テスト + 記録、branch worktree-dev-wave-t1286-commit-receipt、変異 matrix = baseline PASSED・9/9 KILLED・SURVIVED 0・MISMATCH 0)
 
 - **本 wave の主要な発見は「実装して緑になった後も門が開いていた」ことである。** 段 6 の敵対
   レビュー 2 本が独立に同じ中核欠陥へ到達した。焦点走 23 file が 1388 passed / 0 failed の状態で、
@@ -52,8 +52,9 @@
 
 - [T-1286] 全 `STAGE_COMMIT` producer 5 件 (campaign WAL 3 / qualification 2) に、
   verifier が実走行の内側で発行する PID・process seal 付き capability へ結び付いた
-  一回限りの receipt を要求させた。支配点は `wal.append` と `QualificationEventSink.emit` の 2 つで、
-  lock version 分岐の外へ置いた。一回限りは ledger 単位である。
+  ledger 内で一回限りの receipt を要求させた。支配点は `wal.append` と
+  `QualificationEventSink.emit` の 2 つで、lock version 分岐の外へ置いた。別 layout の ledger を
+  横断する一意性は主張しない。
 
 - [T-1287] 新 certified lock の生成時に、closure の path→blob map 全体の canonical hash を
   批准済み digest 集合と比較する。台帳は `hooks/` 配下の read-only JSONL で、AI 実装者は
