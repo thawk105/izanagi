@@ -894,23 +894,125 @@ def _observe_fetchcontent_dependency_receipt(
 
 
 def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
-    """build 自身の CMakeCache から実効 masstree source root を一意に読む。"""
+    """cache 入力と生成済み build system から masstree root を読む。
+
+    この形は CMake 3.25.0、CCBench pin
+    ``511c9538e4e8efa54b45cda62e72389ed3b706ec``、Unix Makefiles 生成器で
+    実測された。CCBench pin 更新時は生成物の形を再実測すること。
+    """
     cache = os.path.join(build_dir, "CMakeCache.txt")
+    cache_keys = (
+        "CMAKE_GENERATOR",
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE",
+        "FETCHCONTENT_BASE_DIR",
+    )
     try:
         info = os.lstat(cache)
         if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
             raise BuildCacheError("CMakeCache.txt が non-symlink regular file でない")
         with open(cache, encoding="utf-8", errors="strict") as handle:
-            matches = []
+            matches = {key: [] for key in cache_keys}
             for line in handle:
-                match = re.fullmatch(r"masstree_SOURCE_DIR(?::[^=\r\n]*)?=([^\r\n]+)\r?\n?", line)
-                if match is not None:
-                    matches.append(match.group(1))
+                for key in cache_keys:
+                    match = re.fullmatch(
+                        rf"{re.escape(key)}(?::[^=\r\n]*)?=([^\r\n]*)\r?\n?",
+                        line,
+                    )
+                    if match is not None:
+                        matches[key].append(match.group(1))
     except (OSError, UnicodeError) as exc:
         raise BuildCacheError(f"CMakeCache.txt から masstree source root を読めない: {cache}") from exc
-    if len(matches) != 1 or not os.path.isabs(matches[0]) or "\0" in matches[0]:
-        raise BuildCacheError("CMakeCache.txt の masstree_SOURCE_DIR が一意な絶対 path でない")
-    return os.path.realpath(matches[0])
+
+    if (len(matches["CMAKE_GENERATOR"]) != 1
+            or matches["CMAKE_GENERATOR"][0] != "Unix Makefiles"):
+        raise BuildCacheError(
+            "CMakeCache.txt の CMAKE_GENERATOR が一意な Unix Makefiles でない"
+        )
+    fetchcontent_keys = (
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE",
+        "FETCHCONTENT_BASE_DIR",
+    )
+    if any(len(matches[key]) > 1 for key in fetchcontent_keys):
+        raise BuildCacheError(
+            "CMakeCache.txt の FetchContent masstree 解決 key が一意でない"
+        )
+    if matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"]:
+        selected_key = "FETCHCONTENT_SOURCE_DIR_MASSTREE"
+        recorded = matches[selected_key][0]
+        cache_root = recorded
+    elif matches["FETCHCONTENT_BASE_DIR"]:
+        selected_key = "FETCHCONTENT_BASE_DIR"
+        recorded = matches[selected_key][0]
+        cache_root = os.path.join(recorded, "masstree-src")
+    else:
+        raise BuildCacheError(
+            "CMakeCache.txt に FetchContent masstree 解決 key がない"
+        )
+    if not os.path.isabs(recorded) or "\0" in recorded:
+        raise BuildCacheError(
+            f"CMakeCache.txt の {selected_key} が NUL なし絶対 path でない"
+        )
+
+    depend_info = os.path.join(
+        build_dir, "CMakeFiles", "masstree_build.dir", "DependInfo.cmake",
+    )
+    try:
+        info = os.lstat(depend_info)
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise BuildCacheError(
+                "masstree DependInfo.cmake が non-symlink regular file でない"
+            )
+        with open(depend_info, encoding="utf-8", errors="strict") as handle:
+            depend_text = handle.read()
+    except (OSError, UnicodeError) as exc:
+        raise BuildCacheError(
+            f"masstree DependInfo.cmake から実効 source root を読めない: "
+            f"{depend_info}"
+        ) from exc
+
+    blocks = re.findall(
+        r"(?ms)^[ \t]*set\([ \t]*CMAKE_MULTIPLE_OUTPUT_PAIRS[ \t]*\r?\n"
+        r"(.*?)"
+        r"^[ \t]*\)[ \t]*(?:#[^\r\n]*)?\r?$",
+        depend_text,
+    )
+    if len(blocks) != 1:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の CMAKE_MULTIPLE_OUTPUT_PAIRS が一意でない"
+        )
+    pair = re.fullmatch(
+        r"[ \t\r\n]*\"([^\"\r\n]*)\"[ \t\r\n]+"
+        r"\"([^\"\r\n]*)\"[ \t\r\n]*",
+        blocks[0],
+    )
+    if pair is None:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対がちょうど 1 組でない"
+        )
+    generated_paths = pair.groups()
+    if any(not os.path.isabs(path) or "\0" in path for path in generated_paths):
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対が NUL なし絶対 path でない"
+        )
+    outputs = {os.path.basename(path): path for path in generated_paths}
+    expected_outputs = {"config.h", "libkohler_masstree_json.a"}
+    if set(outputs) != expected_outputs:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対が期待した生成物でない"
+        )
+    generated_roots = {os.path.dirname(path) for path in generated_paths}
+    if len(generated_roots) != 1:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対の親 directory が一致しない"
+        )
+
+    cache_root = os.path.realpath(cache_root)
+    generated_root = os.path.realpath(generated_roots.pop())
+    if cache_root != generated_root:
+        raise BuildCacheError(
+            "CMakeCache.txt と masstree DependInfo.cmake の source root が一致しない"
+        )
+    return cache_root
 
 
 def _tool_version(requested: str, role: str) -> Dict[str, str]:
