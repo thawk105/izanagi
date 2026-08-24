@@ -88,7 +88,44 @@ title: [T-1600] fold 適用後 tree の land 前関門を作った。受入全�
   active fold transaction は変更後の engine では recovery できない**。gate receipt の
   「旧 schema・receipt 不在は fail-closed」という裁定はこの点でも正しい。
 
+- **段 9 の実 land で、本 wave が作った関門が自分自身の land を止めた。** 受入 attempt 2 は
+  15708 passed / 0 failed / 60 skipped で緑 (`tested_main 8447edae` / `tested_tip 9cd112f9`)、
+  その tip の land が `status: fold-gate-failed` で拒否され、`main_before == main_after` で
+  **main は 1 bit も動かなかった**。設計どおり動いた面が 3 つある。関門は fold apply の**前**に
+  発火した。`fold_gate_uncovered_families: ["rotation"]` が三値化のとおり記録され、未被覆は
+  land を止めていない。infra 失敗として `release_safe: false` / `retryable_same_request: true`
+  に分類された。止まった理由は、隔離 tree で起動した test runner が JUnit を書かずに
+  終わったことである。**親の時間予算 3 回実測は `tools/run_tests.py` 経由で取っており、
+  関門が実際に使う raw な argv は一度も end-to-end で通していなかった。**
+  実装を全部作ってから初めて実データを通す設計に、この穴が構造的に空いていた。
+
+- **原因は隔離 tree の子環境に立てた `PYTHONNOUSERSITE=1` だった。** この host の pytest 実体は
+  user site にあるため module が解決できず、pytest 自体は起動するので `OSError` にもならない。
+  実測は有り = rc1 (`ModuleNotFoundError`) / 無し = rc0 (9.1.1)。ambient 注入を塞ぐつもりの
+  防壁が、**関門の実行系そのものを塞いでいた**。user site を閉じたまま関門を成立させる道は
+  無いので開け、ambient 側は `_FOLD_GATE_ENV_REMOVE` で必ず除去する形にした。
+  A1 (`PYTHONOPTIMIZE` 除去)・A2 (tmp 隔離)・裁定 3-2 (`.git` を作らない) は不変である。
+  再発を直接塞ぐのは、**`.git` の無い実 tree で関門の実 argv・実環境から JUnit が実際に
+  生成されることを要求する end-to-end テスト**を足したことである。
+
+- **その fix が「恒真になった防壁」を残したので、親が独立に見つけて閉じた。** 最初の fix は
+  定数で `PYTHONNOUSERSITE` を設定したまま直後に `env.pop` で打ち消す形だった。
+  `_fold_gate_environment()` の production 消費者は `_with_tmp` 1 本だけなので、
+  それを検査する既存 assertion 2 箇所は**実子環境を一切守らない恒真な guard** へ変わっていた。
+  変異 `t1600.m06` が暴いたのと同型の穴を、恒真な関門を潰すために作った wave 自身が
+  抱え込む形である。定数から消し、forced 集合と実子 env の双方で不在を積極的に要求する向きへ
+  置き換えた。期待値の変更はこの 1 点に限定し、assertion の削除・skip・緩和はしていない。
+
+- **欠陥 2 として、infra 失敗が原理的に診断不能だった。** `_parse_fold_gate_junit` は parse
+  失敗時に子の rc も stdout も stderr も理由へ入れないため、receipt には「ファイルが無い」しか
+  残らない。隔離 tree は後始末で消えるので、親は原因特定の一次資料を失った。
+  `DW-M08` が求める「rc と失敗 node を毎回記録する」の精神にも反する。rc と両出力の末尾を
+  有界 (各 500 byte) かつ可逆 escape で理由へ入れる形にし、**診断可能性を先に直させてから
+  原因特定へ入る**順序を取った。
+
 - 待ち手の偽完了を 40 回以上踏んだ (F24 再発、過去最多)。実害はゼロ。詳細は同 F。
+  段 9 では `run_in_background` の待ち手が本文を出さずに完了通知だけ返し続けたため、
+  条件成立を stdout で 1 行出す監視へ切り替えて解消した。
 - 親の作法違反を 1 件記録する。変異走行中に「待機中の独立作業」として段 7 の spool fragment を
   repo へ書き、harness の untracked 検査が走行前に止めた。変異は 1 件も実行されず影響ゼロ。
   **変異走行中に書いてよいのは job dir と handoff だけである。**
