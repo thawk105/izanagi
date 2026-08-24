@@ -213,11 +213,19 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。
 
     [T-325] の land で trial_registry の capability probe 段階を通過した。
+
+    退役予定の `test_current_repository_c12_registry_reports_unwired_allocation_consumer` が
+    表していた C12 registry の allocation consumer 未配線という主張と、
+    `test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer` が
+    表していた C12 allocation binding helper の consumer 未配線という主張も発見用に残す。
+    この記述は検査ではなく、安全性や退役可否の根拠にはしない。
     """
     root, head, results = current_commit_snapshot
-    assert {
+    snapshot_by_id = {
         item.id: (item.status, item.reason_code) for item in results
-    } == {
+    }
+    assert snapshot_by_id["C12"][0] is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert snapshot_by_id == {
         "C01": (
             core.PredicateStatus.EVIDENCE_UNDEFINED,
             "completion-proof-not-machine-checkable",
