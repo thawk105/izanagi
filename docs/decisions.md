@@ -29686,3 +29686,83 @@ downstream receipt validator、CLI 出力のすべてで exact field を要求�
   固定 author patch bytes の SHA-256 に限る。
 - 汎用の correctness boolean を 1 つ置いて将来 oracle が埋める — 埋まるまでの間、consumer が
   それを受理と読む経路が開く。unbound を exact に要求するほうが fail-closed である。
+
+## D768. project_whiteboard()の値域検査はD607と同じ共有validatorで閉じる (2026-08-24)
+
+**決定:** `orchestrator/campaign/p3_s4_loop.py`の`project_whiteboard()`に、`state_from_dict`/
+`layer3_report.build_report`が既に使う共有validator `assert_whiteboard_value_domains()`を
+そのまま呼ぶ形で値域検査を追加した。`WhiteboardEntry`構築・`state.whiteboard.append()`より
+前に検査し、新規例外クラスは作らず既存`ValueError`をそのまま伝播させる。
+
+**理由:**
+- D607は`state_from_dict`と`layer3_report`独立readerの2境界を共有validatorで閉じたが、
+  producer側 (in-memory射影経路、`project_whiteboard()`) を明示的にscope外とし独立の
+  ユーザー裁定を要すると記していた。本決定はその残余を閉じる直接の続きである。
+- 敵対相談・敵対レビューが独立に検証した結果、この新設gateが実際に無効値を止めるのは
+  core/sort driverのhuman-supervised経路 (`load_proposal_file()`) に限られると判明した
+  (trigger driverは`_assert_trigger_proposal_contract()`で、8c自動経路は`parse_planner()`で
+  それぞれ別の防壁が先に発火するため)。それでも3 driver共有の単一関数を直す設計は
+  defense-in-depthとして妥当であり、個別driverへ検査を複製する案より変更面が小さい。
+- 変異事前登録 (MUT-1、validator呼出しをbypassする変異) の本走で baseline PASSED
+  (120件緑)・MUT-1 KILLED (期待node3件と完全一致、他への副作用なし) を実測確認した。
+
+**却下した選択肢:**
+- 3 driverの`load_proposal_file()`各々に検査を置く案 (adjudication package §1択a) —
+  同じ検査ロジックが3箇所に分散し、D607が確立したDRYな設計と非整合。
+
+## D769. checkpoint起源未信頼値のredactionはrepr()でなく制御文字除去+length-capにする (2026-08-24)
+
+**決定:** `_redacted_transport_error()`の拡張で、未信頼値を無条件`repr()`する案 (command引数の
+原文が示す「length-cap付きrepr」) は採用せず、制御文字・Unicode行/段落区切り文字の除去と
+500文字capのみを実装した。
+
+**理由:**
+- 段2プランと段3敵対相談 (両レンズ独立) が、無条件`repr()`は既存exact-match test 3件
+  (`test_p3_autonomous_workload_trial.py`の複数箇所) と衝突し、かつ`:2237`→`:4627`の
+  二重処理経路で非冪等になることを実測で確認した。
+- 制御文字除去+length-capは既存exact-match testを壊さず (短い定型メッセージには影響しない)、
+  かつ冪等である。目的 (未信頼値の運搬量上限化・保存形式衛生化) は`repr()`案と同値である。
+- 敵対レビューが独立に指摘した限界: 制御文字除去+length-capは規律6が理想とする
+  「prompt-injection遮断」までは達成しない (通常ASCII文字だけの注入文言は素通しする)。
+  達成できるのは保存形式の構造衛生 (ログ行分割・端末制御・JSON破壊の防止) と運搬量の上限化
+  であり、この区別を worklog に正直に記録する。
+
+**却下した選択肢:**
+- 無条件`repr()` (command引数原文) — 上記の理由により技術的に不採用。
+- 診断側 (state_from_dict自身) でredactする案 (adjudication package §4択a) — 既存test
+  `test_state_from_dict_rejects_unknown_top_level_field`の期待値変更を要するため不採用
+  (adjudication packageの時点で既に不採用と裁定済み)。
+
+## D770. 両親が同じ実装面fileを触るmainの取り込みは2 commitへ分ける (2026-08-24)
+
+**決定:** wave branch へ local main を取り込む際、両親が同じ実装面 path を触るために merge の
+combined diff が非空になる場合は、次の 2 commit へ分ける。
+
+1. 重なる path を片親 (通常は main 側) の版でそのまま確定させた merge commit。実装面の合成を
+   含まないので Codex `role=author` を要さず、親の manager trailer だけで通る。
+2. clean tree になった直後に、Codex `role=author` が合成を現行 main の上へ再適用する commit。
+
+分割前に一発 merge した index の `git write-tree` を控え、2 commit 後の `HEAD^{tree}` が同一で
+あることを照合する。一致しなければ分割が内容を変えたことになるので止める。
+
+**理由:**
+- `tools/check_ai_provenance.py` は merge commit の変更 path を `git diff-tree --cc` の combined
+  diff で判定する。両親が同じ実装面 file を触ると結果が両親のいずれとも異なるため、その merge
+  commit は Codex `role=author` を要求される。
+- ところが `tools/dev_waves/launch_authority.py` の `snapshot_authority()` は、authority 文書
+  (`docs/dev-wave/operations.md` と `docs/dev-wave/workers.md`) の working tree bytes が HEAD の
+  blob と一致することを要求する。`git merge --no-ff --no-commit` を抱えたままでは authority 文書が
+  main 側の版になっているため一致せず、Codex 子は起動前に rc=2 で拒否される。authority commit を
+  外から指定する CLI 経路は無い。
+- したがって「staged merge のまま author 子を起動する」経路は機械的に存在しない。working tree の
+  authority 文書だけを HEAD の版へ書き戻して gate を通す回避は、gate の迂回であり採らない。
+- 2 commit へ分けると、2 本目の commit は clean tree・authority 一致の状態で作られるため、
+  Codex 子が正規の経路で起動でき、合成は監査下に入る。tree 一致の照合が分割の等価性を機械で示す。
+
+**却下した選択肢:**
+- authority 文書を一時的に HEAD の版へ書き戻して子を起動する — gate の迂回であり、子が読む
+  authority が実際の HEAD と食い違う。
+- 別 worktree を main tip に作り、wave の実装 patch を当てて子を走らせる — 成立はするが worktree
+  を 1 つ増やし、撤去漏れが land を塞ぐ経路を新設する。同じ監査を 1 repo 内で達成できる。
+- merge commit を manager trailer だけで通す — checker が拒否する。実装面の合成が無監査で
+  main へ入る経路を作ることにもなる。
