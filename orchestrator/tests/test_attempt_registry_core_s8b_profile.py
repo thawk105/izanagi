@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import inspect
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import fields, replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -569,6 +570,91 @@ def _s8c_terminal_with_reason_mismatch(
     )
 
 
+def _s8c_classified_rows(
+    reason: str | None,
+) -> tuple[core.RegistryRows, dict[str, object], tuple[str, str], str]:
+    profile = R._S8C_ATTEMPT_PROFILE
+    freeze_id = "s8b-policy-control-freeze"
+    slot = _s8c_slot()
+    binding = (_CONTENT, _EFFECTIVE)
+    rows = core.create_attempt_registry_genesis(
+        profile=profile,
+        freeze_id=freeze_id,
+        manifest_path=PurePosixPath("manifest.json"),
+        manifest_sha256=_MANIFEST,
+        slots=[slot],
+    )
+    rows = core.reserve_attempt_slot(
+        rows,
+        profile=profile,
+        freeze_id=freeze_id,
+        slot_id=slot["slot_id"],
+        binding=binding,
+        run_start_receipt_sha256=_RUN_START,
+        process_identity=_PROCESS,
+        started_at="2026-08-23T00:00:00+00:00",
+    )
+    digest = core.capability_digest(
+        profile=profile,
+        schema_version=profile.schema.current,
+        freeze_id=freeze_id,
+        slot=profile.slot_codec.parse(slot, label="slot"),
+        binding=binding,
+    )
+    rows, _receipt = core.classify_attempt(
+        rows,
+        profile=profile,
+        freeze_id=freeze_id,
+        slot_id=slot["slot_id"],
+        binding=binding,
+        capability_digest_sha256=digest,
+        pre_observation_failure_reason=reason,
+        authority_id="s8b-policy-control-authority",
+        authority_policy_sha256=_POLICY,
+        external_evidence_sha256=_EXTERNAL,
+        classified_at="2026-08-23T00:00:01+00:00",
+    )
+    return rows, slot, binding, freeze_id
+
+
+def _s8c_terminal(
+    rows: core.RegistryRows,
+    *,
+    profile: core.DomainProfile[Any, Any],
+    slot: Mapping[str, object],
+    binding: tuple[str, str],
+    freeze_id: str,
+    status: str,
+    reason: str | None,
+    begin_observation: bool = False,
+) -> core.RegistryRows:
+    if begin_observation:
+        rows = core.begin_attempt_observation(
+            rows,
+            profile=profile,
+            freeze_id=freeze_id,
+            slot_id=slot["slot_id"],
+        )
+    return core.record_attempt_terminal(
+        rows,
+        profile=profile,
+        freeze_id=freeze_id,
+        slot_id=slot["slot_id"],
+        binding=binding,
+        terminal_status=status,
+        raw_output_sha256=_RAW,
+        report_sha256=(
+            _REPORT
+            if status in {"observed", "retryable-failure"}
+            else None
+        ),
+        observation_sha256=_OBSERVATION if status == "observed" else None,
+        primary_value=1.0 if status == "observed" else None,
+        failure_reason=reason,
+        finished_at="2026-08-23T00:00:02+00:00",
+    )
+
+
 def test_strict_8b_reason_match_rejects_input_that_8c_still_accepts() -> None:
     profile = _profile()
     slot = _slot(0, 0)
@@ -623,6 +709,138 @@ def test_strict_8b_reason_match_rejects_input_that_8c_still_accepts() -> None:
     )
 
 
+def test_s8c_formal_profile_differs_only_by_reason_equality_policy() -> None:
+    compat = R._S8C_ATTEMPT_PROFILE
+    formal = R._S8C_FORMAL_ATTEMPT_PROFILE
+
+    assert formal is not compat
+    for field in fields(core.DomainProfile):
+        if field.name == "transition_policy":
+            assert getattr(formal, field.name) is not getattr(compat, field.name)
+        else:
+            assert getattr(formal, field.name) is getattr(compat, field.name)
+    changed_policy_fields = {
+        field.name
+        for field in fields(core.TransitionPolicy)
+        if getattr(formal.transition_policy, field.name)
+        != getattr(compat.transition_policy, field.name)
+    }
+    assert changed_policy_fields == {
+        "require_terminal_reason_equals_classification"
+    }
+    assert (
+        compat.transition_policy.require_terminal_reason_equals_classification
+        is False
+    )
+    assert (
+        formal.transition_policy.require_terminal_reason_equals_classification
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    ("classification_reason", "terminal_reason", "status", "observation"),
+    [
+        pytest.param("preempted", "preempted", "retryable-failure", False,
+                     id="matching-retryable"),
+        pytest.param(None, None, "observed", True, id="observed-none"),
+        pytest.param(None, None, "not-consumed", False, id="not-consumed-none"),
+    ],
+)
+def test_s8c_formal_profile_matching_terminals_keep_compat_bytes(
+    classification_reason: str | None,
+    terminal_reason: str | None,
+    status: str,
+    observation: bool,
+) -> None:
+    rows, slot, binding, freeze_id = _s8c_classified_rows(
+        classification_reason
+    )
+    compat = _s8c_terminal(
+        rows,
+        profile=R._S8C_ATTEMPT_PROFILE,
+        slot=slot,
+        binding=binding,
+        freeze_id=freeze_id,
+        status=status,
+        reason=terminal_reason,
+        begin_observation=observation,
+    )
+    formal = _s8c_terminal(
+        rows,
+        profile=R._S8C_FORMAL_ATTEMPT_PROFILE,
+        slot=slot,
+        binding=binding,
+        freeze_id=freeze_id,
+        status=status,
+        reason=terminal_reason,
+        begin_observation=observation,
+    )
+    assert _registry_bytes(formal) == _registry_bytes(compat)
+
+
+@pytest.mark.parametrize(
+    ("classification_reason", "terminal_reason", "status"),
+    [
+        pytest.param(None, "preempted", "retryable-failure", id="none-to-preempted"),
+        pytest.param(
+            "preempted", "wall-timeout", "retryable-failure",
+            id="preempted-to-wall-timeout",
+        ),
+        pytest.param(
+            "classified-terminal-failure",
+            "different-terminal-failure",
+            "terminal-failure",
+            id="terminal-failure-mismatch",
+        ),
+    ],
+)
+def test_s8c_formal_profile_rejects_reason_replacement_before_null_matrix(
+    classification_reason: str | None,
+    terminal_reason: str,
+    status: str,
+) -> None:
+    rows, slot, binding, freeze_id = _s8c_classified_rows(
+        classification_reason
+    )
+    _assert_core_rejection(
+        "[attempt-classification] terminal failure reason differs from classification",
+        lambda: _s8c_terminal(
+            rows,
+            profile=R._S8C_FORMAL_ATTEMPT_PROFILE,
+            slot=slot,
+            binding=binding,
+            freeze_id=freeze_id,
+            status=status,
+            reason=terminal_reason,
+        ),
+    )
+
+
+def test_s8c_formal_profile_rejects_mismatch_that_compat_replays() -> None:
+    rows, slot, binding, freeze_id = _s8c_classified_rows(None)
+    mismatching = _s8c_terminal(
+        rows,
+        profile=R._S8C_ATTEMPT_PROFILE,
+        slot=slot,
+        binding=binding,
+        freeze_id=freeze_id,
+        status="retryable-failure",
+        reason="preempted",
+    )
+    payload = _registry_bytes(mismatching)
+
+    assert core.load_attempt_registry(
+        payload, profile=R._S8C_ATTEMPT_PROFILE,
+    ) == mismatching
+    _assert_core_rejection(
+        "[attempt-classification] terminal failure reason differs from classification",
+        lambda: core.load_attempt_registry(
+            payload, profile=R._S8C_FORMAL_ATTEMPT_PROFILE,
+        ),
+    )
+
+
 def _target_names(target: ast.expr) -> set[str]:
     if isinstance(target, ast.Name):
         return {target.id}
@@ -650,6 +868,98 @@ def _non_function_bindings(statement: ast.stmt) -> set[str]:
     if isinstance(statement, ast.ClassDef):
         return {statement.name}
     return set()
+
+
+def _called_names(node: ast.AST) -> set[str]:
+    return {
+        call.func.id if isinstance(call.func, ast.Name) else call.func.attr
+        for call in ast.walk(node)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, (ast.Name, ast.Attribute))
+    }
+
+
+def _profile_name_for_call(function: ast.FunctionDef, target: str) -> str | None:
+    matches = [
+        call
+        for call in ast.walk(function)
+        if isinstance(call, ast.Call)
+        and (
+            (isinstance(call.func, ast.Name) and call.func.id == target)
+            or (isinstance(call.func, ast.Attribute) and call.func.attr == target)
+        )
+    ]
+    assert len(matches) == 1
+    profile = next(
+        (keyword.value for keyword in matches[0].keywords if keyword.arg == "profile"),
+        None,
+    )
+    assert isinstance(profile, ast.Name)
+    return profile.id
+
+
+def test_s8c_formal_entrypoints_and_producers_are_strictly_routed() -> None:
+    registry_tree = ast.parse(Path(R.__file__).read_text(encoding="utf-8"))
+    registry_functions = {
+        node.name: node
+        for node in registry_tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    expected_profiles = {
+        "reserve_attempt_slot": ("_reserve_attempt_slot", "_S8C_ATTEMPT_PROFILE"),
+        "reserve_formal_attempt_slot": (
+            "_reserve_attempt_slot", "_S8C_FORMAL_ATTEMPT_PROFILE",
+        ),
+        "record_attempt_terminal": (
+            "_record_attempt_terminal", "_S8C_ATTEMPT_PROFILE",
+        ),
+        "record_formal_attempt_terminal": (
+            "_record_attempt_terminal", "_S8C_FORMAL_ATTEMPT_PROFILE",
+        ),
+        "assert_attempt_registry_acceptance": (
+            "_assert_attempt_registry_acceptance", "_S8C_ATTEMPT_PROFILE",
+        ),
+        "assert_formal_attempt_registry_acceptance": (
+            "_assert_attempt_registry_acceptance", "_S8C_FORMAL_ATTEMPT_PROFILE",
+        ),
+    }
+    for name, (target, profile) in expected_profiles.items():
+        assert _profile_name_for_call(registry_functions[name], target) == profile
+
+    assert inspect.signature(R.reserve_formal_attempt_slot) == inspect.signature(
+        R.reserve_attempt_slot
+    )
+    assert inspect.signature(R.record_formal_attempt_terminal) == inspect.signature(
+        R.record_attempt_terminal
+    )
+    assert inspect.signature(
+        R.assert_formal_attempt_registry_acceptance
+    ) == inspect.signature(R.assert_attempt_registry_acceptance)
+
+    producer_source = Path(
+        R.__file__
+    ).with_name("p3_autonomous_workload_trial.py").read_text(encoding="utf-8")
+    producer_tree = ast.parse(producer_source)
+    producer_functions = {
+        node.name: node
+        for node in producer_tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    reserve_calls = _called_names(
+        producer_functions["_reserve_registered_attempt_slot"]
+    )
+    terminal_calls = _called_names(
+        producer_functions["_record_attempt_terminal_for_run"]
+    )
+    acceptance_calls = _called_names(
+        registry_functions["assert_trial_registry_acceptance"]
+    )
+    assert "reserve_formal_attempt_slot" in reserve_calls
+    assert "reserve_attempt_slot" not in reserve_calls
+    assert "record_formal_attempt_terminal" in terminal_calls
+    assert "record_attempt_terminal" not in terminal_calls
+    assert "assert_formal_attempt_registry_acceptance" in acceptance_calls
+    assert "assert_attempt_registry_acceptance" not in acceptance_calls
 
 
 def _assert_six_facades_are_unrebound(source: str) -> None:
