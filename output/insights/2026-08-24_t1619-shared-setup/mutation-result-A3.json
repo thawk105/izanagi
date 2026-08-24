@@ -1,0 +1,450 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbounded local に与えた予算: 1677721600 bytes。ログインノードで 1677721600 bytes の予算を予約しました（予約控除後の観測余裕=1686997912 bytes、算出予算=1677721600 bytes、現在使用量=16421101568 bytes、回収不能量=8478335352 bytes、判定占有量=8478335352 bytes、実効天井=15032385536 bytes、生存中の予約=2719568624 bytes、前回ピーク=1342177280 bytes (scope の raw memory.current peak)、次回見積もり=1677721600 bytes）。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbounded scope の観測ピーク: 1677721600 bytes\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:scope-outcome-cap-oom\n[Pegasus dispatch] job を gen_S へ投入します (izdw-d61d702b44)\n[Pegasus dispatch] request ID 943999.nqsv を受理しました\n[Pegasus dispatch] request 943999.nqsv の状態: QUE\n[Pegasus dispatch] request 943999.nqsv の状態: RUN\n[Pegasus dispatch] request 943999.nqsv の状態: END\n[Pegasus dispatch] request 943999.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d61d702b444d7b9e969f3f63c43066b5/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] request 943999.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| .....                                                                    [100%]\n| 5 passed in 44.56s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n[Pegasus dispatch] request 943999.nqsv child stdout end\n[Pegasus dispatch] request 943999.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             943999.nqsv\n| Request Name:           izdw-d61d702b44\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:18:07 2026\n| Started Request Time:   Mon Aug 24 23:18:15 2026\n| Ended Request Time:     Mon Aug 24 23:19:00 2026\n| Resources Information:\n|   Elapse:               50S\n|   Remaining Elapse:     3550S\n| ============================================================\n[Pegasus dispatch] request 943999.nqsv child stderr end\n",
+      "stdout_sha256": "632cf68ec6f9bb23169895578d73f3c695d7494cd5936d958b621c8d3876b03e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "989e47cff6fe8bfdda29f5654fcfe310d0c8ed6353a93d78535e05ea3db96bfe",
+    "duration_s": 80.298,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "d9c893268876bce1e83fed09df477f8a674312a1e0d88493d71c606db066bc35",
+    "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+    "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+    "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+    "status": "PASSED",
+    "test_output_sha256": "632cf68ec6f9bb23169895578d73f3c695d7494cd5936d958b621c8d3876b03e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+  },
+  "date": "2026-08-24T14:17:51.602641+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-360c5b149e)\n[Pegasus dispatch] request ID 944003.nqsv を受理しました\n[Pegasus dispatch] request 944003.nqsv の状態: QUE\n[Pegasus dispatch] request 944003.nqsv の状態: RUN\n[Pegasus dispatch] request 944003.nqsv の状態: END\n[Pegasus dispatch] request 944003.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/360c5b149e09f99fd6c7c7a402481faa/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 944003.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| .F...                                                                    [100%]\n| =================================== FAILURES ===================================\n| ________ test_current_repository_snapshot_has_zero_satisfied_predicates ________\n| [gw1] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/current-commit0/current-snapshot'), '4a18ccfcf3c02112367f3b478eca9a16aaa3df3e')\n| \n|     def test_current_repository_snapshot_has_zero_satisfied_predicates(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n|         assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0\n|         for item in results:\n|             assert item.evidence\n| >           assert all(ref.path and len(ref.blob_sha256) == 64 for ref in item.evidence)\n| E           assert False\n| E            +  where False = all(<generator object test_current_repository_snapshot_has_zero_satisfied_predicates.<locals>.<genexpr> at 0x148eed6dc350>)\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:195: AssertionError\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\n| 1 failed, 4 passed in 42.74s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=958 retained_bytes=958 omitted_bytes=0 rendered_excerpt_bytes=993 sha256=36f2e4c6bfa9a73283751647d13e5ed138aaba046f042c7ebee17db56d38be70\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw1] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/current-commit0/current-snapshot'), '4a18ccfcf3c02112367f3b478eca9a16aaa3df3e')\n| > \n| >     def test_current_repository_snapshot_has_zero_satisfied_predicates(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >         assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0\n| >         for item in results:\n| >             assert item.evidence\n| > >           assert all(ref.path and len(ref.blob_sha256) == 64 for ref in item.evidence)\n| > E           assert False\n| > E            +  where False = all(<generator object test_current_repository_snapshot_has_zero_satisfied_predicates.<locals>.<genexpr> at 0x148eed6dc350>)\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:195: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=958 retained_bytes=958 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1737 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 944003.nqsv child stdout end\n[Pegasus dispatch] request 944003.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             944003.nqsv\n| Request Name:           izdw-360c5b149e\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:19:20 2026\n| Started Request Time:   Mon Aug 24 23:19:28 2026\n| Ended Request Time:     Mon Aug 24 23:20:12 2026\n| Resources Information:\n|   Elapse:               48S\n|   Remaining Elapse:     3552S\n| ============================================================\n[Pegasus dispatch] request 944003.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\n",
+        "stdout_sha256": "734acd8a5fc8fd0a4cb474ebf2d9e4b403dad872b936c3d08b79eb6f87aa1d9c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "989e47cff6fe8bfdda29f5654fcfe310d0c8ed6353a93d78535e05ea3db96bfe",
+      "duration_s": 69.165,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+      ],
+      "hang_risk": false,
+      "id": "m01",
+      "injection_diff_sha256": "d5c0ad8efb0f47097e102af4deb2471755fd7a4ea5d1e41642c0b88de43db0a7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "58a2e79a636a59562f9c55482d45dfdfcd68d0a0dabe473588d392bdac097091",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    return hashlib.sha256(raw).hexdigest()[:63]\n",
+          "old": "    return hashlib.sha256(raw).hexdigest()\n"
+        }
+      ],
+      "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+      "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+      "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+      "status": "KILLED",
+      "test_output_sha256": "734acd8a5fc8fd0a4cb474ebf2d9e4b403dad872b936c3d08b79eb6f87aa1d9c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-eddd162e61)\n[Pegasus dispatch] request ID 944009.nqsv を受理しました\n[Pegasus dispatch] request 944009.nqsv の状態: QUE\n[Pegasus dispatch] request 944009.nqsv の状態: RUN\n[Pegasus dispatch] request 944009.nqsv の状態: END\n[Pegasus dispatch] request 944009.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/eddd162e61f122e3b154f6e616d28595/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 944009.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| ....F                                                                    [100%]\n| =================================== FAILURES ===================================\n| ____________ test_current_repository_snapshot_exactly_matches_head _____________\n| [gw0] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/current-commit0/current-snapshot'), '75f74acee7f535ac44dd3dfa0dba72ed253d5e8d')\n| \n|     def test_current_repository_snapshot_exactly_matches_head(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         root, head = current_commit_snapshot\n|         snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))\n|         actual = tuple(M.get_registry().evaluate_all(\"HEAD\", repo_root=_ROOT))\n| >       assert snapshot == actual\n| E       AssertionError: assert (PredicateRes...f2b2'))), ...) == (PredicateRes...f2b2'))), ...)\n| E         \n| E         At index 0 diff: PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-proof-not-machine-checkable', evidence=(EvidenceRef(path='orchestrator/campaign/__init__.py', blob_sha256='27efeb6d24e2de8f3bed2089640e19a4c968405016bf074db925162a4190cd0b'), EvidenceRef(path='orchestrator/campaign/artifact_admission.py', blob_sha256='267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f'), EvidenceRef(path='orchestrator/campaign/attempt_registry_core.py', blob_sha256='2df7d0cd817fc0c2c2dae8aca0bc330f1be8681e24...\n| E         \n| E         ...Full output truncated (2 lines hidden), use '-vv' to show\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:204: AssertionError\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\n| 1 failed, 4 passed in 43.66s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1428 retained_bytes=1428 omitted_bytes=0 rendered_excerpt_bytes=1465 sha256=75e3694851c7add18d75efef359b0b89b36e90645ebac68d0fe6f598ad94ff90\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw0] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/current-commit0/current-snapshot'), '75f74acee7f535ac44dd3dfa0dba72ed253d5e8d')\n| > \n| >     def test_current_repository_snapshot_exactly_matches_head(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         root, head = current_commit_snapshot\n| >         snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))\n| >         actual = tuple(M.get_registry().evaluate_all(\"HEAD\", repo_root=_ROOT))\n| > >       assert snapshot == actual\n| > E       AssertionError: assert (PredicateRes...f2b2'))), ...) == (PredicateRes...f2b2'))), ...)\n| > E         \n| > E         At index 0 diff: PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-proof-not-machine-checkable', evidence=(EvidenceRef(path='orchestrator/campaign/__init__.py', blob_sha256='27efeb6d24e2de8f3bed2089640e19a4c968405016bf074db925162a4190cd0b'), EvidenceRef(path='orchestrator/campaign/artifact_admission.py', blob_sha256='267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f'), EvidenceRef(path='orchestrator/campaign/attempt_registry_core.py', blob_sha256='2df7d0cd817fc0c2c2dae8aca0bc330f1be8681e24...\n| > E         \n| > E         ...Full output truncated (2 lines hidden), use '-vv' to show\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:204: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1428 retained_bytes=1428 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2205 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 944009.nqsv child stdout end\n[Pegasus dispatch] request 944009.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             944009.nqsv\n| Request Name:           izdw-eddd162e61\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:20:34 2026\n| Started Request Time:   Mon Aug 24 23:21:10 2026\n| Ended Request Time:     Mon Aug 24 23:21:55 2026\n| Resources Information:\n|   Elapse:               49S\n|   Remaining Elapse:     3551S\n| ============================================================\n[Pegasus dispatch] request 944009.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\n",
+        "stdout_sha256": "8d38deb85037603549a7343fb6c6a8a209fb7671db9ac687f5fe801eb3d49db1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "989e47cff6fe8bfdda29f5654fcfe310d0c8ed6353a93d78535e05ea3db96bfe",
+      "duration_s": 94.529,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+      ],
+      "hang_risk": false,
+      "id": "m02",
+      "injection_diff_sha256": "a6be7595a42296f36c55097f608e65231871666bd482dd627de070b41672c82f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a9a2b225e072c967ed88a20d125909637b830645990c8bd6ebf6dba3cb1fef0f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json",
+          "new": "{\n\n  \"",
+          "old": "{\n  \""
+        }
+      ],
+      "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+      "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+      "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+      "status": "KILLED",
+      "test_output_sha256": "8d38deb85037603549a7343fb6c6a8a209fb7671db9ac687f5fe801eb3d49db1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-1287d7197b)\n[Pegasus dispatch] request ID 944013.nqsv を受理しました\n[Pegasus dispatch] request 944013.nqsv の状態: QUE\n[Pegasus dispatch] request 944013.nqsv の状態: RUN\n[Pegasus dispatch] request 944013.nqsv の状態: END\n[Pegasus dispatch] request 944013.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1287d7197b531b3ebb4fb8ca99ac86c2/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 944013.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| .F...                                                                    [100%]\n| =================================== FAILURES ===================================\n| ____ test_current_repository_gap_reason_snapshot_requires_cross_wave_review ____\n| [gw2] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/current-commit0/current-snapshot'), '09f61c9a3f6c677f921620800672a76d6c237e0a')\n| \n|     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         \"\"\"個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。\n|     \n|         [T-325] の land で trial_registry の capability probe 段階を通過した。\n|         \"\"\"\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >       assert {\n|             item.id: (item.status, item.reason_code) for item in results\n|         } == {\n|             \"C01\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C02\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C03\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"manifest-registry-proof-undefined\"),\n|             \"C04\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n|             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n|             \"C09\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C10\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C12\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|         }\n| E       AssertionError: assert {'C01': (<Pre...ckable'), ...} == {'C01': (<Pre...ckable'), ...}\n| E         \n| E         Omitting 11 identical items, use -vv to show\n| E         Differing items:\n| E         {'C05': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'schedule-schema-absent-mutated')} != {'C05': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'schedule-schema-absent')}\n| E         Use -v to get more diff\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:216: AssertionError\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\n| 1 failed, 4 passed in 42.42s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=2810 retained_bytes=2810 omitted_bytes=0 rendered_excerpt_bytes=3017 sha256=cfec6113a4c9d541bb40e937f225c52adb3de3c41be8e61e52438e558ef90edd\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw2] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/current-commit0/current-snapshot'), '09f61c9a3f6c677f921620800672a76d6c237e0a')\n| > \n| >     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         \"\"\"\\u500b\\u5225 reason \\u306f gap ledger\\u3002\\u4ed6 wave \\u306e land \\u6642\\u306f\\u610f\\u56f3\\u3092\\u518d\\u5be9\\u67fb\\u3057\\u3066\\u66f4\\u65b0\\u3059\\u308b\\u3002\n| >     \n| >         [T-325] \\u306e land \\u3067 trial_registry \\u306e capability probe \\u6bb5\\u968e\\u3092\\u901a\\u904e\\u3057\\u305f\\u3002\n| >         \"\"\"\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| > >       assert {\n| >             item.id: (item.status, item.reason_code) for item in results\n| >         } == {\n| >             \"C01\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C02\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C03\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"manifest-registry-proof-undefined\"),\n| >             \"C04\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n| >             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n| >             \"C09\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C10\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C12\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >         }\n| > E       AssertionError: assert {'C01': (<Pre...ckable'), ...} == {'C01': (<Pre...ckable'), ...}\n| > E         \n| > E         Omitting 11 identical items, use -vv to show\n| > E         Differing items:\n| > E         {'C05': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'schedule-schema-absent-mutated')} != {'C05': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'schedule-schema-absent')}\n| > E         Use -v to get more diff\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:216: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2810 retained_bytes=2810 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3774 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 944013.nqsv child stdout end\n[Pegasus dispatch] request 944013.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             944013.nqsv\n| Request Name:           izdw-1287d7197b\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:22:11 2026\n| Started Request Time:   Mon Aug 24 23:22:36 2026\n| Ended Request Time:     Mon Aug 24 23:23:20 2026\n| Resources Information:\n|   Elapse:               48S\n|   Remaining Elapse:     3552S\n| ============================================================\n[Pegasus dispatch] request 944013.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\n",
+        "stdout_sha256": "e5c8147c70ec1456e55871ec4a1d58c76295e79199ea71871f9e4059a1dfb934"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "989e47cff6fe8bfdda29f5654fcfe310d0c8ed6353a93d78535e05ea3db96bfe",
+      "duration_s": 84.391,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "hang_risk": false,
+      "id": "m03",
+      "injection_diff_sha256": "45b3a702d5c1d810268b1c57164c550d7b97e0b4118b9db2d14172a0cfea9685",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d7bdf2a6abed0e0e20c3f245bbe70c21756316362d19a8b4374f85d77bbe409f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    SCHEDULE_SCHEMA_ABSENT = \"schedule-schema-absent-mutated\"\n",
+          "old": "    SCHEDULE_SCHEMA_ABSENT = \"schedule-schema-absent\"\n"
+        }
+      ],
+      "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+      "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+      "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+      "status": "KILLED",
+      "test_output_sha256": "e5c8147c70ec1456e55871ec4a1d58c76295e79199ea71871f9e4059a1dfb934",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-8c2f1f7732)\n[Pegasus dispatch] request ID 944019.nqsv を受理しました\n[Pegasus dispatch] request 944019.nqsv の状態: QUE\n[Pegasus dispatch] request 944019.nqsv の状態: RUN\n[Pegasus dispatch] request 944019.nqsv の状態: END\n[Pegasus dispatch] request 944019.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8c2f1f77324265813fdc1d27810caf09/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 944019.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| FF.F.                                                                    [100%]\n| =================================== FAILURES ===================================\n| ___ test_current_repository_c12_registry_reports_unwired_allocation_consumer ___\n| [gw3] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/current-commit0/current-snapshot'), '201c586f57f74c7715e1c0947b10f90c4917f651')\n| \n|     def test_current_repository_c12_registry_reports_unwired_allocation_consumer(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         # production が正しく配線されたら反転させる snapshot tripwire である。\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n|         c12 = {item.id: item for item in results}[\"C12\"]\n|         assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| >       assert c12.reason_code == \"completion-proof-not-machine-checkable\"\n| E       AssertionError: assert 'completion-p...kable-mutated' == 'completion-p...ine-checkable'\n| E         \n| E         - completion-proof-not-machine-checkable\n| E         + completion-proof-not-machine-checkable-mutated\n| E         ?                                       ++++++++\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:260: AssertionError\n| _ test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer _\n| [gw4] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/current-commit0/current-snapshot'), '201c586f57f74c7715e1c0947b10f90c4917f651')\n| \n|     def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         # production が正しく配線されたら反転させる snapshot tripwire である。\n|         root, head = current_commit_snapshot\n|         result = _result(root, head, \"C12\")\n|         assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| >       assert result.reason_code == \"completion-proof-not-machine-checkable\"\n| E       AssertionError: assert 'completion-p...kable-mutated' == 'completion-p...ine-checkable'\n| E         \n| E         - completion-proof-not-machine-checkable\n| E         + completion-proof-not-machine-checkable-mutated\n| E         ?                                       ++++++++\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:286: AssertionError\n| ____ test_current_repository_gap_reason_snapshot_requires_cross_wave_review ____\n| [gw2] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/current-commit0/current-snapshot'), '201c586f57f74c7715e1c0947b10f90c4917f651')\n| \n|     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         \"\"\"個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。\n|     \n|         [T-325] の land で trial_registry の capability probe 段階を通過した。\n|         \"\"\"\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >       assert {\n|             item.id: (item.status, item.reason_code) for item in results\n|         } == {\n|             \"C01\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C02\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C03\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"manifest-registry-proof-undefined\"),\n|             \"C04\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n|             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n|             \"C09\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C10\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C12\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|         }\n| E       AssertionError: assert {'C01': (<Pre...utated'), ...} == {'C01': (<Pre...ckable'), ...}\n| E         \n| E         Omitting 3 identical items, use -vv to show\n| E         Differing items:\n| E         {'C02': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable-mutated')} != {'C02': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| E         {'C09': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable-mutated')} != {'C09': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| E         {'C12': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EV...\n| E         \n| E         ...Full output truncated (8 lines hidden), use '-vv' to show\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:216: AssertionError\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\n| 3 failed, 2 passed in 42.22s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=3197 retained_bytes=3197 omitted_bytes=0 rendered_excerpt_bytes=3410 sha256=1d106dfb1459be2a71271b13d75d23314257ef00e81bd5276bc447db516ebb4f\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw2] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/current-commit0/current-snapshot'), '201c586f57f74c7715e1c0947b10f90c4917f651')\n| > \n| >     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         \"\"\"\\u500b\\u5225 reason \\u306f gap ledger\\u3002\\u4ed6 wave \\u306e land \\u6642\\u306f\\u610f\\u56f3\\u3092\\u518d\\u5be9\\u67fb\\u3057\\u3066\\u66f4\\u65b0\\u3059\\u308b\\u3002\n| >     \n| >         [T-325] \\u306e land \\u3067 trial_registry \\u306e capability probe \\u6bb5\\u968e\\u3092\\u901a\\u904e\\u3057\\u305f\\u3002\n| >         \"\"\"\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| > >       assert {\n| >             item.id: (item.status, item.reason_code) for item in results\n| >         } == {\n| >             \"C01\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C02\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C03\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"manifest-registry-proof-undefined\"),\n| >             \"C04\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n| >             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n| >             \"C09\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C10\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C12\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >         }\n| > E       AssertionError: assert {'C01': (<Pre...utated'), ...} == {'C01': (<Pre...ckable'), ...}\n| > E         \n| > E         Omitting 3 identical items, use -vv to show\n| > E         Differing items:\n| > E         {'C02': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable-mutated')} != {'C02': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| > E         {'C09': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable-mutated')} != {'C09': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| > E         {'C12': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EV...\n| > E         \n| > E         ...Full output truncated (8 lines hidden), use '-vv' to show\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:216: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=1122 retained_bytes=1122 omitted_bytes=0 rendered_excerpt_bytes=1220 sha256=04a9ec22501653fb2f08385d92155738ad24b2ab2c3158609038a7e7aa7f92cb\n| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n| > [gw3] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/current-commit0/current-snapshot'), '201c586f57f74c7715e1c0947b10f90c4917f651')\n| > \n| >     def test_current_repository_c12_registry_reports_unwired_allocation_consumer(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         # production \\u304c\\u6b63\\u3057\\u304f\\u914d\\u7dda\\u3055\\u308c\\u305f\\u3089\\u53cd\\u8ee2\\u3055\\u305b\\u308b snapshot tripwire \\u3067\\u3042\\u308b\\u3002\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >         c12 = {item.id: item for item in results}[\"C12\"]\n| >         assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| > >       assert c12.reason_code == \"completion-proof-not-machine-checkable\"\n| > E       AssertionError: assert 'completion-p...kable-mutated' == 'completion-p...ine-checkable'\n| > E         \n| > E         - completion-proof-not-machine-checkable\n| > E         + completion-proof-not-machine-checkable-mutated\n| > E         ?                                       ++++++++\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:260: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=2 END ---\n| IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=1051 retained_bytes=1051 omitted_bytes=0 rendered_excerpt_bytes=1147 sha256=f988b36fe5920d7af0b3024b4636f6add620549615cd0748c78f22b733507dee\n| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n| > [gw4] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/current-commit0/current-snapshot'), '201c586f57f74c7715e1c0947b10f90c4917f651')\n| > \n| >     def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         # production \\u304c\\u6b63\\u3057\\u304f\\u914d\\u7dda\\u3055\\u308c\\u305f\\u3089\\u53cd\\u8ee2\\u3055\\u305b\\u308b snapshot tripwire \\u3067\\u3042\\u308b\\u3002\n| >         root, head = current_commit_snapshot\n| >         result = _result(root, head, \"C12\")\n| >         assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| > >       assert result.reason_code == \"completion-proof-not-machine-checkable\"\n| > E       AssertionError: assert 'completion-p...kable-mutated' == 'completion-p...ine-checkable'\n| > E         \n| > E         - completion-proof-not-machine-checkable\n| > E         + completion-proof-not-machine-checkable-mutated\n| > E         ?                                       ++++++++\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:286: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=3 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5370 retained_bytes=5370 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7484 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 944019.nqsv child stdout end\n[Pegasus dispatch] request 944019.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             944019.nqsv\n| Request Name:           izdw-8c2f1f7732\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:23:37 2026\n| Started Request Time:   Mon Aug 24 23:23:45 2026\n| Ended Request Time:     Mon Aug 24 23:24:28 2026\n| Resources Information:\n|   Elapse:               47S\n|   Remaining Elapse:     3553S\n| ============================================================\n[Pegasus dispatch] request 944019.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\n",
+        "stdout_sha256": "560462ff5c922038bd78e7ea014d734986497be05ddb1f7d050b03e034fac03b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "989e47cff6fe8bfdda29f5654fcfe310d0c8ed6353a93d78535e05ea3db96bfe",
+      "duration_s": 64.198,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "hang_risk": false,
+      "id": "m04",
+      "injection_diff_sha256": "699bf8552dba6f4fcd747e0aac4212df1e5e3b77f99f16e2c397e2bbafb18e89",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e82180d732a0b3ed747bd9c9771052a4df13862748df4360809ac994adfc18c6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    COMPLETION_PROOF_NOT_MACHINE_CHECKABLE = \"completion-proof-not-machine-checkable-mutated\"\n",
+          "old": "    COMPLETION_PROOF_NOT_MACHINE_CHECKABLE = \"completion-proof-not-machine-checkable\"\n"
+        }
+      ],
+      "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+      "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+      "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+      "status": "KILLED",
+      "test_output_sha256": "560462ff5c922038bd78e7ea014d734986497be05ddb1f7d050b03e034fac03b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-2b7dc9a49e)\n[Pegasus dispatch] request ID 944022.nqsv を受理しました\n[Pegasus dispatch] request 944022.nqsv の状態: QUE\n[Pegasus dispatch] request 944022.nqsv の状態: RUN\n[Pegasus dispatch] request 944022.nqsv の状態: END\n[Pegasus dispatch] request 944022.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2b7dc9a49e02f86594d20effd445e59a/receipt.json へ保存しました (child rc=1)\n[Pegasus dispatch] request 944022.nqsv child stdout begin\n| bringing up nodes...\n| bringing up nodes...\n| \n| FFFFF                                                                    [100%]\n| =================================== FAILURES ===================================\n| _ test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer _\n| [gw4] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/current-commit0/current-snapshot'), '2f0fd25dc024d7138e87b9f461fffa7d3fa04282')\n| \n|     def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         # production が正しく配線されたら反転させる snapshot tripwire である。\n|         root, head = current_commit_snapshot\n|         result = _result(root, head, \"C12\")\n|         assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| >       assert result.reason_code == \"completion-proof-not-machine-checkable\"\n| E       AssertionError: assert 'workload-supervisor-absent' == 'completion-p...ine-checkable'\n| E         \n| E         - completion-proof-not-machine-checkable\n| E         + workload-supervisor-absent\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:286: AssertionError\n| ____ test_current_repository_gap_reason_snapshot_requires_cross_wave_review ____\n| [gw2] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/current-commit0/current-snapshot'), '2f0fd25dc024d7138e87b9f461fffa7d3fa04282')\n| \n|     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         \"\"\"個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。\n|     \n|         [T-325] の land で trial_registry の capability probe 段階を通過した。\n|         \"\"\"\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >       assert {\n|             item.id: (item.status, item.reason_code) for item in results\n|         } == {\n|             \"C01\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C02\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C03\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"manifest-registry-proof-undefined\"),\n|             \"C04\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n|             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n|             \"C09\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C10\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n|             \"C12\": (\n|                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n|                 \"completion-proof-not-machine-checkable\",\n|             ),\n|         }\n| E       AssertionError: assert {'C01': (<Pre...absent'), ...} == {'C01': (<Pre...ckable'), ...}\n| E         \n| E         Omitting 1 identical items, use -vv to show\n| E         Differing items:\n| E         {'C07': (<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, 'result-judge-consumer-incomplete')} != {'C07': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| E         {'C11': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'workload-supervisor-absent')} != {'C11': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| E         {'C04': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'workload-supervisor-absent'...\n| E         \n| E         ...Full output truncated (10 lines hidden), use '-vv' to show\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:216: AssertionError\n| ________ test_current_repository_snapshot_has_zero_satisfied_predicates ________\n| [gw1] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/current-commit0/current-snapshot'), '5585888ff9530c4131602738f5d2359d6b9c6b82')\n| \n|     def test_current_repository_snapshot_has_zero_satisfied_predicates(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n|         assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0\n|         for item in results:\n| >           assert item.evidence\n| E           AssertionError: assert ()\n| E            +  where () = PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='workload-supervisor-absent', evidence=()).evidence\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:194: AssertionError\n| ___ test_current_repository_c12_registry_reports_unwired_allocation_consumer ___\n| [gw3] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/current-commit0/current-snapshot'), '5585888ff9530c4131602738f5d2359d6b9c6b82')\n| \n|     def test_current_repository_c12_registry_reports_unwired_allocation_consumer(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         # production が正しく配線されたら反転させる snapshot tripwire である。\n|         root, head = current_commit_snapshot\n|         results = M.get_registry().evaluate_all(head, repo_root=root)\n|         c12 = {item.id: item for item in results}[\"C12\"]\n|         assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| >       assert c12.reason_code == \"completion-proof-not-machine-checkable\"\n| E       AssertionError: assert 'workload-supervisor-absent' == 'completion-p...ine-checkable'\n| E         \n| E         - completion-proof-not-machine-checkable\n| E         + workload-supervisor-absent\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:260: AssertionError\n| ____________ test_current_repository_snapshot_exactly_matches_head _____________\n| [gw0] linux -- Python 3.10.12 /bin/python3.10\n| \n| current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/current-commit0/current-snapshot'), '2f0fd25dc024d7138e87b9f461fffa7d3fa04282')\n| \n|     def test_current_repository_snapshot_exactly_matches_head(\n|         current_commit_snapshot: tuple[Path, str],\n|     ) -> None:\n|         root, head = current_commit_snapshot\n|         snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))\n|         actual = tuple(M.get_registry().evaluate_all(\"HEAD\", repo_root=_ROOT))\n| >       assert snapshot == actual\n| E       AssertionError: assert (PredicateRes...ence=()), ...) == (PredicateRes...ence=()), ...)\n| E         \n| E         At index 0 diff: PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='workload-supervisor-absent', evidence=()) != PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-proof-not-machine-checkable', evidence=())\n| E         Use -v to get more diff\n| \n| orchestrator/tests/test_s8c_preregistration_predicates.py:204: AssertionError\n| =========================== short test summary info ============================\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer\n| FAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\n| 5 failed in 30.86s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n| === IZANAGI FAILURE DIGEST v1 BEGIN ===\n| IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=3198 retained_bytes=3198 omitted_bytes=0 rendered_excerpt_bytes=3411 sha256=cf6232e0cc4b19d6cf3c9e4e75d76b6f80862918faa570cbcb163470791b25b7\n| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n| > [gw2] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/current-commit0/current-snapshot'), '2f0fd25dc024d7138e87b9f461fffa7d3fa04282')\n| > \n| >     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         \"\"\"\\u500b\\u5225 reason \\u306f gap ledger\\u3002\\u4ed6 wave \\u306e land \\u6642\\u306f\\u610f\\u56f3\\u3092\\u518d\\u5be9\\u67fb\\u3057\\u3066\\u66f4\\u65b0\\u3059\\u308b\\u3002\n| >     \n| >         [T-325] \\u306e land \\u3067 trial_registry \\u306e capability probe \\u6bb5\\u968e\\u3092\\u901a\\u904e\\u3057\\u305f\\u3002\n| >         \"\"\"\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| > >       assert {\n| >             item.id: (item.status, item.reason_code) for item in results\n| >         } == {\n| >             \"C01\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C02\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C03\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"manifest-registry-proof-undefined\"),\n| >             \"C04\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n| >             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n| >             \"C09\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C10\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n| >             \"C12\": (\n| >                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n| >                 \"completion-proof-not-machine-checkable\",\n| >             ),\n| >         }\n| > E       AssertionError: assert {'C01': (<Pre...absent'), ...} == {'C01': (<Pre...ckable'), ...}\n| > E         \n| > E         Omitting 1 identical items, use -vv to show\n| > E         Differing items:\n| > E         {'C07': (<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, 'result-judge-consumer-incomplete')} != {'C07': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| > E         {'C11': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'workload-supervisor-absent')} != {'C11': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n| > E         {'C04': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'workload-supervisor-absent'...\n| > E         \n| > E         ...Full output truncated (10 lines hidden), use '-vv' to show\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:216: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=1 END ---\n| IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1128 retained_bytes=1128 omitted_bytes=0 rendered_excerpt_bytes=1163 sha256=e3d70ad87aed0423273f31831b872e069032441cee2e0b710a819e946f02d015\n| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n| > [gw0] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/current-commit0/current-snapshot'), '2f0fd25dc024d7138e87b9f461fffa7d3fa04282')\n| > \n| >     def test_current_repository_snapshot_exactly_matches_head(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         root, head = current_commit_snapshot\n| >         snapshot = tuple(M.get_registry().evaluate_all(head, repo_root=root))\n| >         actual = tuple(M.get_registry().evaluate_all(\"HEAD\", repo_root=_ROOT))\n| > >       assert snapshot == actual\n| > E       AssertionError: assert (PredicateRes...ence=()), ...) == (PredicateRes...ence=()), ...)\n| > E         \n| > E         At index 0 diff: PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='workload-supervisor-absent', evidence=()) != PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-proof-not-machine-checkable', evidence=())\n| > E         Use -v to get more diff\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:204: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=2 END ---\n| IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=1041 retained_bytes=1041 omitted_bytes=0 rendered_excerpt_bytes=1137 sha256=d02f545f88678b29108a5b3a9e6b95aacb467d3c07f88ec58adf44fcc9707c0d\n| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n| > [gw3] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/current-commit0/current-snapshot'), '5585888ff9530c4131602738f5d2359d6b9c6b82')\n| > \n| >     def test_current_repository_c12_registry_reports_unwired_allocation_consumer(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         # production \\u304c\\u6b63\\u3057\\u304f\\u914d\\u7dda\\u3055\\u308c\\u305f\\u3089\\u53cd\\u8ee2\\u3055\\u305b\\u308b snapshot tripwire \\u3067\\u3042\\u308b\\u3002\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >         c12 = {item.id: item for item in results}[\"C12\"]\n| >         assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| > >       assert c12.reason_code == \"completion-proof-not-machine-checkable\"\n| > E       AssertionError: assert 'workload-supervisor-absent' == 'completion-p...ine-checkable'\n| > E         \n| > E         - completion-proof-not-machine-checkable\n| > E         + workload-supervisor-absent\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:260: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=3 END ---\n| IZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=970 retained_bytes=970 omitted_bytes=0 rendered_excerpt_bytes=1064 sha256=e62c45c78327cd35170fe8bdc01c508fe415f0b58a2d3827d93d546741a91dce\n| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n| > [gw4] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/current-commit0/current-snapshot'), '2f0fd25dc024d7138e87b9f461fffa7d3fa04282')\n| > \n| >     def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         # production \\u304c\\u6b63\\u3057\\u304f\\u914d\\u7dda\\u3055\\u308c\\u305f\\u3089\\u53cd\\u8ee2\\u3055\\u305b\\u308b snapshot tripwire \\u3067\\u3042\\u308b\\u3002\n| >         root, head = current_commit_snapshot\n| >         result = _result(root, head, \"C12\")\n| >         assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n| > >       assert result.reason_code == \"completion-proof-not-machine-checkable\"\n| > E       AssertionError: assert 'workload-supervisor-absent' == 'completion-p...ine-checkable'\n| > E         \n| > E         - completion-proof-not-machine-checkable\n| > E         + workload-supervisor-absent\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:286: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=4 END ---\n| IZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=912 retained_bytes=912 omitted_bytes=0 rendered_excerpt_bytes=945 sha256=d4c5d1d313dcadfbef21d6ac9765298ec3eef02bc82df7aca578ab6b027cb42d\n| --- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n| > [gw1] linux -- Python 3.10.12 /bin/python3.10\n| > \n| > current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/current-commit0/current-snapshot'), '5585888ff9530c4131602738f5d2359d6b9c6b82')\n| > \n| >     def test_current_repository_snapshot_has_zero_satisfied_predicates(\n| >         current_commit_snapshot: tuple[Path, str],\n| >     ) -> None:\n| >         root, head = current_commit_snapshot\n| >         results = M.get_registry().evaluate_all(head, repo_root=root)\n| >         assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0\n| >         for item in results:\n| > >           assert item.evidence\n| > E           AssertionError: assert ()\n| > E            +  where () = PredicateResult(id='C01', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='workload-supervisor-absent', evidence=()).evidence\n| > \n| > orchestrator/tests/test_s8c_preregistration_predicates.py:194: AssertionError\n| --- IZANAGI FAILURE EXCERPT rank=5 END ---\n| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=7249 retained_bytes=7249 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10338 omitted_manifest_sha256=-\n| === IZANAGI FAILURE DIGEST v1 END ===\n[Pegasus dispatch] request 944022.nqsv child stdout end\n[Pegasus dispatch] request 944022.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             944022.nqsv\n| Request Name:           izdw-2b7dc9a49e\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:24:45 2026\n| Started Request Time:   Mon Aug 24 23:24:52 2026\n| Ended Request Time:     Mon Aug 24 23:25:24 2026\n| Resources Information:\n|   Elapse:               37S\n|   Remaining Elapse:     3563S\n| ============================================================\n[Pegasus dispatch] request 944022.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\n",
+        "stdout_sha256": "fbac42d2f3880f974190764e0ff081582ee3c42dd0e4010d0c1a23cee6777848"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "989e47cff6fe8bfdda29f5654fcfe310d0c8ed6353a93d78535e05ea3db96bfe",
+      "duration_s": 53.749,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+      ],
+      "hang_risk": false,
+      "id": "m05",
+      "injection_diff_sha256": "ed6904e86f4b11f3e687262f8be73f8069c56ea6a974abe3aab3bbbb8284a7e0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fd26c4136cd6f23fc8e60d8206943c2d20006826ed17c1957490583f4c0e32e8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "        object.__setattr__(self, \"evidence\", ())\n",
+          "old": "        object.__setattr__(self, \"evidence\", tuple(self.evidence))\n"
+        }
+      ],
+      "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+      "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+      "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+      "status": "KILLED",
+      "test_output_sha256": "fbac42d2f3880f974190764e0ff081582ee3c42dd0e4010d0c1a23cee6777848",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n[Pegasus dispatch] job を gen_S へ投入します (izdw-5b10e32971)\n[Pegasus dispatch] request ID 943993.nqsv を受理しました\n[Pegasus dispatch] request 943993.nqsv の状態: QUE\n[Pegasus dispatch] request 943993.nqsv の状態: RUN\n[Pegasus dispatch] request 943993.nqsv の状態: END\n[Pegasus dispatch] request 943993.nqsv の成果物収集を開始します\n[Pegasus dispatch] receipt を /work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5b10e32971d1c149219ed4309abc9d2f/receipt.json へ保存しました (child rc=0)\n[Pegasus dispatch] request 943993.nqsv child stdout begin\n| orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\n| orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\n| orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\n| orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer\n| orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer\n| \n| 5/194 tests collected (189 deselected) in 0.62s\n| IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n[Pegasus dispatch] request 943993.nqsv child stdout end\n[Pegasus dispatch] request 943993.nqsv child stderr begin\n| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n| \n| ============================================================\n| Request ID:             943993.nqsv\n| Request Name:           izdw-5b10e32971\n| Queue:                  gen_S@nqsv\n| Number of Jobs:         1\n| User Name:              tanab\n| Group Name:             SFC\n| Created Request Time:   Mon Aug 24 23:17:25 2026\n| Started Request Time:   Mon Aug 24 23:17:38 2026\n| Ended Request Time:     Mon Aug 24 23:17:39 2026\n| Resources Information:\n|   Elapse:               6S\n|   Remaining Elapse:     3594S\n| ============================================================\n[Pegasus dispatch] request 943993.nqsv child stderr end\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\n",
+        "stdout_sha256": "2dd9e2f0c29e6a260ddfa95a36a32d5e5f5da048848a33e9cd27af58096acf88"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer"
+      ],
+      "duration_s": 28.117,
+      "rc": 0,
+      "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+      "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+      "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+      "status": "PASSED",
+      "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5c0ad8efb0f47097e102af4deb2471755fd7a4ea5d1e41642c0b88de43db0a7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "    return hashlib.sha256(raw).hexdigest()[:63]\n",
+            "old": "    return hashlib.sha256(raw).hexdigest()\n"
+          }
+        ]
+      },
+      "m02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a6be7595a42296f36c55097f608e65231871666bd482dd627de070b41672c82f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json",
+            "new": "{\n\n  \"",
+            "old": "{\n  \""
+          }
+        ]
+      },
+      "m03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "45b3a702d5c1d810268b1c57164c550d7b97e0b4118b9db2d14172a0cfea9685",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "    SCHEDULE_SCHEMA_ABSENT = \"schedule-schema-absent-mutated\"\n",
+            "old": "    SCHEDULE_SCHEMA_ABSENT = \"schedule-schema-absent\"\n"
+          }
+        ]
+      },
+      "m04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "699bf8552dba6f4fcd747e0aac4212df1e5e3b77f99f16e2c397e2bbafb18e89",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "    COMPLETION_PROOF_NOT_MACHINE_CHECKABLE = \"completion-proof-not-machine-checkable-mutated\"\n",
+            "old": "    COMPLETION_PROOF_NOT_MACHINE_CHECKABLE = \"completion-proof-not-machine-checkable\"\n"
+          }
+        ]
+      },
+      "m05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ed6904e86f4b11f3e687262f8be73f8069c56ea6a974abe3aab3bbbb8284a7e0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "        object.__setattr__(self, \"evidence\", ())\n",
+            "old": "        object.__setattr__(self, \"evidence\", tuple(self.evidence))\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "d9c893268876bce1e83fed09df477f8a674312a1e0d88493d71c606db066bc35",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-k",
+      "current_repository",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "971f0fd74bc7e32b172d541c692220ac5d617c01",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-k",
+      "current_repository",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3e304e131068e1e82f29ba58671f5ac3dc9af7ad",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "ed4a5da88308562a7f58a793aaf5287cfc545cb64ca495ee2c23f0703a9105e7",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "4ad8ed744b4b1267506d2112e791c4d7a61034dc396290891ae8083f4d1cf81d",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "018992241713143cb44d6f8f031e5389f1b835fb7e24e388cfaa5db6ef264b3a",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/t1619-shared-setup/mutation-scratch-a3/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "018992241713143cb44d6f8f031e5389f1b835fb7e24e388cfaa5db6ef264b3a"
+  },
+  "tool_sha256": "4727635c053ee94835e2c04f1249ab474fbbfa755705cf3a81c0877dd2f5a8a9",
+  "updated_at": "2026-08-24T14:25:36.850373+00:00"
+}
