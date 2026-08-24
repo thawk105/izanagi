@@ -154,12 +154,15 @@ _FOLD_GATE_ENV_REMOVE = frozenset({
     "PYTHONPATH",
     "PYTHONHOME",
     "PYTHONOPTIMIZE",
+    "PYTHONNOUSERSITE",
 })
+# この host の pytest 実体は user site にあり、user site を閉じると
+# `ModuleNotFoundError: No module named 'pytest'` になるため、実子では閉じない。
 _FOLD_GATE_ENV_FORCE = (
     ("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1"),
     ("PYTHONDONTWRITEBYTECODE", "1"),
-    ("PYTHONNOUSERSITE", "1"),
 )
+_FOLD_GATE_DIAGNOSTIC_TAIL_BYTES = 500
 # 母集合は fold gate の 5 node + landing tip の全 tracked export。
 # login node 混雑下・dispatch 経由の同一隔離 tree/serial 実測 max 63.10 秒を 2.0 倍し 5 秒へ切上げ。
 _FOLD_GATE_INNER_TIMEOUT_SECONDS = 130.0
@@ -3611,17 +3614,60 @@ def _run_fold_gate_pytest(
         except subprocess.TimeoutExpired:
             process.kill()
             stdout, stderr = process.communicate()
-        raise subprocess.TimeoutExpired(
+        timeout_error = subprocess.TimeoutExpired(
             argv,
             timeout,
             output=stdout,
             stderr=stderr,
-        ) from exc
+        )
+        timeout_error.returncode = process.returncode
+        raise timeout_error from exc
     return subprocess.CompletedProcess(
         argv,
         process.returncode,
         stdout,
         stderr,
+    )
+
+
+def _fold_gate_diagnostic_tail(data: bytes | None) -> str:
+    """子出力の末尾を有界かつ byte 単位で可逆な ASCII にする。"""
+
+    raw = data or b""
+    selected_reversed: list[str] = []
+    used = 0
+    retained = 0
+    for value in reversed(raw):
+        rendered = (
+            chr(value)
+            if 0x20 <= value < 0x7f and value != 0x5c
+            else f"\\x{value:02x}"
+        )
+        width = len(rendered)
+        if used + width > _FOLD_GATE_DIAGNOSTIC_TAIL_BYTES:
+            break
+        selected_reversed.append(rendered)
+        used += width
+        retained += 1
+    selected_reversed.reverse()
+    escaped = "".join(selected_reversed)
+    return (
+        f"omitted_bytes={len(raw) - retained},"
+        f"escaped={json.dumps(escaped, ensure_ascii=True)}"
+    )
+
+
+def _fold_gate_pytest_diagnostic(
+    *,
+    returncode: int | None,
+    stdout: bytes | None,
+    stderr: bytes | None,
+) -> str:
+    rc = "unavailable" if returncode is None else str(returncode)
+    return (
+        f"pytest returncode={rc}; "
+        f"stdout_tail({_fold_gate_diagnostic_tail(stdout)}); "
+        f"stderr_tail({_fold_gate_diagnostic_tail(stderr)})"
     )
 
 
@@ -3789,13 +3835,24 @@ def _execute_fold_gate(
                 termination_grace=budgets.termination_grace_seconds,
             )
         except subprocess.TimeoutExpired as exc:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=getattr(exc, "returncode", None),
+                stdout=exc.output,
+                stderr=exc.stderr,
+            )
             raise _FoldGateInfrastructureFailure(
-                f"fold gate pytest timed out after {budgets.inner_seconds:g} seconds",
+                f"fold gate pytest timed out after {budgets.inner_seconds:g} "
+                f"seconds; {diagnostic}",
                 uncovered_families=selection.uncovered_families,
             ) from exc
         except OSError as exc:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=None,
+                stdout=None,
+                stderr=None,
+            )
             raise _FoldGateInfrastructureFailure(
-                f"fold gate pytest could not start: {exc}",
+                f"fold gate pytest could not start: {exc}; {diagnostic}",
                 uncovered_families=selection.uncovered_families,
             ) from exc
         try:
@@ -3804,6 +3861,16 @@ def _execute_fold_gate(
                 selection.nodeids,
                 selection.node_families,
             )
+        except _FoldGateInfrastructureFailure as exc:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+            )
+            raise _FoldGateInfrastructureFailure(
+                f"{exc}; {diagnostic}",
+                uncovered_families=selection.uncovered_families,
+            ) from exc
         except _FoldGateFailure as exc:
             raise type(exc)(
                 str(exc),
@@ -3819,10 +3886,13 @@ def _execute_fold_gate(
                 ),
             ) from exc
         if completed.returncode != 0:
-            detail = _detail(completed.stderr) or _detail(completed.stdout)
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+            )
             raise _FoldGateInfrastructureFailure(
-                f"fold gate pytest returned rc={completed.returncode} "
-                f"({detail or 'no detail'}); {counts}",
+                f"fold gate pytest returned nonzero; {diagnostic}; {counts}",
                 uncovered_families=selection.uncovered_families,
             )
         return counts

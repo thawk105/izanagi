@@ -8469,7 +8469,8 @@ def test_fold_gate_environment_removes_ambient_pytest_and_python_injection() -> 
     assert all(name not in env for name in names)
     assert env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
     assert env["PYTHONDONTWRITEBYTECODE"] == "1"
-    assert env["PYTHONNOUSERSITE"] == "1"
+    assert "PYTHONNOUSERSITE" not in dict(LAND._FOLD_GATE_ENV_FORCE)
+    assert "PYTHONNOUSERSITE" not in env
     assert "IZANAGI_RUN_GROWTH_HELD_TESTS" not in dict(
         LAND._FOLD_GATE_ENV_FORCE
     )
@@ -8494,6 +8495,17 @@ def test_each_fold_gate_ambient_injection_is_removed_independently(
     env = LAND._fold_gate_environment()
 
     assert name not in env
+
+
+def test_fold_gate_child_environment_removes_ambient_pythonnousersite(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PYTHONNOUSERSITE", "1")
+
+    env = LAND._fold_gate_environment_with_tmp(tmp_path)
+
+    assert "PYTHONNOUSERSITE" not in env
 
 
 def test_fold_gate_junit_requires_execution_and_rejects_skip_failure_error(
@@ -8628,6 +8640,90 @@ def test_fold_gate_exports_full_tree_applies_raw_bytes_and_runs_one_pytest(
         )
         assert observed["argv"].count("-m") == 1
         assert observed["argv"][1:5] == ["-m", "pytest", "-p", "junitxml"]
+
+
+def test_fold_gate_missing_junit_reports_bounded_escaped_child_output() -> None:
+    class Repository:
+        wave = ROOT
+
+    class Plan:
+        targets = ()
+        fragments = ()
+        gc_paths = ()
+
+    selection = LAND._FoldGateSelection(
+        "1" * 64,
+        ("test_spool_fold.py::test_gate_node",),
+        ("folded",),
+        (),
+    )
+    stdout = b"A" * 600 + b" stdout\x1b\n"
+    stderr = b"B" * 600 + b" stderr\x00\r\n"
+
+    def no_junit(argv, **_kwargs):
+        return subprocess.CompletedProcess(argv, 4, stdout, stderr)
+
+    with (
+        _patched_land_attr("_registered_worktree_paths", lambda _repo: (ROOT,)),
+        _patched_land_attr("_export_tracked_tree", lambda *_args: None),
+        _patched_land_attr("_run_fold_gate_pytest", no_junit),
+        pytest.raises(LAND._FoldGateInfrastructureFailure) as raised,
+    ):
+        LAND._execute_fold_gate(
+            Repository(),
+            Plan(),
+            selection,
+            "a" * 40,
+            LAND._fold_gate_budgets(),
+        )
+
+    reason = str(raised.value)
+    assert "JUnit cannot be parsed" in reason
+    assert "pytest returncode=4" in reason
+    assert "stdout_tail(omitted_bytes=" in reason
+    assert "stderr_tail(omitted_bytes=" in reason
+    assert r"\\x1b\\x0a" in reason
+    assert r"\\x00\\x0d\\x0a" in reason
+    assert "\x1b" not in reason
+    assert "\x00" not in reason
+    assert len(reason.encode("ascii")) < 1400
+
+
+def test_fold_gate_real_argv_environment_create_junit_in_gitless_tree() -> None:
+    class Repository:
+        wave = ROOT
+
+    class Plan:
+        targets = ()
+        fragments = ()
+        gc_paths = ()
+
+    nodeid = (
+        "test_spool_fold.py::"
+        "test_n37_real_repo_canonical_family_requires_archive_active_history"
+    )
+    selection = LAND._FoldGateSelection(
+        "1" * 64,
+        (nodeid,),
+        ("folded",),
+        (),
+        ((nodeid, ("folded",)),),
+    )
+    tip = _git(ROOT, "rev-parse", "HEAD")
+    child_env = LAND._fold_gate_environment_with_tmp(Path("/tmp/fold-gate-probe"))
+    assert "PYTHONNOUSERSITE" not in child_env
+    assert "PYTHONOPTIMIZE" not in child_env
+    assert child_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+
+    counts = LAND._execute_fold_gate(
+        Repository(),
+        Plan(),
+        selection,
+        tip,
+        LAND._fold_gate_budgets(),
+    )
+
+    assert counts == LAND._FoldGateJUnitCounts(1, 1, 0, 0, 0)
 
 
 def test_fold_gate_receipt_binds_plan_identity_transaction_and_raw_bytes(
@@ -8998,7 +9094,7 @@ def test_ambient_pythonoptimize_cannot_hide_one_byte_positive_control(
         check=False,
     )
     assert "PYTHONOPTIMIZE" not in env
-    assert env["PYTHONNOUSERSITE"] == "1"
+    assert "PYTHONNOUSERSITE" not in env
     assert completed.returncode != 0, completed.stdout + completed.stderr
 
 
