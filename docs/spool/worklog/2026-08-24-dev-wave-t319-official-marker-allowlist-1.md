@@ -43,6 +43,15 @@ title: [T-319] official report の root namespace marker を allowlist 必須化
   wave は 3 つの context にまたがった (初回 + resume 2 回) が、実装面の 8 path は
   変異と焦点レビューを通した tip から 1 byte も動いていない。
 
+- **段 8 の候補処理。** 4 件のうち 2 件を採った。受入の正規例に所有実装面の明示が欠けており、
+  待ち手が「所有 overlap 判定を省略します」と警告したまま走る経路を実測したので、runbook の
+  正規例へ所有指定を足した。待ち手 bytes 差し替えの経路は {{F:acceptance-self-merge-rewrites-running-waiter}} と
+  {{T:acceptance-bound-executable-main-takein}} へ送った。残る 2 件は採らない。非帰属判定器の
+  log parser 互換性は、D678 が同判定器の自動起動経路を塞いだ後は受入経路に存在しない。
+  変異 worktree の source を固定 commit の独立 clone にする案は、行き先の L2 節が
+  1000 bytes 予算に対し残り 2 bytes しかなく、既存の安全義務を削らずには入らない。
+  予算のための削除は禁じられているため、実装せず裁定へ返す。
+
 ## 次の一手差分
 
 ### 完了
