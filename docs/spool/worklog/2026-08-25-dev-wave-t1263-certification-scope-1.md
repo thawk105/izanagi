@@ -115,6 +115,15 @@ baseline が赤 (`submodule is not initialized: external/ccbench/third_party/shi
 `mutation_worktree.py` が作る使い捨て worktree は submodule を初期化しないため、real repo を
 読むテストを変異対象にする wave は先に初期化が要る。
 
+### 受入で踏んだ非帰属の赤
+
+受入全走 attempt 1 は
+`test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`
+1 件だけで赤になった (1 failed / 15431 passed / 60 skipped)。**同 node の単独走は緑**
+(1 passed / 13.49 秒) で再現しない。破れたのは `Thread.join(10)` 後の生存判定であり、
+junit の記録では worker は `popen-gw30`、48 並列下の thread 待ちである。本 wave の差分から
+当該ファイルへの到達経路は無いので実装差分へ帰属させず、F480 の再発として記録して再投入した。
+
 ### 段 8 の候補と結末
 
 候補は 2 件で、どちらも失敗台帳へ送った (新規 F と F494 の再発)。**dev-wave の leaf 節への

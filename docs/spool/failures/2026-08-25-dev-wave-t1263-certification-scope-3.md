@@ -31,6 +31,17 @@ seq: 3
 
 ## 再発
 
+### F480
+
+- **再発: 2026-08-25** — 受入全走 attempt 1 (tested tip `cd0955c7`) が
+  `orchestrator/tests/test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`
+  1 件だけで赤になった (1 failed / 15431 passed / 60 skipped)。破れたのは
+  `assert not first.is_alive() and not second.is_alive()` で、直前の `first.join(10)` が
+  10 秒で戻りきらなかったことによる。**同 node の単独走は 1 passed / 13.49 秒 / rc=0 で緑**であり
+  再現しない。本 wave の差分 (A/B 装置とそのテスト、共有 test 基盤 2 file) から当該ファイルへの
+  到達経路は無い。junit の記録では worker は `popen-gw30` で、48 並列下の thread 待ちである。
+  F480 の「絶対 wall-clock を assert するテスト」族に、`Thread.join(<秒>)` の上界も入る。
+
 ### F494
 
 - **再発: 2026-08-25** — 期待 node に real-repo 直列 node を含む変異本走が
