@@ -8982,7 +8982,14 @@ def test_ambient_pythonoptimize_cannot_hide_one_byte_positive_control(
         "    Path(sys.argv[2]), _checkout=Path(sys.argv[1]))\n"
     )
     completed = subprocess.run(
-        [sys.executable, "-c", code, str(mutated_source), str(run_path)],
+        [
+            sys.executable,
+            "-B",
+            "-c",
+            code,
+            str(mutated_source),
+            str(run_path),
+        ],
         cwd=ROOT,
         env=env,
         stdin=subprocess.DEVNULL,

@@ -2,11 +2,18 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import shutil
+import sys
+import tempfile
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 from orchestrator.tests import fold_gate_nodes as REGISTRY
 from orchestrator.tests import test_spool_fold as SPOOL_TESTS
@@ -29,7 +36,6 @@ from orchestrator.tests.fold_gate_nodes import (
 from orchestrator.tests.growth_test_holds import GROWTH_TEST_HOLDS
 
 
-ROOT = Path(__file__).resolve().parents[2]
 SPOOL_TEST_PATH = ROOT / "orchestrator/tests/test_spool_fold.py"
 _COPY_HELPER = "_copy_real_canonical_family"
 _EXPECTED_NODE_COUNT = 5
@@ -299,31 +305,39 @@ def test_registry_count_digest_and_family_minimums_are_frozen() -> None:
     ) != _EXPECTED_REGISTRY_SHA256
 
 
+_REGISTRY_SCHEMA_NEGATIVE_CASES = (
+    ("test_spool_fold.py:test_name", _row()),
+    ("test_other.py::test_name", _row()),
+    ("test_spool_fold.py::test_name", _row(target_family=())),
+    (
+        "test_spool_fold.py::test_name",
+        _row(target_family=("worklog", "worklog")),
+    ),
+    (
+        "test_spool_fold.py::test_name",
+        _row(target_family=("unknown",)),
+    ),
+    ("test_spool_fold.py::test_name", _row(reason=" ")),
+    ("test_spool_fold.py::test_name", _row(reason="一\n二\n三")),
+    (
+        "test_spool_fold.py::test_name",
+        _row(exclusion_reason=D781_EXCLUSION_REASON),
+    ),
+)
+
+
 @pytest.mark.parametrize(
     ("node_id", "row"),
-    (
-        ("test_spool_fold.py:test_name", _row()),
-        ("test_other.py::test_name", _row()),
-        ("test_spool_fold.py::test_name", _row(target_family=())),
-        (
-            "test_spool_fold.py::test_name",
-            _row(target_family=("worklog", "worklog")),
-        ),
-        (
-            "test_spool_fold.py::test_name",
-            _row(target_family=("unknown",)),
-        ),
-        ("test_spool_fold.py::test_name", _row(reason=" ")),
-        ("test_spool_fold.py::test_name", _row(reason="一\n二\n三")),
-        (
-            "test_spool_fold.py::test_name",
-            _row(exclusion_reason=D781_EXCLUSION_REASON),
-        ),
-    ),
+    _REGISTRY_SCHEMA_NEGATIVE_CASES,
 )
 def test_registry_schema_negative_controls_are_rejected(node_id, row) -> None:
     with pytest.raises(ValueError):
         _validate_node_rows(((node_id, row),))
+
+
+test_registry_schema_negative_controls_are_rejected._plain_cases = (
+    _REGISTRY_SCHEMA_NEGATIVE_CASES
+)
 
 
 def test_registry_rejects_empty_duplicate_and_wrong_row_types() -> None:
@@ -621,3 +635,52 @@ def test_real_node_rejects_one_byte_t139_mutation_and_accepts_clean_bytes(
             mutated_run,
             _checkout=mutated_source,
         )
+
+
+def _run() -> int:
+    tests = [
+        value
+        for name, value in sorted(globals().items())
+        if name.startswith("test_") and callable(value)
+    ]
+    passed = failed = 0
+    for test in tests:
+        monkeypatch = None
+        try:
+            plain_cases = getattr(test, "_plain_cases", None)
+            if plain_cases is not None:
+                for case in plain_cases:
+                    test(*case)
+            else:
+                parameters = inspect.signature(test).parameters
+                if not parameters:
+                    test()
+                elif tuple(parameters) == ("monkeypatch",):
+                    monkeypatch = pytest.MonkeyPatch()
+                    test(monkeypatch)
+                elif tuple(parameters) == ("tmp_path",):
+                    with tempfile.TemporaryDirectory(
+                        prefix="fold-gate-nodes-contract-"
+                    ) as raw:
+                        test(Path(raw))
+                else:
+                    raise AssertionError(
+                        f"unsupported plain-runner parameters: {tuple(parameters)}"
+                    )
+            print(f"PASS {test.__name__}")
+            passed += 1
+        except AssertionError as exc:
+            print(f"FAIL {test.__name__}: {exc}")
+            failed += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"ERROR {test.__name__}: {type(exc).__name__}: {exc}")
+            failed += 1
+        finally:
+            if monkeypatch is not None:
+                monkeypatch.undo()
+    print(f"\n{passed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
