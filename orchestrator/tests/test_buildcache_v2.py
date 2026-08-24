@@ -198,7 +198,21 @@ def _expected_toolchain_manifest(bindir: Path) -> dict[str, object]:
     }
 
 
-def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-binary") -> None:
+def _write_masstree_depend_info(
+        build_dir: Path, pairs: tuple[tuple[Path | str, Path | str], ...]) -> None:
+    target_dir = build_dir / "CMakeFiles" / "masstree_build.dir"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["set(CMAKE_MULTIPLE_OUTPUT_PAIRS\n"]
+    lines.extend(f'  "{left}" "{right}"\n' for left, right in pairs)
+    lines.append("  )\n")
+    (target_dir / "DependInfo.cmake").write_text(
+        "".join(lines), encoding="utf-8",
+    )
+
+
+def _fake_build_environment(
+        monkeypatch, tmp_path: Path, payload: bytes = b"v2-binary", *,
+        masstree_build_root: Path | str | None = None) -> None:
     monkeypatch.setattr(
         buildcache.site_policy, "current_site", lambda: buildcache.site_policy.OTHER,
     )
@@ -229,9 +243,40 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
                 bdir = Path(cmd[cmd.index("-B") + 1])
                 bdir.mkdir(parents=True, exist_ok=True)
                 base = Path(base_tokens[0].split("=", 1)[1])
+                masstree_tokens = [
+                    token for token in cmd
+                    if token.startswith("-DFETCHCONTENT_SOURCE_DIR_MASSTREE=")
+                ]
+                assert len(masstree_tokens) <= 1
+                cache_lines = [
+                    "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n",
+                    f"FETCHCONTENT_BASE_DIR:PATH={base}\n",
+                ]
+                if masstree_tokens:
+                    configured_root = Path(
+                        masstree_tokens[0].split("=", 1)[1]
+                    )
+                    cache_lines.append(
+                        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH="
+                        f"{configured_root}\n"
+                    )
+                else:
+                    configured_root = base / "masstree-src"
                 (bdir / "CMakeCache.txt").write_text(
-                    f"masstree_SOURCE_DIR:STATIC={base / 'masstree-src'}\n",
+                    "".join(cache_lines),
                     encoding="utf-8",
+                )
+                generated_root = (
+                    Path(masstree_build_root)
+                    if masstree_build_root is not None
+                    else configured_root
+                )
+                _write_masstree_depend_info(
+                    bdir,
+                    ((
+                        generated_root / "config.h",
+                        generated_root / "libkohler_masstree_json.a",
+                    ),),
                 )
         if what == "build":
             bdir = Path(cmd[cmd.index("--build") + 1])
@@ -247,6 +292,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
            fetchcontent_dependency_receipt=None, declared_use_class=None,
+           fetchcontent_archive_sha256=None,
            masstree_source_dir=None, mimalloc_source_dir=None,
            googletest_source_dir=None):
     genome = Genome("silo", {"BACK_OFF": 1})
@@ -280,6 +326,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["fetchcontent_base_dir"] = fetchcontent_base_dir
     if fetchcontent_dependency_receipt is not None:
         kwargs["fetchcontent_dependency_receipt"] = fetchcontent_dependency_receipt
+    if fetchcontent_archive_sha256 is not None:
+        kwargs["fetchcontent_archive_sha256"] = fetchcontent_archive_sha256
     if masstree_source_dir is not None:
         kwargs["masstree_source_dir"] = masstree_source_dir
     if mimalloc_source_dir is not None:
@@ -292,11 +340,10 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
     )
 
 
-def _dependency_receipt(*, config: str = "b", archive: str = "c") -> dict[str, str]:
+def _dependency_receipt(*, config: str = "b") -> dict[str, str]:
     return {
         "masstree_head": "a" * 40,
         "config_sha256": config * 64,
-        "archive_sha256": archive * 64,
     }
 
 
@@ -324,8 +371,342 @@ def _write_fetchcontent_dependency(base: Path) -> dict[str, str]:
     return {
         "masstree_head": head,
         "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
-        "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     }
+
+
+def _write_cmake_cache(build_dir: Path, lines: tuple[str, ...]) -> None:
+    build_dir.mkdir(parents=True, exist_ok=True)
+    (build_dir / "CMakeCache.txt").write_text(
+        "".join(f"{line}\n" for line in lines), encoding="utf-8",
+    )
+
+
+def test_masstree_source_root_accepts_observed_source_dir_shape(tmp_path):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={root}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    assert "masstree_SOURCE_DIR" not in (
+        build_dir / "CMakeCache.txt"
+    ).read_text(encoding="utf-8")
+    assert buildcache._masstree_source_root_from_cmake_cache(
+        str(build_dir)
+    ) == str(root.resolve())
+
+
+def test_masstree_source_root_accepts_base_only_shape(tmp_path):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    assert buildcache._masstree_source_root_from_cmake_cache(
+        str(build_dir)
+    ) == str(root.resolve())
+
+
+@pytest.mark.parametrize(
+    "generator_lines",
+    (
+        ("CMAKE_GENERATOR:INTERNAL=Ninja",),
+        (),
+        (
+            "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+            "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        ),
+    ),
+    ids=("ninja", "missing", "duplicate"),
+)
+def test_masstree_source_root_rejects_unexpected_generator(
+        tmp_path, generator_lines):
+    build_dir = tmp_path / "build"
+    root = tmp_path / "fetchcontent" / "masstree-src"
+    _write_cmake_cache(
+        build_dir,
+        (*generator_lines, f"FETCHCONTENT_BASE_DIR:PATH={root.parent}"),
+    )
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="CMAKE_GENERATOR"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "cache_entries",
+    (
+        (),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=/first/masstree-src",
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=/second/masstree-src",
+            "FETCHCONTENT_BASE_DIR:PATH=/expected",
+        ),
+        (
+            "FETCHCONTENT_BASE_DIR:PATH=/first",
+            "FETCHCONTENT_BASE_DIR:PATH=/second",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=relative/masstree-src",
+            "FETCHCONTENT_BASE_DIR:PATH=/expected",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_BASE_DIR:PATH=/expected",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=/expected/masstree-src\0bad",
+            "FETCHCONTENT_BASE_DIR:PATH=/expected",
+        ),
+        ("FETCHCONTENT_BASE_DIR:PATH=relative",),
+        ("FETCHCONTENT_BASE_DIR:PATH=/expected\0bad",),
+    ),
+    ids=(
+        "missing", "duplicate-source", "duplicate-base", "relative-source",
+        "empty-source", "nul-source", "relative-base", "nul-base",
+    ),
+)
+def test_masstree_source_root_rejects_missing_duplicate_or_invalid_cache_key(
+        tmp_path, cache_entries):
+    build_dir = tmp_path / "build"
+    root = tmp_path / "fetchcontent" / "masstree-src"
+    _write_cmake_cache(
+        build_dir,
+        ("CMAKE_GENERATOR:INTERNAL=Unix Makefiles", *cache_entries),
+    )
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "cache_entries",
+    (
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={root}",
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={other_root}",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+        ),
+        (
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+            "FETCHCONTENT_BASE_DIR:PATH={other_base}",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={root}",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+            "FETCHCONTENT_BASE_DIR:PATH={other_base}",
+        ),
+    ),
+    ids=("duplicate-source", "duplicate-base", "duplicate-unselected-base"),
+)
+def test_masstree_source_root_duplicate_cache_key_is_single_reason(
+        tmp_path, cache_entries):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    values = {
+        "base": base,
+        "root": root,
+        "other_base": tmp_path / "other-fetchcontent",
+        "other_root": tmp_path / "other-fetchcontent" / "masstree-src",
+    }
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        *(entry.format(**values) for entry in cache_entries),
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="解決 key が一意"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "relative_surface",
+    ("source-dir", "base-dir", "depend-info"),
+    ids=("source-dir", "base-dir", "depend-info"),
+)
+def test_masstree_source_root_relative_path_is_single_reason(
+        tmp_path, monkeypatch, relative_surface):
+    monkeypatch.chdir(tmp_path)
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    cache_entries = []
+    if relative_surface == "source-dir":
+        cache_entries.append(
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=fetchcontent/masstree-src"
+        )
+    elif relative_surface == "base-dir":
+        cache_entries.append("FETCHCONTENT_BASE_DIR:PATH=fetchcontent")
+    else:
+        cache_entries.append(f"FETCHCONTENT_BASE_DIR:PATH={base}")
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        *cache_entries,
+    ))
+    if relative_surface == "depend-info":
+        generated_root: Path | str = "fetchcontent/masstree-src"
+    else:
+        generated_root = root
+    _write_masstree_depend_info(
+        build_dir,
+        ((
+            f"{generated_root}/config.h",
+            f"{generated_root}/libkohler_masstree_json.a",
+        ),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="NUL なし絶対 path"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "invalid_source",
+    ("", "relative/masstree-src", "/invalid/masstree-src\0bad"),
+    ids=("empty", "relative", "nul"),
+)
+def test_masstree_source_root_invalid_source_does_not_fallback(
+        tmp_path, invalid_source):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={invalid_source}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="FETCHCONTENT_SOURCE_DIR_MASSTREE .* NUL なし絶対 path"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "depend_shape",
+    (
+        "missing", "zero-pairs", "two-pairs", "different-parents", "relative",
+        "wrong-basename", "nul",
+    ),
+)
+def test_masstree_source_root_rejects_invalid_depend_info(
+        tmp_path, depend_shape):
+    build_dir = tmp_path / "build"
+    root = tmp_path / "fetchcontent" / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_BASE_DIR:PATH={root.parent}",
+    ))
+    if depend_shape == "zero-pairs":
+        _write_masstree_depend_info(build_dir, ())
+    elif depend_shape == "two-pairs":
+        pair = (root / "config.h", root / "libkohler_masstree_json.a")
+        _write_masstree_depend_info(build_dir, (pair, pair))
+    elif depend_shape == "different-parents":
+        _write_masstree_depend_info(
+            build_dir,
+            (((root / "config.h"), (tmp_path / "other" / "libkohler_masstree_json.a")),),
+        )
+    elif depend_shape == "relative":
+        _write_masstree_depend_info(
+            build_dir,
+            (("relative/config.h", "relative/libkohler_masstree_json.a"),),
+        )
+    elif depend_shape == "wrong-basename":
+        _write_masstree_depend_info(
+            build_dir,
+            ((root / "not-config.h", root / "libkohler_masstree_json.a"),),
+        )
+    elif depend_shape == "nul":
+        _write_masstree_depend_info(
+            build_dir,
+            ((f"{root / 'config.h'}\0bad", root / "libkohler_masstree_json.a"),),
+        )
+    elif depend_shape != "missing":  # pragma: no cover - parametrization contract
+        raise AssertionError(depend_shape)
+
+    with pytest.raises(buildcache.BuildCacheError):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+def test_masstree_source_root_rejects_legacy_lowercase_key_only(tmp_path):
+    build_dir = tmp_path / "build"
+    root = tmp_path / "fetchcontent" / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"masstree_SOURCE_DIR:STATIC={root}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+def test_v2_fetchcontent_dependency_receipt_requires_exact_head_config_schema():
+    receipt = _dependency_receipt()
+    assert buildcache._validate_fetchcontent_dependency_receipt(receipt) == receipt
+    invalid = [
+        {**receipt, "archive_sha256": "c" * 64},
+        {"masstree_head": receipt["masstree_head"]},
+        {**receipt, "config_sha256": "not-a-sha256"},
+        {**receipt, "masstree_head": "not-a-head"},
+    ]
+    for candidate in invalid:
+        with pytest.raises(buildcache.BuildCacheError):
+            buildcache._validate_fetchcontent_dependency_receipt(candidate)
+
+
+def test_v2_cache_and_generated_masstree_roots_must_match_before_publish(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    outside_root = tmp_path / "outside" / "masstree-src"
+    _fake_build_environment(
+        monkeypatch, tmp_path, masstree_build_root=outside_root,
+    )
+    expected_base = tmp_path / "fetchcontent"
+    expected_base.mkdir()
+    receipt = _write_fetchcontent_dependency(expected_base)
+
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="CMakeCache.txt .* DependInfo.cmake"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(expected_base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+        )
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
 
 
 def test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage(
@@ -382,6 +763,9 @@ def test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases(
     base_b = tmp_path / "fetchcontent-b"
     base_b.mkdir()
     shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    (base_b / "masstree-src" / "libkohler_masstree_json.a").write_bytes(
+        b"different archive from another valid build path\n"
+    )
     second = _build(
         tmp_path, _contract(1), fetchcontent_base_dir=str(base_b.resolve()),
         fetchcontent_dependency_receipt=receipt,
@@ -393,6 +777,140 @@ def test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases(
     assert second.masstree_source_root_sha256 == hashlib.sha256(
         str(base_a.resolve() / "masstree-src").encode("utf-8")
     ).hexdigest()
+
+
+def test_v2_run_local_archive_observations_allow_distinct_build_bytes_across_runs(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    generated_archives = {}
+    prebuild_targets = []
+    original_run = buildcache._run
+
+    def generate_archive_from_prebuild(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build" and cmd[cmd.index("--target") + 1] == "masstree_build":
+            build_dir = Path(cmd[cmd.index("--build") + 1])
+            base = build_dir.parent.resolve()
+            (base / "masstree-src" / "libkohler_masstree_json.a").write_bytes(
+                generated_archives[base]
+            )
+            prebuild_targets.append(base)
+
+    monkeypatch.setattr(buildcache, "_run", generate_archive_from_prebuild)
+
+    def prebuild(base, payload):
+        generated_archives[base.resolve()] = payload
+        buildcache.prepare_masstree_fetchcontent(
+            ccbench_dir=str(ccbench.resolve()),
+            fetchcontent_base_dir=str(base.resolve()),
+            expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+            configure_timeout_s=11, target_timeout_s=13,
+        )
+
+    base_a = tmp_path / "fetchcontent-a"
+    base_a.mkdir()
+    receipt = _write_fetchcontent_dependency(base_a)
+    prebuild(base_a, b"archive produced by valid prebuild run A\n")
+    archive_a = base_a / "masstree-src" / "libkohler_masstree_json.a"
+    hash_a = hashlib.sha256(archive_a.read_bytes()).hexdigest()
+    first = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base_a.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=hash_a,
+    )
+
+    base_b = tmp_path / "fetchcontent-b"
+    base_b.mkdir()
+    shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    archive_b = base_b / "masstree-src" / "libkohler_masstree_json.a"
+    prebuild(base_b, b"archive produced by valid prebuild run B\n")
+    hash_b = hashlib.sha256(archive_b.read_bytes()).hexdigest()
+    second = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base_b.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=hash_b,
+    )
+
+    assert hash_a != hash_b
+    assert prebuild_targets == [base_a.resolve(), base_b.resolve()]
+    assert not first.cached and not second.cached
+    assert first.build_dir != second.build_dir
+    for result, expected in ((first, hash_a), (second, hash_b)):
+        manifest = json.loads(
+            (Path(result.build_dir) / "completion.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert manifest["preimage"]["fetchcontent_archive_sha256"] == expected
+        assert manifest["fetchcontent_dependency"]["archive_sha256"] == expected
+
+
+def test_v2_run_local_archive_replacement_during_fresh_build_is_rejected(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    archive = base / "masstree-src" / "libkohler_masstree_json.a"
+    expected_archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+    original_run = buildcache._run
+
+    def replace_archive_after_build(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build":
+            archive.write_bytes(b"same-run replacement after build\n")
+
+    monkeypatch.setattr(buildcache, "_run", replace_archive_after_build)
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="archive が build 中に変化"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+            fetchcontent_archive_sha256=expected_archive_sha256,
+        )
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
+
+
+def test_v2_run_local_archive_replacement_during_cache_hit_is_rejected(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    archive = base / "masstree-src" / "libkohler_masstree_json.a"
+    expected_archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+    first = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=expected_archive_sha256,
+    )
+    assert not first.cached
+
+    original_recheck = buildcache._recheck_source_evidence
+
+    def replace_archive_during_hit(*args, **kwargs):
+        original_recheck(*args, **kwargs)
+        archive.write_bytes(b"same-run replacement during cache hit\n")
+
+    monkeypatch.setattr(
+        buildcache, "_recheck_source_evidence", replace_archive_during_hit,
+    )
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="archive が cache hit 中に変化"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+            fetchcontent_archive_sha256=expected_archive_sha256,
+        )
 
 
 def test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry(
@@ -456,8 +974,17 @@ def test_v2_wrong_effective_root_never_publishes_or_hits_same_key(
         if what == "configure" and inject_wrong_root:
             staging = Path(cmd[cmd.index("-B") + 1])
             (staging / "CMakeCache.txt").write_text(
-                f"masstree_SOURCE_DIR:STATIC={wrong_base / 'masstree-src'}\n",
+                "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n"
+                f"FETCHCONTENT_BASE_DIR:PATH={expected_base.resolve()}\n"
+                "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH="
+                f"{wrong_base.resolve() / 'masstree-src'}\n",
                 encoding="utf-8",
+            )
+            wrong_root = wrong_base.resolve() / "masstree-src"
+            _write_masstree_depend_info(
+                staging,
+                (((wrong_root / "config.h"),
+                  (wrong_root / "libkohler_masstree_json.a")),),
             )
 
     monkeypatch.setattr(buildcache, "_run", replace_effective_root_after_configure)

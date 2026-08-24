@@ -677,6 +677,30 @@ def test_project_whiteboard_appends_direction_only():
     assert "機序" not in str(vars(e))
 
 
+def test_project_whiteboard_rejects_invalid_direction():
+    st = L.LoopState(iteration=2, start_ts=time.monotonic())
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="sideways", magnitude="medium")
+    with pytest.raises(ValueError, match=r"entry\[0\]\.direction"):
+        L.project_whiteboard(st, pl, "success", delta_pct=None)
+    assert st.whiteboard == []
+
+
+def test_project_whiteboard_rejects_invalid_magnitude():
+    st = L.LoopState(iteration=2, start_ts=time.monotonic())
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="huge")
+    with pytest.raises(ValueError, match=r"entry\[0\]\.magnitude"):
+        L.project_whiteboard(st, pl, "success", delta_pct=None)
+    assert st.whiteboard == []
+
+
+def test_project_whiteboard_rejects_invalid_result():
+    st = L.LoopState(iteration=2, start_ts=time.monotonic())
+    pl = L.PlannerProposal(axis=L.MARKER_ID, direction="decrease", magnitude="medium")
+    with pytest.raises(ValueError, match=r"entry\[0\]\.result"):
+        L.project_whiteboard(st, pl, "unknown", delta_pct=None)
+    assert st.whiteboard == []
+
+
 # ==== 停止判定 (design v1 §4) ================================================
 
 def test_check_stop_continue():

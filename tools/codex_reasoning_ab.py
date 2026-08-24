@@ -57,6 +57,10 @@ STAGE2_REPLAYER_MAX_MODEL_CALLS = 250
 STAGE2_REPLAYER_DEFAULT_WALL_CLOCK_TIMEOUT_S = 300.0
 STAGE2_REPLAYER_MAX_WALL_CLOCK_TIMEOUT_S = 3_600.0
 STAGE2_REPLAYER_VERSION_PROBE_TIMEOUT_S = 10.0
+STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION = 2
+STAGE5_AUTHOR_REPLAYER_MAX_FIX_PASSES = 3
+STAGE5_AUTHOR_REPLAYER_GIT_TIMEOUT_S = 30.0
+STAGE5_AUTHOR_REPLAYER_VERSION_PROBE_TIMEOUT_S = 10.0
 BASE_COMMIT = "8c8dc5e0a337677e213b4ebabbeff5ea188111ae"
 INTEGRATED_COMMIT = "9b26b3bd3acc10df95ef6ef6684a91d2ff3fa2ec"
 ARTIFACT_COMMIT = "08a7e5f2fc08d57309a86ef70d00e9b050ebec9c"
@@ -5171,6 +5175,1636 @@ def replay_stage2_plan(
     return result, 0 if success else RC_RECEIPT
 
 
+@dataclass(frozen=True)
+class Stage5AuthorReplayerContract:
+    """Create-only registration for deterministic stage5 author replay."""
+
+    schema_version: int
+    contract_kind: str
+    stage: str
+    source_descriptors: dict[str, Any]
+    frozen_plan: dict[str, Any]
+    plan_input_hash: str
+    frozen_author_output: dict[str, Any]
+    application_target: dict[str, Any]
+    author_output_hash: str
+    application_apparatus: dict[str, Any]
+    downstream_pins: dict[str, Any]
+    fix_pass_limit: int
+    receipt_policy: dict[str, Any]
+    task_acceptance_status: str = "unbound"
+    fix_gate_eligible: bool = False
+    routing_evidence_eligible: bool = False
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "contract_kind": self.contract_kind,
+            "stage": self.stage,
+            "source_descriptors": dict(self.source_descriptors),
+            "frozen_plan": dict(self.frozen_plan),
+            "plan_input_hash": self.plan_input_hash,
+            "frozen_author_output": dict(self.frozen_author_output),
+            "application_target": dict(self.application_target),
+            "author_output_hash": self.author_output_hash,
+            "application_apparatus": dict(self.application_apparatus),
+            "downstream_pins": dict(self.downstream_pins),
+            "fix_pass_limit": self.fix_pass_limit,
+            "receipt_policy": dict(self.receipt_policy),
+            "task_acceptance_status": self.task_acceptance_status,
+            "fix_gate_eligible": self.fix_gate_eligible,
+            "routing_evidence_eligible": self.routing_evidence_eligible,
+        }
+
+
+_STAGE5_CONTRACT_KIND = "stage5-author-replayer-contract"
+_STAGE5_INTEGRITY_KIND = "stage5-author-replayer-integrity"
+_STAGE5_APPLICATION_RECEIPT_KIND = "stage5-author-application-validation-receipt"
+_STAGE5_DOWNSTREAM_RECEIPT_KIND = "stage5-downstream-receipt"
+_STAGE5_EFFORTS = frozenset({"max", "high"})
+_STAGE5_FORBIDDEN_CORRECTNESS_KEYS = frozenset({"accepted", "success", "passed"})
+_STAGE5_CONTRACT_KEYS = frozenset(
+    {
+        "schema_version",
+        "contract_kind",
+        "stage",
+        "source_descriptors",
+        "frozen_plan",
+        "plan_input_hash",
+        "frozen_author_output",
+        "application_target",
+        "author_output_hash",
+        "application_apparatus",
+        "downstream_pins",
+        "fix_pass_limit",
+        "receipt_policy",
+        "task_acceptance_status",
+        "fix_gate_eligible",
+        "routing_evidence_eligible",
+    }
+)
+_STAGE5_AUTHOR_OUTPUT_KEYS = frozenset({"artifact", "format"})
+_STAGE5_APPLICATION_TARGET_KEYS = frozenset(
+    {"snapshot", "relative_root", "pre_application_tree_sha256"}
+)
+_STAGE5_GIT_PIN_KEYS = frozenset(
+    {"git", "git_sha256", "git_version", "check_argv", "apply_argv"}
+)
+_STAGE5_ROLE_PIN_KEYS = frozenset({"requested_model", "requested_effort"})
+_STAGE5_DESCRIPTOR_KEYS = frozenset(
+    {"path", "kind", "mode", "sha256", "bytes", "device", "inode"}
+)
+_STAGE5_SOURCE_DESCRIPTOR_KEYS = frozenset(
+    {"plan", "author_output", "snapshot", "git"}
+)
+_STAGE5_DOWNSTREAM_OUTPUT_KEYS = frozenset({"regular", "bytes", "sha256"})
+_STAGE5_RECEIPT_POLICY_KEYS = frozenset(
+    {
+        "version",
+        "receipt_kind",
+        "argv_match",
+        "stdin_match",
+        "output_match",
+        "previous_receipt_match",
+        "role_argv",
+    }
+)
+_STAGE5_APPLICATION_RECEIPT_KEYS = frozenset(
+    {
+        "schema_version",
+        "receipt_kind",
+        "contract_sha256",
+        "plan_input_hash",
+        "author_output_hash",
+        "application_target_sha256",
+        "pre_tree_sha256",
+        "post_tree_sha256",
+        "git_sha256",
+        "git_version",
+        "check_argv",
+        "apply_argv",
+        "check_exit_code",
+        "apply_exit_code",
+        "timed_out",
+        "receipt_status",
+        "task_acceptance_status",
+        "fix_gate_eligible",
+        "routing_evidence_eligible",
+    }
+)
+_STAGE5_DOWNSTREAM_RECEIPT_KEYS = frozenset(
+    {
+        "schema_version",
+        "receipt_kind",
+        "contract_sha256",
+        "role",
+        "pass_index",
+        "author_output_hash",
+        "application_target_sha256",
+        "requested_model",
+        "requested_effort",
+        "argv",
+        "stdin_sha256",
+        "output",
+        "output_sha256",
+        "previous_receipt_sha256",
+        "exit_code",
+        "timed_out",
+        "receipt_status",
+        "task_acceptance_status",
+        "fix_gate_eligible",
+        "routing_evidence_eligible",
+    }
+)
+_STAGE5_INTEGRITY_KEYS = frozenset(
+    {
+        "schema_version",
+        "integrity_kind",
+        "contract_path",
+        "contract_sha256",
+        "source_plan",
+        "source_author_output",
+        "source_snapshot",
+        "source_git",
+        "plan_input_hash",
+        "author_output_hash",
+        "frozen_snapshot_sha256",
+        "git_sha256",
+        "application_target_sha256",
+        "task_acceptance_status",
+        "fix_gate_eligible",
+        "routing_evidence_eligible",
+    }
+)
+
+
+def _stage5_reject_generic_correctness_keys(value: Any, label: str) -> None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if isinstance(key, str) and key.casefold() in _STAGE5_FORBIDDEN_CORRECTNESS_KEYS:
+                raise ValidationError(
+                    f"{label} contains forbidden correctness key: {key}", RC_ROUTING
+                )
+            _stage5_reject_generic_correctness_keys(item, label)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _stage5_reject_generic_correctness_keys(item, label)
+
+
+def _stage5_absolute_path(path: Path) -> Path:
+    """Make an absolute stage5 path without following its final symlink."""
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _stage5_path_below(path: Path, root: Path, label: str) -> Path:
+    resolved_path = path.resolve()
+    resolved_root = root.resolve()
+    try:
+        resolved_path.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValidationError(
+            f"{label} is outside the stage5 run root", RC_RECEIPT
+        ) from exc
+    return resolved_path
+
+
+def _stage5_read_regular_bytes(
+    path: Path, label: str
+) -> tuple[os.stat_result, bytes]:
+    candidate = Path(path)
+    try:
+        before = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise ValidationError(f"{label} is not a regular file", RC_RECEIPT)
+    try:
+        data = candidate.read_bytes()
+        after = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} cannot be read: {exc}", RC_RECEIPT) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    return before, data
+
+
+def _stage5_file_descriptor(path: Path, label: str) -> dict[str, Any]:
+    candidate = Path(path)
+    metadata, data = _stage5_read_regular_bytes(candidate, label)
+    return {
+        "path": os.fspath(candidate.resolve()),
+        "kind": "file",
+        "mode": stat.S_IMODE(metadata.st_mode),
+        "sha256": _sha256(data),
+        "bytes": len(data),
+        "device": metadata.st_dev,
+        "inode": metadata.st_ino,
+    }
+
+
+def _stage5_snapshot_entries(
+    root: Path, label: str
+) -> tuple[list[dict[str, Any]], int]:
+    root = Path(root)
+    try:
+        root_metadata = root.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(root_metadata.st_mode) or not stat.S_ISDIR(root_metadata.st_mode):
+        raise ValidationError(f"{label} is not a directory", RC_RECEIPT)
+    entries: list[dict[str, Any]] = []
+    total_bytes = 0
+
+    def visit(directory: Path, relative_directory: Path) -> None:
+        nonlocal total_bytes
+        try:
+            with os.scandir(directory) as entries_stream:
+                children = sorted(entries_stream, key=lambda entry: entry.name)
+        except OSError as exc:
+            raise ValidationError(
+                f"{label} cannot be inspected: {exc}", RC_RECEIPT
+            ) from exc
+        for child in children:
+            child_path = Path(child.path)
+            relative = (relative_directory / child.name).as_posix()
+            try:
+                metadata = child_path.lstat()
+            except OSError as exc:
+                raise ValidationError(
+                    f"{label} entry cannot be inspected: {relative}: {exc}",
+                    RC_RECEIPT,
+                ) from exc
+            if stat.S_ISLNK(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} contains a symlink: {relative}", RC_RECEIPT
+                )
+            mode = stat.S_IMODE(metadata.st_mode)
+            if stat.S_ISDIR(metadata.st_mode):
+                entries.append(
+                    {"path": relative, "kind": "directory", "mode": mode}
+                )
+                visit(child_path, relative_directory / child.name)
+                continue
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} contains a non-regular entry: {relative}",
+                    RC_RECEIPT,
+                )
+            _, data = _stage5_read_regular_bytes(
+                child_path, f"{label} entry {relative}"
+            )
+            total_bytes += len(data)
+            entries.append(
+                {
+                    "path": relative,
+                    "kind": "file",
+                    "mode": mode,
+                    "bytes": len(data),
+                    "sha256": _sha256(data),
+                }
+            )
+
+    visit(root, Path())
+    try:
+        final_root_metadata = root.lstat()
+    except OSError as exc:
+        raise ValidationError(
+            f"{label} changed while it was read: {exc}", RC_RECEIPT
+        ) from exc
+    if (
+        root_metadata.st_dev != final_root_metadata.st_dev
+        or root_metadata.st_ino != final_root_metadata.st_ino
+        or root_metadata.st_mtime_ns != final_root_metadata.st_mtime_ns
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    return entries, total_bytes
+
+
+def _stage5_snapshot_descriptor(path: Path, label: str) -> dict[str, Any]:
+    candidate = Path(path)
+    try:
+        metadata = candidate.lstat()
+    except OSError as exc:
+        raise ValidationError(f"{label} is missing: {exc}", RC_RECEIPT) from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise ValidationError(f"{label} is not a directory", RC_RECEIPT)
+    entries, total_bytes = _stage5_snapshot_entries(candidate, label)
+    return {
+        "path": os.fspath(candidate.resolve()),
+        "kind": "directory",
+        "mode": stat.S_IMODE(metadata.st_mode),
+        "sha256": _sha256(_canonical_bytes({"entries": entries})),
+        "bytes": total_bytes,
+        "device": metadata.st_dev,
+        "inode": metadata.st_ino,
+    }
+
+
+@dataclass(frozen=True)
+class _Stage5OwnedPath:
+    path: Path
+    device: int
+    inode: int
+    directory: bool
+
+
+def _stage5_owned_identity(
+    path: Path, metadata: os.stat_result, *, directory: bool
+) -> _Stage5OwnedPath:
+    expected = stat.S_ISDIR(metadata.st_mode) if directory else stat.S_ISREG(
+        metadata.st_mode
+    )
+    if not expected:
+        raise ValidationError(
+            f"stage5 created artifact has an invalid type: {path}", RC_RECEIPT
+        )
+    return _Stage5OwnedPath(
+        path=Path(path),
+        device=metadata.st_dev,
+        inode=metadata.st_ino,
+        directory=directory,
+    )
+
+
+def _stage5_create_owned_directory(path: Path, *, mode: int) -> _Stage5OwnedPath:
+    path = Path(path)
+    path.mkdir(mode=mode, exist_ok=False)
+    metadata = path.lstat()
+    owned = _stage5_owned_identity(path, metadata, directory=True)
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags)
+        try:
+            opened = os.fstat(descriptor)
+            if opened.st_dev != owned.device or opened.st_ino != owned.inode:
+                raise ValidationError(
+                    f"stage5 created directory identity changed: {path}", RC_RECEIPT
+                )
+            os.fchmod(descriptor, mode)
+        finally:
+            os.close(descriptor)
+    except BaseException:
+        _stage5_rollback_owned_paths([owned])
+        raise
+    return owned
+
+
+def _stage5_copy_frozen_file(
+    source: Path,
+    target: Path,
+    label: str,
+    *,
+    mode: int,
+    expected_source_descriptor: Mapping[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[_Stage5OwnedPath]]:
+    source_descriptor = _stage5_file_descriptor(source, label)
+    if (
+        expected_source_descriptor is not None
+        and source_descriptor != expected_source_descriptor
+    ):
+        raise ValidationError(f"{label} changed before it was frozen", RC_RECEIPT)
+    _, data = _stage5_read_regular_bytes(Path(source_descriptor["path"]), label)
+    if _sha256(data) != source_descriptor["sha256"]:
+        raise ValidationError(f"{label} changed while it was read", RC_RECEIPT)
+    owned: list[_Stage5OwnedPath] = []
+    try:
+        owned.append(_stage5_create_only_bytes(target, data, mode=mode))
+        target_descriptor = _stage5_file_descriptor(target, f"frozen {label}")
+        if (
+            target_descriptor["sha256"] != source_descriptor["sha256"]
+            or target_descriptor["bytes"] != source_descriptor["bytes"]
+        ):
+            raise ValidationError(f"frozen {label} copy sha mismatch", RC_RECEIPT)
+        return target_descriptor, owned
+    except BaseException:
+        _stage5_rollback_owned_paths(owned)
+        raise
+
+
+def _stage5_copy_frozen_snapshot(
+    source: Path,
+    target: Path,
+    label: str,
+    *,
+    expected_source_descriptor: Mapping[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[_Stage5OwnedPath]]:
+    source = _stage5_absolute_path(Path(source))
+    source_descriptor = _stage5_snapshot_descriptor(source, label)
+    if (
+        expected_source_descriptor is not None
+        and source_descriptor != expected_source_descriptor
+    ):
+        raise ValidationError(f"{label} changed before it was frozen", RC_RECEIPT)
+    if target.exists() or target.is_symlink():
+        raise ValidationError(f"frozen {label} already exists: {target}", RC_RECEIPT)
+    owned: list[_Stage5OwnedPath] = []
+    owned.append(
+        _stage5_create_owned_directory(
+            target, mode=stat.S_IMODE(source.stat().st_mode)
+        )
+    )
+
+    def copy_directory(source_directory: Path, target_directory: Path) -> None:
+        try:
+            with os.scandir(source_directory) as entries_stream:
+                children = sorted(entries_stream, key=lambda entry: entry.name)
+        except OSError as exc:
+            raise ValidationError(
+                f"{label} cannot be copied: {exc}", RC_RECEIPT
+            ) from exc
+        for child in children:
+            source_path = Path(child.path)
+            target_path = target_directory / child.name
+            metadata = source_path.lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} contains a symlink: {source_path}", RC_RECEIPT
+                )
+            if stat.S_ISDIR(metadata.st_mode):
+                owned.append(
+                    _stage5_create_owned_directory(
+                        target_path, mode=stat.S_IMODE(metadata.st_mode)
+                    )
+                )
+                copy_directory(source_path, target_path)
+            elif stat.S_ISREG(metadata.st_mode):
+                _, data = _stage5_read_regular_bytes(
+                    source_path, f"{label} entry"
+                )
+                owned.append(
+                    _stage5_create_only_bytes(
+                        target_path, data, mode=stat.S_IMODE(metadata.st_mode)
+                    )
+                )
+            else:
+                raise ValidationError(
+                    f"{label} contains a non-regular entry: {source_path}",
+                    RC_RECEIPT,
+                )
+
+    try:
+        copy_directory(source, target)
+        if _stage5_snapshot_descriptor(source, label)["sha256"] != source_descriptor[
+            "sha256"
+        ]:
+            raise ValidationError(f"{label} changed while it was copied", RC_RECEIPT)
+        target_descriptor = _stage5_snapshot_descriptor(target, f"frozen {label}")
+        if (
+            target_descriptor["sha256"] != source_descriptor["sha256"]
+            or target_descriptor["bytes"] != source_descriptor["bytes"]
+        ):
+            raise ValidationError(f"frozen {label} copy sha mismatch", RC_RECEIPT)
+        return target_descriptor, owned
+    except BaseException:
+        _stage5_rollback_owned_paths(owned)
+        raise
+
+
+def _stage5_create_only_bytes(
+    path: Path, data: bytes, *, mode: int = 0o600
+) -> _Stage5OwnedPath:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags, mode)
+    except FileExistsError as exc:
+        raise ValidationError(
+            f"stage5 frozen artifact already exists: {path}", RC_RECEIPT
+        ) from exc
+    try:
+        owned = _stage5_owned_identity(
+            path, os.fstat(descriptor), directory=False
+        )
+    except BaseException:
+        os.close(descriptor)
+        raise
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            os.fchmod(stream.fileno(), mode)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        _stage5_rollback_owned_paths([owned])
+        raise
+    return owned
+
+
+def _stage5_create_only_json(
+    path: Path, value: Mapping[str, Any]
+) -> _Stage5OwnedPath:
+    return _stage5_create_only_bytes(path, _canonical_bytes(dict(value)))
+
+
+def _stage5_check_descriptor(
+    descriptor: Mapping[str, Any], root: Path, label: str
+) -> bytes:
+    if not isinstance(descriptor, Mapping) or set(descriptor) != _STAGE5_DESCRIPTOR_KEYS:
+        raise ValidationError(f"{label} descriptor keys are invalid", RC_RECEIPT)
+    path_value = descriptor.get("path")
+    if not isinstance(path_value, str) or not Path(path_value).is_absolute():
+        raise ValidationError(f"{label} path is not absolute", RC_RECEIPT)
+    candidate = Path(path_value)
+    _stage5_path_below(candidate, root, label)
+    before, data = _stage5_read_regular_bytes(candidate, label)
+    if candidate.resolve() != Path(path_value):
+        raise ValidationError(f"{label} path was replaced", RC_RECEIPT)
+    current = {
+        "path": os.fspath(candidate.resolve()),
+        "kind": "file",
+        "mode": stat.S_IMODE(before.st_mode),
+        "sha256": _sha256(data),
+        "bytes": before.st_size,
+        "device": before.st_dev,
+        "inode": before.st_ino,
+    }
+    for field in _STAGE5_DESCRIPTOR_KEYS:
+        if current[field] != descriptor.get(field):
+            raise ValidationError(f"{label} {field} changed", RC_RECEIPT)
+    _stage5_digest(descriptor.get("sha256"), f"{label} hash")
+    return data
+
+
+def _stage5_check_snapshot_descriptor(
+    descriptor: Mapping[str, Any], root: Path, label: str
+) -> None:
+    if not isinstance(descriptor, Mapping) or set(descriptor) != _STAGE5_DESCRIPTOR_KEYS:
+        raise ValidationError(f"{label} descriptor keys are invalid", RC_RECEIPT)
+    path_value = descriptor.get("path")
+    if not isinstance(path_value, str) or not Path(path_value).is_absolute():
+        raise ValidationError(f"{label} path is not absolute", RC_RECEIPT)
+    candidate = Path(path_value)
+    _stage5_path_below(candidate, root, label)
+    current = _stage5_snapshot_descriptor(candidate, label)
+    for field in _STAGE5_DESCRIPTOR_KEYS:
+        if current.get(field) != descriptor.get(field):
+            raise ValidationError(f"{label} {field} changed", RC_RECEIPT)
+
+
+def _stage5_digest(value: Any, label: str) -> str:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        raise ValidationError(f"{label} is not a sha256", RC_RECEIPT)
+    return value
+
+
+def _stage5_stop_process_tree(
+    process: subprocess.Popen[bytes],
+) -> tuple[bytes, bytes]:
+    def signal_group(number: int) -> None:
+        try:
+            os.killpg(process.pid, number)
+        except (ProcessLookupError, PermissionError):
+            try:
+                if number == signal.SIGTERM:
+                    process.terminate()
+                else:
+                    process.kill()
+            except ProcessLookupError:
+                pass
+
+    signal_group(signal.SIGTERM)
+    try:
+        stdout, stderr = process.communicate(timeout=1.0)
+        return stdout or b"", stderr or b""
+    except subprocess.TimeoutExpired:
+        signal_group(signal.SIGKILL)
+    try:
+        stdout, stderr = process.communicate(timeout=2.0)
+        return stdout or b"", stderr or b""
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = process.communicate(timeout=2.0)
+            return stdout or b"", stderr or b""
+        except subprocess.TimeoutExpired:
+            return b"", b"stage5 process termination timed out"
+
+
+def _stage5_version_probe(binary: Path, *, cwd: Path, label: str) -> str:
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        process = subprocess.Popen(
+            [os.fspath(binary), "--version"],
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_clean_environment({"HOME": "/nonexistent"}),
+            start_new_session=True,
+        )
+        try:
+            stdout, stderr = process.communicate(
+                timeout=STAGE5_AUTHOR_REPLAYER_VERSION_PROBE_TIMEOUT_S
+            )
+        except subprocess.TimeoutExpired as exc:
+            _stage5_stop_process_tree(process)
+            raise ValidationError(
+                f"{label} version probe timed out", RC_ROUTING
+            ) from exc
+        if process.returncode != 0:
+            raise ValidationError(
+                f"{label} version probe failed; exit_code={process.returncode}; "
+                f"stderr_bytes={len(stderr)}; stderr_sha256={_sha256(stderr)}",
+                RC_ROUTING,
+            )
+        version = stdout.decode("utf-8", "replace").strip()
+        if not version:
+            raise ValidationError(f"{label} version output is empty", RC_ROUTING)
+        return version
+    finally:
+        if process is not None and process.poll() is None:
+            _stage5_stop_process_tree(process)
+
+
+def _stage5_relative_root(value: Any) -> str:
+    if not isinstance(value, str) or not value or value in {"."}:
+        raise ValidationError("stage5 application root is empty or dot", RC_ROUTING)
+    if value.startswith("/") or "\\" in value or "\x00" in value:
+        raise ValidationError("stage5 application root is not POSIX relative", RC_ROUTING)
+    parts = value.split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise ValidationError("stage5 application root can escape the snapshot", RC_ROUTING)
+    return value
+
+
+def _stage5_application_root(snapshot: Path, relative_root: str) -> Path:
+    relative_root = _stage5_relative_root(relative_root)
+    candidate = snapshot.joinpath(*relative_root.split("/"))
+    try:
+        candidate.resolve().relative_to(snapshot.resolve())
+    except ValueError as exc:
+        raise ValidationError(
+            "stage5 application root can escape the frozen snapshot", RC_ROUTING
+        ) from exc
+    current = snapshot
+    for part in relative_root.split("/"):
+        current = current / part
+        try:
+            metadata = current.lstat()
+        except OSError as exc:
+            raise ValidationError(
+                f"stage5 application root is missing: {relative_root}: {exc}",
+                RC_ROUTING,
+            ) from exc
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            raise ValidationError(
+                "stage5 application root contains a symlink or non-directory",
+                RC_ROUTING,
+            )
+    return current
+
+
+def _stage5_git_argv(git_binary: Path, *, check: bool) -> list[str]:
+    argv = [os.fspath(git_binary), "apply"]
+    if check:
+        argv.append("--check")
+    argv.extend(("--whitespace=nowarn", "-"))
+    return argv
+
+
+def _stage5_expected_downstream_argv(
+    role: str, pin: Mapping[str, Any]
+) -> list[str]:
+    if role not in {"review", "fix"}:
+        raise ValidationError("stage5 downstream role is invalid", RC_ROUTING)
+    argv = [
+        "codex",
+        "exec",
+        "-m",
+        str(pin["requested_model"]),
+        "-c",
+        f"model_reasoning_effort={pin['requested_effort']}",
+        "-s",
+        "read-only",
+        "--json",
+    ]
+    _normalized_exec_argv(
+        argv, str(pin["requested_model"]), str(pin["requested_effort"])
+    )
+    return argv
+
+
+def _stage5_validate_role_pin(value: Any, role: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != _STAGE5_ROLE_PIN_KEYS:
+        raise ValidationError(f"stage5 {role} pin keys are invalid", RC_ROUTING)
+    model = value.get("requested_model")
+    effort = value.get("requested_effort")
+    if model not in MODEL_ALLOWLIST:
+        raise ValidationError(f"stage5 {role} model is not allowed", RC_ROUTING)
+    if effort not in _STAGE5_EFFORTS:
+        raise ValidationError(f"stage5 {role} effort is not allowed", RC_ROUTING)
+    return {"requested_model": model, "requested_effort": effort}
+
+
+def _stage5_receipt_policy(pins: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "receipt_kind": _STAGE5_DOWNSTREAM_RECEIPT_KIND,
+        "argv_match": "exact",
+        "stdin_match": "sha256",
+        "output_match": "regular-nonempty-sha256",
+        "previous_receipt_match": "sha256",
+        "role_argv": {
+            role: _stage5_expected_downstream_argv(role, pins[role])
+            for role in ("review", "fix")
+        },
+    }
+
+
+def _stage5_validate_receipt_policy(
+    value: Any, pins: Mapping[str, Mapping[str, Any]]
+) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != _STAGE5_RECEIPT_POLICY_KEYS:
+        raise ValidationError("stage5 receipt policy keys are invalid", RC_ROUTING)
+    expected = _stage5_receipt_policy(pins)
+    if value != expected:
+        raise ValidationError("stage5 receipt policy does not match pins", RC_ROUTING)
+    return dict(value)
+
+
+def _stage5_validate_acceptance(value: Mapping[str, Any], label: str) -> None:
+    if value.get("task_acceptance_status") != "unbound":
+        raise ValidationError(f"{label} task acceptance must remain unbound", RC_ROUTING)
+    if value.get("fix_gate_eligible") is not False:
+        raise ValidationError(f"{label} fix gate eligibility must remain false", RC_ROUTING)
+    if value.get("routing_evidence_eligible") is not False:
+        raise ValidationError(
+            f"{label} routing evidence eligibility must remain false", RC_ROUTING
+        )
+
+
+def _stage5_validate_git_pin(value: Any, run_root: Path) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != _STAGE5_GIT_PIN_KEYS:
+        raise ValidationError("stage5 Git pin keys are invalid", RC_ROUTING)
+    git_descriptor = value.get("git")
+    if not isinstance(git_descriptor, dict):
+        raise ValidationError("stage5 Git descriptor is malformed", RC_ROUTING)
+    _stage5_check_descriptor(git_descriptor, run_root, "stage5 frozen Git binary")
+    _stage5_digest(value.get("git_sha256"), "stage5 Git hash")
+    if value["git_sha256"] != git_descriptor.get("sha256"):
+        raise ValidationError("stage5 Git hash does not match descriptor", RC_ROUTING)
+    version = value.get("git_version")
+    if not isinstance(version, str) or not version.strip():
+        raise ValidationError("stage5 Git version is missing", RC_ROUTING)
+    git_path = Path(str(git_descriptor["path"]))
+    if value.get("check_argv") != _stage5_git_argv(git_path, check=True):
+        raise ValidationError("stage5 Git check argv mismatch", RC_ROUTING)
+    if value.get("apply_argv") != _stage5_git_argv(git_path, check=False):
+        raise ValidationError("stage5 Git apply argv mismatch", RC_ROUTING)
+    return dict(value)
+
+
+def _stage5_validate_contract(value: Any, *, run_root: Path) -> dict[str, Any]:
+    _stage5_reject_generic_correctness_keys(value, "stage5 contract")
+    if not isinstance(value, dict) or set(value) != _STAGE5_CONTRACT_KEYS:
+        raise ValidationError("stage5 contract keys are invalid", RC_ROUTING)
+    if value.get("schema_version") != STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION:
+        raise ValidationError("stage5 contract schema version mismatch", RC_ROUTING)
+    if value.get("contract_kind") != _STAGE5_CONTRACT_KIND:
+        raise ValidationError("stage5 contract kind mismatch", RC_ROUTING)
+    if value.get("stage") != "stage5-author":
+        raise ValidationError("stage5 contract stage mismatch", RC_ROUTING)
+    sources_value = value.get("source_descriptors")
+    if (
+        not isinstance(sources_value, dict)
+        or set(sources_value) != _STAGE5_SOURCE_DESCRIPTOR_KEYS
+    ):
+        raise ValidationError("stage5 source descriptor keys are invalid", RC_ROUTING)
+    sources = {
+        name: _stage5_validate_source_descriptor(
+            sources_value[name], f"stage5 source {name}"
+        )
+        for name in _STAGE5_SOURCE_DESCRIPTOR_KEYS
+    }
+    for name, expected_kind in {
+        "plan": "file",
+        "author_output": "file",
+        "snapshot": "directory",
+        "git": "file",
+    }.items():
+        if sources[name]["kind"] != expected_kind:
+            raise ValidationError(
+                f"stage5 source {name} kind mismatch", RC_ROUTING
+            )
+    plan = value.get("frozen_plan")
+    if not isinstance(plan, dict):
+        raise ValidationError("stage5 frozen plan descriptor is malformed", RC_ROUTING)
+    _stage5_check_descriptor(plan, run_root, "stage5 frozen plan")
+    _stage5_digest(value.get("plan_input_hash"), "stage5 plan input hash")
+    if value["plan_input_hash"] != plan.get("sha256"):
+        raise ValidationError("stage5 plan input hash mismatch", RC_ROUTING)
+    author = value.get("frozen_author_output")
+    if not isinstance(author, dict) or set(author) != _STAGE5_AUTHOR_OUTPUT_KEYS:
+        raise ValidationError("stage5 author output keys are invalid", RC_ROUTING)
+    if author.get("format") != "git-diff-v1" or not isinstance(author.get("artifact"), dict):
+        raise ValidationError("stage5 author output format is invalid", RC_ROUTING)
+    _stage5_check_descriptor(author["artifact"], run_root, "stage5 frozen author output")
+    _stage5_digest(value.get("author_output_hash"), "stage5 author output hash")
+    if value["author_output_hash"] != author["artifact"].get("sha256"):
+        raise ValidationError("stage5 author output hash mismatch", RC_ROUTING)
+    target = value.get("application_target")
+    if not isinstance(target, dict) or set(target) != _STAGE5_APPLICATION_TARGET_KEYS:
+        raise ValidationError("stage5 application target keys are invalid", RC_ROUTING)
+    snapshot = target.get("snapshot")
+    if not isinstance(snapshot, dict):
+        raise ValidationError("stage5 snapshot descriptor is malformed", RC_ROUTING)
+    _stage5_check_snapshot_descriptor(snapshot, run_root, "stage5 frozen snapshot")
+    target_root = _stage5_application_root(
+        Path(str(snapshot["path"])), _stage5_relative_root(target.get("relative_root"))
+    )
+    _stage5_digest(
+        target.get("pre_application_tree_sha256"), "stage5 pre-application tree hash"
+    )
+    observed_pre = _stage5_snapshot_descriptor(
+        target_root, "stage5 application target"
+    )["sha256"]
+    if observed_pre != target["pre_application_tree_sha256"]:
+        raise ValidationError("stage5 application target tree hash mismatch", RC_ROUTING)
+    apparatus = _stage5_validate_git_pin(value.get("application_apparatus"), run_root)
+    pins_value = value.get("downstream_pins")
+    if not isinstance(pins_value, dict) or set(pins_value) != {"review", "fix"}:
+        raise ValidationError("stage5 downstream pin roles are invalid", RC_ROUTING)
+    pins = {
+        role: _stage5_validate_role_pin(pins_value[role], role)
+        for role in ("review", "fix")
+    }
+    limit = value.get("fix_pass_limit")
+    if (
+        isinstance(limit, bool)
+        or not isinstance(limit, int)
+        or not 0 <= limit <= STAGE5_AUTHOR_REPLAYER_MAX_FIX_PASSES
+    ):
+        raise ValidationError("stage5 fix pass limit is outside the cap", RC_ROUTING)
+    policy = _stage5_validate_receipt_policy(value.get("receipt_policy"), pins)
+    _stage5_validate_acceptance(value, "stage5 contract")
+    normalized = dict(value)
+    normalized["source_descriptors"] = sources
+    normalized["frozen_plan"] = dict(plan)
+    normalized["frozen_author_output"] = dict(author)
+    normalized["application_target"] = dict(target)
+    normalized["application_apparatus"] = apparatus
+    normalized["downstream_pins"] = pins
+    normalized["receipt_policy"] = policy
+    return normalized
+
+
+def _stage5_run_git_apply(
+    argv: Sequence[str], *, cwd: Path, patch_bytes: bytes, label: str
+) -> None:
+    process: subprocess.Popen[bytes] | None = None
+    environment = _clean_environment({"HOME": "/nonexistent"})
+    environment.update(
+        {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null"}
+    )
+    try:
+        process = subprocess.Popen(
+            list(argv),
+            cwd=cwd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=environment,
+            start_new_session=True,
+        )
+        try:
+            _stdout, stderr = process.communicate(
+                patch_bytes, timeout=STAGE5_AUTHOR_REPLAYER_GIT_TIMEOUT_S
+            )
+        except subprocess.TimeoutExpired as exc:
+            _stage5_stop_process_tree(process)
+            raise ValidationError(f"stage5 {label} timed out", RC_RECEIPT) from exc
+        if process.returncode != 0:
+            raise ValidationError(
+                f"stage5 {label} failed; exit_code={process.returncode}; "
+                f"stderr_bytes={len(stderr)}; stderr_sha256={_sha256(stderr)}",
+                RC_RECEIPT,
+            )
+    finally:
+        if process is not None and process.poll() is None:
+            _stage5_stop_process_tree(process)
+
+
+def _stage5_apply_frozen_patch(
+    *,
+    run_root: Path,
+    snapshot_descriptor: Mapping[str, Any],
+    relative_root: str,
+    patch_bytes: bytes,
+    git_binary: Path,
+) -> dict[str, Any]:
+    clone = run_root / f".stage5-application-{uuid.uuid4().hex}"
+    try:
+        _stage5_copy_frozen_snapshot(
+            Path(str(snapshot_descriptor["path"])),
+            clone,
+            "stage5 application snapshot",
+            expected_source_descriptor=snapshot_descriptor,
+        )
+        clone.chmod(0o700)
+        target = _stage5_application_root(clone, relative_root)
+        pre = _stage5_snapshot_descriptor(target, "stage5 validation target")["sha256"]
+        check_argv = _stage5_git_argv(git_binary, check=True)
+        apply_argv = _stage5_git_argv(git_binary, check=False)
+        _stage5_run_git_apply(
+            check_argv, cwd=target, patch_bytes=patch_bytes, label="Git apply check"
+        )
+        if _stage5_snapshot_descriptor(target, "stage5 validation target")["sha256"] != pre:
+            raise ValidationError("stage5 Git check changed the target tree", RC_RECEIPT)
+        _stage5_run_git_apply(
+            apply_argv, cwd=target, patch_bytes=patch_bytes, label="Git apply"
+        )
+        post = _stage5_snapshot_descriptor(target, "stage5 validation target")["sha256"]
+        _stage5_check_snapshot_descriptor(
+            snapshot_descriptor, run_root, "stage5 frozen snapshot"
+        )
+        return {
+            "pre_tree_sha256": pre,
+            "post_tree_sha256": post,
+            "check_argv": check_argv,
+            "apply_argv": apply_argv,
+        }
+    finally:
+        try:
+            shutil.rmtree(clone)
+        except FileNotFoundError:
+            pass
+
+
+def _stage5_integrity_path(contract_path: Path) -> Path:
+    return contract_path.with_name(contract_path.name + ".integrity.json")
+
+
+def _stage5_rollback_owned_paths(paths: Sequence[_Stage5OwnedPath]) -> None:
+    """Remove only identities created successfully by this invocation."""
+    for owned in reversed(paths):
+        try:
+            metadata = owned.path.lstat()
+        except OSError:
+            continue
+        observed_directory = stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(
+            metadata.st_mode
+        )
+        if (
+            metadata.st_dev != owned.device
+            or metadata.st_ino != owned.inode
+            or observed_directory != owned.directory
+        ):
+            continue
+        try:
+            if owned.directory:
+                owned.path.rmdir()
+            else:
+                owned.path.unlink()
+        except OSError:
+            pass
+
+
+def freeze_stage5_author_replayer(
+    plan_input: Path,
+    author_output: Path,
+    output: Path,
+    *,
+    snapshot: Path,
+    application_root: str,
+    git_binary: Path,
+    review_model: str,
+    review_effort: str,
+    fix_model: str,
+    fix_effort: str,
+    fix_pass_limit: int,
+) -> dict[str, Any]:
+    """Register frozen stage5 inputs after isolated Git-patch validation."""
+    contract_path = _stage5_absolute_path(Path(output))
+    run_root = contract_path.parent.resolve()
+    integrity_path = _stage5_integrity_path(contract_path)
+    frozen_plan_path = run_root / "stage5-plan-input"
+    frozen_author_path = run_root / "stage5-author-output.patch"
+    frozen_snapshot_path = run_root / "stage5-snapshot"
+    apparatus_root = run_root / "stage5-apparatus"
+    frozen_git_path = apparatus_root / "git"
+    candidates = (
+        contract_path,
+        integrity_path,
+        frozen_plan_path,
+        frozen_author_path,
+        frozen_snapshot_path,
+        apparatus_root,
+    )
+    for candidate in candidates:
+        if candidate.exists() or candidate.is_symlink():
+            raise ValidationError(
+                f"stage5 frozen artifact already exists: {candidate}", RC_ROUTING
+            )
+    relative_root = _stage5_relative_root(application_root)
+    plan_source = _stage5_file_descriptor(plan_input, "stage5 plan input")
+    author_source = _stage5_file_descriptor(author_output, "stage5 author output")
+    snapshot_source = _stage5_snapshot_descriptor(snapshot, "stage5 snapshot")
+    git_source = _stage5_file_descriptor(git_binary, "stage5 Git binary")
+    _, author_bytes = _stage5_read_regular_bytes(
+        Path(str(author_source["path"])), "stage5 author output"
+    )
+    if not author_bytes:
+        raise ValidationError("stage5 author output is empty", RC_ROUTING)
+    _stage5_application_root(Path(str(snapshot_source["path"])), relative_root)
+    owned: list[_Stage5OwnedPath] = []
+    try:
+        frozen_plan, created = _stage5_copy_frozen_file(
+            plan_input,
+            frozen_plan_path,
+            "stage5 plan input",
+            mode=0o600,
+            expected_source_descriptor=plan_source,
+        )
+        owned.extend(created)
+        frozen_author, created = _stage5_copy_frozen_file(
+            author_output,
+            frozen_author_path,
+            "stage5 author output",
+            mode=0o600,
+            expected_source_descriptor=author_source,
+        )
+        owned.extend(created)
+        frozen_snapshot, created = _stage5_copy_frozen_snapshot(
+            snapshot,
+            frozen_snapshot_path,
+            "stage5 snapshot",
+            expected_source_descriptor=snapshot_source,
+        )
+        owned.extend(created)
+        owned.append(_stage5_create_owned_directory(apparatus_root, mode=0o700))
+        frozen_git, created = _stage5_copy_frozen_file(
+            git_binary,
+            frozen_git_path,
+            "stage5 Git binary",
+            mode=0o700,
+            expected_source_descriptor=git_source,
+        )
+        owned.extend(created)
+        git_version = _stage5_version_probe(
+            frozen_git_path, cwd=apparatus_root, label="stage5 Git binary"
+        )
+        target = _stage5_application_root(frozen_snapshot_path, relative_root)
+        pre_tree = _stage5_snapshot_descriptor(
+            target, "stage5 application target"
+        )["sha256"]
+        observation = _stage5_apply_frozen_patch(
+            run_root=run_root,
+            snapshot_descriptor=frozen_snapshot,
+            relative_root=relative_root,
+            patch_bytes=author_bytes,
+            git_binary=frozen_git_path,
+        )
+        if observation["pre_tree_sha256"] != pre_tree:
+            raise ValidationError("stage5 validation pre-tree hash mismatch", RC_RECEIPT)
+        pins = {
+            "review": _stage5_validate_role_pin(
+                {"requested_model": review_model, "requested_effort": review_effort},
+                "review",
+            ),
+            "fix": _stage5_validate_role_pin(
+                {"requested_model": fix_model, "requested_effort": fix_effort},
+                "fix",
+            ),
+        }
+        apparatus = {
+            "git": frozen_git,
+            "git_sha256": frozen_git["sha256"],
+            "git_version": git_version,
+            "check_argv": _stage5_git_argv(frozen_git_path, check=True),
+            "apply_argv": _stage5_git_argv(frozen_git_path, check=False),
+        }
+        contract = Stage5AuthorReplayerContract(
+            schema_version=STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+            contract_kind=_STAGE5_CONTRACT_KIND,
+            stage="stage5-author",
+            source_descriptors={
+                "plan": plan_source,
+                "author_output": author_source,
+                "snapshot": snapshot_source,
+                "git": git_source,
+            },
+            frozen_plan=frozen_plan,
+            plan_input_hash=frozen_plan["sha256"],
+            frozen_author_output={"artifact": frozen_author, "format": "git-diff-v1"},
+            application_target={
+                "snapshot": frozen_snapshot,
+                "relative_root": relative_root,
+                "pre_application_tree_sha256": pre_tree,
+            },
+            author_output_hash=frozen_author["sha256"],
+            application_apparatus=apparatus,
+            downstream_pins=pins,
+            fix_pass_limit=fix_pass_limit,
+            receipt_policy=_stage5_receipt_policy(pins),
+        ).as_dict()
+        contract = _stage5_validate_contract(contract, run_root=run_root)
+        contract_bytes = _canonical_bytes(contract)
+        integrity = {
+            "schema_version": STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+            "integrity_kind": _STAGE5_INTEGRITY_KIND,
+            "contract_path": os.fspath(contract_path),
+            "contract_sha256": _sha256(contract_bytes),
+            "source_plan": plan_source,
+            "source_author_output": author_source,
+            "source_snapshot": snapshot_source,
+            "source_git": git_source,
+            "plan_input_hash": frozen_plan["sha256"],
+            "author_output_hash": frozen_author["sha256"],
+            "frozen_snapshot_sha256": frozen_snapshot["sha256"],
+            "git_sha256": frozen_git["sha256"],
+            "application_target_sha256": _sha256(
+                _canonical_bytes(contract["application_target"])
+            ),
+            "task_acceptance_status": "unbound",
+            "fix_gate_eligible": False,
+            "routing_evidence_eligible": False,
+        }
+        _stage5_reject_generic_correctness_keys(integrity, "stage5 integrity")
+        owned.append(_stage5_create_only_bytes(contract_path, contract_bytes))
+        owned.append(_stage5_create_only_json(integrity_path, integrity))
+        return contract
+    except BaseException:
+        _stage5_rollback_owned_paths(owned)
+        raise
+
+
+def _stage5_read_json_file(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
+    descriptor = _stage5_file_descriptor(path, label)
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"{label} is not valid JSON: {exc}", RC_RECEIPT) from exc
+    if not isinstance(value, dict):
+        raise ValidationError(f"{label} is not a JSON object", RC_RECEIPT)
+    if descriptor["sha256"] != _sha256(raw):
+        raise ValidationError(f"{label} hash changed while reading", RC_RECEIPT)
+    if _stage5_file_descriptor(path, label) != descriptor:
+        raise ValidationError(f"{label} changed while reading", RC_RECEIPT)
+    return value, raw
+
+
+def _stage5_validate_source_descriptor(
+    value: Any, label: str
+) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != _STAGE5_DESCRIPTOR_KEYS:
+        raise ValidationError(f"{label} is malformed", RC_RECEIPT)
+    path_value = value.get("path")
+    if not isinstance(path_value, str) or not Path(path_value).is_absolute():
+        raise ValidationError(f"{label} path is not absolute", RC_RECEIPT)
+    if value.get("kind") not in {"file", "directory"}:
+        raise ValidationError(f"{label} kind is invalid", RC_RECEIPT)
+    mode = value.get("mode")
+    if type(mode) is not int or not 0 <= mode <= 0o7777:
+        raise ValidationError(f"{label} mode is invalid", RC_RECEIPT)
+    _stage5_digest(value.get("sha256"), f"{label} hash")
+    for field in ("bytes", "device", "inode"):
+        field_value = value.get(field)
+        if type(field_value) is not int or field_value < 0:
+            raise ValidationError(
+                f"{label} {field} is not a nonnegative integer", RC_RECEIPT
+            )
+    return dict(value)
+
+
+def _stage5_validate_integrity(
+    value: Any,
+    *,
+    contract_path: Path,
+    contract: Mapping[str, Any],
+    contract_raw: bytes,
+) -> None:
+    _stage5_reject_generic_correctness_keys(value, "stage5 integrity")
+    if not isinstance(value, dict) or set(value) != _STAGE5_INTEGRITY_KEYS:
+        raise ValidationError("stage5 integrity keys are invalid", RC_RECEIPT)
+    if value.get("schema_version") != STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION:
+        raise ValidationError("stage5 integrity schema version mismatch", RC_RECEIPT)
+    if value.get("integrity_kind") != _STAGE5_INTEGRITY_KIND:
+        raise ValidationError("stage5 integrity kind mismatch", RC_RECEIPT)
+    if value.get("contract_path") != os.fspath(contract_path):
+        raise ValidationError("stage5 integrity contract path mismatch", RC_RECEIPT)
+    if value.get("contract_sha256") != _sha256(contract_raw):
+        raise ValidationError("stage5 integrity contract hash mismatch", RC_RECEIPT)
+    source_bindings = {
+        "source_plan": (
+            contract["source_descriptors"]["plan"],
+            contract["frozen_plan"],
+        ),
+        "source_author_output": (
+            contract["source_descriptors"]["author_output"],
+            contract["frozen_author_output"]["artifact"],
+        ),
+        "source_snapshot": (
+            contract["source_descriptors"]["snapshot"],
+            contract["application_target"]["snapshot"],
+        ),
+        "source_git": (
+            contract["source_descriptors"]["git"],
+            contract["application_apparatus"]["git"],
+        ),
+    }
+    for field, (registered_descriptor, frozen_descriptor) in source_bindings.items():
+        descriptor = _stage5_validate_source_descriptor(
+            value.get(field), f"stage5 integrity {field}"
+        )
+        for leaf in _STAGE5_DESCRIPTOR_KEYS:
+            if descriptor[leaf] != registered_descriptor.get(leaf):
+                raise ValidationError(
+                    f"stage5 integrity {field} {leaf} mismatch", RC_RECEIPT
+                )
+        for leaf in ("sha256", "bytes"):
+            if descriptor[leaf] != frozen_descriptor.get(leaf):
+                raise ValidationError(
+                    f"stage5 integrity {field} {leaf} mismatch", RC_RECEIPT
+                )
+    expected = {
+        "plan_input_hash": contract["plan_input_hash"],
+        "author_output_hash": contract["author_output_hash"],
+        "frozen_snapshot_sha256": contract["application_target"]["snapshot"]["sha256"],
+        "git_sha256": contract["application_apparatus"]["git_sha256"],
+        "application_target_sha256": _sha256(
+            _canonical_bytes(contract["application_target"])
+        ),
+    }
+    for field, expected_value in expected.items():
+        _stage5_digest(value.get(field), f"stage5 integrity {field}")
+        if value[field] != expected_value:
+            raise ValidationError(f"stage5 integrity {field} mismatch", RC_RECEIPT)
+    _stage5_validate_acceptance(value, "stage5 integrity")
+
+
+def _load_stage5_author_replayer_contract(
+    contract_path: Path, run_root: Path
+) -> tuple[dict[str, Any], bytes]:
+    run_root = Path(run_root).resolve()
+    contract_path = _stage5_absolute_path(Path(contract_path))
+    _stage5_path_below(contract_path, run_root, "stage5 contract")
+    contract, raw = _stage5_read_json_file(contract_path, "stage5 contract")
+    contract = _stage5_validate_contract(contract, run_root=run_root)
+    integrity, _ = _stage5_read_json_file(
+        _stage5_integrity_path(contract_path), "stage5 integrity"
+    )
+    _stage5_validate_integrity(
+        integrity,
+        contract_path=contract_path,
+        contract=contract,
+        contract_raw=raw,
+    )
+    return contract, raw
+
+
+def _stage5_validate_application_receipt(
+    value: Any,
+    *,
+    contract: Mapping[str, Any],
+    contract_sha256: str,
+    expected_post_tree_sha256: str,
+) -> dict[str, Any]:
+    _stage5_reject_generic_correctness_keys(value, "stage5 application receipt")
+    if not isinstance(value, dict) or set(value) != _STAGE5_APPLICATION_RECEIPT_KEYS:
+        raise ValidationError("stage5 application receipt keys are invalid", RC_RECEIPT)
+    expected = {
+        "schema_version": STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "receipt_kind": _STAGE5_APPLICATION_RECEIPT_KIND,
+        "contract_sha256": contract_sha256,
+        "plan_input_hash": contract["plan_input_hash"],
+        "author_output_hash": contract["author_output_hash"],
+        "application_target_sha256": _sha256(
+            _canonical_bytes(contract["application_target"])
+        ),
+        "pre_tree_sha256": contract["application_target"]["pre_application_tree_sha256"],
+        "post_tree_sha256": expected_post_tree_sha256,
+        "git_sha256": contract["application_apparatus"]["git_sha256"],
+        "git_version": contract["application_apparatus"]["git_version"],
+        "check_argv": contract["application_apparatus"]["check_argv"],
+        "apply_argv": contract["application_apparatus"]["apply_argv"],
+        "check_exit_code": 0,
+        "apply_exit_code": 0,
+        "timed_out": False,
+        "receipt_status": "mechanically-valid",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    for field, expected_value in expected.items():
+        if value.get(field) != expected_value:
+            raise ValidationError(
+                f"stage5 application receipt {field} mismatch", RC_RECEIPT
+            )
+    _stage5_digest(value.get("post_tree_sha256"), "stage5 post-application tree hash")
+    return dict(value)
+
+
+def validate_stage5_author_application(
+    *, contract_path: Path, run_root: Path, receipt_path: Path
+) -> dict[str, Any]:
+    run_root = Path(run_root).resolve()
+    receipt_path = _stage5_absolute_path(Path(receipt_path))
+    _stage5_path_below(receipt_path, run_root, "stage5 application receipt")
+    if receipt_path.exists() or receipt_path.is_symlink():
+        raise ValidationError(
+            f"stage5 application receipt already exists: {receipt_path}", RC_RECEIPT
+        )
+    contract, raw = _load_stage5_author_replayer_contract(contract_path, run_root)
+    git_pin = contract["application_apparatus"]
+    git_binary = Path(git_pin["git"]["path"])
+    observed_version = _stage5_version_probe(
+        git_binary, cwd=git_binary.parent, label="stage5 frozen Git binary"
+    )
+    if observed_version != git_pin["git_version"]:
+        raise ValidationError("stage5 Git version changed", RC_RECEIPT)
+    patch_bytes = _stage5_check_descriptor(
+        contract["frozen_author_output"]["artifact"],
+        run_root,
+        "stage5 frozen author output",
+    )
+    observation = _stage5_apply_frozen_patch(
+        run_root=run_root,
+        snapshot_descriptor=contract["application_target"]["snapshot"],
+        relative_root=contract["application_target"]["relative_root"],
+        patch_bytes=patch_bytes,
+        git_binary=git_binary,
+    )
+    receipt = {
+        "schema_version": STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "receipt_kind": _STAGE5_APPLICATION_RECEIPT_KIND,
+        "contract_sha256": _sha256(raw),
+        "plan_input_hash": contract["plan_input_hash"],
+        "author_output_hash": contract["author_output_hash"],
+        "application_target_sha256": _sha256(
+            _canonical_bytes(contract["application_target"])
+        ),
+        "pre_tree_sha256": observation["pre_tree_sha256"],
+        "post_tree_sha256": observation["post_tree_sha256"],
+        "git_sha256": git_pin["git_sha256"],
+        "git_version": git_pin["git_version"],
+        "check_argv": observation["check_argv"],
+        "apply_argv": observation["apply_argv"],
+        "check_exit_code": 0,
+        "apply_exit_code": 0,
+        "timed_out": False,
+        "receipt_status": "mechanically-valid",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    receipt = _stage5_validate_application_receipt(
+        receipt,
+        contract=contract,
+        contract_sha256=_sha256(raw),
+        expected_post_tree_sha256=observation["post_tree_sha256"],
+    )
+    _stage5_create_only_json(receipt_path, receipt)
+    return receipt
+
+
+def _stage5_bounded_path(path: Path, run_root: Path, label: str) -> Path:
+    candidate = _stage5_absolute_path(Path(path))
+    _stage5_path_below(candidate, run_root, label)
+    return candidate
+
+
+def _stage5_bounded_regular_bytes(
+    path: Path,
+    run_root: Path,
+    label: str,
+    *,
+    nonempty: bool,
+) -> tuple[Path, bytes]:
+    candidate = _stage5_bounded_path(path, run_root, label)
+    _, data = _stage5_read_regular_bytes(candidate, label)
+    if nonempty and not data:
+        raise ValidationError(f"{label} is empty", RC_RECEIPT)
+    return candidate, data
+
+
+def _stage5_validate_role_pass(
+    role: Any,
+    pass_index: Any,
+    limit: int,
+    label: str,
+) -> tuple[str, int]:
+    if role not in {"review", "fix"}:
+        raise ValidationError(f"{label} role is invalid", RC_RECEIPT)
+    if isinstance(pass_index, bool) or not isinstance(pass_index, int):
+        raise ValidationError(f"{label} pass index is invalid", RC_RECEIPT)
+    if role == "review":
+        if pass_index != 0:
+            raise ValidationError(
+                f"{label} review pass index must be zero", RC_RECEIPT
+            )
+    elif not 1 <= pass_index <= limit:
+        raise ValidationError(
+            f"{label} fix pass index exceeds cap", RC_RECEIPT
+        )
+    return role, pass_index
+
+
+def _stage5_validate_downstream_receipt_record(
+    value: Any,
+    *,
+    contract: Mapping[str, Any],
+    contract_sha256: str,
+    expected_role: str,
+    expected_pass_index: int,
+    stdin_sha256: str,
+    output_bytes: int,
+    output_sha256: str,
+    previous_receipt_sha256: str,
+) -> dict[str, Any]:
+    _stage5_reject_generic_correctness_keys(value, "stage5 downstream receipt")
+    if not isinstance(value, dict) or set(value) != _STAGE5_DOWNSTREAM_RECEIPT_KEYS:
+        raise ValidationError("stage5 downstream receipt keys are invalid", RC_RECEIPT)
+    pin = contract["downstream_pins"][expected_role]
+    expected = {
+        "schema_version": STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "receipt_kind": _STAGE5_DOWNSTREAM_RECEIPT_KIND,
+        "contract_sha256": contract_sha256,
+        "role": expected_role,
+        "pass_index": expected_pass_index,
+        "author_output_hash": contract["author_output_hash"],
+        "application_target_sha256": _sha256(
+            _canonical_bytes(contract["application_target"])
+        ),
+        "requested_model": pin["requested_model"],
+        "requested_effort": pin["requested_effort"],
+        "argv": contract["receipt_policy"]["role_argv"][expected_role],
+        "stdin_sha256": stdin_sha256,
+        "output": {
+            "regular": True,
+            "bytes": output_bytes,
+            "sha256": output_sha256,
+        },
+        "output_sha256": output_sha256,
+        "previous_receipt_sha256": previous_receipt_sha256,
+        "exit_code": 0,
+        "timed_out": False,
+        "receipt_status": "mechanically-valid",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    for field, expected_value in expected.items():
+        if value.get(field) != expected_value:
+            raise ValidationError(
+                f"stage5 downstream receipt {field} mismatch", RC_RECEIPT
+            )
+    _stage5_validate_acceptance(value, "stage5 downstream receipt")
+    return dict(value)
+
+
+def _stage5_validate_previous_receipt(
+    value: Any,
+    raw: bytes,
+    *,
+    contract: Mapping[str, Any],
+    contract_sha256: str,
+    role: str,
+    pass_index: int,
+) -> str:
+    previous_sha256 = _sha256(raw)
+    if role == "review":
+        if not isinstance(value, dict) or value.get("receipt_kind") != (
+            _STAGE5_APPLICATION_RECEIPT_KIND
+        ):
+            raise ValidationError(
+                "stage5 previous receipt topology mismatch", RC_RECEIPT
+            )
+        post_sha256 = _stage5_digest(
+            value.get("post_tree_sha256"), "stage5 previous application post tree"
+        )
+        _stage5_validate_application_receipt(
+            value,
+            contract=contract,
+            contract_sha256=contract_sha256,
+            expected_post_tree_sha256=post_sha256,
+        )
+        return previous_sha256
+
+    previous_role = "review" if pass_index == 1 else "fix"
+    previous_pass_index = 0 if pass_index == 1 else pass_index - 1
+    if not isinstance(value, dict) or value.get("receipt_kind") != (
+        _STAGE5_DOWNSTREAM_RECEIPT_KIND
+    ):
+        raise ValidationError("stage5 previous receipt topology mismatch", RC_RECEIPT)
+    output = value.get("output")
+    if not isinstance(output, dict) or set(output) != _STAGE5_DOWNSTREAM_OUTPUT_KEYS:
+        raise ValidationError(
+            "stage5 previous downstream output descriptor is invalid", RC_RECEIPT
+        )
+    output_bytes = output.get("bytes")
+    if (
+        output.get("regular") is not True
+        or isinstance(output_bytes, bool)
+        or not isinstance(output_bytes, int)
+        or output_bytes <= 0
+    ):
+        raise ValidationError(
+            "stage5 previous downstream output is not regular and nonempty",
+            RC_RECEIPT,
+        )
+    stdin_sha256 = _stage5_digest(
+        value.get("stdin_sha256"), "stage5 previous downstream stdin"
+    )
+    output_sha256 = _stage5_digest(
+        output.get("sha256"), "stage5 previous downstream output"
+    )
+    nested_previous_sha256 = _stage5_digest(
+        value.get("previous_receipt_sha256"),
+        "stage5 previous downstream previous receipt",
+    )
+    _stage5_validate_downstream_receipt_record(
+        value,
+        contract=contract,
+        contract_sha256=contract_sha256,
+        expected_role=previous_role,
+        expected_pass_index=previous_pass_index,
+        stdin_sha256=stdin_sha256,
+        output_bytes=output_bytes,
+        output_sha256=output_sha256,
+        previous_receipt_sha256=nested_previous_sha256,
+    )
+    return previous_sha256
+
+
+def validate_stage5_downstream_receipt(
+    *,
+    contract_path: Path,
+    run_root: Path,
+    receipt_path: Path,
+    expected_role: str,
+    expected_pass_index: int,
+    stdin_path: Path,
+    output_path: Path,
+    previous_receipt_path: Path,
+) -> dict[str, Any]:
+    run_root = Path(run_root).resolve()
+    receipt_path = _stage5_bounded_path(
+        receipt_path, run_root, "stage5 downstream receipt"
+    )
+    stdin_path, stdin_bytes = _stage5_bounded_regular_bytes(
+        stdin_path, run_root, "stage5 downstream stdin", nonempty=True
+    )
+    output_path, output_bytes = _stage5_bounded_regular_bytes(
+        output_path, run_root, "stage5 downstream output", nonempty=True
+    )
+    previous_receipt_path = _stage5_bounded_path(
+        previous_receipt_path, run_root, "stage5 previous receipt"
+    )
+    contract, contract_raw = _load_stage5_author_replayer_contract(
+        contract_path, run_root
+    )
+    role, pass_index = _stage5_validate_role_pass(
+        expected_role,
+        expected_pass_index,
+        contract["fix_pass_limit"],
+        "stage5 expected downstream",
+    )
+    receipt, _ = _stage5_read_json_file(receipt_path, "stage5 downstream receipt")
+    if receipt.get("role") != role:
+        raise ValidationError("stage5 downstream receipt role mismatch", RC_RECEIPT)
+    if receipt.get("pass_index") != pass_index:
+        raise ValidationError(
+            "stage5 downstream receipt pass_index mismatch", RC_RECEIPT
+        )
+    previous_receipt, previous_raw = _stage5_read_json_file(
+        previous_receipt_path, "stage5 previous receipt"
+    )
+    previous_sha256 = _stage5_validate_previous_receipt(
+        previous_receipt,
+        previous_raw,
+        contract=contract,
+        contract_sha256=_sha256(contract_raw),
+        role=role,
+        pass_index=pass_index,
+    )
+    return _stage5_validate_downstream_receipt_record(
+        receipt,
+        contract=contract,
+        contract_sha256=_sha256(contract_raw),
+        expected_role=role,
+        expected_pass_index=pass_index,
+        stdin_sha256=_sha256(stdin_bytes),
+        output_bytes=len(output_bytes),
+        output_sha256=_sha256(output_bytes),
+        previous_receipt_sha256=previous_sha256,
+    )
+
+
 def _supervise_one(
     *,
     run_id: str,
@@ -9174,6 +10808,46 @@ def _parser() -> argparse.ArgumentParser:
         default=STAGE2_REPLAYER_DEFAULT_WALL_CLOCK_TIMEOUT_S,
     )
 
+    stage5_freeze = sub.add_parser("freeze-stage5-author-replayer")
+    stage5_freeze.add_argument("--plan-input", type=Path, required=True)
+    stage5_freeze.add_argument("--author-output", type=Path, required=True)
+    stage5_freeze.add_argument("--output", type=Path, required=True)
+    stage5_freeze.add_argument("--snapshot", type=Path, required=True)
+    stage5_freeze.add_argument("--application-root", required=True)
+    stage5_freeze.add_argument("--git-bin", type=Path, required=True)
+    stage5_freeze.add_argument(
+        "--review-model", choices=sorted(MODEL_ALLOWLIST), required=True
+    )
+    stage5_freeze.add_argument(
+        "--review-effort", choices=sorted(_STAGE5_EFFORTS), required=True
+    )
+    stage5_freeze.add_argument(
+        "--fix-model", choices=sorted(MODEL_ALLOWLIST), required=True
+    )
+    stage5_freeze.add_argument(
+        "--fix-effort", choices=sorted(_STAGE5_EFFORTS), required=True
+    )
+    stage5_freeze.add_argument("--fix-pass-limit", type=int, required=True)
+
+    stage5_validate = sub.add_parser("validate-stage5-author-application")
+    stage5_validate.add_argument("--contract", type=Path, required=True)
+    stage5_validate.add_argument("--run-root", type=Path, required=True)
+    stage5_validate.add_argument("--receipt", type=Path, required=True)
+
+    stage5_receipt = sub.add_parser("validate-stage5-downstream-receipt")
+    stage5_receipt.add_argument("--contract", type=Path, required=True)
+    stage5_receipt.add_argument("--run-root", type=Path, required=True)
+    stage5_receipt.add_argument("--receipt", type=Path, required=True)
+    stage5_receipt.add_argument(
+        "--expected-role", choices=("review", "fix"), required=True
+    )
+    stage5_receipt.add_argument("--expected-pass-index", type=int, required=True)
+    stage5_receipt.add_argument("--stdin-file", type=Path, required=True)
+    stage5_receipt.add_argument("--output-file", type=Path, required=True)
+    stage5_receipt.add_argument(
+        "--previous-receipt", type=Path, required=True
+    )
+
     score = sub.add_parser("score-run")
     score.add_argument("--output", type=Path, required=True)
     score.add_argument("--run-id")
@@ -9305,6 +10979,40 @@ def main(argv: Sequence[str] | None = None) -> int:
                 dry_run=args.dry_run,
                 wall_clock_timeout_s=args.wall_clock_timeout_s,
             )
+        elif args.command == "freeze-stage5-author-replayer":
+            result = freeze_stage5_author_replayer(
+                args.plan_input,
+                args.author_output,
+                args.output,
+                snapshot=args.snapshot,
+                application_root=args.application_root,
+                git_binary=args.git_bin,
+                review_model=args.review_model,
+                review_effort=args.review_effort,
+                fix_model=args.fix_model,
+                fix_effort=args.fix_effort,
+                fix_pass_limit=args.fix_pass_limit,
+            )
+            rc = 0
+        elif args.command == "validate-stage5-author-application":
+            result = validate_stage5_author_application(
+                contract_path=args.contract,
+                run_root=args.run_root,
+                receipt_path=args.receipt,
+            )
+            rc = 0
+        elif args.command == "validate-stage5-downstream-receipt":
+            result = validate_stage5_downstream_receipt(
+                contract_path=args.contract,
+                run_root=args.run_root,
+                receipt_path=args.receipt,
+                expected_role=args.expected_role,
+                expected_pass_index=args.expected_pass_index,
+                stdin_path=args.stdin_file,
+                output_path=args.output_file,
+                previous_receipt_path=args.previous_receipt,
+            )
+            rc = 0
         elif args.command == "score-run":
             result, rc = score_run(args.output, args.run_id)
         elif args.command == "aggregate":
@@ -9345,9 +11053,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             raise AssertionError(args.command)
     except ValidationError as exc:
+        stage5_command = args.command in {
+            "freeze-stage5-author-replayer",
+            "validate-stage5-author-application",
+            "validate-stage5-downstream-receipt",
+        }
         result = {
             "schema_version": (
-                STAGE2_REPLAYER_SCHEMA_VERSION
+                STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION
+                if stage5_command
+                else STAGE2_REPLAYER_SCHEMA_VERSION
                 if args.command
                 in {"freeze-stage2-plan-replayer", "replay-stage2-plan"}
                 else SCHEMA_VERSION
@@ -9355,6 +11070,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             "valid": False,
             "failure_reasons": list(exc.reasons),
         }
+        if stage5_command:
+            result.update(
+                {
+                    "task_acceptance_status": "unbound",
+                    "fix_gate_eligible": False,
+                    "routing_evidence_eligible": False,
+                }
+            )
         rc = exc.rc
     sys.stdout.buffer.write(_canonical_bytes(result))
     return rc

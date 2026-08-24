@@ -1317,7 +1317,7 @@ def _reserve_registered_attempt_slot(
     launch_record = trial_registry.launch_admission_record(
         admission, origin_binding=origin_binding,
     )
-    return trial_registry.reserve_attempt_slot(
+    return trial_registry.reserve_formal_attempt_slot(
         repository_root=ROOT,
         registry_path=registry_path,
         freeze_id=genesis["freeze_id"],
@@ -2197,20 +2197,23 @@ def _redacted_transport_error(
     exc: BaseException, transport_receipt: Mapping[str, Any] | None
 ) -> str:
     message = str(exc)
-    if transport_receipt is None:
-        return message
-    endpoint_values = transport_receipt.get("endpoint_values")
-    secrets: list[str] = []
-    if isinstance(endpoint_values, Mapping):
-        secrets.extend(
-            value for value in endpoint_values.values()
-            if isinstance(value, str) and value
-        )
-    pbs_jobid = transport_receipt.get("pbs_jobid")
-    if isinstance(pbs_jobid, str) and pbs_jobid:
-        secrets.append(pbs_jobid)
-    for secret in sorted(set(secrets), key=len, reverse=True):
-        message = message.replace(secret, "<redacted>")
+    if transport_receipt is not None:
+        endpoint_values = transport_receipt.get("endpoint_values")
+        secrets: list[str] = []
+        if isinstance(endpoint_values, Mapping):
+            secrets.extend(
+                value for value in endpoint_values.values()
+                if isinstance(value, str) and value
+            )
+        pbs_jobid = transport_receipt.get("pbs_jobid")
+        if isinstance(pbs_jobid, str) and pbs_jobid:
+            secrets.append(pbs_jobid)
+        for secret in sorted(set(secrets), key=len, reverse=True):
+            message = message.replace(secret, "<redacted>")
+    message = re.sub(r"[\x00-\x1f\x7f-\x9f  ]", "", message)
+    marker = "...(truncated)"
+    if len(message) > 500:
+        message = message[:500 - len(marker)] + marker
     return message
 
 
@@ -4038,7 +4041,7 @@ def _record_attempt_terminal_for_run(
     # Classification is appended immediately after reservation, before this
     # terminal projection reads report/journal output.  Keep this function
     # limited to the terminal reason and performance artifacts.
-    trial_registry.record_attempt_terminal(
+    trial_registry.record_formal_attempt_terminal(
         capability,
         terminal_status=terminal_status,
         raw_output_sha256=raw_output_sha256,

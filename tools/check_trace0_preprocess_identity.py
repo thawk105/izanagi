@@ -30,6 +30,8 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
     _head_defines,
     _include_lines,
     _lex_normalize,
+    _splice_c_line_continuations,
+    _strip_utf8_bom,
 )
 
 
@@ -37,7 +39,7 @@ GUARANTEE = (
     "選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、"
     "および include 活性の同一性"
 )
-SCHEMA = "izanagi-trace0-preprocess-identity/v1"
+SCHEMA = "izanagi-trace0-preprocess-identity/v2"
 _FULL_OID_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx"})
 _HEADER_SUFFIXES = frozenset({
@@ -50,6 +52,11 @@ _CONDITIONAL_DIRECTIVE_RE = re.compile(
     r"^[ \t]*#[ \t]*(if|ifdef|ifndef|elif|elifdef|elifndef|else|endif)\b(.*)$"
 )
 _TRACE_IF_EXPRESSION_RE = re.compile(r"^[ \t]*TRACE[ \t]*$")
+_HASH_DIRECTIVE_RE = re.compile(r"(?m)^[ \t]*#[ \t]*([A-Za-z_]\w*)\b(.*)$")
+_DIGRAPH_DIRECTIVE_RE = re.compile(r"(?m)^[ \t]*%:")
+_LOGICAL_LITERAL_INCLUDE_RE = re.compile(
+    r'^[ \t]*#[ \t]*include\b[ \t]*(?:""|<[^>\r\n]+>)[ \t]*$'
+)
 
 
 class CheckError(RuntimeError):
@@ -238,15 +245,127 @@ def _independent_sha256_pair(old_value: bytes, new_value: bytes) -> tuple[str, s
     return _sha256(old_value), _sha256(new_value)
 
 
+def _comparison_evidence(old_value: bytes, new_value: bytes) -> dict[str, object]:
+    """元値と独立 digest の両方から同一性 evidence を作る。"""
+    old_digest, new_digest = _independent_sha256_pair(old_value, new_value)
+    value_identical = old_value == new_value
+    digest_identical = old_digest == new_digest
+    if value_identical != digest_identical:
+        raise CheckError("値と digest の同一性が不整合")
+    return {
+        "old_sha256": old_digest,
+        "new_sha256": new_digest,
+        "identical": value_identical,
+    }
+
+
 def _context_tag(overlay: dict[str, str]) -> str:
     return ",".join(f"{key}={value}" for key, value in sorted(overlay.items())) or "base"
 
 
+def _raw_include_operand_is_literal(line: str) -> bool:
+    match = re.match(r"^[ \t]*#[ \t]*include\b", line)
+    if match is None:
+        return False
+    rest = line[match.end():].lstrip(" \t")
+    if rest.startswith('"'):
+        end = rest.find('"', 1)
+        if end <= 1:
+            return False
+    elif rest.startswith("<"):
+        end = rest.find(">", 1)
+        if end <= 1:
+            return False
+    else:
+        return False
+    trailing = rest[end + 1:].lstrip(" \t")
+    return not trailing or trailing.startswith(("//", "/*"))
+
+
+def _assert_literal_include_operands(source: str, path: str, side: str) -> None:
+    """include/import directive の認識面を固定し、literal include だけを許す。"""
+    try:
+        logical = _lex_normalize(source, path)
+    except RuntimeError as exc:
+        raise CheckError(str(exc)) from exc
+    spliced = _splice_c_line_continuations(source)
+    if _DIGRAPH_DIRECTIVE_RE.search(source) or _DIGRAPH_DIRECTIVE_RE.search(spliced):
+        raise CheckError(f"digraph directive (%:) は未対応: {side} {path}")
+
+    logical_directives = list(_HASH_DIRECTIVE_RE.finditer(logical))
+    if any(match.group(1).lower() == "import" for match in logical_directives):
+        raise CheckError(f"#import directive は未対応: {side} {path}")
+
+    raw_includes = [
+        match for match in _HASH_DIRECTIVE_RE.finditer(source)
+        if match.group(1).lower() == "include"
+    ]
+    logical_includes = [
+        match for match in logical_directives
+        if match.group(1).lower() == "include"
+    ]
+    marker_base = "IZANAGI_TRACE0_RAW_INCLUDE_ORIGIN_"
+    while marker_base in source:
+        marker_base += "X"
+    pieces: list[str] = []
+    previous = 0
+    origin_markers: list[str] = []
+    for index, raw_match in enumerate(raw_includes):
+        marker = f"{marker_base}{index:08d}"
+        origin_markers.append(marker)
+        pieces.extend((source[previous:raw_match.start()], marker, "\n"))
+        previous = raw_match.start()
+    pieces.append(source[previous:])
+    try:
+        marked_logical = _lex_normalize("".join(pieces), path)
+    except RuntimeError as exc:
+        raise CheckError(str(exc)) from exc
+    corresponding_logical: list[str] = []
+    for marker in origin_markers:
+        match = re.search(
+            rf"(?m)^[ \t]*{re.escape(marker)}[ \t]*\n"
+            rf"(?P<directive>[ \t]*#[ \t]*include\b.*)$",
+            marked_logical,
+        )
+        if match is not None:
+            corresponding_logical.append(match.group("directive"))
+    logical_spellings = [match.group(0) for match in logical_includes]
+    unsupported_reasons: list[str] = []
+    if corresponding_logical != logical_spellings:
+        unsupported_reasons.append(
+            "splice 後・comment 除去後にだけ現れる include directive、または raw と logical "
+            "で同じ位置・綴りに対応しない include directive は未対応: "
+            f"{side} {path}"
+        )
+    if len(raw_includes) != len(logical_includes):
+        unsupported_reasons.append(
+            "raw と logical の include directive 件数が一致しない未対応形: "
+            f"{side} {path}"
+        )
+    if unsupported_reasons:
+        raise CheckError("; ".join(unsupported_reasons))
+    for raw_match, logical_match in zip(raw_includes, logical_includes):
+        raw_line = raw_match.group(0)
+        if "\\\n" in raw_line or raw_line.rstrip(" \t").endswith("\\"):
+            raise CheckError(f"line-spliced include directive は未対応: {side} {path}")
+        if not _raw_include_operand_is_literal(raw_line):
+            raise CheckError(
+                f"#include operand が literal header token でない: {side} {path}"
+            )
+        if _LOGICAL_LITERAL_INCLUDE_RE.fullmatch(logical_match.group(0)) is None:
+            raise CheckError(
+                f"#include operand が literal header token でない: {side} {path}"
+            )
+
+
 def _mark_includes(source_text: str) -> tuple[str, list[str]]:
+    if _MARKER_PREFIX in source_text:
+        raise CheckError("include marker prefix が source に存在する未対応形")
     include_count = len(_INCLUDE_RE.findall(source_text))
     markers = [f"{_MARKER_PREFIX}{index:08d}" for index in range(include_count)]
+    spliced_source = _splice_c_line_continuations(source_text)
     for marker in markers:
-        if re.search(rf"\b{re.escape(marker)}\b", source_text):
+        if re.search(rf"\b{re.escape(marker)}\b", spliced_source):
             raise CheckError(f"include marker 識別子が source と衝突する未対応形: {marker}")
     marker_iter = iter(markers)
     body = _INCLUDE_RE.sub(lambda _match: next(marker_iter), source_text)
@@ -331,6 +450,24 @@ def _mocc_trace_include_addition_index(
     return index
 
 
+def validate_remaining_markers_map_exactly(
+    path: str,
+    old_active: list[str],
+    new_active: list[str],
+    old_markers: list[str],
+    new_markers: list[str],
+    added_index: int,
+) -> None:
+    """許可追加を除いた marker の活性と順序が old 列へ厳密に写るか検査する。"""
+    mapped_new_active = [
+        old_markers[index if index < added_index else index - 1]
+        for index, marker in enumerate(new_markers)
+        if index != added_index and marker in new_active
+    ]
+    if old_active != mapped_new_active:
+        raise CheckError(f"include 活性（順序込み）が不一致: path={path!r}")
+
+
 def _compare_include_activity(
     path: str,
     old_active: list[str],
@@ -338,11 +475,15 @@ def _compare_include_activity(
     old_markers: list[str],
     new_markers: list[str],
     added_index: int | None,
-) -> None:
+) -> dict[str, object]:
     if added_index is None:
         if old_active != new_active:
             raise CheckError(f"include 活性（順序込み）が不一致: path={path!r}")
-        return
+        return {
+            "accepted": True,
+            "basis": "exact_identity",
+            "permitted_addition": None,
+        }
 
     if len(new_markers) != len(old_markers) + 1:
         raise CheckError(f"include marker 列を構成できない未対応形: {path}")
@@ -353,15 +494,18 @@ def _compare_include_activity(
             f"path={path!r}"
         )
 
-    # Remove only the permitted marker and map the remaining new marker positions
-    # back to the old sequence. Any other activity or ordering drift remains fatal.
-    mapped_new_active = [
-        old_markers[index if index < added_index else index - 1]
-        for index, marker in enumerate(new_markers)
-        if index != added_index and marker in new_active
-    ]
-    if old_active != mapped_new_active:
-        raise CheckError(f"include 活性（順序込み）が不一致: path={path!r}")
+    validate_remaining_markers_map_exactly(
+        path, old_active, new_active, old_markers, new_markers, added_index
+    )
+    return {
+        "accepted": True,
+        "basis": "permitted_mocc_trace_include_addition",
+        "permitted_addition": {
+            "new_include_index": added_index,
+            "new_marker": added_marker,
+            "active_at_trace0": False,
+        },
+    }
 
 
 def _compare_file(
@@ -378,6 +522,17 @@ def _compare_file(
 ) -> dict[str, object]:
     old_source = _git_show(os.fspath(repo), old_oid, path)
     new_source = _git_show(os.fspath(repo), new_oid, path)
+    old_has_bom = old_source.startswith("\ufeff")
+    new_has_bom = new_source.startswith("\ufeff")
+    if old_has_bom != new_has_bom:
+        raise CheckError(f"old/new の先頭 UTF-8 BOM 有無が不一致: {path}")
+    try:
+        old_source = _strip_utf8_bom(old_source)
+        new_source = _strip_utf8_bom(new_source)
+    except RuntimeError as exc:
+        raise CheckError(f"先頭 UTF-8 BOM を正規化できない: {path}: {exc}") from exc
+    _assert_literal_include_operands(old_source, path, "old")
+    _assert_literal_include_operands(new_source, path, "new")
     old_includes = _include_lines(old_source)
     new_includes = _include_lines(new_source)
     added_include_index: int | None = None
@@ -422,7 +577,8 @@ def _compare_file(
             tag = _context_tag(overlay)
             old_normalized = _cpp_normalize(old_source, old_context_defines, compiler).encode("utf-8")
             new_normalized = _cpp_normalize(new_source, new_context_defines, compiler).encode("utf-8")
-            if old_normalized != new_normalized:
+            normalized_evidence = _comparison_evidence(old_normalized, new_normalized)
+            if not normalized_evidence["identical"]:
                 raise CheckError(
                     f"TRACE=0 正規化 preprocess 出力が不一致: path={path!r} "
                     f"genome={genome.canonical()!r} context={tag!r}"
@@ -437,7 +593,7 @@ def _compare_file(
             old_active = _active_markers(old_marked_output, old_markers)
             new_active = _active_markers(new_marked_output, new_markers)
             try:
-                _compare_include_activity(
+                policy_decision = _compare_include_activity(
                     path,
                     old_active,
                     new_active,
@@ -450,12 +606,9 @@ def _compare_file(
                     f"{exc} genome={genome.canonical()!r} context={tag!r}"
                 ) from exc
 
-            old_normalized_digest, new_normalized_digest = _independent_sha256_pair(
-                old_normalized, new_normalized
-            )
             old_activity_bytes = "\0".join(old_active).encode("ascii")
             new_activity_bytes = "\0".join(new_active).encode("ascii")
-            old_activity_digest, new_activity_digest = _independent_sha256_pair(
+            activity_evidence = _comparison_evidence(
                 old_activity_bytes, new_activity_bytes
             )
             contexts.append({
@@ -466,16 +619,12 @@ def _compare_file(
                     "old": dict(sorted(old_context_defines.items())),
                     "new": dict(sorted(new_context_defines.items())),
                 },
-                "normalized_preprocess": {
-                    "old_sha256": old_normalized_digest,
-                    "new_sha256": new_normalized_digest,
-                    "identical": True,
-                },
+                "normalized_preprocess": normalized_evidence,
                 "include_activity": {
-                    "active_markers": old_active,
-                    "old_sha256": old_activity_digest,
-                    "new_sha256": new_activity_digest,
-                    "identical": True,
+                    "old_active_markers": old_active,
+                    "new_active_markers": new_active,
+                    **activity_evidence,
+                    "policy_comparison": policy_decision,
                 },
             })
 

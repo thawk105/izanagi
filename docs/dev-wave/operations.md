@@ -74,8 +74,8 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 
 受入形では未 stage 削除と git 検査不能を `run_tests.py` が止める (bypass 不可)。
 復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
-`output/` 配下の一括削除は `git status --porcelain -- <path>` で対象が untracked だけと個別確認して
-から行う。「commit されていないはず」の理解だけの `rm -rf` は別 wave の tracked file を消す。
+`output/` 配下の一括削除は `git ls-files -- <path>` の空を確認してから行う。`git status` は
+tracked 無変更を出さず不在証明にならない。理解だけの `rm -rf` は別 wave の tracked file を消す。
 
 ## DW-O12 — 裁定手順と実行手順の差
 

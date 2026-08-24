@@ -49,7 +49,7 @@ _LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
 _LEGACY_ADMISSION_SIDECAR = "admission.json"
 _FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
 _FETCHCONTENT_RECEIPT_KEYS = frozenset({
-    "masstree_head", "config_sha256", "archive_sha256",
+    "masstree_head", "config_sha256",
 })
 
 _SECURE_FLAG_NAMES = (
@@ -692,10 +692,26 @@ def _validate_fetchcontent_dependency_receipt(
     if (type(normalized["masstree_head"]) is not str
             or re.fullmatch(r"[0-9a-f]{40}", normalized["masstree_head"]) is None):
         raise BuildCacheError("FetchContent dependency receipt の masstree HEAD が不正")
-    for key in ("config_sha256", "archive_sha256"):
+    for key in ("config_sha256",):
         if not is_full_sha256(normalized[key]):
             raise BuildCacheError(f"FetchContent dependency receipt の {key} が不正")
     return normalized
+
+
+def _validate_fetchcontent_archive_sha256(value: object) -> Optional[str]:
+    """Validate the optional run-local archive observation.
+
+    The two-key dependency receipt remains a compatibility surface.  Floor
+    production callers additionally pass this observation so a different run
+    may use different archive bytes while one run cannot silently replace them.
+    """
+    if value is None:
+        return None
+    if not is_full_sha256(value):
+        raise BuildCacheError(
+            "FetchContent dependency archive sha256 が不正"
+        )
+    return value
 
 
 def _canonical_fetchcontent_base(value: object) -> str:
@@ -786,21 +802,46 @@ def _fetchcontent_git_environment() -> Dict[str, str]:
 
 
 def _sha256_fetchcontent_file(path: str, *, label: str) -> str:
+    fd = -1
     try:
-        info = os.lstat(path)
-        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        entry = os.lstat(path)
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(
+            os, "O_CLOEXEC", 0,
+        )
+        fd = os.open(path, flags)
+        before = os.fstat(fd)
+        if (stat.S_ISLNK(entry.st_mode) or not stat.S_ISREG(entry.st_mode)
+                or not stat.S_ISREG(before.st_mode)
+                or _stat_identity(entry) != _stat_identity(before)):
             raise BuildCacheError(
                 f"FetchContent dependency {label} が non-symlink regular file でない"
             )
         digest = hashlib.sha256()
-        with open(path, "rb") as handle:
-            for chunk in iter(lambda: handle.read(64 * 1024), b""):
-                digest.update(chunk)
+        while True:
+            chunk = os.read(fd, 64 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+        after = os.fstat(fd)
+        if _stable_file_identity(before) != _stable_file_identity(after):
+            raise BuildCacheError(
+                f"FetchContent dependency {label} が hash 中に変化した"
+            )
     except OSError as exc:
         raise BuildCacheError(
             f"FetchContent dependency {label} を再照合できない"
         ) from exc
+    finally:
+        if fd >= 0:
+            os.close(fd)
     return digest.hexdigest()
+
+
+def _observe_fetchcontent_archive_sha256(source_root: str) -> str:
+    return _sha256_fetchcontent_file(
+        os.path.join(source_root, "libkohler_masstree_json.a"),
+        label="libkohler_masstree_json.a",
+    )
 
 
 def _observe_fetchcontent_dependency_receipt(
@@ -849,31 +890,129 @@ def _observe_fetchcontent_dependency_receipt(
         "config_sha256": _sha256_fetchcontent_file(
             os.path.join(canonical_source, "config.h"), label="config.h",
         ),
-        "archive_sha256": _sha256_fetchcontent_file(
-            os.path.join(canonical_source, "libkohler_masstree_json.a"),
-            label="libkohler_masstree_json.a",
-        ),
     }
 
 
 def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
-    """build 自身の CMakeCache から実効 masstree source root を一意に読む。"""
+    """cache 入力と生成済み build system から masstree root を読む。
+
+    この形は CMake 3.25.0、CCBench pin
+    ``511c9538e4e8efa54b45cda62e72389ed3b706ec``、Unix Makefiles 生成器で
+    実測された。CCBench pin 更新時は生成物の形を再実測すること。
+    """
     cache = os.path.join(build_dir, "CMakeCache.txt")
+    cache_keys = (
+        "CMAKE_GENERATOR",
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE",
+        "FETCHCONTENT_BASE_DIR",
+    )
     try:
         info = os.lstat(cache)
         if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
             raise BuildCacheError("CMakeCache.txt が non-symlink regular file でない")
         with open(cache, encoding="utf-8", errors="strict") as handle:
-            matches = []
+            matches = {key: [] for key in cache_keys}
             for line in handle:
-                match = re.fullmatch(r"masstree_SOURCE_DIR(?::[^=\r\n]*)?=([^\r\n]+)\r?\n?", line)
-                if match is not None:
-                    matches.append(match.group(1))
+                for key in cache_keys:
+                    match = re.fullmatch(
+                        rf"{re.escape(key)}(?::[^=\r\n]*)?=([^\r\n]*)\r?\n?",
+                        line,
+                    )
+                    if match is not None:
+                        matches[key].append(match.group(1))
     except (OSError, UnicodeError) as exc:
         raise BuildCacheError(f"CMakeCache.txt から masstree source root を読めない: {cache}") from exc
-    if len(matches) != 1 or not os.path.isabs(matches[0]) or "\0" in matches[0]:
-        raise BuildCacheError("CMakeCache.txt の masstree_SOURCE_DIR が一意な絶対 path でない")
-    return os.path.realpath(matches[0])
+
+    if (len(matches["CMAKE_GENERATOR"]) != 1
+            or matches["CMAKE_GENERATOR"][0] != "Unix Makefiles"):
+        raise BuildCacheError(
+            "CMakeCache.txt の CMAKE_GENERATOR が一意な Unix Makefiles でない"
+        )
+    fetchcontent_keys = (
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE",
+        "FETCHCONTENT_BASE_DIR",
+    )
+    if any(len(matches[key]) > 1 for key in fetchcontent_keys):
+        raise BuildCacheError(
+            "CMakeCache.txt の FetchContent masstree 解決 key が一意でない"
+        )
+    if matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"]:
+        selected_key = "FETCHCONTENT_SOURCE_DIR_MASSTREE"
+        recorded = matches[selected_key][0]
+        cache_root = recorded
+    elif matches["FETCHCONTENT_BASE_DIR"]:
+        selected_key = "FETCHCONTENT_BASE_DIR"
+        recorded = matches[selected_key][0]
+        cache_root = os.path.join(recorded, "masstree-src")
+    else:
+        raise BuildCacheError(
+            "CMakeCache.txt に FetchContent masstree 解決 key がない"
+        )
+    if not os.path.isabs(recorded) or "\0" in recorded:
+        raise BuildCacheError(
+            f"CMakeCache.txt の {selected_key} が NUL なし絶対 path でない"
+        )
+
+    depend_info = os.path.join(
+        build_dir, "CMakeFiles", "masstree_build.dir", "DependInfo.cmake",
+    )
+    try:
+        info = os.lstat(depend_info)
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise BuildCacheError(
+                "masstree DependInfo.cmake が non-symlink regular file でない"
+            )
+        with open(depend_info, encoding="utf-8", errors="strict") as handle:
+            depend_text = handle.read()
+    except (OSError, UnicodeError) as exc:
+        raise BuildCacheError(
+            f"masstree DependInfo.cmake から実効 source root を読めない: "
+            f"{depend_info}"
+        ) from exc
+
+    blocks = re.findall(
+        r"(?ms)^[ \t]*set\([ \t]*CMAKE_MULTIPLE_OUTPUT_PAIRS[ \t]*\r?\n"
+        r"(.*?)"
+        r"^[ \t]*\)[ \t]*(?:#[^\r\n]*)?\r?$",
+        depend_text,
+    )
+    if len(blocks) != 1:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の CMAKE_MULTIPLE_OUTPUT_PAIRS が一意でない"
+        )
+    pair = re.fullmatch(
+        r"[ \t\r\n]*\"([^\"\r\n]*)\"[ \t\r\n]+"
+        r"\"([^\"\r\n]*)\"[ \t\r\n]*",
+        blocks[0],
+    )
+    if pair is None:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対がちょうど 1 組でない"
+        )
+    generated_paths = pair.groups()
+    if any(not os.path.isabs(path) or "\0" in path for path in generated_paths):
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対が NUL なし絶対 path でない"
+        )
+    outputs = {os.path.basename(path): path for path in generated_paths}
+    expected_outputs = {"config.h", "libkohler_masstree_json.a"}
+    if set(outputs) != expected_outputs:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対が期待した生成物でない"
+        )
+    generated_roots = {os.path.dirname(path) for path in generated_paths}
+    if len(generated_roots) != 1:
+        raise BuildCacheError(
+            "masstree DependInfo.cmake の multiple-output 対の親 directory が一致しない"
+        )
+
+    cache_root = os.path.realpath(cache_root)
+    generated_root = os.path.realpath(generated_roots.pop())
+    if cache_root != generated_root:
+        raise BuildCacheError(
+            "CMakeCache.txt と masstree DependInfo.cmake の source root が一致しない"
+        )
+    return cache_root
 
 
 def _tool_version(requested: str, role: str) -> Dict[str, str]:
@@ -1003,6 +1142,7 @@ def _v2_identity(
         *, site: str, dependency_prefix: List[str],
         admission: Dict[str, Any],
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
+        fetchcontent_archive_sha256: Optional[object] = None,
         fetchcontent_transport_mode: Optional[str] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
@@ -1024,6 +1164,15 @@ def _v2_identity(
     )
     if receipt is not None:
         preimage["fetchcontent_dependency_receipt"] = receipt
+    archive_sha256 = _validate_fetchcontent_archive_sha256(
+        fetchcontent_archive_sha256,
+    )
+    if archive_sha256 is not None:
+        if receipt is None:
+            raise BuildCacheError(
+                "FetchContent archive sha256 は dependency receipt と同時指定必須"
+            )
+        preimage["fetchcontent_archive_sha256"] = archive_sha256
     if fetchcontent_transport_mode is not None:
         if fetchcontent_transport_mode not in {"base-only", "source-dir"}:
             raise BuildCacheError(
@@ -1209,6 +1358,9 @@ def _validate_v2_entry(
             "contract_sha256", "preimage", "toolchain", "binary", "admission",
         }
         dependency_receipt = preimage.get("fetchcontent_dependency_receipt")
+        dependency_archive_sha256 = preimage.get(
+            "fetchcontent_archive_sha256"
+        )
         if dependency_receipt is not None:
             expected_keys.add("fetchcontent_dependency")
         optional_pair = {
@@ -1274,12 +1426,22 @@ def _validate_v2_entry(
         source_root_sha256 = ""
         if dependency_receipt is not None:
             dependency = manifest["fetchcontent_dependency"]
+            dependency_keys = {"source_root_sha256", "source_subdir"}
+            if dependency_archive_sha256 is not None:
+                dependency_keys.add("archive_sha256")
             if (type(dependency) is not dict
-                    or set(dependency) != {"source_root_sha256", "source_subdir"}
+                    or set(dependency) != dependency_keys
                     or dependency.get("source_subdir") != "masstree-src"
                     or not is_full_sha256(dependency.get("source_root_sha256"))):
                 raise BuildCacheError(
                     f"v2 FetchContent dependency manifest が不正: {manifest_path}"
+                )
+            if (dependency_archive_sha256 is not None
+                    and dependency.get("archive_sha256")
+                    != dependency_archive_sha256):
+                raise BuildCacheError(
+                    f"v2 FetchContent archive sha256 が pre-image と不一致: "
+                    f"{manifest_path}"
                 )
             source_root_sha256 = dependency["source_root_sha256"]
         binary_record = manifest["binary"]
@@ -1675,6 +1837,7 @@ def build_v2(
         mimalloc_source_dir: Optional[object] = None,
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
+        fetchcontent_archive_sha256: Optional[object] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -1742,6 +1905,13 @@ def build_v2(
     dependency_receipt = _validate_fetchcontent_dependency_receipt(
         fetchcontent_dependency_receipt,
     )
+    dependency_archive_sha256 = _validate_fetchcontent_archive_sha256(
+        fetchcontent_archive_sha256,
+    )
+    if dependency_archive_sha256 is not None and dependency_receipt is None:
+        raise BuildCacheError(
+            "FetchContent archive sha256 は dependency receipt と同時指定必須"
+        )
     source_dirs = _normalize_fetchcontent_source_dirs(
         masstree_source_dir=masstree_source_dir,
         mimalloc_source_dir=mimalloc_source_dir,
@@ -1759,6 +1929,14 @@ def build_v2(
         _canonical_fetchcontent_base(fetchcontent_base_dir)
         if fetchcontent_base_dir else ""
     )
+    if dependency_archive_sha256 is not None:
+        observed_archive_sha256 = _observe_fetchcontent_archive_sha256(
+            os.path.join(canonical_fetchcontent_base, "masstree-src"),
+        )
+        if observed_archive_sha256 != dependency_archive_sha256:
+            raise BuildCacheError(
+                "FetchContent dependency archive が build 前の binding と不一致"
+            )
     try:
         root = os.fspath(cache_root)
     except TypeError as exc:
@@ -1823,6 +2001,7 @@ def build_v2(
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
         fetchcontent_dependency_receipt=dependency_receipt,
+        fetchcontent_archive_sha256=dependency_archive_sha256,
         fetchcontent_transport_mode=fetchcontent_transport_mode,
     )
     parent = os.path.join(root, "contracts", contract_sha256)
@@ -1860,6 +2039,18 @@ def build_v2(
                 )
                 if not trace:
                     _assert_no_trace_symbols(binary, binary_fd=binary_fd)
+                if dependency_archive_sha256 is not None:
+                    post_hit_archive_sha256 = (
+                        _observe_fetchcontent_archive_sha256(
+                            os.path.join(
+                                canonical_fetchcontent_base, "masstree-src",
+                            )
+                        )
+                    )
+                    if post_hit_archive_sha256 != dependency_archive_sha256:
+                        raise BuildCacheError(
+                            "FetchContent dependency archive が cache hit 中に変化した"
+                        )
             finally:
                 os.close(binary_fd)
             return _v2_result(
@@ -1950,6 +2141,14 @@ def build_v2(
                     raise BuildCacheError(
                         "FetchContent dependency 内容が build 中に変化した"
                     )
+                if dependency_archive_sha256 is not None:
+                    observed_archive_sha256 = (
+                        _observe_fetchcontent_archive_sha256(effective_root)
+                    )
+                    if observed_archive_sha256 != dependency_archive_sha256:
+                        raise BuildCacheError(
+                            "FetchContent dependency archive が build 中に変化した"
+                        )
 
             clean_fd, clean_identity = _mkdir_open_at(
                 parent_fd, clean_name, label="v2 clean publish candidate",
@@ -1996,6 +2195,10 @@ def build_v2(
                     "source_root_sha256": masstree_source_root_sha256,
                     "source_subdir": "masstree-src",
                 }
+                if dependency_archive_sha256 is not None:
+                    completion["fetchcontent_dependency"]["archive_sha256"] = (
+                        dependency_archive_sha256
+                    )
             _write_fsynced_json_at(clean_fd, _V2_COMPLETION_MANIFEST, completion)
             copied.fsync_directories()
             os.fsync(clean_fd)
