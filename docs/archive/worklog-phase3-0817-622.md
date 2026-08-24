@@ -584,8 +584,9 @@ base digest を張ると後発が必ず落ちるため、wave 自身の fragment
   `cap <= MAX_LOCAL_BUDGET_BYTES` を必要条件に足すだけとし、grant 由来性の束縛は作らない。
   迂回を実行できるのは同一権限の内部作業者に限られ、由来束縛は粗い provenance 方針に当たる。
 - [T-1286] **P2・裁定済み (2026-08-17 /rulings 全件 第 5 回、要求させる)**: 全
-  `STAGE_COMMIT` producer に、verifier の判定と lock identity へ結び付いた一回限りの receipt を
-  要求させる。正しさの門の支配点であり、防御的堅牢化の見送り方針は適用しない。
+  `STAGE_COMMIT` producer に、verifier の判定と lock identity へ結び付いた、各 ledger 内で
+  一回限りの receipt を要求させる。layout を横断する一意性は要求しない。正しさの門の支配点であり、
+  防御的堅牢化の見送り方針は適用しない。
   [T-1287] / [T-762] と同じ作業で閉じる。
 - [T-1287] **P2・裁定済み (2026-08-17 /rulings 全件 第 5 回、比較する)**: 新 lock を批准済み
   known-good digest と比較する設計にする。verifier を弱めて commit しその bytes で新 lock を
