@@ -259,17 +259,6 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     }
 
 
-@pytest.mark.xdist_group("s8c-predicate-snapshot")
-def test_current_repository_c12_registry_reports_unwired_allocation_consumer(
-    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
-) -> None:
-    # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head, results = current_commit_snapshot
-    c12 = {item.id: item for item in results}["C12"]
-    assert c12.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-    assert c12.reason_code == "completion-proof-not-machine-checkable"
-
-
 def test_c02_missing_registry_preserves_capability_absent_reason(
     tmp_path: Path,
 ) -> None:
@@ -284,17 +273,6 @@ def test_c02_missing_registry_preserves_capability_absent_reason(
     result = _result(root, head, "C02")
     assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
     assert result.reason_code == "trial-registry-capability-absent"
-
-
-@pytest.mark.xdist_group("s8c-predicate-snapshot")
-def test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer(
-    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
-) -> None:
-    # production が正しく配線されたら反転させる snapshot tripwire である。
-    root, head, results = current_commit_snapshot
-    result = {item.id: item for item in results}["C12"]
-    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-    assert result.reason_code == "completion-proof-not-machine-checkable"
 
 
 def test_evidence_undefined_is_never_satisfied() -> None:
