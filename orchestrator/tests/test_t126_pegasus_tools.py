@@ -1460,7 +1460,12 @@ def test_shared_pegasus_policy_owns_no_t126_qualification_keys():
     assert pinned_policy["path"] == policy_relative
     current_policy_sha256 = hashlib.sha256(
         policy_path.read_bytes()).hexdigest()
-    assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256
+    assert current_policy_sha256 == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256, (
+        "intentional policy update requires refreshing the single shared "
+        "EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 golden in "
+        "orchestrator/tests/pegasus_policy_expected_goldens.py: "
+        f"sha256({policy_relative})={current_policy_sha256}"
+    )
     assert pinned_policy["sha256"] == EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256
     assert pinned_policy["sha256"] != current_policy_sha256
 
