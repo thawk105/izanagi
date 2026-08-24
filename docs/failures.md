@@ -7417,6 +7417,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「完了 rc=0」を 1 度出した。イベント文字列は成功時と区別できない形で、
   完了印の実在を独立に確認して初めて偽と判定できた。恒久対応どおり 3 点照合で検出し、
   完了印が**非空である**ことを条件に含めた until ループへ張り直した。
+
+- **再発: 2026-08-25** — dev-wave の待ち手が「完了 exit 0」の通知を出したが、
+  出力ファイルは空で `.done` も不在、子 (pid 2875652) も待ち手 (pid 2877723) も生存していた。
+  F250 の恒久対応どおり 3 点照合を行い、`pgrep -af` で実プロセスを確認して偽完了と判定し、
+  stale 待ち手を落として張り直した。実害ゼロ。
+  **他 wave の待ち手 (別 wave の 2 本) には触れていない。** 落とす前に cmdline で
+  自分の wave の path を含むものだけを選んでいる。
 ### F251. 走行中の worktree が掃除の生存判定をすり抜けて削除された [計測汚染] [手順漏れ]
 
 - 事象: 2026-08-12 20:57:55 JST、並行 session の worktree 掃除が、本 wave が測定 fixture として
@@ -9263,6 +9270,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応は既出 (長時間走りうる検査は余裕あるタイムアウト、または背景経路で起動する) —
   守らなかったこと自体が事象である。**「git を読むだけの checker だから軽い」という見積りが
   誤りで、dispatch するか否かは checker 側の自動判定が決める。**
+
+- **再発: 2026-08-25** — 引き金と結果が既存記述と違うので残す。今回の SIGTERM は
+  無人再試行ループではなく **Bash ツールの既定 2 分打ち切り**から来た。親は
+  `git commit` と `python3 tools/check_ai_provenance.py` を 1 つの前景コマンドに繋いでおり、
+  監査が計算ノードへ dispatch した時点で 2 分を超え、親ごと落ちた。
+  孤児 job の receipt は F333 と逐語で同じ
+  `{"kind": "infra", "rc": 16, "reason": "_SignalAbort: signal 15"}` である。
+- **結果が F333 より重い。** 無駄占有に留まらず `pegasus-orphan-hold/v1` が武装し、
+  **その worktree からの dispatch が全部止まった。** 直後に投入した最終受入全走が
+  `stage=preclaim-history-provenance rc=70 source_rc=16 reason=orphan-hold` で
+  claim 前に停止している。受入は計算ノードを使うので、hold が解けるまで前へ進めない。
+- 対応: hold の recovery 指示に従い、`qstat` で対象 request が生存中 (STT=PRR) と確認できたので
+  **終端まで待つ**経路を選んだ。`qstat` は消えた request にも rc=0 を返すため、
+  待ち手は出力本文で判定している。qdel は行わない (F47 の submission-disabled を武装させ、
+  その解除もユーザー手番になるため)。
+- 既存 memory `long-running-checks-need-generous-timeouts` が
+  「親の打ち切りは orphan-hold で worktree の dispatch を全停止する」と既に書いていた。
+  **記録があったのに前景で繋いだ**のが本件の実質的な原因である。
+  監査・受入・変異のように dispatch する検査は前景の短い枠へ繋がない。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -9314,6 +9340,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **ただし通常の焦点テスト走では当該経路が走らず、変異 harness の baseline と
   受入全走でしか検出されない。** 焦点走の緑を根拠に汚染なしと判断してはならない。
 
+
+- **再発: 2026-08-25** — 3 例目。holdout 保護と無関係な 8b attempt registry の wave で、
+  **段 6 の fix 子が負例テストを書くために三軸を 1 行の literal で並べ**、production の
+  holdout scan が `rr80` に 1 hit した。fix 子は「scanner に当たる payload では claim が
+  残らずに拒否される」ことを測ろうとしており、動機としては正しい。汚染したのは
+  **その payload をテスト file の本文へ literal で書いた**ことである。
+  正本 `orchestrator/campaign/s8b_holdout_freeze.py` 自身が
+  `RRATIO_KEY = "ycsb_" + "rratio"` の分割 literal で自己汚染を避けているので、
+  テストも同じ作法へ寄せ、公開 KEY 定数を import して実行時に組み立てる形で解消した。
+  親は repo 全体 14538 file を直接走査して汚染がこの 1 file だけであることと、
+  解消後に hit 0・positive control 85 件であることを実測した。
+- **既存の再発検知の記述を 1 点更新できる。** F335 は「通常の焦点テスト走では当該経路が走らず、
+  変異 harness の baseline と受入全走でしか検出されない」と書いているが、本 wave では
+  **焦点走で検出できた。** `DW-O26` に従って「変更した production file の consumer test」を
+  焦点集合へ入れた結果、`orchestrator/tests/test_s8c_preregistration_invariant.py` が
+  焦点走に含まれ、そこで赤くなったためである。汚染を早期に捕まえたいなら、
+  焦点集合へこの invariant test を明示的に足すのが安い。
 ### F336. 実行時に決まる node ID は変異 spec へ事前登録できない [手順漏れ]
 
 - 事象: 変異の期待 node に、実行時サフィックスが付く real-repo 変種の node ID が含まれた。
