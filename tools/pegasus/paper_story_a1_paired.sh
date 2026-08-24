@@ -17,6 +17,7 @@ DRIVER_RELATIVE="orchestrator/campaign/paper_story_a1_paired.py"
 POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v1.json"
 PIPELINE_RELATIVE="orchestrator/campaign/pipeline.py"
 JOB_RELATIVE="tools/pegasus/paper_story_a1_paired.sh"
+PEGASUS_POLICY_RELATIVE="tools/pegasus/policy.json"
 
 refuse() {
   printf 'paper-story A-1 job refused: %s\n' "$1" >&2
@@ -43,6 +44,7 @@ REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
 [[ -f "$REPO_ROOT/$DRIVER_RELATIVE" ]] || refuse "tracked driver is missing"
 [[ -f "$REPO_ROOT/$POLICY_RELATIVE" ]] || refuse "tracked policy is missing"
 [[ -f "$REPO_ROOT/$JOB_RELATIVE" ]] || refuse "tracked job body is missing"
+[[ -f "$REPO_ROOT/$PEGASUS_POLICY_RELATIVE" ]] || refuse "Pegasus policy is missing"
 CURRENT_HEAD=$(git -C "$REPO_ROOT" rev-parse HEAD) || refuse "cannot resolve HEAD"
 [[ "$CURRENT_HEAD" == "$IZANAGI_EXPECTED_HEAD" ]] || refuse "HEAD mismatch"
 [[ -z "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]] || \
@@ -398,16 +400,21 @@ export IZANAGI_RESERVATION_NONCE="$IZANAGI_SUBMISSION_NONCE"
 
 DRIVER_RC=125
 TERMINAL_PATH="$RAW_ROOT/job-terminal.json"
+DEPENDENCY_ROOT=""
+DEPENDENCY_ROOT_OWNED=0
 
 write_terminal() {
   local shell_rc=$1
   [[ ! -e "$TERMINAL_PATH" ]] || return 66
+  IZANAGI_A1_TERMINAL_DRIVER_RELATIVE="$DRIVER_RELATIVE" \
+  IZANAGI_A1_TERMINAL_POLICY_RELATIVE="$POLICY_RELATIVE" \
+  IZANAGI_A1_TERMINAL_PIPELINE_RELATIVE="$PIPELINE_RELATIVE" \
+  IZANAGI_A1_TERMINAL_JOB_RELATIVE="$JOB_RELATIVE" \
   "$PYTHON_BIN" - "$TERMINAL_PATH" "$REPO_ROOT" "$EXPECTED_STUDY_ID" \
   "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
     "$RESULT_ROOT" "$IZANAGI_A1_ACQUISITION_RECEIPT" "$ACQUISITION_SHA" \
     "$IZANAGI_A1_COMPLETION_RECEIPT" "$ATTEMPT_ROOT" \
-    "$PBS_O_HOST" "$PBS_O_WORKDIR" \
-    "$DRIVER_RELATIVE" "$POLICY_RELATIVE" "$PIPELINE_RELATIVE" "$JOB_RELATIVE" <<'PY'
+    "$PBS_O_HOST" "$PBS_O_WORKDIR" <<'PY'
 import hashlib
 import json
 import os
@@ -419,8 +426,17 @@ import time
 (
     path, repo, study_id, pbs_jobid, expected_head, driver_rc_raw,
     shell_rc_raw, result_root, acquisition_path, acquisition_sha,
-    completion_path, attempt_root, pbs_o_host, pbs_o_workdir, *source_paths,
+    completion_path, attempt_root, pbs_o_host, pbs_o_workdir,
 ) = sys.argv[1:]
+source_paths = tuple(
+    os.environ[key]
+    for key in (
+        "IZANAGI_A1_TERMINAL_DRIVER_RELATIVE",
+        "IZANAGI_A1_TERMINAL_POLICY_RELATIVE",
+        "IZANAGI_A1_TERMINAL_PIPELINE_RELATIVE",
+        "IZANAGI_A1_TERMINAL_JOB_RELATIVE",
+    )
+)
 driver_rc = int(driver_rc_raw)
 shell_rc = int(shell_rc_raw)
 
@@ -527,11 +543,24 @@ raise SystemExit(0 if success or driver_rc != 0 or shell_rc != 0 else 3)
 PY
 }
 
+cleanup_dependency_root() {
+  if [[ "$DEPENDENCY_ROOT_OWNED" -eq 1 ]]; then
+    [[ -n "$DEPENDENCY_ROOT" ]] || return 70
+    /bin/rm -rf -- "$DEPENDENCY_ROOT"
+  fi
+}
+
 on_exit() {
   local shell_rc=$?
+  local cleanup_rc
   local writer_rc
   trap - EXIT
   set +e
+  cleanup_dependency_root
+  cleanup_rc=$?
+  if [[ "$cleanup_rc" -ne 0 ]]; then
+    shell_rc=70
+  fi
   write_terminal "$shell_rc"
   writer_rc=$?
   set -e
@@ -542,6 +571,168 @@ on_exit() {
 }
 trap on_exit EXIT
 
+# The dependency build is disposable node-local staging. The attempt root and
+# all evidence remain in the durable base validated above.
+DEPENDENCY_EVIDENCE_ROOT="$RAW_ROOT/dependency-staging"
+if ! mkdir -- "$DEPENDENCY_EVIDENCE_ROOT"; then
+  refuse "dependency evidence root cannot be exclusive-created"
+fi
+readarray -t DEPENDENCY_POLICY_VALUES < <(
+  "$PYTHON_BIN" - "$REPO_ROOT/$PEGASUS_POLICY_RELATIVE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    policy = json.load(stream)
+for key in (
+    "gflags_source_path",
+    "gflags_expected_head",
+    "glog_source_path",
+    "glog_expected_head",
+):
+    value = policy[key]
+    if type(value) is not str or not value:
+        raise SystemExit(f"Pegasus dependency pin is invalid: {key}")
+    print(value)
+PY
+)
+[[ ${#DEPENDENCY_POLICY_VALUES[@]} -eq 4 ]] || \
+  refuse "Pegasus dependency pins are incomplete"
+GFLAGS_SOURCE_PATH=${DEPENDENCY_POLICY_VALUES[0]}
+GFLAGS_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[1]}
+GLOG_SOURCE_PATH=${DEPENDENCY_POLICY_VALUES[2]}
+GLOG_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[3]}
+[[ "$GFLAGS_SOURCE_PATH" = /* && "$GLOG_SOURCE_PATH" = /* ]] || \
+  refuse "dependency source paths must be absolute"
+[[ "$GFLAGS_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || \
+  refuse "gflags expected HEAD is invalid"
+[[ "$GLOG_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || \
+  refuse "glog expected HEAD is invalid"
+
+if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
+  refuse "gflags source path is missing"
+fi
+gflags_head_rc=0
+GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/gflags-source-head.stderr") || gflags_head_rc=$?
+if [[ "$gflags_head_rc" -ne 0 ]]; then
+  refuse "cannot resolve gflags source HEAD"
+fi
+printf '%s\n' "$GFLAGS_SOURCE_HEAD" >"$DEPENDENCY_EVIDENCE_ROOT/gflags-source-head.stdout"
+if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]; then
+  refuse "gflags source HEAD mismatch"
+fi
+gflags_status_rc=0
+GFLAGS_STATUS=$(git -C "$GFLAGS_SOURCE_PATH" status --porcelain --untracked-files=all \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/gflags-source-status.stderr") || gflags_status_rc=$?
+if [[ "$gflags_status_rc" -ne 0 ]]; then
+  refuse "cannot inspect gflags working tree"
+fi
+printf '%s' "$GFLAGS_STATUS" >"$DEPENDENCY_EVIDENCE_ROOT/gflags-source-status.stdout"
+if [[ -n "$GFLAGS_STATUS" ]]; then
+  refuse "gflags working tree is dirty"
+fi
+
+if [[ ! -d "$GLOG_SOURCE_PATH" ]]; then
+  refuse "glog source path is missing"
+fi
+glog_head_rc=0
+GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/glog-source-head.stderr") || glog_head_rc=$?
+if [[ "$glog_head_rc" -ne 0 ]]; then
+  refuse "cannot resolve glog source HEAD"
+fi
+printf '%s\n' "$GLOG_SOURCE_HEAD" >"$DEPENDENCY_EVIDENCE_ROOT/glog-source-head.stdout"
+if [[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]; then
+  refuse "glog source HEAD mismatch"
+fi
+glog_status_rc=0
+GLOG_STATUS=$(git -C "$GLOG_SOURCE_PATH" status --porcelain --untracked-files=all \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/glog-source-status.stderr") || glog_status_rc=$?
+if [[ "$glog_status_rc" -ne 0 ]]; then
+  refuse "cannot inspect glog working tree"
+fi
+printf '%s' "$GLOG_STATUS" >"$DEPENDENCY_EVIDENCE_ROOT/glog-source-status.stdout"
+if [[ -n "$GLOG_STATUS" ]]; then
+  refuse "glog working tree is dirty"
+fi
+
+if ! DEPENDENCY_ROOT=$(mktemp -d -- \
+  "/scr/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX"); then
+  refuse "dependency scratch root cannot be exclusive-created"
+fi
+DEPENDENCY_ROOT_OWNED=1
+readonly DEPENDENCY_ROOT DEPENDENCY_ROOT_OWNED
+CC_PATH=$(command -v gcc) || refuse "gcc is unavailable"
+CXX_PATH=$(command -v g++) || refuse "g++ is unavailable"
+command -v cmake >/dev/null 2>&1 || refuse "cmake is unavailable"
+
+GFLAGS_BUILD_DIR="$DEPENDENCY_ROOT/gflags-build"
+GFLAGS_INSTALL_DIR="$DEPENDENCY_ROOT/gflags-install"
+if ! mkdir -- "$GFLAGS_BUILD_DIR"; then
+  refuse "cannot create gflags build directory"
+fi
+gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+gflags_rc=0
+timeout 60 "${gflags_configure_argv[@]}" \
+  >"$DEPENDENCY_EVIDENCE_ROOT/gflags-configure.stdout" \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/gflags-configure.stderr" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  refuse "gflags configure failed"
+fi
+timeout 60 "${gflags_build_argv[@]}" \
+  >"$DEPENDENCY_EVIDENCE_ROOT/gflags-build.stdout" \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/gflags-build.stderr" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  refuse "gflags build failed"
+fi
+timeout 60 "${gflags_install_argv[@]}" \
+  >"$DEPENDENCY_EVIDENCE_ROOT/gflags-install.stdout" \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/gflags-install.stderr" || gflags_rc=$?
+if [[ "$gflags_rc" -ne 0 ]]; then
+  refuse "gflags install failed"
+fi
+
+GLOG_BUILD_DIR="$DEPENDENCY_ROOT/glog-build"
+GLOG_INSTALL_DIR="$DEPENDENCY_ROOT/glog-install"
+if ! mkdir -- "$GLOG_BUILD_DIR"; then
+  refuse "cannot create glog build directory"
+fi
+glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
+glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+glog_rc=0
+timeout 120 "${glog_configure_argv[@]}" \
+  >"$DEPENDENCY_EVIDENCE_ROOT/glog-configure.stdout" \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/glog-configure.stderr" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  refuse "glog configure failed"
+fi
+timeout 120 "${glog_build_argv[@]}" \
+  >"$DEPENDENCY_EVIDENCE_ROOT/glog-build.stdout" \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/glog-build.stderr" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  refuse "glog build failed"
+fi
+timeout 120 "${glog_install_argv[@]}" \
+  >"$DEPENDENCY_EVIDENCE_ROOT/glog-install.stdout" \
+  2>"$DEPENDENCY_EVIDENCE_ROOT/glog-install.stderr" || glog_rc=$?
+if [[ "$glog_rc" -ne 0 ]]; then
+  refuse "glog install failed"
+fi
+DEPENDENCY_PREFIX="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
+
 set +e
 "$PYTHON_BIN" "$REPO_ROOT/$DRIVER_RELATIVE" measure \
   --study-id "$EXPECTED_STUDY_ID" \
@@ -551,7 +742,8 @@ set +e
   --acquisition-receipt-sha256 "$ACQUISITION_SHA" \
   --output-root "$OUTPUT_ROOT" \
   --cache-root "$CACHE_ROOT" \
-  --result-root "$RESULT_ROOT"
+  --result-root "$RESULT_ROOT" \
+  --dependency-prefix "$DEPENDENCY_PREFIX"
 DRIVER_RC=$?
 set -e
 exit "$DRIVER_RC"

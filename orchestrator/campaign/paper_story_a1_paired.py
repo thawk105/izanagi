@@ -1143,6 +1143,35 @@ def _canonical_absolute_token(value: str) -> bool:
     return path.is_absolute() and path.resolve(strict=False) == path
 
 
+def _dependency_prefix_components(value: object) -> tuple[Path, Path] | None:
+    if type(value) is not str:
+        return None
+    components = value.split(";")
+    if len(components) != 2 or any(not item for item in components):
+        return None
+    paths = tuple(Path(item) for item in components)
+    if (
+        any(not _canonical_absolute_token(item) for item in components)
+        or paths[0].name != "gflags-install"
+        or paths[1].name != "glog-install"
+        or paths[0].parent != paths[1].parent
+        or paths[0] == paths[1]
+    ):
+        return None
+    return paths
+
+
+def _validated_dependency_prefix(value: object, *, require_scr: bool) -> str:
+    components = _dependency_prefix_components(value)
+    if components is None:
+        raise PaperStoryError(
+            "dependency prefix must be exact gflags/glog install siblings"
+        )
+    if require_scr and any(not _under_scr(path) for path in components):
+        raise PaperStoryError("dependency install prefixes must be under /scr")
+    return str(value)
+
+
 def _compiler_define_path(token: str, prefix: str) -> str | None:
     if not token.startswith(prefix):
         return None
@@ -1175,7 +1204,7 @@ def _trace0_commands_match(
         f"-DCCBENCH_{key}={expected_defines[key]}"
         for key in sorted(arm_policy["flags"])
     ] + ["-DCCBENCH_TRACE=0"]
-    if len(configure_argv) != 9 + len(define_tokens):
+    if len(configure_argv) != 10 + len(define_tokens):
         return False
     cmake_executable = configure_argv[0]
     source_token = configure_argv[2]
@@ -1185,6 +1214,13 @@ def _trace0_commands_match(
     )
     cxx_compiler = _compiler_define_path(
         configure_argv[8], "-DCMAKE_CXX_COMPILER="
+    )
+    dependency_prefix_token = configure_argv[9]
+    dependency_prefix_marker = "-DCMAKE_PREFIX_PATH="
+    dependency_prefix = (
+        dependency_prefix_token[len(dependency_prefix_marker):]
+        if dependency_prefix_token.startswith(dependency_prefix_marker)
+        else None
     )
     expected_configure = [
         cmake_executable,
@@ -1196,6 +1232,7 @@ def _trace0_commands_match(
         "-DENABLE_SANITIZER=OFF",
         f"-DCMAKE_C_COMPILER={c_compiler}",
         f"-DCMAKE_CXX_COMPILER={cxx_compiler}",
+        dependency_prefix_token,
         *define_tokens,
     ]
     if any((
@@ -1205,6 +1242,7 @@ def _trace0_commands_match(
         not _canonical_absolute_token(build_token),
         c_compiler is None,
         cxx_compiler is None,
+        _dependency_prefix_components(dependency_prefix) is None,
         list(configure_argv) != expected_configure,
     )):
         return False
@@ -1958,6 +1996,9 @@ def run_measurement(args) -> int:
     if any(roots[key] != trusted_roots[key] for key in roots):
         raise PaperStoryError("CLI roots differ from acquisition receipt topology")
     roots = dict(trusted_roots)
+    dependency_prefix = _validated_dependency_prefix(
+        args.dependency_prefix, require_scr=True
+    )
     reservation_binding = _reservation_binding_from_environment(os.environ)
     site, contract, authorization = p2_2.resolve_site_runtime()
     if site != site_policy.PEGASUS_COMPUTE:
@@ -2017,6 +2058,7 @@ def run_measurement(args) -> int:
                 numactl=list(contract.numactl),
                 output_root=roots["output_root"],
                 cache_root=roots["cache_root"],
+                dependency_prefix=dependency_prefix,
                 authorization_contract=authorization,
                 env_contract=contract,
                 expected_toolchain_manifest=toolchain_manifest,
@@ -2601,6 +2643,7 @@ def _parser() -> argparse.ArgumentParser:
     measure.add_argument("--output-root", required=True)
     measure.add_argument("--cache-root", required=True)
     measure.add_argument("--result-root", required=True)
+    measure.add_argument("--dependency-prefix", required=True)
     materialize = sub.add_parser("materialize")
     materialize.add_argument("--expected-head", required=True)
     materialize.add_argument("--raw-result", required=True)

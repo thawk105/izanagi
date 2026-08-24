@@ -58,6 +58,12 @@ def _source_binding() -> dict:
     }
 
 
+def _dependency_prefix_fixture() -> str:
+    assert _TEST_BUILD_DIR is not None
+    root = (_TEST_BUILD_DIR.parent / "dependency-scratch").resolve()
+    return f"{root / 'gflags-install'};{root / 'glog-install'}"
+
+
 def _reservation_binding() -> dict:
     return {
         "job_id": "0:12345.nqsv",
@@ -130,6 +136,7 @@ def _arm(
         os.fspath(build_dir),
         toolchain,
         jobs=48,
+        dependency_prefix=_dependency_prefix_fixture(),
     )
     contract = paired.p2_2.env_contract.lookup("pegasus")
     run_flags = [
@@ -823,9 +830,17 @@ def test_trace0_accepts_actual_pegasus_producer_argv_positive(
 ) -> None:
     result = _production_wal_workload(tmp_path)
     evidence = result["arms"]["adaptive"]["performance_trace0_evidence"]
-    assert shlex.split(evidence["perf_configure_cmd"])[0:2] == [
+    configure_argv = shlex.split(evidence["perf_configure_cmd"])
+    assert configure_argv[0:2] == [
         "/toolchain/cmake", "-S",
     ]
+    assert len(configure_argv) == 16
+    assert configure_argv[9].startswith("-DCMAKE_PREFIX_PATH=")
+    prefix_paths = configure_argv[9].split("=", 1)[1].split(";")
+    assert [Path(item).name for item in prefix_paths] == [
+        "gflags-install", "glog-install",
+    ]
+    assert Path(prefix_paths[0]).parent == Path(prefix_paths[1]).parent
     assert shlex.split(evidence["bench_run_cmd"])[0:5] == [
         "perf",
         "stat",
@@ -834,6 +849,25 @@ def test_trace0_accepts_actual_pegasus_producer_argv_positive(
         "--",
     ]
     assert result["valid"] is True
+
+
+def test_trace0_rejects_dependency_prefix_token_outside_index_nine_M29(
+    tmp_path: Path,
+) -> None:
+    def mutate(frames: list[dict]) -> None:
+        build = next(
+            frame for frame in frames
+            if frame["variant"] == "variant-adaptive"
+            and frame["stage"] == paired.STAGE_BUILD_DONE
+        )["payload"]
+        configure_argv = shlex.split(build["perf_configure_cmd"])
+        prefix_token = configure_argv.pop(9)
+        configure_argv.append(prefix_token)
+        build["perf_configure_cmd"] = shlex.join(configure_argv)
+
+    result = _production_wal_workload(tmp_path, mutate_frames=mutate)
+    assert result["errors"] == ["adaptive:trace0-source-route-incomplete"]
+    assert result["arms"]["static10"]["valid"] is True
 
 
 @pytest.mark.parametrize(

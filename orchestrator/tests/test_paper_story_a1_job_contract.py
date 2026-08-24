@@ -852,7 +852,6 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         '[[ -n "${IZANAGI_A1_ACQUISITION_RECEIPT:-}" ]]',
         '[[ -n "${IZANAGI_A1_COMPLETION_RECEIPT:-}" ]]',
         '[[ "$CURRENT_HEAD" == "$IZANAGI_EXPECTED_HEAD" ]]',
-        "status --porcelain --untracked-files=all",
         "site_policy.PEGASUS_COMPUTE",
         "for ((WAITED=0; WAITED<60; WAITED++))",
         'mkdir -- "$ATTEMPT_ROOT"',
@@ -876,6 +875,16 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         '"reservation_binding": reservation_binding,',
         '"attempt_identity": {',
         "/proc/sys/kernel/random/boot_id",
+        'PEGASUS_POLICY_RELATIVE="tools/pegasus/policy.json"',
+        'DEPENDENCY_ROOT=$(mktemp -d --',
+        '"/scr/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX")',
+        'DEPENDENCY_ROOT_OWNED=1',
+        '/bin/rm -rf -- "$DEPENDENCY_ROOT"',
+        'if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]',
+        'if [[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]',
+        '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"',
+        'DEPENDENCY_PREFIX="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"',
+        '--dependency-prefix "$DEPENDENCY_PREFIX"',
     )
     for marker in required:
         assert source.count(marker) == 1, marker
@@ -887,6 +896,18 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
     ]
     assert "os.readlink" not in source
     assert 're.fullmatch(r"[A-Z]", visibility["state"])' not in source
+    assert source.count("status --porcelain --untracked-files=all") == 3
+
+
+def _fixture_job_source(source: str, tmp_path: Path) -> str:
+    production = '"/scr/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX"'
+    assert source.count(production) == 1
+    fixture_root = (tmp_path / "dependency-scratch.XXXXXXXX").resolve()
+    return source.replace(
+        production,
+        f'"{fixture_root}"',
+        1,
+    )
 
 
 def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
@@ -908,9 +929,29 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         json.dumps(_policy_for_base(base), sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    gflags_source = (tmp_path / "gflags-source").resolve()
+    glog_source = (tmp_path / "glog-source").resolve()
+    gflags_source.mkdir()
+    glog_source.mkdir()
+    gflags_expected_head = "c" * 40
+    glog_expected_head = "d" * 40
+    pegasus_policy = repo / "tools/pegasus/policy.json"
+    pegasus_policy.parent.mkdir(parents=True, exist_ok=True)
+    pegasus_policy.write_text(
+        json.dumps({
+            "gflags_source_path": os.fspath(gflags_source),
+            "gflags_expected_head": gflags_expected_head,
+            "glog_source_path": os.fspath(glog_source),
+            "glog_expected_head": glog_expected_head,
+        }, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     job = repo / paired.JOB_RELATIVE_PATH
     job.parent.mkdir(parents=True, exist_ok=True)
-    job.write_text(JOB.read_text(encoding="utf-8"), encoding="utf-8")
+    job.write_text(
+        _fixture_job_source(JOB.read_text(encoding="utf-8"), tmp_path),
+        encoding="utf-8",
+    )
     job.chmod(JOB.stat().st_mode & 0o777)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -918,9 +959,18 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
     git_stub = bin_dir / "git"
     git_stub.write_text(
         "#!/bin/bash\n"
-        "if [[ \"$*\" == *\"rev-parse HEAD\"* ]]; then echo \"$FAKE_HEAD\"; exit 0; fi\n"
-        "if [[ \"$*\" == *\"status --porcelain\"* ]]; then "
-        "[[ \"${FAKE_DIRTY:-0}\" == 1 ]] && echo ' M tracked.py'; exit 0; fi\n"
+        "if [[ \"$*\" == *\"rev-parse HEAD\"* ]]; then\n"
+        "  if [[ \"$*\" == *\"gflags-source\"* ]]; then echo \"$FAKE_GFLAGS_HEAD\"; "
+        "elif [[ \"$*\" == *\"glog-source\"* ]]; then echo \"$FAKE_GLOG_HEAD\"; "
+        "else echo \"$FAKE_HEAD\"; fi; exit 0\n"
+        "fi\n"
+        "if [[ \"$*\" == *\"status --porcelain\"* ]]; then\n"
+        "  if [[ \"$*\" == *\"gflags-source\"* ]]; then "
+        "[[ \"${FAKE_GFLAGS_DIRTY:-0}\" == 1 ]] && echo ' M gflags.cc'; "
+        "elif [[ \"$*\" == *\"glog-source\"* ]]; then "
+        "[[ \"${FAKE_GLOG_DIRTY:-0}\" == 1 ]] && echo ' M glog.cc'; "
+        "elif [[ \"${FAKE_DIRTY:-0}\" == 1 ]]; then echo ' M tracked.py'; fi; exit 0\n"
+        "fi\n"
         "echo \"${FAKE_BLOB:-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}\"\n",
         encoding="utf-8",
     )
@@ -940,6 +990,14 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         encoding="utf-8",
     )
     hostname_stub.chmod(0o755)
+    cmake_stub = bin_dir / "cmake"
+    cmake_stub.write_text(
+        "#!/bin/bash\n"
+        "printf 'cmake %s\\n' \"$*\" >> \"$STUB_LOG\"\n"
+        "exit \"${FAKE_CMAKE_RC:-0}\"\n",
+        encoding="utf-8",
+    )
+    cmake_stub.chmod(0o755)
     python_stub_source = (
         "#!/bin/bash\n"
         "printf '%s\\n' \"$*\" >> \"$STUB_LOG\"\n"
@@ -947,6 +1005,8 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         "if [[ \"$1\" == '-' && \"$2\" == *.submission.json ]]; then "
         "exec /usr/bin/python3 \"$@\"; fi\n"
         "if [[ \"$1\" == '-' && \"$2\" == *qstat-f.stdout ]]; then "
+        "exec /usr/bin/python3 \"$@\"; fi\n"
+        "if [[ \"$1\" == '-' && \"$2\" == */tools/pegasus/policy.json ]]; then "
         "exec /usr/bin/python3 \"$@\"; fi\n"
         "if [[ \"$1\" == '-' && \"$2\" == *job-terminal.json ]]; then\n"
         "  [[ \"$STUB_MODE\" == writer-fail ]] && exit 9\n"
@@ -991,6 +1051,8 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         "IZANAGI_A1_COMPLETION_RECEIPT": os.fspath(completion),
         "IZANAGI_SUBMISSION_NONCE": attempt.name,
         "FAKE_HEAD": head,
+        "FAKE_GFLAGS_HEAD": gflags_expected_head,
+        "FAKE_GLOG_HEAD": glog_expected_head,
         "FAKE_DIRTY": "1" if dirty else "0",
         "STUB_LOG": os.fspath(log),
         "STUB_MODE": mode,
@@ -1074,7 +1136,76 @@ def test_production_job_narrow_stub_reaches_site_and_driver(tmp_path: Path) -> N
     completed, stderr = _run_shell_job(environment)
     assert completed.returncode == 0, stderr
     assert (attempt / "raw/tmp").is_dir()
-    assert paired.DRIVER_RELATIVE_PATH in log.read_text(encoding="utf-8")
+    logged = log.read_text(encoding="utf-8")
+    assert paired.DRIVER_RELATIVE_PATH in logged
+    assert "cmake -S " in logged and "gflags-source" in logged
+    assert "cmake --install " in logged
+    assert "-DCMAKE_PREFIX_PATH=" in logged
+    assert "--dependency-prefix " in logged
+    scratch_match = re.search(r" -B (\S+)/gflags-build(?:\s|$)", logged)
+    assert scratch_match is not None
+    assert not Path(scratch_match.group(1)).exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("FAKE_GFLAGS_DIRTY", "gflags working tree is dirty"),
+        ("FAKE_GLOG_DIRTY", "glog working tree is dirty"),
+    ],
+    ids=["gflags", "glog"],
+)
+def test_production_job_rejects_dirty_dependency_source(
+    tmp_path: Path, field: str, message: str
+) -> None:
+    environment, _, _ = _shell_fixture(tmp_path)
+    environment[field] = "1"
+    completed, stderr = _run_shell_job(environment)
+    assert completed.returncode == 2
+    assert message in stderr
+
+
+def test_production_job_rejects_dependency_source_head_mismatch_M28(
+    tmp_path: Path,
+) -> None:
+    environment, attempt, log = _shell_fixture(tmp_path)
+    environment["FAKE_GFLAGS_HEAD"] = "e" * 40
+    completed, stderr = _run_shell_job(environment)
+    assert completed.returncode == 2
+    assert stderr.splitlines() == [
+        "paper-story A-1 job refused: gflags source HEAD mismatch"
+    ]
+    assert (attempt / "raw/job-terminal.json").exists()
+    assert paired.DRIVER_RELATIVE_PATH not in log.read_text(encoding="utf-8")
+
+
+def test_production_job_does_not_remove_unowned_dependency_scratch(
+    tmp_path: Path,
+) -> None:
+    environment, _, _ = _shell_fixture(tmp_path)
+    existing = tmp_path / "preexisting-dependency-scratch"
+    existing.mkdir()
+    marker = existing / "owned-by-someone-else"
+    marker.write_text("keep\n", encoding="utf-8")
+    bin_dir = Path(environment["PATH"].split(":", 1)[0])
+    mktemp_stub = bin_dir / "mktemp"
+    mktemp_stub.write_text(
+        "#!/bin/bash\n"
+        "printf '%s\\n' \"$FAKE_EXISTING_DEPENDENCY_ROOT\"\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    mktemp_stub.chmod(0o755)
+    environment["FAKE_EXISTING_DEPENDENCY_ROOT"] = os.fspath(existing)
+
+    completed, stderr = _run_shell_job(environment)
+
+    assert completed.returncode == 2
+    assert stderr.splitlines() == [
+        "paper-story A-1 job refused: "
+        "dependency scratch root cannot be exclusive-created"
+    ]
+    assert marker.read_text(encoding="utf-8") == "keep\n"
 
 
 def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
@@ -1095,7 +1226,9 @@ def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
     positive_job = (
         Path(positive_env["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
     )
-    positive_job.write_text(source, encoding="utf-8")
+    positive_job.write_text(
+        _fixture_job_source(source, tmp_path / "positive"), encoding="utf-8"
+    )
     positive_job.chmod(0o755)
     completed, stderr = _run_shell_job(positive_env, job_path=positive_job)
     assert completed.returncode == 0, stderr
@@ -1121,7 +1254,9 @@ def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
     )
     mutant_env["PBS_JOBID"] = "0:12345.nqsv"
     mutant_job = Path(mutant_env["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
-    mutant_job.write_text(mutant, encoding="utf-8")
+    mutant_job.write_text(
+        _fixture_job_source(mutant, tmp_path / "mutant"), encoding="utf-8"
+    )
     mutant_job.chmod(0o755)
     completed, _ = _run_shell_job(mutant_env, job_path=mutant_job)
     assert completed.returncode == 27
