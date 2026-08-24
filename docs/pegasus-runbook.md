@@ -475,6 +475,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/mocc_trace_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/oracle_n_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/paper_story_a1_paired.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/paper_story_a2_certification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
 | `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t139_positive_control_probe.pbs` | `unknown` | `unmeasured probe artifact` |

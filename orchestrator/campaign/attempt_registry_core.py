@@ -38,6 +38,19 @@ _CORE_SEMANTIC_EVENTS = frozenset({
     "classification",
     "observation-start",
     "terminal",
+    "recovery",
+})
+_SCHEDULER_ACCOUNTING_RECEIPT_KEYS = frozenset({
+    "schema_version",
+    "event",
+    "source",
+    "scheduler_request_id",
+    "target_start_event_sha256",
+    "raw_scheduler_accounting_record_sha256",
+    "authority_id",
+    "authority_policy_sha256",
+    "failure_reason",
+    "collected_at",
 })
 
 
@@ -121,6 +134,37 @@ class RegistryLayout:
 
 
 @dataclass(frozen=True, slots=True)
+class RecoveryPolicy:
+    """Pinned authority contract for the common recovery semantic."""
+
+    receipt_schema_version: str
+    receipt_event: str
+    receipt_source: str
+    authority_id: str
+    authority_policy_sha256: str
+    failure_reasons: frozenset[str]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "failure_reasons", frozenset(self.failure_reasons))
+        for field in (
+            "receipt_schema_version", "receipt_event", "receipt_source",
+            "authority_id",
+        ):
+            _text(getattr(self, field), label=f"recovery policy.{field}")
+        _digest(
+            self.authority_policy_sha256,
+            label="recovery policy.authority_policy_sha256",
+        )
+        if not self.failure_reasons:
+            _fail(
+                "attempt-registry-profile",
+                "recovery policy failure_reasons must be non-empty",
+            )
+        for reason in self.failure_reasons:
+            _text(reason, label="recovery policy.failure_reason")
+
+
+@dataclass(frozen=True, slots=True)
 class TransitionPolicy(Generic[SlotT]):
     require_previous_terminal: bool
     forbid_retry_after_observation: bool
@@ -140,6 +184,7 @@ class DomainProfile(Generic[SlotT, BindingT]):
     slot_codec: SlotCodec[SlotT]
     binding_codec: BindingCodec[SlotT, BindingT]
     transition_policy: TransitionPolicy[SlotT]
+    recovery_policy: RecoveryPolicy | None = None
     process_identity_keys: frozenset[str] = _DEFAULT_PROCESS_IDENTITY_KEYS
     build_genesis_fields: Callable[
         [str, PurePosixPath, str], Mapping[str, Any]
@@ -159,6 +204,30 @@ def canonical_json_bytes(value: Any) -> bytes:
         raise AttemptRegistryCoreError(
             f"[json] value is not canonical JSON: {exc}"
         ) from exc
+
+
+def _recovery_policy_sha256(
+    profile: DomainProfile[Any, Any],
+) -> str | None:
+    policy = profile.recovery_policy
+    if policy is None:
+        return None
+    enabled = profile.transition_policy.allow_recovered_abandonment
+    if type(enabled) is not bool:
+        _fail(
+            "attempt-registry-profile",
+            "recovery policy enable flag is not boolean",
+        )
+    payload = {
+        "receipt_schema_version": policy.receipt_schema_version,
+        "receipt_event": policy.receipt_event,
+        "receipt_source": policy.receipt_source,
+        "authority_id": policy.authority_id,
+        "authority_policy_sha256": policy.authority_policy_sha256,
+        "failure_reasons": sorted(policy.failure_reasons),
+        "enabled": enabled,
+    }
+    return hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
 
 
 def event_sha256(row: Mapping[str, Any]) -> str:
@@ -241,6 +310,107 @@ def parse_process_identity(
         value.get("execution_uuid"), label=f"{label}.execution_uuid",
     )
     return {"pid": pid, "starttime": starttime, "execution_uuid": execution_uuid}
+
+
+def _recovery_comparison_identity(
+    identity: Mapping[str, Any],
+) -> RegistryRow:
+    starttime = identity["starttime"]
+    if type(starttime) is int:
+        comparison_starttime = str(starttime)
+    elif starttime.isascii() and starttime.isdecimal():
+        comparison_starttime = starttime.lstrip("0") or "0"
+    else:
+        comparison_starttime = starttime
+    return {
+        **dict(identity),
+        "starttime": comparison_starttime,
+    }
+
+
+def _parse_recovery_receipt(
+    value: object, *, profile: DomainProfile[Any, Any], label: str,
+) -> RegistryRow:
+    policy = profile.recovery_policy
+    if (
+        policy is None
+        or not profile.transition_policy.allow_recovered_abandonment
+    ):
+        _fail(
+            "attempt-recovery-evidence",
+            f"{label} is not enabled by the domain profile",
+        )
+    if type(value) is not dict:
+        _fail(
+            "attempt-recovery-evidence",
+            f"{label} is not a canonical object",
+        )
+    actual_keys = frozenset(value)
+    if actual_keys != _SCHEDULER_ACCOUNTING_RECEIPT_KEYS:
+        missing = sorted(_SCHEDULER_ACCOUNTING_RECEIPT_KEYS - actual_keys)
+        unknown = sorted(actual_keys - _SCHEDULER_ACCOUNTING_RECEIPT_KEYS)
+        _fail(
+            "attempt-recovery-evidence",
+            f"{label} key set differs: missing={missing}, unknown={unknown}",
+        )
+    exact_values = {
+        "schema_version": policy.receipt_schema_version,
+        "event": policy.receipt_event,
+        "source": policy.receipt_source,
+        "authority_id": policy.authority_id,
+        "authority_policy_sha256": policy.authority_policy_sha256,
+    }
+    for field, expected in exact_values.items():
+        if value.get(field) != expected:
+            _fail(
+                "attempt-recovery-evidence",
+                f"{label}.{field} differs from the pinned authority policy",
+            )
+    scheduler_request_id = value.get("scheduler_request_id")
+    if (
+        not isinstance(scheduler_request_id, str)
+        or not scheduler_request_id
+        or len(scheduler_request_id) > 256
+    ):
+        _fail(
+            "attempt-recovery-evidence",
+            f"{label}.scheduler_request_id is invalid",
+        )
+    for field in (
+        "target_start_event_sha256",
+        "raw_scheduler_accounting_record_sha256",
+        "authority_policy_sha256",
+    ):
+        field_value = value.get(field)
+        if (
+            not isinstance(field_value, str)
+            or _SHA256_RE.fullmatch(field_value) is None
+        ):
+            _fail(
+                "attempt-recovery-evidence",
+                f"{label}.{field} is not a SHA-256 digest",
+            )
+    reason = value.get("failure_reason")
+    if not isinstance(reason, str) or reason not in policy.failure_reasons:
+        _fail(
+            "attempt-recovery-evidence",
+            f"{label}.failure_reason is outside the exact closed set",
+        )
+    collected_at = value.get("collected_at")
+    if (
+        not isinstance(collected_at, str)
+        or not collected_at
+        or len(collected_at) > 256
+    ):
+        _fail(
+            "attempt-recovery-evidence",
+            f"{label}.collected_at is invalid",
+        )
+    return dict(value)
+
+
+def _recovery_receipt_sha256(receipt: Mapping[str, Any]) -> str:
+    return hashlib.sha256(canonical_json_bytes(receipt) + b"\n").hexdigest()
 
 
 def _exact_keys(
@@ -542,6 +712,17 @@ def _parse_genesis(
                 "attempt-registry-genesis",
                 f"{label}.max_consumptions_per_budget_key differs from the profile",
             )
+    if "recovery_policy_sha256" in expected:
+        recovery_policy_sha256 = _digest(
+            value.get("recovery_policy_sha256"),
+            label=f"{label}.recovery_policy_sha256",
+        )
+        if recovery_policy_sha256 != _recovery_policy_sha256(profile):
+            _fail(
+                "attempt-registry-genesis",
+                f"{label}.recovery_policy_sha256 differs from the current profile",
+            )
+        result["recovery_policy_sha256"] = recovery_policy_sha256
     raw_slots = value.get("slots")
     if not isinstance(raw_slots, list):
         _fail("attempt-registry-genesis", f"{label}.slots is not an array")
@@ -604,6 +785,55 @@ def _parse_row(
             label=f"{label}.classification_event_sha256",
         )
         return dict(value), None
+
+    if event == "recovery":
+        if "slot_id" in expected:
+            _text(value.get("slot_id"), label=f"{label}.slot_id")
+        binding = (
+            profile.binding_codec.parse(value, label=label)
+            if profile.binding_codec.event_keys <= expected else None
+        )
+        start_event_sha256 = _digest(
+            value.get("start_event_sha256"),
+            label=f"{label}.start_event_sha256",
+        )
+        receipt = _parse_recovery_receipt(
+            value.get("scheduler_accounting_receipt"),
+            profile=profile,
+            label=f"{label}.scheduler_accounting_receipt",
+        )
+        receipt_sha256 = _digest(
+            value.get("scheduler_accounting_receipt_sha256"),
+            label=f"{label}.scheduler_accounting_receipt_sha256",
+        )
+        if receipt_sha256 != _recovery_receipt_sha256(receipt):
+            _fail(
+                "attempt-recovery-evidence",
+                f"{label}.scheduler_accounting_receipt_sha256 differs "
+                "from the nested receipt",
+            )
+        reason = value.get("failure_reason")
+        if reason != receipt["failure_reason"]:
+            _fail(
+                "attempt-recovery-evidence",
+                f"{label}.failure_reason differs from the nested receipt",
+            )
+        recoverer_process_identity = parse_process_identity(
+            value.get("recoverer_process_identity"),
+            label=f"{label}.recoverer_process_identity",
+            exact_keys=profile.process_identity_keys,
+        )
+        recovered_at = _text(
+            value.get("recovered_at"), label=f"{label}.recovered_at",
+        )
+        return {
+            **dict(value),
+            "start_event_sha256": start_event_sha256,
+            "scheduler_accounting_receipt": receipt,
+            "scheduler_accounting_receipt_sha256": receipt_sha256,
+            "recoverer_process_identity": recoverer_process_identity,
+            "recovered_at": recovered_at,
+        }, binding
 
     if "slot_id" in expected:
         _text(value.get("slot_id"), label=f"{label}.slot_id")
@@ -777,6 +1007,7 @@ def assert_registry_rows(
     classifications: dict[Hashable, Mapping[str, Any]] = {}
     observations: dict[Hashable, Mapping[str, Any]] = {}
     terminals: dict[Hashable, Mapping[str, Any]] = {}
+    recoveries: dict[Hashable, Mapping[str, Any]] = {}
     binding_identity: Hashable | None = (
         profile.binding_codec.identity(genesis_binding)
         if genesis_binding is not None else None
@@ -841,7 +1072,7 @@ def assert_registry_rows(
 
         event = row["event"]
         if event == "start":
-            if slot_id in starts or slot_id in terminals:
+            if slot_id in starts or slot_id in terminals or slot_id in recoveries:
                 _fail("attempt-slot", "slot was reserved more than once")
             if row["schedule_row_sha256"] != profile.slot_codec.schedule_sha256(slot):
                 _fail(
@@ -858,29 +1089,33 @@ def assert_registry_rows(
                     == profile.slot_codec.series_key(slot)
                     and profile.slot_codec.attempt_ordinal(candidate) == ordinal - 1
                 ]
-                if (
-                    len(previous_slots) != 1
-                    or profile.slot_codec.slot_id(previous_slots[0]) not in terminals
-                ):
+                if len(previous_slots) != 1:
                     _fail(
                         "attempt-slot-order",
                         "only the next slot after a completed retryable failure may start",
                     )
-                previous_terminal = terminals[
-                    profile.slot_codec.slot_id(previous_slots[0])
-                ]
-                if previous_terminal["terminal_status"] != "retryable-failure":
+                previous_slot_id = profile.slot_codec.slot_id(previous_slots[0])
+                if previous_slot_id in terminals:
+                    previous_terminal = terminals[previous_slot_id]
+                    if previous_terminal["terminal_status"] != "retryable-failure":
+                        _fail(
+                            "attempt-slot-order",
+                            "a slot after a non-retryable outcome cannot be consumed",
+                        )
+                    if (
+                        policy.forbid_retry_after_observation
+                        and previous_terminal.get(
+                            "observation_start_event_sha256"
+                        ) is not None
+                    ):
+                        _fail(
+                            "attempt-slot-order",
+                            "a retryable failure after observation cannot authorize a retry",
+                        )
+                elif previous_slot_id not in recoveries:
                     _fail(
                         "attempt-slot-order",
-                        "a slot after a non-retryable outcome cannot be consumed",
-                    )
-                if (
-                    policy.forbid_retry_after_observation
-                    and previous_terminal.get("observation_start_event_sha256") is not None
-                ):
-                    _fail(
-                        "attempt-slot-order",
-                        "a retryable failure after observation cannot authorize a retry",
+                        "only the next slot after a completed retryable failure may start",
                     )
             if policy.budget_key is not None:
                 budget_key = policy.budget_key(slot)
@@ -894,6 +1129,11 @@ def assert_registry_rows(
                 started_budget_counts[budget_key] = count + 1
             starts[slot_id] = row
         elif event == "pre-observation-seal":
+            if slot_id in recoveries:
+                _fail(
+                    "attempt-recovery-order",
+                    "pre-observation seal follows verified recovery",
+                )
             if slot_id not in starts or slot_id in seals:
                 _fail(
                     "attempt-phase-order",
@@ -914,6 +1154,11 @@ def assert_registry_rows(
                 _fail("attempt-slot", "pre-observation seal process binding differs")
             seals[slot_id] = row
         elif event == "classification":
+            if slot_id in recoveries:
+                _fail(
+                    "attempt-recovery-order",
+                    "classification follows verified recovery",
+                )
             if slot_id not in starts or slot_id in classifications:
                 _fail(
                     "attempt-phase-order",
@@ -948,6 +1193,11 @@ def assert_registry_rows(
                     )
             classifications[slot_id] = row
         elif event == "observation-start":
+            if slot_id in recoveries:
+                _fail(
+                    "attempt-recovery-order",
+                    "observation-start follows verified recovery",
+                )
             if slot_id not in classifications or slot_id in observations:
                 _fail(
                     "attempt-phase-order",
@@ -963,6 +1213,11 @@ def assert_registry_rows(
                 )
             observations[slot_id] = row
         elif event == "terminal":
+            if slot_id in recoveries:
+                _fail(
+                    "attempt-recovery-order",
+                    "terminal follows verified recovery",
+                )
             if slot_id not in starts or slot_id not in classifications:
                 _fail(
                     "attempt-phase-order",
@@ -1033,6 +1288,42 @@ def assert_registry_rows(
                 label=f"attempt registry line {line_number}",
             )
             terminals[slot_id] = row
+        elif event == "recovery":
+            if slot_id not in starts:
+                _fail(
+                    "attempt-recovery-order",
+                    "recovery does not follow exactly one start",
+                )
+            if slot_id in terminals:
+                _fail(
+                    "attempt-recovery-order",
+                    "recovery follows terminal",
+                )
+            if slot_id in recoveries:
+                _fail(
+                    "attempt-recovery-order",
+                    "slot has more than one recovery row",
+                )
+            start = starts[slot_id]
+            receipt = row["scheduler_accounting_receipt"]
+            if row["start_event_sha256"] != start["event_sha256"]:
+                _fail(
+                    "attempt-recovery-fence",
+                    "recovery start-event hash differs from the slot start",
+                )
+            if receipt["target_start_event_sha256"] != start["event_sha256"]:
+                _fail(
+                    "attempt-recovery-evidence",
+                    "scheduler receipt targets a different start event",
+                )
+            if _recovery_comparison_identity(
+                row["recoverer_process_identity"]
+            ) == _recovery_comparison_identity(start["process_identity"]):
+                _fail(
+                    "attempt-recovery-fence",
+                    "recoverer process identity matches the start owner",
+                )
+            recoveries[slot_id] = row
         else:
             _fail(
                 "attempt-registry-semantic",
@@ -1148,6 +1439,14 @@ def create_attempt_registry_genesis(
         value["max_consumptions_per_budget_key"] = (
             profile.transition_policy.max_consumptions_per_budget_key
         )
+    if "recovery_policy_sha256" in keys:
+        recovery_policy_sha256 = _recovery_policy_sha256(profile)
+        if recovery_policy_sha256 is None:
+            _fail(
+                "attempt-registry-profile",
+                "genesis requires a recovery policy",
+            )
+        value["recovery_policy_sha256"] = recovery_policy_sha256
     if _is_chained_keys(keys):
         value = chained_event_row(
             value, event_index=0, previous_event_sha256=_ZERO_SHA256,
@@ -1336,6 +1635,15 @@ def classify_attempt(
     if capability_digest_sha256 != expected_capability:
         _fail("attempt-capability", "slot capability digest was replaced")
     if any(
+        row.get("event") == "recovery"
+        and _row_is_for_slot(row, slot=slot, profile=profile)
+        for row in checked
+    ):
+        _fail(
+            "attempt-recovery-order",
+            "classification follows verified recovery",
+        )
+    if any(
         row.get("event") == "classification"
         and _row_is_for_slot(row, slot=slot, profile=profile)
         for row in checked
@@ -1408,6 +1716,15 @@ def begin_attempt_observation(
     if _genesis_freeze_id(genesis, profile=profile, required=True) != freeze_id:
         _fail("attempt-binding", "observation freeze_id differs from genesis")
     slot = _slot_by_id(checked, profile=profile, slot_id=slot_id)
+    if any(
+        row.get("event") == "recovery"
+        and _row_is_for_slot(row, slot=slot, profile=profile)
+        for row in checked
+    ):
+        _fail(
+            "attempt-recovery-order",
+            "observation-start follows verified recovery",
+        )
     classifications = [
         row for row in checked
         if row.get("event") == "classification"
@@ -1460,6 +1777,15 @@ def record_attempt_terminal(
     if _genesis_freeze_id(genesis, profile=profile, required=True) != freeze_id:
         _fail("attempt-binding", "terminal freeze_id differs from genesis")
     slot = _slot_by_id(checked, profile=profile, slot_id=slot_id)
+    if any(
+        row.get("event") == "recovery"
+        and _row_is_for_slot(row, slot=slot, profile=profile)
+        for row in checked
+    ):
+        _fail(
+            "attempt-recovery-order",
+            "terminal follows verified recovery",
+        )
     if terminal_status not in profile.statuses:
         _fail("attempt-terminal", "terminal_status is outside the closed set")
     _digest(raw_output_sha256, label="raw_output_sha256")
@@ -1520,4 +1846,81 @@ def record_attempt_terminal(
     terminal = _append_event(checked, row_payload, profile=profile)
     return assert_registry_rows(
         tuple(checked) + (terminal,), profile=profile, expected_binding=binding,
+    )
+
+
+def record_attempt_recovery(
+    rows: Sequence[Mapping[str, Any]], *,
+    profile: DomainProfile[SlotT, BindingT], freeze_id: str,
+    slot_id: Hashable, binding: BindingT,
+    scheduler_accounting_receipt: Mapping[str, Any],
+    recoverer_process_identity: Mapping[str, Any], recovered_at: str,
+) -> RegistryRows:
+    """Close one abandoned slot with pinned scheduler-accounting evidence."""
+    checked = assert_registry_rows(
+        rows, profile=profile, expected_binding=binding,
+    )
+    genesis = checked[0]
+    if _genesis_freeze_id(genesis, profile=profile, required=True) != freeze_id:
+        _fail("attempt-binding", "recovery freeze_id differs from genesis")
+    slot = _slot_by_id(checked, profile=profile, slot_id=slot_id)
+    starts = [
+        row for row in checked
+        if row.get("event") == "start"
+        and _row_is_for_slot(row, slot=slot, profile=profile)
+    ]
+    if len(starts) != 1:
+        _fail(
+            "attempt-recovery-order",
+            "recovery requires exactly one start",
+        )
+    if any(
+        row.get("event") == "terminal"
+        and _row_is_for_slot(row, slot=slot, profile=profile)
+        for row in checked
+    ):
+        _fail("attempt-recovery-order", "recovery follows terminal")
+    if any(
+        row.get("event") == "recovery"
+        and _row_is_for_slot(row, slot=slot, profile=profile)
+        for row in checked
+    ):
+        _fail(
+            "attempt-recovery-order",
+            "slot has more than one recovery row",
+        )
+    receipt = _parse_recovery_receipt(
+        dict(scheduler_accounting_receipt),
+        profile=profile,
+        label="scheduler_accounting_receipt",
+    )
+    checked_recoverer = parse_process_identity(
+        dict(recoverer_process_identity),
+        label="recoverer_process_identity",
+        exact_keys=profile.process_identity_keys,
+    )
+    recovered_at = _text(recovered_at, label="recovered_at")
+    start = starts[0]
+    row_payload = _event_payload(
+        profile=profile,
+        genesis=genesis,
+        event="recovery",
+        slot=slot,
+        binding=binding,
+        fields={
+            "start_event_sha256": start["event_sha256"],
+            "scheduler_accounting_receipt": receipt,
+            "scheduler_accounting_receipt_sha256": (
+                _recovery_receipt_sha256(receipt)
+            ),
+            "failure_reason": receipt["failure_reason"],
+            "recoverer_process_identity": checked_recoverer,
+            "recovered_at": recovered_at,
+        },
+    )
+    recovery = _append_event(checked, row_payload, profile=profile)
+    return assert_registry_rows(
+        tuple(checked) + (recovery,),
+        profile=profile,
+        expected_binding=binding,
     )

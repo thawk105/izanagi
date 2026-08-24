@@ -2629,7 +2629,12 @@ def _preflight_run(
     if not args.repo_root.is_absolute():
         raise LaunchError("--repo-root は absolute path が必要")
     args.repo_root = args.repo_root.resolve()
-    args.authority_snapshot = snapshot_authority(args.repo_root)
+    args.authority_snapshot = snapshot_authority(
+        args.repo_root,
+        allow_mid_merge=(
+            args.stage == "author" and args.sandbox == "workspace-write"
+        ),
+    )
     derived = derive_launch(
         args.authority_snapshot, stage=args.stage, lane=args.lane
     )

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the independently reviewed masstree payload hash policy.
+"""Generate the independently reviewed masstree config policy.
 
 This is an administrative producer.  The floor runtime deliberately does not
 import this module: it only consumes the committed JSON and verifies the
@@ -19,7 +19,7 @@ import tempfile
 from typing import Any
 
 
-SCHEMA_VERSION = "s8b-floor-masstree-payload/v1"
+SCHEMA_VERSION = "s8b-floor-masstree-payload/v2"
 SOURCE_NAME = "masstree"
 PIN_RE = re.compile(r"[0-9a-f]{40}\Z")
 HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
@@ -78,6 +78,7 @@ def _git_environment() -> dict[str, str]:
         "GIT_CONFIG_SYSTEM": os.devnull,
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_TERMINAL_PROMPT": "0",
+        "GIT_OPTIONAL_LOCKS": "0",
     })
     return environment
 
@@ -102,9 +103,16 @@ def _verify_pinned_clean(source_dir: Path, pin: str) -> None:
     resolved = source_dir.resolve(strict=True)
     if source_dir.absolute() != resolved:
         raise RuntimeError(f"masstree source is not a canonical path: {source_dir}")
-    head = _run_git("-C", str(source_dir), "rev-parse", "--verify", "HEAD").strip()
+    head = _run_git(
+        "-c", "core.fsmonitor=", "-c", "core.hooksPath=",
+        "-c", "core.useReplaceRefs=false", "-C", str(source_dir),
+        "rev-parse", "--verify", "HEAD",
+    ).strip()
     status = _run_git(
-        "-C", str(source_dir), "status", "--porcelain", "--untracked-files=all",
+        "-c", "core.fsmonitor=", "-c", "core.hooksPath=",
+        "-c", "core.useReplaceRefs=false", "-C", str(source_dir),
+        "status", "--porcelain=v1", "--untracked-files=all",
+        "--ignored=matching", "--ignore-submodules=none",
     )
     if head != pin or status:
         raise RuntimeError(
@@ -116,13 +124,17 @@ def _verify_pinned_clean(source_dir: Path, pin: str) -> None:
 def _prepare_source(
         source_dir: Path | None, *, url: str, pin: str, work_dir: Path,
 ) -> Path:
+    clone_source = url
     if source_dir is not None:
         candidate = source_dir.expanduser().absolute()
         _verify_pinned_clean(candidate, pin)
-        return candidate
+        clone_source = str(candidate)
 
     clone_dir = work_dir / "masstree-src"
-    _run_git("clone", "--no-checkout", url, str(clone_dir))
+    _run_git(
+        "clone", "--no-hardlinks", "--no-checkout", clone_source,
+        str(clone_dir),
+    )
     _run_git("-C", str(clone_dir), "checkout", "--detach", pin)
     _verify_pinned_clean(clone_dir, pin)
     return clone_dir
@@ -146,58 +158,28 @@ def _sha256_file(path: Path) -> str:
     return value
 
 
-def _build_and_hash(source_dir: Path) -> tuple[str, str]:
-    """Mirror ThirdParty.cmake's masstree bootstrap without FetchContent I/O."""
+def _configure_and_hash(source_dir: Path) -> str:
+    """Run only masstree bootstrap/configure in the temporary clone."""
     bootstrap = source_dir / "bootstrap.sh"
     if bootstrap.is_symlink() or not bootstrap.is_file():
         raise RuntimeError(f"masstree bootstrap script is unavailable: {bootstrap}")
-    for tool in ("make", "ar", "ranlib"):
-        if not any(
-                (candidate_path := Path(candidate, tool)).is_file()
-                and os.access(candidate_path, os.X_OK)
-                for candidate in os.get_exec_path(os.environ)
-        ):
-            raise RuntimeError(f"required build tool is unavailable: {tool}")
 
     subprocess.run(["./bootstrap.sh"], cwd=str(source_dir), check=True)
     subprocess.run(
         ["./configure", "--disable-assertions"],
         cwd=str(source_dir), check=True,
     )
-    subprocess.run(
-        ["make", "-j", "CXXFLAGS=-g -W -Wall -O3 -fPIC"],
-        cwd=str(source_dir), check=True,
-    )
-    objects = [
-        "json.o", "string.o", "straccum.o", "str.o", "msgpack.o",
-        "clp.o", "kvrandom.o", "compiler.o", "memdebug.o", "kvthread.o",
-        "misc.o",
-    ]
-    subprocess.run(
-        ["ar", "cr", "libkohler_masstree_json.a", *objects],
-        cwd=str(source_dir), check=True,
-    )
-    subprocess.run(
-        ["ranlib", "libkohler_masstree_json.a"],
-        cwd=str(source_dir), check=True,
-    )
-
-    return (
-        _sha256_file(source_dir / "config.h"),
-        _sha256_file(source_dir / "libkohler_masstree_json.a"),
-    )
+    return _sha256_file(source_dir / "config.h")
 
 
-def _write_policy(path: Path, *, pin: str, config_sha256: str,
-                  archive_sha256: str) -> None:
-    if HASH_RE.fullmatch(config_sha256) is None or HASH_RE.fullmatch(archive_sha256) is None:
+def _write_policy(path: Path, *, pin: str, config_sha256: str) -> None:
+    if HASH_RE.fullmatch(config_sha256) is None:
         raise RuntimeError("generated artifact hash is invalid")
     document = {
         "schema_version": SCHEMA_VERSION,
         "name": SOURCE_NAME,
         "pin": pin,
         "config_sha256": config_sha256,
-        "archive_sha256": archive_sha256,
     }
     path = path.expanduser().absolute()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -223,7 +205,7 @@ def _write_policy(path: Path, *, pin: str, config_sha256: str,
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="generate the independent floor masstree payload hash policy",
+        description="generate the independent floor masstree config policy",
     )
     parser.add_argument(
         "--source-dir", type=Path, default=None,
@@ -254,10 +236,9 @@ def main(argv: list[str] | None = None) -> int:
             source_dir = _prepare_source(
                 args.source_dir, url=url, pin=pin, work_dir=work_dir,
             )
-            config_sha256, archive_sha256 = _build_and_hash(source_dir)
+            config_sha256 = _configure_and_hash(source_dir)
         _write_policy(
             output_path, pin=pin, config_sha256=config_sha256,
-            archive_sha256=archive_sha256,
         )
     except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
         print(f"generate_floor_masstree_payload_policy: {exc}", file=sys.stderr)

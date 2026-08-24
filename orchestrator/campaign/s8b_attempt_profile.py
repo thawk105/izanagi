@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Stage 5-A data vessel for the 8b floor attempt-registry domain."""
+"""Domain profile for the 8b floor attempt registry."""
 from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
@@ -11,6 +11,7 @@ from typing import Any, ClassVar, TypeAlias
 from .attempt_registry_core import (
     AttemptRegistryCoreError,
     DomainProfile,
+    RecoveryPolicy,
     RegistryLayout,
     SchemaProfile,
     SeriesKey,
@@ -19,6 +20,9 @@ from .attempt_registry_core import (
 
 
 S8B_ATTEMPT_REGISTRY_SCHEMA_VERSION = "s8b-floor-attempt-registry/v1"
+S8B_RECOVERY_RECEIPT_SCHEMA_VERSION = "scheduler-accounting-receipt/v1"
+S8B_RECOVERY_RECEIPT_EVENT = "scheduler-termination"
+S8B_RECOVERY_RECEIPT_SOURCE = "nqsv-qstat-accounting"
 
 S8BSlotIdentity: TypeAlias = tuple[str, str, int, int]
 S8BSeriesKey: TypeAlias = tuple[str, str, int]
@@ -280,11 +284,10 @@ _S8B_GENESIS_KEYS = frozenset({
     "root_path",
     "retryable_failure_reasons",
     "max_consumptions_per_budget_key",
+    "recovery_policy_sha256",
     "slots",
 }) | _BINDING_KEYS | _CHAIN_KEYS
 
-# This initial table intentionally contains exactly today's 8c v2 lifecycle
-# event names.  No recovery/adoption event is admitted in stage 5-A.
 _S8B_EVENT_KEYS = MappingProxyType({
     "start": (
         _COMMON_EVENT_KEYS
@@ -346,6 +349,19 @@ _S8B_EVENT_KEYS = MappingProxyType({
             "process_identity",
         })
     ),
+    "recovery": (
+        _COMMON_EVENT_KEYS
+        | _SLOT_IDENTITY_KEYS
+        | _BINDING_KEYS
+        | frozenset({
+            "start_event_sha256",
+            "scheduler_accounting_receipt",
+            "scheduler_accounting_receipt_sha256",
+            "failure_reason",
+            "recoverer_process_identity",
+            "recovered_at",
+        })
+    ),
 })
 
 S8B_SCHEMA_PROFILE = SchemaProfile(
@@ -376,8 +392,11 @@ S8B_ATTEMPT_STATUSES = (
     "not-consumed",
 )
 
-# TODO: 段 4 裁定 R-c によりユーザー裁定待ち。
 S8B_RETRYABLE_FAILURE_REASONS: frozenset[str] = frozenset()
+S8B_RECOVERY_FAILURE_REASONS: frozenset[str] = frozenset({
+    "node_failure",
+    "scheduler_external_interruption",
+})
 
 S8B_SLOT_CODEC = S8BSlotCodec()
 S8B_BINDING_CODEC = S8BBindingCodec()
@@ -399,12 +418,15 @@ def _s8b_freeze_id_from_genesis(genesis: Mapping[str, Any]) -> str:
 def make_s8b_domain_profile(
     *,
     max_consumptions_per_budget_key: int,
+    recovery_authority_id: str,
+    recovery_authority_policy_sha256: str,
 ) -> DomainProfile[S8BAttemptSlot, S8BAttemptBinding]:
-    """Bind one frozen cell-wide consumption cap to the immutable 8b data.
+    """Bind the 8b budget and pinned recovery authority to immutable data.
 
     The cap is required rather than guessed here because its value comes from
-    the frozen protocol.  Constructing the data does not wire any production
-    caller or implement a state transition.
+    the frozen protocol.  The authority inputs identify an already selected
+    policy; this factory does not implement its collector or any production
+    caller.
     """
 
     if (
@@ -425,13 +447,21 @@ def make_s8b_domain_profile(
         transition_policy=TransitionPolicy(
             require_previous_terminal=True,
             forbid_retry_after_observation=True,
-            allow_recovered_abandonment=False,
+            allow_recovered_abandonment=True,
             max_series_attempts=None,
             require_terminal_reason_equals_classification=True,
             budget_key=_s8b_budget_key,
             max_consumptions_per_budget_key=(
                 max_consumptions_per_budget_key
             ),
+        ),
+        recovery_policy=RecoveryPolicy(
+            receipt_schema_version=S8B_RECOVERY_RECEIPT_SCHEMA_VERSION,
+            receipt_event=S8B_RECOVERY_RECEIPT_EVENT,
+            receipt_source=S8B_RECOVERY_RECEIPT_SOURCE,
+            authority_id=recovery_authority_id,
+            authority_policy_sha256=recovery_authority_policy_sha256,
+            failure_reasons=S8B_RECOVERY_FAILURE_REASONS,
         ),
         freeze_id_from_genesis=_s8b_freeze_id_from_genesis,
     )

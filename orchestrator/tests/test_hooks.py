@@ -2584,6 +2584,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/mocc_trace_pilot.sh": "dispatch-required",
     "tools/pegasus/oracle_n_pilot.sh": "dispatch-required",
     "tools/pegasus/paper_story_a1_paired.sh": "dispatch-required",
+    "tools/pegasus/paper_story_a2_certification.sh": "dispatch-required",
     "tools/pegasus/probes/t139_positive_control_probe.pbs": "unknown",
     "tools/pegasus/probes/t139_positive_control_probe.sh": "unknown",
     "tools/pegasus/probes/t139_r4_env_probe.pbs": "dispatch-required",
@@ -2704,6 +2705,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
     "tools/pegasus/paper_story_a1_paired.sh": {
         "class": "dispatch-required",
         "reason": "PBS paper-story A-1 paired measurement job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/paper_story_a2_certification.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS paper-story A-2 certification job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },

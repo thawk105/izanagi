@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +25,7 @@ _REVIEW_SECTION = "DW-S06-A"
 _FOCUS_SECTION = "DW-S06-C"
 _AUTHOR_SECTION = "DW-S05-A"
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
+_MERGE_HEAD_MAX_BYTES = 4096
 _FENCE_OPEN_RE = re.compile(
     r"^(?P<indent>[ \t]{0,3})(?P<marker>`{3,}|~{3,})(?P<info>.*)$"
 )
@@ -388,6 +391,78 @@ def _resolve_commit(repo_root: Path, commit: str | None) -> str:
     return resolved
 
 
+def _healthy_two_parent_merge(repo_root: Path) -> bool:
+    """worktree 固有の物理 MERGE_HEAD を厳格に検証する。"""
+
+    raw_git_dir = str(
+        _git(repo_root, ["rev-parse", "--absolute-git-dir"], text=True)
+    ).rstrip("\r\n")
+    if not raw_git_dir or "\n" in raw_git_dir or "\r" in raw_git_dir:
+        raise AuthorityError("worktree git-dir が不正")
+    git_dir = Path(raw_git_dir)
+    if not git_dir.is_absolute():
+        raise AuthorityError("worktree git-dir が absolute path ではない")
+    merge_head = git_dir / "MERGE_HEAD"
+    flags = (
+        os.O_RDONLY
+        | os.O_NOFOLLOW
+        | os.O_CLOEXEC
+        | os.O_NONBLOCK
+    )
+    try:
+        fd = os.open(merge_head, flags)
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        if exc.errno in (errno.ELOOP, errno.ENOTDIR):
+            raise AuthorityError("MERGE_HEAD が regular file ではない") from exc
+        raise AuthorityError("MERGE_HEAD を開けない") from exc
+    try:
+        try:
+            metadata = os.fstat(fd)
+        except OSError as exc:
+            raise AuthorityError("MERGE_HEAD を fstat できない") from exc
+        if not stat.S_ISREG(metadata.st_mode):
+            raise AuthorityError("MERGE_HEAD が regular file ではない")
+        if metadata.st_size > _MERGE_HEAD_MAX_BYTES:
+            raise AuthorityError("MERGE_HEAD がサイズ上限を超える")
+        chunks: list[bytes] = []
+        remaining = _MERGE_HEAD_MAX_BYTES + 1
+        try:
+            while remaining:
+                chunk = os.read(fd, remaining)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+        except OSError as exc:
+            raise AuthorityError("MERGE_HEAD を読めない") from exc
+        raw = b"".join(chunks)
+        if len(raw) > _MERGE_HEAD_MAX_BYTES:
+            raise AuthorityError("MERGE_HEAD がサイズ上限を超える")
+    finally:
+        os.close(fd)
+    try:
+        lines = raw.decode("ascii").splitlines()
+    except UnicodeDecodeError as exc:
+        raise AuthorityError("MERGE_HEAD が hex40 ではない") from exc
+    if (
+        len(lines) != 1
+        or any(_COMMIT_RE.fullmatch(line) is None for line in lines)
+    ):
+        raise AuthorityError("MERGE_HEAD は一意な commit OID 1 行ではない")
+    object_type = str(
+        _git(
+            repo_root,
+            ["--no-replace-objects", "cat-file", "-t", lines[0]],
+            text=True,
+        )
+    ).strip()
+    if object_type != "commit":
+        raise AuthorityError("MERGE_HEAD OID が commit object ではない")
+    return True
+
+
 def _documents_at_commit(repo_root: Path, commit: str) -> dict[str, bytes]:
     return {
         path: bytes(_git(repo_root, ["show", f"{commit}:{path}"]))
@@ -417,7 +492,10 @@ def _aggregate_digest(commit: str, sections: Sequence[AuthoritySection]) -> str:
 
 
 def snapshot_authority(
-    repo_root: Path, *, commit: str | None = None
+    repo_root: Path,
+    *,
+    commit: str | None = None,
+    allow_mid_merge: bool = False,
 ) -> AuthoritySnapshot:
     """commit の docs blob を読み、live 使用時は working tree と byte 比較する。"""
 
@@ -425,13 +503,19 @@ def snapshot_authority(
     resolved = _resolve_commit(root, commit)
     raw_documents = _documents_at_commit(root, resolved)
     if commit is None:
-        for path, committed in raw_documents.items():
-            try:
-                working = (root / path).read_bytes()
-            except OSError as exc:
-                raise AuthorityError(f"{path}: working tree を読めない") from exc
-            if working != committed:
-                raise AuthorityError(f"{path}: working tree が authority commit と異なる")
+        mid_merge_admitted = (
+            allow_mid_merge and _healthy_two_parent_merge(root)
+        )
+        if not mid_merge_admitted:
+            for path, committed in raw_documents.items():
+                try:
+                    working = (root / path).read_bytes()
+                except OSError as exc:
+                    raise AuthorityError(f"{path}: working tree を読めない") from exc
+                if working != committed:
+                    raise AuthorityError(
+                        f"{path}: working tree が authority commit と異なる"
+                    )
     documents = _decode_documents(raw_documents)
     model_section = _one_section(documents, _AUTHORITY_PATHS[0], _MODEL_SECTION)
     review_section = _one_section(documents, _AUTHORITY_PATHS[1], _REVIEW_SECTION)
