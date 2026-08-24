@@ -2514,6 +2514,241 @@ def load_attempt_registry(
     return rows
 
 
+def _assert_locked_attempt_registry_identity(
+    *,
+    repository_root: Path,
+    relative_path: Path,
+    parent_fd: int,
+    registry_fd: int,
+    phase: str,
+) -> os.stat_result:
+    """Require held parent/file descriptors to remain canonical by name."""
+    rebound_parent_fd = _open_registry_parent(
+        repository_root, relative_path.parent, create=False,
+    )
+    try:
+        held_parent = os.fstat(parent_fd)
+        rebound_parent = os.fstat(rebound_parent_fd)
+        if (
+            held_parent.st_dev,
+            held_parent.st_ino,
+        ) != (
+            rebound_parent.st_dev,
+            rebound_parent.st_ino,
+        ):
+            _fail(
+                "attempt-registry-path",
+                f"attempt registry parent changed {phase}",
+            )
+    finally:
+        os.close(rebound_parent_fd)
+
+    info = os.fstat(registry_fd)
+    if not stat.S_ISREG(info.st_mode):
+        _fail(
+            "attempt-registry-path",
+            f"attempt registry is not a regular file {phase}",
+        )
+    try:
+        rebound = os.stat(
+            relative_path.name,
+            dir_fd=parent_fd,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        _fail(
+            "attempt-registry-path",
+            f"attempt registry path disappeared {phase}",
+        )
+    if not stat.S_ISREG(rebound.st_mode):
+        _fail(
+            "attempt-registry-path",
+            f"attempt registry path is not a regular file {phase}",
+        )
+    if (rebound.st_dev, rebound.st_ino) != (info.st_dev, info.st_ino):
+        _fail(
+            "attempt-registry-path",
+            f"attempt registry path changed {phase}",
+        )
+    return info
+
+
+def _read_locked_attempt_registry_fd(
+    fd: int,
+    *,
+    size: int,
+    gate: str,
+) -> bytes:
+    current = bytearray()
+    offset = 0
+    while offset < size:
+        chunk = os.pread(fd, min(1024 * 1024, size - offset), offset)
+        if not chunk:
+            _fail(gate, "attempt registry read stopped early")
+        current.extend(chunk)
+        offset += len(chunk)
+    return bytes(current)
+
+
+def _attempt_registry_stat_identity(info: os.stat_result) -> tuple[int, ...]:
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_size,
+        info.st_mtime_ns,
+    )
+
+
+class _LockedAttemptRegistrySnapshot:
+    """A canonical shared-lock snapshot retained through receipt publication."""
+
+    def __init__(
+        self,
+        *,
+        repository_root: Path,
+        relative_path: Path,
+        parent_fd: int,
+        registry_fd: int,
+        info: os.stat_result,
+        data: bytes,
+    ) -> None:
+        self.repository_root = repository_root
+        self.relative_path = relative_path
+        self.parent_fd = parent_fd
+        self.registry_fd = registry_fd
+        self.identity = _attempt_registry_stat_identity(info)
+        self.data = data
+        self.closed = False
+
+    def validate(self) -> None:
+        if self.closed:
+            _fail("attempt-acceptance", "attempt registry snapshot lock is closed")
+        before = _assert_locked_attempt_registry_identity(
+            repository_root=self.repository_root,
+            relative_path=self.relative_path,
+            parent_fd=self.parent_fd,
+            registry_fd=self.registry_fd,
+            phase="during formal acceptance",
+        )
+        current = _read_locked_attempt_registry_fd(
+            self.registry_fd,
+            size=before.st_size,
+            gate="attempt-acceptance",
+        )
+        after = os.fstat(self.registry_fd)
+        if (
+            _attempt_registry_stat_identity(before)
+            != _attempt_registry_stat_identity(after)
+            or _attempt_registry_stat_identity(after) != self.identity
+            or current != self.data
+        ):
+            _fail(
+                "attempt-acceptance",
+                "attempt registry snapshot changed during formal acceptance",
+            )
+        _assert_locked_attempt_registry_identity(
+            repository_root=self.repository_root,
+            relative_path=self.relative_path,
+            parent_fd=self.parent_fd,
+            registry_fd=self.registry_fd,
+            phase="during formal acceptance",
+        )
+
+    def assert_rows(self, rows: Sequence[Mapping[str, Any]]) -> None:
+        self.validate()
+        replayed = b"".join(
+            _canonical_json_bytes(row) + b"\n" for row in rows
+        )
+        if replayed != self.data:
+            _fail(
+                "attempt-acceptance",
+                "strict rows differ from the locked attempt registry snapshot",
+            )
+
+    def close(self) -> None:
+        if self.closed:
+            return
+        self.closed = True
+        os.close(self.registry_fd)
+        os.close(self.parent_fd)
+
+
+def _open_locked_attempt_registry_snapshot(
+    *,
+    repository_root: Path,
+    registry_path: Path,
+) -> _LockedAttemptRegistrySnapshot:
+    """Open the updater's flock target and retain one shared snapshot."""
+    root = _repository_root(repository_root)
+    target, relative_path, relative = _attempt_registry_target(
+        root, registry_path, create_parent=False,
+    )
+    if not target.exists() or target.is_symlink():
+        _fail("attempt-registry-path", "attempt registry genesis is absent")
+    history_tip = _assert_attempt_registry_history_append_only(
+        repository_root=root,
+        relative_path=relative,
+    )
+    parent_fd = _open_registry_parent(root, relative_path.parent, create=False)
+    registry_fd: int | None = None
+    try:
+        flags = os.O_RDONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        registry_fd = os.open(
+            relative_path.name,
+            flags,
+            dir_fd=parent_fd,
+        )
+        fcntl.flock(registry_fd, fcntl.LOCK_SH)
+        before = _assert_locked_attempt_registry_identity(
+            repository_root=root,
+            relative_path=relative_path,
+            parent_fd=parent_fd,
+            registry_fd=registry_fd,
+            phase="after shared lock",
+        )
+        data = _read_locked_attempt_registry_fd(
+            registry_fd,
+            size=before.st_size,
+            gate="attempt-acceptance",
+        )
+        after = os.fstat(registry_fd)
+        if _attempt_registry_stat_identity(before) != (
+            _attempt_registry_stat_identity(after)
+        ):
+            _fail(
+                "attempt-acceptance",
+                "attempt registry changed during locked snapshot read",
+            )
+        _assert_locked_attempt_registry_identity(
+            repository_root=root,
+            relative_path=relative_path,
+            parent_fd=parent_fd,
+            registry_fd=registry_fd,
+            phase="after shared snapshot read",
+        )
+        if history_tip is not None and not data.startswith(history_tip):
+            _fail(
+                "attempt-registry-history",
+                "working attempt registry changed under shared lock",
+            )
+        _load_attempt_registry_bytes(data, label="locked attempt registry snapshot")
+        return _LockedAttemptRegistrySnapshot(
+            repository_root=root,
+            relative_path=relative_path,
+            parent_fd=parent_fd,
+            registry_fd=registry_fd,
+            info=after,
+            data=data,
+        )
+    except BaseException:
+        if registry_fd is not None:
+            os.close(registry_fd)
+        os.close(parent_fd)
+        raise
+
+
 def _locked_attempt_registry_update(
     *,
     repository_root: Path,
@@ -2538,33 +2773,93 @@ def _locked_attempt_registry_update(
         fd = os.open(relative_path.name, flags, dir_fd=parent_fd)
         try:
             fcntl.flock(fd, fcntl.LOCK_EX)
-            info = os.fstat(fd)
-            if not stat.S_ISREG(info.st_mode):
-                _fail("attempt-registry-path", "attempt registry is not a regular file")
-            current = bytearray()
-            offset = 0
-            while offset < info.st_size:
-                chunk = os.pread(fd, min(1024 * 1024, info.st_size - offset), offset)
-                if not chunk:
-                    _fail("attempt-registry-read", "attempt registry read stopped early")
-                current.extend(chunk)
-                offset += len(chunk)
-            current_bytes = bytes(current)
+            info = _assert_locked_attempt_registry_identity(
+                repository_root=root,
+                relative_path=relative_path,
+                parent_fd=parent_fd,
+                registry_fd=fd,
+                phase="after exclusive lock",
+            )
+            current_bytes = _read_locked_attempt_registry_fd(
+                fd,
+                size=info.st_size,
+                gate="attempt-registry-read",
+            )
+            after_read = os.fstat(fd)
+            if _attempt_registry_stat_identity(info) != (
+                _attempt_registry_stat_identity(after_read)
+            ):
+                _fail(
+                    "attempt-registry-read",
+                    "attempt registry changed during locked read",
+                )
+            _assert_locked_attempt_registry_identity(
+                repository_root=root,
+                relative_path=relative_path,
+                parent_fd=parent_fd,
+                registry_fd=fd,
+                phase="after locked read",
+            )
             rows = _load_attempt_registry_bytes(current_bytes)
             if history_tip is not None and not current_bytes.startswith(history_tip):
                 _fail("attempt-registry-history", "working attempt registry changed under lock")
             payload, result = update(rows)
+            before_append = _assert_locked_attempt_registry_identity(
+                repository_root=root,
+                relative_path=relative_path,
+                parent_fd=parent_fd,
+                registry_fd=fd,
+                phase="after locked update",
+            )
+            if _attempt_registry_stat_identity(before_append) != (
+                _attempt_registry_stat_identity(after_read)
+            ):
+                _fail(
+                    "attempt-registry-read",
+                    "attempt registry changed during locked update",
+                )
             if payload is not None:
                 candidate = current_bytes + payload
                 _load_attempt_registry_bytes(candidate, label="attempt registry append")
+                _assert_locked_attempt_registry_identity(
+                    repository_root=root,
+                    relative_path=relative_path,
+                    parent_fd=parent_fd,
+                    registry_fd=fd,
+                    phase="before locked append",
+                )
                 view = memoryview(payload)
                 while view:
                     written = os.write(fd, view)
                     if written <= 0:
                         raise OSError("attempt registry append did not advance")
                     view = view[written:]
+                appended = _assert_locked_attempt_registry_identity(
+                    repository_root=root,
+                    relative_path=relative_path,
+                    parent_fd=parent_fd,
+                    registry_fd=fd,
+                    phase="after locked append",
+                )
+                if appended.st_size != after_read.st_size + len(payload):
+                    _fail(
+                        "attempt-registry-io",
+                        "attempt registry size differs after locked append",
+                    )
                 os.fsync(fd)
                 os.fsync(parent_fd)
+                synced = _assert_locked_attempt_registry_identity(
+                    repository_root=root,
+                    relative_path=relative_path,
+                    parent_fd=parent_fd,
+                    registry_fd=fd,
+                    phase="after locked append fsync",
+                )
+                if synced.st_size != appended.st_size:
+                    _fail(
+                        "attempt-registry-io",
+                        "attempt registry size changed after locked append fsync",
+                    )
             return result
         finally:
             os.close(fd)
@@ -4973,6 +5268,7 @@ def _exclusive_create_acceptance_receipt(
     repository_root: Path,
     manifest_sha256: str,
     value: Mapping[str, Any],
+    publication_guard=None,
 ) -> tuple[str, str]:
     relative_path = Path(
         s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR.as_posix()
@@ -4985,6 +5281,8 @@ def _exclusive_create_acceptance_receipt(
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     try:
+        if publication_guard is not None:
+            publication_guard()
         try:
             fd = os.open(relative_path.name, flags, 0o644, dir_fd=parent_fd)
         except FileExistsError as exc:
@@ -5002,6 +5300,19 @@ def _exclusive_create_acceptance_receipt(
             os.fsync(parent_fd)
         finally:
             os.close(fd)
+        if publication_guard is not None:
+            try:
+                publication_guard()
+            except BaseException:
+                try:
+                    os.unlink(relative_path.name, dir_fd=parent_fd)
+                    os.fsync(parent_fd)
+                except OSError as cleanup_error:
+                    raise TrialRegistryError(
+                        "[receipt-cleanup] invalidated acceptance receipt "
+                        f"cannot be removed: {cleanup_error}"
+                    ) from cleanup_error
+                raise
     except TrialRegistryError:
         raise
     except OSError as exc:
@@ -5071,6 +5382,7 @@ def assert_trial_registry_acceptance(
     if effective_binding.prereg_content_commit != registration.prereg_content_commit:
         _fail("registration-binding", "registry P differs from effective binding")
     loaded: list[_LoadedReport] = []
+    attempt_snapshot: _LockedAttemptRegistrySnapshot | None = None
     try:
         for path in report_paths:
             loaded.append(_read_report_and_journal(Path(path)))
@@ -5431,6 +5743,10 @@ def assert_trial_registry_acceptance(
         accepted.sort(key=lambda accepted_trial: accepted_trial.trial_id)
         accepted_by_id = {item.trial_id: item for item in accepted}
         loaded_by_id = {item.report["trial_id"]: item for item in loaded}
+        attempt_snapshot = _open_locked_attempt_registry_snapshot(
+            repository_root=root,
+            registry_path=DEFAULT_ATTEMPT_REGISTRY_PATH,
+        )
         attempt_rows = assert_formal_attempt_registry_acceptance(
             repository_root=root,
             manifest_path=Path(manifest_path),
@@ -5439,6 +5755,7 @@ def assert_trial_registry_acceptance(
             effective_commit=registration.prereg_effective_commit,
             report_paths=report_paths,
         )
+        attempt_snapshot.assert_rows(attempt_rows)
         lifecycle_bytes, lifecycle_relative = _receipt_lifecycle_snapshot(
             repository_root=root,
             lifecycle_path=Path(lifecycle_path),
@@ -5554,6 +5871,7 @@ def assert_trial_registry_acceptance(
             repository_root=root,
             manifest_sha256=manifest.sha256,
             value=receipt_value,
+            publication_guard=attempt_snapshot.validate,
         )
         return AcceptanceSummary(
             manifest_sha256=manifest.sha256,
@@ -5562,6 +5880,8 @@ def assert_trial_registry_acceptance(
             receipt_sha256=receipt_sha256,
         )
     finally:
+        if attempt_snapshot is not None:
+            attempt_snapshot.close()
         for item in loaded:
             item.close()
 

@@ -11,6 +11,7 @@ import os
 import stat
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -6297,6 +6298,95 @@ def _attempt_report_for_acceptance(
     return report_path, binding
 
 
+def test_formal_reserve_rejects_target_inode_rebind_before_append(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _manifest_path, _manifest, registry, p, c, freeze, slots = (
+        _attempt_fixture(tmp_path)
+    )
+    before = registry.read_bytes()
+    detached = registry.with_name("detached-attempt-registry.jsonl")
+    original_flock = R.fcntl.flock
+    replaced = False
+
+    def replace_target_after_lock(fd: int, operation: int) -> None:
+        nonlocal replaced
+        original_flock(fd, operation)
+        if replaced:
+            return
+        os.link(registry, detached)
+        replacement = registry.with_name("replacement-attempt-registry.jsonl")
+        replacement.write_bytes(before)
+        os.replace(replacement, registry)
+        replaced = True
+
+    monkeypatch.setattr(R.fcntl, "flock", replace_target_after_lock)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"attempt registry path changed after exclusive lock",
+    ):
+        _reserve_formal_attempt(repo, registry, p, c, freeze, slots[0])
+
+    assert replaced is True
+    assert registry.read_bytes() == before
+    assert detached.read_bytes() == before
+
+
+def test_formal_terminal_rejects_parent_inode_rebind_before_append(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, _manifest_path, _manifest, registry, p, c, freeze, slots = (
+        _attempt_fixture(tmp_path)
+    )
+    capability = _reserve_formal_attempt(
+        repo, registry, p, c, freeze, slots[0]
+    )
+    R.classify_attempt(
+        capability,
+        pre_observation_failure_reason=None,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    before = registry.read_bytes()
+    original_parent = registry.parent
+    detached_parent = tmp_path / "detached-attempt-parent"
+    original_flock = R.fcntl.flock
+    replaced = False
+
+    def replace_parent_after_lock(fd: int, operation: int) -> None:
+        nonlocal replaced
+        original_flock(fd, operation)
+        if replaced:
+            return
+        original_parent.rename(detached_parent)
+        original_parent.mkdir(parents=True)
+        registry.write_bytes(before)
+        replaced = True
+
+    monkeypatch.setattr(R.fcntl, "flock", replace_parent_after_lock)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"attempt registry parent changed after exclusive lock",
+    ):
+        R.record_formal_attempt_terminal(
+            capability,
+            terminal_status="not-consumed",
+            raw_output_sha256="c" * 64,
+            report_sha256=None,
+            observation_sha256=None,
+            primary_value=None,
+            finished_at="2026-08-18T00:00:02+00:00",
+        )
+
+    assert replaced is True
+    assert registry.read_bytes() == before
+    assert (detached_parent / registry.name).read_bytes() == before
+
+
 def test_formal_reserve_rejects_compat_mismatch_prefix_without_append(
     tmp_path: Path,
 ) -> None:
@@ -6471,6 +6561,220 @@ def test_formal_acceptance_rejects_mismatch_that_legacy_accepts(
             effective_binding=binding,
             effective_commit=c,
         )
+
+
+def test_high_level_acceptance_routes_mismatch_to_formal_once_without_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
+    capability = _effective_capability(manifest, monkeypatch)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    attempt_registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    rows = [
+        json.loads(line)
+        for line in attempt_registry.read_text(encoding="utf-8").splitlines()
+    ]
+    terminal = rows[-1]
+    assert terminal.get("event") == "terminal"
+    terminal["failure_reason"] = "different-producer-failure"
+    _rewrite_attempt_rows(attempt_registry, rows)
+
+    original_formal = R.assert_formal_attempt_registry_acceptance
+    formal_calls = 0
+
+    def observe_formal(**kwargs):
+        nonlocal formal_calls
+        formal_calls += 1
+        return original_formal(**kwargs)
+
+    def reject_compat(**_kwargs):
+        pytest.fail("high-level acceptance reached the compatibility facade")
+
+    monkeypatch.setattr(
+        R, "assert_formal_attempt_registry_acceptance", observe_formal,
+    )
+    monkeypatch.setattr(R, "assert_attempt_registry_acceptance", reject_compat)
+    receipt = (
+        repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
+        / f"{manifest.sha256}.json"
+    )
+
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"terminal failure reason differs from classification",
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+    assert formal_calls == 1
+    assert not receipt.exists()
+
+
+@pytest.mark.parametrize(
+    ("replacement", "identity_label"),
+    [("target", "path"), ("parent", "parent")],
+)
+def test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement: str,
+    identity_label: str,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
+    capability = _effective_capability(manifest, monkeypatch)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    attempt_registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    before = attempt_registry.read_bytes()
+    original_formal = R.assert_formal_attempt_registry_acceptance
+    replaced = False
+
+    def rebind_after_strict_replay(**kwargs):
+        nonlocal replaced
+        rows = original_formal(**kwargs)
+        if replacement == "target":
+            candidate = attempt_registry.with_name("replacement.jsonl")
+            candidate.write_bytes(before)
+            os.replace(candidate, attempt_registry)
+        else:
+            original_parent = attempt_registry.parent
+            moved_parent = original_parent.with_name(
+                original_parent.name + "-detached"
+            )
+            original_parent.rename(moved_parent)
+            original_parent.mkdir(parents=True)
+            attempt_registry.write_bytes(before)
+        replaced = True
+        return rows
+
+    monkeypatch.setattr(
+        R,
+        "assert_formal_attempt_registry_acceptance",
+        rebind_after_strict_replay,
+    )
+    receipt = (
+        repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
+        / f"{manifest.sha256}.json"
+    )
+
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=rf"attempt registry {identity_label} changed during formal acceptance",
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+    assert replaced is True
+    assert not receipt.exists()
+
+
+def test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
+    capability = _effective_capability(manifest, monkeypatch)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    attempt_registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+    attempt_rows = R.load_attempt_registry(repo)
+    genesis = attempt_rows[0]
+    slot = genesis["slots"][0]
+    content_commit, effective_commit = _fixture_registration_commits(
+        repo, manifest,
+    )
+    writer_started = threading.Event()
+    writer_lock_attempted = threading.Event()
+    writer_done = threading.Event()
+    writer_errors: list[BaseException] = []
+    writer_thread_ids: set[int] = set()
+    threads: list[threading.Thread] = []
+    original_flock = R.fcntl.flock
+    original_receipt = R._exclusive_create_acceptance_receipt
+
+    def observe_flock(fd: int, operation: int) -> None:
+        if (
+            threading.get_ident() in writer_thread_ids
+            and operation == R.fcntl.LOCK_EX
+        ):
+            writer_lock_attempted.set()
+        original_flock(fd, operation)
+
+    def compat_writer() -> None:
+        writer_thread_ids.add(threading.get_ident())
+        writer_started.set()
+        try:
+            R.reserve_attempt_slot(
+                repository_root=repo,
+                registry_path=attempt_registry,
+                freeze_id=genesis["freeze_id"],
+                slot_id=slot["slot_id"],
+                prereg_content_commit=content_commit,
+                prereg_effective_commit=effective_commit,
+                run_start_receipt_sha256="f" * 64,
+                process_identity={
+                    "pid": 404,
+                    "starttime": "blocked-compat-writer",
+                    "execution_uuid": "blocked-compat-writer",
+                },
+                started_at="2026-08-18T00:00:03+00:00",
+            )
+        except BaseException as exc:
+            writer_errors.append(exc)
+        finally:
+            writer_done.set()
+
+    def observe_receipt(**kwargs):
+        thread = threading.Thread(target=compat_writer)
+        threads.append(thread)
+        thread.start()
+        assert writer_started.wait(2.0)
+        assert writer_lock_attempted.wait(2.0)
+        assert not writer_done.wait(0.1)
+        result = original_receipt(**kwargs)
+        assert not writer_done.is_set()
+        return result
+
+    monkeypatch.setattr(R.fcntl, "flock", observe_flock)
+    monkeypatch.setattr(
+        R, "_exclusive_create_acceptance_receipt", observe_receipt,
+    )
+
+    summary = R.assert_trial_registry_acceptance(
+        effective_preregistration=capability,
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+    )
+    assert (repo / summary.receipt_path).is_file()
+    assert len(threads) == 1
+    threads[0].join(timeout=2.0)
+    assert writer_done.is_set()
+    assert len(writer_errors) == 1
+    assert isinstance(writer_errors[0], R.TrialRegistryError)
+    assert "slot was already reserved" in str(writer_errors[0])
 
 
 def test_attempt_registry_accepts_correct_formal_slot_consumption(

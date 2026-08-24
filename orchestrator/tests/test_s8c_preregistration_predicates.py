@@ -224,7 +224,7 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
             core.PredicateStatus.EVIDENCE_UNDEFINED,
             "completion-proof-not-machine-checkable",
         ),
-        "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
+        "C03": (core.PredicateStatus.UNSATISFIED, "manifest-registry-proof-undefined"),
         "C04": (
             core.PredicateStatus.EVIDENCE_UNDEFINED,
             "completion-proof-not-machine-checkable",

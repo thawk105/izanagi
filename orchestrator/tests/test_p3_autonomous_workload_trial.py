@@ -7099,6 +7099,51 @@ def test_registered_modes_route_reserve_and_terminal_only_through_formal_facades
     assert calls == {"reserve": 1, "terminal": 1}
 
 
+def test_run_trial_routes_exactly_five_terminal_sites_through_formal_helper(
+) -> None:
+    tree = ast.parse(Path(A.__file__).read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    run_trial = functions["run_trial"]
+    helper = functions["_record_attempt_terminal_for_run"]
+    helper_calls = [
+        call
+        for call in ast.walk(run_trial)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_record_attempt_terminal_for_run"
+    ]
+    assert len(helper_calls) == 5
+
+    facade_names = {
+        "record_attempt_terminal",
+        "record_formal_attempt_terminal",
+    }
+
+    def qualified_facade_calls(function: ast.FunctionDef) -> list[ast.Call]:
+        return [
+            call
+            for call in ast.walk(function)
+            if isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "trial_registry"
+            and call.func.attr in facade_names
+        ]
+
+    helper_facades = qualified_facade_calls(helper)
+    assert len(helper_facades) == 1
+    assert helper_facades[0].func.attr == "record_formal_attempt_terminal"
+    assert all(
+        not qualified_facade_calls(function)
+        for name, function in functions.items()
+        if name != "_record_attempt_terminal_for_run"
+    )
+
+
 def test_exploratory_run_does_not_reach_any_attempt_facade(
     tmp_path, monkeypatch,
 ) -> None:
