@@ -49,6 +49,35 @@
     "CCBENCH_BACKOFF_NOINLINE": "0",
     "CCBENCH_TRACE": "0"
   },
+  "trace0_cmake_argv": {
+    "configure": {
+      "source_option": "-S",
+      "build_directory_option": "-B",
+      "fixed_arguments": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF"
+      ],
+      "toolchain_arguments": [
+        {
+          "role": "cc",
+          "prefix": "-DCMAKE_C_COMPILER="
+        },
+        {
+          "role": "cxx",
+          "prefix": "-DCMAKE_CXX_COMPILER="
+        }
+      ],
+      "dependency_prefix_argument": "-DCMAKE_PREFIX_PATH=",
+      "controlled_define_argument": "-D"
+    },
+    "build": {
+      "subcommand": "--build",
+      "target_option": "--target",
+      "target_prefix": "ycsb_",
+      "target_suffix": ".exe",
+      "jobs_option": "-j"
+    }
+  },
   "cells": [
     {
       "id": "rr5-stock",

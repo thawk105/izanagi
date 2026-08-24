@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.campaign import loop
+from orchestrator.campaign import buildcache, loop
 from orchestrator.campaign import campaign_lock, env_contract, ident, reservation, wal
 from orchestrator.campaign import paper_story_a2_certification as A2
 from orchestrator.campaign.model import (
@@ -146,21 +146,11 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
             perf_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
             trace_sha = hashlib.sha256(
                 ("trace:" + cell.cell_id).encode("ascii")).hexdigest()
-            defines = A2.expected_controlled_defines(policy, cell.cell_id)
-            configure = [
-                "/usr/bin/cmake", "-S", "/source", "-B", str(build_dir),
-                "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
-                "-DCMAKE_C_COMPILER=/usr/bin/gcc",
-                "-DCMAKE_CXX_COMPILER=/usr/bin/g++",
-                "-DCMAKE_PREFIX_PATH=/pinned/dependencies",
-            ] + [
-                f"-D{key}={defines[key]}" for key in sorted(defines)
-                if key != "CCBENCH_TRACE"
-            ] + ["-DCCBENCH_TRACE=0"]
-            build = [
-                "/usr/bin/cmake", "--build", str(build_dir),
-                "--target", "ycsb_SILO.exe", "-j", "48",
-            ]
+            configure, build = buildcache._v2_commands(
+                A2._genome_for_cell(policy, cell), False, "/source",
+                str(build_dir), toolchain, jobs=48,
+                dependency_prefix="/pinned/dependencies",
+            )
             run_flags = [
                 f"-thread_num={cell.perf['threads']}",
                 f"-ycsb_tuple_num={cell.perf['records']}",
@@ -424,6 +414,28 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
         "CCBENCH_WAL": "0",
         "CCBENCH_BACKOFF_NOINLINE": "0",
         "CCBENCH_TRACE": "0",
+    }
+    assert policy.document["trace0_cmake_argv"] == {
+        "configure": {
+            "source_option": "-S",
+            "build_directory_option": "-B",
+            "fixed_arguments": [
+                "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+            ],
+            "toolchain_arguments": [
+                {"role": "cc", "prefix": "-DCMAKE_C_COMPILER="},
+                {"role": "cxx", "prefix": "-DCMAKE_CXX_COMPILER="},
+            ],
+            "dependency_prefix_argument": "-DCMAKE_PREFIX_PATH=",
+            "controlled_define_argument": "-D",
+        },
+        "build": {
+            "subcommand": "--build",
+            "target_option": "--target",
+            "target_prefix": "ycsb_",
+            "target_suffix": ".exe",
+            "jobs_option": "-j",
+        },
     }
 
 
@@ -880,8 +892,11 @@ def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields()
     assert "verification_receipt_tags.extend([tag] * workload.reps)" in source
 
 
-@pytest.mark.parametrize(
-    "mutation", ("separated-define", "unknown-run-flag", "clocks-per-us"))
+@pytest.mark.parametrize("mutation", (
+    "separated-define", "duplicate-configure-token", "unknown-configure-token",
+    "build-subcommand", "unknown-build-token", "unknown-run-flag",
+    "clocks-per-us",
+))
 def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation):
     policy = _policy(tmp_path)
     root = A2.create_attempt_root(policy, "attempt-argv-" + mutation)
@@ -889,6 +904,14 @@ def test_trace0_argv_closed_grammar_rejects_unconsumed_tokens(tmp_path, mutation
     evidence = raw["trace0_evidence"]
     if mutation == "separated-define":
         evidence["configure_argv"].extend(["-D", "CCBENCH_TRACE=0"])
+    elif mutation == "duplicate-configure-token":
+        evidence["configure_argv"].append("-DENABLE_SANITIZER=OFF")
+    elif mutation == "unknown-configure-token":
+        evidence["configure_argv"].append("-DUNKNOWN=1")
+    elif mutation == "build-subcommand":
+        evidence["build_argv"][1] = "--install"
+    elif mutation == "unknown-build-token":
+        evidence["build_argv"].append("--verbose")
     elif mutation == "unknown-run-flag":
         evidence["run_argv"].append("-unknown_flag=1")
     else:

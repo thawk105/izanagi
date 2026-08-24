@@ -72,7 +72,7 @@ _TOP_LEVEL_KEYS = {
     "schema_version", "study", "historical_reference",
     "durable_measurement_base", "tracked_destination", "performance_common",
     "legacy_correctness", "workloads", "controlled_define_base", "cells",
-    "scheduler",
+    "trace0_cmake_argv", "scheduler",
 }
 _PERFORMANCE_KEYS = {
     "records", "threads", "skew", "rmw", "max_ope", "extime", "reps",
@@ -81,6 +81,17 @@ _PERFORMANCE_KEYS = {
 _WORKLOAD_KEYS = {"id", "label", "rratio", "adopted_backoff_us"}
 _CELL_KEYS = {"id", "workload", "role", "genome"}
 _GENOME_KEYS = {"BACK_OFF", "BACKOFF_FIXED"}
+_TRACE0_CMAKE_ARGV_KEYS = {"configure", "build"}
+_TRACE0_CONFIGURE_ARGV_KEYS = {
+    "source_option", "build_directory_option", "fixed_arguments",
+    "toolchain_arguments", "dependency_prefix_argument",
+    "controlled_define_argument",
+}
+_TRACE0_TOOLCHAIN_ARGUMENT_KEYS = {"role", "prefix"}
+_TRACE0_BUILD_ARGV_KEYS = {
+    "subcommand", "target_option", "target_prefix", "target_suffix",
+    "jobs_option",
+}
 _CONTROLLED_BASE_KEYS = {
     "CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION",
     "CCBENCH_NO_WAIT_OF_TICTOC",
@@ -238,6 +249,7 @@ def _protocol_preimage(document: Mapping[str, Any]) -> Mapping[str, Any]:
         "workloads": document["workloads"],
         "controlled_define_base": document["controlled_define_base"],
         "cells": document["cells"],
+        "trace0_cmake_argv": document["trace0_cmake_argv"],
     }
 
 
@@ -315,6 +327,60 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
     if (controlled["CCBENCH_WAL"] != str(common["wal"])
             or controlled["CCBENCH_TRACE"] != "0"):
         raise CertificationError("performance build must be WAL=0 and TRACE=0")
+
+    cmake_argv = _exact_keys(
+        document["trace0_cmake_argv"], _TRACE0_CMAKE_ARGV_KEYS,
+        "trace0_cmake_argv",
+    )
+    configure_argv = _exact_keys(
+        cmake_argv["configure"], _TRACE0_CONFIGURE_ARGV_KEYS,
+        "trace0_cmake_argv.configure",
+    )
+    configure_scalar_keys = {
+        "source_option", "build_directory_option",
+        "dependency_prefix_argument", "controlled_define_argument",
+    }
+    if (not all(type(configure_argv[key]) is str and configure_argv[key]
+                and not any(character.isspace()
+                            for character in configure_argv[key])
+                for key in configure_scalar_keys)
+            or len({configure_argv[key] for key in configure_scalar_keys})
+            != len(configure_scalar_keys)):
+        raise CertificationError("trace0 configure scalar grammar is malformed")
+    fixed_arguments = configure_argv["fixed_arguments"]
+    if (type(fixed_arguments) is not list or not fixed_arguments
+            or not all(type(token) is str and token
+                       and not any(character.isspace() for character in token)
+                       for token in fixed_arguments)
+            or len(set(fixed_arguments)) != len(fixed_arguments)):
+        raise CertificationError("trace0 configure fixed arguments are malformed")
+    toolchain_arguments = configure_argv["toolchain_arguments"]
+    if type(toolchain_arguments) is not list or len(toolchain_arguments) != 2:
+        raise CertificationError("trace0 configure toolchain grammar is malformed")
+    toolchain_roles: list[str] = []
+    for index, raw_argument in enumerate(toolchain_arguments):
+        argument = _exact_keys(
+            raw_argument, _TRACE0_TOOLCHAIN_ARGUMENT_KEYS,
+            f"trace0_cmake_argv.configure.toolchain_arguments[{index}]",
+        )
+        if (type(argument["role"]) is not str or not argument["role"]
+                or type(argument["prefix"]) is not str or not argument["prefix"]
+                or any(character.isspace() for character in argument["prefix"])):
+            raise CertificationError(
+                "trace0 configure toolchain argument is malformed")
+        toolchain_roles.append(argument["role"])
+    if set(toolchain_roles) != {"cc", "cxx"} or len(set(toolchain_roles)) != 2:
+        raise CertificationError("trace0 configure toolchain roles are not exact")
+    build_argv = _exact_keys(
+        cmake_argv["build"], _TRACE0_BUILD_ARGV_KEYS,
+        "trace0_cmake_argv.build",
+    )
+    if (not all(type(value) is str and value
+                and not any(character.isspace() for character in value)
+                for value in build_argv.values())
+            or len({build_argv["subcommand"], build_argv["target_option"],
+                    build_argv["jobs_option"]}) != 3):
+        raise CertificationError("trace0 build grammar is malformed")
 
     workloads_raw = document["workloads"]
     if type(workloads_raw) is not list or len(workloads_raw) != 2:
@@ -1121,14 +1187,16 @@ def expected_controlled_defines(policy: Policy, cell_id: str) -> dict[str, str]:
     return expected
 
 
-def _argv_controlled_defines(argv: Sequence[str]) -> dict[str, str]:
+def _argv_controlled_defines(argv: Sequence[str],
+                             define_argument: str) -> dict[str, str]:
     values: dict[str, str] = {}
+    controlled_prefix = define_argument + "CCBENCH_"
     for token in argv:
-        if token == "-D":
+        if token == define_argument:
             raise CertificationError("separated -D configure form is not canonical")
-        if not token.startswith("-DCCBENCH_"):
+        if not token.startswith(controlled_prefix):
             continue
-        key, separator, value = token[2:].partition("=")
+        key, separator, value = token[len(define_argument):].partition("=")
         if not separator or key in values:
             raise CertificationError("controlled define argv is malformed or duplicated")
         values[key] = value
@@ -1164,43 +1232,61 @@ def _exact_trace0_configure_argv(
         raise CertificationError("toolchain observation is not the v2 producer shape")
     if len(argv) < 10:
         raise CertificationError("configure argv is shorter than the v2 grammar")
-    source_root = _lexical_absolute_path(argv[2], "CCBench source root")
+    grammar = policy.document["trace0_cmake_argv"]["configure"]
+    source_positions = [
+        index for index, token in enumerate(argv)
+        if token == grammar["source_option"]
+    ]
+    if len(source_positions) != 1 or source_positions[0] + 1 >= len(argv):
+        raise CertificationError("configure argv needs one CCBench source root")
+    source_root = _lexical_absolute_path(
+        argv[source_positions[0] + 1], "CCBench source root")
     fixed = [
-        toolchain["cmake"]["realpath"], "-S", str(source_root), "-B",
-        str(build_dir), "-DCMAKE_BUILD_TYPE=Release",
-        "-DENABLE_SANITIZER=OFF",
-        f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
-        f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
+        toolchain["cmake"]["realpath"], grammar["source_option"],
+        str(source_root), grammar["build_directory_option"], str(build_dir),
+        *grammar["fixed_arguments"],
+        *[
+            argument["prefix"] + toolchain[argument["role"]]["realpath"]
+            for argument in grammar["toolchain_arguments"]
+        ],
     ]
     expected_defines = expected_controlled_defines(policy, cell_id)
+    define_argument = grammar["controlled_define_argument"]
     ordered_define_tokens = [
-        f"-D{key}={expected_defines[key]}"
+        f"{define_argument}{key}={expected_defines[key]}"
         for key in sorted(expected_defines)
         if key != "CCBENCH_TRACE"
-    ] + [f"-DCCBENCH_TRACE={expected_defines['CCBENCH_TRACE']}"]
+    ] + [
+        f"{define_argument}CCBENCH_TRACE={expected_defines['CCBENCH_TRACE']}"
+    ]
     tail = list(argv[len(fixed):])
-    prefix = [token for token in tail if token.startswith("-DCMAKE_PREFIX_PATH=")]
+    dependency_prefix = grammar["dependency_prefix_argument"]
+    prefix = [token for token in tail if token.startswith(dependency_prefix)]
     if len(prefix) != 1 or not prefix[0].partition("=")[2]:
         raise CertificationError("configure argv needs one dependency prefix")
     expected = fixed + prefix + ordered_define_tokens
     if list(argv) != expected:
         raise CertificationError("configure argv does not match the closed v2 grammar")
-    if _argv_controlled_defines(argv) != expected_defines:
+    if _argv_controlled_defines(argv, define_argument) != expected_defines:
         raise CertificationError("configure argv controlled define map is not exact")
 
 
 def _exact_trace0_build_argv(policy: Policy, argv: Sequence[str],
                              build_dir: Path,
                              toolchain: Mapping[str, Any]) -> None:
-    if (len(argv) != 7
-            or list(argv[:3]) != [toolchain["cmake"]["realpath"], "--build",
-                                  str(build_dir)]
-            or list(argv[3:6]) != [
-                "--target",
-                f"ycsb_{policy.document['performance_common']['ccbench_protocol']}.exe",
-                "-j",
-            ]
-            or not argv[6].isdigit() or int(argv[6]) <= 0):
+    grammar = policy.document["trace0_cmake_argv"]["build"]
+    target = (
+        grammar["target_prefix"]
+        + policy.document["performance_common"]["ccbench_protocol"]
+        + grammar["target_suffix"]
+    )
+    fixed = [
+        toolchain["cmake"]["realpath"], grammar["subcommand"], str(build_dir),
+        grammar["target_option"], target, grammar["jobs_option"],
+    ]
+    if (len(argv) != len(fixed) + 1
+            or list(argv[:-1]) != fixed
+            or not argv[-1].isdigit() or int(argv[-1]) <= 0):
         raise CertificationError("build argv does not match the closed v2 grammar")
 
 
@@ -1267,8 +1353,12 @@ def validate_trace0_evidence(policy: Policy, cell_id: str, attempt_id: str,
     _reject_symlink_components(build_dir, "build directory")
     if not build_dir.is_dir():
         raise CertificationError("build directory is not a real directory")
-    if (_cmake_directory(configure, "-B") != build_dir
-            or _cmake_directory(build, "--build") != build_dir):
+    cmake_argv = policy.document["trace0_cmake_argv"]
+    if (_cmake_directory(
+            configure, cmake_argv["configure"]["build_directory_option"])
+            != build_dir
+            or _cmake_directory(build, cmake_argv["build"]["subcommand"])
+            != build_dir):
         raise CertificationError("configure and build directories are not identical")
     _exact_trace0_configure_argv(
         policy, cell_id, configure, build_dir, evidence["toolchain"])

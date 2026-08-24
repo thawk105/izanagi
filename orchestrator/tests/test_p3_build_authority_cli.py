@@ -147,10 +147,6 @@ MACHINE_CALLERS = {
 }
 
 MANUAL_BUILD_FILES = {
-    # The --build token is producer-evidence validation; actual builds are
-    # delegated to run_campaign/buildcache, so this file is not an admitted
-    # direct materializer.
-    "paper_story_a2_certification.py",
     "s2_verify_calibration.py",
     "s3_lock_coverage.py",
     "s5_permutation_coverage.py",
