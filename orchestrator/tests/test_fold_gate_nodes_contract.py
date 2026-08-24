@@ -271,6 +271,14 @@ def _row(**changes) -> FoldGateNode:
     )
 
 
+def _assert_uncovered_allowlist_exact(
+    observed_uncovered: frozenset[str],
+    allowlisted: frozenset[str],
+) -> None:
+    assert observed_uncovered - allowlisted == frozenset()
+    assert allowlisted - observed_uncovered == frozenset()
+
+
 def test_registry_count_digest_and_family_minimums_are_frozen() -> None:
     assert len(FOLD_GATE_NODE_REGISTRY) == _EXPECTED_NODE_COUNT
     assert FOLD_GATE_NODE_REGISTRY_SHA256 == _EXPECTED_REGISTRY_SHA256
@@ -474,8 +482,16 @@ def test_family_population_and_shortfalls_are_fail_closed() -> None:
         family for family, count in population.items() if count == 0
     )
     allowlisted = frozenset(FOLD_GATE_UNCOVERED_FAMILY_ALLOWLIST)
+    _assert_uncovered_allowlist_exact(observed_uncovered, allowlisted)
+
+
+def test_uncovered_allowlist_rejects_reverse_only_drift() -> None:
+    observed_uncovered = frozenset({"decisions", "phase3"})
+    allowlisted = frozenset({"decisions", "phase3", "rotation"})
     assert observed_uncovered - allowlisted == frozenset()
-    assert allowlisted - observed_uncovered == frozenset()
+
+    with pytest.raises(AssertionError):
+        _assert_uncovered_allowlist_exact(observed_uncovered, allowlisted)
 
 
 def test_registered_execution_graph_cannot_restart_pytest_or_acceptance() -> None:

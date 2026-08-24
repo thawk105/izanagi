@@ -8475,6 +8475,27 @@ def test_fold_gate_environment_removes_ambient_pytest_and_python_injection() -> 
     )
 
 
+@pytest.mark.parametrize(
+    "name",
+    (
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "PYTHONOPTIMIZE",
+    ),
+)
+def test_each_fold_gate_ambient_injection_is_removed_independently(
+    name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(name, "ambient-injection")
+
+    env = LAND._fold_gate_environment()
+
+    assert name not in env
+
+
 def test_fold_gate_junit_requires_execution_and_rejects_skip_failure_error(
 ) -> None:
     nodeid = "test_spool_fold.py::test_gate_node"
@@ -8503,6 +8524,16 @@ def test_fold_gate_junit_requires_execution_and_rejects_skip_failure_error(
             else:
                 with pytest.raises(LAND._FoldGateFailure):
                     LAND._parse_fold_gate_junit(path, (nodeid,))
+
+
+def test_fold_gate_junit_rejects_zero_execution_as_the_only_failure(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "empty-junit.xml"
+    path.write_text("<testsuite/>", encoding="utf-8")
+
+    with pytest.raises(LAND._FoldGateFailure, match="JUnit rejected"):
+        LAND._parse_fold_gate_junit(path, ())
 
 
 def test_fold_gate_exports_full_tree_applies_raw_bytes_and_runs_one_pytest(
@@ -8639,6 +8670,52 @@ def test_fold_gate_receipt_binds_plan_identity_transaction_and_raw_bytes(
     plan.targets[0].after_bytes = b"tampered\n"
     with pytest.raises(LAND._FoldGateFailure, match="raw digest mismatch"):
         LAND._verify_fold_gate_receipt(ROOT, receipt, plan)
+
+
+def test_fold_gate_receipt_rejects_forged_target_raw_digest_only() -> None:
+    plan = _gate_plan(
+        fragment_ledger="decisions",
+        targets=(
+            _FakeFoldTarget("docs/decisions.md", after_bytes=b"decisions\n"),
+            _FakeFoldTarget(
+                "docs/spool/FOLDED.md",
+                after_bytes=b"folded\n",
+            ),
+        ),
+    )
+    selection = LAND._select_fold_gate_nodes(ROOT, plan)
+    receipt = LAND._FoldGateReceipt(
+        plan,
+        plan.transaction_id,
+        selection.registry_digest,
+        selection.nodeids,
+        LAND._fold_gate_target_raw_digests(plan),
+        LAND._FOLD_GATE_OUTCOME,
+        selection.uncovered_families,
+    )
+    forged = dataclasses.replace(
+        receipt,
+        target_raw_digests=(
+            (receipt.target_raw_digests[0][0], "0" * 64),
+            *receipt.target_raw_digests[1:],
+        ),
+    )
+    assert LAND._fold_gate_target_raw_digests(plan) == (
+        receipt.target_raw_digests
+    )
+    assert forged.plan is plan
+    assert forged.transaction_id == plan.transaction_id
+    assert forged.registry_digest == selection.registry_digest
+    assert forged.nodeids == selection.nodeids
+    assert forged.outcome == LAND._FOLD_GATE_OUTCOME
+    assert forged.uncovered_families == selection.uncovered_families
+    assert forged.target_raw_digests != receipt.target_raw_digests
+
+    with pytest.raises(
+        LAND._FoldGateFailure,
+        match="receipt target raw digest mismatch",
+    ):
+        LAND._verify_fold_gate_receipt(ROOT, forged, plan)
 
 
 def test_spool_state_v3_roundtrips_gate_receipt_and_rejects_old_schema(
