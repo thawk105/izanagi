@@ -2062,6 +2062,14 @@ _S8C_ATTEMPT_PROFILE = _attempt_core.DomainProfile(
     binding_mismatch=_s8c_attempt_binding_mismatch,
 )
 
+_S8C_FORMAL_ATTEMPT_PROFILE = dataclasses.replace(
+    _S8C_ATTEMPT_PROFILE,
+    transition_policy=dataclasses.replace(
+        _S8C_ATTEMPT_PROFILE.transition_policy,
+        require_terminal_reason_equals_classification=True,
+    ),
+)
+
 
 def _attempt_core_call(function, /, *args, **kwargs):
     try:
@@ -2604,8 +2612,9 @@ def _assert_attempt_capability(capability: AttemptSlotCapability) -> None:
         _fail("attempt-capability", "slot capability digest was replaced")
 
 
-def reserve_attempt_slot(
+def _reserve_attempt_slot(
     *,
+    profile: _attempt_core.DomainProfile[Any, Any],
     repository_root: Path,
     freeze_id: str,
     slot_id: str,
@@ -2632,7 +2641,7 @@ def reserve_attempt_slot(
         candidate = _attempt_core_call(
             _attempt_core.reserve_attempt_slot,
             rows,
-            profile=_S8C_ATTEMPT_PROFILE,
+            profile=profile,
             freeze_id=freeze_id,
             slot_id=slot_id,
             binding=binding,
@@ -2645,7 +2654,7 @@ def reserve_attempt_slot(
         )
         start, seal = candidate[-2:]
         digest = _attempt_core.capability_digest(
-            profile=_S8C_ATTEMPT_PROFILE,
+            profile=profile,
             schema_version=ATTEMPT_REGISTRY_SCHEMA_VERSION,
             freeze_id=freeze_id,
             slot=slot,
@@ -2682,6 +2691,60 @@ def reserve_attempt_slot(
         repository_root=root,
         registry_path=registry_path,
         update=append_start,
+    )
+
+
+def reserve_attempt_slot(
+    *,
+    repository_root: Path,
+    freeze_id: str,
+    slot_id: str,
+    prereg_content_commit: str,
+    prereg_effective_commit: str,
+    run_start_receipt_sha256: str,
+    process_identity: Mapping[str, Any],
+    started_at: str,
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> AttemptSlotCapability:
+    """Consume one declared slot through the compatibility profile."""
+    return _reserve_attempt_slot(
+        profile=_S8C_ATTEMPT_PROFILE,
+        repository_root=repository_root,
+        freeze_id=freeze_id,
+        slot_id=slot_id,
+        prereg_content_commit=prereg_content_commit,
+        prereg_effective_commit=prereg_effective_commit,
+        run_start_receipt_sha256=run_start_receipt_sha256,
+        process_identity=process_identity,
+        started_at=started_at,
+        registry_path=registry_path,
+    )
+
+
+def reserve_formal_attempt_slot(
+    *,
+    repository_root: Path,
+    freeze_id: str,
+    slot_id: str,
+    prereg_content_commit: str,
+    prereg_effective_commit: str,
+    run_start_receipt_sha256: str,
+    process_identity: Mapping[str, Any],
+    started_at: str,
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> AttemptSlotCapability:
+    """Consume one declared slot after strict replay of the shared prefix."""
+    return _reserve_attempt_slot(
+        profile=_S8C_FORMAL_ATTEMPT_PROFILE,
+        repository_root=repository_root,
+        freeze_id=freeze_id,
+        slot_id=slot_id,
+        prereg_content_commit=prereg_content_commit,
+        prereg_effective_commit=prereg_effective_commit,
+        run_start_receipt_sha256=run_start_receipt_sha256,
+        process_identity=process_identity,
+        started_at=started_at,
+        registry_path=registry_path,
     )
 
 
@@ -2832,9 +2895,10 @@ def begin_attempt_observation(capability: AttemptSlotCapability) -> dict[str, An
     )
 
 
-def record_attempt_terminal(
+def _record_attempt_terminal(
     capability: AttemptSlotCapability,
     *,
+    profile: _attempt_core.DomainProfile[Any, Any],
     terminal_status: str,
     raw_output_sha256: str,
     report_sha256: str | None,
@@ -2902,7 +2966,7 @@ def record_attempt_terminal(
         candidate = _attempt_core_call(
             _attempt_core.record_attempt_terminal,
             rows,
-            profile=_S8C_ATTEMPT_PROFILE,
+            profile=profile,
             freeze_id=capability.freeze_id,
             slot_id=capability.slot_id,
             binding=binding,
@@ -2924,8 +2988,59 @@ def record_attempt_terminal(
     )
 
 
-def assert_attempt_registry_acceptance(
+def record_attempt_terminal(
+    capability: AttemptSlotCapability,
     *,
+    terminal_status: str,
+    raw_output_sha256: str,
+    report_sha256: str | None,
+    observation_sha256: str | None,
+    primary_value: Any,
+    finished_at: str,
+    failure_reason: str | None = None,
+) -> None:
+    """Append one terminal row through the compatibility profile."""
+    _record_attempt_terminal(
+        capability,
+        profile=_S8C_ATTEMPT_PROFILE,
+        terminal_status=terminal_status,
+        raw_output_sha256=raw_output_sha256,
+        report_sha256=report_sha256,
+        observation_sha256=observation_sha256,
+        primary_value=primary_value,
+        finished_at=finished_at,
+        failure_reason=failure_reason,
+    )
+
+
+def record_formal_attempt_terminal(
+    capability: AttemptSlotCapability,
+    *,
+    terminal_status: str,
+    raw_output_sha256: str,
+    report_sha256: str | None,
+    observation_sha256: str | None,
+    primary_value: Any,
+    finished_at: str,
+    failure_reason: str | None = None,
+) -> None:
+    """Append one terminal row only after strict reason replay succeeds."""
+    _record_attempt_terminal(
+        capability,
+        profile=_S8C_FORMAL_ATTEMPT_PROFILE,
+        terminal_status=terminal_status,
+        raw_output_sha256=raw_output_sha256,
+        report_sha256=report_sha256,
+        observation_sha256=observation_sha256,
+        primary_value=primary_value,
+        finished_at=finished_at,
+        failure_reason=failure_reason,
+    )
+
+
+def _assert_attempt_registry_acceptance(
+    *,
+    profile: _attempt_core.DomainProfile[Any, Any],
     repository_root: Path,
     manifest_path: Path,
     manifest: TrialManifest,
@@ -2951,6 +3066,15 @@ def assert_attempt_registry_acceptance(
         freeze_id=effective_binding.freeze_id,
         manifest_path=manifest_path,
         manifest_sha256=manifest.sha256,
+    )
+    rows = _attempt_core_call(
+        _attempt_core.assert_registry_rows,
+        rows,
+        profile=profile,
+        expected_binding=(
+            effective_binding.prereg_content_commit,
+            effective_commit,
+        ),
     )
     attempt_registry_file, _relative_path, _relative = _attempt_registry_target(
         root, registry_path, create_parent=False,
@@ -3048,6 +3172,52 @@ def assert_attempt_registry_acceptance(
                 "non-observed terminal report carries observed values",
             )
     return rows
+
+
+def assert_attempt_registry_acceptance(
+    *,
+    repository_root: Path,
+    manifest_path: Path,
+    manifest: TrialManifest,
+    effective_binding: PreregEffectiveBinding,
+    effective_commit: str,
+    report_paths: Sequence[Path] = (),
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> tuple[dict[str, Any], ...]:
+    """Apply the compatibility replay policy at attempt acceptance."""
+    return _assert_attempt_registry_acceptance(
+        profile=_S8C_ATTEMPT_PROFILE,
+        repository_root=repository_root,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        effective_binding=effective_binding,
+        effective_commit=effective_commit,
+        report_paths=report_paths,
+        registry_path=registry_path,
+    )
+
+
+def assert_formal_attempt_registry_acceptance(
+    *,
+    repository_root: Path,
+    manifest_path: Path,
+    manifest: TrialManifest,
+    effective_binding: PreregEffectiveBinding,
+    effective_commit: str,
+    report_paths: Sequence[Path] = (),
+    registry_path: Path = DEFAULT_ATTEMPT_REGISTRY_PATH,
+) -> tuple[dict[str, Any], ...]:
+    """Require strict reason replay before issuing new formal acceptance."""
+    return _assert_attempt_registry_acceptance(
+        profile=_S8C_FORMAL_ATTEMPT_PROFILE,
+        repository_root=repository_root,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        effective_binding=effective_binding,
+        effective_commit=effective_commit,
+        report_paths=report_paths,
+        registry_path=registry_path,
+    )
 
 
 def _derive_launch_binding(
@@ -5261,7 +5431,7 @@ def assert_trial_registry_acceptance(
         accepted.sort(key=lambda accepted_trial: accepted_trial.trial_id)
         accepted_by_id = {item.trial_id: item for item in accepted}
         loaded_by_id = {item.report["trial_id"]: item for item in loaded}
-        attempt_rows = assert_attempt_registry_acceptance(
+        attempt_rows = assert_formal_attempt_registry_acceptance(
             repository_root=root,
             manifest_path=Path(manifest_path),
             manifest=manifest,

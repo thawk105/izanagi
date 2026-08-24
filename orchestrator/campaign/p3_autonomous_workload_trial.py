@@ -1317,7 +1317,7 @@ def _reserve_registered_attempt_slot(
     launch_record = trial_registry.launch_admission_record(
         admission, origin_binding=origin_binding,
     )
-    return trial_registry.reserve_attempt_slot(
+    return trial_registry.reserve_formal_attempt_slot(
         repository_root=ROOT,
         registry_path=registry_path,
         freeze_id=genesis["freeze_id"],
@@ -4038,7 +4038,7 @@ def _record_attempt_terminal_for_run(
     # Classification is appended immediately after reservation, before this
     # terminal projection reads report/journal output.  Keep this function
     # limited to the terminal reason and performance artifacts.
-    trial_registry.record_attempt_terminal(
+    trial_registry.record_formal_attempt_terminal(
         capability,
         terminal_status=terminal_status,
         raw_output_sha256=raw_output_sha256,

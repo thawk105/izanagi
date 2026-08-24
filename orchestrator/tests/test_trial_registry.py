@@ -5170,6 +5170,33 @@ def _reserve_attempt(
     )
 
 
+def _reserve_formal_attempt(
+    repo: Path,
+    registry: Path,
+    content_commit: str,
+    effective_commit: str,
+    freeze_id: str,
+    slot: dict,
+) -> R.AttemptSlotCapability:
+    return R.reserve_formal_attempt_slot(
+        repository_root=repo,
+        registry_path=registry,
+        freeze_id=freeze_id,
+        slot_id=slot["slot_id"],
+        prereg_content_commit=content_commit,
+        prereg_effective_commit=effective_commit,
+        run_start_receipt_sha256=hashlib.sha256(
+            f"formal-run-start:{slot['slot_id']}".encode("ascii")
+        ).hexdigest(),
+        process_identity={
+            "pid": 101,
+            "starttime": "formal-fixture-start",
+            "execution_uuid": f"formal-exec-{slot['slot_id']}",
+        },
+        started_at="2026-08-18T00:00:00+00:00",
+    )
+
+
 def _classify_and_terminal(
     capability: R.AttemptSlotCapability,
     *,
@@ -6268,6 +6295,182 @@ def _attempt_report_for_acceptance(
         raw_bytes=b"{}",
     )
     return report_path, binding
+
+
+def test_formal_reserve_rejects_compat_mismatch_prefix_without_append(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest_path, _manifest, registry, p, c, freeze, slots = (
+        _attempt_fixture(tmp_path, repeats_for_first=2)
+    )
+    first = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    R.classify_attempt(
+        first,
+        pre_observation_failure_reason=None,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    R.record_attempt_terminal(
+        first,
+        terminal_status="retryable-failure",
+        raw_output_sha256="c" * 64,
+        report_sha256="d" * 64,
+        observation_sha256=None,
+        primary_value=None,
+        finished_at="2026-08-18T00:00:02+00:00",
+        failure_reason="preempted",
+    )
+    before = registry.read_bytes()
+
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"terminal failure reason differs from classification",
+    ):
+        _reserve_formal_attempt(repo, registry, p, c, freeze, slots[1])
+    assert registry.read_bytes() == before
+
+
+def test_formal_terminal_rejects_reason_replacement_without_append(
+    tmp_path: Path,
+) -> None:
+    repo, _manifest_path, _manifest, registry, p, c, freeze, slots = (
+        _attempt_fixture(tmp_path)
+    )
+    capability = _reserve_formal_attempt(
+        repo, registry, p, c, freeze, slots[0]
+    )
+    R.classify_attempt(
+        capability,
+        pre_observation_failure_reason=None,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    before = registry.read_bytes()
+
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"terminal failure reason differs from classification",
+    ):
+        R.record_formal_attempt_terminal(
+            capability,
+            terminal_status="retryable-failure",
+            raw_output_sha256="c" * 64,
+            report_sha256="d" * 64,
+            observation_sha256=None,
+            primary_value=None,
+            finished_at="2026-08-18T00:00:02+00:00",
+            failure_reason="preempted",
+        )
+    assert registry.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    ("classification_reason", "terminal_status", "begin_observation"),
+    [
+        pytest.param("preempted", "retryable-failure", False,
+                     id="matching-retryable"),
+        pytest.param(None, "observed", True, id="observed-none"),
+        pytest.param(None, "not-consumed", False, id="not-consumed-none"),
+    ],
+)
+def test_formal_terminal_accepts_exact_positive_matrix(
+    classification_reason: str | None,
+    terminal_status: str,
+    begin_observation: bool,
+    tmp_path: Path,
+) -> None:
+    repo, _manifest_path, _manifest, registry, p, c, freeze, slots = (
+        _attempt_fixture(tmp_path)
+    )
+    capability = _reserve_formal_attempt(
+        repo, registry, p, c, freeze, slots[0]
+    )
+    R.classify_attempt(
+        capability,
+        pre_observation_failure_reason=classification_reason,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    if begin_observation:
+        R.begin_attempt_observation(capability)
+    R.record_formal_attempt_terminal(
+        capability,
+        terminal_status=terminal_status,
+        raw_output_sha256="c" * 64,
+        report_sha256=(
+            "d" * 64
+            if terminal_status in {"observed", "retryable-failure"}
+            else None
+        ),
+        observation_sha256=(
+            "e" * 64 if terminal_status == "observed" else None
+        ),
+        primary_value=1.0 if terminal_status == "observed" else None,
+        finished_at="2026-08-18T00:00:02+00:00",
+        failure_reason=classification_reason,
+    )
+    terminal = next(
+        row for row in R.load_attempt_registry(repo)
+        if row.get("event") == "terminal"
+    )
+    assert terminal["terminal_status"] == terminal_status
+    assert terminal["failure_reason"] == classification_reason
+
+
+def test_formal_acceptance_rejects_mismatch_that_legacy_accepts(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, manifest, registry, p, c, freeze, slots = (
+        _attempt_fixture(tmp_path)
+    )
+    capability = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    R.classify_attempt(
+        capability,
+        pre_observation_failure_reason=None,
+        authority_id="fixture-authority",
+        authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    R.record_attempt_terminal(
+        capability,
+        terminal_status="retryable-failure",
+        raw_output_sha256="c" * 64,
+        report_sha256="d" * 64,
+        observation_sha256=None,
+        primary_value=None,
+        finished_at="2026-08-18T00:00:02+00:00",
+        failure_reason="preempted",
+    )
+    _unused_report, binding = _attempt_report_for_acceptance(
+        repo, manifest, slots[0], p, c, "c" * 64,
+    )
+
+    legacy_rows = R.assert_attempt_registry_acceptance(
+        repository_root=repo,
+        manifest_path=manifest_path,
+        manifest=manifest,
+        effective_binding=binding,
+        effective_commit=c,
+    )
+    assert legacy_rows[-1]["failure_reason"] == "preempted"
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"terminal failure reason differs from classification",
+    ):
+        R.assert_formal_attempt_registry_acceptance(
+            repository_root=repo,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            effective_binding=binding,
+            effective_commit=c,
+        )
 
 
 def test_attempt_registry_accepts_correct_formal_slot_consumption(
