@@ -118,6 +118,8 @@
   `output/insights/2026-08-21_t1461-masstree-staging-scope-finding/README.md` 参照。
 
 - **再発: 2026-08-23** (受入 lease 直列化撤去 wave)。親が進捗報告と handoff へ書いた JST 時刻 5 件 (04:33 / 05:20 / 06:00 / 06:35 / 07:00) がいずれも実測でなく推定で、段 7 直前に `date` を打った実測値は 06:13 だった。最後の 2 件は実時刻より先へ進んでおり、時系列として成立していない。2026-08-17 の再発で定めた「報告に時刻を書く直前に必ず `date` を実行する」を、wave の途中から守らなくなった。原因は、最初の 1 回だけ `date` を打ち、その後は経過時間を体感で足していたことである。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` を実行する。**「セッション開始時に 1 回測ってから加算する」は実測ではない。**
+
+- **再発: 2026-08-24 (near-miss)** — handoffの最終更新を`date`で実測せず「13:50 JST」と記入した。commit前に実測して「14:13 JST」へ訂正したためcanonicalへの誤記は回避した。恒久対応は既存どおり、時刻を書く1回ごとに`date`を実行する。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1268,6 +1270,8 @@
   後続の別目的の再監査でパイプを外し `; echo $?` で直接確認したところ真の rc=1 に気づき、是正
   (`git reset --hard` → amend → merge 再実行) した。誤った trailer が main へ着地することはなく、
   偽緑の実害は無かった (near miss)。恒久対応は F37 既存のとおり変わらない。
+
+- **再発: 2026-08-24** — local main mergeのcommit前に`git diff --cached --check`がincoming main由来archive 4件の`new blank line at EOF`でrc=2を返したが、`set -e`のない同一shellの次行へ`git commit`を置いたためcommitまで進んだ。merge後の両親比較でfirst-parent側だけrc=2、second-parent側はrc=0、combined diffは空と確認し、競合解決による新規混入は無かった。恒久対応は既存DW-O17の「検査を単独rcで走らせ、赤なら状態変更へ進まない」から変更しない。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -13417,3 +13421,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 家族: F525 と同じ「呼び出し方が占有判定を狂わせる」型。
   ただし向きが逆で、あちらは偽陽性 (掃除が止まるだけ) なのに対し、
   本件は**偽陰性 — 消してはいけないものを消しうる**危険な側へ倒れる。
+
+### F528. process外へ出たbytesをtrustedと誤認し、untrusted producerのfd capabilityを見落とした [恒真ゲート]
+
+- 事象: sort SWO oracle のpre-sort snapshotを専用pipeへ書けばcandidateが基準を取り消せないため、親側pre/post比較をmutation防壁として再有効化できると判断した。敵対検査で、candidateが同じprocessのpost pipe fdを所有し、mutation前snapshotと合法relationを偽frameとして書けることが判明した。別TUでsymbolを隠してもfd capabilityは残った。
+- 根本原因: 「既に送ったpre bytesを削除できない」と「後続のpost bytesがtrusted producer由来である」を混同し、byte境界だけをauthority境界として扱った。
+- 恒久対応: CLAUDE.md規律2とD766により、candidateがprotocol fdを所有せずsnapshot対象memoryへの書込みも強制拒否・観測できる境界を実証するまで防壁を再有効化しない。
+- 再発検知: 将来設計のnegative controlでcandidateからprotocol fd列挙・writer surface・snapshot対象writeの各到達が不可能または構造化rejectになることを実測し、一つでも到達すれば再有効化を止める。
