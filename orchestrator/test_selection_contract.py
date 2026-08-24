@@ -14,7 +14,8 @@ from typing import Iterable
 
 RUNNER_EXCLUSION_ENV = "IZANAGI_TEST_RUNNER_EXCLUSIONS_V1"
 SELECTION_RECEIPT_PREFIX = "IZANAGI_TEST_SELECTION_V1 "
-EXCLUSION_SET_VERSION = "sort-swo-oracle-removal-v1"
+_CANONICAL_EXCLUSION_SET_VERSION = "dev-wave-cleanup-occupancy-churn-v1"
+EXCLUSION_SET_VERSION = _CANONICAL_EXCLUSION_SET_VERSION
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,10 +37,28 @@ class Exclusion:
     set_version: str = EXCLUSION_SET_VERSION
 
 
-SANCTIONED_SORT_SWO_ORACLE_PATH = normalize_path(
-    _REPO_ROOT / "orchestrator" / "tests" / "test_sort_swo_oracle.py"
+_CANONICAL_CLEANUP_TEST_PATH = normalize_path(
+    _REPO_ROOT / "orchestrator" / "tests" / "test_dev_wave_cleanup.py"
 )
-SANCTIONED_EXCLUSIONS: tuple[Exclusion, ...] = ()
+_CANONICAL_EXCLUSION_REASON = (
+    "消滅pid型occupancy issueを3 scan連続観測しcleanup testsがrc22になる"
+)
+_CANONICAL_EXCLUSION_RULING = (
+    "2026-08-24 user direct known-red registration"
+)
+_CANONICAL_EXCLUSION_RELEASE_CONDITION = (
+    "dev-wave-cleanup-occupancy-churn taskがlandし、明示file走が全緑"
+)
+
+SANCTIONED_CLEANUP_TEST_PATH = _CANONICAL_CLEANUP_TEST_PATH
+_CANONICAL_EXCLUSION = Exclusion(
+    path=_CANONICAL_CLEANUP_TEST_PATH,
+    reason=_CANONICAL_EXCLUSION_REASON,
+    release_condition=_CANONICAL_EXCLUSION_RELEASE_CONDITION,
+    ruling=_CANONICAL_EXCLUSION_RULING,
+    set_version=_CANONICAL_EXCLUSION_SET_VERSION,
+)
+SANCTIONED_EXCLUSIONS: tuple[Exclusion, ...] = (_CANONICAL_EXCLUSION,)
 
 
 def _entry_payload(entry: Exclusion) -> dict[str, str]:
@@ -106,23 +125,49 @@ def exclusion_tokens(entries: Iterable[Exclusion]) -> tuple[str, ...]:
 
 
 def sanctioned_target_is_regular_file() -> bool:
-    path = SANCTIONED_SORT_SWO_ORACLE_PATH
+    path = _CANONICAL_CLEANUP_TEST_PATH
     return path.is_file() and not path.is_symlink()
 
 
-def is_sanctioned_exclusion_set(entries: Iterable[Exclusion]) -> bool:
-    """空集合または sanctioned 集合だけを受入表として許可する。"""
+def canonicalize_sanctioned_exclusion_set(
+    entries: Iterable[Exclusion],
+) -> tuple[Exclusion, ...] | None:
+    """裁定済み集合を entry まで immutable な private canonical 値へ写す。"""
 
     try:
         actual = tuple(entries)
-        if any(type(entry) is not Exclusion for entry in actual):
-            return False
-        serialized = serialize_payload(actual)
+    except TypeError:
+        return None
+    if not actual:
+        return ()
+    if len(actual) != 1 or type(actual[0]) is not Exclusion:
+        return None
+    entry = actual[0]
+    try:
+        # PathLike はここで一度だけ評価する。以後は caller entry を再利用せず、
+        # private canonical Exclusion だけを serializer / token consumer へ渡す。
+        raw_path = Path(entry.path)
+        path_matches = normalize_path(raw_path) == _CANONICAL_CLEANUP_TEST_PATH
+        actual_target_is_regular = raw_path.is_file() and not raw_path.is_symlink()
     except (OSError, TypeError, ValueError):
-        return False
-    if serialized == serialize_payload(()):
-        return True
-    return (
-        serialized == serialize_payload(SANCTIONED_EXCLUSIONS)
+        return None
+    matches = bool(
+        path_matches
+        and actual_target_is_regular
         and sanctioned_target_is_regular_file()
+        and entry.reason == _CANONICAL_EXCLUSION_REASON
+        and entry.release_condition == _CANONICAL_EXCLUSION_RELEASE_CONDITION
+        and entry.ruling == _CANONICAL_EXCLUSION_RULING
+        and entry.set_version == _CANONICAL_EXCLUSION_SET_VERSION
     )
+    if not matches:
+        return None
+    if entry is _CANONICAL_EXCLUSION:
+        return actual
+    return (_CANONICAL_EXCLUSION,)
+
+
+def is_sanctioned_exclusion_set(entries: Iterable[Exclusion]) -> bool:
+    """空集合または private canonical exactly-one だけを許可する。"""
+
+    return canonicalize_sanctioned_exclusion_set(entries) is not None
