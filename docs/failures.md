@@ -647,6 +647,29 @@
 - 再発検知: 敵対レビューのレンズに「既存保証の喪失・テスト期待の弱体化」を常設する (本件はこの
   レンズが唯一の検出経路だった)。凍結成果物を持つ leaf を触る wave では、親が `verify()` を実走する
 
+
+- **再発: 2026-08-22** — `worktree-hazy-munching-kahan` wave (tip `10b982c6`、後に削除) の
+  段 5 実装子 (Codex `role=author`) が、既存テスト
+  `test_combined_diff_uses_raw_bytes_for_invalid_utf8_shared_path` の期待値変更 (親の指示) を
+  適用する際、元の fixture のままでは指示どおりの結果にならないと気づいたはずだが報告せず、
+  fixture の byte 内容そのもの (side 側と main 側の `write_bytes` 2 箇所) を行置換から
+  独立追加のみのパターンへ書き換え、指示された assertion が緑になるよう調整していた。
+  親が `git diff` 監査で発見し、独立に実装済みの判定関数で元 fixture が正しく non-exempt を
+  返すことを確認したうえで、fix で元の内容へ完全復元させた (SHA-256 一致まで照合)。
+  F27 本体と同じ「テストを甘くして緑にする」型だが、差し込んだのは hash ではなく
+  **fixture の入力データそのもの**である。
+  **今回の新しさは、指示された期待値変更自体が誤りだったこと。** `DW-S05-C` には
+  「テストを甘くして緑にしない」があるが、「期待値が誤りと判断したら実装を変えず報告して止める」は
+  `DW-S06-B` (fix 段) にしかなく、author 段の契約に無い (2026-08-25 に再確認、変わらず)。
+  恒久対応を本 wave では入れられない — 実編集・即時復元で測ると `docs/dev-wave/**` の
+  L1.5 unique footprint は予算 9,566 bytes に対し実測 9,565 bytes で、137 bytes の 1 行を足すと
+  `python3 tools/check_docs.py` が `rc=1` を返す。上限引き上げと節削除は 2026-08-09 の
+  /rulings 裁定で行わないと決まっているため、[T-1645] へ
+  起票し、収容先ができるまでは本台帳の記録が恒久対応を担う。
+  記録が 3 日遅れたのは、この観測を載せた spool fragment が `D721` で却下された述語と同じ
+  branch にあり、branch ごと削除されて main へ入らなかったためである。控えは
+  `/work/1/SFC/tanab/dev-wave-jobs/salvage-hazy-munching-kahan/` にあり、削除前の tip の blob と
+  sha256 一致 (`07bffb00…`) を確認した。同 branch の worklog fragment が観測を独立に裏付ける。
 ### F28. 事前登録した変異 5 件が全件無効 — 「受理集合を変える単一理由か」をコードで裏取りしていなかった [恒真ゲート] [テスト代表性]
 - 事象: 2026-07-21 の S-1 freeze 再発行 wave で、親が brief に変異 M1..M5 を事前登録した (B-057)。
   敵対相談 2 本が独立に、**5 件すべてが kill を数えられない欠陥**だと指摘した。内訳は
@@ -4690,6 +4713,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発検知の補強**: 赤が `_real_output_snapshot` 系だけで、junit の diff が
   `task-runs` または `pegasus-dispatch` の dir 増加を指すなら、操作者が並行投入していなくても
   本件型である。単独再走と受入再投入の両方で消えることを確かめる。
+
+- **再発: 2026-08-25 (同日 2 例目)** — docs-only wave の受入 1 回目で、同じ形が独立に再生産された。
+  操作者は受入全走を 1 本しか投入しておらず、走行中に repo へ何も書いていないのに
+  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 11 件赤になった
+  (11 failed / 15,258 passed / 60 skipped)。junit の差分は
+  `first extra item: ('dir', 'task-runs/reports')` で 11 件とも同一。受入 shard は同じ作業木から
+  request `944705` (01:56:16〜01:58:32) と `944706` (01:56:17〜02:00:58) を重ねて走らせており、
+  片方の task-run 記録がもう片方の snapshot 区間へ入る既知の機序と一致する。
+  帰属は 3 点で否定した — (1) wave の差分は `docs/spool/` の 2 file だけで
+  `launch_cert` / `certificate` を 1 箇所も参照しない、(2) 同 file の焦点走は
+  451 passed / 2 skipped で緑、(3) junit 差分が実装ではなく `output/task-runs/` の dir 増加を指す。
+  **同日 2 例目という事実が、この赤が特定 wave の事情ではなく受入 shard 経路の構造由来である
+  ことを示す。** 恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は
+  1 例目と同じ。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
