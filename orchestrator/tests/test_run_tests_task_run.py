@@ -67,7 +67,6 @@ def test_explicit_auto_off_preserves_exact_command_and_call_shape(monkeypatch):
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
         sys.executable, "-m", "pytest",
-        f"--ignore={RT._SANCTIONED_CLEANUP_TEST_PATH}",
         str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
     ],), {"cwd": str(_REPO)})]
