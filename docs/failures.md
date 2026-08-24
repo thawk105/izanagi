@@ -531,6 +531,8 @@
   恒久対応 (`.done` の実在と成果物の実在を併せて確認し、待ち手の rc を信じない) が
   3 回とも効き、実害はゼロ。追加事実は **偽完了が特定の段に偏らず、
   read-only の codex 子にも計算ノードへ dispatch する変異 harness にも等しく起きる**点である。
+
+- **再発: 2026-08-25** — `tools/dev_wave_wait.py producer` を背景 job で張った段 6 fix の待ち手が、producer 生存中に **exit 0 かつ出力ゼロ**で偽完了した。`.done` は不在、launcher pid は経過 1 分 24 秒で生存しており、実際の完了は約 8 分後だった。既存の恒久対応 (待ち手の rc を信じず `.done` の exit code と producer 生死で判定する) がそのまま効き、`git diff` が未変化であることと `ps -p` の生存で誤完了を弾いて待ち手を張り直した。本 wave の追加事実は無く、2026-08-17 / 2026-08-23 と同型の 3 度目である。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -4783,6 +4785,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (上記 F273 の再発)。F136 の既知形 (隣で別 command を走らせた) と違い、
   **受入全走 1 本の内部で完結する自己汚染**である点が新しい。
   親は dump が追跡外であることを `git ls-files` で確認してから除去し、受入を再投入した。
+
+- **再発: 2026-08-25 (同日 4 例目)** — **docs-only ではない実装 wave でも同じ形が出た**点が新しい。同日 2・3 例目はいずれも差分が `docs/spool/` だけの wave だったため「docs-only wave が受入 shard 経路を通ると再現する」と記述したが、本 wave の差分は `tools/audit_dangling_commits.py` と `orchestrator/tests/test_audit_dangling_commits.py` の実装面 2 file である。それでも `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 11 件赤になり (11 failed / 15,431 passed / 60 skipped)、junit の差分は 11 件とも `first extra item: ('dir', 'task-runs/reports')` で 2・3 例目と逐語一致した。受入 shard は同じ作業木から request `945262` と `945263` を重ねて投入している (shard-1 の junit が 06:21:48、shard-0 が 06:23:55 に確定)。帰属は台帳が定める 3 点で否定した — (1) wave の実装面差分は `launch_cert` / `certificate` を 1 箇所も参照しない (`git diff 16086f12..HEAD -- tools/ orchestrator/` の grep が 0 件)、(2) 同 file の焦点走は **451 passed / 2 skipped** で緑 (2・3 例目と内訳まで一致)、(3) junit 差分が実装ではなく `output/task-runs/` の dir 増加を指す。**差分の性質 (docs-only か実装か) は条件でなく、受入 shard 経路を通ること自体が条件である**ことが確定した。恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は既存の再発と同じ。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -13563,6 +13567,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   与えても完走することを pin する。
 - 家族: F297 / F489 と同じ「掃除の関門が本番環境で構造的に通れない」型で、
   滞留の規模 (worktree 32 本・branch 121 本) も F489 の実測に近い。
+- **supersede: 2026-08-25** — 恒久対応の「分割実行への是正は本 wave の編集面の外」は解消した。`_landed_reference_matches()` は D788 の二重上限で分割実行し、再発検知は変異 15 件 (全件 KILLED) と `SC_ARG_MAX` 由来の母集合で pin した。argv 上限の手前で `SIGKILL` される領域があることも同時に判明したため、上限は byte だけでなく本数にも掛けている。実探索根に対する本番相当の実走は 2:16:05 で完走し rc=1 (所見あり) を返した。
 
 ### F527. 占有検査に相対 path を渡し、22 本すべてを偽の「撤去可」と判定した [恒真ゲート] [誤前提]
 
