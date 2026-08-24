@@ -101,6 +101,7 @@
     "campaign_shape": "one fresh exact-two-arm campaign per workload",
     "automatic_retry": false,
     "default_remeasure_is_retained_but_rounds_other_than_one_are_invalid": true,
-    "materialization": "terminal raw bundle to exclusive-create destination"
+    "materialization": "terminal raw bundle to exclusive-create destination",
+    "durable_measurement_base": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement"
   }
 }
