@@ -152,6 +152,10 @@ if os.environ.get('IZANAGI_ORPHAN_HOLD') == '1':
     dispatch = repo / 'output' / 'pegasus-dispatch'
     dispatch.mkdir(parents=True, exist_ok=True)
     (dispatch / 'orphan-hold.json').write_text('{}\\n', encoding='utf-8')
+if os.environ.get('IZANAGI_ORPHAN_LEDGER') == '1':
+    ledger = repo / 'output' / 'pegasus-dispatch' / 'orphan-holds'
+    ledger.mkdir(parents=True, exist_ok=True)
+    (ledger / '424242.nqsv.json').write_text('{}\\n', encoding='utf-8')
 if os.environ.get('IZANAGI_ORPHAN_STOP') == '1':
     Path(str(out) + '.orphan-stop.json').write_text(json.dumps({
         'reason': {
@@ -584,6 +588,63 @@ def test_orphan_hold_preserves_container_and_wrapper_receipt_between_observation
     stderr = capfd.readouterr().err
     assert stderr.index("復旧順序:") < stderr.index("resume command:")
     assert "--resume は orphan hold を解除した後にだけ有効" in stderr
+
+
+@_limited
+def test_request_ledger_only_preserves_container_without_teardown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setenv("IZANAGI_ORPHAN_LEDGER", "1")
+    monkeypatch.setenv("IZANAGI_LEDGER_MODE", "terminal")
+
+    rc = MW.main(_wrapper_argv(fixture, runner_mode="dispatch"))
+
+    assert rc == MW.WRAPPER_FAILURE_RC
+    container = fixture.scratch / MW.CONTAINER_NAME
+    ledger = (
+        container
+        / "repo"
+        / "output"
+        / "pegasus-dispatch"
+        / "orphan-holds"
+        / "424242.nqsv.json"
+    )
+    assert ledger.is_file()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] == "orphan-hold"
+    assert receipt["container_preserved"] is True
+    assert receipt["teardown_attempted"] is False
+
+
+@_limited
+def test_request_ledger_scan_error_blocks_teardown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    preflight = SimpleNamespace(checkout=fixture.source, out=fixture.out)
+    ledger = fixture.source / "output" / "pegasus-dispatch" / "orphan-holds"
+    ledger.mkdir(parents=True)
+    real_scandir = MW.os.scandir
+
+    def fail_descriptor_scan(path):
+        if isinstance(path, int):
+            raise PermissionError("injected ledger scan denial")
+        return real_scandir(path)
+
+    monkeypatch.setattr(MW.os, "scandir", fail_descriptor_scan)
+    blocked = MW._orphan_hold_present(preflight)
+    assert blocked is True
+    assert MW._should_teardown(
+        plan_only=True,
+        child_rc=None,
+        terminal=False,
+        orphan_hold=blocked,
+    ) is False
 
 
 @_limited

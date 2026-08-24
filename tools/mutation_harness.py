@@ -33,6 +33,7 @@ ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts/v1"
 ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
 ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 ORPHAN_HOLD_NAME = "orphan-hold.json"
+ORPHAN_HOLD_DIR_NAME = "orphan-holds"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RECEIPT_LINE_RE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (.+) へ保存しました \(child rc=(-?\d+)\)$"
@@ -187,6 +188,39 @@ def _dispatch_orphan_hold_path(repo: Path) -> Path:
     return repo / "output" / "pegasus-dispatch" / ORPHAN_HOLD_NAME
 
 
+def _dispatch_orphan_hold_present(repo: Path) -> bool:
+    """canonical control root 内の aggregate/request ledger を fail-closed で調べる。"""
+
+    control_root = repo / "output" / "pegasus-dispatch"
+    if _path_present_fail_closed(control_root / ORPHAN_HOLD_NAME):
+        return True
+    ledger = control_root / ORPHAN_HOLD_DIR_NAME
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        return True
+    try:
+        descriptor = os.open(
+            ledger,
+            os.O_RDONLY | nofollow | directory | getattr(os, "O_CLOEXEC", 0),
+        )
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    blocker = False
+    try:
+        with os.scandir(descriptor) as entries:
+            blocker = any(entry.name.endswith(".json") for entry in entries)
+    except OSError:
+        blocker = True
+    try:
+        os.close(descriptor)
+    except OSError:
+        blocker = True
+    return blocker
+
+
 def _path_present_fail_closed(path: Path) -> bool:
     try:
         os.lstat(path)
@@ -279,7 +313,7 @@ def _dispatch_orphan_stop(
     timed_out = result is not None and result.get("timed_out") is True
     hold = _dispatch_orphan_hold_path(repo)
     if runner_mode != "dispatch":
-        if _path_present_fail_closed(hold):
+        if _dispatch_orphan_hold_present(repo):
             return OrphanHoldStop(
                 phase=phase,
                 mutation_id=mutation_id,
@@ -323,7 +357,7 @@ def _dispatch_orphan_stop(
             hold_reason = "dispatch-runner-timeout"
         else:
             hold_reason = "dispatch-receipt-job-may-remain"
-        if not _path_present_fail_closed(hold):
+        if not _dispatch_orphan_hold_present(repo):
             hold, hold_error = _latch_dispatch_orphan_hold(
                 repo,
                 phase=phase,
@@ -340,7 +374,7 @@ def _dispatch_orphan_stop(
             active_record=result,
             hold_error=hold_error,
         )
-    if _path_present_fail_closed(hold):
+    if _dispatch_orphan_hold_present(repo):
         return OrphanHoldStop(
             phase=phase,
             mutation_id=mutation_id,
@@ -2181,7 +2215,7 @@ def _apply_mutation(
     finally:
         hold_present = (
             runner_mode == "dispatch"
-            and _path_present_fail_closed(_dispatch_orphan_hold_path(repo))
+            and _dispatch_orphan_hold_present(repo)
         )
         preserve = pending_stop is not None or hold_present
         if preserve:
