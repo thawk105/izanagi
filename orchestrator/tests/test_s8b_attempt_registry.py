@@ -1,0 +1,1516 @@
+"""Durability and typed-order tests for the unconnected 8b adapter."""
+from __future__ import annotations
+
+import ast
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
+import hashlib
+import inspect
+import json
+import os
+import stat
+import subprocess
+import sys
+import threading
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from orchestrator.campaign import attempt_registry_core as core  # noqa: E402
+from orchestrator.campaign import s8b_attempt_profile as profile8b  # noqa: E402
+from orchestrator.campaign import s8b_attempt_registry as registry  # noqa: E402
+from orchestrator.campaign import s8b_holdout_admission as admission  # noqa: E402
+from orchestrator.campaign.s8b_holdout_freeze import (  # noqa: E402
+    RMW_KEY,
+    RRATIO_KEY,
+    SKEW_KEY,
+)
+
+
+_FREEZE = "1" * 64
+_PROTOCOL = "2" * 64
+_SCHEDULE = "3" * 64
+_RUN_START = "4" * 64
+_POLICY = "5" * 64
+_EXTERNAL = "6" * 64
+_REPORT = "7" * 64
+_OBSERVATION = "8" * 64
+_ACCOUNTING = "9" * 64
+_RECOVERY_AUTHORITY = "adapter-test-scheduler-authority"
+_CLASSIFICATION_AUTHORITY = "adapter-test-classification-authority"
+_CAMPAIGN_RUN = "adapter-test-run"
+_ADMISSION_MANIFEST = "a" * 64
+_RUN_RELPATH = f"runs/{_CAMPAIGN_RUN}"
+_PROCESS = {
+    "pid": 1234,
+    "starttime": "adapter-test-starttime",
+    "execution_uuid": "adapter-test-execution",
+}
+_RECOVERER = {
+    "pid": 5678,
+    "starttime": "adapter-test-recoverer-starttime",
+    "execution_uuid": "adapter-test-recoverer-execution",
+}
+_BINDING = profile8b.S8BAttemptBinding(
+    freeze_sha256=_FREEZE,
+    protocol_sha256=_PROTOCOL,
+    schedule_sha256=_SCHEDULE,
+)
+
+
+def _repo(path: Path) -> Path:
+    path.mkdir(parents=True)
+    subprocess.run(
+        ["git", "init", "-q", str(path)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return path
+
+
+def _profile(*, budget: int = 64) -> core.DomainProfile[Any, Any]:
+    return profile8b.make_s8b_domain_profile(
+        max_consumptions_per_budget_key=budget,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
+    )
+
+
+def _slot(
+    repetition: int = 7,
+    attempt_ordinal: int = 0,
+    *,
+    configuration_id: str = "configuration-a",
+) -> profile8b.S8BAttemptSlot:
+    identity = {
+        "freeze_holdout_key": "holdout-a",
+        "configuration_id": configuration_id,
+        "repetition": repetition,
+        "attempt_ordinal": attempt_ordinal,
+    }
+    return profile8b.S8BAttemptSlot(
+        **identity,
+        schedule_row_sha256=hashlib.sha256(
+            core.canonical_json_bytes(identity)
+        ).hexdigest(),
+    )
+
+
+def _bytes(rows: tuple[dict[str, Any], ...]) -> bytes:
+    return b"".join(core.canonical_json_bytes(row) + b"\n" for row in rows)
+
+
+def _create(
+    repo: Path,
+    profile: core.DomainProfile[Any, Any],
+    slots: list[profile8b.S8BAttemptSlot],
+) -> Path:
+    return registry.create_attempt_registry(
+        repo, profile=profile, slots=slots, binding=_BINDING,
+    )
+
+
+def _claim_digest(slot: profile8b.S8BAttemptSlot) -> str:
+    return hashlib.sha256(
+        core.canonical_json_bytes({
+            "freeze_holdout_key": slot.freeze_holdout_key,
+            "configuration_id": slot.configuration_id,
+        })
+    ).hexdigest()
+
+
+def _attempt_id(slot: profile8b.S8BAttemptSlot) -> str:
+    cell_id = f"{slot.freeze_holdout_key}::{slot.configuration_id}"
+    return f"{cell_id}::attempt{slot.attempt_ordinal}"
+
+
+def _reserve(
+    repo: Path,
+    profile: core.DomainProfile[Any, Any],
+    slot: profile8b.S8BAttemptSlot,
+    *,
+    reader=lambda: b"raw-output",
+) -> registry.ReservedAttempt:
+    return registry.reserve_attempt_slot(
+        repo,
+        profile=profile,
+        binding=_BINDING,
+        slot_id=profile.slot_codec.slot_id(slot),
+        run_start_receipt_sha256=_RUN_START,
+        process_identity=_PROCESS,
+        started_at="2026-08-25T00:00:00+00:00",
+        admission_claim_digest=_claim_digest(slot),
+        attempt_id=_attempt_id(slot),
+        campaign_run_id=_CAMPAIGN_RUN,
+        manifest_sha256=_ADMISSION_MANIFEST,
+        run_relpath=_RUN_RELPATH,
+        cell_id=f"{slot.freeze_holdout_key}::{slot.configuration_id}",
+        deferred_output_reader=reader,
+    )
+
+
+def _classify(
+    reserved: registry.ReservedAttempt,
+    *,
+    reason: str | None = None,
+    external_evidence_sha256: str = _EXTERNAL,
+) -> registry.ClassifiedAttempt | registry.ClassifiedFailure:
+    return registry.classify_attempt(
+        reserved,
+        pre_observation_failure_reason=reason,
+        authority_id=_CLASSIFICATION_AUTHORITY,
+        authority_policy_sha256=_POLICY,
+        external_evidence_sha256=external_evidence_sha256,
+        classified_at="2026-08-25T00:00:01+00:00",
+    )
+
+
+def _write_marker(repo: Path, slot: profile8b.S8BAttemptSlot) -> Path:
+    root = admission.shared_admission_root(repo)
+    claim_digest = _claim_digest(slot)
+    attempt_id = _attempt_id(slot)
+    marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
+    path = root / "consumed" / f"{claim_digest}-{marker_digest}.json"
+    marker = {
+        "schema_version": "s8b-holdout-attempt-consumption/v1",
+        "event": "consume",
+        "claim_digest": claim_digest,
+        "attempt_id": attempt_id,
+        "campaign_run_id": _CAMPAIGN_RUN,
+        "manifest_sha256": _ADMISSION_MANIFEST,
+        "run_relpath": _RUN_RELPATH,
+        "cell_id": f"{slot.freeze_holdout_key}::{slot.configuration_id}",
+        "freeze_holdout_key": slot.freeze_holdout_key,
+        "configuration_id": slot.configuration_id,
+        "observation_role": admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    }
+    path.write_bytes(core.canonical_json_bytes(marker) + b"\n")
+    return path
+
+
+def _observe(
+    repo: Path,
+    slot: profile8b.S8BAttemptSlot,
+    classified: registry.ClassifiedAttempt,
+) -> registry.CapturedObservation:
+    _write_marker(repo, slot)
+    return registry.begin_attempt_observation(classified)
+
+
+def _terminal(observation: object) -> None:
+    registry.record_attempt_terminal(
+        observation,  # type: ignore[arg-type]
+        terminal_status="observed",
+        report_sha256=_REPORT,
+        observation_sha256=_OBSERVATION,
+        primary_value={"throughput": 1.0},
+        finished_at="2026-08-25T00:00:02+00:00",
+    )
+
+
+def _receipt_file(repo: Path) -> Path:
+    root = admission.shared_admission_root(repo)
+    directory = root.joinpath(
+        *profile8b.S8B_REGISTRY_LAYOUT.classification_receipt_dir.parts
+    )
+    receipts = [path for path in directory.glob("*.json") if path.is_file()]
+    assert len(receipts) == 1
+    return receipts[0]
+
+
+def _recovery_receipt_bytes(
+    repo: Path,
+    profile: core.DomainProfile[Any, Any],
+    slot: profile8b.S8BAttemptSlot,
+    reason: str,
+) -> bytes:
+    rows = registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )
+    starts = [
+        row for row in rows
+        if row.get("event") == "start"
+        and row.get("freeze_holdout_key") == slot.freeze_holdout_key
+        and row.get("configuration_id") == slot.configuration_id
+        and row.get("repetition") == slot.repetition
+        and row.get("attempt_ordinal") == slot.attempt_ordinal
+    ]
+    assert len(starts) == 1
+    receipt = {
+        "schema_version": profile8b.S8B_RECOVERY_RECEIPT_SCHEMA_VERSION,
+        "event": profile8b.S8B_RECOVERY_RECEIPT_EVENT,
+        "source": profile8b.S8B_RECOVERY_RECEIPT_SOURCE,
+        "scheduler_request_id": "adapter-test-request",
+        "target_start_event_sha256": starts[0]["event_sha256"],
+        "raw_scheduler_accounting_record_sha256": _ACCOUNTING,
+        "authority_id": _RECOVERY_AUTHORITY,
+        "authority_policy_sha256": _POLICY,
+        "failure_reason": reason,
+        "collected_at": "2026-08-25T00:00:03+00:00",
+    }
+    return core.canonical_json_bytes(receipt) + b"\n"
+
+
+def test_terminal_rejects_unclassified_handle_and_accepts_full_order(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=r"^\[s8b-attempt-registry-handle\] operation requires exact "
+        r"CapturedObservation$",
+    ):
+        _terminal(reserved)
+
+    classified = _classify(reserved)
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    forged = registry.CapturedObservation(captured._state, object())
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="handle private seal differs",
+    ):
+        _terminal(forged)
+    _terminal(captured)
+    terminal = registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]
+    assert terminal["event"] == "terminal"
+    assert terminal["raw_output_sha256"] == hashlib.sha256(
+        b"raw-output"
+    ).hexdigest()
+
+
+def test_handle_registry_rejects_constructor_and_replace_forgery(
+    tmp_path: Path,
+) -> None:
+    profile = _profile()
+    slot = _slot()
+
+    failure_repo = _repo(tmp_path / "failure")
+    _create(failure_repo, profile, [slot])
+    failure = _classify(
+        _reserve(failure_repo, profile, slot), reason="preflight-failure",
+    )
+    assert type(failure) is registry.ClassifiedFailure
+    _write_marker(failure_repo, slot)
+    promoted = registry.ClassifiedAttempt(failure._state, failure._seal)
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="handle was not issued for this attempt phase",
+    ):
+        registry.begin_attempt_observation(promoted)
+
+    observed_repo = _repo(tmp_path / "observed")
+    _create(observed_repo, profile, [slot])
+    classified = _classify(_reserve(observed_repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(observed_repo, slot, classified)
+    forged_state = replace(captured._state, raw_output_sha256="f" * 64)
+    forged = replace(captured, _state=forged_state)
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="handle was not issued for this attempt phase",
+    ):
+        _terminal(forged)
+
+    _terminal(captured)
+    assert registry.read_attempt_registry(
+        observed_repo, profile=profile, binding=_BINDING,
+    )[-1]["raw_output_sha256"] == hashlib.sha256(b"raw-output").hexdigest()
+
+
+@pytest.mark.parametrize("tamper", ("missing", "replaced"))
+def test_terminal_requires_exact_stored_receipt_and_accepts_restored_bytes(
+    tmp_path: Path,
+    tamper: str,
+) -> None:
+    repo = _repo(tmp_path / tamper)
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    receipt_path = _receipt_file(repo)
+    original = receipt_path.read_bytes()
+    if tamper == "missing":
+        receipt_path.unlink()
+    else:
+        changed = dict(__import__("json").loads(original))
+        changed["external_evidence_sha256"] = "f" * 64
+        receipt_path.write_bytes(core.canonical_json_bytes(changed) + b"\n")
+
+    with pytest.raises(registry.S8BAttemptRegistryError):
+        _terminal(captured)
+
+    receipt_path.write_bytes(original)
+    _terminal(captured)
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "terminal"
+
+
+def test_terminal_independently_rejects_changed_cached_receipt_bytes(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    receipt_path = _receipt_file(repo)
+    durable = receipt_path.read_bytes()
+    assert receipt_path.stem == hashlib.sha256(durable).hexdigest()
+
+    changed = dict(json.loads(durable))
+    changed["external_evidence_sha256"] = "f" * 64
+    changed_bytes = core.canonical_json_bytes(changed) + b"\n"
+    forged_state = replace(
+        captured._state,
+        classification_receipt_bytes=changed_bytes,
+    )
+    rows = registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="stored classification receipt bytes differ from handle",
+    ):
+        registry._assert_classification_artifacts(
+            root=admission.shared_admission_root(repo),
+            rows=rows,
+            profile=profile,
+            binding=_BINDING,
+            slot_id=profile.slot_codec.slot_id(slot),
+            admission_claim_digest=forged_state.admission_claim_digest,
+            attempt_id=forged_state.attempt_id,
+            expected_receipt_bytes=forged_state.classification_receipt_bytes,
+        )
+
+    assert receipt_path.read_bytes() == durable
+    assert receipt_path.stem == hashlib.sha256(durable).hexdigest()
+    _terminal(captured)
+
+
+def test_slot_classification_claim_allows_exact_retry_and_rejects_new_reason(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+    first = _classify(reserved)
+    after_first = path.read_bytes()
+    receipt_path = _receipt_file(repo)
+    assert receipt_path.stem == hashlib.sha256(
+        receipt_path.read_bytes()
+    ).hexdigest()
+    claim_paths = list(
+        receipt_path.parent.joinpath("classification-claims").glob("*.json")
+    )
+    assert len(claim_paths) == 1
+
+    exact_retry = _classify(reserved)
+    assert type(first) is type(exact_retry) is registry.ClassifiedAttempt
+    assert path.read_bytes() == after_first
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="classification exact retry differs",
+    ):
+        _classify(reserved, reason="different-reason")
+    assert path.read_bytes() == after_first
+
+    failure_repo = _repo(tmp_path / "classified-failure")
+    failure_path = _create(failure_repo, profile, [slot])
+    failure = _classify(
+        _reserve(failure_repo, profile, slot), reason="preflight-failure",
+    )
+    assert type(failure) is registry.ClassifiedFailure
+    _write_marker(failure_repo, slot)
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="operation requires exact ClassifiedAttempt",
+    ):
+        registry.begin_attempt_observation(failure)  # type: ignore[arg-type]
+    assert failure_path.read_bytes().count(b"\n") == 4
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        pytest.param(
+            lambda profile: replace(profile, statuses=profile.statuses + ("other",)),
+            id="statuses",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile, retryable_reasons=frozenset({"other"}),
+            ),
+            id="retryable-reasons",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile, slot_codec=profile8b.S8BSlotCodec(),
+            ),
+            id="slot-codec-identity",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile, binding_codec=profile8b.S8BBindingCodec(),
+            ),
+            id="binding-codec-identity",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    require_previous_terminal=False,
+                ),
+            ),
+            id="require-previous-terminal",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    forbid_retry_after_observation=False,
+                ),
+            ),
+            id="forbid-retry-after-observation",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    allow_recovered_abandonment=False,
+                ),
+            ),
+            id="allow-recovered-abandonment",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy, max_series_attempts=2,
+                ),
+            ),
+            id="max-series-attempts",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    require_terminal_reason_equals_classification=False,
+                ),
+            ),
+            id="terminal-reason-policy",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                transition_policy=replace(
+                    profile.transition_policy,
+                    budget_key=lambda slot: slot.repetition,
+                ),
+            ),
+            id="budget-key-identity",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                recovery_policy=replace(
+                    profile.recovery_policy,
+                    receipt_schema_version="scheduler-accounting-receipt/v2",
+                ),
+            ),
+            id="recovery-schema",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                recovery_policy=replace(
+                    profile.recovery_policy, receipt_source="other-source",
+                ),
+            ),
+            id="recovery-source",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                recovery_policy=replace(
+                    profile.recovery_policy,
+                    failure_reasons=frozenset({"node_failure"}),
+                ),
+            ),
+            id="recovery-reasons",
+        ),
+        pytest.param(
+            lambda profile: replace(
+                profile,
+                freeze_id_from_genesis=lambda row: row["freeze_sha256"],
+            ),
+            id="freeze-identity-function",
+        ),
+    ),
+)
+def test_adapter_rejects_every_mutable_frozen_profile_surface(
+    tmp_path: Path,
+    mutation: Any,
+) -> None:
+    profile = mutation(_profile())
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="domain profile differs from frozen 8b semantics",
+    ):
+        _create(_repo(tmp_path / "repo"), profile, [_slot()])
+
+
+def test_adapter_rejects_hostile_profile_field_comparison_protocol() -> None:
+    class AcceptAllStatuses:
+        def __eq__(self, other: object) -> bool:
+            return True
+
+        def __ne__(self, other: object) -> bool:
+            return False
+
+        def __contains__(self, item: object) -> bool:
+            return True
+
+    forged = replace(_profile(), statuses=AcceptAllStatuses())
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="domain profile differs from frozen 8b semantics",
+    ):
+        registry._assert_profile(forged)
+
+
+def test_adapter_allows_only_budget_and_recovery_authority_values_to_vary(
+    tmp_path: Path,
+) -> None:
+    for name, budget, authority, policy in (
+        ("first", 1, "authority-first", "a" * 64),
+        ("second", 97, "authority-second", "b" * 64),
+    ):
+        profile = profile8b.make_s8b_domain_profile(
+            max_consumptions_per_budget_key=budget,
+            recovery_authority_id=authority,
+            recovery_authority_policy_sha256=policy,
+        )
+        path = _create(_repo(tmp_path / name), profile, [_slot()])
+        assert path.is_file()
+
+
+@pytest.mark.parametrize(
+    ("reason", "accepted"),
+    (
+        pytest.param("wall_timeout", False, id="closed-set-negative"),
+        pytest.param("node_failure", True, id="node-failure-positive"),
+        pytest.param(
+            "scheduler_external_interruption",
+            True,
+            id="scheduler-interruption-positive",
+        ),
+    ),
+)
+def test_recovery_uses_canonical_receipt_reason_without_normalization(
+    tmp_path: Path,
+    reason: str,
+    accepted: bool,
+) -> None:
+    repo = _repo(tmp_path / reason)
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+    receipt = _recovery_receipt_bytes(repo, profile, slot, reason)
+
+    if not accepted:
+        with pytest.raises(
+            core.AttemptRegistryCoreError,
+            match="failure_reason is outside the exact closed set",
+        ):
+            registry.record_attempt_recovery(
+                reserved,
+                scheduler_accounting_receipt=receipt,
+                recoverer_process_identity=_RECOVERER,
+                recovered_at="2026-08-25T00:00:04+00:00",
+            )
+        assert registry.read_attempt_registry(
+            repo, profile=profile, binding=_BINDING,
+        )[-1]["event"] == "pre-observation-seal"
+    else:
+        registry.record_attempt_recovery(
+            reserved,
+            scheduler_accounting_receipt=receipt,
+            recoverer_process_identity=_RECOVERER,
+            recovered_at="2026-08-25T00:00:04+00:00",
+        )
+        row = registry.read_attempt_registry(
+            repo, profile=profile, binding=_BINDING,
+        )[-1]
+        assert row["event"] == "recovery"
+        assert row["failure_reason"] == reason
+        assert row["scheduler_accounting_receipt"]["failure_reason"] == reason
+
+    assert "failure_reason" not in inspect.signature(
+        registry.record_attempt_recovery
+    ).parameters
+
+
+def test_observe_rejects_absent_consumed_marker_then_accepts_marker(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="durable file is absent",
+    ):
+        registry.begin_attempt_observation(classified)
+
+    _write_marker(repo, slot)
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
+
+
+def test_marker_without_attempt_ledger_authorizes_observe(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    _write_marker(repo, slot)
+    attempt_ledger = admission.shared_admission_root(repo) / "attempt-ledger.jsonl"
+    assert not attempt_ledger.exists()
+
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
+    assert not attempt_ledger.exists()
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    (
+        "missing-key",
+        "schema-version",
+        "different-campaign",
+        "different-run",
+        "different-manifest",
+        "different-cell",
+    ),
+)
+def test_observe_requires_exact_consumed_marker_contract(
+    tmp_path: Path,
+    tamper: str,
+) -> None:
+    repo = _repo(tmp_path / tamper)
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    marker_path = _write_marker(repo, slot)
+    original = marker_path.read_bytes()
+    marker = dict(json.loads(original))
+    if tamper == "missing-key":
+        marker.pop("manifest_sha256")
+    elif tamper == "schema-version":
+        marker["schema_version"] = "s8b-holdout-attempt-consumption/v2"
+    elif tamper == "different-campaign":
+        marker["campaign_run_id"] = "different-run"
+    elif tamper == "different-run":
+        marker["run_relpath"] = "runs/different-run"
+    elif tamper == "different-manifest":
+        marker["manifest_sha256"] = "b" * 64
+    else:
+        marker["cell_id"] = "holdout-other::configuration-other"
+    marker_path.write_bytes(core.canonical_json_bytes(marker) + b"\n")
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="consumed marker",
+    ):
+        registry.begin_attempt_observation(classified)
+
+    marker_path.write_bytes(original)
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
+
+
+def test_genesis_is_create_only_and_rejects_alternate_or_symlinked_paths(
+    tmp_path: Path,
+) -> None:
+    profile = _profile()
+    slot = _slot()
+    repo = _repo(tmp_path / "second")
+    canonical = _create(repo, profile, [slot])
+    shared_root = admission.shared_admission_root(repo)
+    relative = profile8b.S8B_REGISTRY_LAYOUT.registry_path.as_posix().format(
+        freeze_sha256=_FREEZE
+    )
+    assert canonical == shared_root.joinpath(*Path(relative).parts)
+    assert (shared_root / "ledger.lock").is_file()
+    with pytest.raises(registry.S8BAttemptRegistryError):
+        _create(repo, profile, [slot])
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="alternate registry path is forbidden",
+    ):
+        registry.create_attempt_registry(
+            repo,
+            profile=profile,
+            slots=[slot],
+            binding=_BINDING,
+            requested_registry_path=canonical.with_name("alternate.jsonl"),
+        )
+
+    parent_repo = _repo(tmp_path / "parent-symlink")
+    parent_path = registry.registry_path(parent_repo, freeze_sha256=_FREEZE)
+    parent_path.parent.parent.mkdir(parents=True, exist_ok=True)
+    symlink_target = tmp_path / "outside-parent"
+    symlink_target.mkdir()
+    parent_path.parent.symlink_to(symlink_target, target_is_directory=True)
+    with pytest.raises(
+        (registry.S8BAttemptRegistryError, admission.HoldoutAdmissionError),
+        match="symlink",
+    ):
+        _create(parent_repo, profile, [slot])
+
+    destination_repo = _repo(tmp_path / "destination-symlink")
+    destination = registry.registry_path(
+        destination_repo, freeze_sha256=_FREEZE,
+    )
+    destination.parent.mkdir(parents=True)
+    target = tmp_path / "outside-registry"
+    target.write_bytes(b"do-not-touch\n")
+    destination.symlink_to(target)
+    with pytest.raises(registry.S8BAttemptRegistryError):
+        _create(destination_repo, profile, [slot])
+    assert target.read_bytes() == b"do-not-touch\n"
+
+
+def test_relative_repo_root_is_canonicalized_before_handle_is_issued(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    monkeypatch.chdir(repo)
+    reserved = _reserve(Path("."), profile, slot)
+    assert reserved._state.repo_root == repo.resolve()
+
+    monkeypatch.chdir(tmp_path)
+    classified = _classify(reserved)
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    _terminal(captured)
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "terminal"
+
+
+def test_resume_classification_and_incomplete_reader_add_no_rows(
+    tmp_path: Path,
+) -> None:
+    profile = _profile()
+    slot = _slot()
+
+    classified_repo = _repo(tmp_path / "classified")
+    classified_path = _create(classified_repo, profile, [slot])
+    _classify(_reserve(classified_repo, profile, slot))
+    before_classified_resume = classified_path.read_bytes()
+    resumed = registry.resume_attempt(
+        classified_repo,
+        profile=profile,
+        binding=_BINDING,
+        slot_id=profile.slot_codec.slot_id(slot),
+        deferred_output_reader=lambda: b"resumed-output",
+    )
+    assert type(resumed) is registry.ClassifiedAttempt
+    assert classified_path.read_bytes() == before_classified_resume
+
+    observed_repo = _repo(tmp_path / "observed")
+    observed_path = _create(observed_repo, profile, [slot])
+
+    def incomplete_reader() -> bytes:
+        raise RuntimeError("reader-incomplete")
+
+    classified = _classify(
+        _reserve(observed_repo, profile, slot, reader=incomplete_reader)
+    )
+    assert type(classified) is registry.ClassifiedAttempt
+    _write_marker(observed_repo, slot)
+    with pytest.raises(RuntimeError, match="reader-incomplete"):
+        registry.begin_attempt_observation(classified)
+    before_observed_resume = observed_path.read_bytes()
+    assert registry.read_attempt_registry(
+        observed_repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "observation-start"
+
+    captured = registry.resume_attempt(
+        observed_repo,
+        profile=profile,
+        binding=_BINDING,
+        slot_id=profile.slot_codec.slot_id(slot),
+        deferred_output_reader=lambda: b"resumed-output",
+    )
+    assert type(captured) is registry.CapturedObservation
+    assert observed_path.read_bytes() == before_observed_resume
+
+
+def test_resume_start_and_seal_without_old_handle_reaches_terminal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+
+    class InjectedCrash(RuntimeError):
+        pass
+
+    def crash_after_durable_reservation(point: str) -> None:
+        if point == "after-parent-fsync":
+            raise InjectedCrash(point)
+
+    monkeypatch.setattr(
+        registry, "_FAULT_HOOK", crash_after_durable_reservation,
+    )
+    with pytest.raises(InjectedCrash, match="after-parent-fsync"):
+        _reserve(repo, profile, slot)
+    monkeypatch.setattr(registry, "_FAULT_HOOK", None)
+    after_reservation = path.read_bytes()
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "pre-observation-seal"
+
+    resumed = registry.resume_attempt(
+        repo,
+        profile=profile,
+        binding=_BINDING,
+        slot_id=profile.slot_codec.slot_id(slot),
+        deferred_output_reader=lambda: b"resumed-output",
+        admission_claim_digest=_claim_digest(slot),
+        attempt_id=_attempt_id(slot),
+        campaign_run_id=_CAMPAIGN_RUN,
+        manifest_sha256=_ADMISSION_MANIFEST,
+        run_relpath=_RUN_RELPATH,
+        cell_id=f"{slot.freeze_holdout_key}::{slot.configuration_id}",
+    )
+    assert type(resumed) is registry.ReservedAttempt
+    assert path.read_bytes() == after_reservation
+
+    classified = _classify(resumed)
+    assert type(classified) is registry.ClassifiedAttempt
+    captured = _observe(repo, slot, classified)
+    _terminal(captured)
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "terminal"
+
+
+def test_atomic_update_fault_points_leave_only_old_or_new_complete_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    points = tuple(registry.ATOMIC_UPDATE_FAULT_POINTS)
+    assert points == (
+        "after-authoritative-read",
+        "after-replay",
+        "after-transition",
+        "after-candidate-validation",
+        "after-staging-fsync",
+        "after-replace",
+        "after-parent-fsync",
+    )
+    assert points
+    fired = {point: 0 for point in points}
+
+    class InjectedCrash(RuntimeError):
+        pass
+
+    for point in points:
+        repo = _repo(tmp_path / point)
+        profile = _profile()
+        slot = _slot()
+        path = _create(repo, profile, [slot])
+        old_bytes = path.read_bytes()
+        old_rows = core.load_attempt_registry(old_bytes, profile=profile)
+        expected_rows = core.reserve_attempt_slot(
+            old_rows,
+            profile=profile,
+            freeze_id=_FREEZE,
+            slot_id=profile.slot_codec.slot_id(slot),
+            binding=_BINDING,
+            run_start_receipt_sha256=_RUN_START,
+            process_identity=_PROCESS,
+            started_at="2026-08-25T00:00:00+00:00",
+        )
+        new_bytes = _bytes(expected_rows)
+
+        def fault_hook(actual: str, *, selected: str = point) -> None:
+            if actual == selected:
+                fired[selected] += 1
+                raise InjectedCrash(selected)
+
+        monkeypatch.setattr(registry, "_FAULT_HOOK", fault_hook)
+        with pytest.raises(InjectedCrash, match=point):
+            _reserve(repo, profile, slot)
+        monkeypatch.setattr(registry, "_FAULT_HOOK", None)
+
+        authoritative = path.read_bytes()
+        assert authoritative in {old_bytes, new_bytes}
+        assert authoritative.endswith(b"\n")
+        core.load_attempt_registry(
+            authoritative, profile=profile, expected_binding=_BINDING,
+        )
+        assert not list(path.parent.glob(f".{path.name}.staging-*"))
+
+    assert fired == {point: 1 for point in points}
+
+
+@pytest.mark.parametrize("fault", ("write", "fsync"))
+def test_guarded_writer_internal_fault_removes_partial_staging(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+) -> None:
+    repo = _repo(tmp_path / fault)
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    old_bytes = path.read_bytes()
+    original_write = os.write
+    original_fsync = os.fsync
+    injected = 0
+
+    if fault == "write":
+        def failing_write(fd: int, payload: object) -> int:
+            nonlocal injected
+            if injected == 0:
+                injected += 1
+                view = memoryview(payload)  # type: ignore[arg-type]
+                return original_write(fd, view[:max(1, len(view) // 2)])
+            if injected == 1:
+                injected += 1
+                raise OSError("injected guarded write failure")
+            return original_write(fd, payload)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(admission.os, "write", failing_write)
+    else:
+        def failing_fsync(fd: int) -> None:
+            nonlocal injected
+            if injected == 0 and stat.S_ISREG(os.fstat(fd).st_mode):
+                injected += 1
+                raise OSError("injected guarded fsync failure")
+            original_fsync(fd)
+
+        monkeypatch.setattr(admission.os, "fsync", failing_fsync)
+
+    with pytest.raises(OSError, match=f"injected guarded {fault} failure"):
+        _reserve(repo, profile, slot)
+
+    assert injected >= 1
+    assert path.read_bytes() == old_bytes
+    assert not list(path.parent.glob(f".{path.name}.staging-*"))
+    monkeypatch.setattr(admission.os, "write", original_write)
+    monkeypatch.setattr(admission.os, "fsync", original_fsync)
+    assert type(_reserve(repo, profile, slot)) is registry.ReservedAttempt
+
+
+def test_new_registry_directories_fsync_each_parent_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    root = admission.shared_admission_root(repo)
+    common = repo / ".git"
+    shared_parent = root.parent
+    first = root / "floor-attempt-registries"
+    leaf = first / _FREEZE
+    assert not shared_parent.exists()
+    assert not first.exists()
+    calls: list[Path] = []
+    real_fsync_directory = registry._fsync_directory
+
+    def recording_fsync(path: Path) -> None:
+        calls.append(path)
+        real_fsync_directory(path)
+
+    monkeypatch.setattr(registry, "_fsync_directory", recording_fsync)
+    _create(repo, profile, [slot])
+    assert calls[:7] == [
+        common,
+        shared_parent,
+        root,
+        first,
+        root,
+        leaf,
+        first,
+    ]
+
+
+def test_classification_publish_faults_pin_slot_claim_before_exact_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    points = tuple(registry.CLASSIFICATION_PUBLISH_FAULT_POINTS)
+    assert points == (
+        "after-classification-claim",
+        "after-classification-receipt",
+    )
+    assert points
+    fired = {point: 0 for point in points}
+
+    class InjectedCrash(RuntimeError):
+        pass
+
+    for point in points:
+        repo = _repo(tmp_path / point)
+        profile = _profile()
+        slot = _slot()
+        path = _create(repo, profile, [slot])
+        reserved = _reserve(repo, profile, slot)
+        old_bytes = path.read_bytes()
+
+        def fault_hook(actual: str, *, selected: str = point) -> None:
+            if actual == selected:
+                fired[selected] += 1
+                raise InjectedCrash(selected)
+
+        monkeypatch.setattr(registry, "_FAULT_HOOK", fault_hook)
+        with pytest.raises(InjectedCrash, match=point):
+            _classify(reserved)
+        monkeypatch.setattr(registry, "_FAULT_HOOK", None)
+        assert path.read_bytes() == old_bytes
+        receipt_root = admission.shared_admission_root(repo).joinpath(
+            *profile8b.S8B_REGISTRY_LAYOUT.classification_receipt_dir.parts
+        )
+        claim_paths = list(
+            receipt_root.joinpath("classification-claims").glob("*.json")
+        )
+        assert len(claim_paths) == 1
+        claim = json.loads(claim_paths[0].read_bytes())
+        embedded_receipt = (
+            core.canonical_json_bytes(claim["classification_receipt"]) + b"\n"
+        )
+        assert hashlib.sha256(embedded_receipt).hexdigest() == (
+            claim["classification_receipt_sha256"]
+        )
+        receipt_files = [
+            candidate for candidate in receipt_root.glob("*.json")
+            if candidate.is_file()
+        ]
+        assert len(receipt_files) == (
+            0 if point == "after-classification-claim" else 1
+        )
+
+        with pytest.raises(
+            registry.S8BAttemptRegistryError,
+            match="durable destination already exists",
+        ):
+            _classify(reserved, reason="replacement-reason")
+        assert path.read_bytes() == old_bytes
+        del reserved
+
+        exact = registry.resume_attempt(
+            repo,
+            profile=profile,
+            binding=_BINDING,
+            slot_id=profile.slot_codec.slot_id(slot),
+            deferred_output_reader=lambda: b"resumed-output",
+        )
+        assert type(exact) is registry.ClassifiedAttempt
+        assert path.read_bytes() != old_bytes
+        assert path.read_bytes().count(b"\n") == old_bytes.count(b"\n") + 1
+        core.load_attempt_registry(
+            path.read_bytes(), profile=profile, expected_binding=_BINDING,
+        )
+        captured = _observe(repo, slot, exact)
+        _terminal(captured)
+        assert registry.read_attempt_registry(
+            repo, profile=profile, binding=_BINDING,
+        )[-1]["event"] == "terminal"
+
+    assert fired == {point: 1 for point in points}
+
+
+def test_classification_preflights_claim_receipt_and_registry_before_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+    old_bytes = path.read_bytes()
+    seen: list[str] = []
+    real_gate = admission.assert_holdout_safe_bytes
+
+    def reject_candidate(logical_name: str, payload: bytes) -> None:
+        seen.append(logical_name)
+        real_gate(logical_name, payload)
+        if logical_name.endswith("registry.jsonl"):
+            raise admission.HoldoutAdmissionError(
+                "injected candidate registry contamination"
+            )
+
+    monkeypatch.setattr(
+        admission, "assert_holdout_safe_bytes", reject_candidate,
+    )
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match="injected candidate registry contamination",
+    ):
+        _classify(reserved)
+
+    assert seen[:3] == [
+        next(name for name in seen if "classification-claims" in name),
+        next(
+            name for name in seen
+            if "floor-attempt-registry-receipts" in name
+            and "classification-claims" not in name
+        ),
+        next(name for name in seen if name.endswith("registry.jsonl")),
+    ]
+    assert path.read_bytes() == old_bytes
+    receipt_root = admission.shared_admission_root(repo).joinpath(
+        *profile8b.S8B_REGISTRY_LAYOUT.classification_receipt_dir.parts
+    )
+    assert not receipt_root.exists()
+
+
+def test_real_holdout_scanner_rejection_leaves_no_classification_claim(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "unsafe")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+    old_bytes = path.read_bytes()
+    contaminated = f"{RRATIO_KEY}=80 {SKEW_KEY}=0.9 {RMW_KEY}=0"
+
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match="holdout conjunction contamination",
+    ):
+        _classify(reserved, reason=contaminated)
+
+    assert path.read_bytes() == old_bytes
+    receipt_root = admission.shared_admission_root(repo).joinpath(
+        *profile8b.S8B_REGISTRY_LAYOUT.classification_receipt_dir.parts
+    )
+    assert not receipt_root.exists()
+
+    safe_repo = _repo(tmp_path / "safe")
+    safe_slot = _slot(configuration_id="configuration-safe")
+    _create(safe_repo, profile, [safe_slot])
+    safe = _classify(_reserve(safe_repo, profile, safe_slot))
+    assert type(safe) is registry.ClassifiedAttempt
+    assert _receipt_file(safe_repo).is_file()
+
+
+def test_root_lock_serializes_two_updates_after_same_old_snapshot_barrier(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    path = _create(repo, profile, [slot])
+    old = path.read_bytes()
+    barrier = threading.Barrier(2, timeout=10)
+    snapshots: list[bytes] = []
+    snapshots_lock = threading.Lock()
+
+    def snapshot_hook(snapshot: bytes) -> None:
+        with snapshots_lock:
+            snapshots.append(snapshot)
+        barrier.wait()
+
+    monkeypatch.setattr(registry, "_PRELOCK_SNAPSHOT_HOOK", snapshot_hook)
+
+    def worker() -> object:
+        try:
+            return _reserve(repo, profile, slot)
+        except Exception as exc:  # the losing core transition must reject
+            return exc
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: worker(), range(2)))
+
+    accepted = [value for value in results if type(value) is registry.ReservedAttempt]
+    rejected = [value for value in results if isinstance(value, Exception)]
+    assert len(accepted) == len(rejected) == 1
+    assert len(snapshots) == 2
+    assert snapshots[0] == snapshots[1] == old
+    rows = registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )
+    assert sum(row.get("event") == "start" for row in rows) == 1
+
+
+def test_start_row_never_claims_admission_consumption(tmp_path: Path) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    _reserve(repo, profile, slot)
+    rows = registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )
+    starts = [row for row in rows if row.get("event") == "start"]
+    assert len(starts) == 1
+    assert frozenset(starts[0]).isdisjoint({
+        "claim_digest",
+        "admission_claim_digest",
+        "attempt_id",
+        "consume",
+        "consumed",
+        "attempt_ledger_row",
+    })
+
+
+def _assert_floor_campaign_has_no_attempt_adapter(source: str) -> None:
+    tree = ast.parse(source)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            violations.extend(
+                alias.name for alias in node.names
+                if alias.name.endswith("s8b_attempt_registry")
+            )
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module.endswith("s8b_attempt_registry"):
+                violations.append(module)
+            violations.extend(
+                alias.name for alias in node.names
+                if alias.name == "s8b_attempt_registry"
+            )
+        elif isinstance(node, ast.Name) and node.id == "s8b_attempt_registry":
+            violations.append(node.id)
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and "s8b_attempt_registry" in node.value
+        ):
+            violations.append(node.value)
+    if violations:
+        raise AssertionError(
+            f"floor campaign imports attempt adapter: {sorted(violations)}"
+        )
+
+
+def test_floor_campaign_does_not_import_adapter_and_guard_has_positive_control(
+) -> None:
+    campaign_path = Path(__file__).parents[1] / "campaign" / "s8b_floor_campaign.py"
+    source = campaign_path.read_text(encoding="utf-8")
+    _assert_floor_campaign_has_no_attempt_adapter(source)
+
+    synthetic = "from . import s8b_attempt_registry\n" + source
+    with pytest.raises(
+        AssertionError,
+        match="floor campaign imports attempt adapter",
+    ):
+        _assert_floor_campaign_has_no_attempt_adapter(synthetic)
+
+
+def _assert_adapter_has_no_repetition_derivation(source: str) -> None:
+    tree = ast.parse(source)
+    violations: list[str] = []
+    if any(
+        isinstance(node, ast.Call)
+        and (
+            (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "S8BAttemptSlot"
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "S8BAttemptSlot"
+            )
+        )
+        for node in ast.walk(tree)
+    ):
+        violations.append("slot-construction")
+    if any(
+        isinstance(node, ast.Call)
+        and (
+            (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "replace"
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "replace"
+            )
+        )
+        and any(keyword.arg == "repetition" for keyword in node.keywords)
+        for node in ast.walk(tree)
+    ):
+        violations.append("replace")
+    if any(
+        argument.arg == "round"
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        for argument in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+    ):
+        violations.append("round-argument")
+
+    repetition_values: list[ast.expr] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            repetition_values.extend(
+                value for key, value in zip(node.keys, node.values, strict=True)
+                if isinstance(key, ast.Constant) and key.value == "repetition"
+            )
+        elif isinstance(node, ast.Call):
+            repetition_values.extend(
+                keyword.value for keyword in node.keywords
+                if keyword.arg == "repetition"
+            )
+            if isinstance(node.func, ast.Attribute) and isinstance(
+                node.func.value, ast.Name,
+            ) and node.func.value.id == "core":
+                for keyword in node.keywords:
+                    if keyword.arg != "slot_id":
+                        continue
+                    value = keyword.value
+                    if not (
+                        isinstance(value, ast.Name) and value.id == "slot_id"
+                        or isinstance(value, ast.Attribute)
+                        and isinstance(value.value, ast.Name)
+                        and value.value.id == "state"
+                        and value.attr == "slot_id"
+                    ):
+                        violations.append("core-slot-id")
+    for value in repetition_values:
+        direct = (
+            isinstance(value, ast.Attribute)
+            and isinstance(value.value, ast.Name)
+            and value.value.id == "slot"
+            and value.attr == "repetition"
+        )
+        if (
+            not direct
+            or any(isinstance(child, ast.Subscript) for child in ast.walk(value))
+        ):
+            violations.append("repetition-sink")
+    if violations:
+        raise AssertionError(f"adapter derives repetition: {sorted(set(violations))}")
+
+
+def test_repetition_derivation_guard_rejects_all_known_mapping_forms() -> None:
+    unsafe_sources = (
+        "def f(slot):\n return {'repetition': slot.repetition + 1}\n",
+        "TABLE = (3, 19, 41)\ndef f(slot):\n return {'repetition': TABLE[0]}\n",
+        "TABLE = {3: 19}\ndef f(slot):\n return {'repetition': TABLE[slot.repetition]}\n",
+        "def f(slot):\n for index, value in enumerate((slot,)):\n  return {'repetition': index}\n",
+        "def f(slot):\n return replace(slot, repetition=3)\n",
+        "import dataclasses\ndef f(slot):\n return dataclasses.replace(slot, repetition=3)\n",
+    )
+    for source in unsafe_sources:
+        with pytest.raises(AssertionError, match="adapter derives repetition"):
+            _assert_adapter_has_no_repetition_derivation(source)
+
+
+def test_adapter_preserves_caller_repetition_without_derivation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sentinels = (3, 19, 104729)
+    profile = _profile()
+    observed: dict[str, list[int]] = {
+        name: [] for name in (
+            "capability_digest",
+            "reserve_attempt_slot",
+            "classify_attempt",
+            "begin_attempt_observation",
+            "record_attempt_terminal",
+        )
+    }
+
+    for name in observed:
+        original = getattr(core, name)
+
+        def wrapper(*args: object, _name: str = name,
+                    _original: Any = original, **kwargs: object) -> object:
+            if "slot" in kwargs:
+                repetition = kwargs["slot"].repetition  # type: ignore[union-attr]
+            else:
+                repetition = kwargs["slot_id"][2]  # type: ignore[index]
+            observed[_name].append(repetition)
+            return _original(*args, **kwargs)
+
+        monkeypatch.setattr(core, name, wrapper)
+
+    for sentinel in sentinels:
+        repo = _repo(tmp_path / str(sentinel))
+        slot = _slot(
+            repetition=sentinel,
+            configuration_id=f"configuration-{sentinel}",
+        )
+        _create(repo, profile, [slot])
+        classified = _classify(_reserve(repo, profile, slot))
+        assert type(classified) is registry.ClassifiedAttempt
+        captured = _observe(repo, slot, classified)
+        _terminal(captured)
+
+        receipt_path = _receipt_file(repo)
+        claim_paths = list(
+            receipt_path.parent.joinpath("classification-claims").glob("*.json")
+        )
+        assert len(claim_paths) == 1
+        assert json.loads(claim_paths[0].read_bytes())["repetition"] == sentinel
+        rows = registry.read_attempt_registry(
+            repo, profile=profile, binding=_BINDING,
+        )
+        assert rows[0]["slots"][0]["repetition"] == sentinel
+        assert {
+            row["repetition"] for row in rows[1:]
+        } == {sentinel}
+
+    for values in observed.values():
+        assert set(values) == set(sentinels)
+    source = Path(registry.__file__).read_text(encoding="utf-8")
+    _assert_adapter_has_no_repetition_derivation(source)
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))
