@@ -214,7 +214,7 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
 
     [T-325] の land で trial_registry の capability probe 段階を通過した。
 
-    退役予定の `test_current_repository_c12_registry_reports_unwired_allocation_consumer` が
+    退役した `test_current_repository_c12_registry_reports_unwired_allocation_consumer` が
     表していた C12 registry の allocation consumer 未配線という主張と、
     `test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer` が
     表していた C12 allocation binding helper の consumer 未配線という主張も発見用に残す。
