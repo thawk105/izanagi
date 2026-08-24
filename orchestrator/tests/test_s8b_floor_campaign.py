@@ -57,6 +57,7 @@ from orchestrator.campaign import s8b_floor_stats  # noqa: E402
 from orchestrator.campaign import s8b_binary_admission  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_launch_cert  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts  # noqa: E402
 from orchestrator.campaign import s8b_prediction_runner  # noqa: E402
 from orchestrator.campaign import s8b_selector_freeze  # noqa: E402
 from orchestrator.campaign import sort_swo_oracle  # noqa: E402
@@ -3785,6 +3786,8 @@ def _init_real_clean_repo(repo_root: Path, freeze: dict, protocol: dict) -> None
     bounded_freeze_path = repo_root / s8b_floor_campaign._HOLDOUT_FREEZE_REL
     bounded_freeze_path.parent.mkdir(parents=True, exist_ok=True)
     bounded_freeze_path.write_bytes(freeze_path.read_bytes())
+    namespace_marker = repo_root / "output/namespace.json"
+    namespace_marker.write_bytes(s8b_oracle_artifacts.OFFICIAL_NAMESPACE_BYTES)
     contract = ec.lookup(protocol["env_tag"])
     calibration_path = repo_root / contract.calibration_ref.path
     calibration_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3793,6 +3796,7 @@ def _init_real_clean_repo(repo_root: Path, freeze: dict, protocol: dict) -> None
         ["git", "-C", str(repo_root), "add", "positive-control.txt",
          protocol["freeze"]["path"], s8b_floor_campaign._HOLDOUT_FREEZE_REL,
          contract.calibration_ref.path,
+         "output/namespace.json",
          "external/ccbench"],
         check=True,
     )
@@ -8210,9 +8214,20 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     bounded_allowlist = {
         s8b_floor_campaign._HOLDOUT_FREEZE_REL: _freeze_sha(freeze),
     }
+    repository_files = (
+        s8b_floor_campaign._holdout_freeze.enumerate_repository_files(repo_root)
+    )
+    assert "output/namespace.json" in repository_files
+    assert "output/namespace.json" not in bounded_allowlist
+    assert subprocess.run(
+        ["git", "-C", str(repo_root), "ls-files", "--error-unmatch",
+         "output/namespace.json"],
+        text=True, capture_output=True, check=False,
+    ).returncode == 0
     expected = s8b_floor_campaign.clean_scan_digest(
         repo_root, freeze_allowlist=bounded_allowlist,
     )
+    assert expected == _expected_clean_digest(repository_files, bounded_allowlist)
     fake_build = _make_fake_build(tmp_path / "ignored")
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
