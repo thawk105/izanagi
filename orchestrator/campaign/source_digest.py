@@ -837,6 +837,11 @@ def _splice_c_line_continuations(text: str) -> str:
     return re.sub(r"\\(?:\r\n|\n)", "", text)
 
 
+def _strip_utf8_bom(text: str) -> str:
+    """先頭の UTF-8 BOM を compiler と同じく署名として正規化する。"""
+    return text.removeprefix("\ufeff")
+
+
 def _cmake_bracket(text: str, start: int) -> tuple[int, str] | None:
     """``start`` の CMake bracket opener について opener 長と closer を返す。"""
     match = re.match(r"\[(=*)\[", text[start:])
@@ -886,6 +891,13 @@ def _strip_c_comments_without_splicing(text: str) -> str:
             i += 1
             continue
         raw_match = _C_RAW_STRING_OPEN_RE.match(text, i)
+        if raw_match is not None and i > 0 and (
+            text[i - 1].isalnum() or text[i - 1] == "_"
+        ):
+            # R"..." is a raw opener only at a token boundary.  In particular,
+            # the R in fooR"(x" is part of the identifier and must not hide a
+            # later physical #define from either supply view.
+            raw_match = None
         if raw_match is not None:
             delimiter = raw_match.group(1)
             closer = f"){delimiter}\""
@@ -939,7 +951,9 @@ def _c_supply_views(text: str) -> tuple[str, str]:
     )
 
 
-def _repo_macro_token_matches(token: str, macro: str) -> bool:
+def _repo_macro_token_matches(
+    token: str, macro: str, *, flags_string: bool = False
+) -> bool:
     """CMake の literal compile-definition token が macro を供給するか。"""
     if "$<" in token and macro in token:
         raise RuntimeError(
@@ -954,9 +968,45 @@ def _repo_macro_token_matches(token: str, macro: str) -> bool:
             re.fullmatch(rf"-D{escaped}(?:=.*)?", element)
             or re.fullmatch(rf"{escaped}(?:=.*)?", element)
             or re.search(rf"(?<![A-Za-z0-9_])-D{escaped}(?:=|\b)", element)
+            or (
+                flags_string
+                and re.search(rf"(?<!\S)-D[ \t]+{escaped}(?:=|\b)", element)
+            )
         ):
             return True
     return False
+
+
+def _cmake_calls_including_bracket_arguments(text: str, name: str) -> List[str]:
+    """旧 view と同じく bracket argument 内の見かけの call も列挙する。
+
+    Bracket-aware parser が新たに通した入力を旧拒否集合から落とさないためだけの
+    monotonicity view である。quoted argument と comment 内の見かけの call は除く。
+    """
+    clean = _strip_cmake_comments(text)
+    scan = list(clean)
+    quoted = False
+    escaped = False
+    for index, char in enumerate(clean):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+            if char != "\n":
+                scan[index] = " "
+        elif char == '"':
+            quoted = True
+    call_re = re.compile(rf"\b{re.escape(name)}\s*\(", re.IGNORECASE)
+    scan_text = "".join(scan)
+    calls: List[str] = []
+    for match in call_re.finditer(scan_text):
+        open_pos = clean.find("(", match.start(), match.end())
+        body, _ = _scan_cmake_parentheses(clean, open_pos, name)
+        calls.append(body)
+    return calls
 
 
 def _cmake_command_records(text: str) -> list[tuple[str, str]]:
@@ -1044,7 +1094,11 @@ def _expand_static_cmake_value(
 
 
 def _classify_cmake_supply_tokens(
-    tokens: Iterable[str], macro: str, bindings: Mapping[str, str]
+    tokens: Iterable[str],
+    macro: str,
+    bindings: Mapping[str, str],
+    *,
+    flags_string: bool = False,
 ) -> str:
     """raw guard、literal、静的展開の固定順で supply token を分類する。"""
     raw_tokens = list(tokens)
@@ -1053,33 +1107,55 @@ def _classify_cmake_supply_tokens(
             # This pre-existing rejection deliberately precedes classification:
             # expanding OTHER=$<...,MQLOCK,...> must never turn an old red input green.
             _repo_macro_token_matches(token, macro)
-    if any(_repo_macro_token_matches(token, macro) for token in raw_tokens):
+    if any(
+        _repo_macro_token_matches(token, macro, flags_string=flags_string)
+        for token in raw_tokens
+    ):
         return _CMAKE_SUPPLIES
 
     unprovable = False
     for token in raw_tokens:
         expanded, unresolved = _expand_static_cmake_value(token, bindings)
         unprovable = unprovable or unresolved
-        if _repo_macro_token_matches(expanded, macro):
+        if _repo_macro_token_matches(expanded, macro, flags_string=flags_string):
             return _CMAKE_SUPPLIES
     return _CMAKE_UNPROVABLE_REPO_VALUE if unprovable else _CMAKE_DOES_NOT_SUPPLY
+
+
+def _set_property_compile_definition_tokens(tokens: list[str]) -> list[str] | None:
+    """set_property(... PROPERTY COMPILE_DEFINITIONS ...) の値だけを返す。"""
+    upper = [token.upper() for token in tokens]
+    for index in range(len(tokens) - 1):
+        if upper[index:index + 2] == ["PROPERTY", "COMPILE_DEFINITIONS"]:
+            return tokens[index + 2:]
+    return None
 
 
 def _repo_cmake_supply_classification(text: str, macro: str) -> str:
     """CMake の静的に証明できる供給を三値分類する。
 
     ``set()``、literal ``string(CONCAT)``、``list(APPEND)`` だけを source order で
-    解決する。循環、再帰上限、未認識 command、外部値など解決不能な間接値の背後に
-    registry macro が隠れる限界は残る。その場合は ``UNPROVABLE_REPO_VALUE`` を記録するが、
-    D723 と同型に「供給と主張しない」へ倒し、拒否理由にはしない。
+    解決する。未認識 command は無視し、``UNPROVABLE_REPO_VALUE`` としても記録しない。
+    三値はこの関数内だけの分類であり、report や bool の呼び手には surface しない。
+
+    静的解析は ``if``/``else`` の実行分岐、``foreach``、``function`` 呼出し、
+    ``CACHE`` / ``PARENT_SCOPE`` の実行時値を追わない。また CMake の eager expansion と
+    本実装の遅延展開は異なり、例えば ``set(A MQLOCK); set(B ${A}); set(A ${B})`` は
+    実 CMake では MQLOCK でも本実装では循環になる。変数鎖も 32 段までである。
+    これら未認識・解決不能形の背後に registry macro が隠れうるため、本分類が証明するのは
+    repo text に認識済みの当該供給源が無いことだけで、実 build の全 define の不在ではない。
+    D723 と同型に未証明値は「供給と主張しない」へ倒し、拒否理由にはしない。
     """
     bindings: dict[str, str] = {}
     saw_unprovable = False
     for name, body in _cmake_command_records(text):
         tokens = _cmake_tokens(body)
         supply_tokens: list[str] | None = None
+        flags_string = False
         if name in _CMAKE_SUPPLY_CALL_NAMES:
             supply_tokens = tokens
+        elif name == "set_property":
+            supply_tokens = _set_property_compile_definition_tokens(tokens)
         elif (
             name == "set"
             and tokens
@@ -1088,9 +1164,12 @@ def _repo_cmake_supply_classification(text: str, macro: str) -> str:
             )
         ):
             supply_tokens = tokens[1:]
+            flags_string = True
 
         if supply_tokens is not None:
-            outcome = _classify_cmake_supply_tokens(supply_tokens, macro, bindings)
+            outcome = _classify_cmake_supply_tokens(
+                supply_tokens, macro, bindings, flags_string=flags_string
+            )
             if outcome == _CMAKE_SUPPLIES:
                 return outcome
             saw_unprovable = saw_unprovable or outcome == _CMAKE_UNPROVABLE_REPO_VALUE
@@ -1125,6 +1204,21 @@ def _repo_cmake_supply_classification(text: str, macro: str) -> str:
                 bindings[variable] = ";".join(part for part in (previous, *pieces) if part)
             else:
                 saw_unprovable = True
+
+    # Monotonicity view: bracket-aware parsing must not make an input accepted
+    # when the former bracket-unaware search rejected a supply-shaped payload.
+    for name in (*_CMAKE_SUPPLY_CALL_NAMES, "set_property"):
+        for body in _cmake_calls_including_bracket_arguments(text, name):
+            tokens = _cmake_tokens(body)
+            supply_tokens = (
+                _set_property_compile_definition_tokens(tokens)
+                if name == "set_property"
+                else tokens
+            )
+            if supply_tokens is not None and _classify_cmake_supply_tokens(
+                supply_tokens, macro, {}
+            ) == _CMAKE_SUPPLIES:
+                return _CMAKE_SUPPLIES
 
     return _CMAKE_UNPROVABLE_REPO_VALUE if saw_unprovable else _CMAKE_DOES_NOT_SUPPLY
 
@@ -1361,6 +1455,7 @@ def _assert_proven_repo_absent_macros(
         namespaced_files.append((view, logical_path, path, text))
 
     for view, logical_path, path, text in namespaced_files:
+        text = _strip_utf8_bom(text)
         basename = os.path.basename(path)
         suffix = os.path.splitext(basename)[1].lower()
         if basename in _REPO_CMAKE_NAMES or suffix in _REPO_CMAKE_SUFFIXES:
@@ -1382,7 +1477,8 @@ def _assert_proven_repo_absent_macros(
             for clean in _c_supply_views(text):
                 for macro in PROVEN_REPO_ABSENT_MACROS:
                     if re.search(
-                            rf"(?m)^[ \t]*#[ \t]*define[ \t]+{re.escape(macro)}(?:[ \t(]|$)",
+                            rf"(?m)^[ \t]*(?:#|%:)[ \t]*define[ \t]+"
+                            rf"{re.escape(macro)}(?:[ \t(]|$)",
                             clean):
                         hits.append(f"{view}:{logical_path}: #define {macro}")
     if hits:

@@ -916,6 +916,72 @@ def test_known_absent_define_after_raw_string_is_rejected(tmp_path: Path) -> Non
         source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
 
 
+def test_identifier_suffix_before_raw_opener_does_not_hide_define(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "include/raw-string-token-boundary.hh",
+        '#define UNUSED fooR"(x"\n#define MQLOCK 1\nconst char *tail = ")";\n',
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_bracket_payload_legacy_rejection_is_preserved(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "set(DOC [[target_compile_definitions(t PRIVATE MQLOCK)]])\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+@pytest.mark.parametrize(
+    "supply",
+    [
+        "\ufeff#define MQLOCK 1\n",
+        "%:define MQLOCK 1\n",
+    ],
+)
+def test_bom_or_digraph_define_is_rejected(tmp_path: Path, supply: str) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(repo, "include/alternate-directive.hh", supply)
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_set_property_compile_definitions_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "set_property(TARGET bench PROPERTY COMPILE_DEFINITIONS MQLOCK)\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_space_separated_dash_d_macro_in_cxx_flags_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(repo, "cc/silo/CMakeLists.txt", 'set(CMAKE_CXX_FLAGS "-D MQLOCK")\n')
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
+def test_known_absent_list_append_indirect_is_rejected(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(
+        repo,
+        "cc/silo/CMakeLists.txt",
+        "list(APPEND MODES MQLOCK)\n"
+        "target_compile_definitions(t PRIVATE ${MODES})\n",
+    )
+    with pytest.raises(RuntimeError, match="PROVEN_REPO_ABSENT_MACROS が stale"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
 def test_physical_line_supply_rejection_is_not_weakened_by_splicing(tmp_path: Path) -> None:
     repo, _old = _base_repo(tmp_path)
     _write(
@@ -948,23 +1014,23 @@ def test_macro_include_operand_is_rejected_fail_closed(tmp_path: Path) -> None:
 
 
 def test_import_directive_is_rejected_fail_closed(tmp_path: Path) -> None:
-    old = '#import "/dev/null"\n#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n'
-    new = '#if TRACE\n#import "/dev/null"\nint trace_value = 2;\n#endif\nint steady = 7;\n'
+    old = '#if TRACE\n#import "never-used.hh"\nint trace_value = 1;\n#endif\nint steady = 7;\n'
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
     pair = _modified_pair(tmp_path, new, old_source=old)
     _assert_rejected(_run(pair), "#import directive は未対応")
 
 
 def test_digraph_include_directive_is_rejected_fail_closed(tmp_path: Path) -> None:
-    old = '%:include "/dev/null"\n#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n'
-    new = '#if TRACE\n%:include "/dev/null"\nint trace_value = 2;\n#endif\nint steady = 7;\n'
+    old = '#if TRACE\n%:include "never-used.hh"\nint trace_value = 1;\n#endif\nint steady = 7;\n'
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
     pair = _modified_pair(tmp_path, new, old_source=old)
     _assert_rejected(_run(pair), "digraph directive (%:) は未対応")
 
 
 def test_comment_formed_include_directive_is_rejected_fail_closed(tmp_path: Path) -> None:
-    directive = '#/* comment across\n*/include "/dev/null"\n'
-    old = directive + "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
-    new = "#if TRACE\n" + directive + "int trace_value = 2;\n#endif\nint steady = 7;\n"
+    directive = '#/* comment across\n*/include "never-used.hh"\n'
+    old = "#if TRACE\n" + directive + "int trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
     pair = _modified_pair(tmp_path, new, old_source=old)
     _assert_rejected(_run(pair), "comment 除去後にだけ現れる include directive")
 
@@ -974,6 +1040,42 @@ def test_line_spliced_include_is_rejected_and_was_green_before_fix(tmp_path: Pat
     new = old.replace("int trace_value = 1;", "int trace_value = 2;")
     pair = _modified_pair(tmp_path, new, old_source=old)
     _assert_rejected(_run(pair), "include directive は未対応")
+
+
+def test_comment_decoy_cannot_forge_raw_logical_include_correspondence(
+    tmp_path: Path,
+) -> None:
+    empty_header = tmp_path / "empty.hh"
+    empty_header.write_text("", encoding="utf-8")
+    directive = f'#/**/include "{empty_header}"\n'
+    decoy = f'/*\n#include "{empty_header}"\n*/\n'
+    old = (
+        decoy + directive
+        + "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = (
+        decoy + "#if TRACE\n" + directive
+        + "int trace_value = 2;\n#endif\nint steady = 7;\n"
+    )
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "raw と logical で同じ位置・綴りに対応しない")
+
+
+def test_bom_prefixed_include_spelling_change_is_rejected(tmp_path: Path) -> None:
+    old_header = tmp_path / "empty-old.hh"
+    new_header = tmp_path / "empty-new.hh"
+    old_header.write_text("", encoding="utf-8")
+    new_header.write_text("", encoding="utf-8")
+    old = (
+        f'\ufeff#include "{old_header}"\n'
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = (
+        f'\ufeff#include "{new_header}"\n'
+        "#if TRACE\nint trace_value = 2;\n#endif\nint steady = 7;\n"
+    )
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include 行文字列（順序込み）が不一致")
 
 
 def test_literal_include_operand_trace_only_change_passes(tmp_path: Path) -> None:

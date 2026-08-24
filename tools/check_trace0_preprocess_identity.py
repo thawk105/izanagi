@@ -31,6 +31,7 @@ from orchestrator.campaign.source_digest import (  # noqa: E402
     _include_lines,
     _lex_normalize,
     _splice_c_line_continuations,
+    _strip_utf8_bom,
 )
 
 
@@ -303,9 +304,37 @@ def _assert_literal_include_operands(source: str, path: str, side: str) -> None:
         match for match in logical_directives
         if match.group(1).lower() == "include"
     ]
-    if len(raw_includes) != len(logical_includes):
+    marker_base = "IZANAGI_TRACE0_RAW_INCLUDE_ORIGIN_"
+    while marker_base in source:
+        marker_base += "X"
+    pieces: list[str] = []
+    previous = 0
+    origin_markers: list[str] = []
+    for index, raw_match in enumerate(raw_includes):
+        marker = f"{marker_base}{index:08d}"
+        origin_markers.append(marker)
+        pieces.extend((source[previous:raw_match.start()], marker, "\n"))
+        previous = raw_match.start()
+    pieces.append(source[previous:])
+    try:
+        marked_logical = _lex_normalize("".join(pieces), path)
+    except RuntimeError as exc:
+        raise CheckError(str(exc)) from exc
+    corresponding_logical: list[str] = []
+    for marker in origin_markers:
+        match = re.search(
+            rf"(?m)^[ \t]*{re.escape(marker)}[ \t]*\n"
+            rf"(?P<directive>[ \t]*#[ \t]*include\b.*)$",
+            marked_logical,
+        )
+        if match is not None:
+            corresponding_logical.append(match.group("directive"))
+    logical_spellings = [match.group(0) for match in logical_includes]
+    if corresponding_logical != logical_spellings:
         raise CheckError(
-            f"splice 後・comment 除去後にだけ現れる include directive は未対応: {side} {path}"
+            "splice 後・comment 除去後にだけ現れる include directive、または raw と logical "
+            "で同じ位置・綴りに対応しない include directive は未対応: "
+            f"{side} {path}"
         )
     for raw_match, logical_match in zip(raw_includes, logical_includes):
         raw_line = raw_match.group(0)
@@ -485,6 +514,8 @@ def _compare_file(
 ) -> dict[str, object]:
     old_source = _git_show(os.fspath(repo), old_oid, path)
     new_source = _git_show(os.fspath(repo), new_oid, path)
+    old_source = _strip_utf8_bom(old_source)
+    new_source = _strip_utf8_bom(new_source)
     _assert_literal_include_operands(old_source, path, "old")
     _assert_literal_include_operands(new_source, path, "new")
     old_includes = _include_lines(old_source)
