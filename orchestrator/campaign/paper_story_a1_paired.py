@@ -2329,6 +2329,37 @@ def _verify_current_source(repo_root: Path, expected_head: str, binding: Mapping
             raise PaperStoryError(f"working bytes differ from raw source binding: {relative}")
 
 
+def _canonical_workload_wal_layout(
+    *,
+    resolved_wal_path: Path,
+    output_root: Path,
+    campaign_id: object,
+) -> CampaignLayout:
+    if type(campaign_id) is not str:
+        raise PaperStoryError("workload campaign ID is missing")
+    try:
+        expected = exploration_campaign_layout(campaign_id, os.fspath(output_root))
+    except ValueError as exc:
+        raise PaperStoryError(f"workload campaign ID is invalid: {exc}") from exc
+    observed_relative = resolved_wal_path.relative_to(output_root)
+    expected_relative = Path(expected.wal_file).resolve(strict=False).relative_to(
+        output_root
+    )
+    observed_parts = observed_relative.parts
+    expected_parts = expected_relative.parts
+    campaign_id_index = 2
+    if (
+        len(observed_parts) != len(expected_parts)
+        or observed_parts[:campaign_id_index] != expected_parts[:campaign_id_index]
+        or observed_parts[campaign_id_index + 1:]
+        != expected_parts[campaign_id_index + 1:]
+    ):
+        raise PaperStoryError("WAL evidence is not in the canonical campaign layout")
+    if observed_parts[campaign_id_index] != campaign_id:
+        raise PaperStoryError("WAL evidence campaign ID differs from workload")
+    return CampaignLayout(expected.root)
+
+
 def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, object]) -> None:
     roots = receipt.get("roots")
     if type(roots) is not dict or type(roots.get("output_root")) is not str:
@@ -2345,8 +2376,11 @@ def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, obj
         resolved = wal_path.resolve(strict=False)
         if not _is_within(resolved, output_root):
             raise PaperStoryError("WAL evidence path escaped the measured output root")
-        if resolved.parent.parent.parent != output_root:
-            raise PaperStoryError("WAL evidence is not in the canonical campaign layout")
+        layout = _canonical_workload_wal_layout(
+            resolved_wal_path=resolved,
+            output_root=output_root,
+            campaign_id=workload.get("campaign_id"),
+        )
         records = wal_evidence.get("records")
         env_tags = {
             record.get("env_tag")
@@ -2357,7 +2391,6 @@ def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, obj
             env_tags = {wal_evidence["expected_env_tag"]}
         if len(env_tags) != 1:
             raise PaperStoryError("workload does not bind one WAL env tag")
-        layout = CampaignLayout(os.fspath(resolved.parent.parent))
         campaign_binding = workload.get("campaign_binding")
         if type(campaign_binding) is not dict:
             raise PaperStoryError("workload campaign binding is missing")

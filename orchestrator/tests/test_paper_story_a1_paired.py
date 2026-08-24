@@ -840,6 +840,92 @@ def test_publish_error_after_rename_does_not_remove_destination(
     }
 
 
+def test_revalidate_raw_wals_accepts_exact_producer_layout_for_all_workloads_B11(
+    tmp_path: Path,
+) -> None:
+    output_root = (tmp_path / "campaign-output").resolve()
+    workloads = [
+        _production_wal_workload(tmp_path, name)
+        for name in paired.WORKLOAD_ORDER
+    ]
+    for workload in workloads:
+        relative = Path(workload["wal_evidence"]["path"]).resolve().relative_to(
+            output_root
+        )
+        assert relative.parts == (
+            "exploration",
+            "campaigns",
+            workload["campaign_id"],
+            "runs",
+            "wal.jsonl",
+        )
+
+    paired._revalidate_raw_wals(
+        {"workloads": workloads, "source_binding": _source_binding()},
+        {"roots": {"output_root": os.fspath(output_root)}},
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "wrong-exploration",
+        "wrong-campaigns",
+        "wrong-runs",
+        "extra-depth",
+    ],
+)
+def test_raw_wal_layout_rejects_noncanonical_descendant_M34(
+    tmp_path: Path, mutation: str,
+) -> None:
+    output_root = (tmp_path / "campaign-output").resolve()
+    output_root.mkdir()
+    campaign_id = "paper-story-a1-write-heavy-paired-fixture"
+    relative = {
+        "wrong-exploration": Path(
+            "archive", "campaigns", campaign_id, "runs", "wal.jsonl"
+        ),
+        "wrong-campaigns": Path(
+            "exploration", "archive", campaign_id, "runs", "wal.jsonl"
+        ),
+        "wrong-runs": Path(
+            "exploration", "campaigns", campaign_id, "archive", "wal.jsonl"
+        ),
+        "extra-depth": Path(
+            "exploration", "campaigns", campaign_id, "extra", "runs", "wal.jsonl"
+        ),
+    }[mutation]
+
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="WAL evidence is not in the canonical campaign layout",
+    ):
+        paired._canonical_workload_wal_layout(
+            resolved_wal_path=output_root / relative,
+            output_root=output_root,
+            campaign_id=campaign_id,
+        )
+
+
+def test_raw_wal_layout_rejects_other_workload_campaign_id_M35(
+    tmp_path: Path,
+) -> None:
+    output_root = (tmp_path / "campaign-output").resolve()
+    write_heavy = _production_wal_workload(tmp_path, "write-heavy")
+    balanced = _production_wal_workload(tmp_path, "balanced")
+    assert write_heavy["campaign_id"] != balanced["campaign_id"]
+
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="WAL evidence campaign ID differs from workload",
+    ):
+        paired._canonical_workload_wal_layout(
+            resolved_wal_path=Path(balanced["wal_evidence"]["path"]).resolve(),
+            output_root=output_root,
+            campaign_id=write_heavy["campaign_id"],
+        )
+
+
 def test_completion_marker_is_present_at_single_publish_boundary_M17(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
