@@ -3987,6 +3987,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応の向きは「走行中に書かない」ではなく「走行前に、変異結果を待たない記録
   (設計判断 fragment) を書き終えて commit しておく」という順序の固定にある。
   実害は 1 往復ぶんの再走。
+
+- **再発: 2026-08-24** — [T-319] official marker allowlist wave の resume 3。**9 度目**であり、
+  受入全走の投入から結果取得までの間に、親が段 7 の spool fragment 2 本
+  (`docs/spool/decisions/...`、`docs/spool/failures/...`) を worktree へ書いた。
+  **新しいのは失敗の現れ方である。** 過去 8 件は harness preflight の `rc=2`、走行中の偽の赤、
+  走行後の共有木事後検査 (`rc=125`)、workspace-write の子による削除のいずれかだった。今回は
+  待ち手の**走行後 clean 検査**が `stage=postrun-clean rc=70` で止め、未追跡 2 file を stderr へ
+  列挙した。full suite は最後まで走って `1 failed / 15068 passed / 60 skipped` という
+  利用可能な判定を出していたが、**receipt が発行されないため land には一切使えない**。
+  判定が出ているのに捨てられる点で、preflight で走る前に止まる型より損失が大きい。
+  さらに、直前の再発 (同日) が恒久対応の向きを「走行前に、結果を待たない記録を書き終えて
+  commit しておく」という順序の固定だと明記しており、親はその追記を読める位置にいながら
+  同じ順序違反を犯した。**規律の言語化が順序の設計の代わりにならない**という 2026-08-06 以来の
+  観察を、これで 3 例目として強める。恒久対応は F106 のまま。本 wave は記録と段 8 の編集を
+  すべて commit し終えてから最終受入を投入する順序へ切り替えた。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -13307,3 +13322,98 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 「N 件ある / 無い」と書く前に、その数の出所が AST か権威ある閉包かを述べる。
   述べられない数は報告しない。段 2 / 段 3 の子は同じ file を読むので、
   親の grep 起点の件数は子の反証対象として brief へ明示する (本 wave では実際に子が 3 件とも反証した)。
+
+### F524. 受入の自動 main 取り込みが実走中の待ち手 bytes を差し替え、全走 1 本を receipt 未発行で捨てた [手順漏れ] [コンテキスト浪費]
+
+- 事象: local main を含まない wave tip から受入全走を投入した。待ち手は claim 後に自分で main を
+  merge して tip を進め、full suite を最後まで走らせたが、終端の receipt 照合で
+  `receipt-waiter-sha256-mismatch` を検出し `restart-required` (rc=70) で停止した。
+  expected は merge 後の tree にある `tools/dev_wave_wait.py` の
+  `4b4a5aa4b9ae67a4819449a39d2e4b2b441ef0d942f90d23f2c3dc49dacfc7d0`、
+  actual は起動時に実行した merge 前の
+  `67bf0adb04662249c766d25e3a9c885939d3402fb74bc4dd4a9e5087c1e14523` である。
+  receipt も log も公開されないため走行は成功として数えられず、full suite 1 本と
+  その wall-clock が丸ごと失われた。この wave は同じ理由で 1 回中断し、3 度目の context で再開した。
+- 根本原因: 待ち手が claim 後の behind を自分で解消する活性経路 (F522 の恒久対応が指す経路) と、
+  D524 が課す「実行 bytes == tree の blob」の束縛が、**取り込む差分が待ち手自身を変更するとき**に
+  両立しない。待ち手は自分を書き換える merge を自分で実行するので、実行中の bytes は定義上
+  merge 後の tree と別物になる。照合は終端に置かれているため、赤は全走が終わってから出る。
+  F385 / D524 が積み残した「起動権が tip 側待ち手にある」構造の、費用が最大化する形での顕在化である。
+- 恒久対応: 受入投入前に `HEAD..main` が束縛対象の実行体 (待ち手・launcher・runner) の bytes を
+  変えるかを検査し、変えるなら親が先に wave tip へ main を取り込んでから投入する。
+  本 wave はこの順で投入し直し、待ち手 SHA 不一致を再現しないことを実測した。契約の同期は
+  [T-1628] が `DW-O18` / `DW-O27` と subprocess test に対して行う。
+  F522 の「停止せず活性経路を使う」は取り下げない — 本項はその前提条件を足すものである。
+- 再発検知: main 側が `tools/dev_wave_wait.py` を変更した状態で、behind な tip から acceptance を
+  投入する subprocess test。launcher が全走後に `restart-required` を返し receipt を発行しなければ再発とする。
+  先に main を取り込んだ tip からの同一投入では receipt が発行されることを対の正例とする。
+
+### F525. 占有検査を timeout で包むと自分の引数が占有の証拠になった [恒真ゲート] [手順漏れ]
+
+- 事象: `/cleanup-branches` §3 の指示どおり `tools/check_worktree_occupancy.py` を
+  worktree 10 本へ走らせ、全 10 本が rc=1 (占有) を返した。占有者の pid は連番
+  (900042 / 900048 / 900130 / ... / 900520) で、直後には `/proc/<pid>` が消えていた。
+  唯一違ったのは `timeout 300` で包んでいた点で、包まずに再実行すると内訳は
+  真の占有 1 本 (pid 1100953、cwd 一致、2026-08-22 から生存) と rc=2 が 9 本だった。
+  偽の占有を信じれば掃除が全面停止し、疑って迂回すれば fail-closed 防壁を潰す。
+- 根本原因: 検査が cmdline 一致を無視するのは「自分の pid」と
+  「**直接の親**が起動 shell のとき」だけで、`_parent_is_invoking_shell()` は親の
+  `/proc/<pid>/exe` 名を shell 名の集合と照合する。`timeout` を挟むと直接の親が
+  `timeout` になり shell 名に一致しないため除外が外れ、**その argv に載っている対象
+  worktree path そのもの**が占有の証拠として数え直される。検査対象を引数で渡す以上、
+  `nohup` `env` `xargs` `stdbuf` など任意の非 shell wrapper で同型が起きる。
+- 恒久対応: memory `occupancy-check-must-not-be-wrapped` (呼び出し側の規律)。
+  検査側の是正 ([T-1635]) は本 wave の編集面の外にあり、
+  裁定へ返す。
+- 再発検知: rc=1 の occupants が「連番 pid」かつ「sources が cmdline だけ」なら
+  wrapper 自己一致を疑い、`ls -l /proc/<pid>/cwd` と `cat /proc/<pid>/comm` で裏を取る。
+  機械検査は [T-1635] の負例 node で入れる。
+- 家族: F297 (初版が本番で常に判定不能)、F489 (zombie 1 本で恒久的に判定不能) と同じ
+  「掃除の関門が本番環境で構造的に通れない」型の 3 例目。前 2 例は検査を fail-closed へ
+  倒す欠陥、本件は**呼び出し方**が偽陽性を作る点が異なる。
+
+### F526. 掃除の必須監査が argv 長超過で実行不能になり削除が全面停止した [恒真ゲート]
+
+- 事象: `/cleanup-branches` §1 が必須とする
+  `tools/audit_dangling_commits.py --offrepo-root /work/1/SFC/tanab/dev-wave-jobs`
+  (`docs/pegasus-runbook.md` §7.2 が指定する探索根) が、約 20 分走ったのち
+  `audit_dangling_commits: 実行できません: [Errno 7] Argument list too long: 'git'`
+  で rc=2 を返した。§1 は rc2 を「実行不能・削除停止」と定めるため、
+  安全条件を満たす取り込み済み branch 84 本が 1 本も消せず、掃除が全面停止した。
+  本件はユーザー指示で再開したが (ahead=0 の削除では到達不能な変更が新たに生じないため)、
+  **既定の削除経路は塞がったままである**。
+- 根本原因: `_landed_reference_matches()` が bytes 一致候補の全 pattern を
+  `git grep -F -l -z -e <p1> -e <p2> ...` という **1 回分の argv** に載せる。
+  pattern 数は off-repo 探索根 (`dev-wave-jobs`) の成長に比例して増えるため、
+  実行環境の argv 上限にいつか必ず当たる。上限に達した時点で監査は永久に rc=2 になり、
+  時間経過で自然に解消しない。
+- 恒久対応: memory `dangling-audit-argv-overflow-blocks-cleanup` (現象と診断の記録)。
+  分割実行への是正 ([T-1636]) は本 wave の編集面の外にあり、
+  裁定へ返す。
+- 再発検知: [T-1636] で、argv 上限を超える pattern 数を
+  与えても完走することを pin する。
+- 家族: F297 / F489 と同じ「掃除の関門が本番環境で構造的に通れない」型で、
+  滞留の規模 (worktree 32 本・branch 121 本) も F489 の実測に近い。
+
+### F527. 占有検査に相対 path を渡し、22 本すべてを偽の「撤去可」と判定した [恒真ゲート] [誤前提]
+
+- 事象: worktree 撤去の可否を測るため、自分の worktree の中から
+  `python3 tools/check_worktree_occupancy.py .claude/worktrees/<slug>` を 22 本ぶん走らせ、
+  **全 22 本が「占有者ゼロ」**になった。撤去してよいと読みかけたが、JSON の `scanned` が
+  **0** で、`worktree` field が
+  `.../cleanup-branches-20260823/.claude/worktrees/<slug>` という**実在しない path**を
+  指していた。絶対 path で全件やり直すと、真の占有 1 本 (pid 1100953) と
+  直近 2 時間以内に書き込みのある 3 本が現れた。
+- 根本原因: 検査は相対 path を **cwd 基準**で解決する。自分が worktree の中に居ると
+  `.claude/worktrees/<slug>` は「worktree の中の worktree」を指し、実在しないので
+  走査対象が空になる。空の走査は占有者ゼロを生み、`status` は indeterminate になるが
+  **`occupants: []` だけを見ると合格に見える**。呼び出し側の誤りが、検査の合格側へ倒れた。
+- 恒久対応: memory `occupancy-check-must-not-be-wrapped` へ絶対 path 必須を併記。
+  検査側で不在 path を明示的に失敗させる是正
+  ([T-1635]) は本 wave の編集面の外にあり裁定へ返す。
+- 再発検知: `occupants` を読む前に **`scanned` が 0 でないこと**と `worktree` field が
+  意図した絶対 path であることを確認する。[T-1635] で
+  不在 path の正例 node を入れる。
+- 家族: F525 と同じ「呼び出し方が占有判定を狂わせる」型。
+  ただし向きが逆で、あちらは偽陽性 (掃除が止まるだけ) なのに対し、
+  本件は**偽陰性 — 消してはいけないものを消しうる**危険な側へ倒れる。
