@@ -325,35 +325,100 @@ def test_readme_conditional_unrun_census_names_all_nodes():
 
 
 def test_real_silo_node_always_verifies_tracked_fixture_without_skip():
-    function = _function_node("test_verifier.py", "test_real_silo_serializable")
-    calls = _call_leaf_names_for_real_silo_meta(function)
-    assert calls.isdisjoint({"skip", "skip_conditional_unrun"}), (
-        "tracked 実 Silo fixture の node が skip helper を呼んでいる"
+    contracts = (
+        (
+            "test_real_silo_serializable",
+            "_assert_certified_serializable",
+            "REAL_SILO_FIXTURE",
+            "res",
+            1345,
+        ),
+        (
+            "test_silo_serial_1thread_fixture_contract",
+            "verify_trace_dir",
+            "SILO_SERIAL_1THREAD_FIXTURE",
+            "res",
+            200,
+        ),
+        (
+            "test_broken_silo_norw_fixture_contract",
+            "verify_trace_dir",
+            "BROKEN_SILO_NORW_FIXTURE",
+            "res",
+            288,
+        ),
     )
-    assert not any(isinstance(node, ast.Return) for node in ast.walk(function)), (
-        "tracked 実 Silo fixture の検査を return で迂回している"
-    )
+    for (
+        function_name, verifier_name, fixture_name, result_name, commit_count,
+    ) in contracts:
+        function = _function_node("test_verifier.py", function_name)
+        calls = _call_leaf_names_for_real_silo_meta(function)
+        assert calls.isdisjoint({"skip", "skip_conditional_unrun"}), (
+            f"tracked 実 Silo fixture の node が skip helper を呼んでいる: {function_name}"
+        )
+        assert not any(isinstance(node, ast.Return) for node in ast.walk(function)), (
+            f"tracked 実 Silo fixture の検査を return で迂回している: {function_name}"
+        )
 
-    mandatory_calls = []
-    for statement in function.body:
-        if not isinstance(statement, ast.Assign) or not isinstance(statement.value, ast.Call):
-            continue
-        call = statement.value
-        if not isinstance(call.func, ast.Name) or call.func.id != "_assert_certified_serializable":
-            continue
-        if call.args and isinstance(call.args[0], ast.Name):
-            mandatory_calls.append(call)
-    assert len(mandatory_calls) == 1, (
-        "tracked fixture の無条件な certified/serializable 検証呼び出しが一意でない"
-    )
-    call = mandatory_calls[0]
-    assert call.args[0].id == "REAL_SILO_FIXTURE"
-    expected_commits = [
-        keyword.value for keyword in call.keywords
-        if keyword.arg == "expected_commits"
-    ]
-    assert len(expected_commits) == 1
-    assert ast.literal_eval(expected_commits[0]) == 1345
+        direct_assignments = [
+            statement for statement in function.body
+            if (
+                isinstance(statement, ast.Assign)
+                and isinstance(statement.value, ast.Call)
+                and isinstance(statement.value.func, ast.Name)
+                and statement.value.func.id == verifier_name
+                and statement.value.args
+                and isinstance(statement.value.args[0], ast.Name)
+            )
+        ]
+        assert len(direct_assignments) == 1, (
+            "node 直下の検証 assignment 全体が一意でない: "
+            f"{function_name}::{verifier_name}"
+        )
+        assignment = direct_assignments[0]
+        call = direct_assignments[0].value
+        assert call.args and isinstance(call.args[0], ast.Name)
+        assert call.args[0].id == fixture_name
+        assert (
+            len(assignment.targets) == 1
+            and isinstance(assignment.targets[0], ast.Name)
+            and assignment.targets[0].id == result_name
+        ), (
+            "検証結果が後続 golden の参照名へ直接束縛されていない: "
+            f"{function_name}::{result_name}"
+        )
+        result_stores = [
+            node for node in ast.walk(function)
+            if (
+                isinstance(node, ast.Name)
+                and node.id == result_name
+                and isinstance(node.ctx, ast.Store)
+            )
+        ]
+        assert (
+            len(result_stores) == 1
+            and result_stores[0] is assignment.targets[0]
+        ), (
+            "検証結果の束縛名が同じ node 内で再束縛されている: "
+            f"{function_name}::{result_name}"
+        )
+        following = function.body[function.body.index(assignment) + 1:]
+        assert any(
+            isinstance(node, ast.Name)
+            and node.id == result_name
+            and isinstance(node.ctx, ast.Load)
+            for statement in following
+            for node in ast.walk(statement)
+        ), (
+            "検証結果の束縛名を後続 golden が参照していない: "
+            f"{function_name}::{result_name}"
+        )
+        expected_commits = [
+            keyword.value for keyword in call.keywords
+            if keyword.arg == "expected_commits"
+        ]
+        assert len(expected_commits) == 1
+        assert ast.literal_eval(expected_commits[0]) == commit_count
 
 
 def _run() -> int:

@@ -27,6 +27,8 @@ from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noq
 
 FIX = os.path.join(_HERE, "fixtures")
 REAL_SILO_FIXTURE = os.path.join(FIX, "g5_silo_real_prefix")
+SILO_SERIAL_1THREAD_FIXTURE = os.path.join(FIX, "g6_silo_serial_1thread")
+BROKEN_SILO_NORW_FIXTURE = os.path.join(FIX, "r8_silo_broken_norw")
 # repo ルート相対で実 Silo トレース (生成済みなら)
 _REPO = os.path.dirname(_ORCH)
 SILO_SAMPLE = os.path.join(_REPO, "output", "runs", "silo-sample")
@@ -231,6 +233,7 @@ _V2_FIXTURE_FILES = (
     "g5_silo_real_prefix/trace_1.log",
     "g5_silo_real_prefix/trace_2.log",
     "g5_silo_real_prefix/trace_3.log",
+    "g6_silo_serial_1thread/trace_0.log",
     "integrity_orphan/trace_0.log",
     "m1_commit_at_genesis/trace_0.log",
     "m2_version_dup/trace_0.log",
@@ -244,6 +247,10 @@ _V2_FIXTURE_FILES = (
     "r5_nonlatest_transitive/trace_0.log",
     "r6_epoch_version_order/trace_0.log",
     "r7_epoch_rw_successor/trace_0.log",
+    "r8_silo_broken_norw/trace_0.log",
+    "r8_silo_broken_norw/trace_1.log",
+    "r8_silo_broken_norw/trace_2.log",
+    "r8_silo_broken_norw/trace_3.log",
 )
 
 
@@ -1400,6 +1407,372 @@ _REAL_SILO_FIXTURE_BYTES = {
     "trace_2.log": (111402, "66a4f265ce8d66163d9db63a4a7f4b2e726cee72cb49b63d3b0d67d2482c1c25"),
     "trace_3.log": (51209, "240d03187bc75fe5cd5fd01c2cea67d3d27033b2e91f37444a19a83e678c7f03"),
 }
+_SILO_SERIAL_1THREAD_FIXTURE_BYTES = {
+    "trace_0.log": (
+        43543,
+        "1dbb84734cd360e785f25ae241ab2d61ef51a4b2c55e77ea8af2a641ee511a2a",
+    ),
+}
+_BROKEN_SILO_NORW_FIXTURE_BYTES = {
+    "trace_0.log": (
+        17919,
+        "c2ceedba73a0602d22cc08b05bcb5abb41c044f9b6e6f9ed22ef5a86450ee2e0",
+    ),
+    "trace_1.log": (
+        24452,
+        "fda8b5769f090291cf65ec8e1c22dba37fd8caa3a0938cb1f0601d9deaf85c4b",
+    ),
+    "trace_2.log": (
+        14148,
+        "bb310698a5b86cfcde44a10ff64e0b3b43d7c6f85b7d2c101ddae3fb265bd8fa",
+    ),
+    "trace_3.log": (
+        8311,
+        "2847b9501f3dbec71b7d7e8dcaf06a9bf9b3bcb174c47a446998025819a1b17f",
+    ),
+}
+
+
+def test_silo_serial_1thread_fixture_contract():
+    """g6 の独立根拠、派生受理結果、verifier golden を分離して固定する。"""
+    res = verify_trace_dir(SILO_SERIAL_1THREAD_FIXTURE, expected_commits=200)
+
+    # 独立根拠: 1 thread の逐次実行から verifier の外で決まるのは
+    # serializable というラベルだけである。先にその構造前提を検査する。
+    txns, _issues = parse_trace_dir(SILO_SERIAL_1THREAD_FIXTURE)
+    assert len({txn.thid for txn in txns}) == 1
+    by_id = {txn.txid: txn for txn in txns}
+    assert set(by_id) == set(range(len(txns)))
+    ordered = [by_id[txid] for txid in range(len(txns))]
+    assert all(
+        left.commit < right.commit
+        for left, right in zip(ordered, ordered[1:])
+    )
+    dsg = DSG(txns)
+    assert all(
+        by_id[src].commit < by_id[dst].commit
+        for src, destinations in dsg.adj.items()
+        for dst in destinations
+    )
+    assert res.serializable
+
+    # verifier 由来の golden: integrity、統計、巡回診断は独立証明ではない。
+    assert res.integrity.clean(), res.integrity.notes
+    assert res.anomalies == []
+    assert res.total_cycles == 0
+    assert (
+        res.n_txns, res.n_reads, res.n_writes, res.n_keys, res.n_edges,
+    ) == (200, 924, 460, 131, 931)
+
+    # 派生する受理結果: verdict はラベルの言い換えである。certified は定義上
+    # n_txns > 0 and serializable and integrity.clean() なので、先行 assert から決まる。
+    assert res.verdict == "serializable"
+    assert res.certified
+
+
+def test_broken_silo_norw_fixture_contract():
+    """r8 の独立根拠、派生受理結果、verifier golden を分離して固定する。"""
+    res = verify_trace_dir(BROKEN_SILO_NORW_FIXTURE, expected_commits=288)
+
+    # 独立根拠: read-set 再検証を抜いた build の raw witness 監査により、
+    # verifier を使わず G2 が少なくとも 1 本実在すると確認済みである。
+    assert not res.serializable
+
+    # 派生する受理結果: verdict はラベルの言い換えであり、not certified は
+    # certified の定義に serializable が必要なことから先行 assert だけで決まる。
+    assert res.verdict == "non-serializable"
+    assert not res.certified
+
+    # verifier 由来の golden: integrity、統計、巡回集合、辺と理由は
+    # raw witness 監査による独立証明ではない。
+    assert res.integrity.clean(), res.integrity.notes
+    assert res.anomalies
+    assert all(anomaly.phenomenon == "G2" for anomaly in res.anomalies)
+
+    assert (
+        res.n_txns, res.n_reads, res.n_writes, res.n_keys, res.n_edges,
+    ) == (288, 1352, 693, 149, 1509)
+    assert len(res.anomalies) == 4
+    assert res.total_cycles == 4
+    assert all(
+        edge.reasons
+        for anomaly in res.anomalies
+        for edge in anomaly.edges
+    )
+    actual = {
+        frozenset(anomaly.cycle): {
+            (edge.src, edge.dst): (edge.types, edge.reasons)
+            for edge in anomaly.edges
+        }
+        for anomaly in res.anomalies
+    }
+    assert len(actual) == len(res.anomalies)
+    assert all(
+        len({(edge.src, edge.dst) for edge in anomaly.edges})
+        == len(anomaly.edges)
+        for anomaly in res.anomalies
+    )
+    expected = {
+        frozenset({191, 192, 195}): {
+            (191, 192): (
+                [WW, WR],
+                [
+                    EdgeReason(WW, "0000000000000000", (1, 135), (1, 136)),
+                    EdgeReason(WR, "0000000000000001", (1, 135), None),
+                    EdgeReason(WR, "0000000000000000", (1, 135), None),
+                ],
+            ),
+            (192, 195): (
+                [WW],
+                [EdgeReason(WW, "0000000000000000", (1, 136), (1, 137))],
+            ),
+            (195, 191): (
+                [RW],
+                [EdgeReason(RW, "0000000000000000", (1, 133), (1, 135))],
+            ),
+        },
+        frozenset({137, 139, 140}): {
+            (137, 139): (
+                [WR],
+                [EdgeReason(WR, "0000000000000000", (1, 101), None)],
+            ),
+            (139, 140): (
+                [RW],
+                [EdgeReason(RW, "0000000000000003", (1, 94), (1, 103))],
+            ),
+            (140, 137): (
+                [RW],
+                [EdgeReason(RW, "0000000000000001", (1, 95), (1, 101))],
+            ),
+        },
+        frozenset({200, 206}): {
+            (200, 206): (
+                [WW],
+                [EdgeReason(WW, "0000000000000008", (1, 139), (1, 142))],
+            ),
+            (206, 200): (
+                [RW],
+                [EdgeReason(RW, "0000000000000008", (1, 112), (1, 139))],
+            ),
+        },
+        frozenset({3, 7}): {
+            (3, 7): (
+                [WR],
+                [EdgeReason(WR, "0000000000000009", (1, 2), None)],
+            ),
+            (7, 3): (
+                [RW],
+                [EdgeReason(RW, "0000000000000005", (1, 0), (1, 2))],
+            ),
+        },
+    }
+    assert actual == expected
+
+
+def test_broken_silo_norw_structured_report_is_exact():
+    """verifier 由来の外部 report 射影を独立証明でない golden として固定する。"""
+    res = verify_trace_dir(BROKEN_SILO_NORW_FIXTURE, expected_commits=288)
+    anomalies = result_to_dict(res)["anomalies"]
+    actual = {frozenset(anomaly["cycle"]): anomaly for anomaly in anomalies}
+    assert len(actual) == len(anomalies)
+    expected = {
+        frozenset({191, 192, 195}): {
+            "phenomenon": "G2",
+            "length": 3,
+            "cycle": [191, 192, 195],
+            "edges": [
+                {
+                    "from": 191,
+                    "to": 192,
+                    "types": ["ww", "wr"],
+                    "reasons": [
+                        {
+                            "type": "ww",
+                            "key": "0000000000000000",
+                            "u_ver": [1, 135],
+                            "v_ver": [1, 136],
+                        },
+                        {
+                            "type": "wr",
+                            "key": "0000000000000001",
+                            "u_ver": [1, 135],
+                        },
+                        {
+                            "type": "wr",
+                            "key": "0000000000000000",
+                            "u_ver": [1, 135],
+                        },
+                    ],
+                },
+                {
+                    "from": 192,
+                    "to": 195,
+                    "types": ["ww"],
+                    "reasons": [
+                        {
+                            "type": "ww",
+                            "key": "0000000000000000",
+                            "u_ver": [1, 136],
+                            "v_ver": [1, 137],
+                        },
+                    ],
+                },
+                {
+                    "from": 195,
+                    "to": 191,
+                    "types": ["rw"],
+                    "reasons": [
+                        {
+                            "type": "rw",
+                            "key": "0000000000000000",
+                            "u_ver": [1, 133],
+                            "v_ver": [1, 135],
+                        },
+                    ],
+                },
+            ],
+        },
+        frozenset({137, 139, 140}): {
+            "phenomenon": "G2",
+            "length": 3,
+            "cycle": [137, 139, 140],
+            "edges": [
+                {
+                    "from": 137,
+                    "to": 139,
+                    "types": ["wr"],
+                    "reasons": [
+                        {
+                            "type": "wr",
+                            "key": "0000000000000000",
+                            "u_ver": [1, 101],
+                        },
+                    ],
+                },
+                {
+                    "from": 139,
+                    "to": 140,
+                    "types": ["rw"],
+                    "reasons": [
+                        {
+                            "type": "rw",
+                            "key": "0000000000000003",
+                            "u_ver": [1, 94],
+                            "v_ver": [1, 103],
+                        },
+                    ],
+                },
+                {
+                    "from": 140,
+                    "to": 137,
+                    "types": ["rw"],
+                    "reasons": [
+                        {
+                            "type": "rw",
+                            "key": "0000000000000001",
+                            "u_ver": [1, 95],
+                            "v_ver": [1, 101],
+                        },
+                    ],
+                },
+            ],
+        },
+        frozenset({200, 206}): {
+            "phenomenon": "G2",
+            "length": 2,
+            "cycle": [200, 206],
+            "edges": [
+                {
+                    "from": 200,
+                    "to": 206,
+                    "types": ["ww"],
+                    "reasons": [
+                        {
+                            "type": "ww",
+                            "key": "0000000000000008",
+                            "u_ver": [1, 139],
+                            "v_ver": [1, 142],
+                        },
+                    ],
+                },
+                {
+                    "from": 206,
+                    "to": 200,
+                    "types": ["rw"],
+                    "reasons": [
+                        {
+                            "type": "rw",
+                            "key": "0000000000000008",
+                            "u_ver": [1, 112],
+                            "v_ver": [1, 139],
+                        },
+                    ],
+                },
+            ],
+        },
+        frozenset({3, 7}): {
+            "phenomenon": "G2",
+            "length": 2,
+            "cycle": [3, 7],
+            "edges": [
+                {
+                    "from": 3,
+                    "to": 7,
+                    "types": ["wr"],
+                    "reasons": [
+                        {
+                            "type": "wr",
+                            "key": "0000000000000009",
+                            "u_ver": [1, 2],
+                        },
+                    ],
+                },
+                {
+                    "from": 7,
+                    "to": 3,
+                    "types": ["rw"],
+                    "reasons": [
+                        {
+                            "type": "rw",
+                            "key": "0000000000000005",
+                            "u_ver": [1, 0],
+                            "v_ver": [1, 2],
+                        },
+                    ],
+                },
+            ],
+        },
+    }
+    assert actual == expected
+
+
+def test_new_real_fixture_bytes_are_exact():
+    """raw bytes を独立性の証明ではない fixture golden として固定する。"""
+    actual_bytes = {}
+    for fixture_name, trace_dir, expected_bytes in (
+        (
+            "g6_silo_serial_1thread",
+            SILO_SERIAL_1THREAD_FIXTURE,
+            _SILO_SERIAL_1THREAD_FIXTURE_BYTES,
+        ),
+        (
+            "r8_silo_broken_norw",
+            BROKEN_SILO_NORW_FIXTURE,
+            _BROKEN_SILO_NORW_FIXTURE_BYTES,
+        ),
+    ):
+        fixture_bytes = {}
+        for filename in sorted(expected_bytes):
+            with open(os.path.join(trace_dir, filename), "rb") as fh:
+                data = fh.read()
+            fixture_bytes[filename] = (
+                len(data), hashlib.sha256(data).hexdigest(),
+            )
+        actual_bytes[fixture_name] = fixture_bytes
+    assert actual_bytes == {
+        "g6_silo_serial_1thread": _SILO_SERIAL_1THREAD_FIXTURE_BYTES,
+        "r8_silo_broken_norw": _BROKEN_SILO_NORW_FIXTURE_BYTES,
+    }
 
 
 def _assert_certified_serializable(trace_dir, *, expected_commits=None):
