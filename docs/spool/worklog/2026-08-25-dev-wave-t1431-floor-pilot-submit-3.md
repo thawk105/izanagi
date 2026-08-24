@@ -62,6 +62,15 @@ title: [T-1431] 床値 pilot を実投入し、止めていた到達不能述語
   junit の assertion 本文 (`st_mode mismatch ... 0o100600 != 0o100644`) まで読んで
   初めて帰属が確定した。mode を全件戻し、`umask` を触らない launcher で再投入した。
   attempt 2 は 15427 passed / 60 skipped / 0 failed で receipt が出た。
+- 記録 commit を足した land 対象 tip への受入では、別に**負荷依存の非帰属フレーク**を観測した。
+  `test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`
+  が 1 件だけ落ち、assertion は `assert not first.is_alive()` — 2 本の dispatch thread を
+  10 秒で join する wall-clock 述語である。帰属は 3 点で否定した。
+  (1) 本 wave の実装面は `orchestrator/campaign/buildcache.py` だけで、
+  当該 test file はこれを 1 度も import しない (grep 0 件)、
+  (2) assertion が wall-clock 上限であり受入 shard の並行走行で構造的に負荷依存、
+  (3) 単独再走は 1 passed で緑、かつ mode drift は 0 件
+  (attempt 1 の機序は働いていない)。再投入で緑を得た。
 - エージェント工数: 段 2 plan 1 本、段 3 consult 2 本、段 5 author 1 本、段 6 review 2 本、
   段 6 fix 1 本。すべて `gpt-5.6-sol`。plan / consult は `xhigh`、
   author / review / fix は段既定 (`--reasoning` 指定不可)。
