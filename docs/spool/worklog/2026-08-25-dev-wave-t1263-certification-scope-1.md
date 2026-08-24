@@ -115,6 +115,22 @@ baseline が赤 (`submodule is not initialized: external/ccbench/third_party/shi
 `mutation_worktree.py` が作る使い捨て worktree は submodule を初期化しないため、real repo を
 読むテストを変異対象にする wave は先に初期化が要る。
 
+### 段 8 の候補と結末
+
+候補は 2 件で、どちらも失敗台帳へ送った (新規 F と F494 の再発)。**dev-wave の leaf 節への
+統合は予算で止まった。** 候補 A (使い捨て変異 worktree の submodule 初期化) を `DW-M05` へ、
+候補 B (`-n 0` で node 表記を揃える) を `DW-M08` へ実際に足して `python3 tools/check_docs.py`
+を走らせると、`docs/dev-wave/**: L1.5 unique footprint 9784 bytes > 予算 9566 bytes` で rc=1
+になった (`DW-O19` に従い `git checkout --` で復元、rc=0 を再確認)。候補 A は 119 bytes、
+候補 B は 100 bytes、**baseline の footprint は 9565 bytes で空きは 1 byte** である。
+予算引き上げは自己改善に含めないので、恒久対応は台帳に残してユーザー裁定へ返す。
+2026-08-25 の別 wave が同じ予算で同じ結末になっており、これは独立 2 例目である。
+
+### 本 wave 自身の作法の欠落 1 件
+
+段 2 の待機中に、待ち手 1 本の規律に反して `sleep` の 2 本目を張った。気付いて即座に止めたので
+実害は無いが、規律の遵守と実害の有無は別なので記録する。
+
 ## 次の一手差分
 
 ### 完了
