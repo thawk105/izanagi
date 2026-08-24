@@ -838,8 +838,16 @@ def _splice_c_line_continuations(text: str) -> str:
 
 
 def _strip_utf8_bom(text: str) -> str:
-    """先頭の UTF-8 BOM を compiler と同じく署名として正規化する。"""
-    return text.removeprefix("\ufeff")
+    """単一の先頭 UTF-8 BOM だけを compiler の署名として正規化する。"""
+    if not text.startswith("\ufeff"):
+        return text
+    without_bom = text.removeprefix("\ufeff")
+    if without_bom.startswith("\ufeff"):
+        raise RuntimeError(
+            "source_digest: 先頭 UTF-8 BOM が重複しているため "
+            "directive の認識面を確定できない → fails-closed"
+        )
+    return without_bom
 
 
 def _cmake_bracket(text: str, start: int) -> tuple[int, str] | None:

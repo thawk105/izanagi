@@ -952,6 +952,13 @@ def test_bom_or_digraph_define_is_rejected(tmp_path: Path, supply: str) -> None:
         source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
 
 
+def test_duplicate_bom_supply_file_is_rejected_fail_closed(tmp_path: Path) -> None:
+    repo, _old = _base_repo(tmp_path)
+    _write(repo, "include/duplicate-bom.hh", "\ufeff\ufeff#define MQLOCK 1\n")
+    with pytest.raises(RuntimeError, match="先頭 UTF-8 BOM が重複"):
+        source_digest._assert_proven_repo_absent_macros(os.fspath(repo))
+
+
 def test_set_property_compile_definitions_is_rejected(tmp_path: Path) -> None:
     repo, _old = _base_repo(tmp_path)
     _write(
@@ -1061,6 +1068,57 @@ def test_comment_decoy_cannot_forge_raw_logical_include_correspondence(
     _assert_rejected(_run(pair), "raw と logical で同じ位置・綴りに対応しない")
 
 
+def test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence(
+    tmp_path: Path,
+) -> None:
+    directive = '#/**/include "never-used.hh"\n'
+    decoys = (
+        '/*\n#include "first-decoy.hh"\n*/\n'
+        '/*\n#include "second-decoy.hh"\n*/\n'
+    )
+    old = (
+        decoys + "#if TRACE\n" + directive
+        + "int trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive 件数が一致しない")
+
+
+def test_comment_decoy_after_formed_directive_cannot_forge_correspondence(
+    tmp_path: Path,
+) -> None:
+    directive = '#/**/include "never-used.hh"\n'
+    decoy = '/*\n#include "decoy.hh"\n*/\n'
+    old = (
+        "#if TRACE\n" + directive
+        + "int trace_value = 1;\n#endif\n" + decoy + "int steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "raw と logical で同じ位置・綴りに対応しない")
+
+
+def test_comment_decoy_only_pair_preserves_raw_logical_count_rejection(
+    tmp_path: Path,
+) -> None:
+    decoy = '/*\n#include "decoy.hh"\n*/\n'
+    old = decoy + "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive 件数が一致しない")
+
+
+def test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate(
+    tmp_path: Path,
+) -> None:
+    decoy = '/*\n#include "decoy.hh"\n*/\n'
+    old = "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = decoy + old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "include directive 件数が一致しない")
+
+
 def test_bom_prefixed_include_spelling_change_is_rejected(tmp_path: Path) -> None:
     old_header = tmp_path / "empty-old.hh"
     new_header = tmp_path / "empty-new.hh"
@@ -1076,6 +1134,53 @@ def test_bom_prefixed_include_spelling_change_is_rejected(tmp_path: Path) -> Non
     )
     pair = _modified_pair(tmp_path, new, old_source=old)
     _assert_rejected(_run(pair), "include 行文字列（順序込み）が不一致")
+
+
+def test_leading_whitespace_before_include_remains_accepted(tmp_path: Path) -> None:
+    old = (
+        " \t#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["result"] == "pass"
+
+
+def test_bom_followed_by_whitespace_before_include_remains_accepted(
+    tmp_path: Path,
+) -> None:
+    old = (
+        "\ufeff \t#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["result"] == "pass"
+
+
+def test_duplicate_leading_bom_is_rejected_fail_closed(tmp_path: Path) -> None:
+    old = (
+        "\ufeff\ufeff#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    new = old.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "先頭 UTF-8 BOM が重複")
+
+
+def test_asymmetric_leading_bom_is_rejected_fail_closed(tmp_path: Path) -> None:
+    body = (
+        "#include <cstdint>\n"
+        "#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    )
+    old = "\ufeff" + body
+    new = body.replace("int trace_value = 1;", "int trace_value = 2;")
+    pair = _modified_pair(tmp_path, new, old_source=old)
+    _assert_rejected(_run(pair), "old/new の先頭 UTF-8 BOM 有無が不一致")
 
 
 def test_literal_include_operand_trace_only_change_passes(tmp_path: Path) -> None:

@@ -330,12 +330,20 @@ def _assert_literal_include_operands(source: str, path: str, side: str) -> None:
         if match is not None:
             corresponding_logical.append(match.group("directive"))
     logical_spellings = [match.group(0) for match in logical_includes]
+    unsupported_reasons: list[str] = []
     if corresponding_logical != logical_spellings:
-        raise CheckError(
+        unsupported_reasons.append(
             "splice 後・comment 除去後にだけ現れる include directive、または raw と logical "
             "で同じ位置・綴りに対応しない include directive は未対応: "
             f"{side} {path}"
         )
+    if len(raw_includes) != len(logical_includes):
+        unsupported_reasons.append(
+            "raw と logical の include directive 件数が一致しない未対応形: "
+            f"{side} {path}"
+        )
+    if unsupported_reasons:
+        raise CheckError("; ".join(unsupported_reasons))
     for raw_match, logical_match in zip(raw_includes, logical_includes):
         raw_line = raw_match.group(0)
         if "\\\n" in raw_line or raw_line.rstrip(" \t").endswith("\\"):
@@ -514,8 +522,15 @@ def _compare_file(
 ) -> dict[str, object]:
     old_source = _git_show(os.fspath(repo), old_oid, path)
     new_source = _git_show(os.fspath(repo), new_oid, path)
-    old_source = _strip_utf8_bom(old_source)
-    new_source = _strip_utf8_bom(new_source)
+    old_has_bom = old_source.startswith("\ufeff")
+    new_has_bom = new_source.startswith("\ufeff")
+    if old_has_bom != new_has_bom:
+        raise CheckError(f"old/new の先頭 UTF-8 BOM 有無が不一致: {path}")
+    try:
+        old_source = _strip_utf8_bom(old_source)
+        new_source = _strip_utf8_bom(new_source)
+    except RuntimeError as exc:
+        raise CheckError(f"先頭 UTF-8 BOM を正規化できない: {path}: {exc}") from exc
     _assert_literal_include_operands(old_source, path, "old")
     _assert_literal_include_operands(new_source, path, "new")
     old_includes = _include_lines(old_source)
