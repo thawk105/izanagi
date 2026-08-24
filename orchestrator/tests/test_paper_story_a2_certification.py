@@ -940,3 +940,12 @@ def test_volatile_diagnostics_are_not_fixture_authority(tmp_path):
         policy, second, attempt_id=root.name, current_pin=CURRENT_PIN,
         request_id="125.nqsv")
     assert report_a == report_b
+
+
+def _run() -> int:
+    """Keep this test file covered by the repository plain-runner contract."""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

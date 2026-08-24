@@ -198,3 +198,12 @@ def test_compute_preflight_requires_real_pbs_and_reservation_bindings(
 
 def test_job_body_mode_is_executable():
     assert os.stat(JOB).st_mode & 0o111
+
+
+def _run() -> int:
+    """Keep this test file covered by the repository plain-runner contract."""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
