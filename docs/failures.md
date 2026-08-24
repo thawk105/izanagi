@@ -13347,3 +13347,73 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: main 側が `tools/dev_wave_wait.py` を変更した状態で、behind な tip から acceptance を
   投入する subprocess test。launcher が全走後に `restart-required` を返し receipt を発行しなければ再発とする。
   先に main を取り込んだ tip からの同一投入では receipt が発行されることを対の正例とする。
+
+### F525. 占有検査を timeout で包むと自分の引数が占有の証拠になった [恒真ゲート] [手順漏れ]
+
+- 事象: `/cleanup-branches` §3 の指示どおり `tools/check_worktree_occupancy.py` を
+  worktree 10 本へ走らせ、全 10 本が rc=1 (占有) を返した。占有者の pid は連番
+  (900042 / 900048 / 900130 / ... / 900520) で、直後には `/proc/<pid>` が消えていた。
+  唯一違ったのは `timeout 300` で包んでいた点で、包まずに再実行すると内訳は
+  真の占有 1 本 (pid 1100953、cwd 一致、2026-08-22 から生存) と rc=2 が 9 本だった。
+  偽の占有を信じれば掃除が全面停止し、疑って迂回すれば fail-closed 防壁を潰す。
+- 根本原因: 検査が cmdline 一致を無視するのは「自分の pid」と
+  「**直接の親**が起動 shell のとき」だけで、`_parent_is_invoking_shell()` は親の
+  `/proc/<pid>/exe` 名を shell 名の集合と照合する。`timeout` を挟むと直接の親が
+  `timeout` になり shell 名に一致しないため除外が外れ、**その argv に載っている対象
+  worktree path そのもの**が占有の証拠として数え直される。検査対象を引数で渡す以上、
+  `nohup` `env` `xargs` `stdbuf` など任意の非 shell wrapper で同型が起きる。
+- 恒久対応: memory `occupancy-check-must-not-be-wrapped` (呼び出し側の規律)。
+  検査側の是正 ([T-1635]) は本 wave の編集面の外にあり、
+  裁定へ返す。
+- 再発検知: rc=1 の occupants が「連番 pid」かつ「sources が cmdline だけ」なら
+  wrapper 自己一致を疑い、`ls -l /proc/<pid>/cwd` と `cat /proc/<pid>/comm` で裏を取る。
+  機械検査は [T-1635] の負例 node で入れる。
+- 家族: F297 (初版が本番で常に判定不能)、F489 (zombie 1 本で恒久的に判定不能) と同じ
+  「掃除の関門が本番環境で構造的に通れない」型の 3 例目。前 2 例は検査を fail-closed へ
+  倒す欠陥、本件は**呼び出し方**が偽陽性を作る点が異なる。
+
+### F526. 掃除の必須監査が argv 長超過で実行不能になり削除が全面停止した [恒真ゲート]
+
+- 事象: `/cleanup-branches` §1 が必須とする
+  `tools/audit_dangling_commits.py --offrepo-root /work/1/SFC/tanab/dev-wave-jobs`
+  (`docs/pegasus-runbook.md` §7.2 が指定する探索根) が、約 20 分走ったのち
+  `audit_dangling_commits: 実行できません: [Errno 7] Argument list too long: 'git'`
+  で rc=2 を返した。§1 は rc2 を「実行不能・削除停止」と定めるため、
+  安全条件を満たす取り込み済み branch 84 本が 1 本も消せず、掃除が全面停止した。
+  本件はユーザー指示で再開したが (ahead=0 の削除では到達不能な変更が新たに生じないため)、
+  **既定の削除経路は塞がったままである**。
+- 根本原因: `_landed_reference_matches()` が bytes 一致候補の全 pattern を
+  `git grep -F -l -z -e <p1> -e <p2> ...` という **1 回分の argv** に載せる。
+  pattern 数は off-repo 探索根 (`dev-wave-jobs`) の成長に比例して増えるため、
+  実行環境の argv 上限にいつか必ず当たる。上限に達した時点で監査は永久に rc=2 になり、
+  時間経過で自然に解消しない。
+- 恒久対応: memory `dangling-audit-argv-overflow-blocks-cleanup` (現象と診断の記録)。
+  分割実行への是正 ([T-1636]) は本 wave の編集面の外にあり、
+  裁定へ返す。
+- 再発検知: [T-1636] で、argv 上限を超える pattern 数を
+  与えても完走することを pin する。
+- 家族: F297 / F489 と同じ「掃除の関門が本番環境で構造的に通れない」型で、
+  滞留の規模 (worktree 32 本・branch 121 本) も F489 の実測に近い。
+
+### F527. 占有検査に相対 path を渡し、22 本すべてを偽の「撤去可」と判定した [恒真ゲート] [誤前提]
+
+- 事象: worktree 撤去の可否を測るため、自分の worktree の中から
+  `python3 tools/check_worktree_occupancy.py .claude/worktrees/<slug>` を 22 本ぶん走らせ、
+  **全 22 本が「占有者ゼロ」**になった。撤去してよいと読みかけたが、JSON の `scanned` が
+  **0** で、`worktree` field が
+  `.../cleanup-branches-20260823/.claude/worktrees/<slug>` という**実在しない path**を
+  指していた。絶対 path で全件やり直すと、真の占有 1 本 (pid 1100953) と
+  直近 2 時間以内に書き込みのある 3 本が現れた。
+- 根本原因: 検査は相対 path を **cwd 基準**で解決する。自分が worktree の中に居ると
+  `.claude/worktrees/<slug>` は「worktree の中の worktree」を指し、実在しないので
+  走査対象が空になる。空の走査は占有者ゼロを生み、`status` は indeterminate になるが
+  **`occupants: []` だけを見ると合格に見える**。呼び出し側の誤りが、検査の合格側へ倒れた。
+- 恒久対応: memory `occupancy-check-must-not-be-wrapped` へ絶対 path 必須を併記。
+  検査側で不在 path を明示的に失敗させる是正
+  ([T-1635]) は本 wave の編集面の外にあり裁定へ返す。
+- 再発検知: `occupants` を読む前に **`scanned` が 0 でないこと**と `worktree` field が
+  意図した絶対 path であることを確認する。[T-1635] で
+  不在 path の正例 node を入れる。
+- 家族: F525 と同じ「呼び出し方が占有判定を狂わせる」型。
+  ただし向きが逆で、あちらは偽陽性 (掃除が止まるだけ) なのに対し、
+  本件は**偽陰性 — 消してはいけないものを消しうる**危険な側へ倒れる。
