@@ -79,6 +79,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/paper_story_a2_certification.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS paper-story A-2 certification job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/probes/t139_positive_control_probe.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",
