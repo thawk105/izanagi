@@ -65,6 +65,53 @@ receipt.json全件を突き合わせて回答し、孤児0件・並行dispatch2�
 直接の影響はないが、段9のland前に解除確認が必須。プレーンな`run_tests.py`直接呼出しは
 この制約の対象外。
 
+2026-08-24 に別 context が本 wave を引き継いだ。未着地のまま 529 commit 遅れていた branch へ
+local main tip `f02b4d62` を取り込み、受入全走と land へ進めた。以下はその再開 context の記録で
+ある。受入全走は本記録 commit を tip として投入するため、その結果は本文に書かず receipt を
+一次資料とする。
+
+2026-08-22 に別セッションから受けた「受入の新規投入を一時停止」要請は、原因が解消済みであることを
+実測で確認してから投入した。`tools/dev_wave_wait.py` の `_STAGE_TIMEOUT_SECONDS` は 300 秒から
+1200 秒になり、stage subprocess の打ち切りは SIGKILL 即時でなく SIGTERM 先行 +
+`_STAGE_GRACEFUL_TERMINATION_SECONDS` = 100 秒の猶予に変わっている。これは
+`dispatch_compute.py` の qdel を含む cleanup を発火させるための変更で、孤児化の経路が塞がれた
+ことを意味する。停止要請から本 wave 再開までの間に main が 529 commit 進み、その多くが受入緑を
+必須とする land である点も傍証になる。
+
+依頼が名指しした `p3_autonomous_workload_trial.py` の編集面重複を先に再検査した。main 側で
+この file を触った commit は `74b3854f` の1本だけで `_finish_trial()` 付近 (3104行付近)、
+本 wave は `_redacted_transport_error()` (2197行付近) で交差しない。全 registered worktree を
+走査した結果、同 file を触る生存 wave は `worktree-dev-wave-t1611-terminal-reason-match` の1本
+だけで、こちらは1320行と4041行だった。行・関数とも重複なしと確定した。
+
+merge は自動で競合ゼロだったが、両親が同じ実装面 file を触るため
+`check_ai_provenance.py --message-file` が Codex `role=author` を要求した (rc=1)。
+staged merge のままでは launcher の authority gate が rc=2 で子を拒否するため、
+{{D:merge-author-two-commit-split}} の 2 commit 分割を採った
+({{F:staged-merge-blocks-codex-author-launch}})。一発 merge した index の `git write-tree`
+`0a4644213e665de28840bd6cc0e364b02c37dcc0` を先に控え、2 commit 後の `HEAD^{tree}` が
+同一であることを照合した。分割が内容を変えていないことは機械で示せている。
+
+合成監査の Codex `role=author` 子は「破れなし」と判定し、patch を byte 同一で再適用した。
+子が実測で確かめた点: `_redacted_transport_error()` の呼出しは9箇所で、consumer は message を
+構造解析せず journal / report / cell 間の同一性だけを検査するため受理集合は変わらない。
+exact 一致を検査する既存 test 4箇所はいずれも短い単一行で値が変わらない。main 側 `74b3854f` が
+追加した `AutonomousTrialError` の文言は `run_trial()` では sanitizer を通らず、
+`run_origin_trial()` 経由でも短い単一行なので不変。切詰めの最終長は常に500字 (marker 14字 +
+先頭486字) で、除去対象は U+0000〜U+001F・U+007F〜U+009F・U+2028・U+2029、U+0020 は残る。
+
+段8の自己改善候補は1件だった。DW-O17 は「実装面 path が両親と異なれば Codex `role=author` へ」と
+書くが、その状態で子を起動する手順を持たない。本文への統合は L2 単節予算 1000 bytes に対し
+DW-O17 が既に 974 bytes を使っており入らないため、予算値の引き上げ可否をユーザー裁定へ返し、
+手順自体は decisions と failures へ routing した。
+
+再開 context の子は Codex `role=author` 1本のみ。1回目は staged merge のため launcher rc=2 で
+起動前に拒否され、2回目は `evidence_status=invalid` で不採用になった (本 wave の
+`{{F:codex-jsonl-backslash-unterminated-string}}` の5回目の再発。今回は仕事自体が正規表現
+リテラルを扱う内容だったため決定的に再現した)。台帳に記録済みの recover 手順で成果物を回収した。
+待ち手 `dev_wave_wait.py producer` は2回とも rc=70 を返したが、いずれも子は既に終了して
+`.done` を書いており、rc=70 を子の失敗と読まず現物照合で救えた。
+
 ## 次の一手差分
 
 ### 完了
@@ -75,3 +122,10 @@ receipt.json全件を突き合わせて回答し、孤児0件・並行dispatch2�
 - [T-1464] _redacted_transport_error()を早期return除去+制御文字除去+length-capへ拡張した。
   remaining: none
   base: f2a7a02d207327c732b8f2d97e75005533415259f403c9d021940a558caca544
+
+### 新規
+
+- {{T:dw-o17-merge-author-launch-procedure}} **P2・新規**: 両親が同じ実装面 file を触る merge で
+  Codex `role=author` 子を起動する手順を DW-O17 へ統合する。L2 単節予算 1000 bytes に対し
+  DW-O17 が既に 974 bytes を使っており入らない。予算値の引き上げか、DW-O17 の可逆な圧縮か、
+  台帳ポインタのみで済ませるかをユーザー裁定にかける。
