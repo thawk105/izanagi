@@ -125,7 +125,16 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
 _XDIST_GROUP_NAMES_GOLDEN = frozenset({
     "dev-waves-runtime",
     "real-repo",
+    "s8c-predicate-snapshot",
     "s8c-preregistration-candidate",
+})
+
+_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN = frozenset({
+    "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
+    "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+    "test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+    "test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
+    "test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
 })
 
 # Independent oracle for the sort-SWO environment consumer registry.  This is
@@ -1038,6 +1047,17 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     _require_pytest()
     report = _collect_xdist_group_report(HERE, cwd=ROOT)
     _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)
+    s8c_predicate_snapshot_nodes = {
+        entry["canonical_node"]
+        for entry in report
+        if entry["marks"]
+        and entry["marks"][0]["args"][0] == "s8c-predicate-snapshot"
+    }
+    assert s8c_predicate_snapshot_nodes == _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN, (
+        "s8c-predicate-snapshot group が独立 golden と不一致: "
+        f"missing={sorted(_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN - s8c_predicate_snapshot_nodes)} "
+        f"extra={sorted(s8c_predicate_snapshot_nodes - _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN)}"
+    )
 
     golden = set(_REAL_REPO_SERIAL_NODES_GOLDEN)
     configured = set(_load_suite_conftest().REAL_REPO_SERIAL_NODES)
