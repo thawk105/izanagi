@@ -1305,6 +1305,13 @@
   偽緑の実害は無かった (near miss)。恒久対応は F37 既存のとおり変わらない。
 
 - **再発: 2026-08-24** — local main mergeのcommit前に`git diff --cached --check`がincoming main由来archive 4件の`new blank line at EOF`でrc=2を返したが、`set -e`のない同一shellの次行へ`git commit`を置いたためcommitまで進んだ。merge後の両親比較でfirst-parent側だけrc=2、second-parent側はrc=0、combined diffは空と確認し、競合解決による新規混入は無かった。恒久対応は既存DW-O17の「検査を単独rcで走らせ、赤なら状態変更へ進まない」から変更しない。
+
+- **再発: 2026-08-25** — 背景 job の待ち手を `dev_wave_wait.py producer ... 2>&1 | tail -3` の形で
+  張ったため、通知が報告する exit code が待ち手ではなく `tail` のものになった。変異本走で表面化し、
+  「完了 (exit code 0)」の通知後に `.done` も成果物も無く、producer は稼働中だった。
+  `| tail` を外して前景で張り直すと `rc=70 producer-timeout` が正しく返った。
+  検査 rc だけでなく**待ち手の rc も同じ穴を持つ**。各段で `.done` と
+  `check_codex_output.py` を個別に検証していたため偽緑の記録には至っていない (near miss)。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -3566,6 +3573,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   正しい回避策 (`--deselect=<素の node id>` を runner argv へ追加) を発見し、
   baseline PASSED・161/161 KILLED で収束した。[T-417] の恒久対応は依然未実施であり、
   4 回目の再発によって「散文の再発記録だけでは検知にならない」ことが追加で示された。
+
+- **再発: 2026-08-25** — `s8c-predicate-snapshot` group の 3 node で同型が再発した。
+  収集は `-n 0` で bare node、実走は loadgroup で `@s8c-predicate-snapshot` 付きになり、
+  どちらの表記で登録しても一致しない。同じ形は F408 が別 group で先に記録している。
+  本 wave は harness を直さずに済ませた — 正規化の設計は別 ID が所有しているためである。
+  代わりに**実行形を 2 通り測った**。受入と同じ loadgroup 走で node 集合を取り、
+  runner の正規経路である `-n 0` を渡した直列走で機械照合を通す。3 版すべてで、
+  2 走の失敗 node 集合は接尾辞を除いて完全一致した。loadgroup 走の label は
+  MISMATCH のまま残し、KILLED と読み替えていない。手順の正本は
+  D784。
 ### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
 
 - 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
@@ -4737,6 +4754,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **同日 2 例目という事実が、この赤が特定 wave の事情ではなく受入 shard 経路の構造由来である
   ことを示す。** 恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は
   1 例目と同じ。
+
+- **再発: 2026-08-25 (同日 3 例目)** — 直前の docs-only wave (同日 2 例目) と**同一の形が
+  連続で再生産された**。本 wave も docs-only (差分は `docs/spool/` の 2 file) で、
+  受入全走を 1 本しか投入せず走行中に repo へ何も書いていないのに、
+  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 11 件赤になった
+  (11 failed / 15,284 passed / 60 skipped)。junit の差分は 11 件とも
+  `first extra item: ('dir', 'task-runs/reports')` で、2 例目と逐語一致する。
+  受入 shard は同じ作業木から request `944878` と `944879` を重ねて投入しており
+  (shard-1 の junit が 03:21:47、shard-0 が 03:23:20 に確定)、既知の機序と一致する。
+  帰属は 3 点で否定した — (1) wave の差分 2 file は `launch_cert` / `certificate` を
+  1 箇所も参照しない (`git diff` の grep が 0 件)、(2) 同 file の焦点走は
+  **451 passed / 2 skipped** で緑 (rc=0)、(3) junit 差分が実装ではなく
+  `output/task-runs/` の dir 増加を指す。
+- **新しい事実は決定性である。** 2 例目の焦点走も 451 passed / 2 skipped であり、
+  赤の件数 (11)・assertion 本文・焦点走の緑の内訳が 3 例目と完全に一致した。
+  この赤は wave 固有の事情でも散発的な flake でもなく、**docs-only wave が受入 shard 経路を
+  通ると再現する構造的な赤**である。「単独再走で消える」という 1 例目の再発検知条件は、
+  裏返せば「受入全走を投入するたびに一定確率で 1 回捨てる」費用を全 wave が払い続けることを
+  意味する。恒久対応 (task-run 記録の書き出し先を shard session root へ逃がす seam) は
+  本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は 1・2 例目と同じ。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -6740,6 +6777,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   [T-855] の恒久対応 (repo全体の非NFC機械検査) が未実装のため、同ファイルの成長で
   非NFC混入箇所が増える限り同型が再発しうる。今回は prompt へ「この行範囲は絶対に読むな」
   という明示制約を追加する運用回避で凌いだ (3回目で解消)。
+- **supersede: 2026-08-25** — `evidence_status=invalid` の原因は web 検索と非 NFC の 2 つだけではない。内容側の条件をすべて満たしても invalid になる 3 つ目の型を F540 に記録した。invalid を見たら 3 つとも判定する。
 ### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
 
 - 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
@@ -13724,3 +13762,165 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   現在値でないことを述べる**。実体は memory `task-suggestion-check-listagents-and-mechanism` と
   本エントリである。
 - 再発検知: 候補一覧を含む提示に、測定時刻または「提示直前に再測した」旨の記載が無ければ再発とする。
+
+### F539. 失敗時にも stdout を出す command を `$(cmd || echo SENTINEL)` で分類し、不在の枝が到達不能になった [恒真ゲート] [手順漏れ]
+
+- 事象: 取り残し branch 6 本の着地判定で、各 path が main に在るかを
+  `ms=$(git rev-parse "main:$p" 2>/dev/null || echo ABSENT_IN_MAIN)` で採り、
+  `ms` を branch 側 blob と比べて SAME / MAIN_ABSENT / DIFF の 3 分類に振っていた。
+  **MAIN_ABSENT が 1 件も出ず、spool fragment 7 本すべてが「main に別内容で存在」と出た。**
+  実際には 7 本とも main に存在しない (fold 済みで削除されている) 側だった。
+  判定表を作り直すまで、fold 済み fragment を「main と内容が食い違う未着地の成果」と
+  読む一歩手前だった。実害は無い (同 wave 内で気づき、`git cat-file -e` 版へ作り直した)。
+- 根本原因: `git rev-parse main:<path>` は path が解決できないとき、
+  **解決前の引数文字列 `main:<path>` を stdout へ書いたうえで非 0 で終わる**。
+  `$(...)` は command 置換の対象全体の stdout を捕るので、`||` の右辺が発火しても
+  捕獲値は sentinel 単独にならず `main:<path>` と sentinel の連結になる。
+  結果として sentinel との等値比較が恒に偽になり、**「不在」の分類枝が到達不能**になって
+  全件が既定枝 (DIFF) へ落ちた。rc は握り潰していない (F37 とは別型) — rc は正しく非 0 を
+  返しており、壊れたのは捕獲した値の方である。
+- 恒久対応: memory `absence-check-needs-cat-file-e-not-rev-parse-fallback`
+  (存在の有無は `git cat-file -e <rev>:<path>` の rc で先に決め、内容比較はその後に行う。
+  `$(cmd || echo SENTINEL)` を分類に使うのは、cmd が失敗時に stdout を出さないと
+  確かめた場合だけとする)。あわせて分類器を書いたら、**各分類枝が実データで 1 回以上
+  発火することを数えてから結論に使う** — 本件は「MAIN_ABSENT が 0 件」という
+  数え上げが最初の異常兆候だった。
+- 再発検知: **機械検査は無い (prompt 規律)。** 使い捨ての shell 分類器は repo の
+  lint 対象外であり、恒真な保証にしないためここに明記する。実務上の防壁は上記 memory と、
+  「全分類枝の発火数を見る」作法の 2 つだけである。
+
+### F540. `evidence_status=invalid` には内容に原因が無い 3 つ目の型があり、receipt からは発火条件を特定できない [恒真ゲート]
+
+- 事象: 段 3 の敵対レンズ 1 本が `codex_exit_code=0` / `validator_rc=0` /
+  `metering_status=complete` / `termination_verified=true` / 成果物 9,879 bytes 完全
+  (`check_codex_output.py` rc=0、`## 総括` あり) でありながら、receipt が
+  `evidence_status=invalid` / `accepted=false` / `launcher_rc=1` になり `-o` が書かれなかった。
+  719.5 秒・41 model call・入力 434 万 token。
+- **既知 2 原因を実測で否定した。** F217 (web 検索イベントの重複キー) —
+  `attempt-0001.events.jsonl` に `web_search` を含む行は **0 件**、重複キーを拒否する
+  strict parser で全行が通る (失敗 0 行)。F223 (非 NFC) — events.jsonl も rollout も
+  **非 NFC 行 0 件**、prompt と成果物も NFC 正規である。
+- 根本原因: 特定できていない。`tools/codex_worker_launch.py` の `_evidence_status()` は
+  `stdout_invalid` / `stdout_pending` / rollout の `invalid` / `pending` /
+  `session_meta_count != 1` / `context_count < 1` の**いずれか**で invalid を返すが、
+  **どれが発火したかを receipt にも launcher-diagnostics にも記録しない**
+  (診断 JSON を `pending` / `invalid` / `rollout` / `session_meta` / `context_count` で
+  検索して 0 hit)。事後に rollout を検査すると `session_meta=1` / `turn_context=1` /
+  strict parse 全通過で健全だった。**内容側の条件はすべて満たされている**ため、
+  発火したのは読み取り時点の条件 (pending 系) と考えられるが、外からは確定できない。
+- 恒久対応: 未実施。`_evidence_status()` がどの条件で invalid を返したかを receipt の
+  attempt record へ 1 field 記録する改修を裁定パッケージへ回す
+  (tool の出力契約を変えるため既成事実にしない)。それまでの回避は下記の再投入である。
+- **回避 (実測で成功):** **同じ prompt を別の `--job-id` で 1 回だけ再投入する。** job-id は
+  prompt の内容 hash から導かれるため、明示的に `--job-id` を渡さないと同一 job になる。
+  本 wave では再投入が `launcher_rc=0` で成功した。**不採用の成果物を採用へ回してはならない** —
+  内容検査が緑でも launcher の赤を迂回することになる。
+- **再投入は同じ結論を返さない。** 本 wave では保全した 1 回目と再投入版が
+  2 点で異なる結論を出した (ある変異を semantic kill と数えるか、harness 修理が族一般化条件を
+  満たすか)。親は両方を一次資料へ当てて裁定し、片方ずつ採否を分けた。
+  **不採用になった成果物を保全して読む価値はあるが、それを唯一の根拠にしてはならない。**
+- 再発検知: `evidence_status=invalid` を見たら、まず F217 (events.jsonl の `web_search` 行数と
+  strict parse) と F223 (events.jsonl / rollout の NFC) を**実測で**判定する。
+  両方 0 件なら本エントリである。
+
+### F541. ログインノードの重い処理防壁が shell 変数の間接で発火しない [権限逸脱]
+
+- 事象: 床値 pilot の停止点を局所再現するため、ログインノードで gflags と glog を
+  `CM=/system/.../cmake` に入れてから `"$CM" --build ...` と書いて実際にビルドした。
+  直後に同じ処理を `cmake --build ...` と直書きしたところ初めて拒否され、
+  先の 2 本が防壁を通り抜けていたことに気づいた。意図的な迂回ではなく、
+  長い絶対 path を短く書くために変数へ入れた結果である。
+- 根本原因: `hooks/guard_bash.py` の `_heavy_segment_violation` は
+  `_heavy_head_and_args` が返す head を `os.path.basename(token)` の文字列一致で判定する。
+  token が `$CM` のままなので `cmake` と一致せず、`cmake --build` の分岐に到達しない。
+  guard 自身の `decide()` で実測した: `cmake --build /tmp/b -j 16` は拒否、
+  `CM=/usr/bin/cmake; "$CM" --build /tmp/b -j 16` と
+  `CM=/usr/bin/cmake; $CM --build /tmp/b -j 16` はどちらも通過する。
+  なお `re.match(r"^\w+=", token)` による代入 token の読み飛ばしはあるので、
+  代入自体は解析されているが、その値は head 解決に使われない。
+- 恒久対応: 未実施。防壁本体の変更は正しさ防壁の改訂であり、
+  `docs/skill-self-improvement.md` の段 8 契約に従って裁定パッケージへ送った
+  ([T-1657])。本エントリは事象と機序の記録である。
+- 再発検知: `hooks/` のテストに、同じ command を直書き形と変数間接形の両方で
+  `decide()` へ通し、判定が一致することを要求する positive control を足すこと
+  (裁定後の実装対象)。
+
+### F542. floor sort_best の build 後検査が、現行 pin では出現しえない CMakeCache key を要求していた [恒真ゲート] [テスト代表性]
+
+- 事象: 床値 pilot を 2 回投入し (request `940170.nqsv` / `944884.nqsv`)、
+  どちらも 12 セル中 3 セル build 完了・計測到達セル 0 で停止した。
+  2 回目に T-1578 の耐久診断が本文を残し、停止の実体が
+  `BuildCacheError: CMakeCache.txt の masstree_SOURCE_DIR が一意な絶対 path でない`
+  であることが確定した。コンパイル自体は通っていた。
+- 根本原因: `orchestrator/campaign/buildcache.py` の
+  `_masstree_source_root_from_cmake_cache` が、cell の build directory の
+  `CMakeCache.txt` に `masstree_SOURCE_DIR` がちょうど 1 行あることを要求していた。
+  CCBench (pin `511c9538e4e8efa54b45cda62e72389ed3b706ec`) の `cmake/ThirdParty.cmake` は
+  1 引数形式の `FetchContent_Populate(masstree)` を使い、この形式は
+  `<name>_SOURCE_DIR` を呼び出し scope の通常変数にしか設定せず CMakeCache へ書かない。
+  したがって出現数は常に 0 で、述語は構造的に到達不能だった。
+  この検査は floor の staged transport 経路 (`dependency_receipt` が非 None、
+  すなわち sort_best cell) でしか呼ばれず、その経路は実 run で一度も通っていなかった。
+  **到達不能性が露出しなかったのはテストが自己充足だったためである。**
+  `orchestrator/tests/test_buildcache_v2.py` の `fake_run` は、実 CMake が書かない
+  `masstree_SOURCE_DIR:STATIC=<...>` という行を合成 `CMakeCache.txt` へ自分で書き込んで
+  いた (同 file の 2 箇所)。検査が要求する形を fixture 側が作っていたので、
+  実環境の CMakeCache に同じ key が無いことをテストは検出しえなかった。
+- 恒久対応: 述語を、CMakeCache に実在する key (`FETCHCONTENT_SOURCE_DIR_<UPPER>` と
+  `FETCHCONTENT_BASE_DIR`) から CMake と同じ規則で実効 source root を導出する形へ
+  張り替えた。束縛は弱めず、key が 0 件・複数件・非絶対のときは従来どおり fail-closed
+  である。positive control は実環境と同じ形の CMakeCache を使う。
+- 再発検知: `DW-O13` が既に「field の実在では足りない。その field が実環境で取りうる値を
+  実測し、要求する値が到達可能か確かめてから述語を採用する」を課している。
+  本件はその未適用例である。加えて実環境形の CMakeCache を使う positive control を
+  テストへ常設した。
+
+### F543. untracked 一括除去の確認に `git status` を使い、別 wave の tracked file を消した [手順漏れ]
+
+- 事象: 床値 pilot が `output/` 配下へ残した untracked 成果物を repo 外へ退避してから
+  `rm -rf` する前に、`DW-O11` の求めるとおり
+  `git status --porcelain -- <path>` を走らせた。返ったのは `??` 行だけで、
+  `grep -cv '^??'` は 0 だった。これを「対象は全て untracked」と読んで除去したところ、
+  同じ directory にあった**別 wave の tracked かつ無変更**な submission receipt 3 件
+  (`5f1d4eccaafd8c5bcce86d042eafb521` / `e587c22d7588e5aea760754e88092142` /
+  `f29f559a81afd2d3ba5dde05000a3471`、計 51 file) まで消えた。
+  除去直後の `git status --porcelain` に ` D` が 51 行現れて発覚し、
+  `git checkout -- <path>` で全件復元した (`git diff HEAD` が空であることを確認済み。実害なし)。
+- 根本原因: **`git status` は tracked かつ無変更の file を 1 行も出さない。**
+  したがって「`git status` の出力が `??` だけ」は「tracked file が無い」ことの証明にならない。
+  `DW-O11` は「対象が untracked だけと個別確認してから行う」と定めるが、
+  その確認手段として `git status` を使うと、不在の実測にならない検査を実測と誤認する。
+- 恒久対応: 不在は tracked 集合そのものを数えて確かめる。
+  `git ls-files -z -- <path> | wc -c` が 0 であることを確認してから除去する。
+  `git status` は差分の列挙であって在籍の列挙ではない。
+- 再発検知: 除去の直後に `git status --porcelain` を必ず読み、` D` 行が 1 行でもあれば
+  即座に `git checkout -- <path>` で復元する (本件はこの手順で検出・復旧した)。
+
+### F544. 受入 launcher の `umask 077` が merge 済み作業ツリーの mode を壊し、受入を 32 件赤にした [計測汚染] [手順漏れ]
+
+- 事象: 受入全走 attempt 1 が `18 error, 14 failed, 15359 passed, 60 skipped` で落ちた。
+  赤はすべて `orchestrator/tests/test_codex_reasoning_ab.py` に集中しており、
+  本 wave が 1 度も触っていない file である。junit の本文は
+  `ValidationError: st_mode mismatch docs/decisions.md: 0o100600 != 0o100644` 等で、
+  distinct な first-line は 11 種、すべて `st_mode mismatch` か
+  それを含む assertion だった。
+- 根本原因: 受入を起動する launcher script に `umask 077` を書いていた。
+  `tools/dev_wave_wait.py acceptance` は claim 後に **自分で local main を merge する**ため、
+  git がこの umask のまま作業ツリーへ file を書き、
+  **incoming の 47 file すべてが 0600 (実行可能 1 件は 0700) になった**。
+  `test_codex_reasoning_ab.py` は repo snapshot の `st_mode` を検査するため、これを拒否した。
+  **git は実行ビット以外の permission を追跡しないので、この破損は
+  `git status` にも `git diff` にも現れず、index からも復元できない。**
+  修正した file 数 47 が merge の incoming file 数 47 と完全一致し、因果が閉じた。
+- 恒久対応: **git 操作を含む走行の launcher で `umask` を触らない。**
+  job artifact の permission を絞りたい場合は、作成した artifact だけを個別に `chmod` する。
+  受入 launcher の正本は `docs/pegasus-runbook.md` の受入 lease 待ち手の節であり、
+  同節の定型に `umask` は含まれていない — 定型へ勝手な行を足したことが直接の原因である。
+- 再発検知: 赤が `st_mode mismatch` を含むなら本件型である。
+  `git ls-files -s` の記録 mode と作業ツリーの実 mode を突き合わせて差分を数え、
+  0 でなければ `chmod` で戻してから再投入する。差分件数が直前の merge の
+  incoming file 数と一致するかも併せて確かめる。
+- 補足: 単独再走 (`test_codex_reasoning_ab.py` だけ) は 454 passed / 2 skipped で緑だった。
+  この時点で一部の mode が既に戻っていたためであり、**「単独で緑なら非帰属フレーク」という
+  読みは本件では誤り**である。`DW-O18` の単独再走は必要条件であって十分条件ではない。
+  junit の assertion 本文まで読んで初めて帰属が確定した。

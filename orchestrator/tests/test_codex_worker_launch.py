@@ -5584,6 +5584,193 @@ def test_manifest_v2_accepts_two_sibling_worktree_repo_roots(
     }
 
 
+_MID_MERGE_CAPABILITY_CASES = tuple(
+    (stage, sandbox, stage == "author" and sandbox == "workspace-write")
+    for stage in LAUNCHER.STAGES
+    for sandbox in ("read-only", "workspace-write")
+)
+
+
+@pytest.mark.parametrize(
+    ("stage", "sandbox", "expected"), _MID_MERGE_CAPABILITY_CASES
+)
+def test_preflight_passes_mid_merge_capability_only_to_author_workspace_write(
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+    sandbox: str,
+    expected: bool,
+) -> None:
+    calls: list[tuple[Path, bool]] = []
+
+    class SnapshotCaptured(Exception):
+        pass
+
+    def capture_snapshot(
+        repo_root: Path, *, allow_mid_merge: bool = False
+    ) -> None:
+        calls.append((repo_root, allow_mid_merge))
+        raise SnapshotCaptured
+
+    monkeypatch.setattr(LAUNCHER, "snapshot_authority", capture_snapshot)
+    args = LAUNCHER.argparse.Namespace(
+        repo_root=_ROOT,
+        stage=stage,
+        sandbox=sandbox,
+    )
+
+    with pytest.raises(SnapshotCaptured):
+        LAUNCHER._preflight_run(args)
+
+    assert calls == [(_ROOT.resolve(), expected)]
+
+
+def test_preflight_mid_merge_capability_case_registration_is_complete() -> None:
+    assert _MID_MERGE_CAPABILITY_CASES == (
+        ("plan", "read-only", False),
+        ("plan", "workspace-write", False),
+        ("consult", "read-only", False),
+        ("consult", "workspace-write", False),
+        ("author", "read-only", False),
+        ("author", "workspace-write", True),
+        ("review", "read-only", False),
+        ("review", "workspace-write", False),
+        ("fix", "read-only", False),
+        ("fix", "workspace-write", False),
+        ("focus", "read-only", False),
+        ("focus", "workspace-write", False),
+    )
+
+
+def test_preflight_real_mid_merge_allows_only_author_workspace_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main, _base_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    branch = subprocess.run(
+        ["git", "-C", os.fspath(main), "branch", "--show-current"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    operations = main / "docs/dev-wave/operations.md"
+    workers = main / "docs/dev-wave/workers.md"
+    base_operations = operations.read_text(encoding="utf-8")
+    base_workers = workers.read_text(encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", os.fspath(main), "checkout", "-qb", "incoming"],
+        check=True,
+    )
+    operations.write_text(
+        base_operations + "\nincoming authority note\n", encoding="utf-8"
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(main), "add", "docs/dev-wave/operations.md"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(main), "commit", "-qm", "incoming authority"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(main), "checkout", "-q", branch],
+        check=True,
+    )
+    workers.write_text(
+        base_workers + "\nwave authority note\n", encoding="utf-8"
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(main), "add", "docs/dev-wave/workers.md"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(main), "commit", "-qm", "wave authority"],
+        check=True,
+    )
+    repo, head = _prepare_authority_worktree(
+        main, tmp_path / "mid-merge-worktree"
+    )
+    try:
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                os.fspath(repo),
+                "merge",
+                "--no-commit",
+                "--no-ff",
+                "incoming",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        git_dir = Path(
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    os.fspath(repo),
+                    "rev-parse",
+                    "--absolute-git-dir",
+                ],
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+            ).stdout.strip()
+        )
+        assert (git_dir / "MERGE_HEAD").is_file()
+        assert (repo / "docs/dev-wave/operations.md").read_bytes() != (
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    os.fspath(repo),
+                    "show",
+                    f"{head}:docs/dev-wave/operations.md",
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+            ).stdout
+        )
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+
+        author_job = tmp_path / "author-job"
+        author_job.mkdir()
+        author_command, _author_env, author_paths = _base_command(
+            author_job,
+            fake=fake,
+            stage="author",
+            sandbox="workspace-write",
+            repo_root=repo,
+            cwd=repo,
+            base_commit=head,
+        )
+        author_args = LAUNCHER._parser().parse_args(author_command[2:])
+        assert LAUNCHER._preflight_run(author_args)[-1] is None
+        assert author_args.authority_snapshot == LAUNCHER.snapshot_authority(
+            repo, commit=head
+        )
+        assert author_paths["artifact"].is_dir()
+
+        review_job = tmp_path / "review-job"
+        review_job.mkdir()
+        review_command, _review_env, _review_paths = _base_command(
+            review_job,
+            fake=fake,
+            stage="review",
+            sandbox="workspace-write",
+            repo_root=repo,
+            cwd=repo,
+            base_commit=head,
+        )
+        review_args = LAUNCHER._parser().parse_args(review_command[2:])
+        with pytest.raises(LAUNCHER.AuthorityError, match="working tree"):
+            LAUNCHER._preflight_run(review_args)
+    finally:
+        _remove_authority_worktree(main, repo)
+
+
 def test_preflight_accepts_sibling_worktree_with_same_git_common_dir(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
