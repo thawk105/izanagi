@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -279,6 +280,62 @@ def test_oracle_schema_aliases_are_sourced_from_artifact_leaf():
             assert isinstance(value, ast.Attribute)
             assert isinstance(value.value, ast.Name) and value.value.id == "_artifacts"
             assert value.attr == attribute
+
+
+def test_output_namespace_marker_authorities_are_exact_runtime_roles():
+    assert artifacts.OFFICIAL_NAMESPACE_BYTES == b'{"namespace":"official"}\n'
+    assert artifacts.EXPLORATION_NAMESPACE_BYTES == b'{"namespace":"exploration"}\n'
+    assert json.loads(artifacts.OFFICIAL_NAMESPACE_BYTES) == {"namespace": "official"}
+    assert json.loads(artifacts.EXPLORATION_NAMESPACE_BYTES) == {
+        "namespace": "exploration",
+    }
+
+
+def test_historical_official_reports_share_tracked_exact_migration_root_marker():
+    completed = subprocess.run(
+        ["git", "ls-files", "output/campaigns"],
+        cwd=ROOT, text=True, capture_output=True, check=True,
+    )
+    tracked_paths = tuple(
+        Path(line) for line in completed.stdout.splitlines() if line
+    )
+    candidate_ids = {
+        path.parts[2]
+        for path in tracked_paths
+        if len(path.parts) >= 4
+        and path.parts[:2] == ("output", "campaigns")
+    }
+    report_paths = tuple(
+        path for path in tracked_paths
+        if len(path.parts) >= 5 and path.parts[3] == "reports"
+    )
+    report_candidate_ids = {path.parts[2] for path in report_paths}
+    marker = ROOT / "output/namespace.json"
+    marker_stage = subprocess.run(
+        ["git", "ls-files", "--stage", "--", "output/namespace.json"],
+        cwd=ROOT, text=True, capture_output=True, check=True,
+    ).stdout.splitlines()
+
+    assert report_paths
+    assert candidate_ids
+    assert all(
+        path.parts[:2] == ("output", "campaigns")
+        and path.parts[2] in candidate_ids
+        and path.parts[3] == "reports"
+        for path in report_paths
+    )
+    assert report_candidate_ids <= candidate_ids
+    assert len(marker_stage) == 1
+    mode, _object_id, stage, tracked_marker = marker_stage[0].split(None, 3)
+    assert (mode, stage, tracked_marker) == (
+        "100644", "0", "output/namespace.json",
+    )
+    assert stat.S_ISREG(marker.lstat().st_mode) and not marker.is_symlink()
+    assert marker.read_bytes() == artifacts.OFFICIAL_NAMESPACE_BYTES
+    assert {
+        ROOT / path.parts[0] / "namespace.json"
+        for path in report_paths
+    } == {marker}
 
 
 def test_exploration_cli_packages_three_by_three_without_official_output(tmp_path):
