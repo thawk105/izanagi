@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-22
 wave: dev-wave-t1447-orphan-hold-races
 seq: 1
-title: '[T-1447] dispatch_compute.pyのorphan-hold機構の未防御race 3件を是正した (コード+テスト、branch worktree-dev-wave-t1447-orphan-hold-races、変異matrix = baseline PASSED・MUT-2,4,6,7,8 5/5 KILLED・SURVIVED 0・MISMATCH 0)'
+title: [T-1447] dispatch_compute.pyのorphan-hold race 3件を現行shard dispatchへ統合した (コード+テスト、branch worktree-dev-wave-t1447-orphan-hold-races、変異matrix = dispatch 5/5 KILLED + bounded local 1/1 KILLED)
 ---
 
 ## 本文
@@ -30,20 +30,21 @@ title: '[T-1447] dispatch_compute.pyのorphan-hold機構の未防御race 3件を
   outer exceptの2箇所目call siteはいずれも複数testが経由する共通点であり、単一原因の
   カスケードと確認しexpected_nodesを実測値へ訂正して再実行、5/5 KILLED・SURVIVED0・
   MISMATCH0を得た (初回結果は`mutation-ledger-attempt1-erratum.json`へ保全)。
-- 段9進行中にD662 (計算ノード混雑の恒常化を踏まえた受入・land運用の簡素化) が別waveの
-  ユーザー裁定としてmain (commit b3fe27cf) へ着地した。lease coordinator系ピアからの通達を
-  即座には信用せず、`clean-automerge-can-still-break-tests-semantically`memoryとの矛盾を
-  指摘して裏取りを要求し、`git cat-file`/`git show`/`git branch --contains`で独立に検証した
-  うえで採用した。T-1447の段9はD662新運用 (lease待ちなし、branch単体で受入全走→merge→
-  再テスト省略) に従った。
-- **known-violation (自分の変更に起因しない、D662点4に基づく記録)**: 受入全走
-  (branch単体、HEAD=`0441b3f5`) で27件の赤を観測したが、全て
-  `test_sort_swo_oracle.py` (25件、masstree関連ビルドキャッシュ `config-h-missing`)・
-  `test_dev_wave_wait.py::test_dispatch_attestation_protocol_matches_producer_exactly`・
-  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
-  で、`dispatch_compute`・`test_pegasus_dispatch_compute`・`test_mutation_harness`との
-  文字列一致はゼロ (grep確認済み)。他waveの並行作業 (masstree staging floor campaign等) に
-  起因する既知不具合と判断し、ユーザー裁定へ送る。本waveはこれをblockerにせずlandへ進んだ。
+- 中断後のCodex再開では、旧 `acceptance-red-check` (rc=70) と `signal-15` (rc=143)、および
+  HEAD=`0441b3f5` の27件赤をすべて不受理の一次artifactとして保全し、成功証拠へ流用しなかった。
+  旧変異artifactも「6件KILLED」ではなく、初回6登録=3 KILLED/2 MISMATCH/1 SURVIVED、
+  訂正後5/5 KILLEDであると独立監査した。
+- 現mainのshard dispatchが同じ3実装面を変更していたため、read-only Codex監査は単純mergeを
+  NO-GOとした。D95に従うCodex authorへ3巡戻し、artifact/control root分離・control lock・
+  per-request ledger・intent recovery・deadline共有を保ったまま、T-1447防壁を意味統合した
+  (`65cd1769`、docs-only main追随=`8cee8fe1`)。release途中失敗、fresh target-bound END、
+  ledger-only destructive consumer閉包も同じauthor成果へ含む。最終refocusはCodex利用上限で
+  output 0/not_acceptedだったため緑に数えず、3巡上限後の静的照合と実測へ送った。
+- 現tipの焦点走は対象4 fileで465 passed/1 skipped。変異はMUT-2/6/7/8と新しいconsumer閉包を
+  dispatchで5/5 KILLED、runner自己変異となるMUT-4を`run_tests.py -n 8`のbounded localで
+  1/1 KILLEDとした。旧MUT-3はdiagnostic TIMEOUTとして別枠に残し、KILLEDへ偽装していない。
+  TIMEOUT時にRUN jobが残ったため自然walltime終端までsource/holdを保全し、qstat不在確認後に
+  HEAD復元・該当hold/sidecarだけを削除した。
 - 段5実装は当初のcodex plan (`stage2-plan.md`) より広いraceの窓 (qsub直前の危険状態突入
   直後から保護する設計) を実現しており、親briefの想定より優れた設計だったことを段5監査で確認した。
 
@@ -55,7 +56,8 @@ title: '[T-1447] dispatch_compute.pyのorphan-hold機構の未防御race 3件を
   (b)hold書込み失敗のfail-open、(c)qdel後qstat終端未確認) を是正した。pending hold前倒し作成
   (create-only)・専用例外`_OrphanHoldError`によるfail-closed化・post-qdel bounded終端確認を
   実装。段3・段6の敵対検証で収斂したdeferred signal優先順位の欠陥をfix 1巡で解消。
-  焦点走206 passed (test_pegasus_dispatch_compute.py)、90 passed (test_mutation_harness.py、
-  consumer互換性修正込み)。変異matrix 5/5 KILLED。
+  現mainのshard/control/intent設計へ統合し、release failure-atomic化とledger-only consumer閉包を
+  追加した。焦点走465 passed/1 skipped。変異matrixはdispatch 5/5 KILLED + bounded local
+  MUT-4 1/1 KILLEDで、SURVIVED 0・MISMATCH 0。MUT-3 diagnostic TIMEOUTは別枠記録。
   remaining: none
   base: b9fe3f9e302886223fd631f3c20d40ab2da10bdba8d4641ab1d8a6e08e8e60ae
