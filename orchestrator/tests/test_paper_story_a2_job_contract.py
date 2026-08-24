@@ -1,6 +1,8 @@
+import hashlib
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -28,7 +30,9 @@ def _assert_static_job_contract(source):
         "ccbench-pin": "git -C \"$ccbench_root\" rev-parse HEAD",
         "clean-tree": "git status --porcelain --untracked-files=no",
         "pbs-job": "PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR",
-        "reservation": "IZANAGI_RESERVATION_DEADLINE",
+        "reservation": 'export IZANAGI_RESERVATION_DEADLINE_EPOCH="$deadline_epoch"',
+        "scheduler-start": 'qstat -f "$qstat_jobid"',
+        "reservation-result": "paper-story-a2-reservation-result/v1",
         "dependency-source": "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE",
         "dependency-stage": "cp -a \"$dependency_source\"/. \"$dependency_prefix\"/",
         "fresh-raw": "if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]",
@@ -47,6 +51,22 @@ def _assert_static_job_contract(source):
 
 def test_job_body_is_compute_only_sequential_and_never_submits():
     _assert_static_job_contract(JOB.read_text(encoding="utf-8"))
+
+
+def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
+    source = JOB.read_text(encoding="utf-8")
+    expected = {
+        'IZANAGI_RESERVATION_JOB_ID="$PBS_JOBID"',
+        'IZANAGI_RESERVATION_REQUESTED_S="$requested_s"',
+        'IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH="$scheduler_started_epoch"',
+        'IZANAGI_RESERVATION_DEADLINE_EPOCH="$deadline_epoch"',
+        'IZANAGI_RESERVATION_HOST="$host"',
+        'IZANAGI_RESERVATION_BOOT_ID="$boot_id"',
+        'IZANAGI_RESERVATION_SCRIPT_SHA256="$script_sha256"',
+        'IZANAGI_RESERVATION_NONCE="$PBS_JOBID"',
+    }
+    assert all(f"export {fragment}" in source for fragment in expected)
+    assert "IZANAGI_RESERVATION_DEADLINE=" not in source
 
 
 @pytest.mark.parametrize("fragment", (
@@ -79,14 +99,32 @@ def _completed(command, stdout="", returncode=0):
     return subprocess.CompletedProcess(command, returncode, stdout=stdout, stderr="")
 
 
+def _reservation_environment(repo, *, job_id="123.nqsv"):
+    started = int(time.time()) - 1
+    requested = 6 * 3600
+    return {
+        "PBS_JOBID": job_id,
+        "PBS_NODEFILE": "/nodefile",
+        "PBS_O_WORKDIR": str(repo),
+        "IZANAGI_RESERVATION_JOB_ID": job_id,
+        "IZANAGI_RESERVATION_REQUESTED_S": str(requested),
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + requested),
+        "IZANAGI_RESERVATION_HOST": "bnode001",
+        "IZANAGI_RESERVATION_BOOT_ID": Path(
+            "/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip(),
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": hashlib.sha256(JOB.read_bytes()).hexdigest(),
+        "IZANAGI_RESERVATION_NONCE": job_id,
+    }
+
+
 def test_compute_preflight_accepts_exact_compute_head_and_fresh_raw(
         tmp_path, monkeypatch):
     policy = _policy(tmp_path)
     attempt = A2.create_attempt_root(policy, "compute-positive")
     dependency = tmp_path / "dependency-prefix"
     dependency.mkdir()
-    repo = tmp_path / "repo"
-    repo.mkdir()
+    repo = REPO
     calls = []
 
     def run(command, **kwargs):
@@ -98,14 +136,7 @@ def test_compute_preflight_accepts_exact_compute_head_and_fresh_raw(
         raise AssertionError(command)
 
     monkeypatch.setattr(A2.subprocess, "run", run)
-    environment = {
-        "PBS_JOBID": "123.nqsv",
-        "PBS_NODEFILE": "/nodefile",
-        "PBS_O_WORKDIR": str(repo),
-        "IZANAGI_RESERVATION_JOB_ID": "123.nqsv",
-        "IZANAGI_RESERVATION_HOST": "bnode001",
-        "IZANAGI_RESERVATION_DEADLINE": "999999",
-    }
+    environment = _reservation_environment(repo)
     raw = A2.compute_preflight(
         policy, attempt_root=attempt, raw_root=attempt / "raw",
         expected_head="head-1", repo_root=repo,
@@ -125,8 +156,7 @@ def test_compute_preflight_rejects_each_m7_boundary(tmp_path, monkeypatch, mutat
     attempt = A2.create_attempt_root(policy, "compute-" + mutation)
     dependency = tmp_path / ("deps-" + mutation)
     dependency.mkdir()
-    repo = tmp_path / ("repo-" + mutation)
-    repo.mkdir()
+    repo = REPO
     if mutation == "stale-raw":
         (attempt / "raw").mkdir()
 
@@ -139,14 +169,7 @@ def test_compute_preflight_rejects_each_m7_boundary(tmp_path, monkeypatch, mutat
         raise AssertionError(command)
 
     monkeypatch.setattr(A2.subprocess, "run", run)
-    environment = {
-        "PBS_JOBID": "123.nqsv",
-        "PBS_NODEFILE": "/nodefile",
-        "PBS_O_WORKDIR": str(repo),
-        "IZANAGI_RESERVATION_JOB_ID": "123.nqsv",
-        "IZANAGI_RESERVATION_HOST": "bnode001",
-        "IZANAGI_RESERVATION_DEADLINE": "999999",
-    }
+    environment = _reservation_environment(repo)
     with pytest.raises(A2.CertificationError):
         A2.compute_preflight(
             policy, attempt_root=attempt, raw_root=attempt / "raw",
@@ -161,8 +184,7 @@ def test_compute_preflight_requires_real_pbs_and_reservation_bindings(
     attempt = A2.create_attempt_root(policy, "compute-env")
     dependency = tmp_path / "deps-env"
     dependency.mkdir()
-    repo = tmp_path / "repo-env"
-    repo.mkdir()
+    repo = REPO
     monkeypatch.setattr(
         A2.subprocess, "run",
         lambda command, **kwargs: _completed(command, "head-1\n"),
