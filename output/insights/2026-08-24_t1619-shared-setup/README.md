@@ -146,3 +146,33 @@ group の item を 6 件にする probe を走らせた。
 
 除去した bytes はいずれも markdown の hard line break として書かれた行末空白であり、
 本文の語・数値・判定は 1 文字も変えていない。
+
+## DW-M07 契約の本走 (最終 tip)
+
+初回の版 A 再走を投入した時点で条件 15 (fix 後に変異を走らせる直前) が成立していたのに、
+親が `DW-M07` を読まずに `--runner-mode local` で投入していた。節を読み直し、
+契約どおりの本走を最終 tip に対して投入し直した。
+
+- 最終 tip: `c312f3762c2c0f49de40b985c94bfb10b40f6349`
+- anchor 5 件の一意性を投入前に再検証 (全件 1 箇所)
+- `--runner-mode dispatch`、runner argv へ `--force-dispatch`、
+  `--attempt-out` と `--wrapper-attempt` のペア指定、`--detached`
+- baseline rc=0、失敗ゼロ
+
+| 変異 | rc | kill 件数 | 変更前 (971f0fd7) の kill 集合と一致 |
+|---|---|---|---|
+| m01 | 1 | 1 | 一致 |
+| m02 | 1 | 1 | 一致 |
+| m03 | 1 | 1 | 一致 |
+| m04 | 1 | 3 | 一致 |
+| m05 | 1 | 5 | 一致 |
+
+**最終 tip の kill 集合は変更前の版と完全一致した。** status label は 5 件とも MISMATCH だが、
+これは group 接尾辞を harness が正規化しないためであり (failures 台帳に記録)、
+検出力の差ではない。
+
+成果物: `mutation-result-final.json`、`mutation-attempt-final.json`。
+
+初回の local 走 (`mutation-result-A3.json` / `mutation-result-B3.json`) は消さずに残す。
+本走で使った変異はいずれも runner の実行経路に無いため、`DW-M07` が local を避ける理由
+(runner 自壊による `rc=16`) は本 spec では発生せず、実際に両走とも正常終了している。
