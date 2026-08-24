@@ -224,6 +224,13 @@ def _receipt_file(repo: Path) -> Path:
     return receipts[0]
 
 
+def _claim_file(repo: Path) -> Path:
+    directory = _receipt_file(repo).parent / "classification-claims"
+    claims = [path for path in directory.glob("*.json") if path.is_file()]
+    assert len(claims) == 1
+    return claims[0]
+
+
 def _recovery_receipt_bytes(
     repo: Path,
     profile: core.DomainProfile[Any, Any],
@@ -449,6 +456,82 @@ def test_slot_classification_claim_allows_exact_retry_and_rejects_new_reason(
     ):
         registry.begin_attempt_observation(failure)  # type: ignore[arg-type]
     assert failure_path.read_bytes().count(b"\n") == 4
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        pytest.param(
+            "schema_version",
+            "s8b-attempt-classification-claim/v999",
+            id="schema-version",
+        ),
+        pytest.param("event", "different-event", id="event"),
+        pytest.param(
+            "schedule_row_sha256",
+            "f" * 64,
+            id="schedule-row-sha256",
+        ),
+    ),
+)
+def test_observe_rejects_classification_claim_identity_tampering(
+    tmp_path: Path,
+    field: str,
+    replacement: str,
+) -> None:
+    repo = _repo(tmp_path / field)
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    _write_marker(repo, slot)
+    claim_path = _claim_file(repo)
+    original = claim_path.read_bytes()
+    claim = dict(json.loads(original))
+    claim[field] = replacement
+    claim_path.write_bytes(core.canonical_json_bytes(claim) + b"\n")
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=rf"^\[s8b-attempt-registry-classification\] "
+        rf"classification claim differs: {field}$",
+    ):
+        registry.begin_attempt_observation(classified)
+
+    claim_path.write_bytes(original)
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
+
+
+def test_observe_rejects_claim_receipt_digest_mismatch(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    _write_marker(repo, slot)
+    claim_path = _claim_file(repo)
+    original = claim_path.read_bytes()
+    claim = dict(json.loads(original))
+    other_digest = hashlib.sha256(b"different-receipt").hexdigest()
+    assert other_digest != claim["classification_receipt_sha256"]
+    claim["classification_receipt_sha256"] = other_digest
+    claim_path.write_bytes(core.canonical_json_bytes(claim) + b"\n")
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=r"^\[s8b-attempt-registry-classification\] classification "
+        r"claim cannot reconstruct its receipt digest$",
+    ):
+        registry.begin_attempt_observation(classified)
+
+    claim_path.write_bytes(original)
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
 
 
 @pytest.mark.parametrize(
@@ -714,6 +797,33 @@ def test_marker_without_attempt_ledger_authorizes_observe(
     captured = registry.begin_attempt_observation(classified)
     assert type(captured) is registry.CapturedObservation
     assert not attempt_ledger.exists()
+
+
+def test_observe_rejects_consumed_marker_extra_key(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    classified = _classify(_reserve(repo, profile, slot))
+    assert type(classified) is registry.ClassifiedAttempt
+    marker_path = _write_marker(repo, slot)
+    original = marker_path.read_bytes()
+    marker = dict(json.loads(original))
+    marker["unexpected_key"] = "unexpected-value"
+    marker_path.write_bytes(core.canonical_json_bytes(marker) + b"\n")
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match=r"^\[s8b-attempt-registry-consume\] "
+        r"consumed marker exact keys differ$",
+    ):
+        registry.begin_attempt_observation(classified)
+
+    marker_path.write_bytes(original)
+    captured = registry.begin_attempt_observation(classified)
+    assert type(captured) is registry.CapturedObservation
 
 
 @pytest.mark.parametrize(
