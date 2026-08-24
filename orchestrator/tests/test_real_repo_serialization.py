@@ -1047,16 +1047,23 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     _require_pytest()
     report = _collect_xdist_group_report(HERE, cwd=ROOT)
     _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)
-    s8c_predicate_snapshot_nodes = {
-        entry["canonical_node"]
+    s8c_predicate_snapshot_entries = [
+        entry
         for entry in report
         if entry["marks"]
         and entry["marks"][0]["args"][0] == "s8c-predicate-snapshot"
+    ]
+    s8c_predicate_snapshot_nodes = {
+        entry["canonical_node"] for entry in s8c_predicate_snapshot_entries
     }
     assert s8c_predicate_snapshot_nodes == _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN, (
         "s8c-predicate-snapshot group が独立 golden と不一致: "
         f"missing={sorted(_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN - s8c_predicate_snapshot_nodes)} "
         f"extra={sorted(s8c_predicate_snapshot_nodes - _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN)}"
+    )
+    assert len(s8c_predicate_snapshot_entries) == 5, (
+        "s8c-predicate-snapshot group の item 件数が不一致: "
+        f"actual={len(s8c_predicate_snapshot_entries)} expected=5"
     )
 
     golden = set(_REAL_REPO_SERIAL_NODES_GOLDEN)
