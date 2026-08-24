@@ -117,6 +117,14 @@ baseline が赤 (`submodule is not initialized: external/ccbench/third_party/shi
 
 ### 受入で踏んだ非帰属の赤
 
+受入全走は複数回投入した。attempt 2 は 15 件赤で、内訳は
+`test_codex_worker_launch.py` 4 件 (F273 の再発) と `test_s8b_floor_campaign.py` 12 件
+(F136 の再発) である。**この 2 群は独立ではなく 1 本の因果だった** — 前者が落ちた 4 worker の
+launcher 失敗 dump が `output/runs/pytest-launcher-failures/0-945252.nqsv--bnode018/` へ
+78 file 書かれ、`output/` の before/after スナップショットを取る後者 12 件を同じ走行の中で
+巻き添えにした。F136 の既知形は「隣で別 command を走らせた」ものだが、これは受入全走 1 本の
+内部で完結する自己汚染である。dump が追跡外であることを `git ls-files` で確認してから除去した。
+
 受入全走 attempt 1 は
 `test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`
 1 件だけで赤になった (1 failed / 15431 passed / 60 skipped)。**同 node の単独走は緑**

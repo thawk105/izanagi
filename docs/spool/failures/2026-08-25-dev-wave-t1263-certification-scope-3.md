@@ -31,6 +31,29 @@ seq: 3
 
 ## 再発
 
+### F273
+
+- **再発: 2026-08-25** — 受入全走 attempt 2 (tested tip `cd0955c7`) で
+  `test_codex_worker_launch.py` の 4 件 (`test_check_receipt_reads_v2/v3_parent_attempt_field_sets_without_upgrade`
+  の 3 param と `test_sigterm_ignoring_child_is_killed`) が落ちた。前者の本文は
+  子 process の `returncode=2` (`NG: receipt truth table が不正`)、後者は
+  `child.pid was not registered before deadline; stderr=''` で、いずれも子の起動・応答が
+  期限に間に合わなかった形である。attempt 1 では 4 件とも緑だった。
+- **この再発は単独では終わらなかった。** 落ちた 4 worker (`gw21` / `gw24` / `gw33` / `gw34`) の
+  launcher 失敗 dump が `output/runs/pytest-launcher-failures/0-945252.nqsv--bnode018/` へ
+  78 file 書かれ、**同じ走行の中で F136 を誘発した** (下記)。
+
+### F136
+
+- **再発: 2026-08-25** — 受入全走 attempt 2 で `test_s8b_floor_campaign.py` の 12 件が
+  同一 assertion で落ちた。いずれも `repo_before = _real_output_snapshot()` と
+  test 末尾の再取得を比較する before/after 検査で、差分の実体は
+  `('dir', 'runs/pytest-launcher-failures/0-945252.nqsv--bnode018')` を含む 119 entry の増加である。
+  **汚染源は外部の並行 dispatch ではなく、同じ受入走行の launcher テスト自身の失敗 dump だった**
+  (上記 F273 の再発)。F136 の既知形 (隣で別 command を走らせた) と違い、
+  **受入全走 1 本の内部で完結する自己汚染**である点が新しい。
+  親は dump が追跡外であることを `git ls-files` で確認してから除去し、受入を再投入した。
+
 ### F480
 
 - **再発: 2026-08-25** — 受入全走 attempt 1 (tested tip `cd0955c7`) が
