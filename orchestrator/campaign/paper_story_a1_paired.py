@@ -1186,6 +1186,7 @@ def _trace0_commands_match(
     configure_argv: Sequence[str] | None,
     build_argv: Sequence[str] | None,
     run_argv: Sequence[str] | None,
+    use_perf: object,
     perf_bin_sha256: str,
 ) -> bool:
     expected_defines = {
@@ -1197,6 +1198,7 @@ def _trace0_commands_match(
         or configure_argv is None
         or build_argv is None
         or run_argv is None
+        or type(use_perf) is not bool
     ):
         return False
 
@@ -1285,12 +1287,7 @@ def _trace0_commands_match(
     )
     scale = policy["scale"]
     pegasus_contract = p2_2.env_contract.lookup("pegasus")
-    expected_run = [
-        "perf",
-        "stat",
-        "-e",
-        ",".join(calibrator_runner.PERF_EVENTS),
-        "--",
+    executable_run = [
         os.fspath(executable),
         f"-thread_num={scale['threads']}",
         f"-ycsb_tuple_num={scale['records']}",
@@ -1301,6 +1298,18 @@ def _trace0_commands_match(
         f"-ycsb_rmw={scale['ycsb_rmw']}",
         f"-ycsb_max_ope={scale['ycsb_max_ope']}",
     ]
+    perf_prefix = [
+        "perf",
+        "stat",
+        "-e",
+        ",".join(calibrator_runner.PERF_EVENTS),
+        "--",
+    ]
+    expected_run = (
+        list(pegasus_contract.numactl)
+        + (perf_prefix if use_perf else [])
+        + executable_run
+    )
     return list(run_argv) == expected_run
 
 
@@ -1443,6 +1452,11 @@ def _validate_arm(
     configure_argv = _command_argv(configure_cmd)
     build_argv = _command_argv(build_cmd)
     run_argv = _command_argv(bench.get("run_cmd"))
+    perf_observation = bench.get("perf_observation")
+    use_perf = (
+        perf_observation.get("use_perf")
+        if type(perf_observation) is dict else None
+    )
     if (
         type(perf_sha) is not str
         or _FULL_SHA256.fullmatch(perf_sha) is None
@@ -1453,6 +1467,7 @@ def _validate_arm(
             configure_argv,
             build_argv,
             run_argv,
+            use_perf,
             perf_sha,
         )
         or not _valid_physical_frame(build_frame)
@@ -1583,21 +1598,74 @@ def _campaign_id_from_preimage(workload_name: str, preimage: str) -> str:
     )
 
 
+def _campaign_identity_preimage(canonical_lock: object) -> str | None:
+    if type(canonical_lock) is not str:
+        return None
+    try:
+        lock = json.loads(
+            canonical_lock,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_constant,
+        )
+    except (json.JSONDecodeError, PaperStoryError):
+        return None
+    if (
+        type(lock) is not dict
+        or set(lock) != {"authority", "identity_preimage", "schema_version"}
+        or lock.get("schema_version") != "campaign-lock/v2"
+        or type(lock.get("authority")) is not dict
+        or not lock["authority"]
+        or type(lock.get("identity_preimage")) is not str
+    ):
+        return None
+    try:
+        reproduced = json.dumps(
+            lock,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError):
+        return None
+    if reproduced != canonical_lock:
+        return None
+    return lock["identity_preimage"]
+
+
 def _validate_campaign_preimage(
     policy: Mapping[str, object],
     workload_name: str,
     preimage: object,
     admission_policy,
 ) -> bool:
-    if type(preimage) is not str:
+    identity_preimage = _campaign_identity_preimage(preimage)
+    if identity_preimage is None:
         return False
     try:
-        value = json.loads(preimage, object_pairs_hook=_reject_duplicate_keys)
+        value = json.loads(
+            identity_preimage,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_constant,
+        )
     except (json.JSONDecodeError, PaperStoryError):
         return False
-    if type(value) is not dict or type(value.get("search_config")) is not dict:
+    if (
+        type(value) is not dict
+        or set(value) != {
+            "ccbench_commit", "search_config", "search_tag", "spec_content",
+            "trial",
+        }
+        or type(value.get("search_config")) is not dict
+    ):
         return False
     search = value["search_config"]
+    if set(search) != {
+        "arm_order", "arms", "build_admission", "formal", "measurement_env",
+        "pairing_design", "promotion_prohibited", "scale", "schema",
+        "study_id", "workload",
+    }:
+        return False
     expected_arms = [
         {
             "name": arm["name"],
@@ -1607,6 +1675,7 @@ def _validate_campaign_preimage(
     ]
     expected_workload = {"name": workload_name, **workload_flags(policy, workload_name)}
     if any((
+        value.get("ccbench_commit") != pin.CURRENT_PIN,
         value.get("trial") != STUDY_ID,
         value.get("search_tag") != "paired",
         value.get("spec_content") != (
@@ -1619,6 +1688,7 @@ def _validate_campaign_preimage(
         search.get("arms") != expected_arms,
         search.get("workload") != expected_workload,
         search.get("scale") != policy["scale"],
+        search.get("measurement_env") != "pegasus",
         search.get("pairing_design") != PAIRING_DESIGN,
         search.get("formal") is not False,
         search.get("promotion_prohibited") is not True,
@@ -1829,8 +1899,9 @@ def collect_workload(
         if type(expected_campaign_preimage) is str else None
     )
     layout_root = Path(layout.root).resolve(strict=False)
+    lock_identity_preimage = _campaign_identity_preimage(lock_preimage)
     if (
-        lock_preimage != expected_campaign_preimage
+        lock_identity_preimage != expected_campaign_preimage
         or not _validate_campaign_preimage(
             policy, workload_name, lock_preimage, admission_policy
         )
@@ -2189,7 +2260,9 @@ def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, obj
             admission_policy=context.policy,
             env_tag=next(iter(env_tags)),
             source_binding=result["source_binding"],
-            expected_campaign_preimage=campaign_binding.get("canonical_preimage"),
+            expected_campaign_preimage=_campaign_identity_preimage(
+                campaign_binding.get("canonical_preimage")
+            ),
             expected_layout_root=campaign_binding.get("layout_root"),
             preserved_external_errors=[
                 error for error in workload.get("errors", [])

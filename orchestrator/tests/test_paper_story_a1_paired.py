@@ -21,7 +21,7 @@ from orchestrator.campaign.build_admission import (
     derive_build_admission,
 )
 from orchestrator.campaign.layout import exploration_campaign_layout
-from orchestrator.campaign.model import WalRecord
+from orchestrator.campaign.model import COMMIT_CONTRACT_SHA256_KEY, WalRecord
 from orchestrator.campaign.source_digest import SourceEvidence
 
 
@@ -33,9 +33,12 @@ def _readable_perf_binary(tmp_path: Path):
     global _TEST_BUILD_DIR
     build_root = (tmp_path / "trace0-build").resolve()
     for name in ("adaptive", "static10"):
-        binary = build_root / name / "cc" / "silo" / "ycsb_silo.exe"
-        binary.parent.mkdir(parents=True)
-        binary.write_bytes(f"paper-story-a1-{name}-test-perf-binary\n".encode())
+        for flavor in (name, f"{name}-trace"):
+            binary = build_root / flavor / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(
+                f"paper-story-a1-{flavor}-test-binary\n".encode()
+            )
     _TEST_BUILD_DIR = build_root
     try:
         yield
@@ -77,6 +80,13 @@ def _reservation_binding() -> dict:
     }
 
 
+def _attempt_id_fixture(name: str, ordinal: int = 1) -> str:
+    assert _TEST_BUILD_DIR is not None
+    return hashlib.sha256(
+        f"{_TEST_BUILD_DIR}|{name}|{ordinal}".encode("utf-8")
+    ).hexdigest()[:32]
+
+
 def _frame(stage: str, variant: str, attempt_id: str, payload: dict) -> dict:
     return {
         "line_number": 1,
@@ -100,11 +110,14 @@ def _arm(
     assert _TEST_BUILD_DIR is not None
     build_dir = _TEST_BUILD_DIR / name
     binary = build_dir / "cc" / "silo" / "ycsb_silo.exe"
+    trace_binary = (
+        _TEST_BUILD_DIR / f"{name}-trace" / "cc" / "silo" / "ycsb_silo.exe"
+    )
     arm = next(item for item in policy["arms"] if item["name"] == name)
     workload = next(
         item for item in policy["workloads"] if item["name"] == workload_name
     )
-    attempt_id = f"attempt-{name}"
+    attempt_id = _attempt_id_fixture(name)
     variant = f"variant-{name}"
     values = list(tps if tps is not None else (
         [100.0, 102.0, 104.0, 106.0, 108.0]
@@ -129,6 +142,15 @@ def _arm(
         "cc": {"realpath": "/toolchain/cc"},
         "cxx": {"realpath": "/toolchain/cxx"},
     }
+    toolchain_record_sha256 = hashlib.sha256(
+        json.dumps(
+            toolchain,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
     configure_argv, build_argv = paired.buildcache._v2_commands(
         genome,
         False,
@@ -160,10 +182,18 @@ def _arm(
         }),
         _frame(paired.STAGE_BUILD_DONE, variant, attempt_id, {
             "build_admission_receipt_sha256": receipt_sha,
-            "trace_bin_sha256": "d" * 64,
+            "perf_bin": os.fspath(binary),
             "perf_bin_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
-            "perf_configure_cmd": configure,
             "perf_build_cmd": " ".join(build_argv),
+            "perf_cached": False,
+            "perf_configure_cmd": configure,
+            "toolchain": toolchain,
+            "toolchain_record_sha256": toolchain_record_sha256,
+            "trace_bin": os.fspath(trace_binary),
+            "trace_bin_sha256": hashlib.sha256(
+                trace_binary.read_bytes()
+            ).hexdigest(),
+            "trace_cached": False,
         }),
         _frame(paired.STAGE_VERIFY_DONE, variant, attempt_id, {
             "certified": True,
@@ -178,8 +208,9 @@ def _arm(
             "rounds": 1,
             "tps": values,
             "rep_notes": [],
+            "perf_observation": {"use_perf": False},
             "run_cmd": calibrator_runner.repro_command(
-                os.fspath(binary), run_flags, contract.numactl, use_perf=True
+                os.fspath(binary), run_flags, contract.numactl, use_perf=False
             ),
         }),
         _frame(paired.STAGE_COMMIT, variant, attempt_id, {
@@ -189,6 +220,7 @@ def _arm(
             "unstable": False,
             "verify_configs": ["legacy"],
             "build_admission_receipt_sha256": receipt_sha,
+            COMMIT_CONTRACT_SHA256_KEY: contract.contract_sha256,
         }),
     ]
     frames[1]["raw_sha256"] = "2" * 64
@@ -290,17 +322,31 @@ def _production_wal_workload(
     *,
     mutate_frames=None,
     raw_suffix: str = "",
+    expected_preimage_transform=None,
 ) -> dict:
     policy = _policy()
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    cfg = ident.bind_admission_policy(
-        paired.campaign_config(policy, name), context.policy
+    contract = paired.p2_2.env_contract.lookup("pegasus")
+    cfg = paired.campaign_config(policy, name, contract=contract)
+    cfg = paired.p2_2._campaign_cfg_for_site(
+        cfg, paired.site_policy.PEGASUS_COMPUTE, contract
     )
-    preimage = ident.canonical_preimage(cfg)
-    campaign_id = paired._campaign_id_from_preimage(name, preimage)
+    cfg = ident.bind_admission_policy(
+        cfg, context.policy
+    )
+    lock_identity_preimage = ident.canonical_preimage(cfg)
+    expected_preimage = (
+        expected_preimage_transform(lock_identity_preimage)
+        if expected_preimage_transform is not None else lock_identity_preimage
+    )
+    campaign_id = paired._campaign_id_from_preimage(name, expected_preimage)
     layout = exploration_campaign_layout(campaign_id, tmp_path / "campaign-output")
     Path(layout.runs_dir).mkdir(parents=True)
-    wal.write_lock(layout, preimage)
+    ident.ensure_campaign_identity(
+        cfg,
+        layout,
+        admission_policy=context.policy,
+    )
     frames = []
     for arm_name in paired.ARM_ORDER:
         policy_arm = next(
@@ -363,7 +409,7 @@ def _production_wal_workload(
         admission_policy=context.policy,
         env_tag="pegasus",
         source_binding=_source_binding(),
-        expected_campaign_preimage=preimage,
+        expected_campaign_preimage=expected_preimage,
         expected_layout_root=layout.root,
     )
 
@@ -544,8 +590,9 @@ def test_collector_rejects_mixed_or_duplicate_attempts_M6(
                 if frame["variant"] == "variant-adaptive"
             ]
             second = copy.deepcopy(first)
+            second_attempt_id = _attempt_id_fixture("adaptive", ordinal=2)
             for frame in second:
-                frame["payload"]["build_attempt_id"] = "attempt-adaptive-second"
+                frame["payload"]["build_attempt_id"] = second_attempt_id
             frames[len(first):len(first)] = second
 
         result = _production_wal_workload(
@@ -825,7 +872,7 @@ def test_production_wal_bytes_positive_fixture(tmp_path: Path) -> None:
     assert result["wal_evidence"]["truncated_tail"] is False
 
 
-def test_trace0_accepts_actual_pegasus_producer_argv_positive(
+def test_trace0_accepts_actual_pegasus_no_perf_nine_token_run_argv_positive(
     tmp_path: Path,
 ) -> None:
     result = _production_wal_workload(tmp_path)
@@ -841,14 +888,67 @@ def test_trace0_accepts_actual_pegasus_producer_argv_positive(
         "gflags-install", "glog-install",
     ]
     assert Path(prefix_paths[0]).parent == Path(prefix_paths[1]).parent
-    assert shlex.split(evidence["bench_run_cmd"])[0:5] == [
-        "perf",
-        "stat",
-        "-e",
-        ",".join(calibrator_runner.PERF_EVENTS),
-        "--",
+    run_argv = shlex.split(evidence["bench_run_cmd"])
+    contract = paired.p2_2.env_contract.lookup("pegasus")
+    assert len(run_argv) == 9
+    assert Path(run_argv[0]).name == "ycsb_silo.exe"
+    assert run_argv[1:] == [
+        "-thread_num=48",
+        "-ycsb_tuple_num=1000000",
+        "-extime=3",
+        f"-clocks_per_us={contract.clocks_per_us}",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=5",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
     ]
     assert result["valid"] is True
+
+
+def test_trace0_accepts_exact_perf_run_when_observation_requires_perf(
+    tmp_path: Path,
+) -> None:
+    def mutate(frames: list[dict]) -> None:
+        bench = next(
+            frame for frame in frames
+            if frame["variant"] == "variant-adaptive"
+            and frame["stage"] == paired.STAGE_BENCH_DONE
+        )["payload"]
+        bench["perf_observation"]["use_perf"] = True
+        bench["run_cmd"] = " ".join([
+            "perf", "stat", "-e", ",".join(calibrator_runner.PERF_EVENTS), "--",
+            bench["run_cmd"],
+        ])
+
+    result = _production_wal_workload(tmp_path, mutate_frames=mutate)
+    assert result["valid"] is True
+
+
+def test_trace0_run_argv_requires_exact_token_count_and_positions_M30(
+    tmp_path: Path,
+) -> None:
+    def mutate(frames: list[dict]) -> None:
+        bench = next(
+            frame for frame in frames
+            if frame["variant"] == "variant-adaptive"
+            and frame["stage"] == paired.STAGE_BENCH_DONE
+        )["payload"]
+        bench["run_cmd"] = f"/bin/echo {bench['run_cmd']}"
+
+    result = _production_wal_workload(tmp_path, mutate_frames=mutate)
+    assert result["errors"] == ["adaptive:trace0-source-route-incomplete"]
+    assert result["arms"]["static10"]["valid"] is True
+
+
+def test_campaign_lock_identity_preimage_is_compared_exactly_M31(
+    tmp_path: Path,
+) -> None:
+    result = _production_wal_workload(
+        tmp_path,
+        expected_preimage_transform=lambda preimage: preimage + " ",
+    )
+    assert result["errors"] == ["campaign-lock-preimage-mismatch"]
+    assert all(arm["valid"] is True for arm in result["arms"].values())
 
 
 def test_trace0_rejects_dependency_prefix_token_outside_index_nine_M29(
@@ -1165,7 +1265,7 @@ def test_collector_rejects_uncertified_or_abort(mutation: str) -> None:
         terminal = _frame_for(adaptive, paired.STAGE_COMMIT)
         terminal["stage"] = paired.STAGE_ABORT
         terminal["payload"] = {
-            "build_attempt_id": "attempt-adaptive",
+            "build_attempt_id": adaptive["attempts"][0]["build_attempt_id"],
             "reason": "verifier-red",
         }
         adaptive["last_terminal_stage"] = paired.STAGE_ABORT
