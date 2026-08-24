@@ -60,6 +60,14 @@ title: [T-1636] dangling 監査の git grep を上限つき分割実行にする
 - **セッション異常。** 段 6 fix の待ち手 (`tools/dev_wave_wait.py producer`) が、producer 生存中に
   rc=0・出力ゼロで偽完了した。`.done` 不在と `git diff` 未変化で気づき、完了扱いにせず張り直した。
   F24 の同型再発として台帳へ追記した。
+- **受入 attempt 1 は F136 の非帰属赤で捨てた。** `test_s8b_floor_campaign.py` の
+  `_real_output_snapshot()` 系が 11 件赤 (11 failed / 15,431 passed / 60 skipped)。
+  受入 shard が同じ作業木から request `945262` と `945263` を重ねて投入する既知の機序で、
+  junit 差分は 11 件とも `first extra item: ('dir', 'task-runs/reports')`。台帳が定める 3 点で
+  帰属を否定した (実装面差分に `launch_cert` / `certificate` 参照 0 件、同 file の焦点走が
+  451 passed / 2 skipped で緑、junit 差分が `output/task-runs/` の dir 増加)。
+  **同日 2・3 例目は docs-only wave だったが本 wave は実装 wave であり、差分の性質は条件でない**
+  ことが確定した。
 - **子の工数。** codex 子は 7 本 (plan 1、consult 2、author 1、review 2、fix 1)。
   いずれも `gpt-5.6-sol` / `reasoning=xhigh`。子は sandbox の制約で pytest を実走できず、
   テストの実測はすべて親が行った。
