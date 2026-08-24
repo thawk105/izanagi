@@ -29297,3 +29297,125 @@ Claude command と同じ削除結果へ揃えず、「共通 dispatcher に安�
 - Claude command と同じ結果へ揃える — local main、foreign / locked worktree、prune 等への
   破壊操作範囲を広げる。
 - 差を未記録へ戻す — 次の一致検査が同じ差を未解決として再発見する。
+
+## D755. dispatch_compute.pyのorphan-hold latchをqsub直前のpending作成+原子的promotionへ再設計する (2026-08-24)
+
+**決定:** `orphan-hold.json` を qsub 呼出しの直前に `phase: "pending-qsub"` で create-only
+書込みし (`_arm_pending_orphan_hold`)、正常終了時に削除 (`_release_pending_orphan_hold`)、
+異常終了時に最終形へ原子的に昇格する (`_promote_pending_orphan_hold`、temp file
+書込み→fsync→`os.replace`)。hold操作 (create/promote/release) の失敗は専用例外
+`_OrphanHoldError` として fail-closed に伝播させ、`_write_json_x` (create-only のみ) が
+握り潰していた OSError を全経路で除去する。
+
+**理由:**
+- 外部SIGKILL (`check_acceptance_reds.py`の`subprocess.run(timeout=5100)`等) は dispatcher
+  プロセス自身のPython例外処理・signalハンドラを一切経由せず即座にプロセスを終了させるため、
+  「cleanup完了時にだけholdを作る」設計では原理的に防げない窓が生じる。危険な状態
+  (qsub成功=jobがscheduler上に実在) に入る**前**にholdを作っておけば、SIGKILLのタイミングに
+  関わらず窓がほぼゼロになる。
+- hold書込み失敗を`None`で返し呼び出し元が戻り値を見ない設計は、checker側
+  (`_orphan_hold_present`) が「書込み失敗」と「hold不要」を区別できずfail-openになる
+  (repro再現で実証)。例外化して伝播させることで、この区別を構造的に強制する。
+- qdel rc=0は「scheduler が取消要求を受理した」ことしか意味せず (docstring自身が明記)、
+  対象jobの実際の終端は別途qstatで確認しないと分からない。既存のqstat分類helperを
+  再利用したpost-qdel確認を追加し、qdelは再発行しない (F47 latch武装回避)。
+
+**却下した選択肢:**
+- `_DISPATCH_TIMEOUT_SECONDS`等、呼び出し元のtimeout marginを広げる — scope
+  (`tools/pegasus/dispatch_compute.py`単体) を超え、margin は窓を狭めるだけで閉じない。
+- SIGKILL自体を捕捉する設計 — OSレベルで不可能。dev_wave_wait.pyの既存コメント
+  「SIGKILLとhost停止はunwind不能」と同じ限界を継承する前提とした。
+- pending holdを`orphan-hold.json`と別名のマーカーにする案 — checker側
+  (`_orphan_hold_present`)の変更が必須になり、scope外のファイルへ波及する。
+
+## D756. 受入 suite の順序依存の負の対照は grouped work unit 内の反転で行う (2026-08-24)
+
+**決定:** 受入 suite の順序依存を測る負の対照は、`xdist_group` marker を持つ node の
+**work unit 内順序を反転する**方法だけを採る。ungrouped node の対照 (2 件を並べて AB / BA で走らせる形)
+は採らない。
+
+対照の妥当性条件を 3 つ置く。
+
+1. **実行順を仮定しない。** 反転したことを junit XML の testcase 出現順で毎回検証し、
+   検証できない走は `refuted` でなく `unmeasured` とする。
+2. **positive control を必ず添える。** 同じ機構 (同一 group・argv 順・junit 突き合わせ) で、
+   一時注入した既知の順序依存が実際に赤になることを示す。示せない負の結果は破棄する。
+   一時注入は tracked file の一時変異 + 即時復元とし、復元 bytes を commit の blob と照合する。
+3. **surface ごとに `detected` / `refuted` / `unmeasured` / `held-out` を集計する。**
+   positive control が成功し `unmeasured` がゼロの surface にだけ否定的主張を限定する。
+
+**理由:**
+
+- D746 の並べ替えは **work unit 単位**である。unit を作り、unit ごとの所要合計で降順に並べ、
+  unit 内の item は連続かつ元の相対順のまま展開する。**unit 内の相対順は保存される。**
+- `--dist loadgroup` は ungrouped nodeid をそのまま scope 名にするため、ungrouped node は
+  1 件 = 1 work unit になる。よって **「unit 内順序」が存在するのは `xdist_group` を持つ node だけ**であり、
+  そこだけが D746 に摂動されずに残った面である。
+- `tools/run_tests.py` は targeted 走にも既定で loadgroup を付け、受入の並べ替えは全走かどうかを
+  見ずに loadgroup なら発火する。**ungrouped な 2 node を argv で逆に並べても、別 unit として
+  所要降順へ潰される。** 「逆順で緑」が「同じ順を 2 回測った」でしかなくなる。
+  段 3 の敵対 2 レンズが独立にこれを指摘し、親が実装で裏取りした。
+- 全 node が同一 group なら work unit が 1 個になるので、argv 順がそのまま実行順になる。
+  実測でも 72 node の junit 出現順が argv 順と完全一致した。
+- 「全部緑だった」は、その測り方が実在する順序依存を検出できる証明が無ければ、
+  検出力ゼロの手続きと区別できない。positive control はその区別を作る唯一の手段である。
+
+**却下した選択肢:**
+
+- **素の collection 順での全走** — 順序を素に戻す option は runner の閉じた許可表に無いため、
+  受入形から targeted 形へ黙って降格し、恒久除外と preflight gate まで変わる。差が順序だけでなくなる。
+- **scheduler を別の分配方式へ変えた対照** — 受入形では明示的に拒否される。
+  targeted 形なら通るが、実 repo 利用 node の排他を失うため対照として不適格である。
+- **worker 数を変えた対照** — 分割 topology、資源競合、process 分割が同時に変わり、
+  差を順序へ単独帰属できない。login では job 数まで変わる。「実行 topology 感度」であって順序対照ではない。
+- **全 suite を別順序で 1 回走らせる診断** — 順序を作る手段が受入面の編集を要し、
+  かつ 1 順序あたり全走 1 回分の費用が掛かる。静的に絞った grouped 連鎖の反転より高価で射程も狭い。
+- **静的棚卸しだけで閉じる** — 「静的に見つからなかった」を「存在しない」へ滑らせる。
+  棚卸しは候補の生成手段であって、実在性の判定手段ではない。
+
+## D757. official report の output root は exact official marker の allowlist でだけ受理する (2026-08-24)
+
+**決定:** D65 P-A1(a) Stage 1 を実装し、official report の consumer 側 root 判定を
+blocklist から allowlist へ狭める。判定は次の 5 点で閉じる。
+
+1. root 自身が `{"namespace":"official"}` + LF の exact bytes を持つ marker file を必須とする。
+   欠落・exploration・unknown・malformed のいずれも拒否する (従来は欠落を受理していた)。
+2. root より上の**全祖先**の marker を走査し、official exact 以外が 1 つでもあれば拒否する。
+   最初の 1 件で打ち切らず、非 official 祖先の下に局所 official root を置く迂回を許さない。
+3. marker leaf は `O_NOFOLLOW|O_NONBLOCK` の guarded open、`fstat` で regular file 確認、
+   exact 25 bytes の有界 read で読む。symlink・FIFO・device を通常 file として read/parse しない。
+   input root の既存 symlink component も lexical に拒否する。
+4. repository-local の read 例外は canonical な repo output root **ちょうど 1 件**に限る。
+   sibling・foreign repository・worktree container へ広げない。外部 root は従来の
+   external admission を維持したうえで、さらに exact official marker を要求する。
+5. 観測を構築する直前と直後に root と marker を再検査し、走査後の差し替えを拒否する。
+
+read consumer から producer 用の campaign layout 依存を外し、判定を read-only に閉じる。
+
+**限定:** marker は runtime の役割表明であって provenance の証明ではない。正式測定の認可、
+holdout の解禁、freeze・proof chain の保証をこの marker へ昇格させない。producer 側の
+marker-first 化 (生成時に create-only/exact-check する形) は本決定に含めず、未実装のまま残す。
+
+**migration:** 歴史的 official campaign 集合の migration 単位は canonical root 1 件である。
+既存 campaign・report・freeze の bytes を移動も再生成もせず、tracked な marker file を
+1 件だけ追加する。この marker は repository の clean enumeration と digest に入り、
+freeze allowlist を増やさずに既存の clean scan を通る。
+
+**理由:**
+- 欠落を受理する blocklist が残る限り、marker を持たない任意の root と、非 official 祖先を
+  隠す子 root が official report の受理集合へ入る。official の観測と verdict が参照する集合が
+  暗黙に広がり、防壁として機能しない。
+- 祖先走査を「最初の 1 件で停止」にすると、非 official 祖先の直下へ official marker を置く
+  一手で迂回できる。全走査でなければ性質を主張できない。
+- 対象となる実祖先の marker を先に実測し 0 件であることを確認したため、fail-closed 側へ
+  倒した過剰拒否のコストを受容できる。
+
+**却下した選択肢:**
+- producer 側の自動 marker 生成まで同時に実装する — 変更面が producer 全型へ広がり、
+  本決定の受理境界の検証と分離できない。別タスクの所有とする。
+- repository-local root なら marker なしで読む一般例外 — canonical 1 件を超えて広げると、
+  sibling repository や worktree container が無条件に official へ入る。
+- 相対 path の一般受理 — canonical な相対形だけを exact 例外として絶対化し、その他の相対と
+  生の親参照は従来どおり拒否する。
+- 全 WAL / store read の openat 化による race の完全封鎖 — 既存の一般 race であり本決定の
+  外。marker 経路の TOCTOU だけを閉じ、完全閉鎖とは記録しない。
