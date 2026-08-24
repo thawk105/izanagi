@@ -13,18 +13,22 @@ import datetime as _datetime
 import fcntl
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import random
 import re
+import signal
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
+import xml.etree.ElementTree as _ET
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
@@ -54,6 +58,7 @@ RC_FOLD_RECOVERY_FAILED = 27
 RC_FOLD_ROLLBACK_FAILED = 28
 RC_PROVENANCE = 29
 RC_FOLD_FINALIZE_FAILED = 30
+RC_FOLD_GATE = 31
 
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
@@ -142,6 +147,27 @@ _CONTROL_CONTAINERS = (b".claude/worktrees", b".codex/worktrees")
 _FOLD_LEDGERS = ("worklog", "decisions", "failures")
 _FOLD_STATE_NAME = "izanagi-spool-fold-state.json"
 _FOLD_MESSAGE = FOLD_COMMIT_MESSAGE.decode("ascii")
+_FOLD_GATE_OUTCOME = "covered-families-passed"
+_FOLD_GATE_ENV_REMOVE = frozenset({
+    "PYTEST_ADDOPTS",
+    "PYTEST_PLUGINS",
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "PYTHONOPTIMIZE",
+    "PYTHONNOUSERSITE",
+})
+# この host の pytest 実体は user site にあり、user site を閉じると
+# `ModuleNotFoundError: No module named 'pytest'` になるため、実子では閉じない。
+_FOLD_GATE_ENV_FORCE = (
+    ("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1"),
+    ("PYTHONDONTWRITEBYTECODE", "1"),
+)
+_FOLD_GATE_DIAGNOSTIC_TAIL_BYTES = 500
+# 母集合は fold gate の 5 node + landing tip の全 tracked export。
+# login node 混雑下・dispatch 経由の同一隔離 tree/serial 実測 max 63.10 秒を 2.0 倍し 5 秒へ切上げ。
+_FOLD_GATE_INNER_TIMEOUT_SECONDS = 130.0
+_FOLD_GATE_TERMINATION_GRACE_SECONDS = 10.0
+_FOLD_GATE_OUTER_TIMEOUT_SECONDS = 145.0
 _SUPERVISED_WAVE_REF_RE = re.compile(
     r"refs/heads/dev-wave/(?P<run>dw-[0-9a-f]{32})/w(?P<wave>[0-9]{3,})\Z"
 )
@@ -187,11 +213,19 @@ class LandResult:
     tested_tip_sha: str | None = field(default=None, kw_only=True)
     landing_tip_sha: str | None = field(default=None, kw_only=True)
     incorporated_main_shas: tuple[str, ...] = field(default=(), kw_only=True)
+    fold_gate_uncovered_families: tuple[str, ...] | None = field(
+        default=None,
+        kw_only=True,
+    )
+    fold_gate_covered_and_failed_families: tuple[str, ...] | None = field(
+        default=None,
+        kw_only=True,
+    )
     release_safe: bool = field(default=False, compare=False)
     retryable_same_request: bool = field(default=False, compare=False)
 
     def as_json(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "status": self.status,
             "reason": self.reason,
             "main_before": self.main_before,
@@ -216,6 +250,15 @@ class LandResult:
             "release_safe": self.release_safe,
             "retryable_same_request": self.retryable_same_request,
         }
+        if self.fold_gate_uncovered_families is not None:
+            payload["fold_gate_uncovered_families"] = list(
+                self.fold_gate_uncovered_families
+            )
+        if self.fold_gate_covered_and_failed_families is not None:
+            payload["fold_gate_covered_and_failed_families"] = list(
+                self.fold_gate_covered_and_failed_families
+            )
+        return payload
 
 
 class _Reject(Exception):
@@ -298,6 +341,75 @@ class _ProvenanceReceipt:
     checker_blob_sha: str
     executed_bytes_sha: str
     returncode: int
+
+
+@dataclass(frozen=True)
+class _FoldGateBudgets:
+    inner_seconds: float
+    termination_grace_seconds: float
+    outer_seconds: float
+
+
+@dataclass(frozen=True)
+class _FoldGateSelection:
+    registry_digest: str
+    nodeids: tuple[str, ...]
+    target_families: tuple[str, ...]
+    uncovered_families: tuple[str, ...]
+    node_families: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+
+@dataclass(frozen=True)
+class _FoldGateJUnitCounts:
+    collected: int
+    executed: int
+    skipped: int
+    failed: int
+    errors: int
+
+
+@dataclass(frozen=True)
+class _FoldGateReceipt:
+    plan: object = field(repr=False, compare=False)
+    transaction_id: str
+    registry_digest: str
+    nodeids: tuple[str, ...]
+    target_raw_digests: tuple[tuple[str, str], ...]
+    outcome: str
+    uncovered_families: tuple[str, ...]
+
+
+class _FoldGateFailure(RuntimeError):
+    """main mutation 前に fold gate が fail-closed で拒否した。"""
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        retryable_same_request: bool = False,
+        uncovered_families: tuple[str, ...] = (),
+        covered_and_failed_families: tuple[str, ...] = (),
+    ):
+        super().__init__(reason)
+        self.retryable_same_request = retryable_same_request
+        self.uncovered_families = uncovered_families
+        self.covered_and_failed_families = covered_and_failed_families
+
+
+class _FoldGateInfrastructureFailure(_FoldGateFailure):
+    """一時的な gate infrastructure failure。"""
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        uncovered_families: tuple[str, ...] = (),
+    ):
+        super().__init__(
+            reason,
+            retryable_same_request=True,
+            uncovered_families=uncovered_families,
+        )
 
 
 @dataclass(frozen=True)
@@ -2552,6 +2664,7 @@ def _locked_preflight(
     if landing_tip != tested_tip:
         _verify_replay_config(repository)
     target_paths = _target_paths(repository, tested_main, landing_tip)
+    fold = None
     try:
         fold = _load_spool_fold()
         active_plan = fold.load_active_plan(repository.main)
@@ -2561,10 +2674,22 @@ def _locked_preflight(
             else ()
         )
     except (Exception, KeyboardInterrupt) as exc:
+        gate_error = (
+            fold is not None
+            and isinstance(
+                exc,
+                getattr(fold, "FoldGateReceiptError", ()),
+            )
+        )
         return LandResult(
-            RC_FOLD_RECOVERY_FAILED,
-            "fold-recovery-failed",
-            f"fold transaction inspection failed: {type(exc).__name__}: {exc}",
+            RC_FOLD_GATE if gate_error else RC_FOLD_RECOVERY_FAILED,
+            "fold-gate-failed" if gate_error else "fold-recovery-failed",
+            (
+                "stored fold gate receipt rejected: "
+                if gate_error
+                else "fold transaction inspection failed: "
+            )
+            + f"{type(exc).__name__}: {exc}",
             reported_main_before,
             reported_main_before,
             landing_tip,
@@ -2930,6 +3055,988 @@ def _verify_provenance_receipt(
         ) from exc
 
 
+def _fold_gate_budgets() -> _FoldGateBudgets:
+    budgets = _FoldGateBudgets(
+        _FOLD_GATE_INNER_TIMEOUT_SECONDS,
+        _FOLD_GATE_TERMINATION_GRACE_SECONDS,
+        _FOLD_GATE_OUTER_TIMEOUT_SECONDS,
+    )
+    if (
+        any(
+            type(value) not in {int, float} or value <= 0
+            for value in (
+                budgets.inner_seconds,
+                budgets.termination_grace_seconds,
+                budgets.outer_seconds,
+            )
+        )
+        or not (
+            budgets.inner_seconds + budgets.termination_grace_seconds
+            < budgets.outer_seconds
+        )
+    ):
+        raise _FoldGateFailure(
+            "fold gate time budget invariant failed: inner + termination "
+            "grace must be smaller than outer"
+        )
+    return budgets
+
+
+def _fold_gate_environment() -> dict[str, str]:
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in _FOLD_GATE_ENV_REMOVE
+    }
+    env.update(dict(_FOLD_GATE_ENV_FORCE))
+    return env
+
+
+def _fold_gate_environment_with_tmp(tmp_directory: Path) -> dict[str, str]:
+    env = _fold_gate_environment()
+    value = str(tmp_directory)
+    env.update({"TMPDIR": value, "TMP": value, "TEMP": value})
+    return env
+
+
+def _load_fold_gate_registry(repo: Path):
+    source = repo / "orchestrator" / "tests" / "fold_gate_nodes.py"
+    if source.is_symlink() or not source.is_file():
+        raise _FoldGateFailure("fold gate registry module is unavailable")
+    name = (
+        "_izanagi_fold_gate_nodes_"
+        + hashlib.sha256(str(source).encode()).hexdigest()[:12]
+    )
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise _FoldGateFailure("cannot create fold gate registry import spec")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(name)
+    previous_dont_write_bytecode = sys.dont_write_bytecode
+    previous_sys_path = sys.path[:]
+    sys.modules[name] = module
+    sys.dont_write_bytecode = True
+    try:
+        sys.path.insert(0, str(repo))
+        spec.loader.exec_module(module)
+    except BaseException as exc:
+        raise _FoldGateFailure(
+            f"fold gate registry import failed: {type(exc).__name__}: {exc}"
+        ) from exc
+    finally:
+        sys.path[:] = previous_sys_path
+        sys.dont_write_bytecode = previous_dont_write_bytecode
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
+    return module
+
+
+def _fold_gate_target_raw_digests(
+    plan: object,
+) -> tuple[tuple[str, str], ...]:
+    targets = getattr(plan, "targets", None)
+    if not isinstance(targets, tuple) or not targets:
+        raise _FoldGateFailure("non-noop fold plan has no target tuple")
+    values: list[tuple[str, str]] = []
+    for target in targets:
+        relative = _fold_relative_path(getattr(target, "path", None))
+        after_bytes = getattr(target, "after_bytes", None)
+        after_sha256 = getattr(target, "after_sha256", None)
+        if (
+            type(after_bytes) is not bytes
+            or type(after_sha256) is not str
+            or _SHA256_RE.fullmatch(after_sha256) is None
+        ):
+            raise _FoldGateFailure(
+                f"fold target raw payload is invalid: {relative}"
+            )
+        observed = hashlib.sha256(after_bytes).hexdigest()
+        if observed != after_sha256:
+            raise _FoldGateFailure(
+                f"fold target raw digest mismatch: {relative}"
+            )
+        values.append((relative, observed))
+    materialized = tuple(values)
+    if materialized != tuple(sorted(set(materialized))):
+        raise _FoldGateFailure(
+            "fold target raw digest paths are not sorted and unique"
+        )
+    return materialized
+
+
+def _expected_fold_target_paths(
+    plan: object,
+    *,
+    repo: Path | None = None,
+) -> tuple[str, ...]:
+    """fragment path と rotation shape だけから必須 target を独立導出する。"""
+
+    if getattr(plan, "status", None) == "noop":
+        return ()
+    expected = {"docs/spool/FOLDED.md"}
+    fragments = getattr(plan, "fragments", None)
+    if not isinstance(fragments, tuple) or not fragments:
+        raise _FoldGateFailure("non-noop fold plan has no fragment ledger")
+    for fragment in fragments:
+        relative = _fold_relative_path(getattr(fragment, "path", None))
+        if relative.startswith("docs/spool/worklog/"):
+            expected.add("docs/worklog.md")
+            fragment_path = None if repo is None else repo / relative
+            if fragment_path is not None and fragment_path.is_file():
+                try:
+                    raw = fragment_path.read_bytes()
+                    text = raw.decode("utf-8", errors="strict")
+                except (OSError, UnicodeError) as exc:
+                    raise _FoldGateInfrastructureFailure(
+                        f"worklog fragment cannot be inspected: {relative}: {exc}"
+                    ) from exc
+                if hashlib.sha256(raw).hexdigest() != getattr(
+                    fragment, "content_sha256", None
+                ):
+                    raise _FoldGateFailure(
+                        f"worklog fragment digest changed: {relative}"
+                    )
+                if re.search(
+                    r"^### (?:見送り|見送り追記)$",
+                    text,
+                    re.MULTILINE,
+                ):
+                    expected.add("docs/phase3.md")
+        elif relative.startswith("docs/spool/decisions/"):
+            expected.add("docs/decisions.md")
+        elif relative.startswith("docs/spool/failures/"):
+            expected.add("docs/failures.md")
+        else:
+            raise _FoldGateFailure(
+                f"fold fragment is outside a known ledger: {relative}"
+            )
+    rotation_path = getattr(plan, "rotation_path", None)
+    if rotation_path is not None:
+        expected.add(_fold_relative_path(rotation_path))
+        expected.add("docs/archive/README.md")
+    return tuple(sorted(expected))
+
+
+def _fold_gate_target_families(
+    expected_targets: Sequence[str],
+    *,
+    rotation_path: str | None,
+) -> tuple[str, ...]:
+    families: set[str] = set()
+    for relative in expected_targets:
+        if relative == "docs/worklog.md":
+            families.add("worklog")
+        elif relative == "docs/decisions.md":
+            families.add("decisions")
+        elif relative == "docs/failures.md":
+            families.add("failures")
+        elif relative == "docs/phase3.md":
+            families.add("phase3")
+        elif relative == "docs/spool/FOLDED.md":
+            families.add("folded")
+        elif relative == "docs/archive/README.md":
+            families.add("archive")
+            if rotation_path is not None:
+                families.add("rotation")
+        elif rotation_path is not None and relative == rotation_path:
+            families.update(("archive", "rotation"))
+        else:
+            raise _FoldGateFailure(
+                f"fold gate cannot classify expected target family: {relative}"
+            )
+    return tuple(sorted(families))
+
+
+def _folded_receipt_identity(record: object) -> tuple[str, str, int, str] | None:
+    if not isinstance(record, dict):
+        return None
+    authored = record.get("authored")
+    wave = record.get("wave")
+    seq = record.get("seq")
+    content_sha256 = record.get("content_sha256")
+    if (
+        type(authored) is not str
+        or type(wave) is not str
+        or type(seq) is not int
+        or seq <= 0
+        or type(content_sha256) is not str
+        or _SHA256_RE.fullmatch(content_sha256) is None
+    ):
+        return None
+    return authored, wave, seq, content_sha256
+
+
+def _folded_receipt_identities(raw: bytes) -> tuple[tuple[str, str, int, str], ...]:
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        raise _FoldGateFailure("FOLDED after bytes are not UTF-8") from exc
+    identities: list[tuple[str, str, int, str]] = []
+    for line in text.splitlines():
+        if not line.startswith("- "):
+            continue
+        try:
+            record = json.loads(
+                line[2:],
+                object_pairs_hook=_no_duplicate_json_keys,
+            )
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise _FoldGateFailure("FOLDED receipt JSON is malformed") from exc
+        identity = _folded_receipt_identity(record)
+        if identity is None:
+            raise _FoldGateFailure("FOLDED receipt identity is malformed")
+        identities.append(identity)
+    return tuple(identities)
+
+
+def _verify_folded_fragment_receipts(repo: Path, plan: object) -> None:
+    folded = next(
+        (
+            target
+            for target in getattr(plan, "targets", ())
+            if getattr(target, "path", None) == "docs/spool/FOLDED.md"
+        ),
+        None,
+    )
+    if folded is None:
+        raise _FoldGateFailure("fold plan has no FOLDED target")
+    before_path = repo / "docs/spool/FOLDED.md"
+    try:
+        before = before_path.read_bytes()
+    except OSError as exc:
+        raise _FoldGateInfrastructureFailure(
+            f"FOLDED before bytes cannot be read: {exc}"
+        ) from exc
+    if hashlib.sha256(before).hexdigest() != getattr(
+        folded, "before_sha256", None
+    ):
+        raise _FoldGateFailure("FOLDED before bytes do not match the plan")
+    after = getattr(folded, "after_bytes", None)
+    if type(after) is not bytes:
+        raise _FoldGateFailure("FOLDED target has no raw after bytes")
+    if not after.startswith(before):
+        raise _FoldGateFailure("FOLDED existing receipt bytes changed")
+    before_identities = _folded_receipt_identities(before)
+    after_identities = _folded_receipt_identities(after)
+    if after_identities[:len(before_identities)] != before_identities:
+        raise _FoldGateFailure("FOLDED existing receipt prefix changed")
+    new_identities = after_identities[len(before_identities):]
+    expected: list[tuple[str, str, int, str]] = []
+    for fragment in getattr(plan, "fragments", ()):
+        relative = _fold_relative_path(getattr(fragment, "path", None))
+        parts = relative.split("/")
+        authored = getattr(fragment, "authored", None)
+        wave = getattr(fragment, "wave", None)
+        seq = getattr(fragment, "seq", None)
+        content_sha256 = getattr(fragment, "content_sha256", None)
+        if (
+            len(parts) != 4
+            or parts[:2] != ["docs", "spool"]
+            or parts[2] not in _FOLD_LEDGERS
+            or type(authored) is not str
+            or type(wave) is not str
+            or type(seq) is not int
+            or parts[3] != f"{authored}-{wave}-{seq}.md"
+            or type(content_sha256) is not str
+            or _SHA256_RE.fullmatch(content_sha256) is None
+        ):
+            raise _FoldGateFailure(
+                f"fragment path/content identity is malformed: {relative}"
+            )
+        expected.append((authored, wave, seq, content_sha256))
+    if tuple(sorted(new_identities)) != tuple(sorted(expected)):
+        raise _FoldGateFailure(
+            "FOLDED new receipts do not match fragment path/content digests"
+        )
+
+
+def _select_fold_gate_nodes(repo: Path, plan: object) -> _FoldGateSelection:
+    actual_targets = {path for path, _digest in _fold_gate_target_raw_digests(plan)}
+    expected_targets = _expected_fold_target_paths(plan, repo=repo)
+    missing = set(expected_targets) - actual_targets
+    if missing:
+        raise _FoldGateFailure(
+            "fold plan omits independently expected targets: "
+            + ", ".join(sorted(missing))
+        )
+    unexpected = actual_targets - set(expected_targets)
+    if unexpected:
+        raise _FoldGateFailure(
+            "fold plan has targets outside the independently expected set: "
+            + ", ".join(sorted(unexpected))
+        )
+    registry = _load_fold_gate_registry(repo)
+    selected_rows = getattr(registry, "FOLD_GATE_SELECTED_NODES", None)
+    registry_digest = getattr(
+        registry, "FOLD_GATE_NODE_REGISTRY_SHA256", None
+    )
+    digest_function = getattr(
+        registry, "fold_gate_node_registry_sha256", None
+    )
+    if (
+        not isinstance(selected_rows, Mapping)
+        or type(registry_digest) is not str
+        or _SHA256_RE.fullmatch(registry_digest) is None
+        or not callable(digest_function)
+        or digest_function() != registry_digest
+    ):
+        raise _FoldGateFailure("fold gate registry contract is invalid")
+    rotation_path = getattr(plan, "rotation_path", None)
+    if rotation_path is not None:
+        rotation_path = _fold_relative_path(rotation_path)
+    target_families = _fold_gate_target_families(
+        expected_targets,
+        rotation_path=rotation_path,
+    )
+    target_family_set = set(target_families)
+    nodeids: list[str] = []
+    node_families: list[tuple[str, tuple[str, ...]]] = []
+    covered: set[str] = set()
+    for nodeid, row in sorted(selected_rows.items()):
+        families = getattr(row, "target_family", None)
+        if (
+            type(nodeid) is not str
+            or type(families) is not tuple
+            or any(type(family) is not str for family in families)
+        ):
+            raise _FoldGateFailure("fold gate registry row is invalid")
+        if (
+            getattr(row, "requires_git_history", False)
+            or getattr(row, "requires_submodules", False)
+        ):
+            if target_family_set.intersection(families):
+                raise _FoldGateFailure(
+                    f"fold gate capability mismatch for node: {nodeid}"
+                )
+            continue
+        overlap = target_family_set.intersection(families)
+        if overlap:
+            nodeids.append(nodeid)
+            covered.update(overlap)
+            node_families.append((nodeid, tuple(sorted(overlap))))
+    return _FoldGateSelection(
+        registry_digest,
+        tuple(nodeids),
+        target_families,
+        tuple(sorted(target_family_set - covered)),
+        tuple(node_families),
+    )
+
+
+def _registered_worktree_paths(repository: _Repository) -> tuple[Path, ...]:
+    raw = _require_git(
+        _git(repository.wave, "worktree", "list", "--porcelain"),
+        "fold gate registered worktree list",
+        RC_FOLD_GATE,
+    )
+    paths: list[Path] = []
+    for record in raw.splitlines():
+        if not record.startswith(b"worktree "):
+            continue
+        try:
+            paths.append(
+                Path(os.fsdecode(record.removeprefix(b"worktree "))).resolve(
+                    strict=True
+                )
+            )
+        except (OSError, UnicodeError) as exc:
+            raise _FoldGateFailure(
+                f"registered worktree path cannot be resolved: {exc}"
+            ) from exc
+    if not paths:
+        raise _FoldGateFailure("registered worktree list is empty")
+    return tuple(paths)
+
+
+def _paths_overlap_absolute(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
+
+
+def _safe_archive_relative(value: str) -> Path:
+    path = Path(value)
+    if (
+        not value
+        or "\\" in value
+        or "\0" in value
+        or "\n" in value
+        or path.is_absolute()
+        or path.as_posix().rstrip("/") != value.rstrip("/")
+        or any(part in {"", ".", "..", ".git"} for part in path.parts)
+    ):
+        raise _FoldGateFailure(f"unsafe tracked archive path: {value!r}")
+    return path
+
+
+def _require_real_parent(root: Path, relative: Path) -> Path:
+    current = root
+    for part in relative.parent.parts:
+        current = current / part
+        if current.is_symlink():
+            raise _FoldGateFailure(
+                f"tracked archive parent is a symlink: {relative.as_posix()}"
+            )
+        if current.exists() and not current.is_dir():
+            raise _FoldGateFailure(
+                f"tracked archive parent is not a directory: {relative.as_posix()}"
+            )
+        current.mkdir(exist_ok=True)
+    return current
+
+
+def _export_tracked_tree(
+    repository: _Repository,
+    landing_tip: str,
+    destination: Path,
+) -> None:
+    archive_bytes = _require_git(
+        _git(repository.wave, "archive", "--format=tar", landing_tip),
+        "fold gate tracked tree export",
+        RC_FOLD_GATE,
+    )
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+            members = archive.getmembers()
+            for member in members:
+                relative = _safe_archive_relative(member.name)
+                path = destination / relative
+                if member.isdir():
+                    _require_real_parent(destination, relative)
+                    if path.is_symlink() or (path.exists() and not path.is_dir()):
+                        raise _FoldGateFailure(
+                            f"tracked archive directory collision: {member.name}"
+                        )
+                    path.mkdir(exist_ok=True)
+                elif member.isfile():
+                    _require_real_parent(destination, relative)
+                    if path.exists() or path.is_symlink():
+                        raise _FoldGateFailure(
+                            f"tracked archive file collision: {member.name}"
+                        )
+                    extracted = archive.extractfile(member)
+                    if extracted is None:
+                        raise _FoldGateFailure(
+                            f"tracked archive file has no payload: {member.name}"
+                        )
+                    path.write_bytes(extracted.read())
+                    path.chmod(member.mode & 0o777)
+                elif member.issym():
+                    _require_real_parent(destination, relative)
+                    if path.exists() or path.is_symlink():
+                        raise _FoldGateFailure(
+                            f"tracked archive symlink collision: {member.name}"
+                        )
+                    path.symlink_to(member.linkname)
+                else:
+                    raise _FoldGateFailure(
+                        f"unsupported tracked archive member: {member.name}"
+                    )
+    except (OSError, tarfile.TarError) as exc:
+        raise _FoldGateFailure(
+            f"fold gate tracked tree materialization failed: {exc}"
+        ) from exc
+    if (destination / ".git").exists() or (destination / ".git").is_symlink():
+        raise _FoldGateFailure("isolated fold gate tree unexpectedly contains .git")
+
+
+def _materialize_fold_plan(tree: Path, plan: object) -> None:
+    receipts = {
+        getattr(fragment, "path", None): fragment
+        for fragment in getattr(plan, "fragments", ())
+    }
+    for target in getattr(plan, "targets", ()):
+        relative_text = _fold_relative_path(getattr(target, "path", None))
+        relative = Path(relative_text)
+        parent = _require_real_parent(tree, relative)
+        path = parent / relative.name
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise _FoldGateFailure(
+                f"fold gate target is symlink/non-regular: {relative_text}"
+            )
+        after_bytes = getattr(target, "after_bytes", None)
+        after_sha256 = getattr(target, "after_sha256", None)
+        if type(after_bytes) is not bytes:
+            raise _FoldGateFailure(
+                f"fold gate target has no raw bytes: {relative_text}"
+            )
+        path.write_bytes(after_bytes)
+        path.chmod(0o644)
+        if hashlib.sha256(path.read_bytes()).hexdigest() != after_sha256:
+            raise _FoldGateFailure(
+                f"fold gate target write hash mismatch: {relative_text}"
+            )
+    for relative_text in getattr(plan, "gc_paths", ()):
+        relative_text = _fold_relative_path(relative_text)
+        relative = Path(relative_text)
+        parent = _require_real_parent(tree, relative)
+        path = parent / relative.name
+        if path.is_symlink() or not path.is_file():
+            raise _FoldGateFailure(
+                f"fold gate GC path is missing/symlink/non-regular: {relative_text}"
+            )
+        receipt = receipts.get(relative_text)
+        expected = getattr(receipt, "content_sha256", None)
+        if (
+            type(expected) is not str
+            or hashlib.sha256(path.read_bytes()).hexdigest() != expected
+        ):
+            raise _FoldGateFailure(
+                f"fold gate GC path digest mismatch: {relative_text}"
+            )
+        path.unlink()
+
+
+def _run_fold_gate_pytest(
+    argv: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    timeout: float,
+    termination_grace: float,
+) -> subprocess.CompletedProcess[bytes]:
+    process = subprocess.Popen(
+        argv,
+        cwd=cwd,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False,
+        close_fds=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        process.terminate()
+        try:
+            stdout, stderr = process.communicate(timeout=termination_grace)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+        timeout_error = subprocess.TimeoutExpired(
+            argv,
+            timeout,
+            output=stdout,
+            stderr=stderr,
+        )
+        timeout_error.returncode = process.returncode
+        raise timeout_error from exc
+    return subprocess.CompletedProcess(
+        argv,
+        process.returncode,
+        stdout,
+        stderr,
+    )
+
+
+def _fold_gate_diagnostic_tail(data: bytes | None) -> str:
+    """子出力の末尾を有界かつ byte 単位で可逆な ASCII にする。"""
+
+    raw = data or b""
+    selected_reversed: list[str] = []
+    used = 0
+    retained = 0
+    for value in reversed(raw):
+        rendered = (
+            chr(value)
+            if 0x20 <= value < 0x7f and value != 0x5c
+            else f"\\x{value:02x}"
+        )
+        width = len(rendered)
+        if used + width > _FOLD_GATE_DIAGNOSTIC_TAIL_BYTES:
+            break
+        selected_reversed.append(rendered)
+        used += width
+        retained += 1
+    selected_reversed.reverse()
+    escaped = "".join(selected_reversed)
+    return (
+        f"omitted_bytes={len(raw) - retained},"
+        f"escaped={json.dumps(escaped, ensure_ascii=True)}"
+    )
+
+
+def _fold_gate_pytest_diagnostic(
+    *,
+    returncode: int | None,
+    stdout: bytes | None,
+    stderr: bytes | None,
+) -> str:
+    rc = "unavailable" if returncode is None else str(returncode)
+    return (
+        f"pytest returncode={rc}; "
+        f"stdout_tail({_fold_gate_diagnostic_tail(stdout)}); "
+        f"stderr_tail({_fold_gate_diagnostic_tail(stderr)})"
+    )
+
+
+def _parse_fold_gate_junit(
+    path: Path,
+    nodeids: tuple[str, ...],
+    node_families: tuple[tuple[str, tuple[str, ...]], ...] = (),
+) -> _FoldGateJUnitCounts:
+    try:
+        root = _ET.fromstring(path.read_bytes())
+    except (OSError, _ET.ParseError) as exc:
+        raise _FoldGateInfrastructureFailure(
+            f"fold gate JUnit cannot be parsed: {exc}"
+        ) from exc
+    cases = list(root.iter("testcase"))
+    expected_names = {nodeid.split("::", 1)[1] for nodeid in nodeids}
+    observed_names = [case.attrib.get("name") for case in cases]
+    if (
+        len(expected_names) != len(nodeids)
+        or len(observed_names) != len(set(observed_names))
+        or set(observed_names) != expected_names
+    ):
+        raise _FoldGateInfrastructureFailure(
+            "fold gate JUnit node set mismatch: "
+            f"expected={sorted(expected_names)!r}, actual={sorted(observed_names)!r}"
+        )
+    skipped = sum(case.find("skipped") is not None for case in cases)
+    failed = sum(case.find("failure") is not None for case in cases)
+    errors = sum(case.find("error") is not None for case in cases)
+    counts = _FoldGateJUnitCounts(
+        collected=len(cases),
+        executed=len(cases) - skipped,
+        skipped=skipped,
+        failed=failed,
+        errors=errors,
+    )
+    if counts.errors != 0:
+        raise _FoldGateInfrastructureFailure(
+            f"fold gate JUnit reported test errors: {counts}"
+        )
+    if counts.failed != 0:
+        failed_names = {
+            case.attrib.get("name")
+            for case in cases
+            if case.find("failure") is not None
+        }
+        failed_nodeids = {
+            nodeid
+            for nodeid in nodeids
+            if nodeid.split("::", 1)[1] in failed_names
+        }
+        failed_families = tuple(sorted({
+            family
+            for nodeid, families in node_families
+            if nodeid in failed_nodeids
+            for family in families
+        }))
+        raise _FoldGateFailure(
+            f"fold gate JUnit assertion failure: {counts}",
+            covered_and_failed_families=failed_families,
+        )
+    if (
+        counts.collected != len(nodeids)
+        or counts.executed == 0
+        or counts.skipped != 0
+    ):
+        raise _FoldGateFailure(f"fold gate JUnit rejected: {counts}")
+    return counts
+
+
+def _fold_gate_now() -> float:
+    return time.monotonic()
+
+
+class _FoldGateOuterWatchdog:
+    """materialization から cleanup までを SIGALRM で監督する。"""
+
+    def __init__(self, seconds: float):
+        self.seconds = seconds
+        self.deadline = 0.0
+        self.previous_handler = None
+        self.previous_timer = (0.0, 0.0)
+
+    def _alarm(self, _signum, _frame) -> None:
+        if _fold_gate_now() >= self.deadline:
+            raise _FoldGateInfrastructureFailure(
+                "fold gate outer watchdog fired after "
+                f"{self.seconds:g} seconds"
+            )
+
+    def __enter__(self):
+        if not hasattr(signal, "setitimer"):
+            raise _FoldGateInfrastructureFailure(
+                "fold gate outer watchdog is unavailable"
+            )
+        self.deadline = _fold_gate_now() + self.seconds
+        self.previous_handler = signal.getsignal(signal.SIGALRM)
+        self.previous_timer = signal.getitimer(signal.ITIMER_REAL)
+        if self.previous_timer != (0.0, 0.0):
+            raise _FoldGateInfrastructureFailure(
+                "fold gate outer watchdog timer is already in use"
+            )
+        signal.signal(signal.SIGALRM, self._alarm)
+        interval = min(self.seconds, 0.1)
+        signal.setitimer(signal.ITIMER_REAL, interval, interval)
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback) -> None:
+        signal.setitimer(signal.ITIMER_REAL, 0.0, 0.0)
+        signal.signal(signal.SIGALRM, self.previous_handler)
+
+
+def _execute_fold_gate(
+    repository: _Repository,
+    plan: object,
+    selection: _FoldGateSelection,
+    landing_tip: str,
+    budgets: _FoldGateBudgets,
+) -> _FoldGateJUnitCounts | None:
+    registered = _registered_worktree_paths(repository)
+    with tempfile.TemporaryDirectory(
+        prefix="izanagi-fold-gate-",
+        dir="/tmp",
+    ) as raw:
+        tree = Path(raw).resolve(strict=True)
+        if any(_paths_overlap_absolute(tree, path) for path in registered):
+            raise _FoldGateFailure(
+                "fold gate isolation directory overlaps a registered worktree"
+            )
+        try:
+            _export_tracked_tree(repository, landing_tip, tree)
+            _materialize_fold_plan(tree, plan)
+        except _FoldGateInfrastructureFailure:
+            raise
+        except BaseException as exc:
+            raise _FoldGateInfrastructureFailure(
+                "fold gate materialization failed: "
+                f"{type(exc).__name__}: {exc}",
+                uncovered_families=selection.uncovered_families,
+            ) from exc
+        if not selection.nodeids:
+            return None
+        pytest_tmp = tree / ".fold-gate-tmp"
+        pytest_tmp.mkdir(mode=0o700)
+        junit = tree / ".fold-gate-junit.xml"
+        argv = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "junitxml",
+            f"--junitxml={junit}",
+            f"--basetemp={pytest_tmp}",
+            *(
+                f"orchestrator/tests/{nodeid}"
+                for nodeid in selection.nodeids
+            ),
+        ]
+        try:
+            completed = _run_fold_gate_pytest(
+                argv,
+                cwd=tree,
+                env=_fold_gate_environment_with_tmp(pytest_tmp),
+                timeout=budgets.inner_seconds,
+                termination_grace=budgets.termination_grace_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=getattr(exc, "returncode", None),
+                stdout=exc.output,
+                stderr=exc.stderr,
+            )
+            raise _FoldGateInfrastructureFailure(
+                f"fold gate pytest timed out after {budgets.inner_seconds:g} "
+                f"seconds; {diagnostic}",
+                uncovered_families=selection.uncovered_families,
+            ) from exc
+        except OSError as exc:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=None,
+                stdout=None,
+                stderr=None,
+            )
+            raise _FoldGateInfrastructureFailure(
+                f"fold gate pytest could not start: {exc}; {diagnostic}",
+                uncovered_families=selection.uncovered_families,
+            ) from exc
+        try:
+            counts = _parse_fold_gate_junit(
+                junit,
+                selection.nodeids,
+                selection.node_families,
+            )
+        except _FoldGateInfrastructureFailure as exc:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+            )
+            raise _FoldGateInfrastructureFailure(
+                f"{exc}; {diagnostic}",
+                uncovered_families=selection.uncovered_families,
+            ) from exc
+        except _FoldGateFailure as exc:
+            raise type(exc)(
+                str(exc),
+                uncovered_families=selection.uncovered_families,
+                **(
+                    {
+                        "covered_and_failed_families": (
+                            exc.covered_and_failed_families
+                        )
+                    }
+                    if type(exc) is _FoldGateFailure
+                    else {}
+                ),
+            ) from exc
+        if completed.returncode != 0:
+            diagnostic = _fold_gate_pytest_diagnostic(
+                returncode=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+            )
+            raise _FoldGateInfrastructureFailure(
+                f"fold gate pytest returned nonzero; {diagnostic}; {counts}",
+                uncovered_families=selection.uncovered_families,
+            )
+        return counts
+
+
+def _run_fold_gate(
+    repository: _Repository,
+    plan: object,
+    landing_tip: str,
+) -> _FoldGateReceipt:
+    try:
+        budgets = _fold_gate_budgets()
+        selection = _select_fold_gate_nodes(repository.wave, plan)
+        _verify_folded_fragment_receipts(repository.wave, plan)
+        with _FoldGateOuterWatchdog(budgets.outer_seconds):
+            _execute_fold_gate(repository, plan, selection, landing_tip, budgets)
+        receipt = _FoldGateReceipt(
+            plan,
+            getattr(plan, "transaction_id", ""),
+            selection.registry_digest,
+            selection.nodeids,
+            _fold_gate_target_raw_digests(plan),
+            _FOLD_GATE_OUTCOME,
+            selection.uncovered_families,
+        )
+        _verify_fold_gate_receipt(repository.wave, receipt, plan)
+        return receipt
+    except _FoldGateFailure:
+        raise
+    except _Reject as exc:
+        raise _FoldGateInfrastructureFailure(
+            f"fold gate infrastructure failed: {exc.reason}",
+            uncovered_families=(
+                selection.uncovered_families
+                if "selection" in locals()
+                else ()
+            ),
+        ) from exc
+    except Exception as exc:
+        raise _FoldGateInfrastructureFailure(
+            f"fold gate internal failure: {type(exc).__name__}: {exc}",
+            uncovered_families=(
+                selection.uncovered_families
+                if "selection" in locals()
+                else ()
+            ),
+        ) from exc
+
+
+def _fold_gate_receipt_from_plan(plan: object) -> _FoldGateReceipt:
+    durable = getattr(plan, "gate_receipt", None)
+    if durable is None:
+        raise _FoldGateFailure("stored fold plan has no gate receipt")
+    try:
+        return _FoldGateReceipt(
+            plan,
+            durable.transaction_id,
+            durable.registry_digest,
+            tuple(durable.nodeids),
+            tuple(durable.target_raw_digests),
+            durable.outcome,
+            tuple(durable.uncovered_families),
+        )
+    except (AttributeError, TypeError) as exc:
+        raise _FoldGateFailure("stored fold gate receipt is malformed") from exc
+
+
+def _verify_fold_gate_receipt(
+    repo: Path,
+    receipt: _FoldGateReceipt,
+    plan: object,
+) -> _FoldGateSelection:
+    selection = _select_fold_gate_nodes(repo, plan)
+    raw_digests = _fold_gate_target_raw_digests(plan)
+    if receipt.plan is not plan:
+        raise _FoldGateFailure("fold gate receipt plan object identity mismatch")
+    if receipt.transaction_id != getattr(plan, "transaction_id", None):
+        raise _FoldGateFailure("fold gate receipt transaction_id mismatch")
+    if receipt.target_raw_digests != raw_digests:
+        raise _FoldGateFailure("fold gate receipt target raw digest mismatch")
+    if (
+        receipt.registry_digest != selection.registry_digest
+        or receipt.nodeids != selection.nodeids
+        or receipt.outcome != _FOLD_GATE_OUTCOME
+        or receipt.uncovered_families != selection.uncovered_families
+    ):
+        raise _FoldGateFailure("fold gate receipt registry/outcome mismatch")
+    return selection
+
+
+def _fold_gate_durable_receipt(fold: object, receipt: _FoldGateReceipt):
+    receipt_type = getattr(fold, "FoldGateReceipt", None)
+    if receipt_type is None:
+        return receipt
+    return receipt_type(
+        receipt.transaction_id,
+        receipt.registry_digest,
+        receipt.nodeids,
+        receipt.target_raw_digests,
+        receipt.outcome,
+        receipt.uncovered_families,
+    )
+
+
+def _fold_gate_failed_result(
+    reason: str,
+    *,
+    main_before: str | None,
+    main_after: str | None,
+    tested_tip: str,
+    retryable_same_request: bool = False,
+    uncovered_families: tuple[str, ...] = (),
+    covered_and_failed_families: tuple[str, ...] = (),
+) -> LandResult:
+    return LandResult(
+        RC_FOLD_GATE,
+        "fold-gate-failed",
+        reason,
+        main_before,
+        main_after,
+        tested_tip,
+        fold_gate_uncovered_families=uncovered_families,
+        fold_gate_covered_and_failed_families=(
+            covered_and_failed_families
+        ),
+        release_safe=not retryable_same_request,
+        retryable_same_request=retryable_same_request,
+    )
+
+
+def _run_outside_land_lock(
+    repository: _Repository,
+    lock: _LandLockHandle,
+    deadline: float,
+    runner,
+) -> tuple[object, bool, float]:
+    """重い guard を lock 外で実行し、同じ deadline で再取得する。"""
+
+    lock.close()
+    payload = runner()
+    acquired, waited = _acquire_land_lock(repository, lock, deadline)
+    return payload, acquired, waited
+
+
 def _pending_spool_paths(repo: Path) -> tuple[str, ...]:
     """正規 spool layout から pending 候補を列挙する。"""
 
@@ -2945,6 +4052,98 @@ def _pending_spool_paths(repo: Path) -> tuple[str, ...]:
             if member.name != "README.md":
                 pending.append(member.relative_to(repo).as_posix())
     return tuple(sorted(pending))
+
+
+def _verify_main_fold_closure_before_ff(
+    repository: _Repository,
+    landing_tip: str,
+    plan: object,
+    fold: object,
+) -> None:
+    """FF 後も生存する main 側 archive closure 差分を事前拒否する。"""
+
+    raw = _require_git(
+        _git(
+            repository.wave,
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "-z",
+            landing_tip,
+            "--",
+            "docs/archive",
+        ),
+        "prospective fold archive closure",
+        RC_FOLD_GATE,
+    )
+    fixed_paths = getattr(fold, "_CLOSURE_FIXED_PATHS", None)
+    if (
+        type(fixed_paths) is not tuple
+        or not fixed_paths
+        or any(type(path) is not str for path in fixed_paths)
+    ):
+        raise _FoldGateInfrastructureFailure(
+            "fold engine closure fixed-path contract is unavailable"
+        )
+    expected = set(fixed_paths) | {
+        os.fsdecode(path)
+        for path in _nul_records(
+            raw,
+            "prospective fold archive closure",
+            RC_FOLD_GATE,
+        )
+        if re.fullmatch(rb"docs/archive/worklog-[^/]+\.md", path)
+    }
+    rotation_path = getattr(plan, "rotation_path", None)
+    if rotation_path is not None:
+        expected.add(_fold_relative_path(rotation_path))
+
+    archive = repository.main / "docs/archive"
+    try:
+        candidates = tuple(sorted({
+            *(
+                repository.main / relative
+                for relative in fixed_paths
+                if (repository.main / relative).exists()
+                or (repository.main / relative).is_symlink()
+            ),
+            *archive.glob("worklog-*.md"),
+        }))
+    except OSError as exc:
+        raise _FoldGateInfrastructureFailure(
+            f"main fold archive closure cannot be enumerated: {exc}"
+        ) from exc
+    unexpected: list[str] = []
+    shadowing: list[str] = []
+    for path in candidates:
+        relative = path.relative_to(repository.main).as_posix()
+        if path.is_symlink() or not path.is_file():
+            raise _FoldGateFailure(
+                f"main fold archive closure is symlink/non-regular: {relative}"
+            )
+        tracked = _git(
+            repository.main,
+            "ls-files",
+            "--error-unmatch",
+            "--",
+            relative,
+        )
+        if tracked.returncode == 0:
+            continue
+        if tracked.returncode != 1:
+            raise _FoldGateInfrastructureFailure(
+                "main fold archive tracked-state inspection failed: "
+                + (_detail(tracked.stderr) or "no detail")
+            )
+        if relative in expected:
+            shadowing.append(relative)
+        else:
+            unexpected.append(relative)
+    if unexpected or shadowing:
+        raise _FoldGateFailure(
+            "main has surviving untracked fold closure candidates: "
+            f"unexpected={unexpected!r}, shadowing={shadowing!r}"
+        )
 
 
 def _verify_supervised_fragment_wave(wave_ref: str, plan: object) -> None:
@@ -3010,6 +4209,9 @@ def _fold_relative_path(value: object) -> str:
     path = Path(value)
     if (
         path.is_absolute()
+        or "\\" in value
+        or "\0" in value
+        or "\n" in value
         or path.as_posix() != value
         or not path.parts
         or path.parts[0] != "docs"
@@ -3294,6 +4496,7 @@ def _fold_main_locked(
     snapshots: Sequence[_PathSnapshot],
     index_tree: str,
     state_path: Path,
+    fold_gate_receipt: _FoldGateReceipt | None = None,
 ) -> LandResult:
     """preplanned fold を lock 内で apply・検査・commit する。"""
 
@@ -3312,8 +4515,24 @@ def _fold_main_locked(
     try:
         if getattr(plan, "status", None) == "noop":
             return successful_land
+        if getattr(getattr(plan, "origin", None), "kind", None) == "land":
+            if fold_gate_receipt is None:
+                raise _FoldGateFailure("land fold has no verified gate receipt")
+            _verify_fold_gate_receipt(
+                repository.wave,
+                fold_gate_receipt,
+                plan,
+            )
         fold_paths = _fold_plan_paths(plan)
-        fold.apply_fold(repository.main, plan)
+        fold.apply_fold(
+            repository.main,
+            plan,
+            gate_receipt=(
+                None
+                if fold_gate_receipt is None
+                else _fold_gate_durable_receipt(fold, fold_gate_receipt)
+            ),
+        )
         _validate_generated_docs(repository, plan)
         pending_after = _pending_spool_paths(repository.main)
         if pending_after:
@@ -3379,7 +4598,14 @@ def _fold_main_locked(
         successful_fold = LandResult(
             RC_OK,
             "landed",
-            "main fast-forwarded to the tested wave tip and folded pending fragments",
+            "main fast-forwarded to the tested wave tip and folded pending fragments"
+            + (
+                ""
+                if fold_gate_receipt is None
+                or not fold_gate_receipt.uncovered_families
+                else "; fold gate uncovered families="
+                + ",".join(fold_gate_receipt.uncovered_families)
+            ),
             successful_land.main_before,
             fold_commit,
             tested_tip,
@@ -3452,6 +4678,7 @@ def _finalize_recovered_fold_commit(
     tested_tip: str,
     landed_commits: Sequence[str],
     wave_ref: str,
+    fold_gate_receipt: _FoldGateReceipt,
 ) -> LandResult:
     """検証済みの形 B を再 apply / 再 commit せず完遂する。"""
 
@@ -3506,7 +4733,13 @@ def _finalize_recovered_fold_commit(
     return LandResult(
         RC_OK,
         "landed",
-        "verified active fold commit finalized without reapplying or recommitting",
+        "verified active fold commit finalized without reapplying or recommitting"
+        + (
+            ""
+            if not fold_gate_receipt.uncovered_families
+            else "; fold gate uncovered families="
+            + ",".join(fold_gate_receipt.uncovered_families)
+        ),
         main_before,
         fold_commit,
         tested_tip,
@@ -3639,6 +4872,7 @@ def land(request: LandRequest) -> LandResult:
     landing_tip: str | None = None
     prelocked_forward_main_merges: tuple[_ForwardMainMerge, ...] = ()
     acceptance_verification: _AcceptanceVerification | None = None
+    fold_gate_receipt: _FoldGateReceipt | None = None
     quiescent_rejection = False
 
     def finish(result: LandResult) -> LandResult:
@@ -3649,6 +4883,15 @@ def land(request: LandRequest) -> LandResult:
             incorporated_main_shas=tuple(
                 merge.incorporated_main_sha
                 for merge in prelocked_forward_main_merges
+            ),
+            fold_gate_uncovered_families=(
+                result.fold_gate_uncovered_families
+                if result.fold_gate_uncovered_families is not None
+                else (
+                    None
+                    if fold_gate_receipt is None
+                    else fold_gate_receipt.uncovered_families
+                )
             ),
         )
         if acceptance_verification is None:
@@ -3712,12 +4955,11 @@ def land(request: LandRequest) -> LandResult:
             main_before = preflight.locked_main
             if preflight.locked_main != landing_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
-                lock.close()
-                receipt = _audit_provenance_history(repository)
-                acquired, waited = _acquire_land_lock(
+                receipt, acquired, waited = _run_outside_land_lock(
                     repository,
                     lock,
                     lock_deadline,
+                    lambda: _audit_provenance_history(repository),
                 )
                 waited_s += waited
                 if not acquired:
@@ -3860,6 +5102,32 @@ def land(request: LandRequest) -> LandResult:
                         landing_tip,
                         retryable_same_request=True,
                     ))
+                try:
+                    stored_gate_receipt = _fold_gate_receipt_from_plan(
+                        active_plan
+                    )
+                    _verify_folded_fragment_receipts(
+                        repository.wave,
+                        active_plan,
+                    )
+                    _verify_fold_gate_receipt(
+                        repository.wave,
+                        stored_gate_receipt,
+                        active_plan,
+                    )
+                    fold_gate_receipt = stored_gate_receipt
+                except _FoldGateFailure as exc:
+                    return finish(_fold_gate_failed_result(
+                        f"stored fold gate receipt rejected: {exc}",
+                        main_before=main_before,
+                        main_after=locked_main,
+                        tested_tip=landing_tip,
+                        retryable_same_request=exc.retryable_same_request,
+                        uncovered_families=exc.uncovered_families,
+                        covered_and_failed_families=(
+                            exc.covered_and_failed_families
+                        ),
+                    ))
                 if locked_main != landing_tip:
                     return finish(_finalize_recovered_fold_commit(
                         repository,
@@ -3870,6 +5138,7 @@ def land(request: LandRequest) -> LandResult:
                         tested_tip=landing_tip,
                         landed_commits=landed_commits,
                         wave_ref=wave_ref,
+                        fold_gate_receipt=fold_gate_receipt,
                     ))
                 if getattr(active_plan, "phase", None) != "applied":
                     return finish(LandResult(
@@ -3921,6 +5190,7 @@ def land(request: LandRequest) -> LandResult:
                     snapshots=recovery_snapshots,
                     index_tree=index_tree,
                     state_path=state_path,
+                    fold_gate_receipt=fold_gate_receipt,
                 ))
 
             fold_date = _land_fold_date()
@@ -3956,6 +5226,147 @@ def land(request: LandRequest) -> LandResult:
                     release_safe=not interrupted,
                     retryable_same_request=interrupted,
                 ))
+
+            if getattr(plan, "status", None) != "noop":
+                initial_gate_fingerprint = preflight.fingerprint
+                initial_gate_control = preflight.control
+                try:
+                    gate_payload, acquired, waited = _run_outside_land_lock(
+                        repository,
+                        lock,
+                        lock_deadline,
+                        lambda: _run_fold_gate(repository, plan, landing_tip),
+                    )
+                except _FoldGateFailure as exc:
+                    return finish(_fold_gate_failed_result(
+                        f"fold gate failed: {exc}",
+                        main_before=main_before,
+                        main_after=locked_main,
+                        tested_tip=landing_tip,
+                        retryable_same_request=exc.retryable_same_request,
+                        uncovered_families=exc.uncovered_families,
+                        covered_and_failed_families=(
+                            exc.covered_and_failed_families
+                        ),
+                    ))
+                waited_s += waited
+                assert isinstance(gate_payload, _FoldGateReceipt)
+                fold_gate_receipt = gate_payload
+                if not acquired:
+                    return finish(_lock_busy_result(
+                        phase="post-fold-gate",
+                        waited_s=waited_s,
+                        window_started=lock_window_started,
+                        tested_tip=landing_tip,
+                    ))
+                try:
+                    refreshed_control = _control_snapshot(
+                        repository,
+                        initial_gate_control.worktree_targets,
+                    )
+                    if (
+                        refreshed_control != initial_gate_control
+                        or not _surviving_worktree_bindings_unchanged(
+                            initial_gate_control,
+                            refreshed_control,
+                        )
+                    ):
+                        raise _FoldGateFailure(
+                            "control-plane identity/binding changed during fold gate"
+                        )
+                    refreshed_fingerprint = _land_fingerprint(
+                        repository,
+                        current=_head(
+                            repository.main,
+                            "main after fold gate",
+                        ),
+                        tested_tip=landing_tip,
+                        wave_head=_head(
+                            repository.wave,
+                            "wave after fold gate",
+                        ),
+                        control=refreshed_control,
+                    )
+                    if refreshed_fingerprint != initial_gate_fingerprint:
+                        raise _FoldGateFailure(
+                            "main/wave heads or collision paths changed during fold gate"
+                        )
+                    refreshed_preflight = _locked_preflight(
+                        repository,
+                        tested_main=tested_main,
+                        tested_tip=tested_tip,
+                        landing_tip=landing_tip,
+                        prelocked_forward_main_merges=prelocked_forward_main_merges,
+                        requested_audit=requested_audit,
+                        reported_main_before=main_before,
+                    )
+                    if isinstance(refreshed_preflight, LandResult):
+                        raise _FoldGateFailure(
+                            "locked preflight changed after fold gate: "
+                            + refreshed_preflight.reason
+                        )
+                    if refreshed_preflight.active_plan is not None:
+                        raise _FoldGateFailure(
+                            "a fold transaction appeared during fold gate"
+                        )
+                    fold._validate_closure(repository.wave, plan)
+                    pending_wave = _pending_spool_paths(repository.wave)
+                    if set(pending_wave) - set(getattr(plan, "gc_paths", ())):
+                        raise _FoldGateFailure(
+                            "wave pending fragment set grew outside the fold plan"
+                        )
+                    pending_main = _pending_spool_paths(repository.main)
+                    if set(pending_main) - set(getattr(plan, "gc_paths", ())):
+                        raise _FoldGateFailure(
+                            "main pending fragment set grew outside the fold plan"
+                        )
+                    _verify_main_fold_closure_before_ff(
+                        repository,
+                        landing_tip,
+                        plan,
+                        fold,
+                    )
+                    _verify_fold_gate_receipt(
+                        repository.wave,
+                        fold_gate_receipt,
+                        plan,
+                    )
+                    preflight = refreshed_preflight
+                    control = preflight.control
+                    base_gitlinks = preflight.base_gitlinks
+                    target_gitlinks = preflight.target_gitlinks
+                    target_normal_entries = preflight.target_normal_entries
+                    gitlinks_changed = preflight.gitlinks_changed
+                    locked_main = preflight.locked_main
+                    wave_ref = preflight.wave_ref
+                    fold_trusted_main_cutoff = preflight.fold_trusted_main_cutoff
+                    landed_commits = preflight.landed_commits
+                except _FoldGateFailure as exc:
+                    return finish(_fold_gate_failed_result(
+                        "fold gate revalidation failed: "
+                        f"{type(exc).__name__}: {exc}",
+                        main_before=main_before,
+                        main_after=main_before,
+                        tested_tip=landing_tip,
+                        retryable_same_request=exc.retryable_same_request,
+                        uncovered_families=(
+                            fold_gate_receipt.uncovered_families
+                            if fold_gate_receipt is not None
+                            else exc.uncovered_families
+                        ),
+                        covered_and_failed_families=(
+                            exc.covered_and_failed_families
+                        ),
+                    ))
+                except (Exception, KeyboardInterrupt) as exc:
+                    interrupted = isinstance(exc, KeyboardInterrupt)
+                    return finish(_fold_gate_failed_result(
+                        f"fold gate revalidation failed: {type(exc).__name__}: {exc}",
+                        main_before=main_before,
+                        main_after=main_before,
+                        tested_tip=landing_tip,
+                        retryable_same_request=interrupted,
+                    ))
 
             fold_collision_paths = tuple(os.fsencode(path) for path in fold_paths)
             if fold_collision_paths:
@@ -4038,6 +5449,7 @@ def land(request: LandRequest) -> LandResult:
                     snapshots=snapshots,
                     index_tree=index_tree,
                     state_path=state_path,
+                    fold_gate_receipt=fold_gate_receipt,
                 ))
             collision_control = _control_snapshot(
                 repository, control.worktree_targets
@@ -4112,6 +5524,7 @@ def land(request: LandRequest) -> LandResult:
                 snapshots=snapshots,
                 index_tree=index_tree,
                 state_path=state_path,
+                fold_gate_receipt=fold_gate_receipt,
             ))
         finally:
             lock.close()

@@ -1264,7 +1264,12 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
         assert binding[key]["path"] == relative
         current_sha = _sha256((ROOT / relative).read_bytes())
         if key == "policy":
-            assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256
+            assert current_sha == EXPECTED_CURRENT_PEGASUS_POLICY_SHA256, (
+                "intentional policy update requires refreshing the single "
+                "shared EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 golden in "
+                "orchestrator/tests/pegasus_policy_expected_goldens.py: "
+                f"sha256({relative})={current_sha}"
+            )
         if key in historical_sha256_by_key:
             assert binding[key]["sha256"] == historical_sha256_by_key[key]
             assert binding[key]["sha256"] != current_sha

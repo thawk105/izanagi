@@ -91,9 +91,6 @@ def _genesis(
 ) -> core.RegistryRows:
     return core.create_attempt_registry_genesis(
         profile=profile,
-        freeze_id=_FREEZE,
-        manifest_path=PurePosixPath("output/s8b-freeze/holdout_freeze.json"),
-        manifest_sha256=_MANIFEST,
         slots=slots,
         binding=_BINDING,
     )
@@ -374,8 +371,218 @@ def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:
     )
 
 
-def test_genesis_rejects_freeze_id_that_differs_from_8b_binding() -> None:
+def test_s8b_genesis_accepts_omitted_manifest_fields_and_rejects_undeclared_value(
+) -> None:
     profile = _profile()
+    slot = _slot(0, 0)
+    rows = core.create_attempt_registry_genesis(
+        profile=profile,
+        slots=[slot],
+        binding=_BINDING,
+    )
+
+    assert {"freeze_id", "manifest_path", "manifest_sha256"}.isdisjoint(rows[0])
+    assert core.load_attempt_registry(
+        _registry_bytes(rows), profile=profile, expected_binding=_BINDING,
+    ) == rows
+    _assert_core_rejection(
+        "[attempt-registry-genesis] manifest_sha256 is not declared by the "
+        "domain profile",
+        lambda: core.create_attempt_registry_genesis(
+            profile=profile,
+            manifest_sha256=_MANIFEST,
+            slots=[slot],
+            binding=_BINDING,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "declared_manifest_keys",
+    (
+        frozenset({"freeze_id"}),
+        frozenset({"manifest_path", "manifest_sha256"}),
+    ),
+    ids=("one-of-three", "two-of-three"),
+)
+def test_genesis_rejects_partial_manifest_key_profiles_early(
+    declared_manifest_keys: frozenset[str],
+) -> None:
+    base = _profile()
+    version = base.schema.current
+    partial = replace(
+        base,
+        schema=core.SchemaProfile(
+            current=version,
+            readable=base.schema.readable,
+            genesis_keys={
+                version: (
+                    base.schema.genesis_keys[version]
+                    | declared_manifest_keys
+                ),
+            },
+            event_keys=base.schema.event_keys,
+            receipt_keys=base.schema.receipt_keys,
+        ),
+    )
+
+    _assert_core_rejection(
+        "[attempt-registry-profile] genesis must declare either all or none "
+        "of the manifest keys",
+        lambda: core.create_attempt_registry_genesis(
+            profile=partial,
+            slots=[_slot(0, 0)],
+            binding=_BINDING,
+        ),
+    )
+
+
+def test_genesis_rejects_binding_codec_overlap_with_manifest_keys() -> None:
+    base = R._S8C_ATTEMPT_PROFILE
+
+    class OverlappingBindingCodec:
+        event_keys = frozenset({"manifest_sha256"})
+
+        def parse(self, row: Mapping[str, object], *, label: str) -> str:
+            del label
+            return str(row["manifest_sha256"])
+
+        def to_event_fields(self, binding: str) -> dict[str, object]:
+            return {"manifest_sha256": binding}
+
+        def identity(self, binding: str) -> str:
+            return binding
+
+        def capability_payload(
+            self, *, slot: object, binding: str, freeze_id: str,
+        ) -> dict[str, object]:
+            del slot, freeze_id
+            return {"manifest_sha256": binding}
+
+    overlapping = replace(base, binding_codec=OverlappingBindingCodec())
+    _assert_core_rejection(
+        "[attempt-registry-profile] binding codec overlaps manifest genesis keys",
+        lambda: core.create_attempt_registry_genesis(
+            profile=overlapping,
+            freeze_id="s8b-policy-control-freeze",
+            manifest_path=PurePosixPath("manifest.json"),
+            manifest_sha256=_MANIFEST,
+            slots=[_s8c_slot()],
+            binding="e" * 64,
+        ),
+    )
+
+
+def test_zero_and_three_manifest_key_profiles_remain_accepted() -> None:
+    rows_8b = core.create_attempt_registry_genesis(
+        profile=_profile(), slots=[_slot(0, 0)], binding=_BINDING,
+    )
+    assert "manifest_sha256" not in rows_8b[0]
+
+    rows_8c = core.create_attempt_registry_genesis(
+        profile=R._S8C_ATTEMPT_PROFILE,
+        freeze_id="s8b-policy-control-freeze",
+        manifest_path=PurePosixPath("manifest.json"),
+        manifest_sha256=_MANIFEST,
+        slots=[_s8c_slot()],
+    )
+    assert rows_8c[0]["manifest_sha256"] == _MANIFEST
+
+
+@pytest.mark.parametrize(
+    ("omitted", "expected_rejection"),
+    (
+        (
+            "freeze_id",
+            "[attempt-registry-schema] freeze_id is not a bounded non-empty string",
+        ),
+        (
+            "manifest_sha256",
+            "[attempt-registry-schema] manifest_sha256 is not a SHA-256 digest",
+        ),
+        (
+            "manifest_path",
+            "[attempt-registry-genesis] manifest_path is required by the domain "
+            "profile",
+        ),
+    ),
+    ids=("freeze_id", "manifest_sha256", "manifest_path"),
+)
+def test_s8c_genesis_requires_manifest_contract_and_preserves_exact_row(
+    omitted: str,
+    expected_rejection: str,
+) -> None:
+    slot = _s8c_slot()
+    arguments: dict[str, Any] = {
+        "profile": R._S8C_ATTEMPT_PROFILE,
+        "freeze_id": "s8b-policy-control-freeze",
+        "manifest_path": PurePosixPath("manifest.json"),
+        "manifest_sha256": _MANIFEST,
+        "slots": [slot],
+    }
+    rows = core.create_attempt_registry_genesis(**arguments)
+
+    assert rows[0] == {
+        "schema_version": "p3-8c-attempt-registry/v2",
+        "event": "freeze",
+        "freeze_id": "s8b-policy-control-freeze",
+        "manifest_path": "manifest.json",
+        "manifest_sha256": "4" * 64,
+        "root_path": "output/s8c-preregistration/attempt-registry.jsonl",
+        "retryable_failure_reasons": [
+            "launcher-failure", "node-failure", "preempted", "wall-timeout",
+        ],
+        "slots": [{
+            "slot_id": "s8b-policy-control-r0-a0",
+            "trial_id": "s8b-policy-control",
+            "arm": "on",
+            "holdout": "H1",
+            "campaign_id": "s8b-policy-control-campaign",
+            "replicate_index": 0,
+            "attempt_index": 0,
+            "schedule_row_sha256": (
+                "9788103557789f4bd1f84f26148e55628df1eb091491fbd6ccb3ec1a9dde83b9"
+            ),
+        }],
+        "event_index": 0,
+        "previous_event_sha256": "0" * 64,
+        "event_sha256": (
+            "3e28dc7e76bdebd07967a070bf0ec5ee235cef14b155ea76635c4bae35f69ea6"
+        ),
+    }
+    assert core.load_attempt_registry(
+        _registry_bytes(rows), profile=R._S8C_ATTEMPT_PROFILE,
+    ) == rows
+
+    incomplete = {key: value for key, value in arguments.items() if key != omitted}
+    _assert_core_rejection(
+        expected_rejection,
+        lambda: core.create_attempt_registry_genesis(**incomplete),
+    )
+
+
+def test_genesis_rejects_freeze_id_that_differs_from_8b_binding() -> None:
+    base = _profile()
+    version = base.schema.current
+    profile = replace(
+        base,
+        schema=core.SchemaProfile(
+            current=version,
+            readable=base.schema.readable,
+            genesis_keys={
+                version: base.schema.genesis_keys[version] | frozenset({
+                    "freeze_id", "manifest_path", "manifest_sha256",
+                }),
+            },
+            event_keys=base.schema.event_keys,
+            receipt_keys=base.schema.receipt_keys,
+        ),
+        build_genesis_fields=lambda freeze_id, manifest_path, manifest_sha256: {
+            "freeze_id": freeze_id,
+            "manifest_path": manifest_path.as_posix(),
+            "manifest_sha256": manifest_sha256,
+        },
+    )
     mismatched_binding = replace(_BINDING, freeze_sha256="d" * 64)
 
     _assert_core_rejection(

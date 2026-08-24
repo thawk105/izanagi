@@ -350,10 +350,91 @@ result を出す前に死んだ campaign の復帰には使えない。
 
 - scheduler accounting を実際に読んで receipt を発行する collector が無い。
 - receipt の store、facade、journal、stats consumer が未配線である。
+  2026-08-25 に store と adapter の**コードは入った** ([T-1630]) が、
+  production caller は作っていないので配線は未了のままである。
 - したがって durable な 8b registry / receipt は現時点で 0 件であり、
   **crash 点 4 で死んだ campaign を今日この経路で復帰させることはできない。**
   上表の可否欄は変わらない。
 - 収集器と配線は後続タスクへ直列化する。
+- **性能出力を読む前に分類を確定させる強制も未了である。** 2026-08-25 の adapter は
+  API の形で順序を守らせるが、呼び手は adapter を通さずに出力 file を直接読めるし、
+  共通 core を直接 import もできる。D510 決定 4 を閉じるには信頼側の起動器が要る。
+
+#### 権威分担と crash cut の真偽表 ([T-1603])
+
+crash からの復帰可否を決めるとき、**どの記録が真か**が場所ごとに違う。ここを曖昧にしたまま
+registry を足すと、同じ事実を 2 か所が別々に主張する。本節はその分担を固定する。
+
+**分担の原則は 1 つ。** admission 側は「誰がその cell を測ってよいか」(実行権) の権威、
+attempt registry は「その attempt に何が起きたか」(状態と終端) の権威である。
+registry は claim も consumed marker も書かず、「ticket を消費した」という独立の主張を持たない。
+admission 側は terminal の理由を持たない。
+
+##### 記録の実体 (共有 admission root を `R`、run directory を `D` とする)
+
+`R` は `s8b_holdout_admission.shared_admission_root` が返す
+`<git-common-dir>/izanagi/s8b-holdout-admission-v1` である。
+
+| 記号 | 実体 | 何の権威か | 排他の作り方 |
+|---|---|---|---|
+| C | `R/claims/<claim_digest>.json` | cell key の一回限りの掴み取り | `O_EXCL` |
+| L | `R/ledger.jsonl` | admission の可搬 evidence (`admit` 行) | root lock 内の追記 |
+| J | `D/journal.jsonl` の `session-start` / `session` | 個別 attempt の開始認可 | run directory の canonical 検査 |
+| M | `R/consumed/<claim_digest>-<marker_digest>.json` | attempt ticket の一回限りの消費 | `O_EXCL` |
+| A | `R/attempt-ledger.jsonl` | M の可搬 projection (M と同一 document) | root lock 内の追記 |
+| Q | `R/floor-attempt-registry-receipts/` の create-only 受領証 | 観測前分類の内容 | `O_EXCL` |
+| F | `R/floor-attempt-registries/<freeze_sha256>/registry.jsonl` | attempt の状態と終端 | root lock + 全体 bytes の atomic 置換 |
+
+**A は M の projection であって独立の権威ではない。** したがって
+「M があり A が無い」状態を復帰不能と扱ってはならない (下表 cut 6)。
+
+##### 真偽表
+
+registry の行を `F`(freeze) / `S`(start + pre-observation-seal) / `K`(classification) /
+`O`(observation-start) / `T`(terminal) / `R2`(recovery) で表す。
+
+| # | crash cut | C | L | J | M | A | Q | registry | 真を決める記録 | 次に何ができるか |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | claim 発行前 | 無 | 無 | 無 | 無 | 無 | 無 | 無 | C の不在 | fresh 再投入できる |
+| 2 | claim 後・ledger 前 | 有 | 欠 | 無 | 無 | 無 | 無 | 無 | C (one-shot) | resume で L を補完できる。公開は不可 |
+| 3 | claim 全件・観測前 | 有 | 有 | 無 | 無 | 無 | 無 | F | C と L | resume で残りを補完できる。公開は不可 |
+| 4 | registry reserve 後・classify 前 | 有 | 有 | start | 無 | 無 | 無 | F+S | J が開始認可、F+S が状態 | classify できる。落ちたままなら復帰対象 |
+| 5 | 受領証後・classification 行前 | 有 | 有 | start | 無 | 無 | 有 | F+S | Q が分類の権威、F は未投影 | **同一内容の exact retry だけ**できる。別内容の再分類は claim が拒否する |
+| 6 | consumed marker 後・attempt ledger 行前 | 有 | 有 | start | 有 | 欠 | 有 | F+S+K | **M が消費の権威** (A は projection) | observe できる。A の欠落を理由に止めない |
+| 7 | classify 後・observe 前 | 有 | 有 | start | 有 | 有 | 有 | F+S+K | M が実行権、F が状態 | observe できる |
+| 8 | observe 後・terminal 前 | 有 | 有 | session | 有 | 有 | 有 | F+S+K+O | F+O が観測開始の権威 | 外部証拠つき復帰だけできる (D740 の閉集合 2 値) |
+| 9 | terminal 後 | 有 | 有 | terminal | 有 | 有 | 有 | F+S+K+O+T | F の terminal | 同 slot は再走不可。**8b では次 ordinal も terminal 経由では開かない** (下記) |
+| 10 | recovery 後 | 有 | 有 | session | 有 | 有 | 有 | F+S+K+(O)+R2 | F の recovery と外部受領証 | 次 ordinal を 1 つだけ認可する |
+
+##### 8b で次 attempt を開けるのは検証済み recovery だけである
+
+core は次 ordinal の start を「直前 slot の `retryable-failure` terminal」か
+「検証済み recovery」のどちらか一方でだけ認可する。前者には条件が 2 つ付く。
+(i) terminal の理由が genesis の `retryable_failure_reasons` 集合に属すること、
+(ii) 8b は `forbid_retry_after_observation` なので観測開始済みの attempt では使えないこと。
+
+**8b の `retryable_failure_reasons` は空集合である。** したがって 8b では条件 (i) を
+満たす terminal を作れず、`retryable-failure` の terminal 自体が存在しえない。
+結果として、**8b で次 ordinal を開ける経路は検証済み recovery 1 本だけ**になる。
+D739 / D740 の復帰経路は「あれば便利な追加」ではなく、8b の唯一の再走経路である。
+
+##### この表が今日まだ閉じていない 2 か所 (正直な現在地)
+
+- **cut 6 の A 欠落を自動で埋める経路が床値には無い。** `consume_attempt_ticket`
+  (`s8b_holdout_admission.py`) は root lock 内で M を `O_EXCL` 作成してから A へ追記する。
+  この間で死ぬと A だけが欠ける。n-pilot 経路には `_recover_n_pilot_attempt_ledger_locked`
+  があるが、床値経路にはこれに相当する再構築が無い。**本表は adapter 側が A を要求しないことで
+  行き止まりを避けるが、A の欠落そのものは残る。**
+- **cut 10 の「次 ordinal」を admission 側が認可できない。** `consume_attempt_ticket` は
+  retry の trigger を journal 内の失敗した planned session に限定しており、registry の
+  recovery event を認可根拠にできない。**verified recovery を作れても次の ticket を
+  消費できない。** これは D496 の禁じる行き止まりであり、別タスクで閉じる。
+
+**この 2 か所を上の「recovery 1 本だけ」と併せて読むと、現在地はこうなる。** 8b で
+落ちた attempt を測り直す経路は検証済み recovery しか無く、その recovery を作れても
+admission が次の ticket を渡さない。つまり **D739 の復帰機構は admission 層で今日まだ
+発火しない。** registry 側の意味論と永続化が揃っても、この 1 点が閉じるまで crash 点 8 の
+運用上の可否は変わらない。
 
 ---
 

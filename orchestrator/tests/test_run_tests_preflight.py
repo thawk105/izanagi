@@ -24,6 +24,7 @@ if str(_REPO) not in sys.path:
 
 from tools.pegasus import dispatch_compute as DC
 from orchestrator.campaign import login_headroom as LH
+from orchestrator import test_selection_contract as CONTRACT
 
 
 _RUNNER = _REPO / "tools" / "run_tests.py"
@@ -32,7 +33,13 @@ assert _SPEC and _SPEC.loader
 RT = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(RT)
 
-_CANONICAL_CLEANUP_EXCLUSION = RT._PERMANENT_FULL_SUITE_EXCLUSIONS[0]
+_CANONICAL_CLEANUP_EXCLUSION = CONTRACT.Exclusion(
+    path=RT._SANCTIONED_CLEANUP_TEST_PATH,
+    reason="消滅pid型occupancy issueを3 scan連続観測しcleanup testsがrc22になる",
+    release_condition="dev-wave-cleanup-occupancy-churn taskがlandし、明示file走が全緑",
+    ruling="2026-08-24 user direct known-red registration",
+    set_version="dev-wave-cleanup-occupancy-churn-v1",
+)
 _CANONICAL_CLEANUP_EXCLUSIONS = (_CANONICAL_CLEANUP_EXCLUSION,)
 
 _EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({

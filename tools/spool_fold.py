@@ -51,12 +51,12 @@ ROTATION_PATH_RE = re.compile(
     r"docs/archive/worklog-phase3-[0-9]{4}-[1-9][0-9]*"
     r"(?:-(?:[1-9][0-9]*|[0-9]{4}-[1-9][0-9]*))?\.md"
 )
-STATE_VERSION = 2
+STATE_VERSION = 3
 STATE_PHASES = frozenset({"applied", "committed"})
 STATE_FIELDS = frozenset({
     "version", "phase", "transaction_id", "origin",
     "input_closure_sha256", "fold_date", "fragments", "gc_paths",
-    "projected_worklog_bytes", "rotation_path", "targets",
+    "projected_worklog_bytes", "rotation_path", "targets", "gate_receipt",
 })
 ORIGIN_FIELDS = frozenset({
     "kind", "base", "tested_tip", "wave_ref", "rollback_ref",
@@ -68,6 +68,10 @@ FRAGMENT_STATE_FIELDS = frozenset({
 TARGET_STATE_FIELDS = frozenset({
     "path", "before_exists", "before_sha256", "after_sha256",
     "after_bytes_b64",
+})
+GATE_RECEIPT_FIELDS = frozenset({
+    "transaction_id", "registry_digest", "nodeids", "target_raw_digests",
+    "outcome", "uncovered_families",
 })
 LEGACY_RECEIPT_FIELDS = frozenset({
     "allocations", "authored", "content_sha256", "seq", "wave",
@@ -197,6 +201,16 @@ class FragmentReceipt:
 
 
 @dataclasses.dataclass(frozen=True)
+class FoldGateReceipt:
+    transaction_id: str
+    registry_digest: str
+    nodeids: tuple[str, ...]
+    target_raw_digests: tuple[tuple[str, str], ...]
+    outcome: str
+    uncovered_families: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True)
 class FoldPlan:
     status: str
     fold_date: str
@@ -210,6 +224,7 @@ class FoldPlan:
     gc_paths: tuple[str, ...]
     projected_worklog_bytes: int
     rotation_path: str | None = None
+    gate_receipt: FoldGateReceipt | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -264,6 +279,10 @@ class SpoolValidationError(SpoolError):
 
 class TransactionError(SpoolError):
     """transaction の before/after 以外を検出した。"""
+
+
+class FoldGateReceiptError(TransactionError):
+    """land transaction の gate receipt が不在または不正。"""
 
 
 class _DiffPreflightError(TransactionError):
@@ -2590,7 +2609,7 @@ def plan_fold(
     return plan
 
 
-def _atomic_write(path: Path, data: bytes) -> None:
+def _atomic_replace(path: Path, data: bytes, mode: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary_path = Path(temporary)
@@ -2599,6 +2618,7 @@ def _atomic_write(path: Path, data: bytes) -> None:
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
+        os.chmod(temporary_path, mode)
         os.replace(temporary_path, path)
         directory_fd = os.open(path.parent, os.O_RDONLY)
         try:
@@ -2608,6 +2628,38 @@ def _atomic_write(path: Path, data: bytes) -> None:
     finally:
         if temporary_path.exists():
             temporary_path.unlink()
+
+
+def _atomic_write(path: Path, data: bytes, *, mode: int | None = None) -> None:
+    if mode is None:
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            mode = 0o600
+        else:
+            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(
+                metadata.st_mode
+            ):
+                raise TransactionError(
+                    f"atomic write target が symlink/非 regular: {path}"
+                )
+            mode = stat.S_IMODE(metadata.st_mode)
+    _atomic_replace(path, data, mode)
+
+
+def _atomic_write_canonical_target(path: Path, data: bytes) -> None:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        pass
+    else:
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(
+            metadata.st_mode
+        ):
+            raise TransactionError(
+                f"canonical write target が symlink/非 regular: {path}"
+            )
+    _atomic_replace(path, data, 0o644)
 
 
 def _plan_state(plan: FoldPlan) -> dict[str, object]:
@@ -2632,6 +2684,22 @@ def _plan_state(plan: FoldPlan) -> dict[str, object]:
         "gc_paths": list(plan.gc_paths),
         "projected_worklog_bytes": plan.projected_worklog_bytes,
         "rotation_path": plan.rotation_path,
+        "gate_receipt": (
+            None
+            if plan.gate_receipt is None
+            else {
+                "nodeids": list(plan.gate_receipt.nodeids),
+                "outcome": plan.gate_receipt.outcome,
+                "registry_digest": plan.gate_receipt.registry_digest,
+                "target_raw_digests": [
+                    list(pair) for pair in plan.gate_receipt.target_raw_digests
+                ],
+                "transaction_id": plan.gate_receipt.transaction_id,
+                "uncovered_families": list(
+                    plan.gate_receipt.uncovered_families
+                ),
+            }
+        ),
         "targets": [
             {
                 "after_bytes_b64": base64.b64encode(target.after_bytes).decode("ascii"),
@@ -2716,6 +2784,59 @@ def _origin_from_state(value: object) -> FoldOrigin:
     return origin
 
 
+def _gate_receipt_from_state(value: object) -> FoldGateReceipt | None:
+    if value is None:
+        return None
+    if type(value) is not dict or frozenset(value) != GATE_RECEIPT_FIELDS:
+        raise FoldGateReceiptError("fold gate receipt field 集合が不正")
+    transaction_id = value["transaction_id"]
+    registry_digest = value["registry_digest"]
+    nodeids = value["nodeids"]
+    raw_digests = value["target_raw_digests"]
+    outcome = value["outcome"]
+    uncovered = value["uncovered_families"]
+    if (
+        type(transaction_id) is not str
+        or SHA_RE.fullmatch(transaction_id) is None
+        or type(registry_digest) is not str
+        or SHA_RE.fullmatch(registry_digest) is None
+        or type(nodeids) is not list
+        or any(type(nodeid) is not str or not nodeid for nodeid in nodeids)
+        or tuple(nodeids) != tuple(sorted(set(nodeids)))
+        or type(raw_digests) is not list
+        or type(outcome) is not str
+        or outcome != "covered-families-passed"
+        or type(uncovered) is not list
+        or any(type(family) is not str or not family for family in uncovered)
+        or tuple(uncovered) != tuple(sorted(set(uncovered)))
+    ):
+        raise FoldGateReceiptError("fold gate receipt の値型/正規形が不正")
+    pairs: list[tuple[str, str]] = []
+    for pair in raw_digests:
+        if (
+            type(pair) is not list
+            or len(pair) != 2
+            or type(pair[0]) is not str
+            or not _target_rel_valid(pair[0])
+            or type(pair[1]) is not str
+            or SHA_RE.fullmatch(pair[1]) is None
+        ):
+            raise FoldGateReceiptError("fold gate target raw digest が不正")
+        pairs.append((pair[0], pair[1]))
+    if tuple(pairs) != tuple(sorted(set(pairs))):
+        raise FoldGateReceiptError(
+            "fold gate target raw digest の順序/一意性が不正"
+        )
+    return FoldGateReceipt(
+        transaction_id,
+        registry_digest,
+        tuple(nodeids),
+        tuple(pairs),
+        outcome,
+        tuple(uncovered),
+    )
+
+
 def _state_plan(state: Mapping[str, object]) -> FoldPlan:
     if type(state) is not dict or frozenset(state) != STATE_FIELDS:
         raise TransactionError("transaction state top-level field 集合が不正")
@@ -2743,6 +2864,7 @@ def _state_plan(state: Mapping[str, object]) -> FoldPlan:
     ):
         raise TransactionError("transaction state の rotation_path が不正")
     origin = _origin_from_state(state["origin"])
+    gate_receipt = _gate_receipt_from_state(state["gate_receipt"])
 
     raw_targets = state["targets"]
     if type(raw_targets) is not list:
@@ -2863,7 +2985,7 @@ def _state_plan(state: Mapping[str, object]) -> FoldPlan:
     plan = FoldPlan(
         "planned", fold_date, transaction_id, origin,
         input_closure_sha256, phase, (), targets, fragments,
-        tuple(raw_gc_paths), projected, rotation_path,
+        tuple(raw_gc_paths), projected, rotation_path, gate_receipt,
     )
     expected_id = _plan_transaction_id(
         plan.fold_date,
@@ -2877,6 +2999,22 @@ def _state_plan(state: Mapping[str, object]) -> FoldPlan:
     )
     if expected_id != plan.transaction_id:
         raise TransactionError("transaction_id が payload と不一致")
+    if origin.kind == "land" and gate_receipt is not None:
+        if gate_receipt.transaction_id != plan.transaction_id:
+            raise FoldGateReceiptError(
+                "fold gate receipt transaction_id が plan と不一致"
+            )
+        expected_raw_digests = tuple(
+            (target.path, _sha256(target.after_bytes)) for target in plan.targets
+        )
+        if gate_receipt.target_raw_digests != expected_raw_digests:
+            raise FoldGateReceiptError(
+                "fold gate receipt target raw digest が plan と不一致"
+            )
+    elif gate_receipt is not None:
+        raise FoldGateReceiptError(
+            "standalone transaction が fold gate receipt を持つ"
+        )
     return plan
 
 
@@ -2888,10 +3026,18 @@ def _load_state(path: Path) -> dict[str, object]:
         value = json.loads(raw.decode("utf-8", errors="strict"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise TransactionError(f"transaction state を読めない: {exc}") from exc
-    if type(value) is not dict or frozenset(value) != STATE_FIELDS:
+    if type(value) is not dict:
+        raise TransactionError("transaction state version/schema が不正")
+    if "gate_receipt" not in value:
+        raise FoldGateReceiptError(
+            "旧 transaction state に fold gate receipt がない"
+        )
+    if frozenset(value) != STATE_FIELDS:
         raise TransactionError("transaction state version/schema が不正")
     if type(value["version"]) is not int or value["version"] != STATE_VERSION:
-        raise TransactionError("transaction state version/schema が不正")
+        raise FoldGateReceiptError(
+            "transaction state version が fold gate receipt schema と不一致"
+        )
     canonical = json.dumps(
         value, ensure_ascii=False, separators=(",", ":"), sort_keys=True,
     ).encode("utf-8") + b"\n"
@@ -3050,7 +3196,12 @@ def _verify_apply_head(repo: Path, plan: FoldPlan) -> None:
         raise TransactionError("apply HEAD が origin.tested_tip と不一致")
 
 
-def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResult:
+def apply_fold(
+    repo: str | os.PathLike[str] | Path,
+    plan: FoldPlan,
+    *,
+    gate_receipt: FoldGateReceipt | None = None,
+) -> FoldResult:
     """FoldPlan を transaction state、canonical、GC の順で適用する。"""
 
     repo = Path(repo).resolve()
@@ -3070,6 +3221,13 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
         stored_plan = _state_plan(_load_state(state_path))
         if stored_plan.transaction_id != plan.transaction_id:
             raise TransactionError("active transaction と渡された plan の ID が不一致")
+        if (
+            stored_plan.gate_receipt is not None
+            and stored_plan.gate_receipt != gate_receipt
+        ):
+            raise FoldGateReceiptError(
+                "active transaction と渡された fold gate receipt が不一致"
+            )
         plan = stored_plan
         if plan.phase != "applied":
             raise TransactionError("committed transaction を apply へ戻せない")
@@ -3086,6 +3244,23 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
         )
         if expected_id != plan.transaction_id:
             raise TransactionError("渡された plan の transaction_id が payload と不一致")
+        if plan.origin.kind == "land" and gate_receipt is not None:
+            expected_raw_digests = tuple(
+                (target.path, _sha256(target.after_bytes))
+                for target in plan.targets
+            )
+            if (
+                gate_receipt.transaction_id != plan.transaction_id
+                or gate_receipt.target_raw_digests != expected_raw_digests
+            ):
+                raise FoldGateReceiptError(
+                    "fresh fold gate receipt が plan bytes と不一致"
+                )
+            plan = dataclasses.replace(plan, gate_receipt=gate_receipt)
+        elif gate_receipt is not None:
+            raise FoldGateReceiptError(
+                "standalone transaction へ fold gate receipt を渡せない"
+            )
         _verify_apply_head(repo, plan)
         _validate_closure(repo, plan)
     approval_issue = _approval_guard_issue(repo, _plan_decision_payloads(repo, plan))
@@ -3108,7 +3283,7 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
             resumed.append(target.path)
             continue
         path = repo / target.path
-        _atomic_write(path, target.after_bytes)
+        _atomic_write_canonical_target(path, target.after_bytes)
         if _sha256(path.read_bytes()) != target.after_sha256:
             raise TransactionError(f"{target.path}: after write hash が不一致")
         written.append(target.path)

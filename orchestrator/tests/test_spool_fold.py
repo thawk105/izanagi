@@ -2027,7 +2027,7 @@ def test_plan_fold_rejects_origin_not_matching_observed_git(tmp_path: Path) -> N
         _raises("origin", spool_fold.plan_fold, repo, origin=changed)
 
 
-def test_state_v2_schema_is_exact_and_v1_is_rejected(tmp_path: Path) -> None:
+def test_state_v3_schema_is_exact_and_v1_v2_are_rejected(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     _fragment(repo, "worklog", _worklog_body(repo))
     plan = _plan_for_commit(repo, fold_date="2026-08-02")
@@ -2035,11 +2035,12 @@ def test_state_v2_schema_is_exact_and_v1_is_rejected(tmp_path: Path) -> None:
 
     assert frozenset(state) == spool_fold.STATE_FIELDS
     assert frozenset(state["origin"]) == spool_fold.ORIGIN_FIELDS
-    assert state["version"] == 2 and state["phase"] == "applied"
+    assert state["version"] == 3 and state["phase"] == "applied"
     assert all(frozenset(item) == spool_fold.FRAGMENT_STATE_FIELDS for item in state["fragments"])
     assert all(frozenset(item) == spool_fold.TARGET_STATE_FIELDS for item in state["targets"])
-    v1 = dict(state, version=1)
-    _transaction_raises("version", spool_fold._state_plan, v1)
+    for legacy_version in (1, 2):
+        legacy = dict(state, version=legacy_version)
+        _transaction_raises("version", spool_fold._state_plan, legacy)
 
 
 def test_state_v2_rejects_missing_extra_and_coerced_nested_fields(tmp_path: Path) -> None:
@@ -3431,8 +3432,10 @@ def test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals(tmp_path: Pa
 
 def test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed(
     tmp_path: Path,
+    *,
+    _checkout: Path = ROOT,
 ) -> None:
-    repo = _copy_real_canonical_family(tmp_path)
+    repo = _copy_real_canonical_family(tmp_path, checkout=_checkout)
     _install_cli(repo)
     substantive = _latest_substantive_task_bytes(repo, "[T-139]")
     expected = (hashlib.sha256(substantive).hexdigest() + "\n").encode("ascii")
@@ -4008,9 +4011,8 @@ def _fixture_tools_imports(repo: Path) -> Iterator[None]:
         sys.modules.update(original_modules)
 
 
-def _copy_real_canonical_family(tmp_path: Path) -> Path:
-    checkout = Path(__file__).resolve().parents[2]
-    repo = tmp_path / "real-canonical"
+def _real_canonical_sources(checkout: Path) -> tuple[Path, ...]:
+    checkout = checkout.resolve()
     fixed_paths = (
         "docs/worklog.md",
         "docs/decisions.md",
@@ -4032,6 +4034,17 @@ def _copy_real_canonical_family(tmp_path: Path) -> Path:
         for source in sorted((checkout / "tools/dev_waves").rglob("*"))
         if source.is_file() and "__pycache__" not in source.parts and source.suffix != ".pyc"
     )
+    return tuple(sources)
+
+
+def _copy_real_canonical_family(
+    tmp_path: Path,
+    *,
+    checkout: Path = ROOT,
+) -> Path:
+    checkout = checkout.resolve()
+    repo = tmp_path / "real-canonical"
+    sources = _real_canonical_sources(checkout)
     for source in sources:
         destination = repo / source.relative_to(checkout)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -4062,7 +4075,16 @@ def _assert_dev_waves_modules_restored(expected: dict[str, object]) -> None:
 def test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions(
     tmp_path: Path,
 ) -> None:
-    repo = _copy_real_canonical_family(tmp_path)
+    repo = tmp_path / "fixture-tools"
+    for source in _real_canonical_sources(ROOT):
+        if source != ROOT / "tools/spool_fold.py" and not (
+            ROOT / "tools/dev_waves"
+        ) in source.parents:
+            continue
+        destination = repo / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+        assert destination.read_bytes() == source.read_bytes()
     probe_name = "dev_waves._fixture_tools_imports_positive_control"
     _write(
         repo / "tools/dev_waves/_fixture_tools_imports_positive_control.py",

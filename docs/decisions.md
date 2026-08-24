@@ -30346,3 +30346,246 @@ commit OID へ解決し、以後の全 `git grep` と全 `git show` に同じ OI
 **却下した選択肢:**
 - batch ごとに symbolic ref を渡し続ける — 上の等式が成立せず、分割の正当化ができない。
 - 解決結果を呼び出し側だけで持ち、内部は symbolic のまま — `git show` が別 snapshot を読む窓が残る。
+
+## D790. SS2PL のロック規律スタディは 3 軸の inert patch にし、stock 実装との対照 arm を必須にする (2026-08-25)
+
+**決定:** CCBench の SS2PL を「排他 / reader-writer」「待つ / No-Wait / Wound-Wait」の 2 軸で
+変異させるとき、**3 本目の軸 `SS2PL_LOCK_IMPL` (0 = stock の `ReaderWriteLock`、1 = 合成した
+study lock) を必ず持たせ、同じ意味論を stock 実装で測った点を対照 arm として置く。**
+既定 (`IMPL=0, KIND=1, DLR=1`) は stock 逐語であり、patch は既定で inert である。
+改変は submodule へ commit せず out-of-tree patch に置く (D16 第 4 類 / D18)。
+
+**理由:**
+- 2 軸だけだと、phase3 (排他 + Wound-Wait) と phase4 (RW + Wound-Wait) の差に
+  **合成した lock 実装そのものの費用が混ざったまま分離できない。** 排他版でも
+  reader bitmap・tuple latch・thread 別 control slot の費用を払い続けるため、
+  「素の排他 2PL を RW 化した効果」とは呼べない。
+- stock 実装で同じ意味論 (RW + No-Wait) を測った点を並べると、
+  **S と C の差 = 合成 lock の実装費用**が直接読める。実測では 48 スレッドで
+  stock 677,682 tps に対し合成 RW No-Wait が 538,021 tps で、実装費用は無視できない大きさだった。
+  この対照が無ければ、その差が RW 化の効果に誤って帰属される。
+- 既定を stock 逐語にすることで、patch を当てただけでは baseline が動かないことを構造で保つ
+  (絶対規律 2 を patch 適用の側で守る)。
+
+**却下した選択肢:**
+- **2 軸のまま実装費用を無視する:** 比較図の差分が機構に帰属しなくなる。
+- **stock と study lock で別々の patch を作る:** 2 つの patch の相互作用を検査する義務が増え、
+  同一 build から両方を出せなくなる。
+- **submodule へ commit する:** gitlink 前進は承認定数の再承認と freeze の再凍結を
+  確定的に発生させる。価値が未確定の探索 variant にその費用を払わない。
+
+## D791. デッドロックの証拠は wait-for graph の閉路の持続性で受理し、ハングを証拠にしない (2026-08-25)
+
+**決定:** 「デッドロックが起きた」と記録してよいのは、次を**すべて**満たすときだけとする。
+
+1. 同一の整合 snapshot 上で、各辺が「待ち手 -> その lock の実 holder」かつ両者の要求 mode が非両立。
+2. 連続 3 snapshot で、閉路に属する全 node の thread id・attempt・待っている lock id・要求 mode が
+   すべて同一であり、**辺の topology も同一**である。thread id だけの正規化では受理しない。
+3. 閉路中の各 thread の commit counter と abort counter が 3 snapshot 間で不変。
+4. 該当の走行が hard timeout で終わっている (自力で終了していない)。
+
+証拠を採る計器は既定 OFF の compile-time スイッチに置き、性能ビルドから完全に消す。
+**この証拠は計装ビルドのものであり、未計装ビルドでの発生率の証拠ではない**とレポートに明記する。
+
+**理由:**
+- 「プロセスが終わらなかった」は、デッドロック以外 (単なる遅さ、飢餓、外乱) でも成立する。
+  閉路そのものを取らないと機構に帰属できない。
+- snapshot を 1 枚だけ見ると、進行中の待ちを閉路と読み違える。thread id だけで正規化すると、
+  holder が入れ替わりながら別の閉路が連続して存在する状態も同じ signature になる。
+- 計器が発生確率を変えうるので、一般化の射程を証拠の側で限定しておく。
+
+**却下した選択肢:**
+- **timeout を証拠にする:** 上記のとおり機構に帰属しない。
+- **worker 自身に閉路検出させる:** 全 worker が lock 内で停止すると検査の機会が消える。
+- **外部 harness から推測する:** holder 情報が取れない。
+
+## D792. 決定論的に指定された変異には進化探索を使わず、射程の限定をレポートに書く (2026-08-25)
+
+**決定:** ユーザーが変異内容を決定論的に指定した実験では、izanagi の進化探索を使わない。
+ただしレポートには「**探索空間が存在しない**」とは書かず、次のように書く。
+
+> 指定された変異は候補選択の問題を持たないため、本 wave では探索を scope 外とした。
+> ただし RW lock の実装 (状態の詰め方、latch の有無、reader 表現、padding) には設計空間があり、
+> 本 wave の結論は**一つの手設計実装**に限定される。設計空間が存在しない、最適化済みである、
+> 探索しても情報が増えない、とは主張しない。
+
+**理由:**
+- 探索の配線は特定 protocol に閉じており、別 protocol へ広げる費用は実験の情報量に見合わない。
+- 一方で「探索空間が無い」と言い切るのは誤りである。実装の設計空間は現に存在し、
+  本 wave の実測でも、同じ意味論のまま待ち合わせ機構を変えるだけで
+  48 スレッドの throughput が 2 桁変わった。**射程の限定を書かないと結論が過大になる。**
+
+**却下した選択肢:**
+- **探索を配線してから測る:** scope が数倍になり、必須 4 点の取得が遅れる。
+- **「探索空間が無い」と書く:** 実測と矛盾する。
+
+## D793. 削除済み cwd は readlink の生値で判定し、対象外のときだけ非占有として数える (2026-08-25)
+
+**決定:** `tools/check_worktree_occupancy.py` は `os.readlink("/proc/<pid>/cwd")` の成功と
+`Path.resolve(strict=True)` の失敗を別々に扱う。非占有として数えるのは次の論理積が
+すべて成立する場合だけとする。
+
+1. `os.readlink` が成功した。
+2. その**戻り値の文字列そのもの**が正確に `" (deleted)"` で終わる (正規化前に判定する)。
+3. `resolve(strict=True)` だけが `FileNotFoundError` を投げた。
+4. `/proc/<pid>` が実在する (pid 消滅ではない)。
+5. 生綴りと suffix 除去綴りの**どちらも**全 target の外にある。
+
+件数は `unreachable.cwd_deleted` へ出し、非ゼロのときだけ payload へ載せる。
+どちらかの綴りが対象内なら `sources` へ `cwd` を積んで **occupant のまま**とする。
+suffix の無い解決失敗は従来どおり `issues` へ残す。削除済み cwd の pid でも
+cmdline 検査は続け、相対 argv の base には両綴りを使う。
+
+`dev_wave_cleanup` の最終受理条件と `_is_disappeared_pid_issue` は変更しない。
+
+**理由:**
+- 削除済み directory に居るプロセスは、その directory が対象の外にあるなら対象を占有しえない。
+  一方 `/proc/<pid>` は残り pid 消滅とも判定されないため、D705 の有界再試行では永久に解けなかった。
+  実測ではこの型の生存プロセス 2 本があるだけで、誰も居ない空 directory ですら
+  `indeterminate` / rc=2 になり、5 scan 連続で同一だった。
+- suffix を正規化前に判定するのは、`" (deleted)"` が path の意味ではなく kernel が付ける
+  文字列の目印であり、正規化がそれを保存しないためである
+  (F549)。
+- 生綴りと除去綴りの or で照合するのは、実在の directory 名が文字どおり `foo (deleted)` で
+  ありうる曖昧さを安全側 (偽陽性) へ倒すためである。
+- 対象**内**の削除済み subdir を occupant のまま残すのは、そこを非占有へ落とすと
+  fail-open になるためである。実測では現行実装がこれを `issue` として扱っており、
+  素朴な修正だと黙って非占有へ落ちることを確認した。
+
+**却下した選択肢:**
+- 解決失敗をすべて非占有として数える — bind mount・pivot_root・別 mount namespace 由来の
+  到達不能 spelling まで非占有へ落ち、撤去してよいと誤答する。
+- `/proc/<pid>/cwd` を fd として開き `(st_dev, st_ino)` の祖先鎖で証明する — 本 wave の
+  費用対効果に見合わず、mount namespace を跨ぐ保証も得られない。
+- 撤去 tool 側だけで許容する — 共有 gate が壊れたままになる (D705 と同じ理由)。
+
+## D794. cmdline 除外は確認済み祖先に限り、invoker allowlist は実測で決める (2026-08-25)
+
+**決定:** cmdline 由来の占有から除外するのは、次の論理積がすべて成立する場合だけとする。
+
+1. 走査対象 pid が**確認済みの祖先**である。祖先鎖は `/proc/<pid>/status` の `PPid` を辿り、
+   `seen` 集合で循環を止め、読めない地点で打ち切り、各段で `starttime` の前後一致を確認する。
+   走査時の `start_before` が snapshot の値と一致するときだけ祖先と認める (pid 再利用を弾く)。
+2. `/proc/<pid>/exe` の basename が invoker allowlist に含まれる。
+3. argv に**絶対 path の checker** が載っている。
+4. その checker token より**後方**の token が対象を指す。
+
+allowlist は既存の shell 5 種に加え、**実測で偽陽性を作ることを確認した**
+`timeout` / `flock` / `time` / `strace`、および実測では発火しないが多重防御として
+`nohup` / `env` / `stdbuf` / `xargs` / `setsid` / `nice` / `ionice` を含む 16 種とする。
+後者 7 種の到達可能性はゼロであると裁定に記録する。
+
+**理由:**
+- 直接の親だけを見る従来の除外は、`timeout` 等の wrapper を挟むと外れ、
+  wrapper の argv に載った対象 path 自体が占有の証拠として数え直されていた (F525)。
+- exe 名の列挙が正しい形かを実測で確かめた。allowlist に載せるべき 4 種のうち
+  当初案は 1 種しか覆わず、載っていた 5 種のうち 3 種は自分を exec で置き換えるため
+  到達不能だった。`DW-O13` の「述語が要求する値の到達可能性を実測してから採用する」に従い、
+  中身を実測で入れ替えた。
+- exe 条件を撤去して「祖先なら無条件に除外」とする案は採らない。既存の負例 2 件は
+  対象を明示的に親として渡したうえで occupant を要求しており、守っている性質は
+  「非祖先は信頼しない」ではなく**「親であるだけでは信頼しない」**である。
+  非祖先 fixture へ書き換えるのは検出力を弱めて緑にする変更に当たる。
+- 呼び出し側の規律 (wrapper を挟まず絶対 path で呼ぶ) は緩めない。本決定は多重防御であり、
+  allowlist 外の fork 型 wrapper 経由では偽陽性が残る。
+
+**却下した選択肢:**
+- 祖先鎖に居るなら argv 条件も exe 条件も無しで除外する — 既存の安全契約を緩める。
+- `pidfd_open` で祖先 instance を保持する — 除外が消すのは cmdline 由来の証拠だけで、
+  cwd 由来の判定は祖先にも適用されるため、`starttime` + `PPid` 照合で足りる。
+- 祖先 edge を invoker ごとに証明する — allowlist の列挙を根本から不要にできる有力案だが、
+  要追加検証で本 wave の scope を超える。
+
+## D795. 対象指定の誤りは status で区別し、rc は判定不能と同じにする (2026-08-25)
+
+**決定:** 対象が**不在**または**directory でない**場合、`status` を `invalid-target` とし、
+stderr へ固定 1 行 `check_worktree_occupancy: status=invalid-target` を出す。
+rc は `indeterminate` と同じ 2 のままとする。`dev_wave_cleanup` の status→rc 写像にも
+同じ entry を足す (欠けると `KeyError` になる)。
+
+**理由:**
+- 相対 path を渡すと走査対象が空になり、`occupants: []` だけを見た呼び手が
+  「撤去可」と誤読する事故が起きた。`status` が `indeterminate` でなくなり
+  stderr にも出れば、`scanned=0` を見落としても原因が分かる。
+- 新しい rc を足しても**受理・拒否の集合は 1 bit も変わらない** (rc2 も新 rc も
+  呼び手側では停止)。区別を必要とする実 consumer は現時点で存在しない。
+- 一方で新 rc は command 入口・contract literal・whole-file hash・test 側の
+  期待 hash と合成 fixture・負例 literal という 7 群以上の pin 同期を要求する。
+  入口の byte 予算 headroom は実測 51 bytes しかなく、追随漏れは恒久的な検査赤になる。
+
+**却下した選択肢:**
+- 新しい rc を足す — 上記の pin 費用に見合う consumer が無い。
+- 現状維持 (`indeterminate` のまま) — 呼び方の誤りと `/proc` 判定不能が区別できない。
+
+## D796. 8b の実行権は admission、attempt の状態と終端は registry が権威とする (2026-08-25)
+
+**決定:** 8b の crash 復帰で「どの記録が真か」を次のとおり固定する。
+
+- **admission 側** (`claims/`、`consumed/` の marker、`ledger.jsonl`、`attempt-ledger.jsonl`) が
+  「誰がその cell を測ってよいか」= **実行権**の権威である。
+- **attempt registry** が「その attempt に何が起きたか」= **状態と終端**の権威である。
+- registry は claim も consumed marker も書かず、「ticket を消費した」という独立の主張を持たない。
+  admission 側は terminal の理由を持たない。
+- `attempt-ledger.jsonl` は consumed marker の **projection であって独立の権威ではない。**
+  したがって「marker があり ledger 行が無い」状態を復帰不能と扱ってはならない。
+
+**理由:**
+
+- 同じ事実を 2 か所が別々に主張すると、crash cut でどちらが真かが実行時に決まり、
+  attempt 台帳の consumed 数と terminal 集合が非決定になる。
+- marker は `O_EXCL` で作られる不可逆な事実であり、ledger 行はその後の追記である。
+  床値経路には n-pilot 経路にある marker からの ledger 再構築が無いため、
+  ledger 行を復帰の必要条件にすると **marker 作成後・ledger 追記前で死んだ cell が
+  永久に行き止まりになる。** これは D496 の「行き止まりを作らない」に反する。
+
+**却下した選択肢:**
+
+- registry を実行権の第二の master にする — 二重権威になり、crash cut の真偽が非決定になる。
+- observe の前提に attempt-ledger 行を要求する — 上記の永久停止を作る。
+  段 2 の plan はこの形だったが、段 3 の敵対 2 レンズが独立に行き止まりだと示した。
+- marker と ledger の不整合を adapter が自動修復する — 編集面外の admission 契約を
+  adapter が勝手に代行することになり、権威分担を曖昧にする。
+
+## D797. 8b adapter は出力前分類を閉じないと明記して実装する (2026-08-25)
+
+**決定:** 8b attempt registry adapter は、分類 → 観測 → 終端の順序を型と token で強制するが、
+**D510 決定 4 (信頼側の起動器が性能出力を読む前に分類を確定する) を閉じたとは扱わない。**
+実装の docstring と手順書へ限界を明記し、閉じるには信頼側の起動器が要ることを併記する。
+`s8b_floor_campaign.py` の分類位置の移動と scheduler accounting collector は本 wave の scope 外とする。
+
+**理由:**
+
+- adapter の公開 API を通る限り順序は守られるが、**呼び手は adapter を通さずに出力 file を
+  直接読める**し、共通 core は公開純関数なので直接 import もできる。
+  段 3 の敵対レンズが file:line でこれを示した。
+- 「API の形で守れば規律 2 を満たす」という段 1 brief の前提は、この指摘で成立しないと判明した。
+  親はこれを誤りとして受け入れ、成果物側で誇張しない義務に変えた。
+- 閉じたと書いてしまうと、後続の wave が「もう安全だ」と誤認して正式測定へ進みうる。
+  絶対規律 2 に関わるため、限界の明記は実装と同格の成果物とする。
+
+**却下した選択肢:**
+
+- 本 wave で `s8b_floor_campaign.py` の分類位置まで移す — 床値を出す 7000 行超の module を
+  同じ wave で触ることになり、collector が無いままでは復帰経路も発火しない。
+- 閉じたと書いて後で直す — 絶対規律 2 を緩める向きの記録を残すことになる。
+
+## D798. 生き残った変異は mask だけでなくテストの穴も疑い、穴なら負例を足す (2026-08-25)
+
+**決定:** 変異が SURVIVED したとき、他層による mask と等価変異を疑ったうえで、
+**mask でないなら「その gate の固有の力を撃つ負例がテストに無い」= テストの穴**として扱う。
+穴と判定した場合は変異を作り替えるのでなく、**実装を変えずに負例を足す。**
+
+**理由:**
+
+- 本 wave の実測で、生き残った 3 件はいずれも mask ではなくテストの穴だった。
+  実装は正しく、足りていたのは負例だけだった。
+- 変異を「撃てる形」へ作り替えるだけだと、変異 matrix は緑になるが**実際の検出力は増えない。**
+  台帳上の見かけだけが良くなる。
+- 敵対レビュー 3 本 (段 3 の 2 レンズ、段 6 の 2 レンズ、統合後の焦点再レビュー) はいずれも
+  この 3 件を見つけていない。変異走行だけが見つけた。静的レビューの死角がここにある。
+
+**却下した選択肢:**
+
+- 生存を equivalent と記録して閉じる — 実際には固有の力が未検査のまま残る。
+- 両層同時変異へ作り替えて緑にする — mask が実在する場合の手当てであり、
+  テストの穴には効かない。検出力は増えないまま台帳だけ緑になる。

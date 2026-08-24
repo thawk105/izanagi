@@ -1400,18 +1400,61 @@ def load_attempt_registry(
 
 
 def create_attempt_registry_genesis(
-    *, profile: DomainProfile[SlotT, BindingT], freeze_id: str,
-    manifest_path: PurePosixPath, manifest_sha256: str,
+    *, profile: DomainProfile[SlotT, BindingT], freeze_id: str | None = None,
+    manifest_path: PurePosixPath | None = None,
+    manifest_sha256: str | None = None,
     slots: Sequence[SlotT],
     retryable_failure_reasons: Sequence[str] | None = None,
     binding: BindingT | None = None,
 ) -> RegistryRows:
     """Build the single canonical freeze row for a declared slot set."""
-    _text(freeze_id, label="freeze_id")
-    _digest(manifest_sha256, label="manifest_sha256")
-    manifest_relative = _safe_relative_path(
-        manifest_path.as_posix(), label="manifest_path",
+    keys = profile.schema.genesis_keys[profile.schema.current]
+    manifest_keys = frozenset({
+        "freeze_id", "manifest_path", "manifest_sha256",
+    })
+    declared_manifest_keys = keys & manifest_keys
+    if declared_manifest_keys and declared_manifest_keys != manifest_keys:
+        _fail(
+            "attempt-registry-profile",
+            "genesis must declare either all or none of the manifest keys",
+        )
+    binding_manifest_overlap = (
+        frozenset(profile.binding_codec.event_keys) & manifest_keys
     )
+    if binding_manifest_overlap:
+        _fail(
+            "attempt-registry-profile",
+            "binding codec overlaps manifest genesis keys",
+        )
+    if "freeze_id" in keys:
+        _text(freeze_id, label="freeze_id")
+    elif freeze_id is not None:
+        _fail(
+            "attempt-registry-genesis",
+            "freeze_id is not declared by the domain profile",
+        )
+    if "manifest_sha256" in keys:
+        _digest(manifest_sha256, label="manifest_sha256")
+    elif manifest_sha256 is not None:
+        _fail(
+            "attempt-registry-genesis",
+            "manifest_sha256 is not declared by the domain profile",
+        )
+    manifest_relative: str | None = None
+    if "manifest_path" in keys:
+        if manifest_path is None:
+            _fail(
+                "attempt-registry-genesis",
+                "manifest_path is required by the domain profile",
+            )
+        manifest_relative = _safe_relative_path(
+            manifest_path.as_posix(), label="manifest_path",
+        )
+    elif manifest_path is not None:
+        _fail(
+            "attempt-registry-genesis",
+            "manifest_path is not declared by the domain profile",
+        )
     serialized_slots = [profile.slot_codec.to_json(slot) for slot in slots]
     reasons = list(
         profile.retryable_reasons
@@ -1419,14 +1462,18 @@ def create_attempt_registry_genesis(
     )
     domain_fields = (
         {}
-        if profile.build_genesis_fields is None
+        if (
+            profile.build_genesis_fields is None
+            or not {
+                "freeze_id", "manifest_path", "manifest_sha256",
+            } <= keys
+        )
         else dict(profile.build_genesis_fields(
             freeze_id, PurePosixPath(manifest_relative), manifest_sha256,
         ))
     )
     if binding is not None:
         domain_fields.update(profile.binding_codec.to_event_fields(binding))
-    keys = profile.schema.genesis_keys[profile.schema.current]
     value: RegistryRow = {
         "schema_version": profile.schema.current,
         "event": "freeze",
@@ -1454,7 +1501,8 @@ def create_attempt_registry_genesis(
     parsed, _slots, _binding = _parse_genesis(
         value, profile=profile, label="attempt registry genesis",
     )
-    if _genesis_freeze_id(parsed, profile=profile, required=True) != freeze_id:
+    genesis_freeze_id = _genesis_freeze_id(parsed, profile=profile, required=True)
+    if freeze_id is not None and genesis_freeze_id != freeze_id:
         _fail(
             "attempt-binding",
             "genesis freeze_id differs from requested freeze_id",
