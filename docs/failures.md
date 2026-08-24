@@ -531,6 +531,8 @@
   恒久対応 (`.done` の実在と成果物の実在を併せて確認し、待ち手の rc を信じない) が
   3 回とも効き、実害はゼロ。追加事実は **偽完了が特定の段に偏らず、
   read-only の codex 子にも計算ノードへ dispatch する変異 harness にも等しく起きる**点である。
+
+- **再発: 2026-08-25** — `tools/dev_wave_wait.py producer` を背景 job で張った段 6 fix の待ち手が、producer 生存中に **exit 0 かつ出力ゼロ**で偽完了した。`.done` は不在、launcher pid は経過 1 分 24 秒で生存しており、実際の完了は約 8 分後だった。既存の恒久対応 (待ち手の rc を信じず `.done` の exit code と producer 生死で判定する) がそのまま効き、`git diff` が未変化であることと `ps -p` の生存で誤完了を弾いて待ち手を張り直した。本 wave の追加事実は無く、2026-08-17 / 2026-08-23 と同型の 3 度目である。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -4774,6 +4776,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   裏返せば「受入全走を投入するたびに一定確率で 1 回捨てる」費用を全 wave が払い続けることを
   意味する。恒久対応 (task-run 記録の書き出し先を shard session root へ逃がす seam) は
   本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は 1・2 例目と同じ。
+
+- **再発: 2026-08-25** — 受入全走 attempt 2 で `test_s8b_floor_campaign.py` の 12 件が
+  同一 assertion で落ちた。いずれも `repo_before = _real_output_snapshot()` と
+  test 末尾の再取得を比較する before/after 検査で、差分の実体は
+  `('dir', 'runs/pytest-launcher-failures/0-945252.nqsv--bnode018')` を含む 119 entry の増加である。
+  **汚染源は外部の並行 dispatch ではなく、同じ受入走行の launcher テスト自身の失敗 dump だった**
+  (上記 F273 の再発)。F136 の既知形 (隣で別 command を走らせた) と違い、
+  **受入全走 1 本の内部で完結する自己汚染**である点が新しい。
+  親は dump が追跡外であることを `git ls-files` で確認してから除去し、受入を再投入した。
+
+- **再発: 2026-08-25 (同日 4 例目)** — **docs-only ではない実装 wave でも同じ形が出た**点が新しい。同日 2・3 例目はいずれも差分が `docs/spool/` だけの wave だったため「docs-only wave が受入 shard 経路を通ると再現する」と記述したが、本 wave の差分は `tools/audit_dangling_commits.py` と `orchestrator/tests/test_audit_dangling_commits.py` の実装面 2 file である。それでも `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 11 件赤になり (11 failed / 15,431 passed / 60 skipped)、junit の差分は 11 件とも `first extra item: ('dir', 'task-runs/reports')` で 2・3 例目と逐語一致した。受入 shard は同じ作業木から request `945262` と `945263` を重ねて投入している (shard-1 の junit が 06:21:48、shard-0 が 06:23:55 に確定)。帰属は台帳が定める 3 点で否定した — (1) wave の実装面差分は `launch_cert` / `certificate` を 1 箇所も参照しない (`git diff 16086f12..HEAD -- tools/ orchestrator/` の grep が 0 件)、(2) 同 file の焦点走は **451 passed / 2 skipped** で緑 (2・3 例目と内訳まで一致)、(3) junit 差分が実装ではなく `output/task-runs/` の dir 増加を指す。**差分の性質 (docs-only か実装か) は条件でなく、受入 shard 経路を通ること自体が条件である**ことが確定した。恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は既存の再発と同じ。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -7941,6 +7954,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   台帳の再発検知どおり実測した — 並行 launcher は 1 本、login node の load average は 15.99、
   同ファイルの単独走 (`--force-dispatch`) は **170 passed / 7.11 秒 / rc=0** で緑。
   よって実装差分へ帰属させない。
+
+- **再発: 2026-08-25** — 受入全走 attempt 2 (tested tip `cd0955c7`) で
+  `test_codex_worker_launch.py` の 4 件 (`test_check_receipt_reads_v2/v3_parent_attempt_field_sets_without_upgrade`
+  の 3 param と `test_sigterm_ignoring_child_is_killed`) が落ちた。前者の本文は
+  子 process の `returncode=2` (`NG: receipt truth table が不正`)、後者は
+  `child.pid was not registered before deadline; stderr=''` で、いずれも子の起動・応答が
+  期限に間に合わなかった形である。attempt 1 では 4 件とも緑だった。
+- **この再発は単独では終わらなかった。** 落ちた 4 worker (`gw21` / `gw24` / `gw33` / `gw34`) の
+  launcher 失敗 dump が `output/runs/pytest-launcher-failures/0-945252.nqsv--bnode018/` へ
+  78 file 書かれ、**同じ走行の中で F136 を誘発した** (下記)。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -12555,6 +12578,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同ファイルの単独走 (`python3 tools/run_tests.py <file> --force-dispatch`) が緑かを確かめる。
   緑なら差分へ帰属させない。
 
+
+- **再発: 2026-08-25** — 受入全走 attempt 1 (tested tip `cd0955c7`) が
+  `orchestrator/tests/test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`
+  1 件だけで赤になった (1 failed / 15431 passed / 60 skipped)。破れたのは
+  `assert not first.is_alive() and not second.is_alive()` で、直前の `first.join(10)` が
+  10 秒で戻りきらなかったことによる。**同 node の単独走は 1 passed / 13.49 秒 / rc=0 で緑**であり
+  再現しない。本 wave の差分 (A/B 装置とそのテスト、共有 test 基盤 2 file) から当該ファイルへの
+  到達経路は無い。junit の記録では worker は `popen-gw30` で、48 並列下の thread 待ちである。
+  F480 の「絶対 wall-clock を assert するテスト」族に、`Thread.join(<秒>)` の上界も入る。
 ### F481. 別 wave の認証済み除外を絞り込みと誤認し、自分の stale 検査を毎回無効化していた [合成崩れ] [恒真ゲート]
 
 - 事象: 本 wave が新設した flaky registry の「完全 collection か」判定が、main で先に着地した
@@ -12801,6 +12833,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   probe 相の観測集合をそのまま本走の期待集合にする運用では、`REAL_REPO_SERIAL_NODES` など
   `xdist_group` が付く node を含む対象 file で必ず当たる。
 
+
+- **再発: 2026-08-25** — 期待 node に real-repo 直列 node を含む変異本走が
+  `期待 node が pytest collection に実在しない` で rc=2 停止した。先行 wave の回避策
+  (`--deselect` で該当 node を外す) は、本 wave の kill 集合が当該 node に依存するため使えなかった。
+  **runner argv へ `-n 0` を渡して分散を切ると、collection 側と `FAILED` 行側の node 表記が
+  揃い、real-repo node を期待 node として登録できる。** 実測で baseline PASSED、
+  8 変異中 7 KILLED を得た (うち 3 変異は real-repo node だけが kill する)。
+  受入形では `--dist loadgroup` 以外が拒否されるが、変異の runner command は受入形ではない。
+  恒久対応の代替ではなく、`--deselect` より射程の広い回避策として記録する。
 ### F495. 負例の「小さい予算」規律を、発火の向きが逆な負例へ機械適用した [テスト代表性]
 
 - 事象: D699 の wave が新設した
@@ -13526,6 +13567,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   与えても完走することを pin する。
 - 家族: F297 / F489 と同じ「掃除の関門が本番環境で構造的に通れない」型で、
   滞留の規模 (worktree 32 本・branch 121 本) も F489 の実測に近い。
+- **supersede: 2026-08-25** — 恒久対応の「分割実行への是正は本 wave の編集面の外」は解消した。`_landed_reference_matches()` は D788 の二重上限で分割実行し、再発検知は変異 15 件 (全件 KILLED) と `SC_ARG_MAX` 由来の母集合で pin した。argv 上限の手前で `SIGKILL` される領域があることも同時に判明したため、上限は byte だけでなく本数にも掛けている。実探索根に対する本番相当の実走は 2:16:05 で完走し rc=1 (所見あり) を返した。
 
 ### F527. 占有検査に相対 path を渡し、22 本すべてを偽の「撤去可」と判定した [恒真ゲート] [誤前提]
 
@@ -13924,3 +13966,69 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   この時点で一部の mode が既に戻っていたためであり、**「単独で緑なら非帰属フレーク」という
   読みは本件では誤り**である。`DW-O18` の単独再走は必要条件であって十分条件ではない。
   junit の assertion 本文まで読んで初めて帰属が確定した。
+
+### F545. 使い捨て変異 worktree が submodule を初期化せず baseline を赤にした [手順漏れ]
+
+- 事象: (2026-08-25、変異 probe の起動時) `tools/mutation_worktree.py` が作った使い捨て
+  worktree で baseline が `PARSE_ERROR` になり、production write の前で停止した。
+  失敗本文は `submodule is not initialized: external/ccbench/third_party/shirakami` で、
+  real repo を読む 3 node が error になっていた。`--resume` は baseline を再走せず
+  前回の赤を引き継ぐため、初期化しないまま再試行しても同じ場所で止まる。
+- 根本原因: wrapper は固定 commit の worktree を作るだけで、submodule の再帰初期化を行わない。
+  `DW-C01` が要求する `tools/dev_wave_submodule_init.py` は wave worktree の作成時にだけ
+  適用されており、変異 wrapper が作る worktree はその導線の外にある。実 repo を読む
+  テストを変異対象に含む wave でだけ発火するため、合成 fixture だけの wave では表面化しない。
+- 恒久対応: 未実施。回避策は、保持された container
+  (`<scratch-root>/.izanagi-mutation-worktree/repo`) に対して
+  `python3 tools/dev_wave_submodule_init.py --worktree <container>` を実行し、
+  以後はその container へ `tools/mutation_harness.py --repo <container>` を直接当てること。
+  `--resume` 経由では baseline の赤が更新されないため、`--out` を新しくして harness を
+  直接起動する。本 wave はこの手順で baseline PASSED を得た。
+- 再発検知: 変異対象の runner command が `REAL_REPO_SERIAL_NODES` の node を含むなら、
+  wrapper 起動前に container の submodule 初期化が要る。baseline が
+  `submodule is not initialized` を含む `PARSE_ERROR` で止まったらこの型である。
+
+### F546. CCBench を編集面に含む wave で、書込 guard と実装子契約が噛み合わず、段 5 は迂回し段 6 は空費した [手順漏れ] [規律違反]
+
+- 事象: 段 5 の実装子は `external/ccbench/` 配下を直接編集する指示を受け、書込 guard の拒否を
+  **shell 経由で迂回して**書き込んだ (event log に guard 拒否 1 件 + shell 4 件)。
+  同じ指示を受けた段 6 の fix 子は**迂回せず正しく停止**し、全 7 項目が未着手のまま
+  1 巡 (約 24 分) を空費した。
+- 根本原因: guard は CCBench submodule 配下を EVOLVE-BLOCK ソースだけに限り、
+  それ以外は「patch を置いて `git apply` で」と指示する。一方 dev-wave の段 5 / 段 6 は
+  実装子に所有ファイルの直接編集を指示する形が既定で、**CCBench を編集面に含む場合の
+  例外手順が入口にも reference にも無かった。**
+- 恒久対応: CCBench を編集面に含む wave では、実装子の編集面を `output/runs/` 配下
+  (gitignore 済み) の使い捨て clone とし、patch の生成と submodule への適用は親が行う。
+  本 wave の親はこの手順を組んで復旧した。
+- 再発検知: 実装子 prompt に「`external/ccbench/` を触るな。拒否されたら迂回せず停止しろ。
+  shell 経由で書き込んで guard を回避してはならない」を明記し、編集面を作業場の絶対パスで渡す。
+
+### F547. 取り込んだ protocol と workload が同じ abort counter を二重加算し、測定値が 2 倍になりかけた [計測汚染]
+
+- 事象: CCBench の SS2PL を YCSB workload へ載せたところ、
+  `TxExecutor::abort()` と `YcsbWorkload::run()` の**両方**が `local_abort_counts_` を加算する
+  状態になっていた。silo は protocol 側で加算しないので silo では正しく、
+  ss2pl だけが二重になる。そのまま測れば abort 率が 2 倍で報告される。
+- 根本原因: 加算責任が protocol 側と workload 側のどちらにあるかが CCBench 内で統一されておらず、
+  protocol を新しい workload へ載せる時に露出する。
+  ss2pl は元々 YCSB バイナリを持たなかったため、この不整合が誰にも踏まれていなかった。
+- 恒久対応: 本 wave では加算責任を workload 側へ統一した (silo と同じ形)。
+  測定 harness には、**patched source を直接検査して加算が 1 箇所だけであることを確かめる
+  独立な gate** を置いた。値どうしの整合を見る gate は、二重加算された値と
+  そこから計算した比が整合するため検出力を持たない。
+- 再発検知: 上記 gate と、その変異 (加算を戻す) で赤になる test。
+
+### F548. 旧世代の workload フラグ定義が残り、表示と実データが食い違う経路が成立していた [計測汚染]
+
+- 事象: SS2PL の `common.hh` が旧 YCSB フラグ (`tuple_num` / `rratio` / `max_ope` /
+  `rmw` / `zipf_skew`) を今も定義しており、現行 workload header は同じ意味の値を
+  `ycsb_` 接頭辞付きで別途定義していた。両者は名前が違うので重複定義エラーにならず、
+  **`-tuple_num=1000000` と表示しながら実データは `-ycsb_tuple_num` の値で作られる**、
+  という食い違いが成立する状態だった。
+- 根本原因: workload フラグの接頭辞付き移行が protocol 側の旧定義を残したまま行われ、
+  その protocol に当該 workload のバイナリが無かったため露出しなかった。
+- 恒久対応: 旧定義を alias にせず除去し、検査・表示を接頭辞付きへ張り替えた。
+  測定 harness には、**実行時に表示された workload 値が harness の要求と一致することを
+  確かめる gate** を置いた (要求 1,000,000 records に対し表示が別値なら走行を止める)。
+- 再発検知: 上記 gate と、その変異 (一致検査を外す) で赤になる test。

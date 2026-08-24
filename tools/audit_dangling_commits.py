@@ -24,6 +24,10 @@ DEFAULT_EXCLUDED_PREFIXES = ("docs/spool/", "docs/archive/")
 DEFAULT_REPO = Path(__file__).resolve().parents[1]
 OFFREPO_ROOT_ENV = "IZANAGI_DEV_WAVE_JOBS_DIR"
 MAX_BLOB_SIZE = 32 * 1024 * 1024
+# 計測環境向けの保守値であり、environment と pointer table を含まないため
+# execve 成功を保証する上限ではない。
+GIT_GREP_BATCH_MAX_PATTERNS = 512
+GIT_GREP_BATCH_MAX_ARGV_BYTES = 128 * 1024
 READ_CHUNK_SIZE = 1024 * 1024
 _PATH_BOUNDARY_BYTES = frozenset(b" \t\n\r\"'`()[]{}<>")
 
@@ -471,12 +475,66 @@ def _has_bounded_path_reference(content: bytes, pattern: bytes) -> bool:
         start = index + 1
 
 
+def _git_grep_argv_size(
+    repo: Path,
+    main_ref: str,
+    patterns: Sequence[str],
+) -> int:
+    """``_git_bytes`` が実行する完全な git-grep argv の byte 数を返す。
+
+    各 argv 要素の filesystem encoding と終端 NUL を数える。environment と
+    pointer table は含めず、この値だけで execve 成功を保証しない。
+    """
+    arguments = ["git", "-C", str(repo), "grep", "-F", "-l", "-z"]
+    for pattern in patterns:
+        arguments.extend(("-e", pattern))
+    arguments.extend((main_ref, "--"))
+    return sum(len(os.fsencode(argument)) + 1 for argument in arguments)
+
+
+def _git_grep_pattern_batches(
+    repo: Path,
+    main_ref: str,
+    patterns: Sequence[str],
+    *,
+    max_patterns_per_batch: int = GIT_GREP_BATCH_MAX_PATTERNS,
+    max_argv_bytes: int = GIT_GREP_BATCH_MAX_ARGV_BYTES,
+) -> tuple[tuple[str, ...], ...]:
+    """入力を欠落・複製せず、順序と二つの上限を保って分割する。"""
+    if max_patterns_per_batch <= 0:
+        raise ValueError("max_patterns_per_batch は正でなければならない")
+    if max_argv_bytes <= 0:
+        raise ValueError("max_argv_bytes は正でなければならない")
+
+    batches: list[tuple[str, ...]] = []
+    current: list[str] = []
+    base_argv_bytes = _git_grep_argv_size(repo, main_ref, ())
+    current_argv_bytes = base_argv_bytes
+    encoded_e_bytes = len(os.fsencode("-e")) + 1
+    for pattern in patterns:
+        pattern_argv_bytes = encoded_e_bytes + len(os.fsencode(pattern)) + 1
+        exceeds_count = len(current) + 1 > max_patterns_per_batch
+        exceeds_bytes = current_argv_bytes + pattern_argv_bytes > max_argv_bytes
+        if current and (exceeds_count or exceeds_bytes):
+            batches.append(tuple(current))
+            current = []
+            current_argv_bytes = base_argv_bytes
+        current.append(pattern)
+        current_argv_bytes += pattern_argv_bytes
+    if current:
+        batches.append(tuple(current))
+    return tuple(batches)
+
+
 def _landed_reference_matches(
     repo: Path,
     main_ref: str,
     matches: dict[tuple[str, str], list[_ExternalMatch]],
+    *,
+    max_patterns_per_batch: int = GIT_GREP_BATCH_MAX_PATTERNS,
+    max_argv_bytes: int = GIT_GREP_BATCH_MAX_ARGV_BYTES,
 ) -> tuple[dict[tuple[str, str], list[Path]], str | None]:
-    """bytes 一致候補をまとめた一度の git grep で landed 参照を確認する。"""
+    """bytes 一致候補を上限つき git grep へ分け、landed 参照を確認する。"""
     pattern_owners: dict[str, list[tuple[tuple[str, str], Path]]] = {}
     for key, external_matches in matches.items():
         for match in external_matches:
@@ -487,27 +545,48 @@ def _landed_reference_matches(
     if not pattern_owners:
         return {}, None
 
-    arguments = ["grep", "-F", "-l", "-z"]
-    for pattern in sorted(pattern_owners):
-        arguments.extend(("-e", pattern))
-    arguments.extend((main_ref, "--"))
-    grep_result = _git_bytes(repo, *arguments)
-    if grep_result.returncode == 1:
-        return {}, None
-    if grep_result.returncode != 0:
-        detail = (grep_result.stderr or grep_result.stdout).decode(
-            "utf-8", errors="replace"
-        ).strip()
-        return {}, f"git grep rc={grep_result.returncode}: {detail}"
-
+    batches = _git_grep_pattern_batches(
+        repo,
+        main_ref,
+        sorted(pattern_owners),
+        max_patterns_per_batch=max_patterns_per_batch,
+        max_argv_bytes=max_argv_bytes,
+    )
     prefix = os.fsencode(main_ref) + b":"
-    contents: list[bytes] = []
-    for record in grep_result.stdout.split(b"\0"):
-        if not record:
+    matched_tree_paths: list[str] = []
+    seen_tree_paths: set[str] = set()
+    for batch_index, batch in enumerate(batches, start=1):
+        arguments = ["grep", "-F", "-l", "-z"]
+        for pattern in batch:
+            arguments.extend(("-e", pattern))
+        arguments.extend((main_ref, "--"))
+        grep_result = _git_bytes(repo, *arguments)
+        if grep_result.returncode == 1:
             continue
-        if not record.startswith(prefix):
-            return {}, "git grep の path 出力を解釈できない"
-        tree_path = os.fsdecode(record[len(prefix) :])
+        if grep_result.returncode != 0:
+            stderr_detail = grep_result.stderr.decode(
+                "utf-8", errors="replace"
+            ).strip()
+            stdout_detail = grep_result.stdout.decode(
+                "utf-8", errors="replace"
+            ).strip()
+            return {}, (
+                f"git grep batch {batch_index}/{len(batches)} "
+                f"rc={grep_result.returncode}: "
+                f"stderr={stderr_detail!r}; stdout={stdout_detail!r}"
+            )
+        for record in grep_result.stdout.split(b"\0"):
+            if not record:
+                continue
+            if not record.startswith(prefix):
+                return {}, "git grep の path 出力を解釈できない"
+            tree_path = os.fsdecode(record[len(prefix) :])
+            if tree_path not in seen_tree_paths:
+                seen_tree_paths.add(tree_path)
+                matched_tree_paths.append(tree_path)
+
+    contents: list[bytes] = []
+    for tree_path in matched_tree_paths:
         show_result = _git_bytes(repo, "show", f"{main_ref}:{tree_path}")
         if show_result.returncode != 0:
             detail = (show_result.stderr or show_result.stdout).decode(
@@ -575,7 +654,10 @@ def audit_with_offrepo(
 ) -> AuditReport:
     """既存 findings に repo 外の同一実体による抑止を後段適用する。"""
     root = Path(repo).resolve()
-    original_findings = audit(repo, main_ref, excluded_prefixes)
+    main_commit = _checked_git(
+        root, "rev-parse", "--verify", f"{main_ref}^{{commit}}"
+    ).strip()
+    original_findings = audit(root, main_commit, excluded_prefixes)
     requested, accepted, rejected = _validate_offrepo_roots(root, offrepo_roots)
     if not requested or not accepted:
         return AuditReport(
@@ -612,7 +694,7 @@ def audit_with_offrepo(
         accepted, candidates
     )
     referenced, reference_failure = _landed_reference_matches(
-        root, main_ref, matches
+        root, main_commit, matches
     )
 
     suppressions: list[Suppression] = []
