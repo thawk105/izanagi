@@ -109,6 +109,7 @@ class _DispatchArtifacts(NamedTuple):
     submission_dir: Path
     fallback_receipt: Path | None
     nonce: str
+    control_root: Path
 
 
 class InvalidInput(RuntimeError):
@@ -297,6 +298,7 @@ def _dispatch_artifacts(receipt_path: Path, worktree: Path) -> _DispatchArtifact
         submission_dir=submission_dir,
         fallback_receipt=fallback_receipt,
         nonce=nonce,
+        control_root=worktree_resolved / "output" / "pegasus-dispatch",
     )
 
 
@@ -402,23 +404,51 @@ def _read_dispatch_receipt(
 
 
 def _orphan_hold_present(dispatch_root: Path) -> bool:
-    """hold の存在または stat 判定不能なら destructive cleanup を拒否する。"""
+    """aggregate/request ledger の存在・判定不能を blocker にする。"""
 
     hold = dispatch_root / "orphan-hold.json"
     try:
         os.lstat(hold)
     except FileNotFoundError:
+        pass
+    except OSError:
+        return True
+    else:
+        return True
+
+    ledger = dispatch_root / "orphan-holds"
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        return True
+    try:
+        descriptor = os.open(
+            ledger,
+            os.O_RDONLY | nofollow | directory | getattr(os, "O_CLOEXEC", 0),
+        )
+    except FileNotFoundError:
         return False
     except OSError:
         return True
-    return True
+    blocker = False
+    try:
+        with os.scandir(descriptor) as entries:
+            blocker = any(entry.name.endswith(".json") for entry in entries)
+    except OSError:
+        blocker = True
+    try:
+        os.close(descriptor)
+    except OSError:
+        blocker = True
+    return blocker
 
 
 def _cleanup_dispatch_artifacts(artifacts: _DispatchArtifacts) -> None:
-    if _orphan_hold_present(artifacts.root):
+    if _orphan_hold_present(artifacts.control_root):
         raise InvalidInput(
             "orphan-hold: dispatch artifacts are preserved; "
-            f"hold={artifacts.root / 'orphan-hold.json'}"
+            f"control={artifacts.control_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
         )
     failures: list[str] = []
     try:
@@ -985,7 +1015,8 @@ def _worktree_remove(
     if _orphan_hold_present(dispatch_root):
         raise InvalidInput(
             "orphan-hold: refusing worktree remove retry; "
-            f"hold={dispatch_root / 'orphan-hold.json'}"
+            f"control={dispatch_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
         )
     path_present = worktree.exists() or worktree.is_symlink()
     registered = _registered_worktrees(repo, command_runner=command_runner)
@@ -1003,7 +1034,8 @@ def _worktree_remove(
     if _orphan_hold_present(dispatch_root):
         raise InvalidInput(
             "orphan-hold: refusing worktree remove retry; "
-            f"hold={dispatch_root / 'orphan-hold.json'}"
+            f"control={dispatch_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
         )
     return _git(repo, command, command_runner=command_runner)
 
@@ -1022,7 +1054,8 @@ def _cleanup_probe(
     if _orphan_hold_present(dispatch_root):
         raise InvalidInput(
             "orphan-hold: probe worktree is preserved; "
-            f"hold={dispatch_root / 'orphan-hold.json'}"
+            f"control={dispatch_root}; "
+            "hold=orphan-hold.json|orphan-holds/*.json"
         )
     failures: list[str] = []
     if added or worktree.exists():

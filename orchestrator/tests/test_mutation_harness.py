@@ -1171,6 +1171,49 @@ def test_preexisting_dispatch_hold_blocks_local_runner_start(repo: Path) -> None
     assert stop["reason"]["phase"] == "collection"
 
 
+def test_preexisting_dispatch_request_ledger_blocks_local_runner_start(
+    repo: Path,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    ledger = (
+        repo
+        / "output"
+        / "pegasus-dispatch"
+        / MH.ORPHAN_HOLD_DIR_NAME
+        / "424242.nqsv.json"
+    )
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("{}\n", encoding="utf-8")
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+
+    assert not calls.exists()
+    assert ledger.is_file()
+    stop = json.loads(MH._orphan_stop_path(out).read_text(encoding="utf-8"))
+    assert stop["reason"]["code"] == "orphan-hold"
+    assert stop["reason"]["phase"] == "collection"
+
+
+def test_dispatch_request_ledger_scan_error_is_fail_closed(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ledger = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_DIR_NAME
+    ledger.mkdir(parents=True)
+    real_scandir = MH.os.scandir
+
+    def fail_descriptor_scan(path):
+        if isinstance(path, int):
+            raise PermissionError("injected ledger scan denial")
+        return real_scandir(path)
+
+    monkeypatch.setattr(MH.os, "scandir", fail_descriptor_scan)
+    assert MH._dispatch_orphan_hold_present(repo) is True
+
+
 def test_dispatch_timeout_latches_hold_preserves_bytes_stops_next_and_writes_stop(
     repo: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1307,16 +1350,19 @@ with calls.open("a", encoding="utf-8") as stream:
     stream.flush()
     os.fsync(stream.fileno())
 
-real_write = DC._write_json_x
+real_write = DC._write_json_atomic_replace
 
 
 def fail_hold(path, payload, **kwargs):
-    if Path(path).name == DC._ORPHAN_HOLD_NAME:
+    if (
+        Path(path).name == DC._ORPHAN_HOLD_NAME
+        and not kwargs.get("create_only", False)
+    ):
         raise OSError("injected dispatcher hold write failure")
     return real_write(path, payload, **kwargs)
 
 
-DC._write_json_x = fail_hold
+DC._write_json_atomic_replace = fail_hold
 clock = Clock()
 raise SystemExit(
     DC.dispatch(
