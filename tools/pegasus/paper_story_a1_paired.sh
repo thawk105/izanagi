@@ -92,6 +92,10 @@ import sys
     completion_raw, policy_relative, job_relative, pbs_o_host, pbs_o_workdir,
     expected_queue,
 ) = sys.argv[1:]
+repo = pathlib.Path(repo_raw).resolve(strict=True)
+sys.path.insert(0, os.fspath(repo))
+from orchestrator.campaign.paper_story_a1_paired import NQSV_QSTAT_STATES
+
 receipt_path = pathlib.Path(path)
 if not receipt_path.is_absolute() or receipt_path.resolve(strict=True) != receipt_path:
     raise SystemExit("acquisition receipt path is not canonical absolute")
@@ -166,7 +170,6 @@ for key, expected in {
 receipt_request_id = document.get("request_id")
 if normalize_request_id(receipt_request_id) != normalize_request_id(request_id):
     raise SystemExit("submission receipt request ID differs from PBS_JOBID")
-repo = pathlib.Path(repo_raw).resolve(strict=True)
 attempt = pathlib.Path(attempt_raw)
 if not attempt.is_absolute() or attempt.resolve(strict=False) != attempt:
     raise SystemExit("attempt root is not canonical absolute")
@@ -250,7 +253,7 @@ if type(visibility) is not dict or set(visibility) != {
 if (
     visibility["visible"] is not True
     or type(visibility["state"]) is not str
-    or re.fullmatch(r"[A-Z]", visibility["state"]) is None
+    or visibility["state"] not in NQSV_QSTAT_STATES
     or visibility["queue"] != expected_queue
     or type(visibility["observed_epoch"]) is not int
     or visibility["observed_epoch"] <= 0

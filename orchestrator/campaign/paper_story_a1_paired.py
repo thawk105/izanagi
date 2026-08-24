@@ -95,6 +95,20 @@ _PBS_JOBID = re.compile(r"(?:0:)?[A-Za-z0-9][A-Za-z0-9._-]*")
 _NORMALIZED_REQUEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _REQUEST_RE = re.compile(r"Request\s+(\S+)\s+submitted")
 _PBS_QUEUE = "gen_S"
+NQSV_QSTAT_STATES = frozenset({
+    "ARR",
+    "WAI",
+    "QUE",
+    "PRR",
+    "RUN",
+    "POR",
+    "EXT",
+    "HLD",
+    "HOL",
+    "SUS",
+    "MIG",
+    "STG",
+})
 _PBS_OBSERVATION_KEYS = frozenset({
     "pbs_jobid",
     "pbs_o_host",
@@ -710,7 +724,7 @@ def validate_acquisition_receipt(
     if (
         visibility.get("visible") is not True
         or type(visibility.get("state")) is not str
-        or re.fullmatch(r"[A-Z]", visibility["state"]) is None
+        or visibility["state"] not in NQSV_QSTAT_STATES
         or visibility.get("queue") != _PBS_QUEUE
         or type(visibility.get("observed_epoch")) is not int
         or visibility["observed_epoch"] <= 0
@@ -915,9 +929,13 @@ def _source_binding(repo_root: Path, expected_head: str) -> dict:
     return binding
 
 
+def _has_exact_five_points(values: Sequence[object]) -> bool:
+    return len(values) == 5
+
+
 def positional_statistics(adaptive: Sequence[object], static10: Sequence[object]) -> dict:
     for label, values in (("adaptive", adaptive), ("static10", static10)):
-        if len(values) != 5:
+        if not _has_exact_five_points(values):
             raise PaperStoryError(f"{label} must contain exactly five points")
         if any(not _finite_number(value) or value <= 0 for value in values):
             raise PaperStoryError(f"{label} contains a non-positive finite-number violation")
@@ -1308,7 +1326,7 @@ def _validate_arm(
     raw_tps = bench.get("tps")
     tps_valid = (
         type(raw_tps) is list
-        and len(raw_tps) == 5
+        and _has_exact_five_points(raw_tps)
         and all(_finite_number(value) and value > 0 for value in raw_tps)
     )
     if not tps_valid:

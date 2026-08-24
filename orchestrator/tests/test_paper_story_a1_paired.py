@@ -207,6 +207,60 @@ def _validated_workload(name: str = "write-heavy", campaign_id: str = "campaign-
     return result
 
 
+def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict, dict]:
+    policy, policy_sha = paired.load_policy()
+    workloads = [
+        _validated_workload(name, f"campaign-{index}")
+        for index, name in enumerate(paired.WORKLOAD_ORDER)
+    ]
+    if invalid_workload:
+        workloads[1]["valid"] = False
+        workloads[1]["statistics"] = None
+    result = paired.assemble_result(
+        policy,
+        policy_sha256=policy_sha,
+        source_binding=_source_binding(),
+        workloads=workloads,
+    )
+    attempt_identity = {"st_dev": 1, "st_ino": 2}
+    completion_receipt = "/durable/attempt.completion.json"
+    submission_sha = "d" * 64
+    receipt = {
+        "schema_version": paired.RECEIPT_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "formal": False,
+        "promotion_prohibited": True,
+        "pbs_jobid": "12345.nqsv",
+        "source_binding": _source_binding(),
+        "roots": {
+            "completion_receipt": completion_receipt,
+            "attempt_identity": attempt_identity,
+        },
+        "submission_receipt": {"sha256": submission_sha},
+    }
+    terminal = {
+        "schema_version": paired.JOB_TERMINAL_SCHEMA,
+        "study_id": paired.STUDY_ID,
+        "pbs_jobid": "12345.nqsv",
+        "pbs_observation": {
+            "pbs_jobid": "12345.nqsv",
+            "pbs_o_host": "pegasus01",
+            "pbs_o_workdir": "/repo",
+        },
+        "expected_head": "a" * 40,
+        "observed_head": "a" * 40,
+        "porcelain": "",
+        "driver_rc": 0,
+        "shell_rc": 0,
+        "status": "finished",
+        "terminal_source_binding": _source_binding(),
+        "completion_receipt_path": completion_receipt,
+        "attempt_identity": attempt_identity,
+        "submission_receipt_sha256": submission_sha,
+    }
+    return result, receipt, terminal, policy
+
+
 def _production_wal_workload(
     tmp_path: Path,
     name: str = "write-heavy",
@@ -318,6 +372,32 @@ def test_policy_file_is_the_exact_preregistered_contract() -> None:
         "dev-wave-paper-story-a1-paired-20260824/measurement"
     )
     assert hashlib.sha256(paired.POLICY_PATH.read_bytes()).hexdigest() == digest
+
+
+def test_workload_rratio_is_exactly_bound_from_policy_through_campaign_M24() -> None:
+    policy = _policy()
+    policy_workloads = {
+        item["name"]: item for item in policy["workloads"]
+    }
+    expected_rratios = {
+        "write-heavy": "5",
+        "balanced": "50",
+        "read-heavy": "95",
+    }
+    assert {
+        name: policy_workloads[name]["ycsb_rratio"]
+        for name in paired.WORKLOAD_ORDER
+    } == expected_rratios
+
+    for name in paired.WORKLOAD_ORDER:
+        flags = paired.workload_flags(policy, name)
+        configured_workload = paired.campaign_config(
+            policy, name
+        ).search_config["workload"]
+        assert flags["ycsb_rratio"] == expected_rratios[name]
+        assert flags["ycsb_rratio"] == policy_workloads[name]["ycsb_rratio"]
+        assert configured_workload == {"name": name, **flags}
+        assert configured_workload["ycsb_rratio"] == expected_rratios[name]
 
 
 def test_durable_base_append_preserves_campaign_preimage_and_id(
@@ -545,6 +625,38 @@ def test_incomplete_workload_suppresses_cross_workload_conclusion_M10() -> None:
     assert "No cross-workload conclusion" in paired._readme(result)
 
 
+def test_validate_raw_documents_accepts_matching_complete_positive() -> None:
+    result, receipt, terminal, policy = _raw_documents()
+    assert result["complete"] is True
+    assert paired.validate_raw_documents(
+        result, receipt, terminal, policy
+    ) == (result, receipt, terminal)
+
+
+def test_validate_raw_documents_rejects_claimed_complete_with_invalid_workload_M25(
+) -> None:
+    result, receipt, terminal, policy = _raw_documents(invalid_workload=True)
+    assert result["complete"] is False
+    result["complete"] = True
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="top-level complete does not match workload validity",
+    ):
+        paired.validate_raw_documents(result, receipt, terminal, policy)
+
+
+def test_validate_raw_documents_rejects_claimed_incomplete_with_all_valid_workloads_M25(
+) -> None:
+    result, receipt, terminal, policy = _raw_documents()
+    assert result["complete"] is True
+    result["complete"] = False
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="top-level complete does not match workload validity",
+    ):
+        paired.validate_raw_documents(result, receipt, terminal, policy)
+
+
 def test_materialize_refuses_existing_destination_M11(tmp_path: Path) -> None:
     destination = paired.create_materialization_destination(tmp_path / "insight")
     assert destination.is_dir()
@@ -555,6 +667,25 @@ def test_materialize_refuses_existing_destination_M11(tmp_path: Path) -> None:
     paired._exclusive_write(target, {"first": True})
     with pytest.raises(paired.PaperStoryError, match="create-only write refused"):
         paired._exclusive_write(target, {"second": True})
+
+
+def test_exclusive_write_bytes_refuses_existing_path_M26(tmp_path: Path) -> None:
+    target = tmp_path / "raw-snapshot"
+    target.write_bytes(b"original\n")
+    with pytest.raises(paired.PaperStoryError, match="create-only write refused"):
+        paired._exclusive_write_bytes(target, b"replacement\n")
+    assert target.read_bytes() == b"original\n"
+
+
+def test_exclusive_write_bytes_refuses_final_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "raw-snapshot-target"
+    target.write_bytes(b"original\n")
+    alias = tmp_path / "raw-snapshot-alias"
+    alias.symlink_to(target)
+    with pytest.raises(paired.PaperStoryError, match="create-only write refused"):
+        paired._exclusive_write_bytes(alias, b"replacement\n")
+    assert alias.is_symlink()
+    assert target.read_bytes() == b"original\n"
 
 
 def test_materialization_is_exact_leaf_and_noreplace_publish(tmp_path: Path) -> None:

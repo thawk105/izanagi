@@ -19,6 +19,20 @@ from orchestrator.campaign.build_admission import GeneratorId, build_run_context
 REPO_ROOT = Path(__file__).resolve().parents[2]
 JOB = REPO_ROOT / "tools/pegasus/paper_story_a1_paired.sh"
 REGISTRY = REPO_ROOT / "tools/pegasus/admission_registry.json"
+EXPECTED_NQSV_QSTAT_STATES = (
+    "ARR",
+    "WAI",
+    "QUE",
+    "PRR",
+    "RUN",
+    "POR",
+    "EXT",
+    "HLD",
+    "HOL",
+    "SUS",
+    "MIG",
+    "STG",
+)
 
 
 def _gate_args(tmp_path: Path) -> dict:
@@ -110,6 +124,7 @@ def _acquisition(
     request_id: str = "12345.nqsv",
     qsub_stdout: str | None = None,
     submit_host: str = "pegasus01",
+    qstat_state: str = "QUE",
 ) -> dict:
     job = repo_root / paired.JOB_RELATIVE_PATH
     if not job.exists():
@@ -144,7 +159,7 @@ def _acquisition(
             "qstat_visibility": {
                 "request_id": request_id,
                 "visible": True,
-                "state": "Q",
+                "state": qstat_state,
                 "queue": "gen_S",
                 "observed_epoch": 1,
             },
@@ -165,6 +180,63 @@ def _pbs_observation(
         "pbs_o_host": host,
         "pbs_o_workdir": os.fspath(repo_root.resolve()),
     }
+
+
+@pytest.mark.parametrize(
+    "state",
+    EXPECTED_NQSV_QSTAT_STATES,
+)
+def test_acquisition_receipt_accepts_exact_nqsv_qstat_state_vocabulary(
+    tmp_path: Path, state: str
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(attempt, repo, qstat_state=state)
+    roots = paired.validate_acquisition_receipt(
+        receipt,
+        repo_root=repo,
+        study_id=paired.STUDY_ID,
+        source_commit="a" * 40,
+        request_id="12345.nqsv",
+        pbs_observation=_pbs_observation(attempt, repo),
+        policy=_policy_for_base(base),
+    )
+    assert roots["attempt_root"] == os.fspath(attempt)
+
+
+def test_nqsv_qstat_state_allowlist_is_exact() -> None:
+    assert paired.NQSV_QSTAT_STATES == frozenset(EXPECTED_NQSV_QSTAT_STATES)
+
+
+@pytest.mark.parametrize(
+    "state",
+    ["Q", "queue", "XXX"],
+    ids=["pbs-pro-Q", "lowercase-queue", "M23-outside-XXX"],
+)
+def test_acquisition_receipt_rejects_non_nqsv_qstat_state_M23(
+    tmp_path: Path, state: str
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(attempt, repo, qstat_state=state)
+    with pytest.raises(paired.PaperStoryError, match="qstat"):
+        paired.validate_acquisition_receipt(
+            receipt,
+            repo_root=repo,
+            study_id=paired.STUDY_ID,
+            source_commit="a" * 40,
+            request_id="12345.nqsv",
+            pbs_observation=_pbs_observation(attempt, repo),
+            policy=_policy_for_base(base),
+        )
 
 
 def test_acquisition_receipt_binds_request_and_fixed_topology(tmp_path: Path) -> None:
@@ -282,6 +354,7 @@ def test_real_nqsv_probe_values_positive_contract(tmp_path: Path) -> None:
         "FD1": "pipe:[46452536]",
         "FD2": "/var/opt/nec/nqsv/jsv/jobfile/0.944076.10/stderr",
         "qsub_stdout": "Request 944076.nqsv submitted to queue: gen_S.\n",
+        "qstat_state": "QUE",
     }
     receipt = _acquisition(
         attempt,
@@ -289,6 +362,7 @@ def test_real_nqsv_probe_values_positive_contract(tmp_path: Path) -> None:
         request_id="944076.nqsv",
         qsub_stdout=probe["qsub_stdout"],
         submit_host="pegasus02",
+        qstat_state=probe["qstat_state"],
     )
     observation = {
         "pbs_jobid": probe["PBS_JOBID"],
@@ -785,6 +859,8 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         'observation["submit_host"] != pbs_o_host',
         'normalized.startswith("0:")',
         'request_pattern = re.compile(r"Request\\s+(\\S+)\\s+submitted")',
+        "from orchestrator.campaign.paper_story_a1_paired import NQSV_QSTAT_STATES",
+        'visibility["state"] not in NQSV_QSTAT_STATES',
         'visibility["queue"] != expected_queue',
         '"pbs_observation": {',
         '"attempt_identity": {',
@@ -796,13 +872,20 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
     assert "PBS_O_QUEUE" not in source
     assert "/proc/" not in source
     assert "os.readlink" not in source
+    assert 're.fullmatch(r"[A-Z]", visibility["state"])' not in source
 
 
 def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
     repo = tmp_path / "repo"
     driver = repo / paired.DRIVER_RELATIVE_PATH
     driver.parent.mkdir(parents=True)
-    driver.write_text("# driver stub target\n", encoding="utf-8")
+    (driver.parents[1] / "__init__.py").write_text("", encoding="utf-8")
+    (driver.parent / "__init__.py").write_text("", encoding="utf-8")
+    driver.write_text(
+        "NQSV_QSTAT_STATES = frozenset("
+        f"{tuple(sorted(paired.NQSV_QSTAT_STATES))!r})\n",
+        encoding="utf-8",
+    )
     base = (tmp_path / "measurement").resolve()
     base.mkdir()
     policy_path = repo / paired.POLICY_RELATIVE_PATH
@@ -981,6 +1064,25 @@ def test_production_job_accepts_nqsv_request_and_stdout_M21_M22(
     completed, stderr = _run_shell_job(environment)
     assert completed.returncode == 0, stderr
     assert (attempt / "raw/tmp").is_dir()
+
+
+@pytest.mark.parametrize(
+    "state",
+    ["Q", "queue", "XXX"],
+    ids=["pbs-pro-Q", "lowercase-queue", "M23-outside-XXX"],
+)
+def test_production_job_rejects_non_nqsv_qstat_state_M23(
+    tmp_path: Path, state: str
+) -> None:
+    environment, attempt, _ = _shell_fixture(tmp_path)
+    receipt_path = Path(environment["IZANAGI_A1_ACQUISITION_RECEIPT"])
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["submit_observation"]["qstat_visibility"]["state"] = state
+    receipt_path.write_text(json.dumps(receipt) + "\n", encoding="utf-8")
+    completed, stderr = _run_shell_job(environment)
+    assert completed.returncode == 2
+    assert "acquisition receipt validation failed" in stderr
+    assert not attempt.exists()
 
 
 @pytest.mark.parametrize("mode", ["writer-fail", "existing-terminal"])
