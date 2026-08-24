@@ -3292,6 +3292,8 @@ def test_build_cells_production_postflight_rejects_dependency_drift(
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     marker_root = tmp_path / "job-staging"
     marker_root.mkdir()
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
     base = tmp_path / "fetchcontent"
     source = base / "masstree-src"
     head = _git_fixture_source(source)
@@ -3301,7 +3303,7 @@ def test_build_cells_production_postflight_rejects_dependency_drift(
         verified, cc="site-cc", cxx="site-cxx",
     )
     before = s8b_floor_campaign._verify_floor_oracle_dependency_source(
-        base, repo_root=tmp_path, expected_head=head,
+        base, repo_root=repo_root, expected_head=head,
         expected_toolchain_manifest_sha256=(
             s8b_floor_campaign._floor_toolchain_manifest_sha256(manifest)
         ),

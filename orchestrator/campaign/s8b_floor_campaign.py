@@ -2827,6 +2827,16 @@ def _verify_floor_oracle_dependency_source(
             outcome="invalid-path",
             path=source_root,
         )
+    try:
+        source_info = _stat_floor_dependency_root(source_root)
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "masstree source root の identity を取得できない",
+            detail_code="floor-dependency-source-stat-unavailable",
+            origin="floor-dependency:masstree",
+            outcome="missing",
+            path=source_root,
+        ) from exc
     if observed_head != expected_head:
         raise _FloorOraclePreflightError(
             "masstree source HEAD が共有 policy pin と不一致",
@@ -2855,16 +2865,6 @@ def _verify_floor_oracle_dependency_source(
     archive_sha256 = _verify_masstree_archive(
         source_root / "libkohler_masstree_json.a"
     )
-    try:
-        source_info = _stat_floor_dependency_root(source_root)
-    except OSError as exc:
-        raise _FloorOraclePreflightError(
-            "masstree source root の identity を取得できない",
-            detail_code="floor-dependency-source-stat-unavailable",
-            origin="floor-dependency:masstree",
-            outcome="missing",
-            path=source_root,
-        ) from exc
     return _FloorOracleDependencyBinding(
         source_root=source_root,
         expected_head=expected_head,
