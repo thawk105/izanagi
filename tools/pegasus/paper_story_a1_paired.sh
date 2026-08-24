@@ -24,10 +24,9 @@ refuse() {
 }
 
 [[ -n "${PBS_JOBID:-}" ]] || refuse "PBS_JOBID is required"
-[[ "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]] || refuse "unsafe PBS_JOBID"
+[[ "$PBS_JOBID" =~ ^(0:)?[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "unsafe PBS_JOBID"
 [[ -n "${PBS_O_HOST:-}" ]] || refuse "PBS_O_HOST is required"
 [[ -n "${PBS_O_WORKDIR:-}" ]] || refuse "PBS_O_WORKDIR is required"
-[[ -n "${PBS_O_QUEUE:-}" ]] || refuse "PBS_O_QUEUE is required"
 [[ "${IZANAGI_A1_STUDY_ID:-}" == "$EXPECTED_STUDY_ID" ]] || refuse "study ID differs"
 [[ "${IZANAGI_EXPECTED_HEAD:-}" =~ ^[0-9a-f]{40}$ ]] || refuse "expected HEAD is invalid"
 [[ -n "${IZANAGI_A1_ATTEMPT_ROOT:-}" ]] || refuse "attempt root is required"
@@ -57,15 +56,6 @@ for candidate in python3.10 python3.11 python3.12 python3; do
 done
 [[ -n "$PYTHON_BIN" ]] || refuse "Python 3.10 or newer is required"
 
-PBS_STDOUT_PATH=$("$PYTHON_BIN" -c \
-  'import os, sys; print(os.readlink(f"/proc/{sys.argv[1]}/fd/1"))' "$$") || \
-  refuse "cannot observe PBS stdout path"
-PBS_STDERR_PATH=$("$PYTHON_BIN" -c \
-  'import os, sys; print(os.readlink(f"/proc/{sys.argv[1]}/fd/2"))' "$$") || \
-  refuse "cannot observe PBS stderr path"
-[[ "$PBS_STDOUT_PATH" = /* ]] || refuse "PBS stdout path is not absolute"
-[[ "$PBS_STDERR_PATH" = /* ]] || refuse "PBS stderr path is not absolute"
-
 "$PYTHON_BIN" - "$REPO_ROOT" <<'PY' || refuse "Pegasus compute site check failed"
 import sys
 
@@ -88,7 +78,7 @@ ACQUISITION_SHA=$("$PYTHON_BIN" - \
   "$EXPECTED_STUDY_ID" "$IZANAGI_EXPECTED_HEAD" "$PBS_JOBID" \
   "$IZANAGI_A1_ATTEMPT_ROOT" "$IZANAGI_A1_COMPLETION_RECEIPT" \
   "$POLICY_RELATIVE" "$JOB_RELATIVE" "$PBS_O_HOST" "$PBS_O_WORKDIR" \
-  "$PBS_O_QUEUE" "$PBS_STDOUT_PATH" "$PBS_STDERR_PATH" "$EXPECTED_QUEUE" <<'PY'
+  "$EXPECTED_QUEUE" <<'PY'
 import hashlib
 import json
 import os
@@ -100,7 +90,7 @@ import sys
 (
     path, repo_raw, schema, study, source, request_id, attempt_raw,
     completion_raw, policy_relative, job_relative, pbs_o_host, pbs_o_workdir,
-    pbs_o_queue, pbs_stdout_path, pbs_stderr_path, expected_queue,
+    expected_queue,
 ) = sys.argv[1:]
 receipt_path = pathlib.Path(path)
 if not receipt_path.is_absolute() or receipt_path.resolve(strict=True) != receipt_path:
@@ -130,6 +120,32 @@ def reject_duplicates(pairs):
         value[key] = item
     return value
 
+request_pattern = re.compile(r"Request\s+(\S+)\s+submitted")
+normalized_pattern = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+def normalize_request_id(value):
+    if type(value) is not str:
+        raise SystemExit("request ID is not a string")
+    normalized = value.strip().rstrip(".")
+    if normalized.startswith("0:"):
+        normalized = normalized[2:]
+    if not normalized:
+        raise SystemExit("request ID is empty")
+    if normalized_pattern.fullmatch(normalized) is None:
+        raise SystemExit("request ID is unsafe")
+    return normalized
+
+def parse_request_id(stdout):
+    if type(stdout) is not str:
+        raise SystemExit("qsub stdout is not a string")
+    match = request_pattern.search(stdout)
+    if match is not None:
+        return match.group(1).rstrip(".")
+    tokens = stdout.split()
+    if len(tokens) == 1:
+        return tokens[0].rstrip(".")
+    raise SystemExit("qsub stdout does not contain one request ID")
+
 document = json.loads(raw.decode("utf-8"), object_pairs_hook=reject_duplicates)
 if type(document) is not dict or set(document) != {
     "schema_version", "route", "study_id", "source_commit",
@@ -144,10 +160,12 @@ for key, expected in {
     "study_id": study,
     "source_commit": source,
     "attempt_root": attempt_raw,
-    "request_id": request_id,
 }.items():
     if document.get(key) != expected:
         raise SystemExit(f"submission receipt identity differs: {key}")
+receipt_request_id = document.get("request_id")
+if normalize_request_id(receipt_request_id) != normalize_request_id(request_id):
+    raise SystemExit("submission receipt request ID differs from PBS_JOBID")
 repo = pathlib.Path(repo_raw).resolve(strict=True)
 attempt = pathlib.Path(attempt_raw)
 if not attempt.is_absolute() or attempt.resolve(strict=False) != attempt:
@@ -213,31 +231,35 @@ if observation["submit_host"] != pbs_o_host:
     raise SystemExit("submit host does not match PBS_O_HOST")
 if pbs_o_workdir != str(repo):
     raise SystemExit("PBS_O_WORKDIR does not match repository")
-if pbs_o_queue != expected_queue:
-    raise SystemExit("PBS_O_QUEUE differs")
-if pbs_stdout_path != options["o"] or pbs_stderr_path != options["e"]:
-    raise SystemExit("PBS stdout/stderr paths differ from qsub options")
-qsub_stdout = f"{request_id}\n"
-if observation["qsub_stdout"] != qsub_stdout or observation["qsub_stderr"] != "":
+qsub_stdout = observation["qsub_stdout"]
+if observation["qsub_stderr"] != "":
     raise SystemExit("qsub stdout/stderr observation differs")
+if normalize_request_id(parse_request_id(qsub_stdout)) != normalize_request_id(
+    receipt_request_id
+):
+    raise SystemExit("qsub stdout request ID differs")
 if observation["qsub_stdout_sha256"] != hashlib.sha256(qsub_stdout.encode()).hexdigest():
     raise SystemExit("qsub stdout hash differs")
 if observation["qsub_stderr_sha256"] != hashlib.sha256(b"").hexdigest():
     raise SystemExit("qsub stderr hash differs")
 visibility = observation["qstat_visibility"]
 if type(visibility) is not dict or set(visibility) != {
-    "request_id", "visible", "state", "observed_epoch",
+    "request_id", "visible", "state", "queue", "observed_epoch",
 }:
     raise SystemExit("qstat visibility shape differs")
 if (
-    visibility["request_id"] != request_id
-    or visibility["visible"] is not True
+    visibility["visible"] is not True
     or type(visibility["state"]) is not str
     or re.fullmatch(r"[A-Z]", visibility["state"]) is None
+    or visibility["queue"] != expected_queue
     or type(visibility["observed_epoch"]) is not int
     or visibility["observed_epoch"] <= 0
 ):
     raise SystemExit("qstat visibility observation differs")
+if normalize_request_id(visibility["request_id"]) != normalize_request_id(
+    receipt_request_id
+):
+    raise SystemExit("qstat visibility request ID differs")
 print(hashlib.sha256(raw).hexdigest())
 PY
 ) || refuse "acquisition receipt validation failed"
@@ -270,8 +292,7 @@ write_terminal() {
   "$PBS_JOBID" "$IZANAGI_EXPECTED_HEAD" "$DRIVER_RC" "$shell_rc" \
     "$RESULT_ROOT" "$IZANAGI_A1_ACQUISITION_RECEIPT" "$ACQUISITION_SHA" \
     "$IZANAGI_A1_COMPLETION_RECEIPT" "$ATTEMPT_ROOT" \
-    "$PBS_O_HOST" "$PBS_O_WORKDIR" "$PBS_O_QUEUE" \
-    "$PBS_STDOUT_PATH" "$PBS_STDERR_PATH" \
+    "$PBS_O_HOST" "$PBS_O_WORKDIR" \
     "$DRIVER_RELATIVE" "$POLICY_RELATIVE" "$PIPELINE_RELATIVE" "$JOB_RELATIVE" <<'PY'
 import hashlib
 import json
@@ -284,8 +305,7 @@ import time
 (
     path, repo, study_id, pbs_jobid, expected_head, driver_rc_raw,
     shell_rc_raw, result_root, acquisition_path, acquisition_sha,
-    completion_path, attempt_root, pbs_o_host, pbs_o_workdir, pbs_o_queue,
-    pbs_stdout_path, pbs_stderr_path, *source_paths,
+    completion_path, attempt_root, pbs_o_host, pbs_o_workdir, *source_paths,
 ) = sys.argv[1:]
 driver_rc = int(driver_rc_raw)
 shell_rc = int(shell_rc_raw)
@@ -356,9 +376,6 @@ document = {
         "pbs_jobid": pbs_jobid,
         "pbs_o_host": pbs_o_host,
         "pbs_o_workdir": pbs_o_workdir,
-        "pbs_o_queue": pbs_o_queue,
-        "stdout_path": pbs_stdout_path,
-        "stderr_path": pbs_stderr_path,
     },
     "attempt_identity": {
         "st_dev": attempt_info.st_dev,

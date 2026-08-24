@@ -91,16 +91,30 @@ CONTROLLED_CCBENCH_DEFINES = frozenset({
 })
 _FULL_OID = re.compile(r"[0-9a-f]{40}")
 _FULL_SHA256 = re.compile(r"[0-9a-f]{64}")
-_PBS_JOBID = re.compile(r"(?:[0-9]+:)?[A-Za-z0-9._-]+")
+_PBS_JOBID = re.compile(r"(?:0:)?[A-Za-z0-9][A-Za-z0-9._-]*")
+_NORMALIZED_REQUEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_REQUEST_RE = re.compile(r"Request\s+(\S+)\s+submitted")
 _PBS_QUEUE = "gen_S"
 _PBS_OBSERVATION_KEYS = frozenset({
     "pbs_jobid",
     "pbs_o_host",
     "pbs_o_workdir",
-    "pbs_o_queue",
-    "stdout_path",
-    "stderr_path",
 })
+PBS_EVIDENCE_SCOPE = {
+    "job_environment_fields": (
+        "PBS_JOBID",
+        "PBS_O_HOST",
+        "PBS_O_WORKDIR",
+    ),
+    "omitted_job_observations": (
+        "PBS_O_QUEUE (not exported by this NQSV site)",
+        "stdout/stderr FD targets (not the qsub -o/-e delivery files on NQSV)",
+    ),
+    "queue_binding": "submission qstat_visibility only",
+    "delivery_log_binding": (
+        "scheduler completion receipt path/bytes SHA-256 plus job-terminal SHA-256"
+    ),
+}
 
 
 class PaperStoryError(RuntimeError):
@@ -172,6 +186,38 @@ def _sha256_file(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _normalize_request_id(value: str) -> str:
+    """Match dispatch_compute's request-ID normalization exactly."""
+    if type(value) is not str:
+        raise PaperStoryError("request ID is not a string")
+    normalized = value.strip().rstrip(".")
+    if normalized.startswith("0:"):
+        normalized = normalized[2:]
+    if not normalized:
+        raise PaperStoryError("request ID is empty")
+    return normalized
+
+
+def _validated_request_id(value: str, label: str) -> str:
+    normalized = _normalize_request_id(value)
+    if _NORMALIZED_REQUEST_ID.fullmatch(normalized) is None:
+        raise PaperStoryError(f"{label} is unsafe")
+    return normalized
+
+
+def _parse_request_id(stdout: str) -> str:
+    """Match dispatch_compute's NQSV-first, single-token-fallback parser."""
+    if type(stdout) is not str:
+        raise PaperStoryError("qsub stdout is not a string")
+    match = _REQUEST_RE.search(stdout)
+    if match is not None:
+        return match.group(1).rstrip(".")
+    tokens = stdout.split()
+    if len(tokens) == 1:
+        return tokens[0].rstrip(".")
+    raise PaperStoryError("qsub stdout does not contain one request ID")
 
 
 def _read_bytes_once(path: Path, *, missing_ok: bool = False) -> bytes | None:
@@ -529,13 +575,7 @@ def _pbs_environment_observation() -> dict[str, str]:
         "pbs_jobid": os.environ.get("PBS_JOBID"),
         "pbs_o_host": os.environ.get("PBS_O_HOST"),
         "pbs_o_workdir": os.environ.get("PBS_O_WORKDIR"),
-        "pbs_o_queue": os.environ.get("PBS_O_QUEUE"),
     }
-    try:
-        observation["stdout_path"] = os.readlink("/proc/self/fd/1")
-        observation["stderr_path"] = os.readlink("/proc/self/fd/2")
-    except OSError as exc:
-        raise PaperStoryError(f"PBS stdout/stderr observation failed: {exc}") from exc
     if any(type(value) is not str or not value for value in observation.values()):
         raise PaperStoryError("PBS environment observation is incomplete")
     return observation
@@ -547,22 +587,19 @@ def _validate_pbs_observation(
     receipt: Mapping[str, object],
     repo_root: Path,
     request_id: str,
-    expected_options: Mapping[str, object],
 ) -> dict[str, str]:
     if type(observation) is not dict or set(observation) != _PBS_OBSERVATION_KEYS:
         raise PaperStoryError("PBS environment observation shape differs")
     if any(type(observation.get(key)) is not str for key in _PBS_OBSERVATION_KEYS):
         raise PaperStoryError("PBS environment observation values differ")
     submit = receipt.get("submit_observation")
-    expected = {
-        "pbs_jobid": request_id,
-        "pbs_o_host": submit.get("submit_host") if type(submit) is dict else None,
-        "pbs_o_workdir": os.fspath(repo_root),
-        "pbs_o_queue": _PBS_QUEUE,
-        "stdout_path": expected_options.get("o"),
-        "stderr_path": expected_options.get("e"),
-    }
-    if observation != expected:
+    if (
+        _validated_request_id(observation["pbs_jobid"], "PBS_JOBID")
+        != _validated_request_id(request_id, "submission request ID")
+        or observation.get("pbs_o_host")
+        != (submit.get("submit_host") if type(submit) is dict else None)
+        or observation.get("pbs_o_workdir") != os.fspath(repo_root)
+    ):
         raise PaperStoryError("PBS environment observation does not cross-bind receipt")
     return dict(observation)
 
@@ -600,7 +637,11 @@ def validate_acquisition_receipt(
         raise PaperStoryError("acquisition study ID differs")
     if receipt.get("source_commit") != source_commit:
         raise PaperStoryError("acquisition source commit differs")
-    if receipt.get("request_id") != request_id:
+    receipt_request_id = receipt.get("request_id")
+    if (
+        _validated_request_id(receipt_request_id, "submission request ID")
+        != _validated_request_id(request_id, "PBS_JOBID")
+    ):
         raise PaperStoryError("acquisition request ID differs from PBS_JOBID")
     raw_attempt = receipt.get("attempt_root")
     if type(raw_attempt) is not str or not Path(raw_attempt).is_absolute():
@@ -646,8 +687,14 @@ def validate_acquisition_receipt(
         raise PaperStoryError("submission host observation is invalid")
     qsub_stdout = observation.get("qsub_stdout")
     qsub_stderr = observation.get("qsub_stderr")
-    if qsub_stdout != f"{request_id}\n" or qsub_stderr != "":
+    if qsub_stderr != "":
         raise PaperStoryError("qsub stdout/stderr observation differs")
+    parsed_request_id = _parse_request_id(qsub_stdout)
+    if (
+        _validated_request_id(parsed_request_id, "parsed qsub request ID")
+        != _validated_request_id(receipt_request_id, "submission request ID")
+    ):
+        raise PaperStoryError("qsub stdout request ID differs")
     if (
         observation.get("qsub_stdout_sha256")
         != _sha256_bytes(qsub_stdout.encode("utf-8"))
@@ -657,16 +704,23 @@ def validate_acquisition_receipt(
         raise PaperStoryError("qsub stdout/stderr observation hash differs")
     visibility = observation.get("qstat_visibility")
     if type(visibility) is not dict or set(visibility) != {
-        "request_id", "visible", "state", "observed_epoch",
+        "request_id", "visible", "state", "queue", "observed_epoch",
     }:
         raise PaperStoryError("qstat visibility observation shape differs")
     if (
-        visibility.get("request_id") != request_id
-        or visibility.get("visible") is not True
+        visibility.get("visible") is not True
         or type(visibility.get("state")) is not str
         or re.fullmatch(r"[A-Z]", visibility["state"]) is None
+        or visibility.get("queue") != _PBS_QUEUE
         or type(visibility.get("observed_epoch")) is not int
         or visibility["observed_epoch"] <= 0
+    ):
+        raise PaperStoryError("qstat did not visibly bind the submitted request")
+    if (
+        _validated_request_id(
+            visibility.get("request_id"), "qstat visibility request ID"
+        )
+        != _validated_request_id(receipt_request_id, "submission request ID")
     ):
         raise PaperStoryError("qstat did not visibly bind the submitted request")
     _validate_pbs_observation(
@@ -674,7 +728,6 @@ def validate_acquisition_receipt(
         receipt=receipt,
         repo_root=repo,
         request_id=request_id,
-        expected_options=expected_options,
     )
     return {
         "attempt_root": os.fspath(attempt),
@@ -715,7 +768,13 @@ def validate_completion_receipt(
         or receipt.get("study_id") != STUDY_ID
         or receipt.get("source_commit") != source_commit
         or receipt.get("attempt_root") != trusted_roots.get("attempt_root")
-        or receipt.get("request_id") != request_id
+    ):
+        raise PaperStoryError("scheduler completion receipt identity differs")
+    if (
+        _validated_request_id(
+            receipt.get("request_id"), "completion request ID"
+        )
+        != _validated_request_id(request_id, "job receipt PBS_JOBID")
     ):
         raise PaperStoryError("scheduler completion receipt identity differs")
     expected_bindings = {
@@ -1753,6 +1812,7 @@ def assemble_result(
         "pairing_design": PAIRING_DESIGN,
         "policy_sha256": policy_sha256,
         "source_binding": dict(source_binding),
+        "pbs_evidence_scope": _json_safe(PBS_EVIDENCE_SCOPE),
         "complete": complete,
         "measurement_error": measurement_error,
         "workloads": [_json_safe(dict(item)) for item in workloads],
@@ -2054,6 +2114,8 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         raise PaperStoryError("exploratory authority flags differ")
     if result.get("pairing_design") != PAIRING_DESIGN:
         raise PaperStoryError("pairing design differs")
+    if result.get("pbs_evidence_scope") != _json_safe(PBS_EVIDENCE_SCOPE):
+        raise PaperStoryError("PBS evidence scope disclosure differs")
     workloads = result.get("workloads")
     if type(workloads) is not list:
         raise PaperStoryError("result workloads is not a list")
@@ -2105,7 +2167,10 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         or terminal.get("status") != "finished"
     ):
         raise PaperStoryError("job did not terminate with a finished raw bundle")
-    if terminal.get("pbs_jobid") != receipt.get("pbs_jobid"):
+    if (
+        _validated_request_id(terminal.get("pbs_jobid"), "terminal PBS_JOBID")
+        != _validated_request_id(receipt.get("pbs_jobid"), "receipt PBS_JOBID")
+    ):
         raise PaperStoryError("job terminal PBS identity differs from receipt")
     pbs_observation = terminal.get("pbs_observation")
     if (
@@ -2174,7 +2239,12 @@ def _readme(result: Mapping[str, object]) -> str:
         "The five positions are arm-grouped ordinal matches, not shared time blocks. "
         "They do not support causal, population, significance, confidence-interval, "
         "or repeatability claims. Trace0 evidence is source-routed and is not an "
-        "artifact-standalone proof. Invalid input always means no cross-workload conclusion.\n"
+        "artifact-standalone proof. Invalid input always means no cross-workload conclusion.\n\n"
+        "PBS evidence scope: the job observes PBS_JOBID, PBS_O_HOST, and "
+        "PBS_O_WORKDIR. PBS_O_QUEUE is not exported by this NQSV site and is not "
+        "claimed as a job observation. NQSV stdout/stderr FD targets are not the "
+        "qsub -o/-e delivery files; their delivered bytes are bound only by the "
+        "scheduler completion receipt SHA-256 values and the job-terminal SHA-256.\n"
     )
 
 

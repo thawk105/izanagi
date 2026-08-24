@@ -103,7 +103,14 @@ def _policy_for_base(base: Path) -> dict:
     return policy
 
 
-def _acquisition(attempt_root: Path, repo_root: Path) -> dict:
+def _acquisition(
+    attempt_root: Path,
+    repo_root: Path,
+    *,
+    request_id: str = "12345.nqsv",
+    qsub_stdout: str | None = None,
+    submit_host: str = "pegasus01",
+) -> dict:
     job = repo_root / paired.JOB_RELATIVE_PATH
     if not job.exists():
         job.parent.mkdir(parents=True, exist_ok=True)
@@ -114,7 +121,7 @@ def _acquisition(attempt_root: Path, repo_root: Path) -> dict:
         source_commit="a" * 40,
         attempt=attempt_root,
     )
-    qsub_stdout = "12345.nqsv\n"
+    qsub_stdout = qsub_stdout if qsub_stdout is not None else f"{request_id}\n"
     qsub_stderr = ""
     evidence = paired._attempt_evidence_paths(attempt_root)
     return {
@@ -123,21 +130,22 @@ def _acquisition(attempt_root: Path, repo_root: Path) -> dict:
         "study_id": paired.STUDY_ID,
         "source_commit": "a" * 40,
         "attempt_root": os.fspath(attempt_root),
-        "request_id": "12345.nqsv",
+        "request_id": request_id,
         "submission_receipt_path": evidence["submission_receipt"],
         "completion_receipt_path": evidence["completion_receipt"],
         "qsub_argv": argv,
         "qsub_options": options,
         "submit_observation": {
-            "submit_host": "pegasus01",
+            "submit_host": submit_host,
             "qsub_stdout": qsub_stdout,
             "qsub_stdout_sha256": hashlib.sha256(qsub_stdout.encode()).hexdigest(),
             "qsub_stderr": qsub_stderr,
             "qsub_stderr_sha256": hashlib.sha256(qsub_stderr.encode()).hexdigest(),
             "qstat_visibility": {
-                "request_id": "12345.nqsv",
+                "request_id": request_id,
                 "visible": True,
                 "state": "Q",
+                "queue": "gen_S",
                 "observed_epoch": 1,
             },
         },
@@ -149,15 +157,13 @@ def _pbs_observation(
     repo_root: Path,
     *,
     host: str = "pegasus01",
+    pbs_jobid: str = "12345.nqsv",
 ) -> dict[str, str]:
-    evidence = paired._attempt_evidence_paths(attempt_root)
+    del attempt_root
     return {
-        "pbs_jobid": "12345.nqsv",
+        "pbs_jobid": pbs_jobid,
         "pbs_o_host": host,
         "pbs_o_workdir": os.fspath(repo_root.resolve()),
-        "pbs_o_queue": "gen_S",
-        "stdout_path": evidence["stdout_path"],
-        "stderr_path": evidence["stderr_path"],
     }
 
 
@@ -194,15 +200,175 @@ def test_acquisition_receipt_binds_request_and_fixed_topology(tmp_path: Path) ->
         )
 
 
+def test_request_id_normalization_accepts_nqsv_zero_prefix_M21(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(
+        attempt,
+        repo,
+        request_id="944076.nqsv",
+        qsub_stdout="944076.nqsv\n",
+    )
+    roots = paired.validate_acquisition_receipt(
+        receipt,
+        repo_root=repo,
+        study_id=paired.STUDY_ID,
+        source_commit="a" * 40,
+        request_id="0:944076.nqsv",
+        pbs_observation=_pbs_observation(
+            attempt, repo, pbs_jobid="0:944076.nqsv"
+        ),
+        policy=_policy_for_base(base),
+    )
+    assert receipt["request_id"] == "944076.nqsv"
+    assert roots["attempt_root"] == os.fspath(attempt)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (" 944076.nqsv ", "944076.nqsv"),
+        ("944076.nqsv.", "944076.nqsv"),
+        ("0:944076.nqsv", "944076.nqsv"),
+    ],
+)
+def test_request_id_normalization_matches_dispatcher(
+    raw: str, expected: str
+) -> None:
+    assert paired._normalize_request_id(raw) == expected
+
+
+def test_qsub_stdout_parser_accepts_nqsv_sentence_M22(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(
+        attempt,
+        repo,
+        request_id="944076.nqsv",
+        qsub_stdout="Request 944076.nqsv submitted to queue: gen_S.\n",
+    )
+    paired.validate_acquisition_receipt(
+        receipt,
+        repo_root=repo,
+        study_id=paired.STUDY_ID,
+        source_commit="a" * 40,
+        request_id="944076.nqsv",
+        pbs_observation=_pbs_observation(
+            attempt, repo, pbs_jobid="944076.nqsv"
+        ),
+        policy=_policy_for_base(base),
+    )
+
+
+def test_real_nqsv_probe_values_positive_contract(tmp_path: Path) -> None:
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "probe-attempt"
+    attempt.mkdir()
+    probe = {
+        "PBS_JOBID": "0:944076.nqsv",
+        "PBS_O_HOST": "pegasus02",
+        "PBS_O_WORKDIR": os.fspath(REPO_ROOT),
+        "FD1": "pipe:[46452536]",
+        "FD2": "/var/opt/nec/nqsv/jsv/jobfile/0.944076.10/stderr",
+        "qsub_stdout": "Request 944076.nqsv submitted to queue: gen_S.\n",
+    }
+    receipt = _acquisition(
+        attempt,
+        REPO_ROOT,
+        request_id="944076.nqsv",
+        qsub_stdout=probe["qsub_stdout"],
+        submit_host="pegasus02",
+    )
+    observation = {
+        "pbs_jobid": probe["PBS_JOBID"],
+        "pbs_o_host": probe["PBS_O_HOST"],
+        "pbs_o_workdir": probe["PBS_O_WORKDIR"],
+    }
+    roots = paired.validate_acquisition_receipt(
+        receipt,
+        repo_root=REPO_ROOT,
+        study_id=paired.STUDY_ID,
+        source_commit="a" * 40,
+        request_id=probe["PBS_JOBID"],
+        pbs_observation=observation,
+        policy=_policy_for_base(base),
+    )
+    assert roots["attempt_root"] == os.fspath(attempt)
+    assert "PBS_O_QUEUE" not in probe
+    assert probe["FD1"].startswith("pipe:[")
+    assert probe["FD2"].startswith("/var/opt/nec/nqsv/jsv/jobfile/")
+    assert set(observation) == paired._PBS_OBSERVATION_KEYS
+
+
+def test_request_id_rejects_nonzero_colon_prefix(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(attempt, repo, request_id="1:944076.nqsv")
+    with pytest.raises(paired.PaperStoryError, match="unsafe"):
+        paired.validate_acquisition_receipt(
+            receipt,
+            repo_root=repo,
+            study_id=paired.STUDY_ID,
+            source_commit="a" * 40,
+            request_id="1:944076.nqsv",
+            pbs_observation=_pbs_observation(
+                attempt, repo, pbs_jobid="1:944076.nqsv"
+            ),
+            policy=_policy_for_base(base),
+        )
+
+
+@pytest.mark.parametrize(
+    "qsub_stdout",
+    [
+        "unparseable qsub output\n",
+        "Request 999999.nqsv submitted to queue: gen_S.\n",
+    ],
+    ids=["unparseable", "different-request"],
+)
+def test_qsub_stdout_parser_rejects_missing_or_different_request(
+    tmp_path: Path, qsub_stdout: str
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(attempt, repo, qsub_stdout=qsub_stdout)
+    with pytest.raises(paired.PaperStoryError, match="qsub stdout"):
+        paired.validate_acquisition_receipt(
+            receipt,
+            repo_root=repo,
+            study_id=paired.STUDY_ID,
+            source_commit="a" * 40,
+            request_id="12345.nqsv",
+            pbs_observation=_pbs_observation(attempt, repo),
+            policy=_policy_for_base(base),
+        )
+
+
 @pytest.mark.parametrize(
     "field",
     [
         "pbs_jobid",
         "pbs_o_host",
         "pbs_o_workdir",
-        "pbs_o_queue",
-        "stdout_path",
-        "stderr_path",
     ],
 )
 def test_pbs_environment_cross_bind_rejects_each_mismatch_M19(
@@ -228,6 +394,29 @@ def test_pbs_environment_cross_bind_rejects_each_mismatch_M19(
             source_commit="a" * 40,
             request_id="12345.nqsv",
             pbs_observation=observation,
+            policy=_policy_for_base(base),
+        )
+
+
+def test_queue_binding_remains_in_submission_qstat_visibility(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    base = (tmp_path / "measurement").resolve()
+    base.mkdir()
+    attempt = base / "attempt"
+    attempt.mkdir()
+    receipt = _acquisition(attempt, repo)
+    receipt["submit_observation"]["qstat_visibility"]["queue"] = "other_queue"
+    with pytest.raises(paired.PaperStoryError, match="qstat"):
+        paired.validate_acquisition_receipt(
+            receipt,
+            repo_root=repo,
+            study_id=paired.STUDY_ID,
+            source_commit="a" * 40,
+            request_id="12345.nqsv",
+            pbs_observation=_pbs_observation(attempt, repo),
             policy=_policy_for_base(base),
         )
 
@@ -424,6 +613,14 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
         submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
         job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
     ) == completion
+    assert paired.validate_completion_receipt(
+        completion,
+        trusted_roots=trusted,
+        source_commit="a" * 40,
+        request_id="0:12345.nqsv",
+        submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+        job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
+    ) == completion
 
     incomplete = json.loads(json.dumps(completion))
     incomplete["stdout"].pop("sha256")
@@ -433,6 +630,30 @@ def test_scheduler_completion_receipt_cross_binds_terminal_and_logs(
             trusted_roots=trusted,
             source_commit="a" * 40,
             request_id="12345.nqsv",
+            submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+            job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
+        )
+
+    Path(trusted["stdout_path"]).write_bytes(b"tampered scheduler stdout\n")
+    with pytest.raises(paired.PaperStoryError, match="stdout hash"):
+        paired.validate_completion_receipt(
+            completion,
+            trusted_roots=trusted,
+            source_commit="a" * 40,
+            request_id="0:12345.nqsv",
+            submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
+            job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
+        )
+    Path(trusted["stdout_path"]).write_bytes(b"job stdout\n")
+
+    wrong_terminal_binding = json.loads(json.dumps(completion))
+    wrong_terminal_binding["job_terminal"]["sha256"] = "0" * 64
+    with pytest.raises(paired.PaperStoryError, match="job_terminal hash"):
+        paired.validate_completion_receipt(
+            wrong_terminal_binding,
+            trusted_roots=trusted,
+            source_commit="a" * 40,
+            request_id="0:12345.nqsv",
             submission_receipt_sha256=hashlib.sha256(submission_raw).hexdigest(),
             job_terminal_sha256=hashlib.sha256(terminal_path.read_bytes()).hexdigest(),
         )
@@ -544,7 +765,6 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         '[[ -n "${PBS_JOBID:-}" ]]',
         '[[ -n "${PBS_O_HOST:-}" ]]',
         '[[ -n "${PBS_O_WORKDIR:-}" ]]',
-        '[[ -n "${PBS_O_QUEUE:-}" ]]',
         '[[ -n "${IZANAGI_A1_ACQUISITION_RECEIPT:-}" ]]',
         '[[ -n "${IZANAGI_A1_COMPLETION_RECEIPT:-}" ]]',
         '[[ "$CURRENT_HEAD" == "$IZANAGI_EXPECTED_HEAD" ]]',
@@ -563,7 +783,9 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         'export IZANAGI_EXPLORATION_OUTPUT_ROOT="$OUTPUT_ROOT"',
         "os.O_EXCL",
         'observation["submit_host"] != pbs_o_host',
-        'pbs_stdout_path != options["o"]',
+        'normalized.startswith("0:")',
+        'request_pattern = re.compile(r"Request\\s+(\\S+)\\s+submitted")',
+        'visibility["queue"] != expected_queue',
         '"pbs_observation": {',
         '"attempt_identity": {',
     )
@@ -571,6 +793,9 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         assert source.count(marker) == 1, marker
     assert _shell_submitter_violations(source) == []
     assert "dispatch_compute.py" not in source
+    assert "PBS_O_QUEUE" not in source
+    assert "/proc/" not in source
+    assert "os.readlink" not in source
 
 
 def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
@@ -634,7 +859,6 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         "PBS_JOBID": "12345.nqsv",
         "PBS_O_HOST": "pegasus01",
         "PBS_O_WORKDIR": os.fspath(repo),
-        "PBS_O_QUEUE": "gen_S",
         "IZANAGI_A1_STUDY_ID": paired.STUDY_ID,
         "IZANAGI_EXPECTED_HEAD": head,
         "IZANAGI_A1_ATTEMPT_ROOT": os.fspath(attempt),
@@ -674,26 +898,21 @@ def _run_shell_job(
 
 @pytest.mark.parametrize(
     "field",
-    ["pbs_o_host", "pbs_o_workdir", "pbs_o_queue", "stdout_path", "stderr_path"],
+    ["pbs_jobid", "pbs_o_host", "pbs_o_workdir"],
 )
 def test_production_job_rejects_pbs_environment_cross_bind_M19(
     tmp_path: Path, field: str
 ) -> None:
     environment, attempt, _ = _shell_fixture(tmp_path)
-    run_options = {}
-    if field == "pbs_o_host":
+    if field == "pbs_jobid":
+        environment["PBS_JOBID"] = "99999.nqsv"
+    elif field == "pbs_o_host":
         environment["PBS_O_HOST"] = "other-submit-host"
-    elif field == "pbs_o_workdir":
+    else:
         alias = tmp_path / "repo-alias"
         alias.symlink_to(environment["PBS_O_WORKDIR"], target_is_directory=True)
         environment["PBS_O_WORKDIR"] = os.fspath(alias)
-    elif field == "pbs_o_queue":
-        environment["PBS_O_QUEUE"] = "other_queue"
-    elif field == "stdout_path":
-        run_options["stdout_path"] = tmp_path / "wrong.stdout"
-    else:
-        run_options["stderr_path"] = tmp_path / "wrong.stderr"
-    completed, stderr = _run_shell_job(environment, **run_options)
+    completed, stderr = _run_shell_job(environment)
     assert completed.returncode == 2
     assert "acquisition receipt validation failed" in stderr
     assert not attempt.exists()
@@ -729,6 +948,39 @@ def test_production_job_narrow_stub_reaches_site_and_driver(tmp_path: Path) -> N
     assert completed.returncode == 0, stderr
     assert (attempt / "raw/tmp").is_dir()
     assert paired.DRIVER_RELATIVE_PATH in log.read_text(encoding="utf-8")
+
+
+def test_production_job_does_not_gate_on_nqsv_fd_targets(tmp_path: Path) -> None:
+    environment, attempt, _ = _shell_fixture(tmp_path)
+    completed, stderr = _run_shell_job(
+        environment,
+        stdout_path=tmp_path / "nqsv-pipe-surrogate.stdout",
+        stderr_path=tmp_path / "nqsv-spool-surrogate.stderr",
+    )
+    assert completed.returncode == 0, stderr
+    assert (attempt / "raw/tmp").is_dir()
+
+
+def test_production_job_accepts_nqsv_request_and_stdout_M21_M22(
+    tmp_path: Path,
+) -> None:
+    environment, attempt, _ = _shell_fixture(tmp_path)
+    environment["PBS_JOBID"] = "0:944076.nqsv"
+    receipt_path = Path(environment["IZANAGI_A1_ACQUISITION_RECEIPT"])
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    qsub_stdout = "Request 944076.nqsv submitted to queue: gen_S.\n"
+    receipt["request_id"] = "944076.nqsv"
+    receipt["submit_observation"]["qsub_stdout"] = qsub_stdout
+    receipt["submit_observation"]["qsub_stdout_sha256"] = hashlib.sha256(
+        qsub_stdout.encode()
+    ).hexdigest()
+    receipt["submit_observation"]["qstat_visibility"]["request_id"] = (
+        "944076.nqsv"
+    )
+    receipt_path.write_text(json.dumps(receipt) + "\n", encoding="utf-8")
+    completed, stderr = _run_shell_job(environment)
+    assert completed.returncode == 0, stderr
+    assert (attempt / "raw/tmp").is_dir()
 
 
 @pytest.mark.parametrize("mode", ["writer-fail", "existing-terminal"])

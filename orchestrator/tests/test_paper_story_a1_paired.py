@@ -862,6 +862,27 @@ def test_clean_exact_two_arm_three_workload_positive_case() -> None:
     assert "All-workload observed negative direction: `yes`" in paired._readme(result)
 
 
+def test_result_and_readme_disclose_nqsv_observation_scope() -> None:
+    policy, policy_sha = paired.load_policy()
+    workloads = [
+        _validated_workload(name, f"campaign-{index}")
+        for index, name in enumerate(paired.WORKLOAD_ORDER)
+    ]
+    result = paired.assemble_result(
+        policy,
+        policy_sha256=policy_sha,
+        source_binding=_source_binding(),
+        workloads=workloads,
+    )
+    assert result["pbs_evidence_scope"] == paired._json_safe(
+        paired.PBS_EVIDENCE_SCOPE
+    )
+    readme = paired._readme(result)
+    assert "PBS_O_QUEUE is not exported" in readme
+    assert "stdout/stderr FD targets are not the qsub -o/-e delivery files" in readme
+    assert "scheduler completion receipt SHA-256" in readme
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [("driver_rc", True), ("driver_rc", 1), ("shell_rc", 1)],
