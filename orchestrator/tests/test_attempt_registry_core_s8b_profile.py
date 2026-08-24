@@ -25,8 +25,15 @@ _EXTERNAL = "7" * 64
 _RAW = "8" * 64
 _REPORT = "9" * 64
 _OBSERVATION = "a" * 64
+_ACCOUNTING_RECORD = "d" * 64
 _CONTENT = "b" * 40
 _EFFECTIVE = "c" * 40
+_RECOVERY_AUTHORITY = "s8b-profile-test-scheduler-authority"
+_RECOVERER = {
+    "pid": 5678,
+    "starttime": "s8b-profile-test-recoverer-start",
+    "execution_uuid": "s8b-profile-test-recoverer-execution",
+}
 _PROCESS = {
     "pid": 1234,
     "starttime": "s8b-profile-test-start",
@@ -72,6 +79,8 @@ def _slot(
 def _profile(*, budget: int = 32) -> core.DomainProfile[Any, Any]:
     return s8b.make_s8b_domain_profile(
         max_consumptions_per_budget_key=budget,
+        recovery_authority_id=_RECOVERY_AUTHORITY,
+        recovery_authority_policy_sha256=_POLICY,
     )
 
 
@@ -94,6 +103,7 @@ def _reserve(
     *,
     profile: core.DomainProfile[Any, Any],
     slot: s8b.S8BAttemptSlot,
+    process_identity: Mapping[str, Any] | None = None,
 ) -> core.RegistryRows:
     return core.reserve_attempt_slot(
         rows,
@@ -102,7 +112,9 @@ def _reserve(
         slot_id=profile.slot_codec.slot_id(slot),
         binding=_BINDING,
         run_start_receipt_sha256=_RUN_START,
-        process_identity=_PROCESS,
+        process_identity=(
+            _PROCESS if process_identity is None else process_identity
+        ),
         started_at="2026-08-23T00:00:00+00:00",
     )
 
@@ -164,6 +176,77 @@ def _terminal(
     )
 
 
+def _start_for_slot(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    slot: s8b.S8BAttemptSlot,
+) -> Mapping[str, Any]:
+    starts = [
+        row for row in rows
+        if row.get("event") == "start"
+        and row.get("freeze_holdout_key") == slot.freeze_holdout_key
+        and row.get("configuration_id") == slot.configuration_id
+        and row.get("repetition") == slot.repetition
+        and row.get("attempt_ordinal") == slot.attempt_ordinal
+    ]
+    assert len(starts) == 1
+    return starts[0]
+
+
+def _recovery_receipt(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    slot: s8b.S8BAttemptSlot,
+    reason: str,
+) -> dict[str, Any]:
+    start = _start_for_slot(rows, slot=slot)
+    return {
+        "schema_version": s8b.S8B_RECOVERY_RECEIPT_SCHEMA_VERSION,
+        "event": s8b.S8B_RECOVERY_RECEIPT_EVENT,
+        "source": s8b.S8B_RECOVERY_RECEIPT_SOURCE,
+        "scheduler_request_id": "nqsv-request-1234",
+        "target_start_event_sha256": start["event_sha256"],
+        "raw_scheduler_accounting_record_sha256": _ACCOUNTING_RECORD,
+        "authority_id": _RECOVERY_AUTHORITY,
+        "authority_policy_sha256": _POLICY,
+        "failure_reason": reason,
+        "collected_at": "2026-08-23T00:00:03+00:00",
+    }
+
+
+def _recover(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    profile: core.DomainProfile[Any, Any],
+    slot: s8b.S8BAttemptSlot,
+    reason: str = "scheduler_external_interruption",
+    receipt: Mapping[str, Any] | None = None,
+    recoverer_process_identity: Mapping[str, Any] | None = None,
+) -> core.RegistryRows:
+    scheduler_receipt = (
+        _recovery_receipt(rows, slot=slot, reason=reason)
+        if receipt is None else receipt
+    )
+    return core.record_attempt_recovery(
+        rows,
+        profile=profile,
+        freeze_id=_FREEZE,
+        slot_id=profile.slot_codec.slot_id(slot),
+        binding=_BINDING,
+        scheduler_accounting_receipt=scheduler_receipt,
+        recoverer_process_identity=(
+            _RECOVERER
+            if recoverer_process_identity is None
+            else recoverer_process_identity
+        ),
+        recovered_at="2026-08-23T00:00:04+00:00",
+    )
+
+
+def _receipt_sha256(receipt: Mapping[str, Any]) -> str:
+    return hashlib.sha256(core.canonical_json_bytes(receipt) + b"\n").hexdigest()
+
+
 def _assert_core_rejection(
     expected: str,
     operation: Callable[[], object],
@@ -177,6 +260,41 @@ def _registry_bytes(rows: Sequence[Mapping[str, Any]]) -> bytes:
     return b"".join(core.canonical_json_bytes(row) + b"\n" for row in rows)
 
 
+def _rechain_after(
+    rows: Sequence[Mapping[str, Any]], row: Mapping[str, Any],
+) -> core.RegistryRows:
+    payload = {
+        key: value
+        for key, value in row.items()
+        if key not in {
+            "event_index", "previous_event_sha256", "event_sha256",
+        }
+    }
+    rechained = core.chained_event_row(
+        payload,
+        event_index=len(rows),
+        previous_event_sha256=rows[-1]["event_sha256"],
+    )
+    return tuple(dict(existing) for existing in rows) + (rechained,)
+
+
+def _expected_recovery_policy_sha256(
+    profile: core.DomainProfile[Any, Any],
+) -> str:
+    policy = profile.recovery_policy
+    assert policy is not None
+    payload = {
+        "receipt_schema_version": policy.receipt_schema_version,
+        "receipt_event": policy.receipt_event,
+        "receipt_source": policy.receipt_source,
+        "authority_id": policy.authority_id,
+        "authority_policy_sha256": policy.authority_policy_sha256,
+        "failure_reasons": sorted(policy.failure_reasons),
+        "enabled": profile.transition_policy.allow_recovered_abandonment,
+    }
+    return hashlib.sha256(core.canonical_json_bytes(payload)).hexdigest()
+
+
 def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:
     profile = _profile(budget=2)
     first = _slot(0, 0)
@@ -184,9 +302,32 @@ def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:
 
     assert profile.retryable_reasons == frozenset()
     assert s8b.S8B_RETRYABLE_FAILURE_REASONS == frozenset()
+    assert s8b.S8B_RECOVERY_FAILURE_REASONS == frozenset({
+        "node_failure", "scheduler_external_interruption",
+    })
+    assert profile.recovery_policy is not None
+    assert (
+        profile.recovery_policy.failure_reasons
+        == s8b.S8B_RECOVERY_FAILURE_REASONS
+    )
     assert profile.transition_policy.require_previous_terminal
     assert profile.transition_policy.forbid_retry_after_observation
+    assert profile.transition_policy.allow_recovered_abandonment
     assert profile.transition_policy.require_terminal_reason_equals_classification
+    event_keys = profile.schema.event_keys[profile.schema.current]
+    assert event_keys["start"].isdisjoint({
+        "generation",
+        "fence_generation",
+        "predecessor_outcome_event_sha256",
+        "registry_head_sha256",
+    })
+    assert event_keys["recovery"].isdisjoint({
+        "raw_output_sha256",
+        "report_sha256",
+        "observation_sha256",
+        "primary_value",
+        "terminal_status",
+    })
     assert profile.slot_codec.slot_id(first) == (
         "holdout-a", "configuration-a", 0, 0,
     )
@@ -210,6 +351,12 @@ def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:
         f"floor-attempt-registries/{_FREEZE}/registry.jsonl"
     )
     assert rows[0]["max_consumptions_per_budget_key"] == 2
+    assert rows[0]["recovery_policy_sha256"] == (
+        _expected_recovery_policy_sha256(profile)
+    )
+    assert core.load_attempt_registry(
+        _registry_bytes(rows), profile=profile,
+    ) == rows
 
     invalid = {**profile.slot_codec.to_json(first), "campaign_run_id": "forbidden"}
     _assert_core_rejection(
@@ -220,6 +367,8 @@ def test_s8b_profile_closes_slot_binding_budget_and_reason_policy() -> None:
         "[attempt-registry-profile] 8b cell consumption budget is invalid",
         lambda: s8b.make_s8b_domain_profile(
             max_consumptions_per_budget_key=-1,
+            recovery_authority_id=_RECOVERY_AUTHORITY,
+            recovery_authority_policy_sha256=_POLICY,
         ),
     )
 
@@ -239,6 +388,75 @@ def test_genesis_rejects_freeze_id_that_differs_from_8b_binding() -> None:
             manifest_sha256=_MANIFEST,
             slots=[_slot(0, 0)],
             binding=mismatched_binding,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("receipt_schema_version", "scheduler-accounting-receipt/v2"),
+        ("receipt_event", "different-scheduler-event"),
+        ("receipt_source", "different-accounting-source"),
+        ("authority_id", "different-recovery-authority"),
+        ("authority_policy_sha256", "e" * 64),
+        (
+            "failure_reasons",
+            frozenset({
+                "node_failure",
+                "scheduler_external_interruption",
+                "wall_timeout",
+            }),
+        ),
+    ),
+)
+def test_genesis_rejects_recovery_history_under_a_different_policy_profile(
+    field: str, replacement: object,
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    policy = profile.recovery_policy
+    assert policy is not None
+    changed_profile = replace(
+        profile,
+        recovery_policy=replace(policy, **{field: replacement}),
+    )
+
+    _assert_core_rejection(
+        "[attempt-registry-genesis] attempt registry genesis."
+        "recovery_policy_sha256 differs from the current profile",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(rows), profile=changed_profile,
+        ),
+    )
+
+
+def test_genesis_rejects_recovery_history_when_enable_flag_changes() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    disabled_profile = replace(
+        profile,
+        transition_policy=replace(
+            profile.transition_policy,
+            allow_recovered_abandonment=False,
+        ),
+    )
+
+    _assert_core_rejection(
+        "[attempt-registry-genesis] attempt registry genesis."
+        "recovery_policy_sha256 differs from the current profile",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(rows), profile=disabled_profile,
         ),
     )
 
@@ -275,14 +493,14 @@ def test_series_order_accepts_first_slot_and_rejects_skip_and_empty_retry_set() 
     )
 
     classified = _classify(
-        started, profile=profile, slot=first, reason="scheduler-timeout",
+        started, profile=profile, slot=first, reason="node_failure",
     )
     terminal = _terminal(
         classified,
         profile=profile,
         slot=first,
         status="terminal-failure",
-        failure_reason="scheduler-timeout",
+        failure_reason="node_failure",
     )
     assert terminal[-1]["terminal_status"] == "terminal-failure"
     _assert_core_rejection(
@@ -290,17 +508,26 @@ def test_series_order_accepts_first_slot_and_rejects_skip_and_empty_retry_set() 
         lambda: _reserve(terminal, profile=profile, slot=next_slot),
     )
 
-    # R-c is unresolved: claiming retryability must fail against the exact
-    # empty closed set, rather than silently inventing an 8b retry reason.
+
+def test_recovery_reason_does_not_bypass_ordinary_terminal_retryable_set() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    classified = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="node_failure",
+    )
+
     _assert_core_rejection(
         "[attempt-null-matrix] attempt registry line 5 "
         "retryable-failure null matrix differs",
         lambda: _terminal(
             classified,
             profile=profile,
-            slot=first,
+            slot=slot,
             status="retryable-failure",
-            failure_reason="scheduler-timeout",
+            failure_reason="node_failure",
             report_sha256=_REPORT,
         ),
     )
@@ -405,6 +632,617 @@ def test_retryable_terminal_after_observation_hits_only_observation_guard() -> N
     assert accepted[-2]["attempt_ordinal"] == 1
 
 
+@pytest.mark.parametrize(
+    ("reason", "after_observation"),
+    (
+        pytest.param("node_failure", False, id="node-before-observation"),
+        pytest.param(
+            "scheduler_external_interruption",
+            True,
+            id="scheduler-interruption-after-observation",
+        ),
+    ),
+)
+def test_verified_recovery_closes_slot_and_opens_exact_next_ordinal(
+    reason: str, after_observation: bool,
+) -> None:
+    profile = _profile()
+    first = _slot(0, 0)
+    next_slot = _slot(0, 1)
+    rows = _reserve(
+        _genesis(profile, [first, next_slot]), profile=profile, slot=first,
+    )
+    if after_observation:
+        rows = _classify(rows, profile=profile, slot=first, reason=None)
+        rows = core.begin_attempt_observation(
+            rows,
+            profile=profile,
+            freeze_id=_FREEZE,
+            slot_id=profile.slot_codec.slot_id(first),
+        )
+
+    rows = _recover(rows, profile=profile, slot=first, reason=reason)
+    recovery = rows[-1]
+    start = _start_for_slot(rows, slot=first)
+    assert rows[0]["recovery_policy_sha256"] == (
+        _expected_recovery_policy_sha256(profile)
+    )
+    assert recovery["event"] == "recovery"
+    assert recovery["start_event_sha256"] == start["event_sha256"]
+    assert recovery["recoverer_process_identity"] != start["process_identity"]
+    assert recovery["failure_reason"] == reason
+    assert recovery["scheduler_accounting_receipt"]["failure_reason"] == reason
+    assert recovery["scheduler_accounting_receipt_sha256"] == _receipt_sha256(
+        recovery["scheduler_accounting_receipt"]
+    )
+    assert frozenset(recovery).isdisjoint({
+        "raw_output_sha256",
+        "report_sha256",
+        "observation_sha256",
+        "primary_value",
+        "terminal_status",
+    })
+
+    accepted = _reserve(rows, profile=profile, slot=next_slot)
+    assert accepted[-2]["event"] == "start"
+    assert accepted[-2]["attempt_ordinal"] == 1
+
+
+@pytest.mark.parametrize(
+    "reason",
+    (
+        "wall_timeout",
+        "process_disappearance",
+        "sigkill",
+        "user_cancellation",
+        "unregistered_scheduler_reason",
+    ),
+)
+def test_recovery_receipt_rejects_every_reason_outside_exact_closed_set(
+    reason: str,
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    receipt = _recovery_receipt(rows, slot=slot, reason="node_failure")
+    receipt["failure_reason"] = reason
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] scheduler_accounting_receipt."
+        "failure_reason is outside the exact closed set",
+        lambda: _recover(
+            rows, profile=profile, slot=slot, receipt=receipt,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "reason",
+    (
+        pytest.param([], id="array"),
+        pytest.param({}, id="object"),
+    ),
+)
+def test_recovery_receipt_rejects_non_string_reason_at_evidence_gate(
+    reason: object,
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    recovery = dict(rows[-1])
+    receipt = dict(recovery["scheduler_accounting_receipt"])
+    receipt["failure_reason"] = reason
+    recovery["scheduler_accounting_receipt"] = receipt
+    recovery["scheduler_accounting_receipt_sha256"] = _receipt_sha256(receipt)
+    recovery["failure_reason"] = reason
+    recovery["event_sha256"] = core.event_sha256(recovery)
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] attempt registry line 4."
+        "scheduler_accounting_receipt."
+        "failure_reason is outside the exact closed set",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*rows[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("schema_version", "scheduler-accounting-receipt/v2"),
+        ("event", "scheduler-finished"),
+        ("source", "untrusted-accounting-source"),
+        ("authority_id", "different-authority"),
+        ("authority_policy_sha256", "e" * 64),
+    ),
+)
+def test_recovery_receipt_rejects_pinned_authority_substitution(
+    field: str, replacement: str,
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    receipt = _recovery_receipt(rows, slot=slot, reason="node_failure")
+    receipt[field] = replacement
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] scheduler_accounting_receipt."
+        f"{field} differs from the pinned authority policy",
+        lambda: _recover(
+            rows, profile=profile, slot=slot, receipt=receipt,
+        ),
+    )
+
+
+@pytest.mark.parametrize("mode", ("missing", "extra"))
+def test_recovery_receipt_rejects_non_exact_nested_keys(mode: str) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    receipt = _recovery_receipt(rows, slot=slot, reason="node_failure")
+    if mode == "missing":
+        del receipt["scheduler_request_id"]
+        detail = "missing=['scheduler_request_id'], unknown=[]"
+    else:
+        receipt["performance_output_read"] = False
+        detail = "missing=[], unknown=['performance_output_read']"
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] scheduler_accounting_receipt key set "
+        f"differs: {detail}",
+        lambda: _recover(
+            rows, profile=profile, slot=slot, receipt=receipt,
+        ),
+    )
+
+
+def test_recovery_receipt_rejects_empty_scheduler_request_identity() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    receipt = _recovery_receipt(rows, slot=slot, reason="node_failure")
+    receipt["scheduler_request_id"] = ""
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] scheduler_accounting_receipt."
+        "scheduler_request_id is invalid",
+        lambda: _recover(
+            rows, profile=profile, slot=slot, receipt=receipt,
+        ),
+    )
+
+
+def test_recovery_rejects_nested_receipt_change_with_stale_digest() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    recovery = dict(rows[-1])
+    receipt = dict(recovery["scheduler_accounting_receipt"])
+    receipt["raw_scheduler_accounting_record_sha256"] = "e" * 64
+    recovery["scheduler_accounting_receipt"] = receipt
+    recovery["event_sha256"] = core.event_sha256(recovery)
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] attempt registry line 4."
+        "scheduler_accounting_receipt_sha256 differs from the nested receipt",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*rows[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+def test_recovery_rejects_receipt_targeting_a_different_start() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    recovery = dict(rows[-1])
+    receipt = dict(recovery["scheduler_accounting_receipt"])
+    receipt["target_start_event_sha256"] = "e" * 64
+    recovery["scheduler_accounting_receipt"] = receipt
+    recovery["scheduler_accounting_receipt_sha256"] = _receipt_sha256(receipt)
+    recovery["event_sha256"] = core.event_sha256(recovery)
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] scheduler receipt targets a different "
+        "start event",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*rows[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+def test_recovery_rejects_replaced_row_start_fence() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    recovery = {**rows[-1], "start_event_sha256": "e" * 64}
+    recovery["event_sha256"] = core.event_sha256(recovery)
+
+    _assert_core_rejection(
+        "[attempt-recovery-fence] recovery start-event hash differs from the "
+        "slot start",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*rows[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+def test_recovery_rejects_reason_echo_substitution() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    recovery = {
+        **rows[-1],
+        "failure_reason": "node_failure",
+    }
+    recovery["event_sha256"] = core.event_sha256(recovery)
+
+    _assert_core_rejection(
+        "[attempt-recovery-evidence] attempt registry line 4.failure_reason "
+        "differs from the nested receipt",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*rows[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+def test_recovery_rejects_same_process_identity_as_start_owner() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+
+    _assert_core_rejection(
+        "[attempt-recovery-fence] recoverer process identity matches the "
+        "start owner",
+        lambda: _recover(
+            rows,
+            profile=profile,
+            slot=slot,
+            recoverer_process_identity=_PROCESS,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("owner_starttime", "recoverer_starttime"),
+    (
+        pytest.param(123, "123", id="integer-and-decimal-string"),
+        pytest.param(123, "00123", id="integer-and-zero-padded-string"),
+        pytest.param("123", "00123", id="decimal-and-zero-padded-string"),
+    ),
+)
+def test_recovery_rejects_same_owner_with_equivalent_starttime_encoding(
+    owner_starttime: int | str,
+    recoverer_starttime: int | str,
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    owner = {**_PROCESS, "starttime": owner_starttime}
+    recoverer = {**_PROCESS, "starttime": recoverer_starttime}
+    rows = _reserve(
+        _genesis(profile, [slot]),
+        profile=profile,
+        slot=slot,
+        process_identity=owner,
+    )
+
+    _assert_core_rejection(
+        "[attempt-recovery-fence] recoverer process identity matches the "
+        "start owner",
+        lambda: _recover(
+            rows,
+            profile=profile,
+            slot=slot,
+            recoverer_process_identity=recoverer,
+        ),
+    )
+
+
+def test_terminal_then_recovery_is_rejected() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="ordinary-terminal-reason",
+    )
+    rows = _terminal(
+        rows,
+        profile=profile,
+        slot=slot,
+        status="terminal-failure",
+        failure_reason="ordinary-terminal-reason",
+    )
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] recovery follows terminal",
+        lambda: _recover(rows, profile=profile, slot=slot),
+    )
+
+
+def test_recovery_then_terminal_is_rejected() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="ordinary-terminal-reason",
+    )
+    rows = _recover(rows, profile=profile, slot=slot)
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] terminal follows verified recovery",
+        lambda: _terminal(
+            rows,
+            profile=profile,
+            slot=slot,
+            status="terminal-failure",
+            failure_reason="ordinary-terminal-reason",
+        ),
+    )
+
+
+def test_recovery_then_classification_is_rejected() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] classification follows verified recovery",
+        lambda: _classify(
+            rows, profile=profile, slot=slot, reason=None,
+        ),
+    )
+
+
+def test_recovery_then_observation_is_rejected() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason=None,
+    )
+    rows = _recover(rows, profile=profile, slot=slot)
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] observation-start follows verified recovery",
+        lambda: core.begin_attempt_observation(
+            rows,
+            profile=profile,
+            freeze_id=_FREEZE,
+            slot_id=profile.slot_codec.slot_id(slot),
+        ),
+    )
+
+
+def test_second_recovery_is_rejected() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] slot has more than one recovery row",
+        lambda: _recover(rows, profile=profile, slot=slot),
+    )
+
+
+def test_replay_rejects_rechained_terminal_then_recovery() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    classified = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="ordinary-terminal-reason",
+    )
+    terminal = _terminal(
+        classified,
+        profile=profile,
+        slot=slot,
+        status="terminal-failure",
+        failure_reason="ordinary-terminal-reason",
+    )
+    recovery = _recover(classified, profile=profile, slot=slot)
+    invalid = _rechain_after(terminal, recovery[-1])
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] recovery follows terminal",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(invalid), profile=profile,
+        ),
+    )
+
+
+def test_replay_rejects_rechained_recovery_then_terminal() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    classified = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason="ordinary-terminal-reason",
+    )
+    recovery = _recover(classified, profile=profile, slot=slot)
+    terminal = _terminal(
+        classified,
+        profile=profile,
+        slot=slot,
+        status="terminal-failure",
+        failure_reason="ordinary-terminal-reason",
+    )
+    invalid = _rechain_after(recovery, terminal[-1])
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] terminal follows verified recovery",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(invalid), profile=profile,
+        ),
+    )
+
+
+def test_replay_rejects_rechained_recovery_then_classification() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    started = _reserve(
+        _genesis(profile, [slot]), profile=profile, slot=slot,
+    )
+    recovery = _recover(started, profile=profile, slot=slot)
+    classification = _classify(
+        started, profile=profile, slot=slot, reason=None,
+    )
+    invalid = _rechain_after(recovery, classification[-1])
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] classification follows verified recovery",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(invalid), profile=profile,
+        ),
+    )
+
+
+def test_replay_rejects_rechained_recovery_then_observation() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    classified = _classify(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+        reason=None,
+    )
+    recovery = _recover(classified, profile=profile, slot=slot)
+    observation = core.begin_attempt_observation(
+        classified,
+        profile=profile,
+        freeze_id=_FREEZE,
+        slot_id=profile.slot_codec.slot_id(slot),
+    )
+    invalid = _rechain_after(recovery, observation[-1])
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] observation-start follows verified recovery",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(invalid), profile=profile,
+        ),
+    )
+
+
+def test_replay_rejects_rechained_second_recovery() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    recovery = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    invalid = _rechain_after(recovery, recovery[-1])
+
+    _assert_core_rejection(
+        "[attempt-recovery-order] slot has more than one recovery row",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(invalid), profile=profile,
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "forbidden_key",
+    (
+        "raw_output_sha256",
+        "report_sha256",
+        "observation_sha256",
+        "terminal_status",
+    ),
+)
+def test_recovery_row_rejects_terminal_or_value_field_injection(
+    forbidden_key: str,
+) -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _recover(
+        _reserve(_genesis(profile, [slot]), profile=profile, slot=slot),
+        profile=profile,
+        slot=slot,
+    )
+    recovery = {**rows[-1], forbidden_key: None}
+    recovery["event_sha256"] = core.event_sha256(recovery)
+
+    _assert_core_rejection(
+        "[schema] attempt registry line 4 key set differs: missing=[], "
+        f"unknown=['{forbidden_key}']",
+        lambda: core.load_attempt_registry(
+            _registry_bytes((*rows[:-1], recovery)), profile=profile,
+        ),
+    )
+
+
+def test_recovery_row_rejects_primary_value_injection_at_exact_schema_gate() -> None:
+    profile = _profile()
+    slot = _slot(0, 0)
+    rows = _reserve(_genesis(profile, [slot]), profile=profile, slot=slot)
+    start = _start_for_slot(rows, slot=slot)
+    receipt = _recovery_receipt(rows, slot=slot, reason="node_failure")
+    injected_recovery = {
+        "schema_version": profile.schema.current,
+        "event": "recovery",
+        "freeze_holdout_key": start["freeze_holdout_key"],
+        "configuration_id": start["configuration_id"],
+        "repetition": start["repetition"],
+        "attempt_ordinal": start["attempt_ordinal"],
+        "freeze_sha256": start["freeze_sha256"],
+        "protocol_sha256": start["protocol_sha256"],
+        "schedule_sha256": start["schedule_sha256"],
+        "start_event_sha256": start["event_sha256"],
+        "scheduler_accounting_receipt": receipt,
+        "scheduler_accounting_receipt_sha256": _receipt_sha256(receipt),
+        "failure_reason": receipt["failure_reason"],
+        "recoverer_process_identity": _RECOVERER,
+        "recovered_at": "2026-08-23T00:00:04+00:00",
+        "primary_value": None,
+    }
+    invalid = _rechain_after(rows, injected_recovery)
+
+    _assert_core_rejection(
+        "[schema] attempt registry line 4 key set differs: missing=[], "
+        "unknown=['primary_value']",
+        lambda: core.load_attempt_registry(
+            _registry_bytes(invalid), profile=profile,
+        ),
+    )
+
+
 def test_known_event_round_trip_passes_and_unknown_event_is_rejected() -> None:
     profile = _profile()
     slot = _slot(0, 0)
@@ -416,7 +1254,7 @@ def test_known_event_round_trip_passes_and_unknown_event_is_rejected() -> None:
     unknown = core.chained_event_row(
         {
             "schema_version": profile.schema.current,
-            "event": "recovery",
+            "event": "unknown-lifecycle-event",
         },
         event_index=1,
         previous_event_sha256=rows[0]["event_sha256"],
@@ -441,7 +1279,9 @@ def test_profile_only_event_cannot_acquire_terminal_semantics() -> None:
             event_keys={
                 version: {
                     **base.schema.event_keys[version],
-                    "recovery": base.schema.event_keys[version]["terminal"],
+                    "profile-only-event": (
+                        base.schema.event_keys[version]["terminal"]
+                    ),
                 },
             },
             receipt_keys=base.schema.receipt_keys,
@@ -466,13 +1306,13 @@ def test_profile_only_event_cannot_acquire_terminal_semantics() -> None:
     assert core.load_attempt_registry(
         _registry_bytes(terminal), profile=profile,
     ) == terminal
-    recovery = {**terminal[-1], "event": "recovery"}
-    recovery["event_sha256"] = core.event_sha256(recovery)
+    profile_only = {**terminal[-1], "event": "profile-only-event"}
+    profile_only["event_sha256"] = core.event_sha256(profile_only)
     _assert_core_rejection(
         "[attempt-registry-semantic] attempt registry line 5.event has no "
         "core semantic handler",
         lambda: core.load_attempt_registry(
-            _registry_bytes((*terminal[:-1], recovery)), profile=profile,
+            _registry_bytes((*terminal[:-1], profile_only)), profile=profile,
         ),
     )
 
@@ -489,6 +1329,10 @@ def test_schema_profile_mappings_are_deeply_immutable() -> None:
         if profile.schema.receipt_keys is not None:
             with pytest.raises(TypeError):
                 profile.schema.receipt_keys[version] = frozenset()
+    recovery_policy = _profile().recovery_policy
+    assert recovery_policy is not None
+    with pytest.raises(AttributeError):
+        recovery_policy.failure_reasons = frozenset()
 
 
 def _s8c_slot() -> dict[str, object]:
@@ -683,6 +1527,7 @@ def test_trial_registry_six_facades_have_no_top_level_rebinding() -> None:
     _assert_six_facades_are_unrebound(
         Path(R.__file__).read_text(encoding="utf-8")
     )
+    assert "record_attempt_recovery" not in vars(R)
 
 
 def test_facade_rebinding_guard_rejects_c03_blind_synthetic_source() -> None:

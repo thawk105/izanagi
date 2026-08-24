@@ -1,0 +1,452 @@
+{
+ "estimated_run_seconds": 240,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "        if False and tokens and _OPTION_IDENT_RE.fullmatch(tokens[0]):\n            payload = tokens[1:]\n",
+     "old": "        if name == \"set\" and tokens and _OPTION_IDENT_RE.fullmatch(tokens[0]):\n            payload = tokens[1:]\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2-CONCAT",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "        elif False and len(tokens) >= 2 and tokens[0].upper() == \"CONCAT\":\n",
+     "old": "        elif name == \"string\" and len(tokens) >= 2 and tokens[0].upper() == \"CONCAT\":\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2-APPEND",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "        elif False and len(tokens) >= 2 and tokens[0].upper() == \"APPEND\":\n",
+     "old": "        elif name == \"list\" and len(tokens) >= 2 and tokens[0].upper() == \"APPEND\":\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_list_append_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_string_concat_indirect_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_supply_hidden_by_cmake_bracket_argument_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    for name, body in []:\n        tokens = _cmake_tokens(body)\n        supply_tokens: list[str] | None = None\n",
+     "old": "    for name, body in _cmake_command_records(text):\n        tokens = _cmake_tokens(body)\n        supply_tokens: list[str] | None = None\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bracket_payload_legacy_rejection_is_preserved"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M6",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    for name in ():\n        for body in _cmake_calls_including_bracket_arguments(text, name):\n",
+     "old": "    for name in (*_CMAKE_SUPPLY_CALL_NAMES, \"set_property\"):\n        for body in _cmake_calls_including_bracket_arguments(text, name):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_generator_expression_supply_remains_rejected_before_expansion"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    if False:\n        raise RuntimeError(\n            \"source_digest: CMake supply token に generator expression がある — \"\n            \"macro の静的な供給元を確定できないため fails-closed (T-1437)\"\n        )\n",
+     "old": "    if \"$<\" in token and macro in token:\n        raise RuntimeError(\n            \"source_digest: CMake supply token に generator expression がある — \"\n            \"macro の静的な供給元を確定できないため fails-closed (T-1437)\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_set_property_compile_definitions_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M6b",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "        if False:\n            return tokens[index + 2:]\n",
+     "old": "        if upper[index:index + 2] == [\"PROPERTY\", \"COMPILE_DEFINITIONS\"]:\n            return tokens[index + 2:]\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_space_separated_dash_d_macro_in_cxx_flags_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M7f",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "            or (\n                False\n                and re.search(rf\"(?<!\\S)-D[ \\t]+{escaped}(?:=|\\b)\", element)\n            )\n",
+     "old": "            or (\n                flags_string\n                and re.search(rf\"(?<!\\S)-D[ \\t]+{escaped}(?:=|\\b)\", element)\n            )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    return (\n        _strip_c_comments_without_splicing(text),\n        _strip_c_comments_without_splicing(text),\n    )\n",
+     "old": "    return (\n        _strip_c_comments_for_supply(text),\n        _strip_c_comments_without_splicing(text),\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_physical_line_supply_rejection_is_not_weakened_by_splicing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5b",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    return (\n        _strip_c_comments_for_supply(text),\n        _strip_c_comments_for_supply(text),\n    )\n",
+     "old": "    return (\n        _strip_c_comments_for_supply(text),\n        _strip_c_comments_without_splicing(text),\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[/ufeff#define MQLOCK 1/n]",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4b",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    for view, logical_path, path, text in namespaced_files:\n        text = text\n",
+     "old": "    for view, logical_path, path, text in namespaced_files:\n        text = _strip_utf8_bom(text)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_or_digraph_define_is_rejected[%:define MQLOCK 1/n]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5d",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "                            rf\"(?m)^[ \\t]*(?:#)[ \\t]*define[ \\t]+\"\n",
+     "old": "                            rf\"(?m)^[ \\t]*(?:#|%:)[ \\t]*define[ \\t]+\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_commit_tree_symlink_entry_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_is_rejected_from_comparison_commit_tree",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_new_only_supply_is_rejected_from_new_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_old_only_supply_is_rejected_from_old_commit",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_cxx_flags_is_rejected_from_old_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_set_indirect_target_definition_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_known_absent_spliced_define_is_rejected_from_new_commit_only",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_repo_supply_files_is_enumerated_once_per_absence_validation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M18",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    supply_files = list(_repo_supply_files(sub, commit=None))\n",
+     "old": "    supply_files = list(_repo_supply_files(sub, commit=commit))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_macro_include_operand_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M9",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    pass\n",
+     "old": "    _assert_literal_include_operands(old_source, path, \"old\")\n    _assert_literal_include_operands(new_source, path, \"new\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_after_formed_directive_cannot_forge_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_cannot_forge_raw_logical_include_correspondence",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_formed_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_line_spliced_include_is_rejected_and_was_green_before_fix"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M11",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n",
+     "old": "    if corresponding_logical != logical_spellings:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_decoy_only_pair_preserves_raw_logical_count_rejection",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_new_side_comment_decoy_is_rejected_by_raw_logical_count_gate",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_two_comment_decoys_cannot_forge_raw_logical_include_correspondence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M11c",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n        unsupported_reasons.append(\n",
+     "old": "    if len(raw_includes) != len(logical_includes):\n        unsupported_reasons.append(\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_digraph_include_directive_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_import_directive_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M10",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n        raise CheckError(f\"digraph directive (%:) は未対応: {side} {path}\")\n",
+     "old": "    if _DIGRAPH_DIRECTIVE_RE.search(source) or _DIGRAPH_DIRECTIVE_RE.search(spliced):\n        raise CheckError(f\"digraph directive (%:) は未対応: {side} {path}\")\n"
+    },
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n        raise CheckError(f\"#import directive は未対応: {side} {path}\")\n",
+     "old": "    if any(match.group(1).lower() == \"import\" for match in logical_directives):\n        raise CheckError(f\"#import directive は未対応: {side} {path}\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_name_split_by_line_continuation_is_rejected",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_marker_prefix_is_rejected_even_without_generated_marker_name"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M12",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    spliced_source = source_text\n    for marker in markers:\n        if re.search(rf\"\\b{re.escape(marker)}\\b\", spliced_source):\n",
+     "old": "    spliced_source = _splice_c_line_continuations(source_text)\n    for marker in markers:\n        if re.search(rf\"\\b{re.escape(marker)}\\b\", spliced_source):\n"
+    },
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n        raise CheckError(\"include marker prefix が source に存在する未対応形\")\n",
+     "old": "    if _MARKER_PREFIX in source_text:\n        raise CheckError(\"include marker prefix が source に存在する未対応形\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_followed_by_whitespace_before_include_remains_accepted",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_bom_prefixed_include_spelling_change_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4c",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "        old_source = old_source\n        new_source = new_source\n",
+     "old": "        old_source = _strip_utf8_bom(old_source)\n        new_source = _strip_utf8_bom(new_source)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_asymmetric_leading_bom_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4d",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n",
+     "old": "    if old_has_bom != new_has_bom:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_bom_supply_file_is_rejected_fail_closed",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_duplicate_leading_bom_is_rejected_fail_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4e",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "new": "    if False:\n",
+     "old": "    if without_bom.startswith(\"\\ufeff\"):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M13",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "            activity_evidence = dict(\n                _comparison_evidence(old_activity_bytes, new_activity_bytes),\n                identical=True,\n            )\n",
+     "old": "            activity_evidence = _comparison_evidence(\n                old_activity_bytes, new_activity_bytes\n            )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_nonfinal_permitted_include_reports_nonidentical_policy_pass",
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M14",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "                    \"old_active_markers\": old_active,\n                    \"active_markers\": old_active,\n",
+     "old": "                    \"old_active_markers\": old_active,\n                    \"new_active_markers\": new_active,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comparison_evidence_rejects_value_digest_disagreement"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M16",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n        raise CheckError(\"値と digest の同一性が不整合\")\n",
+     "old": "    if value_identical != digest_identical:\n        raise CheckError(\"値と digest の同一性が不整合\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mocc_permitted_addition_cannot_deactivate_another_include"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M17",
+   "replacements": [
+    {
+     "file": "tools/check_trace0_preprocess_identity.py",
+     "new": "    if False:\n        raise CheckError(f\"include 活性（順序込み）が不一致: path={path!r}\")\n\n\ndef _compare_include_activity(\n",
+     "old": "    if old_active != mapped_new_active:\n        raise CheckError(f\"include 活性（順序込み）が不一致: path={path!r}\")\n\n\ndef _compare_include_activity(\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
