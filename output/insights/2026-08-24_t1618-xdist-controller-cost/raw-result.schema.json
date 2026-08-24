@@ -1,0 +1,568 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "t1618-xdist-controller-cost-result.schema.json",
+  "title": "T-1618 xdist controller paired-block replay result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "status", "generated_at_utc", "pilot",
+    "performance_values_emitted", "pilot_notice", "attempt",
+    "estimated_wall_s", "observed_wall_s", "cost_model", "certification",
+    "population_results", "k2_aggregate", "isolation_status", "authoritative",
+    "hot_replay", "inputs", "timing", "environment", "isolation_evidence",
+    "artifacts", "diagnostics", "decision_rule", "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": "t1618-xdist-controller-cost-result/v4"},
+    "status": {"enum": ["pilot-valid-not-adoptable", "reference-only-isolation-unverified"]},
+    "generated_at_utc": {"type": "string"},
+    "pilot": {"type": "boolean"},
+    "performance_values_emitted": {"const": true},
+    "pilot_notice": {"type": ["string", "null"]},
+    "attempt": {"$ref": "#/$defs/attempt"},
+    "estimated_wall_s": {"type": "number", "exclusiveMinimum": 0},
+    "observed_wall_s": {"type": "number", "exclusiveMinimum": 0},
+    "cost_model": {"$ref": "#/$defs/costModel"},
+    "certification": {"$ref": "#/$defs/certification"},
+    "population_results": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": {"$ref": "#/$defs/controllerResult"}
+    },
+    "k2_aggregate": {"$ref": "#/$defs/k2Aggregate"},
+    "isolation_status": {"const": "isolation-unverified"},
+    "authoritative": {"const": false},
+    "hot_replay": {"const": true},
+    "inputs": {"$ref": "#/$defs/inputs"},
+    "timing": {"$ref": "#/$defs/timing"},
+    "environment": {"$ref": "#/$defs/environment"},
+    "isolation_evidence": {"$ref": "#/$defs/isolationEvidence"},
+    "artifacts": {"$ref": "#/$defs/artifacts"},
+    "diagnostics": {"$ref": "#/$defs/diagnostics"},
+    "decision_rule": {"$ref": "#/$defs/decisionRule"},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"pilot": {"const": true}}},
+      "then": {"properties": {
+        "status": {"const": "pilot-valid-not-adoptable"},
+        "pilot_notice": {"type": "string"}
+      }}
+    },
+    {
+      "if": {"properties": {"pilot": {"const": false}}},
+      "then": {"properties": {
+        "status": {"const": "reference-only-isolation-unverified"},
+        "pilot_notice": {"type": "null"}
+      }}
+    }
+  ],
+  "$defs": {
+    "clockInfo": {
+      "type": "object", "additionalProperties": false,
+      "required": ["implementation", "monotonic", "adjustable", "resolution"],
+      "properties": {
+        "implementation": {"type": "string"}, "monotonic": {"type": "boolean"},
+        "adjustable": {"type": "boolean"}, "resolution": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "ci": {
+      "type": "object", "additionalProperties": false,
+      "required": ["n", "mean_s", "standard_deviation_s", "half_width_s", "low_s", "high_s", "relative_half_width"],
+      "properties": {
+        "n": {"type": "integer", "minimum": 1}, "mean_s": {"type": "number"},
+        "standard_deviation_s": {"type": ["number", "null"]},
+        "half_width_s": {"type": ["number", "null"]},
+        "low_s": {"type": ["number", "null"]}, "high_s": {"type": ["number", "null"]},
+        "relative_half_width": {"type": ["number", "null"]}
+      }
+    },
+    "counter": {
+      "type": "object",
+      "propertyNames": {"enum": ["_reschedule.initial", "_reschedule.protocol_complete", "tests_finished", "has_pending", "remove_node", "start", "stop"]},
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "affinity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["before", "selected", "after"],
+      "properties": {
+        "before": {"type": "array", "items": {"type": "integer"}},
+        "selected": {"type": "integer"},
+        "after": {"type": "array", "items": {"type": "integer"}}
+      }
+    },
+    "sample": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema_version", "population_id", "controller_id", "pilot", "pid",
+        "scenario", "index_mode", "pending_policy", "real_callers", "identity_mode",
+        "amplification_k", "pre_touch_memory_pressure", "process_cpu_s", "wall_s",
+        "list_index_slot_probes", "pending_calls", "gc_events", "thread_count_before",
+        "thread_count_after", "affinity", "clock"
+      ],
+      "properties": {
+        "schema_version": {"const": "t1618-fresh-paired-block-sample/v2"},
+        "population_id": {"enum": ["reference-full-measurement-14467", "canonical-acceptance-15103-k2"]},
+        "controller_id": {"type": "string"}, "pilot": {"type": "boolean"},
+        "pid": {"type": "integer", "minimum": 1},
+        "scenario": {"enum": ["protocol-only", "pass-event"]},
+        "index_mode": {"enum": ["real", "o1"]},
+        "pending_policy": {"enum": ["all-real", "all-oracle", "mixed"]},
+        "real_callers": {"type": "array", "items": {"type": "string"}},
+        "identity_mode": {"enum": ["first-worker-alias", "all-worker-clone"]},
+        "amplification_k": {"enum": [1, 2, 4, 8]},
+        "pre_touch_memory_pressure": {"type": "boolean"},
+        "process_cpu_s": {"type": "number", "minimum": 0}, "wall_s": {"type": "number", "minimum": 0},
+        "list_index_slot_probes": {"type": "integer", "minimum": 0},
+        "pending_calls": {"$ref": "#/$defs/counter"}, "gc_events": {"$ref": "#/$defs/counter"},
+        "thread_count_before": {"type": ["integer", "null"]}, "thread_count_after": {"type": ["integer", "null"]},
+        "affinity": {"$ref": "#/$defs/affinity"},
+        "clock": {
+          "type": "object", "additionalProperties": false,
+          "required": ["process_time", "perf_counter"],
+          "properties": {"process_time": {"$ref": "#/$defs/clockInfo"}, "perf_counter": {"$ref": "#/$defs/clockInfo"}}
+        }
+      }
+    },
+    "sampleEntry": {
+      "type": "object", "additionalProperties": false, "required": ["arm", "sample"],
+      "properties": {"arm": {"enum": ["A", "B"]}, "sample": {"$ref": "#/$defs/sample"}}
+    },
+    "block": {
+      "type": "object", "additionalProperties": false,
+      "required": ["population_id", "controller_id", "block", "order", "paired_difference_s", "block_wall_s", "samples"],
+      "properties": {
+        "population_id": {"type": "string"}, "controller_id": {"type": "string"},
+        "block": {"type": "integer", "minimum": 0}, "order": {"enum": ["ABBA", "BAAB"]},
+        "paired_difference_s": {"type": "number"}, "block_wall_s": {"type": "number", "minimum": 0},
+        "samples": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"$ref": "#/$defs/sampleEntry"}}
+      }
+    },
+    "orderEffect": {
+      "type": "object", "additionalProperties": false,
+      "required": ["definition", "confidence_interval_95", "absolute_noise_bound_s", "balanced", "gate"],
+      "properties": {
+        "definition": {"type": "string"}, "confidence_interval_95": {"oneOf": [{"$ref": "#/$defs/ci"}, {"type": "null"}]},
+        "absolute_noise_bound_s": {"type": "number", "exclusiveMinimum": 0},
+        "balanced": {"type": "boolean"}, "gate": {"enum": ["passed", "failed"]}
+      }
+    },
+    "measurement": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "label", "status", "effect_definition", "marginal_replay_cpu_saving_vs_o1_control_s",
+        "confidence_interval_95", "minimum_practical_effect_s", "relative_half_width_threshold",
+        "independent_fresh_process_pairs", "sample_count", "abba_baab_balanced", "order_effect", "blocks"
+      ],
+      "properties": {
+        "label": {"type": "string"},
+        "status": {"enum": ["measured-practical-effect", "measured-below-practical-effect", "inconclusive-ci"]},
+        "effect_definition": {"type": "string"},
+        "marginal_replay_cpu_saving_vs_o1_control_s": {"type": "number"},
+        "confidence_interval_95": {"$ref": "#/$defs/ci"},
+        "minimum_practical_effect_s": {"type": "number", "minimum": 0},
+        "relative_half_width_threshold": {"type": "number", "exclusiveMinimum": 0},
+        "independent_fresh_process_pairs": {"type": "integer", "minimum": 2},
+        "sample_count": {"type": "integer", "minimum": 8},
+        "abba_baab_balanced": {"type": "boolean"}, "order_effect": {"$ref": "#/$defs/orderEffect"},
+        "blocks": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/block"}},
+        "absolute_noise_bound_s": {"type": "number", "exclusiveMinimum": 0},
+        "negative_control_ci_gate": {"enum": ["passed", "failed"]},
+        "negative_control_order_gate": {"enum": ["passed", "failed"]}
+      }
+    },
+    "distribution": {
+      "type": "object", "additionalProperties": false, "required": ["min", "median", "max"],
+      "properties": {"min": {"type": "number"}, "median": {"type": "number"}, "max": {"type": "number"}}
+    },
+    "testsFinished": {
+      "type": "object", "additionalProperties": false,
+      "required": ["property_evaluations", "collection_early_returns", "workqueue_early_returns", "workers_scanned_by_event", "pending_short_circuits", "full_worker_scans"],
+      "properties": {
+        "property_evaluations": {"type": "integer"}, "collection_early_returns": {"type": "integer"},
+        "workqueue_early_returns": {"type": "integer"},
+        "workers_scanned_by_event": {"type": "array", "items": {"type": "integer"}},
+        "pending_short_circuits": {"type": "integer"}, "full_worker_scans": {"type": "integer"}
+      }
+    },
+    "groupMap": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "occupancy": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["status", "adopt_path_b"],
+          "properties": {"status": {"const": "not-applicable"}, "adopt_path_b": {"const": true}}
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": [
+            "status", "adopt_path_b", "sorted_item_count_vector_match",
+            "expected_sorted_item_count_vector", "observed_sorted_item_count_vector",
+            "missing_item_counts", "unexpected_item_counts", "expected_item_distribution",
+            "observed_item_distribution", "group_to_workers_match", "expected_group_to_workers",
+            "observed_group_to_workers"
+          ],
+          "properties": {
+            "status": {"enum": ["passed", "failed"]}, "adopt_path_b": {"type": "boolean"},
+            "sorted_item_count_vector_match": {"type": "boolean"},
+            "expected_sorted_item_count_vector": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+            "observed_sorted_item_count_vector": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+            "missing_item_counts": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+            "unexpected_item_counts": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+            "expected_item_distribution": {"$ref": "#/$defs/distribution"},
+            "observed_item_distribution": {"$ref": "#/$defs/distribution"},
+            "group_to_workers_match": {"type": "boolean"},
+            "expected_group_to_workers": {"$ref": "#/$defs/groupMap"},
+            "observed_group_to_workers": {"$ref": "#/$defs/groupMap"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"status": {"const": "passed"}}},
+              "then": {"properties": {
+                "adopt_path_b": {"const": true},
+                "sorted_item_count_vector_match": {"const": true},
+                "group_to_workers_match": {"const": true}
+              }}
+            },
+            {
+              "if": {"properties": {"status": {"const": "failed"}}},
+              "then": {
+                "properties": {"adopt_path_b": {"const": false}},
+                "anyOf": [
+                  {"properties": {"sorted_item_count_vector_match": {"const": false}}},
+                  {"properties": {"group_to_workers_match": {"const": false}}}
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "pathBAdoptionGates": {
+      "type": "object", "additionalProperties": false,
+      "required": ["occupancy_exact_match", "total_measurement", "all_caller_measurements", "negative_control", "non_pilot"],
+      "properties": {
+        "occupancy_exact_match": {"type": "boolean"},
+        "total_measurement": {"type": "boolean"},
+        "all_caller_measurements": {"type": "boolean"},
+        "negative_control": {"type": "boolean"},
+        "non_pilot": {"type": "boolean"}
+      }
+    },
+    "pathAAdoptionGates": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "primary_measurement_status", "primary_minimum_pairs",
+        "primary_abba_baab_balanced", "primary_order_effect",
+        "negative_control_ci", "negative_control_order", "non_pilot"
+      ],
+      "properties": {
+        "primary_measurement_status": {"type": "boolean"},
+        "primary_minimum_pairs": {"type": "boolean"},
+        "primary_abba_baab_balanced": {"type": "boolean"},
+        "primary_order_effect": {"type": "boolean"},
+        "negative_control_ci": {"type": "boolean"},
+        "negative_control_order": {"type": "boolean"},
+        "non_pilot": {"type": "boolean"}
+      }
+    },
+    "linearity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "model", "k_measurements", "block_slope_confidence_interval_95", "block_slope_count", "maximum_block_relative_residual", "relative_residual_threshold", "slope_ci_excludes_zero", "all_k_measurement_gates_passed", "k1_cost_equivalence_claimed"],
+      "properties": {
+        "status": {"enum": ["passed", "failed"]}, "model": {"type": "string"},
+        "k_measurements": {
+          "type": "object", "additionalProperties": false, "required": ["1", "2", "4", "8"],
+          "properties": {"1": {"$ref": "#/$defs/measurement"}, "2": {"$ref": "#/$defs/measurement"}, "4": {"$ref": "#/$defs/measurement"}, "8": {"$ref": "#/$defs/measurement"}}
+        },
+        "block_slope_confidence_interval_95": {"$ref": "#/$defs/ci"},
+        "block_slope_count": {"type": "integer"}, "maximum_block_relative_residual": {"type": ["number", "null"]},
+        "relative_residual_threshold": {"type": "number"}, "slope_ci_excludes_zero": {"type": "boolean"},
+        "all_k_measurement_gates_passed": {"type": "boolean"}, "k1_cost_equivalence_claimed": {"const": false},
+        "beta_hot_repetition_s": {"type": "number"}
+      }
+    },
+    "pathA": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adopted", "adoption_gate_results", "hot_replay", "list_index_slot_probes", "marginal_replay_cpu_saving_vs_o1_control_s", "primary_first_worker_identity_alias", "negative_control", "pre_touch_memory_pressure_diagnostic", "all_worker_clone_certification", "actual_controller_cpu_seconds_claimed"],
+      "properties": {
+        "adopted": {"type": "boolean"},
+        "adoption_gate_results": {"$ref": "#/$defs/pathAAdoptionGates"},
+        "hot_replay": {"const": true}, "list_index_slot_probes": {"type": "integer"},
+        "marginal_replay_cpu_saving_vs_o1_control_s": {"type": "number"},
+        "primary_first_worker_identity_alias": {"$ref": "#/$defs/measurement"},
+        "negative_control": {"$ref": "#/$defs/measurement"},
+        "pre_touch_memory_pressure_diagnostic": {
+          "type": "object", "additionalProperties": false, "required": ["diagnostic_only", "measurement"],
+          "properties": {"diagnostic_only": {"const": true}, "measurement": {"$ref": "#/$defs/measurement"}}
+        },
+        "all_worker_clone_certification": {"const": "passed-before-performance"},
+        "actual_controller_cpu_seconds_claimed": {"const": false}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"adopted": {"const": true}}},
+          "then": {"properties": {
+            "adoption_gate_results": {"properties": {
+              "primary_measurement_status": {"const": true},
+              "primary_minimum_pairs": {"const": true},
+              "primary_abba_baab_balanced": {"const": true},
+              "primary_order_effect": {"const": true},
+              "negative_control_ci": {"const": true},
+              "negative_control_order": {"const": true},
+              "non_pilot": {"const": true}
+            }}
+          }}
+        }
+      ]
+    },
+    "pathB": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adopted", "performance_values_emitted", "adoption_gate_results", "hot_replay", "scenario", "total_all_real_minus_all_oracle", "by_caller_conditional_marginals", "interaction_residual_s", "caller_values_are_additive_breakdown", "negative_control", "amplification_linearity", "caller_counts", "scope_visits", "item_visits", "tests_finished", "worker_workload_distribution", "occupancy_gate", "actual_controller_cpu_seconds_claimed"],
+      "properties": {
+        "adopted": {"type": "boolean"},
+        "performance_values_emitted": {"const": true},
+        "adoption_gate_results": {"$ref": "#/$defs/pathBAdoptionGates"},
+        "hot_replay": {"const": true},
+        "scenario": {"enum": ["protocol-only", "pass-event"]},
+        "total_all_real_minus_all_oracle": {"$ref": "#/$defs/measurement"},
+        "by_caller_conditional_marginals": {
+          "type": "object", "additionalProperties": false,
+          "required": ["_reschedule.initial", "_reschedule.protocol_complete", "tests_finished", "has_pending", "remove_node"],
+          "properties": {
+            "_reschedule.initial": {"$ref": "#/$defs/measurement"},
+            "_reschedule.protocol_complete": {"$ref": "#/$defs/measurement"},
+            "tests_finished": {"$ref": "#/$defs/measurement"},
+            "has_pending": {"$ref": "#/$defs/measurement"},
+            "remove_node": {"$ref": "#/$defs/measurement"}
+          }
+        },
+        "interaction_residual_s": {"type": "number"}, "caller_values_are_additive_breakdown": {"const": false},
+        "negative_control": {"$ref": "#/$defs/measurement"}, "amplification_linearity": {"$ref": "#/$defs/linearity"},
+        "caller_counts": {"$ref": "#/$defs/counter"}, "scope_visits": {"$ref": "#/$defs/counter"}, "item_visits": {"$ref": "#/$defs/counter"},
+        "tests_finished": {"$ref": "#/$defs/testsFinished"},
+        "worker_workload_distribution": {
+          "type": "object", "additionalProperties": false, "required": ["scopes", "items"],
+          "properties": {"scopes": {"$ref": "#/$defs/distribution"}, "items": {"$ref": "#/$defs/distribution"}}
+        },
+        "occupancy_gate": {"$ref": "#/$defs/occupancy"}, "actual_controller_cpu_seconds_claimed": {"const": false}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"adopted": {"const": true}}},
+          "then": {"properties": {
+            "adoption_gate_results": {"properties": {
+              "occupancy_exact_match": {"const": true},
+              "total_measurement": {"const": true},
+              "all_caller_measurements": {"const": true},
+              "negative_control": {"const": true},
+              "non_pilot": {"const": true}
+            }}
+          }}
+        },
+        {
+          "if": {"properties": {"occupancy_gate": {"properties": {"adopt_path_b": {"const": false}}}}},
+          "then": {"properties": {
+            "adopted": {"const": false},
+            "adoption_gate_results": {"properties": {"occupancy_exact_match": {"const": false}}}
+          }}
+        }
+      ]
+    },
+    "controllerResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["population_id", "controller_id", "n", "worker_count", "pilot", "hot_replay", "isolation_status", "authoritative", "path_a", "path_b"],
+      "properties": {
+        "population_id": {"type": "string"}, "controller_id": {"type": "string"},
+        "n": {"type": "integer"}, "worker_count": {"type": "integer"}, "pilot": {"type": "boolean"},
+        "hot_replay": {"const": true}, "isolation_status": {"const": "isolation-unverified"}, "authoritative": {"const": false},
+        "path_a": {"$ref": "#/$defs/pathA"},
+        "path_b": {
+          "type": "object", "additionalProperties": false, "required": ["protocol-only", "pass-event"],
+          "properties": {"protocol-only": {"$ref": "#/$defs/pathB"}, "pass-event": {"$ref": "#/$defs/pathB"}}
+        }
+      }
+    },
+    "certificationResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["population_id", "controller_id", "scenario", "status", "all_pending_values_equal", "behavior_transcript_equal", "all_worker_clone_control", "pending_call_count", "occupancy_gate"],
+      "properties": {
+        "population_id": {"type": "string"}, "controller_id": {"type": "string"},
+        "scenario": {"enum": ["protocol-only", "pass-event"]}, "status": {"const": "correctness-passed"},
+        "all_pending_values_equal": {"const": true}, "behavior_transcript_equal": {"const": true},
+        "all_worker_clone_control": {"const": "passed"}, "pending_call_count": {"type": "integer"},
+        "occupancy_gate": {"$ref": "#/$defs/occupancy"}
+      }
+    },
+    "certification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "all_controller_scenario_count", "observed_wall_s", "occupancy_adoption_summary", "results"],
+      "properties": {
+        "status": {"const": "correctness-passed-before-performance"}, "all_controller_scenario_count": {"const": 8},
+        "observed_wall_s": {"type": "number"},
+        "occupancy_adoption_summary": {
+          "type": "object", "additionalProperties": false,
+          "required": ["passed_count", "failed_count", "not_applicable_count", "all_applicable_passed"],
+          "properties": {
+            "passed_count": {"type": "integer", "minimum": 0},
+            "failed_count": {"type": "integer", "minimum": 0},
+            "not_applicable_count": {"type": "integer", "minimum": 0},
+            "all_applicable_passed": {"type": "boolean"}
+          }
+        },
+        "results": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"$ref": "#/$defs/certificationResult"}}
+      }
+    },
+    "blockedAggregate": {
+      "type": "object", "additionalProperties": false, "required": ["status", "all_shards_adopted"],
+      "properties": {"status": {"const": "blocked-not-all-shards-adopted"}, "all_shards_adopted": {"const": false}}
+    },
+    "adoptedAggregate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "all_shards_adopted", "shard_marginal_replay_cpu_saving_vs_o1_control_s", "sum_shard_marginal_replay_cpu_saving_vs_o1_control_s", "max_shard_marginal_replay_cpu_saving_vs_o1_control_s", "aggregate_confidence_interval_95"],
+      "properties": {
+        "status": {"const": "adopted"}, "all_shards_adopted": {"const": true},
+        "shard_marginal_replay_cpu_saving_vs_o1_control_s": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+        "sum_shard_marginal_replay_cpu_saving_vs_o1_control_s": {"type": "number"},
+        "max_shard_marginal_replay_cpu_saving_vs_o1_control_s": {"type": "number"},
+        "aggregate_confidence_interval_95": {
+          "type": "object", "additionalProperties": false, "required": ["mean_s", "low_s", "high_s", "method"],
+          "properties": {"mean_s": {"type": "number"}, "low_s": {"type": "number"}, "high_s": {"type": "number"}, "method": {"type": "string"}}
+        }
+      }
+    },
+    "aggregate": {"oneOf": [{"$ref": "#/$defs/blockedAggregate"}, {"$ref": "#/$defs/adoptedAggregate"}]},
+    "k2Aggregate": {
+      "type": "object", "additionalProperties": false, "required": ["population_id", "effective_worker_count_per_shard", "path_a", "path_b"],
+      "properties": {
+        "population_id": {"const": "canonical-acceptance-15103-k2"}, "effective_worker_count_per_shard": {"const": 48},
+        "path_a": {"$ref": "#/$defs/aggregate"},
+        "path_b": {
+          "type": "object", "additionalProperties": false, "required": ["protocol-only", "pass-event"],
+          "properties": {"protocol-only": {"$ref": "#/$defs/aggregate"}, "pass-event": {"$ref": "#/$defs/aggregate"}}
+        }
+      }
+    },
+    "attempt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempt_id", "pbs_job_id", "run_directory", "success_receipt_path"],
+      "properties": {"attempt_id": {"type": "string"}, "pbs_job_id": {"type": "string"}, "run_directory": {"type": "string"}, "success_receipt_path": {"type": "string"}}
+    },
+    "costModel": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sample_unit", "measured_sample_count", "measured_sample_cost_s", "median_sample_cost_s", "maximum_paired_block_wall_s", "observed_wall_s", "planned_maximum_sample_count", "observed_measurement_sample_count", "effective_parallelism", "safety_factor", "estimate_formula", "three_hour_limit_s"],
+      "properties": {
+        "sample_unit": {"type": "string"}, "measured_sample_count": {"type": "integer"},
+        "measured_sample_cost_s": {"type": "number"}, "median_sample_cost_s": {"type": "number"},
+        "maximum_paired_block_wall_s": {"type": "number"}, "observed_wall_s": {"type": "number"},
+        "planned_maximum_sample_count": {"type": "integer"}, "observed_measurement_sample_count": {"type": "integer"},
+        "effective_parallelism": {"type": "integer"}, "safety_factor": {"type": "number"},
+        "estimate_formula": {"type": "string"}, "three_hour_limit_s": {"const": 10800}
+      }
+    },
+    "sourceHashes": {
+      "type": "object", "additionalProperties": false,
+      "required": ["prepare_inputs.py", "replay.py", "measure.py", "submit_t1618.py", "test_t1618_entrypoint.py", "promote_result.py", "raw-result.schema.json"],
+      "properties": {
+        "prepare_inputs.py": {"type": "string"}, "replay.py": {"type": "string"}, "measure.py": {"type": "string"},
+        "submit_t1618.py": {"type": "string"}, "test_t1618_entrypoint.py": {"type": "string"},
+        "promote_result.py": {"type": "string"}, "raw-result.schema.json": {"type": "string"}
+      }
+    },
+    "xdistSource": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string"}, "sha256": {"type": "string"}}
+    },
+    "inputs": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifest_path", "manifest_sha256", "manifest_schema", "population_ids", "xdist_import_verification", "source_sha256"],
+      "properties": {
+        "manifest_path": {"type": "string"}, "manifest_sha256": {"type": "string"},
+        "manifest_schema": {"const": "t1618-input-manifest/v2"},
+        "population_ids": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string"}},
+        "xdist_import_verification": {
+          "type": "object", "additionalProperties": false, "required": ["status", "version", "sources", "shadow_check"],
+          "properties": {
+            "status": {"const": "passed"}, "version": {"const": "3.8.0"},
+            "sources": {
+              "type": "object", "additionalProperties": false, "required": ["xdist", "loadscope", "loadgroup", "dsession"],
+              "properties": {"xdist": {"$ref": "#/$defs/xdistSource"}, "loadscope": {"$ref": "#/$defs/xdistSource"}, "loadgroup": {"$ref": "#/$defs/xdistSource"}, "dsession": {"$ref": "#/$defs/xdistSource"}}
+            },
+            "shadow_check": {
+              "type": "object", "additionalProperties": false,
+              "required": ["status", "pinned_package_path", "pinned_sys_path_entry", "pinned_sys_path_index", "preceding_entries_checked"],
+              "properties": {
+                "status": {"const": "passed"},
+                "pinned_package_path": {"type": "string"},
+                "pinned_sys_path_entry": {"type": "string"},
+                "pinned_sys_path_index": {"type": "integer", "minimum": 0},
+                "preceding_entries_checked": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        },
+        "source_sha256": {"$ref": "#/$defs/sourceHashes"}
+      }
+    },
+    "timing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["timer_probe", "minimum_pairs", "maximum_pairs", "relative_half_width_threshold", "minimum_practical_effect_s", "absolute_noise_bound_s", "fresh_process_unit", "controller_thread_single_core_pinned", "worker_collection_decode_clone_and_control_prepared_before_clock", "transcript_generated_only_by_certification"],
+      "properties": {
+        "timer_probe": {
+          "type": "object", "additionalProperties": false,
+          "required": ["read_count", "zero_rate", "minimum_positive_delta_ns", "median_delta_ns", "p99_delta_ns", "clock_info"],
+          "properties": {"read_count": {"type": "integer"}, "zero_rate": {"type": "number"}, "minimum_positive_delta_ns": {"type": ["integer", "null"]}, "median_delta_ns": {"type": "number"}, "p99_delta_ns": {"type": "number"}, "clock_info": {"$ref": "#/$defs/clockInfo"}}
+        },
+        "minimum_pairs": {"type": "integer"}, "maximum_pairs": {"type": "integer"},
+        "relative_half_width_threshold": {"type": "number"}, "minimum_practical_effect_s": {"type": "number"},
+        "absolute_noise_bound_s": {"type": "number"}, "fresh_process_unit": {"const": "paired-block"},
+        "controller_thread_single_core_pinned": {"const": true},
+        "worker_collection_decode_clone_and_control_prepared_before_clock": {"const": true},
+        "transcript_generated_only_by_certification": {"const": true}
+      }
+    },
+    "environment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hostname", "pbs_jobid", "python", "python_executable", "pythonpath", "pytest", "xdist_version", "xdist_path", "kernel", "machine", "affinity_cpus", "thread_count"],
+      "properties": {
+        "hostname": {"type": "string"}, "pbs_jobid": {"type": "string"},
+        "python": {"type": "string"}, "python_executable": {"type": "string"},
+        "pythonpath": {
+          "oneOf": [
+            {"type": "object", "additionalProperties": false, "required": ["state", "value"], "properties": {"state": {"const": "absent"}, "value": {"type": "null"}}},
+            {"type": "object", "additionalProperties": false, "required": ["state", "value"], "properties": {"state": {"const": "empty"}, "value": {"const": ""}}},
+            {"type": "object", "additionalProperties": false, "required": ["state", "value"], "properties": {"state": {"const": "set"}, "value": {"type": "string", "minLength": 1}}}
+          ]
+        },
+        "pytest": {"type": "string"}, "xdist_version": {"type": "string"},
+        "xdist_path": {"type": "string"}, "kernel": {"type": "string"},
+        "machine": {"type": "string"},
+        "affinity_cpus": {"type": "array", "items": {"type": "integer"}},
+        "thread_count": {"type": ["integer", "null"]}
+      }
+    },
+    "process": {
+      "type": "object", "additionalProperties": false, "required": ["pid", "comm", "ppid", "utime_ticks", "stime_ticks"],
+      "properties": {"pid": {"type": "integer"}, "comm": {"type": "string"}, "ppid": {"type": "integer"}, "utime_ticks": {"type": "integer"}, "stime_ticks": {"type": "integer"}}
+    },
+    "snapshot": {
+      "type": "object", "additionalProperties": false, "required": ["status", "processes", "skipped_pids"],
+      "properties": {"status": {"enum": ["sampled", "unavailable"]}, "processes": {"type": "array", "items": {"$ref": "#/$defs/process"}}, "skipped_pids": {"type": "integer", "minimum": 0}}
+    },
+    "isolationEvidence": {
+      "type": "object", "additionalProperties": false, "required": ["pre", "post", "sampling", "exclusive_placement_proven", "reason"],
+      "properties": {"pre": {"$ref": "#/$defs/snapshot"}, "post": {"$ref": "#/$defs/snapshot"}, "sampling": {"const": "whole-run pre/post snapshots only"}, "exclusive_placement_proven": {"const": false}, "reason": {"type": "string"}}
+    },
+    "artifacts": {
+      "type": "object", "additionalProperties": false, "required": ["certification_trace_path", "certification_trace_sha256", "certification_trace_records", "checkpoint_root"],
+      "properties": {"certification_trace_path": {"type": "string"}, "certification_trace_sha256": {"type": "string"}, "certification_trace_records": {"type": "integer"}, "checkpoint_root": {"type": "string"}}
+    },
+    "diagnostics": {
+      "type": "object", "additionalProperties": false, "required": ["single_run_hybrid_residual_s", "residual_role", "cold_lookup_claimed", "pre_touch_memory_pressure_diagnostic_only"],
+      "properties": {"single_run_hybrid_residual_s": {"const": 61.3}, "residual_role": {"type": "string"}, "cold_lookup_claimed": {"const": false}, "pre_touch_memory_pressure_diagnostic_only": {"const": true}}
+    },
+    "decisionRule": {
+      "type": "object", "additionalProperties": false, "required": ["metric", "threshold_s", "rule", "selected_next_experiment", "wall_improvement_claimed", "d747_claim_closed"],
+      "properties": {"metric": {"type": "string"}, "threshold_s": {"const": 0.5}, "rule": {"type": "string"}, "selected_next_experiment": {"enum": ["inconclusive", "investigate-model-error-and-other-controller-paths", "prototype-o1-index-and-run-causal-k2-wall-ab"]}, "wall_improvement_claimed": {"const": false}, "d747_claim_closed": {"const": false}}
+    }
+  }
+}

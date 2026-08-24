@@ -129,6 +129,7 @@ class CorrectnessWorkload:
     flags: Dict[str, str] = field(default_factory=lambda: {
         "ycsb_tuple_num": "200", "ycsb_zipf_skew": "0.9", "ycsb_rratio": "50",
         "ycsb_rmw": "true", "ycsb_max_ope": "5", "thread_num": "4", "extime": "1"})
+    reps: int = 1
 
 
 # --- S2 verify 構成 (D36 決定1/決定3: perf 代表 workload と完全同一、extime=3 で
@@ -146,6 +147,8 @@ S2_TAG = "s2"
 # campaign_id に反映する (別 campaign になり WAL terminal skip の汚染を防ぐ)。
 SEARCH_CONFIG_VERIFY_KEY = "verify"
 VERIFY_LEGACY_PLUS_S2 = f"{LEGACY_TAG}+{S2_TAG}"
+PERFORMANCE_TAG = "performance"
+VERIFY_LEGACY_PLUS_PERFORMANCE = f"{LEGACY_TAG}+{PERFORMANCE_TAG}"
 # bench-first screening の terminal abort reason。WAL writer/reader が共有する暗黙 API。
 SCREEN_REJECTION_REASON = "screen-slower-than-floor"
 
@@ -165,6 +168,39 @@ class PerfConfig:
     workload: Dict[str, str] = field(default_factory=dict)
     extime: int = 3
     reps: int = 5
+
+
+def performance_correctness_workload(perf: PerfConfig) -> CorrectnessWorkload:
+    """Build an exact full-scale trace workload from one performance config.
+
+    The constructor is intentionally generic and contains no A-2 workload
+    numbers.  It rejects ambiguous or widened workload maps before callers can
+    authorize a measurement or create campaign state.
+    """
+    if type(perf) is not PerfConfig:
+        raise TypeError("perf must be an exact PerfConfig")
+    for name, value in (
+        ("records", perf.records), ("threads", perf.threads),
+        ("extime", perf.extime), ("reps", perf.reps),
+    ):
+        if type(value) is not int or value <= 0:
+            raise ValueError(f"PerfConfig.{name} must be a positive exact integer")
+    required = {
+        "ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw", "ycsb_max_ope",
+    }
+    if type(perf.workload) is not dict or set(perf.workload) != required:
+        raise ValueError("PerfConfig.workload must have the exact YCSB workload keys")
+    if not all(type(value) is str and value for value in perf.workload.values()):
+        raise ValueError("PerfConfig workload values must be nonempty strings")
+    return CorrectnessWorkload(
+        flags={
+            "ycsb_tuple_num": str(perf.records),
+            "thread_num": str(perf.threads),
+            **perf.workload,
+            "extime": str(perf.extime),
+        },
+        reps=perf.reps,
+    )
 
 
 _QUALIFICATION_POLICY_TOKEN = object()
@@ -1083,9 +1119,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     #     (S2 等・bench 並みの負荷) を順に全て通す (verify 2 本立て, D36 決定2/4) ---
     verification_capabilities = []
 
-    def _run_one_pass(tag: str, workload: CorrectnessWorkload,
-                      pass_numactl: Optional[Sequence[str]]) -> Optional[EvalResult]:
-        """1 verify 構成を通す。certified なら None、reject なら abort 済み EvalResult。"""
+    def _run_one_repetition(
+            tag: str, workload: CorrectnessWorkload,
+            pass_numactl: Optional[Sequence[str]],
+    ) -> Optional[EvalResult]:
+        """1 verify repetition を通す。成功 capability は呼出し順に保持する。"""
         # 前パスの verdict を持ち越さない (敵対レビュー 2026-07-09 で確認): このパスが
         # verify_trace_dir に到達する前に reject されたら res.verdict は空のまま返る
         # (前パスが certified で 'serializable' 等を残していても、今回 abort する結果に
@@ -1237,6 +1275,17 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         finally:
             shutil.rmtree(tdir, ignore_errors=True)
 
+    def _run_one_pass(tag: str, workload: CorrectnessWorkload,
+                      pass_numactl: Optional[Sequence[str]]) -> Optional[EvalResult]:
+        """1 verify 構成の全 repetition を通す。1 件でも失敗すれば即 reject。"""
+        if type(workload.reps) is not int or workload.reps <= 0:
+            raise ValueError("correctness workload reps must be a positive exact integer")
+        for _repetition in range(workload.reps):
+            aborted = _run_one_repetition(tag, workload, pass_numactl)
+            if aborted is not None:
+                return aborted
+        return None
+
     # baseline が古い場合は screening を無効化し、通常の verify-first 経路へ倒す。
     # 再アンカーは driver の責務であり、evaluate() は古い基準による偽棄却をしない。
     active_screening = screening
@@ -1299,6 +1348,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                 }})
 
     verify_tags: List[str] = []
+    verification_receipt_tags: List[str] = []
     for tag, workload, fullscale_isolated in passes:
         # 各パス開始時・probe より前で前パスの verdict を消去する (B-4)。probe (競合検知)
         # や competing-tenant で _run_one_pass に到達せず abort する場合、_run_one_pass 内の
@@ -1337,12 +1387,13 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         if aborted_result is not None:
             return aborted_result
         verify_tags.append(tag)
+        verification_receipt_tags.extend([tag] * workload.reps)
     res.certified = True
 
     def _receipt_for(payload: Dict):
         return issue_commit_receipt(
             verification_capabilities,
-            workload_tags=verify_tags,
+            workload_tags=verification_receipt_tags,
             sink_kind=receipt_sink_kind,
             lock_identity_sha256=receipt_lock_identity,
             variant=v,
