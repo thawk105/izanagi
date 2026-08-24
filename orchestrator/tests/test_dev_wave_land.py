@@ -385,9 +385,82 @@ def _repo(*, waves: tuple[tuple[str, str], ...] = (("codex", "one"),)):
         fixture.close()
 
 
-def _land(request):
+def _fake_gate_receipt(plan):
+    raw_digests = tuple(
+        (
+            target.path,
+            hashlib.sha256(target.after_bytes).hexdigest(),
+        )
+        for target in plan.targets
+    )
+    return LAND._FoldGateReceipt(
+        plan,
+        plan.transaction_id,
+        "0" * 64,
+        (),
+        raw_digests,
+        LAND._FOLD_GATE_OUTCOME,
+        (),
+    )
+
+
+def _verify_fake_gate_receipt(_repo, receipt, plan):
+    assert receipt.plan is plan
+    assert receipt.transaction_id == plan.transaction_id
+    assert receipt.target_raw_digests == tuple(
+        (
+            target.path,
+            hashlib.sha256(target.after_bytes).hexdigest(),
+        )
+        for target in plan.targets
+    )
+    return LAND._FoldGateSelection("0" * 64, (), (), ())
+
+
+def _durable_fake_gate_receipt(fold, plan):
+    return fold.FoldGateReceipt(
+        plan.transaction_id,
+        "0" * 64,
+        (),
+        tuple(
+            (
+                target.path,
+                hashlib.sha256(target.after_bytes).hexdigest(),
+            )
+            for target in plan.targets
+        ),
+        LAND._FOLD_GATE_OUTCOME,
+        (),
+    )
+
+
+def _land_real_gate(request):
     with _cwd(request.wave_worktree):
         return LAND.land(request)
+
+
+def _land(request):
+    """既存 land tests は新 gate の private seam だけを固定して射程を保つ。"""
+
+    with (
+        _patched_land_attr(
+            "_run_fold_gate",
+            lambda _repository, plan, _tip: _fake_gate_receipt(plan),
+        ),
+        _patched_land_attr(
+            "_fold_gate_receipt_from_plan",
+            _fake_gate_receipt,
+        ),
+        _patched_land_attr(
+            "_verify_fold_gate_receipt",
+            _verify_fake_gate_receipt,
+        ),
+        _patched_land_attr(
+            "_verify_folded_fragment_receipts",
+            lambda _repo, _plan: None,
+        ),
+    ):
+        return _land_real_gate(request)
 
 
 class _FakeLandLockRuntime:
@@ -4118,6 +4191,7 @@ class _FakeFoldPlan:
         origin: _FakeFoldOrigin | None = None,
         phase: str = "applied",
         transaction_id: str | None = None,
+        rotation_path: str | None = None,
     ):
         self.gc_paths = (gc_path,)
         self.targets = targets
@@ -4127,6 +4201,7 @@ class _FakeFoldPlan:
         self.transaction_id = transaction_id or hashlib.sha256(
             (gc_path + "\0" + phase).encode("utf-8")
         ).hexdigest()
+        self.rotation_path = rotation_path
 
     def with_phase(self, phase: str) -> "_FakeFoldPlan":
         return _FakeFoldPlan(
@@ -4136,22 +4211,48 @@ class _FakeFoldPlan:
             origin=self.origin,
             phase=phase,
             transaction_id=self.transaction_id,
+            rotation_path=self.rotation_path,
         )
 
 
 class _FakeFoldFragment:
-    def __init__(self, wave: str):
+    def __init__(
+        self,
+        wave: str,
+        *,
+        path: str = "docs/spool/worklog/2000-01-01-test-wave-1.md",
+        content_sha256: str = "0" * 64,
+        authored: str = "2000-01-01",
+        seq: int = 1,
+    ):
         self.wave = wave
+        self.path = path
+        self.content_sha256 = content_sha256
+        self.authored = authored
+        self.seq = seq
 
 
 class _FakeFoldTarget:
-    def __init__(self, path: str, *, before_exists: bool = True):
+    def __init__(
+        self,
+        path: str,
+        *,
+        before_exists: bool = True,
+        after_bytes: bytes = b"",
+        before_bytes: bytes = b"",
+    ):
         self.path = path
         self.before_exists = before_exists
+        self.after_bytes = after_bytes
+        self.after_sha256 = hashlib.sha256(self.after_bytes).hexdigest()
+        self.before_sha256 = hashlib.sha256(before_bytes).hexdigest()
 
 
 class _FakeFoldModule:
     FoldOrigin = _FakeFoldOrigin
+    _CLOSURE_FIXED_PATHS = tuple(
+        LAND._load_spool_fold()._CLOSURE_FIXED_PATHS
+    )
 
     def __init__(self, plan, apply, *, active=False, fail_finalize=False):
         self._plan = plan
@@ -4200,6 +4301,11 @@ class _FakeFoldModule:
         assert all(not (repo / relative).exists() for relative in self._plan.gc_paths)
         return []
 
+    def _validate_closure(self, repo: Path, plan):
+        assert repo.is_dir()
+        assert plan is self._plan
+        return {}, {}
+
     def plan_fold(self, repo: Path, *, fold_date: str, origin: _FakeFoldOrigin):
         assert repo.is_dir()
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", fold_date)
@@ -4227,8 +4333,10 @@ class _FakeFoldModule:
     def _state_path(self, repo: Path) -> Path:
         return repo / ".git" / LAND._FOLD_STATE_NAME
 
-    def apply_fold(self, repo: Path, plan) -> None:
+    def apply_fold(self, repo: Path, plan, *, gate_receipt=None) -> None:
         assert plan is self._plan
+        if getattr(plan.origin, "kind", None) == "land":
+            assert gate_receipt is not None
         self.events.append("apply")
         self._apply(repo, plan)
 
@@ -4818,7 +4926,7 @@ def test_land_folds_rotation_inside_lock() -> None:
                 self.rotation_path = plan.rotation_path
                 return plan
 
-            def apply_fold(self, repo_path: Path, plan):
+            def apply_fold(self, repo_path: Path, plan, *, gate_receipt=None):
                 contender = os.open(
                     repo.main / ".git" / "dev-wave-land.lock",
                     os.O_RDWR | os.O_NOFOLLOW,
@@ -4832,7 +4940,11 @@ def test_land_folds_rotation_inside_lock() -> None:
                         raise AssertionError("rotation fold ran outside the land lock")
                 finally:
                     os.close(contender)
-                return real_fold.apply_fold(repo_path, plan)
+                return real_fold.apply_fold(
+                    repo_path,
+                    plan,
+                    gate_receipt=gate_receipt,
+                )
 
         observed = ObservedFold()
         with (
@@ -4927,7 +5039,7 @@ def test_land_folds_failure_supersede_inside_lock() -> None:
             def __getattr__(self, name: str):
                 return getattr(real_fold, name)
 
-            def apply_fold(self, repo_path: Path, plan):
+            def apply_fold(self, repo_path: Path, plan, *, gate_receipt=None):
                 contender = os.open(
                     repo.main / ".git" / "dev-wave-land.lock",
                     os.O_RDWR | os.O_NOFOLLOW,
@@ -4941,7 +5053,11 @@ def test_land_folds_failure_supersede_inside_lock() -> None:
                         raise AssertionError("failure supersede fold ran outside land lock")
                 finally:
                     os.close(contender)
-                return real_fold.apply_fold(repo_path, plan)
+                return real_fold.apply_fold(
+                    repo_path,
+                    plan,
+                    gate_receipt=gate_receipt,
+                )
 
         observed = ObservedFold()
         with (
@@ -5826,7 +5942,11 @@ def test_shape_b_rejects_active_origin_from_different_existing_wave_ref() -> Non
         plan = fold.plan_fold(wave, fold_date="2026-08-03", origin=origin)
         request = repo.request(wave, tip=tip)
         _git(repo.main, "merge", "--ff-only", tip)
-        fold.apply_fold(repo.main, plan)
+        fold.apply_fold(
+            repo.main,
+            plan,
+            gate_receipt=_durable_fake_gate_receipt(fold, plan),
+        )
         _git(repo.main, "add", "-A")
         subprocess.run(
             [
@@ -8209,6 +8329,993 @@ def test_release_failure_never_overwrites_land_result() -> None:
             "lease_renew state=free reason=none\n"
             "lease_release state=unavailable reason=release-internal-error\n"
         )
+
+
+def _gate_plan(
+    *,
+    fragment_ledger: str,
+    targets: tuple[_FakeFoldTarget, ...],
+    transaction_id: str = "a" * 64,
+) -> _FakeFoldPlan:
+    fragment_path = (
+        f"docs/spool/{fragment_ledger}/2000-01-01-test-wave-1.md"
+    )
+    fragment = _FakeFoldFragment(
+        "test-wave",
+        path=fragment_path,
+        content_sha256=hashlib.sha256(b"fragment\n").hexdigest(),
+    )
+    return _FakeFoldPlan(
+        fragment_path,
+        targets=targets,
+        fragments=(fragment,),
+        transaction_id=transaction_id,
+    )
+
+
+def test_fold_gate_rc_status_and_budget_invariant_are_exact() -> None:
+    result = LAND._fold_gate_failed_result(
+        "synthetic gate failure",
+        main_before="a" * 40,
+        main_after="a" * 40,
+        tested_tip="b" * 40,
+    )
+    assert (LAND.RC_FOLD_GATE, result.rc, result.status) == (
+        31,
+        31,
+        "fold-gate-failed",
+    )
+    budgets = LAND._fold_gate_budgets()
+    assert (
+        budgets.inner_seconds + budgets.termination_grace_seconds
+        < budgets.outer_seconds
+    )
+    with _patched_land_attr(
+        "_FOLD_GATE_OUTER_TIMEOUT_SECONDS",
+        budgets.inner_seconds + budgets.termination_grace_seconds,
+    ):
+        with pytest.raises(LAND._FoldGateFailure, match="time budget invariant"):
+            LAND._fold_gate_budgets()
+
+
+def test_fold_gate_expected_targets_are_independent_of_plan_targets() -> None:
+    plan = _gate_plan(
+        fragment_ledger="worklog",
+        targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+    )
+    assert LAND._expected_fold_target_paths(plan) == (
+        "docs/spool/FOLDED.md",
+        "docs/worklog.md",
+    )
+    with pytest.raises(
+        LAND._FoldGateFailure,
+        match="omits independently expected targets",
+    ):
+        LAND._select_fold_gate_nodes(ROOT, plan)
+
+
+def test_fold_gate_selection_records_uncovered_family_without_rejecting() -> None:
+    plan = _gate_plan(
+        fragment_ledger="decisions",
+        targets=(
+            _FakeFoldTarget("docs/decisions.md"),
+            _FakeFoldTarget("docs/spool/FOLDED.md"),
+        ),
+    )
+    selection = LAND._select_fold_gate_nodes(ROOT, plan)
+    assert selection.target_families == ("decisions", "folded")
+    assert selection.uncovered_families == ("decisions",)
+    assert selection.nodeids == (
+        "test_spool_fold.py::"
+        "test_n37_real_repo_canonical_family_requires_archive_active_history",
+    )
+    assert re.fullmatch(r"[0-9a-f]{64}", selection.registry_digest)
+
+
+def test_fold_gate_capability_mismatch_is_fail_closed_and_not_user_injectable(
+) -> None:
+    class CapabilityRow:
+        target_family = ("folded",)
+        requires_git_history = True
+        requires_submodules = False
+
+    class CapabilityRegistry:
+        FOLD_GATE_SELECTED_NODES = {
+            "test_spool_fold.py::test_gate_node": CapabilityRow(),
+        }
+        FOLD_GATE_NODE_REGISTRY_SHA256 = "1" * 64
+
+        @staticmethod
+        def fold_gate_node_registry_sha256():
+            return "1" * 64
+
+    plan = _gate_plan(
+        fragment_ledger="decisions",
+        targets=(
+            _FakeFoldTarget("docs/decisions.md"),
+            _FakeFoldTarget("docs/spool/FOLDED.md"),
+        ),
+    )
+    with _patched_land_attr(
+        "_load_fold_gate_registry",
+        lambda _repo: CapabilityRegistry,
+    ):
+        with pytest.raises(
+            LAND._FoldGateFailure,
+            match="capability mismatch",
+        ):
+            LAND._select_fold_gate_nodes(ROOT, plan)
+    assert "executor" not in {
+        field.name for field in dataclasses.fields(LAND.LandRequest)
+    }
+    assert "fold-gate-executor" not in {
+        action.dest for action in LAND._parser()._actions
+    }
+
+
+def test_fold_gate_environment_removes_ambient_pytest_and_python_injection() -> None:
+    names = tuple(LAND._FOLD_GATE_ENV_REMOVE)
+    previous = {name: os.environ.get(name) for name in names}
+    try:
+        for name in names:
+            os.environ[name] = "ambient-injection"
+        env = LAND._fold_gate_environment()
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+    assert all(name not in env for name in names)
+    assert env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+    assert env["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert env["PYTHONNOUSERSITE"] == "1"
+    assert "IZANAGI_RUN_GROWTH_HELD_TESTS" not in dict(
+        LAND._FOLD_GATE_ENV_FORCE
+    )
+
+
+def test_fold_gate_junit_requires_execution_and_rejects_skip_failure_error(
+) -> None:
+    nodeid = "test_spool_fold.py::test_gate_node"
+    cases = {
+        "passed": "<testcase name='test_gate_node'/>",
+        "skipped": (
+            "<testcase name='test_gate_node'><skipped/></testcase>"
+        ),
+        "failed": (
+            "<testcase name='test_gate_node'><failure/></testcase>"
+        ),
+        "error": "<testcase name='test_gate_node'><error/></testcase>",
+        "empty": "",
+    }
+    with tempfile.TemporaryDirectory(prefix="fold-gate-junit-test-") as raw:
+        path = Path(raw) / "junit.xml"
+        for case, payload in cases.items():
+            path.write_text(
+                f"<testsuite>{payload}</testsuite>",
+                encoding="utf-8",
+            )
+            if case == "passed":
+                assert LAND._parse_fold_gate_junit(path, (nodeid,)) == (
+                    LAND._FoldGateJUnitCounts(1, 1, 0, 0, 0)
+                )
+            else:
+                with pytest.raises(LAND._FoldGateFailure):
+                    LAND._parse_fold_gate_junit(path, (nodeid,))
+
+
+def test_fold_gate_exports_full_tree_applies_raw_bytes_and_runs_one_pytest(
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        relative, _fragment_path, content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        plan = _gate_plan(
+            fragment_ledger="worklog",
+            targets=(
+                _FakeFoldTarget(
+                    "docs/spool/FOLDED.md",
+                    after_bytes=b"# receipts\n- gate\n",
+                ),
+                _FakeFoldTarget(
+                    "docs/worklog.md",
+                    before_exists=False,
+                    after_bytes=b"# projected worklog\n",
+                ),
+            ),
+        )
+        plan.gc_paths = (relative,)
+        plan.fragments = (
+            _FakeFoldFragment(
+                "test-wave",
+                path=relative,
+                content_sha256=hashlib.sha256(
+                    content.encode("utf-8")
+                ).hexdigest(),
+            ),
+        )
+        selection = LAND._FoldGateSelection(
+            "1" * 64,
+            ("test_spool_fold.py::test_gate_node",),
+            ("folded", "worklog"),
+            (),
+        )
+        observed: dict[str, object] = {}
+
+        def fake_pytest(
+            argv,
+            *,
+            cwd,
+            env,
+            timeout,
+            termination_grace,
+        ):
+            observed["argv"] = argv
+            observed["env"] = env
+            observed["timeout"] = timeout
+            observed["termination_grace"] = termination_grace
+            observed["base"] = (cwd / "base.txt").read_bytes()
+            observed["folded"] = (
+                cwd / "docs/spool/FOLDED.md"
+            ).read_bytes()
+            observed["worklog"] = (cwd / "docs/worklog.md").read_bytes()
+            observed["gc_missing"] = not (cwd / relative).exists()
+            observed["git_missing"] = not (cwd / ".git").exists()
+            junit_arg = next(
+                item for item in argv if item.startswith("--junitxml=")
+            )
+            Path(junit_arg.split("=", 1)[1]).write_text(
+                "<testsuite><testcase name='test_gate_node'/></testsuite>",
+                encoding="utf-8",
+            )
+            return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+        request = repo.request(wave, tip=tip)
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                with _patched_land_attr("_run_fold_gate_pytest", fake_pytest):
+                    counts = LAND._execute_fold_gate(
+                        repository,
+                        plan,
+                        selection,
+                        tip,
+                        LAND._fold_gate_budgets(),
+                    )
+            finally:
+                repository.close()
+
+        assert counts == LAND._FoldGateJUnitCounts(1, 1, 0, 0, 0)
+        assert observed["base"] == b"base\n"
+        assert observed["folded"] == b"# receipts\n- gate\n"
+        assert observed["worklog"] == b"# projected worklog\n"
+        assert observed["gc_missing"] is True
+        assert observed["git_missing"] is True
+        assert observed["argv"][-1] == (
+            "orchestrator/tests/test_spool_fold.py::test_gate_node"
+        )
+        assert observed["argv"].count("-m") == 1
+        assert observed["argv"][1:5] == ["-m", "pytest", "-p", "junitxml"]
+
+
+def test_fold_gate_receipt_binds_plan_identity_transaction_and_raw_bytes(
+) -> None:
+    plan = _gate_plan(
+        fragment_ledger="decisions",
+        targets=(
+            _FakeFoldTarget("docs/decisions.md", after_bytes=b"decisions\n"),
+            _FakeFoldTarget(
+                "docs/spool/FOLDED.md",
+                after_bytes=b"folded\n",
+            ),
+        ),
+    )
+    selection = LAND._select_fold_gate_nodes(ROOT, plan)
+    receipt = LAND._FoldGateReceipt(
+        plan,
+        plan.transaction_id,
+        selection.registry_digest,
+        selection.nodeids,
+        LAND._fold_gate_target_raw_digests(plan),
+        LAND._FOLD_GATE_OUTCOME,
+        selection.uncovered_families,
+    )
+    assert LAND._verify_fold_gate_receipt(ROOT, receipt, plan) == selection
+
+    replacement = _gate_plan(
+        fragment_ledger="decisions",
+        targets=plan.targets,
+        transaction_id=plan.transaction_id,
+    )
+    with pytest.raises(LAND._FoldGateFailure, match="object identity"):
+        LAND._verify_fold_gate_receipt(ROOT, receipt, replacement)
+    with pytest.raises(LAND._FoldGateFailure, match="transaction_id"):
+        LAND._verify_fold_gate_receipt(
+            ROOT,
+            dataclasses.replace(receipt, transaction_id="b" * 64),
+            plan,
+        )
+    plan.targets[0].after_bytes = b"tampered\n"
+    with pytest.raises(LAND._FoldGateFailure, match="raw digest mismatch"):
+        LAND._verify_fold_gate_receipt(ROOT, receipt, plan)
+
+
+def test_spool_state_v3_roundtrips_gate_receipt_and_rejects_old_schema(
+) -> None:
+    fold = LAND._load_spool_fold()
+    origin = fold.FoldOrigin(
+        "land",
+        "a" * 40,
+        "b" * 40,
+        "refs/heads/wave/test",
+        "a" * 40,
+        "a" * 40,
+        fold.audited_commit_digest(()),
+    )
+    target = fold.TargetChange(
+        "docs/spool/FOLDED.md",
+        hashlib.sha256(b"before\n").hexdigest(),
+        hashlib.sha256(b"after\n").hexdigest(),
+        True,
+        b"after\n",
+    )
+    fragment = fold.FragmentReceipt(
+        "docs/spool/decisions/2000-01-01-test-wave-1.md",
+        "2000-01-01",
+        "test-wave",
+        1,
+        hashlib.sha256(b"fragment\n").hexdigest(),
+        (),
+    )
+    transaction_id = fold._plan_transaction_id(
+        "2000-01-01",
+        origin,
+        "c" * 64,
+        (fragment,),
+        (fragment.path,),
+        0,
+        None,
+        (target,),
+    )
+    gate_receipt = fold.FoldGateReceipt(
+        transaction_id,
+        "d" * 64,
+        (),
+        ((target.path, target.after_sha256),),
+        LAND._FOLD_GATE_OUTCOME,
+        ("decisions",),
+    )
+    plan = fold.FoldPlan(
+        "planned",
+        "2000-01-01",
+        transaction_id,
+        origin,
+        "c" * 64,
+        "applied",
+        (),
+        (target,),
+        (fragment,),
+        (fragment.path,),
+        0,
+        None,
+        gate_receipt,
+    )
+    state = fold._plan_state(plan)
+    assert state["version"] == 3
+    assert fold._state_plan(state) == plan
+
+    old_state = dict(state)
+    old_state.pop("gate_receipt")
+    old_state["version"] = 2
+    with tempfile.TemporaryDirectory(prefix="fold-gate-old-state-") as raw:
+        path = Path(raw) / "state.json"
+        path.write_text(
+            json.dumps(
+                old_state,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(fold.FoldGateReceiptError):
+            fold._load_state(path)
+
+
+def test_missing_recovery_gate_receipt_returns_rc31_before_main_change() -> None:
+    fold = LAND._load_spool_fold()
+
+    class MissingReceiptModule(_FakeFoldModule):
+        FoldGateReceiptError = fold.FoldGateReceiptError
+
+        def load_active_plan(self, _repo):
+            raise self.FoldGateReceiptError("synthetic missing receipt")
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        module = MissingReceiptModule(
+            _FakeFoldPlan("docs/spool/worklog/missing.md"),
+            lambda *_args: None,
+        )
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_GATE,
+            "fold-gate-failed",
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_fold_gate_failure_and_main_pending_race_both_stop_before_ff() -> None:
+    for case in ("gate-red", "main-pending-race"):
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+            tip = _git(wave, "rev-parse", "HEAD")
+            plan = _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+                fragments=(_FakeFoldFragment("test-wave", path=relative),),
+            )
+            module = _FakeFoldModule(plan, lambda *_args: None)
+
+            def gate_runner(_repository, gate_plan, _tip):
+                if case == "gate-red":
+                    raise LAND._FoldGateFailure("synthetic semantic red")
+                extra = (
+                    repo.main
+                    / "docs/spool/decisions/2000-01-01-racing-wave-1.md"
+                )
+                extra.write_text("racing fragment\n", encoding="utf-8")
+                return _fake_gate_receipt(gate_plan)
+
+            with (
+                _patched_land_attr("_load_spool_fold", lambda: module),
+                _patched_land_attr("_run_fold_gate", gate_runner),
+                _patched_land_attr(
+                    "_verify_fold_gate_receipt",
+                    _verify_fake_gate_receipt,
+                ),
+            ):
+                result = _land_real_gate(repo.request(wave, tip=tip))
+
+            assert (result.rc, result.status) == (
+                LAND.RC_FOLD_GATE,
+                "fold-gate-failed",
+            ), (case, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+            assert result.fold_commit_sha is None
+
+
+def test_fold_gate_expected_targets_cover_all_ledgers_rotation_and_receipts(
+    tmp_path: Path,
+) -> None:
+    cases = {
+        "worklog": "docs/worklog.md",
+        "decisions": "docs/decisions.md",
+        "failures": "docs/failures.md",
+    }
+    for ledger, canonical in cases.items():
+        plan = _gate_plan(
+            fragment_ledger=ledger,
+            targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+        )
+        assert canonical in LAND._expected_fold_target_paths(plan)
+        with pytest.raises(
+            LAND._FoldGateFailure,
+            match="omits independently expected targets",
+        ):
+            LAND._select_fold_gate_nodes(ROOT, plan)
+
+    rotation = "docs/archive/worklog-phase3-0101-1.md"
+    rotation_plan = _gate_plan(
+        fragment_ledger="worklog",
+        targets=(
+            _FakeFoldTarget("docs/spool/FOLDED.md"),
+            _FakeFoldTarget("docs/worklog.md"),
+        ),
+    )
+    rotation_plan.rotation_path = rotation
+    assert {
+        rotation,
+        "docs/archive/README.md",
+    } <= set(LAND._expected_fold_target_paths(rotation_plan))
+    with pytest.raises(
+        LAND._FoldGateFailure,
+        match="omits independently expected targets",
+    ):
+        LAND._select_fold_gate_nodes(ROOT, rotation_plan)
+
+    repo = tmp_path / "receipt-repo"
+    folded_path = repo / "docs/spool/FOLDED.md"
+    folded_path.parent.mkdir(parents=True)
+    before = b"# receipts\n"
+    folded_path.write_bytes(before)
+    record = {
+        "allocations": {},
+        "authored": "2000-01-01",
+        "base": "a" * 40,
+        "content_sha256": hashlib.sha256(b"fragment\n").hexdigest(),
+        "seq": 1,
+        "tested_tip": "b" * 40,
+        "wave": "test-wave",
+        "wave_ref": "refs/heads/wave/test",
+    }
+    after = before + (
+        "- "
+        + json.dumps(record, separators=(",", ":"), sort_keys=True)
+        + "\n"
+    ).encode("utf-8")
+    receipt_plan = _gate_plan(
+        fragment_ledger="decisions",
+        targets=(
+            _FakeFoldTarget(
+                "docs/decisions.md",
+                after_bytes=b"decision\n",
+            ),
+            _FakeFoldTarget(
+                "docs/spool/FOLDED.md",
+                before_bytes=before,
+                after_bytes=after,
+            ),
+        ),
+    )
+    LAND._verify_folded_fragment_receipts(repo, receipt_plan)
+    record["content_sha256"] = "0" * 64
+    receipt_plan.targets[-1].after_bytes = before + (
+        "- "
+        + json.dumps(record, separators=(",", ":"), sort_keys=True)
+        + "\n"
+    ).encode("utf-8")
+    with pytest.raises(
+        LAND._FoldGateFailure,
+        match="path/content digests",
+    ):
+        LAND._verify_folded_fragment_receipts(repo, receipt_plan)
+
+
+def test_ambient_pythonoptimize_cannot_hide_one_byte_positive_control(
+    tmp_path: Path,
+) -> None:
+    from orchestrator.tests import test_fold_gate_nodes_contract as contract
+
+    mutated_source = tmp_path / "mutated-source"
+    contract._materialize_real_canonical_source(mutated_source)
+    contract._mutate_latest_t139_bytes(mutated_source / "docs/worklog.md")
+    run_path = tmp_path / "run"
+    run_path.mkdir()
+    previous = os.environ.get("PYTHONOPTIMIZE")
+    os.environ["PYTHONOPTIMIZE"] = "1"
+    try:
+        env = LAND._fold_gate_environment()
+    finally:
+        if previous is None:
+            os.environ.pop("PYTHONOPTIMIZE", None)
+        else:
+            os.environ["PYTHONOPTIMIZE"] = previous
+    code = (
+        "from pathlib import Path\n"
+        "import sys\n"
+        "from orchestrator.tests import test_spool_fold as tests\n"
+        "tests.test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed(\n"
+        "    Path(sys.argv[2]), _checkout=Path(sys.argv[1]))\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code, str(mutated_source), str(run_path)],
+        cwd=ROOT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert "PYTHONOPTIMIZE" not in env
+    assert env["PYTHONNOUSERSITE"] == "1"
+    assert completed.returncode != 0, completed.stdout + completed.stderr
+
+
+@pytest.mark.parametrize("junit_case", ("passed", "failed"))
+def test_fold_gate_tmp_isolation_preserves_main_and_wave_status_bytes(
+    junit_case: str,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        relative, _fragment_path, content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        plan = _gate_plan(
+            fragment_ledger="worklog",
+            targets=(
+                _FakeFoldTarget(
+                    "docs/spool/FOLDED.md",
+                    after_bytes=b"# receipts\n- gate\n",
+                ),
+                _FakeFoldTarget(
+                    "docs/worklog.md",
+                    before_exists=False,
+                    after_bytes=b"# projected worklog\n",
+                ),
+            ),
+        )
+        plan.gc_paths = (relative,)
+        plan.fragments = (
+            _FakeFoldFragment(
+                "test-wave",
+                path=relative,
+                content_sha256=hashlib.sha256(
+                    content.encode("utf-8")
+                ).hexdigest(),
+            ),
+        )
+        selection = LAND._FoldGateSelection(
+            "1" * 64,
+            ("test_spool_fold.py::test_gate_node",),
+            ("folded", "worklog"),
+            (),
+            (("test_spool_fold.py::test_gate_node", ("folded", "worklog")),),
+        )
+        before = {
+            path: _git(
+                path,
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+            )
+            for path in (repo.main, wave)
+        }
+        previous_tmpdir = os.environ.get("TMPDIR")
+        os.environ["TMPDIR"] = str(repo.main)
+
+        def fake_pytest(
+            argv,
+            *,
+            cwd,
+            env,
+            timeout,
+            termination_grace,
+        ):
+            assert Path(env["TMPDIR"]).parent == cwd
+            assert env["TMPDIR"] == env["TMP"] == env["TEMP"]
+            basetemp = next(
+                item.split("=", 1)[1]
+                for item in argv
+                if item.startswith("--basetemp=")
+            )
+            assert basetemp == env["TMPDIR"]
+            (Path(env["TMPDIR"]) / "probe").write_bytes(b"tmp\n")
+            junit = next(
+                Path(item.split("=", 1)[1])
+                for item in argv
+                if item.startswith("--junitxml=")
+            )
+            child = (
+                "<testcase name='test_gate_node'/>"
+                if junit_case == "passed"
+                else (
+                    "<testcase name='test_gate_node'><failure/>"
+                    "</testcase>"
+                )
+            )
+            junit.write_text(f"<testsuite>{child}</testsuite>")
+            return subprocess.CompletedProcess(
+                argv,
+                0 if junit_case == "passed" else 1,
+                b"",
+                b"",
+            )
+
+        request = repo.request(wave, tip=tip)
+        try:
+            with _cwd(wave):
+                repository = LAND._verify_repository(request)
+                try:
+                    with _patched_land_attr(
+                        "_run_fold_gate_pytest", fake_pytest
+                    ):
+                        if junit_case == "passed":
+                            LAND._execute_fold_gate(
+                                repository,
+                                plan,
+                                selection,
+                                tip,
+                                LAND._fold_gate_budgets(),
+                            )
+                        else:
+                            with pytest.raises(LAND._FoldGateFailure):
+                                LAND._execute_fold_gate(
+                                    repository,
+                                    plan,
+                                    selection,
+                                    tip,
+                                    LAND._fold_gate_budgets(),
+                                )
+                finally:
+                    repository.close()
+        finally:
+            if previous_tmpdir is None:
+                os.environ.pop("TMPDIR", None)
+            else:
+                os.environ["TMPDIR"] = previous_tmpdir
+        after_status = {
+            path: _git(
+                path,
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+            )
+            for path in (repo.main, wave)
+        }
+        assert after_status == before
+
+
+def test_main_untracked_archive_closure_race_stops_before_ff() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        plan = _FakeFoldPlan(
+            relative,
+            targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            fragments=(_FakeFoldFragment("test-wave", path=relative),),
+        )
+        module = _FakeFoldModule(plan, lambda *_args: None)
+        extra = repo.main / "docs/archive/worklog-racing.md"
+
+        def gate_runner(_repository, gate_plan, _tip):
+            extra.parent.mkdir(parents=True, exist_ok=True)
+            extra.write_text("untracked closure race\n", encoding="utf-8")
+            return _fake_gate_receipt(gate_plan)
+
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_run_fold_gate", gate_runner),
+            _patched_land_attr(
+                "_verify_fold_gate_receipt",
+                _verify_fake_gate_receipt,
+            ),
+        ):
+            result = _land_real_gate(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_GATE,
+            "fold-gate-failed",
+        )
+        assert "surviving untracked fold closure" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert extra.is_file()
+
+
+def test_fold_gate_structured_families_survive_finalize_failure() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            (repo_path / "docs/spool/FOLDED.md").write_text(
+                "# receipts\n- structured\n",
+                encoding="utf-8",
+            )
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+                fragments=(_FakeFoldFragment("test-wave", path=relative),),
+            ),
+            apply,
+            fail_finalize=True,
+        )
+
+        def receipt(_repository, plan, _tip):
+            return dataclasses.replace(
+                _fake_gate_receipt(plan),
+                uncovered_families=("decisions",),
+            )
+
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_run_fold_gate", receipt),
+            _patched_land_attr(
+                "_verify_fold_gate_receipt",
+                _verify_fake_gate_receipt,
+            ),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            result = _land_real_gate(repo.request(wave, tip=tip))
+
+        assert result.status == "fold-finalize-failed"
+        assert result.fold_gate_uncovered_families == ("decisions",)
+        assert result.as_json()["fold_gate_uncovered_families"] == [
+            "decisions"
+        ]
+
+
+def test_fold_gate_assertion_reports_exact_failed_families() -> None:
+    path = Path(tempfile.mkdtemp(prefix="fold-gate-family-junit-")) / "junit.xml"
+    try:
+        path.write_text(
+            "<testsuite><testcase name='test_a'><failure/></testcase>"
+            "<testcase name='test_b'/></testsuite>",
+            encoding="utf-8",
+        )
+        with pytest.raises(LAND._FoldGateFailure) as raised:
+            LAND._parse_fold_gate_junit(
+                path,
+                (
+                    "test_spool_fold.py::test_a",
+                    "test_spool_fold.py::test_b",
+                ),
+                (
+                    ("test_spool_fold.py::test_a", ("failures",)),
+                    ("test_spool_fold.py::test_b", ("worklog",)),
+                ),
+            )
+        assert raised.value.retryable_same_request is False
+        assert raised.value.covered_and_failed_families == ("failures",)
+    finally:
+        shutil.rmtree(path.parent)
+
+
+def test_fold_gate_infra_retains_lease_and_assertion_releases() -> None:
+    for infra in (True, False):
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+            tip = _git(wave, "rev-parse", "HEAD")
+            request = repo.request(wave, tip=tip)
+            lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+            lease_before = lease_path.read_bytes()
+            module = _FakeFoldModule(
+                _FakeFoldPlan(
+                    relative,
+                    targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+                    fragments=(
+                        _FakeFoldFragment("test-wave", path=relative),
+                    ),
+                ),
+                lambda *_args: None,
+            )
+
+            def fail_gate(*_args):
+                if infra:
+                    raise LAND._FoldGateInfrastructureFailure(
+                        "synthetic JUnit parse failure"
+                    )
+                raise LAND._FoldGateFailure(
+                    "synthetic assertion failure",
+                    covered_and_failed_families=("folded",),
+                )
+
+            with (
+                _patched_land_attr("_load_spool_fold", lambda: module),
+                _patched_land_attr("_run_fold_gate", fail_gate),
+            ):
+                rc, payload, _raw, errors = _invoke_land_main(
+                    request,
+                    lease_dir,
+                )
+            assert rc == LAND.RC_FOLD_GATE
+            assert payload["status"] == "fold-gate-failed"
+            if infra:
+                assert payload["retryable_same_request"] is True
+                assert payload["release_safe"] is False
+                assert lease_path.read_bytes() == lease_before
+                assert "lease_release state=retained" in errors
+            else:
+                assert payload["retryable_same_request"] is False
+                assert payload["release_safe"] is True
+                assert payload[
+                    "fold_gate_covered_and_failed_families"
+                ] == ["folded"]
+                assert not lease_path.exists()
+                assert "lease_release state=released" in errors
+
+
+def test_fold_gate_inner_timeout_uses_termination_grace_and_reaps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[object] = []
+
+    class Process:
+        returncode = -signal.SIGKILL
+
+        def communicate(self, timeout=None):
+            events.append(("communicate", timeout))
+            if timeout in {2.0, 3.0}:
+                raise subprocess.TimeoutExpired(["pytest"], timeout)
+            return b"stdout", b"stderr"
+
+        def terminate(self):
+            events.append("terminate")
+
+        def kill(self):
+            events.append("kill")
+
+    monkeypatch.setattr(LAND.subprocess, "Popen", lambda *_a, **_k: Process())
+    with pytest.raises(subprocess.TimeoutExpired):
+        LAND._run_fold_gate_pytest(
+            ["pytest"],
+            cwd=ROOT,
+            env={},
+            timeout=2.0,
+            termination_grace=3.0,
+        )
+    assert events == [
+        ("communicate", 2.0),
+        "terminate",
+        ("communicate", 3.0),
+        "kill",
+        ("communicate", None),
+    ]
+
+
+def test_fold_gate_outer_watchdog_fires_when_injected_clock_advances() -> None:
+    values = iter((0.0, 1.0))
+
+    def advancing_clock() -> float:
+        return next(values, 1.0)
+
+    started = time.monotonic()
+    with _patched_land_attr("_fold_gate_now", advancing_clock):
+        with pytest.raises(
+            LAND._FoldGateInfrastructureFailure,
+            match="outer watchdog fired",
+        ):
+            with LAND._FoldGateOuterWatchdog(0.05):
+                time.sleep(1.0)
+    assert time.monotonic() - started < 0.5
+
+
+def test_fold_writer_and_isolation_materialization_preserve_mode_contract(
+    tmp_path: Path,
+) -> None:
+    fold = LAND._load_spool_fold()
+    writer_existing = tmp_path / "writer-existing.md"
+    writer_existing.write_bytes(b"before\n")
+    writer_existing.chmod(0o640)
+    fold._atomic_write_canonical_target(writer_existing, b"after\n")
+    assert stat.S_IMODE(writer_existing.stat().st_mode) == 0o644
+    writer_new = tmp_path / "writer-new.md"
+    fold._atomic_write_canonical_target(writer_new, b"new\n")
+    assert stat.S_IMODE(writer_new.stat().st_mode) == 0o644
+
+    tree = tmp_path / "tree"
+    existing = tree / "docs/existing.md"
+    existing.parent.mkdir(parents=True)
+    existing.write_bytes(b"before\n")
+    existing.chmod(0o640)
+
+    class Plan:
+        targets = (
+            _FakeFoldTarget("docs/existing.md", after_bytes=b"after\n"),
+            _FakeFoldTarget("docs/new.md", after_bytes=b"new\n"),
+        )
+        fragments = ()
+        gc_paths = ()
+
+    LAND._materialize_fold_plan(tree, Plan())
+    assert stat.S_IMODE(existing.stat().st_mode) == 0o644
+    assert stat.S_IMODE((tree / "docs/new.md").stat().st_mode) == 0o644
+
+
+def test_fresh_noop_never_starts_fold_gate() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        with _patched_land_attr(
+            "_run_fold_gate",
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("fresh noop must not start fold gate")
+            ),
+        ):
+            result = _land_real_gate(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
 
 
 def _run() -> int:
