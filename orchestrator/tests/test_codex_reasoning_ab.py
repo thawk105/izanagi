@@ -482,6 +482,201 @@ def _run_stage2_fixture(
     )
 
 
+_STAGE5_AUTHOR_PATCH = b"""diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1 +1 @@
+-old
++new
+"""
+
+
+def _stage5_sources(tmp_path: Path) -> dict[str, Any]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    run_root = tmp_path / "stage5-run-root"
+    run_root.mkdir()
+    plan = tmp_path / "plan.md"
+    plan.write_bytes(b"frozen stage5 plan\n")
+    author_output = tmp_path / "author.diff"
+    author_output.write_bytes(_STAGE5_AUTHOR_PATCH)
+    snapshot = tmp_path / "snapshot"
+    target = snapshot / "repo"
+    target.mkdir(parents=True)
+    (target / "file.txt").write_bytes(b"old\n")
+    git_value = shutil.which("git")
+    assert git_value is not None
+    return {
+        "run_root": run_root,
+        "plan": plan,
+        "author_output": author_output,
+        "snapshot": snapshot,
+        "target": target,
+        "git": Path(git_value),
+        "contract_path": run_root / "stage5-contract.json",
+    }
+
+
+def _stage5_fixture(tmp_path: Path) -> dict[str, Any]:
+    fixture = _stage5_sources(tmp_path)
+    fixture["contract"] = TOOL.freeze_stage5_author_replayer(
+        fixture["plan"],
+        fixture["author_output"],
+        fixture["contract_path"],
+        snapshot=fixture["snapshot"],
+        application_root="repo",
+        git_binary=fixture["git"],
+        review_model=TOOL.MODEL,
+        review_effort="high",
+        fix_model="gpt-5.6-luna",
+        fix_effort="max",
+        fix_pass_limit=2,
+    )
+    return fixture
+
+
+def _stage5_downstream_receipt(
+    fixture: dict[str, Any], *, role: str, pass_index: int, name: str
+) -> tuple[Path, dict[str, Any], dict[str, Any]]:
+    contract = fixture["contract"]
+    contract_raw = fixture["contract_path"].read_bytes()
+    stdin_path = fixture["run_root"] / f"{name}.stdin"
+    output_path = fixture["run_root"] / f"{name}.output"
+    stdin_path.write_bytes(b"stage5 downstream stdin\n")
+    output_path.write_bytes(b"stage5 downstream output\n")
+    if role == "review":
+        previous_receipt_path = fixture["run_root"] / f"{name}.application.json"
+        TOOL.validate_stage5_author_application(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=previous_receipt_path,
+        )
+    else:
+        previous_role = "review" if pass_index == 1 else "fix"
+        previous_pass_index = 0 if pass_index == 1 else pass_index - 1
+        previous_receipt_path = fixture["run_root"] / f"{name}.previous.json"
+        previous_pin = {
+            "review": {
+                "requested_model": TOOL.MODEL,
+                "requested_effort": "high",
+            },
+            "fix": {
+                "requested_model": "gpt-5.6-luna",
+                "requested_effort": "max",
+            },
+        }[previous_role]
+        previous_output = b"previous downstream output\n"
+        previous_output_sha256 = TOOL._sha256(previous_output)
+        previous_receipt = {
+            "schema_version": TOOL.STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+            "receipt_kind": "stage5-downstream-receipt",
+            "contract_sha256": TOOL._sha256(contract_raw),
+            "role": previous_role,
+            "pass_index": previous_pass_index,
+            "author_output_hash": contract["author_output_hash"],
+            "application_target_sha256": TOOL._sha256(
+                TOOL._canonical_bytes(contract["application_target"])
+            ),
+            "requested_model": previous_pin["requested_model"],
+            "requested_effort": previous_pin["requested_effort"],
+            "argv": [
+                "codex",
+                "exec",
+                "-m",
+                previous_pin["requested_model"],
+                "-c",
+                f"model_reasoning_effort={previous_pin['requested_effort']}",
+                "-s",
+                "read-only",
+                "--json",
+            ],
+            "stdin_sha256": TOOL._sha256(b"previous stdin\n"),
+            "output": {
+                "regular": True,
+                "bytes": len(previous_output),
+                "sha256": previous_output_sha256,
+            },
+            "output_sha256": previous_output_sha256,
+            "previous_receipt_sha256": "3" * 64,
+            "exit_code": 0,
+            "timed_out": False,
+            "receipt_status": "mechanically-valid",
+            "task_acceptance_status": "unbound",
+            "fix_gate_eligible": False,
+            "routing_evidence_eligible": False,
+        }
+        previous_receipt_path.write_bytes(
+            TOOL._canonical_bytes(previous_receipt)
+        )
+    pin = {
+        "review": {
+            "requested_model": TOOL.MODEL,
+            "requested_effort": "high",
+        },
+        "fix": {
+            "requested_model": "gpt-5.6-luna",
+            "requested_effort": "max",
+        },
+    }[role]
+    stdin_sha256 = TOOL._sha256(stdin_path.read_bytes())
+    output_sha256 = TOOL._sha256(output_path.read_bytes())
+    previous_receipt_sha256 = TOOL._sha256(previous_receipt_path.read_bytes())
+    receipt = {
+        "schema_version": TOOL.STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "receipt_kind": "stage5-downstream-receipt",
+        "contract_sha256": TOOL._sha256(contract_raw),
+        "role": role,
+        "pass_index": pass_index,
+        "author_output_hash": contract["author_output_hash"],
+        "application_target_sha256": TOOL._sha256(
+            TOOL._canonical_bytes(contract["application_target"])
+        ),
+        "requested_model": pin["requested_model"],
+        "requested_effort": pin["requested_effort"],
+        "argv": [
+            "codex",
+            "exec",
+            "-m",
+            pin["requested_model"],
+            "-c",
+            f"model_reasoning_effort={pin['requested_effort']}",
+            "-s",
+            "read-only",
+            "--json",
+        ],
+        "stdin_sha256": stdin_sha256,
+        "output": {
+            "regular": True,
+            "bytes": output_path.stat().st_size,
+            "sha256": output_sha256,
+        },
+        "output_sha256": output_sha256,
+        "previous_receipt_sha256": previous_receipt_sha256,
+        "exit_code": 0,
+        "timed_out": False,
+        "receipt_status": "mechanically-valid",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    path = fixture["run_root"] / name
+    path.write_bytes(TOOL._canonical_bytes(receipt))
+    return path, receipt, {
+        "expected_role": role,
+        "expected_pass_index": pass_index,
+        "stdin_path": stdin_path,
+        "output_path": output_path,
+        "previous_receipt_path": previous_receipt_path,
+    }
+
+
+def _nested_keys(value: Any) -> list[str]:
+    if isinstance(value, dict):
+        return list(value) + [key for item in value.values() for key in _nested_keys(item)]
+    if isinstance(value, list):
+        return [key for item in value for key in _nested_keys(item)]
+    return []
+
+
 def _schedule(
     path: Path, benchmark: dict[str, Any]
 ) -> tuple[Path, list[dict[str, Any]]]:
@@ -8216,14 +8411,1030 @@ def test_stage2_cli_verbs_parse_and_dispatch_without_legacy_schema_change(
     }
 
 
+def test_stage5_freeze_registers_seven_items_create_only_and_unbound(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    contract = fixture["contract"]
+    integrity_path = fixture["contract_path"].with_name(
+        fixture["contract_path"].name + ".integrity.json"
+    )
+    integrity = json.loads(integrity_path.read_text(encoding="utf-8"))
+
+    assert contract["schema_version"] == TOOL.STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION
+    assert contract["schema_version"] != TOOL.STAGE2_REPLAYER_SCHEMA_VERSION
+    assert contract["contract_kind"] == "stage5-author-replayer-contract"
+    assert contract["source_descriptors"] == {
+        "plan": TOOL._stage5_file_descriptor(fixture["plan"], "source plan"),
+        "author_output": TOOL._stage5_file_descriptor(
+            fixture["author_output"], "source author output"
+        ),
+        "snapshot": TOOL._stage5_snapshot_descriptor(
+            fixture["snapshot"], "source snapshot"
+        ),
+        "git": TOOL._stage5_file_descriptor(fixture["git"], "source Git"),
+    }
+    assert integrity["source_plan"] == contract["source_descriptors"]["plan"]
+    assert integrity["source_author_output"] == contract["source_descriptors"][
+        "author_output"
+    ]
+    assert integrity["source_snapshot"] == contract["source_descriptors"][
+        "snapshot"
+    ]
+    assert integrity["source_git"] == contract["source_descriptors"]["git"]
+    assert contract["frozen_plan"]["sha256"] == TOOL._sha256(
+        fixture["plan"].read_bytes()
+    )
+    assert contract["plan_input_hash"] == contract["frozen_plan"]["sha256"]
+    assert contract["author_output_hash"] == TOOL._sha256(_STAGE5_AUTHOR_PATCH)
+    assert contract["frozen_author_output"]["format"] == "git-diff-v1"
+    assert contract["application_target"]["relative_root"] == "repo"
+    assert contract["downstream_pins"] == {
+        "review": {"requested_model": TOOL.MODEL, "requested_effort": "high"},
+        "fix": {
+            "requested_model": "gpt-5.6-luna",
+            "requested_effort": "max",
+        },
+    }
+    assert contract["fix_pass_limit"] == 2
+    assert contract["receipt_policy"]["argv_match"] == "exact"
+    assert contract["application_apparatus"]["check_argv"][1:] == [
+        "apply",
+        "--check",
+        "--whitespace=nowarn",
+        "-",
+    ]
+    registered = {
+        fixture["contract_path"],
+        integrity_path,
+        Path(contract["frozen_plan"]["path"]),
+        Path(contract["frozen_author_output"]["artifact"]["path"]),
+        Path(contract["application_target"]["snapshot"]["path"]),
+        Path(contract["application_apparatus"]["git"]["path"]).parent,
+        Path(contract["application_apparatus"]["git"]["path"]),
+    }
+    assert len(registered) == 7
+    assert all(path.exists() and not path.is_symlink() for path in registered)
+    assert set(fixture["run_root"].iterdir()) == {
+        fixture["contract_path"],
+        integrity_path,
+        Path(contract["frozen_plan"]["path"]),
+        Path(contract["frozen_author_output"]["artifact"]["path"]),
+        Path(contract["application_target"]["snapshot"]["path"]),
+        Path(contract["application_apparatus"]["git"]["path"]).parent,
+    }
+    assert set(
+        Path(contract["application_apparatus"]["git"]["path"]).parent.iterdir()
+    ) == {Path(contract["application_apparatus"]["git"]["path"])}
+    for artifact in (contract, integrity):
+        assert artifact["task_acceptance_status"] == "unbound"
+        assert artifact["fix_gate_eligible"] is False
+        assert artifact["routing_evidence_eligible"] is False
+        assert not {"accepted", "success", "passed"} & set(_nested_keys(artifact))
+
+    before = {
+        path: path.read_bytes()
+        for path in fixture["run_root"].rglob("*")
+        if path.is_file() and not path.is_symlink()
+    }
+    before_tree = TOOL._stage5_snapshot_descriptor(
+        fixture["run_root"], "stage5 test run root"
+    )["sha256"]
+    with pytest.raises(TOOL.ValidationError, match="already exists"):
+        TOOL.freeze_stage5_author_replayer(
+            fixture["plan"],
+            fixture["author_output"],
+            fixture["contract_path"],
+            snapshot=fixture["snapshot"],
+            application_root="repo",
+            git_binary=fixture["git"],
+            review_model=TOOL.MODEL,
+            review_effort="high",
+            fix_model="gpt-5.6-luna",
+            fix_effort="max",
+            fix_pass_limit=2,
+        )
+    assert {
+        path: path.read_bytes() for path in before
+    } == before
+    assert TOOL._stage5_snapshot_descriptor(
+        fixture["run_root"], "stage5 test run root"
+    )["sha256"] == before_tree
+
+
+def test_stage5_freeze_rolls_back_after_git_probe_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _stage5_sources(tmp_path)
+
+    def fail_probe(*args: Any, **kwargs: Any) -> str:
+        raise TOOL.ValidationError("injected Git probe failure", TOOL.RC_ROUTING)
+
+    monkeypatch.setattr(TOOL, "_stage5_version_probe", fail_probe)
+    with pytest.raises(TOOL.ValidationError, match="injected Git probe failure"):
+        TOOL.freeze_stage5_author_replayer(
+            fixture["plan"],
+            fixture["author_output"],
+            fixture["contract_path"],
+            snapshot=fixture["snapshot"],
+            application_root="repo",
+            git_binary=fixture["git"],
+            review_model=TOOL.MODEL,
+            review_effort="high",
+            fix_model="gpt-5.6-luna",
+            fix_effort="max",
+            fix_pass_limit=2,
+        )
+    assert list(fixture["run_root"].iterdir()) == []
+
+
+def test_stage5_freeze_rollback_preserves_competing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _stage5_sources(tmp_path)
+    competing = fixture["run_root"] / "stage5-plan-input"
+    competing_bytes = b"competing create-only owner\n"
+    delegated = TOOL._stage5_create_only_bytes
+
+    def inject_competitor(
+        path: Path, data: bytes, *, mode: int = 0o600
+    ) -> None:
+        if path == competing:
+            competing.write_bytes(competing_bytes)
+        delegated(path, data, mode=mode)
+
+    monkeypatch.setattr(TOOL, "_stage5_create_only_bytes", inject_competitor)
+    with pytest.raises(TOOL.ValidationError, match="already exists"):
+        TOOL.freeze_stage5_author_replayer(
+            fixture["plan"],
+            fixture["author_output"],
+            fixture["contract_path"],
+            snapshot=fixture["snapshot"],
+            application_root="repo",
+            git_binary=fixture["git"],
+            review_model=TOOL.MODEL,
+            review_effort="high",
+            fix_model="gpt-5.6-luna",
+            fix_effort="max",
+            fix_pass_limit=2,
+        )
+    assert competing.read_bytes() == competing_bytes
+
+
+def test_stage5_freeze_rollback_uses_identity_saved_at_create_barrier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _stage5_sources(tmp_path)
+    competing = fixture["run_root"] / "stage5-plan-input"
+    competing_bytes = b"replacement after successful create\n"
+    delegated = TOOL._stage5_create_only_bytes
+
+    def replace_after_create(
+        path: Path, data: bytes, *, mode: int = 0o600
+    ) -> Any:
+        owned = delegated(path, data, mode=mode)
+        if path == competing:
+            path.unlink()
+            path.write_bytes(competing_bytes)
+        return owned
+
+    monkeypatch.setattr(TOOL, "_stage5_create_only_bytes", replace_after_create)
+    with pytest.raises(TOOL.ValidationError, match="copy sha mismatch"):
+        TOOL.freeze_stage5_author_replayer(
+            fixture["plan"],
+            fixture["author_output"],
+            fixture["contract_path"],
+            snapshot=fixture["snapshot"],
+            application_root="repo",
+            git_binary=fixture["git"],
+            review_model=TOOL.MODEL,
+            review_effort="high",
+            fix_model="gpt-5.6-luna",
+            fix_effort="max",
+            fix_pass_limit=2,
+        )
+    assert competing.read_bytes() == competing_bytes
+
+
+def test_stage5_snapshot_rollback_uses_identity_saved_at_mkdir_barrier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture = _stage5_sources(tmp_path)
+    competing = fixture["run_root"] / "stage5-snapshot"
+    marker = competing / "competing-owner"
+    delegated = TOOL._stage5_create_owned_directory
+
+    def replace_after_mkdir(path: Path, *, mode: int) -> Any:
+        owned = delegated(path, mode=mode)
+        if path == competing:
+            path.rmdir()
+            path.mkdir(mode=mode)
+            marker.write_bytes(b"replacement directory identity\n")
+        return owned
+
+    monkeypatch.setattr(
+        TOOL, "_stage5_create_owned_directory", replace_after_mkdir
+    )
+    with pytest.raises(TOOL.ValidationError, match="copy sha mismatch"):
+        TOOL.freeze_stage5_author_replayer(
+            fixture["plan"],
+            fixture["author_output"],
+            fixture["contract_path"],
+            snapshot=fixture["snapshot"],
+            application_root="repo",
+            git_binary=fixture["git"],
+            review_model=TOOL.MODEL,
+            review_effort="high",
+            fix_model="gpt-5.6-luna",
+            fix_effort="max",
+            fix_pass_limit=2,
+        )
+    assert marker.read_bytes() == b"replacement directory identity\n"
+
+
+def test_stage5_create_only_write_failure_preserves_replacement_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "owned"
+    competing_bytes = b"replacement during fsync\n"
+
+    def replace_then_fail(_descriptor: int) -> None:
+        target.unlink()
+        target.write_bytes(competing_bytes)
+        raise OSError("injected fsync failure")
+
+    monkeypatch.setattr(TOOL.os, "fsync", replace_then_fail)
+    with pytest.raises(OSError, match="injected fsync failure"):
+        TOOL._stage5_create_only_bytes(target, b"created bytes\n")
+    assert target.read_bytes() == competing_bytes
+
+
+def test_stage5_create_only_wrapper_rejects_overwrite_and_preserves_bytes(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "owned"
+    target.write_bytes(b"competitor\n")
+    with pytest.raises(TOOL.ValidationError, match="already exists"):
+        TOOL._stage5_create_only_bytes(target, b"replacement\n")
+    assert target.read_bytes() == b"competitor\n"
+
+
+def test_stage5_isolated_validation_is_deterministic_and_leaves_live_tree(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    first = TOOL.validate_stage5_author_application(
+        contract_path=fixture["contract_path"],
+        run_root=fixture["run_root"],
+        receipt_path=fixture["run_root"] / "application-1.json",
+    )
+    second = TOOL.validate_stage5_author_application(
+        contract_path=fixture["contract_path"],
+        run_root=fixture["run_root"],
+        receipt_path=fixture["run_root"] / "application-2.json",
+    )
+    assert first["pre_tree_sha256"] == second["pre_tree_sha256"]
+    assert first["post_tree_sha256"] == second["post_tree_sha256"]
+    assert first["post_tree_sha256"] != first["pre_tree_sha256"]
+    assert fixture["target"].joinpath("file.txt").read_bytes() == b"old\n"
+    assert list(fixture["run_root"].glob(".stage5-application-*")) == []
+    assert first["receipt_status"] == "mechanically-valid"
+    assert first["task_acceptance_status"] == "unbound"
+    assert first["fix_gate_eligible"] is False
+    assert first["routing_evidence_eligible"] is False
+    assert not {"accepted", "success", "passed"} & set(_nested_keys(first))
+
+
+@pytest.mark.parametrize("artifact", ("plan", "author"))
+def test_stage5_frozen_single_leaf_tamper_is_rejected(
+    tmp_path: Path, artifact: str
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    contract = fixture["contract"]
+    path = (
+        Path(contract["frozen_plan"]["path"])
+        if artifact == "plan"
+        else Path(contract["frozen_author_output"]["artifact"]["path"])
+    )
+    path.write_bytes(path.read_bytes() + b"tamper")
+    with pytest.raises(TOOL.ValidationError, match=f"stage5 frozen {artifact}"):
+        TOOL.validate_stage5_author_application(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=fixture["run_root"] / "application.json",
+        )
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    (
+        ("namespace", "schema version mismatch"),
+        ("kind_namespace", "contract kind mismatch"),
+        ("plan_hash", "plan input hash mismatch"),
+        ("author_hash", "author output hash mismatch"),
+        ("acceptance", "task acceptance must remain unbound"),
+    ),
+)
+def test_stage5_contract_mutation_guards_reject_direct_changes(
+    tmp_path: Path, case: str, message: str
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    contract = copy.deepcopy(fixture["contract"])
+    if case == "namespace":
+        contract["schema_version"] = TOOL.STAGE2_REPLAYER_SCHEMA_VERSION
+    elif case == "kind_namespace":
+        contract["contract_kind"] = "stage2-plan-replayer"
+    elif case == "plan_hash":
+        contract["plan_input_hash"] = "f" * 64
+    elif case == "author_hash":
+        contract["author_output_hash"] = "e" * 64
+    else:
+        contract["task_acceptance_status"] = "accepted"
+    with pytest.raises(TOOL.ValidationError, match=message):
+        TOOL._stage5_validate_contract(
+            contract, run_root=fixture["run_root"]
+        )
+
+
+@pytest.mark.parametrize(
+    ("source", "leaf", "replacement", "message"),
+    (
+        ("source_plan", "sha256", "f" * 64, "sha256 mismatch"),
+        ("source_author_output", "bytes", 0, "bytes mismatch"),
+        ("source_snapshot", "path", "relative", "path is not absolute"),
+        ("source_git", "bytes", False, "nonnegative integer"),
+        ("source_git", "device", "1", "nonnegative integer"),
+        ("source_git", "inode", None, "nonnegative integer"),
+    ),
+)
+def test_stage5_integrity_source_descriptor_single_leaf_tamper_is_rejected(
+    tmp_path: Path,
+    source: str,
+    leaf: str,
+    replacement: Any,
+    message: str,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    integrity_path = fixture["contract_path"].with_name(
+        fixture["contract_path"].name + ".integrity.json"
+    )
+    integrity = json.loads(integrity_path.read_text(encoding="utf-8"))
+    integrity[source][leaf] = replacement
+    with pytest.raises(TOOL.ValidationError, match=message):
+        TOOL._stage5_validate_integrity(
+            integrity,
+            contract_path=fixture["contract_path"],
+            contract=fixture["contract"],
+            contract_raw=fixture["contract_path"].read_bytes(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("source", "leaf"),
+    (
+        ("source_plan", "path"),
+        ("source_plan", "kind"),
+        ("source_git", "mode"),
+        ("source_author_output", "device"),
+        ("source_snapshot", "inode"),
+    ),
+)
+def test_stage5_integrity_valid_source_provenance_leaf_change_is_rejected(
+    tmp_path: Path, source: str, leaf: str
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    integrity_path = fixture["contract_path"].with_name(
+        fixture["contract_path"].name + ".integrity.json"
+    )
+    integrity = json.loads(integrity_path.read_text(encoding="utf-8"))
+    if leaf == "path":
+        integrity[source][leaf] = os.fspath(fixture["author_output"].resolve())
+    elif leaf == "kind":
+        integrity[source][leaf] = "directory"
+    else:
+        integrity[source][leaf] += 1
+    with pytest.raises(TOOL.ValidationError, match=rf"{leaf} mismatch"):
+        TOOL._stage5_validate_integrity(
+            integrity,
+            contract_path=fixture["contract_path"],
+            contract=fixture["contract"],
+            contract_raw=fixture["contract_path"].read_bytes(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("value", "valid", "message"),
+    (
+        ("repo", True, ""),
+        ("repo/nested", True, ""),
+        ("/repo", False, "POSIX relative"),
+        ("", False, "empty or dot"),
+        (".", False, "empty or dot"),
+        ("repo\\nested", False, "POSIX relative"),
+    ),
+)
+def test_stage5_application_root_posix_relative_matrix(
+    value: str, valid: bool, message: str
+) -> None:
+    if valid:
+        assert TOOL._stage5_relative_root(value) == value
+    else:
+        with pytest.raises(TOOL.ValidationError, match=message):
+            TOOL._stage5_relative_root(value)
+
+
+@pytest.mark.parametrize("case", ("parent", "symlink"))
+def test_stage5_application_root_escape_or_symlink_is_rejected(
+    tmp_path: Path, case: str
+) -> None:
+    fixture = _stage5_sources(tmp_path)
+    application_root = "../repo"
+    match = "escape"
+    if case == "symlink":
+        fixture["snapshot"].joinpath("link").symlink_to(
+            "repo", target_is_directory=True
+        )
+        with pytest.raises(TOOL.ValidationError, match="symlink"):
+            TOOL._stage5_application_root(fixture["snapshot"], "link")
+        return
+    with pytest.raises(TOOL.ValidationError, match=match):
+        TOOL.freeze_stage5_author_replayer(
+            fixture["plan"],
+            fixture["author_output"],
+            fixture["contract_path"],
+            snapshot=fixture["snapshot"],
+            application_root=application_root,
+            git_binary=fixture["git"],
+            review_model=TOOL.MODEL,
+            review_effort="high",
+            fix_model="gpt-5.6-luna",
+            fix_effort="max",
+            fix_pass_limit=2,
+        )
+
+
+def test_stage5_application_receipt_post_tree_tamper_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    receipt = TOOL.validate_stage5_author_application(
+        contract_path=fixture["contract_path"],
+        run_root=fixture["run_root"],
+        receipt_path=fixture["run_root"] / "application.json",
+    )
+    tampered = copy.deepcopy(receipt)
+    tampered["post_tree_sha256"] = "f" * 64
+    with pytest.raises(TOOL.ValidationError, match="post_tree_sha256 mismatch"):
+        TOOL._stage5_validate_application_receipt(
+            tampered,
+            contract=fixture["contract"],
+            contract_sha256=receipt["contract_sha256"],
+            expected_post_tree_sha256=receipt["post_tree_sha256"],
+        )
+
+
+def test_stage5_downstream_receipt_validator_binds_role_specific_pins(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    for role, pass_index, name in (
+        ("review", 0, "review.json"),
+        ("fix", 1, "fix-1.json"),
+        ("fix", 2, "fix-2.json"),
+    ):
+        path, receipt, expected = _stage5_downstream_receipt(
+            fixture,
+            role=role,
+            pass_index=pass_index,
+            name=name,
+        )
+        observed = TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **expected,
+        )
+        assert observed == receipt
+        assert observed["requested_model"] == fixture["contract"][
+            "downstream_pins"
+        ][role]["requested_model"]
+        assert observed["task_acceptance_status"] == "unbound"
+        assert observed["fix_gate_eligible"] is False
+        assert observed["routing_evidence_eligible"] is False
+        assert not {"accepted", "success", "passed"} & set(
+            _nested_keys(observed)
+        )
+
+
+@pytest.mark.parametrize(
+    ("leaf_path", "replacement", "role", "message"),
+    (
+        (("contract_sha256",), "f" * 64, "review", "contract_sha256 mismatch"),
+        (("author_output_hash",), "e" * 64, "review", "author_output_hash mismatch"),
+        (
+            ("application_target_sha256",),
+            "d" * 64,
+            "review",
+            "application_target_sha256 mismatch",
+        ),
+        (("requested_model",), "gpt-5.6-luna", "review", "requested_model mismatch"),
+        (("requested_effort",), "max", "review", "requested_effort mismatch"),
+        (("argv",), ["codex", "wrong"], "review", "argv mismatch"),
+        (("output", "regular"), False, "review", "output mismatch"),
+        (("output", "bytes"), 0, "review", "output mismatch"),
+        (("exit_code",), 1, "review", "exit_code mismatch"),
+        (("timed_out",), True, "review", "timed_out mismatch"),
+        (
+            ("receipt_status",),
+            "invalid",
+            "review",
+            "receipt_status mismatch",
+        ),
+        (
+            ("task_acceptance_status",),
+            "accepted",
+            "review",
+            "task_acceptance_status mismatch",
+        ),
+        (
+            ("fix_gate_eligible",),
+            True,
+            "review",
+            "fix_gate_eligible mismatch",
+        ),
+        (
+            ("routing_evidence_eligible",),
+            True,
+            "review",
+            "routing_evidence_eligible mismatch",
+        ),
+    ),
+)
+def test_stage5_downstream_receipt_single_leaf_mismatch_is_rejected(
+    tmp_path: Path,
+    leaf_path: tuple[str, ...],
+    replacement: Any,
+    role: str,
+    message: str,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    pass_index = 0 if role == "review" else 2
+    path, receipt, expected = _stage5_downstream_receipt(
+        fixture, role=role, pass_index=pass_index, name=f"{role}.json"
+    )
+    target = receipt
+    for part in leaf_path[:-1]:
+        target = target[part]
+    target[leaf_path[-1]] = replacement
+    path.write_bytes(TOOL._canonical_bytes(receipt))
+    with pytest.raises(TOOL.ValidationError, match=message):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **expected,
+        )
+
+
+@pytest.mark.parametrize(
+    ("leaf_path", "replacement", "message"),
+    (
+        (("stdin_sha256",), "1" * 64, "stdin_sha256 mismatch"),
+        (("output", "sha256"), "2" * 64, "output mismatch"),
+        (("output_sha256",), "2" * 64, "output_sha256 mismatch"),
+    ),
+)
+def test_stage5_downstream_receipt_rejects_single_caller_digest_leaf(
+    tmp_path: Path,
+    leaf_path: tuple[str, ...],
+    replacement: str,
+    message: str,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    path, receipt, expected = _stage5_downstream_receipt(
+        fixture, role="review", pass_index=0, name="review.json"
+    )
+    target = receipt
+    for part in leaf_path[:-1]:
+        target = target[part]
+    target[leaf_path[-1]] = replacement
+    path.write_bytes(TOOL._canonical_bytes(receipt))
+    with pytest.raises(TOOL.ValidationError, match=message):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **expected,
+        )
+
+
+def test_stage5_fix_pass_cap_guard_is_single_reason() -> None:
+    with pytest.raises(TOOL.ValidationError, match="fix pass index exceeds cap"):
+        TOOL._stage5_validate_role_pass("fix", 3, 2, "stage5 cap mutation")
+
+
+@pytest.mark.parametrize("case", ("tampered", "empty"))
+def test_stage5_downstream_receipt_rejects_tampered_or_empty_output(
+    tmp_path: Path, case: str
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    path, _, expected = _stage5_downstream_receipt(
+        fixture, role="review", pass_index=0, name="review.json"
+    )
+    expected["output_path"].write_bytes(
+        b"" if case == "empty" else b"tampered output\n"
+    )
+    message = "is empty" if case == "empty" else "output mismatch"
+    with pytest.raises(TOOL.ValidationError, match=message):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **expected,
+        )
+
+
+def test_stage5_downstream_receipt_rejects_previous_receipt_mismatch(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    path, _, expected = _stage5_downstream_receipt(
+        fixture, role="review", pass_index=0, name="review.json"
+    )
+    previous = json.loads(
+        expected["previous_receipt_path"].read_text(encoding="utf-8")
+    )
+    previous["post_tree_sha256"] = "f" * 64
+    expected["previous_receipt_path"].write_bytes(
+        TOOL._canonical_bytes(previous)
+    )
+    with pytest.raises(
+        TOOL.ValidationError, match="previous_receipt_sha256 mismatch"
+    ):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **expected,
+        )
+
+
+def test_stage5_downstream_receipt_rejects_previous_topology_mismatch(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    path, receipt, expected = _stage5_downstream_receipt(
+        fixture, role="review", pass_index=0, name="review.json"
+    )
+    previous = json.loads(
+        expected["previous_receipt_path"].read_text(encoding="utf-8")
+    )
+    previous["receipt_kind"] = "stage5-downstream-receipt"
+    expected["previous_receipt_path"].write_bytes(
+        TOOL._canonical_bytes(previous)
+    )
+    receipt["previous_receipt_sha256"] = TOOL._sha256(
+        expected["previous_receipt_path"].read_bytes()
+    )
+    path.write_bytes(TOOL._canonical_bytes(receipt))
+    with pytest.raises(TOOL.ValidationError, match="topology mismatch"):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **expected,
+        )
+
+
+def test_stage5_downstream_receipt_rejects_outside_root_and_trusted_role_pass(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    path, _, expected = _stage5_downstream_receipt(
+        fixture, role="review", pass_index=0, name="review.json"
+    )
+    for argument, source in (
+        ("receipt_path", path),
+        ("stdin_path", expected["stdin_path"]),
+        ("output_path", expected["output_path"]),
+        ("previous_receipt_path", expected["previous_receipt_path"]),
+    ):
+        outside = tmp_path / f"outside-{argument}"
+        outside.write_bytes(source.read_bytes())
+        kwargs = {
+            "contract_path": fixture["contract_path"],
+            "run_root": fixture["run_root"],
+            "receipt_path": path,
+            **expected,
+            argument: outside,
+        }
+        with pytest.raises(
+            TOOL.ValidationError, match="outside the stage5 run root"
+        ):
+            TOOL.validate_stage5_downstream_receipt(**kwargs)
+    with pytest.raises(TOOL.ValidationError, match="role mismatch"):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **{
+                **expected,
+                "expected_role": "fix",
+                "expected_pass_index": 1,
+            },
+        )
+    with pytest.raises(TOOL.ValidationError, match="review pass index must be zero"):
+        TOOL.validate_stage5_downstream_receipt(
+            contract_path=fixture["contract_path"],
+            run_root=fixture["run_root"],
+            receipt_path=path,
+            **{**expected, "expected_pass_index": 1},
+        )
+
+
+def test_stage5_generic_correctness_keys_are_recursively_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture = _stage5_fixture(tmp_path)
+    for forbidden in ("accepted", "success", "passed"):
+        contract = copy.deepcopy(fixture["contract"])
+        contract["receipt_policy"][forbidden] = False
+        with pytest.raises(TOOL.ValidationError, match="forbidden correctness key"):
+            TOOL._stage5_validate_contract(contract, run_root=fixture["run_root"])
+
+
+def test_stage5_cli_verbs_parse_dispatch_and_keep_unbound_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    freeze_args = [
+        "freeze-stage5-author-replayer",
+        "--plan-input",
+        os.fspath(tmp_path / "plan"),
+        "--author-output",
+        os.fspath(tmp_path / "author.diff"),
+        "--output",
+        os.fspath(tmp_path / "contract.json"),
+        "--snapshot",
+        os.fspath(tmp_path / "snapshot"),
+        "--application-root",
+        "repo",
+        "--git-bin",
+        os.fspath(tmp_path / "git"),
+        "--review-model",
+        TOOL.MODEL,
+        "--review-effort",
+        "high",
+        "--fix-model",
+        "gpt-5.6-luna",
+        "--fix-effort",
+        "max",
+        "--fix-pass-limit",
+        "2",
+    ]
+    frozen = {
+        "schema_version": TOOL.STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "contract_kind": "stage5-author-replayer-contract",
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    def capture_freeze(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        calls.append(("freeze", {"args": args, **kwargs}))
+        return frozen
+
+    monkeypatch.setattr(TOOL, "freeze_stage5_author_replayer", capture_freeze)
+    assert TOOL._parser().parse_args(freeze_args).command == freeze_args[0]
+    assert TOOL.main(freeze_args) == 0
+    assert json.loads(capsys.readouterr().out) == frozen
+
+    application_args = [
+        "validate-stage5-author-application",
+        "--contract",
+        os.fspath(tmp_path / "contract.json"),
+        "--run-root",
+        os.fspath(tmp_path),
+        "--receipt",
+        os.fspath(tmp_path / "application.json"),
+    ]
+    application = {
+        "schema_version": TOOL.STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "receipt_kind": TOOL._STAGE5_APPLICATION_RECEIPT_KIND,
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+
+    def capture_application(**kwargs: Any) -> dict[str, Any]:
+        calls.append(("application", kwargs))
+        return application
+
+    monkeypatch.setattr(
+        TOOL, "validate_stage5_author_application", capture_application
+    )
+    assert TOOL.main(application_args) == 0
+    assert json.loads(capsys.readouterr().out) == application
+
+    receipt_args = [
+        "validate-stage5-downstream-receipt",
+        "--contract",
+        os.fspath(tmp_path / "contract.json"),
+        "--run-root",
+        os.fspath(tmp_path),
+        "--receipt",
+        os.fspath(tmp_path / "receipt.json"),
+        "--expected-role",
+        "review",
+        "--expected-pass-index",
+        "0",
+        "--stdin-file",
+        os.fspath(tmp_path / "stdin.txt"),
+        "--output-file",
+        os.fspath(tmp_path / "output.txt"),
+        "--previous-receipt",
+        os.fspath(tmp_path / "previous.json"),
+    ]
+    downstream = {
+        "schema_version": TOOL.STAGE5_AUTHOR_REPLAYER_SCHEMA_VERSION,
+        "receipt_kind": TOOL._STAGE5_DOWNSTREAM_RECEIPT_KIND,
+        "task_acceptance_status": "unbound",
+        "fix_gate_eligible": False,
+        "routing_evidence_eligible": False,
+    }
+
+    def capture_receipt(**kwargs: Any) -> dict[str, Any]:
+        calls.append(("receipt", kwargs))
+        return downstream
+
+    monkeypatch.setattr(TOOL, "validate_stage5_downstream_receipt", capture_receipt)
+    assert TOOL.main(receipt_args) == 0
+    assert json.loads(capsys.readouterr().out) == downstream
+    assert [name for name, _ in calls] == ["freeze", "application", "receipt"]
+    assert calls[0][1]["args"] == (
+        tmp_path / "plan",
+        tmp_path / "author.diff",
+        tmp_path / "contract.json",
+    )
+    assert calls[0][1]["application_root"] == "repo"
+    assert calls[0][1]["review_model"] == TOOL.MODEL
+    assert calls[0][1]["fix_model"] == "gpt-5.6-luna"
+    assert calls[0][1]["fix_pass_limit"] == 2
+    assert calls[1][1] == {
+        "contract_path": tmp_path / "contract.json",
+        "run_root": tmp_path,
+        "receipt_path": tmp_path / "application.json",
+    }
+    assert calls[2][1] == {
+        "contract_path": tmp_path / "contract.json",
+        "run_root": tmp_path,
+        "receipt_path": tmp_path / "receipt.json",
+        "expected_role": "review",
+        "expected_pass_index": 0,
+        "stdin_path": tmp_path / "stdin.txt",
+        "output_path": tmp_path / "output.txt",
+        "previous_receipt_path": tmp_path / "previous.json",
+    }
+    for value in (frozen, application, downstream):
+        assert value["task_acceptance_status"] == "unbound"
+        assert value["fix_gate_eligible"] is False
+        assert value["routing_evidence_eligible"] is False
+        assert not {"accepted", "success", "passed"} & set(_nested_keys(value))
+
+    def reject_freeze(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise TOOL.ValidationError("injected stage5 CLI rejection", TOOL.RC_ROUTING)
+
+    monkeypatch.setattr(TOOL, "freeze_stage5_author_replayer", reject_freeze)
+    assert TOOL.main(freeze_args) == TOOL.RC_ROUTING
+    rejected = json.loads(capsys.readouterr().out)
+    assert rejected["task_acceptance_status"] == "unbound"
+    assert rejected["fix_gate_eligible"] is False
+    assert rejected["routing_evidence_eligible"] is False
+    assert not {"accepted", "success", "passed"} & set(_nested_keys(rejected))
+
+
+def test_stage5_git_failure_cli_does_not_echo_patch_controlled_path(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fixture = _stage5_sources(tmp_path)
+    secret = "PATCH_CONTROLLED_SECRET_PATH"
+    fixture["author_output"].write_text(
+        "diff --git a/{0} b/{0}\n"
+        "--- a/{0}\n"
+        "+++ b/{0}\n"
+        "@@ -1 +1 @@\n"
+        "-old\n"
+        "+new\n".format(secret),
+        encoding="utf-8",
+    )
+    rc = TOOL.main(
+        [
+            "freeze-stage5-author-replayer",
+            "--plan-input",
+            os.fspath(fixture["plan"]),
+            "--author-output",
+            os.fspath(fixture["author_output"]),
+            "--output",
+            os.fspath(fixture["contract_path"]),
+            "--snapshot",
+            os.fspath(fixture["snapshot"]),
+            "--application-root",
+            "repo",
+            "--git-bin",
+            os.fspath(fixture["git"]),
+            "--review-model",
+            TOOL.MODEL,
+            "--review-effort",
+            "high",
+            "--fix-model",
+            "gpt-5.6-luna",
+            "--fix-effort",
+            "max",
+            "--fix-pass-limit",
+            "2",
+        ]
+    )
+    rendered = capsys.readouterr().out
+    result = json.loads(rendered)
+    assert rc == TOOL.RC_RECEIPT
+    assert secret not in rendered
+    assert len(result["failure_reasons"]) == 1
+    reason = result["failure_reasons"][0]
+    assert reason.startswith("stage5 Git apply check failed; exit_code=")
+    assert "; stderr_bytes=" in reason
+    assert "; stderr_sha256=" in reason
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+
+
+def test_stage5_runtime_block_has_no_stage2_helper_or_constant_dependency() -> None:
+    source = _TOOL_PATH.read_text(encoding="utf-8")
+    stage5_start = source.index(
+        "@dataclass(frozen=True)\nclass Stage5AuthorReplayerContract"
+    )
+    block = source[stage5_start : source.index("def _supervise_one", stage5_start)]
+    assert "_stage2_" not in block
+    assert "STAGE2_" not in block
+
+
+@pytest.mark.parametrize(
+    ("mutation", "function_start", "function_end", "exact_old", "masked_old"),
+    (
+        (
+            "M1",
+            "def _stage5_validate_contract",
+            "def _stage5_run_git_apply",
+            'value.get("contract_kind") != _STAGE5_CONTRACT_KIND',
+            'if value.get("contract_kind") != _STAGE5_CONTRACT_KIND:\n'
+            '        raise ValidationError("stage5 contract kind mismatch", RC_ROUTING)',
+        ),
+        (
+            "M8",
+            "def _stage5_validate_acceptance",
+            "def _stage5_validate_git_pin",
+            'value.get("task_acceptance_status") != "unbound"',
+            'if value.get("task_acceptance_status") != "unbound":\n'
+            "        raise ValidationError(f\"{label} task acceptance must remain "
+            "unbound\", RC_ROUTING)",
+        ),
+        (
+            "M9",
+            "def _stage5_create_only_bytes",
+            "def _stage5_create_only_json",
+            "flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL",
+            "flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL\n"
+            '    if hasattr(os, "O_NOFOLLOW"):\n'
+            "        flags |= os.O_NOFOLLOW",
+        ),
+    ),
+)
+def test_stage5_mutation_exact_old_and_context_mask_are_unique(
+    mutation: str,
+    function_start: str,
+    function_end: str,
+    exact_old: str,
+    masked_old: str,
+) -> None:
+    source = _TOOL_PATH.read_text(encoding="utf-8")
+    start = source.index(function_start)
+    block = source[start : source.index(function_end, start)]
+    assert block.count(exact_old) == 1, mutation
+    assert block.count(masked_old) == 1, mutation
+
+
 def test_stage2_source_block_has_no_wave_d_reachability_names() -> None:
     # M8: forbidden Wave-D reachability names must be absent from new stage2 code.
     source = _TOOL_PATH.read_text(encoding="utf-8")
-    block = source[
-        source.index("class Stage2PlanReplayerContract") : source.index(
-            "def _supervise_one", source.index("class Stage2PlanReplayerContract")
-        )
-    ]
+    stage2_start = source.index("class Stage2PlanReplayerContract")
+    stage5_start = source.index(
+        "@dataclass(frozen=True)\nclass Stage5AuthorReplayerContract",
+        stage2_start,
+    )
+    block = source[stage2_start:stage5_start]
+    assert "Stage5AuthorReplayerContract" not in block
     for forbidden in (
         "_validate_schedule",
         "_load_adjudication",
