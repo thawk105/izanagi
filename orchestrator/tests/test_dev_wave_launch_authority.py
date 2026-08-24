@@ -131,6 +131,98 @@ def _prepare_repo(
     return root
 
 
+def _git_dir(root: Path) -> Path:
+    git_dir = Path(_git(root, "rev-parse", "--absolute-git-dir"))
+    assert git_dir.is_absolute()
+    return git_dir
+
+
+def _replace_model(text: str, model: str) -> str:
+    changed = text.replace(
+        _authority_line(text),
+        f"`<model>`: 全段 `{model}` (段 3 の 2 本も同じ)。",
+        1,
+    )
+    assert changed != text
+    return changed
+
+
+def _replace_author_effort(text: str, effort: str) -> str:
+    changed, count = re.subn(
+        r"codex は `reasoning=[A-Za-z0-9_-]+`、"
+        r"`sandbox=workspace-write` とする。",
+        f"codex は `reasoning={effort}`、"
+        "`sandbox=workspace-write` とする。",
+        text,
+        count=1,
+    )
+    assert count == 1
+    return changed
+
+
+def _commit_authority_files(root: Path, message: str) -> str:
+    _git(root, "add", _OPERATIONS, _WORKERS)
+    _git(root, "commit", "-qm", message)
+    return _git(root, "rev-parse", "HEAD")
+
+
+def _merge_no_commit(root: Path, branch: str, *, expected_rc: int) -> None:
+    completed = subprocess.run(
+        [
+            "git",
+            "-C",
+            os.fspath(root),
+            "merge",
+            "--no-commit",
+            "--no-ff",
+            branch,
+        ],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert completed.returncode == expected_rc, completed.stderr
+
+
+def _prepare_mid_merge_repo(
+    tmp_path: Path, *, conflicted: bool
+) -> tuple[Path, str, str]:
+    root = _prepare_repo(tmp_path)
+    branch = _git(root, "branch", "--show-current")
+    base_operations = (root / _OPERATIONS).read_text(encoding="utf-8")
+    base_workers = (root / _WORKERS).read_text(encoding="utf-8")
+
+    _git(root, "checkout", "-qb", "incoming")
+    if conflicted:
+        (root / _OPERATIONS).write_text(
+            _replace_model(base_operations, "gpt-5.6-terra"),
+            encoding="utf-8",
+        )
+    else:
+        (root / _OPERATIONS).write_text(
+            base_operations + "\nincoming authority note\n", encoding="utf-8"
+        )
+    incoming = _commit_authority_files(root, "incoming authority")
+
+    _git(root, "checkout", "-q", branch)
+    if conflicted:
+        (root / _OPERATIONS).write_text(
+            _replace_model(base_operations, "gpt-5.6-luna"),
+            encoding="utf-8",
+        )
+    else:
+        (root / _WORKERS).write_text(
+            base_workers + "\nwave authority note\n", encoding="utf-8"
+        )
+    head = _commit_authority_files(root, "wave authority")
+    _merge_no_commit(root, "incoming", expected_rc=1 if conflicted else 0)
+    assert (_git_dir(root) / "MERGE_HEAD").read_text(
+        encoding="ascii"
+    ).splitlines() == [incoming]
+    return root, head, incoming
+
+
 def test_snapshot_and_derive_current_authority_positive(tmp_path: Path) -> None:
     root = _prepare_repo(tmp_path)
     snapshot = snapshot_authority(root)
@@ -398,8 +490,258 @@ def test_dirty_working_tree_authority_is_rejected(tmp_path: Path) -> None:
     root = _prepare_repo(tmp_path)
     path = root / _OPERATIONS
     path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    with pytest.raises(AuthorityError):
+    with pytest.raises(
+        AuthorityError,
+        match=rf"{re.escape(_OPERATIONS)}: working tree が authority commit と異なる",
+    ):
         snapshot_authority(root)
+
+
+def test_mid_merge_conflicted_authority_author_is_accepted(
+    tmp_path: Path,
+) -> None:
+    root, head, _incoming = _prepare_mid_merge_repo(
+        tmp_path, conflicted=True
+    )
+    assert _git(root, "ls-files", "-u")
+
+    accepted = snapshot_authority(root, allow_mid_merge=True)
+
+    assert accepted == snapshot_authority(root, commit=head)
+    assert accepted.authority_commit == head
+    assert accepted.other_model == "gpt-5.6-luna"
+
+
+def test_mid_merge_clean_auto_merged_authority_author_is_accepted(
+    tmp_path: Path,
+) -> None:
+    root, head, _incoming = _prepare_mid_merge_repo(
+        tmp_path, conflicted=False
+    )
+    assert not _git(root, "ls-files", "-u")
+    assert (root / _OPERATIONS).read_bytes() != bytes(
+        subprocess.run(
+            ["git", "-C", os.fspath(root), "show", f"{head}:{_OPERATIONS}"],
+            check=True,
+            stdout=subprocess.PIPE,
+        ).stdout
+    )
+
+    accepted = snapshot_authority(root, allow_mid_merge=True)
+
+    assert accepted == snapshot_authority(root, commit=head)
+    assert accepted.authority_commit == head
+
+
+def test_non_author_stage_in_mid_merge_is_rejected(tmp_path: Path) -> None:
+    root, _head, _incoming = _prepare_mid_merge_repo(
+        tmp_path, conflicted=False
+    )
+
+    with pytest.raises(
+        AuthorityError,
+        match=rf"{re.escape(_OPERATIONS)}: working tree が authority commit と異なる",
+    ):
+        snapshot_authority(root, allow_mid_merge=False)
+
+
+def test_same_named_merge_head_branch_is_not_merge_state(
+    tmp_path: Path,
+) -> None:
+    root = _prepare_repo(tmp_path)
+    head = _git(root, "rev-parse", "HEAD")
+    _git(root, "branch", "MERGE_HEAD", head)
+    assert _git(root, "rev-parse", "--verify", "MERGE_HEAD") == head
+    assert not (_git_dir(root) / "MERGE_HEAD").exists()
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        AuthorityError,
+        match="working tree が authority commit と異なる",
+    ):
+        snapshot_authority(root, allow_mid_merge=True)
+
+
+def test_octopus_merge_head_is_rejected(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path)
+    first = _git(root, "rev-parse", "HEAD")
+    _git(root, "commit", "--allow-empty", "-qm", "second commit")
+    second = _git(root, "rev-parse", "HEAD")
+    assert first != second
+    (_git_dir(root) / "MERGE_HEAD").write_text(
+        f"{first}\n{second}\n", encoding="ascii"
+    )
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError, match="一意な commit OID 1 行"):
+        snapshot_authority(root, allow_mid_merge=True)
+
+
+def test_merge_head_symlink_is_rejected(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path)
+    git_dir = _git_dir(root)
+    target = git_dir / "merge-head-target"
+    target.write_text(_git(root, "rev-parse", "HEAD") + "\n", encoding="ascii")
+    os.symlink(target.name, git_dir / "MERGE_HEAD")
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError, match="regular file"):
+        snapshot_authority(root, allow_mid_merge=True)
+
+
+_MALFORMED_MERGE_HEAD_CASES = (
+    "valid_then_invalid",
+    "empty",
+    "non_hex",
+    "missing_object",
+)
+
+
+@pytest.mark.parametrize("case", _MALFORMED_MERGE_HEAD_CASES)
+def test_malformed_merge_head_is_rejected(
+    tmp_path: Path, case: str
+) -> None:
+    root = _prepare_repo(tmp_path)
+    head = _git(root, "rev-parse", "HEAD")
+    if case == "valid_then_invalid":
+        raw = f"{head}\nnot-an-oid\n"
+    elif case == "empty":
+        raw = ""
+    elif case == "non_hex":
+        raw = "z" * 40 + "\n"
+    elif case == "missing_object":
+        raw = "f" * 40 + "\n"
+        missing = subprocess.run(
+            ["git", "-C", os.fspath(root), "cat-file", "-e", "f" * 40],
+            check=False,
+        )
+        assert missing.returncode != 0
+    else:  # pragma: no cover - registration meta-test が閉じる
+        raise AssertionError(case)
+    (_git_dir(root) / "MERGE_HEAD").write_text(raw, encoding="ascii")
+    path = root / _OPERATIONS
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    with pytest.raises(AuthorityError):
+        snapshot_authority(root, allow_mid_merge=True)
+    assert snapshot_authority(
+        root, commit=head, allow_mid_merge=True
+    ) == snapshot_authority(root, commit=head)
+
+
+def test_malformed_merge_head_case_registration_is_complete() -> None:
+    assert set(_MALFORMED_MERGE_HEAD_CASES) == {
+        "valid_then_invalid",
+        "empty",
+        "non_hex",
+        "missing_object",
+    }
+
+
+def test_merge_detection_is_worktree_local(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path / "main")
+    branch = _git(root, "branch", "--show-current")
+    base_operations = (root / _OPERATIONS).read_text(encoding="utf-8")
+    base_workers = (root / _WORKERS).read_text(encoding="utf-8")
+    _git(root, "checkout", "-qb", "incoming")
+    (root / _OPERATIONS).write_text(
+        base_operations + "\nincoming linked-worktree note\n", encoding="utf-8"
+    )
+    _commit_authority_files(root, "incoming linked-worktree authority")
+    _git(root, "checkout", "-q", branch)
+    (root / _WORKERS).write_text(
+        base_workers + "\nwave linked-worktree note\n", encoding="utf-8"
+    )
+    head = _commit_authority_files(root, "wave linked-worktree authority")
+    sibling = tmp_path / "sibling"
+    _git(root, "worktree", "add", "--detach", "-q", os.fspath(sibling), head)
+    try:
+        sibling_operations = (sibling / _OPERATIONS).read_bytes()
+        (sibling / _OPERATIONS).write_bytes(sibling_operations + b"\n")
+        with pytest.raises(AuthorityError, match="working tree"):
+            snapshot_authority(sibling, allow_mid_merge=True)
+        (sibling / _OPERATIONS).write_bytes(sibling_operations)
+
+        _merge_no_commit(sibling, "incoming", expected_rc=0)
+        sibling_git_dir = _git_dir(sibling)
+        root_git_dir = _git_dir(root)
+        assert sibling_git_dir != root_git_dir
+        assert (sibling_git_dir / "MERGE_HEAD").is_file()
+        assert not (root_git_dir / "MERGE_HEAD").exists()
+        assert snapshot_authority(
+            sibling, allow_mid_merge=True
+        ) == snapshot_authority(sibling, commit=head)
+
+        root_operations = (root / _OPERATIONS).read_bytes()
+        (root / _OPERATIONS).write_bytes(root_operations + b"\n")
+        with pytest.raises(AuthorityError, match="working tree"):
+            snapshot_authority(root, allow_mid_merge=True)
+        (root / _OPERATIONS).write_bytes(root_operations)
+
+        _git(sibling, "merge", "--abort")
+        assert not (sibling_git_dir / "MERGE_HEAD").exists()
+        (sibling / _OPERATIONS).write_bytes(sibling_operations + b"\n")
+        with pytest.raises(AuthorityError, match="working tree"):
+            snapshot_authority(sibling, allow_mid_merge=True)
+    finally:
+        _git(root, "worktree", "remove", "--force", os.fspath(sibling))
+
+
+def test_mid_merge_binding_target_is_head(tmp_path: Path) -> None:
+    root = _prepare_repo(tmp_path / "merge")
+    branch = _git(root, "branch", "--show-current")
+    base_operations = (root / _OPERATIONS).read_text(encoding="utf-8")
+    base_workers = (root / _WORKERS).read_text(encoding="utf-8")
+    incoming_operations = _replace_model(base_operations, "gpt-5.6-terra")
+    incoming_workers = _replace_author_effort(base_workers, "high")
+    head_operations = _replace_model(base_operations, "gpt-5.6-luna")
+    head_workers = _replace_author_effort(base_workers, "medium")
+    working_operations = _replace_model(base_operations, "gpt-5.6-working")
+    working_workers = _replace_author_effort(base_workers, "low")
+
+    _git(root, "checkout", "-qb", "incoming")
+    (root / _OPERATIONS).write_text(incoming_operations, encoding="utf-8")
+    (root / _WORKERS).write_text(incoming_workers, encoding="utf-8")
+    incoming = _commit_authority_files(root, "incoming distinct authority")
+    _git(root, "checkout", "-q", branch)
+    (root / _OPERATIONS).write_text(head_operations, encoding="utf-8")
+    (root / _WORKERS).write_text(head_workers, encoding="utf-8")
+    head = _commit_authority_files(root, "head distinct authority")
+    _merge_no_commit(root, "incoming", expected_rc=1)
+    assert _git(root, "ls-files", "-u")
+    (root / _OPERATIONS).write_text(working_operations, encoding="utf-8")
+    (root / _WORKERS).write_text(working_workers, encoding="utf-8")
+
+    working_root = _prepare_repo(
+        tmp_path / "working-valid",
+        operations=working_operations,
+        workers=working_workers,
+    )
+    head_snapshot = snapshot_authority(root, commit=head)
+    incoming_snapshot = snapshot_authority(root, commit=incoming)
+    working_snapshot = snapshot_authority(working_root)
+    assert len(
+        {
+            head_snapshot.other_model,
+            incoming_snapshot.other_model,
+            working_snapshot.other_model,
+        }
+    ) == 3
+    assert len(
+        {
+            head_snapshot.author_effort,
+            incoming_snapshot.author_effort,
+            working_snapshot.author_effort,
+        }
+    ) == 3
+
+    accepted = snapshot_authority(root, allow_mid_merge=True)
+
+    assert accepted == head_snapshot
+    assert accepted.authority_commit == head
 
 
 def test_live_v1_is_rejected_but_historical_v1_is_reconstructed(

@@ -5584,6 +5584,55 @@ def test_manifest_v2_accepts_two_sibling_worktree_repo_roots(
     }
 
 
+_MID_MERGE_CAPABILITY_CASES = tuple(
+    (stage, sandbox, stage == "author" and sandbox == "workspace-write")
+    for stage in LAUNCHER.STAGES
+    for sandbox in ("read-only", "workspace-write")
+)
+
+
+@pytest.mark.parametrize(
+    ("stage", "sandbox", "expected"), _MID_MERGE_CAPABILITY_CASES
+)
+def test_preflight_passes_mid_merge_capability_only_to_author_workspace_write(
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+    sandbox: str,
+    expected: bool,
+) -> None:
+    calls: list[tuple[Path, bool]] = []
+
+    class SnapshotCaptured(Exception):
+        pass
+
+    def capture_snapshot(
+        repo_root: Path, *, allow_mid_merge: bool = False
+    ) -> None:
+        calls.append((repo_root, allow_mid_merge))
+        raise SnapshotCaptured
+
+    monkeypatch.setattr(LAUNCHER, "snapshot_authority", capture_snapshot)
+    args = LAUNCHER.argparse.Namespace(
+        repo_root=_ROOT,
+        stage=stage,
+        sandbox=sandbox,
+    )
+
+    with pytest.raises(SnapshotCaptured):
+        LAUNCHER._preflight_run(args)
+
+    assert calls == [(_ROOT.resolve(), expected)]
+
+
+def test_preflight_mid_merge_capability_case_registration_is_complete() -> None:
+    assert set(_MID_MERGE_CAPABILITY_CASES) == {
+        (stage, sandbox, stage == "author" and sandbox == "workspace-write")
+        for stage in LAUNCHER.STAGES
+        for sandbox in ("read-only", "workspace-write")
+    }
+    assert len(_MID_MERGE_CAPABILITY_CASES) == len(LAUNCHER.STAGES) * 2
+
+
 def test_preflight_accepts_sibling_worktree_with_same_git_common_dir(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
