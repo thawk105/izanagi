@@ -61,6 +61,7 @@ from .reservation import (  # noqa: E402
 
 
 POLICY_PATH = Path(__file__).with_name("paper_story_a1_paired.v1.json")
+DECLARED_USE_CLASS = "exploration"
 STUDY_ID = "paper-story-a1-20260824-exploratory-v1"
 RESULT_SCHEMA = "paper-story-a1-paired-result/v2"
 RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v2"
@@ -2252,7 +2253,7 @@ def run_measurement(args) -> int:
                 env_contract=contract,
                 expected_toolchain_manifest=toolchain_manifest,
                 build_context=build_context,
-                declared_use_class="exploration",
+                declared_use_class=DECLARED_USE_CLASS,
                 capability_resolver=capability_resolver,
                 durable_root_policy=durable_policy,
             )

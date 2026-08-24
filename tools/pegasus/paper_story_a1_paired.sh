@@ -36,6 +36,12 @@ refuse() {
 [[ -n "${IZANAGI_SUBMISSION_NONCE:-}" ]] || refuse "submission nonce is required"
 [[ "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || \
   refuse "submission nonce is unsafe"
+# The calibration job's dependency staging uses /scr. Preserve that compute
+# path, and retain the incoming TMPDIR only as the fallback when /scr is absent.
+DEPENDENCY_SCRATCH_PARENT=/scr
+if [[ ! -d "$DEPENDENCY_SCRATCH_PARENT" ]]; then
+  DEPENDENCY_SCRATCH_PARENT=${TMPDIR:-}
+fi
 [[ "$IZANAGI_A1_ATTEMPT_ROOT" = /* ]] || refuse "attempt root must be absolute"
 [[ "$IZANAGI_A1_ACQUISITION_RECEIPT" = /* ]] || refuse "acquisition receipt must be absolute"
 [[ "$IZANAGI_A1_COMPLETION_RECEIPT" = /* ]] || refuse "completion receipt must be absolute"
@@ -657,8 +663,14 @@ if [[ -n "$GLOG_STATUS" ]]; then
   refuse "glog working tree is dirty"
 fi
 
+[[ -n "$DEPENDENCY_SCRATCH_PARENT" ]] || \
+  refuse "dependency scratch parent is unavailable"
+[[ "$DEPENDENCY_SCRATCH_PARENT" = /* ]] || \
+  refuse "dependency scratch parent must be absolute"
+[[ -d "$DEPENDENCY_SCRATCH_PARENT" ]] || \
+  refuse "dependency scratch parent is unavailable"
 if ! DEPENDENCY_ROOT=$(mktemp -d -- \
-  "/scr/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX"); then
+  "$DEPENDENCY_SCRATCH_PARENT/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX"); then
   refuse "dependency scratch root cannot be exclusive-created"
 fi
 DEPENDENCY_ROOT_OWNED=1

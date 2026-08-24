@@ -1012,8 +1012,13 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
         '"attempt_identity": {',
         "/proc/sys/kernel/random/boot_id",
         'PEGASUS_POLICY_RELATIVE="tools/pegasus/policy.json"',
+        'DEPENDENCY_SCRATCH_PARENT=/scr',
+        'DEPENDENCY_SCRATCH_PARENT=${TMPDIR:-}',
+        '[[ -n "$DEPENDENCY_SCRATCH_PARENT" ]]',
+        '[[ -d "$DEPENDENCY_SCRATCH_PARENT" ]]',
         'DEPENDENCY_ROOT=$(mktemp -d --',
-        '"/scr/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX")',
+        '"$DEPENDENCY_SCRATCH_PARENT/${PBS_JOBID//:/_}.',
+        '${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX")',
         'DEPENDENCY_ROOT_OWNED=1',
         '/bin/rm -rf -- "$DEPENDENCY_ROOT"',
         'if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]',
@@ -1035,13 +1040,12 @@ def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
     assert source.count("status --porcelain --untracked-files=all") == 3
 
 
-def _fixture_job_source(source: str, tmp_path: Path) -> str:
-    production = '"/scr/${PBS_JOBID//:/_}.${IZANAGI_SUBMISSION_NONCE}.XXXXXXXX"'
+def _fixture_job_source(source: str) -> str:
+    production = "DEPENDENCY_SCRATCH_PARENT=/scr\n"
     assert source.count(production) == 1
-    fixture_root = (tmp_path / "dependency-scratch.XXXXXXXX").resolve()
     return source.replace(
         production,
-        f'"{fixture_root}"',
+        "DEPENDENCY_SCRATCH_PARENT=${TMPDIR:-}\n",
         1,
     )
 
@@ -1085,7 +1089,7 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
     job = repo / paired.JOB_RELATIVE_PATH
     job.parent.mkdir(parents=True, exist_ok=True)
     job.write_text(
-        _fixture_job_source(JOB.read_text(encoding="utf-8"), tmp_path),
+        _fixture_job_source(JOB.read_text(encoding="utf-8")),
         encoding="utf-8",
     )
     job.chmod(JOB.stat().st_mode & 0o777)
@@ -1174,9 +1178,12 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
     )
     completion = Path(paired._attempt_evidence_paths(attempt)["completion_receipt"])
     log = tmp_path / "stub.log"
+    dependency_scratch_parent = (tmp_path / "dependency-scratch").resolve()
+    dependency_scratch_parent.mkdir()
     environment = {
         **os.environ,
         "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "TMPDIR": os.fspath(dependency_scratch_parent),
         "PBS_JOBID": "12345.nqsv",
         "PBS_O_HOST": "pegasus01",
         "PBS_O_WORKDIR": os.fspath(repo),
@@ -1201,12 +1208,15 @@ def _run_shell_job(
     *,
     stdout_path: Path | None = None,
     stderr_path: Path | None = None,
-    job_path: Path = JOB,
+    job_path: Path | None = None,
 ):
     attempt = Path(environment["IZANAGI_A1_ATTEMPT_ROOT"])
     evidence = paired._attempt_evidence_paths(attempt)
     stdout_path = stdout_path or Path(evidence["stdout_path"])
     stderr_path = stderr_path or Path(evidence["stderr_path"])
+    job_path = job_path or (
+        Path(environment["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
+    )
     with stdout_path.open("w", encoding="utf-8") as stdout_stream, stderr_path.open(
         "w", encoding="utf-8"
     ) as stderr_stream:
@@ -1315,7 +1325,7 @@ def test_production_job_rejects_dependency_source_head_mismatch_M28(
     assert paired.DRIVER_RELATIVE_PATH not in log.read_text(encoding="utf-8")
 
 
-def test_production_job_does_not_remove_unowned_dependency_scratch(
+def test_production_job_does_not_reuse_or_remove_unowned_dependency_scratch_M38(
     tmp_path: Path,
 ) -> None:
     environment, _, _ = _shell_fixture(tmp_path)
@@ -1344,6 +1354,33 @@ def test_production_job_does_not_remove_unowned_dependency_scratch(
     assert marker.read_text(encoding="utf-8") == "keep\n"
 
 
+def test_production_job_rejects_missing_dependency_scratch_parent_before_mktemp(
+    tmp_path: Path,
+) -> None:
+    environment, _, _ = _shell_fixture(tmp_path)
+    missing_parent = tmp_path / "missing-dependency-scratch"
+    environment["TMPDIR"] = os.fspath(missing_parent)
+    mktemp_called = tmp_path / "mktemp-called"
+    bin_dir = Path(environment["PATH"].split(":", 1)[0])
+    mktemp_stub = bin_dir / "mktemp"
+    mktemp_stub.write_text(
+        "#!/bin/bash\n"
+        ": > \"$FAKE_MKTEMP_CALLED\"\n"
+        "exit 88\n",
+        encoding="utf-8",
+    )
+    mktemp_stub.chmod(0o755)
+    environment["FAKE_MKTEMP_CALLED"] = os.fspath(mktemp_called)
+
+    completed, stderr = _run_shell_job(environment)
+
+    assert completed.returncode == 2
+    assert stderr.splitlines() == [
+        "paper-story A-1 job refused: dependency scratch parent is unavailable"
+    ]
+    assert not mktemp_called.exists()
+
+
 def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
     tmp_path: Path,
 ) -> None:
@@ -1362,9 +1399,7 @@ def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
     positive_job = (
         Path(positive_env["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
     )
-    positive_job.write_text(
-        _fixture_job_source(source, tmp_path / "positive"), encoding="utf-8"
-    )
+    positive_job.write_text(_fixture_job_source(source), encoding="utf-8")
     positive_job.chmod(0o755)
     completed, stderr = _run_shell_job(positive_env, job_path=positive_job)
     assert completed.returncode == 0, stderr
@@ -1390,9 +1425,7 @@ def test_job_body_exports_complete_reservation_and_rejects_missing_one_M27(
     )
     mutant_env["PBS_JOBID"] = "0:12345.nqsv"
     mutant_job = Path(mutant_env["PBS_O_WORKDIR"]) / paired.JOB_RELATIVE_PATH
-    mutant_job.write_text(
-        _fixture_job_source(mutant, tmp_path / "mutant"), encoding="utf-8"
-    )
+    mutant_job.write_text(_fixture_job_source(mutant), encoding="utf-8")
     mutant_job.chmod(0o755)
     completed, _ = _run_shell_job(mutant_env, job_path=mutant_job)
     assert completed.returncode == 27

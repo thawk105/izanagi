@@ -14,6 +14,9 @@ from pathlib import Path
 
 import pytest
 
+
+pytestmark = pytest.mark.usefixtures("ratified_enforcement_source")
+
 from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.campaign import ident, wal
 from orchestrator.campaign import paper_story_a1_paired as paired
@@ -1591,3 +1594,12 @@ def test_trace0_is_source_routed_and_never_standalone(mutation: str) -> None:
     )
     assert result["valid"] is False
     assert any("trace0-source-route-incomplete" in error for error in result["errors"])
+
+
+def _run() -> int:
+    """Keep this test file covered by the repository plain-runner contract."""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
