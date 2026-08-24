@@ -160,12 +160,11 @@ _FOLD_GATE_ENV_FORCE = (
     ("PYTHONDONTWRITEBYTECODE", "1"),
     ("PYTHONNOUSERSITE", "1"),
 )
-# TODO(T-1600): 親の同一隔離 regime 3 回実測で確定する暫定値。
-_FOLD_GATE_INNER_TIMEOUT_SECONDS = 120.0
-# TODO(T-1600): 親の実測で終了余裕を確定する暫定値。
+# 母集合は fold gate の 5 node + landing tip の全 tracked export。
+# login node 混雑下・dispatch 経由の同一隔離 tree/serial 実測 max 63.10 秒を 2.0 倍し 5 秒へ切上げ。
+_FOLD_GATE_INNER_TIMEOUT_SECONDS = 130.0
 _FOLD_GATE_TERMINATION_GRACE_SECONDS = 10.0
-# TODO(T-1600): 親の実測で gate 全体 watchdog を確定する暫定値。
-_FOLD_GATE_OUTER_TIMEOUT_SECONDS = 150.0
+_FOLD_GATE_OUTER_TIMEOUT_SECONDS = 145.0
 _SUPERVISED_WAVE_REF_RE = re.compile(
     r"refs/heads/dev-wave/(?P<run>dw-[0-9a-f]{32})/w(?P<wave>[0-9]{3,})\Z"
 )
