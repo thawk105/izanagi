@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-22
 wave: dev-wave-t1447-orphan-hold-races
 seq: 1
-title: [T-1447] dispatch_compute.pyのorphan-hold race 3件を現行shard dispatchへ統合した (コード+テスト、branch worktree-dev-wave-t1447-orphan-hold-races、変異matrix = dispatch 5/5 KILLED + bounded local 1/1 KILLED)
+title: [T-1447] orphan-hold raceを現行shard dispatchへ統合したが、受入mirror不一致でlandを停止した (コード+テスト、branch worktree-dev-wave-t1447-orphan-hold-races)
 ---
 
 ## 本文
@@ -50,7 +50,7 @@ title: [T-1447] dispatch_compute.pyのorphan-hold race 3件を現行shard dispat
 
 ## 次の一手差分
 
-### 完了
+### 更新
 
 - [T-1447] dispatch_compute.pyのorphan-hold機構の未防御race 3件 ((a)外部SIGKILLでhold未作成、
   (b)hold書込み失敗のfail-open、(c)qdel後qstat終端未確認) を是正した。pending hold前倒し作成
@@ -59,5 +59,8 @@ title: [T-1447] dispatch_compute.pyのorphan-hold race 3件を現行shard dispat
   現mainのshard/control/intent設計へ統合し、release failure-atomic化とledger-only consumer閉包を
   追加した。焦点走465 passed/1 skipped。変異matrixはdispatch 5/5 KILLED + bounded local
   MUT-4 1/1 KILLEDで、SURVIVED 0・MISMATCH 0。MUT-3 diagnostic TIMEOUTは別枠記録。
-  remaining: none
+  新acceptanceは15038 passed/60 skipped/1 failed。赤は
+  `test_dev_wave_wait.py::test_dispatch_attestation_protocol_matches_producer_exactly`で、単独再走も
+  再現した。`dispatch_compute`へ追加したorphan-hold failure 3理由の`dev_wave_wait` mirror漏れを
+  D95 Codex authorへ戻し、修正後の新receiptを取るまでlandしない。
   base: b9fe3f9e302886223fd631f3c20d40ab2da10bdba8d4641ab1d8a6e08e8e60ae
