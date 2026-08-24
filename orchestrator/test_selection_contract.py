@@ -58,7 +58,7 @@ _CANONICAL_EXCLUSION = Exclusion(
     ruling=_CANONICAL_EXCLUSION_RULING,
     set_version=_CANONICAL_EXCLUSION_SET_VERSION,
 )
-SANCTIONED_EXCLUSIONS: tuple[Exclusion, ...] = (_CANONICAL_EXCLUSION,)
+SANCTIONED_EXCLUSIONS: tuple[Exclusion, ...] = ()
 
 
 def _entry_payload(entry: Exclusion) -> dict[str, str]:

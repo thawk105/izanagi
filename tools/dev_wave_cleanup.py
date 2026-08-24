@@ -68,6 +68,7 @@ class VerifiedWavePath:
 @dataclass(frozen=True)
 class OccupancyDiagnostics:
     cwd_permission: object
+    cwd_deleted: object
     same_uid_cwd_unreachable: object
     retry_count: int
 
@@ -425,6 +426,7 @@ def _occupancy_payload(path: Path) -> tuple[int, dict[str, object]]:
         "unoccupied": occupancy.UNOCCUPIED_RC,
         "occupied": occupancy.OCCUPIED_RC,
         "indeterminate": occupancy.INDETERMINATE_RC,
+        "invalid-target": occupancy.INDETERMINATE_RC,
     }[report.status]
     # Exercise the same JSON boundary as the standalone checker without exposing
     # this process's target-bearing argv to a second /proc scan.
@@ -520,6 +522,7 @@ def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
             )
         return OccupancyDiagnostics(
             cwd_permission=unreachable["cwd_permission"],
+            cwd_deleted=unreachable.get("cwd_deleted", 0),
             same_uid_cwd_unreachable=unreachable_same_uid,
             retry_count=retry_count,
         )
@@ -1021,6 +1024,7 @@ def _print_occupancy_diagnostic(observation: OccupancyObservation) -> None:
         "dev-wave-cleanup: diagnostic=occupancy "
         f"phase={_sanitize(observation.phase)} "
         f"cwd_permission={_sanitize(diagnostics.cwd_permission)} "
+        f"cwd_deleted={_sanitize(diagnostics.cwd_deleted)} "
         "same_uid_cwd_unreachable="
         f"{_sanitize(json.dumps(diagnostics.same_uid_cwd_unreachable, ensure_ascii=False, sort_keys=True))} "
         f"retry_count={diagnostics.retry_count}",

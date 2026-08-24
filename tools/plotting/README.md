@@ -48,3 +48,13 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
 - abort%/IPC の反復値が WAL に入れば、下段にもエラーバーを足せる (`load_campaign` の
   `abort_ipc` を reps ベースに変える)。
 - backoff 以外の軸 (sort-strategy 等) は genome パースを差し替えれば流用可能。
+
+## SS2PL lock study command example
+
+```bash
+python3 tools/plotting/plot_ss2pl_lock_study.py \
+    --sweep /path/to/sweep.json \
+    --controls /path/to/controls.json \
+    --replication /path/to/replication.json \
+    --output-dir /path/to/figures
+```

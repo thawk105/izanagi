@@ -495,7 +495,9 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t503_restore_durability_recover.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t503_restore_durability_verdict.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/run_probe.py` | `dispatch-required` | `static semantic-site classification` |
+| `tools/pegasus/run_ss2pl_lock_study.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/silo_ladder_rung1.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/ss2pl_lock_study.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/smoke_probe.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
