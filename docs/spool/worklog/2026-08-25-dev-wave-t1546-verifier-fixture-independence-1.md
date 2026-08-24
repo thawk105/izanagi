@@ -57,6 +57,17 @@ title: [T-1546] verifier fixture の独立性を 1 thread 自明直列 (g6) と 
   200 txn で置かれた機体では期待 node 集合が変わるとレビューが指摘したため、
   `len(versions) == 131` を足した fingerprint へ強め、**g6 だけに一致し他 17 dir で外れる**ことを
   実測で確かめた。
+- **段 8 の自己改善は 3 候補すべてを裁定し、dev-wave docs は 1 行も編集しなかった。**
+  (1) `DW-O01` の「effort の caller 指定は不可」は実測と逆で、`dev_wave_codex.py` は
+  plan / consult では `--reasoning` を必須にする (未指定は rc=2)。**是正は予算で入らない** —
+  31 bytes の訂正を実際に当てて測ると `docs/dev-wave/**` の L1.5 unique footprint が
+  9,596 > 9,566 bytes で赤になり、さらに `DW-O01` の dispatcher route 行の構造 pin も破れた
+  (`DW-O19` に従い `git checkout --` で復元し、commit との一致を確認)。
+  誤りの是正であって「あると親切」ではないので、D730 の原則落ちではなくユーザー裁定へ返す。
+  (2) fix 子が実走できず親の直接実走だけが赤を捕まえた件と、(3) 親の指示文が過剰制約になった件は、
+  failures 台帳へ routing した (恒久対応も同エントリに書いた)。(2) の「親が commit 前に焦点 node を
+  最低 1 回実走する」という新義務は**実測 1 例**であり、D730 の基準 (独立 3 例) を満たさないので
+  本 wave では実装しない。
 - 子の工数: plan 1 / consult 2 / author 1 / review 2 / fix 2 の計 8 本、いずれも
   `gpt-5.6-sol` / effort xhigh。plan 初回は `--reasoning` 未指定で rc=2 になり 1 本無駄にした
   (`dev_wave_codex.py` は plan / consult では必須。`DW-O01` の文面は段によって逆である)。
@@ -73,3 +84,13 @@ title: [T-1546] verifier fixture の独立性を 1 thread 自明直列 (g6) と 
   純増検出力 6 本を機械で示した。
   remaining: none
   base: b56541516e068522e07506bd479fabb4a9c9618c381b08f49bc4d09733d84b7d
+
+### 新規
+
+- {{T:devwave-o01-reasoning-wording}} **P3・ユーザー裁定待ち**: `DW-O01` の
+  「effort は … caller 指定は不可」は plan / consult では実測と逆である
+  (`dev_wave_codex.py` が `--reasoning` を必須にし、未指定は rc=2)。
+  31 bytes の訂正で L1.5 予算 (9,566 bytes) を 30 bytes 超過し、
+  `DW-O01` の dispatcher route 行の構造 pin も破れることを実測した。
+  誤記の是正なので D730 の原則落ちには当たらないが、収容先を削らずには入らない。
+  上限の扱いを含めてユーザー裁定を仰ぐ。
