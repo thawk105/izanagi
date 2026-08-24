@@ -29891,3 +29891,414 @@ combined diff が非空になる場合は、次の 2 commit へ分ける。
 - CMake interpreter を実装して実行意味 (`if`/`else`、`foreach`、`function` 呼出し、
   `CACHE`/`PARENT_SCOPE`、eager expansion) を追う — 検査の目的に対して不相応で、
   それ自体が新しい偽陰性の源になる。
+
+## D775. 8c の理由一致検査は前向きの formal 経路 3 本だけで締め、互換 facade は据え置く (2026-08-25)
+
+**決定:** D741 が要求する分類理由と terminal 理由の一致検査を、次の 3 つの前向き関門に限って必須化する。
+
+1. slot 予約 (`reserve_formal_attempt_slot`)
+2. terminal 追記 (`record_formal_attempt_terminal`)
+3. 正式 acceptance 発行 (`assert_formal_attempt_registry_acceptance`)
+
+strict 側の profile は互換 profile と遷移 policy の理由一致 bool 1 個だけが異なるものとし、他の field は
+同一 object を共有する。既存の互換 facade 6 本は signature、例外順、出力 bytes を変えない。strict 化の
+適用先は上の 3 関門と、それを呼ぶ registered mode の予約 sink・terminal sink・acceptance receipt
+producer の sink に限る。exploratory 経路は attempt slot を取らないため対象外とする。
+
+strict profile を名乗る identity は実行と acceptance の前向き関門にだけ置き、artifact へ永続化しない。
+
+**理由:**
+
+- terminal 入口だけを strict にしても、既存の理由不一致 prefix が slot 予約に使われ、正式 acceptance も
+  互換のまま通る。締めたつもりで受理集合が変わらない。
+- 互換 profile 自体を反転させると D735 が定めた「8c は今日の挙動を保つ」を破り、既存の等価性 golden と
+  凍結成果物を遡及変更する。D741 の「遡及変更しない」とも矛盾する。
+- 差分を bool 1 個に閉じ込めると、strict と互換の違いが「渡す profile だけ」であることをテストで
+  exact に固定でき、将来の facade 追加で差が広がるのを検出できる。
+- identity を artifact へ永続化すると、凍結世代を跨ぐ新しい互換要求が生まれる。前向き関門に限れば
+  既存成果物の再解釈が要らない。
+
+**却下した選択肢:**
+
+- 互換 profile の理由一致 bool を反転する — 既存の等価性 golden と凍結成果物を遡及変更する。
+- terminal 入口だけを strict にする — 予約と acceptance が互換のまま残り、reward-hacking 経路が閉じない。
+- 分類が空のときの partial terminal を新しい field や status で救済する — 値を見た後の理由付替えを
+  別の名前で残すことになる。不一致は fail-closed で拒否する。
+- 事前登録条件の評価器を編集して現行の判定を緑へ戻す — 受理集合を変えずに見た目だけを直す変更であり、
+  絶対規律 2 に反する。判定の変化は状態として報告するに留める。
+
+## D776. 検証専用の期待 argv 文法は versioned policy に置く (2026-08-25)
+
+**決定:** 実測した argv を検証するだけで build を起動しない consumer は、期待する
+configure / build の argv 文法を code 内の文字列 literal でなく versioned policy へ置く。
+policy bytes は成果物へ同梱し、文法を pin された証拠の一部にする。比較の厳しさ (完全列一致、
+未消費 token・分離 define・重複・未知 flag の拒否) は移動前と同一に保つ。
+
+**理由:**
+- 期待値の単一起点を policy に揃える方針と同じ性質の値である。code に literal を残すと
+  policy と二重化し、片方だけが更新されうる。
+- 成果物へ同梱される policy に置けば、文法は hash された証拠になる。code 内の裸の literal は
+  成果物からは検証できない。
+- 副次的に、`orchestrator/campaign/` 配下の .py を文字列走査する direct CMake census の
+  偽陽性が消える。census は「CMake を起動する code site」を探すための近似であり、
+  データ化した期待値はその対象ではない。真の検出力は減らない。
+
+**却下した選択肢:**
+- 検証専用 site を direct materializer として registry へ登録する — 既存の分類語彙
+  (direct / delegating / coder entrypoint) に validation-only の受け皿が無く、既存登録は
+  いずれも実 build seam である。偽の分類で gate を通すのは絶対規律 2 に反する。
+- registry の語彙を拡張して validation-only の site kind を新設する — 共有 registry の
+  意味論と census の判定条件に手を入れる一般改訂であり、同型欠陥の独立 2 例も無い。
+- 上流の build 実装へ argv 文法の公開定数を新設して参照する — 上流は当該 token を複数箇所へ
+  直書きしており、広く共有される file への定数新設は別 wave の scope である。
+- literal を難読化して census を避ける — 検出回避であり採らない。
+
+## D777. scheduler の request 消滅形式は実測してから受理条件に書く (2026-08-25)
+
+**決定:** 終端観測のうち「request が消えた」形式は、想定でなく実際の scheduler 出力を観測して
+から exact な受理条件に書く。観測前に受理条件を書いた実装は、実形式を取りこぼしていないか
+land 前に確かめる。
+
+**理由:**
+- この scheduler は存在しない request の照会に対し、非 0 でも空でもなく **rc=0・stderr 空・
+  stdout に "does not exist" 行**を返し、その行は request ID を含む。
+- 想定で書かれた実装は「消滅終端に request ID を含んではいけない」という逆向きの条件を持って
+  おり、実形式を拒否していた。合成した空 stdout の fixture がこの不一致を隠していた。
+- 取りこぼすと、正常終了した測定が終端として認識されず、成功した計測が成果物へ到達しない。
+
+**却下した選択肢:**
+- 消滅終端の受理を無条件に広げる — 未知出力・非 0 rc・非空 stderr まで終端に数えてしまう。
+- 実形式の確認を計測の本走まで先送りする — 計算資源を消費してから初めて露見する。
+
+## D778. 環境世代 g1→g2 の段 0 は後続全段の前提として先に閉じ、owner は準備 wave に置く (2026-08-25)
+
+**決定 (ユーザー裁定):** D763 が未割当として立てた 2 点を次のとおり決める。
+
+1. **開始順:** 段 0 を「後続全段の前提」として先に閉じる。段 1 以降の owner が持つ fixture
+   assignment は、段 0 の blocker に数えない。
+2. **owner:** 次の環境世代準備 wave (AI) が段 0 を持つ。
+
+**この決定が変えないもの:** activation そのものの可否は動かない。D437 / D444 の lockstep と
+人間 seal は不変であり、holdout の解禁と保存 bytes の tracked 登録も D716 のとおり activation 後まで
+行わない。本決定は段 0 の開始順と owner だけを決める。
+
+**理由:**
+- fixture assignment を段 0 の blocker に数えると、段 0 が段 1 以降の完了を待ち、段 1 以降が段 0 を
+  待つ。D763 が滞留の形として記録した循環そのものであり、これを作らないのは開始順を分ける側だけである。
+- 未充足条件のうち段 0 だけが owner 不在で止まっている。他には所有者が居るので、owner をここで
+  名指ししないと次回も同じ粒度で滞留する。
+- 段 0 の owner を AI に置いても認可権は動かない。認可は人間 seal 側にあり、本決定はそこへ触れない。
+
+**却下した選択肢:**
+- fixture assignment を段 0 blocker に数える — 上記の循環を残す。
+- owner を人間手番に固定する — 進みはするが、他の準備段と歩調が合わず、AI ができる作業を
+  人間手番へ渡すことになる。
+
+## D779. TRACE=0 値の正式材料化は、checker report を受領証へ束縛してからにする (2026-08-25)
+
+**決定 (ユーザー裁定):** TRACE=0 の性能値を正式材料へ昇格させる前に、pilot の final receipt と
+job-result が checker report の **path・SHA-256・schema・guarantee** を束縛するようにする。
+checker の返り値だけを見る現行の形では昇格させない。
+
+**理由:**
+- 現行は rc しか見ておらず、report 本体が受領証にも実行結果にも現れない。どの検査が何を保証したかを
+  後から証拠の鎖として辿れず、保証を名乗る根拠が受領証の外にある。
+- 粗い provenance で足りるという既定方針は「証拠の粒度」の話であって、「証拠が受領証に無い」型を
+  許すものではない。
+- 追加する field は 4 つで、実装は小さい。昇格後に作り直すほうが高くつく。
+
+**却下した選択肢:**
+- 束縛せず昇格し、材料レポートに「返り値のみ確認」と明記する — 主張と根拠の距離が開き、後から
+  材料を作り直すことになる。
+- TRACE=0 の材料自体を当面使わない — 検査は既に穴を塞いで動いており、使わない理由がない。
+
+## D780. TRACE=0 検査の射程は必要条件の一つとして文言を統一し、別防壁は間接値の限界と同じ閉包でだけ設計する (2026-08-25)
+
+**決定 (ユーザー裁定):**
+
+1. 成果物側の文言を「この検査は D297 の保証を証明するものであり、計測ビルドからの trace 完全除去に
+   対しては必要条件の一つである」で統一する。完全除去を証明したと読める記述を残さない。
+2. 実 compile command・全 TU・link object・trace symbol/data・build receipt を結合する別防壁は、
+   静的に解決できない間接値の限界と**同じ閉包**でだけ設計する。どちらも単独 wave にしない。
+3. 静的に解決できない間接値の限界そのものは、D774 の docstring 明記のまま据え置く。
+
+**理由:**
+- 両方の commit へ trace を打ち消す指定を書けば検査が通ることは敵対レンズが実証済みで、射程は
+  実際に狭い。いま実害があるのは防壁の不在よりも「証明したつもり」の文言である。
+- 防壁を先に作ると TRACE=0 の材料が長く止まる。文言の訂正は今日できて、規律 1 を緩めない。
+- 2 つの限界は同じ面 (実 build から供給集合を取り出せていない) にあり、別々に設計すると同じ設計を
+  二度書くことになる。
+
+**却下した選択肢:**
+- 文言を直すだけで別防壁を永久に作らない — 規律 1 に対する既知の穴を放置したことになる。
+- 別防壁を先に作る — 材料の昇格が止まり、費用も大きい。
+- 拒否側を fail-closed で強化する — 実 repo の母集合を測ると全件が赤になることが実測済みで、
+  D774 が既に却下している。
+
+## D781. 実 repo 直列連鎖の検査力低下は追認せず、関門つきの保留分を実測して戻す (2026-08-25)
+
+**決定 (ユーザー裁定):** 実 repo を直列に読む検査 72 件のうち既定で走るのが 31 件という状態を
+現状追認しない。correctness gate 付きの growth hold 34 件を対象に、所要と重複を実測したうえで
+戻せる分を戻す wave を 1 本立てる。
+
+**この決定が変えないもの:** テスト全体の所要上限 (5 分) は不変である。上限を割る形での再有効化は
+行わず、解除は引き続き明示指示の下でのみ行う。
+
+**理由:**
+- 保留されている 41 件の過半が correctness gate 付きであり、最高リスク面が既定で沈黙している。
+  受入が緑でもこの面を見ていないという状態は、絶対規律 2 の方向に反する。
+- 所要を守る圧力は正当だが、所要と重複を測らずに保留を積み上げた結果であり、測れば戻せる分がある。
+- 都度の明示指示による部分解禁は運用者の記憶に依存し、指示を出し忘れた回は薄いままになる。
+
+**却下した選択肢:**
+- 現状追認 — 検査力の低下が常態化する。
+- 全件の無条件解禁 — 所要上限の既裁定と正面から衝突する。
+- 都度の明示指示による部分解禁 — 上記のとおり運用に依存する。
+
+## D782. docs 予算に阻まれた収容は、D730 の手順を AI が適用して閉じてよい (2026-08-25)
+
+**決定 (ユーザー裁定):** 手順書の節予算に入りきらない収容案件は、案件ごとに裁定へ返さず、
+D730 が定める手順 — 既存記述の削減を試す → 独立 3 例以上なら例外として収容する → それでも収容先を
+作れないと確かめられた場合にだけ上限を引き上げる — を AI が適用して閉じてよい。上限引き上げに
+至った場合だけ報告する。
+
+**理由:**
+- D730 は判定手順を最後まで書いており、案件ごとの裁定を要求していない。個別に返すと、同じ手順を
+  毎回ユーザーへ通すだけで結論が変わらない。
+- 上限引き上げを最後の手段に置く歯止めは D730 の中にあり、委任しても歯止めは残る。
+- 収容できずに落ちる案件は「実施しない」へ落ちるだけで、受理集合にも成果物にも触れない。
+
+**却下した選択肢:**
+- 案件ごとにユーザー裁定へ返す — 現状であり、実測由来の手順欠落が滞留し続ける。
+- 3 件をまとめて「実施しない」へ落とす — いずれも実測由来で、落とす理由がない。
+- 上限を先に引き上げる — 文書を膨らませない趣旨の既裁定を実質的に無効化する。
+
+## D783. launcher テストの時間予算は一律に上げず、本体の時間で測る形へ直す (2026-08-25)
+
+**決定 (ユーザー裁定):** launcher テストの薄い wall-clock 予算の据え置きを解く。直し方は
+**attempt 本体の時間で測る**か**起動・計測・後始末の固定費を予算から除く**形とし、予算値の
+一律引き上げは採らない。production 側の wall-clock gate は緩めない。
+
+**発火の根拠:** 据え置きの裁定が待っていた「実負荷 artifact 1 件」は 2026-08-23 に揃った。
+受領証は限度 3.0 秒に対し実測 3.268 秒、走行時の負荷平均 39、被験体側は終了コード 0 /
+検証済みの後始末で、attempt 本体は 1.33 秒しか使っていない。差の約 1.94 秒は固定費である。
+台帳の宛先は F273 であり、F57 とは型が違う。
+
+**理由:**
+- 被験体は正常で、締切だけが混雑に負けている。予算の一律引き上げは暴走した launcher を
+  捕まえられなくする方向で、絶対規律 2 に触れる。
+- 据え置きを続けると、混雑時の受入全走が十数件まとめて赤くなり、そのたびに非帰属の確認を
+  単独再走で払うことになる。
+- 本体時間で測る形は受理する範囲を緩めずに環境依存だけを落とす。
+
+**却下した選択肢:**
+- 据え置き — 上記の確認コストを払い続ける。
+- 予算の一律引き上げ — 受理集合を緩める方向で、既裁定の趣旨とも反する。
+- 当該テストを不安定テストとして除外する — launcher の受理集合検査を丸ごと失う。
+
+## D784. 意味的包含によるテスト退役は、包含を先に実測で反証してから不足 assert を移植し、その上で D692 (a)(b)(c) を測る (2026-08-25)
+
+**決定 (ユーザー裁定に基づく):** D692 は候補抽出を構文木一致に限っていた。本決定はその外側、
+**意味的包含 (上位テストが下位テストを含意する) による退役**を次の手順に限って認める。
+権威は 2026-08-23 /rulings 全件のユーザー裁定 (択 (a)、証拠水準を下げない) であり、
+D693 と同型のユーザー直接指示である。RuleOps の候補 package 経路ではない。
+
+1. **包含は仮定してはならない。まず反証を試み、破れたら破れたと記録する。**
+   退役候補と退役先の assert を逐語で並べ、**比較演算子まで含めて**照合する。
+   本決定の初回適用では、退役先が `==` (dict 等価)、候補が `is` (identity) であり、
+   **包含は成立していなかった**。
+2. **破れが見つかったら、不足していた assert を退役先へ移植してから退役する。**
+   これは証拠水準を下げる変更ではない。候補が現に持っていた検出面を残存側へ移す作業である。
+   移植せずに退役すれば検出力が静かに落ち、絶対規律 2 に触れる。
+3. **移植した assert に検出力が実在することを、新旧両走で示す。** `DW-M08` が要求する形である。
+   移植前の版で当該変異が退役先を殺さず候補だけを殺し、移植後の版で退役先も殺すことを測る。
+   この対比が無ければ移植は恒真でありうる。
+4. **D692 項 3 の (a)(b)(c) をそのまま適用する。** (a) collect-only の node 集合差分が
+   退役対象ちょうど、(b) 削除前に対の両 node が同じ変異を KILL、(c) 削除後に残存 node が KILL。
+5. **KILL の意味は `DW-M03` / `DW-M08` と同一である。** 受理集合または fail-closed 挙動が
+   変わる変異だけを KILL に数え、診断文字列だけの赤は数えない。
+   本決定の初回適用では、status の型契約を壊す変異が `s8c_gate_report._status_counts` を
+   `AttributeError` で落とすことを実測し、KILL 要件を満たすと判定した。
+   reason code だけを変える変異は満足判定を変えないので diagnostic sensitivity pin として別枠に置く。
+6. **保証するのは実測を行った環境における同値性だけである** (D692 項 6 を継承)。
+   「環境非依存に同値」と書いてはならない。
+
+**変異 harness の group 接尾辞問題への対処:** 対象 node が `xdist_group` を持つ場合、
+harness は収集を `-n 0` で行い実走を loadgroup で行うため、失敗 node に `@<group>` が付いて
+完全一致しない (F95、F408)。正規化の設計は別 ID が所有しており、退役 wave はそれを直さない。
+**代わりに実行形を 2 通り測る。** 受入と同じ loadgroup 走で node 集合を取り、
+runner の正規経路である `-n 0` を渡した直列走で `DW-M08` の機械照合を通す。
+2 走の失敗 node 集合が接尾辞を除いて一致しなければ停止する。
+loadgroup 走の harness label は MISMATCH のままであり、**これを KILLED と読み替えてはならない。**
+
+**理由:**
+- 構文木一致は「同じ本文」を候補に挙げるが、意味的包含は本文が違う組を扱う。
+  そこでは**比較演算子の違いのような、目で追える範囲の差が実際に検出力の差になる**。
+  初回適用がまさにその例で、退役候補 2 件は certified 判定を作る consumer を守る唯一の
+  identity 検査だった。読みで退役していれば静かに失われていた。
+- 移植を「証拠水準を下げた」と読む余地を消すため、移植の効果自体を新旧両走で測ることを課す。
+  移植が恒真なら (b) の前後で kill 集合が変わらないので露見する。
+- 実行形を 2 通り測る案は、測る環境を 1 つ増やすだけで証拠を弱めない。
+  片方だけにすると、受入と違う実行での同値証明になるか、機械照合を人手に置き換えるかの
+  どちらかになる。
+
+**却下した選択肢:**
+- **包含を読みで判定して退役する** — 初回適用で実際に偽だった。反証済み。
+- **退役先へ assert を足さずに退役し、失われる面を docstring に書く** — docstring は
+  実行されず assert もされない (D692 項 4)。検出力の移転にならない。
+- **変異 harness の正規化をこの手順の中で直す** — 所有が別 ID にあり、
+  退役 wave が他 ID の scope を奪う。実行形を 2 通り測れば直さずに証拠が取れる。
+- **loadgroup 走の MISMATCH を手作業で正規化して KILLED と記録する** — `DW-M08` の
+  機械的完全一致を人手の照合へ置き換える。証拠水準を下げる方向である。
+- **診断文字列だけを変える変異を KILL に数えて (b)(c) を満たす** — `DW-M03` に反する。
+  受理集合を変える変異を別に立てるのが正しい。
+
+## D785. mid-merge の作業木は author capability を渡した live 起動だけが authority docs の bytes 比較を省ける (2026-08-25)
+
+**決定:** `snapshot_authority` へ keyword-only の `allow_mid_merge` を足す。既定 `False` では
+現行と 1 bit も変わらない。`True` かつ「健全な 2 親 merge が進行中」のときだけ、authority docs
+2 file の working bytes と HEAD blob の比較を省く。capability を渡すのは
+`tools/codex_worker_launch.py` の `_preflight_run` 1 箇所だけで、`stage=author` かつ
+`sandbox=workspace-write` のときに限る。`commit` を指定する historical 経路は capability を無視する。
+
+「健全な 2 親 merge」は、`git rev-parse --absolute-git-dir` が返す worktree 固有 git-dir 直下の
+`MERGE_HEAD` を `O_NOFOLLOW` で開き、同じ fd を `fstat` して regular file を確認し、同じ fd から
+サイズ上限内で読み、内容が lowercase hex40 のちょうど 1 行で、その OID が replacement を無効化した
+状態で commit object であること、と定義する。file 不在だけが正常な `False` で、file はあるのに
+内容が不正なら fail-closed で拒否する。octopus (2 行以上) は拒否する。
+
+導出値 (model / effort) は従来どおり常に commit 由来 blob から parse する。
+`AuthoritySnapshot.as_dict()` の shape、digest 定義、receipt schema V4、historical 再構成の
+一致検査は変更しない。merge 進行中であった事実は receipt へ記録しない。
+
+**理由:**
+- 受入投入前の local main 取り込み merge の最中は HEAD が wave tip のままなので、main 側が
+  authority docs を触っていれば競合の有無に関わらず live 起動が拒否されていた。実測では
+  authority docs を誰も触っていない mid-merge は元から通っており、拒否の原因は mid-merge でも
+  conflict マーカーでもなく **working bytes と HEAD blob の不一致だけ**だった。
+- 親が競合を直接解決するしかない結果、その merge commit は Codex 著者を持てず
+  known-violation 台帳へ登録され続けていた。D721 は手で競合解決した merge を実装面から
+  除外する免除を却下しており、本決定はその逆方向 — 免除を作らず、Codex が実際に解決できる
+  経路を作る — なので D721 と整合する。
+- 緩和を全 stage へ開く案は受理集合を不必要に広げる。`snapshot_authority` は stage を受け取らない
+  ため、capability を呼び手から明示的に渡す形にしないと plan / consult / review / fix / focus まで
+  同時に開いてしまう。受理集合を実際に狭めるのは path 方向の条件ではなく stage 方向の限定である。
+- `git rev-parse --verify MERGE_HEAD` の成否だけを sentinel にすると、`MERGE_HEAD` という名前の
+  branch へ DWIM 解決するため、merge していない作業木を merge 中と誤認する (実測)。
+  物理 file の存在と内容を検査する複合 sentinel が要る。
+- 緩和は `git merge` に限局する。rebase / cherry-pick / revert / `rebase --rebase-merges` /
+  `git am` / `stash apply` はいずれも競合しても `MERGE_HEAD` を作らない (実測)。
+
+**却下した選択肢:**
+- **merge の変更集合に入っている path だけ差異を許す** — `HEAD:path != MERGE_HEAD:path` は
+  「incoming がこの merge で変更した」ことを意味しない。wave 側だけが変更した file でも真になり、
+  incoming が無変更でも手編集を素通しする (実測)。merge base 相対へ直しても、正当に競合した path
+  では任意 bytes を許すため穴は閉じない。stage 限定の方が受理集合を実際に狭める。
+- **既存の historical 経路 (`commit` 指定) へ live 起動を流す** — working tree 比較と live の
+  v2 必須を同時に外すため、迂回であって正規経路ではない。
+- **merge 進行中であった事実を receipt へ記録する** — closed な receipt schema と
+  `AuthoritySnapshot.as_dict()` の digest pin を同時に破る。受理集合の可視化は
+  negative control 側で担う。
+- **大文字 hex40 も受理する** — 受理集合を広げる方向であり、Git は `MERGE_HEAD` へ lowercase しか
+  書かない。lowercase 限定は fail-closed 側の狭さであり、承認外の受理を生まない。
+
+## D786. 実効 masstree source root は cache 入力と生成 build system の一致で主張する (2026-08-25)
+
+**決定:** floor の `sort_best` cell について、build が実際に使った masstree source root の
+権威を、次の 2 つの独立した証跡の**一致**に置く。
+
+- **A (cache 入力):** cell の build directory の `CMakeCache.txt` にある
+  `FETCHCONTENT_SOURCE_DIR_MASSTREE`、無ければ `<FETCHCONTENT_BASE_DIR>/masstree-src`。
+- **B (解決結果):** 生成された build system
+  (`CMakeFiles/masstree_build.dir/DependInfo.cmake` の `CMAKE_MULTIPLE_OUTPUT_PAIRS`) が
+  記録した `config.h` と `libkohler_masstree_json.a` の絶対 path 対の親ディレクトリ。
+
+A と B が一致しなければ拒否する。生成器は `CMAKE_GENERATOR` の exact 照合で
+`Unix Makefiles` に固定し、未知の生成器・証跡の欠落・複数 root は fail-closed とする。
+呼び手が行う「実効 root は staged base の `<base>/masstree-src` でなければならない」
+という exact 比較は従来どおり残す。すなわち A = B = expected の三者一致を要求する。
+
+D425 の「実効 root を build 自身の成果物から読む」という要求はそのまま維持し、
+その運び手を `masstree_SOURCE_DIR` という単一 key から上記 2 証跡へ置き換える。
+
+**理由:**
+
+- D425 が想定した `masstree_SOURCE_DIR` は、現行 CCBench pin では**出現しえない**。
+  CCBench の `cmake/ThirdParty.cmake` は 1 引数形式の `FetchContent_Populate(masstree)` を
+  使い、この形式は `<name>_SOURCE_DIR` を呼び出し scope の通常変数にしか設定せず
+  CMakeCache へ書かない。実測でも当該 key は 0 件である。守るべきは
+  「実効解決値を build 自身の成果物から読む」という性質であって、特定の key 名ではない。
+- A だけでは D425 が名指しで警戒した経路が閉じない。CMake の変数解決では通常変数が
+  cache 変数より優先されるため、ambient な toolchain file が
+  `set(FETCHCONTENT_SOURCE_DIR_MASSTREE <別 root>)` を cache 指定なしで行うと、
+  実効値は別 root になるのに `CMakeCache.txt` には argv 由来の値が残る。
+  A だけを読むと、誤った tree で作った binary に対して A の検査も
+  内容 receipt の再観測も両方緑になる。敵対レンズ 2 本が独立にこの経路を指摘した。
+- B は `add_custom_command(OUTPUT ...)` の OUTPUT を生成器が展開した結果であり、
+  通常変数による上書きも必ず反映される。A が「与えた入力」、B が「解決された結果」で
+  あって、同じ値の二重読みではない。
+- 生成器を exact 照合で固定するのは、B の layout が生成器依存だからである。
+  想定外の生成器で B を推測して読むより、拒否して人間の判断を仰ぐほうが安全である。
+
+**却下した選択肢:**
+
+- **A だけを読む** — 上記の通常変数 shadow を検出できない。床値の数値が
+  staged payload 以外の masstree 由来になりうる一方、completion manifest には
+  staged root の hash が残るという、記録と実体の乖離を作る。
+- **呼び手の expected 比較を `FETCHCONTENT_SOURCE_DIR_MASSTREE` の値へ切り替える** —
+  staged base の外を指す override を受理してしまい、規律2 を弱める。
+- **検査を警告へ落として先へ進める** — 規律2 の違反である。床値は certified な
+  選択結果の下限として使われるため、依存の同一性が主張できない測定値には意味がない。
+- **CCBench 側を `FetchContent_MakeAvailable` へ変えて lowercase key を cache へ載せる** —
+  CCBench の改変は D16/D18/D20 の対象で、上流判断は人間に委ねる。
+  izanagi 側だけで閉じられる修正を優先する。
+- **生成器非依存の証跡を探して B の代わりにする** — 現行 pin と現行 argv では
+  `CMAKE_GENERATOR` が cache に記録されており、exact 照合で固定できる。
+  非依存化は将来 Ninja を使う判断が出たときに再設計すればよく、
+  発火していない条件のために今実装しない。
+
+## D787. 材料レポートは自分の認証水準を機械可読に宣言し、載る packet の snapshot evidence だけを 1 箇所で検査する (2026-08-25)
+
+**決定:** A/B 実験装置 (`tools/codex_reasoning_ab.py`) の材料レポートについて次を採る。
+
+1. `verify` / `aggregate` の返値へ `certification_scope` を足し、certified なのは
+   `valid` だけであること、adjudication の中間 artifact (packet、packet-state、
+   verdict log、verdict freeze、revealed map) は未認証であることを機械可読に宣言する。
+   宣言は**公開 API の全 return path**が付ける。集計 helper の返値には付けない。
+2. 材料レポートに載る packet の由来 run が snapshot evidence の再走に成功していることを、
+   packet と run の join 点 1 箇所でだけ検査する。中間層へ再検証を足さない。
+3. 宣言の閉世界主張は、join 点が実際に読む manifest descriptor key を AST で導出して
+   突き合わせる検査と**対で**置く。宣言だけを置くことを認めない。
+4. run ごとの pre/post evidence 一致を全 run で検査する。同一 oracle identity を共有する
+   2 本目以降でも省略しない。
+
+**理由:**
+- 論文素材になるのは材料レポートである。全中間層へ再検証を要求すると費用対効果が悪く、
+  1 箇所へ置けば裁定が求める性質は満たせる。
+- 宣言を private helper へ付けると、helper を直呼びして空の理由集合を渡すだけで
+  「宣言付きの合格レポート」を構成できてしまう。認証の主体は公開経路に限る。
+- 宣言と実装の食い違いは、この装置がいちばん避けたい事故である。実測でも、最初の実装は
+  未認証 artifact の列挙が閉じていないまま `closed_world: true` と主張していた。
+  literal 比較だけの検査ではこの型を捕まえられないので、実装から導出した集合と
+  突き合わせる形にする。
+- 「certified」は既存の用語集では variant が正しさゲートを通った状態を指す。
+  レポートの boolean と混同させないため、宣言の主体を field 名で明示する。
+- 保証の強さを名前に盛らない。実装が保証するのは凍結 pre/post evidence と replay 時現物の
+  再走成功までであって、run 実行時点の歴史的 snapshot の再構成ではない。
+
+**却下した選択肢:**
+- 全中間層への再検証追加 — 裁定本文が費用対効果を理由に明示的に却下している。
+- join 点でなく replay 側へ検査を置く — その時点ではどの run が材料 packet に載ったかを
+  まだ知らないため、裁定の「材料レポートに載る packet だけ」より広い条件になる。
+- 集計 helper へ宣言を付ける — 上記のとおり宣言付き合格レポートの構成経路を残す。
+- 宣言を literal 一致テストだけで守る — 実装が新しい中間 artifact を読み始めても気付けない。
+
+**この決定が保証しないこと:**
+- 中間 CLI (packet 生成、verdict 追記、verdict 凍結、mapping 開示、単独採点) を
+  公開経路を通さず直接消費する利用者は保護されない。宣言はそれを未認証と告知するだけである。
+- 材料 packet の由来検査は、公開 manifest の受理集合を狭めない。外れる入力は既存の
+  snapshot 理由でも必ず拒否されるためである。この検査は、将来 replay 側の再検証や
+  evidence の伝達が外れたときに赤くする構造的な固定である。受理集合を実際に狭めるのは
+  run ごとの pre/post 検査の方であり、両者を同じ欄に記録してはならない。
+- 実験後に snapshot を同じ bytes へ戻す攻撃、および descriptor 検査と後続読取の間の
+  競合は本決定の射程外である。

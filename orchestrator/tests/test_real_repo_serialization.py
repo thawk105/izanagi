@@ -104,6 +104,8 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
     "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+    "test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
     "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
     "test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
@@ -133,8 +135,6 @@ _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN = frozenset({
     "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
     "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
     "test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
-    "test_s8c_preregistration_predicates.py::test_current_repository_c12_registry_reports_unwired_allocation_consumer",
-    "test_s8c_preregistration_predicates.py::test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer",
 })
 
 # Independent oracle for the sort-SWO environment consumer registry.  This is
@@ -1061,9 +1061,9 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         f"missing={sorted(_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN - s8c_predicate_snapshot_nodes)} "
         f"extra={sorted(s8c_predicate_snapshot_nodes - _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN)}"
     )
-    assert len(s8c_predicate_snapshot_entries) == 5, (
+    assert len(s8c_predicate_snapshot_entries) == 3, (
         "s8c-predicate-snapshot group の item 件数が不一致: "
-        f"actual={len(s8c_predicate_snapshot_entries)} expected=5"
+        f"actual={len(s8c_predicate_snapshot_entries)} expected=3"
     )
 
     golden = set(_REAL_REPO_SERIAL_NODES_GOLDEN)

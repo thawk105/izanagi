@@ -83,6 +83,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/layer3_report.py", "<module>._git_head"): 1,
     ("campaign/patchharness.py", "<module>._git"): 1,
     ("campaign/patchharness.py", "<module>._git_repository_identity"): 1,
+    # Read-only Git HEAD/status probes bind the driver worktree; neither
+    # command names or executes a CCBench binary.
+    ("campaign/paper_story_a2_certification.py", "<module>.compute_preflight"): 2,
+    # Read-only Git HEAD/status probes bind the delegated CCBench source tree;
+    # measurement itself remains owned by run_campaign().
+    ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 2,
     ("campaign/queue_state.py", "<module>._run_qstat_bounded"): 1,
     ("campaign/reflux_origin_ledger.py", "<module>._git"): 1,
     ("campaign/reflux_source_closure.py", "<module>._git"): 1,
