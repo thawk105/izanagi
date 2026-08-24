@@ -425,6 +425,53 @@ def test_cli_rejects_certify_clock_override_before_attempt(tmp_path, monkeypatch
     assert not attempt.exists()
 
 
+def test_cli_rr50_certify_keeps_capability_none_and_writes_no_marker(
+        tmp_path, monkeypatch):
+    calls = []
+
+    def capture(**kwargs):
+        calls.append(kwargs)
+        return _fake_calibrate()(**kwargs)
+
+    rc, _, _ = _invoke(
+        tmp_path, monkeypatch,
+        extra_args=["--workload", "ycsb_rratio=50"],
+        calibrate_fn=capture,
+    )
+    assert rc == 0
+    assert calls[0]["calibration_observation_capability"] is None
+    assert not (tmp_path / "output/calibration-capability-markers").exists()
+
+
+def test_cli_rr80_certify_issues_once_and_marker_blocks_staging_replay(
+        tmp_path, monkeypatch):
+    calls = []
+
+    def capture(**kwargs):
+        calls.append(kwargs)
+        return _fake_calibrate()(**kwargs)
+
+    workload = ["--workload", "ycsb_rratio=80"]
+    rc, attempt, _ = _invoke(
+        tmp_path, monkeypatch, extra_args=workload, calibrate_fn=capture,
+    )
+    assert rc == 0
+    assert calls[0]["calibration_observation_capability"] is not None
+    marker = tmp_path / "output/calibration-capability-markers/123.server.json"
+    marker_document = json.loads(marker.read_text(encoding="utf-8"))
+    assert marker_document["job_id"] == "123.server"
+    assert marker_document["env_tag"] == "test-env"
+    assert len(marker_document["receipt_sha256"]) == 64
+    assert len(marker_document["plan_sha256"]) == 64
+
+    shutil.rmtree(attempt)
+    rc_replay, replay_attempt, _ = _invoke(
+        tmp_path, monkeypatch, extra_args=workload,
+    )
+    assert rc_replay != 0
+    assert "attempt-replay" in (replay_attempt / "rejection.json").read_text()
+
+
 def test_cli_rejects_certify_out_root_before_attempt(tmp_path, monkeypatch):
     rc, attempt, _ = _invoke(
         tmp_path, monkeypatch, extra_args=["--out-root", str(tmp_path / "forbidden")])

@@ -8,6 +8,7 @@ import dataclasses
 import hashlib
 import importlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -32,6 +33,7 @@ from orchestrator.campaign import (  # noqa: E402
     artifact_admission as admission,
     env_contract,
     execution_guard,
+    layout as campaign_layout_module,
     model,
     s8b_abort_reason_contract as abort_reason_contract,
     s8b_freeze_io,
@@ -81,6 +83,14 @@ _MANIFEST_ENV_ISSUE = (
     "oracle session record.env_tag が manifest.run_contract.env_tag と不一致"
 )
 _SPEC_FIXTURES: dict[str, spec_fixture.ReviewedSpecFixture] = {}
+
+
+def _mark_official(root: Path) -> Path:
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    marker = root / "namespace.json"
+    marker.write_bytes(artifacts.OFFICIAL_NAMESPACE_BYTES)
+    return marker
 
 
 def _e1_epoch() -> admission.CampaignVerifierEpoch:
@@ -292,6 +302,14 @@ def _verify_for_report(
         )
 
 
+def _official_report_setup(
+        output_root: Path, manifest: artifacts.OfficialManifest,
+) -> oracle_manifest.VerifiedManifest:
+    """Mark the root explicitly and prepare a normal report consumer token."""
+    _mark_official(output_root)
+    return _verify_for_report(output_root, manifest)
+
+
 def _schema_less_legacy(manifest: Mapping) -> artifacts.LegacyManifest:
     document = copy.deepcopy(dict(manifest))
     document.pop("schema_version", None)
@@ -316,6 +334,7 @@ def _ratified_cli_manifest(
     # Preserve the emitter's git-backed artifacts and expose an external
     # sibling as the official report output root.
     shutil.copytree(root / "output", root.parent / "output")
+    _mark_official(root.parent / "output")
     freeze_path = root / topology["generation_path"]
     for role, relative_path in GENERATOR_SOURCES.items():
         source = root / relative_path
@@ -672,6 +691,7 @@ def _trial(layout, item: dict, outcome: str, *, variant: str = VARIANT,
 
 
 def _layout(tmp_path: Path, manifest: dict, campaign_id: str = "oracle-b0"):
+    _mark_official(tmp_path)
     layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
     _campaign_start(layout, manifest, campaign_id)
     return layout
@@ -733,6 +753,12 @@ def _two_campaign_manifest(tmp_path: Path) -> dict:
     manifest["schedule"]["rows"] = rows
     manifest["campaign_ids"] = {"b0": "oracle-b0", "b1": "oracle-b1"}
     return _schema_less_legacy(manifest)
+
+
+def _two_campaign_report_setup(tmp_path: Path) -> dict:
+    """Mark the root explicitly for a two-campaign report consumer."""
+    _mark_official(tmp_path)
+    return _two_campaign_manifest(tmp_path)
 
 
 def _manual_trial(layout, item: dict, outcome: str,
@@ -829,7 +855,7 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
     _trial(layout, schedule[1], "committed", tps=(20.0, 21.0, 22.0, 23.0, 24.0))
     _finish_campaign(layout, manifest)
 
-    observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
+    observations = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)
 
     assert type(observations) is artifacts.OfficialObservations
     assert observations["schema_version"] == report.SCHEMA_VERSION
@@ -861,7 +887,7 @@ def test_report_projects_e1_epoch_from_resolved_campaign_layout(
         certified,
     )
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )
 
     assert len(calls) == 1
@@ -913,7 +939,7 @@ def test_report_keeps_non_e1_epoch_rejection_as_structured_evidence(
         rejected,
     )
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )
 
     evidence = observations["campaign_verifier_epochs"]
@@ -947,7 +973,7 @@ def test_report_keeps_unreadable_epoch_as_structured_rejection(
         unavailable,
     )
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )
 
     evidence = observations["campaign_verifier_epochs"][0]
@@ -962,7 +988,7 @@ def test_report_keeps_unreadable_epoch_as_structured_rejection(
 
 def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):
     manifest = _manifest(tmp_path)
-    verified = _verify_for_report(tmp_path, manifest)
+    verified = _official_report_setup(tmp_path, manifest)
 
     observations = report.build_observations(
         manifest=verified, output_root=tmp_path,
@@ -976,6 +1002,7 @@ def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):
 
 def test_legacy_manifest_cannot_launder_spec_sha256_into_observations_or_judge(
         tmp_path):
+    _mark_official(tmp_path)
     official = _manifest(tmp_path)
     assert isinstance(official["spec_sha256"], str)
     legacy = _schema_less_legacy(official)
@@ -1008,7 +1035,7 @@ def test_build_observations_rejects_unverified_official_manifest(tmp_path):
 )
 def test_build_observations_rejects_verified_document_hash_drift(
         tmp_path, drift):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    verified = _official_report_setup(tmp_path, _manifest(tmp_path))
     if drift == "nested-field":
         verified.document["allowed_excluded_reasons"].append("post-verify-drift")
     elif drift == "top-level-injection":
@@ -1036,7 +1063,7 @@ def test_committed_bench_requires_exact_manifest_reps(tmp_path, actual_reps):
     _finish_campaign(layout, manifest)
 
     row = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"][0]
 
     assert row["status"] == "protocol_violation"
@@ -1061,7 +1088,7 @@ def test_huge_integer_tps_is_row_level_protocol_violation(tmp_path):
     _finish_campaign(layout, manifest)
 
     row = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"][0]
 
     assert row["status"] == "protocol_violation"
@@ -1243,6 +1270,7 @@ def test_report_rejects_valid_raw_and_exploration_manifest_types(tmp_path):
 
 
 def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
+    _mark_official(tmp_path)
     document = dict(_manifest(tmp_path))
     document.pop("run_contract")
     legacy = artifacts.load_official_manifest(json.dumps(document).encode())
@@ -1256,6 +1284,7 @@ def test_staged_legacy_v1_without_run_contract_remains_accepted(tmp_path):
 
 def test_completed_legacy_without_run_contract_or_receipt_skips_contract_checks(
         tmp_path, monkeypatch):
+    _mark_official(tmp_path)
     document = dict(_manifest(tmp_path))
     document.pop("run_contract")
     legacy = artifacts.load_official_manifest(json.dumps(document).encode())
@@ -1307,7 +1336,7 @@ def test_session_identity_wrong_issuer_rejects_completed_campaign_only_for_issue
     )
 
     rows = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"]
 
     assert {row["status"] for row in rows} == {"protocol_violation"}
@@ -1326,7 +1355,7 @@ def test_session_identity_checks_non_boundary_trial_record(tmp_path):
     )
 
     rows = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"]
 
     assert {row["status"] for row in rows} == {"protocol_violation"}
@@ -1351,7 +1380,7 @@ def test_session_identity_wrong_v2_env_rejects_only_manifest_mismatch(tmp_path):
     assert campaign_start.payload["execution_receipt"]["env_tag"] == "linux-baremetal"
 
     rows = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"]
 
     assert {row["status"] for row in rows} == {"protocol_violation"}
@@ -1387,7 +1416,7 @@ def test_session_identity_issuer_is_only_protocol_trigger_without_terminal(tmp_p
     layout = _layout(tmp_path, manifest)
 
     baseline = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"]
     assert {row["status"] for row in baseline} == {"campaign-incomplete"}
 
@@ -1395,7 +1424,7 @@ def test_session_identity_issuer_is_only_protocol_trigger_without_terminal(tmp_p
         layout, event="campaign-start", variant="tampered-session",
     )
     damaged = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"]
 
     assert {row["status"] for row in damaged} == {"protocol_violation"}
@@ -1418,7 +1447,7 @@ def test_session_identity_rejection_taints_t080_report_observation(
     _finish_campaign(layout, manifest)
 
     baseline = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
     )
     assert baseline["t080_freeze_migration_observation"] == envelope
 
@@ -1426,7 +1455,7 @@ def test_session_identity_rejection_taints_t080_report_observation(
         layout, event="campaign-start", variant="tampered-session",
     )
     damaged = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
     )
 
     assert damaged["t080_freeze_migration_observation"] is None
@@ -1454,7 +1483,7 @@ def test_session_identity_rejection_preserves_malformed_t080_issue(
     )
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest),
+        manifest=_official_report_setup(tmp_path, manifest),
         output_root=tmp_path, repo_root=tmp_path / "repo",
     )
 
@@ -1508,7 +1537,7 @@ def test_report_session_issuer_alias_and_identity_use_model_authority(
             layout = _layout(tmp_path, manifest)
             _finish_campaign(layout, manifest)
             rows = report.build_observations(
-                manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+                manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
             )["rows"]
 
             assert {row["status"] for row in rows} == {"protocol_violation"}
@@ -1598,6 +1627,7 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
 def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
     admission_root.rename(admission_root.with_name("admission-unavailable"))
     output = tmp_path / "unverifiable-admission-must-not-exist.json"
@@ -1616,6 +1646,7 @@ def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
 
 def test_cli_verify_failure_returns_two_without_output(tmp_path):
     root, _manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     damaged = copy.deepcopy(document)
     damaged["manifest_id"] = "damaged-manifest-id"
     manifest_path = tmp_path / "damaged-ratified-cli-manifest.json"
@@ -1641,6 +1672,7 @@ def test_cli_verify_failure_returns_two_without_output(tmp_path):
 def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output(
         tmp_path):
     root, manifest_path, _document, approved_a = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     positive_output = tmp_path / "positive-observations.json"
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved_a.sha256):
@@ -1680,12 +1712,12 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
     assert not negative_output.exists()
 
 
-def test_official_missing_output_root_reports_missing_and_judges_indeterminate(
+def test_official_marked_empty_output_root_reports_missing_and_judges_indeterminate(
         tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output_root = root.parent / "missing-report-output"
     observations_path = tmp_path / "missing-store-observations.json"
-    assert not output_root.exists()
+    _mark_official(output_root)
 
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
@@ -1708,9 +1740,28 @@ def test_official_missing_output_root_reports_missing_and_judges_indeterminate(
     )
 
 
+def test_official_missing_marker_cli_fails_without_output(tmp_path):
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+    output_root = root.parent / "unmarked-report-output"
+    output_root.mkdir()
+    observations_path = tmp_path / "missing-marker-must-not-exist.json"
+
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        rc = report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(output_root),
+            "--out", str(observations_path), "--repo-root", str(root),
+        ])
+
+    assert rc == 2
+    assert not observations_path.exists()
+
+
 def test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(
         tmp_path):
     root, manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
+    _mark_official(root.parent / "report-output")
     observations_path = tmp_path / "judge-input-observations.json"
     with mock.patch.object(
             oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
@@ -1752,6 +1803,7 @@ def test_cli_legacy_skips_freeze_resolution(tmp_path):
         encoding="utf-8",
     )
     output = tmp_path / "legacy-cli-observations.json"
+    _mark_official(tmp_path / "legacy-output")
 
     with mock.patch.object(
             report.s8b_ratified_freeze,
@@ -1794,6 +1846,7 @@ def test_cli_legacy_subprocess_creates_output(tmp_path):
         encoding="utf-8",
     )
     output = tmp_path / "subprocess-observations.json"
+    _mark_official(tmp_path / "subprocess-output")
 
     completed = subprocess.run(
         [
@@ -1829,6 +1882,7 @@ def test_report_cli_rejects_exploration_manifest_without_output(tmp_path):
         "payload": {},
     }), encoding="utf-8")
     output = tmp_path / "must-not-exist.json"
+    _mark_official(tmp_path)
 
     rc = report.main([
         "report", "--manifest", str(manifest_path),
@@ -1839,16 +1893,317 @@ def test_report_cli_rejects_exploration_manifest_without_output(tmp_path):
     assert not output.exists()
 
 
-def test_report_rejects_exploration_namespace_and_symlink_alias(tmp_path):
+def test_report_requires_root_namespace_marker(tmp_path):
+    root = tmp_path / "missing-marker"
+    root.mkdir()
+
+    with pytest.raises(report.ReportError, match="namespace marker が存在しない"):
+        report._scan_official_namespace(root.resolve())
+
+
+def test_manifest_helpers_do_not_create_namespace_marker(tmp_path):
+    manifest = _manifest(tmp_path)
+
+    _verify_for_report(tmp_path, manifest)
+    _two_campaign_manifest(tmp_path)
+
+    assert not (tmp_path / "namespace.json").exists()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        artifacts.EXPLORATION_NAMESPACE_BYTES,
+        b'{"namespace":"unknown"}\n',
+        b'{"namespace":',
+        b'{ "namespace": "official" }\n',
+        b'{"namespace":"official"}',
+    ],
+    ids=["exploration", "unknown", "malformed", "whitespace", "missing-lf"],
+)
+def test_report_requires_official_namespace_exact_bytes(tmp_path, payload):
+    root = tmp_path / "non-official-marker"
+    root.mkdir()
+    (root / "namespace.json").write_bytes(payload)
+
+    with pytest.raises(report.ReportError, match="namespace"):
+        report._scan_official_namespace(root.resolve())
+
+
+@pytest.mark.parametrize(
+    "ancestor_payload",
+    [
+        artifacts.EXPLORATION_NAMESPACE_BYTES,
+        b'{"namespace":"unknown"}\n',
+        b'{"namespace":',
+    ],
+    ids=["exploration", "unknown", "malformed"],
+)
+def test_report_rejects_distant_nonofficial_ancestor_behind_local_official_markers(
+        tmp_path, ancestor_payload):
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    (outer / "namespace.json").write_bytes(ancestor_payload)
+    middle = outer / "middle"
+    _mark_official(middle)
+    root = middle / "official-root"
+    _mark_official(root)
+
+    with pytest.raises(report.ReportError, match="namespace"):
+        report._scan_official_namespace(root.resolve())
+
+
+def test_report_rejects_unreadable_ancestor_marker(tmp_path):
+    outer = tmp_path / "outer"
+    marker = _mark_official(outer)
+    root = outer / "official-root"
+    _mark_official(root)
+    real_open = report.os.open
+
+    def deny_ancestor(path, flags):
+        if Path(path) == marker:
+            raise PermissionError(13, "fixture denies ancestor marker")
+        return real_open(path, flags)
+
+    with mock.patch.object(report.os, "open", side_effect=deny_ancestor):
+        with pytest.raises(report.ReportError, match="安全に open できない"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_accepts_external_root_with_all_marker_bearing_ancestors_official(
+        tmp_path):
+    outer = tmp_path / "outer"
+    _mark_official(outer)
+    root = outer / "official-root"
+    _mark_official(root)
+
+    admitted = report._resolve_official_output_root(root)
+
+    assert admitted.path == root.resolve()
+    assert [identity.path for identity in admitted.namespace_identities] == [
+        root / "namespace.json", outer / "namespace.json",
+    ]
+
+
+def test_report_rejects_input_root_and_marker_symlinks(tmp_path):
+    target = tmp_path / "target"
+    _mark_official(target)
+    alias = tmp_path / "alias"
+    alias.symlink_to(target, target_is_directory=True)
+    with pytest.raises(report.ReportError, match="symlink component"):
+        report._resolve_official_output_root(alias)
+
+    root = tmp_path / "marker-link"
+    root.mkdir()
+    marker_target = tmp_path / "official-marker-target"
+    marker_target.write_bytes(artifacts.OFFICIAL_NAMESPACE_BYTES)
+    (root / "namespace.json").symlink_to(marker_target)
+    with pytest.raises(report.ReportError, match="marker が symlink"):
+        report._resolve_official_output_root(root)
+
+
+def test_report_marker_fifo_is_rejected_without_blocking(tmp_path):
+    root = tmp_path / "fifo-marker"
+    root.mkdir()
+    marker = root / "namespace.json"
+    os.mkfifo(marker)
+    real_open = report.os.open
+    real_open_called = False
+
+    def guarded_open(path, flags):
+        nonlocal real_open_called
+        assert flags & report.os.O_NOFOLLOW
+        assert flags & report.os.O_NONBLOCK
+        real_open_called = True
+        return real_open(path, flags)
+
+    with mock.patch.object(report.os, "open", side_effect=guarded_open):
+        with pytest.raises(report.ReportError) as caught:
+            report._scan_official_namespace(root.resolve())
+
+    assert real_open_called
+    assert str(caught.value) == f"namespace marker が通常 file でない: {marker}"
+
+
+def test_report_marker_device_descriptor_is_rejected_before_read(tmp_path):
+    root = tmp_path / "device-marker"
+    _mark_official(root)
+    device_descriptor = report.os.open("/dev/null", report.os.O_RDONLY)
+
+    with mock.patch.object(
+            report.os, "open", return_value=device_descriptor), mock.patch.object(
+            report.os, "read", side_effect=AssertionError("device leaf was read")):
+        with pytest.raises(report.ReportError, match="通常 file でない"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_oversized_marker_is_rejected_before_read(tmp_path):
+    root = tmp_path / "oversized-marker"
+    root.mkdir()
+    (root / "namespace.json").write_bytes(b"x" * 4096)
+
+    with mock.patch.object(
+            report.os, "read", side_effect=AssertionError("oversized leaf was read")):
+        with pytest.raises(report.ReportError, match="有界サイズ"):
+            report._resolve_official_output_root(root)
+
+
+def test_report_canonical_repo_exception_is_exact_and_external_root_still_passes(
+        tmp_path, monkeypatch):
+    repository = tmp_path / "repository"
+    (repository / ".git").mkdir(parents=True)
+    canonical = repository / "output"
+    _mark_official(canonical)
+    monkeypatch.setattr(report, "repo_output_root", lambda: str(canonical))
+
+    assert report._resolve_official_output_root(canonical).path == canonical.resolve()
+    monkeypatch.chdir(repository)
+    assert (
+        report._resolve_official_output_root(Path("output")).path
+        == canonical.resolve()
+    )
+    with pytest.raises(report.ReportError, match=r"\.\. component"):
+        report._resolve_official_output_root(Path("output/../output"))
+
+    sibling = repository / "output-sibling"
+    _mark_official(sibling)
+    with pytest.raises(
+            report.ReportError,
+            match="relative.*canonical repository output exact"):
+        report._resolve_official_output_root(Path("output-sibling"))
+    with pytest.raises(report.ReportError, match="repository 外"):
+        report._resolve_official_output_root(sibling)
+
+    foreign = tmp_path / "foreign-repository"
+    (foreign / ".git").mkdir(parents=True)
+    _mark_official(foreign / "output")
+    with pytest.raises(report.ReportError, match="repository 外"):
+        report._resolve_official_output_root(foreign / "output")
+
+    worktree_output = tmp_path / ".codex" / "worktrees" / "other" / "output"
+    _mark_official(worktree_output)
+    external = tmp_path / "external-output"
+    _mark_official(external)
+    real_has_git_ancestor = campaign_layout_module._has_git_ancestor
+
+    def admit_selected_external_fixture(path, *, label):
+        if Path(path) in {worktree_output.resolve(), external.resolve()}:
+            return False
+        return real_has_git_ancestor(path, label=label)
+
+    with monkeypatch.context() as admission_fixture:
+        admission_fixture.setattr(
+            campaign_layout_module,
+            "_has_git_ancestor",
+            admit_selected_external_fixture,
+        )
+        with pytest.raises(report.ReportError, match="worktree container"):
+            report._resolve_official_output_root(worktree_output)
+        assert (
+            report._resolve_official_output_root(external).path
+            == external.resolve()
+        )
+
+
+def test_report_cli_accepts_relative_canonical_output_root(
+        tmp_path, monkeypatch):
+    repository = tmp_path / "repository"
+    canonical = repository / "output"
+    _mark_official(canonical)
+    manifest_path = tmp_path / "relative-canonical-manifest.json"
+    manifest_path.write_text(
+        json.dumps(_schema_less_legacy(_manifest(tmp_path))), encoding="utf-8",
+    )
+    output = tmp_path / "relative-canonical-observations.json"
+    monkeypatch.setattr(report, "repo_output_root", lambda: str(canonical))
+    monkeypatch.chdir(repository)
+
+    rc = report.main([
+        "report", "--manifest", str(manifest_path),
+        "--output-root", "output", "--out", str(output),
+        "--repo-root", str(tmp_path / "unused-root"),
+    ])
+
+    assert rc == 0
+    assert output.exists()
+
+
+def test_report_canonical_tracked_root_uses_read_only_campaign_path_carrier():
+    admitted = report._resolve_official_output_root(ROOT / "output")
+
+    layout = report._resolved_campaign_layout(
+        "historical-candidate", admitted.path,
+    )
+
+    assert Path(layout.root) == ROOT / "output/campaigns/historical-candidate"
+
+
+def test_report_source_does_not_import_or_call_producer_campaign_layout():
+    source = ORCH / "campaign/s8b_oracle_report.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+    imported = [
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+        if alias.name.split(".")[-1] == "campaign_layout"
+    ]
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "campaign_layout"
+            or isinstance(node.func, ast.Attribute)
+            and node.func.attr == "campaign_layout"
+        )
+    ]
+
+    assert imported == []
+    assert calls == []
+
+
+@pytest.mark.parametrize("swap_target", ["marker", "root"])
+def test_report_rejects_root_or_marker_replacement_after_observation_scan(
+        tmp_path, swap_target):
+    manifest = _manifest(tmp_path)
+    root = tmp_path / "volatile-output"
+    marker = _mark_official(root)
+    verified = _official_report_setup(tmp_path, manifest)
+    original_projection = report._campaign_verifier_epoch_projection
+
+    def replace_after_projection(campaign_id, resolved_output_root):
+        projected = original_projection(campaign_id, resolved_output_root)
+        if swap_target == "marker":
+            marker.unlink()
+            marker.write_bytes(artifacts.OFFICIAL_NAMESPACE_BYTES)
+        else:
+            replacement = tmp_path / "replacement-output"
+            _mark_official(replacement)
+            root.rename(tmp_path / "original-output")
+            replacement.rename(root)
+        return projected
+
+    with mock.patch.object(
+            report, "_campaign_verifier_epoch_projection",
+            side_effect=replace_after_projection):
+        with pytest.raises(report.ReportError, match="観測中に変化"):
+            report.build_observations(manifest=verified, output_root=root)
+
+
+def test_report_rejects_exploration_namespace_and_root_symlink_alias(tmp_path):
     manifest = _manifest(tmp_path)
     layout = exploration_campaign_layout("trial-a", output_root=str(tmp_path)).ensure()
     exploration_root = Path(layout.root).parents[1]
     alias = tmp_path / "exploration-alias"
     alias.symlink_to(exploration_root, target_is_directory=True)
 
-    for output_root in (exploration_root, alias):
-        with pytest.raises(report.ReportError, match="exploration namespace"):
-            report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=output_root)
+    verified = _official_report_setup(tmp_path, manifest)
+    with pytest.raises(report.ReportError, match="exploration namespace"):
+        report.build_observations(manifest=verified, output_root=exploration_root)
+    with pytest.raises(report.ReportError, match="symlink component"):
+        report.build_observations(manifest=verified, output_root=alias)
 
 
 def test_report_rejects_campaign_symlink_to_exploration_namespace(tmp_path):
@@ -1861,14 +2216,28 @@ def test_report_rejects_campaign_symlink_to_exploration_namespace(tmp_path):
     _trial(exploration, item, "committed")
     _finish_campaign(exploration, manifest)
     official_root = tmp_path / "official"
+    _mark_official(official_root)
     campaigns = official_root / "campaigns"
-    campaigns.mkdir(parents=True)
+    campaigns.mkdir()
     (campaigns / "oracle-b0").symlink_to(
         Path(exploration.root), target_is_directory=True,
     )
 
     with pytest.raises(report.ReportError, match="campaign path component が symlink"):
-        report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=official_root)
+        report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=official_root)
+
+
+def test_report_rejects_campaigns_root_symlink_and_invalid_campaign_id(tmp_path):
+    root = tmp_path / "official"
+    _mark_official(root)
+    target = tmp_path / "campaign-target"
+    target.mkdir()
+    (root / "campaigns").symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(report.ReportError, match="campaign path component が symlink"):
+        report._resolved_campaign_layout("oracle-b0", root.resolve())
+    with pytest.raises(report.ReportError, match="campaign_id"):
+        report._resolved_campaign_layout("../oracle-b0", root.resolve())
 
 
 def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
@@ -1882,24 +2251,39 @@ def test_report_reuses_resolved_output_root_after_namespace_check(tmp_path):
     attacker = _layout(attacker_root, manifest)
     _trial(attacker, item, "committed", tps=(91.0, 92.0, 93.0, 94.0, 95.0))
     _finish_campaign(attacker, manifest)
-    alias = tmp_path / "official-alias"
-    alias.symlink_to(trusted_root, target_is_directory=True)
-    original_resolver = report._resolve_official_output_root
+    verified = _official_report_setup(tmp_path, manifest)
+    admitted = report._resolve_official_output_root(trusted_root)
+    epoch_roots: list[Path] = []
+    measurement_roots: list[Path] = []
+    real_measurement_condition = report._measurement_condition_for_campaign
 
-    def resolve_then_swap(output_root):
-        resolved = original_resolver(output_root)
-        alias.unlink()
-        alias.symlink_to(attacker_root, target_is_directory=True)
-        return resolved
+    def certified(campaign, *, purpose):
+        epoch_roots.append(Path(campaign.root))
+        return _e1_epoch()
+
+    def recording_measurement_condition(
+            campaign_id, manifest_sha256, expected_block_ids, output_root):
+        measurement_roots.append(Path(output_root))
+        return real_measurement_condition(
+            campaign_id, manifest_sha256, expected_block_ids, output_root,
+        )
 
     with mock.patch.object(
-        report, "_resolve_official_output_root", side_effect=resolve_then_swap,
+        report, "_resolve_official_output_root", return_value=admitted,
+    ), mock.patch.object(
+        report._artifact_admission, "require_campaign_verifier_epoch",
+        side_effect=certified,
+    ), mock.patch.object(
+        report, "_measurement_condition_for_campaign",
+        side_effect=recording_measurement_condition,
     ):
         observations = report.build_observations(
-            manifest=_verify_for_report(tmp_path, manifest), output_root=alias,
+            manifest=verified, output_root=attacker_root,
         )
 
     assert observations["rows"][0]["bench_values"] == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert epoch_roots == [trusted_root / "campaigns/oracle-b0"]
+    assert measurement_roots == [trusted_root.resolve()]
 
 
 def test_report_cli_rejects_exploration_output_root_without_output(tmp_path):
@@ -1941,7 +2325,7 @@ def test_failure_outcomes_remain_as_completed_observation_rows(
     _trial(layout, item, case)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "completed"
     assert row["outcome"] == expected_outcome
@@ -1959,7 +2343,7 @@ def test_timeout_and_verify_inconclusive_accept_both_verify_frontiers(
     _trial(layout, item, outcome, verify_frontier=verify_frontier)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "completed"
     assert row["outcome"] == outcome
@@ -2013,7 +2397,7 @@ def test_impossible_declared_outcome_histories_are_protocol_violations(
     _manual_trial(layout, item, outcome, pipeline)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation", case
     assert "段階証拠が一致しない" in row["reason"]
@@ -2088,7 +2472,7 @@ def test_reversed_verify_sequences_are_protocol_violations(tmp_path, outcome, pi
     _manual_trial(layout, item, outcome, pipeline)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "verify_sequence=" in row["reason"]
@@ -2136,13 +2520,246 @@ def test_verify_done_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
     _finish_campaign(layout, manifest)
 
     row = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )["rows"][0]
 
     assert row["legacy_verify"] == "missing"
     assert row["s2_verify"] == "pass"
     assert row["status"] == "protocol_violation"
     assert "build_attempt_id" in row["reason"]
+
+
+def test_build_done_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-stale",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+            "build_attempt_id": "attempt-committed",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "build_done.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_bench_done_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "attempt-stale",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+            "build_attempt_id": "attempt-committed",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "bench_done.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_commit_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+            "build_attempt_id": "attempt-stale",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] == "protocol_violation"
+    assert "commit.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_abort_attempt_id_mismatch_is_a_protocol_violation(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "correctness-red", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("verify_done", {
+            "verdict": "cycle",
+            "certified": False,
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-committed",
+        }),
+        ("abort", {
+            "reason": "cycle",
+            "workload": {"tag": "legacy"},
+            "build_attempt_id": "attempt-stale",
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["legacy_verify"] == "red"
+    assert row["outcome"] == "correctness-red"
+    assert row["status"] == "protocol_violation"
+    assert "abort.build_attempt_id" in row["reason"]
+    assert "; " not in row["reason"]
+
+
+def test_stray_attempt_id_without_committed_binding_is_not_flagged(tmp_path):
+    manifest = _manifest(tmp_path)
+    item = manifest["schedule"]["rows"][0]
+    layout = _layout(tmp_path, manifest)
+    _manual_trial(layout, item, "committed", [
+        ("build_start", {
+            "genome": GENOME,
+            "src_token": SRC_TOKEN,
+        }),
+        ("build_done", {
+            "trace_bin": "trace",
+            "perf_bin": "perf",
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "legacy"},
+        }),
+        ("verify_done", {
+            "verdict": "serializable",
+            "certified": True,
+            "workload": {"tag": "s2"},
+        }),
+        ("bench_done", {
+            "tps": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "median_tps": 12.0,
+            "rep_returncodes": [0, 0, 0, 0, 0],
+            "build_attempt_id": "stray-id",
+        }),
+        ("commit", {
+            "fitness_tps": 12.0,
+            "verify_configs": ["legacy", "s2"],
+        }),
+    ])
+    _finish_campaign(layout, manifest)
+
+    row = report.build_observations(
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
+    )["rows"][0]
+
+    assert row["status"] != "protocol_violation"
 
 
 def test_pipeline_physical_order_remains_an_independent_guard(tmp_path):
@@ -2154,7 +2771,7 @@ def test_pipeline_physical_order_remains_an_independent_guard(tmp_path):
     _manual_trial(layout, item, "committed", pipeline)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "pipeline event の物理順序が不正" in row["reason"]
@@ -2181,7 +2798,7 @@ def test_abort_workload_tag_must_match_verify_frontier(
     ])
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "段階証拠が一致しない" in row["reason"]
@@ -2204,7 +2821,7 @@ def test_invalid_nested_abort_workload_is_an_independent_issue(tmp_path, workloa
     })
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "abort.workload は exact {tag: legacy|s2} object" in row["reason"]
@@ -2217,7 +2834,7 @@ def test_correctness_red_abort_reason_must_equal_sole_red_verdict(tmp_path):
     _trial(layout, item, "s2-red", abort_payload={"reason": "different"})
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "sole red verify verdict/abort reason 連鎖" in row["reason"]
@@ -2231,7 +2848,7 @@ def test_report_reads_outcome_stage_contract_leaf(tmp_path):
 
     with mock.patch.object(report._outcome_stage_contract, "matches", matcher):
         observations = report.build_observations(
-            manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+            manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
         )
 
     assert matcher.call_count == len(manifest["schedule"]["rows"])
@@ -2318,7 +2935,7 @@ def test_terminal_outcomes_reject_invalid_abort_reason_without_crashing(
     _trial(layout, item, outcome, abort_payload=abort_payload)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert expected_reason in row["reason"]
@@ -2371,7 +2988,7 @@ def test_terminal_outcomes_accept_closed_abort_reason(tmp_path, outcome, reason)
     _trial(layout, item, outcome, abort_payload={"reason": reason})
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "completed"
     assert row["reason"] is None
@@ -2396,7 +3013,7 @@ def test_bench_failed_rejects_invalid_abort_reason_without_crashing(
     _trial(layout, item, "bench-failed", abort_payload=abort_payload)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "bench-failed 宣言と abort reason 証拠が一致しない" in row["reason"]
@@ -2417,7 +3034,7 @@ def test_bench_failed_accepts_closed_abort_reason(tmp_path, reason):
     _trial(layout, item, "bench-failed", abort_payload={"reason": reason})
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "completed"
     assert row["reason"] is None
@@ -2433,7 +3050,7 @@ def test_bench_failed_duplicate_abort_remains_protocol_violation(tmp_path):
     })
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "terminal pipeline event が重複" in row["reason"]
@@ -2452,7 +3069,7 @@ def test_verify_inconclusive_wal_stays_observable_and_judges_indeterminate(tmp_p
     _finish_campaign(layout, manifest, fill_missing=False)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )
     row = observations["rows"][0]
     verdict = _judge(observations)
@@ -2482,7 +3099,7 @@ def test_binary_mismatch_wal_stays_observable_and_judges_indeterminate(tmp_path)
         )
     _finish_campaign(layout, manifest, fill_missing=False)
 
-    observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
+    observations = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)
     row = observations["rows"][0]
     verdict = _judge(observations)
 
@@ -2516,7 +3133,7 @@ def test_receipt_mismatch_is_protocol_violation(tmp_path):
         _trial(layout, item, "committed")
     _finish_campaign(layout, manifest, fill_missing=False)
 
-    observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
+    observations = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)
     assert all(row["status"] == "protocol_violation" for row in observations["rows"])
     assert any("execution_receipt" in (row.get("reason") or "")
                for row in observations["rows"])
@@ -2565,7 +3182,7 @@ def test_build_observations_accepts_recorded_g1_under_g2_current(tmp_path):
 
 def test_build_observations_resolves_contract_once_across_two_campaigns(tmp_path):
     """manifest 単位の contract/calibration snapshot を2 campaign で共有する。"""
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     rows = manifest["schedule"]["rows"]
     for campaign_id, block_id, item in (
         ("oracle-b0", "b0", rows[0]),
@@ -2725,6 +3342,7 @@ def test_manifest_contract_sha256_mismatch_with_registry_is_protocol_violation(
 
 def test_required_receipt_consumer_derives_mode_and_passes_verified_calibration(tmp_path):
     manifest = _manifest(tmp_path)
+    _mark_official(tmp_path)
     base = env_contract.lookup("linux-baremetal")
     required = env_contract.ExecutionEnvironmentContract(
         env_tag=base.env_tag, clocks_per_us=base.clocks_per_us,
@@ -2809,7 +3427,7 @@ def test_valid_prepare_retry_uses_attempt_two_and_records_retried_summary(tmp_pa
     _trial(layout, item, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "completed"
     assert row["lifecycle_ok"] is True
@@ -2828,7 +3446,7 @@ def test_retry_absent_double_attempt_has_one_lifecycle_reason(tmp_path):
     _trial(layout, item, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(row, "attempt 1 retry record が一意でない: 0")
 
@@ -2843,7 +3461,7 @@ def test_duplicate_retry_has_one_lifecycle_reason(tmp_path):
     _trial(layout, item, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(row, "attempt 1 retry record が一意でない: 2")
 
@@ -2858,7 +3476,7 @@ def test_resultful_window_retry_is_unbound_for_one_reason(tmp_path):
     _trial_result(layout, item, 1)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "retry が正当な attempt lifecycle に束縛されない",
@@ -2873,7 +3491,7 @@ def test_retry_before_first_start_is_unbound_for_one_reason(tmp_path):
     _trial(layout, item, "committed")
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "retry が正当な attempt lifecycle に束縛されない",
@@ -2888,7 +3506,7 @@ def test_retry_after_terminal_result_is_row_scoped_tail_for_one_reason(tmp_path)
     _retry(layout, item)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "trial-result 後に row-scoped session event がある",
@@ -2904,7 +3522,7 @@ def test_attempt_gap_has_one_lifecycle_reason(tmp_path):
     _trial(layout, item, "committed", attempt=3)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row,
@@ -2922,7 +3540,7 @@ def test_attempt_physical_order_must_match_numeric_order(tmp_path):
     _retry(layout, item)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "attempt lifecycle の物理順が 1→2 でない: [2, 1]",
@@ -2936,7 +3554,7 @@ def test_single_attempt_99_is_not_aliased_to_schedule_default(tmp_path):
     _trial(layout, item, "committed", attempt=99)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row,
@@ -2956,7 +3574,7 @@ def test_retry_attempt_one_rejects_pipeline_record_for_one_reason(tmp_path):
     _trial(layout, item, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "attempt 1 retry window に pipeline record が混在",
@@ -2974,7 +3592,7 @@ def test_attempt_one_two_three_chain_has_one_lifecycle_reason(tmp_path):
     _trial(layout, item, "committed", attempt=3)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row,
@@ -2992,7 +3610,7 @@ def test_retry_successor_must_be_physically_adjacent(tmp_path):
     _trial(layout, first, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "attempt 2 が attempt 1 の物理的直後でない",
@@ -3011,7 +3629,7 @@ def test_retry_successor_identity_must_match_predecessor(tmp_path):
     _trial_result(layout, item, 2, configuration_id=mixed_configuration)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row,
@@ -3028,7 +3646,7 @@ def test_retry_payload_schedule_index_must_match_row(tmp_path):
     _trial(layout, first, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(row, "retry.schedule_index が schedule と不一致")
 
@@ -3042,7 +3660,7 @@ def test_retry_payload_next_attempt_must_be_exactly_two(tmp_path):
     _trial(layout, item, "committed", attempt=2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "retry.attempt が next attempt=2 と不一致",
@@ -3058,7 +3676,7 @@ def test_orphan_retry_for_schedule_outside_is_global_lifecycle_violation(tmp_pat
     _trial(layout, item, "committed")
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row,
@@ -3074,7 +3692,7 @@ def test_trial_result_before_first_start_is_not_silently_ignored(tmp_path):
     _trial(layout, item, "committed", attempt=1)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "trial-result が正当な attempt lifecycle に束縛されない",
@@ -3092,7 +3710,7 @@ def test_trial_result_attempt_must_match_owning_start(tmp_path):
     _trial_result(layout, item, 2)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "trial-result.attempt が trial-start と不一致",
@@ -3109,7 +3727,7 @@ def test_duplicate_trial_result_is_not_bijective(tmp_path):
     _trial_result(layout, item, 1)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(row, "trial-result が一意でない: 2")
 
@@ -3123,7 +3741,7 @@ def test_trial_result_must_follow_all_pipeline_evidence(tmp_path):
     _append_pipeline(layout)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "trial-result が全 pipeline evidence より物理的に後ろでない",
@@ -3140,7 +3758,7 @@ def test_row_scoped_session_event_after_trial_result_is_rejected(tmp_path):
     })
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     _assert_single_lifecycle_reason(
         row, "trial-result 後に row-scoped session event がある",
@@ -3155,7 +3773,7 @@ def test_global_issue_does_not_mask_definitive_correctness_red(tmp_path):
     _session(layout, "deviation", {"message": "fixture deviation"})
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["lifecycle_ok"] is True
@@ -3181,7 +3799,7 @@ def test_foreign_known_stage_is_inert_record_protocol_violation(tmp_path):
     _trial(layout, item, "committed")
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["bench_values"] == []
@@ -3199,7 +3817,7 @@ def test_global_issue_composes_row_local_assessment_reason(tmp_path):
     _session(layout, "deviation", {"message": "fixture deviation"})
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["lifecycle_ok"] is True
@@ -3221,7 +3839,7 @@ def test_global_orphan_retry_does_not_mask_other_definitive_red(tmp_path):
     _trial(layout, item, "legacy-red")
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["lifecycle_ok"] is False
@@ -3253,7 +3871,7 @@ def test_definitive_red_survives_later_committed_retry_as_protocol_violation(tmp
     )
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["lifecycle_ok"] is False
@@ -3302,7 +3920,7 @@ def test_bench_returncodes_are_strict_and_do_not_publish_tps(
     _trial(layout, item, "committed", rep_returncodes=rep_returncodes)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["lifecycle_ok"] is True
@@ -3322,7 +3940,7 @@ def test_trial_window_with_phantom_schedule_index_is_protocol_violation(
         _trial(layout, item, "committed")
     _finish_campaign(layout, manifest, fill_missing=False)
 
-    observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
+    observations = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)
 
     assert all(row["status"] == "protocol_violation"
                for row in observations["rows"])
@@ -3342,7 +3960,7 @@ def test_allowed_excluded_reason_row_stays_reported_and_judges_unknown(tmp_path)
             _trial(layout, item, "committed")
     _finish_campaign(layout, manifest, fill_missing=False)
 
-    observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
+    observations = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)
     row = observations["rows"][0]
     verdict = _judge(observations)
 
@@ -3364,7 +3982,7 @@ def test_excluded_reason_outside_allowed_list_is_protocol_violation(tmp_path):
     _trial(layout, item, "timeout", excluded_reason="power-outage")
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "許可一覧外" in row["reason"]
@@ -3377,7 +3995,7 @@ def test_correctness_red_with_excluded_reason_is_protocol_violation(tmp_path):
     _trial(layout, item, "legacy-red", excluded_reason="machine-fault")
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "correctness-red に excluded_reason" in row["reason"]
@@ -3424,7 +4042,7 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
     for item in manifest["schedule"]["rows"]:
         _trial(layout, item, "committed")
     _finish_campaign(layout, manifest, fill_missing=False)
-    observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
+    observations = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)
     assert _judge(observations)["status"] == "determinate"
     holdouts = {entry["holdout_id"] for entry in observations["expected_cells"]}
     removed = next(iter(holdouts))
@@ -3465,7 +4083,7 @@ def test_non_mapping_pipeline_payload_is_shared_wal_protocol_violation(
     _manual_trial(layout, item, outcome, pipeline)
     _finish_campaign(layout, manifest)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert all("WalLineError: WAL payload must be a JSON object" in row["reason"]
@@ -3508,7 +4126,7 @@ def test_non_mapping_payload_and_missing_terminal_are_both_reported(tmp_path):
     pipeline[0] = ("build_start", ["not-a-mapping"])
     _manual_trial(layout, item, "committed", pipeline)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert all("WalLineError: WAL payload must be a JSON object" in row["reason"]
@@ -3524,7 +4142,7 @@ def test_terminal_missing_makes_every_row_campaign_incomplete(tmp_path):
         "schedule_index": item["schedule_index"], "reason": "budget exhausted",
     })
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "campaign-incomplete" for row in rows)
     assert all(row["bench_values"] == [] for row in rows)
@@ -3543,7 +4161,7 @@ def test_aborted_terminal_status_alone_hides_fully_covered_completed_rows(tmp_pa
         scheduled_rows=len(schedule), completed_rows=len(schedule),
     )
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
     assert all(row["status"] == "campaign-incomplete" for row in rows)
     assert all(row["bench_values"] == [] for row in rows)
     assert all("status='aborted'" in row["reason"] for row in rows)
@@ -3561,7 +4179,7 @@ def test_terminal_scheduled_rows_mismatch_alone_hides_all_rows(tmp_path):
         scheduled_rows=len(schedule) + 1, completed_rows=len(schedule),
     )
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
     assert all(row["status"] == "campaign-incomplete" for row in rows)
     assert all(row["bench_values"] == [] for row in rows)
     assert all("scheduled_rows" in row["reason"] for row in rows)
@@ -3578,7 +4196,7 @@ def test_complete_invalid_raw_final_line_is_rejected(tmp_path):
             b'"env_tag":"fixture-env","ts":1}\n'
         )
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert len({row["reason"] for row in rows}) == 1
@@ -3599,7 +4217,7 @@ def test_session_non_object_payload_before_terminal_is_unconditional_violation(t
         )
     _finish_campaign(layout, manifest, fill_missing=False)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert len({row["reason"] for row in rows}) == 1
@@ -3618,7 +4236,7 @@ def test_invalid_line_after_terminal_cannot_hide_its_physical_position(tmp_path)
             b'"env_tag":"fixture-env","ts":1,"payload":{}}\n'
         )
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert all("WalDuplicateKeyError" in row["reason"] for row in rows)
@@ -3639,7 +4257,7 @@ def test_invalid_line_does_not_mask_definitive_correctness_red(tmp_path):
         )
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["outcome"] == "correctness-red"
@@ -3659,7 +4277,7 @@ def test_terminated_json_syntax_issue_does_not_mask_definitive_correctness_red(
         stream.write(b'{"variant":}\n')
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["outcome"] == "correctness-red"
@@ -3679,7 +4297,7 @@ def test_truncated_tail_does_not_mask_definitive_correctness_red(tmp_path):
     with open(layout.wal_file, "ab") as stream:
         stream.write(b'{"variant":"late","stage":"build_start"')
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert row["outcome"] == "correctness-red"
@@ -3698,7 +4316,7 @@ def test_blank_line_between_valid_records_is_unconditional_violation(tmp_path):
         stream.write("\n")
     _finish_campaign(layout, manifest, fill_missing=False)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert all("WalLineError: WAL line must not be empty" in row["reason"]
@@ -3716,7 +4334,7 @@ def test_truncated_raw_tail_after_completed_terminal_is_one_protocol_reason(tmp_
             b'"env_tag":"fixture-env","ts":1,"payload":{"event":"deviation"'
         )
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert {row["reason"] for row in rows} == {
@@ -3737,7 +4355,7 @@ def test_complete_json_without_newline_after_terminal_is_one_protocol_reason(tmp
     with open(layout.wal_file, "ab") as stream:
         stream.write(tail)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert {row["reason"] for row in rows} == {
@@ -3753,7 +4371,7 @@ def test_campaign_start_after_completed_terminal_is_one_position_reason(tmp_path
     _finish_campaign(layout, manifest)
     _campaign_start(layout, manifest)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert {row["reason"] for row in rows} == {
@@ -3769,7 +4387,7 @@ def test_aborted_terminal_with_later_record_keeps_position_and_status_reasons(tm
     _finish_campaign(layout, manifest, status="aborted")
     _campaign_start(layout, manifest)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert {row["reason"] for row in rows} == {
@@ -3787,7 +4405,7 @@ def test_trial_result_after_campaign_terminal_remains_rejected_regression_pin(tm
     _finish_campaign(layout, manifest)
     _trial_result(layout, item, attempt=1)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     assert all(row["status"] == "protocol_violation" for row in rows)
     assert all(row["bench_values"] == [] for row in rows)
@@ -3808,7 +4426,7 @@ def test_campaign_terminal_rejects_extra_top_level_key(tmp_path):
         "unexpected": "must-fail",
     })
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
     assert all(row["status"] == "campaign-incomplete" for row in rows)
     assert all(row["bench_values"] == [] for row in rows)
     assert all("top-level key" in row["reason"] for row in rows)
@@ -3834,7 +4452,7 @@ def test_terminal_all_or_nothing_rejects_every_row_and_hides_all_numbers(
     else:
         _finish_campaign(layout, manifest, fill_missing=False)
 
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
 
     if damage == "double":
         assert all(row["status"] == "protocol_violation" for row in rows)
@@ -3854,7 +4472,7 @@ def test_screen_marker_is_protocol_violation(tmp_path):
     _trial(layout, item, "committed", screen_marker=True)
     _finish_campaign(layout, manifest)
 
-    row = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    row = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
 
     assert row["status"] == "protocol_violation"
     assert "screen marker" in row["reason"]
@@ -3862,7 +4480,7 @@ def test_screen_marker_is_protocol_violation(tmp_path):
 
 def test_declared_campaign_without_schedule_row_is_structured_and_taints_all_real_rows(
         tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = manifest["schedule"]["rows"][:1]
     real_row = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
@@ -3892,7 +4510,7 @@ def test_declared_campaign_without_schedule_row_is_structured_and_taints_all_rea
 
 def test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse(
         tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = manifest["schedule"]["rows"][:1]
     manifest["campaign_ids"] = {
         "b0": "oracle-shared",
@@ -3924,7 +4542,7 @@ def test_mapping_ghost_is_detected_per_block_before_campaign_id_collapse(
 
 def test_string_list_campaign_declaration_detects_ghost_per_campaign_id(
         tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = manifest["schedule"]["rows"][:1]
     manifest["schedule"]["rows"][0]["campaign_id"] = "oracle-b0"
     manifest["campaign_ids"] = ["oracle-b0", "oracle-ghost"]
@@ -3948,7 +4566,7 @@ def test_string_list_campaign_declaration_detects_ghost_per_campaign_id(
 
 
 def test_single_string_campaign_declaration_is_rejected(tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = []
     manifest["campaign_ids"] = "oracle-ghost"
 
@@ -3961,7 +4579,7 @@ def test_single_string_campaign_declaration_is_rejected(tmp_path):
 
 
 def test_only_ghost_campaign_is_visible_without_synthetic_row(tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = []
     manifest["campaign_ids"] = {"ghost-block": "oracle-ghost"}
 
@@ -3983,7 +4601,7 @@ def test_only_ghost_campaign_is_visible_without_synthetic_row(tmp_path):
 
 
 def test_ghost_campaign_extends_existing_manifest_issues(tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = manifest["schedule"]["rows"][:1]
     manifest["run_contract"]["reps"] = 4
     real_row = manifest["schedule"]["rows"][0]
@@ -4008,7 +4626,7 @@ def test_ghost_campaign_extends_existing_manifest_issues(tmp_path):
 
 
 def test_ghost_campaign_does_not_mask_definitive_correctness_red(tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = manifest["schedule"]["rows"][:1]
     item = manifest["schedule"]["rows"][0]
     layout = _layout(tmp_path, manifest)
@@ -4030,7 +4648,7 @@ def test_ghost_campaign_does_not_mask_definitive_correctness_red(tmp_path):
 
 
 def test_ghost_issue_reaches_early_return_rows(tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     manifest["schedule"]["rows"] = manifest["schedule"]["rows"][:1]
     _layout(tmp_path, manifest)
 
@@ -4055,6 +4673,7 @@ def test_t080_sibling_metamorphic(tmp_path, monkeypatch):
     envelope = _t080_envelope()
     _mock_t080_resolution(monkeypatch, "active-valid", envelope)
     manifest = _schema_less_legacy(_manifest(tmp_path))
+    _mark_official(tmp_path)
     layout = campaign_layout("oracle-b0", output_root=str(tmp_path)).ensure()
     _campaign_start(layout, manifest, t080_observation=envelope)
     _finish_campaign(layout, manifest)
@@ -4092,7 +4711,7 @@ def test_t080_sibling_metamorphic(tmp_path, monkeypatch):
 
 def test_all_declared_campaigns_with_rows_keep_completed_result_and_no_manifest_issues(
         tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     rows = manifest["schedule"]["rows"]
     for campaign_id, block_id, item in (
         ("oracle-b0", "b0", rows[0]),
@@ -4125,11 +4744,11 @@ def test_only_manifest_campaign_is_read_and_missing_owned_campaign_is_reported(t
         tps=(9000.0, 9000.5, 9001.0, 9001.5, 9002.0),
     )
     _finish_campaign(external, manifest)
-    rows = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"]
+    rows = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"]
     assert rows[0]["bench_values"] == [7.0, 7.5, 8.0, 8.5, 9.0]
 
     shutil.rmtree(Path(owned.root))
-    missing = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)["rows"][0]
+    missing = report.build_observations(manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path)["rows"][0]
     assert missing["status"] == "campaign-incomplete"
     assert missing["reason"]
 
@@ -4151,7 +4770,7 @@ def test_pre_r_campaign_start_absent_or_null_is_allowed(tmp_path, t080_value):
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest),
+        manifest=_official_report_setup(tmp_path, manifest),
         output_root=tmp_path, repo_root=tmp_path / "repo",
     )
 
@@ -4185,7 +4804,7 @@ def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
     _finish_campaign(layout, manifest)
 
     baseline = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=repo_root,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path, repo_root=repo_root,
     )
     assert baseline["t080_freeze_migration_observation"] == envelope
     assert _judge(baseline)["status"] == "determinate"
@@ -4200,7 +4819,7 @@ def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
     Path(layout.wal_file).write_text("\n".join(rewritten) + "\n", encoding="utf-8")
 
     damaged = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=repo_root,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path, repo_root=repo_root,
     )
     assert roots == [repo_root, repo_root, repo_root]
     assert damaged["t080_freeze_migration_observation"] is None
@@ -4237,7 +4856,7 @@ def test_historical_receipt_derivation_failure_invalidates_all_campaign_rows_g2(
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest),
+        manifest=_official_report_setup(tmp_path, manifest),
         output_root=tmp_path, repo_root=tmp_path / "repo",
     )
 
@@ -4260,7 +4879,7 @@ def test_post_r_null_is_protocol_violation_for_every_campaign_row(
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
     )
 
     assert {row["status"] for row in observations["rows"]} == {"protocol_violation"}
@@ -4280,7 +4899,7 @@ def test_malformed_t080_envelope_is_fail_closed(tmp_path, monkeypatch):
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path, repo_root=tmp_path / "repo",
     )
 
     assert observations["t080_freeze_migration_observation"] is None
@@ -4297,7 +4916,7 @@ def test_campaign_canonical_envelope_mismatch_is_protocol_violation(
     first = _t080_envelope("a")
     second = _t080_envelope("b")
     _mock_t080_resolution(monkeypatch, "active-valid", first)
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     by_campaign = {
         "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], first),
         "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], second),
@@ -4331,7 +4950,7 @@ def test_matching_canonical_envelopes_are_copied_to_report_sibling(
     envelope = _t080_envelope()
     reordered = json.loads(json.dumps(envelope, sort_keys=True))
     _mock_t080_resolution(monkeypatch, "active-valid", envelope)
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     by_campaign = {
         "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], envelope),
         "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], reordered),
@@ -4356,7 +4975,7 @@ def test_matching_canonical_envelopes_are_copied_to_report_sibling(
 
 def test_pre_r_null_and_object_mixture_is_protocol_violation(tmp_path):
     never_issued = {"state": "never-issued", "validation_head": "0" * 40}
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     by_campaign = {
         "oracle-b0": ("b0", [manifest["schedule"]["rows"][0]], never_issued),
         "oracle-b1": ("b1", [manifest["schedule"]["rows"][1]], None),
@@ -4408,6 +5027,7 @@ def _degraded_campaign(
         tmp_path: Path, manifest: dict, campaign_id: str, block_id: str,
         rows: list[dict], *, observation: dict | None = None,
 ) -> None:
+    _mark_official(tmp_path)
     selected = _degraded_perf_observation() if observation is None else observation
     layout = campaign_layout(campaign_id, output_root=str(tmp_path)).ensure()
     sidecar = Path(layout.root) / "measurement-manifest.json"
@@ -4459,7 +5079,7 @@ def test_degraded_report_emits_bound_measurement_conditions(tmp_path):
 
 
 def test_measurement_conditions_cover_every_expected_campaign(tmp_path):
-    manifest = _two_campaign_manifest(tmp_path)
+    manifest = _two_campaign_report_setup(tmp_path)
     rows = manifest["schedule"]["rows"]
     _degraded_campaign(tmp_path, manifest, "oracle-b0", "b0", [rows[0]])
     perf_layout = campaign_layout("oracle-b1", output_root=str(tmp_path)).ensure()
@@ -4591,7 +5211,7 @@ def test_all_perf_report_preserves_exact_official_keys(tmp_path):
     manifest = _manifest(tmp_path)
     layout = _layout(tmp_path, manifest)
     _finish_campaign(layout, manifest)
-    verified = _verify_for_report(tmp_path, manifest)
+    verified = _official_report_setup(tmp_path, manifest)
     reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
 
     observations = report.build_observations(
@@ -4613,14 +5233,14 @@ def test_official_direct_api_without_reverified_freeze_is_non_certifying(tmp_pat
     _finish_campaign(layout, manifest)
 
     observations = report.build_observations(
-        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+        manifest=_official_report_setup(tmp_path, manifest), output_root=tmp_path,
     )
 
     assert "store_reverification" not in observations
 
 
 def test_store_reverification_rejects_empty_binary_authority(tmp_path):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    verified = _official_report_setup(tmp_path, _manifest(tmp_path))
     reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
     empty = dataclasses.replace(
         reverified, binaries_by_cell=MappingProxyType({}),
@@ -4635,7 +5255,7 @@ def test_store_reverification_rejects_empty_binary_authority(tmp_path):
 
 @pytest.mark.parametrize("coverage", ["missing", "extra"])
 def test_store_reverification_rejects_binary_cell_coverage(tmp_path, coverage):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    verified = _official_report_setup(tmp_path, _manifest(tmp_path))
     reverified, binaries = _reverified_store_fixture(verified, tmp_path)
     damaged = copy.deepcopy(binaries)
     if coverage == "missing":
@@ -4659,7 +5279,7 @@ def test_store_reverification_rejects_binary_cell_coverage(tmp_path, coverage):
 
 @pytest.mark.parametrize("path_kind", ["absolute", "parent", "control", "backslash"])
 def test_store_reverification_rejects_out_of_root_store_path(tmp_path, path_kind):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    verified = _official_report_setup(tmp_path, _manifest(tmp_path))
     reverified, binaries = _reverified_store_fixture(verified, tmp_path)
     damaged = copy.deepcopy(binaries)
     victim = damaged[next(iter(sorted(damaged)))]
@@ -4683,11 +5303,10 @@ def test_store_reverification_rejects_out_of_root_store_path(tmp_path, path_kind
 @pytest.mark.parametrize("symlink_kind", ["parent", "leaf"])
 def test_store_reverification_rejects_out_of_root_symlink(tmp_path, symlink_kind):
     output_root = tmp_path / "output"
-    output_root.mkdir()
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
-    reverified, binaries = _reverified_store_fixture(verified, output_root)
-    victim = binaries[next(iter(sorted(binaries)))]
-    victim_path = output_root / victim["store_path"]
+    store_path = "fixture-store/cell/binary"
+    victim_path = output_root / store_path
+    victim_path.parent.mkdir(parents=True)
+    victim_path.write_bytes(b"store symlink fixture\n")
     outside = tmp_path / "outside"
     outside.mkdir()
     if symlink_kind == "parent":
@@ -4703,9 +5322,8 @@ def test_store_reverification_rejects_out_of_root_symlink(tmp_path, symlink_kind
         victim_path.symlink_to(outside_binary)
 
     with pytest.raises(report.ReportError, match="store_path|symlink"):
-        report.build_observations(
-            manifest=verified, output_root=output_root,
-            reverified_freeze=reverified,
+        report._store_sha256_nofollow(
+            output_root=output_root, store_path=store_path,
         )
 
 
@@ -4771,7 +5389,7 @@ def test_store_reverification_leaf_nofollow_blocks_stat_open_race(tmp_path):
 
 def test_store_reverification_requires_exact_token_and_manifest_freeze_binding(
         tmp_path):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    verified = _official_report_setup(tmp_path, _manifest(tmp_path))
     reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
     with pytest.raises(report.ReportError, match="exact type"):
         report.build_observations(
@@ -4794,7 +5412,7 @@ def test_store_reverification_requires_exact_token_and_manifest_freeze_binding(
 
 def test_legacy_manifest_rejects_reverified_freeze(tmp_path):
     manifest = _manifest(tmp_path)
-    verified = _verify_for_report(tmp_path, manifest)
+    verified = _official_report_setup(tmp_path, manifest)
     reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
 
     with pytest.raises(report.ReportError, match="legacy manifest"):
@@ -4805,7 +5423,7 @@ def test_legacy_manifest_rejects_reverified_freeze(tmp_path):
 
 
 def test_store_reverification_expected_sha_comes_from_reverified_freeze(tmp_path):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
+    verified = _official_report_setup(tmp_path, _manifest(tmp_path))
     reverified, binaries = _reverified_store_fixture(verified, tmp_path)
     damaged = copy.deepcopy(binaries)
     victim_id = next(iter(sorted(damaged)))
@@ -4829,28 +5447,26 @@ def test_store_reverification_expected_sha_comes_from_reverified_freeze(tmp_path
 
 
 def test_store_reverification_requires_regular_leaf_fstat(tmp_path):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
-    reverified, _binaries = _reverified_store_fixture(verified, tmp_path)
+    output_root = tmp_path / "output"
+    store_path = "fixture-store/cell/binary"
+    leaf = output_root / store_path
+    leaf.parent.mkdir(parents=True)
+    leaf.write_bytes(b"regular leaf fixture\n")
 
     with mock.patch.object(report.os, "fstat", return_value=tmp_path.stat()):
         with pytest.raises(report.ReportError, match="regular file"):
-            report.build_observations(
-                manifest=verified, output_root=tmp_path,
-                reverified_freeze=reverified,
+            report._store_sha256_nofollow(
+                output_root=output_root, store_path=store_path,
             )
 
 
 def test_store_reverification_hashes_store_in_bounded_chunks(tmp_path):
-    verified = _verify_for_report(tmp_path, _manifest(tmp_path))
-    reverified, binaries = _reverified_store_fixture(verified, tmp_path)
-    damaged = copy.deepcopy(binaries)
-    victim_id = next(iter(sorted(damaged)))
+    output_root = tmp_path / "output"
+    store_path = "fixture-store/cell/binary"
     raw = b"x" * (1024 * 1024 + 1)
-    (tmp_path / damaged[victim_id]["store_path"]).write_bytes(raw)
-    damaged[victim_id]["binary_sha256"] = hashlib.sha256(raw).hexdigest()
-    reverified = dataclasses.replace(
-        reverified, binaries_by_cell=MappingProxyType(damaged),
-    )
+    leaf = output_root / store_path
+    leaf.parent.mkdir(parents=True)
+    leaf.write_bytes(raw)
     real_read = report.os.read
     requested_sizes = []
 
@@ -4859,15 +5475,14 @@ def test_store_reverification_hashes_store_in_bounded_chunks(tmp_path):
         return real_read(descriptor, size)
 
     with mock.patch.object(report.os, "read", side_effect=recording_read):
-        observations = report.build_observations(
-            manifest=verified, output_root=tmp_path,
-            reverified_freeze=reverified,
+        actual_sha256 = report._store_sha256_nofollow(
+            output_root=output_root, store_path=store_path,
         )
 
-    assert observations["store_reverification"]["state"] == "verified"
+    assert actual_sha256 == hashlib.sha256(raw).hexdigest()
     assert requested_sizes
     assert set(requested_sizes) == {1024 * 1024}
-    assert len(requested_sizes) > 2 * len(damaged)
+    assert len(requested_sizes) == 3
 
 
 def test_build_observations_production_caller_is_main_only():

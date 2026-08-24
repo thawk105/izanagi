@@ -46,7 +46,7 @@ from .build_admission import (GeneratorId, build_run_context,  # noqa: E402
                                       derive_build_admission)
 from .layout import env_scope_dir                    # noqa: E402
 from .model import Genome                                # noqa: E402
-from .p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
+from .p2_2 import (CLK, ENV_TAG as DEFAULT_ENV_TAG, EXTIME,  # noqa: E402
                            NUMA, RECORDS, THREADS, _assert_single_tenant)
 
 
@@ -68,23 +68,51 @@ POINTS = [
     ("read-heavy", {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0"}),
 ]
 
+PEGASUS_ENV_TAG = "pegasus"
+ENV_TAG_OVERRIDE = "IZANAGI_BETWEEN_RUN_ENV_TAG"
+
+
+def _selected_env_tag() -> str:
+    value = os.environ.get(ENV_TAG_OVERRIDE, DEFAULT_ENV_TAG)
+    if value not in {DEFAULT_ENV_TAG, PEGASUS_ENV_TAG}:
+        raise ValueError(
+            f"{ENV_TAG_OVERRIDE} must be {DEFAULT_ENV_TAG!r} or "
+            f"{PEGASUS_ENV_TAG!r}, got {value!r}"
+        )
+    return value
+
+
+def _measurement_profile(env_tag: str) -> tuple[int, list[str]]:
+    if env_tag == PEGASUS_ENV_TAG:
+        return 2100, []
+    return CLK, NUMA
+
 
 def _wl_tag(wl: dict) -> str:
     return (f"skew{str(wl['ycsb_zipf_skew']).replace('.', 'p')}"
             f"_rr{wl['ycsb_rratio']}_rmw{wl['ycsb_rmw']}")
 
 
-def measure_point_floor(binary: str, workload: dict, log=print) -> dict:
+def measure_point_floor(
+    binary: str,
+    workload: dict,
+    clocks_per_us: int = CLK,
+    numactl: list[str] = NUMA,
+    use_perf: bool = True,
+    log=print,
+) -> dict:
     """1 動作点で within-run と between-run の noise floor を測る。"""
     def measure_session():
-        pt = measure_point(binary, RECORDS, THREADS, CLK, extime=EXTIME,
-                           reps=SESSION_REPS, workload=workload, numactl=NUMA)
+        pt = measure_point(binary, RECORDS, THREADS, clocks_per_us, extime=EXTIME,
+                           reps=SESSION_REPS, workload=workload, numactl=numactl,
+                           use_perf=use_perf)
         return pt.throughput            # session 代表値 = reps の median
 
     # within-run floor (reps=10 の 1 セッション = その測定の品質)。
     log(f"  [within] {WITHIN_REPS} reps を 1 セッションで ...")
-    w_pt = measure_point(binary, RECORDS, THREADS, CLK, extime=EXTIME,
-                         reps=WITHIN_REPS, workload=workload, numactl=NUMA)
+    w_pt = measure_point(binary, RECORDS, THREADS, clocks_per_us, extime=EXTIME,
+                         reps=WITHIN_REPS, workload=workload, numactl=numactl,
+                         use_perf=use_perf)
     within = noise_floor(w_pt.throughputs)
     log(f"  [within] CV={'n/a' if within.cv is None else f'{within.cv*100:.2f}%'} "
         f"(median {'n/a' if within.median is None else f'{within.median:,.0f}'}, "
@@ -103,7 +131,7 @@ def measure_point_floor(binary: str, workload: dict, log=print) -> dict:
     return {
         "schema_version": BETWEEN_RUN_FLOOR_SCHEMA_VERSION,
         "workload": workload, "genome": BASELINE.canonical(),
-        "records": RECORDS, "threads": THREADS, "clocks_per_us": CLK,
+        "records": RECORDS, "threads": THREADS, "clocks_per_us": clocks_per_us,
         "abort_rate": w_pt.abort_rate, "run_cmd": w_pt.run_cmd,
         "within_run": {"reps": WITHIN_REPS, "cv": within.cv, "median": within.median,
                        "mean": within.mean, "stdev": within.stdev,
@@ -117,8 +145,14 @@ def measure_point_floor(binary: str, workload: dict, log=print) -> dict:
     }
 
 
-def _write_out(tag: str, workload: dict, res: dict, log=print) -> str:
-    out_dir = os.path.join(env_scope_dir(ENV_TAG), "calibration")
+def _write_out(
+    tag: str,
+    workload: dict,
+    res: dict,
+    env_tag: str = DEFAULT_ENV_TAG,
+    log=print,
+) -> str:
+    out_dir = os.path.join(env_scope_dir(env_tag), "calibration")
     os.makedirs(out_dir, exist_ok=True)
     stem = f"between_run_noise_t{THREADS}_{_wl_tag(workload)}"
     json_path = os.path.join(out_dir, stem + ".json")
@@ -132,7 +166,7 @@ def _write_out(tag: str, workload: dict, res: dict, log=print) -> str:
     wr_cv = "n/a" if wr["cv"] is None else f"{wr['cv']*100:.2f}%"
     wi_med = "n/a" if wi["median"] is None else f"{wi['median']:,.0f}"
     wr_med = "n/a" if wr["median"] is None else f"{wr['median']:,.0f}"
-    L = [f"# between-run noise floor — {ENV_TAG} / {tag} ({_wl_tag(workload)})", "",
+    L = [f"# between-run noise floor — {env_tag} / {tag} ({_wl_tag(workload)})", "",
          "> A2 (orchestrator/campaign/between_run_floor)。計測は trace-disabled build (規律1)・"
          "単一テナント直列 (規律4)。既存 calibration JSON は不可侵で本ファイルは別出力。", "",
          f"- genome (baseline): `{res['genome']}`",
@@ -166,22 +200,41 @@ def main(argv) -> int:
         print(f"usage: {argv[0]} [point]", file=sys.stderr)
         return 2
 
+    env_tag = _selected_env_tag()
+    clocks_per_us, numactl = _measurement_profile(env_tag)
+
     _assert_single_tenant()             # campaign 冒頭の単一テナント確認 (規律4)
     print("[build] baseline (B0-L-W0, perf=trace-disabled) ...")
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    evidence = source_digest.resolve_evidence(BASELINE, CCBENCH_COMMIT)
+    build_kwargs = {}
+    if env_tag == PEGASUS_ENV_TAG:
+        resolved_cc, resolved_cxx = buildcache.compilers_for_current_site()
+        evidence = source_digest.resolve_evidence(
+            BASELINE, CCBENCH_COMMIT, cxx=resolved_cxx,
+        )
+        build_kwargs.update(cc=resolved_cc, cxx=resolved_cxx)
+    else:
+        evidence = source_digest.resolve_evidence(BASELINE, CCBENCH_COMMIT)
     br = buildcache.build(
         BASELINE, ccbench_commit=CCBENCH_COMMIT, trace=False,
         admission=derive_build_admission(build_context, evidence),
         build_context=build_context, source_evidence=evidence,
+        **build_kwargs,
     )
     print(f"[build] {'cache hit' if br.cached else 'built'}: {br.binary}")
 
     results = []
     for tag, workload in pts:
         print(f"\n=== between-run floor  workload={tag}  ({workload}) ===")
-        res = measure_point_floor(br.binary, workload)
-        _write_out(tag, workload, res)
+        if env_tag == PEGASUS_ENV_TAG:
+            res = measure_point_floor(
+                br.binary, workload, clocks_per_us=clocks_per_us, numactl=numactl,
+                use_perf=False,
+            )
+            _write_out(tag, workload, res, env_tag=env_tag)
+        else:
+            res = measure_point_floor(br.binary, workload)
+            _write_out(tag, workload, res)
         results.append((tag, res))
 
     print("\n=== between-run noise floor サマリ ===")

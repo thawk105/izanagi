@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest import mock
@@ -58,6 +59,7 @@ class _Scheduler:
         stderr_prefix=b"",
         stage="child",
         log_style="script",
+        post_qstat_states=("EXT",),
     ):
         self.states = list(states)
         self.child_rc = child_rc
@@ -75,9 +77,12 @@ class _Scheduler:
         self.stderr_prefix = stderr_prefix
         self.stage = stage
         self.log_style = log_style
+        self.post_qstat_states = list(post_qstat_states)
         self.commands = []
         self.qstat_index = 0
+        self.post_qstat_index = 0
         self.qstat_calls = 0
+        self.after_qdel = False
 
     @staticmethod
     def _completed(command, rc=0, stdout="", stderr=""):
@@ -167,11 +172,13 @@ class _Scheduler:
                     command,
                     stdout="Batch Request does not exist on nqsv.\n",
                 )
-            state = (
-                self.states[self.qstat_index]
-                if self.qstat_index < len(self.states) else "DONE"
-            )
-            self.qstat_index += 1
+            states = self.post_qstat_states if self.after_qdel else self.states
+            index = self.post_qstat_index if self.after_qdel else self.qstat_index
+            state = states[index] if index < len(states) else "DONE"
+            if self.after_qdel:
+                self.post_qstat_index += 1
+            else:
+                self.qstat_index += 1
             if state == "DONE":
                 self._finish(cwd)
                 return self._completed(
@@ -192,6 +199,7 @@ class _Scheduler:
                 stdout=f"Request ID = {_JOB_ID}\nRequest State = {state}\n",
             )
         if command[0] == "qdel":
+            self.after_qdel = True
             if self.qdel_exception is not None:
                 raise self.qdel_exception
             return self._completed(command, rc=self.qdel_returncode)
@@ -209,6 +217,7 @@ def _dispatch(
     **kwargs,
 ):
     clock = _Clock()
+    run_command = kwargs.pop("run_command", scheduler)
     rc = DC.dispatch(
         ["orchestrator/tests/test_sample.py", "-q"],
         repo_root=_REPO,
@@ -219,7 +228,7 @@ def _dispatch(
             "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
             "PYTEST_ADDOPTS": "-q",
         },
-        run_command=scheduler,
+        run_command=run_command,
         clock=clock,
         sleep=clock.sleep,
         poll_interval_s=poll_interval_s,
@@ -1143,13 +1152,20 @@ def test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots(
     tmp_path, state, normalized,
 ):
     commands = []
+    qdel_seen = False
 
     def runner(command, **_kwargs):
+        nonlocal qdel_seen
         command = list(command)
         commands.append(command)
+        if command[0] == "qdel":
+            qdel_seen = True
+            return subprocess.CompletedProcess(command, 0, "", "")
         if command[0] == "qstat":
+            if qdel_seen:
+                return _gate_qstat_result(state="EXT")
             return _gate_qstat_result(state=state)
-        return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(f"unexpected command: {command}")
 
     qdel = DC._fresh_qstat_gated_qdel(
         runner,
@@ -1162,6 +1178,7 @@ def test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots(
     assert commands == [
         ["qstat", "-f", "424242.nqsv"],
         ["qdel", "424242.nqsv"],
+        ["qstat", "-f", "424242.nqsv"],
     ]
     assert qdel["attempted"] is True
     assert qdel["cleanup_policy"] == "fresh-qstat-gate/v1"
@@ -1172,6 +1189,7 @@ def test_fresh_qstat_gate_accepts_que_hld_and_stg_snapshots(
     assert qdel["stdout"] == ""
     assert qdel["stderr"] == ""
     assert qdel["job_may_remain"] is False
+    assert qdel["post_qstat"]["scheduler_state"] == "END"
 
 
 @pytest.mark.parametrize(
@@ -1182,14 +1200,21 @@ def test_fresh_qstat_gate_accepts_current_state_only_snapshots(
     tmp_path, current_state, normalized,
 ):
     commands = []
+    qdel_seen = False
     stdout = f"Request ID = {_JOB_ID}\nCurrent State = {current_state}\n"
 
     def runner(command, **_kwargs):
+        nonlocal qdel_seen
         command = list(command)
         commands.append(command)
+        if command[0] == "qdel":
+            qdel_seen = True
+            return subprocess.CompletedProcess(command, 0, "", "")
         if command[0] == "qstat":
+            if qdel_seen:
+                return _gate_qstat_result(state="EXT")
             return _gate_qstat_result(stdout=stdout)
-        return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(f"unexpected command: {command}")
 
     qdel = DC._fresh_qstat_gated_qdel(
         runner, request_id=_JOB_ID, cwd=tmp_path, environ={},
@@ -1198,9 +1223,11 @@ def test_fresh_qstat_gate_accepts_current_state_only_snapshots(
     assert commands == [
         ["qstat", "-f", "424242.nqsv"],
         ["qdel", "424242.nqsv"],
+        ["qstat", "-f", "424242.nqsv"],
     ]
     assert qdel["attempted"] is True
     assert qdel["gate"]["scheduler_state"] == normalized
+    assert qdel["job_may_remain"] is False
 
 
 @pytest.mark.parametrize(
@@ -1251,6 +1278,80 @@ def test_fresh_qstat_gate_skips_explicit_end_snapshot(tmp_path):
     assert qdel["attempted"] is False
     assert qdel["gate"]["scheduler_state"] == "END"
     assert qdel["gate"]["reason"] == "state-not-cancellable"
+    assert qdel["gate"]["terminal_evidence"] == (
+        "target-bound-end-before-qdel"
+    )
+    assert qdel["job_may_remain"] is False
+
+
+def test_fresh_target_bound_end_is_terminal_with_terminal_history(tmp_path):
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return _gate_qstat_result(state="EXT")
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        terminal_history_end=True,
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["scheduler_state"] == "END"
+    assert qdel["gate"]["reason"] == "state-not-cancellable"
+    assert qdel["gate"]["terminal_evidence"] == (
+        "target-bound-end-before-qdel"
+    )
+    assert qdel["job_may_remain"] is False
+
+
+@pytest.mark.parametrize(
+    ("stdout", "expected_reason"),
+    [
+        (
+            "Request ID = 999999.nqsv\nRequest State = EXT\n",
+            "target-binding-ambiguous",
+        ),
+        ("Request State = EXT\n", "target-binding-ambiguous"),
+        (
+            f"Request ID = {_JOB_ID}\nRequest State = EXT\n"
+            "Request ID = 999999.nqsv\nRequest State = EXT\n",
+            "target-state-unknown",
+        ),
+        (
+            f"Request ID = {_JOB_ID}\n"
+            "Request State = EXT\nCurrent State = Running\n",
+            "target-state-unknown",
+        ),
+    ],
+    ids=["wrong-id", "no-id", "multiple-ids", "state-conflict"],
+)
+def test_fresh_end_requires_unique_target_binding(
+    tmp_path, stdout, expected_reason,
+):
+    commands = []
+
+    def runner(command, **_kwargs):
+        commands.append(list(command))
+        return _gate_qstat_result(stdout=stdout)
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        terminal_history_end=True,
+    )
+
+    assert commands == [["qstat", "-f", "424242.nqsv"]]
+    assert qdel["attempted"] is False
+    assert qdel["gate"]["reason"] == expected_reason
+    assert qdel["job_may_remain"] is True
+    assert "terminal_evidence" not in qdel["gate"]
 
 
 @pytest.mark.parametrize(
@@ -1385,13 +1486,19 @@ def test_fresh_qstat_gate_retries_only_bounded_transient_errors(
     )
     commands = []
     qstat_calls = 0
+    qdel_seen = False
 
     def runner(command, **_kwargs):
-        nonlocal qstat_calls
+        nonlocal qstat_calls, qdel_seen
         command = list(command)
         commands.append(command)
+        if command[0] == "qdel":
+            qdel_seen = True
+            return subprocess.CompletedProcess(command, 0, "", "")
         if command[0] == "qstat":
             qstat_calls += 1
+            if qdel_seen:
+                return _gate_qstat_result(state="EXT")
             if qstat_calls <= failures:
                 return _gate_qstat_result(
                     rc=153, stderr="connection temporarily unavailable",
@@ -1408,11 +1515,13 @@ def test_fresh_qstat_gate_retries_only_bounded_transient_errors(
         retry_interval_s=0,
     )
 
-    expected_qstat_calls = failures + 1 if allowed else 3
-    assert qstat_calls == expected_qstat_calls
-    assert len(qdel["gate"]["qstat_attempts"]) == expected_qstat_calls
+    expected_gate_calls = failures + 1 if allowed else 3
+    assert qstat_calls == expected_gate_calls + int(allowed)
+    assert len(qdel["gate"]["qstat_attempts"]) == expected_gate_calls
     assert qdel["attempted"] is allowed
     assert sum(command[0] == "qdel" for command in commands) == int(allowed)
+    if allowed:
+        assert qdel["post_qstat"]["scheduler_state"] == "END"
     if not allowed:
         assert qdel["gate"]["reason"] == "qstat-transient-retries-exhausted"
 
@@ -1595,8 +1704,153 @@ def test_fresh_qstat_gate_only_guards_snapshot_not_qdel_time_que_can_run(
     assert qdel["attempted"] is True
     assert qdel["gate"]["scheduler_state"] == "QUE"
     assert scheduler_state == "RUN"
-    assert commands[-1] == ["qdel", "424242.nqsv"]
-    assert sum(command[0] == "qstat" for command in commands) == 1
+    assert [command for command in commands if command[0] == "qdel"] == [
+        ["qdel", "424242.nqsv"],
+    ]
+    assert sum(command[0] == "qstat" for command in commands) == 4
+    assert qdel["job_may_remain"] is True
+    assert qdel["post_qstat_reason"] == "post-qstat-nonterminal"
+    assert qdel["post_qstat_hard_cap_exhausted"] is True
+
+
+@pytest.mark.parametrize(
+    (
+        "post_states",
+        "advance_after_qdel",
+        "expected_remaining",
+        "expected_attempts",
+        "expected_reason",
+    ),
+    [
+        (("RUN", "EXT"), 0, False, 2, "target-end-after-qdel"),
+        (("ABSENT", "ABSENT", "ABSENT"), 0, True, 3,
+         "post-qstat-request-absent-unconfirmed"),
+        (("RUN", "RUN", "RUN"), 0, True, 3,
+         "post-qstat-nonterminal"),
+        (("RUN",), 5, True, 0, "post-qstat-budget-exhausted"),
+    ],
+    ids=[
+        "terminal-end-confirmed",
+        "request-absent-is-not-terminal",
+        "constant-clock-hard-cap",
+        "budget-exhausted-before-post-qstat",
+    ],
+)
+def test_qdel_rc0_requires_post_qstat_terminal_confirmation(
+    tmp_path,
+    post_states,
+    advance_after_qdel,
+    expected_remaining,
+    expected_attempts,
+    expected_reason,
+):
+    clock = _Clock()
+    commands = []
+    qdel_seen = False
+
+    def runner(command, **_kwargs):
+        nonlocal qdel_seen
+        command = list(command)
+        commands.append(command)
+        if command[0] == "qdel":
+            qdel_seen = True
+            clock.now += advance_after_qdel
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if command[0] == "qstat":
+            if qdel_seen:
+                index = sum(item[0] == "qstat" for item in commands) - 2
+                state = (
+                    post_states[index]
+                    if index < len(post_states) else post_states[-1]
+                )
+                if state == "ABSENT":
+                    return _gate_qstat_result(stdout="")
+                return _gate_qstat_result(state=state)
+            return _gate_qstat_result(state="QUE")
+        raise AssertionError(command)
+
+    qdel = DC._fresh_qstat_gated_qdel(
+        runner,
+        request_id=_JOB_ID,
+        cwd=tmp_path,
+        environ={},
+        qstat_attempts=3,
+        cleanup_budget_s=5,
+        retry_interval_s=0,
+        clock=clock,
+        sleep=lambda _seconds: None,
+    )
+
+    assert [command[0] for command in commands].count("qdel") == 1
+    assert qdel["job_may_remain"] is expected_remaining
+    assert len(qdel["post_qstat_attempts"]) == expected_attempts
+    assert qdel["post_qstat_reason"] == expected_reason
+    assert qdel.get("post_qstat_hard_cap_exhausted", False) is (
+        expected_attempts == 3
+    )
+
+
+def test_qdel_rc0_post_qstat_exception_keeps_hold(tmp_path):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    DC._confirm_dispatch_intent(
+        registry,
+        shard_index=0,
+        request_id=_JOB_ID,
+    )
+    DC._arm_pending_orphan_hold(
+        control,
+        submission_dir=submission,
+        job_name="izdw-fixture-no",
+    )
+    qdel_returned = False
+
+    def runner(command, **_kwargs):
+        nonlocal qdel_returned
+        command = list(command)
+        if command[0] == "qdel":
+            qdel_returned = True
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if command[:2] == ["qstat", "-f"]:
+            if qdel_returned:
+                raise OSError("injected post-qstat command failure")
+            return _gate_qstat_result(state="QUE")
+        raise AssertionError(command)
+
+    clock = _Clock()
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=runner,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert len(outcomes) == 1
+    qdel = outcomes[0]["qdel"]
+    assert qdel["returncode"] == 0
+    assert qdel["post_qstat_reason"] == "post-qstat-exception"
+    assert qdel["job_may_remain"] is True
+    assert qdel["post_qstat"]["exception"].endswith(
+        "injected post-qstat command failure"
+    )
+    assert not (registry / "shard-0.handled.json").exists()
+    assert DC._orphan_hold_present(control)
+    assert (control / DC._ORPHAN_HOLD_DIR_NAME / "424242.nqsv.json").is_file()
 
 
 def test_qdel_result_is_not_overwritten_by_post_qdel_gate_clock_exception(
@@ -1714,6 +1968,7 @@ def test_cleanup_signal_after_qdel_is_once_only_and_preserves_first_result(
     assert receipt["qdel"]["stderr"] == ""
     assert receipt["qdel"]["job_may_remain"] is False
     assert len(receipt["qdel"]["gate"]["qstat_attempts"]) == 1
+    assert receipt["qdel"]["post_qstat"]["scheduler_state"] == "END"
 
 
 def test_cleanup_claim_latch_survives_post_qdel_capture_exception(
@@ -1757,8 +2012,9 @@ def test_cleanup_claim_latch_survives_post_qdel_capture_exception(
     assert receipt["qdel"]["returncode"] == 0
     assert receipt["qdel"]["stdout"] == ""
     assert receipt["qdel"]["stderr"] == ""
-    assert receipt["qdel"]["job_may_remain"] is False
+    assert receipt["qdel"]["job_may_remain"] is True
     assert len(receipt["qdel"]["gate"]["qstat_attempts"]) == 1
+    assert (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).is_file()
 
 
 def _best_effort_qdel_references(source: str, filename: str):
@@ -2200,7 +2456,7 @@ def test_immediate_qstat_failures_exhaust_to_infra_without_latching(tmp_path):
     receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["outcome"]["kind"] == "infra"
     assert "immediate-qstat-unavailable-after-retries" in receipt["outcome"]["reason"]
-    assert scheduler.qstat_calls == 4
+    assert scheduler.qstat_calls == 5
     assert [command for command, _ in scheduler.commands if command[0] == "qdel"] == [
         ["qdel", "424242.nqsv"],
     ]
@@ -2276,8 +2532,11 @@ def test_accounting_grace_failure_is_invocation_only_and_does_not_latch(
     assert scheduler.qstat_calls == 4
     assert receipt["qdel"]["gate"]["scheduler_state"] == "END"
     assert receipt["qdel"]["gate"]["reason"] == "state-not-cancellable"
-    assert receipt["qdel"]["job_may_remain"] is True
-    assert (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).is_file()
+    assert receipt["qdel"]["gate"]["terminal_evidence"] == (
+        "target-bound-end-before-qdel"
+    )
+    assert receipt["qdel"]["job_may_remain"] is False
+    assert not DC._orphan_hold_present(tmp_path / "dispatch")
 
 
 def test_accounting_grace_failure_after_visible_request_absence_does_not_latch(
@@ -2452,7 +2711,7 @@ def test_hld_queue_timeout_qdels_and_receipts(tmp_path, capsys):
         "HLD", "HLD", "HLD",
     ]
     assert "queue-wait-timeout" in receipt["outcome"]["reason"]
-    assert scheduler.qstat_calls == 4
+    assert scheduler.qstat_calls == 5
     assert receipt["qdel"]["cleanup_policy"] == "fresh-qstat-gate/v1"
     assert receipt["qdel"]["gate"]["scheduler_state"] == "HLD"
     assert receipt["qdel"]["gate"]["allowed"] is True
@@ -2589,7 +2848,7 @@ def test_qsub_parse_failure_discovers_request_and_attempts_qdel(tmp_path):
         "request-name+submission-dir"
     )
     assert receipt["qdel"]["attempted"] is True
-    assert scheduler.qstat_calls == 1
+    assert scheduler.qstat_calls == 2
     assert receipt["qdel"]["gate"]["scheduler_state"] == "QUE"
 
 
@@ -2692,7 +2951,7 @@ def test_qsub_success_signal_during_receipt_capture_discovers_and_qdels(
     )
     assert receipt["qdel"]["attempted"] is True
     assert receipt["outcome"]["reason"] == f"_SignalAbort: signal {signum}"
-    assert scheduler.qstat_calls == 1
+    assert scheduler.qstat_calls == 2
     assert receipt["qdel"]["gate"]["scheduler_state"] == "QUE"
 
 
@@ -2819,6 +3078,47 @@ def test_orphan_hold_record_is_create_only(tmp_path):
 
     assert second == hold
     assert hold.read_bytes() == original
+    request_holds = sorted((root / DC._ORPHAN_HOLD_DIR_NAME).glob("*.json"))
+    assert [path.name for path in request_holds] == [
+        "424242.nqsv.json", "999.nqsv.json",
+    ]
+
+
+def test_releasing_aggregate_owner_promotes_next_request_ledger(tmp_path):
+    root = tmp_path / "dispatch"
+    root.mkdir()
+    first_submission = root / "first"
+    second_submission = root / "second"
+    for submission, request_id, job_name in (
+        (first_submission, _JOB_ID, "izdw-first"),
+        (second_submission, "999.nqsv", "izdw-second"),
+    ):
+        DC._latch_orphan_hold(
+            root,
+            qdel={
+                "attempted": False,
+                "job_may_remain": True,
+                "gate": {"reason": "fixture"},
+            },
+            submission_dir=submission,
+            request_id=request_id,
+            job_name=job_name,
+        )
+
+    DC._release_pending_orphan_hold(
+        root,
+        submission_dir=first_submission,
+        request_id=_JOB_ID,
+        job_name="izdw-first",
+        expect_phase=None,
+    )
+
+    aggregate = json.loads(
+        (root / DC._ORPHAN_HOLD_NAME).read_text(encoding="utf-8")
+    )
+    assert aggregate["request_id"] == "999.nqsv"
+    request_holds = sorted((root / DC._ORPHAN_HOLD_DIR_NAME).glob("*.json"))
+    assert [path.name for path in request_holds] == ["999.nqsv.json"]
 
 
 def test_orphan_hold_write_error_is_recorded_and_not_reported_as_success(
@@ -2835,19 +3135,423 @@ def test_orphan_hold_write_error_is_recorded_and_not_reported_as_success(
     def fail_write(path, payload, **kwargs):
         raise OSError("injected hold write failure")
 
-    monkeypatch.setattr(DC, "_write_json_x", fail_write)
-    result = DC._latch_orphan_hold(
-        root,
-        qdel=qdel,
-        submission_dir=root / "nonce",
-        request_id=_JOB_ID,
-        job_name="izdw-test",
-    )
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", fail_write)
+    with pytest.raises(DC._OrphanHoldError) as raised:
+        DC._latch_orphan_hold(
+            root,
+            qdel=qdel,
+            submission_dir=root / "nonce",
+            request_id=_JOB_ID,
+            job_name="izdw-test",
+        )
 
-    assert result is None
+    assert raised.value.reason == "orphan-hold-write-failed"
+    assert isinstance(raised.value.__cause__, OSError)
     assert "injected hold write failure" in qdel["hold_error"]
     assert not (root / DC._ORPHAN_HOLD_NAME).exists()
     assert "保存できませんでした" in capsys.readouterr().err
+
+
+def test_pending_orphan_hold_survives_external_sigkill(tmp_path):
+    root = tmp_path / "dispatch"
+    marker = tmp_path / "pending-ready"
+    child_source = "\n".join((
+        "import json, os, sys, time",
+        "from pathlib import Path",
+        "from subprocess import CompletedProcess",
+        "from tools.pegasus import dispatch_compute as DC",
+        "root = Path(sys.argv[1])",
+        "marker = Path(sys.argv[2])",
+        "repo = Path(sys.argv[3])",
+        "class Runner:",
+        "    def __call__(self, command, **kwargs):",
+        "        command = list(command)",
+        "        if command == ['qstat', '-Q']:",
+        "            return CompletedProcess(command, 0, 'gen_S enabled\\n', '')",
+        "        if command[0] == 'qsub':",
+        "            return CompletedProcess(command, 0, 'Request 424242.nqsv submitted\\n', '')",
+        "        if command[:2] == ['qstat', '-f']:",
+        "            with marker.open('w', encoding='utf-8') as handle:",
+        "                handle.write('ready\\n')",
+        "                handle.flush()",
+        "                os.fsync(handle.fileno())",
+        "            time.sleep(60)",
+        "            return CompletedProcess(command, 0, 'Request ID = 0:424242.nqsv\\nRequest State = QUE\\n', '')",
+        "        raise AssertionError(command)",
+        "DC.dispatch([], repo_root=repo, output_root=root, run_command=Runner(), nonce='sigkill')",
+    ))
+    process = subprocess.Popen(
+        [sys.executable, "-c", child_source, str(root), str(marker), str(_REPO)],
+        cwd=str(_REPO),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert marker.is_file()
+        aggregate = root / DC._ORPHAN_HOLD_NAME
+        assert json.loads(aggregate.read_text(encoding="utf-8"))["phase"] == (
+            "pending-qsub"
+        )
+        request_holds = list((root / DC._ORPHAN_HOLD_DIR_NAME).glob("*.json"))
+        assert len(request_holds) == 1
+        os.kill(process.pid, signal.SIGKILL)
+        assert process.wait(timeout=5) == -signal.SIGKILL
+        assert aggregate.is_file()
+        assert request_holds[0].is_file()
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+
+
+@pytest.mark.parametrize(
+    "failure_site,expected_hold",
+    [("aggregate", False), ("request-ledger", True)],
+)
+def test_orphan_hold_write_failure_before_qsub_is_fail_closed(
+    tmp_path, monkeypatch, failure_site, expected_hold,
+):
+    scheduler = _Scheduler()
+    real_atomic = DC._write_json_atomic_replace
+
+    def fail_pending(path, payload, **kwargs):
+        selected = (
+            Path(path).name == DC._ORPHAN_HOLD_NAME
+            if failure_site == "aggregate"
+            else Path(path).parent.name == DC._ORPHAN_HOLD_DIR_NAME
+        )
+        if payload.get("phase") == "pending-qsub" and selected:
+            raise OSError("injected pending hold write failure")
+        return real_atomic(path, payload, **kwargs)
+
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", fail_pending)
+    rc, submission = _dispatch(tmp_path, scheduler)
+
+    assert rc == DC.INFRA_RC
+    assert [command[0] for command, _ in scheduler.commands] == ["qstat"]
+    assert not any(command[0] == "qsub" for command, _ in scheduler.commands)
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "infra",
+        "reason": "orphan-hold-write-failed",
+        "rc": DC.INFRA_RC,
+    }
+    assert receipt["orphan_hold_error"]["reason"] == (
+        "orphan-hold-write-failed"
+    )
+    assert DC._orphan_hold_present(tmp_path / "dispatch") is expected_hold
+
+
+def test_cleanup_finally_hold_write_failure_does_not_hide_primary_error(
+    tmp_path, monkeypatch,
+):
+    scheduler = _Scheduler(states=("HLD", "HLD", "HLD", "HLD"))
+
+    def fail_cleanup(*args, **kwargs):
+        kwargs["record"]["gate"] = {"reason": "injected-primary"}
+        raise RuntimeError("injected primary cleanup error")
+
+    real_atomic = DC._write_json_atomic_replace
+
+    def fail_promotion(path, payload, **kwargs):
+        if Path(path).name == DC._ORPHAN_HOLD_NAME and not kwargs.get(
+            "create_only", False
+        ):
+            raise OSError("injected promotion write failure")
+        return real_atomic(path, payload, **kwargs)
+
+    monkeypatch.setattr(DC, "_fresh_qstat_gated_qdel", fail_cleanup)
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", fail_promotion)
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        queue_wait_timeout_s=10,
+        nonce="finally-primary",
+    )
+
+    assert rc == DC.INFRA_RC
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "infra",
+        "reason": "RuntimeError: injected primary cleanup error",
+        "rc": DC.INFRA_RC,
+    }
+    assert receipt["orphan_hold_error"]["reason"] == (
+        "orphan-hold-promote-failed"
+    )
+    assert isinstance(receipt["qdel"].get("hold_error"), str)
+    assert (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).is_file()
+
+
+def test_qsub_result_unobserved_hold_write_failure_is_recorded(
+    tmp_path, monkeypatch,
+):
+    scheduler = _Scheduler()
+
+    def interrupted_qsub(command, **kwargs):
+        if list(command)[0] == "qsub":
+            scheduler.commands.append((list(command), kwargs))
+            raise DC._SignalAbort(signal.SIGTERM)
+        return scheduler(command, **kwargs)
+
+    real_atomic = DC._write_json_atomic_replace
+
+    def fail_promotion(path, payload, **kwargs):
+        if Path(path).name == DC._ORPHAN_HOLD_NAME and not kwargs.get(
+            "create_only", False
+        ):
+            raise OSError("injected unknown-result promotion failure")
+        return real_atomic(path, payload, **kwargs)
+
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", fail_promotion)
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        run_command=interrupted_qsub,
+        nonce="unknown-hold-write-failure",
+    )
+
+    assert rc == DC.INFRA_RC
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"]["reason"] == (
+        f"_SignalAbort: signal {signal.SIGTERM}"
+    )
+    assert receipt["orphan_hold_error"]["reason"] == (
+        "orphan-hold-promote-failed"
+    )
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert DC._orphan_hold_present(tmp_path / "dispatch")
+
+
+def test_pending_hold_release_failure_rewrites_receipt_and_keeps_pending_marker(
+    tmp_path, monkeypatch,
+):
+    scheduler = _Scheduler()
+    atomic_calls = []
+    real_atomic = DC._write_json_atomic_replace
+    real_unlink = DC.Path.unlink
+
+    def record_atomic(path, payload, **kwargs):
+        atomic_calls.append((Path(path), kwargs.get("create_only", False)))
+        return real_atomic(path, payload, **kwargs)
+
+    def fail_pending_unlink(path, *args, **kwargs):
+        if Path(path).name == DC._ORPHAN_HOLD_NAME:
+            assert (
+                tmp_path / "dispatch" / "release-failure" / "receipt.json"
+            ).is_file()
+            raise OSError("injected pending hold release failure")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", record_atomic)
+    monkeypatch.setattr(DC.Path, "unlink", fail_pending_unlink)
+    rc, submission = _dispatch(tmp_path, scheduler, nonce="release-failure")
+
+    assert rc == DC.INFRA_RC
+    receipt_path = submission / "receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "infra",
+        "reason": "orphan-hold-release-failed",
+        "rc": DC.INFRA_RC,
+    }
+    assert receipt["orphan_hold_error"]["reason"] == (
+        "orphan-hold-release-failed"
+    )
+    assert any(
+        path == receipt_path and not create_only
+        for path, create_only in atomic_calls
+    )
+    assert (tmp_path / "dispatch" / DC._ORPHAN_HOLD_NAME).is_file()
+
+
+def test_promote_pending_orphan_hold_rejects_ownership_mismatch_without_mutation(
+    tmp_path,
+):
+    root = tmp_path / "dispatch"
+    owner_submission = root / "owner"
+    owner_submission.mkdir(parents=True)
+    pending = DC._arm_pending_orphan_hold(
+        root,
+        submission_dir=owner_submission,
+        job_name="izdw-owner",
+    )
+    payload = json.loads(pending.read_text(encoding="utf-8"))
+    payload["job_name"] = "izdw-intruder"
+    pending.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    original = pending.read_bytes()
+
+    with pytest.raises(DC._OrphanHoldError) as raised:
+        DC._promote_pending_orphan_hold(
+            root,
+            qdel={
+                "attempted": True,
+                "job_may_remain": True,
+                "returncode": 153,
+                "gate": {"reason": "ownership-test"},
+            },
+            submission_dir=owner_submission,
+            request_id=_JOB_ID,
+            job_name="izdw-owner",
+        )
+
+    assert raised.value.reason == "orphan-hold-promote-failed"
+    assert raised.value.operation == "promote"
+    assert "ownership mismatch" in raised.value.detail
+    assert pending.read_bytes() == original
+    assert not (root / DC._ORPHAN_HOLD_DIR_NAME / "424242.nqsv.json").exists()
+
+
+def test_pending_hold_survives_deferred_signal_and_hold_write_failure(
+    monkeypatch, tmp_path,
+):
+    scheduler = _Scheduler(
+        states=("HLD", "HLD", "HLD", "HLD"),
+        qdel_returncode=153,
+    )
+    injected = False
+    real_run = DC._run
+
+    def inject_signal_after_qdel(run_command, command, **kwargs):
+        nonlocal injected
+        result = real_run(run_command, command, **kwargs)
+        if list(command)[0] == "qdel" and not injected:
+            injected = True
+            handler = signal.getsignal(signal.SIGTERM)
+            assert callable(handler)
+            handler(signal.SIGTERM, None)
+        return result
+
+    real_atomic = DC._write_json_atomic_replace
+
+    def fail_promotion(path, payload, **kwargs):
+        if Path(path).name == DC._ORPHAN_HOLD_NAME and not kwargs.get(
+            "create_only", False
+        ):
+            raise OSError("injected deferred-signal promotion failure")
+        return real_atomic(path, payload, **kwargs)
+
+    monkeypatch.setattr(DC, "_run", inject_signal_after_qdel)
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", fail_promotion)
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        queue_wait_timeout_s=10,
+        nonce="deferred-signal-hold-failure",
+    )
+
+    assert rc == DC.INFRA_RC
+    assert injected is True
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == {
+        "kind": "infra",
+        "reason": f"_SignalAbort: signal {signal.SIGTERM}",
+        "rc": DC.INFRA_RC,
+    }
+    assert receipt["orphan_hold_error"]["reason"] == (
+        "orphan-hold-promote-failed"
+    )
+    assert sum(command[0] == "qdel" for command, _ in scheduler.commands) == 1
+    assert DC._orphan_hold_present(tmp_path / "dispatch")
+
+
+def test_second_latch_call_site_hold_failure_still_persists_receipt(
+    monkeypatch, tmp_path,
+):
+    scheduler = _Scheduler()
+
+    def interrupted_qsub(command, **kwargs):
+        if list(command)[0] == "qsub":
+            scheduler.commands.append((list(command), kwargs))
+            raise DC._SignalAbort(signal.SIGTERM)
+        return scheduler(command, **kwargs)
+
+    real_latch = DC._latch_orphan_hold
+    latch_calls = 0
+
+    def fail_second_latch(output_root, **kwargs):
+        nonlocal latch_calls
+        latch_calls += 1
+        if latch_calls == 2:
+            raise DC._OrphanHoldError(
+                "orphan-hold-promote-failed",
+                operation="promote",
+                path=Path(output_root) / DC._ORPHAN_HOLD_NAME,
+                detail="injected second latch failure",
+            )
+        return real_latch(output_root, **kwargs)
+
+    monkeypatch.setattr(DC, "_latch_orphan_hold", fail_second_latch)
+    rc, submission = _dispatch(
+        tmp_path,
+        scheduler,
+        run_command=interrupted_qsub,
+        nonce="outer-latch-receipt",
+    )
+
+    assert rc == DC.INFRA_RC
+    assert latch_calls == 2
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"]["reason"] == (
+        f"_SignalAbort: signal {signal.SIGTERM}"
+    )
+    assert receipt["orphan_hold_error"]["detail"] == (
+        "injected second latch failure"
+    )
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert DC._orphan_hold_present(tmp_path / "dispatch")
+
+
+def test_orphan_hold_present_via_checker_import_sees_pending_marker(tmp_path):
+    from tools import check_acceptance_reds as checker
+
+    root = tmp_path / "dispatch"
+    submission_dir = root / "checker-pending"
+    submission_dir.mkdir(parents=True)
+    DC._arm_pending_orphan_hold(
+        root,
+        submission_dir=submission_dir,
+        job_name="izdw-checker-pending",
+    )
+    assert checker._orphan_hold_present(root) is True
+    artifacts = checker._DispatchArtifacts(
+        root,
+        submission_dir / "receipt.json",
+        submission_dir,
+        None,
+        submission_dir.name,
+        root,
+    )
+    with pytest.raises(checker.InvalidInput, match="orphan-hold"):
+        checker._cleanup_dispatch_artifacts(artifacts)
+
+
+def test_sequential_dispatch_same_output_root_after_clean_success(tmp_path):
+    first_rc, first_submission = _dispatch(
+        tmp_path,
+        _Scheduler(),
+        nonce="sequential-first",
+    )
+    second_rc, second_submission = _dispatch(
+        tmp_path,
+        _Scheduler(),
+        nonce="sequential-second",
+    )
+
+    assert first_rc == 0
+    assert second_rc == 0
+    root = tmp_path / "dispatch"
+    assert not DC._orphan_hold_present(root)
+    assert json.loads((first_submission / "receipt.json").read_text())["outcome"][
+        "kind"
+    ] == "child"
+    assert json.loads((second_submission / "receipt.json").read_text())["outcome"][
+        "kind"
+    ] == "child"
 
 
 def test_existing_orphan_hold_blocks_before_any_scheduler_command(tmp_path, capsys):
@@ -2948,10 +3652,15 @@ def test_qsub_result_unobserved_discovers_and_holds_without_qdel(tmp_path):
     hold = json.loads((root / DC._ORPHAN_HOLD_NAME).read_text(encoding="utf-8"))
     assert hold["qdel"]["attempted"] is False
     assert hold["qdel"]["gate"]["reason"] == "qsub-result-unobserved"
-    assert hold["request_id"] is None
-    # create-only hold の後で判明した request ID は receipt 側へだけ追記される。
-    hold = json.loads((root / "qsub-unknown" / "receipt.json").read_text(encoding="utf-8"))
     assert hold["request_id"] == _JOB_ID
+    request_hold = root / DC._ORPHAN_HOLD_DIR_NAME / "424242.nqsv.json"
+    assert json.loads(request_hold.read_text(encoding="utf-8"))["request_id"] == (
+        _JOB_ID
+    )
+    receipt = json.loads(
+        (root / "qsub-unknown" / "receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["request_id"] == _JOB_ID
 
 
 def test_observed_nonzero_qsub_does_not_latch_orphan_hold(tmp_path):
@@ -2974,6 +3683,7 @@ def test_observed_nonzero_qsub_does_not_latch_orphan_hold(tmp_path):
 
     assert rc == DC.INFRA_RC
     assert not (root / DC._ORPHAN_HOLD_NAME).exists()
+    assert not DC._orphan_hold_present(root)
     assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
 
 
@@ -3274,40 +3984,8 @@ def test_tests_task_env_allowlist_is_exact():
         "IZANAGI_TASK_RUN_SIDECAR",
         "IZANAGI_TASK_RUN_AUTO_RECORD",
         "PYTHONDONTWRITEBYTECODE",
-        "IZANAGI_T080_E2E",
         "IZANAGI_RUN_GROWTH_HELD_TESTS",
     })
-
-
-def test_t080_e2e_opt_in_env_is_projected_into_tests_request(tmp_path):
-    scheduler = _Scheduler()
-    clock = _Clock()
-    rc = DC.dispatch(
-        ["orchestrator/tests/test_s8b_oracle_driver.py", "-q"],
-        task="tests",
-        repo_root=_REPO,
-        output_root=tmp_path / "dispatch",
-        environ={
-            "PATH": os.environ.get("PATH", ""),
-            "IZANAGI_T080_E2E": "1",
-            "IZANAGI_UNLISTED": "must-not-propagate",
-        },
-        run_command=scheduler,
-        clock=clock,
-        sleep=clock.sleep,
-        poll_interval_s=5,
-        queue_wait_timeout_s=20,
-        accounting_grace_s=0,
-        nonce="t080-opt-in-nonce",
-    )
-    assert rc == 0
-
-    request = json.loads(
-        (
-            tmp_path / "dispatch" / "t080-opt-in-nonce" / "request.json"
-        ).read_text(encoding="utf-8"),
-    )
-    assert request["environment"] == {"IZANAGI_T080_E2E": "1"}
 
 
 def test_python_dont_write_bytecode_env_is_projected_into_tests_request(
@@ -3728,6 +4406,736 @@ def test_dev_wave_check_maps_dispatch_infra_rc_off_provenance_reason(tmp_path):
     )
     assert violation[0].status == "fail"
     assert violation[0].reason is ReasonCode.PROVENANCE_FAILED
+
+
+def test_split_artifact_root_uses_shared_repo_control_root(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    artifact = tmp_path / "shared-artifacts"
+    control = repo / "output" / "pegasus-dispatch"
+    scheduler = _Scheduler()
+    clock = _Clock()
+    rc = DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=artifact,
+        control_root=control,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="split-positive",
+    )
+    assert rc == 0
+    assert (artifact / "split-positive" / "receipt.json").is_file()
+    assert control.is_dir()
+    assert not (control / "split-positive").exists()
+
+
+@pytest.mark.parametrize("latch_name", ["submission-disabled.json", "orphan-hold.json"])
+def test_split_artifact_root_never_bypasses_shared_control_latches(tmp_path, latch_name):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    artifact = tmp_path / "shared-artifacts"
+    control = repo / "output" / "pegasus-dispatch"
+    control.mkdir(parents=True)
+    (control / latch_name).write_text("{}\n", encoding="utf-8")
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=artifact,
+        control_root=control,
+        run_command=scheduler,
+        nonce=f"blocked-{latch_name}",
+    )
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+    assert artifact.is_dir()
+    assert not (artifact / f"blocked-{latch_name}").exists()
+
+
+def test_split_artifact_root_rejects_noncanonical_control_root_before_qsub(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=tmp_path / "shared-artifacts",
+        control_root=tmp_path / "wrong-control",
+        run_command=scheduler,
+        nonce="wrong-control",
+    )
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+
+
+def test_run_tests_split_dispatch_passes_both_roots_and_nonce(monkeypatch, tmp_path):
+    from tools import run_tests
+
+    seen = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen["args"] = list(args)
+        seen["kwargs"] = kwargs
+        return 0
+
+    artifact = tmp_path / "artifacts"
+    control = tmp_path / "repo" / "output" / "pegasus-dispatch"
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    assert run_tests._default_dispatch(
+        ["--internal"],
+        environ={"PATH": "/usr/bin"},
+        artifact_root=artifact,
+        control_root=control,
+        nonce="shard-2",
+    ) == 0
+    assert seen["args"] == ["--internal"]
+    assert seen["kwargs"]["artifact_root"] == artifact
+    assert seen["kwargs"]["control_root"] == control
+    assert seen["kwargs"]["nonce"] == "shard-2"
+
+
+def test_run_tests_split_dispatch_forwards_complete_intent_registry(
+    monkeypatch, tmp_path,
+):
+    from tools import run_tests
+
+    seen = {}
+
+    def fake_dispatch(args, **kwargs):
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(DC, "dispatch", fake_dispatch)
+    assert run_tests._default_dispatch(
+        ["--internal"],
+        environ={"PATH": "/usr/bin"},
+        artifact_root=tmp_path / "session" / "shard-1" / "dispatch",
+        control_root=tmp_path / "repo" / "output" / "pegasus-dispatch",
+        nonce="shard-1",
+        intent_registry_root=tmp_path / "session" / "dispatch-intents",
+        intent_group_id="session",
+        intent_shard_index=1,
+        deadline_at=123.0,
+    ) == 0
+    assert seen["intent_registry_root"] == (
+        tmp_path / "session" / "dispatch-intents"
+    )
+    assert seen["intent_group_id"] == "session"
+    assert seen["intent_shard_index"] == 1
+    assert seen["deadline_at"] == 123.0
+
+
+def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    control = repo / "output" / "pegasus-dispatch"
+    first_scheduler = _Scheduler(
+        initial_qstat_failures=1,
+        initial_qstat_error="Permission denied",
+    )
+    second_scheduler = _Scheduler()
+    qsub_entered = threading.Event()
+    release_qsub = threading.Event()
+    results = {}
+
+    def blocking_first(command, **kwargs):
+        if list(command)[0] == "qsub":
+            qsub_entered.set()
+            assert release_qsub.wait(5)
+        return first_scheduler(command, **kwargs)
+
+    def invoke(label, artifact, runner):
+        results[label] = DC.dispatch(
+            [],
+            repo_root=repo,
+            artifact_root=artifact,
+            control_root=control,
+            run_command=runner,
+            nonce=label,
+        )
+
+    first = threading.Thread(
+        target=invoke, args=("first", tmp_path / "artifact-first", blocking_first),
+    )
+    second = threading.Thread(
+        target=invoke, args=("second", tmp_path / "artifact-second", second_scheduler),
+    )
+    first.start()
+    assert qsub_entered.wait(5)
+    second.start()
+    release_qsub.set()
+    first.join(10)
+    second.join(10)
+
+    assert not first.is_alive() and not second.is_alive()
+    assert results == {"first": DC.INFRA_RC, "second": DC.INFRA_RC}
+    qsubs = [
+        command
+        for scheduler in (first_scheduler, second_scheduler)
+        for command, _kwargs in scheduler.commands
+        if command[0] == "qsub"
+    ]
+    assert len(qsubs) == 1
+    assert (control / "submission-disabled.json").is_file()
+    assert (control / DC._CONTROL_LOCK_NAME).is_file()
+
+
+def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
+    tmp_path, monkeypatch,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    control = repo / "output" / "pegasus-dispatch"
+    first_scheduler = _Scheduler()
+    second_scheduler = _Scheduler()
+    qsub_entered = threading.Event()
+    release_qsub = threading.Event()
+    second_acquire_entered = threading.Event()
+    results = {}
+    real_acquire = DC._acquire_control_lock
+
+    def observe_control_acquire(output_root):
+        if threading.current_thread().name == "second-dispatch":
+            second_acquire_entered.set()
+        return real_acquire(output_root)
+
+    monkeypatch.setattr(DC, "_acquire_control_lock", observe_control_acquire)
+
+    def blocking_first(command, **kwargs):
+        if list(command)[0] == "qsub":
+            qsub_entered.set()
+            assert release_qsub.wait(5)
+        return first_scheduler(command, **kwargs)
+
+    def invoke(label, artifact, runner):
+        results[label] = DC.dispatch(
+            [],
+            repo_root=repo,
+            artifact_root=artifact,
+            control_root=control,
+            intent_registry_root=(tmp_path / label / "dispatch-intents"),
+            intent_group_id=label,
+            intent_shard_index=0,
+            run_command=runner,
+            nonce="shard-0",
+        )
+
+    first = threading.Thread(
+        target=invoke,
+        args=("first", tmp_path / "first" / "shard-0" / "dispatch", blocking_first),
+    )
+    second = threading.Thread(
+        target=invoke,
+        args=("second", tmp_path / "second" / "shard-0" / "dispatch", second_scheduler),
+        name="second-dispatch",
+    )
+    first.start()
+    assert qsub_entered.wait(5)
+    second.start()
+    assert second_acquire_entered.wait(5)
+    release_qsub.set()
+    first.join(10)
+    second.join(10)
+
+    assert not first.is_alive() and not second.is_alive()
+    assert results == {"first": 0, "second": 0}
+    assert sum(
+        command[0] == "qsub"
+        for scheduler in (first_scheduler, second_scheduler)
+        for command, _kwargs in scheduler.commands
+    ) == 2
+    assert not DC._orphan_hold_present(control)
+
+
+def test_split_dispatch_registers_intent_before_qsub_and_confirms_after_parse(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    session = tmp_path / "session-a"
+    artifact = session / "shard-0" / "dispatch"
+    registry = session / "dispatch-intents"
+    control = repo / "output" / "pegasus-dispatch"
+    scheduler = _Scheduler()
+
+    def observing_runner(command, **kwargs):
+        command = list(command)
+        intent = registry / "shard-0.intent.json"
+        confirm = registry / "shard-0.confirm.json"
+        if command[0] == "qsub":
+            assert intent.is_file()
+            assert not confirm.exists()
+            aggregate = control / DC._ORPHAN_HOLD_NAME
+            assert json.loads(aggregate.read_text(encoding="utf-8"))["phase"] == (
+                "pending-qsub"
+            )
+            assert len(list((control / DC._ORPHAN_HOLD_DIR_NAME).glob("*.json"))) == 1
+        if command[:2] == ["qstat", "-f"] and len(command) == 3:
+            assert confirm.is_file()
+        return scheduler(command, **kwargs)
+
+    assert DC.dispatch(
+        [],
+        repo_root=repo,
+        artifact_root=artifact,
+        control_root=control,
+        intent_registry_root=registry,
+        intent_group_id=session.name,
+        intent_shard_index=0,
+        run_command=observing_runner,
+        nonce="shard-0",
+    ) == 0
+    confirm = json.loads(
+        (registry / "shard-0.confirm.json").read_text(encoding="utf-8")
+    )
+    assert confirm["request_id"] == _JOB_ID
+    assert (registry / "shard-0.handled.json").is_file()
+    assert not DC._orphan_hold_present(control)
+
+
+@pytest.mark.parametrize("state,expect_qdel,expect_hold", [
+    ("QUE", True, False),
+    ("RUN", False, True),
+])
+def test_parent_recovers_unconfirmed_intent_without_expanding_run_qdel(
+    tmp_path, state, expect_qdel, expect_hold,
+):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    scheduler = _Scheduler(states=(state,))
+    clock = _Clock()
+
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0]["request_id"] == _JOB_ID
+    assert any(command[:2] == ["qstat", "-f"] for command, _ in scheduler.commands)
+    assert any(command[0] == "qdel" for command, _ in scheduler.commands) is expect_qdel
+    hold_dir = control / DC._ORPHAN_HOLD_DIR_NAME
+    request_hold = hold_dir / f"{DC._normalize_request_id(_JOB_ID)}.json"
+    assert request_hold.exists() is expect_hold
+    assert len(list(hold_dir.glob("*.json"))) == int(expect_hold)
+    assert (registry / "shard-0.handled.json").exists() is (not expect_hold)
+
+
+@pytest.mark.parametrize("confirmed", [False, True], ids=["unconfirmed", "confirmed"])
+def test_intent_recovery_absent_only_keeps_hold_and_never_marks_handled(
+    tmp_path, confirmed,
+):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    if confirmed:
+        DC._confirm_dispatch_intent(
+            registry,
+            shard_index=0,
+            request_id=_JOB_ID,
+        )
+    DC._arm_pending_orphan_hold(
+        control,
+        submission_dir=submission,
+        job_name="izdw-fixture-no",
+    )
+    scheduler = _Scheduler(states=("QUE",), post_qstat_states=("DONE",) * 3)
+    clock = _Clock()
+
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0]["qdel"]["job_may_remain"] is True
+    assert outcomes[0]["qdel"]["post_qstat_reason"] == (
+        "post-qstat-request-absent-unconfirmed"
+    )
+    assert outcomes[0]["qdel"]["post_qstat_hard_cap_exhausted"] is True
+    assert not (registry / "shard-0.handled.json").exists()
+    assert DC._orphan_hold_present(control)
+    assert (control / DC._ORPHAN_HOLD_DIR_NAME / "424242.nqsv.json").is_file()
+
+
+def test_confirmed_intent_recovery_release_failure_is_durable_and_unhandled(
+    tmp_path, monkeypatch,
+):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    DC._confirm_dispatch_intent(
+        registry,
+        shard_index=0,
+        request_id=_JOB_ID,
+    )
+    DC._arm_pending_orphan_hold(
+        control,
+        submission_dir=submission,
+        job_name="izdw-fixture-no",
+    )
+    real_unlink = DC.Path.unlink
+
+    def fail_aggregate_release(path, *args, **kwargs):
+        if Path(path).name == DC._ORPHAN_HOLD_NAME:
+            raise OSError("injected recovery release failure")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(DC.Path, "unlink", fail_aggregate_release)
+    scheduler = _Scheduler(states=("QUE",), post_qstat_states=("EXT",))
+    clock = _Clock()
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert len(outcomes) == 1
+    assert outcomes[0]["qdel"]["job_may_remain"] is False
+    assert outcomes[0]["orphan_hold_error"]["reason"] == (
+        "orphan-hold-release-failed"
+    )
+    recovery = json.loads(
+        (registry / "shard-0.recovery.json").read_text(encoding="utf-8")
+    )
+    assert recovery["orphan_hold_error"]["detail"].endswith(
+        "injected recovery release failure"
+    )
+    assert not (registry / "shard-0.handled.json").exists()
+    assert DC._orphan_hold_present(control)
+
+
+def test_release_fsync_failure_restores_blocking_hold_and_keeps_intent_unhandled(
+    tmp_path, monkeypatch,
+):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    DC._confirm_dispatch_intent(
+        registry,
+        shard_index=0,
+        request_id=_JOB_ID,
+    )
+    pending = DC._arm_pending_orphan_hold(
+        control,
+        submission_dir=submission,
+        job_name="izdw-fixture-no",
+    )
+    aggregate = control / DC._ORPHAN_HOLD_NAME
+    real_fsync_dir = DC._fsync_dir
+    injected = False
+    restored_aggregate_fsynced = False
+
+    def fail_after_aggregate_unlink(path):
+        nonlocal injected, restored_aggregate_fsynced
+        path = Path(path)
+        if path == control and not aggregate.exists() and not injected:
+            injected = True
+            raise OSError("injected fsync after aggregate unlink")
+        result = real_fsync_dir(path)
+        if path == control and injected and aggregate.exists():
+            restored_aggregate_fsynced = True
+        return result
+
+    monkeypatch.setattr(DC, "_fsync_dir", fail_after_aggregate_unlink)
+    scheduler = _Scheduler(states=("EXT",))
+    clock = _Clock()
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert injected is True
+    assert restored_aggregate_fsynced is True
+    assert len(outcomes) == 1
+    assert outcomes[0]["qdel"]["job_may_remain"] is False
+    assert outcomes[0]["orphan_hold_error"]["reason"] == (
+        "orphan-hold-release-failed"
+    )
+    assert not (registry / "shard-0.handled.json").exists()
+    assert json.loads(aggregate.read_text(encoding="utf-8"))["job_name"] == (
+        "izdw-fixture-no"
+    )
+    assert pending.is_file()
+    assert DC._orphan_hold_present(control)
+
+
+def test_release_rollback_ledger_only_blocks_all_consumers_and_preserves_peer(
+    tmp_path, monkeypatch,
+):
+    from tools import check_acceptance_reds as CAR
+    from tools import mutation_harness as MH
+    from tools import mutation_worktree as MW
+
+    repo = tmp_path / "repo"
+    control = repo / "output" / "pegasus-dispatch"
+    control.mkdir(parents=True)
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = tmp_path / "session" / "shard-0" / "dispatch" / "owned"
+    peer_submission = tmp_path / "session" / "shard-1" / "dispatch" / "peer"
+    submission.mkdir(parents=True)
+    peer_submission.mkdir(parents=True)
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-owned",
+        submission_dir=submission,
+    )
+    DC._confirm_dispatch_intent(
+        registry,
+        shard_index=0,
+        request_id=_JOB_ID,
+    )
+    owned = DC._arm_pending_orphan_hold(
+        control,
+        submission_dir=submission,
+        job_name="izdw-owned",
+    )
+    DC._latch_orphan_hold(
+        control,
+        qdel={
+            "attempted": False,
+            "job_may_remain": True,
+            "gate": {"reason": "peer-fixture"},
+        },
+        submission_dir=peer_submission,
+        request_id="999999.nqsv",
+        job_name="izdw-peer",
+    )
+    peer = DC._orphan_hold_request_path(
+        control,
+        request_id="999999.nqsv",
+        job_name="izdw-peer",
+        submission_dir=peer_submission,
+    )
+    owned_bytes = owned.read_bytes()
+    peer_bytes = peer.read_bytes()
+    aggregate = control / DC._ORPHAN_HOLD_NAME
+    real_write = DC._write_json_atomic_replace
+    aggregate_failures = 0
+
+    def fail_aggregate_transition(path, payload, **kwargs):
+        nonlocal aggregate_failures
+        if Path(path) == aggregate and not kwargs.get("create_only", False):
+            aggregate_failures += 1
+            try:
+                aggregate.unlink()
+            except FileNotFoundError:
+                pass
+            raise OSError("injected aggregate replacement and rollback failure")
+        return real_write(path, payload, **kwargs)
+
+    monkeypatch.setattr(DC, "_write_json_atomic_replace", fail_aggregate_transition)
+    scheduler = _Scheduler(states=("EXT",))
+    clock = _Clock()
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert aggregate_failures == 2
+    assert len(outcomes) == 1
+    assert outcomes[0]["qdel"]["job_may_remain"] is False
+    assert outcomes[0]["orphan_hold_error"]["reason"] == (
+        "orphan-hold-release-failed"
+    )
+    assert outcomes[0]["orphan_hold_error"]["detail"].endswith(
+        "injected aggregate replacement and rollback failure"
+    )
+    assert not aggregate.exists()
+    assert owned.read_bytes() == owned_bytes
+    assert peer.read_bytes() == peer_bytes
+    assert not (registry / "shard-0.handled.json").exists()
+
+    consumer_submission = control / "consumer-artifact"
+    consumer_submission.mkdir()
+    consumer_receipt = consumer_submission / "receipt.json"
+    consumer_receipt.write_text("{}\n", encoding="utf-8")
+    artifacts = CAR._DispatchArtifacts(
+        control,
+        consumer_receipt,
+        consumer_submission,
+        None,
+        consumer_submission.name,
+        control,
+    )
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_dispatch_artifacts(artifacts)
+    assert consumer_receipt.is_file()
+
+    class PreflightStub:
+        checkout = repo
+        out = tmp_path / "mutation-ledger.json"
+
+    worktree_blocked = MW._orphan_hold_present(PreflightStub())
+    assert worktree_blocked is True
+    assert MW._should_teardown(
+        plan_only=True,
+        child_rc=None,
+        terminal=False,
+        orphan_hold=worktree_blocked,
+    ) is False
+    harness_stop = MH._dispatch_orphan_stop(
+        repo,
+        runner_mode="local",
+        phase="collection",
+        mutation_id=None,
+        source_state="clean",
+        dirty_paths=(),
+    )
+    assert isinstance(harness_stop, MH.OrphanHoldStop)
+    assert owned.read_bytes() == owned_bytes
+    assert peer.read_bytes() == peer_bytes
+
+
+def test_orphan_hold_consumers_do_not_follow_ledger_directory_symlink(tmp_path):
+    from tools import check_acceptance_reds as CAR
+    from tools import mutation_harness as MH
+    from tools import mutation_worktree as MW
+
+    repo = tmp_path / "repo"
+    control = repo / "output" / "pegasus-dispatch"
+    control.mkdir(parents=True)
+    outside = tmp_path / "outside-ledgers"
+    outside.mkdir()
+    outside_ledger = outside / "outside.json"
+    outside_ledger.write_text("must-not-be-scanned\n", encoding="utf-8")
+    (control / "orphan-holds").symlink_to(outside, target_is_directory=True)
+
+    class PreflightStub:
+        checkout = repo
+        out = tmp_path / "mutation-ledger.json"
+
+    assert CAR._orphan_hold_present(control) is True
+    assert MW._orphan_hold_present(PreflightStub()) is True
+    assert MH._dispatch_orphan_hold_present(repo) is True
+    assert outside_ledger.read_text(encoding="utf-8") == "must-not-be-scanned\n"
+
+
+def test_intent_recovery_visible_end_releases_owned_hold_then_marks_handled(
+    tmp_path,
+):
+    registry = tmp_path / "session" / "dispatch-intents"
+    registry.mkdir(parents=True)
+    submission = (
+        tmp_path / "session" / "shard-0" / "dispatch" / "fixture-nonce"
+    )
+    submission.mkdir(parents=True)
+    control = tmp_path / "control"
+    control.mkdir()
+    DC._register_dispatch_intent(
+        registry,
+        group_id="session",
+        shard_index=0,
+        job_name="izdw-fixture-no",
+        submission_dir=submission,
+    )
+    DC._confirm_dispatch_intent(
+        registry,
+        shard_index=0,
+        request_id=_JOB_ID,
+    )
+    DC._arm_pending_orphan_hold(
+        control,
+        submission_dir=submission,
+        job_name="izdw-fixture-no",
+    )
+    scheduler = _Scheduler(states=("EXT",))
+    clock = _Clock()
+
+    outcomes = DC.recover_dispatch_intents(
+        registry,
+        control,
+        deadline_at=clock() + 60,
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+
+    assert len(outcomes) == 1
+    qdel = outcomes[0]["qdel"]
+    assert qdel["attempted"] is False
+    assert qdel["job_may_remain"] is False
+    assert qdel["gate"]["scheduler_state"] == "END"
+    assert qdel["gate"]["terminal_evidence"] == (
+        "target-bound-end-before-qdel"
+    )
+    assert not any(command[0] == "qdel" for command, _ in scheduler.commands)
+    assert not DC._orphan_hold_present(control)
+    assert (registry / "shard-0.handled.json").is_file()
 
 
 def _run():

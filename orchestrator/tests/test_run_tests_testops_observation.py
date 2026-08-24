@@ -124,7 +124,9 @@ def test_explicit_auto_off_preserves_exact_pytest_argv_and_call_shape(monkeypatc
 
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 7
     assert called == [(([
-        sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
+        sys.executable, "-m", "pytest",
+        f"--ignore={RT._SANCTIONED_CLEANUP_TEST_PATH}",
+        str(_REPO / "orchestrator" / "tests"),
         "-n", "4", "--dist", "loadgroup", "-q",
     ],), {"cwd": str(_REPO)})]
     start.assert_not_called()

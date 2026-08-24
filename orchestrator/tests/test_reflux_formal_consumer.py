@@ -20,6 +20,7 @@ from orchestrator.tests import reflux_origin_fixture_builder as F
 
 
 WAVE_PRODUCTION_FILES = (
+    "attempt_registry_core.py",
     "reflux_origin_artifacts.py",
     "reflux_source_closure.py",
     "reflux_result_evidence.py",
@@ -492,16 +493,6 @@ def test_fc04_outcome_single_flip_is_preempted_by_record_schema(case: _Case) -> 
     _assert_reason(case, C.FormalReasonCode.FC01)
 
 
-def test_fc04_constraint_single_flip_is_preempted_by_exact_class_set(case: _Case) -> None:
-    _mutate_record(
-        case,
-        0,
-        ("physical_result", "constraint_sha256"),
-        "e" * 64,
-    )
-    _assert_reason(case, C.FormalReasonCode.FC09)
-
-
 def test_fc05a_rejects_duplicate_build_attempt_id(case: _Case) -> None:
     duplicate = case.records[0]["physical_result"]["build_attempt_id"]
     wal = copy.deepcopy(json.loads(
@@ -622,6 +613,7 @@ def test_fc07_rejects_rejected_without_single_candidate_witness(case: _Case) -> 
 
 
 def test_fc09_rejects_nonexact_rejected_class_set(case: _Case) -> None:
+    """constraint_sha256 の単一変更は FC04 ではなく FC09 が先取して拒否する。"""
     _mutate_record(
         case,
         0,
@@ -822,8 +814,9 @@ def test_terminal_projection_is_one_nested_key_with_closed_reason(case: _Case) -
 
 
 def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> None:
-    assert len(WAVE_PRODUCTION_FILES) == 14
+    assert len(WAVE_PRODUCTION_FILES) == 15
     assert set(WAVE_PRODUCTION_FILES) == {
+        "attempt_registry_core.py",
         "autonomous_trial_completeness.py",
         "p3_autonomous_workload_trial.py",
         "reflux_formal_consumer.py",

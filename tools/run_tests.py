@@ -43,6 +43,7 @@ import shutil
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from contextvars import ContextVar
 from enum import Enum
 from importlib import metadata
@@ -57,6 +58,7 @@ if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
 from orchestrator.campaign import site_policy  # noqa: E402
+from orchestrator import test_selection_contract as _SELECTION_CONTRACT  # noqa: E402
 
 # 実測の頭打ち + 共有ノードで全コアを掴まない行儀の両方から来る既定上限。
 # 環境変数 IZANAGI_TEST_NPROC=max で外せる。
@@ -67,11 +69,14 @@ _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TASK_RUN_AUTO_RECORD_ENV = "IZANAGI_TASK_RUN_AUTO_RECORD"
+_RUNNER_EXCLUSION_ENV = _SELECTION_CONTRACT.RUNNER_EXCLUSION_ENV
 _TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
 _RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
 _DISPATCH_WALLTIME_OVERRIDE_ENV = "IZANAGI_DISPATCH_WALLTIME_OVERRIDE"
 _DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV = "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE"
 _DISPATCH_OVERALL_GRACE_OVERRIDE_ENV = "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE"
+_ACCEPTANCE_SHARDS_ENV = "IZANAGI_ACCEPTANCE_SHARDS"
+_ACCEPTANCE_SHARD_DEADLINE_S = 5100.0
 _RUN_GROWTH_HELD_TESTS_TOKEN = "explicit-user-command"
 _TRIGGERS = frozenset({
     "baseline", "after-change", "after-failure", "final", "review-fix",
@@ -89,7 +94,7 @@ _NONSELECT_FLAGS = frozenset({
 })
 _NONSELECT_VALUE_OPTIONS = frozenset({
     "-n", "--numprocesses", "--dist", "--color", "--tb", "--capture",
-    "--junitxml", "--junit-prefix", "--rootdir", "--confcutdir",
+    "--junitxml", "--junit-prefix", "--rootdir",
     "--basetemp", "--durations", "--durations-min", "--verbosity",
     "--show-capture", "--import-mode", "--log-level", "--log-format",
     "--log-date-format", "--log-cli-level", "--log-cli-format",
@@ -97,7 +102,7 @@ _NONSELECT_VALUE_OPTIONS = frozenset({
     "--log-file-level", "--log-file-format", "--log-file-date-format",
 })
 _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS = frozenset({
-    "--override-ini", "-o", "-p",
+    "--override-ini", "-o", "-p", "--confcutdir",
 })
 _SELECT_FLAGS = frozenset({
     "-k", "-m", "--lf", "--last-failed", "--ff", "--failed-first",
@@ -128,7 +133,11 @@ _SUBMODULE_GATE_RC = 14
 _RULEOPS_GATE_RC = 15
 _PEGASUS_DISPATCH_RC = 16
 _ACCEPTANCE_DIST_OVERRIDE_RC = 17
+_PERMANENT_EXCLUSION_GATE_RC = 18
 _FORCE_DISPATCH_OPTION = "--force-dispatch"
+_INTERNAL_SHARD_SESSION_OPTION = "--izanagi-acceptance-shard-session"
+_INTERNAL_SHARD_COUNT_OPTION = "--izanagi-acceptance-shard-count"
+_INTERNAL_SHARD_INDEX_OPTION = "--izanagi-acceptance-shard-index"
 _PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only", "--co", "--help", "--version", "--markers", "--fixtures",
     "--fixtures-per-test", "--trace-config", "--setup-plan",
@@ -167,6 +176,58 @@ class _DispatchCallResult(NamedTuple):
     child_started: bool
 
 
+_PermanentExclusion = _SELECTION_CONTRACT.Exclusion
+_PERMANENT_EXCLUSION_SET_VERSION = _SELECTION_CONTRACT.EXCLUSION_SET_VERSION
+_SANCTIONED_CLEANUP_TEST_PATH = _SELECTION_CONTRACT.SANCTIONED_CLEANUP_TEST_PATH
+
+# ここが runtime の active table。現在は共有契約の cleanup entry を参照する。
+# sanctioned な上限と payload の定義は引き続き共有契約 module にだけ存在する。
+_PERMANENT_FULL_SUITE_EXCLUSIONS = _SELECTION_CONTRACT.SANCTIONED_EXCLUSIONS
+
+
+def _permanent_exclusions_are_sanctioned(
+    exclusions: tuple[_PermanentExclusion, ...],
+) -> tuple[_PermanentExclusion, ...] | None:
+    """runner の恒久除外表を private canonical tuple へ写す。"""
+
+    return _SELECTION_CONTRACT.canonicalize_sanctioned_exclusion_set(exclusions)
+
+
+def _runner_exclusion_payload(
+    exclusions: Sequence[_PermanentExclusion],
+) -> list[dict[str, str]]:
+    return _SELECTION_CONTRACT.payload_entries(exclusions)
+
+
+@contextmanager
+def _runner_exclusion_environment(
+    exclusions: Sequence[_PermanentExclusion],
+):
+    """実 pytest child に runner 所有の除外証跡だけを一時的に渡す。"""
+
+    previous = os.environ.get(_RUNNER_EXCLUSION_ENV)
+    if exclusions:
+        os.environ[_RUNNER_EXCLUSION_ENV] = _SELECTION_CONTRACT.serialize_payload(
+            exclusions
+        )
+    else:
+        os.environ.pop(_RUNNER_EXCLUSION_ENV, None)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(_RUNNER_EXCLUSION_ENV, None)
+        else:
+            os.environ[_RUNNER_EXCLUSION_ENV] = previous
+
+
+def _call_with_runner_exclusions(
+    exclusions: Sequence[_PermanentExclusion], function, /, *args, **kwargs,
+):
+    with _runner_exclusion_environment(exclusions):
+        return function(*args, **kwargs)
+
+
 def _consume_runner_options(args: Sequence[str]) -> tuple[list[str], bool]:
     """runner 専用 option を pytest / dispatch child の argv から除く。"""
 
@@ -175,6 +236,103 @@ def _consume_runner_options(args: Sequence[str]) -> tuple[list[str], bool]:
         [value for value in args if value != _FORCE_DISPATCH_OPTION],
         force_dispatch,
     )
+
+
+def _validate_shard_outer_args(
+    raw_args: Sequence[str], force_dispatch: bool,
+) -> bool:
+    """shard 親は空 argv または単独の force-dispatch だけを受理する。"""
+
+    values = list(raw_args)
+    return (
+        (not values and force_dispatch is False)
+        or (values == [_FORCE_DISPATCH_OPTION] and force_dispatch is True)
+    )
+
+
+def _acceptance_shard_request(
+    environ: Optional[Mapping[str, str]] = None,
+) -> Optional[int]:
+    """shard 要求の env 字句だけを閉集合として解釈する。"""
+
+    source = os.environ if environ is None else environ
+    value = source.get(_ACCEPTANCE_SHARDS_ENV)
+    if value is None or value == "":
+        return None
+    if value in {"1", "2", "3"}:
+        return int(value, 10)
+    raise ValueError(f"{_ACCEPTANCE_SHARDS_ENV}={value!r} is not accepted")
+
+
+def _resolve_acceptance_shard_count(
+    request: Optional[int],
+    *,
+    is_acceptance: bool,
+    resolved_site: str,
+    raw_args: Sequence[str],
+    force_dispatch: bool,
+    internal_shard_spec: Optional[object],
+    positional: Sequence[str],
+    bounded_membership: Optional[bool],
+) -> int:
+    """確定済み入力だけから effective K を解決する。"""
+
+    if request is not None and type(request) is not int:
+        raise ValueError("acceptance shard request must be an integer")
+    eligible = (
+        is_acceptance
+        and site_policy.is_pegasus_login(resolved_site)
+        and _validate_shard_outer_args(raw_args, force_dispatch)
+        and not positional
+        and internal_shard_spec is None
+        and bounded_membership is not True
+    )
+    if request is None:
+        return 2 if eligible else 1
+    if request == 1:
+        return 1
+    if request in {2, 3}:
+        if not eligible:
+            raise ValueError("explicit acceptance shard request is ineligible")
+        return request
+    raise ValueError("invalid acceptance shard request")
+
+
+def _consume_internal_shard_spec(
+    args: Sequence[str],
+) -> tuple[list[str], Optional[object]]:
+    """dispatch child 専用 spec を pytest argv より前で exact に消費する。"""
+
+    values: dict[str, str] = {}
+    remaining: list[str] = []
+    options = {
+        _INTERNAL_SHARD_SESSION_OPTION,
+        _INTERNAL_SHARD_COUNT_OPTION,
+        _INTERNAL_SHARD_INDEX_OPTION,
+    }
+    for token in args:
+        option, separator, value = token.partition("=")
+        if option not in options:
+            remaining.append(token)
+            continue
+        if not separator or not value or option in values:
+            raise ValueError("invalid or duplicate internal acceptance shard option")
+        values[option] = value
+    if not values:
+        return remaining, None
+    if set(values) != options:
+        raise ValueError("incomplete internal acceptance shard spec")
+    from tools.acceptance_shards import InternalSpec
+
+    try:
+        count = int(values[_INTERNAL_SHARD_COUNT_OPTION], 10)
+        index = int(values[_INTERNAL_SHARD_INDEX_OPTION], 10)
+    except ValueError as exc:
+        raise ValueError("non-integer internal acceptance shard spec") from exc
+    spec = InternalSpec(
+        Path(values[_INTERNAL_SHARD_SESSION_OPTION]).resolve(), count, index,
+    )
+    return remaining, spec
 
 
 def _print_runner_help(args: Sequence[str]) -> None:
@@ -392,15 +550,18 @@ def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:
 def _build_pytest_command(
         args: Sequence[str], *, use_xdist: bool, default_nproc: int,
         has_target: bool, python_executable: str = sys.executable,
-        default_target: str = _DEFAULT_TARGET) -> list[str]:
+        default_target: str = _DEFAULT_TARGET,
+        exclusions: Sequence[_PermanentExclusion] = ()) -> list[str]:
     """外部状態を読まず pytest argv を組み立てる純関数。
 
-    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって非受入形では
-    pytest の後勝ち規則により明示 ``-n`` / ``--dist`` が従来どおり最優先になる。
+    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって明示
+    ``-n`` / ``--dist`` は pytest の後勝ち規則により最優先になる。
     受入形の非 ``loadgroup`` な ``--dist`` は ``main()`` が構築前に拒否する。
+    ``exclusions`` は ``main()`` が恒久除外表を適用する走行で渡す。
     """
     user_args = list(args)
     cmd = [python_executable, "-m", "pytest"]
+    cmd.extend(_SELECTION_CONTRACT.exclusion_tokens(exclusions))
     if not has_target:
         cmd.append(default_target)
     if use_xdist:
@@ -537,13 +698,14 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
     if os.environ.get("PYTEST_PLUGINS", "").strip():
         return False
     default_target = Path(_DEFAULT_TARGET).resolve()
+    positional_count = 0
     i = 0
     while i < len(args):
         token = args[i]
         option, separator, value = token.partition("=")
         if token == "--" or option in _NO_EXECUTION_FLAGS or option in _SELECT_FLAGS:
             return False
-        if option in {"-o", "-p", "--override-ini"}:
+        if option in _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS:
             return False
         if token.startswith("-k") or token.startswith("-m"):
             return False
@@ -561,6 +723,9 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
                 if Path(token).resolve(strict=False) != default_target:
                     return False
             except OSError:
+                return False
+            positional_count += 1
+            if positional_count > 1:
                 return False
             i += 1
             continue
@@ -1141,6 +1306,13 @@ def _dispatch_environment(
 
 def _default_dispatch(
     args: Sequence[str], *, environ: dict[str, str],
+    artifact_root: Optional[Path] = None,
+    control_root: Optional[Path] = None,
+    nonce: Optional[str] = None,
+    intent_registry_root: Optional[Path] = None,
+    intent_group_id: Optional[str] = None,
+    intent_shard_index: Optional[int] = None,
+    deadline_at: Optional[float] = None,
 ) -> int:
     """テスト用に dispatch の walltime を環境変数で短縮できる。"""
     from tools.pegasus import dispatch_compute
@@ -1150,6 +1322,24 @@ def _default_dispatch(
         "repo_root": Path(_REPO),
         "environ": environ,
     }
+    if artifact_root is not None or control_root is not None:
+        if artifact_root is None or control_root is None:
+            raise ValueError("artifact_root / control_root must be specified together")
+        dispatch_kwargs["artifact_root"] = artifact_root
+        dispatch_kwargs["control_root"] = control_root
+    if nonce is not None:
+        dispatch_kwargs["nonce"] = nonce
+    intent_values = (
+        intent_registry_root, intent_group_id, intent_shard_index,
+    )
+    if any(value is not None for value in intent_values):
+        if not all(value is not None for value in intent_values):
+            raise ValueError("intent registry arguments must be specified together")
+        dispatch_kwargs["intent_registry_root"] = intent_registry_root
+        dispatch_kwargs["intent_group_id"] = intent_group_id
+        dispatch_kwargs["intent_shard_index"] = intent_shard_index
+    if deadline_at is not None:
+        dispatch_kwargs["deadline_at"] = deadline_at
     walltime = environ.get(_DISPATCH_WALLTIME_OVERRIDE_ENV)
     if walltime:
         dispatch_kwargs["walltime"] = walltime
@@ -1181,6 +1371,166 @@ def _default_dispatch(
         dispatch_kwargs["overall_grace_s"] = overall_grace_s
     result = dispatch_compute.dispatch(args, **dispatch_kwargs)
     return result
+
+
+def _parse_collect_only_nodeids(stdout: str) -> tuple[str, ...]:
+    """pytest ``--collect-only -q`` の nodeid 行だけを repo-relative にする。"""
+
+    repo = Path(_REPO).resolve()
+    default_target = Path(_DEFAULT_TARGET).resolve()
+    nodeids: list[str] = []
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
+        path_text, separator, suffix = line.partition("::")
+        if not separator or not suffix or not path_text.endswith(".py"):
+            continue
+        path = Path(path_text)
+        if not path.is_absolute():
+            path = repo / path
+        try:
+            resolved = path.resolve(strict=False)
+            resolved.relative_to(default_target)
+            relative = resolved.relative_to(repo).as_posix()
+        except (OSError, ValueError):
+            continue
+        nodeids.append(f"{relative}::{suffix}")
+    if not nodeids or len(nodeids) != len(set(nodeids)):
+        raise ValueError("collect-only output did not contain a unique non-empty universe")
+    return tuple(sorted(nodeids))
+
+
+def _collect_login_universe(
+    session_root: Path,
+    exclusions: Sequence[_PermanentExclusion],
+    deadline_at: float,
+) -> tuple[int, tuple[str, ...]]:
+    """compute shard と並行に login 親で独立の U を観測する。"""
+
+    from tools import acceptance_shards
+
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        *_SELECTION_CONTRACT.exclusion_tokens(exclusions),
+        _DEFAULT_TARGET,
+        "--collect-only",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+    ]
+    child_env = _dispatch_environment()
+    child_env.pop(_ACCEPTANCE_SHARDS_ENV, None)
+    child_env.pop(acceptance_shards.PLUGIN_SPEC_ENV, None)
+    if exclusions:
+        child_env[_RUNNER_EXCLUSION_ENV] = _SELECTION_CONTRACT.serialize_payload(
+            exclusions
+        )
+    else:
+        child_env.pop(_RUNNER_EXCLUSION_ENV, None)
+    try:
+        timeout = deadline_at - time.monotonic()
+        if not math.isfinite(timeout) or timeout <= 0:
+            return _PEGASUS_DISPATCH_RC, ()
+        result = _call_with_runner_exclusions(
+            exclusions,
+            subprocess.run,
+            command,
+            cwd=_REPO,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=child_env,
+            timeout=timeout,
+        )
+        log = (
+            "command=" + json.dumps(command, ensure_ascii=True) + "\n"
+            + "stdout:\n" + result.stdout + "\nstderr:\n" + result.stderr
+        ).encode("utf-8", errors="replace")
+        acceptance_shards._write_bytes_create_only(
+            session_root / "login-collection.log", log,
+        )
+        if result.returncode != 0:
+            return _PEGASUS_DISPATCH_RC, ()
+        return 0, _parse_collect_only_nodeids(result.stdout)
+    except (OSError, subprocess.TimeoutExpired, TypeError, ValueError):
+        return _PEGASUS_DISPATCH_RC, ()
+
+
+def _run_internal_acceptance_shard(
+    spec: object,
+    *,
+    resolved_site: str,
+    args: Sequence[str],
+    exclusions: Sequence[_PermanentExclusion],
+) -> int:
+    """計算ノードで既定 suite root を全 collection して担当外を deselect する。"""
+
+    from tools import acceptance_shards
+
+    if not isinstance(spec, acceptance_shards.InternalSpec):
+        return _PEGASUS_DISPATCH_RC
+    repo = Path(_REPO).resolve()
+    session = spec.session_root.resolve()
+    try:
+        expected_shared_root = acceptance_shards.shared_root_for_repo(repo)
+    except acceptance_shards.ShardError:
+        return _PEGASUS_DISPATCH_RC
+    if (
+        resolved_site != site_policy.PEGASUS_COMPUTE
+        or list(args)
+        or spec.shard_count not in {2, 3}
+        or spec.shard_index not in range(spec.shard_count)
+        or acceptance_shards._is_within(session, repo)
+        or session.parent != expected_shared_root
+        or not spec.shard_root.is_dir()
+    ):
+        return _PEGASUS_DISPATCH_RC
+    version = _xdist_version()
+    if not (
+        _xdist_supports_loadgroup(version)
+        and _xdist_runtime_importable()
+    ):
+        return _PEGASUS_DISPATCH_RC
+    command = _build_pytest_command(
+        [
+            f"--junitxml={spec.junit_path}",
+            "-p",
+            "tools.acceptance_shards",
+            "-p",
+            "no:cacheprovider",
+        ],
+        use_xdist=True,
+        default_nproc=_default_nproc(site=resolved_site),
+        has_target=False,
+        default_target=_DEFAULT_TARGET,
+        exclusions=exclusions,
+    )
+    child_env = os.environ.copy()
+    child_env.pop(_ACCEPTANCE_SHARDS_ENV, None)
+    if exclusions:
+        child_env[_RUNNER_EXCLUSION_ENV] = _SELECTION_CONTRACT.serialize_payload(
+            exclusions
+        )
+    else:
+        child_env.pop(_RUNNER_EXCLUSION_ENV, None)
+    child_env[acceptance_shards.PLUGIN_SPEC_ENV] = json.dumps(
+        {
+            "session_root": str(session),
+            "shard_count": spec.shard_count,
+            "shard_index": spec.shard_index,
+        },
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return _call_with_runner_exclusions(
+        exclusions,
+        subprocess.call,
+        command,
+        cwd=_REPO,
+        env=child_env,
+    )
 
 
 def _invoke_dispatch(
@@ -1953,8 +2303,54 @@ def _dispatch_result(
     dispatch_fn,
     args: Sequence[str],
     *, recording_session: Optional[_RecordingSession] = None,
+    shard_count: int = 1,
+    exclusions: Sequence[_PermanentExclusion] = (),
 ) -> int:
     selected_dispatch = _default_dispatch if dispatch_fn is None else dispatch_fn
+    if shard_count > 1:
+        from tools import acceptance_shards
+
+        underlying = selected_dispatch
+
+        def selected_dispatch(
+            original_args: Sequence[str], *, environ: dict[str, str],
+        ) -> int:
+            if list(original_args):
+                return acceptance_shards.CompositeResult(
+                    _PEGASUS_DISPATCH_RC, child_started=False,
+                )
+
+            def dispatch_call(
+                internal_args: Sequence[str], *, artifact_root: Path,
+                control_root: Path, nonce: str, intent_registry_root: Path,
+                intent_group_id: str, intent_shard_index: int,
+                deadline_at: float,
+            ):
+                shard_environ = dict(environ)
+                shard_environ.pop(_TASK_RUN_SIDECAR_ENV, None)
+                shard_environ[_TASK_RUN_AUTO_RECORD_ENV] = "0"
+                return underlying(
+                    internal_args,
+                    environ=shard_environ,
+                    artifact_root=artifact_root,
+                    control_root=control_root,
+                    nonce=nonce,
+                    intent_registry_root=intent_registry_root,
+                    intent_group_id=intent_group_id,
+                    intent_shard_index=intent_shard_index,
+                    deadline_at=deadline_at,
+                )
+
+            return acceptance_shards.run_parallel(
+                repo=Path(_REPO),
+                shard_count=shard_count,
+                dispatch_call=dispatch_call,
+                collect_login=lambda session, deadline_at: _collect_login_universe(
+                    session, exclusions, deadline_at,
+                ),
+                deadline_at=time.monotonic() + _ACCEPTANCE_SHARD_DEADLINE_S,
+            )
+
     session = recording_session or _RecordingSession()
     if not session.is_manual and not session.recording_enabled:
         # Explicit opt-out retains the pre-existing plain dispatch route while
@@ -1999,8 +2395,41 @@ def main(
 ) -> int:
     raw_args = list(sys.argv[1:] if argv is None else argv)
     pytest_args, force_dispatch = _consume_runner_options(raw_args)
+    try:
+        pytest_args, internal_shard_spec = _consume_internal_shard_spec(pytest_args)
+        shard_request = _acceptance_shard_request()
+    except (OSError, TypeError, ValueError) as exc:
+        print(
+            f"acceptance shard 指定を受理できません: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PEGASUS_DISPATCH_RC
     args = _normalize_args(pytest_args)
     is_acceptance = _is_acceptance_run(args)
+    positional = _positional_tokens(args)
+    try:
+        configured_exclusions = tuple(_PERMANENT_FULL_SUITE_EXCLUSIONS)
+    except TypeError:
+        print(
+            "恒久除外表が裁定済み literal path と一致しないため、"
+            "テスト command を作らず停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PERMANENT_EXCLUSION_GATE_RC
+    canonical_exclusions = _permanent_exclusions_are_sanctioned(
+        configured_exclusions
+    )
+    if canonical_exclusions is None:
+        print(
+            "恒久除外表が裁定済み literal path と一致しないため、"
+            "テスト command を作らず停止します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PERMANENT_EXCLUSION_GATE_RC
+    exclusions = canonical_exclusions if is_acceptance else ()
     if is_acceptance and _has_non_loadgroup_user_dist(args):
         print(
             "受入形では --dist loadgroup 以外の --dist 上書きを拒否します。",
@@ -2040,6 +2469,27 @@ def main(
         )
         return _PEGASUS_DISPATCH_RC
 
+    try:
+        shard_count = _resolve_acceptance_shard_count(
+            shard_request,
+            is_acceptance=is_acceptance,
+            resolved_site=resolved_site,
+            raw_args=raw_args,
+            force_dispatch=force_dispatch,
+            internal_shard_spec=internal_shard_spec,
+            positional=positional,
+            bounded_membership=bounded_membership,
+        )
+    except ValueError:
+        print(
+            "明示 shard mode は空 argv の受入形かつ Pegasus LOGIN でのみ受理します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _PEGASUS_DISPATCH_RC
+    shard_mode = shard_count > 1
+    explicit_shard_mode = shard_request in {2, 3} and shard_mode
+
     dispatch_exempt = _has_dispatch_exempt_flag(args)
     bounded_scope_exempt = _has_bounded_scope_exempt_flag(args)
     login_admission_dispatch = False
@@ -2047,6 +2497,8 @@ def main(
         bounded_membership is None
         and not bounded_scope_exempt
         and not force_dispatch
+        and not explicit_shard_mode
+        and internal_shard_spec is None
         and site_policy.is_pegasus_login(resolved_site)
     ):
         module, cap, admission_outcome, headroom_reason, grant = (
@@ -2088,7 +2540,9 @@ def main(
             tree_before = _tree_and_submodules_fingerprint(Path(_REPO))
             recording_session = _RecordingSession()
             try:
-                scope_result = _launch_local_scope(
+                scope_result = _call_with_runner_exclusions(
+                    exclusions,
+                    _launch_local_scope,
                     args,
                     cap,
                     module=module,
@@ -2121,8 +2575,14 @@ def main(
             if queue_unavailable:
                 recording_session.finish("blocked")
                 return _no_execution_capacity(headroom_reason, queue_reason)
-            return _dispatch_result(
-                dispatch_fn, args, recording_session=recording_session,
+            return _call_with_runner_exclusions(
+                exclusions,
+                _dispatch_result,
+                dispatch_fn,
+                args,
+                recording_session=recording_session,
+                shard_count=shard_count,
+                exclusions=exclusions,
             )
 
     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))
@@ -2134,6 +2594,14 @@ def main(
     preflight_rc = _preflight_submodule(args, Path(_REPO))
     if preflight_rc:
         return preflight_rc
+
+    if internal_shard_spec is not None:
+        return _run_internal_acceptance_shard(
+            internal_shard_spec,
+            resolved_site=resolved_site,
+            args=args,
+            exclusions=exclusions,
+        )
 
     if (
         (force_dispatch or not dispatch_exempt)
@@ -2150,12 +2618,23 @@ def main(
         )
         return _PEGASUS_DISPATCH_RC
     if site_policy.is_pegasus_login(resolved_site):
-        if force_dispatch:
-            return _dispatch_result(dispatch_fn, args)
+        if force_dispatch or shard_mode:
+            return _call_with_runner_exclusions(
+                exclusions,
+                _dispatch_result,
+                dispatch_fn,
+                args,
+                shard_count=shard_count,
+                exclusions=exclusions,
+            )
         if bounded_membership is True:
             pass
         elif login_admission_dispatch or not dispatch_exempt:
-            return _dispatch_result(dispatch_fn, args)
+            return _call_with_runner_exclusions(
+                exclusions, _dispatch_result, dispatch_fn, args,
+                shard_count=shard_count,
+                exclusions=exclusions,
+            )
 
     use_xdist = False
     if site_policy.is_pegasus_compute(resolved_site):
@@ -2205,16 +2684,27 @@ def main(
         use_xdist=use_xdist,
         default_nproc=default_nproc,
         has_target=bool(_positional_tokens(args)),
+        exclusions=exclusions,
     )
     task_run_id = os.environ.get(_TASK_RUN_ID_ENV)
     if not task_run_id:
         if os.environ.get(_TASK_RUN_AUTO_RECORD_ENV) == "0":
-            return subprocess.call(cmd, cwd=_REPO)
-        return _call_and_record(
-            cmd, args, recording_session=_RecordingSession(),
+            return _call_with_runner_exclusions(
+                exclusions, subprocess.call, cmd, cwd=_REPO,
+            )
+        return _call_with_runner_exclusions(
+            exclusions,
+            _call_and_record,
+            cmd,
+            args,
+            recording_session=_RecordingSession(),
         )
-    return _call_and_record(
-        cmd, args, task_run_id,
+    return _call_with_runner_exclusions(
+        exclusions,
+        _call_and_record,
+        cmd,
+        args,
+        task_run_id,
         recording_session=_RecordingSession(task_run_id=task_run_id),
     )
 

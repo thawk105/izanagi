@@ -1,0 +1,21 @@
+# Stage 1 brief — [T-1526][T-1527]
+
+- scope: `orchestrator/tests/test_campaign.py` の compiler 不在 skip 7 件と `orchestrator/tests/test_s1_direct_comparison.py` の 1 件を、既存 `_any_cxx()` と同じ候補順 (`g++-13`, `g++-12`, `g++`) で実走化する。
+- scope: `test_s1_direct_comparison.py::_fake_ccbench_repo` に `cc/mocc/transaction.cc` を source-digest の正規 source tuple と整合する形で供給する。
+- scope: 上記の skip 分類を固定する `orchestrator/tests/test_skip_classification.py` と依存物契約 `orchestrator/tests/README.md` を同期する。
+- 確定裁定: entry 860 [T-1526] の択 (a)。版非依存の新保証機構は作らず、compiler portability 一般化を scope に入れない。
+- 確定裁定: entry 847 [T-1527]。g++-13 不在で隠れていた fake mocc source 欠落を同 wave で閉じる。
+- 基準実測: `/usr/bin/g++-12` と `/usr/bin/g++` は在り、g++-13 は無い。対象 8 件は compiler 不在 skip、別 1 件は template patch 未適用の条件付き未実走である。
+- (P1) 親の provisional 裁定・攻撃対象: `submission.prepare_toolchain()` の production exact gcc-13/g++-13 acceptance は変更しない。「テストを site compiler へ寄せる」という canonical 択 (a) の射程を tests に限定する。
+- (P2) 親の provisional 裁定・攻撃対象: helper は shared production 機構へ一般化せず、既存 `_any_cxx()` を先に配置して両 test module 内から局所利用する。重複 helper が必要なら逐語同型に留める。
+- 不変条件: 規律 2 を緩めず、unknown macro・include drift・TRACE diff-of-diffs の拒否 predicate と正例を変えない。
+- 不変条件: digest の literal 値を compiler 版横断で pin しない。選んだ compiler の同一環境内で stock/changed の等値・非等値関係と cache-key 分離を確認する。
+- 不変条件: compiler 候補が全滅した場合だけ skip し、g++-13 だけ不在の環境は skip しない負例を持つ。
+- 不変条件: `prepare_toolchain()` の exact compiler 不在 fail-closed、toolchain manifest、qualification series identity をこの wave で広げない。
+- 成果物影響 (DW-G05): 現状は 8 acceptance vector が両 Pegasus node 種で未実走となり、builtin alias・include drift・TRACE observer-effect・outer-whitespace identity の退行を受理しうる。fake mocc 欠落は実走化直後に正例を赤化する。
+- cache identity 確認: site compiler を明示注入した既存 positive/negative が、clean stock は stock、挙動変更は別 digest/cache identity、拒否入力は reject の関係を維持することを焦点走と mutation で確認する。
+- 受理集合確認: g++-13 不在 + g++-12 在庫は 8 件を pass 側へ移し、全候補不在だけ skip、規律 2 の拒否入力は引き続き reject する。
+- 変更面アンカー: `test_campaign.py:10851-10967,11390-11469,12154-12210`、`test_s1_direct_comparison.py:223-255,767-795`、`test_skip_classification.py:25-82`、`tests/README.md` の toolchain/条件付き未実走節。
+- 成果物: test-only 実装 commit、親の README/記録 commit、変異 spec/matrix、焦点走と受入全走 receipt、insight/worklog fragment。
+- 分割: compiler threading・skip contract・fake fixture は同じ 8-vector acceptance を共有するため Codex author 1 本。親は docs、全走、変異、記録、commit、land のみ担当する。
+- scope 外: `prepare_toolchain` の候補一般化、他 test file の g++-13 整理、shared compiler resolver 新設、compiler version portability 保証は insight/handoff へ記録するだけで実装しない。

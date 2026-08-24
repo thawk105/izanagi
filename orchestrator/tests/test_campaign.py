@@ -3033,6 +3033,26 @@ def test_cache_key_separates_trace_genome_and_commit():
     )
 
 
+def test_cache_key_separates_compiler_request_name():
+    genome_value = Genome("silo", {"BACK_OFF": 1})
+    commit = "abc123"
+    src_token = "1" * 64
+    admission = _admission_for(
+        genome_value, commit, src_token=src_token,
+    )
+    common = {
+        "trace": False,
+        "src_token": src_token,
+        "admission": admission,
+    }
+
+    assert buildcache.cache_key(
+        genome_value, commit, cxx="g++-12", **common,
+    ) != buildcache.cache_key(
+        genome_value, commit, cxx="g++-13", **common,
+    )
+
+
 # ===== STAGE2: variant_id (WAL キー) =====
 
 def test_variant_id_deterministic_and_sensitive():
@@ -10848,12 +10868,15 @@ def test_require_ccbench_file_skips_only_on_uninitialized_submodule(tmp_path=Non
                 os.environ["PYTEST_CURRENT_TEST"] = saved_env
 
 
-def _require_g13():
-    """source_digest の preprocess は g++-13 を直接叩く (D23)。PATH に無い環境では skip
-    (README の『C++ toolchain が無い環境では skip として数える』契約)。toolchain のある
-    環境では従来どおり実 preprocess を走らせるので検査は弱まらない。"""
-    if shutil.which("g++-13") is None:
-        skip("C++ toolchain 不在 (g++-13 が PATH に無い) — source_digest preprocess は実 g++-13 が要る")
+def _any_cxx():
+    """同一の選択 compiler 内で source-digest の現行関係を検査する。
+
+    compiler 版をまたぐ関係は保証しない。候補が全滅した場合だけ依存物不在として skip する。
+    """
+    for c in ("g++-13", "g++-12", "g++"):
+        if shutil.which(c):
+            return c
+    skip("C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)")
 
 
 def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():
@@ -10895,10 +10918,9 @@ def test_source_digest_stock_roundtrip():
     head = _ccbench_head_or_skip()
     if head is None:
         skip("submodule 未 init — src_token roundtrip は実 working-tree が要る")
-    if not shutil.which("g++-13"):
-        skip("g++-13 不在 — preprocess 実測は計測ホスト (linux-baremetal) 限定")
+    cxx = _any_cxx()
     for g in genome.SILO_SPACE.enumerate():
-        st = source_digest.src_token(g, head)
+        st = source_digest.src_token(g, head, cxx=cxx)
         assert st == source_digest.STOCK, g.canonical()
         assert pipeline.variant_id(g, st) == pipeline.variant_id(g)
 
@@ -10913,21 +10935,27 @@ def test_source_digest_fixed_variant_distinct():
         # 受入 suite は共有 submodule に template patch の窓を開けないため、
         # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。
         skip_conditional_unrun("template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し")
+    # 条件付き未実走を先に分類し、窓が開いた後だけ compiler 不在を依存物 skip にする。
+    cxx = _any_cxx()
     base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
             "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
     g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
     g10 = Genome("silo", {**base, "BACKOFF_FIXED": 10})
     gm1 = Genome("silo", {**base, "BACKOFF_FIXED": -1})
-    t50, t10, tm1 = (source_digest.src_token(x, head) for x in (g50, g10, gm1))
+    t50, t10, tm1 = (
+        source_digest.src_token(x, head, cxx=cxx) for x in (g50, g10, gm1)
+    )
     assert tm1 == source_digest.STOCK             # -1 は #else = stock 枝に正規化
     assert t50 != source_digest.STOCK and t10 != source_digest.STOCK and t50 != t10
     assert pipeline.variant_id(g50, t50) != pipeline.variant_id(g50)
     assert (buildcache.cache_key(
         g50, head, False, t50,
         admission=_admission_for(g50, head, src_token=t50),
+        cxx=cxx,
     ) != buildcache.cache_key(
         g50, head, False,
         admission=_admission_for(g50, head),
+        cxx=cxx,
     ))
 
 
@@ -10941,28 +10969,41 @@ def test_source_digest_failsclosed_on_missing_define():
         src = f.read()
     if "BACKOFF_FIXED" not in src:
         skip_conditional_unrun("template patch 未適用: backoff.hh に BACKOFF_FIXED 骨格なし")
-    _require_g13()  # 供給漏れ停止と preprocess 起動不能を取り違えないため g++-13 不在は skip
+    cxx = _any_cxx()
+    opts = _require_ccbench_file("cmake/Options.cmake")
+    with open(opts, encoding="utf-8") as f:
+        complete_defines = source_digest._merge_defines(
+            source_digest.parse_options_defaults(f.read()), {})
+    source_digest._cpp_normalize(src, complete_defines, cxx=cxx)
+    missing_defines = dict(complete_defines)
+    missing_defines.pop("BACKOFF_FIXED")
     try:
-        source_digest._cpp_normalize(src, {"BACKOFF_NOINLINE": "0"}, "g++-13")  # FIXED 欠落
+        source_digest._cpp_normalize(src, missing_defines, cxx=cxx)
         assert False, "供給漏れで停止すべき (#error / -Werror=undef)"
-    except RuntimeError:
-        pass
+    except RuntimeError as exc:
+        diagnostic = str(exc)
+        assert "BACKOFF_FIXED" in diagnostic
+        assert any(marker in diagnostic.lower()
+                   for marker in ("not defined", "undefined", "undef"))
 
 
 def test_source_digest_semantic_comment_vs_behavior():
     """コメントのみ変更は同 digest (cpp -P 除去)、挙動変更 (memory_order) は別 digest。"""
     opts = _require_ccbench_file("cmake/Options.cmake")
     hh = _require_ccbench_file("include/backoff.hh")
-    _require_g13()
+    cxx = _any_cxx()
     with open(opts, encoding="utf-8") as f:
         defines = source_digest._merge_defines(
             source_digest.parse_options_defaults(f.read()), {})
     with open(hh, encoding="utf-8") as f:
         src = f.read()
-    base = source_digest._cpp_normalize(src, defines, "g++-13")
-    commented = source_digest._cpp_normalize(src + "\n// trailing comment\n", defines, "g++-13")
+    base = source_digest._cpp_normalize(src, defines, cxx=cxx)
+    commented = source_digest._cpp_normalize(
+        src + "\n// trailing comment\n", defines, cxx=cxx)
     behaved = source_digest._cpp_normalize(
-        src.replace("memory_order_acquire", "memory_order_relaxed"), defines, "g++-13")
+        src.replace("memory_order_acquire", "memory_order_relaxed"),
+        defines, cxx=cxx,
+    )
     assert base == commented              # コメント不感 (honest: 挙動不変なら同 id)
     assert base != behaved                # 挙動変更は検出
 
@@ -11397,22 +11438,38 @@ def test_source_digest_builtin_ifdef_not_aliased_to_stock():
     baseline と byte 一致 → src_token='stock' に化け、別挙動の variant が stock の certified 結果を
     verify 素通りで継承する (規律2 直撃)。案A (-undef 廃止) で builtin を実ビルドと揃えれば、
     #ifdef が digest に正直に反映され STOCK に化けない = 別 cache_key で cache-miss ビルドされる。"""
-    _require_g13()
+    cxx = _any_cxx()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
-    assert source_digest.resolve(g, head, sub) == source_digest.STOCK   # clean は STOCK
+    stock_token = source_digest.resolve(g, head, sub, cxx=cxx)
+    assert stock_token == source_digest.STOCK                          # clean は STOCK
+    stock_variant = pipeline.variant_id(g, stock_token)
+    assert stock_variant == pipeline.variant_id(g)
+    stock_key = buildcache.cache_key(
+        g, head, False,
+        admission=_admission_for(g, head),
+        cxx=cxx,
+    )
     # payload (return 1) に builtin definedness の別枝を注入。g++ では __GNUC__ が常に定義される
     # ので実ビルドは 999 枝、旧 -undef digest は #else で 1 (= stock と alias) になっていた。
     with open(hh, "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH.replace(
             "    return 1;\n",
             "#ifdef __GNUC__\n    return 999;\n#else\n    return 1;\n#endif\n"))
-    tok = source_digest.resolve(g, head, sub)
+    tok = source_digest.resolve(g, head, sub, cxx=cxx)
     assert tok != source_digest.STOCK, \
         "builtin definedness (#ifdef __GNUC__) が STOCK に化けた — 案A (-undef 廃止) の回帰"
-    assert source_digest.compute(g, sub) != source_digest.baseline(g, head, sub), \
+    assert pipeline.variant_id(g, tok) != stock_variant
+    assert source_digest.compute(g, sub, cxx=cxx) != source_digest.baseline(
+        g, head, sub, cxx=cxx), \
         "別挙動 payload の digest が baseline と一致 (偽 cache hit)"
+    changed_key = buildcache.cache_key(
+        g, head, False, tok,
+        admission=_admission_for(g, head, src_token=tok),
+        cxx=cxx,
+    )
+    assert changed_key != stock_key
 
 
 def test_source_digest_include_change_rejected_by_resolve():
@@ -11421,16 +11478,16 @@ def test_source_digest_include_change_rejected_by_resolve():
     fails-closed abort する。恒久案 (行を identity に織り込んで許す) は include 先の中身が
     identity 外に dangling し中身違いの新規 header で variant 間 alias が残るため却下
     (2026-07-03 敵対検証 high)。行集合を HEAD 固定にすれば include 追加自体を止め穴ごと消える。"""
-    _require_g13()
+    cxx = _any_cxx()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
-    assert source_digest.resolve(g, head, sub) == source_digest.STOCK    # clean = stock 通過
+    assert source_digest.resolve(g, head, sub, cxx=cxx) == source_digest.STOCK
     hh = os.path.join(sub, "include", "backoff.hh")
     # (a) #include の追加 → resolve が abort (行集合が HEAD と不一致)
     with open(hh, "w", encoding="utf-8") as f:
         f.write('#include "evil_extra.hh"\n' + _FAKE_BACKOFF_HH)
     try:
-        source_digest.resolve(g, head, sub)
+        source_digest.resolve(g, head, sub, cxx=cxx)
         assert False, "#include 追加で resolve が abort すべき"
     except RuntimeError as e:
         assert "#include" in str(e)
@@ -11438,33 +11495,22 @@ def test_source_digest_include_change_rejected_by_resolve():
     with open(hh, "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH.replace('#include "tsc.hh"', '#include "hacked.hh"'))
     try:
-        source_digest.resolve(g, head, sub)
+        source_digest.resolve(g, head, sub, cxx=cxx)
         assert False, "#include 差し替えで resolve が abort すべき"
     except RuntimeError:
         pass
     # (c) 復元で resolve が通過に戻る (誤検出でない)
     with open(hh, "w", encoding="utf-8") as f:
         f.write(_FAKE_BACKOFF_HH)
-    assert source_digest.resolve(g, head, sub) == source_digest.STOCK
+    assert source_digest.resolve(g, head, sub, cxx=cxx) == source_digest.STOCK
     # assert_includes_match_head 単体でも同じ判定 (resolve が駆動する一次防壁)
     with open(hh, "w", encoding="utf-8") as f:
         f.write('#include "evil_extra.hh"\n' + _FAKE_BACKOFF_HH)
     try:
-        source_digest.assert_includes_match_head(g, head, sub)
+        source_digest.assert_includes_match_head(g, head, sub, cxx=cxx)
         assert False, "assert_includes_match_head 単体でも abort すべき"
     except RuntimeError:
         pass
-
-
-def _any_cxx():
-    """実在する g++ を返す (skip は全滅時のみ)。T-148 系テストは digest の等値/非等値と
-    受理/拒否の**関係**だけを見る — 関係は g++ 版に依存しない (digest 値自体は環境依存で
-    pin しない仕様、D34)。中核 positive control が g++-13 不在の環境で skip されると
-    偽緑になる ([T-137] の教訓) ため fallback で実 preprocess を必ず走らせる。"""
-    for c in ("g++-13", "g++-12", "g++"):
-        if shutil.which(c):
-            return c
-    skip("C++ toolchain 全滅 (g++-13/g++-12/g++ いずれも PATH に無い)")
 
 
 # 実 include/backoff.hh:123-125 と同型の TU 注入マクロ枝 (#define は cc/silo/*_silo.cc:3 が
@@ -12159,19 +12205,19 @@ def test_trace_diff_of_diffs_predicate():
     (a) stock は通過、(b) TRACE 非依存の payload 編集も通過 (正当な編集を巻き込まない)、
     (c) variant が #if TRACE の挙動差を追加したら fails-closed abort — nm の name-based
     検査では捕えない C++ ソースレベルの TRACE 混入 (規律1)。"""
-    _require_g13()
+    cxx = _any_cxx()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, head, _git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
-    source_digest.assert_trace_diff_matches_head(g, head, sub)       # (a) stock 通過
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx=cxx)
     with open(hh, "w", encoding="utf-8") as f:                       # (b) TRACE 非依存の編集
         f.write(_FAKE_BACKOFF_HH.replace("return 1;", "return 2;"))
-    source_digest.assert_trace_diff_matches_head(g, head, sub)
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx=cxx)
     with open(hh, "w", encoding="utf-8") as f:                       # (c) TRACE 挙動差の混入
         f.write(_FAKE_BACKOFF_HH.replace(
             "return 1;", "#if TRACE\n    int leak = 1;\n#endif\n    return 1;"))
     try:
-        source_digest.assert_trace_diff_matches_head(g, head, sub)
+        source_digest.assert_trace_diff_matches_head(g, head, sub, cxx=cxx)
         assert False, "TRACE 条件付きコードの追加で abort すべき"
     except RuntimeError as e:
         assert "diff-of-diffs" in str(e)
@@ -12184,7 +12230,7 @@ def test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit():
     入れないので、TRACE 非依存の編集で差分位置がずれても偽陽性にならない。
     (c) #if TRACE の内側の挙動差改変は D_variant≠D_stock で abort — 旧 nm 検査が
     素通しした「#ifdef TRACE 内側に挙動差を隠す攻撃」(GW2R-1 系) の閉塞。"""
-    _require_g13()
+    cxx = _any_cxx()
     g = Genome("silo", {"BACK_OFF": 1})
     sub, _head, git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
@@ -12193,17 +12239,17 @@ def test_trace_diff_of_diffs_allows_stock_hook_catches_inner_edit():
     git("add", "-A")
     git("commit", "-q", "-m", "traced stock")
     head2 = git("rev-parse", "HEAD").strip()
-    source_digest.assert_trace_diff_matches_head(g, head2, sub)      # (a)
+    source_digest.assert_trace_diff_matches_head(g, head2, sub, cxx=cxx)
     with open(hh, "w", encoding="utf-8") as f:                       # (b) ガード前に行追加
         f.write(_FAKE_BACKOFF_TRACED.replace(
             "  static int wait() {\n",
             "  static int wait() {\n    int pad = 0; (void)pad;\n"))
-    source_digest.assert_trace_diff_matches_head(g, head2, sub)
+    source_digest.assert_trace_diff_matches_head(g, head2, sub, cxx=cxx)
     with open(hh, "w", encoding="utf-8") as f:                       # (c) ガード内改変
         f.write(_FAKE_BACKOFF_TRACED.replace("int trace_hits = 1;",
                                              "int trace_hits = 2;"))
     try:
-        source_digest.assert_trace_diff_matches_head(g, head2, sub)
+        source_digest.assert_trace_diff_matches_head(g, head2, sub, cxx=cxx)
         assert False, "#if TRACE 内側の改変で abort すべき"
     except RuntimeError:
         pass

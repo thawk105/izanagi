@@ -205,6 +205,27 @@ v1 の「floor を超えて劣位なら棄却」は 2 レンズが独立に must
    未満) 集合、(ii) **結論不変** = floor 超地形の有無の判定が on/off で一致、(iii) 総機械時間の
    削減率実測、(iv) 同一 genome の on/off fitness が floor 内で一致 (§3.1 の測定窓微差の確認)
 
+   **2026-08-22 進捗 (T-1477、初回 ablation 試行):** (i)〜(iv) の判定は**未完了**。Pegasus 側
+   read-heavy (skew 0.9 / rr95 / rmw 0) の between-run floor 新規較正は実測成功
+   (`between_run_floor.py` を Pegasus 対応拡張、`clocks_per_us=2100`・numactl 無効・
+   site-aware compiler・`use_perf=False` を選択できるよう配線。floor = between_run.cv =
+   `0.0021739527783741987`、within_run.cv = `0.019281423226176545`、abort_rate = `0.1548`、
+   計算ノード実測 174 秒、証跡は job dir `calibration-evidence-attempt3/` に保存)。
+   off/on 比較 (`backoff_sweep.py read-heavy` の screening 無し/有り) は、5 回の実投入で
+   環境上の欠落を 4 件発見・修正した (gflags/glog 未 bootstrap、perf 不在への未対応、
+   ジョブ出力先が誤って git repository 配下だった、`backoff_sweep.py` が official 外部
+   output_root + Pegasus reservation-required の組合せで `durable_root_policy` を
+   `run_campaign()` へ渡していなかった — 4件とも該当 wave で修正・変異検証済み)。
+   5 回目の投入で、`hooks/enforcement-source-closure-ratifications.v1.jsonl`
+   (enforcement-source 批准台帳、2026-08-18 worklog entry 660 で意図的に 0 行のまま land、
+   AI 実装者は機構的に追記不可) により `backoff_sweep.py` (`declared_use_class="official"`
+   固定) の新規 campaign 初期化が fail-closed で止まると判明した。この経路 (official class
+   の brand-new campaign 初期化) は 2026-08-18 の同機構 land 以降、環境を問わずおそらく
+   未実行のままだった可能性が高い (2026-07-15 の positive control はこの機構の land より
+   1 か月前の実行)。ユーザー裁定によりこの wave はここで区切り、off/on 実測 (4 基準判定) は
+   批准台帳が人間の手で埋まった後の別 wave へ引き継ぐ。実装 (Pegasus 対応・durable_root_policy
+   配線) はそのまま再利用可能。
+
 ## 6. 却下した代替案
 
 - **(i) 正しさ検査を先に軽量化する (verify 側の圧縮):** S2 verify の規模は D36 gate 3 点の

@@ -1,0 +1,33 @@
+{
+ "note": "最終 tip 118d7ba2 での変異走行の前に凍結した期待 node。probe2 (tip 1aa61b98) の観測に基づく。MUT-2 は fix8 で anchor が変わったため再照準したが、殺す gate (issues == [] の要求) は同一なので期待 node も同一と予測する。",
+ "frozen_at": "2026-08-23 commit 118d7ba2 の変異走行前",
+ "expected_nodes": {
+  "MUT-1": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_preflight_ancestry_gate_rejects_before_any_removal"
+  ],
+  "MUT-2": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[issues-22]"
+  ],
+  "MUT-3": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_active_fold_state_without_mutation"
+  ],
+  "MUT-4": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv0]"
+  ],
+  "MUT-5": [
+   "orchestrator/tests/test_check_worktree_occupancy.py::test_main_zombie_missing_cwd_is_counted_without_issue_mut5"
+  ],
+  "MUT-6": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_stale_record_bound_to_a_different_branch"
+  ],
+  "MUT-7": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv0]",
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv2]",
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv4]",
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed15]"
+  ],
+  "MUT-8": [
+   "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_reflog_only_unreachable_commit_without_mutation"
+  ]
+ }
+}

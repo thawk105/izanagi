@@ -15,6 +15,10 @@ receipt expectation 層では、``run_contract`` を Mapping として宣言す�
 authority は P-A1(a)/[T-002] の責務である。WAL 各行の duplicate key と record の基本形も
 検査し、campaign-terminal が物理的な最終 record であることを要求する。hash chain や外部
 anchor はなく、任意改変に対する真正性の保証ではない。
+
+namespace と campaign の pathname 検査は stable filesystem を前提とする。
+namespace component、campaign path、WAL、store には同一 UID の競合者による
+交換と復元の ABA race が残るため、この module はそれらを完全に閉鎖しない。
 """
 from __future__ import annotations
 
@@ -50,7 +54,12 @@ from . import s8b_freeze_io as _freeze_io  # noqa: E402
 from . import s8b_outcome_stage_contract as _outcome_stage_contract  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
 from . import t080_freeze_migration as _t080  # noqa: E402
-from .layout import CampaignLayout, campaign_layout  # noqa: E402
+from .layout import (  # noqa: E402
+    CampaignLayout,
+    repo_output_root,
+    resolve_campaign_output_root,
+    validate_campaign_id,
+)
 from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 
 
@@ -327,36 +336,197 @@ def _force_protocol_violation(rows: Sequence[dict], issue: str) -> None:
         )
 
 
-def _resolve_official_output_root(output_root: Path) -> Path:
-    """namespace marker を検査し、後段が使う唯一の resolved root を返す。"""
+@dataclasses.dataclass(frozen=True)
+class _NamespaceLeafIdentity:
+    path: Path
+    device: int
+    inode: int
+    size: int
+    mtime_ns: int
+    ctime_ns: int
+
+
+@dataclasses.dataclass(frozen=True)
+class _ResolvedOfficialOutputRoot:
+    """Stable-filesystem snapshot for one admitted output-root path."""
+
+    path: Path
+    root_identity: tuple[int, int]
+    namespace_identities: tuple[_NamespaceLeafIdentity, ...]
+
+
+def _reject_output_root_symlink_components(path: Path) -> None:
+    """Reject every existing lexical component before path resolution."""
+    if not path.is_absolute():
+        raise ReportError("official output_root は絶対 path 必須")
+    if ".." in path.parts:
+        raise ReportError("official output_root に .. component を指定できない")
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            break
+        except OSError as exc:
+            raise ReportError("official output_root component を検査できない") from exc
+        if stat.S_ISLNK(metadata.st_mode):
+            raise ReportError("official output_root に symlink component がある")
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise ReportError("official output_root に非 directory component がある")
+
+
+def _read_namespace_leaf(
+        marker: Path, *, required: bool,
+) -> _NamespaceLeafIdentity | None:
+    """Read one namespace marker without following or blocking on its leaf."""
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    nonblock = getattr(os, "O_NONBLOCK", None)
+    if nofollow is None or nonblock is None:
+        raise ReportError("namespace marker の安全な open flag が利用できない")
     try:
-        resolved = Path(output_root).resolve()
+        descriptor = os.open(marker, os.O_RDONLY | nofollow | nonblock)
+    except FileNotFoundError:
+        if required:
+            raise ReportError("output_root namespace marker が存在しない")
+        return None
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise ReportError(f"namespace marker が symlink: {marker}") from exc
+        raise ReportError(f"namespace marker を安全に open できない: {marker}") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ReportError(f"namespace marker が通常 file でない: {marker}")
+        read_limit = max(
+            len(_artifacts.OFFICIAL_NAMESPACE_BYTES),
+            len(_artifacts.EXPLORATION_NAMESPACE_BYTES),
+        ) + 1
+        if before.st_size >= read_limit:
+            raise ReportError(f"namespace marker が有界サイズを超える: {marker}")
+        chunks: list[bytes] = []
+        remaining = read_limit
+        while remaining:
+            chunk = os.read(descriptor, remaining)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        after = os.fstat(descriptor)
+    except ReportError:
+        raise
+    except OSError as exc:
+        raise ReportError(f"namespace marker を有界 read できない: {marker}") from exc
+    finally:
+        os.close(descriptor)
+    before_identity = (
+        before.st_dev, before.st_ino, before.st_size,
+        before.st_mtime_ns, before.st_ctime_ns,
+    )
+    after_identity = (
+        after.st_dev, after.st_ino, after.st_size,
+        after.st_mtime_ns, after.st_ctime_ns,
+    )
+    if before_identity != after_identity:
+        raise ReportError(f"namespace marker が read 中に変化した: {marker}")
+    payload = b"".join(chunks)
+    if payload == _artifacts.EXPLORATION_NAMESPACE_BYTES:
+        raise ReportError(
+            f"exploration namespace を official report output_root に指定できない: {marker}"
+        )
+    if payload != _artifacts.OFFICIAL_NAMESPACE_BYTES:
+        raise ReportError(f"namespace marker が official exact bytes と一致しない: {marker}")
+    return _NamespaceLeafIdentity(
+        path=marker,
+        device=after.st_dev,
+        inode=after.st_ino,
+        size=after.st_size,
+        mtime_ns=after.st_mtime_ns,
+        ctime_ns=after.st_ctime_ns,
+    )
+
+
+def _scan_official_namespace(resolved: Path) -> _ResolvedOfficialOutputRoot:
+    """Require the root marker and allowlist every marker-bearing ancestor."""
+    _reject_output_root_symlink_components(resolved)
+    try:
+        root_metadata = resolved.lstat()
+    except FileNotFoundError as exc:
+        raise ReportError("official output_root が存在しない") from exc
+    except OSError as exc:
+        raise ReportError("official output_root を検査できない") from exc
+    if not stat.S_ISDIR(root_metadata.st_mode):
+        raise ReportError("official output_root が directory でない")
+
+    identities: list[_NamespaceLeafIdentity] = []
+    for index, ancestor in enumerate((resolved, *resolved.parents)):
+        identity = _read_namespace_leaf(
+            ancestor / "namespace.json", required=index == 0,
+        )
+        if identity is not None:
+            identities.append(identity)
+    return _ResolvedOfficialOutputRoot(
+        path=resolved,
+        root_identity=(root_metadata.st_dev, root_metadata.st_ino),
+        namespace_identities=tuple(identities),
+    )
+
+
+def _resolve_official_output_root(output_root: Path) -> _ResolvedOfficialOutputRoot:
+    """Admit one official read root and snapshot its stable namespace boundary."""
+    raw_candidate = Path(output_root)
+    if ".." in raw_candidate.parts:
+        raise ReportError("official output_root に .. component を指定できない")
+    try:
+        candidate = (
+            raw_candidate
+            if raw_candidate.is_absolute()
+            else Path.cwd() / raw_candidate
+        )
+    except OSError as exc:
+        raise ReportError("relative output_root の cwd を取得できない") from exc
+    _reject_output_root_symlink_components(candidate)
+    try:
+        resolved = candidate.resolve(strict=False)
+        canonical_repo_output = Path(repo_output_root()).resolve(strict=True)
     except OSError as exc:
         raise ReportError("output_root を解決できない") from exc
-    marker = resolved / "namespace.json"
-    if marker.is_symlink():
-        raise ReportError("output_root namespace marker が symlink")
-    if not marker.exists():
-        return resolved
-    try:
-        document = _artifacts.strict_load_json_object(marker)
-    except _artifacts.OracleArtifactTypeError as exc:
-        raise ReportError(f"output_root namespace marker が不正: {exc}") from exc
-    if document == {"namespace": "exploration"}:
-        raise ReportError("exploration namespace を official report output_root に指定できない")
-    raise ReportError("output_root namespace marker が official namespace と一致しない")
+    if not raw_candidate.is_absolute() and resolved != canonical_repo_output:
+        raise ReportError(
+            "relative official output_root は canonical repository output exact のみ受理する"
+        )
+    if resolved != canonical_repo_output:
+        try:
+            admitted = Path(resolve_campaign_output_root(
+                "official", os.fspath(candidate),
+            ))
+        except ValueError as exc:
+            raise ReportError(str(exc)) from exc
+        if admitted != resolved:
+            raise ReportError("official output_root admission の解決結果が不一致")
+    return _scan_official_namespace(resolved)
+
+
+def _revalidate_official_output_root(
+        admitted: _ResolvedOfficialOutputRoot,
+) -> None:
+    """Detect persistent root/marker changes; same-UID ABA remains out of scope."""
+    observed = _scan_official_namespace(admitted.path)
+    if (observed.root_identity != admitted.root_identity
+            or observed.namespace_identities != admitted.namespace_identities):
+        raise ReportError("output_root または namespace marker が観測中に変化した")
 
 
 def _resolved_campaign_layout(
     campaign_id: str, resolved_output_root: Path,
 ) -> CampaignLayout:
-    """official root 配下の symlink-free campaign を resolved path へ固定する。"""
+    """stable tree で symlink-free campaign の resolved path carrier を作る。"""
     try:
-        unresolved = campaign_layout(campaign_id, output_root=str(resolved_output_root))
+        cid = validate_campaign_id(campaign_id)
     except ValueError as exc:
         raise ReportError(str(exc)) from exc
     campaigns_root = resolved_output_root / "campaigns"
-    campaign_root = Path(unresolved.root)
+    campaign_root = campaigns_root / cid
     for component in (campaigns_root, campaign_root):
         if component.is_symlink():
             raise ReportError(f"campaign path component が symlink: {component}")
@@ -1146,6 +1316,21 @@ def _safe_payload(record: object) -> Mapping:
     return payload if isinstance(payload, Mapping) else {}
 
 
+def _attempt_binding_issues(
+        records: Sequence[object], *, stage: str,
+        expected_attempt_id: str | None,
+) -> list[str]:
+    # 件数不整合 (0件/2件以上) は既存の別 gate (truth-table 不一致、bench_done 重複検査、
+    # abort/commit 重複検査) が既に閉じるため、ちょうど1件のときだけ判定する
+    # (T-1476 の _verify_state と同じ設計)。
+    if expected_attempt_id is None or len(records) != 1:
+        return []
+    payload = _safe_payload(records[0])
+    if payload.get("build_attempt_id") != expected_attempt_id:
+        return [f"{stage}.build_attempt_id が committed attempt と不一致"]
+    return []
+
+
 def _pipeline_payload_issues(records: Sequence[object]) -> dict[int, str]:
     """全 pipeline record の payload 型違反を record identity へ束縛する。"""
     issues: dict[int, str] = {}
@@ -1333,6 +1518,21 @@ def _assess_window(item: Mapping, window: Sequence[object], manifest: Mapping,
     counts = {stage: sum(record.stage == stage for record in pipeline_records)
               for stage in _outcome_stage_contract.PIPELINE_STAGES}
     abort_records = [record for record in pipeline_records if record.stage == "abort"]
+    build_done_records = [
+        record for record in pipeline_records if record.stage == "build_done"
+    ]
+    commit_records = [
+        record for record in pipeline_records if record.stage == "commit"
+    ]
+    for stage, stage_records in (
+        ("build_done", build_done_records),
+        ("bench_done", benches),
+        ("abort", abort_records),
+        ("commit", commit_records),
+    ):
+        issues.extend(_attempt_binding_issues(
+            stage_records, stage=stage, expected_attempt_id=expected_attempt_id,
+        ))
     if counts["build_start"] != 1:
         issues.append(f"build_start が一意でない: {counts['build_start']}")
     if counts["abort"] > 1 or counts["commit"] > 1:
@@ -2042,7 +2242,11 @@ def build_observations(
     repo_root: Path = ROOT,
     reverified_freeze: s8b_ratified_freeze.ReverifiedFreeze | None = None,
 ) -> _artifacts.OfficialObservations:
-    """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。"""
+    """manifest 所有 campaign だけから JSON-safe な全件 observations を作る。
+
+    pathname の検査と再検査は stable filesystem 上の永続交換を検出する境界である。
+    namespace component、campaign path、WAL、store の同一 UID ABA race まで閉じない。
+    """
     if type(manifest) not in {
             s8b_oracle_manifest.VerifiedManifest, _artifacts.LegacyManifest}:
         raise _artifacts.OracleArtifactTypeError(
@@ -2093,7 +2297,8 @@ def build_observations(
         receipt_resolution.state == "issued-but-missing"
         or (receipt_resolution.state == "invalid" and bool(receipt_resolution.refusals))
     )
-    resolved_output_root = _resolve_official_output_root(Path(output_root))
+    admitted_output_root = _resolve_official_output_root(Path(output_root))
+    resolved_output_root = admitted_output_root.path
     campaign_verifier_epochs = [
         _campaign_verifier_epoch_projection(campaign_id, resolved_output_root)
         for campaign_id in sorted(campaign_ids)
@@ -2219,6 +2424,7 @@ def build_observations(
             condition["perf_observation"] is not None
             for condition in measurement_conditions):
         result["measurement_conditions"] = measurement_conditions
+    _revalidate_official_output_root(admitted_output_root)
     return result
 
 

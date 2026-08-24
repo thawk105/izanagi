@@ -430,10 +430,16 @@ with open(path, "x", encoding="utf-8") as handle:
     handle.write("\n")
 PY
 
-CPU_MODEL=$(awk -F: '/^model name[[:space:]]*:/ {gsub(/^[[:space:]]+/, "", $2); print $2; exit}' /proc/cpuinfo)
+CPU_MODEL=$(awk -F: '/^[[:space:]]*model name[[:space:]]*:/ {
+  sub(/^[[:space:]]+/, "", $2); print $2; exit
+}' /proc/cpuinfo)
 printf '%s\n' "$CPU_MODEL" >"$ATTEMPT_DIR/cpu-model.stdout"
-if [[ "$CPU_MODEL" != "$EXPECTED_CPU" ]]; then
-  write_failure 2 environment "CPU model differs from policy"
+CPU_MODEL_NORMALIZED=$(sed -E \
+  's/\((R|TM)\)//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' \
+  <<<"$CPU_MODEL")
+if [[ "$CPU_MODEL_NORMALIZED" != "$EXPECTED_CPU" ]]; then
+  write_failure 2 environment \
+    "CPU model mismatch: expected=$EXPECTED_CPU observed_normalized=$CPU_MODEL_NORMALIZED"
   exit 2
 fi
 
@@ -657,12 +663,41 @@ if [[ "$TRACE_MODE" -eq 0 ]]; then
   # D297 checker is deliberately a hard gate.  Its nonzero result means that
   # TRACE=0 execution is skipped; no fallback or relaxed branch is permitted.
   build_mode 0
+  CHECKER_PY=""
+  checker_py_rejected=""
+  for py_name in python3 python3.10 python3.11 python3.12; do
+    py_cmd=$(command -v -- "$py_name") || continue
+    py_resolved=$(realpath -e -- "$py_cmd") || continue
+    [[ -x "$py_resolved" ]] || continue
+    if (
+      cd "$REPO_ROOT" &&
+      PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+      "$py_resolved" -c \
+        'import sys; import orchestrator.campaign.source_digest; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+        "$REPO_ROOT"
+    ) >/dev/null 2>&1; then
+      CHECKER_PY="$py_resolved"
+      break
+    fi
+    checker_py_rejected+="${checker_py_rejected:+ }$py_name=$py_resolved"
+  done
+
   CHECKER_RC=0
-  python3 "$REPO_ROOT/tools/check_trace0_preprocess_identity.py" \
-    --repo "$BUILD_SOURCE" --old "$BASE_OID" --new "$NEW_OID" \
-    --cxx "$CXX_PATH" --expect-paths cc/mocc/transaction.cc \
-    >"$ATTEMPT_DIR/trace0-preprocess-identity.json" \
-    2>"$ATTEMPT_DIR/trace0-preprocess-identity.stderr" || CHECKER_RC=$?
+  if [[ -n "$CHECKER_PY" ]]; then
+    (
+      cd "$REPO_ROOT" &&
+      PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+      "$CHECKER_PY" "$REPO_ROOT/tools/check_trace0_preprocess_identity.py" \
+        --repo "$BUILD_SOURCE" --old "$BASE_OID" --new "$NEW_OID" \
+        --cxx "$CXX_PATH" --expect-paths cc/mocc/transaction.cc
+    ) >"$ATTEMPT_DIR/trace0-preprocess-identity.json" \
+      2>"$ATTEMPT_DIR/trace0-preprocess-identity.stderr" || CHECKER_RC=$?
+  else
+    CHECKER_RC=2
+    checker_gate_message="no python3 >= 3.10 candidate can import orchestrator.campaign.source_digest (rejected: ${checker_py_rejected:-none})"
+    printf '%s\n' "$checker_gate_message" \
+      >"$ATTEMPT_DIR/trace0-preprocess-identity.stderr"
+  fi
   printf '%s\n' "$CHECKER_RC" >"$ATTEMPT_DIR/trace0-preprocess-identity.rc"
   if [[ "$CHECKER_RC" -ne 0 ]]; then
     python3 - "$ATTEMPT_DIR/trace0-execution.json" "$CHECKER_RC" <<'PY'
@@ -897,10 +932,37 @@ with open(sys.argv[2], "x", encoding="utf-8") as handle:
     )
     handle.write("\n")
 PY
+  VERIFIER_PY=""
+  verifier_py_rejected=""
+  for py_name in python3 python3.10 python3.11 python3.12; do
+    py_cmd=$(command -v -- "$py_name") || continue
+    py_resolved=$(realpath -e -- "$py_cmd") || continue
+    [[ -x "$py_resolved" ]] || continue
+    if (
+      cd "$REPO_ROOT" &&
+      "$py_resolved" -c \
+        'import sys; import orchestrator.verifier; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+        "$REPO_ROOT"
+    ) >/dev/null 2>&1; then
+      VERIFIER_PY="$py_resolved"
+      break
+    fi
+    verifier_py_rejected+="${verifier_py_rejected:+ }$py_name=$py_resolved"
+  done
+  if [[ -z "$VERIFIER_PY" ]]; then
+    verifier_gate_message="no python3 >= 3.10 candidate can import orchestrator.verifier (rejected: ${verifier_py_rejected:-none})"
+    write_failure 2 verifier "$verifier_gate_message"
+    printf '%s\n' 2 >"$ATTEMPT_DIR/verifier.rc"
+    echo "$verifier_gate_message" >&2
+    exit 2
+  fi
+
   verifier_rc=0
-  python3 -m orchestrator.verifier "$TRACE_DIR" --json \
-    --expected-commits "$COMMIT_COUNT" \
-    >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
+  (
+    cd "$REPO_ROOT" &&
+    "$VERIFIER_PY" -m orchestrator.verifier "$TRACE_DIR" --json \
+      --expected-commits "$COMMIT_COUNT"
+  ) >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc
   printf '%s\n' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"
   if [[ "$VERIFIER_RC" -ne 0 ]]; then

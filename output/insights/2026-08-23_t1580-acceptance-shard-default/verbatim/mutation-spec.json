@@ -1,0 +1,199 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 900,
+ "timeout_seconds": 7200,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        return 2 if eligible else 1\n",
+     "new": "        return 1 if eligible else 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_eligible_login_acceptance_resolves_to_k2",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+    "orchestrator/tests/test_run_tests_shards.py::test_resolver_uses_exact_bounded_membership_predicate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "    eligible = (\n        is_acceptance\n",
+     "new": "    eligible = (\n        True\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[nonacceptance]",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_nonempty_pytest_addopts_resolves_silently_to_k1",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        and site_policy.is_pegasus_login(resolved_site)\n        and _validate_shard_outer_args(raw_args, force_dispatch)\n",
+     "new": "        and True\n        and _validate_shard_outer_args(raw_args, force_dispatch)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[nonlogin]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[3]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        and bounded_membership is not True\n",
+     "new": "        and True\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_ineligible_dimensions_resolve_silently_to_k1[bounded-scope]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_resolver_uses_exact_bounded_membership_predicate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        if not eligible:\n            raise ValueError(\"explicit acceptance shard request is ineligible\")\n",
+     "new": "        if not eligible:\n            return 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[bounded-scope-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[internal-spec-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[internal-spec-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[non-force-argv-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[non-force-argv-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonacceptance-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[nonlogin-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[positional-2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_multi_shard_requests_fail_closed_when_ineligible[positional-3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_explicit_shards_reject_nonlogin_without_fallback[3]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        and not explicit_shard_mode\n",
+     "new": "        and not shard_mode\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/acceptance_shards.py",
+     "old": "    if child_started_reported is True or shard_count not in {2, 3}:\n",
+     "new": "    if shard_count not in {2, 3}:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_rejects_parent_child_started_evidence",
+    "orchestrator/tests/test_run_tests_shards.py::test_parallel_parent_child_started_evidence_suppresses_attestation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/acceptance_shards.py",
+     "old": "    if child_started_reported is True or shard_count not in {2, 3}:\n",
+     "new": "    if True or shard_count not in {2, 3}:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_accepts_consumer_payload_limit_and_crlf",
+    "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable[2]",
+    "orchestrator/tests/test_run_tests_shards.py::test_aggregate_no_verdict_attestation_is_unique_and_consumer_retryable[3]",
+    "orchestrator/tests/test_run_tests_shards.py::test_parallel_infra_path_emits_one_aggregate_no_verdict_attestation",
+    "orchestrator/tests/test_run_tests_shards.py::test_parallel_intent_recovery_emits_one_attestation",
+    "orchestrator/tests/test_run_tests_shards.py::test_parallel_login_collection_failures_emit_one_attestation[login-collection-exception]",
+    "orchestrator/tests/test_run_tests_shards.py::test_parallel_login_collection_failures_emit_one_attestation[login-collection]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "    eligible = (\n        is_acceptance\n",
+     "new": "    eligible = False and (\n        is_acceptance\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_eligible_login_acceptance_resolves_to_k2",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+    "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+    "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+    "orchestrator/tests/test_run_tests_shards.py::test_resolver_uses_exact_bounded_membership_predicate",
+    "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

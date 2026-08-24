@@ -34,6 +34,15 @@ M9 -> <none: post-treatment denominator node was lost>
 M10 -> test_scorer_preserves_historical_controls
 M11 -> test_tilde_fence_with_backtick_info_hides_fake_summary
 M12 -> <none: 500-byte exact boundary node was lost>
+
+DW acceptance-hotspots mutation nodes:
+MUT-1 -> test_filesystem_file_set_parent_resolve_errors_propagate_per_call
+MUT-2 -> test_filesystem_file_set_symlink_root_git_is_included
+MUT-3 -> test_git_fsck_futures_are_consumed_and_gated_exactly_once
+MUT-4 -> test_git_fsck_completion_order_does_not_reorder_reasons_or_manifests
+MUT-5 -> test_git_fsck_executor_construction_failure_rejects
+MUT-6 -> test_verify_snapshot_reuses_one_filesystem_observation_per_snapshot
+MUT-7 -> test_filesystem_file_set_accepts_readable_static_tree
 """
 from __future__ import annotations
 
@@ -49,6 +58,7 @@ import socket
 import stat
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -1869,6 +1879,189 @@ def test_git_closure_rejects_shallow_without_overrejecting_clean_snapshot(
     assert reasons == [".: shallow closure is not empty"]
 
 
+def _stub_git_closure_preparation(
+    monkeypatch: pytest.MonkeyPatch,
+    snapshot: Path,
+    git_dir: Path,
+) -> None:
+    def fake_git(_repository: Path, *args: str, **_kwargs: Any) -> bytes:
+        if args == ("for-each-ref", "--format=%(refname)"):
+            return f"refs/heads/{TOOL.BRANCH}\n".encode()
+        if args == ("remote",):
+            return b""
+        raise AssertionError(f"unexpected git call: {args}")
+
+    monkeypatch.setattr(TOOL, "_git", fake_git)
+    monkeypatch.setattr(TOOL, "_git_dir", lambda _repository: git_dir)
+    monkeypatch.setattr(
+        TOOL,
+        "_commit_graph_manifest",
+        lambda *_args: (
+            [],
+            {
+                "present": False,
+                "valid": None,
+                "paths": [],
+                "verify_returncode": None,
+                "verify_stderr_first_line": None,
+            },
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "error_type", (PermissionError, OSError), ids=("permission", "io-error")
+)
+def test_git_closure_directory_enumeration_failure_rejects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: type[OSError],
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    git_dir = snapshot / ".git"
+    logs = git_dir / "logs"
+    logs.mkdir(parents=True)
+    (logs / "hidden").write_text("hidden\n", encoding="utf-8")
+    _stub_git_closure_preparation(monkeypatch, snapshot, git_dir)
+    original_scandir = os.scandir
+
+    def failing_scandir(path: Any) -> Any:
+        if Path(path) == logs:
+            raise error_type("closure scan failed")
+        return original_scandir(path)
+
+    monkeypatch.setattr(TOOL.os, "scandir", failing_scandir)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._prepare_one_git_closure(
+            snapshot, snapshot, [f"refs/heads/{TOOL.BRANCH}"]
+        )
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert len(caught.value.reasons) == 1
+    reason = caught.value.reasons[0].replace(os.fspath(logs), "<logs>")
+    assert reason == (
+        "git closure directory enumeration failed at <logs>: "
+        f"{error_type.__name__}: closure scan failed"
+    )
+
+
+def test_git_closure_path_inspection_failure_rejects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    git_dir = snapshot / ".git"
+    logs = git_dir / "logs"
+    logs.mkdir(parents=True)
+    _stub_git_closure_preparation(monkeypatch, snapshot, git_dir)
+    original_stat = Path.stat
+
+    def failing_stat(
+        path: Path, *, follow_symlinks: bool = True
+    ) -> os.stat_result:
+        if path == logs:
+            raise OSError("closure stat failed")
+        return original_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", failing_stat)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._prepare_one_git_closure(
+            snapshot, snapshot, [f"refs/heads/{TOOL.BRANCH}"]
+        )
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert len(caught.value.reasons) == 1
+    reason = caught.value.reasons[0].replace(os.fspath(logs), "<logs>")
+    assert reason == (
+        "git closure path inspection failed at <logs>: "
+        "OSError: closure stat failed"
+    )
+
+
+def test_git_pseudo_ref_directory_enumeration_failure_rejects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    git_dir = snapshot / ".git"
+    git_dir.mkdir(parents=True)
+    _stub_git_closure_preparation(monkeypatch, snapshot, git_dir)
+    original_scandir = os.scandir
+
+    def failing_scandir(path: Any) -> Any:
+        if Path(path) == git_dir:
+            raise PermissionError("pseudo-ref scan failed")
+        return original_scandir(path)
+
+    monkeypatch.setattr(TOOL.os, "scandir", failing_scandir)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._prepare_one_git_closure(
+            snapshot, snapshot, [f"refs/heads/{TOOL.BRANCH}"]
+        )
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert len(caught.value.reasons) == 1
+    reason = caught.value.reasons[0].replace(os.fspath(git_dir), "<git-dir>")
+    assert reason == (
+        "git pseudo-ref directory enumeration failed at <git-dir>: "
+        "PermissionError: pseudo-ref scan failed"
+    )
+
+
+def test_git_pseudo_ref_scan_preserves_regular_and_broken_symlink_semantics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    git_dir = snapshot / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "MERGE_HEAD").write_text("head\n", encoding="ascii")
+    (git_dir / "BISECT_HEAD").symlink_to("missing-target")
+    _stub_git_closure_preparation(monkeypatch, snapshot, git_dir)
+
+    state = TOOL._prepare_one_git_closure(
+        snapshot, snapshot, [f"refs/heads/{TOOL.BRANCH}"]
+    )
+
+    assert state.reasons == [".: pseudo refs are present: ['MERGE_HEAD']"]
+    assert [row["path"] for row in state.metadata] == [
+        "BISECT_HEAD",
+        "MERGE_HEAD",
+    ]
+
+
+def test_metadata_manifest_directory_enumeration_failure_rejects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "metadata"
+    denied = root / "denied"
+    denied.mkdir(parents=True)
+    (denied / "hidden").write_text("hidden\n", encoding="utf-8")
+    original_scandir = os.scandir
+
+    def failing_scandir(path: Any) -> Any:
+        if Path(path) == denied:
+            raise OSError("metadata scan failed")
+        return original_scandir(path)
+
+    monkeypatch.setattr(TOOL.os, "scandir", failing_scandir)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._metadata_manifest(root)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert len(caught.value.reasons) == 1
+    reason = caught.value.reasons[0].replace(os.fspath(denied), "<denied>")
+    assert reason == (
+        "metadata directory enumeration failed at <denied>: "
+        "OSError: metadata scan failed"
+    )
+
+
 def _install_stale_commit_graph(repository: Path) -> str:
     head = TOOL._git(repository, "rev-parse", "HEAD").decode().strip()
     tree = TOOL._git(repository, "rev-parse", "HEAD^{tree}").decode().strip()
@@ -1962,6 +2155,622 @@ def test_fsck_unreachable_stdout_reports_count_independently() -> None:
     assert TOOL._git_fsck_reasons("deps/child", completed) == [
         "deps/child: git object store contains unreachable objects (2)"
     ]
+
+
+def _synthetic_git_closure_state(
+    snapshot: Path,
+    repository: Path,
+    expected_refs: list[str],
+) -> Any:
+    label = (
+        "."
+        if repository == snapshot
+        else repository.relative_to(snapshot).as_posix()
+    )
+    return TOOL._GitClosureState(
+        repository=repository,
+        label=label,
+        reasons=[],
+        refs=list(expected_refs),
+        git_dir=repository / ".git",
+        commit_graph={
+            "present": False,
+            "valid": None,
+            "paths": [],
+            "verify_returncode": None,
+            "verify_stderr_first_line": None,
+        },
+        metadata=[{"path": f"metadata-{label}"}],
+    )
+
+
+def test_git_fsck_futures_are_consumed_and_gated_exactly_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "deps/nested"
+    futures: list[Any] = []
+    executor_workers: list[int] = []
+    executor_exited: list[bool] = []
+
+    class TrackingFuture:
+        def __init__(self, completed: subprocess.CompletedProcess[bytes]):
+            self.completed = completed
+            self.result_calls = 0
+
+        def result(self) -> subprocess.CompletedProcess[bytes]:
+            self.result_calls += 1
+            return self.completed
+
+    class TrackingExecutor:
+        def __init__(self, *, max_workers: int):
+            executor_workers.append(max_workers)
+
+        def __enter__(self) -> Any:
+            return self
+
+        def submit(self, _callable: Any, _argv: Any, **kwargs: Any) -> Any:
+            repository = Path(kwargs["cwd"])
+            label = "." if repository == snapshot else "deps/nested"
+            completed = subprocess.CompletedProcess(
+                args=["git", "fsck"],
+                returncode=7 if label == "." else 9,
+                stdout=(f"unreachable blob {label}\n").encode(),
+                stderr=(f"{label} stderr\n").encode(),
+            )
+            future = TrackingFuture(completed)
+            futures.append(future)
+            return future
+
+        def __exit__(self, *args: Any) -> None:
+            executor_exited.append(True)
+
+    monkeypatch.setattr(TOOL, "ThreadPoolExecutor", TrackingExecutor)
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+    monkeypatch.setattr(TOOL, "_git", lambda *_args, **_kwargs: b"head\n")
+
+    reasons, manifests = TOOL._parallel_git_closure_reasons(
+        snapshot,
+        (
+            (snapshot, [f"refs/heads/{TOOL.BRANCH}"]),
+            (nested, []),
+        ),
+    )
+
+    assert executor_workers == [2]
+    assert executor_exited == [True]
+    assert [future.result_calls for future in futures] == [1, 1]
+    assert reasons == [
+        ".: git fsck exited 7: . stderr",
+        ".: git object store contains unreachable objects (1)",
+        "deps/nested: git fsck exited 9: deps/nested stderr",
+        "deps/nested: git object store contains unreachable objects (1)",
+    ]
+    assert [row["repository"] for row in manifests] == [".", "deps/nested"]
+
+
+def test_git_fsck_missing_collected_result_is_structured_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "nested"
+
+    class CompletedFuture:
+        def result(self) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.CompletedProcess(["git", "fsck"], 0, b"", b"")
+
+    class ImmediateExecutor:
+        def __init__(self, *, max_workers: int):
+            assert max_workers == 2
+
+        def __enter__(self) -> Any:
+            return self
+
+        def submit(self, *_args: Any, **_kwargs: Any) -> CompletedFuture:
+            return CompletedFuture()
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+    monkeypatch.setattr(TOOL, "ThreadPoolExecutor", ImmediateExecutor)
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+    monkeypatch.setattr(TOOL, "_git_fsck_reasons", lambda *_args: None)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._parallel_git_closure_reasons(
+            snapshot, ((snapshot, []), (nested, []))
+        )
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    normalized = tuple(
+        reason.replace(os.fspath(snapshot), "<snapshot>")
+        for reason in caught.value.reasons
+    )
+    assert normalized == (
+        ".: git fsck result was not collected for <snapshot>",
+    )
+
+
+def test_git_fsck_completion_order_does_not_reorder_reasons_or_manifests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    middle = snapshot / "deps/middle"
+    nested = snapshot / "deps/nested"
+    repositories = (snapshot, nested)
+    started = {repository: threading.Event() for repository in repositories}
+    release = {repository: threading.Event() for repository in repositories}
+    completed = {repository: threading.Event() for repository in repositories}
+    completion_order: list[Path] = []
+    controller_failures: list[BaseException] = []
+    prepared: list[Path] = []
+
+    def fake_prepare(
+        root: Path, repository: Path, refs: list[str]
+    ) -> Any:
+        prepared.append(repository)
+        return _synthetic_git_closure_state(root, repository, refs)
+
+    def fake_run(argv: Any, *, cwd: Path, check: bool, **_kwargs: Any) -> Any:
+        command = tuple(argv)
+        if command != ("git", "fsck", "--unreachable", "--no-reflogs"):
+            return subprocess.CompletedProcess(command, 1, b"", b"")
+        repository = Path(cwd)
+        started[repository].set()
+        if not release[repository].wait(timeout=60):
+            raise RuntimeError(f"release timeout for {repository}")
+        completion_order.append(repository)
+        completed[repository].set()
+        if repository == snapshot:
+            return subprocess.CompletedProcess(
+                command, 11, b"unreachable blob root\n", b"root stderr\n"
+            )
+        return subprocess.CompletedProcess(
+            command,
+            12,
+            b"unreachable blob nested\nunreachable tree nested\n",
+            b"nested stderr\n",
+        )
+
+    def fake_git(repository: Path, *args: str, **_kwargs: Any) -> bytes:
+        if args == ("rev-parse", "HEAD"):
+            label = (
+                "."
+                if repository == snapshot
+                else repository.relative_to(snapshot).as_posix()
+            )
+            return f"head-{label}\n".encode()
+        return b""
+
+    def coordinate() -> None:
+        try:
+            for repository in repositories:
+                if not started[repository].wait(timeout=60):
+                    raise AssertionError(f"worker did not start: {repository}")
+            release[nested].set()
+            if not completed[nested].wait(timeout=60):
+                raise AssertionError("nested worker did not acknowledge completion")
+            release[snapshot].set()
+            if not completed[snapshot].wait(timeout=60):
+                raise AssertionError("root worker did not acknowledge completion")
+        except BaseException as exc:
+            controller_failures.append(exc)
+        finally:
+            for event in release.values():
+                event.set()
+
+    monkeypatch.setattr(TOOL, "_prepare_one_git_closure", fake_prepare)
+    monkeypatch.setattr(TOOL, "_run", fake_run)
+    monkeypatch.setattr(TOOL, "_git", fake_git)
+    monkeypatch.setattr(
+        TOOL,
+        "_submodule_content_identity_reasons",
+        lambda *_args, **_kwargs: ["middle preflight failure"],
+    )
+
+    controller = threading.Thread(target=coordinate, daemon=True)
+    controller.start()
+    reasons, manifests, submodules = TOOL._git_closure_reasons(
+        snapshot,
+        (),
+        inventory=(
+            [middle, nested],
+            [
+                {"path": "deps/middle", "initialization": "initialized"},
+                {"path": "deps/nested", "initialization": "initialized"},
+            ],
+        ),
+        preflight_cache={middle: ("middle preflight failure",)},
+    )
+    controller.join(timeout=60)
+
+    assert not controller.is_alive()
+    assert controller_failures == []
+    assert completion_order == [nested, snapshot]
+    assert prepared == [snapshot, nested]
+    assert [row["repository"] for row in manifests] == [".", "deps/nested"]
+    assert all(
+        list(manifest)
+        == [
+            "repository",
+            "git_dir",
+            "head",
+            "refs",
+            "commit_graph",
+            "metadata",
+        ]
+        for manifest in manifests
+    )
+    assert reasons == [
+        ".: git fsck exited 11: root stderr",
+        ".: git object store contains unreachable objects (1)",
+        "deps/nested: git fsck exited 12: nested stderr",
+        "deps/nested: git object store contains unreachable objects (2)",
+        "middle preflight failure",
+    ]
+    assert submodules == [
+        {"path": "deps/middle", "initialization": "initialized"},
+        {"path": "deps/nested", "initialization": "initialized"},
+    ]
+
+
+def test_git_fsck_worker_failure_drains_and_reasonizes_normal_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "deps/nested"
+    called: list[Path] = []
+    gated_labels: list[str] = []
+    original_gate = TOOL._git_fsck_reasons
+
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+
+    def fake_run(_argv: Any, *, cwd: Path, **_kwargs: Any) -> Any:
+        repository = Path(cwd)
+        called.append(repository)
+        if repository == snapshot:
+            raise OSError("root spawn failed")
+        return subprocess.CompletedProcess(
+            ["git", "fsck"],
+            0,
+            b"unreachable blob nested\n",
+            b"",
+        )
+
+    def observed_gate(label: str, result: Any) -> list[str]:
+        gated_labels.append(label)
+        return original_gate(label, result)
+
+    monkeypatch.setattr(TOOL, "_run", fake_run)
+    monkeypatch.setattr(TOOL, "_git_fsck_reasons", observed_gate)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._parallel_git_closure_reasons(
+            snapshot,
+            (
+                (snapshot, [f"refs/heads/{TOOL.BRANCH}"]),
+                (nested, []),
+            ),
+        )
+
+    assert set(called) == {snapshot, nested}
+    assert gated_labels == ["deps/nested"]
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "deps/nested: git object store contains unreachable objects (1)",
+        f".: git fsck worker failed for {snapshot}: "
+        "OSError: root spawn failed",
+    )
+    assert isinstance(caught.value.__cause__, OSError)
+
+
+def test_git_fsck_all_failures_and_unsubmitted_prepare_reasons_are_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    repositories = (
+        snapshot,
+        snapshot / "first-success",
+        snapshot / "second-worker-failure",
+        snapshot / "submit-failure",
+        snapshot / "not-submitted",
+    )
+    worker_failure = OSError("root worker failed")
+    second_worker_failure = PermissionError("nested worker failed")
+    submit_failure = RuntimeError("fourth submit failed")
+
+    class WorkerFailureFuture:
+        def __init__(self, failure: OSError):
+            self.failure = failure
+
+        def result(self) -> subprocess.CompletedProcess[bytes]:
+            raise self.failure
+
+    class SuccessfulFuture:
+        def result(self) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.CompletedProcess(
+                ["git", "fsck"],
+                0,
+                b"unreachable blob success\n",
+                b"",
+            )
+
+    class MixedFailureExecutor:
+        def __init__(self, *, max_workers: int):
+            assert max_workers == len(repositories)
+            self.submits = 0
+
+        def __enter__(self) -> Any:
+            return self
+
+        def submit(self, *_args: Any, **_kwargs: Any) -> Any:
+            self.submits += 1
+            if self.submits == 1:
+                return WorkerFailureFuture(worker_failure)
+            if self.submits == 2:
+                return SuccessfulFuture()
+            if self.submits == 3:
+                return WorkerFailureFuture(second_worker_failure)
+            raise submit_failure
+
+        def __exit__(self, *_args: Any) -> None:
+            return None
+
+    def prepare(root: Path, repository: Path, refs: list[str]) -> Any:
+        state = _synthetic_git_closure_state(root, repository, refs)
+        state.reasons.append(f"{state.label}: prepare reason")
+        return state
+
+    monkeypatch.setattr(TOOL, "ThreadPoolExecutor", MixedFailureExecutor)
+    monkeypatch.setattr(TOOL, "_prepare_one_git_closure", prepare)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._parallel_git_closure_reasons(
+            snapshot, tuple((repository, []) for repository in repositories)
+        )
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    normalized = tuple(
+        reason.replace(os.fspath(snapshot), "<snapshot>")
+        for reason in caught.value.reasons
+    )
+    assert normalized == (
+        ".: prepare reason",
+        "first-success: prepare reason",
+        "first-success: git object store contains unreachable objects (1)",
+        "second-worker-failure: prepare reason",
+        ".: git fsck worker failed for <snapshot>: "
+        "OSError: root worker failed",
+        "second-worker-failure: git fsck worker failed for "
+        "<snapshot>/second-worker-failure: "
+        "PermissionError: nested worker failed",
+        "submit-failure: git fsck submit failed for <snapshot>/submit-failure: "
+        "RuntimeError: fourth submit failed",
+        "submit-failure: prepare reason",
+        "not-submitted: prepare reason",
+    )
+    assert caught.value.__cause__ is worker_failure
+
+
+def test_git_fsck_executor_construction_failure_rejects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "nested"
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+
+    def fail_executor(*, max_workers: int) -> Any:
+        assert max_workers == 2
+        raise OSError("executor unavailable")
+
+    monkeypatch.setattr(TOOL, "ThreadPoolExecutor", fail_executor)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._parallel_git_closure_reasons(
+            snapshot,
+            ((snapshot, []), (nested, [])),
+        )
+
+    assert caught.value.reasons == (
+        f"git fsck executor failed for {snapshot}: "
+        "OSError: executor unavailable",
+    )
+
+
+def test_git_fsck_executor_caps_workers_at_eight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    repositories = [snapshot, *[snapshot / f"nested-{index}" for index in range(8)]]
+    observed_workers: list[int] = []
+    result_calls = 0
+
+    class ImmediateFuture:
+        def result(self) -> subprocess.CompletedProcess[bytes]:
+            nonlocal result_calls
+            result_calls += 1
+            return subprocess.CompletedProcess(["git", "fsck"], 0, b"", b"")
+
+    class ImmediateExecutor:
+        def __init__(self, *, max_workers: int):
+            observed_workers.append(max_workers)
+
+        def __enter__(self) -> Any:
+            return self
+
+        def submit(self, *_args: Any, **_kwargs: Any) -> Any:
+            return ImmediateFuture()
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    monkeypatch.setattr(TOOL, "ThreadPoolExecutor", ImmediateExecutor)
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+    monkeypatch.setattr(TOOL, "_git", lambda *_args, **_kwargs: b"head\n")
+
+    reasons, manifests = TOOL._parallel_git_closure_reasons(
+        snapshot,
+        [(repository, []) for repository in repositories],
+    )
+
+    assert observed_workers == [8]
+    assert result_calls == len(repositories)
+    assert reasons == []
+    assert [row["repository"] for row in manifests] == [
+        ".",
+        *[f"nested-{index}" for index in range(8)],
+    ]
+
+
+def test_git_fsck_submit_failure_consumes_prior_future_before_rejecting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "nested"
+    result_calls: list[int] = []
+
+    class FirstFuture:
+        def result(self) -> subprocess.CompletedProcess[bytes]:
+            result_calls.append(1)
+            return subprocess.CompletedProcess(
+                ["git", "fsck"],
+                0,
+                b"unreachable blob root\n",
+                b"",
+            )
+
+    class SubmitFailureExecutor:
+        def __init__(self, *, max_workers: int):
+            assert max_workers == 2
+            self.submits = 0
+
+        def __enter__(self) -> Any:
+            return self
+
+        def submit(self, *_args: Any, **_kwargs: Any) -> Any:
+            self.submits += 1
+            if self.submits == 2:
+                raise OSError("submit unavailable")
+            return FirstFuture()
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    monkeypatch.setattr(TOOL, "ThreadPoolExecutor", SubmitFailureExecutor)
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._parallel_git_closure_reasons(
+            snapshot,
+            ((snapshot, []), (nested, [])),
+        )
+
+    assert result_calls == [1]
+    assert caught.value.reasons == (
+        ".: git object store contains unreachable objects (1)",
+        f"nested: git fsck submit failed for {nested}: "
+        "OSError: submit unavailable",
+    )
+
+
+def test_git_fsck_worker_uses_run_subprocess_environment_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "nested"
+    main_thread = threading.get_ident()
+    calls: list[dict[str, Any]] = []
+
+    monkeypatch.setenv("GIT_DIR", "/poison/git-dir")
+    monkeypatch.setenv("GIT_ALTERNATE_OBJECT_DIRECTORIES", "/poison/objects")
+    monkeypatch.setattr(
+        TOOL,
+        "_prepare_one_git_closure",
+        lambda root, repository, refs: _synthetic_git_closure_state(
+            root, repository, refs
+        ),
+    )
+    monkeypatch.setattr(TOOL, "_git", lambda *_args, **_kwargs: b"head\n")
+
+    def fake_subprocess_run(argv: Any, **kwargs: Any) -> Any:
+        calls.append(
+            {
+                "thread": threading.get_ident(),
+                "argv": tuple(argv),
+                **kwargs,
+            }
+        )
+        return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    monkeypatch.setattr(TOOL.subprocess, "run", fake_subprocess_run)
+
+    reasons, manifests = TOOL._parallel_git_closure_reasons(
+        snapshot,
+        ((snapshot, []), (nested, [])),
+    )
+
+    assert reasons == []
+    assert [row["repository"] for row in manifests] == [".", "nested"]
+    assert len(calls) == 2
+    assert {Path(call["cwd"]) for call in calls} == {snapshot, nested}
+    for call in calls:
+        assert call["thread"] != main_thread
+        assert call["argv"] == (
+            "git",
+            "fsck",
+            "--unreachable",
+            "--no-reflogs",
+        )
+        assert call["env"]["HOME"] == "/nonexistent"
+        assert not any(key.startswith("GIT_") for key in call["env"])
+        assert call["capture_output"] is True
+        assert call["check"] is False
+        assert call["input"] is None
 
 
 def test_m1_snapshot_head_pin_is_independent(
@@ -2160,91 +2969,100 @@ def test_m10_filesystem_file_set_boundary_matrix_matches_rglob_reference(
 def test_filesystem_file_set_resolves_each_path_parent_per_call(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Legacy node name retained; the scanner must no longer resolve paths."""
     snapshot = tmp_path / "snapshot"
     parent = snapshot / "parent"
     parent.mkdir(parents=True)
     (snapshot / "empty").mkdir()
     (parent / "first").write_text("first\n", encoding="utf-8")
     (parent / "second").write_text("second\n", encoding="utf-8")
-    resolve_calls: dict[Path, int] = {}
-    original_resolve = Path.resolve
 
-    def counted_resolve(path: Path, strict: bool = False) -> Path:
-        resolve_calls[path] = resolve_calls.get(path, 0) + 1
-        return original_resolve(path, strict=strict)
+    def fail_resolve(_path: Path, strict: bool = False) -> Path:
+        raise AssertionError(f"Path.resolve must not be called, strict={strict}")
 
-    monkeypatch.setattr(Path, "resolve", counted_resolve)
+    monkeypatch.setattr(Path, "resolve", fail_resolve)
 
     expected = {"parent/first", "parent/second"}
     assert TOOL._filesystem_file_set(snapshot) == expected
-    assert resolve_calls[parent] == 2
-    assert resolve_calls[snapshot] == 2
 
 
 def test_filesystem_file_set_memoizes_resolved_parent_decision_per_call(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
+    """Legacy node name retained; directory symlinks remain leaf entries."""
     snapshot = tmp_path / "snapshot"
-    resolved_parent = snapshot / "resolved-parent"
-    resolved_parent.mkdir(parents=True)
+    snapshot.mkdir()
+    target = snapshot / "target"
+    target.mkdir()
+    (target / "inside.txt").write_text("inside\n", encoding="utf-8")
     alias = snapshot / "alias"
-    alias.symlink_to(resolved_parent, target_is_directory=True)
-    first = resolved_parent / "first"
-    second = alias / "second"
-    first.write_text("first\n", encoding="utf-8")
-    second.write_text("second\n", encoding="utf-8")
-    selected_paths = (first, second)
-    original_rglob = Path.rglob
-    original_parents = Path.parents
-    decision_calls: dict[Path, int] = {}
+    alias.symlink_to(target, target_is_directory=True)
 
-    def selected_rglob(path: Path, pattern: str):
-        if path == snapshot and pattern == "*":
-            return iter(selected_paths)
-        return original_rglob(path, pattern)
+    actual = TOOL._filesystem_file_set(snapshot)
 
-    def counted_parents(path: Path):
-        decision_calls[path] = decision_calls.get(path, 0) + 1
-        return original_parents.__get__(path, type(path))
-
-    monkeypatch.setattr(Path, "rglob", selected_rglob)
-    monkeypatch.setattr(Path, "parents", property(counted_parents))
-
-    expected = {"resolved-parent/first", "alias/second"}
-    assert TOOL._filesystem_file_set(snapshot) == expected
-    assert TOOL._filesystem_file_set(snapshot) == expected
-    assert decision_calls[resolved_parent.resolve()] == 2
+    assert actual == {"alias", "target/inside.txt"}
+    assert "alias/inside.txt" not in actual
 
 
 @pytest.mark.parametrize(
-    "error_type", (OSError, RuntimeError), ids=("oserror", "symlink-loop")
+    "error_type", (PermissionError, OSError), ids=("permission", "io-error")
 )
 def test_filesystem_file_set_parent_resolve_errors_propagate_per_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    error_type: type[Exception],
+    error_type: type[OSError],
+) -> None:
+    """Legacy node name retained; scandir errors replace resolve failures."""
+    snapshot = tmp_path / "snapshot"
+    denied = snapshot / "denied"
+    denied.mkdir(parents=True)
+    (denied / "hidden").write_text("hidden\n", encoding="utf-8")
+    original_scandir = os.scandir
+
+    def failing_scandir(path: Any) -> Any:
+        if Path(path) == denied:
+            raise error_type("directory scan failed")
+        return original_scandir(path)
+
+    monkeypatch.setattr(TOOL.os, "scandir", failing_scandir)
+
+    # Enumeration errors are intentionally excluded from the rglob
+    # differential: the ruling changes this error case to fail closed.
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._filesystem_file_set(snapshot)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        f"filesystem directory enumeration failed at {denied}: "
+        f"{error_type.__name__}: directory scan failed",
+    )
+
+
+def test_filesystem_file_set_lstat_error_is_structured_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     snapshot = tmp_path / "snapshot"
-    parent = snapshot / "parent"
-    parent.mkdir(parents=True)
-    (parent / "first").write_text("first\n", encoding="utf-8")
-    (parent / "second").write_text("second\n", encoding="utf-8")
-    original_resolve = Path.resolve
-    parent_resolve_calls = 0
+    snapshot.mkdir()
+    failed = snapshot / "failed"
+    failed.write_text("payload\n", encoding="utf-8")
+    original_lstat = Path.lstat
 
-    def failing_resolve(path: Path, strict: bool = False) -> Path:
-        nonlocal parent_resolve_calls
-        if path == parent:
-            parent_resolve_calls += 1
-            if parent_resolve_calls == 2:
-                raise error_type("parent resolve failed")
-        return original_resolve(path, strict=strict)
+    def failing_lstat(path: Path) -> os.stat_result:
+        if path == failed:
+            raise OSError("entry stat failed")
+        return original_lstat(path)
 
-    monkeypatch.setattr(Path, "resolve", failing_resolve)
+    monkeypatch.setattr(Path, "lstat", failing_lstat)
 
-    with pytest.raises(error_type, match="parent resolve failed"):
+    with pytest.raises(TOOL.ValidationError) as caught:
         TOOL._filesystem_file_set(snapshot)
-    assert parent_resolve_calls == 2
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        f"filesystem entry lstat failed at {failed}: "
+        "OSError: entry stat failed",
+    )
 
 
 def test_filesystem_file_set_permission_error_directory_is_empty_subtree(
@@ -2268,11 +3086,135 @@ def test_filesystem_file_set_permission_error_directory_is_empty_subtree(
                 pytest.skip("running as root bypasses chmod(000) directory denial")
             pytest.fail("chmod(000) directory remained readable for a non-root user")
 
-        reference = _rglob_filesystem_file_set_reference(snapshot)
-        assert reference == {"visible"}
-        assert TOOL._filesystem_file_set(snapshot) == reference
+        # The legacy rglob oracle hides this failure as an empty subtree.  The
+        # approved F363 ruling deliberately excludes this case from the
+        # differential and reverses it to rejection.
+        assert _rglob_filesystem_file_set_reference(snapshot) == {"visible"}
+        with pytest.raises(TOOL.ValidationError) as caught:
+            TOOL._filesystem_file_set(snapshot)
+        assert caught.value.rc == TOOL.RC_SNAPSHOT
+        assert os.fspath(denied) in caught.value.reasons[0]
+        assert "PermissionError" in caught.value.reasons[0]
     finally:
         os.chmod(denied, denied_mode)
+
+
+def test_filesystem_file_set_symlink_root_git_is_included(
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    git_target = tmp_path / "git-target"
+    git_target.mkdir()
+    (git_target / "hidden").write_text("outside\n", encoding="utf-8")
+    (snapshot / ".git").symlink_to(git_target, target_is_directory=True)
+    (snapshot / "visible").write_text("visible\n", encoding="utf-8")
+
+    actual = TOOL._filesystem_file_set(snapshot)
+
+    assert actual == {".git", "visible"}
+    assert actual == _rglob_filesystem_file_set_reference(snapshot)
+
+
+def test_filesystem_file_set_scans_and_lstats_each_entry_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    child = snapshot / "child"
+    empty = snapshot / "empty"
+    root_git = snapshot / ".git"
+    child.mkdir(parents=True)
+    empty.mkdir()
+    root_git.mkdir()
+    visible = snapshot / "visible"
+    nested = child / "nested"
+    poison = root_git / "poison"
+    visible.write_text("visible\n", encoding="utf-8")
+    nested.write_text("nested\n", encoding="utf-8")
+    poison.write_text("pruned\n", encoding="utf-8")
+    scandir_calls: dict[Path, int] = {}
+    lstat_calls: dict[Path, int] = {}
+    events: list[tuple[str, Path]] = []
+    original_scandir = os.scandir
+    original_lstat = Path.lstat
+
+    def counted_scandir(path: Any) -> Any:
+        candidate = Path(path)
+        scandir_calls[candidate] = scandir_calls.get(candidate, 0) + 1
+        events.append(("scandir", candidate))
+        return original_scandir(path)
+
+    def counted_lstat(path: Path) -> os.stat_result:
+        lstat_calls[path] = lstat_calls.get(path, 0) + 1
+        events.append(("lstat", path))
+        return original_lstat(path)
+
+    monkeypatch.setattr(TOOL.os, "scandir", counted_scandir)
+    monkeypatch.setattr(Path, "lstat", counted_lstat)
+
+    assert TOOL._filesystem_file_set(snapshot) == {
+        "visible",
+        "child/nested",
+    }
+    assert scandir_calls == {snapshot: 1, child: 1, empty: 1}
+    assert lstat_calls == {
+        child: 1,
+        empty: 1,
+        root_git: 1,
+        visible: 1,
+        nested: 1,
+    }
+    assert poison not in lstat_calls
+    first_recursive_scan = min(
+        events.index(("scandir", child)),
+        events.index(("scandir", empty)),
+    )
+    assert all(
+        events.index(("lstat", path)) < first_recursive_scan
+        for path in (child, empty, root_git, visible)
+    )
+    assert events.index(("scandir", child)) < events.index(("lstat", nested))
+
+
+def test_filesystem_file_set_accepts_readable_static_tree(
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    nested = snapshot / "nested"
+    nested.mkdir(parents=True)
+    (snapshot / "visible").write_text("visible\n", encoding="utf-8")
+    (nested / "payload").write_text("payload\n", encoding="utf-8")
+
+    assert TOOL._filesystem_file_set(snapshot) == {
+        "visible",
+        "nested/payload",
+    }
+
+
+def test_filesystem_file_set_deep_tree_is_not_recursion_limited(
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    directory = snapshot
+    segments: list[str] = []
+    for _ in range(180):
+        segments.append("d")
+        directory = directory / "d"
+        directory.mkdir()
+    payload = directory / "payload"
+    payload.write_text("payload\n", encoding="utf-8")
+    expected = "/".join([*segments, "payload"])
+    previous_limit = sys.getrecursionlimit()
+
+    try:
+        sys.setrecursionlimit(128)
+        actual = TOOL._filesystem_file_set(snapshot)
+    finally:
+        sys.setrecursionlimit(previous_limit)
+
+    assert actual == {expected}
 
 
 def test_m9_filesystem_file_set_skips_root_git_before_lstat(
@@ -2298,6 +3240,153 @@ def test_m9_filesystem_file_set_skips_root_git_before_lstat(
 
     assert TOOL._filesystem_file_set(snapshot) == {"visible"}
     assert poison_lstat_calls == 0
+
+
+def test_verify_snapshot_reuses_one_filesystem_observation_per_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshots = (tmp_path / "first", tmp_path / "second")
+    for snapshot in snapshots:
+        (snapshot / ".git").mkdir(parents=True)
+    scanner_calls: list[Path] = []
+    closure_observations: list[tuple[Any, set[str]]] = []
+
+    def fake_scanner(snapshot: Path) -> set[str]:
+        scanner_calls.append(snapshot)
+        return {f"{snapshot.name}.txt"}
+
+    def fake_closure(
+        snapshot: Path,
+        _untracked: Any,
+        **kwargs: Any,
+    ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, str]]]:
+        observation = kwargs["filesystem_observation"]
+        closure_observations.append(
+            (observation, set(observation.read(snapshot)))
+        )
+        return [], [], []
+
+    def fake_git(_repository: Path, *args: str, **_kwargs: Any) -> bytes:
+        if args == ("rev-parse", "HEAD"):
+            return b"head\n"
+        return b""
+
+    def fake_run(argv: Any, **_kwargs: Any) -> Any:
+        assert tuple(argv) == ("git", "symbolic-ref", "--short", "HEAD")
+        return subprocess.CompletedProcess(argv, 0, b"main\n", b"")
+
+    monkeypatch.setattr(TOOL, "_filesystem_file_set", fake_scanner)
+    monkeypatch.setattr(TOOL, "_git_closure_reasons", fake_closure)
+    monkeypatch.setattr(TOOL, "_git", fake_git)
+    monkeypatch.setattr(TOOL, "_run", fake_run)
+    monkeypatch.setattr(TOOL, "_status_sets", lambda _snapshot: ([], []))
+    monkeypatch.setattr(
+        TOOL,
+        "_cached_repository_preflight_reasons",
+        lambda *_args, **_kwargs: (),
+    )
+    monkeypatch.setattr(
+        TOOL, "_submodule_inventory", lambda *_args, **_kwargs: ([], [])
+    )
+    spec = {
+        "head": "head",
+        "branch": "main",
+        "tracked_paths": [],
+        "untracked": [],
+        "numstat": [],
+        "hashes": {},
+        "forbidden": [],
+        "git_object_closure": True,
+    }
+
+    oracles = [
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+        for snapshot in snapshots
+    ]
+
+    resolved = [snapshot.resolve() for snapshot in snapshots]
+    assert scanner_calls == resolved
+    assert closure_observations[0][0] is not closure_observations[1][0]
+    assert [files for _, files in closure_observations] == [
+        {"first.txt"},
+        {"second.txt"},
+    ]
+    assert [oracle["filesystem_files"] for oracle in oracles] == [
+        ["first.txt"],
+        ["second.txt"],
+    ]
+
+
+def test_filesystem_observation_rejects_cross_snapshot_reuse(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    observation = TOOL._SnapshotFilesystemFiles(first)
+
+    assert observation.read(first) == set()
+    with pytest.raises(TOOL.ValidationError) as caught:
+        observation.read(second)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "filesystem observation snapshot mismatch: "
+        f"{second.resolve()} != {first.resolve()}",
+    )
+
+
+def test_git_closure_preflight_failure_still_skips_allowlist_observation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    child = snapshot / "child"
+    snapshot.mkdir()
+    scanner_calls = 0
+
+    def fake_scanner(_snapshot: Path) -> set[str]:
+        nonlocal scanner_calls
+        scanner_calls += 1
+        return {"oracle-only"}
+
+    monkeypatch.setattr(TOOL, "_filesystem_file_set", fake_scanner)
+    monkeypatch.setattr(
+        TOOL,
+        "_one_git_closure_reasons",
+        lambda *_args, **_kwargs: ([], {"repository": "."}),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "_submodule_content_identity_reasons",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "_run",
+        lambda argv, **_kwargs: subprocess.CompletedProcess(argv, 1, b"", b""),
+    )
+    monkeypatch.setattr(TOOL, "_git", lambda *_args, **_kwargs: b"")
+    observation = TOOL._SnapshotFilesystemFiles(snapshot)
+
+    reasons, manifests, _ = TOOL._git_closure_reasons(
+        snapshot,
+        (),
+        inventory=(
+            [child],
+            [{"path": "child", "initialization": "initialized"}],
+        ),
+        preflight_cache={child: ("preflight failed",)},
+        filesystem_observation=observation,
+    )
+
+    assert reasons == []
+    assert manifests == [{"repository": "."}]
+    assert scanner_calls == 0
+    assert observation.read(snapshot) == {"oracle-only"}
+    assert scanner_calls == 1
 
 
 def _synthetic_relocatable_nested_snapshot(tmp_path: Path) -> Path:
@@ -6102,9 +7191,8 @@ def test_prompt_replacement_count_zero_expected_and_excess(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    source_rollout = TOOL._find_rollout(
-        _HISTORICAL_SESSIONS, TOOL.SESSION_IDS["POS"]
-    )
+    source_rollout = _REAL_ROLLOUT
+    TOOL._verify_rollout_sha(source_rollout, "POS")
     canonical_message = TOOL.extract_user_message(source_rollout)
     if replacement_count == 0:
         message = canonical_message.replace(TOOL.OLD_ROOT, "/neutral-old-root")

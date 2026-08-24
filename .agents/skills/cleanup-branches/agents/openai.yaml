@@ -2,6 +2,3 @@ interface:
   display_name: "Cleanup Branches"
   short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
-
-policy:
-  allow_implicit_invocation: false

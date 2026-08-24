@@ -250,6 +250,7 @@ class _Repo:
         acceptance_wave: str = "test-wave",
         acceptance_receipt: Path | None = None,
         make_acceptance_receipt: bool = True,
+        landing_tip: str | None = None,
     ):
         tested_base = base or self.base
         tested_tip = tip or _git(wave, "rev-parse", "HEAD")
@@ -276,6 +277,7 @@ class _Repo:
             audited_commits=commits,
             acceptance_wave=acceptance_wave,
             acceptance_receipt=receipt_path,
+            landing_wave_tip_sha=landing_tip,
         )
 
     def _acceptance_receipt(
@@ -438,6 +440,8 @@ def _land_cli_argv(request, *prefix: str) -> list[str]:
         "--acceptance-wave", request.acceptance_wave,
         "--acceptance-receipt", str(request.acceptance_receipt),
     ]
+    if request.landing_wave_tip_sha is not None:
+        argv.extend(("--landing-wave-tip-sha", request.landing_wave_tip_sha))
     for commit in request.audited_commits:
         argv.extend(("--audited-commit", commit))
     return argv
@@ -926,6 +930,21 @@ def test_land_accepts_effective_scheduler(scheduler: str) -> None:
         result = _land(request)
 
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
+def test_sharding_does_not_add_receipt_fields_or_expand_land_acceptance() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        payload["shard_count"] = 2
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, result
+        assert result.reason == "acceptance-receipt-rejected"
 
 
 def _assert_standard_v5_positive_control() -> None:
@@ -1789,33 +1808,15 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
-def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> None:
+def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
+    """Exercise a tested-main runner through the real waiter and real land."""
     with _repo() as repo:
         wave = repo.waves["one"]
-        known_red = "orchestrator/tests/test_known.py::test_known"
         (repo.main / "tools" / "run_tests.py").write_text(
-            "import sys\n"
-            f"node={known_red!r}\n"
             "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
             "{\"effective_scheduler\":\"serial\"}')\n"
-            "if '--collect-only' in sys.argv:\n"
-            "    print(node)\n"
-            "    print('1 test collected in 0.01s')\n"
-            "    raise SystemExit(0)\n"
-            "if node in sys.argv:\n"
-            "    print('=== short test summary info ===')\n"
-            "    print('FAILED ' + node + ' - synthetic known red')\n"
-            "    print('=== 1 failed in 0.01s ===')\n"
-            "    raise SystemExit(1)\n"
-            "print('=== short test summary info ===')\n"
-            "print('FAILED ' + node + ' - synthetic known red')\n"
-            "print('=== 1 failed in 0.01s ===')\n"
-            "raise SystemExit(1)\n",
+            "raise SystemExit(0)\n",
             encoding="utf-8",
-        )
-        shutil.copy2(
-            ROOT / "tools" / "check_acceptance_reds.py",
-            repo.main / "tools",
         )
         shutil.copy2(
             ROOT / "tools" / "acceptance_launcher.py",
@@ -1825,10 +1826,9 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
             repo.main,
             "add",
             "tools/run_tests.py",
-            "tools/check_acceptance_reds.py",
             "tools/acceptance_launcher.py",
         )
-        _git(repo.main, "commit", "-qm", "install synthetic known red checker")
+        _git(repo.main, "commit", "-qm", "install synthetic green runner")
         repo.base = _git(repo.main, "rev-parse", "HEAD")
         _git(wave, "merge", "--ff-only", "main")
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
@@ -1841,10 +1841,10 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         )
         _git(wave, "commit", "-qm", "install real acceptance integrity tools")
         tip = _git(wave, "rev-parse", "HEAD")
-        lease_dir = repo.root / "lease-red"
+        lease_dir = repo.root / "lease-green-inherited"
         lease_dir.mkdir()
-        receipt_path = repo.root / "real-red-receipt.json"
-        log_path = repo.root / "real-red.log"
+        receipt_path = repo.root / "real-green-inherited-receipt.json"
+        log_path = repo.root / "real-green-inherited.log"
         acceptance_wave = "codex-one"
         env = _git_env()
         for name in (
@@ -1884,9 +1884,9 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         assert waiter.returncode == 0, waiter.stdout + waiter.stderr
         raw_receipt = receipt_path.read_bytes()
         payload = json.loads(raw_receipt)
-        assert payload["verdict"] == "non-attributable-only"
-        assert payload["child_rc"] == 1
-        assert payload["red_nodeids"] == [known_red]
+        assert payload["verdict"] == "child-green"
+        assert payload["child_rc"] == 0
+        assert payload["red_nodeids"] == []
         assert payload["flake_nodeids"] == []
         request = repo.request(
             wave,
@@ -1902,8 +1902,8 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         assert result.acceptance_receipt_sha256 == hashlib.sha256(
             raw_receipt
         ).hexdigest()
-        assert result.acceptance_verdict == "non-attributable-only"
-        assert result.acceptance_red_nodeids == (known_red,)
+        assert result.acceptance_verdict == "child-green"
+        assert result.acceptance_red_nodeids == ()
         assert result.acceptance_flake_nodeids == ()
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
@@ -4448,6 +4448,8 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
             acceptance_verdict="child-green",
             acceptance_red_nodeids=(),
             acceptance_flake_nodeids=(),
+            tested_tip_sha=tip,
+            landing_tip_sha=tip,
         )
         assert second == LAND.LandResult(
             LAND.RC_OK,
@@ -4460,6 +4462,8 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
             acceptance_verdict="child-green",
             acceptance_red_nodeids=(),
             acceptance_flake_nodeids=(),
+            tested_tip_sha=tip,
+            landing_tip_sha=tip,
         )
         assert _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD") == "1"
         assert _git(repo.main, "status", "--porcelain=v1") == ""
@@ -6432,6 +6436,674 @@ def test_merge_child_inherits_lock_fd_if_helper_is_killed() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
+def _merge_without_commit(wave: Path, main_sha: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            REAL_GIT,
+            "-C",
+            str(wave),
+            "merge",
+            "--no-ff",
+            "--no-commit",
+            "--no-edit",
+            main_sha,
+        ],
+        env=_git_env(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def _forward_merge_request(
+    repo: _Repo,
+    wave: Path,
+    *,
+    count: int,
+) -> tuple[object, tuple[str, ...], tuple[str, ...]]:
+    tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+    request = repo.request(wave, tip=tested_tip)
+    incorporated: list[str] = []
+    merge_commits: list[str] = []
+    for index in range(1, count + 1):
+        main_sha = repo.commit(
+            repo.main,
+            f"main-{index}.txt",
+            f"main advance {index}\n",
+        )
+        incorporated.append(main_sha)
+        _git(wave, "merge", "--no-ff", "--no-edit", main_sha)
+        merge_commits.append(_git(wave, "rev-parse", "HEAD"))
+    landing_tip = merge_commits[-1]
+    return (
+        dataclasses.replace(request, landing_wave_tip_sha=landing_tip),
+        tuple(incorporated),
+        tuple(merge_commits),
+    )
+
+
+@pytest.mark.parametrize("count", (1, 3), ids=("one", "multiple"))
+def test_receipt_survives_clean_forward_main_merge_chain(count: int) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, incorporated, merge_commits = _forward_merge_request(
+            repo,
+            wave,
+            count=count,
+        )
+        receipt_before = request.acceptance_receipt.read_bytes()
+        parsed = LAND._parser().parse_args(_land_cli_argv(request)[2:])
+        assert parsed.landing_wave_tip_sha == request.landing_wave_tip_sha
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.tested_tip_sha == request.tested_wave_tip_sha
+        assert result.landing_tip_sha == request.landing_wave_tip_sha
+        assert result.incorporated_main_shas == incorporated
+        assert result.wave_tip == request.landing_wave_tip_sha
+        assert _git(repo.main, "rev-parse", "HEAD") == request.landing_wave_tip_sha
+        assert request.acceptance_receipt.read_bytes() == receipt_before
+        assert tuple(
+            _git(wave, "show", "-s", "--format=%P", commit).split()[1]
+            for commit in merge_commits
+        ) == incorporated
+
+
+def test_first_forward_main_must_descend_from_tested_main_only_by_origin_gate() -> None:
+    """B-057-7: B--A--T と B--S の差替えを起点 gate 固有で拒否する。"""
+
+    with _repo(waves=(("codex", "one"), ("codex", "divergent"))) as repo:
+        wave = repo.waves["one"]
+        divergent = repo.waves["divergent"]
+        tested_main = repo.commit(
+            repo.main,
+            "accepted-main.txt",
+            "accepted main\n",
+        )
+        _git(wave, "merge", "--ff-only", tested_main)
+        tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+
+        incorporated_main = repo.commit(
+            divergent,
+            "divergent-main.txt",
+            "untested divergent main\n",
+        )
+        _git(wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        _git(repo.main, "reset", "--hard", incorporated_main)
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "first incorporated main is not a descendant of tested main"
+        )
+
+
+def test_same_file_disjoint_hunks_forward_merge_matches_default_git_replay() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / "overlap.txt").write_text(
+            "main-slot\nshared\nwave-slot\n",
+            encoding="utf-8",
+        )
+        _git(repo.main, "add", "overlap.txt")
+        _git(repo.main, "commit", "-qm", "shared overlap base")
+        tested_main = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", tested_main)
+        (wave / "overlap.txt").write_text(
+            "main-slot\nshared\nwave-changed\n",
+            encoding="utf-8",
+        )
+        _git(wave, "commit", "-am", "wave changes later hunk", "-q")
+        tested_tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+        (repo.main / "overlap.txt").write_text(
+            "main-changed\nshared\nwave-slot\n",
+            encoding="utf-8",
+        )
+        _git(repo.main, "commit", "-am", "main changes earlier hunk", "-q")
+        incorporated_main = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        merge_base = _git(wave, "merge-base", tested_tip, incorporated_main)
+        before_raw = _git(
+            wave,
+            "diff-tree",
+            "-r",
+            "--raw",
+            "--full-index",
+            "--no-abbrev",
+            "--no-renames",
+            f"{merge_base}^{{tree}}",
+            f"{tested_tip}^{{tree}}",
+        )
+        after_raw = _git(
+            wave,
+            "diff-tree",
+            "-r",
+            "--raw",
+            "--full-index",
+            "--no-abbrev",
+            "--no-renames",
+            f"{incorporated_main}^{{tree}}",
+            f"{landing_tip}^{{tree}}",
+        )
+        assert before_raw != after_raw
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.incorporated_main_shas == (incorporated_main,)
+        assert (repo.main / "overlap.txt").read_text(encoding="utf-8") == (
+            "main-changed\nshared\nwave-changed\n"
+        )
+
+
+def test_forward_merge_replay_isolated_mutations_use_default_strategy() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        calls: list[tuple[Path, tuple[str, ...]]] = []
+        original = LAND._git
+
+        def spy(path, *args, **kwargs):
+            calls.append((Path(path), tuple(args)))
+            return original(path, *args, **kwargs)
+
+        with _patched_land_attr("_git", spy):
+            result = _land(request)
+
+        assert result.rc == LAND.RC_OK, result
+        replay_merge_calls = [
+            (path, args)
+            for path, args in calls
+            if path not in {repo.main, wave} and "merge" in args
+        ]
+        assert len(replay_merge_calls) == 1
+        replay_path, replay_args = replay_merge_calls[0]
+        assert repo.root not in (replay_path, *replay_path.parents)
+        assert "-s" not in replay_args
+        assert "user.name=Izanagi Merge Replay" in replay_args
+        assert "user.email=merge-replay@izanagi.invalid" in replay_args
+        source_mutations = {
+            "init",
+            "update-ref",
+            "reset",
+            "merge",
+            "read-tree",
+            "add",
+            "commit",
+        }
+        assert all(
+            not source_mutations.intersection(args)
+            for path, args in calls
+            if path == wave
+        )
+
+
+@pytest.mark.parametrize("driver_key", ("driver", "recursive"))
+def test_forward_merge_replay_rejects_external_merge_driver_configuration(
+    driver_key: str,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        _git(repo.main, "config", f"merge.synthetic.{driver_key}", "true")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.status == "rejected"
+        assert result.reason == "external merge driver configuration is unsupported"
+
+
+def test_forward_merge_replay_rejects_wave_worktree_merge_driver_configuration(
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        _git(repo.main, "config", "extensions.worktreeConfig", "true")
+        _git(
+            wave,
+            "config",
+            "--worktree",
+            "merge.synthetic.driver",
+            "true",
+        )
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.status == "rejected"
+        assert result.reason == "external merge driver configuration is unsupported"
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    (
+        ("core.attributesFile", "synthetic-attributes"),
+        ("diff.algorithm", "patience"),
+        ("diff.renameLimit", "1"),
+        ("diff.renames", "false"),
+        ("merge.autoStash", "true"),
+        ("merge.directoryRenames", "true"),
+        ("merge.renameLimit", "1"),
+        ("merge.renames", "false"),
+        ("merge.renormalize", "true"),
+        ("merge.verifySignatures", "true"),
+        ("branch.wave/codex-one.mergeOptions", "-Xours"),
+    ),
+)
+def test_forward_merge_replay_rejects_each_merge_affecting_config_key_only_by_gate(
+    key: str,
+    value: str,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        _git(repo.main, "config", key, value)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "merge-affecting configuration is unsupported: " + key.lower()
+        )
+
+
+@pytest.mark.parametrize("origin", ("main-local", "wave-worktree", "global"))
+def test_forward_merge_config_gate_reads_every_git_config_origin(
+    origin: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        if origin == "main-local":
+            _git(repo.main, "config", "--local", "merge.renormalize", "true")
+        elif origin == "wave-worktree":
+            _git(repo.main, "config", "extensions.worktreeConfig", "true")
+            _git(
+                wave,
+                "config",
+                "--worktree",
+                "merge.renormalize",
+                "true",
+            )
+        else:
+            xdg = repo.root / "xdg"
+            config_dir = xdg / "git"
+            config_dir.mkdir(parents=True)
+            (config_dir / "config").write_text(
+                "[merge]\n\trenormalize = true\n",
+                encoding="utf-8",
+            )
+            monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "merge-affecting configuration is unsupported: merge.renormalize"
+        )
+
+
+def test_conflicting_forward_merge_is_rejected_by_replay_rc_gate() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / "conflict.txt").write_text("same\n", encoding="utf-8")
+        _git(repo.main, "add", "conflict.txt")
+        _git(repo.main, "commit", "-qm", "conflict base")
+        tested_main = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", tested_main)
+        (wave / "conflict.txt").write_text("wave\n", encoding="utf-8")
+        _git(wave, "commit", "-am", "wave side", "-q")
+        tested_tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+        (repo.main / "conflict.txt").write_text("main\n", encoding="utf-8")
+        _git(repo.main, "commit", "-am", "main side", "-q")
+        incorporated_main = _git(repo.main, "rev-parse", "HEAD")
+
+        conflict = _merge_without_commit(wave, incorporated_main)
+        assert conflict.returncode != 0, conflict
+        (wave / "conflict.txt").write_text("manual resolution\n", encoding="utf-8")
+        _git(wave, "add", "conflict.txt")
+        _git(wave, "commit", "-qm", "manual conflict resolution")
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        assert _git(wave, "show", "-s", "--format=%P", landing_tip).split() == [
+            tested_tip,
+            incorporated_main,
+        ]
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.status == "rejected"
+        assert "forward main merge replay rejected a non-clean merge" in result.reason
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ("text-byte", "binary-byte", "mode", "symlink", "gitlink"),
+)
+def test_forward_merge_tree_tampering_is_rejected_only_by_replay_tree_gate(
+    tamper: str,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        path = wave / "tamper.bin"
+        embedded: Path | None = None
+        if tamper == "binary-byte":
+            path.write_bytes(b"\x00accepted\n")
+            _git(wave, "add", "tamper.bin")
+            _git(wave, "commit", "-qm", "accepted binary")
+            tested_tip = _git(wave, "rev-parse", "HEAD")
+        elif tamper == "symlink":
+            path.symlink_to("accepted-target")
+            _git(wave, "add", "tamper.bin")
+            _git(wave, "commit", "-qm", "accepted symlink")
+            tested_tip = _git(wave, "rev-parse", "HEAD")
+        elif tamper == "gitlink":
+            embedded = path
+            embedded.mkdir()
+            _git(embedded, "init", "-q", "-b", "main")
+            _git(embedded, "config", "user.name", "Gitlink Test")
+            _git(embedded, "config", "user.email", "gitlink@example.invalid")
+            (embedded / "tracked.txt").write_text("one\n", encoding="utf-8")
+            _git(embedded, "add", "tracked.txt")
+            _git(embedded, "commit", "-qm", "gitlink one")
+            gitlink_before = _git(embedded, "rev-parse", "HEAD")
+            _git(
+                wave,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{gitlink_before},tamper.bin",
+            )
+            _git(wave, "commit", "-qm", "accepted gitlink")
+            tested_tip = _git(wave, "rev-parse", "HEAD")
+        else:
+            tested_tip = repo.commit(wave, "tamper.bin", "accepted\n")
+        request = repo.request(wave, tip=tested_tip)
+        incorporated_main = repo.commit(repo.main, "main-new.txt", "main advance\n")
+        clean = _merge_without_commit(wave, incorporated_main)
+        assert clean.returncode == 0, clean
+        assert _git(wave, "rev-parse", "HEAD") == tested_tip
+
+        if tamper == "text-byte":
+            path.write_text("accepted!\n", encoding="utf-8")
+            _git(wave, "add", "tamper.bin")
+        elif tamper == "binary-byte":
+            path.write_bytes(b"\x00acceptEd\n")
+            _git(wave, "add", "tamper.bin")
+        elif tamper == "mode":
+            path.chmod(0o755)
+            _git(wave, "add", "tamper.bin")
+        elif tamper == "symlink":
+            path.unlink()
+            path.symlink_to("accepted-target!")
+            _git(wave, "add", "tamper.bin")
+        else:
+            assert embedded is not None
+            (embedded / "tracked.txt").write_text("two\n", encoding="utf-8")
+            _git(embedded, "commit", "-am", "gitlink two", "-q")
+            gitlink_after = _git(embedded, "rev-parse", "HEAD")
+            _git(
+                wave,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{gitlink_after},tamper.bin",
+            )
+        _git(wave, "commit", "-qm", f"tamper merge tree: {tamper}")
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        assert _git(wave, "show", "-s", "--format=%P", landing_tip).split() == [
+            tested_tip,
+            incorporated_main,
+        ]
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.status == "rejected"
+        assert "forward main merge replay tree mismatch" in result.reason
+
+
+def test_non_merge_commit_after_tested_tip_is_rejected_by_topology_gate() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+        request = repo.request(wave, tip=tested_tip)
+        repo.commit(wave, "ordinary.txt", "not a main merge\n")
+        incorporated_main = repo.commit(repo.main, "main-new.txt", "main advance\n")
+        _git(wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.status == "rejected"
+        assert "first-parent commit must have exactly two parents" in result.reason
+
+
+def test_landing_tip_that_does_not_contain_locked_main_is_rejected() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        repo.commit(repo.main, "main-later.txt", "main moved again\n")
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_STALE_MAIN, "stale-main")
+        assert result.reason == "landing tip does not contain locked main"
+
+
+def test_locked_forward_main_ff_gate_has_no_competing_rejection_layer() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(repo, wave, count=1)
+        locked_main = repo.commit(repo.main, "main-later.txt", "main moved again\n")
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                merges = LAND._forward_main_merge_topology(
+                    repository,
+                    request.tested_main_sha,
+                    request.tested_wave_tip_sha,
+                    request.landing_wave_tip_sha,
+                )
+                with pytest.raises(LAND._Reject) as raised:
+                    LAND._verify_locked_forward_main(
+                        repository,
+                        locked_main,
+                        request.landing_wave_tip_sha,
+                        merges,
+                    )
+            finally:
+                repository.close()
+        assert raised.value.rc == LAND.RC_STALE_MAIN
+        assert raised.value.reason == "landing tip does not contain locked main"
+
+
+def test_forward_permission_requires_verified_nonempty_merge_closure() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_tip = repo.commit(wave, "wave.txt", "accepted\n")
+        request = repo.request(wave, tip=tested_tip)
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                assert not LAND._main_is_allowed(
+                    repository,
+                    repo.base,
+                    repo.base,
+                    tested_tip,
+                    request.audited_commits,
+                    landing_tip="1" * 40,
+                    forward_main_merges=(),
+                )
+            finally:
+                repository.close()
+
+
+def test_forward_main_merge_chain_above_json_budget_cap_is_rejected() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, _, _ = _forward_merge_request(
+            repo,
+            wave,
+            count=LAND._MAX_FORWARD_MAIN_MERGES + 1,
+        )
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == (
+            "forward main merge chain exceeds the accepted maximum "
+            f"of {LAND._MAX_FORWARD_MAIN_MERGES}"
+        )
+
+
+def test_forward_main_merge_chain_at_json_budget_cap_is_accepted() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, incorporated, _ = _forward_merge_request(
+            repo,
+            wave,
+            count=LAND._MAX_FORWARD_MAIN_MERGES,
+        )
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+            try:
+                merges = LAND._forward_main_merge_topology(
+                    repository,
+                    request.tested_main_sha,
+                    request.tested_wave_tip_sha,
+                    request.landing_wave_tip_sha,
+                )
+            finally:
+                repository.close()
+
+        assert tuple(merge.incorporated_main_sha for merge in merges) == incorporated
+
+
+def test_omitted_landing_tip_preserves_legacy_tested_tip_target() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_tip = repo.commit(wave, "legacy.txt", "legacy target\n")
+        request = repo.request(wave, tip=tested_tip)
+        assert request.landing_wave_tip_sha is None
+        _git(repo.main, "config", "merge.synthetic.driver", "false")
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.tested_tip_sha == tested_tip
+        assert result.landing_tip_sha == tested_tip
+        assert result.incorporated_main_shas == ()
+
+
+def test_forward_merge_already_landed_branches_before_normal_preland_gate() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, incorporated, _ = _forward_merge_request(repo, wave, count=1)
+        first = _land(request)
+        assert first.rc == LAND.RC_OK
+
+        second = _land(request)
+
+        assert (second.rc, second.status) == (LAND.RC_OK, "already-landed"), second
+        assert second.incorporated_main_shas == incorporated
+        assert second.main_after == request.landing_wave_tip_sha
+
+
+def test_forward_merge_fold_recovery_uses_landing_tip_state_boundary() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tested_tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, tip=tested_tip)
+        incorporated_main = repo.commit(repo.main, "main-new.txt", "main advance\n")
+        _git(wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        request = dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        )
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            (repo_path / "docs/spool/FOLDED.md").write_text(
+                "# receipts\n- forward-shape-b\n",
+                encoding="utf-8",
+            )
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+        )
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            first = _land(request)
+        assert (first.rc, first.status) == (LAND.RC_OK, "landed"), first
+        fold_commit = first.main_after
+        assert fold_commit is not None
+        assert _git(repo.main, "rev-parse", f"{fold_commit}^") == landing_tip
+        assert module._plan.origin.tested_tip == landing_tip
+        assert module._plan.origin.trusted_main_cutoff == incorporated_main
+
+        module._plan = module._plan.with_phase("applied")
+        module._active = True
+        module._apply = lambda *_args: (_ for _ in ()).throw(
+            AssertionError("forward shape B must not reapply")
+        )
+        module.events.clear()
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr(
+                "_audit_provenance_history",
+                lambda *_args: (_ for _ in ()).throw(
+                    AssertionError("active forward fold must not rerun provenance")
+                ),
+            ),
+        ):
+            recovered = _land(request)
+
+        assert (recovered.rc, recovered.status) == (LAND.RC_OK, "landed"), recovered
+        assert recovered.main_after == fold_commit
+        assert recovered.incorporated_main_shas == (incorporated_main,)
+        assert module.events == ["verify", "mark", "finalize"]
+
+
 def test_same_base_two_wave_winner_stale_resync_loser_land_e2e() -> None:
     """M1/M13: winner→stale loser→merge/reaccept→loser land の一続きの E2E。"""
     with _repo(waves=(("codex", "winner"), ("claude", "loser"))) as repo:
@@ -6765,6 +7437,9 @@ def test_land_result_release_contract_defaults_fail_closed_and_is_in_json() -> N
     ) == result
     payload = result.as_json()
     assert payload["acceptance_flake_nodeids"] is None
+    assert payload["tested_tip_sha"] is None
+    assert payload["landing_tip_sha"] is None
+    assert payload["incorporated_main_shas"] == []
     assert payload["release_safe"] is False
     assert payload["retryable_same_request"] is False
     assert "lease_release" not in payload
@@ -7349,14 +8024,14 @@ def test_main_verified_receipt_digest_mismatch_blocks_release() -> None:
 
 
 def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
-    """flake field 追加で通知 JSON の最大 nodeid が 21 bytes 縮む。"""
+    """flake field で21 bytes、今回の3 field で73 bytes、最大 nodeid が縮む。"""
 
     with _repo() as repo:
         request = repo.request(repo.waves["one"])
         lease_dir = repo.root / "lease"
         lease_dir.mkdir()
-        legacy_nodeid = "x" * 65075
-        boundary_nodeid = "x" * 65054
+        legacy_nodeid = "x" * 65002
+        boundary_nodeid = "x" * 64981
         result = LAND.LandResult(
             LAND.RC_OK,
             "landed",
@@ -7379,8 +8054,23 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
             for key, value in legacy_payload.items()
             if key != "acceptance_flake_nodeids"
         }
+        pre_forward_fields_payload = {
+            key: value
+            for key, value in payload.items()
+            if key not in {
+                "tested_tip_sha",
+                "landing_tip_sha",
+                "incorporated_main_shas",
+            }
+        }
         legacy_without_flake_bytes = json.dumps(
             legacy_without_flake_payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        pre_forward_fields_bytes = json.dumps(
+            pre_forward_fields_payload,
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
@@ -7402,6 +8092,7 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
         assert len(b',"acceptance_flake_nodeids":[]') == 30
         assert len(legacy_bytes) - len(legacy_without_flake_bytes) == 30
         assert len(legacy_bytes) - len(compact_bytes) == 21
+        assert len(compact_bytes) - len(pre_forward_fields_bytes) == 73
         assert len(legacy_bytes) == 65556
         assert len(compact_bytes) == 65535
         assert len(legacy_bytes) + 1 > LAND._wave_land_window._MAX_LAND_JSON_BYTES
@@ -7420,6 +8111,72 @@ def test_compact_core_json_preserves_legacy_64k_message_boundary() -> None:
             land_json,
         )
         assert message.startswith("[dev-wave] landed main=" + "b" * 40)
+
+
+def test_max_forward_main_merge_chain_fits_receipt_derived_64k_json_budget() -> None:
+    """64 KiB 受領証の最大 nodeid と上限 chain が land JSON に同居できる。"""
+
+    with _repo() as repo:
+        request = repo.request(repo.waves["one"])
+        receipt = json.loads(request.acceptance_receipt.read_text(encoding="ascii"))
+        receipt.update({
+            "child_rc": 1,
+            "verdict": "non-attributable-only",
+            "checker_rc": 0,
+            "checker_status": "non-attributable-only",
+            "checker_blob_sha": "d" * 40,
+            "checker_receipt_sha256": "e" * 64,
+            "red_nodeids": [""],
+        })
+        receipt_bytes = json.dumps(
+            receipt,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("ascii")
+        max_nodeid_bytes = (
+            LAND._MAX_ACCEPTANCE_RECEIPT_BYTES - len(receipt_bytes) - 1
+        )
+        max_nodeid = "x" * max_nodeid_bytes
+        receipt["red_nodeids"] = [max_nodeid]
+        receipt_bytes = json.dumps(
+            receipt,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("ascii")
+        assert len(receipt_bytes) + 1 == LAND._MAX_ACCEPTANCE_RECEIPT_BYTES
+
+        sha = "f" * 40
+        result = LAND.LandResult(
+            LAND.RC_OK,
+            "already-landed",
+            "verified active fold commit finalized without reapplying or recommitting",
+            main_before=sha,
+            main_after=sha,
+            wave_tip=sha,
+            fold_commit_sha=sha,
+            acceptance_receipt_sha256="a" * 64,
+            acceptance_verdict="non-attributable-only",
+            acceptance_red_nodeids=(max_nodeid,),
+            acceptance_flake_nodeids=(),
+            tested_tip_sha=sha,
+            landing_tip_sha=sha,
+            incorporated_main_shas=tuple(
+                f"{index:040x}"
+                for index in range(LAND._MAX_FORWARD_MAIN_MERGES)
+            ),
+            release_safe=True,
+        )
+        land_bytes = json.dumps(
+            result.as_json(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+
+        assert len(result.incorporated_main_shas) == LAND._MAX_FORWARD_MAIN_MERGES
+        assert len(land_bytes) + 1 <= LAND._wave_land_window._MAX_LAND_JSON_BYTES
 
 
 def test_release_failure_never_overwrites_land_result() -> None:

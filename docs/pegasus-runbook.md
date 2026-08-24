@@ -470,6 +470,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/fetch_third_party.py` | `local-ok` | `runbook §7.0 実測` |
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/generate_floor_masstree_payload_policy.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/mocc_trace_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/oracle_n_pilot.sh` | `dispatch-required` | `static job-body classification` |
@@ -815,16 +816,23 @@ W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
 N=<attempt 番号。再走のたびに 1 ずつ増やす>
 python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   --merge-message-file <merge 用 message file> \
+  --owned-path <この wave が所有する実装面 path (所有ごとに繰り返す)> \
   --receipt-file <repo 外の job directory>/acceptance-receipt-$N.json \
   --log-file <repo 外の job directory>/acceptance-child-$N.log \
   -- python3 tools/run_tests.py
 ```
 
+- **`--owned-path` を所有ごとに渡す。** 省略すると待ち手は
+  `acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します` を stderr へ出し、
+  claim 後の main 自動取り込みが wave の所有 file を触っても止まらない。渡してあれば
+  `owned-path-overlap` で fail-closed になり、両親が同じ実装面 file を触る merge を
+  self-report の message のまま通す事故を投入時点で塞げる。
+
 - **`--receipt-file` は必須である ([T-908])。** 待ち手経由の受入だけが権威ある dev-wave 受入で
   あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。
   path は **repo 外の絶対 path**・親 directory 既存・target 未存在でなければ claim 前に rc=2。
-  receipt は走行後 clean・index flag 検査通過・走行前後の fingerprint 一致・
-  lease の TTL 残量と所有の再確認がすべて成立し、かつ**下の受理 2 経路のいずれか**が
+  receipt は走行後 clean・index flag 検査通過・走行前後の fingerprint 一致が成立し
+  (lease を取得した走行はさらに TTL 残量と所有の再確認)、かつ**下の受理 2 経路のいずれか**が
   成立したときだけ発行される。発行は temp へ書いて
   fsync → 再確認 → `os.rename` の二段階で、**final path の存在だけが「待ち手が成功終端まで
   到達した」証拠**である。予約 temp 名前空間の path を land へ渡しても rc=23 で拒否される。
@@ -927,7 +935,13 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   受入とは別の走行を立てる。
 - **`--merge-message-file` は待機を始める前に用意しておく。** behind が判明した時点で必須になり、
   無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
-- **rc=0 は「receipt が発行され、lease を保持したまま返った」を意味する。**
+  **親が自分で merge commit を作った wave では、待ち手へ渡す message file を親の merge の
+  message file と別にする。** 両親が同じ実装面 path を変えた merge は `DW-O17` により Codex
+  `role=author` を要し、その message file には Codex の著者行が入る。同じ file を待ち手へ渡すと、
+  待ち手が作る別の merge commit まで Codex 著述を名乗ることになる。待ち手用は自己申告の
+  `role=integrator` だけを持つ file にし、実装面 overlap があれば待ち手が fail-closed で止まるのに
+  任せる (2026-08-23 実測、取り残し branch の回収 wave)。
+- **rc=0 は「receipt が発行された」を意味する** (lease を取得した走行は保持したまま返る)。
   受入 command 自身が緑だったとは限らない — 上の受理経路 (ii) では rc=1 で赤があり、
   それが全部非帰属または flake だったという意味になる。**台帳へ「全テスト緑」と書く前に
   receipt の `verdict`、`red_nodeids`、`flake_nodeids` を読むこと。** `flake_nodeids` は
@@ -937,8 +951,8 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
   **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、
   失敗しても保持したまま返して親の終端 release に委ねる (下の「自己保持」を見よ)。
-- 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (進行不可。lease 未取得、
-  Git 失敗、再検査で先行が残る、自己保持なのに進めない、**投入直前に木が汚れている
+- 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (進行不可。
+  Git 失敗、自己保持なのに進めない、**投入直前に木が汚れている
   (`prerun-clean`)**、**message の provenance preflight が非 0 (`merge-message-provenance`)** 等)、
   `74` = cleanup (merge abort / release) の完了を確認できない、それ以外の非 0 = 受入 command の rc。
   **`prerun-clean` と `merge-message-provenance` の rc=70 は lease 取得後の fail-closed 失敗**で、
@@ -948,15 +962,14 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   倒すが、**SIGKILL と host 停止は捕捉できない** (shell の `trap` でも同じ)。これらと、
   cleanup 開始直後に 2 発目の signal が入る狭い窓では lease が残留し、TTL 2,400 秒で失効するまで
   回収されない (裁定パッケージへ返却済み)。
-- **`--max-wait-seconds` の既定は 7,200 秒で、混雑時はこれを使い切って `claim-timeout` の rc=70 で
-  返る** (2026-08-11 実測: 7,200 秒待って取得できず、解放は直後だった)。並行 wave が多い時間帯は
-  明示的に延ばす。rc=70 で戻ったら lease 状態を見て、free ならそのまま取り直す — 窓は数分で
-  他 wave に取られる。
+- **`--max-wait-seconds` (既定 7,200 秒) は受入全体の deadline であって lease の待ち上限ではない。**
+  claim は待たないので、この値を使い切るのは受入 command 自身が長いときである。
 
 script が担う判定は次のとおりで、**同じ内容を別 shell loop として書き直さない**。
 
-- `claim` の出力は rc=0 のときだけ JSON として parse し、トップレベル `state` が
-  **`acquired` または `held-self` に exact 一致する**ときだけ投入する ([T-812])。出力全体への
+- `claim` の出力は rc=0 のときだけ JSON として parse し、トップレベル `state` を
+  **exact 一致で判定する** ([T-812])。`acquired` / `held-self` / `held` (と旧版の `queued`) は
+  投入し、`stale-held` / `unavailable` は fail-closed で止める。出力全体への
   部分一致 (`case *acquired*` / glob / grep) では判定しない — `state` 以外の field や診断文に
   同じ語が出れば偽陽性になる。**`claim` の出力は JSON、`status` の出力は key=value である**
   (`status --json` のときだけ JSON)。
@@ -977,9 +990,9 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   `.gitignore` に無い実在の生成物を持つ wave でも untracked は claim を止めなかった) から
   変わっている。commit されていない生成物・記録 fragment があると `preflight-clean` で
   claim 前 rc=2 になるため、受入投入前に untracked を repo 外へ退避するか commit すること。
-- **受理 (`acquired` / `held-self`) の直後に待ち手自身が local main を取り直して取り込む
+- **claim の直後に待ち手自身が local main を取り直して取り込む
   ([T-732] 裁定 (a) の正本)。**
-  待っている間に先行 holder が land するので、`claim` 時の `main_sha` は取得時点の main では
+  並行 wave が随時 land するので、`claim` 時の `main_sha` は投入時点の main とは限ら
   ない。取り込まずに走らせると land 対象 tip が main の子孫でなくなり、全走をやり直すことになる。
   順序は `git rev-parse main` → `git rev-list --count HEAD..main` → (非 0 のときだけ)
   **所有実装面の overlap 判定** → `git merge --no-ff --no-commit main` →
@@ -1034,19 +1047,19 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   既に起動済みの待ち手はロード済みのコードで走り続けるので、走行中に新 main を merge しても
   新しい検査は発火しない。稼働中 wave では「取り込み → 待ち手を起動し直す」まで済ませて
   はじめてこの契約下の受入と数える。
-- 待ちの周期は 30〜120 秒 (既定 30 秒)、claim loop の全体上限は既定 7200 秒である。
-  T-694 が求めた「周期固定」は、**300 秒 (待ち札 TTL) を超える周期を rc=2 で起動前に落とす**
-  この policy range で充足している。
-- `claim` が構造化された `held` / `queued` / `held-self` を返した時点で「この呼出しが lease を
+- **claim の待ちは無い (D662、2026-08-23 実装)。** `claim` は 1 回だけ呼ばれ、`held` でも
+  待たずに受入を投入する。`--poll-seconds` は後方互換で受理するだけの no-op であり、
+  `--max-wait-seconds` は受入全体の deadline であって lease の待ち上限ではない。
+- `claim` が構造化された `held` / `held-self` を返した時点で「この呼出しが lease を
   作った可能性」は消えるので、**その後の失敗では release しない**。`release` の権限証明は
   wave slug の digest だけであり、同一 slug の別 invocation が保持中の lease を消してしまう
-  ためである。自分の待ち札は残るが 300 秒で失効する。
+  ためである。
 
 #### 自己保持 (`held-self`) — 2 走目や再開でそのまま進む ([T-812])
 
 **同じ wave が lease を保持したまま `claim` すると、TTL (lease の mtime) を更新して
 `held-self` を返す。** 待ち手はこれを受理して受入を投入するので、**保持したまま 2 走目を回すのに
-release して取り直す必要はない** (取り直すと待ち行列の最後尾へ戻り、解放窓で他 wave に割り込まれる)。
+release して取り直す必要はない** (取り直すと解放窓で他 wave に lease を取られる)。
 恒久対応前は自己保持が `held` を返し、待ち手が `acquired` を待って**最大 7200 秒無言で空転**した
 (実害 4 例)。
 
@@ -1060,8 +1073,8 @@ release して取り直す必要はない** (取り直すと待ち行列の最�
   いずれも rc=70 で、**lease は保持したまま**返る (親の終端 release に委ねる)。
 - **既知限界 (裁定パッケージへ返却済み)**: holder は wave slug の digest 12 桁であり
   **invocation を識別しない**。同一 slug の別 invocation も `held-self` を得て進めるため、
-  **1 slug につき active な待ち手は 1 本**という運用前提が要る (機械保証ではない)。また
-  自己更新は待ち行列を追い越す (owner 優先) — 連続更新の上限は設けていない。
+  **1 slug につき active な待ち手は 1 本**という運用前提が要る (機械保証ではない)。
+  自己更新の連続回数に上限は設けていない。
 
 #### 背景 producer の待ち手
 
@@ -1084,15 +1097,11 @@ python3 tools/dev_wave_wait.py producer \
 
 #### lease そのものの性質と既知限界
 
-- **待ちは待ち札 (FIFO 相当) を作る ([T-684])。** `claim` は呼ぶたびに待ち札の生存を更新する。
-  **待ち札は最後の `claim` から 300 秒で失効する**ので、一度だけ `claim` して長く放置すると
-  順番を失う。`queued` は「lease は空いているが自分より先に待っている wave がいる」を意味する。
-- **受入を直ちに投入できる状態になってから待ち始める。** 先頭を取ってから準備に手間取ると、
-  その間ほかの wave 全部が待つ (head-of-line blocking)。
-- **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
-  待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1273 秒) に比例する。
-  **待ち周期を詰めても追い越しは消えない** — 原因は周期ではなく待ち行列長であり、
-  効くのは上の「待ち手内で取り込む」手順である (F196)。
+- **待ち行列 (待ち札) は無い。** D662 で廃止し、2026-08-23 に `claim` から機構ごと除去した。
+  `claim` は待ち札を作らず参照もせず、`queued` を返さない。lease が空いていれば即取得、
+  他 wave が保持中なら即 `held` を返す。順番待ちも head-of-line blocking も発生しない。
+  旧版が残した `ticket.*` は `release` 側の legacy cleanup が回収し、`claim` の結果を変えない。
+  廃止の理由は D662 — 一つの wave の受入が全体の land を止める設計を否定した (歴史は D253)。
 - **claim の loop・main の取り直し・merge・受入投入は同じ待ち手 script に置く。** 取り込みを親の
   事前作業にし、待ち手を `git rev-list --count HEAD..main` の検査だけにすると、待機中に main が
   進むたびに取得した lease を捨てる (2026-08-10 実測: 24 分待って `acquired`、その時点で
@@ -1122,19 +1131,17 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 - **旧待ち手で受入済み・未 land の wave は receipt を持たない。** 互換 bypass は作らないので、
   新しい待ち手で受入を 1 走やり直す必要がある。これは裁定 [T-908] (a) を機械で担保する費用である。
 
-- 取り残した lease は TTL (既定 2400 秒) で自然失効する。失効までの間は他 wave の受入投入が
-  止まるので、release を忘れないこと。**受入を 2 度走らせると 2 走で TTL を超える** (1 走
+- 取り残した lease は TTL (既定 2400 秒) で自然失効する。**他 wave の受入投入は止まらない**
+  (待ち行列廃止後は `held` でも即投入する) が、自分の 2 走目のために release は忘れないこと。
+  **受入を 2 度走らせると 2 走で TTL を超える** (1 走
   1055〜1273 秒)。2 走目の前に `claim` し直す — 保持したままなら `held-self` が返って TTL が
   更新され、そのまま進める ([T-812])。`held-self` 以外 (`claim-self-renew-failed` /
   `claim-self-unverified` / stale で取り直せない) なら 2 走目を投入しない。
 - **既知の限界 (裁定パッケージ)**: TTL 超過で lease を取り直した場合、旧 holder の受入は
   止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
   悪化はしない。release の権限証明は wave slug の digest だけである。
-- **待ち行列の既知の限界 ([T-684])**: 待ち行列を扱えない状況 — 走査の失敗、entry 4096 件または
-  待ち札 64 枚の cap 超過、自分の待ち札を登録できないこと — では待ち行列を捨てて従来の競争へ
-  縮退する。**停止しないことを公平性より優先する**設計である。旧版の `claim` を走らせる wave は
-  待ち札を無視するので、混在中は公平性を保証しない (退行はせず、待ち行列が無い状態へ戻るだけ)。
-  同着 (mtime 粒度内) は holder digest で決定的に割るため厳密な FIFO ではない。
+- **公平性は保証しない。** 待ち行列を消した以上、lease の取得順は競争であり先着順ではない。
+  D662 はこれを承知の上で「止めないこと」を公平性より優先すると裁定した。
 
 ### 7.4 変異 harness の runner argv
 

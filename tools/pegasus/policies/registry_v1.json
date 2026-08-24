@@ -3,6 +3,7 @@
   "policy_paths": [
     "orchestrator/qualification/t126_reservation_policy_v1.json",
     "tools/pegasus/policies/calibration_v1.json",
+    "tools/pegasus/policies/floor_masstree_payload_v1.json",
     "tools/pegasus/policies/floor_v1.json",
     "tools/pegasus/policies/t316_sandbox_backend_v1.json",
     "tools/pegasus/policies/t810_admission_v1.json",

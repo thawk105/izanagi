@@ -32,6 +32,9 @@ assert _SPEC and _SPEC.loader
 RT = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(RT)
 
+_CANONICAL_CLEANUP_EXCLUSION = RT._PERMANENT_FULL_SUITE_EXCLUSIONS[0]
+_CANONICAL_CLEANUP_EXCLUSIONS = (_CANONICAL_CLEANUP_EXCLUSION,)
+
 _EXPECTED_PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only",
     "--co",
@@ -372,6 +375,8 @@ def test_acceptance_shape_positive_controls(args):
         ["-o", "x=1"],
         ["-pno:plugin"],
         ["--override-ini=x=1"],
+        ["--confcutdir", "orchestrator/tests"],
+        ["--confcutdir=orchestrator/tests"],
         ["--", "-q"],
         ["--collect-only"],
         ["--smoke-only"],
@@ -2297,6 +2302,7 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
     grants = []
     dispatch = mock.Mock(return_value=9)
     scope = mock.Mock(side_effect=AssertionError("estimated full run must dispatch"))
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "1")
 
     def grant_budget(**kwargs):
         grants.append(kwargs)
@@ -2316,6 +2322,7 @@ def test_previous_full_cap_estimate_dispatches_without_local_scope(monkeypatch):
 
 def test_previous_full_cap_estimate_dispatches_after_preflights(monkeypatch):
     events = []
+    monkeypatch.setenv(RT._ACCEPTANCE_SHARDS_ENV, "1")
 
     def preflight(name):
         return lambda args, repo: events.append(name) or 0
@@ -2569,7 +2576,8 @@ def test_main_assembles_absolute_relative_target_from_other_cwd(
         ["test_sample.py::test_sample"], site=RT.site_policy.OTHER,
     ) == 0
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", f"{target.resolve()}::test_sample",
+        sys.executable, "-m", "pytest",
+        f"{target.resolve()}::test_sample",
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
 
@@ -2595,21 +2603,37 @@ def test_main_absolutizes_plain_relative_target_from_other_cwd(
 
     assert RT.main(["test_sample.py"], site=RT.site_policy.OTHER) == 0
     assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(target.resolve()),
+        sys.executable, "-m", "pytest",
+        str(target.resolve()),
     ]
     assert captured["kwargs"] == {"cwd": str(_REPO)}
 
 
 @pytest.mark.parametrize(
-    ("args", "expected_tail"),
+    ("args", "expected_tail", "expected_exclusion"),
     [
-        (["--rootdir", "."], ["--rootdir", str(_REPO)]),
-        (["--deselect=ignored.py::test_node"], ["--deselect=ignored.py::test_node"]),
+        (
+            ["--rootdir", "."],
+            ["--rootdir", str(_REPO)],
+            True,
+        ),
+        (
+            ["--deselect=ignored.py::test_node"],
+            ["--deselect=ignored.py::test_node"],
+            False,
+        ),
     ],
 )
+@pytest.mark.parametrize(
+    "table_active",
+    [True, False],
+    ids=("active-table", "empty-table"),
+)
 def test_main_option_values_do_not_suppress_default_target(
-    monkeypatch, args, expected_tail,
+    monkeypatch, args, expected_tail, expected_exclusion, table_active,
 ):
+    entries = _CANONICAL_CLEANUP_EXCLUSIONS if table_active else ()
+    monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", entries)
     captured = {}
     monkeypatch.setattr(RT, "_preflight_unstaged_deletions", lambda values, repo: 0)
     monkeypatch.setattr(RT, "_preflight_ruleops", lambda values, repo: 0)
@@ -2622,10 +2646,15 @@ def test_main_option_values_do_not_suppress_default_target(
     )
 
     assert RT.main(args, site=RT.site_policy.OTHER) == 0
-    assert captured["command"] == [
-        sys.executable, "-m", "pytest", str(_REPO / "orchestrator" / "tests"),
+    expected_exclusion = expected_exclusion and table_active
+    expected_command = [sys.executable, "-m", "pytest"]
+    if expected_exclusion:
+        expected_command.append(f"--ignore={RT._SANCTIONED_CLEANUP_TEST_PATH}")
+    expected_command.extend([
+        str(_REPO / "orchestrator" / "tests"),
         *expected_tail,
-    ]
+    ])
+    assert captured["command"] == expected_command
 
 
 if __name__ == "__main__":
