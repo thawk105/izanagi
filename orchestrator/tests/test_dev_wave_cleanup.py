@@ -880,6 +880,7 @@ def test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form(
 
 def test_git_argv_spy_sees_only_allowlisted_cleanup_commands(tmp_path, monkeypatch, capsys):
     repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
     calls: list[tuple[str, ...]] = []
     original = cleanup._git
 
