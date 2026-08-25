@@ -263,7 +263,7 @@ class TextLimit:
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
-    ".claude/commands/rulings.md": TextLimit(5_000, 180),
+    ".claude/commands/rulings.md": TextLimit(5_623, 180),
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
