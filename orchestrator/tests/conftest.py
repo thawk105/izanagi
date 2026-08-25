@@ -1626,7 +1626,13 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             matched_ids = set(getattr(
                 session.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()
             )) & set(FLAKY_TEST_HOLDS)
-        if terminal is not None and matched_ids:
+        if terminal is not None and (
+            matched_ids
+            or (
+                not FLAKY_TEST_HOLDS
+                and getattr(session.config, "invocation_params", None) is not None
+            )
+        ):
             skipped_ids = set(getattr(
                 session.config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, ()
             )) & set(FLAKY_TEST_HOLDS)
