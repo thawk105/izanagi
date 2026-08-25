@@ -906,11 +906,124 @@ def _verify_digest_chain(run: Path, _events: list[dict], report: dict) -> None:
     )
 
 
+def _t525_pre_fix_registered_scale_predicate_passes(
+    cell: dict, registered_holdout: dict,
+) -> bool:
+    scale = cell.get("perf_config_scale")
+    return isinstance(scale, dict) and all(
+        scale.get(field) == registered_holdout.get(field)
+        for field in ("records", "threads")
+    )
+
+
 def test_t1311_registered_digest_chain_positive_control(tmp_path) -> None:
     run, events, report, _arm_execution = _registered_digest_chain_trial(
         tmp_path
     )
     _verify_digest_chain(run, events, report)
+
+
+def test_t525_registered_cell_complete_condition_is_lock_independent(
+    tmp_path: Path,
+) -> None:
+    from orchestrator.campaign import trial_registry as registry
+
+    cases = (
+        ("workload_flags", "ycsb_zipf_skew"),
+        ("workload_flags", "ycsb_rmw"),
+        ("perf_config_scale", "records"),
+        ("perf_config_scale", "threads"),
+    )
+    assert cases
+    rejected_count = 0
+    for section, field in cases:
+        case_root = tmp_path / field
+        case_root.mkdir()
+        run, events, report, _arm_execution = _registered_digest_chain_trial(
+            case_root
+        )
+        cell = report["cells"][0]
+        campaign_lock_path = Path(cell["campaign_root"]) / "campaign.lock"
+        campaign_lock_path.unlink()
+        assert report["do_build"] is False
+        assert not campaign_lock_path.exists()
+        _verify_digest_chain(run, events, report)
+
+        original = cell[section][field]
+        cell[section][field] = (
+            f"{original}-different" if isinstance(original, str) else original + 1
+        )
+        binding = report["launch_admission"]["binding"]
+        flags = cell["workload_flags"]
+        registered = registry.HOLDOUT_BINDINGS[binding["holdout"]]
+        assert binding["holdout"] == "H1"
+        assert binding["workload"] == registered["workload"]
+        assert binding["ycsb_rratio"] == registered["ycsb_rratio"]
+        assert report["launch_admission"]["workloads"] == [binding["workload"]]
+        assert cell["workload"] == registered["workload"]
+        assert flags["ycsb_rratio"] == registered["ycsb_rratio"]
+        with pytest.raises(
+            C.AutonomousTrialCompletenessError,
+            match=(
+                rf"^\[arm-digest-chain\] benchmark {section}\.{field} "
+                r"differs from registered holdout$"
+            ),
+        ):
+            _verify_digest_chain(run, events, report)
+        rejected_count += 1
+    assert rejected_count == len(cases)
+    assert rejected_count > 0
+
+
+def test_t525_no_lock_scale_must_match_frozen_descriptor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import trial_registry as registry
+
+    cases = ("records", "threads")
+    assert cases
+    rejected_count = 0
+    frozen_bindings = registry.HOLDOUT_BINDINGS
+    for field in cases:
+        case_root = tmp_path / field
+        case_root.mkdir()
+        run, events, report, _arm_execution = _registered_digest_chain_trial(
+            case_root
+        )
+        cell = report["cells"][0]
+        campaign_lock_path = Path(cell["campaign_root"]) / "campaign.lock"
+        campaign_lock_path.unlink()
+        assert report["do_build"] is False
+        assert not campaign_lock_path.exists()
+        _verify_digest_chain(run, events, report)
+
+        binding = report["launch_admission"]["binding"]
+        tampered_bindings = {
+            holdout: dict(condition)
+            for holdout, condition in frozen_bindings.items()
+        }
+        tampered_value = cell["perf_config_scale"][field] + 1
+        tampered_bindings[binding["holdout"]][field] = tampered_value
+        cell["perf_config_scale"][field] = tampered_value
+        registered = tampered_bindings[binding["holdout"]]
+        assert _t525_pre_fix_registered_scale_predicate_passes(
+            cell, registered,
+        )
+        assert cell["perf_config_scale"] != cell["descriptor"]["scale"]
+
+        with monkeypatch.context() as patch:
+            patch.setattr(registry, "HOLDOUT_BINDINGS", tampered_bindings)
+            with pytest.raises(
+                C.AutonomousTrialCompletenessError,
+                match=(
+                    rf"^\[arm-digest-chain\] benchmark perf_config_scale\.{field} "
+                    r"differs from cell descriptor$"
+                ),
+            ):
+                _verify_digest_chain(run, events, report)
+        rejected_count += 1
+    assert rejected_count == len(cases)
+    assert rejected_count > 0
 
 
 @pytest.mark.parametrize("mutation", ("missing", "extra", "format"))
@@ -4460,6 +4573,46 @@ def test_cell_admission_failure_decision_shape_is_closed(mutate) -> None:
     }
     mutate(decision)
     assert C.is_exact_cell_admission_failure_decision(decision) is False
+
+
+@pytest.mark.parametrize(
+    "diagnosis",
+    [
+        pytest.param("not-a-mapping", id="non-mapping"),
+        pytest.param(
+            {
+                "schema_version": (
+                    "p3-autonomous-workload-trial-"
+                    "layer3-admission-diagnosis/v1"
+                ),
+                "status": "degraded",
+                "validator": None,
+                "validator_value": None,
+                "absolute_instance_path": [],
+                "absolute_schema_path": [],
+                "offending_property": None,
+                "degradation_reason": "validation-error-cause-not-found",
+                "extra": True,
+            },
+            id="mapping-with-extra-key",
+        ),
+    ],
+)
+def test_completeness_rejects_present_invalid_layer3_diagnosis(
+    tmp_path, diagnosis,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    report["cells"][0]["layer3_admission_diagnosis"] = diagnosis
+    _persist(run, events, report)
+
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[artifact-admission\] cells\[0\] Layer-3 admission "
+            r"diagnosis is not exact$"
+        ),
+    ):
+        _verify(run, report)
 
 
 def test_workload_suffix_rejects_failure_cell_that_is_not_final(tmp_path) -> None:

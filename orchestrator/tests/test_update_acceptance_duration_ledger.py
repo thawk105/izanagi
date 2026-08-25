@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -322,6 +323,95 @@ def test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations() -> None:
         and math.isfinite(value)
         and value >= 0
         for value in durations.values()
+    )
+
+
+def test_t1574_changed_suite_ledger_node_delta_is_exact() -> None:
+    payload = json.loads(
+        Path(__file__).with_name("acceptance_duration_ledger.json").read_text(
+            encoding="ascii"
+        )
+    )
+    durations = payload["duration_seconds_by_nodeid"]
+    removed = {
+        "orchestrator/tests/test_critic.py::test_current_loader_rejects_non_exact_oracle_contract_ids[sort-swo-v3-corpus1-protocol2-checker2-grammar1-x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe-suffix]",
+        "orchestrator/tests/test_critic.py::test_current_loader_rejects_non_exact_oracle_contract_ids[sort-swo-v4-corpus1-protocol2-checker2-grammar1-x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe]",
+        r"orchestrator/tests/test_critic.py::test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering[mutation-\u5168 field snapshot \u304c\u5909\u5316]",
+        r"orchestrator/tests/test_critic.py::test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering[protocol-\u56fa\u5b9a\u9577 protocol \u306e\u7570\u5e38]",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+    }
+    added = {
+        "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing": 5.89,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices[equivalence-transitive]": 5.88,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning": 5.81,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness": 5.8,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding@real-repo": 0.19,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_one_byte_change": 0.12,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_unregistered_fixture_file": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_parent_reference": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_symlink_outside_fixture": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_header_removed_from_manifest": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_missing_fixture_file": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_resolver_config_h_missing_is_exact_failure_not_skip": 0.11,
+    }
+    assert removed.isdisjoint(durations)
+    assert {node: durations.get(node) for node in added} == added
+
+    # CS-1/2/3 が変更した suite ごとに、current collection から台帳へ登録済みの
+    # node 集合を sorted UTF-8 + LF の SHA-256 で exact 固定する。件数だけでなく
+    # node bytes 全体への commitment なので、current 1 件を stale 1 件へ入れ替える
+    # count-preserving mutation も必ず不一致になる。未実測 node の値は合成しない。
+    expected_suite_node_sets = {
+        "orchestrator/tests/test_critic.py::": (
+            121, "1e8b4cd41b1e80708c79f247ef9c8ddb21d82bdc7e999cdc53e8713821cb0692",
+        ),
+        "orchestrator/tests/test_p3_exploration_namespace.py::": (
+            26, "db38065c3ebe9834490717df17f634af1c54dddab130d1eea0851723f3db7efa",
+        ),
+        "orchestrator/tests/test_p3_s4_loop_sort.py::": (
+            29, "f29aabf31c8ce1ee6b5e15435834ba6a535b2628f14ad186f342b2f47f6c2bed",
+        ),
+        "orchestrator/tests/test_real_repo_serialization.py::": (
+            42, "6fb7e97e2d410d716f45e641092794dafc9fc98717b663429bb9d18528db8874",
+        ),
+        "orchestrator/tests/test_s1_direct_comparison.py::": (
+            97, "ed1a63057f76b8807144943fff4ca7689fa7e0c2936a6c6512ef3ad5ffdce9d5",
+        ),
+        "orchestrator/tests/test_s8b_materialization.py::": (
+            30, "31ee53d57df57fdc3e8c350c97d9425afa4e9897aa2c716efe0608e822884f5b",
+        ),
+        "orchestrator/tests/test_s8b_sort_swo_receipt.py::": (
+            12, "a95979bd14e970ac6e08f1061a1c7b434549a3f4a3e3913d3ef6303b6a3a4ec2",
+        ),
+        "orchestrator/tests/test_sort_swo_oracle.py::": (
+            69, "7e97c114b313d8fccb97f486379745e060e3486a132de271a244e9c1e3f6d912",
+        ),
+    }
+
+    def exact_node_set_identity(nodes: set[str]) -> tuple[int, str]:
+        canonical = "".join(f"{node}\n" for node in sorted(nodes)).encode(
+            "utf-8"
+        )
+        return len(nodes), hashlib.sha256(canonical).hexdigest()
+
+    observed_by_suite = {
+        prefix: {node for node in durations if node.startswith(prefix)}
+        for prefix in expected_suite_node_sets
+    }
+    assert {
+        prefix: exact_node_set_identity(nodes)
+        for prefix, nodes in observed_by_suite.items()
+    } == expected_suite_node_sets
+
+    # 同数入替えを明示的に反転させ、hash gate が count-only でないことを固定する。
+    critic_prefix = "orchestrator/tests/test_critic.py::"
+    count_preserving_swap = set(observed_by_suite[critic_prefix])
+    count_preserving_swap.remove(min(count_preserving_swap))
+    count_preserving_swap.add(
+        "orchestrator/tests/test_critic.py::test_stale_count_preserving_swap"
+    )
+    assert exact_node_set_identity(count_preserving_swap) != (
+        expected_suite_node_sets[critic_prefix]
     )
 
 

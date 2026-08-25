@@ -32,6 +32,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from jsonschema import ValidationError as JsonSchemaValidationError
+
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
@@ -58,6 +60,8 @@ from .autonomous_trial_completeness import (
     assert_autonomous_trial_execution_digest_chain,
     cell_admission_failure_projection,
     is_positive_cell_admission_decision,
+    LAYER3_ADMISSION_DIAGNOSIS_KEY,
+    LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION,
 )
 from .auditor_gate import AuditorVerdict, parse_auditor_dict
 from .claude_projected_provider import ClaudeProjectedRoleProvider
@@ -2783,12 +2787,129 @@ def _finalize_build_cell_admission(
             output_root=campaign_root.parent.parent,
         )
     except layer3_report.Layer3ReportError as exc:
+        if isinstance(cell, dict):
+            cell[LAYER3_ADMISSION_DIAGNOSIS_KEY] = (
+                _layer3_admission_diagnosis(exc)
+            )
         raise AutonomousTrialError(
             f"build cell campaign admission/Layer-3 validation failed: {exc}"
         ) from exc
     if not isinstance(cell, dict):
         raise AutonomousTrialError("build cell must be mutable before report finalization")
     cell["admission_decision"] = layer3["admission_decision"]
+
+
+def _layer3_admission_diagnosis(
+    error: BaseException,
+) -> dict[str, Any]:
+    """Project a Layer-3 schema cause into one closed, JSON-safe record.
+
+    This helper is total for exception inputs.  A missing or unusable
+    ``jsonschema.ValidationError`` cause produces the same closed shape with
+    an explicit degradation reason instead of creating a second failure path.
+    """
+    degraded = {
+        "schema_version": LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION,
+        "status": "degraded",
+        "validator": None,
+        "validator_value": None,
+        "absolute_instance_path": [],
+        "absolute_schema_path": [],
+        "offending_property": None,
+        "degradation_reason": "validation-error-cause-not-found",
+    }
+    try:
+        cause = error.__cause__
+        seen: set[int] = set()
+        validation_error = None
+        while isinstance(cause, BaseException) and id(cause) not in seen:
+            seen.add(id(cause))
+            if isinstance(cause, JsonSchemaValidationError):
+                validation_error = cause
+                break
+            cause = cause.__cause__
+        if validation_error is None:
+            return json.loads(_canonical_json_bytes(degraded).decode("utf-8"))
+
+        validator = validation_error.validator
+        if type(validator) is not str or not validator:
+            raise ValueError("schema validator is not a non-empty string")
+        validator_value = json.loads(json.dumps(
+            validation_error.validator_value,
+            ensure_ascii=False,
+            sort_keys=True,
+            allow_nan=False,
+        ))
+        instance_path = list(validation_error.absolute_path)
+        schema_path = list(validation_error.absolute_schema_path)
+        for component in [*instance_path, *schema_path]:
+            if not (
+                type(component) is str
+                or (type(component) is int and component >= 0)
+            ):
+                raise ValueError("schema path contains a non-JSON component")
+        container_property = _container_validation_offending_property(
+            validation_error
+        )
+        offending_property = (
+            container_property
+            if container_property is not None
+            else (
+                instance_path[-1]
+                if instance_path and type(instance_path[-1]) is str
+                else None
+            )
+        )
+        diagnosis = {
+            "schema_version": LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION,
+            "status": "validation-error",
+            "validator": validator,
+            "validator_value": validator_value,
+            "absolute_instance_path": instance_path,
+            "absolute_schema_path": schema_path,
+            "offending_property": offending_property,
+            "degradation_reason": None,
+        }
+        return json.loads(_canonical_json_bytes(diagnosis).decode("utf-8"))
+    except Exception:
+        degraded["degradation_reason"] = "validation-error-projection-failed"
+        return json.loads(_canonical_json_bytes(degraded).decode("utf-8"))
+
+
+def _container_validation_offending_property(
+    validation_error: Any,
+) -> str | None:
+    """Name an unpathed property rejected by a container-level validator."""
+    validator = validation_error.validator
+    instance = validation_error.instance
+    validator_value = validation_error.validator_value
+    if validator == "required" and isinstance(instance, Mapping):
+        if isinstance(validator_value, list):
+            for key in validator_value:
+                if type(key) is str and key not in instance:
+                    return key
+    if (
+        validator != "additionalProperties"
+        or validator_value is not False
+        or not isinstance(instance, Mapping)
+        or not isinstance(validation_error.schema, Mapping)
+    ):
+        return None
+    properties = validation_error.schema.get("properties", {})
+    patterns = validation_error.schema.get("patternProperties", {})
+    if not isinstance(properties, Mapping) or not isinstance(patterns, Mapping):
+        return None
+    extras = []
+    for key in instance:
+        if type(key) is not str or key in properties:
+            continue
+        if any(
+            type(pattern) is str and re.search(pattern, key)
+            for pattern in patterns
+        ):
+            continue
+        extras.append(key)
+    return extras[0] if len(extras) == 1 else None
 
 
 def _finalize_cell_admission(
