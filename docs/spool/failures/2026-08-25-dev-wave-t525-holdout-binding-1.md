@@ -57,6 +57,28 @@ seq: 1
 - 再発検知: receipt の `outcome` と `launcher_rc` を見ずに `check_codex_output.py` の rc だけで
   採用判断をしない。子の成果物を採用する前に receipt の 2 field を必ず読む。
 
+### {{F:non-attribution-concluded-before-unmasking}}. 環境由来の赤を切り分けた時点で非帰属と結論し、その下に隠れていた自分の赤を見落とした [手順漏れ]
+
+- 事象: 受入全走が 1 件だけ落ちた
+  (`test_s8b_freeze_io.py::test_measure_fn_closure_passes_contract_numactl_to_measure_point`)。
+  親は失敗本文が env の machine-pin (`contract.env_tag=linux-baremetal != machine env_tag=pegasus`)
+  であることを読み、(a) 本 wave の production 4 file を wave 前へ戻しても同じ node が落ちる、
+  (b) main が入れた conftest 変更を戻しても落ちる、(c) 関与 5 file がどちらの側でも 0 commit、
+  の 3 通りを実測して**非帰属と結論し、land を諦めて停止報告を書いた**。
+  その後ホスト依存を外したところ、**同じ node が別の理由で落ち続けた** —
+  `verified freeze holdout signatures do not exactly match the neutral set`。
+  これは本 wave が完全条件照合を入れたことによる、**正しい拒否**だった。
+- 根本原因: 1 つの test node が**直列に並んだ 2 つの gate** を通る場合、手前の gate で落ちている
+  限り後段の赤は観測できない。親の 3 通りの切り分けはいずれも「手前の gate が落ちる」ことしか
+  示しておらず、後段について何も言っていなかった。にもかかわらず親は
+  「この node の赤は非帰属」と node 単位で一般化した。
+- 恒久対応: 非帰属を結論する前に、**手前の原因を除去した状態で同じ node をもう一度走らせる**。
+  除去できないなら「手前の gate までは非帰属」とだけ書き、node 全体の非帰属と書かない。
+  本 wave では seam (`_holdout_signature_source`) を使って後段も閉じ、
+  51 passed / 1 skipped / 0 failed を実測した。
+- 再発検知: 受入の赤を非帰属と判定した報告に「その赤を取り除いた後の再走結果」が無ければ、
+  判定は未完了である。差分を戻す実験は「手前の gate の帰属」しか決めない。
+
 ## supersede 追記
 
 - F540 **supersede: 2026-08-25** — 3 つ目の型の発火条件を特定した。子が読んだ repo の行に生の U+2028 / U+2029 が含まれると、codex CLI がその byte を JSONL event の `aggregated_output` へそのまま出し、`tools/codex_worker_launch.py` が JSONL を `str.splitlines()` で切る (6 箇所) ため 1 event 行が複数断片に割れて `stdout_invalid` が立つ。JSON はこの 2 文字を文字列内に生で許すが Python の `splitlines()` は改行として扱う、という不一致が原因である。追跡 14,208 file の全数検査で該当は 5 file (`orchestrator/campaign/p3_autonomous_workload_trial.py:2213` の sanitizer 正規表現、`orchestrator/tests/test_p3_autonomous_workload_trial.py:2837`、insight 3 件)。診断手順は events.jsonl の各行を `json.loads` し、割れた行の前後で当該 2 文字を探す。回避は当該行域を「読むな」と prompt へ明記することで、[T-525] では invalid が再発しなかった。恒久対応の候補は JSONL 分割を `split("\n")` へ変えることで、tool の出力契約に触れるため裁定パッケージへ回す。

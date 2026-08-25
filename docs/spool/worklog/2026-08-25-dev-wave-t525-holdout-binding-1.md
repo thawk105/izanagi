@@ -60,17 +60,17 @@ title: [T-525] holdout の完全条件を実行引数と報告側で束縛した
 
 ### 新規
 
-- {{T:holdout-receipt-freeze-anchor}} **P2・新規 (段 6 レビュー A/B blocker、ユーザー裁定待ち)**:
+- {{T:holdout-receipt-freeze-anchor}} **P2・新規 (段 6 レビュー A/B blocker、2026-08-25 ユーザー裁定済み = 昇格する)**:
   `orchestrator/campaign/s8c_acceptance_receipt.py` は freeze を一切読まない。
   nested condition と cell と descriptor を同じ誤値で自己整合させた receipt を
-  H1 として検証済みに出来る。standalone verifier を構造 verifier のまま置くか、
-  ratified legacy freeze を再導出する条件 verifier へ昇格するかを裁定する。
-  昇格するなら {{T:holdout-schema-generation-cutover}} が前提になる。
-- {{T:holdout-schema-generation-cutover}} **P2・新規 (段 6 レビュー A/B must-fix、ユーザー裁定待ち)**:
+  H1 として検証済みに出来る。**裁定: ratified legacy freeze を再導出する条件 verifier へ
+  昇格する。** {{T:holdout-schema-generation-cutover}} が前提になるため同じ wave で扱う。
+- {{T:holdout-schema-generation-cutover}} **P2・新規 (段 6 レビュー A/B must-fix、2026-08-25 ユーザー裁定済み = 親推奨どおり)**:
   serialized binding へ freeze SHA と完全条件を載せるには report / run-start / receipt を
-  v4 へ上げる必要がある。旧 artifact を legacy として読み続けるか明示的に失効させるかは
-  ユーザー裁定事項。[T-525] は保存形式を一切変えない範囲で着地させた。
-- {{T:formal-launch-admission-wiring}} **P2・新規 (段 6 レビュー A must-fix)**:
+  v4 へ上げる必要がある。**裁定: 単独では決めず、{{T:holdout-receipt-freeze-anchor}} を
+  実装する wave で同時に決める** (旧 artifact を legacy として読み続けるか明示的に失効させるかは、
+  昇格後の verifier 設計と不可分なため)。[T-525] は保存形式を一切変えない範囲で着地させた。
+- {{T:formal-launch-admission-wiring}} **P2・新規 (段 6 レビュー A must-fix、2026-08-25 ユーザー裁定済み = [T-527] と束ねて 1 wave)**:
   `p3_autonomous_workload_trial._preflight_workload_profile` が正式起動を無条件拒否し、
   かつ `orchestrator/campaign/loop.py` に `holdout_observation_admission` が 0 件のため
   (`pipeline.py` には 7 件)、拒否を外しても token が `pipeline.evaluate` へ届かない。
@@ -79,13 +79,16 @@ title: [T-525] holdout の完全条件を実行引数と報告側で束縛した
   `s8c_preregistration_evidence.py` の C01 は p3 の 3 関数の AST に整数リテラル
   `1_000_000` と `48` が直接現れることを要求する。二重の真実を消す素直な改善が
   この述語を落とす。リテラルを残し続けるか、shared condition constructor の
-  到達性検査へ更新するかを裁定する。[T-525] はリテラルを残した。
-- {{T:dw-o01-launcher-rc-budget}} **P3・新規 (段 8 で予算に阻まれた、ユーザー裁定待ち)**:
+  到達性検査へ更新するかを裁定する。**裁定: 現状維持 (リテラルを残す)。**
+  二重の真実は `assert_legacy_workload_profile_source` の bytes 一致検査が塞いでいる。
+  [T-525] はリテラルを残した。
+- {{T:dw-o01-launcher-rc-budget}} **P3・新規 (段 8 で予算に阻まれた、2026-08-25 ユーザー裁定済み = 親推奨どおり)**:
   `DW-O01` の「採用は `check_codex_output.py` の rc=0」は一文だけ読むと十分条件に読め、
   本 wave の親はそれで launcher の赤を迂回した。`launcher_rc=0` も必須と追記したいが
   `docs/dev-wave/**` の L1.5 予算が満杯で、この 1 文だけで 9653 bytes > 予算 9566 になる。
-  安全義務を削って空きを作ることは自己改善契約が禁じる。予算値を上げるか、
-  同 L1.5 集合の別箇所を意味等価に縮約して空きを作るかを裁定する。
+  安全義務を削って空きを作ることは自己改善契約が禁じる。**裁定: 予算値は上げず、
+  同 L1.5 集合の別箇所を意味等価に縮約して空きを作る** (予算値の引き上げは自己改善契約が
+  独立審査へ回すと定めるため、まず縮約を試す。縮約が意味等価にできなければ独立審査へ戻す)。
 - {{T:jsonl-splitlines-u2028-hardening}} **P3・新規**:
   `tools/codex_worker_launch.py` は JSONL を `str.splitlines()` で切る (6 箇所) ため、
   子が読んだ行に生の U+2028 / U+2029 があると event 行が割れて成果物が全損する
