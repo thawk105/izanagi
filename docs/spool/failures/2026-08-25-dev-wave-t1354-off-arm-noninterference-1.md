@@ -44,7 +44,44 @@ seq: 1
 - 再発検知: 再投入した子が「入力が現行と一致しない」型の NO-GO を返したら本エントリ。
   再投入前に `git diff` の出力を patch file へ取り直したか確認する。
 
+### {{F:fresh-worktree-first-acceptance-is-deterministically-red}}. 新規 worktree の初回受入全走は `_real_output_snapshot` 系が決定的に赤になる [テスト代表性] [計測汚染]
+
+- 事象: 受入全走が 2 回連続で `12 failed / 15,922 passed / 60 skipped` と**完全に同一**の結果に
+  なった。赤は `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系 11 件と
+  `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary`
+  の計 12 件で、junit の差分は `('dir', 'runs/pytest-launcher-failures')` の entry 増加と
+  `output/runs` の mtime 変化だった。F136 の既知形と署名は一致するが、
+  **既知形が定める「単独再走と受入再投入の両方で消える」に当てはまらなかった。**
+- 根本原因: `orchestrator/tests/test_codex_worker_launch.py` の
+  `_FAILURE_ARTIFACT_ROOT = <repo>/output/runs/pytest-launcher-failures` は、
+  launcher テストが**全件緑でも**全走中に作られる (本 wave の実測では launcher テスト 227 件が
+  失敗 0 件で、それでも root が新規作成された)。長命な checkout ではこの dir が過去の走行から
+  既に存在するため entry 集合も mtime も変わらない。**新規に作った worktree だけが
+  「走行中に新規作成される」条件を満たす。** main の checkout と別 wave の worktree を実測して、
+  どちらも当該 dir を既に持つことを確認した。
+- **既存記録の訂正**: F136 の既存例が再投入で消えたのは、1 回目の走行が作った dir が残って
+  2 回目の前提が変わったからである。本 wave の親は 1 回目のあとに当該 dir を「汚染源」と見なして
+  除去し、**2 回目の前提を自分で作り直してしまった**。1 回目の是正が逆効果だった。
+- 恒久対応: 未実施。新規 worktree で初回の受入全走を投入する前に
+  `mkdir -p output/runs/pytest-launcher-failures` で定常状態へ揃える。
+  これは追跡外の scratch directory であり、検査の期待値を一切変えない。
+  機械化するなら `DW-O20` の worktree 作成手順か `tools/check_wave_startup.py` へ置くのが筋だが、
+  受入基盤の所有 wave の判断に委ねる ({{T:fresh-worktree-acceptance-scratch-dirs}})。
+- **是正を実測で確認した。** `mkdir -p output/runs/pytest-launcher-failures` を行ってから
+  投入した回で、当該 12 件は**すべて消えた** (12 failed → 0 failed、`15,937 passed`)。
+  仮説ではなく実測で確定した是正である。
+- 再発検知: 受入の赤が `_real_output_snapshot` 系だけで、junit 差分が
+  `runs/pytest-launcher-failures` を指し、**再投入で消えない**なら本エントリである。
+  worktree の作成時刻と当該 dir の有無を確かめる。既存 dir を削除してはならない。
+
 ## 再発
+
+### F136
+
+- **再発: 2026-08-25 (同日 5 例目)** — 既知形と署名は一致するが**再投入で消えない**変種を
+  {{F:fresh-worktree-first-acceptance-is-deterministically-red}} に分離した。
+  既存の再発検知条件「単独再走と受入再投入の両方で消える」は、
+  **走行が作った dir が残ることを暗黙の前提にしている**。その dir を除去すると条件が崩れる。
 
 ### F540
 
@@ -71,6 +108,22 @@ seq: 1
   触らない」が正しい読み方である。今回の再発は `--resume` が既存の `--attempt-out` を
   要求する点も併せて実測した (新 path を渡すと `--resume + --attempt-out には既存の
   symlink でない通常 file が必要` で停止する)。
+
+- **再発: 2026-08-25 (同日 5 度目)** — 今度は**受入全走の走行中**に、親が段 7 の fragment 2 本を
+  worktree で編集した。受入は preflight の `prerun-clean` で `rc=70` 停止し、
+  テストを 1 件も走らせずに 1 回分を丸ごと失った。親は 1 分以内に気づいて編集を repo 外へ
+  退避し木を戻したが、既に投入済みの走行には間に合わなかった。
+  **変異本走と受入全走のどちらでも同じ規律が要る**という読み方を、同日 2 度踏んで確かめた。
+
+### F480
+
+- **再発: 2026-08-25** — 同じ nodeid
+  (`test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`)
+  が別 wave の受入でも 1 件だけ赤になった (`1 failed / 15,937 passed / 60 skipped`)。
+  台帳の再発検知手順どおり同 file の単独走で確かめ、**233 passed / 16.54 秒 / rc=0 で緑**だった。
+  本 wave の差分 (projected provider とその consumer test) から当該 file への到達経路は無い。
+  再投入で消えた。同日 2 例目であり、`Thread.join(<秒>)` の上界が高並列下で破れる族が
+  引き続き受入 1 回分を消費している。
 
 ### F277
 

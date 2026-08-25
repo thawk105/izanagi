@@ -77,6 +77,23 @@ title: [T-1354] off arm の launch contract 非干渉性を generation 1 で機�
   ({{T:dev-wave-l15-budget-headroom}})。**同じ壁に当たって編集を撤回するのはこれで 3 度目**で
   ある (F217 に 2026-08-11 と 2026-08-13 の記録がある)。
 
+- **受入は 5 回投入して 5 回目で緑になった。内訳は診断の記録として残す。**
+  1・2 回目は `12 failed / 15,922 passed / 60 skipped` と**完全に同一**で、
+  `_real_output_snapshot` 系 12 件だけが赤だった。F136 の署名と一致するが、
+  同台帳が定める「再投入で消える」に当てはまらない。原因は新規 worktree に固有で、
+  launcher テストの失敗 dump 用 root `output/runs/pytest-launcher-failures` が
+  **launcher テスト 227 件が全件緑でも**走行中に作られることだった。長命な checkout は
+  当該 dir を既に持つので発火しない。main の checkout と別 wave の worktree を実測して確認した。
+  **1 回目の是正が逆効果だった** — 親は当該 dir を汚染源と見なして削除し、2 回目の前提を
+  自分で作り直していた。3 回目は親が走行中に fragment を編集して `prerun-clean` で停止し、
+  テストを 1 件も走らせずに失った (F106 の同日 5 度目)。dir を定常状態へ戻した 4 回目で
+  **12 件は 0 件になり**、残ったのは既知の非帰属 flake 1 件
+  (`test_control_lock_allows_peer_after_pending_hold_is_durably_released`、F480 の族) だけだった。
+  同 file の単独走は 233 passed / 16.54 秒で緑。5 回目は
+  `verdict=child-green` / `child_rc=0` / 赤 0 件 / flake 0 件で通った。
+  新しい型は {{F:fresh-worktree-first-acceptance-is-deterministically-red}} に分離し、
+  F136 の再発検知条件が「走行が作った dir が残ること」を暗黙の前提にしている点も記録した。
+
 ## 次の一手差分
 
 ### 更新
@@ -127,6 +144,13 @@ title: [T-1354] off arm の launch contract 非干渉性を generation 1 で機�
 - {{T:s8b-provider-env-order}} **P2・新規**: `s8b_prediction_runner` の同型 provider は
   allowlist の反復順で env を作り続けており、同一入力でも envp 順が run ごとに変わる。
   固定順化は容易だが s8b freeze の bytes への影響を独立に裁定してから行う。
+
+- {{T:fresh-worktree-acceptance-scratch-dirs}} **P2・新規**: 新規 worktree の初回受入全走は
+  `output/runs/pytest-launcher-failures` が走行中に新規作成されるため、
+  `_real_output_snapshot` 系 12 件が決定的に赤になる。長命な checkout は当該 dir を既に持つので
+  発火しない。投入前に `mkdir -p` で定常状態へ揃えるのを `DW-O20` の worktree 作成手順か
+  `tools/check_wave_startup.py` へ機械化するかを、受入基盤の所有 wave が決める。
+  追跡外の scratch directory であり検査の期待値は一切変えない。
 
 - {{T:dev-wave-l15-budget-headroom}} **P1・ユーザー裁定待ち**: `docs/dev-wave/**` の L1.5
   unique footprint 予算 9,566 bytes に余地がゼロで、**実測で誤りと判明した安全義務の是正すら
