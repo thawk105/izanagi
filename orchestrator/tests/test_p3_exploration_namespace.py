@@ -6,12 +6,15 @@ import ast
 import argparse
 import contextlib
 import dataclasses
+import hashlib
 import importlib
+import inspect
 import os
 import stat
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Callable, Literal, Mapping, get_args, get_type_hints
 
 import pytest
 
@@ -22,8 +25,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import ident, layout as layout_module, wal            # noqa: E402
-from orchestrator.campaign import env_contract                                  # noqa: E402
+from orchestrator.campaign import buildcache, ident, layout as layout_module, wal  # noqa: E402
+from orchestrator.campaign import env_contract, p2_2, site_policy                # noqa: E402
 from orchestrator.campaign import patchharness                                  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as AUTONOMOUS     # noqa: E402
 from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
@@ -145,14 +148,242 @@ _MAIN_DRIVERS = tuple(
     driver[:2] for driver in _RUN_CAMPAIGN_DRIVERS
     if not hasattr(driver[1], "run_one_iteration")
 )
-_EXPECTED_CALL_COUNTS = {
-    "p3_autonomous_workload_trial": (1, 0),
-    "p3_kickoff": (1, 2),
-    "p3_s4_loop": (6, 1),
-    "p3_s4_loop_sort": (5, 1),
-    "p3_s4_loop_trigger_gating": (5, 1),
-    "p3_s4_red": (1, 2),
+_ALLOW_CODER_BUILD = "--allow-coder-derived-build"
+_PAPER_STORY_WORKLOAD_ORDER = (
+    "write-heavy",
+    "balanced",
+    "read-heavy",
+)
+_PAPER_STORY_REQUIRED_OPTIONS = frozenset({
+    "--study-id",
+    "--expected-head",
+    "--pbs-jobid",
+    "--acquisition-receipt",
+    "--acquisition-receipt-sha256",
+    "--output-root",
+    "--cache-root",
+    "--result-root",
+    "--dependency-prefix",
+})
+
+
+@dataclasses.dataclass(frozen=True)
+class DriverContract:
+    cli_authority_mode: Literal["coder-opt-in", "no-coder-cli"]
+    coder_entrypoint_site: str | None
+    expected_generator_id: GeneratorId
+    without_opt_in_argv_factory: Callable[[Path], tuple[str, ...]]
+    build_spy_argv_factory: Callable[[Path], tuple[str, ...]]
+    routing_argv_factory: Callable[[Path], tuple[str, ...]]
+    ast_layout_calls: int
+    ast_run_campaign_calls: int
+    runtime_run_campaign_calls: int
+    derive_expected_campaign_ids: Callable[..., tuple[str, ...]]
+
+
+def _empty_argv(_tmp_path: Path) -> tuple[str, ...]:
+    return ()
+
+
+def _coder_argv(_tmp_path: Path) -> tuple[str, ...]:
+    return (_ALLOW_CODER_BUILD,)
+
+
+def _isolated_coder_argv(_tmp_path: Path) -> tuple[str, ...]:
+    return (_ALLOW_CODER_BUILD, "--no-isolate-worktree")
+
+
+def _autonomous_without_opt_in_argv(_tmp_path: Path) -> tuple[str, ...]:
+    return ("--trial-id", "fixture", "--provider", "claude-headless")
+
+
+def _autonomous_build_argv(tmp_path: Path) -> tuple[str, ...]:
+    return (
+        "--trial-id", "fixture",
+        "--provider", "claude-headless",
+        "--allow-unregistered-exploratory",
+        _ALLOW_CODER_BUILD,
+        "--run-root", str(tmp_path / "run"),
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+    )
+
+
+def _paper_story_measure_argv(tmp_path: Path) -> tuple[str, ...]:
+    attempt = tmp_path / "attempt-fixture"
+    (attempt / "raw").mkdir(parents=True, exist_ok=True)
+    acquisition_path = tmp_path / "attempt-fixture.submission.json"
+    acquisition_raw = b"{}\n"
+    acquisition_path.write_bytes(acquisition_raw)
+    return (
+        "measure",
+        "--study-id", "paper-story-a1-20260824-exploratory-v1",
+        "--expected-head", "a" * 40,
+        "--pbs-jobid", "12345.fixture",
+        "--acquisition-receipt", str(acquisition_path),
+        "--acquisition-receipt-sha256", hashlib.sha256(acquisition_raw).hexdigest(),
+        "--output-root", str(attempt / "raw" / "campaign-output"),
+        "--cache-root", str(attempt / "cache"),
+        "--result-root", str(attempt / "raw" / "results"),
+        "--dependency-prefix", (
+            "/scr/fixture/gflags-install;/scr/fixture/glog-install"
+        ),
+    )
+
+
+def _no_expected_campaign_ids(*_args) -> tuple[str, ...]:
+    return ()
+
+
+def _single_expected_campaign_id(cfg) -> tuple[str, ...]:
+    return (str(ident.campaign_id(cfg)),)
+
+
+def _main_expected_campaign_id(module) -> tuple[str, ...]:
+    policy_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    cfg = ident.bind_admission_policy(module._cfg(), policy_context.policy)
+    cfg = ident.bind_environment_contract(
+        cfg, env_contract.lookup(module.ENV_TAG),
+    )
+    return (str(ident.campaign_id(cfg)),)
+
+
+def _paper_story_expected_configs(module, runtime_contract):
+    assert tuple(module.WORKLOAD_ORDER) == _PAPER_STORY_WORKLOAD_ORDER
+    assert tuple(inspect.signature(module.default_campaign_configs).parameters) == ()
+    defaults = module.default_campaign_configs()
+    assert type(defaults) is tuple
+    assert len(defaults) == len(_PAPER_STORY_WORKLOAD_ORDER)
+    policy, _policy_sha = module.load_policy()
+    expected = []
+    for workload_name, default_cfg in zip(_PAPER_STORY_WORKLOAD_ORDER, defaults):
+        assert default_cfg.spec_slug == f"paper-story-a1-{workload_name}"
+        assert default_cfg.search_tag == "paired"
+        cfg = module.campaign_config(
+            policy, workload_name, contract=runtime_contract,
+        )
+        assert cfg.spec_slug == f"paper-story-a1-{workload_name}"
+        assert cfg.search_tag == "paired"
+        cfg = p2_2._campaign_cfg_for_site(
+            cfg, site_policy.PEGASUS_COMPUTE, runtime_contract,
+        )
+        expected.append(cfg)
+    return tuple(expected)
+
+
+def _paper_story_expected_campaign_ids(
+        module, runtime_contract) -> tuple[str, ...]:
+    expected_generator_id = _driver_contract(
+        "paper_story_a1_paired", _DRIVER_CONTRACTS,
+    ).expected_generator_id
+    policy_context = build_run_context(generator_id=expected_generator_id)
+    expected = tuple(
+        str(ident.campaign_id(
+            ident.bind_admission_policy(cfg, policy_context.policy)
+        ))
+        for cfg in _paper_story_expected_configs(module, runtime_contract)
+    )
+    assert len(expected) == 3
+    assert len(set(expected)) == 3
+    return expected
+
+
+_DRIVER_CONTRACTS = {
+    "p3_autonomous_workload_trial": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site=(
+            "orchestrator.campaign.p3_autonomous_workload_trial.main"
+        ),
+        expected_generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+        without_opt_in_argv_factory=_autonomous_without_opt_in_argv,
+        build_spy_argv_factory=_autonomous_build_argv,
+        routing_argv_factory=_autonomous_build_argv,
+        ast_layout_calls=1,
+        ast_run_campaign_calls=0,
+        runtime_run_campaign_calls=0,
+        derive_expected_campaign_ids=_no_expected_campaign_ids,
+    ),
+    "p3_kickoff": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site="orchestrator.campaign.p3_kickoff.main",
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_empty_argv,
+        build_spy_argv_factory=_coder_argv,
+        routing_argv_factory=_coder_argv,
+        ast_layout_calls=1,
+        ast_run_campaign_calls=2,
+        runtime_run_campaign_calls=2,
+        derive_expected_campaign_ids=_main_expected_campaign_id,
+    ),
+    "p3_s4_loop": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop.main",
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_empty_argv,
+        build_spy_argv_factory=_coder_argv,
+        routing_argv_factory=_coder_argv,
+        ast_layout_calls=6,
+        ast_run_campaign_calls=1,
+        runtime_run_campaign_calls=1,
+        derive_expected_campaign_ids=_single_expected_campaign_id,
+    ),
+    "p3_s4_loop_sort": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop_sort.main",
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_empty_argv,
+        build_spy_argv_factory=_isolated_coder_argv,
+        routing_argv_factory=_isolated_coder_argv,
+        ast_layout_calls=5,
+        ast_run_campaign_calls=1,
+        runtime_run_campaign_calls=1,
+        derive_expected_campaign_ids=_single_expected_campaign_id,
+    ),
+    "p3_s4_loop_trigger_gating": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site=(
+            "orchestrator.campaign.p3_s4_loop_trigger_gating.main"
+        ),
+        expected_generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+        without_opt_in_argv_factory=_empty_argv,
+        build_spy_argv_factory=_isolated_coder_argv,
+        routing_argv_factory=_isolated_coder_argv,
+        ast_layout_calls=5,
+        ast_run_campaign_calls=1,
+        runtime_run_campaign_calls=1,
+        derive_expected_campaign_ids=_single_expected_campaign_id,
+    ),
+    "p3_s4_red": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_red.main",
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_empty_argv,
+        build_spy_argv_factory=_coder_argv,
+        routing_argv_factory=_coder_argv,
+        ast_layout_calls=1,
+        ast_run_campaign_calls=2,
+        runtime_run_campaign_calls=2,
+        derive_expected_campaign_ids=_main_expected_campaign_id,
+    ),
+    "paper_story_a1_paired": DriverContract(
+        cli_authority_mode="no-coder-cli",
+        coder_entrypoint_site=None,
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_paper_story_measure_argv,
+        build_spy_argv_factory=_paper_story_measure_argv,
+        routing_argv_factory=_paper_story_measure_argv,
+        ast_layout_calls=2,
+        ast_run_campaign_calls=1,
+        runtime_run_campaign_calls=3,
+        derive_expected_campaign_ids=_paper_story_expected_campaign_ids,
+    ),
 }
+
+
+def _driver_contract(
+        name: str, contracts: Mapping[str, DriverContract]) -> DriverContract:
+    return contracts[name]
+
+
 _PARSER = argparse.ArgumentParser()
 add_coder_build_authority_argument(_PARSER)
 _AUTHORITY = _PARSER.parse_args(["--allow-coder-derived-build"]).coder_build_authority
@@ -169,6 +400,7 @@ def _stub_real_sort_swo_oracle(monkeypatch):
         "/fixture/cxx", "fixture-cxx 1", SWO.COMPILE_FLAGS_SHA256,
         "3" * 64, SWO.TU_TEMPLATE_SHA256,
         "/fixture/dependency", "4" * 64,
+        SWO.DEPENDENCY_MANIFEST_SHA256,
     )
     passed = SWO.SortSwoOracleResult(
         SWO.OracleStatus.PASS, "1" * 64, "2" * 64, receipt=receipt,
@@ -178,12 +410,86 @@ def _stub_real_sort_swo_oracle(monkeypatch):
     )
 
 
+def test_driver_contract_registry_is_exact():
+    assert set(_DRIVER_CONTRACTS) == {
+        name for name, _module, _tree in _CAMPAIGN_DRIVERS
+    }
+
+
+def test_driver_contract_schema_has_only_required_fields_and_closed_cli_modes():
+    fields = dataclasses.fields(DriverContract)
+    hints = get_type_hints(DriverContract)
+    assert tuple(field.name for field in fields) == (
+        "cli_authority_mode",
+        "coder_entrypoint_site",
+        "expected_generator_id",
+        "without_opt_in_argv_factory",
+        "build_spy_argv_factory",
+        "routing_argv_factory",
+        "ast_layout_calls",
+        "ast_run_campaign_calls",
+        "runtime_run_campaign_calls",
+        "derive_expected_campaign_ids",
+    )
+    assert all(
+        field.default is dataclasses.MISSING
+        and field.default_factory is dataclasses.MISSING
+        for field in fields
+    )
+    assert get_args(hints["cli_authority_mode"]) == (
+        "coder-opt-in", "no-coder-cli",
+    )
+    assert {contract.cli_authority_mode for contract in _DRIVER_CONTRACTS.values()} == {
+        "coder-opt-in", "no-coder-cli",
+    }
+    for contract in _DRIVER_CONTRACTS.values():
+        assert type(contract.expected_generator_id) is GeneratorId
+        assert callable(contract.without_opt_in_argv_factory)
+        assert callable(contract.build_spy_argv_factory)
+        assert callable(contract.routing_argv_factory)
+        assert callable(contract.derive_expected_campaign_ids)
+        assert type(contract.ast_layout_calls) is int
+        assert type(contract.ast_run_campaign_calls) is int
+        assert type(contract.runtime_run_campaign_calls) is int
+        if contract.cli_authority_mode == "coder-opt-in":
+            assert type(contract.coder_entrypoint_site) is str
+        else:
+            assert contract.coder_entrypoint_site is None
+
+
+def test_missing_driver_contract_is_hard_failure():
+    missing = dict(_DRIVER_CONTRACTS)
+    missing.pop("paper_story_a1_paired")
+    with pytest.raises(KeyError, match="paper_story_a1_paired"):
+        _driver_contract("paper_story_a1_paired", missing)
+
+
+def _measure_parser(module):
+    parser = module._parser()
+    subparsers = [
+        action for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+    ]
+    assert len(subparsers) == 1
+    return subparsers[0].choices["measure"]
+
+
+def _argv_without_option(
+        argv: tuple[str, ...], option: str) -> tuple[str, ...]:
+    index = argv.index(option)
+    assert index + 1 < len(argv)
+    assert not argv[index + 1].startswith("--")
+    return argv[:index] + argv[index + 2:]
+
+
 @pytest.mark.parametrize(
     "name,module", [(case[0], case[1]) for case in _CAMPAIGN_DRIVERS],
     ids=[case[0] for case in _CAMPAIGN_DRIVERS],
 )
-def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkeypatch):
-    """M2: 各 coder CLI の既定拒否を、materialization 以前の単一理由で固定する。"""
+def test_cli_authority_boundary_rejects_before_build_spy(
+        name, module, monkeypatch, tmp_path):
+    """Coder opt-in または coder CLI 不在を parser/build 境界で固定する。"""
+    contract = _driver_contract(name, _DRIVER_CONTRACTS)
     reached = []
     if hasattr(module, "run_campaign"):
         monkeypatch.setattr(
@@ -194,7 +500,32 @@ def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkey
             module, "run_one_iteration",
             lambda *_a, **_k: reached.append("iteration"),
         )
-    argv = []
+    if contract.cli_authority_mode == "no-coder-cli":
+        parser = _measure_parser(module)
+        option_strings = {
+            option
+            for action in parser._actions
+            for option in action.option_strings
+        }
+        required_options = {
+            option
+            for action in parser._actions if action.required
+            for option in action.option_strings
+        }
+        assert required_options == _PAPER_STORY_REQUIRED_OPTIONS
+        assert _ALLOW_CODER_BUILD not in option_strings
+        argv = contract.without_opt_in_argv_factory(tmp_path)
+        for missing_option in sorted(_PAPER_STORY_REQUIRED_OPTIONS):
+            with pytest.raises(SystemExit) as rejected:
+                module.main(list(_argv_without_option(argv, missing_option)))
+            assert rejected.value.code == 2
+        with pytest.raises(SystemExit) as rejected:
+            module.main([*argv, _ALLOW_CODER_BUILD])
+        assert rejected.value.code == 2
+        assert reached == [], f"{name}: coder authority の無い CLI が build spy に到達した"
+        return
+
+    argv = list(contract.without_opt_in_argv_factory(tmp_path))
     if module is AUTONOMOUS:
         monkeypatch.setattr(
             module, "_assert_build_site_opted_in", lambda *_a, **_k: None,
@@ -202,31 +533,453 @@ def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkey
         monkeypatch.setattr(
             module, "run_trial", lambda *_a, **_k: reached.append("trial"),
         )
-        argv = ["--trial-id", "fixture", "--provider", "claude-headless"]
     with pytest.raises(BuildAdmissionError, match="明示 opt-in"):
         module.main(argv)
     assert reached == [], f"{name}: flag 無しで build spy に到達した"
 
 
-class _BuildSpyReached(RuntimeError):
+class _BuildSpyReached(BaseException):
     pass
+
+
+class _BuildSpyContractFailure(BaseException):
+    pass
+
+
+class _RoutingSpyContractFailure(BaseException):
+    pass
+
+
+class _ExternalSpyContractFailure(BaseException):
+    pass
+
+
+def _argv_option_map(argv: tuple[str, ...]) -> dict[str, str]:
+    assert argv[0] == "measure"
+    assert len(argv[1:]) % 2 == 0
+    return dict(zip(argv[1::2], argv[2::2]))
+
+
+def _install_paper_story_external_spies(
+        monkeypatch, tmp_path, module, argv: tuple[str, ...], *,
+        pin_identity_oracle: bool):
+    options = _argv_option_map(argv)
+    repo_root = module._repo_root()
+    expected_head = options["--expected-head"]
+    pbs_jobid = options["--pbs-jobid"]
+    attempt = tmp_path / "attempt-fixture"
+    output_root = Path(options["--output-root"])
+    cache_root = Path(options["--cache-root"])
+    result_root = Path(options["--result-root"])
+    acquisition_path = Path(options["--acquisition-receipt"])
+    runtime_contract = env_contract.lookup("pegasus")
+    authorization = SimpleNamespace(
+        label="paper-story-test-authorization",
+        contract=runtime_contract,
+    )
+    policy, _policy_sha = module.load_policy()
+    if pin_identity_oracle:
+        expected_configs = _paper_story_expected_configs(module, runtime_contract)
+    else:
+        expected_configs = tuple(
+            p2_2._campaign_cfg_for_site(
+                module.campaign_config(
+                    policy, workload_name, contract=runtime_contract,
+                ),
+                site_policy.PEGASUS_COMPUTE,
+                runtime_contract,
+            )
+            for workload_name in _PAPER_STORY_WORKLOAD_ORDER
+        )
+    driver_contract = _driver_contract(
+        "paper_story_a1_paired", _DRIVER_CONTRACTS,
+    )
+    policy_context = build_run_context(
+        generator_id=driver_contract.expected_generator_id,
+    )
+    expected_campaign_ids = tuple(
+        str(ident.campaign_id(
+            ident.bind_admission_policy(cfg, policy_context.policy)
+        ))
+        for cfg in expected_configs
+    )
+    if pin_identity_oracle:
+        assert expected_campaign_ids == (
+            driver_contract.derive_expected_campaign_ids(
+                module, runtime_contract,
+            )
+        )
+    assert len(set(expected_campaign_ids)) == 3
+
+    expected_pbs_observation = {
+        "pbs_jobid": pbs_jobid,
+        "pbs_o_host": "fixture-submit-host",
+        "pbs_o_workdir": str(repo_root),
+    }
+    monkeypatch.setenv("PBS_JOBID", expected_pbs_observation["pbs_jobid"])
+    monkeypatch.setenv("PBS_O_HOST", expected_pbs_observation["pbs_o_host"])
+    monkeypatch.setenv("PBS_O_WORKDIR", expected_pbs_observation["pbs_o_workdir"])
+
+    trusted_roots = {
+        "attempt_root": str(attempt),
+        "attempt_identity": module._attempt_root_identity(attempt),
+        "raw_root": str(attempt / "raw"),
+        "output_root": str(output_root),
+        "cache_root": str(cache_root),
+        "result_root": str(result_root),
+        "tmp_root": str(attempt / "raw" / "tmp"),
+        "submission_receipt": str(acquisition_path),
+        "completion_receipt": str(tmp_path / "attempt-fixture.completion.json"),
+        "stdout_path": str(tmp_path / "attempt-fixture.stdout"),
+        "stderr_path": str(tmp_path / "attempt-fixture.stderr"),
+    }
+    reservation_binding = {
+        "job_id": pbs_jobid,
+        "requested_s": 3600,
+        "scheduler_started_epoch": 1000,
+        "deadline_epoch": 4600,
+        "host": "fixture-compute-host",
+        "boot_id": "00000000-0000-0000-0000-000000000000",
+        "script_sha256": "d" * 64,
+        "nonce": attempt.name,
+    }
+    expected_dependency_prefix = options["--dependency-prefix"]
+    resolved_compilers = ("/fixture/cc", "/fixture/cxx")
+    toolchain_manifest = {"fixture": "paper-story-toolchain"}
+    expected_git_calls = [
+        (repo_root, ("rev-parse", "HEAD")),
+        (repo_root, ("status", "--porcelain", "--untracked-files=all")),
+        (repo_root, ("rev-parse", "HEAD")),
+        *[
+            (repo_root, ("rev-parse", f"{expected_head}:{relative}"))
+            for relative in module.SOURCE_RELATIVE_PATHS
+        ],
+    ]
+    calls = {
+        "validate_acquisition_receipt": [],
+        "validate_measure_environment": [],
+        "run_git": [],
+        "current_site": [],
+        "validated_dependency_prefix": [],
+        "reservation_binding": [],
+        "resolve_site_runtime": [],
+        "assert_matches_calibration": [],
+        "compilers_for_current_site": [],
+        "observed_toolchain_manifest": [],
+        "assert_single_tenant": [],
+        "campaign_config": [],
+        "default_campaign_configs": [],
+    }
+
+    def acquisition_spy(receipt, *args, **kwargs):
+        calls["validate_acquisition_receipt"].append((receipt, args, kwargs))
+        assert args == ()
+        assert receipt == {}
+        assert kwargs == {
+            "repo_root": repo_root,
+            "study_id": options["--study-id"],
+            "source_commit": expected_head,
+            "request_id": pbs_jobid,
+            "pbs_observation": expected_pbs_observation,
+            "policy": policy,
+        }
+        return dict(trusted_roots)
+
+    def run_git_spy(observed_repo_root, *args):
+        observed = (observed_repo_root, args)
+        calls["run_git"].append(observed)
+        index = len(calls["run_git"]) - 1
+        assert index < len(expected_git_calls)
+        assert observed == expected_git_calls[index]
+        if args == ("status", "--porcelain", "--untracked-files=all"):
+            return ""
+        if args == ("rev-parse", "HEAD"):
+            return expected_head
+        return "b" * 40
+
+    def current_site_spy(*args, **kwargs):
+        calls["current_site"].append((args, kwargs))
+        assert args == () and kwargs == {}
+        return site_policy.PEGASUS_COMPUTE
+
+    def measure_environment_spy(*args, **kwargs):
+        calls["validate_measure_environment"].append((args, kwargs))
+        assert args == ()
+        assert kwargs == {
+            "repo_root": repo_root,
+            "expected_head": expected_head,
+            "output_root": output_root,
+            "cache_root": cache_root,
+            "result_root": result_root,
+            "pbs_jobid": pbs_jobid,
+            "site": site_policy.PEGASUS_COMPUTE,
+            "observed_head": expected_head,
+            "porcelain": "",
+            "attempt_root": attempt,
+        }
+        return {
+            "output_root": str(output_root),
+            "cache_root": str(cache_root),
+            "result_root": str(result_root),
+        }
+
+    def dependency_prefix_spy(value, *args, **kwargs):
+        calls["validated_dependency_prefix"].append((value, args, kwargs))
+        assert value == expected_dependency_prefix
+        assert args == () and kwargs == {"require_scr": True}
+        return expected_dependency_prefix
+
+    def reservation_spy(environ, *args, **kwargs):
+        calls["reservation_binding"].append((environ, args, kwargs))
+        assert environ is os.environ
+        assert args == () and kwargs == {}
+        return dict(reservation_binding)
+
+    def resolve_runtime_spy(*args, **kwargs):
+        calls["resolve_site_runtime"].append((args, kwargs))
+        assert args == () and kwargs == {}
+        return site_policy.PEGASUS_COMPUTE, runtime_contract, authorization
+
+    def calibration_spy(contract, *args, **kwargs):
+        calls["assert_matches_calibration"].append((contract, args, kwargs))
+        assert contract is runtime_contract
+        assert args == () and kwargs == {}
+        return SimpleNamespace(sha256="c" * 64)
+
+    def compilers_spy(*args, **kwargs):
+        calls["compilers_for_current_site"].append((args, kwargs))
+        assert args == () and kwargs == {}
+        return resolved_compilers
+
+    def toolchain_spy(*args, **kwargs):
+        calls["observed_toolchain_manifest"].append((args, kwargs))
+        assert args == resolved_compilers and kwargs == {}
+        return toolchain_manifest
+
+    def single_tenant_spy(*args, **kwargs):
+        calls["assert_single_tenant"].append((args, kwargs))
+        if args != () or kwargs != {}:
+            raise _ExternalSpyContractFailure(
+                "_assert_single_tenant arguments differ"
+            )
+
+    original_campaign_config = module.campaign_config
+
+    def campaign_config_spy(
+            observed_policy, workload_name, *, contract=None):
+        calls["campaign_config"].append((workload_name, contract))
+        assert len(calls["campaign_config"]) <= len(_PAPER_STORY_WORKLOAD_ORDER)
+        assert observed_policy == policy
+        assert workload_name in _PAPER_STORY_WORKLOAD_ORDER
+        assert contract is runtime_contract
+        return original_campaign_config(
+            observed_policy, workload_name, contract=contract,
+        )
+
+    def forbidden_default_configs(*args, **kwargs):
+        calls["default_campaign_configs"].append((args, kwargs))
+        raise AssertionError(
+            "run_measurement must not call default_campaign_configs"
+        )
+
+    monkeypatch.setattr(module, "validate_acquisition_receipt", acquisition_spy)
+    monkeypatch.setattr(module, "_run_git", run_git_spy)
+    monkeypatch.setattr(site_policy, "current_site", current_site_spy)
+    monkeypatch.setattr(module, "validate_measure_environment", measure_environment_spy)
+    monkeypatch.setattr(module, "_validated_dependency_prefix", dependency_prefix_spy)
+    monkeypatch.setattr(module, "_reservation_binding_from_environment", reservation_spy)
+    monkeypatch.setattr(p2_2, "resolve_site_runtime", resolve_runtime_spy)
+    monkeypatch.setattr(p2_2, "_assert_matches_calibration", calibration_spy)
+    monkeypatch.setattr(buildcache, "compilers_for_current_site", compilers_spy)
+    monkeypatch.setattr(buildcache, "observed_toolchain_manifest", toolchain_spy)
+    monkeypatch.setattr(module, "_assert_single_tenant", single_tenant_spy)
+    monkeypatch.setattr(module, "campaign_config", campaign_config_spy)
+    monkeypatch.setattr(module, "default_campaign_configs", forbidden_default_configs)
+
+    def assert_complete(
+            expected_workload_calls: int, *, assert_workload_order: bool):
+        assert calls["validate_acquisition_receipt"] and len(
+            calls["validate_acquisition_receipt"]
+        ) == 1
+        assert calls["validate_measure_environment"] and len(
+            calls["validate_measure_environment"]
+        ) == 1
+        assert calls["run_git"] == expected_git_calls
+        for label in (
+            "current_site",
+            "validated_dependency_prefix",
+            "reservation_binding",
+            "resolve_site_runtime",
+            "assert_matches_calibration",
+            "compilers_for_current_site",
+            "observed_toolchain_manifest",
+        ):
+            assert calls[label] and len(calls[label]) == 1, label
+        assert len(calls["assert_single_tenant"]) == expected_workload_calls
+        if assert_workload_order:
+            assert calls["campaign_config"] == [
+                (workload_name, runtime_contract)
+                for workload_name in _PAPER_STORY_WORKLOAD_ORDER[
+                    :expected_workload_calls
+                ]
+            ]
+        else:
+            assert len(calls["campaign_config"]) == expected_workload_calls
+            assert all(
+                workload_name in _PAPER_STORY_WORKLOAD_ORDER
+                and contract is runtime_contract
+                for workload_name, contract in calls["campaign_config"]
+            )
+        assert calls["default_campaign_configs"] == []
+
+    return SimpleNamespace(
+        module=module,
+        options=options,
+        policy=policy,
+        runtime_contract=runtime_contract,
+        authorization=authorization,
+        expected_configs=expected_configs,
+        expected_campaign_ids=expected_campaign_ids,
+        expected_generator_id=driver_contract.expected_generator_id,
+        expected_dependency_prefix=expected_dependency_prefix,
+        output_root=output_root,
+        cache_root=cache_root,
+        result_root=result_root,
+        toolchain_manifest=toolchain_manifest,
+        trusted_roots=trusted_roots,
+        calls=calls,
+        assert_complete=assert_complete,
+    )
+
+
+def _assert_paper_story_run_call(
+        harness, index: int, run_args: tuple, kwargs: dict) -> BuildRunContext:
+    assert index < len(harness.expected_configs)
+    assert len(run_args) == 5
+    cfg, observed_genomes, perf, env_tag, clocks_per_us = run_args
+    matches = [
+        expected_index
+        for expected_index, expected_cfg in enumerate(harness.expected_configs)
+        if cfg == expected_cfg
+    ]
+    assert len(matches) == 1
+    expected_index = matches[0]
+    assert observed_genomes == harness.module.genomes(harness.policy)
+    workload_name = _PAPER_STORY_WORKLOAD_ORDER[expected_index]
+    assert perf == harness.module.PerfConfig(
+        records=harness.policy["scale"]["records"],
+        threads=harness.policy["scale"]["threads"],
+        workload=harness.module.workload_flags(harness.policy, workload_name),
+        extime=harness.policy["scale"]["extime_s"],
+        reps=harness.policy["scale"]["reps"],
+    )
+    assert env_tag == harness.runtime_contract.env_tag
+    assert clocks_per_us == harness.runtime_contract.clocks_per_us
+    assert kwargs["output_root"] == str(harness.output_root)
+    assert set(kwargs) == {
+        "numactl",
+        "output_root",
+        "cache_root",
+        "dependency_prefix",
+        "authorization_contract",
+        "env_contract",
+        "expected_toolchain_manifest",
+        "build_context",
+        "declared_use_class",
+        "capability_resolver",
+        "durable_root_policy",
+    }
+    assert kwargs["numactl"] == list(harness.runtime_contract.numactl)
+    assert kwargs["cache_root"] == str(harness.cache_root)
+    assert kwargs["dependency_prefix"] == harness.expected_dependency_prefix
+    assert kwargs["authorization_contract"] is harness.authorization
+    assert kwargs["env_contract"] is harness.runtime_contract
+    assert kwargs["expected_toolchain_manifest"] == harness.toolchain_manifest
+    assert kwargs["declared_use_class"] == "exploration"
+    resolver = kwargs["capability_resolver"]
+    assert callable(resolver)
+    assert resolver.__kwdefaults__ == {"workload_name": workload_name}
+    durable_policy = kwargs["durable_root_policy"]
+    assert durable_policy.approved_roots == (harness.output_root.resolve(),)
+    assert durable_policy.forbidden_roots == ()
+    context = kwargs["build_context"]
+    assert type(context) is BuildRunContext
+    assert context.generator_id is harness.expected_generator_id
+    assert context.policy.as_preimage()["coder_authority"] == "cli-opt-in"
+    return context
+
+
+def _install_paper_story_layout_spy(monkeypatch, module, harness):
+    calls = []
+    original = module.exploration_campaign_layout
+
+    def layout_spy(*args, **kwargs):
+        calls.append((args, kwargs))
+        assert len(calls) <= len(harness.expected_campaign_ids)
+        assert len(args) == 2
+        assert args[0] in harness.expected_campaign_ids
+        assert args[1] == str(harness.output_root)
+        assert kwargs == {}
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "exploration_campaign_layout", layout_spy)
+    return calls
 
 
 @pytest.mark.parametrize(
     "name,module", [(case[0], case[1]) for case in _RUN_CAMPAIGN_DRIVERS],
     ids=[case[0] for case in _RUN_CAMPAIGN_DRIVERS],
 )
-def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
+def test_driver_build_spy_receives_exact_run_context(
         name, module, monkeypatch, tmp_path,
         _activate_synthetic_env_authority):
-    """各 coder CLI の正例は exact CODER_DERIVED/opt-in true だけを検査する。"""
-    from orchestrator.campaign import p2_2
-
+    """Coder opt-in の実体と no-coder CLI の authority 不在を分けて検査する。"""
+    contract = _driver_contract(name, _DRIVER_CONTRACTS)
     seen = []
+
+    if contract.cli_authority_mode == "no-coder-cli":
+        assert module._assert_single_tenant is p2_2._assert_single_tenant
+        argv = contract.build_spy_argv_factory(tmp_path)
+        harness = _install_paper_story_external_spies(
+            monkeypatch, tmp_path, module, argv,
+            pin_identity_oracle=False,
+        )
+        layout_calls = _install_paper_story_layout_spy(
+            monkeypatch, module, harness,
+        )
+
+        def paper_story_capture(*run_args, **kwargs):
+            try:
+                assert len(run_args) == 5
+                context = kwargs["build_context"]
+                assert type(context) is BuildRunContext
+                assert context.generator_id is contract.expected_generator_id
+                assert context.policy.as_preimage()["coder_authority"] == "cli-opt-in"
+                assert context._authority_nonce is None
+                assert context._coder_entrypoint_site is None
+            except (AssertionError, KeyError) as exc:
+                raise _BuildSpyContractFailure(
+                    "paper-story build context differs"
+                ) from exc
+            seen.append(context)
+            raise _BuildSpyReached(name)
+
+        monkeypatch.setattr(module, "run_campaign", paper_story_capture)
+        with pytest.raises(_BuildSpyReached, match=name):
+            module.main(list(argv))
+        assert len(seen) == 1
+        assert seen[0]._authority_nonce is None
+        assert seen[0]._coder_entrypoint_site is None
+        assert len(layout_calls) == 1
+        assert layout_calls[0][0][0] in harness.expected_campaign_ids
+        assert layout_calls[0][0][1] == str(harness.output_root)
+        assert layout_calls[0][1] == {}
+        harness.assert_complete(1, assert_workload_order=False)
+        return
 
     def capture(*_args, **kwargs):
         context = kwargs["build_context"]
-        seen.append((type(context), context.policy.as_preimage()["coder_authority"]))
+        seen.append(context)
         raise _BuildSpyReached(name)
 
     monkeypatch.setattr(p2_2, "_assert_single_tenant", lambda: None)
@@ -235,7 +988,7 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
         patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
     )
 
-    argv = ["--allow-coder-derived-build"]
+    argv = list(contract.build_spy_argv_factory(tmp_path))
     if module in {LOOP, SORT, TRIGGER}:
         monkeypatch.setattr(module, "run_campaign", capture)
         monkeypatch.setattr(
@@ -248,21 +1001,19 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
             LOOP, "quarantine",
             lambda *_a, **_k: (passed, "", "", "fixture"),
         )
-        if module in {SORT, TRIGGER}:
-            argv.append("--no-isolate-worktree")
         if module is TRIGGER:
-            contract = dataclasses.replace(
+            runtime_contract = dataclasses.replace(
                 env_contract.GENERATIONS["linux-baremetal"][0].contract,
                 env_tag="test", numactl=(),
             )
             _activate_synthetic_env_authority(
-                contract,
+                runtime_contract,
                 repo_root=Path(__file__).resolve().parents[2],
                 authority_dir=tmp_path / "authority",
             )
             monkeypatch.setattr(
                 module, "_admit_env_contract",
-                lambda _site: contract,
+                lambda _site: runtime_contract,
             )
     else:
         monkeypatch.setattr(module, "_assert_single_tenant", lambda: None)
@@ -273,13 +1024,24 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
         monkeypatch.setattr(module, "run_campaign", capture)
     with pytest.raises(_BuildSpyReached, match=name):
         module.main(argv)
-    assert seen == [(BuildRunContext, "cli-opt-in")]
+    assert len(seen) == 1
+    context = seen[0]
+    assert type(context) is BuildRunContext
+    assert context.generator_id is contract.expected_generator_id
+    assert context.policy.as_preimage()["coder_authority"] == "cli-opt-in"
+    assert context._authority_nonce is not None
+    assert context._coder_entrypoint_site == contract.coder_entrypoint_site
 
 
 def test_autonomous_coder_driver_flag_reaches_trial_with_site_bound_authority(
         monkeypatch, tmp_path):
     from orchestrator.calibrator import runner as calibrator_runner
 
+    contract = _driver_contract(
+        "p3_autonomous_workload_trial", _DRIVER_CONTRACTS,
+    )
+    expected_site = "orchestrator.campaign.p3_autonomous_workload_trial.main"
+    assert contract.coder_entrypoint_site == expected_site
     seen = []
 
     def capture(**kwargs):
@@ -302,30 +1064,28 @@ def test_autonomous_coder_driver_flag_reaches_trial_with_site_bound_authority(
     )
     monkeypatch.setattr(calibrator_runner, "competing_bench_pids", lambda: [])
     monkeypatch.setattr(AUTONOMOUS, "run_trial", capture)
-    assert AUTONOMOUS.main([
-        "--trial-id", "fixture",
-        "--provider", "claude-headless",
-        "--allow-unregistered-exploratory",
-        "--allow-coder-derived-build",
-        "--run-root", str(tmp_path / "run"),
-        "--ccbench-dir", str(tmp_path / "ccbench"),
-    ]) == 0
+    assert AUTONOMOUS.main(list(
+        contract.build_spy_argv_factory(tmp_path)
+    )) == 0
     assert seen == [(
         BuildRunContext,
-        "orchestrator.campaign.p3_autonomous_workload_trial.main",
+        expected_site,
     )]
 
 
 def _spy_driver_layout(monkeypatch, tmp_path, module):
     roots = []
+    calls = []
 
-    def derive(campaign_id):
+    def derive(*args, **kwargs):
+        calls.append((args, kwargs))
+        campaign_id = args[0]
         derived = exploration_campaign_layout(campaign_id, str(tmp_path))
         roots.append(Path(derived.root))
         return derived
 
     monkeypatch.setattr(module, "exploration_campaign_layout", derive)
-    return roots
+    return roots, calls
 
 
 @pytest.mark.parametrize(
@@ -335,7 +1095,8 @@ def _spy_driver_layout(monkeypatch, tmp_path, module):
 def test_iteration_public_entry_routes_runtime_layout_and_selector(
         monkeypatch, tmp_path, name, module):
     """public `run_one_iteration` が実際に導出した root と sink selector を検査。"""
-    roots = _spy_driver_layout(monkeypatch, tmp_path, module)
+    contract = _driver_contract(name, _DRIVER_CONTRACTS)
+    roots, layout_calls = _spy_driver_layout(monkeypatch, tmp_path, module)
     selectors = []
 
     def run_sink(*run_args, **kwargs):
@@ -452,9 +1213,11 @@ class TxExecutor {
 
     cfg = ident.bind_admission_policy(cfg, _CODER_CONTEXT.policy)
     if module is TRIGGER:
-        contract = env_contract.lookup(module.ENV_TAG)
-        monkeypatch.setattr(module, "_lookup", lambda _env_tag: contract)
-        cfg = ident.bind_environment_contract(cfg, contract)
+        runtime_contract = env_contract.lookup(module.ENV_TAG)
+        monkeypatch.setattr(
+            module, "_lookup", lambda _env_tag: runtime_contract,
+        )
+        cfg = ident.bind_environment_contract(cfg, runtime_contract)
     sub = tmp_path / f"{name}-sub"
     source = sub / module.SOURCE_REL
     source.parent.mkdir(parents=True)
@@ -479,13 +1242,20 @@ class TxExecutor {
         module.run_one_iteration(
             cfg, perf, planner, coder, auditor, state, str(sub), True,
             build_context=_CODER_CONTEXT, log=lambda *_: None)
-    campaign_id = str(ident.campaign_id(cfg))
+    expected_campaign_ids = contract.derive_expected_campaign_ids(cfg)
+    assert len(expected_campaign_ids) == 1
+    campaign_id = expected_campaign_ids[0]
     expected = tmp_path / "exploration" / "campaigns" / campaign_id
     assert roots and set(roots) == {expected}
+    assert layout_calls
+    assert all(
+        args == (campaign_id,) and kwargs == {}
+        for args, kwargs in layout_calls
+    )
     assert expected.is_dir()
     assert (tmp_path / "exploration" / "namespace.json").read_bytes() == \
         b'{"namespace":"exploration"}\n'
-    assert selectors == ["exploration"]
+    assert selectors == ["exploration"] * contract.runtime_run_campaign_calls
     assert not (tmp_path / "campaigns" / campaign_id).exists()
 
 
@@ -496,7 +1266,85 @@ class TxExecutor {
 def test_main_public_entry_routes_runtime_layout_and_selector(
         monkeypatch, tmp_path, name, module):
     """public `main` を起動し、heavy build/run sink のみ fake にして配線を見る。"""
-    roots = _spy_driver_layout(monkeypatch, tmp_path, module)
+    contract = _driver_contract(name, _DRIVER_CONTRACTS)
+    if contract.cli_authority_mode == "no-coder-cli":
+        assert module._assert_single_tenant is p2_2._assert_single_tenant
+        argv = contract.routing_argv_factory(tmp_path)
+        harness = _install_paper_story_external_spies(
+            monkeypatch, tmp_path, module, argv,
+            pin_identity_oracle=True,
+        )
+        layout_calls = _install_paper_story_layout_spy(
+            monkeypatch, module, harness,
+        )
+        selectors = []
+        observed_campaign_ids = []
+        forwarded_output_roots = []
+        run_calls = []
+
+        def paper_story_run_sink(*run_args, **kwargs):
+            index = len(run_calls)
+            try:
+                context = _assert_paper_story_run_call(
+                    harness, index, run_args, kwargs,
+                )
+            except (AssertionError, IndexError, KeyError) as exc:
+                raise _RoutingSpyContractFailure(
+                    "paper-story routing arguments differ"
+                ) from exc
+            run_calls.append((run_args, kwargs))
+            selectors.append(kwargs["declared_use_class"])
+            forwarded_output_roots.append(kwargs["output_root"])
+            observed_bound_cfg = ident.bind_admission_policy(
+                run_args[0], context.policy,
+            )
+            campaign_id = str(ident.campaign_id(observed_bound_cfg))
+            observed_campaign_ids.append(campaign_id)
+            sink_layout = exploration_campaign_layout(
+                campaign_id, str(harness.output_root),
+            ).ensure()
+            wal.write_lock(sink_layout, build_v2_lock(
+                ident.canonical_preimage(observed_bound_cfg)
+            ))
+            Path(sink_layout.wal_file).touch(exist_ok=True)
+            return SimpleNamespace(
+                campaign_id=campaign_id,
+                layout_root=sink_layout.root,
+                results=[],
+                total=2,
+                evaluated=2,
+                skipped=0,
+                identity_skipped=0,
+            )
+
+        monkeypatch.setattr(module, "run_campaign", paper_story_run_sink)
+        assert module.main(list(argv)) == 0
+        assert tuple(observed_campaign_ids) == harness.expected_campaign_ids
+        assert set(observed_campaign_ids) == set(harness.expected_campaign_ids)
+        assert selectors == [
+            "exploration"
+        ] * contract.runtime_run_campaign_calls
+        assert forwarded_output_roots == [
+            str(harness.output_root)
+        ] * contract.runtime_run_campaign_calls
+        assert layout_calls == [
+            ((campaign_id, str(harness.output_root)), {})
+            for campaign_id in harness.expected_campaign_ids
+        ]
+        for campaign_id in harness.expected_campaign_ids:
+            expected = (
+                harness.output_root / "exploration" / "campaigns" / campaign_id
+            )
+            assert expected.is_dir()
+            assert not (harness.output_root / "campaigns" / campaign_id).exists()
+        assert len(run_calls) == contract.runtime_run_campaign_calls
+        harness.assert_complete(
+            contract.runtime_run_campaign_calls,
+            assert_workload_order=True,
+        )
+        return
+
+    roots, layout_calls = _spy_driver_layout(monkeypatch, tmp_path, module)
     selectors = []
 
     def run_sink(*run_args, **kwargs):
@@ -523,16 +1371,18 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
         return original_spy(campaign_id).ensure()
 
     monkeypatch.setattr(module, "exploration_campaign_layout", ensured_spy)
-    assert module.main(["--allow-coder-derived-build"]) == 1
-    policy_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    cfg = ident.bind_admission_policy(module._cfg(), policy_context.policy)
-    cfg = ident.bind_environment_contract(
-        cfg, env_contract.lookup(module.ENV_TAG),
-    )
-    campaign_id = str(ident.campaign_id(cfg))
+    assert module.main(list(contract.routing_argv_factory(tmp_path))) == 1
+    expected_campaign_ids = contract.derive_expected_campaign_ids(module)
+    assert len(expected_campaign_ids) == 1
+    campaign_id = expected_campaign_ids[0]
     expected = tmp_path / "exploration" / "campaigns" / campaign_id
     assert roots and set(roots) == {expected}
-    assert selectors == ["exploration", "exploration"]
+    assert layout_calls
+    assert all(
+        args == (campaign_id,) and kwargs == {}
+        for args, kwargs in layout_calls
+    )
+    assert selectors == ["exploration"] * contract.runtime_run_campaign_calls
     assert not (tmp_path / "campaigns" / campaign_id).exists()
 
 
@@ -545,11 +1395,11 @@ def test_driver_ast_supplements_runtime_namespace_gate(
     """宣言を起点に族を閉包し、operative kill の唯一根拠にはしない。"""
     assert _is_campaign_root_creator(tree), name
     assert _campaign_driver_is_closed(tree), name
-    expected_layout_count, expected_run_count = _EXPECTED_CALL_COUNTS[name]
+    contract = _driver_contract(name, _DRIVER_CONTRACTS)
     layout_calls = _call_nodes(tree, "exploration_campaign_layout")
-    assert len(layout_calls) == expected_layout_count, name
+    assert len(layout_calls) == contract.ast_layout_calls, name
     run_calls = _call_nodes(tree, "run_campaign")
-    assert len(run_calls) == expected_run_count, name
+    assert len(run_calls) == contract.ast_run_campaign_calls, name
     for call in run_calls:
         contexts = [keyword.value for keyword in call.keywords
                     if keyword.arg == "build_context"]

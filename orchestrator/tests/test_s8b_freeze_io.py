@@ -456,6 +456,8 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     )
 
     with mock.patch.object(
+            floor, "_machine_env_tag_for_site", return_value=contract.env_tag), \
+         mock.patch.object(
             floor.env_attestation, "load_verified_calibration",
             side_effect=fixture_calibration_loader), \
          mock.patch.object(
@@ -476,6 +478,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
             durable_root_policy=floor.DurableRootPolicy(
                 approved_roots=(tmp_path.resolve(),), forbidden_roots=()),
             _holdout_repo_root=authority,
+            _holdout_signature_source=holdouts,
             confirm_irreversible_pilot_holdout=True,
         )
     assert seen["clocks_per_us"] == contract.clocks_per_us

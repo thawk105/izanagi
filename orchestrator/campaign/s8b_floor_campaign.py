@@ -5427,7 +5427,8 @@ class _Runner:
 
     臨界区間は session ごとに ``session-start (=authorization) → probe → measure → post-probe →
     session (end)`` を journal へ即時記録する。crash した session は start だけが残り、resume では
-    **terminal (再実行しない)** 扱いにする (forward-only)。retry の枠消費は authorization
+    admission が cut 6 の M+A- を証明した planned attempt だけ同じ authorization で再開し、
+    それ以外は **terminal (再実行しない)** 扱いにする。retry の枠消費は authorization
     (session-start) の fsync 時点で確定し、(cell_id, retry_ordinal) は resume を跨いで再発行しない
     (β-5)。retry は失敗が起きた round の末尾で schedule 順に消化する (β-4)。
     """
@@ -5441,7 +5442,8 @@ class _Runner:
                  records=None, host_provenance_fn=None, process_identity_fn=None,
                  reservation_check=None, write_capability=None,
                  perf_preflight=None, mode="official",
-                 holdout_assert_fn=None, external_checkpoint_binding=None):
+                 holdout_assert_fn=None, external_checkpoint_binding=None,
+                 cut6_replay_query_fn=None, retry_trigger_query_fn=None):
         self.protocol = protocol
         self.contract = contract
         self.cells = cells
@@ -5457,6 +5459,14 @@ class _Runner:
         self.holdout_assert_fn = (
             _holdout_admission.assert_cell_holdout_admission
             if holdout_assert_fn is None else holdout_assert_fn
+        )
+        self.cut6_replay_query_fn = (
+            _holdout_admission.floor_attempt_requires_cut6_replay
+            if cut6_replay_query_fn is None else cut6_replay_query_fn
+        )
+        self.retry_trigger_query_fn = (
+            _holdout_admission.floor_retry_trigger_for_round
+            if retry_trigger_query_fn is None else retry_trigger_query_fn
         )
         self.probe_fn = probe_fn
         self.sleep_fn = sleep_fn
@@ -5485,6 +5495,7 @@ class _Runner:
         self.allowed_reasons = set(protocol["allowed_excluded_reasons"])
         self.records = (_read_journal(journal_path) if records is None
                         else [dict(record) for record in records])
+        self._retry_authorization_cache = {}
 
     # --- journal I/O ----------------------------------------------------- #
 
@@ -5546,20 +5557,33 @@ class _Runner:
         return None if seq is None else _attempt_id(cell_id, "planned", seq, None)
 
     def _round_failed_cells(self, round_no: int) -> list[str]:
-        """round 内で planned session が完了して無効だったセルを schedule 順に。
+        """Return schedule-ordered cells for which admission authorizes retry."""
 
-        crash (start だけで完了記録なし) は forward-only の terminal であり retry を発火しない
-        (完了 invalid のみが retry の trigger)。各セルは round ごと 1 回なので重複しない。
-        """
         order = [row["cell_id"] for row in self._round_rows(round_no)]
         failed: list[str] = []
         for cell_id in order:
-            planned = [r for r in self.records
-                       if r.get("event") == "session" and r.get("kind") == "planned"
-                       and r.get("round") == round_no and r.get("cell_id") == cell_id]
-            if planned and not planned[0].get("valid"):
+            if self._retry_authorization(round_no, cell_id) is not None:
                 failed.append(cell_id)
         return failed
+
+    def _retry_authorization(self, round_no: int, cell_id: str):
+        key = (round_no, cell_id)
+        if key in self._retry_authorization_cache:
+            return self._retry_authorization_cache[key]
+        try:
+            authorization = self.retry_trigger_query_fn(
+                self.holdout_admissions[cell_id], round_no=round_no,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            raise CampaignAbort(
+                f"retry trigger admission refused: cell={cell_id}: {exc}"
+            ) from exc
+        if authorization is not None and not isinstance(
+            authorization, _holdout_admission.FloorRetryAuthorization,
+        ):
+            raise CampaignAbort("retry trigger admission returned an invalid verdict")
+        self._retry_authorization_cache[key] = authorization
+        return authorization
 
     def _cell_round_has_valid(self, cell_id: str, round_no: int) -> bool:
         return any(r.get("event") == "session" and r.get("cell_id") == cell_id
@@ -5601,15 +5625,18 @@ class _Runner:
             raise
 
     def _run_session(self, *, seq: int, round_no: int, cell_id: str, kind: str,
-                     retry_ordinal: Optional[int], trigger: Optional[str]) -> dict:
+                     retry_ordinal: Optional[int], trigger: Optional[str],
+                     _cut6_authorization_already_recorded: bool = False) -> dict:
         self._recheck_reservation_before_measurement()
         attempt_id = _attempt_id(cell_id, kind, seq, retry_ordinal)
         # authorization record: retry 枠はこの fsync 時点で消費される (crash しても再発行しない)。
-        self._emit({
-            "event": "session-start", "seq": seq, "kind": kind, "cell_id": cell_id,
-            "round": round_no, "retry_ordinal": retry_ordinal, "attempt_id": attempt_id,
-            "trigger": trigger, "started_iso": self.now_fn().isoformat(),
-        })
+        if not _cut6_authorization_already_recorded:
+            self._emit({
+                "event": "session-start", "seq": seq, "kind": kind,
+                "cell_id": cell_id, "round": round_no,
+                "retry_ordinal": retry_ordinal, "attempt_id": attempt_id,
+                "trigger": trigger, "started_iso": self.now_fn().isoformat(),
+            })
         start_mono = self.monotonic_fn()
         cell = self.cell_by_id[cell_id]
         binary = self.binaries[cell_id]["binary"]
@@ -5773,7 +5800,11 @@ class _Runner:
 
     def _retry_round(self, round_no: int) -> None:
         for cell_id in self._round_failed_cells(round_no):
-            trigger = self._planned_attempt_id(round_no, cell_id)
+            authorization = self._retry_authorization(round_no, cell_id)
+            if authorization is None:  # pragma: no cover - cache invariant
+                raise CampaignAbort("retry authorization cache is inconsistent")
+            # MUT-T1669-TRIGGER-FORWARD (retargeted from withdrawn A8).
+            trigger = authorization.trigger_attempt_id
             # campaign 通算予算まで、first-authorized-valid で 1 本有効になるまで消化する。
             while (self._authorized_retries(cell_id) < self.retry_slots
                    and not self._cell_round_has_valid(cell_id, round_no)):
@@ -5782,6 +5813,40 @@ class _Runner:
                     kind="retry", retry_ordinal=self._next_retry_ordinal(cell_id),
                     trigger=trigger,
                 )
+                # MUT-T1669-ONE-ORDINAL (retargeted from withdrawn A8): one
+                # verified recovery can authorize only this next ordinal.
+                if authorization.source == "verified-registry-recovery":
+                    break
+
+    def _replay_cut6_start(self, start: Mapping[str, object]) -> bool:
+        """Replay one existing authorization only on admission's exact verdict."""
+
+        cell_id = str(start["cell_id"])
+        attempt_id = str(start["attempt_id"])
+        try:
+            replay = self.cut6_replay_query_fn(
+                self.holdout_admissions[cell_id], attempt_id=attempt_id,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            raise CampaignAbort(
+                f"cut-6 replay admission refused: cell={cell_id}: {exc}"
+            ) from exc
+        # MUT-T1669-CUT6-ADMISSION (retargeted from withdrawn A5): the runner
+        # neither infers a crash type nor treats a truthy non-bool as proof.
+        if type(replay) is not bool:
+            raise CampaignAbort(
+                "cut-6 replay admission returned an invalid verdict"
+            )
+        if not replay:
+            return False
+        self._run_session(
+            seq=int(start["seq"]), round_no=int(start["round"]),
+            cell_id=cell_id, kind=str(start["kind"]),
+            retry_ordinal=start.get("retry_ordinal"),
+            trigger=start.get("trigger"),
+            _cut6_authorization_already_recorded=True,
+        )
+        return True
 
     # --- campaign 実行 --------------------------------------------------- #
 
@@ -5898,11 +5963,30 @@ class _Runner:
                             "utc": self.now_fn().isoformat()})
             for row in self._round_rows(round_no):
                 if row["seq"] in started:
-                    continue  # 完了 or crash 済み = 再走しない (forward-only)
+                    self._replay_cut6_start({
+                        "seq": row["seq"], "round": round_no,
+                        "cell_id": row["cell_id"], "kind": "planned",
+                        "retry_ordinal": None, "trigger": None,
+                        "attempt_id": _attempt_id(
+                            row["cell_id"], "planned", row["seq"], None,
+                        ),
+                    })
+                    continue
                 self._run_session(
                     seq=row["seq"], round_no=round_no, cell_id=row["cell_id"],
                     kind="planned", retry_ordinal=None, trigger=None,
                 )
+            retry_starts = sorted(
+                (
+                    record for record in self.records
+                    if record.get("event") == "session-start"
+                    and record.get("kind") == "retry"
+                    and record.get("round") == round_no
+                ),
+                key=lambda record: record["seq"],
+            )
+            for retry_start in retry_starts:
+                self._replay_cut6_start(retry_start)
             self._retry_round(round_no)
             self._emit({"event": "round-complete", "round": round_no,
                         "utc": self.now_fn().isoformat()})

@@ -108,8 +108,8 @@ monkeypatch は最後の手段とする（D78）。
 
 所見ごとの closed / partial / regressed 対応表を要求し、表なしで root cause が閉じたと判定しない（D78）。
 PATH 構築・interpreter 解決・外部 command 選定など実行環境に依存する実装は、レビュー通過だけで
-closed とせず実機で動かすまで確かめる。
-NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で裏取りして残る所見を real/refuted に
+closed とせず実機で動かすまで確かめる。実機の構造が子の推測と食い違えば親が測って prompt へ貼る。
+NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blocker は別枠)、親が変異で裏取りして残る所見を real/refuted に
 裁定して閉じる。根拠は worklog に書く。
 
 ## DW-O17 — commit trailer
@@ -124,17 +124,11 @@ trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage fi
 <sub>`と突き合わせ**merge commit内で**main側pinへ揃える。後追い単独commitは実装面判定で書けない
 Codex著者行を要求されlandが止まる。
 
-## DW-O18 — 親のテスト cwd
+## DW-O18 — テスト cwd と非帰属赤の着地
 
-cwd は必ず repo root。nested subprocess の import path 偽赤は差分の回帰として扱わない。
-file 選択走は `from tests import` の import path 確立後に走らせる (未確立の赤は偽赤)。
-差分到達しえない赤は単独再走で実測し、再現しなければ非帰属フレーク起票。
-`tools/check_acceptance_reds.py` は rc=1 停止・rc=2 判定不能で非帰属根拠なし・checker infra
-失敗 (no-verdict retry 対象外、新規 attempt 再投入) の3種を区別。rc=0+
-non-attributable-only は受理成功、赤だけで失敗と早合点しない。変更した test file は受入全走前に単独走で確認する
-(全走緑は file 単独緑を含意しない)。新規 test file を足す走は file 集合列挙の
-メタテストも焦点走に含める。並行 wave が自分の編集 file を所有するなら main 取込み済みの
-木で既存走行に相乗りし受入後に足さない。
+cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+
+受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
 
 ## DW-O19 — tracked file の一時変異
 
@@ -151,15 +145,17 @@ non-attributable-only は受理成功、赤だけで失敗と早合点しない�
 
 ## DW-O20 — clean-tree gate
 
-専用handoffはworktree外（背景jobはrepo外）に置き、untracked handoffを残してgateを走らせない。
-cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
-worktreeを流用しない。作成直後は`tools/check_wave_startup.py`、再開直後は`--mode resume`付きで
-実行し（背景jobは`--external-handoff <handoff>`も）、非0なら停止する。resumeも
-branch・clean tree・main包含を要求。HEAD差は`--ff-only`で揃える（F48）。
-新規worktreeはsubmodule未初期化で非0になる。worktree内で`DW-C01`に従い初期化して
-再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
-受入投入前に`git submodule update --recursive`で記録へ揃える。
-子を走らせるworktreeは`git worktree lock`する（cwd走査はlauncher型の子を検出しない）。
+専用handoffはworktree外（背景jobはrepo外）。untrackedを残してgateを走らせない。
+cwdがworktreeなら作らず、directory/branch不一致をhandoff・worklogに記しwave用へ流用しない。
+開始gateは`tools/check_wave_startup.py`（再開は`--mode resume`、背景jobは
+`--external-handoff`も）。非0なら停止。resumeもbranch・clean tree・main包含を要求。
+gate成功後の前進でgateを再走しない。取り込みは
+`tools/dev_wave_wait.py acceptance`のpost-claim merge。
+待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
+HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
+`DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
+`git submodule update --recursive`で揃える。
+子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
 
 ## DW-O23 — 並行 session の local main land
 
@@ -183,6 +179,9 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
+test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
+所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 ## DW-O27 — acceptance は lease を待たない
 
 D662 により受入 lease の待ち行列は廃止し、待ち機構を実装から除去した。

@@ -53,6 +53,7 @@ def _oracle_receipt(oracle, materialized="1" * 64, proposal="2" * 64):
         tu_template_sha256=oracle.TU_TEMPLATE_SHA256,
         dependency_root_realpath="/fixture/dependency",
         dependency_config_sha256="4" * 64,
+        dependency_manifest_sha256=oracle.DEPENDENCY_MANIFEST_SHA256,
     )
 
 
