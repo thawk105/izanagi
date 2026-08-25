@@ -112,6 +112,9 @@ title: 到達不能 commit 監査を 2 時間 23 分から 4 分 43 秒へ短縮
   `IZANAGI_DISPATCH_WALLTIME_OVERRIDE` を自動で短く設定して孤児の占有を最小化する、
   (c) 現状維持として DW-M06 に「dispatch では hang 変異を本走に載せない」と明記する。
   (c) だけでも {{F:hang-mutation-orphan-limit-relearned-by-experiment}} の再発は止まる。
+  **段 8 で (c) を試みたが `docs/dev-wave/**` の共有 byte 予算に阻まれた。** 現状 9,566 bytes
+  に対し残余は 92 bytes 未満で、機能する最短文 (36 文字) すら入らない。予算値の変更は
+  自己改善の範囲外 (独立審査) と契約が定めるため編集を戻した。**(c) を採るなら予算の再裁定が要る。**
 
 ### 見送り追記
 
