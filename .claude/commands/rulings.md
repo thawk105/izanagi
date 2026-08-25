@@ -45,12 +45,18 @@ argument-hint: [件数 (既定 5) / "all" / ID 指定]
 - 平易な日本語で書く。内部略語・記号 (P-C2、oracle 等) は初出時に丸括弧で説明
 - 逐語引用で埋めない — 要約し、正本 (insights のファイル名・節) へのポインタを添える
 - 推奨はする、決めない。**推奨前に同じ面の既裁定と却下案を worklog・archive・decisions・roadmap で検索し**矛盾させない。主目的 (CC 自動合成) の主経路との距離も示す
+- **推奨の前に別系統のモデルへ諮る** (Claude の相手は Codex、Codex の相手は Claude)。材料は
+  ファイルで渡し、(A) 推奨の当否 = 同意 / 反対 / 根拠不足 / 既裁定の誤引用 と
+  (B) 索引の網の穴 を別の子へ分ける。反映は推奨の書き換えで行い、採らない択は理由をその件へ
+  書く。起動不能・期限内に返らない・不採用なら**その事実を索引の冒頭に書く**。起動は Claude 側が
+  `tools/dev_wave_codex.py --stage consult --lane {sol,luna} --sandbox read-only`
+  (`docs/dev-wave/operations.md` DW-O01 / DW-O02)、Codex 側は
+  `.agents/skills/rulings/SKILL.md`。ID 指定 1 件では省いてよい
 - 1 つの裁定が複数 ID を覆うとき覆われた ID の項も更新する
 - Git 操作も裁定待ちに含める (AI は push しない)。未 push は 20 commit 以上
 - 索引総数が減らなくても普通。急かさない
 
 ## スキル自己改善 (発火条件つき)
 
-収集漏れ・正本との食い違い・誤解を招く出力規則を今回の実行で実測した場合だけ発火。
-発火時はクラス 2 の起動手順を済ませ `docs/skill-self-improvement.md` を読み
-`rulings` の routing と commit 契約に従う。発火しなければ編集しない
+発火条件・routing・commit 契約は `docs/skill-self-improvement.md` の rulings 節が正本。
+発火時はクラス 2 の起動手順を済ませてから編集し、発火しなければ編集しない

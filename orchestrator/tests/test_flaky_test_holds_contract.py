@@ -26,6 +26,10 @@ _HELD_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
     "test_sigterm_handler_stops_child_and_restores_active_mutation"
 )
+_NEW_HELD_NODE = (
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+    "test_control_lock_allows_peer_after_pending_hold_is_durably_released"
+)
 _HELD_FILE = _HELD_NODE.split("::", 1)[0]
 _SIBLING_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
@@ -47,8 +51,8 @@ def _valid_hold() -> REG.FlakyTestHold:
     return REG.FLAKY_TEST_HOLDS[_HELD_NODE]
 
 
-def test_initial_registry_is_one_exact_node_with_reintroduction_anchor() -> None:
-    assert set(REG.FLAKY_TEST_HOLDS) == {_HELD_NODE}
+def test_registry_is_two_exact_nodes_with_reintroduction_anchors() -> None:
+    assert set(REG.FLAKY_TEST_HOLDS) == {_HELD_NODE, _NEW_HELD_NODE}
     hold = _valid_hold()
     assert hold.known_failure_node_ids == frozenset({_HELD_NODE})
     assert hold.same_tree is True
@@ -59,6 +63,20 @@ def test_initial_registry_is_one_exact_node_with_reintroduction_anchor() -> None
     assert hold.cause
     assert hold.evidence_id == "F57"
     assert hold.reintroduction_task_id == "{{T:flaky-sigterm-sync-point}}"
+
+    new_hold = REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE]
+    assert new_hold.known_failure_node_ids == frozenset({_NEW_HELD_NODE})
+    assert new_hold.same_tree is True
+    assert new_hold.green_collection_condition == "single-node"
+    assert new_hold.green_run_count == 1
+    assert new_hold.red_collection_condition == REG.ACCEPTANCE_COLLECTION
+    assert new_hold.failure_signature
+    assert new_hold.cause
+    assert new_hold.evidence_id == "F480"
+    assert (
+        new_hold.reintroduction_task_id
+        == "{{T:flaky-thread-join-upper-bound}}"
+    )
 
 
 def test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling() -> None:
@@ -413,10 +431,12 @@ def test_flaky_summary_is_separate_and_uses_registry_digest() -> None:
     assert len(summary_lines) == 1
     payload = json.loads(summary_lines[0].split(" ", 1)[1])
     assert payload == {
-        "registered_node_count": 1,
+        "registered_node_count": 2,
         "matched_node_count": 1,
         "skipped_node_count": 1,
-        "registry_sha256": REG.FLAKY_TEST_HOLDS_SHA256,
+        "registry_sha256": (
+            "9a31d0948e6d17e491b3dc06101563d73719cf04643eb454c3339be92c91a089"
+        ),
     }
     assert not any(
         line.startswith("IZANAGI_GROWTH_HOLD_SUMMARY_V1 ") for line in lines

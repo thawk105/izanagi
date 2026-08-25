@@ -124,17 +124,11 @@ trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage fi
 <sub>`と突き合わせ**merge commit内で**main側pinへ揃える。後追い単独commitは実装面判定で書けない
 Codex著者行を要求されlandが止まる。
 
-## DW-O18 — 親のテスト cwd
+## DW-O18 — テスト cwd と非帰属赤の着地
 
-cwd は必ず repo root。nested subprocess の import path 偽赤は差分の回帰として扱わない。
-file 選択走は `from tests import` の import path 確立後に走らせる (未確立の赤は偽赤)。
-差分到達しえない赤は単独再走で実測し、再現しなければ非帰属フレーク起票。
-`tools/check_acceptance_reds.py` は rc=1 停止・rc=2 判定不能で非帰属根拠なし・checker infra
-失敗 (no-verdict retry 対象外、新規 attempt 再投入) の3種を区別。rc=0+
-non-attributable-only は受理成功、赤だけで失敗と早合点しない。変更した test file は受入全走前に単独走で確認する
-(全走緑は file 単独緑を含意しない)。新規 test file を足す走は file 集合列挙の
-メタテストも焦点走に含める。並行 wave が自分の編集 file を所有するなら main 取込み済みの
-木で既存走行に相乗りし受入後に足さない。
+cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+
+受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
 
 ## DW-O19 — tracked file の一時変異
 
@@ -185,6 +179,9 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
+test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
+所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 ## DW-O27 — acceptance は lease を待たない
 
 D662 により受入 lease の待ち行列は廃止し、待ち機構を実装から除去した。

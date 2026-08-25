@@ -46,6 +46,7 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator import holdout_observation  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
+    attempt_registry_core,
     campaign_claim,
     floor_submit_receipt,
     reservation,
@@ -54,6 +55,7 @@ from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
 from orchestrator.campaign import s8b_floor_contract  # noqa: E402
 from orchestrator.campaign import s8b_floor_stats  # noqa: E402
+from orchestrator.campaign import s8b_attempt_profile  # noqa: E402
 from orchestrator.campaign import s8b_binary_admission  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_launch_cert  # noqa: E402
@@ -8208,6 +8210,70 @@ def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
     assert result["cells"][crashed_cell]["valid"] is False
 
 
+def test_resume_runner_replays_only_admission_proved_cut6_m_plus_a_minus(
+    tmp_path, monkeypatch,
+):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    original_append = s8b_floor_campaign._holdout_admission._append_ledger
+    crashed = {"done": False}
+
+    def crash_after_marker(path, rows):
+        if path.name == "attempt-ledger.jsonl" and not crashed["done"]:
+            crashed["done"] = True
+            raise _SimulatedCrash("fixture: cut6 after consumed marker")
+        return original_append(path, rows)
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._holdout_admission,
+            "_append_ledger", crash_after_marker,
+        )
+        with pytest.raises(_SimulatedCrash, match="cut6"):
+            _run_campaign(
+                protocol, verified, out_root=out_root,
+                build_root=tmp_path / "bin",
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+                ),
+                probe_fn=lambda: (1, "", ""),
+            )
+
+    run_dir = _only_run_dir(out_root)
+    before = _read_journal_lines(run_dir / "journal.jsonl")
+    cut6_start = next(row for row in before if row.get("event") == "session-start")
+    assert not any(
+        row.get("event") == "session"
+        and row.get("attempt_id") == cut6_start["attempt_id"]
+        for row in before
+    )
+
+    resumed_measure = _make_measure_fn(
+        reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+    )
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+        resume_dir=run_dir, measure_fn=resumed_measure,
+        probe_fn=lambda: (1, "", ""),
+    )
+
+    assert outcome["status"] == "completed"
+    after = _read_journal_lines(run_dir / "journal.jsonl")
+    assert sum(
+        row.get("event") == "session-start"
+        and row.get("attempt_id") == cut6_start["attempt_id"]
+        for row in after
+    ) == 1
+    assert sum(
+        row.get("event") == "session"
+        and row.get("attempt_id") == cut6_start["attempt_id"]
+        for row in after
+    ) == 1
+    assert len(resumed_measure.calls) == len(outcome["result"]["sessions"])
+
+
 def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -9999,7 +10065,10 @@ def test_runtime_built_key_helper_is_configuration_conditional(
     ) == frozenset(expected)
 
 
-def _live_admission_runner(tmp_path, *, runtime, built):
+def _live_admission_runner(
+    tmp_path, *, runtime, built, schedule=(), records=None,
+    measure_fn=None, cut6_replay_query_fn=None, retry_trigger_query_fn=None,
+):
     cell = {
         "cell_id": "cell", "holdout_id": "holdout",
         "configuration_id": "sort_best", "records": 1, "threads": 1,
@@ -10011,17 +10080,294 @@ def _live_admission_runner(tmp_path, *, runtime, built):
         protocol=protocol,
         contract=SimpleNamespace(contract_sha256="2" * 64),
         cells=[cell], cell_by_id={"cell": cell},
-        binaries={"cell": runtime}, artifact_binaries=built, schedule=[],
+        binaries={"cell": runtime}, artifact_binaries=built,
+        schedule=list(schedule),
         journal_path=tmp_path / "journal.jsonl",
-        measure_fn=lambda *_args: None,
+        measure_fn=measure_fn or (lambda *_args: None),
         holdout_admissions={"cell": SimpleNamespace(observation=None)},
         probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
         monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
         protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
         perf_preflight=_perf_receipt(), mode="pilot",
         holdout_assert_fn=lambda *_args, **_kwargs: None,
+        records=records, host_provenance_fn=_fixed_host,
+        process_identity_fn=_fixed_process,
+        cut6_replay_query_fn=cut6_replay_query_fn,
+        retry_trigger_query_fn=retry_trigger_query_fn,
     )
     return runner
+
+
+_FLOOR_TEST_RECOVERY_AUTHORITY = (
+    "test-scheduler-authority", "9" * 64,
+)
+
+
+def _write_verified_campaign_recovery_registry(
+    *, authority: Path, protocol: dict, schedule: list[dict],
+    protocol_sha256: str, trigger_start: dict,
+) -> Path:
+    """Write one core-valid cut-10 recovery for an actual campaign attempt."""
+
+    authority_id, authority_policy_sha256 = _FLOOR_TEST_RECOVERY_AUTHORITY
+    binding = s8b_attempt_profile.S8BAttemptBinding(
+        freeze_sha256=protocol["freeze"]["sha256"],
+        protocol_sha256=protocol_sha256,
+        schedule_sha256=hashlib.sha256(
+            attempt_registry_core.canonical_json_bytes(schedule)
+        ).hexdigest(),
+    )
+    profile = s8b_attempt_profile.make_s8b_domain_profile(
+        max_consumptions_per_budget_key=(
+            protocol["n_sessions"] + protocol["retry_slots_per_cell"]
+        ),
+        recovery_authority_id=authority_id,
+        recovery_authority_policy_sha256=authority_policy_sha256,
+    )
+    holdout_key, configuration_id = trigger_start["cell_id"].rsplit("::", 1)
+    slot_identity = {
+        "freeze_holdout_key": holdout_key,
+        "configuration_id": configuration_id,
+        "repetition": trigger_start["round"] - 1,
+        "attempt_ordinal": 0,
+    }
+    slot = s8b_attempt_profile.S8BAttemptSlot(
+        **slot_identity,
+        schedule_row_sha256=hashlib.sha256(
+            attempt_registry_core.canonical_json_bytes(slot_identity)
+        ).hexdigest(),
+    )
+    slot_id = s8b_attempt_profile.S8B_SLOT_CODEC.slot_id(slot)
+    rows = attempt_registry_core.create_attempt_registry_genesis(
+        profile=profile, slots=[slot], binding=binding,
+    )
+    rows = attempt_registry_core.reserve_attempt_slot(
+        rows, profile=profile, freeze_id=binding.freeze_sha256,
+        slot_id=slot_id, binding=binding,
+        run_start_receipt_sha256="8" * 64,
+        process_identity={
+            "pid": 101, "starttime": "campaign-start",
+            "execution_uuid": "campaign-start-uuid",
+        },
+        started_at="2026-08-25T00:00:00+00:00",
+    )
+    start = next(row for row in rows if row.get("event") == "start")
+    receipt = {
+        "schema_version": (
+            s8b_attempt_profile.S8B_RECOVERY_RECEIPT_SCHEMA_VERSION
+        ),
+        "event": s8b_attempt_profile.S8B_RECOVERY_RECEIPT_EVENT,
+        "source": s8b_attempt_profile.S8B_RECOVERY_RECEIPT_SOURCE,
+        "scheduler_request_id": "campaign-recovery-request",
+        "target_start_event_sha256": start["event_sha256"],
+        "raw_scheduler_accounting_record_sha256": "7" * 64,
+        "authority_id": authority_id,
+        "authority_policy_sha256": authority_policy_sha256,
+        "failure_reason": "node_failure",
+        "collected_at": "2026-08-25T00:00:01+00:00",
+    }
+    rows = attempt_registry_core.record_attempt_recovery(
+        rows, profile=profile, freeze_id=binding.freeze_sha256,
+        slot_id=slot_id, binding=binding,
+        scheduler_accounting_receipt=receipt,
+        recoverer_process_identity={
+            "pid": 202, "starttime": "campaign-recover",
+            "execution_uuid": "campaign-recover-uuid",
+        },
+        recovered_at="2026-08-25T00:00:02+00:00",
+    )
+    relative = s8b_attempt_profile.S8B_REGISTRY_LAYOUT.registry_path.as_posix().format(
+        freeze_sha256=binding.freeze_sha256,
+    )
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+    path = shared.joinpath(*Path(relative).parts)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"".join(
+        attempt_registry_core.canonical_json_bytes(row) + b"\n" for row in rows
+    ))
+    return path
+
+
+def test_cut6_replay_rejects_truthy_non_bool_verdict():
+    runner = object.__new__(s8b_floor_campaign._Runner)  # noqa: SLF001
+    runner.holdout_admissions = {"cell": object()}
+    runner.cut6_replay_query_fn = (
+        lambda _admission, *, attempt_id: "approved"
+    )
+    replayed = []
+    runner._run_session = lambda **kwargs: replayed.append(kwargs)  # noqa: SLF001
+    start = {
+        "seq": 0, "round": 1, "cell_id": "cell", "kind": "planned",
+        "retry_ordinal": None, "trigger": None, "attempt_id": "cell::seq0",
+    }
+
+    with pytest.raises(
+        s8b_floor_campaign.CampaignAbort,
+        match="cut-6 replay admission returned an invalid verdict",
+    ):
+        runner._replay_cut6_start(start)  # noqa: SLF001
+    assert replayed == []
+
+
+def test_resume_runner_produces_one_retry_from_admission_selected_recovery(
+    tmp_path, monkeypatch,
+):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    build_root = tmp_path / "bin"
+
+    class Cut10Crash(BaseException):
+        pass
+
+    def crash_after_observation_admission(*_args):
+        raise Cut10Crash("fixture: cut10 recovered attempt")
+
+    with pytest.raises(Cut10Crash, match="cut10"):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=build_root,
+            measure_fn=crash_after_observation_admission,
+            probe_fn=lambda: (1, "", ""),
+        )
+
+    run_dir = _only_run_dir(out_root)
+    before = _read_journal_lines(run_dir / "journal.jsonl")
+    planned_start = next(
+        row for row in before if row.get("event") == "session-start"
+    )
+    campaign_start = next(
+        row for row in before if row.get("event") == "campaign-start"
+    )
+    manifest = json.loads((run_dir / "manifest.json").read_bytes())
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    _write_verified_campaign_recovery_registry(
+        authority=authority, protocol=protocol, schedule=manifest["schedule"],
+        protocol_sha256=campaign_start["protocol_sha256"],
+        trigger_start=planned_start,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._holdout_admission,
+        "_FLOOR_RECOVERY_AUTHORITIES",
+        frozenset({_FLOOR_TEST_RECOVERY_AUTHORITY}),
+    )
+
+    original_append = s8b_floor_campaign._holdout_admission._append_ledger
+
+    def crash_retry_after_marker(path, rows):
+        if (
+            path.name == "attempt-ledger.jsonl"
+            and any(str(row.get("attempt_id", "")).endswith("::retry1") for row in rows)
+        ):
+            raise Cut10Crash("fixture: retry cut6 after consumed marker")
+        return original_append(path, rows)
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            s8b_floor_campaign._holdout_admission,
+            "_append_ledger", crash_retry_after_marker,
+        )
+        with pytest.raises(Cut10Crash, match="retry cut6"):
+            _run_campaign(
+                protocol, verified, out_root=out_root, build_root=build_root,
+                resume_dir=run_dir,
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+                ),
+                probe_fn=lambda: (1, "", ""),
+            )
+
+    cut6_records = _read_journal_lines(run_dir / "journal.jsonl")
+    retry_start = next(
+        row for row in cut6_records
+        if row.get("event") == "session-start" and row.get("kind") == "retry"
+    )
+    assert retry_start["trigger"] == planned_start["attempt_id"]
+    assert not any(
+        row.get("event") == "session"
+        and row.get("attempt_id") == retry_start["attempt_id"]
+        for row in cut6_records
+    )
+
+    resumed_measure = _make_measure_fn(
+        reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+    )
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root, build_root=build_root,
+        resume_dir=run_dir, measure_fn=resumed_measure,
+        probe_fn=lambda: (1, "", ""),
+    )
+
+    assert outcome["status"] == "completed"
+    after = _read_journal_lines(run_dir / "journal.jsonl")
+    retry_starts = [
+        row for row in after
+        if row.get("event") == "session-start" and row.get("kind") == "retry"
+    ]
+    retry_sessions = [
+        row for row in after
+        if row.get("event") == "session" and row.get("kind") == "retry"
+    ]
+    assert [(row["retry_ordinal"], row["trigger"]) for row in retry_starts] == [
+        (1, planned_start["attempt_id"]),
+    ]
+    assert [row["attempt_id"] for row in retry_sessions] == [
+        retry_start["attempt_id"],
+    ]
+    assert (run_dir / "result.json").is_file()
+    assert (run_dir / "result.md").is_file()
+    inspection = _live_holdout_admission_for_outcome(
+        protocol=protocol, freeze_doc=verified,
+        out_root=out_root, outcome=outcome,
+    )
+    assert inspection["attempt_row_count"] == len(outcome["result"]["sessions"]) + 1
+
+
+def test_verified_recovery_emits_only_one_invalid_retry_ordinal(tmp_path):
+    built = _honest_portable_built_record(
+        tmp_path, configuration_id="sort_best",
+    )
+    runtime = copy.deepcopy(built["cell"])
+    runtime["binary"] = str((tmp_path / "honest-portable.bin").resolve())
+    runtime["store_path"] = str(
+        (tmp_path / "store" / runtime["binary_sha256"]).resolve()
+    )
+    runtime["_ccbench_root"] = str((tmp_path / "ccbench").resolve())
+    planned_id = "cell::seq0"
+    records = [
+        {"event": "campaign-start"},
+        {"event": "round-start", "round": 1},
+        {
+            "event": "session-start", "seq": 0, "round": 1,
+            "kind": "planned", "retry_ordinal": None,
+            "cell_id": "cell", "attempt_id": planned_id, "trigger": None,
+        },
+    ]
+    runner = _live_admission_runner(
+        tmp_path, runtime=runtime, built=built,
+        schedule=[{"seq": 0, "round": 1, "cell_id": "cell"}],
+        records=records,
+        cut6_replay_query_fn=lambda _admission, *, attempt_id: False,
+        retry_trigger_query_fn=lambda _admission, *, round_no: (
+            s8b_floor_campaign._holdout_admission.FloorRetryAuthorization(
+                trigger_attempt_id=planned_id,
+                source="verified-registry-recovery",
+            )
+        ),
+    )
+    runner.run()
+
+    retry_starts = [
+        row for row in runner.records
+        if row.get("event") == "session-start" and row.get("kind") == "retry"
+    ]
+    retry_sessions = [
+        row for row in runner.records
+        if row.get("event") == "session" and row.get("kind") == "retry"
+    ]
+    assert [row["retry_ordinal"] for row in retry_starts] == [1]
+    assert len(retry_sessions) == 1
+    assert retry_sessions[0]["valid"] is False
 
 
 @pytest.mark.parametrize("runtime_view", ["fresh", "resolved"])
