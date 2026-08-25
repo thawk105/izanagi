@@ -50,6 +50,10 @@ def test_projection_matches_independent_fixture_and_hashes_full_raw_receipt():
 
 def test_validator_accepts_exact_projection_and_binds_all_identity_fields():
     projected = _project()
+    assert projected["schema"] == "s8b-sort-swo-pass-receipt/v2"
+    assert projected["dependency_manifest_sha256"] == (
+        receipt.DEPENDENCY_MANIFEST_SHA256
+    )
     assert receipt.validate_portable_sort_swo_pass_receipt(
         projected,
         expected_cell_id=_IDENTITY["cell_id"],
@@ -73,6 +77,20 @@ def test_validator_accepts_exact_projection_and_binds_all_identity_fields():
         "project_sort_swo_pass_attempt",
         "validate_portable_sort_swo_pass_receipt",
     )
+
+
+def test_validator_rejects_dependency_manifest_transplant():
+    projected = _project()
+    projected["dependency_manifest_sha256"] = "0" * 64
+    with pytest.raises(receipt.SortSwoReceiptError, match="dependency_manifest"):
+        receipt.validate_portable_sort_swo_pass_receipt(
+            projected,
+            expected_cell_id=_IDENTITY["cell_id"],
+            expected_holdout_id=_IDENTITY["holdout_id"],
+            expected_configuration_id=_IDENTITY["configuration_id"],
+            expected_entry_sha256=_ENTRY_SHA,
+            expected_binary_sha256=_BINARY_SHA,
+        )
 
 
 @pytest.mark.parametrize(

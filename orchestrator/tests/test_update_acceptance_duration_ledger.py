@@ -325,6 +325,39 @@ def test_g7e_checked_in_ledger_has_valid_schema_and_finite_durations() -> None:
     )
 
 
+def test_t1574_changed_suite_ledger_node_delta_is_exact() -> None:
+    payload = json.loads(
+        Path(__file__).with_name("acceptance_duration_ledger.json").read_text(
+            encoding="ascii"
+        )
+    )
+    durations = payload["duration_seconds_by_nodeid"]
+    removed = {
+        "orchestrator/tests/test_critic.py::test_current_loader_rejects_non_exact_oracle_contract_ids[sort-swo-v3-corpus1-protocol2-checker2-grammar1-x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe-suffix]",
+        "orchestrator/tests/test_critic.py::test_current_loader_rejects_non_exact_oracle_contract_ids[sort-swo-v4-corpus1-protocol2-checker2-grammar1-x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe]",
+        r"orchestrator/tests/test_critic.py::test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering[mutation-\u5168 field snapshot \u304c\u5909\u5316]",
+        r"orchestrator/tests/test_critic.py::test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering[protocol-\u56fa\u5b9a\u9577 protocol \u306e\u7570\u5e38]",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+    }
+    added = {
+        "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing": 5.89,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices[equivalence-transitive]": 5.88,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning": 5.81,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness": 5.8,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding@real-repo": 0.19,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_one_byte_change": 0.12,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_unregistered_fixture_file": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_parent_reference": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_symlink_outside_fixture": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_header_removed_from_manifest": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_masstree_manifest_rejects_missing_fixture_file": 0.11,
+        "orchestrator/tests/test_sort_swo_oracle.py::test_resolver_config_h_missing_is_exact_failure_not_skip": 0.11,
+    }
+    assert removed.isdisjoint(durations)
+    assert {node: durations.get(node) for node in added} == added
+    assert payload["nodeid_count"] == 14_457 - len(removed) + len(added)
+
+
 def test_g7f_coverage_reports_complete_and_missing_nodeids(
     join_repo: Path,
     tmp_path: Path,

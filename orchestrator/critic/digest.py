@@ -49,6 +49,8 @@ from orchestrator.campaign.model import (                          # noqa: E402
 from orchestrator.campaign.sort_swo_oracle import (                # noqa: E402
     CORPORA as ORACLE_CORPORA,
     CORPUS_ID,
+    CORPUS_VERSION,
+    DEPENDENCY_MANIFEST_SHA256,
     N as ORACLE_N,
     ORACLE_CONTRACT_ID,
     ORDERS as ORACLE_ORDERS,
@@ -199,7 +201,13 @@ DIFF_QUARANTINE_EVIDENCE_INVALID = "diff-quarantine-evidence-invalid"
 ORACLE_CONTRACT_INVALID = "oracle-contract-invalid"
 
 ORACLE_CONTRACT_GENERATION_CURRENT = "current"
+ORACLE_CONTRACT_GENERATION_LEGACY_V3 = "legacy-v3-read-only"
 ORACLE_CONTRACT_GENERATION_LEGACY_V2 = "legacy-v2-read-only"
+_LEGACY_ORACLE_CONTRACT_ID_V3 = (
+    "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
+    "x67c3a5d76f3b1604c57d33ab7d0af15f4aaafa896b4810d7c3c95d812d48faa0-"
+    "c436a66d9d5d5-tud1a5e422e226-f7ad0ac262561-a215b718a5bfe"
+)
 _LEGACY_ORACLE_CONTRACT_ID_V2 = (
     "sort-swo-v2-corpus1-protocol2-checker2-grammar1-"
     "c436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253-"
@@ -249,6 +257,7 @@ def _validated_oracle_contract_id(value: object, expected: str) -> str:
 def _rendered_oracle_contract(generation: object, contract_id: object) -> Tuple[str, str]:
     expected = {
         ORACLE_CONTRACT_GENERATION_CURRENT: ORACLE_CONTRACT_ID,
+        ORACLE_CONTRACT_GENERATION_LEGACY_V3: _LEGACY_ORACLE_CONTRACT_ID_V3,
         ORACLE_CONTRACT_GENERATION_LEGACY_V2: _LEGACY_ORACLE_CONTRACT_ID_V2,
     }.get(generation)
     if expected is None:
@@ -309,14 +318,20 @@ _ORACLE_FINDING_EXACT_KEYSETS = {
     }),
     "execution": frozenset({
         _ORACLE_FINDING_BASE_KEYS | {"order_id"},
+        _ORACLE_FINDING_BASE_KEYS | {"order_id", "observations"},
     }),
     "mutation": frozenset({
         _ORACLE_FINDING_BASE_KEYS
         | {"order_id", "input_pairs", "observations"},
+        _ORACLE_FINDING_BASE_KEYS | {"order_id", "observations"},
     }),
     "nondeterministic": frozenset({
         _ORACLE_FINDING_BASE_KEYS
         | {"order_id", "input_pairs", "observations"},
+    }),
+    "protocol": frozenset({
+        _ORACLE_FINDING_BASE_KEYS | {"order_id"},
+        _ORACLE_FINDING_BASE_KEYS | {"order_id", "observations"},
     }),
     "structure": frozenset({_ORACLE_FINDING_BASE_KEYS}),
     "timeout": frozenset({
@@ -339,8 +354,16 @@ _ORACLE_FINDING_REASON_CODES = {
         "candidate-sort-call-contract-violation",
         "candidate-comparator-threw",
         "candidate-sort-not-called",
+        "candidate-comparator-call-count-invalid",
+        "candidate-comparator-aborted",
+        "candidate-sandbox-violation",
+        "candidate-process-signalled",
+        "candidate-observation-write-failed",
     }),
-    "mutation": frozenset({"corpus-mutated-by-comparator"}),
+    "mutation": frozenset({
+        "corpus-mutated-by-comparator",
+        "snapshot-arena-write-denied",
+    }),
     "nondeterministic": frozenset({
         "relation-varies-within-process",
         "relation-varies-across-process-order",
@@ -355,8 +378,13 @@ _ORACLE_FINDING_REASON_CODES = {
         "unbalanced-sort-call",
         "not-a-single-sort-statement",
     }),
+    "protocol": frozenset({
+        "candidate-observation-size-invalid",
+        "candidate-observation-value-invalid",
+    }),
     "timeout": frozenset({
         "candidate-compile-cpu-limit-exceeded",
+        "candidate-run-wall-timeout",
         "candidate-run-cpu-limit-exceeded",
     }),
 }
@@ -372,6 +400,8 @@ _ORACLE_OBSERVATION_POINTS = frozenset({
     "first-pass",
     "second-pass-after-other-pairs",
     "fresh-process",
+    "broker-waitid",
+    "kernel-read-only-arena",
 })
 _ORACLE_OBSERVATION_MAX_ITEMS = 8
 _ORACLE_OBSERVATION_MAX_KEYS = 8
@@ -452,7 +482,16 @@ def _invalid_oracle_finding() -> Dict:
     return {"anomaly_code": _ORACLE_FINDING_ANOMALY_CODE}
 
 
-def _validated_oracle_finding(value: object) -> Dict:
+def _oracle_corpus_ids(corpus_id: str) -> frozenset[str]:
+    return frozenset({
+        corpus_id,
+        *(f"{corpus_id}/corpus-{corpus}" for corpus in ORACLE_CORPORA),
+    })
+
+
+def _validated_oracle_finding(
+    value: object, *, expected_corpus_id: str = CORPUS_ID,
+) -> Dict:
     if not _is_oracle_mapping(value):
         return _invalid_oracle_finding()
     kind = value.get("kind")
@@ -472,7 +511,7 @@ def _validated_oracle_finding(value: object) -> Dict:
             or type(reason) is not str
             or reason not in reason_codes
             or type(corpus_id) is not str
-            or corpus_id not in _ORACLE_CORPUS_IDS):
+            or corpus_id not in _oracle_corpus_ids(expected_corpus_id)):
         return _invalid_oracle_finding()
     order_id = value.get("order_id")
     if (order_id is not None
@@ -513,26 +552,34 @@ def _validated_oracle_finding(value: object) -> Dict:
     return _mutable_oracle_projection(value)
 
 
-_ORACLE_RECEIPT_KEYS = frozenset({
+_LEGACY_ORACLE_RECEIPT_KEYS = frozenset({
     "contract_id", "materialized_hole_sha256", "proposal_sha256",
     "corpus_id", "corpus_version", "compiler_realpath", "compiler_version",
     "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
     "dependency_root_realpath", "dependency_config_sha256",
 })
+_CURRENT_ORACLE_RECEIPT_KEYS = frozenset({
+    *_LEGACY_ORACLE_RECEIPT_KEYS,
+    "dependency_manifest_sha256",
+})
 
 
 def _validated_oracle_receipt(
     value: object, *, contract_id: str, materialized_hash: str, proposal_hash: str,
+    expected_corpus_id: str = CORPUS_ID,
+    expected_corpus_version: int = CORPUS_VERSION,
+    expected_keys: frozenset[str] = _CURRENT_ORACLE_RECEIPT_KEYS,
+    expected_dependency_manifest_sha256: Optional[str] = (
+        DEPENDENCY_MANIFEST_SHA256
+    ),
 ) -> Dict:
-    if not _is_oracle_mapping(value) or frozenset(value) != _ORACLE_RECEIPT_KEYS:
+    if not _is_oracle_mapping(value) or frozenset(value) != expected_keys:
         return {}
     if (value.get("contract_id") != contract_id
             or value.get("materialized_hole_sha256") != materialized_hash
             or value.get("proposal_sha256") != proposal_hash
-            or type(value.get("corpus_id")) is not str
-            or not value["corpus_id"]
-            or type(value.get("corpus_version")) is not int
-            or value["corpus_version"] < 1):
+            or value.get("corpus_id") != expected_corpus_id
+            or value.get("corpus_version") != expected_corpus_version):
         return {}
     for field_name in (
         "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
@@ -540,6 +587,10 @@ def _validated_oracle_receipt(
     ):
         if not _hex64(value.get(field_name)):
             return {}
+    if (expected_dependency_manifest_sha256 is not None
+            and value.get("dependency_manifest_sha256")
+            != expected_dependency_manifest_sha256):
+        return {}
     for field_name in (
         "compiler_realpath", "compiler_version", "dependency_root_realpath",
     ):
@@ -726,6 +777,10 @@ def _load_diff_rejections(
     view: CampaignView,
     *,
     expected_oracle_contract_id: str,
+    expected_oracle_corpus_id: str,
+    expected_oracle_corpus_version: int,
+    expected_oracle_receipt_keys: frozenset[str],
+    expected_dependency_manifest_sha256: Optional[str],
     selected_oracle_contract_generation: str,
     legacy_oracle_only: bool,
 ) -> List[DiffQuarantineRejection]:
@@ -767,7 +822,10 @@ def _load_diff_rejections(
             if subtype != "sort-swo-oracle":
                 oracle_finding = {}
             else:
-                oracle_finding = _validated_oracle_finding(oracle_finding)
+                oracle_finding = _validated_oracle_finding(
+                    oracle_finding,
+                    expected_corpus_id=expected_oracle_corpus_id,
+                )
             materialized_hash = dq.get("materialized_hole_sha256", "")
             proposal_hash = dq.get("proposal_sha256", "")
             materialized_hash = _hex64(materialized_hash)
@@ -782,6 +840,12 @@ def _load_diff_rejections(
                     contract_id=oracle_contract_id,
                     materialized_hash=materialized_hash,
                     proposal_hash=proposal_hash,
+                    expected_corpus_id=expected_oracle_corpus_id,
+                    expected_corpus_version=expected_oracle_corpus_version,
+                    expected_keys=expected_oracle_receipt_keys,
+                    expected_dependency_manifest_sha256=(
+                        expected_dependency_manifest_sha256
+                    ),
                 )
             out.append(DiffQuarantineRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
@@ -811,8 +875,30 @@ def load_diff_rejections(view: CampaignView) -> List[DiffQuarantineRejection]:
     return _load_diff_rejections(
         view,
         expected_oracle_contract_id=ORACLE_CONTRACT_ID,
+        expected_oracle_corpus_id=CORPUS_ID,
+        expected_oracle_corpus_version=CORPUS_VERSION,
+        expected_oracle_receipt_keys=_CURRENT_ORACLE_RECEIPT_KEYS,
+        expected_dependency_manifest_sha256=DEPENDENCY_MANIFEST_SHA256,
         selected_oracle_contract_generation=ORACLE_CONTRACT_GENERATION_CURRENT,
         legacy_oracle_only=False,
+    )
+
+
+def load_legacy_v3_sort_swo_rejections(
+    view: CampaignView,
+) -> List[DiffQuarantineRejection]:
+    """v3 sort-SWO record だけを読む明示的な read-only 低位 API。"""
+    return _load_diff_rejections(
+        view,
+        expected_oracle_contract_id=_LEGACY_ORACLE_CONTRACT_ID_V3,
+        expected_oracle_corpus_id="sort-swo-corpus-v1",
+        expected_oracle_corpus_version=1,
+        expected_oracle_receipt_keys=_LEGACY_ORACLE_RECEIPT_KEYS,
+        expected_dependency_manifest_sha256=None,
+        selected_oracle_contract_generation=(
+            ORACLE_CONTRACT_GENERATION_LEGACY_V3
+        ),
+        legacy_oracle_only=True,
     )
 
 
@@ -823,6 +909,10 @@ def load_legacy_sort_swo_rejections(
     return _load_diff_rejections(
         view,
         expected_oracle_contract_id=_LEGACY_ORACLE_CONTRACT_ID_V2,
+        expected_oracle_corpus_id="sort-swo-corpus-v1",
+        expected_oracle_corpus_version=1,
+        expected_oracle_receipt_keys=_LEGACY_ORACLE_RECEIPT_KEYS,
+        expected_dependency_manifest_sha256=None,
         selected_oracle_contract_generation=ORACLE_CONTRACT_GENERATION_LEGACY_V2,
         legacy_oracle_only=True,
     )
@@ -1270,9 +1360,11 @@ def render_rejections(rejections: List[Rejection],
             elif kind == "timeout":
                 L.append("  読み方: 候補へ機械帰属できる CPU limit 超過。wall timeout ではない。")
             elif kind == "execution":
-                L.append("  読み方: 候補 comparator の例外または sort 呼出し契約違反。")
+                L.append("  読み方: 候補 comparator の例外、abort、sandbox 違反、"
+                         "worker 観測失敗、または sort 呼出し契約違反。")
             elif kind == "protocol":
-                L.append("  読み方: oracle 固定長 protocol の異常。候補 fitness へ帰属しない。")
+                L.append("  読み方: worker observation の長さまたは bool 値が不正。"
+                         "broker handshake / final frame 異常は infrastructure へ分離する。")
             elif kind == "nondeterministic":
                 pairs = finding.get("input_pairs", [])
                 rendered_pairs = [
@@ -1282,7 +1374,7 @@ def render_rejections(rejections: List[Rejection],
                 L.append(f"  不変性違反pair={','.join(rendered_pairs) or '?'}")
                 L.append("  読み方: 同一 process 内の反復または fresh process 間で bool が不一致。")
             elif kind == "mutation":
-                L.append("  読み方: comparator 呼出し前後で corpus の全 field snapshot が変化。")
+                L.append("  読み方: read-only snapshot arena への候補 write を kernel が拒否。")
             else:
                 L.append("  読み方: oracle finding schema が不正または未知。受理判断へ使わない。")
         elif (dq.subtype or "").startswith("auditor-"):

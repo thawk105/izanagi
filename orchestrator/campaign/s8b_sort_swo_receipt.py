@@ -16,6 +16,7 @@ from .sort_swo_oracle import (
     COMPILE_FLAGS_SHA256,
     CORPUS_ID,
     CORPUS_VERSION,
+    DEPENDENCY_MANIFEST_SHA256,
     ORACLE_CONTRACT_ID,
     TU_TEMPLATE_SHA256,
 )
@@ -29,7 +30,7 @@ __all__ = (
 )
 
 
-PORTABLE_SORT_SWO_RECEIPT_SCHEMA = "s8b-sort-swo-pass-receipt/v1"
+PORTABLE_SORT_SWO_RECEIPT_SCHEMA = "s8b-sort-swo-pass-receipt/v2"
 
 _ATTEMPT_KEYS = frozenset({
     "event", "classification", "reason_code", "oracle_contract_id",
@@ -40,6 +41,7 @@ _RAW_RECEIPT_KEYS = frozenset({
     "corpus_version", "compiler_realpath", "compiler_version",
     "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
     "dependency_root_realpath", "dependency_config_sha256",
+    "dependency_manifest_sha256",
 })
 _PORTABLE_KEYS = frozenset({
     "schema", "cell_id", "holdout_id", "configuration_id", "entry_sha256",
@@ -47,7 +49,7 @@ _PORTABLE_KEYS = frozenset({
     "materialized_hole_sha256", "proposal_sha256", "corpus_id",
     "corpus_version", "compiler_version_sha256", "compile_flags_sha256",
     "tu_sha256", "tu_template_sha256", "dependency_config_sha256",
-    "receipt_sha256",
+    "dependency_manifest_sha256", "receipt_sha256",
 })
 _HEX64 = frozenset("0123456789abcdef")
 
@@ -119,10 +121,13 @@ def _validate_fixed_receipt_fields(value: Mapping[str, object]) -> None:
         raise SortSwoReceiptError("compile_flags_sha256 が現行 oracle と不一致")
     if value["tu_template_sha256"] != TU_TEMPLATE_SHA256:
         raise SortSwoReceiptError("tu_template_sha256 が現行 oracle と不一致")
+    if value["dependency_manifest_sha256"] != DEPENDENCY_MANIFEST_SHA256:
+        raise SortSwoReceiptError("dependency_manifest_sha256 が現行 oracle と不一致")
     for key in (
         "materialized_hole_sha256", "proposal_sha256", "compiler_version_sha256",
         "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
-        "dependency_config_sha256", "receipt_sha256",
+        "dependency_config_sha256", "dependency_manifest_sha256",
+        "receipt_sha256",
     ):
         _require_sha256(value[key], key)
 
@@ -169,6 +174,7 @@ def project_sort_swo_pass_attempt(
     for key in (
         "materialized_hole_sha256", "proposal_sha256", "compile_flags_sha256",
         "tu_sha256", "tu_template_sha256", "dependency_config_sha256",
+        "dependency_manifest_sha256",
     ):
         _require_sha256(raw[key], f"oracle_receipt.{key}")
 
@@ -193,6 +199,7 @@ def project_sort_swo_pass_attempt(
         "tu_sha256": raw["tu_sha256"],
         "tu_template_sha256": raw["tu_template_sha256"],
         "dependency_config_sha256": raw["dependency_config_sha256"],
+        "dependency_manifest_sha256": raw["dependency_manifest_sha256"],
         "receipt_sha256": hashlib.sha256(
             _canonical_bytes(_plain_json(raw))
         ).hexdigest(),

@@ -1472,7 +1472,7 @@ def test_public_oracle_domain_aliases_track_contract_inputs():
 
 def test_contract_digest_binds_axiom_checker_source_component():
     assert O._ORACLE_CONTRACT_COMPONENTS_SCHEMA == (
-        "sort-swo-contract-components-v1"
+        "sort-swo-contract-components-v2"
     )
     assert O._ORACLE_CONTRACT_COMPONENTS == {
         "axiom_checker_implementation_sha256": (
@@ -1480,6 +1480,7 @@ def test_contract_digest_binds_axiom_checker_source_component():
         ),
         "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
         "corpus_sha256": O.CORPUS_SHA256,
+        "dependency_manifest_sha256": O.DEPENDENCY_MANIFEST_SHA256,
         "tu_template_sha256": O.TU_TEMPLATE_SHA256,
     }
     assert O.ORACLE_COMPONENTS_SHA256 == O._contract_components_sha256(
@@ -1631,17 +1632,21 @@ def _independent_tu_template_sha256() -> str:
     return digest.hexdigest()
 
 
-def _independent_contract_id(tu_template_sha256: str) -> tuple[str, str]:
+def _independent_contract_id(
+    tu_template_sha256: str,
+    dependency_manifest_sha256: str,
+) -> tuple[str, str]:
     components = {
         "axiom_checker_implementation_sha256": O.AXIOM_CHECKER_IMPLEMENTATION_SHA256,
         "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
         "corpus_sha256": O.CORPUS_SHA256,
+        "dependency_manifest_sha256": dependency_manifest_sha256,
         "tu_template_sha256": tu_template_sha256,
     }
     canonical = json.dumps(
         {
             "components": components,
-            "schema": "sort-swo-contract-components-v1",
+            "schema": "sort-swo-contract-components-v2",
         },
         sort_keys=True, separators=(",", ":"), ensure_ascii=True,
     ).encode("utf-8")
@@ -1659,10 +1664,17 @@ def _independent_contract_id(tu_template_sha256: str) -> tuple[str, str]:
 
 def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
     independent_tu_sha256 = _independent_tu_template_sha256()
+    independent_dependency_manifest_sha256 = hashlib.sha256(
+        (masstree_fixture.FIXTURE_ROOT / masstree_fixture.MANIFEST_NAME).read_bytes()
+    ).hexdigest()
     independent_components_sha256, independent_contract_id = (
-        _independent_contract_id(independent_tu_sha256)
+        _independent_contract_id(
+            independent_tu_sha256,
+            independent_dependency_manifest_sha256,
+        )
     )
     assert independent_tu_sha256 == O.TU_TEMPLATE_SHA256
+    assert independent_dependency_manifest_sha256 == O.DEPENDENCY_MANIFEST_SHA256
     assert independent_components_sha256 == O.ORACLE_COMPONENTS_SHA256
     assert independent_contract_id == O.ORACLE_CONTRACT_ID
     assert O.CORPUS_SHA256 == "7d25fac23469f4bb807bccd4fb97dc7a6fbcf34dd5de602ba08bcf7bb70df5eb"
@@ -1670,7 +1682,7 @@ def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
     assert O.COMPILE_FLAGS_SHA256 == "3caa77f8111ff611183eaec0acfdff11eb75d74c81a3bfec66262674921c3b25"
     assert O.ORACLE_CONTRACT_ID == (
         "sort-swo-v4-corpus2-protocol3-checker3-grammar1-"
-        "xbe306482a8260f34fe0eff9bb8f82feac336901b21d6afed5c35c31ade3c749a-"
+        "x661b3bcd6cbc18ebd5c8c7a10bdb6266b997d1eeb5d74daa5629506c6fd9ffb1-"
         "c7d25fac23469-tue3d38870af10-f3caa77f8111f-ac8ff1160dd51"
     )
     assert (O.CONTRACT_VERSION, O.CORPUS_VERSION, O.PROTOCOL_VERSION,

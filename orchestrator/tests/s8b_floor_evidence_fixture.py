@@ -12,6 +12,7 @@ from orchestrator.campaign.sort_swo_oracle import (
     COMPILE_FLAGS_SHA256,
     CORPUS_ID,
     CORPUS_VERSION,
+    DEPENDENCY_MANIFEST_SHA256,
     ORACLE_CONTRACT_ID,
     TU_TEMPLATE_SHA256,
 )
@@ -50,6 +51,7 @@ def fake_sort_swo_pass_attempt() -> dict[str, object]:
         "dependency_config_sha256": hashlib.sha256(
             b"fixture-dependency-config"
         ).hexdigest(),
+        "dependency_manifest_sha256": DEPENDENCY_MANIFEST_SHA256,
     }
     return {
         "event": "sort-swo-oracle-attempt",
@@ -72,7 +74,7 @@ def expected_portable_sort_swo_pass_receipt(
     raw = attempt["oracle_receipt"]
     assert isinstance(raw, dict)
     return {
-        "schema": "s8b-sort-swo-pass-receipt/v1",
+        "schema": "s8b-sort-swo-pass-receipt/v2",
         "cell_id": cell_id,
         "holdout_id": holdout_id,
         "configuration_id": configuration_id,
@@ -92,6 +94,7 @@ def expected_portable_sort_swo_pass_receipt(
         "tu_sha256": raw["tu_sha256"],
         "tu_template_sha256": raw["tu_template_sha256"],
         "dependency_config_sha256": raw["dependency_config_sha256"],
+        "dependency_manifest_sha256": raw["dependency_manifest_sha256"],
         "receipt_sha256": hashlib.sha256(canonical_json_bytes(raw)).hexdigest(),
     }
 

@@ -66,6 +66,7 @@ from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection
                            Rejection, VerifyAbortSignal,
                            _validated_oracle_finding,
                            build_digest, load_diff_rejections,
+                           load_legacy_v3_sort_swo_rejections,
                            load_legacy_sort_swo_rejections,
                            load_liveness_rejections, load_rejections,
                            load_screen_rejections, load_verify_abort_signals,
@@ -91,8 +92,13 @@ _INVALID_ORACLE_FINDING = {
     "anomaly_code": "sort-swo-oracle-finding-schema-invalid",
 }
 
-# Producer 定数を参照しない独立 golden。current は現行 snapshot、v2 は履歴 snapshot。
+# Producer 定数を参照しない独立 golden。current と v3/v2 履歴を固定する。
 _CURRENT_ORACLE_CONTRACT_ID_GOLDEN = (
+    "sort-swo-v4-corpus2-protocol3-checker3-grammar1-"
+    "x661b3bcd6cbc18ebd5c8c7a10bdb6266b997d1eeb5d74daa5629506c6fd9ffb1-"
+    "c7d25fac23469-tue3d38870af10-f3caa77f8111f-ac8ff1160dd51"
+)
+_LEGACY_ORACLE_CONTRACT_ID_V3_GOLDEN = (
     "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
     "x67c3a5d76f3b1604c57d33ab7d0af15f4aaafa896b4810d7c3c95d812d48faa0-"
     "c436a66d9d5d5-tud1a5e422e226-f7ad0ac262561-a215b718a5bfe"
@@ -142,11 +148,12 @@ def _valid_oracle_findings():
         },
         "mutation": {
             "kind": "mutation",
-            "reason_code": "corpus-mutated-by-comparator",
+            "reason_code": "snapshot-arena-write-denied",
             "corpus_id": corpus,
             "order_id": 1,
-            "input_pairs": [pair],
-            "observations": [{"point": "after-call", "changed": True}],
+            "observations": [
+                {"point": "kernel-read-only-arena", "write_denied": True},
+            ],
         },
         "nondeterministic": {
             "kind": "nondeterministic",
@@ -174,6 +181,12 @@ def _valid_oracle_findings():
             "reason_code": "materialized-marker-invalid",
             "corpus_id": CORPUS_ID,
         },
+        "protocol": {
+            "kind": "protocol",
+            "reason_code": "candidate-observation-value-invalid",
+            "corpus_id": corpus,
+            "order_id": 1,
+        },
         "timeout": {
             "kind": "timeout",
             "reason_code": "candidate-compile-cpu-limit-exceeded",
@@ -189,33 +202,74 @@ def _producer_record(
     repeat_pair: tuple[int, int] | None = None,
     repeat_values: int = 0,
 ) -> bytes:
-    mutation_lhs, mutation_rhs = (
-        mutation_pair
-        if mutation_pair is not None
-        else (sort_swo_oracle._WITNESS_NONE,) * 2
-    )
-    repeat_lhs, repeat_rhs = (
-        repeat_pair
-        if repeat_pair is not None
-        else (sort_swo_oracle._WITNESS_NONE,) * 2
-    )
+    outcome = sort_swo_oracle._BROKER_OUTCOME_OK
+    detail = sort_swo_oracle._BROKER_DETAIL_OK
+    witness_lhs = witness_rhs = sort_swo_oracle._WITNESS_NONE
+    detail_value = 0
+    if mutation_pair is not None:
+        outcome = sort_swo_oracle._BROKER_OUTCOME_REJECT
+        detail = sort_swo_oracle._BROKER_DETAIL_ARENA_WRITE
+    elif repeat_pair is not None:
+        outcome = sort_swo_oracle._BROKER_OUTCOME_REJECT
+        detail = sort_swo_oracle._BROKER_DETAIL_REPEAT
+        witness_lhs, witness_rhs = repeat_pair
+        detail_value = repeat_values
     return sort_swo_oracle._HEADER.pack(
         sort_swo_oracle._MAGIC,
         sort_swo_oracle.PROTOCOL_VERSION,
         corpus,
         order,
         sort_swo_oracle.N,
-        mutation_lhs,
-        mutation_rhs,
-        repeat_lhs,
-        repeat_rhs,
-        repeat_values,
+        outcome,
+        detail,
+        witness_lhs,
+        witness_rhs,
+        detail_value,
     ) + bytes(sort_swo_oracle.N * sort_swo_oracle.N)
 
 
 def _run_matrix_record(monkeypatch, record: bytes, *, corpus: int, order: int):
+    class _Authority:
+        def __init__(self):
+            self._replies = iter((
+                b'R:{"fd_identities":[[1,2,49152]],"pid":12345}',
+                b"V",
+            ))
+
+        def settimeout(self, _timeout):
+            pass
+
+        def recv(self, _size):
+            return next(self._replies)
+
+        def sendmsg(self, *_args):
+            return 1
+
+        def send(self, payload):
+            return len(payload)
+
+        def close(self):
+            pass
+
+    class _BrokerAuthority:
+        def fileno(self):
+            return 42
+
+        def close(self):
+            pass
+
+    class _Process:
+        pid = 12344
+
+        def communicate(self, *args, **kwargs):
+            return b"", b""
+
     monkeypatch.setattr(
-        sort_swo_oracle.subprocess, "Popen", lambda *args, **kwargs: object(),
+        sort_swo_oracle.socket, "socketpair",
+        lambda *args, **kwargs: (_Authority(), _BrokerAuthority()),
+    )
+    monkeypatch.setattr(
+        sort_swo_oracle.subprocess, "Popen", lambda *args, **kwargs: _Process(),
     )
     monkeypatch.setattr(
         sort_swo_oracle, "_communicate_hard_timeout",
@@ -423,13 +477,19 @@ def _attempt_event(
         wal.log(lay, variant, stage, _ENV_CONTRACT.env_tag, event_payload)
 
 
-def _oracle_receipt(contract_id: str, materialized_hash: str, proposal_hash: str) -> dict:
-    return {
+def _oracle_receipt(
+    contract_id: str,
+    materialized_hash: str,
+    proposal_hash: str,
+    *,
+    corpus_version: int = 1,
+) -> dict:
+    receipt = {
         "contract_id": contract_id,
         "materialized_hole_sha256": materialized_hash,
         "proposal_sha256": proposal_hash,
-        "corpus_id": "sort-swo-corpus-v1",
-        "corpus_version": 1,
+        "corpus_id": f"sort-swo-corpus-v{corpus_version}",
+        "corpus_version": corpus_version,
         "compiler_realpath": "/usr/bin/c++",
         "compiler_version": "fixture-c++ 1.0",
         "compile_flags_sha256": "c" * 64,
@@ -438,16 +498,30 @@ def _oracle_receipt(contract_id: str, materialized_hash: str, proposal_hash: str
         "dependency_root_realpath": "/fixture/dependency-root",
         "dependency_config_sha256": "f" * 64,
     }
+    if corpus_version == 2:
+        receipt["dependency_manifest_sha256"] = (
+            sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+        )
+    return receipt
 
 
 def _write_oracle_rejection(
-    lay: CampaignLayout, contract_id: object, *, reason: object = "swo-asymmetric",
+    lay: CampaignLayout,
+    contract_id: object,
+    *,
+    reason: object = "swo-asymmetric",
+    corpus_version: int = 1,
 ) -> None:
     attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="swo")
     materialized_hash = "a" * 64
     proposal_hash = "b" * 64
     receipt = (
-        _oracle_receipt(contract_id, materialized_hash, proposal_hash)
+        _oracle_receipt(
+            contract_id,
+            materialized_hash,
+            proposal_hash,
+            corpus_version=corpus_version,
+        )
         if type(contract_id) is str else {}
     )
     _attempt_event(lay, attempt, STAGE_ABORT, {
@@ -455,7 +529,10 @@ def _write_oracle_rejection(
         "diff_quarantine": {
             "subtype": "sort-swo-oracle",
             "reason": reason,
-            "oracle_finding": _valid_oracle_findings()["axiom"],
+            "oracle_finding": {
+                **_valid_oracle_findings()["axiom"],
+                "corpus_id": f"sort-swo-corpus-v{corpus_version}/corpus-0",
+            },
             "materialized_hole_sha256": materialized_hash,
             "proposal_sha256": proposal_hash,
             "oracle_contract_id": contract_id,
@@ -470,6 +547,7 @@ def _write_oracle_rejection(
     load_liveness_rejections,
     load_screen_rejections,
     load_diff_rejections,
+    load_legacy_v3_sort_swo_rejections,
     load_legacy_sort_swo_rejections,
     load_verify_abort_signals,
 ])
@@ -1447,12 +1525,50 @@ def test_oracle_finding_rejects_non_canonical_corpus_id():
 
 
 def test_oracle_finding_rejects_protocol_kind():
+    # Final-frame and broker handshake failures are infrastructure details,
+    # not candidate observation findings.
     finding = {
         "kind": "protocol",
         "reason_code": "record-size-mismatch",
         "corpus_id": CORPUS_ID,
     }
     assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+@pytest.mark.parametrize(
+    ("kind", "reason_code", "with_observation"),
+    [
+        ("mutation", "snapshot-arena-write-denied", True),
+        ("execution", "candidate-sort-call-contract-violation", False),
+        ("execution", "candidate-comparator-threw", True),
+        ("execution", "candidate-comparator-call-count-invalid", True),
+        ("execution", "candidate-comparator-aborted", False),
+        ("execution", "candidate-sandbox-violation", False),
+        ("execution", "candidate-process-signalled", True),
+        ("execution", "candidate-observation-write-failed", True),
+        ("protocol", "candidate-observation-size-invalid", True),
+        ("protocol", "candidate-observation-value-invalid", False),
+        ("timeout", "candidate-run-wall-timeout", False),
+        ("timeout", "candidate-run-cpu-limit-exceeded", False),
+    ],
+)
+def test_oracle_finding_accepts_cs2_producer_reason_codes(
+        kind, reason_code, with_observation):
+    finding = {
+        "kind": kind,
+        "reason_code": reason_code,
+        "corpus_id": f"{CORPUS_ID}/corpus-0",
+        "order_id": 0,
+    }
+    if kind == "mutation":
+        finding["observations"] = [
+            {"point": "kernel-read-only-arena", "write_denied": True},
+        ]
+    elif with_observation:
+        finding["observations"] = [
+            {"point": "broker-waitid", "status": 75},
+        ]
+    assert _validated_oracle_finding(finding) == finding
 
 
 _PRODUCER_DOMAIN_CASES = [
@@ -1582,9 +1698,9 @@ def test_invalid_oracle_finding_renders_only_fixed_anomaly_code():
         ("compile", "候補 TU の compile が失敗"),
         ("timeout", "CPU limit 超過"),
         ("execution", "候補 comparator の例外"),
-        ("protocol", "固定長 protocol の異常"),
+        ("protocol", "worker observation の長さまたは bool 値が不正"),
         ("nondeterministic", "fresh process 間で bool が不一致"),
-        ("mutation", "全 field snapshot が変化"),
+        ("mutation", "read-only snapshot arena への候補 write を kernel が拒否"),
     ],
 )
 def test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering(kind, expected):
@@ -1655,7 +1771,7 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
     finding = {
         "kind": "axiom",
         "reason_code": "swo-asymmetric",
-        "corpus_id": "sort-swo-corpus-v1/corpus-1",
+        "corpus_id": "sort-swo-corpus-v2/corpus-1",
         "order_id": 2,
         "counterexample": {
             "axiom": "asymmetric",
@@ -1669,8 +1785,8 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
         "contract_id": _CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
         "materialized_hole_sha256": materialized_hash,
         "proposal_sha256": proposal_hash,
-        "corpus_id": "sort-swo-corpus-v1",
-        "corpus_version": 1,
+        "corpus_id": "sort-swo-corpus-v2",
+        "corpus_version": 2,
         "compiler_realpath": "/usr/bin/c++",
         "compiler_version": "fixture-c++ 1.0",
         "compile_flags_sha256": "c" * 64,
@@ -1678,6 +1794,9 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
         "tu_template_sha256": "e" * 64,
         "dependency_root_realpath": "/fixture/dependency-root",
         "dependency_config_sha256": "f" * 64,
+        "dependency_manifest_sha256": (
+            sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+        ),
     }
     _attempt_event(lay, attempt, STAGE_ABORT, {
         "reason": "diff-quarantine",
@@ -1715,7 +1834,8 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
 @pytest.mark.parametrize("contract_id", [
     "sort-swo-",
     _CURRENT_ORACLE_CONTRACT_ID_GOLDEN + "-suffix",
-    _CURRENT_ORACLE_CONTRACT_ID_GOLDEN.replace("sort-swo-v3", "sort-swo-v4", 1),
+    _CURRENT_ORACLE_CONTRACT_ID_GOLDEN.replace("sort-swo-v4", "sort-swo-v3", 1),
+    _LEGACY_ORACLE_CONTRACT_ID_V3_GOLDEN,
     _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN,
     "",
     None,
@@ -1758,6 +1878,47 @@ def test_legacy_v2_contract_is_not_accepted_by_current_loader():
         load_diff_rejections(_view(lay))
 
 
+def test_current_v4_and_legacy_v3_v2_loaders_are_generation_exact():
+    fixtures = (
+        (
+            _CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
+            2,
+            load_diff_rejections,
+            "current",
+        ),
+        (
+            _LEGACY_ORACLE_CONTRACT_ID_V3_GOLDEN,
+            1,
+            load_legacy_v3_sort_swo_rejections,
+            "legacy-v3-read-only",
+        ),
+        (
+            _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN,
+            1,
+            load_legacy_sort_swo_rejections,
+            "legacy-v2-read-only",
+        ),
+    )
+    for contract_id, corpus_version, selected_loader, generation in fixtures:
+        lay = _tmp_layout()
+        _write_oracle_rejection(
+            lay, contract_id, corpus_version=corpus_version,
+        )
+        view = _view(lay)
+        loaded = selected_loader(view)
+        assert len(loaded) == 1
+        assert loaded[0].oracle_contract_id == contract_id
+        assert loaded[0].oracle_contract_generation == generation
+        assert loaded[0].oracle_receipt["corpus_version"] == corpus_version
+        for other_loader in {
+            load_diff_rejections,
+            load_legacy_v3_sort_swo_rejections,
+            load_legacy_sort_swo_rejections,
+        } - {selected_loader}:
+            with pytest.raises(critic_digest.OracleContractIdMismatch):
+                other_loader(view)
+
+
 def test_legacy_v2_loader_projects_realistic_record_read_only():
     lay = _tmp_layout()
     _write_oracle_rejection(lay, _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN)
@@ -1769,7 +1930,10 @@ def test_legacy_v2_loader_projects_realistic_record_read_only():
     assert loaded[0].oracle_contract_id == _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN
     assert loaded[0].oracle_contract_generation == "legacy-v2-read-only"
     assert loaded[0].oracle_receipt["contract_id"] == _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN
-    assert loaded[0].oracle_finding == _valid_oracle_findings()["axiom"]
+    assert loaded[0].oracle_finding == {
+        **_valid_oracle_findings()["axiom"],
+        "corpus_id": "sort-swo-corpus-v1/corpus-0",
+    }
 
 
 def test_non_oracle_diff_rejection_keeps_current_acceptance_without_contract_id():

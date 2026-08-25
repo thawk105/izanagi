@@ -74,6 +74,12 @@ N = _N
 ORDERS = _ORDERS
 CORPORA = _CORPORA
 CORPUS_ID = f"sort-swo-corpus-v{CORPUS_VERSION}"
+# SHA-256 of the canonical CS-1 fixture's SHA256SUMS bytes.  The contract
+# binds the dependency file-set declaration itself; receipts carry that pinned
+# component alongside the machine-local dependency root and config hash.
+DEPENDENCY_MANIFEST_SHA256 = (
+    "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+)
 INFRASTRUCTURE_REASON_CODE = "sort-swo-oracle-infrastructure-unavailable"
 _TRUSTED_CONTROL_STATEMENT = (
     "sort(write_set_.begin(), write_set_.end(), "
@@ -207,6 +213,7 @@ class OracleReceipt:
     tu_template_sha256: str
     dependency_root_realpath: str
     dependency_config_sha256: str
+    dependency_manifest_sha256: str = DEPENDENCY_MANIFEST_SHA256
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -222,6 +229,7 @@ class OracleReceipt:
             "tu_template_sha256": self.tu_template_sha256,
             "dependency_root_realpath": self.dependency_root_realpath,
             "dependency_config_sha256": self.dependency_config_sha256,
+            "dependency_manifest_sha256": self.dependency_manifest_sha256,
         }
 
 
@@ -392,7 +400,9 @@ class SortSwoOracleResult:
                 or self.receipt.corpus_id != CORPUS_ID
                 or self.receipt.corpus_version != CORPUS_VERSION
                 or self.receipt.compile_flags_sha256 != COMPILE_FLAGS_SHA256
-                or self.receipt.tu_template_sha256 != TU_TEMPLATE_SHA256):
+                or self.receipt.tu_template_sha256 != TU_TEMPLATE_SHA256
+                or self.receipt.dependency_manifest_sha256
+                != DEPENDENCY_MANIFEST_SHA256):
             raise ValueError("oracle receipt/result binding mismatch")
         if self.status is OracleStatus.PASS and (
                 self.finding is not None or self.receipt is None
@@ -2081,11 +2091,12 @@ AXIOM_CHECKER_IMPLEMENTATION_SHA256 = _source_bundle_sha256(
     orders=_ORDERS,
     corpora=_CORPORA,
 )
-_ORACLE_CONTRACT_COMPONENTS_SCHEMA = "sort-swo-contract-components-v1"
+_ORACLE_CONTRACT_COMPONENTS_SCHEMA = "sort-swo-contract-components-v2"
 _ORACLE_CONTRACT_COMPONENTS = {
     "axiom_checker_implementation_sha256": AXIOM_CHECKER_IMPLEMENTATION_SHA256,
     "compile_flags_sha256": COMPILE_FLAGS_SHA256,
     "corpus_sha256": CORPUS_SHA256,
+    "dependency_manifest_sha256": DEPENDENCY_MANIFEST_SHA256,
     "tu_template_sha256": TU_TEMPLATE_SHA256,
 }
 
@@ -2158,6 +2169,7 @@ def _receipt(
         tu_template_sha256=TU_TEMPLATE_SHA256,
         dependency_root_realpath=os.fspath(environment.dependency_root),
         dependency_config_sha256=_file_sha256(environment.dependency_root / "config.h"),
+        dependency_manifest_sha256=DEPENDENCY_MANIFEST_SHA256,
     )
 
 
@@ -2516,6 +2528,7 @@ __all__ = [
     "AXIOM_CHECKER_IMPLEMENTATION_SHA256", "AXIOM_CHECKER_VERSION",
     "COMPILE_FLAGS_SHA256", "CONTRACT_VERSION",
     "CORPORA", "CORPUS_ID", "CORPUS_SHA256", "CORPUS_VERSION",
+    "DEPENDENCY_MANIFEST_SHA256",
     "GRAMMAR_VERSION", "N", "ORDERS",
     "INFRASTRUCTURE_REASON_CODE", "ORACLE_COMPONENTS_SHA256",
     "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
