@@ -101,7 +101,12 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   親の推奨は (a) — (b)(c) は書き手を列挙し切ることを前提にするが、
   `output/pegasus-dispatch/` (毎 dispatch、本 wave 単独で 17 件) と
   `output/task-runs/reports/` (書き手未特定) が在り列挙は未完了である。
-  ただし (a) は「campaign が `output/` に副作用を残さない」検査の射程を狭めるため、
+  ただし (a) は 1 箇所では閉じない — 走査 helper は
+  `test_s8b_floor_campaign.py:1451` の `_real_output_snapshot()` と
+  `test_s8b_oracle_driver.py:554` の `_t080_output_snapshot()` が独立に 2 つ在り、
+  後者は mtime/ctime まで見るため一時 file の作成削除でも落ちる。
+  除外規則の共通化と、揮発 entry の親 directory の扱いが要る。
+  また (a) は「campaign が `output/` に副作用を残さない」検査の射程を狭めるため、
   どこまでを揮発と認めるかの線引きが要る。受入全走の緑率へ直接効くため P1 とする。
 - {{T:dev-wave-l15-budget-exhausted}} **P2・新規 (ユーザー裁定待ち)**: `docs/dev-wave/**` の
   L1.5 層 unique footprint は残り 21 bytes しかなく、本 wave で実測した手順 1 行 (150 bytes) が
