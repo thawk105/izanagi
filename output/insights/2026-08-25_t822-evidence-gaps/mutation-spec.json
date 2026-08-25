@@ -86,7 +86,12 @@
     {
       "category": "positive",
       "expected_nodes": [
-        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads"
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_missing_layer3_in_complete_build_bundle",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_reports_changed_layer3_snapshot_identity",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_ccbench_commit_mismatch",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_env_tag_mismatch"
       ],
       "expected_status": "KILLED",
       "hang_risk": false,
@@ -100,5 +105,6 @@
       ]
     }
   ],
-  "schema_version": "izanagi-dev-wave-mutation-spec/v1"
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
 }
