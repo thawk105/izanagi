@@ -1056,42 +1056,20 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     preflight = backoff_hole_grammar.validate_backoff_preflight(
         coder.implementation
     )
+    preflight_rejection = None
     if not preflight.accepted and type(coder.implementation) is str:
         value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
         if value_decision.accepted:
-            genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
-                                     "BACKOFF_FIXED": int(coder.value)})
-            if layout is None:
-                layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-            elif do_build and layout.root != exploration_campaign_layout(
-                    str(ident.campaign_id(cfg))).root:
-                raise ValueError(
-                    "build 経路の layout 注入は cfg 由来と一致必須 "
-                    f"(WAL 分裂防止): {layout.root} != cfg 由来"
-                )
-            layout.ensure()
-            ident.ensure_resumable_attempts(
-                cfg, layout, admission_policy=build_context.policy,
-            )
-            res = _backoff_grammar_rejection(
+            preflight_rejection = _backoff_grammar_rejection(
                 preflight, source_rel=SOURCE_REL, marker_id=MARKER_ID,
             )
-            variant = record_diff_reject(
-                layout, genome, coder.implementation, res,
-            )
-            project_whiteboard(state, planner, "rejected")
-            if do_build:
-                log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
-            return {
-                "outcome": "rejected", "variant": variant,
-                "digest": res.digest,
-            }
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
     # type/raw-size preflight は帰属より前、value の無損失整数検査は正本への
     # adapter 経由で帰属より前に走る。materialization と int() は固定上限内・
     # 検証済みの値にしか到達させない。
-    assert_value_literal_consistent(coder)
+    if preflight_rejection is None:
+        assert_value_literal_consistent(coder)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
     if layout is None:
@@ -1108,6 +1086,21 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
     ident.ensure_resumable_attempts(
         cfg, layout, admission_policy=build_context.policy,
     )
+
+    if preflight_rejection is not None:
+        variant = record_diff_reject(
+            layout, genome, coder.implementation, preflight_rejection,
+        )
+        project_whiteboard(state, planner, "rejected")
+        if do_build:
+            log(
+                f"  diff 検疫 reject: {preflight_rejection.subtype} — "
+                f"{preflight_rejection.reason}"
+            )
+        return {
+            "outcome": "rejected", "variant": variant,
+            "digest": preflight_rejection.digest,
+        }
 
     if not do_build:
         # dry-run: 骨格を一時適用せず、骨格入りソースを合成して検疫だけ試す経路は
