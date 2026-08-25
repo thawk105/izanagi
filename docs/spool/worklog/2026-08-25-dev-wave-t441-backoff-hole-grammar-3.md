@@ -109,6 +109,20 @@ title: [T-441] backoff 軸 EVOLVE-BLOCK hole の受理文法 Tier 1 を実装し
 - **取り込みで変異の検出力が増えた。** 同じ変異が落とす node が `t441.m07` で 9 → 20 件、
   `t441.m08` で 5 → 7 件、`t441.p01` で 69 → 86 件。main 側のテストも同じ正本を通るためである。
 
+- **受入全走の 1 回目で赤が 7 件出て、帰属したのは 1 件だけだった。**
+  16490 件中 16423 passed / 60 skipped。帰属した 1 件は
+  `test_p3_exploration_namespace.py::test_driver_ast_supplements_runtime_namespace_gate[p3_s4_loop]`
+  の `assert 8 == 6` で、**同テストは driver ごとに `exploration_campaign_layout` の AST 呼び出し数を
+  契約値として宣言している**。本 wave の F8 (上限超過を例外でなく rejected として記録する回帰修正) が
+  preflight-reject 分岐へ置いた layout 解決が、直後の通常経路と同じ処理を複製していた。
+  **契約値 6 は変えず、複製をやめて共通経路へ寄せた。** F8 の挙動と変異 anchor は不変。
+  残り 6 件 (`test_s8b_floor_campaign.py` 5 / `test_pegasus_dispatch_compute.py` 1) は
+  単独走で 684 passed / 2 skipped と緑になり、本 wave の差分が 1 行も到達しない領域である。
+  名前の見た目ではなく単独再走の実測と assertion 本文で切り分けた。
+- **変異 matrix は最終 commit が変わるたびに回し直した (計 3 回)。** 取り込み後 tip と
+  複製除去後 tip で結果は同一 — baseline PASSED / 12 KILLED / SURVIVED 0 / MISMATCH 1、
+  期待 node も不変で、複製除去が検出力を変えていないことを実測で確認した。
+
 - **段 8 は候補 3 件を裁定し、dev-wave docs への追記は 3 件とも見送った。**
   (1) `DW-O01` の待ち手 argv は `--artifact-file` 必須と `--max-wait-seconds` を書いておらず
   本 wave は rc=2 で 1 回落としたが、tool が rc=2 で usage を自分で出すため
