@@ -120,6 +120,26 @@ class HoldoutAdmissionError(RuntimeError):
     """The fixed authority or durable one-shot admission cannot be proven."""
 
 
+def _neutral_holdouts_from_signatures(
+    signatures: Sequence[MinimalHoldoutSignature],
+) -> dict[str, dict[str, object]]:
+    """Project complete protected conditions without introducing value pins."""
+
+    return {
+        item.freeze_holdout_key: {
+            "candidate_id": item.condition.candidate_id,
+            "records": item.condition.records,
+            "threads": item.condition.threads,
+            "ycsb": {
+                "ycsb_zipf_skew": item.condition.ycsb_zipf_skew,
+                "ycsb_rratio": item.condition.ycsb_rratio,
+                "ycsb_rmw": item.condition.ycsb_rmw,
+            },
+        }
+        for item in signatures
+    }
+
+
 class FloorHoldoutEvidenceError(HoldoutAdmissionError):
     """Read-only floor evidence inspection の構造化された拒否。"""
 
@@ -1254,13 +1274,7 @@ def _reserve_floor_holdout_observations_core(
             "canonical run manifest schedule differs from the frozen schedule"
         )
     signature_by_key = {item.freeze_holdout_key: item for item in signatures}
-    neutral_holdouts = {
-        item.freeze_holdout_key: {
-            "candidate_id": item.freeze_candidate_id,
-            "ycsb": {"ycsb_rratio": item.ycsb_rratio},
-        }
-        for item in signatures
-    }
+    neutral_holdouts = _neutral_holdouts_from_signatures(tuple(signatures))
     retry_slots = fixed_protocol.get("retry_slots_per_cell")
     if type(retry_slots) is not int or retry_slots < 0:
         raise HoldoutAdmissionError("protocol retry_slots_per_cell is invalid")
@@ -1641,13 +1655,7 @@ def reserve_oracle_holdout_observations(
         raise HoldoutAdmissionError("verified oracle block schedule is invalid")
 
     signature_by_key = {item.freeze_holdout_key: item for item in signatures}
-    neutral_holdouts = {
-        item.freeze_holdout_key: {
-            "candidate_id": item.freeze_candidate_id,
-            "ycsb": {"ycsb_rratio": item.ycsb_rratio},
-        }
-        for item in signatures
-    }
+    neutral_holdouts = _neutral_holdouts_from_signatures(tuple(signatures))
     rows_by_cell: dict[tuple[str, str], list[Mapping[str, object]]] = {}
     seen_schedule_indexes: set[int] = set()
     for raw_row in schedule:
@@ -3106,13 +3114,7 @@ def reserve_n_pilot_holdout_observations(
             f"cannot derive n pilot protected signatures: {exc}"
         ) from exc
     signature_by_key = {item.freeze_holdout_key: item for item in signatures}
-    neutral_holdouts = {
-        item.freeze_holdout_key: {
-            "candidate_id": item.freeze_candidate_id,
-            "ycsb": {"ycsb_rratio": item.ycsb_rratio},
-        }
-        for item in signatures
-    }
+    neutral_holdouts = _neutral_holdouts_from_signatures(tuple(signatures))
     holdouts = fixed_freeze.get("holdouts")
     if not isinstance(holdouts, Mapping):
         raise HoldoutAdmissionError("n pilot freeze holdouts are unavailable")
@@ -3584,13 +3586,7 @@ def _consume_n_pilot_r33_attempt_ticket(
             raise HoldoutAdmissionError(
                 f"cannot derive n pilot R33 protected signatures: {exc}"
             ) from exc
-        neutral_holdouts = {
-            item.freeze_holdout_key: {
-                "candidate_id": item.freeze_candidate_id,
-                "ycsb": {"ycsb_rratio": item.ycsb_rratio},
-            }
-            for item in signatures
-        }
+        neutral_holdouts = _neutral_holdouts_from_signatures(tuple(signatures))
         freeze_document = _mutable_json_tree(verified_freeze_document)
         pilot_reps = row.get("reps")
         if type(pilot_reps) is not int or pilot_reps <= 0:

@@ -906,11 +906,124 @@ def _verify_digest_chain(run: Path, _events: list[dict], report: dict) -> None:
     )
 
 
+def _t525_pre_fix_registered_scale_predicate_passes(
+    cell: dict, registered_holdout: dict,
+) -> bool:
+    scale = cell.get("perf_config_scale")
+    return isinstance(scale, dict) and all(
+        scale.get(field) == registered_holdout.get(field)
+        for field in ("records", "threads")
+    )
+
+
 def test_t1311_registered_digest_chain_positive_control(tmp_path) -> None:
     run, events, report, _arm_execution = _registered_digest_chain_trial(
         tmp_path
     )
     _verify_digest_chain(run, events, report)
+
+
+def test_t525_registered_cell_complete_condition_is_lock_independent(
+    tmp_path: Path,
+) -> None:
+    from orchestrator.campaign import trial_registry as registry
+
+    cases = (
+        ("workload_flags", "ycsb_zipf_skew"),
+        ("workload_flags", "ycsb_rmw"),
+        ("perf_config_scale", "records"),
+        ("perf_config_scale", "threads"),
+    )
+    assert cases
+    rejected_count = 0
+    for section, field in cases:
+        case_root = tmp_path / field
+        case_root.mkdir()
+        run, events, report, _arm_execution = _registered_digest_chain_trial(
+            case_root
+        )
+        cell = report["cells"][0]
+        campaign_lock_path = Path(cell["campaign_root"]) / "campaign.lock"
+        campaign_lock_path.unlink()
+        assert report["do_build"] is False
+        assert not campaign_lock_path.exists()
+        _verify_digest_chain(run, events, report)
+
+        original = cell[section][field]
+        cell[section][field] = (
+            f"{original}-different" if isinstance(original, str) else original + 1
+        )
+        binding = report["launch_admission"]["binding"]
+        flags = cell["workload_flags"]
+        registered = registry.HOLDOUT_BINDINGS[binding["holdout"]]
+        assert binding["holdout"] == "H1"
+        assert binding["workload"] == registered["workload"]
+        assert binding["ycsb_rratio"] == registered["ycsb_rratio"]
+        assert report["launch_admission"]["workloads"] == [binding["workload"]]
+        assert cell["workload"] == registered["workload"]
+        assert flags["ycsb_rratio"] == registered["ycsb_rratio"]
+        with pytest.raises(
+            C.AutonomousTrialCompletenessError,
+            match=(
+                rf"^\[arm-digest-chain\] benchmark {section}\.{field} "
+                r"differs from registered holdout$"
+            ),
+        ):
+            _verify_digest_chain(run, events, report)
+        rejected_count += 1
+    assert rejected_count == len(cases)
+    assert rejected_count > 0
+
+
+def test_t525_no_lock_scale_must_match_frozen_descriptor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import trial_registry as registry
+
+    cases = ("records", "threads")
+    assert cases
+    rejected_count = 0
+    frozen_bindings = registry.HOLDOUT_BINDINGS
+    for field in cases:
+        case_root = tmp_path / field
+        case_root.mkdir()
+        run, events, report, _arm_execution = _registered_digest_chain_trial(
+            case_root
+        )
+        cell = report["cells"][0]
+        campaign_lock_path = Path(cell["campaign_root"]) / "campaign.lock"
+        campaign_lock_path.unlink()
+        assert report["do_build"] is False
+        assert not campaign_lock_path.exists()
+        _verify_digest_chain(run, events, report)
+
+        binding = report["launch_admission"]["binding"]
+        tampered_bindings = {
+            holdout: dict(condition)
+            for holdout, condition in frozen_bindings.items()
+        }
+        tampered_value = cell["perf_config_scale"][field] + 1
+        tampered_bindings[binding["holdout"]][field] = tampered_value
+        cell["perf_config_scale"][field] = tampered_value
+        registered = tampered_bindings[binding["holdout"]]
+        assert _t525_pre_fix_registered_scale_predicate_passes(
+            cell, registered,
+        )
+        assert cell["perf_config_scale"] != cell["descriptor"]["scale"]
+
+        with monkeypatch.context() as patch:
+            patch.setattr(registry, "HOLDOUT_BINDINGS", tampered_bindings)
+            with pytest.raises(
+                C.AutonomousTrialCompletenessError,
+                match=(
+                    rf"^\[arm-digest-chain\] benchmark perf_config_scale\.{field} "
+                    r"differs from cell descriptor$"
+                ),
+            ):
+                _verify_digest_chain(run, events, report)
+        rejected_count += 1
+    assert rejected_count == len(cases)
+    assert rejected_count > 0
 
 
 @pytest.mark.parametrize("mutation", ("missing", "extra", "format"))

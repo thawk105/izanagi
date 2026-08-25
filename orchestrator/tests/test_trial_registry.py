@@ -49,6 +49,12 @@ _GATING_SPEC_SHA256 = hashlib.sha256(
 ).hexdigest()
 _REGISTERED_FIXTURE_GENOME = Genome("fixture", {})
 _REGISTERED_FIXTURE_VARIANT = pipeline.variant_id(_REGISTERED_FIXTURE_GENOME)
+_T525_COMPLETE_CONDITION_CASES = (
+    ("workload_flags", "ycsb_zipf_skew"),
+    ("workload_flags", "ycsb_rmw"),
+    ("perf_config_scale", "records"),
+    ("perf_config_scale", "threads"),
+)
 
 
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -65,6 +71,35 @@ def _head(repo: Path) -> str:
     result = _run(repo, "rev-parse", "HEAD")
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()
+
+
+def _t525_condition_cell(trial: R.TrialSpec) -> dict[str, object]:
+    expected = R.HOLDOUT_BINDINGS[trial.holdout]
+    return {
+        "workload": expected["workload"],
+        "workload_flags": {
+            field: expected[field]
+            for field in ("ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw")
+        },
+        "perf_config_scale": {
+            field: expected[field]
+            for field in ("records", "threads")
+        },
+        "campaign_id": trial.campaign_id,
+    }
+
+
+def _t525_legacy_ratio_only_projection_passes(
+    cell: dict[str, object], trial: R.TrialSpec,
+) -> bool:
+    expected = R.HOLDOUT_BINDINGS[trial.holdout]
+    flags = cell.get("workload_flags")
+    return (
+        cell.get("workload") == expected["workload"]
+        and isinstance(flags, dict)
+        and flags.get("ycsb_rratio") == expected["ycsb_rratio"]
+        and cell.get("campaign_id") == trial.campaign_id
+    )
 
 
 def _commit(repo: Path, message: str, *paths: Path) -> str:
@@ -4425,6 +4460,98 @@ def test_m21_terminal_ratio_and_campaign_projection_is_bound(
         report["cells"][0]["campaign_id"] += "-changed"
     _persist(reports[0].parent, events, report)
     with pytest.raises(R.TrialRegistryError, match=r"\[terminal-projection\] report cell differs"):
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+
+
+def test_t525_runtime_cell_rejects_each_complete_condition_drift() -> None:
+    cases = _T525_COMPLETE_CONDITION_CASES
+    assert cases
+    rejected_count = 0
+    trial = R.TrialSpec(
+        trial_id="t525-runtime-h1",
+        arm="on",
+        holdout="H1",
+        campaign_id="t525-runtime-campaign",
+        generations=1,
+    )
+    for section, field in cases:
+        cell = _t525_condition_cell(trial)
+        report = {"cells": [cell]}
+        assert R._assert_runtime_report_cells(report, trial=trial) == [cell]
+        section_value = cell[section]
+        assert isinstance(section_value, dict)
+        original = section_value[field]
+        section_value[field] = (
+            f"{original}-different" if isinstance(original, str) else original + 1
+        )
+        assert _t525_legacy_ratio_only_projection_passes(cell, trial)
+        with pytest.raises(
+            R.TrialRegistryError,
+            match=(
+                r"^\[runtime-cell-set\] runtime cell differs from its trial "
+                rf"projection: {section}\.{field} differs$"
+            ),
+        ):
+            R._assert_runtime_report_cells(report, trial=trial)
+        rejected_count += 1
+    assert rejected_count == len(cases)
+    assert rejected_count > 0
+
+
+def test_t525_holdout_bindings_are_deeply_immutable() -> None:
+    mutations = (
+        (R.HOLDOUT_BINDINGS, "H3", {"workload": "not-a-holdout"}),
+        (R.HOLDOUT_BINDINGS["H1"], "records", 1),
+    )
+    assert mutations
+    rejected_count = 0
+    for mapping, key, value in mutations:
+        with pytest.raises(TypeError):
+            mapping[key] = value
+        rejected_count += 1
+    assert rejected_count == len(mutations)
+    assert rejected_count > 0
+
+
+@pytest.mark.parametrize(
+    ("section", "field"),
+    _T525_COMPLETE_CONDITION_CASES,
+    ids=("skew", "rmw", "records", "threads"),
+)
+def test_t525_terminal_projection_rejects_each_complete_condition_drift(
+    tmp_path: Path, section: str, field: str,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    events, report = _load_report_bundle(reports[0])
+    trial = manifest.trials[0]
+    assert trial.holdout == "H1"
+    cell = report["cells"][0]
+    R._assert_holdout_cell_condition(
+        cell,
+        expected=R.HOLDOUT_BINDINGS[trial.holdout],
+        campaign_id=trial.campaign_id,
+        gate="terminal-projection",
+        message="report cell differs from manifest projection",
+    )
+    original = cell[section][field]
+    cell[section][field] = (
+        f"{original}-different" if isinstance(original, str) else original + 1
+    )
+    assert _t525_legacy_ratio_only_projection_passes(cell, trial)
+    _persist(reports[0].parent, events, report)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=(
+            r"^\[terminal-projection\] report cell differs from manifest "
+            rf"projection: {section}\.{field} differs$"
+        ),
+    ):
         _accept(
             manifest_path=manifest_path,
             report_paths=reports,
