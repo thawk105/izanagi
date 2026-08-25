@@ -6906,6 +6906,9 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (16 model call / 624 秒 / 入力 1.33M token)。**縮約を要さずに通ったので、
   2026-08-25 の「回避できた手段は prompt の縮約だけ」も因果ではない可能性が上がった。**
   read-only 段では launcher 自身の再試行が有効な回避策になる。
+
+- **再発: 2026-08-26** — 段 2 の plan 子が 6 回連続で不採用になった。
+  根本原因は F609 で特定した。以降の調査はそちらを先に読む。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -15755,3 +15758,72 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave はこれを受けて scope を D903 の反映だけに限定し、予約が重なる 3 箇所を触らずに残した。
 - 再発検知: 段 3 / 段 6 の敵対レンズへ「親の実測の走査面が落とすもの」を明示的に探させる
   prompt 節 (本 wave で実際に発火し、この F を生んだ経路そのもの)。
+
+### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
+
+- 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
+  `output/insights/<wave>/` 配下を除去した。実体は親が書いた段 1 brief・段 4 裁定・段 6 裁定で、
+  未追跡だったため git から復元できなかった。job dir の控えから手で戻した。
+- 根本原因: 子 prompt が「`output/` を編集するな」と書いていたが、
+  **子が自分で作った一時物を片付ける動作と、親の成果物を消す動作を区別する記述が無かった。**
+  加えて親が、workspace-write の子を起動する前に自分の成果物を commit していなかった。
+- 恒久対応: 親側の手順を `docs/dev-wave/operations.md` の `DW-O02` へ寄せる
+  (D933)。
+  子 prompt には「`output/insights/` 配下は親の成果物である。一時コピーではない。消すな」を
+  明示的に書く。
+- 再発検知: 変異 harness と受入 preflight が未追跡 file を拒否するため、
+  親が commit を怠ったまま次段へ進むと機械的に止まる (`mutation harness aborted:
+  tracked/index dirt または untracked file があるため停止`)。
+
+### F608. 連鎖する検査を 1 変異で代表させ、他リンクの穴を取り逃しかけた [恒真ゲート]
+
+- 事象: task manifest の digest 連鎖 8 箇所に対して変異を 1 件だけ登録していた。
+  段 6 の敵対レビューが「freeze の 1 リンクしか殺せない」と指摘し、
+  親が consumer ごとに 8 分割して登録し直したところ、
+  **`append-verdicts` と `reveal-mapping` の packet state 検査を外す変異が 588 件緑のまま生存した。**
+  分割しなければ「KILLED 1/1」で通っていた。
+- 根本原因: 同じ helper を呼ぶ検査群を「1 つの機構」と数え、
+  **呼び出し側ごとに独立した防壁であることを勘定に入れていなかった。**
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M01` に従い、
+  連鎖する検査は consumer ごとに登録する (D934)。
+- 再発検知: 変異 matrix の SURVIVED が 0 でなければ land できない。
+  分割前は SURVIVED が出ず、分割後に 2 件出た。分割自体が検出器である。
+
+### F609. codex 子の完成した成果物が U+2028 / U+2029 で全損する [恒真ゲート] [手順漏れ]
+
+- 事象: 段 2 の plan 子が 6 回連続で `evidence_status=invalid` により不採用になった。
+  `codex_exit_code=0`、内容検査 `validator_rc=0`、成果物 17〜24KB が完成していたのに破棄された。
+  完成済み成果物 6 本と約 2 時間を失った。F217 の再発だが、今回は根本原因を特定した。
+- 根本原因: `tools/codex_worker_launch.py` は子の stdout を
+  `orchestrator/codex_roles/events.py` の `parse_jsonl` へ渡す。同関数は bytes を str へ
+  decode したのち **`str.splitlines()`** で分割する。これは改行に加えて U+2028
+  (LINE SEPARATOR) と U+2029 (PARAGRAPH SEPARATOR) でも分割する。この 2 文字は
+  **JSON 文字列内では escape 不要の正当な文字**なので codex は raw のまま出力する。
+  正常な 1 event が途中で切られ `Unterminated string` となり `stdout_invalid` が立つ。
+  この 2 文字は子が repo のソースを読むと `item.completed` event に載る。
+  リテラルで含む tracked file は repo 全体で 2 つあり、**どちらも本 wave の主編集面**
+  だった (`orchestrator/campaign/p3_autonomous_workload_trial.py` の制御文字除去正規表現と、
+  `orchestrator/tests/test_p3_autonomous_workload_trial.py` のその負例)。
+  この 2 file を読む必要のある wave は構造的に全 attempt を失う。
+  全 wave の invalid 率が 1142 attempt 中 25 件 (2%) なのに本 wave が 6/6 で失敗した理由である。
+  失敗した attempt の rollout と stdout を実物で検査すると最終状態はすべて正常であり
+  (改行終端あり、`session_meta` 1 件、`turn_context` 1 件、壊れた行 0 件、byte 数一致)、
+  成果物の欠陥ではないことを確認した。
+- 恒久対応: 未実施。`[T-1774]` として裁定パッケージへ送った。
+  `parse_jsonl` の `text.splitlines()` を `text.split("\n")` へ変えれば構造的に断てる。
+  本 wave で実測した回避策は、該当行を無害化した写しを job dir へ置き、
+  子には repo を読ませず写しを読ませることである (行番号を保てば file:line 引用はそのまま使える)。
+  7 回目の投入で rc=0 になった。
+- 再発検知: 同 T が要求する `text.split("\n")` への変更と、U+2028 / U+2029 を含む
+  event 行を受理することの負例テスト。それまでは本エントリを検索して回避策を適用する。
+
+### F610. 変異走行に自分の作業ツリーを渡すと rc=125 で中止する [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py --source-repo` に wave 自身の worktree を渡したところ、
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で中止した (rc=125)。
+  投入直後に失敗していたが親が完了通知を待っており、約 4 時間の空転を招いた。
+- 根本原因: 作業ツリーは wave 自身の他の処理も触るため、走行前後で観測 bytes が一致しない。
+  `DW-M05` は独自 harness の要件を定めるが `--source-repo` に何を渡すかを書いていない。
+- 恒久対応: 未実施。`[T-1775]` として裁定パッケージへ送った。
+  実測で有効な運用は、固定 commit の独立 clone を作って `--source-repo` に渡すことである。
+- 再発検知: 同 T が要求する `DW-M05` への 1 行追記。それまでは本エントリを検索する。
