@@ -8205,7 +8205,10 @@ def test_verify_replays_complete_fake_codex_experiment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     manifest, run_root = _full_manifest(
-        tmp_path, benchmark_snapshots, monkeypatch
+        tmp_path,
+        benchmark_snapshots,
+        monkeypatch,
+        memoize_construction_snapshots=True,
     )
     result, rc = TOOL.verify_manifest(manifest, run_root)
     assert rc == 0

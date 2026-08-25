@@ -173,15 +173,25 @@ def _check_head_contains_main(repo: Path) -> list[str]:
         )
         return failures
     count = result.stdout
-    if not count or not count.isascii() or not count.isdecimal():
+    if (
+        not count
+        or not count.isascii()
+        or not count.isdecimal()
+        or (count != "0" and count.startswith("0"))
+    ):
         failures.append(
-            "HEAD/local main containment: rev-list の出力が非負の ASCII 整数でない "
+            "HEAD/local main containment: rev-list の出力が canonical な非負の "
+            "ASCII 整数でない "
             f"({_one_line(count)}): git repository を確認する"
         )
     elif count != "0":
         failures.append(
             f"HEAD does not contain local main ({count} commit behind): "
-            "local main を取り込み、clean tree にしてから --mode resume を再実行する"
+            "session 開始時は local main を取り込み、clean tree にしてから "
+            "--mode resume を再実行する; session 開始 gate が成功した後の受入前は "
+            "gate を再実行せず tools/dev_wave_wait.py acceptance の "
+            "post-claim merge に任せる; "
+            "待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）"
         )
     return failures
 
