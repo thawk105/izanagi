@@ -2772,7 +2772,7 @@ def _layer3_admission_diagnosis(
                 break
             cause = cause.__cause__
         if validation_error is None:
-            return degraded
+            return json.loads(_canonical_json_bytes(degraded).decode("utf-8"))
 
         validator = validation_error.validator
         if type(validator) is not str or not validator:
@@ -2803,7 +2803,7 @@ def _layer3_admission_diagnosis(
                 else None
             )
         )
-        return {
+        diagnosis = {
             "schema_version": LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION,
             "status": "validation-error",
             "validator": validator,
@@ -2813,9 +2813,10 @@ def _layer3_admission_diagnosis(
             "offending_property": offending_property,
             "degradation_reason": None,
         }
+        return json.loads(_canonical_json_bytes(diagnosis).decode("utf-8"))
     except Exception:
         degraded["degradation_reason"] = "validation-error-projection-failed"
-        return degraded
+        return json.loads(_canonical_json_bytes(degraded).decode("utf-8"))
 
 
 def _container_validation_offending_property(
@@ -2827,12 +2828,9 @@ def _container_validation_offending_property(
     validator_value = validation_error.validator_value
     if validator == "required" and isinstance(instance, Mapping):
         if isinstance(validator_value, list):
-            missing = [
-                key for key in validator_value
-                if type(key) is str and key not in instance
-            ]
-            if len(missing) == 1:
-                return missing[0]
+            for key in validator_value:
+                if type(key) is str and key not in instance:
+                    return key
     if (
         validator != "additionalProperties"
         or validator_value is not False

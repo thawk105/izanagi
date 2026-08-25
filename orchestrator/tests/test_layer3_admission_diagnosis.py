@@ -47,6 +47,36 @@ def _raise_screening_type_failure(*_args, **_kwargs):
     raise AssertionError("fixture schema unexpectedly accepted invalid screening")
 
 
+def _raise_surrogate_validator_failure(*_args, **_kwargs):
+    cause = ValidationError(
+        "fixture validation error with a non-UTF-8 validator value",
+        validator="const",
+        validator_value="\udcff",
+        path=["screening"],
+        schema_path=["properties", "screening", "const"],
+    )
+    raise L3.Layer3ReportError("layer3 schema 検証に失敗") from cause
+
+
+def _required_failure(required: list[str], instance: dict):
+    def raise_failure(*_args, **_kwargs):
+        schema = {
+            "type": "object",
+            "required": required,
+            "properties": {
+                key: {} for key in required
+            },
+            "additionalProperties": False,
+        }
+        try:
+            Draft7Validator(schema).validate(instance)
+        except ValidationError as cause:
+            raise L3.Layer3ReportError("layer3 schema 検証に失敗") from cause
+        raise AssertionError("fixture schema unexpectedly accepted missing fields")
+
+    return raise_failure
+
+
 def _screening_diagnosis() -> dict:
     try:
         _raise_screening_type_failure()
@@ -71,12 +101,51 @@ def _failure_decision() -> dict:
     }
 
 
+def _install_layer3_failure_trial(
+    tmp_path, monkeypatch, *, render_failure,
+) -> None:
+    output_root = tmp_path / "output"
+    campaign_id = "fixture-layer3-admission-failure"
+    campaign = output_root / "campaigns" / campaign_id
+    (campaign / "reports").mkdir(parents=True)
+    entry = A.resolve_workload_entry("ycsb-a")
+
+    monkeypatch.setattr(
+        A, "_assert_build_site_opted_in", lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(A, "_assert_reservation_preflight", lambda **_k: None)
+    monkeypatch.setattr(
+        A, "_assert_build_transport_admitted", lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(A, "build_run_context", lambda **_k: object())
+    monkeypatch.setattr(A.layer3_report, "render", render_failure)
+    monkeypatch.setattr(
+        C, "require_admitted_campaign", lambda *_a, **_k: object(),
+    )
+
+    def fixture_workload(**kwargs):
+        kwargs["_partial"]["cell"] = {
+            "workload": "ycsb-a",
+            "campaign_id": campaign_id,
+            "campaign_root": str(campaign),
+            "workload_flags": dict(entry["ycsb"]),
+            "generations": [],
+            "stop_reason": "converged",
+            "_pending_critics": [],
+        }
+        raise RuntimeError("fixture supervisor failure before admission")
+
+    monkeypatch.setattr(A, "_run_workload", fixture_workload)
+
+
 def test_validation_error_projection_is_closed_and_names_screening() -> None:
     diagnosis = _screening_diagnosis()
 
     assert set(diagnosis) == _DIAGNOSIS_KEYS
     assert diagnosis == {
-        "schema_version": C.LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION,
+        "schema_version": (
+            "p3-autonomous-workload-trial-layer3-admission-diagnosis/v1"
+        ),
         "status": "validation-error",
         "validator": "type",
         "validator_value": "boolean",
@@ -130,6 +199,62 @@ def test_diagnosis_extraction_is_total_and_degrades(cause_kind) -> None:
         if cause_kind == "unprojectable"
         else "validation-error-cause-not-found"
     )
+    assert C.is_exact_layer3_admission_diagnosis(diagnosis) is True
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        pytest.param("extra-key", id="extra-key"),
+        pytest.param("schema-version", id="schema-version"),
+        pytest.param("status", id="status"),
+        pytest.param("validator", id="validator"),
+        pytest.param("degradation-reason", id="degradation-reason"),
+        pytest.param("path-container", id="path-container"),
+        pytest.param("path-component", id="path-component"),
+        pytest.param("surrogate", id="non-utf8-validator-value"),
+    ],
+)
+def test_layer3_admission_diagnosis_exact_predicate_rejects_mutations(
+    mutation,
+) -> None:
+    diagnosis = _screening_diagnosis()
+    assert C.is_exact_layer3_admission_diagnosis(diagnosis) is True
+
+    if mutation == "extra-key":
+        diagnosis["extra"] = True
+    elif mutation == "schema-version":
+        diagnosis["schema_version"] = "wrong/v1"
+    elif mutation == "status":
+        diagnosis["status"] = "unknown"
+    elif mutation == "validator":
+        diagnosis["validator"] = None
+    elif mutation == "degradation-reason":
+        diagnosis["degradation_reason"] = "unexpected"
+    elif mutation == "path-container":
+        diagnosis["absolute_instance_path"] = ("screening",)
+    elif mutation == "path-component":
+        diagnosis["absolute_schema_path"] = [-1]
+    elif mutation == "surrogate":
+        diagnosis["validator_value"] = "\udcff"
+    else:  # pragma: no cover - parametrization is closed above
+        raise AssertionError(f"unknown mutation: {mutation}")
+
+    assert C.is_exact_layer3_admission_diagnosis(diagnosis) is False
+
+
+def test_failure_projection_rejects_present_nonmapping_diagnosis() -> None:
+    cell = {
+        "workload": "ycsb-a",
+        "admission_decision": _failure_decision(),
+        "layer3_admission_diagnosis": "not-a-mapping",
+    }
+
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"Layer-3 admission diagnosis is not exact$",
+    ):
+        C.cell_admission_failure_projection([cell])
 
 
 def test_failure_decision_stays_exact_while_projection_carries_diagnosis() -> None:
@@ -154,66 +279,98 @@ def test_failure_decision_stays_exact_while_projection_carries_diagnosis() -> No
     }]
 
 
-def test_campaignless_fallback_shape_does_not_gain_diagnosis() -> None:
+def test_campaignless_fallback_producer_does_not_gain_diagnosis(
+    tmp_path,
+) -> None:
     cell = {
         "workload": "ycsb-a",
         "generations": [],
         "stop_reason": "supervisor-error",
         "error": {"type": "RuntimeError", "message": "fixture failure"},
-        "admission_decision": _failure_decision(),
-        "pending_critic_disposition": {
-            "schema_version": (
-                "p3-autonomous-workload-trial-pending-critic-disposition/v1"
-            ),
-            "action": "discarded",
-            "reason": "cell-admission-failure",
-            "count": 0,
-        },
+        "_pending_critics": [],
     }
 
+    admitted = A._finalize_cell_admission(
+        cell,
+        do_build=True,
+        launch_admission=object(),
+        journal=A.AttemptJournal(tmp_path / "attempts.jsonl"),
+    )
+
+    assert admitted is False
+    assert set(cell) == {
+        "workload", "generations", "stop_reason", "error",
+        "admission_decision", "pending_critic_disposition",
+    }
     assert C.is_exact_campaignless_failure_fallback_cell(cell) is True
     assert C.LAYER3_ADMISSION_DIAGNOSIS_KEY not in cell
     projection = C.cell_admission_failure_projection([cell])
     assert C.LAYER3_ADMISSION_DIAGNOSIS_KEY not in projection[0]
 
 
-def test_run_trial_preserves_chain_exception_identity_and_fsyncs_diagnosis(
+def test_attempt_journal_append_orders_write_fsync_close(
     tmp_path, monkeypatch,
 ) -> None:
-    output_root = tmp_path / "output"
-    campaign_id = "fixture-layer3-admission-failure"
-    campaign = output_root / "campaigns" / campaign_id
-    (campaign / "reports").mkdir(parents=True)
-    entry = A.resolve_workload_entry("ycsb-a")
+    calls = []
+    real_write = A.os.write
+    real_fsync = A.os.fsync
+    real_close = A.os.close
 
-    monkeypatch.setattr(
-        A, "_assert_build_site_opted_in", lambda *_a, **_k: None,
-    )
-    monkeypatch.setattr(A, "_assert_reservation_preflight", lambda **_k: None)
-    monkeypatch.setattr(
-        A, "_assert_build_transport_admitted", lambda *_a, **_k: None,
-    )
-    monkeypatch.setattr(A, "build_run_context", lambda **_k: object())
-    monkeypatch.setattr(A.layer3_report, "render", _raise_screening_type_failure)
-    monkeypatch.setattr(
-        A, "assert_autonomous_trial_completeness", lambda **_k: None,
-    )
-    monkeypatch.setattr(
-        C, "require_admitted_campaign", lambda *_a, **_k: object(),
-    )
+    def write(fd, data):
+        calls.append(("write", fd))
+        return real_write(fd, data)
 
-    def fixture_workload(**_kwargs):
-        return {
-            "workload": "ycsb-a",
-            "campaign_id": campaign_id,
-            "campaign_root": str(campaign),
-            "workload_flags": dict(entry["ycsb"]),
-            "generations": [],
-            "stop_reason": "converged",
-            "_pending_critics": [],
-        }
+    def fsync(fd):
+        calls.append(("fsync", fd))
+        return real_fsync(fd)
 
-    monkeypatch.setattr(A, "_run_workload", fixture_workload)
+    def close(fd):
+        calls.append(("close", fd))
+        return real_close(fd)
+
+    monkeypatch.setattr(A.os, "write", write)
+    monkeypatch.setattr(A.os, "fsync", fsync)
+    monkeypatch.setattr(A.os, "close", close)
+
+    A.AttemptJournal(tmp_path / "attempts.jsonl").append({
+        "event": "run-finish",
+        "status": "partial",
+    })
+
+    assert [name for name, _fd in calls] == ["write", "fsync", "close"]
+    assert len({fd for _name, fd in calls}) == 1
+
+
+@pytest.mark.parametrize(
+    ("render_failure", "expected_status", "expected_property"),
+    [
+        pytest.param(
+            _raise_screening_type_failure,
+            "validation-error",
+            "screening",
+            id="ordinary-validation-error",
+        ),
+        pytest.param(
+            _raise_surrogate_validator_failure,
+            "degraded",
+            None,
+            id="surrogate-validator-value",
+        ),
+    ],
+)
+def test_run_trial_preserves_chain_exception_identity_and_runs_completeness(
+    tmp_path, monkeypatch, render_failure, expected_status, expected_property,
+) -> None:
+    _install_layer3_failure_trial(
+        tmp_path, monkeypatch, render_failure=render_failure,
+    )
+    completeness_calls = []
+
+    def real_completeness(**kwargs):
+        C.assert_autonomous_trial_completeness(**kwargs)
+        completeness_calls.append(kwargs)
+
+    monkeypatch.setattr(A, "assert_autonomous_trial_completeness", real_completeness)
     chain_message = (
         "cells[0] failure campaign remains independently admitted"
     )
@@ -260,12 +417,85 @@ def test_run_trial_preserves_chain_exception_identity_and_fsyncs_diagnosis(
     ]
     assert events[-1]["event"] == "run-finish"
     failures = events[-1]["cell_admission_failures"]
-    assert failures[0][C.LAYER3_ADMISSION_DIAGNOSIS_KEY][
-        "offending_property"
-    ] == "screening"
+    diagnosis = failures[0][C.LAYER3_ADMISSION_DIAGNOSIS_KEY]
+    assert diagnosis["status"] == expected_status
+    assert diagnosis["offending_property"] == expected_property
+    assert C.is_exact_layer3_admission_diagnosis(diagnosis) is True
     assert C.is_exact_cell_admission_failure_decision(
         failures[0]["admission_decision"]
     ) is True
+    assert len(completeness_calls) == 1
+    verified = completeness_calls[0]
+    assert verified["attempt_journal"] == run / "attempts.jsonl"
+    assert verified["report"]["cells"][0][
+        C.LAYER3_ADMISSION_DIAGNOSIS_KEY
+    ] == diagnosis
+
+
+@pytest.mark.parametrize(
+    ("required", "instance", "expected_property"),
+    [
+        pytest.param(
+            ["present", "missing"],
+            {"present": True},
+            "missing",
+            id="single-missing",
+        ),
+        pytest.param(
+            ["present", "first-missing", "second-missing"],
+            {"present": True},
+            "first-missing",
+            id="multiple-missing-required-order",
+        ),
+    ],
+)
+def test_required_failure_names_first_missing_property_in_journal(
+    tmp_path, monkeypatch, required, instance, expected_property,
+) -> None:
+    _install_layer3_failure_trial(
+        tmp_path,
+        monkeypatch,
+        render_failure=_required_failure(required, instance),
+    )
+    sentinel = C.AutonomousTrialCompletenessError(
+        "fixture chain stop after real completeness"
+    )
+
+    def stop_at_chain(**_kwargs):
+        raise sentinel
+
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", stop_at_chain)
+    run = tmp_path / "run"
+
+    with pytest.raises(C.AutonomousTrialCompletenessError) as caught:
+        A.run_trial(
+            trial_id="layer3-required-diagnosis",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            providers={},
+            run_root=run,
+            sub="/unused",
+            do_build=True,
+            coder_authority=object(),
+            allow_unregistered_exploratory=True,
+        )
+
+    assert caught.value is sentinel
+    events = [
+        json.loads(line)
+        for line in (run / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert events[-1]["event"] == "run-finish"
+    diagnosis = events[-1]["cell_admission_failures"][0][
+        "layer3_admission_diagnosis"
+    ]
+    assert diagnosis["validator"] == "required"
+    assert diagnosis["validator_value"] == required
+    assert diagnosis["offending_property"] == expected_property
+    assert C.is_exact_layer3_admission_diagnosis(diagnosis) is True
 
 
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard

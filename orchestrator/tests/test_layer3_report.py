@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from contextlib import nullcontext
 import dataclasses
 import hashlib
 import inspect
@@ -53,6 +54,9 @@ ROOT = _HERE.parent.parent
 REAL_CAMPAIGN = ROOT / "output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
 LEGACY_TRIGGER_SWEEP_CAMPAIGN = (
     ROOT / "output/campaigns/p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2"
+)
+REAL_SCREENING_CAMPAIGN = (
+    ROOT / "output/campaigns/backoff-sweep-silo-read-heavy-sweep-6f169f90"
 )
 YCSB = {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "50", "ycsb_rmw": "0"}
 ABORTED_FIXTURE_VARIANT = "2225adf39fa3"
@@ -522,64 +526,222 @@ def _perf_observation(
     return observation
 
 
-class _BenchPayloadAssignmentVisitor(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self.conditional_depth = 0
-        self.unconditional = set()
-        self.conditional = set()
-        self.extra_routes = []
-        self.producer_events = []
+def _contains_bench_payload(node: ast.AST | None) -> bool:
+    return node is not None and any(
+        isinstance(child, ast.Name) and child.id == "bench_payload"
+        for child in ast.walk(node)
+    )
 
-    def visit_If(self, node: ast.If) -> None:
-        self.visit(node.test)
-        self.conditional_depth += 1
-        for statement in node.body:
-            self.visit(statement)
-        for statement in node.orelse:
-            self.visit(statement)
-        self.conditional_depth -= 1
 
-    def visit_Assign(self, node: ast.Assign) -> None:
-        for target in node.targets:
-            if isinstance(target, ast.Name) and target.id == "bench_payload":
+def _bench_payload_subscript_key(target: ast.AST) -> str | None:
+    if not (
+        isinstance(target, ast.Subscript)
+        and isinstance(target.value, ast.Name)
+        and target.value.id == "bench_payload"
+        and isinstance(target.slice, ast.Constant)
+        and isinstance(target.slice.value, str)
+    ):
+        return None
+    return target.slice.value
+
+
+def _direct_named_call(statement: ast.stmt, name: str) -> ast.Call | None:
+    if not (
+        isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Call)
+        and isinstance(statement.value.func, ast.Name)
+        and statement.value.func.id == name
+    ):
+        return None
+    return statement.value
+
+
+def _is_bench_emit(statement: ast.stmt) -> bool:
+    if not isinstance(statement, ast.Expr) or not isinstance(statement.value, ast.Call):
+        return False
+    call = statement.value
+    return (
+        isinstance(call.func, ast.BoolOp)
+        and isinstance(call.func.op, ast.Or)
+        and len(call.func.values) == 2
+        and isinstance(call.func.values[0], ast.Name)
+        and call.func.values[0].id == "emit"
+        and isinstance(call.func.values[1], ast.Attribute)
+        and isinstance(call.func.values[1].value, ast.Name)
+        and call.func.values[1].value.id == "wal"
+        and call.func.values[1].attr == "log"
+        and len(call.args) == 5
+        and not call.keywords
+        and isinstance(call.args[4], ast.Name)
+        and call.args[4].id == "bench_payload"
+    )
+
+
+def _bench_payload_contract(function: ast.FunctionDef):
+    """Derive the producer keys while rejecting every undeclared mutation route."""
+    parents = {
+        child: parent
+        for parent in ast.walk(function)
+        for child in ast.iter_child_nodes(parent)
+    }
+
+    def ancestors(node: ast.AST):
+        current = parents.get(node)
+        while current is not None and current is not function:
+            yield current
+            current = parents.get(current)
+
+    def direct_top_level_if(node: ast.AST) -> ast.If | None:
+        parent = parents.get(node)
+        if not isinstance(parent, ast.If) or parent not in function.body:
+            return None
+        return parent
+
+    forbidden_control = tuple(
+        node_type
+        for node_type in (
+            ast.Try,
+            getattr(ast, "TryStar", None),
+            ast.With,
+            ast.AsyncWith,
+            ast.For,
+            ast.AsyncFor,
+            ast.While,
+        )
+        if node_type is not None
+    )
+    unconditional: set[str] = set()
+    conditional: set[str] = set()
+    initializations: list[ast.Assign] = []
+    extra_routes: list[str] = []
+
+    for node in ast.walk(function):
+        if isinstance(node, ast.Assign):
+            name_targets = [
+                target for target in node.targets
+                if isinstance(target, ast.Name) and target.id == "bench_payload"
+            ]
+            if name_targets:
+                assert len(node.targets) == 1 and len(name_targets) == 1
+                assert node in function.body
                 assert isinstance(node.value, ast.Dict)
-                keys = {
-                    key.value for key in node.value.keys
-                    if isinstance(key, ast.Constant) and isinstance(key.value, str)
-                }
-                assert len(keys) == len(node.value.keys)
-                self.unconditional.update(keys)
-            if (
-                isinstance(target, ast.Subscript)
-                and isinstance(target.value, ast.Name)
-                and target.value.id == "bench_payload"
-                and isinstance(target.slice, ast.Constant)
-                and isinstance(target.slice.value, str)
-            ):
-                destination = (
-                    self.conditional if self.conditional_depth
-                    else self.unconditional
-                )
-                destination.add(target.slice.value)
-        self.generic_visit(node.value)
+                assert all(
+                    isinstance(key, ast.Constant) and isinstance(key.value, str)
+                    for key in node.value.keys
+                ), "bench_payload の ** 展開は禁止"
+                initializations.append(node)
+                unconditional.update(key.value for key in node.value.keys)
+                continue
 
-    def visit_Call(self, node: ast.Call) -> None:
+            if _contains_bench_payload(node.value):
+                raise AssertionError("bench_payload の alias または再束縛は禁止")
+            for target in node.targets:
+                key = _bench_payload_subscript_key(target)
+                if key is None:
+                    assert not _contains_bench_payload(target), (
+                        "bench_payload の非 literal target mutation は禁止"
+                    )
+                    continue
+                assert not any(
+                    isinstance(parent, forbidden_control) for parent in ancestors(node)
+                ), "try/with/for/while 内の payload mutation は禁止"
+                enclosing_if = direct_top_level_if(node)
+                assert node in function.body or enclosing_if is not None
+                (conditional if enclosing_if is not None else unconditional).add(key)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            if _contains_bench_payload(node):
+                raise AssertionError("bench_payload の AnnAssign/AugAssign/NamedExpr は禁止")
+        elif isinstance(node, ast.Delete) and _contains_bench_payload(node):
+            raise AssertionError("bench_payload key の削除は禁止")
+        elif isinstance(node, forbidden_control) and _contains_bench_payload(node):
+            raise AssertionError(
+                "try/with/for/while を介した payload mutation/alias は禁止"
+            )
+
+    assert len(initializations) == 1
+
+    extra_guards: list[ast.Call] = []
+    final_guards: list[ast.Call] = []
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Call):
+            continue
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
             and node.func.value.id == "bench_payload"
-            and node.func.attr == "update"
-            and len(node.args) == 1
-            and isinstance(node.args[0], ast.Name)
         ):
-            self.extra_routes.append(node.args[0].id)
-            self.producer_events.append("extra_update")
+            assert node.func.attr == "update", "update 以外の payload mutator は禁止"
+            assert (
+                len(node.args) == 1
+                and not node.keywords
+                and isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "bench_payload_extra"
+            ), "payload update は exact extra route だけを許可"
+            statement = parents.get(node)
+            assert isinstance(statement, ast.Expr)
+            enclosing_if = direct_top_level_if(statement)
+            assert enclosing_if is not None
+            assert statement in enclosing_if.body
+            assert enclosing_if.body.index(statement) == 1
+            extra_guard = _direct_named_call(
+                enclosing_if.body[0], "_assert_bench_payload_extra_keys"
+            )
+            assert extra_guard is not None
+            assert len(extra_guard.args) == 2 and not extra_guard.keywords
+            assert [
+                argument.id if isinstance(argument, ast.Name) else None
+                for argument in extra_guard.args
+            ] == ["bench_payload", "bench_payload_extra"]
+            extra_routes.append(node.args[0].id)
+            continue
+
+        if not any(_contains_bench_payload(arg) for arg in node.args) and not any(
+            _contains_bench_payload(keyword.value) for keyword in node.keywords
+        ):
+            continue
         if isinstance(node.func, ast.Name) and node.func.id in {
             "_assert_bench_payload_extra_keys",
             "_assert_bench_done_payload_keys",
         }:
-            self.producer_events.append(node.func.id)
-        self.generic_visit(node)
+            statement = parents.get(node)
+            assert isinstance(statement, ast.Expr)
+            assert not node.keywords
+            if node.func.id == "_assert_bench_payload_extra_keys":
+                assert [
+                    argument.id if isinstance(argument, ast.Name) else None
+                    for argument in node.args
+                ] == ["bench_payload", "bench_payload_extra"]
+                enclosing_if = direct_top_level_if(statement)
+                assert enclosing_if is not None and enclosing_if.body[0] is statement
+                extra_guards.append(node)
+            else:
+                assert [
+                    argument.id if isinstance(argument, ast.Name) else None
+                    for argument in node.args
+                ] == ["bench_payload"]
+                assert statement in function.body
+                final_guards.append(node)
+            continue
+        statement = parents.get(node)
+        assert isinstance(statement, ast.Expr) and _is_bench_emit(statement), (
+            "bench_payload を alias/mutator call へ渡すことは禁止"
+        )
+
+    final_guard_indexes = [
+        index for index, statement in enumerate(function.body)
+        if _direct_named_call(statement, "_assert_bench_done_payload_keys") is not None
+    ]
+    assert len(extra_guards) == 1
+    assert len(final_guards) == 1
+    emit_indexes = [
+        index for index, statement in enumerate(function.body)
+        if _is_bench_emit(statement)
+    ]
+    assert len(final_guard_indexes) == 1
+    assert emit_indexes == [final_guard_indexes[0] + 1], (
+        "final payload guard と emit は同一 block で隣接しなければならない"
+    )
+    return unconditional, conditional, extra_routes
 
 
 def _bench_run_schema():
@@ -588,7 +750,9 @@ def _bench_run_schema():
             encoding="utf-8",
         )
     )
-    return schema["properties"]["runs"]["items"]
+    run_schema = dict(schema["properties"]["runs"]["items"])
+    run_schema["definitions"] = schema["definitions"]
+    return run_schema
 
 
 def _screening_disabled_payload(**extra):
@@ -607,24 +771,162 @@ def test_run_bench_ast_assignments_exactly_match_declared_payload_keys():
     source = textwrap.dedent(inspect.getsource(pipeline._run_bench))
     function = ast.parse(source).body[0]
     assert isinstance(function, ast.FunctionDef)
-    visitor = _BenchPayloadAssignmentVisitor()
-    visitor.visit(function)
+    unconditional, conditional, extra_routes = _bench_payload_contract(function)
 
-    assert visitor.unconditional == pipeline._BENCH_DONE_REQUIRED_PAYLOAD_KEYS
-    assert visitor.conditional == pipeline._BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
-    assert visitor.extra_routes == ["bench_payload_extra"]
-    assert len(visitor.unconditional) == 13
-    assert len(visitor.conditional) == 3
-    assert visitor.producer_events == [
-        "_assert_bench_payload_extra_keys",
-        "extra_update",
-        "_assert_bench_done_payload_keys",
-    ]
+    assert unconditional == pipeline._BENCH_DONE_REQUIRED_PAYLOAD_KEYS
+    assert conditional == pipeline._BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
+    assert extra_routes == ["bench_payload_extra"]
+    assert len(unconditional) == 13
+    assert len(conditional) == 3
     assert pipeline._BENCH_DONE_PAYLOAD_KEYS == (
-        visitor.unconditional
-        | visitor.conditional
+        unconditional
+        | conditional
         | pipeline._BENCH_PAYLOAD_EXTRA_KEYS
     )
+
+
+@pytest.mark.parametrize(
+    "bypass",
+    [
+        "post-guard-update",
+        "setdefault",
+        "alias",
+        "augassign",
+        "annassign",
+        "dict-unpack",
+        "try",
+        "with",
+        "for-alias",
+        "while",
+        "guard-emit-control-block",
+    ],
+)
+def test_run_bench_ast_contract_rejects_known_bypass_routes(bypass):
+    source = textwrap.dedent(inspect.getsource(pipeline._run_bench))
+    guard = "    _assert_bench_done_payload_keys(bench_payload)\n"
+    emit = (
+        "    (emit or wal.log)(layout, variant, STAGE_BENCH_DONE, env_tag, "
+        "bench_payload)\n"
+    )
+    assert source.count(guard) == 1
+    assert source.count(emit) == 1
+
+    before_guard = {
+        "setdefault": 'bench_payload.setdefault("unknown", True)',
+        "alias": 'alias = bench_payload\nalias["unknown"] = True',
+        "augassign": 'bench_payload |= {"unknown": True}',
+        "annassign": 'bench_payload: dict = bench_payload',
+        "try": (
+            'try:\n    bench_payload["unknown"] = True\n'
+            'finally:\n    pass'
+        ),
+        "with": (
+            'with nullcontext():\n    bench_payload["unknown"] = True'
+        ),
+        "for-alias": (
+            'for alias in (bench_payload,):\n    alias["unknown"] = True'
+        ),
+        "while": (
+            'while False:\n    bench_payload["unknown"] = True'
+        ),
+    }
+    if bypass in before_guard:
+        injected = textwrap.indent(before_guard[bypass] + "\n", "    ")
+        source = source.replace(guard, injected + guard)
+    elif bypass == "post-guard-update":
+        source = source.replace(
+            emit,
+            '    bench_payload.update({"post_gate_unknown": True})\n' + emit,
+        )
+    elif bypass == "dict-unpack":
+        marker = "    bench_payload = {\n"
+        assert source.count(marker) == 1
+        source = source.replace(marker, marker + "        **{},\n")
+    else:
+        assert bypass == "guard-emit-control-block"
+        source = source.replace(
+            guard + emit,
+            "    if True:\n"
+            "        _assert_bench_done_payload_keys(bench_payload)\n"
+            "        (emit or wal.log)(layout, variant, STAGE_BENCH_DONE, "
+            "env_tag, bench_payload)\n",
+        )
+
+    function = ast.parse(source).body[0]
+    assert isinstance(function, ast.FunctionDef)
+    with pytest.raises(AssertionError):
+        _bench_payload_contract(function)
+
+
+def test_run_bench_emits_exact_declared_payload_key_set(monkeypatch):
+    point = SimpleNamespace(
+        throughputs=[100.0],
+        notes=[],
+        run_cmd="./fixture-bench",
+        leading_indicators=lambda: {"abort_rate": 0.0},
+    )
+
+    def measure_point(*_args, rep_returncodes=None, **_kwargs):
+        assert rep_returncodes is not None
+        rep_returncodes.append(0)
+        return point
+
+    def remeasure(measure, **_kwargs):
+        measured = measure()
+        assert measured is point
+        return SimpleNamespace(
+            point=measured,
+            nf=SimpleNamespace(
+                median=100.0, cv=0.01, high_variance=False,
+            ),
+            unstable=False,
+            rounds=1,
+            cv_history=[0.01],
+        )
+
+    monkeypatch.setattr(pipeline, "_require_measurement_site", lambda _what: "fixture")
+    monkeypatch.setattr(pipeline, "bench_lock", lambda: nullcontext())
+    monkeypatch.setattr(pipeline, "competing_bench_pids", lambda: [])
+    monkeypatch.setattr(pipeline, "settle", lambda: {"settled": True})
+    monkeypatch.setattr(pipeline, "measure_point", measure_point)
+    monkeypatch.setattr(pipeline, "remeasure_until_stable", remeasure)
+    monkeypatch.setattr(
+        pipeline._perf_preflight,
+        "build_perf_observation",
+        lambda _receipt, **_kwargs: {"fixture": True},
+    )
+    emitted = []
+
+    def abort(*_args, **_kwargs):
+        raise AssertionError("successful bench fixture must not abort")
+
+    result, bench = pipeline._run_bench(
+        "/fixture/bench",
+        pipeline.PerfConfig(records=1, threads=1),
+        1,
+        None,
+        True,
+        SimpleNamespace(),
+        "fixture-variant",
+        "fixture-env",
+        abort,
+        log=lambda _message: None,
+        screening=True,
+        bench_payload_extra={
+            "screening_disabled": _screening_disabled_payload(),
+        },
+        bench_max_rounds=1,
+        record_rep_returncodes=True,
+        emit=lambda *args: emitted.append(args),
+        perf_preflight_receipt={"fixture": True},
+        build_attempt_id="fixture-attempt",
+    )
+
+    assert result is None
+    assert bench is not None
+    assert len(emitted) == 1
+    assert emitted[0][2] == model.STAGE_BENCH_DONE
+    assert set(emitted[0][4]) == pipeline._BENCH_DONE_PAYLOAD_KEYS
 
 
 def test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately():
@@ -753,6 +1055,36 @@ def test_pipeline_bench_payload_closure_uses_real_view_row():
     assert set(row) == set(_bench_run_schema()["properties"])
 
 
+@pytest.mark.parametrize("settled", [True, False, None])
+def test_settled_accepts_exact_forensic_value_domain(settled):
+    row = layer3_report._view_row(_bench(settled=settled))
+
+    jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+
+
+@pytest.mark.parametrize("settled", ["unknown", 0, {}])
+def test_settled_rejects_values_outside_exact_forensic_domain(settled):
+    row = layer3_report._view_row(_bench(settled=settled))
+
+    with pytest.raises(jsonschema.ValidationError) as caught:
+        jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+    assert caught.value.validator == "type"
+    assert list(caught.value.absolute_path) == ["settled"]
+
+
+def test_named_screening_artifact_builds_layer3_report_end_to_end():
+    report = layer3_report.build_report(
+        REAL_SCREENING_CAMPAIGN,
+        generated_from_head="fixed",
+        output_root=ROOT / "output",
+    )
+
+    assert any(
+        run.get("screening") is True and run.get("settled") is None
+        for run in report["runs"]
+    )
+
+
 def test_historical_v1_run_row_without_screening_fields_remains_valid():
     """Pin only the v1 runs-item shape, not full-v1 report readability."""
     event = _bench(
@@ -786,6 +1118,26 @@ def test_v2_and_v3_reports_with_legacy_run_without_screening_remain_valid(
     layer3_report._validate_schema(report)
 
 
+def test_v2_report_rejects_invalid_screening_value_with_legacy_schema():
+    report = layer3_report.build_report(
+        REAL_SCREENING_CAMPAIGN,
+        generated_from_head="fixed",
+        output_root=ROOT / "output",
+    )
+    report["schema_version"] = "layer3-material-report/v2"
+    del report["admission_decision"]
+    del report["acceptance_receipt"]
+    del report["certifying_input"]
+    report["runs"][0]["screening"] = False
+
+    with pytest.raises(layer3_report.Layer3ReportError) as caught:
+        layer3_report._validate_schema(report)
+    cause = caught.value.__cause__
+    assert isinstance(cause, jsonschema.ValidationError)
+    assert cause.validator == "const"
+    assert list(cause.absolute_path) == ["runs", 0, "screening"]
+
+
 @pytest.mark.parametrize(
     "new_fields",
     [
@@ -816,8 +1168,10 @@ def test_screening_and_screening_disabled_are_mutually_exclusive():
         screening_disabled=_screening_disabled_payload(),
     ))
 
-    with pytest.raises(jsonschema.ValidationError):
+    with pytest.raises(jsonschema.ValidationError) as caught:
         jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+    assert caught.value.validator == "not"
+    assert list(caught.value.absolute_path) == []
 
 
 def test_screening_disabled_rejects_nested_unknown_key():
@@ -827,31 +1181,53 @@ def test_screening_disabled_rejects_nested_unknown_key():
         screening_disabled=_screening_disabled_payload(unknown=True),
     ))
 
-    with pytest.raises(jsonschema.ValidationError):
+    with pytest.raises(jsonschema.ValidationError) as caught:
         jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+    assert caught.value.validator == "additionalProperties"
+    assert list(caught.value.absolute_path) == ["screening_disabled"]
 
 
 @pytest.mark.parametrize(
-    "new_fields",
+    "new_fields, expected_validator, expected_absolute_path",
     [
-        {"screening": False},
-        {"screening_disabled": _screening_disabled_payload(baseline_ref="")},
-        {"screening_disabled": _screening_disabled_payload(age_s=True)},
-        {"screening_disabled": _screening_disabled_payload(threshold_s=True)},
-        {
-            "screening_disabled": {
-                "age_s": 1900.0,
-                "threshold_s": 1800.0,
-                "baseline_ref": "baseline.json",
+        ({"screening": False}, "const", ["screening"]),
+        (
+            {"screening_disabled": _screening_disabled_payload(baseline_ref="")},
+            "minLength",
+            ["screening_disabled", "baseline_ref"],
+        ),
+        (
+            {"screening_disabled": _screening_disabled_payload(age_s=True)},
+            "type",
+            ["screening_disabled", "age_s"],
+        ),
+        (
+            {"screening_disabled": _screening_disabled_payload(threshold_s=True)},
+            "type",
+            ["screening_disabled", "threshold_s"],
+        ),
+        (
+            {
+                "screening_disabled": {
+                    "age_s": 1900.0,
+                    "threshold_s": 1800.0,
+                    "baseline_ref": "baseline.json",
+                },
             },
-        },
+            "required",
+            ["screening_disabled"],
+        ),
     ],
 )
-def test_screening_fields_reject_nonproducer_values(new_fields):
+def test_screening_fields_reject_nonproducer_values(
+    new_fields, expected_validator, expected_absolute_path,
+):
     row = layer3_report._view_row(_bench(**new_fields))
 
-    with pytest.raises(jsonschema.ValidationError):
+    with pytest.raises(jsonschema.ValidationError) as caught:
         jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+    assert caught.value.validator == expected_validator
+    assert list(caught.value.absolute_path) == expected_absolute_path
 
 
 def test_layer3_schema_version_and_run_required_keys_remain_frozen():
