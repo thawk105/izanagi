@@ -60,6 +60,15 @@ title: [T-1219] worklog の carry 検査を参照先の同一 ID まで強め、
   `他 404306 件を抑止` と総数を併記する。40 万件の finding が常駐する経路は無い。
 - 段 6 の fix は一枚岩で 3 巡した。編集面が同じ 2 file なので所有を素集合に割れない。
 - 事故は {{F:mutation-nodeid-nonascii}}、{{F:codex-max-attempts-sandbox-coupling}}、F217 の再発に記録した。
+- **段 8 の自己改善は 1 件を反映し、2 件を予算超過で見送った。** 反映したのは
+  `docs/pegasus-runbook.md` §7.4 への 2 点 — `--attempt-out` は `--wrapper-attempt` と
+  同時指定でなければ起動前に落ちること、`expected_nodes` の nodeid は ASCII だけにすること。
+  どちらも本 wave で実際に踏み、機体固有の手順なので runbook が正しい行き先である。
+  見送ったのは同じ 2 件を `docs/dev-wave/**` の該当節へも書く案で、
+  **L1.5 unique footprint が 9,565 bytes、予算 9,566 bytes で余地が 1 byte しかない**
+  (親が予算を 0 に落として実測した)。予算のために既存の安全義務を削らない契約に従い追記を撤回した。
+  F217 が 2026-08-11 と 2026-08-13 に記録した同型の見送りと同じ状態が持続している。
+  予算値を上げる変更は通常の自己改善に含めないため、裁定へ返す。
 
 ## 次の一手差分
 
