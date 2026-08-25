@@ -6,35 +6,37 @@ wave: dev-wave-t1726-freeze-rederive
 seq: 3
 ---
 
-## 新規
+## 再発
 
-### {{F:launcher-failure-artifacts-break-output-snapshot}}. launcher テストの失敗診断が同じ全走の output snapshot 検査を連鎖的に赤にする [テスト代表性] [計測汚染]
+### F62
 
-- 事象: 受入全走 attempt 2 (claimed_main `f4c2c5ded29d72d8f06bca66992a5ef5694fcb51`) が
-  13 failed で戻った。内訳は `test_s8b_floor_campaign.py` の official / pilot 系 **11 件**と
-  `test_codex_worker_launch.py` の 2 件である。
-  前者は全件 `assert repo_before == _real_output_snapshot()` 型で、差分本文は
-  `At index 13837 diff: ('dir', 's1-budget') != ('dir', 'runs/pytest-launcher-failures/0-948253.nqsv--bnode042')`。
-  同 wave の attempt 1 は launcher 9 件 + floor 0 件で、**落ちる組み合わせが巡ごとに入れ替わる。**
-- 根本原因: `orchestrator/tests/test_codex_worker_launch.py:55` の `_FAILURE_ARTIFACT_ROOT` は
-  実 repo の `output/runs/pytest-launcher-failures` であり、`_failure_run_directory()` (87-92 行) が
-  `<PBS_JOBID>--<hostname>` を**失敗時にだけ**掘る。一方
-  `orchestrator/tests/test_s8b_floor_campaign.py:1451` の `_real_output_snapshot()` は
-  `output/` 全体を除外なしで walk する。xdist 並列の全走では両者が同時に走るため、
-  launcher が負荷で 1 件でも落ちた瞬間にその directory が floor_campaign の before/after 窓へ入る。
-  **floor_campaign の赤は launcher の赤の連鎖であり、件数でなく生成タイミングと窓の重なりで決まる。**
-  `output/runs/` は `.gitignore` 済みのため git 系の検査には現れず、
-  ファイルシステム走査の検査にだけ現れる。
-- 既載との違い: F62 と F115 は**親が全走中に `output/` を書いた**型である。
-  本件の書き手は同じ全走の中の別テストであり、親は attempt 1 / 2 の実行中に `output/` を
-  一切書いていない。既載の再発検知 (「走行中の `output/` 書き込みをまず疑う」) は本件を説明しない。
-- 恒久対応: 判定は `DW-O18` の既存規律へ寄せる — 差分が到達しえないファイルの赤は単独再走で
-  再現性を実測してから扱う。本エントリがその起票実体である。
-  **機構 (snapshot 側で `output/runs/` を除外するか、launcher の失敗 artifact root を
-  実 repo の `output/` 外へ移すか) は受理集合と診断保存の設計択一であり、裁定パッケージへ返す。**
-- 再発検知: 受入が赤で、`test_s8b_floor_campaign.py` の `_real_output_snapshot` 系と
-  `test_codex_worker_launch.py` が**同じ巡で**落ちているときは本件型を疑う。
-  差分本文に `runs/pytest-launcher-failures/` が現れるかを見る。
-  両 file の単独走が緑なら実装差分へ帰属させない。本 wave の実測は
-  `test_codex_worker_launch.py` 単独 `--force-dispatch` = 202 passed / 8.83s / rc=0、
-  `test_s8b_floor_campaign.py` 単独 `--force-dispatch` = 455 passed / 2 skipped / 34.21s / rc=0。
+- **再発: 2026-08-26** — 受入全走 attempt 2 (claimed_main
+  `f4c2c5ded29d72d8f06bca66992a5ef5694fcb51`) で `test_s8b_floor_campaign.py` の
+  official / pilot 系 **11 件**が同じ `assert repo_before == _real_output_snapshot()` で落ちた。
+  **書き手は親ではなく、同じ全走の中の並行テストである。** 差分本文は
+  `At index 13837 diff: ('dir','s1-budget') != ('dir','runs/pytest-launcher-failures/0-948253.nqsv--bnode042')` で、
+  侵入 entry は `orchestrator/tests/test_codex_worker_launch.py:55` の `_FAILURE_ARTIFACT_ROOT`
+  (`output/runs/pytest-launcher-failures`) を `_failure_run_directory()` (87-92 行) が
+  **失敗時にだけ**掘ったものである。親は attempt 1 / 2 の実行中に `output/` を一切書いていない。
+  同 wave の attempt 1 は launcher 9 件 + floor 0 件、attempt 2 は launcher 2 件 + floor 11 件で、
+  件数でなく書き込みと snapshot 窓の重なりで決まる。
+  単独走はいずれも緑 (`--force-dispatch`) — `test_codex_worker_launch.py` = 202 passed / 8.83s、
+  `test_s8b_floor_campaign.py` = 455 passed / 2 skipped / 34.21s。`DW-O18` に従い実装差分へ帰属させず、
+  land せずに停止した。
+- **再発: 2026-08-26 (書き手の棚卸し)** — 本件を機に `output/` 配下の窓内書き手を数えたところ、
+  親の編集 (F62 の元事例) 以外に少なくとも次が在り、**列挙は完了していない。**
+  (i) `output/runs/pytest-launcher-failures/<PBS_JOBID>--<host>/` — launcher テストの失敗時診断。
+  `.gitignore:18` 済みで git 系検査には現れない。
+  (ii) `output/pegasus-dispatch/<hash>/receipt.json` — dispatch ごとの receipt。`.gitignore:26` 済み。
+  **失敗時でなく毎回書く** — 本 wave 単独で 17 件生成された。並行 wave が変異走行や
+  dispatch を回していれば全走中に増える。
+  (iii) `output/task-runs/reports/` — 並行 session が窓内で観測した実体。
+  こちらは tracked (ignore されない) 点で (i)(ii) と異なる。窓内の書き手は未特定である
+  (`tools/run_tests.py:1068` は root を既定するが、`record_test_run` の呼出しは
+  `duration_s` / `exit_status` を取る走行後の位置 1211-1220 行にあり、外側の走行自体は窓内で書かない)。
+  並行 session の独立実測では **launcher の赤が 0 件**でも同じ 11 件が落ち、侵入 entry は
+  `runs` と `task-runs/reports` だった。**launcher の失敗は十分条件であって必要条件ではない。**
+
+## supersede 追記
+
+- F62 **supersede: 2026-08-26** — 恒久対応の「受入全走の実行中は `output/` 配下を一切編集しない」は親向けの行動規律であり、同じ全走の中にいる並行テストや dispatch receipt の書き込みには効かない。機構側の対応が要る。選択肢は (a) `_real_output_snapshot()` から `output/` の揮発 subtree を除外する、(b) 書き手側の artifact root を repo 外へ移す、(c) `orchestrator/tests/conftest.py:338` の `REAL_REPO_SERIAL_NODES` へ落ちた node を登録して `xdist_group("real-repo")` で直列化する (1326-1330 行、`test_s8b_floor_campaign.py` は 394/395/421 行の 3 node が登録済みで本件の 11 件は未登録) の 3 つで、(b)(c) はいずれも書き手を列挙し切ることを前提にするが本追記のとおり列挙は未完了であり、(a) だけが列挙に依存しない。どれを採るかは受理集合の射程を変えるため裁定へ返した。
