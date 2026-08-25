@@ -1176,6 +1176,19 @@ def test_main_unoccupied_returns_zero(tmp_path: Path, capsys: pytest.CaptureFixt
     assert payload["status"] == "unoccupied"
 
 
+def test_report_payload_always_emits_same_uid_cwd_unreachable(tmp_path: Path):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+
+    payload = checker._report_payload(_scan(target, proc_root))
+
+    assert "same_uid_cwd_unreachable" in payload
+    assert type(payload["same_uid_cwd_unreachable"]) is list
+    assert payload["same_uid_cwd_unreachable"] == []
+
+
 def test_main_json_fields_and_key_order_are_stable(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -1189,7 +1202,8 @@ def test_main_json_fields_and_key_order_are_stable(
 
     output = capsys.readouterr().out
     expected = (
-        '{"issues":[],"occupants":[],"scanned":0,"status":"unoccupied",'
+        '{"issues":[],"occupants":[],"same_uid_cwd_unreachable":[],"scanned":0,'
+        '"status":"unoccupied",'
         '"unreachable":{"cwd_permission":0},"worktree":'
         f"{json.dumps(str(target.resolve()), ensure_ascii=False)}}}\n"
     )

@@ -353,6 +353,80 @@ def test_occupancy_payload_maps_invalid_target_status(tmp_path):
     assert payload["issues"][0]["source"] == "worktree"
 
 
+def test_assert_unoccupied_accepts_empty_same_uid_cwd_unreachable(
+    tmp_path,
+    monkeypatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (
+            cleanup.occupancy.UNOCCUPIED_RC,
+            _unoccupied_payload(path),
+        ),
+    )
+
+    diagnostics = cleanup._assert_unoccupied(target)
+
+    assert type(diagnostics.same_uid_cwd_unreachable) is list
+    assert diagnostics.same_uid_cwd_unreachable == []
+
+
+def test_assert_unoccupied_accepts_real_empty_proc_scan_payload(
+    tmp_path,
+    monkeypatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    original_scan = cleanup.occupancy.scan_worktree_occupancy
+
+    def scan_empty_proc(path, **kwargs):
+        return original_scan(
+            path,
+            proc_root=proc_root,
+            parent_pid=-1,
+            **kwargs,
+        )
+
+    monkeypatch.setattr(
+        cleanup.occupancy,
+        "scan_worktree_occupancy",
+        scan_empty_proc,
+    )
+
+    diagnostics = cleanup._assert_unoccupied(target)
+
+    assert type(diagnostics.same_uid_cwd_unreachable) is list
+    assert diagnostics.same_uid_cwd_unreachable == []
+
+
+def test_assert_unoccupied_requires_same_uid_cwd_unreachable_field(
+    tmp_path,
+    monkeypatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    payload = _unoccupied_payload(target)
+    del payload["same_uid_cwd_unreachable"]
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.UNOCCUPIED_RC, payload),
+    )
+
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup._assert_unoccupied(target)
+
+    assert caught.value.rc == cleanup.RC_OCCUPANCY_INDETERMINATE
+    assert caught.value.reason == (
+        "occupancy payload lacks required fields; attempts=1 retry_count=0"
+    )
+
+
 def test_rejects_non_ancestor_without_mutation(tmp_path, monkeypatch, capsys):
     repo = _make_repo(tmp_path, monkeypatch, landed=False, locked=True)
     _assert_rejected_preserving(repo, capsys)
