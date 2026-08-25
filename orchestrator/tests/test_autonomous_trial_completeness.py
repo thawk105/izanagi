@@ -4313,6 +4313,46 @@ def test_cell_admission_failure_decision_shape_is_closed(mutate) -> None:
     assert C.is_exact_cell_admission_failure_decision(decision) is False
 
 
+@pytest.mark.parametrize(
+    "diagnosis",
+    [
+        pytest.param("not-a-mapping", id="non-mapping"),
+        pytest.param(
+            {
+                "schema_version": (
+                    "p3-autonomous-workload-trial-"
+                    "layer3-admission-diagnosis/v1"
+                ),
+                "status": "degraded",
+                "validator": None,
+                "validator_value": None,
+                "absolute_instance_path": [],
+                "absolute_schema_path": [],
+                "offending_property": None,
+                "degradation_reason": "validation-error-cause-not-found",
+                "extra": True,
+            },
+            id="mapping-with-extra-key",
+        ),
+    ],
+)
+def test_completeness_rejects_present_invalid_layer3_diagnosis(
+    tmp_path, diagnosis,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    report["cells"][0]["layer3_admission_diagnosis"] = diagnosis
+    _persist(run, events, report)
+
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[artifact-admission\] cells\[0\] Layer-3 admission "
+            r"diagnosis is not exact$"
+        ),
+    ):
+        _verify(run, report)
+
+
 def test_workload_suffix_rejects_failure_cell_that_is_not_final(tmp_path) -> None:
     run, events, report = _complete_trial(
         tmp_path, workloads=("ycsb-a", "ycsb-b"),

@@ -24,12 +24,40 @@ from orchestrator.campaign import s8b_materialization as M  # noqa: E402
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from orchestrator.campaign.sort_swo_oracle import (  # noqa: E402
+    SORT_SWO_GUARANTEE_BOUNDARY,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from s8b_floor_evidence_fixture import (  # noqa: E402
-    expected_portable_sort_swo_pass_receipt,
-    fake_sort_swo_pass_attempt,
+    expected_portable_sort_swo_pass_receipt as _fixture_expected_portable,
+    fake_sort_swo_pass_attempt as _fixture_fake_attempt,
 )
+
+
+def fake_sort_swo_pass_attempt() -> dict[str, object]:
+    """旧 fixture を現行 raw receipt の exact schema へ射影する。"""
+    attempt = _fixture_fake_attempt()
+    raw = attempt["oracle_receipt"]
+    assert isinstance(raw, dict)
+    raw["guarantee_boundary"] = SORT_SWO_GUARANTEE_BOUNDARY
+    return attempt
+
+
+def expected_portable_sort_swo_pass_receipt(
+    **identity: str,
+) -> dict[str, object]:
+    """本番 projector から独立して現行 portable receipt を再計算する。"""
+    expected = _fixture_expected_portable(**identity)
+    raw = fake_sort_swo_pass_attempt()["oracle_receipt"]
+    assert isinstance(raw, dict)
+    expected["guarantee_boundary"] = SORT_SWO_GUARANTEE_BOUNDARY
+    canonical_raw = json.dumps(
+        raw, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    expected["receipt_sha256"] = hashlib.sha256(canonical_raw).hexdigest()
+    return expected
 
 
 def _prepared(protocol: str, flags: dict, src_token: str) -> PreparedCell:
@@ -588,7 +616,7 @@ def test_floor_manifest_golden_stable(tmp_path):
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     actual_sha256 = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     assert actual_sha256 == (
-        "32f84a16e470047655567947ca902a4e7ab3690aa61e6f903f4e50bb214f1722"
+        "c30201848c04b1839941cea52415dd47927e6e1e983815c231a02774f11f777d"
     ), actual_sha256
 
 
