@@ -3,7 +3,8 @@
 
 This module deliberately has no dependency on ``trial_registry`` or
 ``layer3_report``.  It verifies the receipt artifact, every immutable byte
-hash it names, and the recorded lifecycle prefix; it does not infer approval
+hash it names, the recorded lifecycle prefix, and that recorded arm execution
+can be rederived from the ratified legacy freeze.  It does not infer approval
 authority or certify an experimental arm.
 """
 from __future__ import annotations
@@ -728,6 +729,163 @@ def _arm_binding_digest(
     ).hexdigest()
 
 
+def _require_ratified_legacy_arm_authority() -> None:
+    """Require exact agreement between fixed legacy and in-source authority.
+
+    This gate rejects v2/v3/v4 arm records that cannot be rederived from the
+    verifier checkout's ratified legacy freeze.  It does not reject a receipt
+    because the subject repository lacks a copy of that legacy freeze.
+    """
+    try:
+        from . import s8b_holdout_freeze
+        from . import s8b_ratified_freeze
+
+        legacy = s8b_ratified_freeze.load_legacy_freeze()
+    except AcceptanceReceiptError:
+        raise
+    except Exception as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-freeze-arm-binding] ratified legacy freeze cannot be loaded"
+        ) from exc
+
+    document = legacy.document
+    legacy_holdouts = (
+        document.get("holdouts") if isinstance(document, Mapping) else None
+    )
+    source_holdouts = s8b_holdout_freeze.HOLDOUTS
+    if (
+        not isinstance(legacy_holdouts, Mapping)
+        or not isinstance(source_holdouts, Mapping)
+        or set(legacy_holdouts) != set(source_holdouts)
+    ):
+        _fail(
+            "receipt-freeze-arm-binding",
+            "ratified legacy holdout names differ from in-source authority",
+        )
+
+    legacy_entry_keys = {
+        "candidate_id",
+        "ycsb",
+        "records",
+        "threads",
+        "unknownness_check",
+        "variant_binding",
+    }
+    for name, source_entry in source_holdouts.items():
+        legacy_entry = legacy_holdouts.get(name)
+        if (
+            not isinstance(legacy_entry, Mapping)
+            or set(legacy_entry) != legacy_entry_keys
+        ):
+            _fail(
+                "receipt-freeze-arm-binding",
+                f"ratified legacy holdout entry key set differs: {name}",
+            )
+        legacy_ycsb = legacy_entry.get("ycsb")
+        source_ycsb = (
+            source_entry.get("ycsb")
+            if isinstance(source_entry, Mapping)
+            else None
+        )
+        if not isinstance(legacy_ycsb, Mapping) or not isinstance(
+            source_ycsb, Mapping
+        ):
+            _fail(
+                "receipt-freeze-arm-binding",
+                f"ratified legacy holdout projection is malformed: {name}",
+            )
+        legacy_projection = {
+            "candidate_id": legacy_entry.get("candidate_id"),
+            "ycsb": dict(legacy_ycsb),
+            "records": legacy_entry.get("records"),
+            "threads": legacy_entry.get("threads"),
+        }
+        source_projection = {
+            "candidate_id": source_entry.get("candidate_id"),
+            "ycsb": dict(source_ycsb),
+            "records": source_entry.get("records"),
+            "threads": source_entry.get("threads"),
+        }
+        try:
+            legacy_projection_bytes = _canonical_bytes(legacy_projection)
+            source_projection_bytes = _canonical_bytes(source_projection)
+        except AcceptanceReceiptError as exc:
+            raise AcceptanceReceiptError(
+                "[receipt-freeze-arm-binding] holdout projection is not canonical JSON"
+            ) from exc
+        if legacy_projection_bytes != source_projection_bytes:
+            _fail(
+                "receipt-freeze-arm-binding",
+                f"ratified legacy holdout differs from in-source authority: {name}",
+            )
+
+    legacy_derangement = (
+        document.get("derangement") if isinstance(document, Mapping) else None
+    )
+    try:
+        derangement_differs = (
+            not isinstance(legacy_derangement, Mapping)
+            or _canonical_bytes(dict(legacy_derangement))
+            != _canonical_bytes(s8b_holdout_freeze.DERANGEMENT)
+        )
+    except AcceptanceReceiptError as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-freeze-arm-binding] derangement is not canonical JSON"
+        ) from exc
+    if derangement_differs:
+        _fail(
+            "receipt-freeze-arm-binding",
+            "ratified legacy derangement differs from in-source authority",
+        )
+
+
+def _expected_arm_content_digest(
+    root: Path,
+    holdout: str,
+    arm: str,
+    commit: str,
+) -> str:
+    """Rederive one content digest from the subject's historical arm input."""
+    try:
+        from . import s8c_arm_inputs
+
+        resolved = s8c_arm_inputs.resolve_arm_input(
+            arm=arm,
+            holdout=holdout,
+            repository_root=root,
+            commit=commit,
+        )
+        return resolved.content_digest_sha256
+    except AcceptanceReceiptError:
+        raise
+    except Exception as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-freeze-arm-binding] trial arm input cannot be rederived"
+        ) from exc
+
+
+def _assert_rederived_trial_arm_execution(
+    root: Path,
+    trial: AcceptanceReceiptTrial,
+) -> None:
+    """Require the receipt content digest to equal independent rederivation."""
+    arm_execution = trial.arm_execution
+    if arm_execution is None:
+        _fail("receipt-freeze-arm-binding", "v2 trial arm_execution is absent")
+    expected_content_digest = _expected_arm_content_digest(
+        root,
+        trial.holdout,
+        trial.arm,
+        trial.measurement_head,
+    )
+    if arm_execution.content_digest_sha256 != expected_content_digest:
+        _fail(
+            "receipt-freeze-arm-binding",
+            "content digest differs from ratified legacy freeze rederivation",
+        )
+    # Expected binding equality follows from this comparison and the existing binding gate.
+
+
 def _reference_object(data: bytes, *, label: str) -> Mapping[str, Any]:
     value = _decode_json(data)
     if not isinstance(value, Mapping):
@@ -808,6 +966,11 @@ def _verify_v2_trial_arm_execution(
         )
     ):
         _fail("receipt-arm-binding", "trial report arm cell differs from receipt")
+    if binding.get("measurement_head") != trial.measurement_head:
+        _fail(
+            "receipt-freeze-arm-binding",
+            "trial report binding measurement_head differs from receipt",
+        )
 
     cells = report.get("cells")
     if not isinstance(cells, list) or len(cells) > 1:
@@ -995,6 +1158,13 @@ def verify_acceptance_receipt(
         receipt.lifecycle_prefix_sha256,
         "lifecycle",
     )
+    rederive_arm_execution = receipt.schema_version in {
+        PREVIOUS_SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION,
+        SCHEMA_VERSION,
+    }
+    if rederive_arm_execution:
+        _require_ratified_legacy_arm_authority()
     descriptor_proofs: list[bool] = []
     for trial in receipt.trials:
         report_bytes = _assert_digest(
@@ -1006,15 +1176,14 @@ def verify_acceptance_receipt(
             trial.attempt_journal_sha256,
             "attempt journal",
         )
-        if receipt.schema_version in {
-            PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION,
-            SCHEMA_VERSION,
-        }:
-            descriptor_proofs.append(_verify_v2_trial_arm_execution(
+        if rederive_arm_execution:
+            descriptor_proven = _verify_v2_trial_arm_execution(
                 trial,
                 report_bytes=report_bytes,
                 journal_bytes=journal_bytes,
-            ))
+            )
+            _assert_rederived_trial_arm_execution(root, trial)
+            descriptor_proofs.append(descriptor_proven)
     if (
         receipt.schema_version in {
             PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION,
