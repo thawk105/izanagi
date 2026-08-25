@@ -32,7 +32,7 @@ if str(_REPO_ROOT) not in sys.path:
 from tools import run_tests as production_runner  # noqa: E402
 
 
-SCHEMA_VERSION = "izanagi-acceptance-nproc-study/v1"
+SCHEMA_VERSION = "izanagi-acceptance-nproc-study/v2"
 JOB_FAILURE_SCHEMA_VERSION = "izanagi-acceptance-nproc-study-job-failure/v1"
 SCHEDULE_ALGORITHM = "sha256-rank-v1"
 ARMS = (16, 32, 48)
@@ -46,7 +46,8 @@ FULL_TIMEOUT_MULTIPLIER_DENOMINATOR = 4
 FULL_TIMEOUT_FIXED_RESERVE_S = 3 * PER_SHARD_POSTRUN_RESERVE_S
 SMOKE_TIMEOUT_RULE = "fixed 3600s per-arm liveness cap; excluded from estimand"
 FULL_TIMEOUT_RULE = (
-    "ceil(5/4 * sum(smoke shard wall_s)) + 90s per arm from one complete smoke receipt"
+    "ceil(5/4 * sum(smoke shard budget_wall_s including TMP cleanup)) + 90s "
+    "per arm from one complete smoke receipt"
 )
 EXCLUDED_ESTIMANDS = (
     {
@@ -68,6 +69,16 @@ _CACHE_ENV_NAMES = {
 THIRDPARTY_CACHE_ENV = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
 TMP_CAPACITY_RULE = (
     "observed maximum times observed max/min safety factor plus observed mean reserve"
+)
+TMP_PEAK_CAPACITY_RULE = (
+    "minimum sampled free bytes must cover the monotonic maximum of prior per-run "
+    "peak consumption, current per-run peak consumption, and the current serialized "
+    "receipt size"
+)
+DISTURBANCE_RULE = (
+    "unowned uid>=1000 process CPU delta >=2 ticks; ownership is the union "
+    "of exempt pgroup, sticky (pid,starttime), owned-parent closure, resolved "
+    "job-root cwd/exe, and job-root command prefix"
 )
 KNOWN_NONEQUIVALENCES = (
     {
@@ -98,6 +109,10 @@ INTERNAL_COMPARISON_SCOPE = (
 )
 ABSOLUTE_WALL_EXTRAPOLATION = (
     "The study does not justify extrapolation to production absolute wall time."
+)
+ARM_TIMEOUT_SCOPE = (
+    "session creation + two shard runs + before/after fingerprints + "
+    "per-shard TMP cleanup"
 )
 _TMP_JOB_PREFIX = "izn-"
 _TMP_JOB_TOKEN_HEX_LENGTH = 12
@@ -153,6 +168,8 @@ class ExecRequest:
     stderr_path: Path | None = None
     sample_isolation: bool = False
     expected_host: str = ""
+    tmp_capacity: TmpCapacitySpec | None = None
+    isolation_job_roots: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -166,6 +183,16 @@ class ExecResult:
     stderr_sha256: str
     isolation: Mapping[str, Any]
     process_cleanup: Mapping[str, Any]
+    tmp_capacity: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class TmpCapacitySpec:
+    path: Path
+    global_run_index: int
+    prior_observed_max_consumption_bytes: int
+    receipt_reserve_bytes: int
+    interval_s: float = 1.0
 
 
 Executor = Callable[[ExecRequest], ExecResult]
@@ -175,6 +202,18 @@ def _canonical_json_bytes(value: Any) -> bytes:
     return json.dumps(
         value, ensure_ascii=True, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
+
+
+def _receipt_json_bytes(value: Mapping[str, Any]) -> bytes:
+    return (
+        json.dumps(value, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+
+
+def _receipt_reserve_bytes(value: Mapping[str, Any]) -> int:
+    """Return the exact bytes needed to serialize the receipt in its current state."""
+
+    return len(_receipt_json_bytes(value))
 
 
 def _sha256(data: bytes) -> str:
@@ -279,16 +318,23 @@ def validate_remaining_budget(
     return required
 
 
-def allocate_shard_timeout(*, arm_remaining_s: float, remaining_shards: int) -> float:
-    """Reserve a postrun fingerprint window for every still-pending shard."""
+def allocate_shard_timeout(
+    *, arm_remaining_s: float, remaining_shards: int,
+    observed_cleanup_reserve_s: float = 0.0,
+) -> float:
+    """Reserve postrun fingerprints and the observed cleanup maximum per shard."""
     if (
         not math.isfinite(arm_remaining_s)
         or arm_remaining_s <= 0
         or type(remaining_shards) is not int
         or remaining_shards <= 0
+        or not math.isfinite(observed_cleanup_reserve_s)
+        or observed_cleanup_reserve_s < 0
     ):
         raise ContractError("invalid arm remainder or shard count")
-    available = arm_remaining_s - remaining_shards * PER_SHARD_POSTRUN_RESERVE_S
+    available = arm_remaining_s - remaining_shards * (
+        PER_SHARD_POSTRUN_RESERVE_S + observed_cleanup_reserve_s
+    )
     timeout = available / remaining_shards
     if timeout <= 0:
         raise ContractError("arm cap cannot preserve all postrun fingerprint windows")
@@ -312,7 +358,7 @@ def _smoke_arm_shard_walls(
             or [run.get("shard_index") for run in pair] != list(range(SHARD_COUNT))
         ):
             raise ContractError(f"smoke calibration arm {arm} has an invalid shard pair")
-        values = [float(run.get("wall_s", math.nan)) for run in pair]
+        values = [float(run.get("budget_wall_s", math.nan)) for run in pair]
         if any(not math.isfinite(value) or value <= 0 for value in values):
             raise ContractError(f"smoke calibration arm {arm} has an invalid wall time")
         walls[str(arm)] = values
@@ -436,6 +482,7 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
     if not cases:
         raise ContractError("JUnit contains no testcase")
     identities: list[tuple[str, str, str]] = []
+    skipped_identities: list[tuple[str, str, str]] = []
     serial_work = 0.0
     real_repo_chain = 0.0
     real_repo_count = 0
@@ -453,7 +500,10 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
         serial_work += duration
         failures += sum(1 for _ in case.findall("failure"))
         errors += sum(1 for _ in case.findall("error"))
-        skipped += sum(1 for _ in case.findall("skipped"))
+        case_skipped = sum(1 for _ in case.findall("skipped"))
+        skipped += case_skipped
+        if case_skipped:
+            skipped_identities.append(identity)
         marker_text = " ".join((classname, name, file_name)).lower()
         properties = case.find("properties")
         if properties is not None:
@@ -476,6 +526,9 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
         "real_repo_test_count": real_repo_count,
         "serial_work_sum_s": serial_work,
         "skipped_count": skipped,
+        "skipped_testcase_identity_set_sha256": _sha256(
+            _canonical_json_bytes(sorted(skipped_identities))
+        ),
         "testcase_identity_set_sha256": _sha256(
             _canonical_json_bytes(sorted(identities))
         ),
@@ -504,14 +557,118 @@ def _proc_row(snapshot: Mapping[tuple[int, int], Mapping[str, Any]],
     return value if isinstance(value, Mapping) else None
 
 
+_OWNERSHIP_REASON_LABELS = {
+    1: "1:pgroup",
+    2: "2:sticky-identity",
+    3: "3:owned-parent",
+    4: "4:job-root-cwd-or-exe",
+    5: "5:job-root-command",
+}
+
+
+def _normalized_job_roots(job_roots: Iterable[Path]) -> tuple[Path, ...]:
+    roots: list[Path] = []
+    for root in job_roots:
+        path = Path(root)
+        if not path.is_absolute():
+            raise ContractError("isolation job roots must be absolute")
+        try:
+            normalized = path.resolve(strict=False)
+        except (OSError, RuntimeError) as exc:
+            raise ContractError("isolation job root cannot be resolved") from exc
+        if normalized not in roots:
+            roots.append(normalized)
+    return tuple(roots)
+
+
+def _path_is_under_job_root(value: Any, job_roots: Sequence[Path]) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    path = Path(value)
+    if not path.is_absolute():
+        return False
+    try:
+        resolved = path.resolve(strict=False)
+    except (OSError, RuntimeError):
+        return False
+    return any(resolved == root or resolved.is_relative_to(root) for root in job_roots)
+
+
+def _ownership_reasons_by_identity(
+    samples: Sequence[Mapping[str, Any]], *, exempt_pgroups: set[int],
+    job_roots: Sequence[Path],
+) -> dict[tuple[int, int], set[int]]:
+    """Apply the five ordered ownership rules with sticky cross-sample state."""
+
+    owned_identities: set[tuple[int, int]] = set()
+    owned_pids: set[int] = set()
+    accumulated: dict[tuple[int, int], set[int]] = {}
+    for sample in samples:
+        processes = sample.get("processes", {})
+        if not isinstance(processes, Mapping):
+            continue
+        current: dict[tuple[int, int], set[int]] = {}
+        for identity, raw_row in processes.items():
+            if (
+                not isinstance(identity, tuple)
+                or len(identity) != 2
+                or not isinstance(raw_row, Mapping)
+            ):
+                continue
+            row = raw_row
+            reasons: set[int] = set()
+            if int(row.get("pgroup", -1)) in exempt_pgroups:
+                reasons.add(1)
+            if identity in owned_identities:
+                reasons.add(2)
+            if (
+                _path_is_under_job_root(row.get("cwd"), job_roots)
+                or _path_is_under_job_root(row.get("exe"), job_roots)
+            ):
+                reasons.add(4)
+            command = row.get("command")
+            if isinstance(command, str) and any(str(root) in command for root in job_roots):
+                reasons.add(5)
+            current[identity] = reasons
+
+        changed = True
+        while changed:
+            changed = False
+            current_owned_pids = {
+                int(identity[0]) for identity, reasons in current.items() if reasons
+            }
+            parent_pids = owned_pids | current_owned_pids
+            for identity, reasons in current.items():
+                row = processes[identity]
+                if (
+                    3 not in reasons
+                    and int(row.get("ppid", -1)) in parent_pids
+                ):
+                    reasons.add(3)
+                    changed = True
+
+        for identity, reasons in current.items():
+            if not reasons:
+                continue
+            owned_identities.add(identity)
+            owned_pids.add(int(identity[0]))
+            accumulated.setdefault(identity, set()).update(reasons)
+    return accumulated
+
+
 def summarize_isolation_samples(
     samples: Sequence[Mapping[str, Any]], *, own_uid: int,
-    exempt_pgroups: Iterable[int], expected_host: str, interval_s: float = 1.0,
+    exempt_pgroups: Iterable[int], expected_host: str,
+    job_roots: Iterable[Path] = (), interval_s: float = 1.0,
 ) -> dict[str, Any]:
     """Summarize continuous samples; process creation between endpoints remains visible."""
     if len(samples) < 2:
         raise ContractError("isolation sampler produced fewer than two samples")
     exempt = set(exempt_pgroups)
+    roots = _normalized_job_roots(job_roots)
+    ownership = _ownership_reasons_by_identity(
+        samples, exempt_pgroups=exempt, job_roots=roots,
+    )
     times = [float(sample["monotonic_s"]) for sample in samples]
     gaps = [right - left for left, right in zip(times, times[1:])]
     read_errors = [
@@ -539,25 +696,33 @@ def summarize_isolation_samples(
         if created:
             delta = max(delta, last_ticks)
         pgroup = int(last["pgroup"])
+        ownership_reasons = sorted(ownership.get(identity, set()))
         row = {
             "command": str(last["command"]),
             "cpu_ticks_delta": delta,
+            "cwd": last.get("cwd"),
             "created": created,
             "disappeared": disappeared,
             "exempt": pgroup in exempt,
+            "exe": last.get("exe"),
             "first_ticks": first_ticks,
             "last_ticks": last_ticks,
+            "owned": bool(ownership_reasons),
+            "ownership_reasons": [
+                _OWNERSHIP_REASON_LABELS[reason] for reason in ownership_reasons
+            ],
             "pgroup": pgroup,
             "pid": int(identity[0]),
+            "ppid": int(last.get("ppid", -1)),
             "starttime": int(identity[1]),
             "uid": int(last["uid"]),
         }
         if delta or created or disappeared:
             process_rows.append(row)
-        if not row["exempt"] and row["uid"] == own_uid and delta >= 2:
+        if not row["owned"] and row["uid"] >= 1000 and delta >= 2:
             candidates.append({
                 **row,
-                "uid_relation": "same",
+                "uid_relation": "same" if row["uid"] == own_uid else "other",
             })
     hosts = [str(sample.get("hostname", "")) for sample in samples]
     max_gap = max(gaps, default=0.0)
@@ -565,9 +730,7 @@ def summarize_isolation_samples(
     valid = not read_errors and max_gap <= interval_s * 1.75 and host_match
     return {
         "disturbance_candidates": candidates,
-        "disturbance_rule": (
-            "non-exempt same-uid process CPU delta >=2 ticks over continuous samples"
-        ),
+        "disturbance_rule": DISTURBANCE_RULE,
         "disturbed": bool(candidates),
         "host_end": hosts[-1],
         "host_match": host_match,
@@ -608,6 +771,7 @@ def _read_proc_snapshot() -> dict[str, Any]:
                 raise ValueError("stat-comm")
             tail = raw[closing + 2:].split()
             pid = int(entry.name)
+            ppid = int(tail[1])
             pgroup = int(tail[2])
             ticks = int(tail[11]) + int(tail[12])
             starttime = int(tail[19])
@@ -620,9 +784,22 @@ def _read_proc_snapshot() -> dict[str, Any]:
         except (OSError, ValueError, IndexError) as exc:
             errors.append(f"{entry.name}:{type(exc).__name__}")
             continue
+        cwd: str | None
+        exe: str | None
+        try:
+            cwd = os.readlink(entry / "cwd")
+        except (FileNotFoundError, OSError):
+            cwd = None
+        try:
+            exe = os.readlink(entry / "exe")
+        except (FileNotFoundError, OSError):
+            exe = None
         processes[(pid, starttime)] = {
             "command": command,
+            "cwd": cwd,
+            "exe": exe,
             "pgroup": pgroup,
+            "ppid": ppid,
             "ticks": ticks,
             "uid": uid,
         }
@@ -630,9 +807,13 @@ def _read_proc_snapshot() -> dict[str, Any]:
 
 
 class _IsolationSampler:
-    def __init__(self, *, arm_pgroup: int, expected_host: str, interval_s: float = 1.0):
+    def __init__(
+        self, *, arm_pgroup: int, expected_host: str,
+        job_roots: Sequence[Path], interval_s: float = 1.0,
+    ):
         self.arm_pgroup = arm_pgroup
         self.expected_host = expected_host
+        self.job_roots = tuple(job_roots)
         self.interval_s = interval_s
         self.samples: list[dict[str, Any]] = []
         self._stop = threading.Event()
@@ -667,8 +848,121 @@ class _IsolationSampler:
             own_uid=os.getuid(),
             exempt_pgroups=(os.getpgrp(), self.arm_pgroup),
             expected_host=self.expected_host,
+            job_roots=self.job_roots,
             interval_s=self.interval_s,
         )
+
+
+def _sample_tmp_free_bytes(path: Path) -> int:
+    filesystem = os.statvfs(path)
+    return int(filesystem.f_bavail * filesystem.f_frsize)
+
+
+def summarize_tmp_capacity_samples(
+    samples: Sequence[Mapping[str, Any]], *, spec: TmpCapacitySpec,
+) -> dict[str, Any]:
+    """Derive the monotonic in-run capacity gate from live statvfs samples."""
+
+    if (
+        not spec.path.is_absolute()
+        or type(spec.global_run_index) is not int
+        or spec.global_run_index < 0
+        or type(spec.prior_observed_max_consumption_bytes) is not int
+        or spec.prior_observed_max_consumption_bytes < 0
+        or type(spec.receipt_reserve_bytes) is not int
+        or spec.receipt_reserve_bytes <= 0
+        or not math.isfinite(spec.interval_s)
+        or spec.interval_s <= 0
+    ):
+        raise ContractError("invalid TMP peak capacity sampling specification")
+    times = [float(sample.get("monotonic_s", 0.0)) for sample in samples]
+    gaps = [right - left for left, right in zip(times, times[1:])]
+    read_errors = [
+        str(error) for sample in samples for error in sample.get("read_errors", [])
+    ]
+    free_samples = [
+        int(sample["free_bytes"])
+        for sample in samples
+        if type(sample.get("free_bytes")) is int and int(sample["free_bytes"]) >= 0
+    ]
+    start_free = free_samples[0] if free_samples else 0
+    minimum_free = min(free_samples, default=0)
+    observed_consumption = max(0, start_free - minimum_free)
+    required = max(
+        spec.prior_observed_max_consumption_bytes,
+        observed_consumption,
+        spec.receipt_reserve_bytes,
+    )
+    gate_free = minimum_free if free_samples and not read_errors else 0
+    return {
+        "free_bytes": gate_free,
+        "global_run_index": spec.global_run_index,
+        "interval_s": spec.interval_s,
+        "max_gap_s": max(gaps, default=0.0),
+        "minimum_free_bytes": minimum_free,
+        "observed_consumption_bytes": observed_consumption,
+        "passed": gate_free >= required,
+        "prior_observed_max_consumption_bytes": (
+            spec.prior_observed_max_consumption_bytes
+        ),
+        "read_errors": read_errors,
+        "receipt_reserve_bytes": spec.receipt_reserve_bytes,
+        "required_bytes": required,
+        "sample_count": len(samples),
+        "start_free_bytes": start_free,
+    }
+
+
+class _TmpCapacitySampler:
+    def __init__(self, spec: TmpCapacitySpec):
+        self.spec = spec
+        self.samples: list[dict[str, Any]] = []
+        self._stop = threading.Event()
+        self._tripped = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _sample(self) -> None:
+        row: dict[str, Any] = {
+            "monotonic_s": time.monotonic(),
+            "read_errors": [],
+        }
+        try:
+            row["free_bytes"] = _sample_tmp_free_bytes(self.spec.path)
+        except (OSError, RuntimeError, ValueError) as exc:
+            row["read_errors"] = [type(exc).__name__]
+        self.samples.append(row)
+        if summarize_tmp_capacity_samples(self.samples, spec=self.spec)["passed"] is not True:
+            self._tripped.set()
+
+    def _loop(self) -> None:
+        next_sample = time.monotonic() + self.spec.interval_s
+        while not self._stop.wait(max(0.0, next_sample - time.monotonic())):
+            self._sample()
+            if self._tripped.is_set():
+                return
+            next_sample += self.spec.interval_s
+
+    def start(self) -> None:
+        self._sample()
+        if self._tripped.is_set():
+            return
+        self._thread = threading.Thread(
+            target=self._loop, name="nproc-tmp-capacity", daemon=True,
+        )
+        self._thread.start()
+
+    @property
+    def tripped(self) -> bool:
+        return self._tripped.is_set()
+
+    def finish(self) -> dict[str, Any]:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                raise ContractError("TMP capacity sampler did not stop")
+        self._sample()
+        return summarize_tmp_capacity_samples(self.samples, spec=self.spec)
 
 
 def _pgroup_members(pgroup: int) -> list[int]:
@@ -740,26 +1034,53 @@ class ProcessExecutor:
         process_ended = started
         process: subprocess.Popen[bytes] | None = None
         sampler: _IsolationSampler | None = None
+        capacity_sampler = (
+            None
+            if request.tmp_capacity is None
+            else _TmpCapacitySampler(request.tmp_capacity)
+        )
         timed_out = False
         cleanup: Mapping[str, Any] = {
-            "kill_sent": False, "reaped": False, "residual_pids": [], "term_sent": False,
+            "kill_sent": False, "reaped": True, "residual_pids": [], "term_sent": False,
         }
         try:
-            process = subprocess.Popen(
-                list(request.argv), cwd=request.cwd, env=dict(request.env),
-                stdin=subprocess.DEVNULL, stdout=stdout_handle, stderr=stderr_handle,
-                start_new_session=True,
-                umask=0o022,
-            )
-            if request.sample_isolation:
-                sampler = _IsolationSampler(
-                    arm_pgroup=process.pid, expected_host=request.expected_host
+            if capacity_sampler is not None:
+                capacity_sampler.start()
+            if capacity_sampler is None or not capacity_sampler.tripped:
+                started = time.monotonic()
+                process = subprocess.Popen(
+                    list(request.argv), cwd=request.cwd, env=dict(request.env),
+                    stdin=subprocess.DEVNULL, stdout=stdout_handle, stderr=stderr_handle,
+                    start_new_session=True,
+                    umask=0o022,
                 )
-                sampler.start()
-            try:
-                process.wait(timeout=request.timeout_s)
-            except subprocess.TimeoutExpired:
-                timed_out = True
+                if request.sample_isolation:
+                    if not request.isolation_job_roots:
+                        raise ContractError(
+                            "measurement isolation requires explicit job roots"
+                        )
+                    sampler = _IsolationSampler(
+                        arm_pgroup=process.pid,
+                        expected_host=request.expected_host,
+                        job_roots=request.isolation_job_roots,
+                    )
+                    sampler.start()
+                if capacity_sampler is None:
+                    try:
+                        process.wait(timeout=request.timeout_s)
+                    except subprocess.TimeoutExpired:
+                        timed_out = True
+                else:
+                    deadline = started + request.timeout_s
+                    while process.poll() is None and not capacity_sampler.tripped:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            timed_out = True
+                            break
+                        try:
+                            process.wait(timeout=min(remaining, 0.1))
+                        except subprocess.TimeoutExpired:
+                            continue
             process_ended = time.monotonic()
         finally:
             if process is not None:
@@ -782,6 +1103,9 @@ class ProcessExecutor:
                     "sample_count": 0,
                     "valid": True,
                 }
+            tmp_capacity = (
+                None if capacity_sampler is None else capacity_sampler.finish()
+            )
             stdout_handle.flush()
             stderr_handle.flush()
             stdout_handle.seek(0)
@@ -801,6 +1125,7 @@ class ProcessExecutor:
             stderr_sha256=_sha256(stderr),
             isolation=isolation,
             process_cleanup=cleanup,
+            tmp_capacity=tmp_capacity,
         )
 
 
@@ -923,6 +1248,14 @@ def _require_tmp_capacity(check: Mapping[str, Any]) -> None:
     if check.get("passed") is not True:
         raise ContractError(
             "insufficient /tmp capacity for the next run: "
+            f"free={check.get('free_bytes')} required={check.get('required_bytes')}"
+        )
+
+
+def _require_tmp_peak_capacity(check: Mapping[str, Any]) -> None:
+    if check.get("passed") is not True:
+        raise ContractError(
+            "insufficient /tmp capacity during run: "
             f"free={check.get('free_bytes')} required={check.get('required_bytes')}"
         )
 
@@ -1573,8 +1906,9 @@ def validate_run_manifest(
 
 
 def validate_junit_identity_sets(runs: Sequence[Mapping[str, Any]]) -> None:
-    """Require each shard index to execute one exact testcase set in every arm/block."""
+    """Require each shard to execute and skip the same identities in every arm/block."""
     expected_by_shard: dict[int, str] = {}
+    expected_skipped_by_shard: dict[int, str] = {}
     for index, run in enumerate(runs):
         shard_index = run.get("shard_index")
         if type(shard_index) is not int or shard_index not in range(SHARD_COUNT):
@@ -1590,8 +1924,21 @@ def validate_junit_identity_sets(runs: Sequence[Mapping[str, Any]]) -> None:
             raise ContractError(
                 f"JUnit testcase identity set differs for shard {shard_index} at run {index}"
             )
+        skipped_digest = junit.get("skipped_testcase_identity_set_sha256")
+        if not isinstance(skipped_digest, str) or _HASH_RE.fullmatch(skipped_digest) is None:
+            raise ContractError(f"run {index} skipped testcase identity set digest is invalid")
+        expected_skipped = expected_skipped_by_shard.setdefault(
+            shard_index, skipped_digest
+        )
+        if skipped_digest != expected_skipped:
+            raise ContractError(
+                f"JUnit skipped testcase identity set differs for shard {shard_index} "
+                f"at run {index}"
+            )
     if set(expected_by_shard) != set(range(SHARD_COUNT)):
         raise ContractError("JUnit testcase identity sets do not cover every shard")
+    if set(expected_skipped_by_shard) != set(range(SHARD_COUNT)):
+        raise ContractError("JUnit skipped testcase identity sets do not cover every shard")
 
 
 def _derive_analysis(runs: Sequence[Mapping[str, Any]], *, mode: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -1664,6 +2011,8 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "scratch_clone_preserved_until_job_end": True,
             "tmp_capacity_checks": [],
             "tmp_capacity_rule": TMP_CAPACITY_RULE,
+            "tmp_peak_capacity_observations": [],
+            "tmp_peak_capacity_rule": TMP_PEAK_CAPACITY_RULE,
             "tmp_tree_cleanups": [],
         },
         "completed_epoch_s": 0,
@@ -1671,7 +2020,7 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
         "design": {
             "absolute_wall_extrapolation": ABSOLUTE_WALL_EXTRAPOLATION,
             "arm_outcome": "max(shard_0_wall_s, shard_1_wall_s)",
-            "arm_timeout_scope": "session creation + two shard runs + before/after fingerprints",
+            "arm_timeout_scope": ARM_TIMEOUT_SCOPE,
             "arms": list(ARMS),
             "internal_comparison_scope": INTERNAL_COMPARISON_SCOPE,
             "known_nonequivalences": [dict(item) for item in KNOWN_NONEQUIVALENCES],
@@ -1715,6 +2064,7 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "remaining_budget_all_stages": False,
             "run_manifest_matches_schedule": False,
             "submodules_materialized": False,
+            "tmp_peak_capacity_guard_passed": False,
         },
         "mode": config.mode,
         "occasion": {
@@ -1787,6 +2137,8 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
         int(config.arm_timeout_s[arm]) for block in schedule for arm in block.arm_order
     ]
     observed_tmp_usage_bytes: list[int] = []
+    observed_tmp_peak_consumption_bytes: list[int] = []
+    observed_cleanup_wall_s: list[float] = []
     try:
         with _signal_contract():
             current_stage = "initial-qstat"
@@ -1896,22 +2248,52 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                         child_timeout_s = allocate_shard_timeout(
                             arm_remaining_s=_remaining(arm_deadline),
                             remaining_shards=SHARD_COUNT - shard_index,
+                            observed_cleanup_reserve_s=max(
+                                observed_cleanup_wall_s, default=0.0,
+                            ),
                         )
                         stdout_path = artifact_root / f"run-{global_run_index:03d}.stdout"
                         stderr_path = artifact_root / f"run-{global_run_index:03d}.stderr"
                         run_started = time.monotonic()
                         result: ExecResult | None = None
+                        run_record: dict[str, Any] | None = None
+                        peak_capacity: dict[str, Any] | None = None
                         child_error: BaseException | None = None
                         try:
                             try:
+                                tmp_capacity_spec = TmpCapacitySpec(
+                                    path=Path(child_env["TMPDIR"]),
+                                    global_run_index=global_run_index,
+                                    prior_observed_max_consumption_bytes=max(
+                                        observed_tmp_peak_consumption_bytes,
+                                        default=0,
+                                    ),
+                                    receipt_reserve_bytes=_receipt_reserve_bytes(receipt),
+                                )
                                 result = executor(ExecRequest(
                                     purpose=f"measurement:{global_run_index}",
                                     argv=tuple(argv), cwd=clone, env=child_env,
                                     timeout_s=child_timeout_s,
                                     stdout_path=stdout_path, stderr_path=stderr_path,
                                     sample_isolation=True, expected_host=hostname,
+                                    tmp_capacity=tmp_capacity_spec,
+                                    isolation_job_roots=(
+                                        config.scratch_root,
+                                        _tmp_job_root(config),
+                                    ),
                                 ))
                                 validate_process_cleanup(result.process_cleanup)
+                                if not isinstance(result.tmp_capacity, Mapping):
+                                    raise ContractError(
+                                        f"run {global_run_index} lacks TMP peak capacity evidence"
+                                    )
+                                peak_capacity = dict(result.tmp_capacity)
+                                receipt["cleanup"]["tmp_peak_capacity_observations"].append(
+                                    peak_capacity
+                                )
+                                observed_tmp_peak_consumption_bytes.append(
+                                    int(peak_capacity.get("observed_consumption_bytes", -1))
+                                )
                             except BaseException as exc:
                                 child_error = exc
                             postrun_deadline = time.monotonic() + min(
@@ -1931,6 +2313,8 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                             if child_error is not None:
                                 raise child_error
                             assert result is not None
+                            assert peak_capacity is not None
+                            _require_tmp_peak_capacity(peak_capacity)
                             junit_path = session / f"shard-{shard_index}" / "junit.xml"
                             if not junit_path.is_file() or junit_path.is_symlink():
                                 raise ContractError(
@@ -1970,17 +2354,27 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                                 "wall_s": result.duration_s,
                             }
                         finally:
+                            cleanup_started = time.monotonic()
                             tmp_cleanup = _remove_tmp_tree(
                                 Path(child_env["TMPDIR"]),
                                 global_run_index=global_run_index,
                                 purpose="measurement",
                             )
+                            cleanup_wall_s = time.monotonic() - cleanup_started
+                            observed_cleanup_wall_s.append(cleanup_wall_s)
                             receipt["cleanup"]["tmp_tree_cleanups"].append(
                                 tmp_cleanup
                             )
                             observed_tmp_usage_bytes.append(
                                 int(tmp_cleanup["usage_bytes_before_cleanup"])
                             )
+                            if run_record is not None:
+                                run_record["cleanup_wall_s"] = cleanup_wall_s
+                                run_record["budget_wall_s"] = (
+                                    float(run_record["wall_s"]) + cleanup_wall_s
+                                )
+                            _remaining(arm_deadline)
+                        assert run_record is not None
                         receipt["runs"].append(run_record)
                         if (
                             result.timed_out or result.returncode != 0
@@ -2039,6 +2433,7 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                 "remaining_budget_all_stages": True,
                 "run_manifest_matches_schedule": True,
                 "submodules_materialized": True,
+                "tmp_peak_capacity_guard_passed": True,
             }
             receipt["status"] = "complete"
     except BaseException as exc:
@@ -2119,14 +2514,36 @@ def _validate_isolation(value: Any, context: str) -> None:
         context,
     )
     process_keys = {
-        "command", "cpu_ticks_delta", "created", "disappeared", "exempt", "first_ticks",
-        "last_ticks", "pgroup", "pid", "starttime", "uid",
+        "command", "cpu_ticks_delta", "created", "cwd", "disappeared", "exempt",
+        "exe", "first_ticks", "last_ticks", "owned", "ownership_reasons", "pgroup",
+        "pid", "ppid", "starttime", "uid",
     }
+    if row["disturbance_rule"] != DISTURBANCE_RULE:
+        raise ContractError(f"{context}.disturbance_rule differs from the fixed rule")
     for index, process in enumerate(row["processes"]):
-        _expect_keys(process, process_keys, f"{context}.processes[{index}]")
+        item = _expect_keys(process, process_keys, f"{context}.processes[{index}]")
+        reasons = item["ownership_reasons"]
+        if (
+            not isinstance(reasons, list)
+            or reasons != sorted(set(reasons))
+            or any(reason not in _OWNERSHIP_REASON_LABELS.values() for reason in reasons)
+            or type(item["owned"]) is not bool
+            or item["owned"] != bool(reasons)
+            or (item["cwd"] is not None and not isinstance(item["cwd"], str))
+            or (item["exe"] is not None and not isinstance(item["exe"], str))
+        ):
+            raise ContractError(f"{context}.processes[{index}] ownership evidence is invalid")
     for index, process in enumerate(row["disturbance_candidates"]):
-        _expect_keys(process, process_keys | {"uid_relation"},
-                     f"{context}.disturbance_candidates[{index}]")
+        item = _expect_keys(process, process_keys | {"uid_relation"},
+                            f"{context}.disturbance_candidates[{index}]")
+        if (
+            item["owned"] is not False
+            or item["ownership_reasons"] != []
+            or item["uid"] < 1000
+            or item["cpu_ticks_delta"] < 2
+            or item["uid_relation"] not in {"same", "other"}
+        ):
+            raise ContractError(f"{context}.disturbance_candidates[{index}] is invalid")
 
 
 def _validate_timeout_calibration_document(
@@ -2223,6 +2640,8 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         or design["absolute_wall_extrapolation"] != ABSOLUTE_WALL_EXTRAPOLATION
     ):
         raise ContractError("receipt estimand scope differs from the fixed design")
+    if design["arm_timeout_scope"] != ARM_TIMEOUT_SCOPE:
+        raise ContractError("receipt arm timeout scope differs from the fixed design")
     budget = _expect_keys(
         root["budget"],
         {"arm_timeout_s", "budget_checks", "finalize_reserve_s", "margin_s", "planned_total_s",
@@ -2254,11 +2673,14 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         root["cleanup"],
         {"canonical_fingerprint_after_sha256", "canonical_fingerprint_before_sha256",
          "canonical_unchanged", "scratch_clone_preserved_until_job_end",
-         "tmp_capacity_checks", "tmp_capacity_rule", "tmp_tree_cleanups"},
+         "tmp_capacity_checks", "tmp_capacity_rule", "tmp_peak_capacity_observations",
+         "tmp_peak_capacity_rule", "tmp_tree_cleanups"},
         "receipt.cleanup",
     )
     if cleanup["tmp_capacity_rule"] != TMP_CAPACITY_RULE:
         raise ContractError("receipt TMP capacity rule differs from the fixed rule")
+    if cleanup["tmp_peak_capacity_rule"] != TMP_PEAK_CAPACITY_RULE:
+        raise ContractError("receipt TMP peak capacity rule differs from the fixed rule")
     tmp_cleanup_keys = {
         "global_run_index", "purpose", "removed", "usage_bytes_before_cleanup",
     }
@@ -2305,8 +2727,50 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
                 -(item["observed_max_bytes"] * item["observed_max_bytes"])
                 // item["observed_min_bytes"]
             )
+            or item["passed"] != (item["free_bytes"] >= item["required_bytes"])
         ):
             raise ContractError("receipt TMP capacity observation is invalid")
+    tmp_peak_capacity_keys = {
+        "free_bytes", "global_run_index", "interval_s", "max_gap_s",
+        "minimum_free_bytes", "observed_consumption_bytes", "passed",
+        "prior_observed_max_consumption_bytes", "read_errors",
+        "receipt_reserve_bytes", "required_bytes", "sample_count",
+        "start_free_bytes",
+    }
+    for index, row in enumerate(cleanup["tmp_peak_capacity_observations"]):
+        item = _expect_keys(
+            row, tmp_peak_capacity_keys,
+            f"receipt.cleanup.tmp_peak_capacity_observations[{index}]",
+        )
+        integer_fields = tmp_peak_capacity_keys - {
+            "interval_s", "max_gap_s", "passed", "read_errors",
+        }
+        if (
+            any(type(item[field]) is not int or item[field] < 0 for field in integer_fields)
+            or type(item["passed"]) is not bool
+            or not isinstance(item["read_errors"], list)
+            or any(not isinstance(error, str) for error in item["read_errors"])
+            or not isinstance(item["interval_s"], (int, float))
+            or float(item["interval_s"]) != 1.0
+            or not isinstance(item["max_gap_s"], (int, float))
+            or not math.isfinite(float(item["max_gap_s"]))
+            or float(item["max_gap_s"]) < 0
+            or item["sample_count"] < 2
+            or item["receipt_reserve_bytes"] <= 0
+            or item["minimum_free_bytes"] > item["start_free_bytes"]
+            or item["observed_consumption_bytes"]
+            != max(0, item["start_free_bytes"] - item["minimum_free_bytes"])
+            or item["required_bytes"] != max(
+                item["prior_observed_max_consumption_bytes"],
+                item["observed_consumption_bytes"],
+                item["receipt_reserve_bytes"],
+            )
+            or item["free_bytes"] != (
+                item["minimum_free_bytes"] if not item["read_errors"] else 0
+            )
+            or item["passed"] != (item["free_bytes"] >= item["required_bytes"])
+        ):
+            raise ContractError("receipt TMP peak capacity observation is invalid")
     _expect_keys(root["occasion"], {"allocation_hosts", "host_match", "hostname", "pbs_jobid"},
                  "receipt.occasion")
     invariant_keys = {
@@ -2314,7 +2778,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         "all_tmp_trees_removed", "budget_strict", "canonical_unchanged", "host_match",
         "isolation_valid_and_undisturbed", "junit_identity_sets_match_by_shard",
         "remaining_budget_all_stages", "run_manifest_matches_schedule",
-        "submodules_materialized",
+        "submodules_materialized", "tmp_peak_capacity_guard_passed",
     }
     invariants = _expect_keys(root["invariant_checks"], invariant_keys,
                               "receipt.invariant_checks")
@@ -2332,17 +2796,22 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         "child_timeout_s", "elapsed_end_s", "elapsed_start_s", "env_nproc", "fingerprint_after_sha256",
         "fingerprint_before_sha256", "global_block_index", "global_run_index", "host", "isolation",
         "junit", "order_index", "phase", "process_cleanup", "session_root", "shard_index",
-        "stderr_sha256", "stdout_sha256", "timed_out", "wall_minus_chain_s", "wall_s",
+        "budget_wall_s", "cleanup_wall_s", "stderr_sha256", "stdout_sha256",
+        "timed_out", "wall_minus_chain_s", "wall_s",
     }
     junit_keys = {
         "error_count", "failure_count", "nodeids_sha256", "real_repo_exclusive_chain_s",
         "real_repo_test_count", "serial_work_sum_s", "skipped_count",
-        "testcase_identity_set_sha256", "test_count",
+        "skipped_testcase_identity_set_sha256", "testcase_identity_set_sha256",
+        "test_count",
     }
     for index, run in enumerate(root["runs"]):
         _expect_keys(run, run_keys, f"receipt.runs[{index}]")
         _expect_keys(run["junit"], junit_keys, f"receipt.runs[{index}].junit")
-        for digest_field in ("nodeids_sha256", "testcase_identity_set_sha256"):
+        for digest_field in (
+            "nodeids_sha256", "skipped_testcase_identity_set_sha256",
+            "testcase_identity_set_sha256",
+        ):
             if _HASH_RE.fullmatch(str(run["junit"][digest_field])) is None:
                 raise ContractError(
                     f"receipt.runs[{index}].junit.{digest_field} is not sha256"
@@ -2358,6 +2827,15 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         )
         if run["env_nproc"] != str(run["arm"]):
             raise ContractError(f"receipt.runs[{index}] env_nproc differs from arm")
+        if (
+            not isinstance(run["cleanup_wall_s"], (int, float))
+            or not math.isfinite(float(run["cleanup_wall_s"]))
+            or float(run["cleanup_wall_s"]) < 0
+            or not isinstance(run["budget_wall_s"], (int, float))
+            or float(run["budget_wall_s"])
+            != float(run["wall_s"]) + float(run["cleanup_wall_s"])
+        ):
+            raise ContractError(f"receipt.runs[{index}] cleanup budget accounting is invalid")
     outcome_keys = {
         "analysis_block_index", "arm", "outcome_wall_s", "real_repo_exclusive_chain_s",
         "serial_work_sum_s", "shard_walls_s", "wall_minus_chain_s",
@@ -2381,9 +2859,11 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             raise ContractError("completed receipt has the wrong total run count")
         tmp_cleanups = cleanup["tmp_tree_cleanups"]
         capacity_checks = cleanup["tmp_capacity_checks"]
+        peak_capacity_observations = cleanup["tmp_peak_capacity_observations"]
         if (
             len(tmp_cleanups) != expected_runs + 1
             or len(capacity_checks) != expected_runs - 1
+            or len(peak_capacity_observations) != expected_runs
         ):
             raise ContractError("completed receipt has incomplete TMP cleanup/capacity evidence")
         if dict(tmp_cleanups[0]) != {
@@ -2394,6 +2874,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         }:
             raise ContractError("completed receipt has invalid import-probe TMP cleanup evidence")
         observed_tmp_usage: list[int] = []
+        observed_tmp_peaks: list[int] = []
         for run_index, run in enumerate(root["runs"]):
             cleanup_row = tmp_cleanups[run_index + 1]
             expected_cleanup = {
@@ -2430,6 +2911,27 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
                     raise ContractError(
                         "completed receipt TMP capacity evidence differs from observations"
                     )
+                if capacity_row["passed"] is not True:
+                    raise ContractError(
+                        "completed receipt has a failed TMP capacity observation"
+                    )
+            peak_capacity_row = peak_capacity_observations[run_index]
+            if peak_capacity_row["global_run_index"] != run_index:
+                raise ContractError(
+                    "completed receipt TMP peak capacity order differs from runs"
+                )
+            prior_peak = max(observed_tmp_peaks, default=0)
+            if (
+                peak_capacity_row["prior_observed_max_consumption_bytes"]
+                != prior_peak
+                or peak_capacity_row["passed"] is not True
+            ):
+                raise ContractError(
+                    "completed receipt TMP peak capacity evidence is not monotonic/passing"
+                )
+            observed_tmp_peaks.append(
+                int(peak_capacity_row["observed_consumption_bytes"])
+            )
             observed_tmp_usage.append(
                 int(cleanup_row["usage_bytes_before_cleanup"])
             )

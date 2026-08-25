@@ -303,6 +303,7 @@ def test_previous_peak_estimate_dispatch_records_once(monkeypatch, tmp_path):
 def test_task_run_child_environment_uses_only_supplied_base_and_exact_projection(
     monkeypatch,
 ):
+    """M1-M4 are seam-local mutations whose sole expected gate is this literal map."""
     base = {
         "IZANAGI_TASK_RUN_ID": "base-id",
         "IZANAGI_TASK_RUNS_ROOT": "/base/root",
@@ -330,6 +331,63 @@ def test_task_run_child_environment_uses_only_supplied_base_and_exact_projection
     }
     assert base == expected_base
     assert "AMBIENT_ONLY_SENTINEL" not in child
+
+
+def test_mh5_production_dispatch_environment_calls_shared_helper_once(monkeypatch):
+    calls = []
+
+    def helper_spy(base):
+        calls.append(base)
+        return {
+            "FIXED_HELPER_SENTINEL": "called",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+        }
+
+    monkeypatch.setattr(RT, "task_run_child_environment", helper_spy)
+
+    child = RT._dispatch_environment()
+
+    assert calls
+    assert calls == [os.environ]
+    assert child == {
+        "FIXED_HELPER_SENTINEL": "called",
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+    }
+
+
+def test_mh5_production_dispatch_record_calls_shared_helper_once(monkeypatch):
+    base = {"BASE_ONLY_SENTINEL": "keep"}
+    calls = []
+    captured = {}
+    session = RT._RecordingSession(task_run_id="manual-id")
+    monkeypatch.setattr(session, "record", mock.Mock())
+    monkeypatch.setattr(session, "finish", mock.Mock())
+
+    def helper_spy(supplied):
+        calls.append(supplied)
+        return {
+            "BASE_ONLY_SENTINEL": "keep",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+        }
+
+    def dispatch(args, *, environ):
+        captured["args"] = list(args)
+        captured["environ"] = dict(environ)
+        return 0
+
+    monkeypatch.setattr(RT, "task_run_child_environment", helper_spy)
+
+    assert RT._dispatch_and_record(
+        dispatch, ["fixture.py"], environ=base, recording_session=session,
+    ) == 0
+    assert calls == [base]
+    assert captured == {
+        "args": ["fixture.py"],
+        "environ": {
+            "BASE_ONLY_SENTINEL": "keep",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+        },
+    }
 
 
 def test_dispatch_and_record_uses_argument_base_and_session_sidecar_exactly(

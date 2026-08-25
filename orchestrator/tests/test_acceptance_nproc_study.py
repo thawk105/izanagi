@@ -58,6 +58,12 @@ _JUNIT_ONE_TEST = b"""<?xml version="1.0" encoding="utf-8"?>
   <testcase classname="suite.test_fast" name="test_a" time="0.5" />
 </testsuite>
 """
+_JUNIT_SKIPPED = b"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite tests="2" failures="0" errors="0" skipped="1">
+  <testcase classname="suite.test_fast" name="test_a" time="0.5"><skipped /></testcase>
+  <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
+</testsuite>
+"""
 
 
 @pytest.fixture(autouse=True)
@@ -82,9 +88,7 @@ def _cleanup(*, residual: list[int] | None = None) -> dict[str, object]:
 def _isolation(host: str) -> dict[str, object]:
     return {
         "disturbance_candidates": [],
-        "disturbance_rule": (
-            "non-exempt same-uid process CPU delta >=2 ticks over continuous samples"
-        ),
+        "disturbance_rule": study.DISTURBANCE_RULE,
         "disturbed": False,
         "host_end": host,
         "host_match": True,
@@ -209,10 +213,35 @@ class FakeExecutor:
                 (session / f"shard-{index}").mkdir(parents=True)
             stdout = f"{session}\n".encode()
         elif request.purpose.startswith("measurement:"):
-            self.measurement_seen = True
+            assert request.tmp_capacity is not None
             tmp_tree = Path(request.env["TMPDIR"])
             assert tmp_tree.is_dir()
-            (tmp_tree / "fake-pytest-temp").write_bytes(b"measured temporary data")
+            start_free = study._sample_tmp_free_bytes(request.tmp_capacity.path)
+            start_sample = {
+                "free_bytes": start_free,
+                "monotonic_s": 0.0,
+                "read_errors": [],
+            }
+            preflight = study.summarize_tmp_capacity_samples(
+                [start_sample], spec=request.tmp_capacity,
+            )
+            if preflight["passed"] is True:
+                self.measurement_seen = True
+                (tmp_tree / "fake-pytest-temp").write_bytes(
+                    b"measured temporary data"
+                )
+            end_free = study._sample_tmp_free_bytes(request.tmp_capacity.path)
+            tmp_capacity = study.summarize_tmp_capacity_samples(
+                [
+                    start_sample,
+                    {
+                        "free_bytes": end_free,
+                        "monotonic_s": 1.0,
+                        "read_errors": [],
+                    },
+                ],
+                spec=request.tmp_capacity,
+            )
             session_token = next(
                 token for token in request.argv
                 if token.startswith("--izanagi-acceptance-shard-session=")
@@ -224,7 +253,7 @@ class FakeExecutor:
             session = Path(session_token.split("=", 1)[1])
             shard = int(shard_token.split("=", 1)[1])
             junit = self.junit_by_nproc.get(request.env["IZANAGI_TEST_NPROC"], _JUNIT)
-            if self.write_junit:
+            if self.write_junit and tmp_capacity["passed"] is True:
                 (session / f"shard-{shard}" / "junit.xml").write_bytes(junit)
             return study.ExecResult(
                 returncode=self.measurement_returncode,
@@ -236,6 +265,7 @@ class FakeExecutor:
                 stderr_sha256=study._sha256(b""),
                 isolation=_isolation(self.host),
                 process_cleanup=_cleanup(),
+                tmp_capacity=tmp_capacity,
             )
         elif len(request.argv) >= 4 and request.argv[0:2] == ("git", "-C"):
             repo = Path(request.argv[2])
@@ -556,6 +586,11 @@ def test_remaining_budget_strictly_rejects_equality() -> None:
 
 def test_arm_timeout_preserves_every_postrun_fingerprint_window() -> None:
     assert study.allocate_shard_timeout(arm_remaining_s=600.0, remaining_shards=2) == 270.0
+    assert study.allocate_shard_timeout(
+        arm_remaining_s=600.0,
+        remaining_shards=2,
+        observed_cleanup_reserve_s=5.0,
+    ) == 265.0
     with pytest.raises(study.ContractError, match="postrun fingerprint"):
         study.allocate_shard_timeout(arm_remaining_s=60.0, remaining_shards=2)
 
@@ -592,10 +627,14 @@ def test_junit_identity_set_digest_is_order_independent() -> None:
 
 def test_junit_identity_sets_require_every_shard_index() -> None:
     digest = study._sha256(b"fixed-testcase-identity-set")
+    skipped_digest = study._sha256(b"fixed-skipped-testcase-identity-set")
     valid = [
         {
             "shard_index": shard_index,
-            "junit": {"testcase_identity_set_sha256": digest},
+            "junit": {
+                "skipped_testcase_identity_set_sha256": skipped_digest,
+                "testcase_identity_set_sha256": digest,
+            },
         }
         for shard_index in range(study.SHARD_COUNT)
     ]
@@ -610,7 +649,7 @@ def test_junit_identity_sets_require_every_shard_index() -> None:
 
 def test_continuous_isolation_detects_middle_only_same_uid_consumer() -> None:
     identity = (9001, 321)
-    process = {"command": "compiler", "pgroup": 700, "ticks": 8, "uid": 42}
+    process = {"command": "compiler", "pgroup": 700, "ticks": 8, "uid": 1001}
     samples = [
         {"hostname": "bnode001", "monotonic_s": 0.0, "processes": {}, "read_errors": []},
         {"hostname": "bnode001", "monotonic_s": 1.0,
@@ -618,7 +657,7 @@ def test_continuous_isolation_detects_middle_only_same_uid_consumer() -> None:
         {"hostname": "bnode001", "monotonic_s": 2.0, "processes": {}, "read_errors": []},
     ]
     result = study.summarize_isolation_samples(
-        samples, own_uid=42, exempt_pgroups={100, 200}, expected_host="bnode001"
+        samples, own_uid=1001, exempt_pgroups={100, 200}, expected_host="bnode001"
     )
     assert result["valid"] is True
     assert result["disturbed"] is True
@@ -661,6 +700,263 @@ def test_sampler_gap_or_read_failure_is_invalid() -> None:
         samples, own_uid=42, exempt_pgroups=set(), expected_host="bnode001"
     )
     assert result["valid"] is False
+
+
+def test_proc_snapshot_records_ppid_cwd_and_exe_for_the_reader_itself() -> None:
+    snapshot = study._read_proc_snapshot()
+    own_rows = [
+        row for (pid, _starttime), row in snapshot["processes"].items()
+        if pid == os.getpid()
+    ]
+    assert own_rows
+    assert len(own_rows) == 1
+    row = own_rows[0]
+    assert row["ppid"] == os.getppid()
+    assert row["cwd"] == str(Path.cwd())
+    assert isinstance(row["exe"], str)
+    assert Path(row["exe"]).is_absolute()
+
+
+def _owned_workload_shape_samples() -> tuple[list[dict[str, object]], tuple[Path, Path]]:
+    scratch_root = Path("/scr/unit-acceptance-job")
+    tmp_root = Path("/tmp/izn-unit000000/run-000")
+    root_identity = (5000, 11)
+    root_process = {
+        "command": f"python3.10 {scratch_root}/tools/run_tests.py",
+        "cwd": str(scratch_root),
+        "exe": "/usr/bin/python3.10",
+        "pgroup": 100,
+        "ppid": 1,
+        "ticks": 10,
+        "uid": 1001,
+    }
+    workload: dict[tuple[int, int], dict[str, object]] = {}
+
+    for offset in range(29):
+        workload[(6000 + offset, 100 + offset)] = {
+            "command": f"python3.10 -m pytest {scratch_root}/tests/test_gate_{offset}.py",
+            "cwd": str(scratch_root),
+            "exe": "/usr/bin/python3.10",
+            "pgroup": 700 + offset,
+            "ppid": root_identity[0],
+            "ticks": 3,
+            "uid": 1001,
+        }
+    for offset in range(22):
+        workload[(6100 + offset, 200 + offset)] = {
+            "command": f"cc1plus {scratch_root}/oracle/source_{offset}.cpp",
+            "cwd": None,
+            "exe": "/usr/libexec/gcc/cc1plus",
+            "pgroup": 800 + offset,
+            "ppid": root_identity[0],
+            "ticks": 3,
+            "uid": 1001,
+        }
+    for offset in range(11):
+        workload[(6200 + offset, 300 + offset)] = {
+            "command": f"git pack-objects {scratch_root}/.git/objects/pack/unit-{offset}",
+            "cwd": str(scratch_root / ".git"),
+            "exe": "/usr/bin/git",
+            "pgroup": 900 + offset,
+            "ppid": 1,
+            "ticks": 3,
+            "uid": 1001,
+        }
+    for offset in range(7):
+        workload[(6300 + offset, 400 + offset)] = {
+            "command": f"python3.10 -m pytest -n 2 {tmp_root}/nested-{offset}",
+            "cwd": str(tmp_root),
+            "exe": "/usr/bin/python3.10",
+            "pgroup": 1000 + offset,
+            "ppid": root_identity[0],
+            "ticks": 3,
+            "uid": 1001,
+        }
+    short_identity = (6999, 999)
+    workload[short_identity] = {
+        "command": "",
+        "cwd": None,
+        "exe": None,
+        "pgroup": 1099,
+        "ppid": root_identity[0],
+        "ticks": 4,
+        "uid": 1001,
+    }
+    assert len(workload) == 70
+
+    middle = {root_identity: {**root_process, "ticks": 20}, **workload}
+    final = {
+        root_identity: {**root_process, "ticks": 30},
+        **{
+            identity: {**row, "ticks": 7}
+            for identity, row in workload.items()
+            if identity != short_identity
+        },
+    }
+    samples: list[dict[str, object]] = [
+        {
+            "hostname": "bnode001", "monotonic_s": 0.0,
+            "processes": {root_identity: root_process}, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 1.0,
+            "processes": middle, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 2.0,
+            "processes": final, "read_errors": [],
+        },
+    ]
+    return samples, (scratch_root, tmp_root)
+
+
+def test_m13_observed_shape_has_70_nonexempt_owned_processes() -> None:
+    samples, job_roots = _owned_workload_shape_samples()
+    result = study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=job_roots,
+    )
+    workload_rows = [row for row in result["processes"] if row["exempt"] is False]
+    assert workload_rows
+    assert len(workload_rows) == 70
+    assert all(row["owned"] is True for row in workload_rows)
+    assert result["disturbance_candidates"] == []
+    assert result["disturbance_rule"] == (
+        "unowned uid>=1000 process CPU delta >=2 ticks; ownership is the union "
+        "of exempt pgroup, sticky (pid,starttime), owned-parent closure, resolved "
+        "job-root cwd/exe, and job-root command prefix"
+    )
+    assert {
+        reason for row in result["processes"] for reason in row["ownership_reasons"]
+    } == {
+        "1:pgroup",
+        "2:sticky-identity",
+        "3:owned-parent",
+        "4:job-root-cwd-or-exe",
+        "5:job-root-command",
+    }
+
+
+def test_m14_owned_parent_is_the_only_gate_for_unreadable_short_process() -> None:
+    samples, job_roots = _owned_workload_shape_samples()
+    result = study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=job_roots,
+    )
+    workload_rows = [row for row in result["processes"] if row["exempt"] is False]
+    short_row = next(row for row in workload_rows if row["command"] == "")
+    other_rows = [row for row in workload_rows if row["command"] != ""]
+    assert other_rows
+    assert all(row["owned"] is True for row in other_rows)
+    assert short_row["created"] is True
+    assert short_row["disappeared"] is True
+    assert short_row["owned"] is True
+    assert short_row["ownership_reasons"] == ["3:owned-parent"]
+
+
+def test_m15_job_paths_are_the_only_gate_for_daemonized_git_processes() -> None:
+    samples, job_roots = _owned_workload_shape_samples()
+    result = study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=job_roots,
+    )
+    workload_rows = [row for row in result["processes"] if row["exempt"] is False]
+    daemon_rows = [row for row in workload_rows if row["command"].startswith("git ")]
+    other_rows = [row for row in workload_rows if not row["command"].startswith("git ")]
+    assert daemon_rows
+    assert other_rows
+    assert all(row["owned"] is True for row in other_rows)
+    assert all(
+        row["ownership_reasons"]
+        == ["2:sticky-identity", "4:job-root-cwd-or-exe", "5:job-root-command"]
+        for row in daemon_rows
+    )
+
+
+def _foreign_and_same_uid_disturbance_result() -> dict[str, object]:
+    scratch_root = Path("/scr/unit-acceptance-job")
+    identities = {
+        "owned": (7000, 1),
+        "system": (7001, 2),
+        "foreign": (7002, 3),
+        "same": (7003, 4),
+    }
+    rows = {
+        identities["owned"]: {
+            "command": "driver", "cwd": str(scratch_root), "exe": None,
+            "pgroup": 100, "ppid": 1, "ticks": 2, "uid": 1001,
+        },
+        identities["system"]: {
+            "command": "daemon", "cwd": "/", "exe": "/usr/bin/daemon",
+            "pgroup": 200, "ppid": 1, "ticks": 2, "uid": 0,
+        },
+        identities["foreign"]: {
+            "command": "foreign", "cwd": "/work/foreign", "exe": "/usr/bin/python",
+            "pgroup": 201, "ppid": 1, "ticks": 2, "uid": 1002,
+        },
+        identities["same"]: {
+            "command": "ambient", "cwd": "/work/ambient", "exe": "/usr/bin/python",
+            "pgroup": 202, "ppid": 1, "ticks": 2, "uid": 1001,
+        },
+    }
+    samples = [
+        {
+            "hostname": "bnode001", "monotonic_s": 0.0,
+            "processes": rows, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 1.0,
+            "processes": {
+                identity: {**row, "ticks": 8} for identity, row in rows.items()
+            },
+            "read_errors": [],
+        },
+    ]
+    return study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=(scratch_root,),
+    )
+
+
+def test_m16_foreign_uid_disturbance_keeps_owned_and_system_positives() -> None:
+    result = _foreign_and_same_uid_disturbance_result()
+    candidates = {
+        row["pid"]: row["uid_relation"] for row in result["disturbance_candidates"]
+    }
+    assert candidates == {7002: "other", 7003: "same"}
+    accepted = {
+        row["pid"]: row for row in result["processes"]
+        if row["pid"] in {7000, 7001}
+    }
+    assert accepted
+    assert accepted[7000]["owned"] is True
+    assert accepted[7001]["uid"] == 0
+
+
+def test_m17_infinite_cpu_threshold_would_lose_both_fixed_negatives() -> None:
+    result = _foreign_and_same_uid_disturbance_result()
+    candidates = [
+        (row["pid"], row["cpu_ticks_delta"])
+        for row in result["disturbance_candidates"]
+    ]
+    assert candidates
+    assert candidates == [(7002, 6), (7003, 6)]
+    accepted_pids = {
+        row["pid"] for row in result["processes"] if row["pid"] in {7000, 7001}
+    }
+    assert accepted_pids == {7000, 7001}
 
 
 def test_internal_shard_argv_rejects_any_extra_n_option(tmp_path: Path) -> None:
@@ -754,6 +1050,42 @@ def test_run_environment_exact_task_projection_and_only_tmp_uses_short_root(
         )
 
 
+def test_mh5_driver_calls_production_task_run_helper_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _config(tmp_path)
+    base = {
+        "BASE_ONLY_SENTINEL": "keep",
+        "IZANAGI_TASK_RUN_ID": "remove",
+    }
+    calls: list[object] = []
+
+    def helper_spy(supplied: object) -> dict[str, str]:
+        calls.append(supplied)
+        assert supplied == base
+        return {
+            "BASE_ONLY_SENTINEL": "keep",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+        }
+
+    monkeypatch.setattr(study, "_base_env", lambda: dict(base))
+    monkeypatch.setattr(
+        study.production_runner, "task_run_child_environment", helper_spy
+    )
+    env = study._run_environment(
+        config, global_run_index=8, arm=48,
+        root=config.scratch_root / "run-environments",
+    )
+    try:
+        assert calls == [base]
+        assert env["BASE_ONLY_SENTINEL"] == "keep"
+        assert env["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
+    finally:
+        study._remove_tmp_tree(
+            Path(env["TMPDIR"]), global_run_index=8, purpose="measurement"
+        )
+
+
 def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
     tmp_path: Path,
 ) -> None:
@@ -778,6 +1110,35 @@ def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
         )
         study._remove_tmp_tree(
             Path(second["TMPDIR"]), global_run_index=1, purpose="measurement"
+        )
+
+
+def test_m6_prepare_tmp_tree_has_one_exact_root_gate(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    path = study._prepare_tmp_tree(config, global_run_index=9)
+    assert path.parent.parent == Path("/tmp")
+    study._remove_tmp_tree(path, global_run_index=9, purpose="measurement")
+
+
+def test_m7_remove_tmp_tree_postcondition_is_the_single_noop_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    positive = tmp_path / "positive"
+    positive.mkdir()
+    (positive / "payload").write_bytes(b"positive")
+    positive_evidence = study._remove_tmp_tree(
+        positive, global_run_index=0, purpose="measurement"
+    )
+    assert positive_evidence["removed"] is True
+    assert not positive.exists()
+
+    negative = tmp_path / "negative"
+    negative.mkdir()
+    (negative / "payload").write_bytes(b"negative")
+    monkeypatch.setattr(study.shutil, "rmtree", lambda _path: None)
+    with pytest.raises(study.ContractError, match="still exists after cleanup"):
+        study._remove_tmp_tree(
+            negative, global_run_index=1, purpose="measurement"
         )
 
 
@@ -845,6 +1206,7 @@ def test_receipt_schema_rejects_changed_excluded_estimand_value(
 def test_receipt_pins_three_known_nonequivalences_and_estimand_scope(
     tmp_path: Path,
 ) -> None:
+    """M12-C uses the builder literal; M12-V uses each changed-field rejection."""
     valid = _failed_schema_fixture(tmp_path)
     expected_nonequivalences = [
         {
@@ -889,6 +1251,44 @@ def test_receipt_pins_three_known_nonequivalences_and_estimand_scope(
             study.validate_receipt(
                 changed, expected_mode="smoke", require_complete=False
             )
+
+    for field in ("internal_comparison_scope", "absolute_wall_extrapolation"):
+        changed = copy.deepcopy(valid)
+        changed["design"][field] = "changed scope"
+        with pytest.raises(study.ContractError, match="estimand scope"):
+            study.validate_receipt(
+                changed, expected_mode="smoke", require_complete=False
+            )
+
+    changed_arm_scope = copy.deepcopy(valid)
+    changed_arm_scope["design"]["arm_timeout_scope"] = "excludes cleanup"
+    with pytest.raises(study.ContractError, match="arm timeout scope"):
+        study.validate_receipt(
+            changed_arm_scope, expected_mode="smoke", require_complete=False
+        )
+
+    changed_capacity_rule = copy.deepcopy(valid)
+    changed_capacity_rule["cleanup"]["tmp_capacity_rule"] = "changed rule"
+    with pytest.raises(study.ContractError, match="TMP capacity rule"):
+        study.validate_receipt(
+            changed_capacity_rule, expected_mode="smoke", require_complete=False
+        )
+
+    changed_peak_rule = copy.deepcopy(valid)
+    changed_peak_rule["cleanup"]["tmp_peak_capacity_rule"] = "changed peak rule"
+    with pytest.raises(study.ContractError, match="TMP peak capacity rule"):
+        study.validate_receipt(
+            changed_peak_rule, expected_mode="smoke", require_complete=False
+        )
+
+
+def test_v2_receipt_rejects_v1_schema_identifier(tmp_path: Path) -> None:
+    valid = _failed_schema_fixture(tmp_path)
+    assert valid["schema_version"] == "izanagi-acceptance-nproc-study/v2"
+    changed = copy.deepcopy(valid)
+    changed["schema_version"] = "izanagi-acceptance-nproc-study/v1"
+    with pytest.raises(study.ContractError, match="schema or mode mismatch"):
+        study.validate_receipt(changed, expected_mode="smoke", require_complete=False)
 
 
 def test_job_failure_schema_is_closed() -> None:
@@ -992,6 +1392,10 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     } == {os.environ["PYTHONUSERBASE"]}
     for request in measurement_requests:
         assert "-n" not in request.argv
+        assert request.isolation_job_roots == (
+            config.scratch_root.resolve(),
+            Path(request.env["TMPDIR"]).parent,
+        )
         assert request.env["IZANAGI_TEST_NPROC"] in {"16", "32", "48"}
         assert request.env[study.THIRDPARTY_CACHE_ENV] == os.environ[
             study.THIRDPARTY_CACHE_ENV
@@ -1029,6 +1433,16 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     )
     assert [row["global_run_index"] for row in capacity_checks] == [1, 2, 3, 4, 5]
     assert all(row["passed"] is True for row in capacity_checks)
+    peak_observations = receipt["cleanup"]["tmp_peak_capacity_observations"]
+    assert peak_observations
+    assert [row["global_run_index"] for row in peak_observations] == [0, 1, 2, 3, 4, 5]
+    assert all(row["sample_count"] == 2 for row in peak_observations)
+    assert all(row["passed"] is True for row in peak_observations)
+    assert all(run["cleanup_wall_s"] >= 0 for run in receipt["runs"])
+    assert all(
+        run["budget_wall_s"] == run["wall_s"] + run["cleanup_wall_s"]
+        for run in receipt["runs"]
+    )
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
     for run in receipt["runs"]:
         shard_stage = (
@@ -1074,6 +1488,22 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     with pytest.raises(study.ContractError, match="different session_root"):
         study.validate_receipt(
             split_session, expected_mode="smoke", require_complete=True
+        )
+
+    inconsistent_capacity = copy.deepcopy(receipt)
+    inconsistent_capacity["cleanup"]["tmp_capacity_checks"][0]["passed"] = False
+    with pytest.raises(study.ContractError, match="TMP capacity observation"):
+        study.validate_receipt(
+            inconsistent_capacity, expected_mode="smoke", require_complete=True
+        )
+
+    failed_capacity = copy.deepcopy(receipt)
+    failed_capacity_row = failed_capacity["cleanup"]["tmp_capacity_checks"][0]
+    failed_capacity_row["free_bytes"] = 0
+    failed_capacity_row["passed"] = False
+    with pytest.raises(study.ContractError, match="failed TMP capacity observation"):
+        study.validate_receipt(
+            failed_capacity, expected_mode="smoke", require_complete=True
         )
 
 
@@ -1139,6 +1569,101 @@ def test_tmp_capacity_gate_rejects_before_next_run_and_keeps_first_cleanup(
             "scaled_observed_max_bytes": measured_usage,
         }
     ]
+
+
+def test_c1_first_run_capacity_learns_peak_and_keeps_passing_positive() -> None:
+    spec = study.TmpCapacitySpec(
+        path=Path("/tmp/unit-capacity"),
+        global_run_index=0,
+        prior_observed_max_consumption_bytes=0,
+        receipt_reserve_bytes=100,
+    )
+    positive_samples = [
+        {"free_bytes": 1000, "monotonic_s": 0.0, "read_errors": []},
+        {"free_bytes": 600, "monotonic_s": 1.0, "read_errors": []},
+    ]
+    negative_samples = [
+        {"free_bytes": 1000, "monotonic_s": 0.0, "read_errors": []},
+        {"free_bytes": 400, "monotonic_s": 1.0, "read_errors": []},
+    ]
+    assert positive_samples
+    positive = study.summarize_tmp_capacity_samples(positive_samples, spec=spec)
+    negative = study.summarize_tmp_capacity_samples(negative_samples, spec=spec)
+    assert {
+        key: positive[key]
+        for key in (
+            "free_bytes", "minimum_free_bytes", "observed_consumption_bytes",
+            "passed", "receipt_reserve_bytes", "required_bytes", "sample_count",
+            "start_free_bytes",
+        )
+    } == {
+        "free_bytes": 600,
+        "minimum_free_bytes": 600,
+        "observed_consumption_bytes": 400,
+        "passed": True,
+        "receipt_reserve_bytes": 100,
+        "required_bytes": 400,
+        "sample_count": 2,
+        "start_free_bytes": 1000,
+    }
+    assert {
+        key: negative[key]
+        for key in (
+            "free_bytes", "minimum_free_bytes", "observed_consumption_bytes",
+            "passed", "receipt_reserve_bytes", "required_bytes", "sample_count",
+            "start_free_bytes",
+        )
+    } == {
+        "free_bytes": 400,
+        "minimum_free_bytes": 400,
+        "observed_consumption_bytes": 600,
+        "passed": False,
+        "receipt_reserve_bytes": 100,
+        "required_bytes": 600,
+        "sample_count": 2,
+        "start_free_bytes": 1000,
+    }
+
+
+def test_c1_first_measurement_rejects_its_own_live_capacity_drop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode991"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:134.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    free_samples = iter((1 << 20, 1))
+    monkeypatch.setattr(
+        study, "_sample_tmp_free_bytes", lambda _path: next(free_samples)
+    )
+    executor = FakeExecutor(tmp_path, host)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert executor.measurement_seen is True
+    assert receipt["runs"] == []
+    assert receipt["cleanup"]["tmp_capacity_checks"] == []
+    observations = receipt["cleanup"]["tmp_peak_capacity_observations"]
+    assert observations
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation["global_run_index"] == 0
+    assert observation["minimum_free_bytes"] == 1
+    assert observation["passed"] is False
+    assert observation["passed"] == (
+        observation["free_bytes"] >= observation["required_bytes"]
+    )
+    assert receipt["failure"]["message"].startswith(
+        "insufficient /tmp capacity during run: free=1 required="
+    )
+    assert study._receipt_reserve_bytes(receipt) == len(
+        study._receipt_json_bytes(receipt)
+    )
 
 
 def test_setup_import_probe_failure_stops_before_measurement(
@@ -1413,6 +1938,28 @@ def test_arm_specific_deselection_prevents_complete_receipt(
     assert receipt["invariant_checks"]["junit_identity_sets_match_by_shard"] is False
     assert receipt["failure"]["type"] == "ContractError"
     assert "JUnit testcase identity set differs" in receipt["failure"]["message"]
+
+
+def test_arm_specific_skip_identity_prevents_complete_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode990"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:135.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, junit_by_nproc={"32": _JUNIT_SKIPPED})
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["status"] == "failed"
+    assert receipt["invariant_checks"]["junit_identity_sets_match_by_shard"] is False
+    assert receipt["failure"]["type"] == "ContractError"
+    assert "JUnit skipped testcase identity set differs" in receipt["failure"]["message"]
 
 
 def test_static_contract_has_signal_traps_exact_registry_and_no_red_checker() -> None:
