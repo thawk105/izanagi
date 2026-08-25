@@ -56,6 +56,13 @@ title: P3 exploration namespace 族の契約を subcommand / coder 不可 driver
   全件同じ結果を再現した。**共有木を観測する wrapper の走行中はツリーへ書かない。**
 - 待ち手 (`dev_wave_wait.py producer`) が producer より先に無音で終了する事象が 3 回起きた。
   いずれも producer の生存を `ps` で実測して張り直し、作業の取りこぼしは無い。
+- **段 8 の自己改善は docs を変更せず裁定へ返した。** 実測した候補は「事前登録変異の期待 node は
+  対応表や子の申告から転記せず実測で導く」で、行き先は `DW-M01` (L1) または `DW-M08` (L1.5)。
+  しかし `tools/check_docs.py` の層予算は L1 が残り約 9 bytes、L1.5 が約 1 byte しかなく、
+  最短形 (約 85 bytes) でも入らなかった。既存の安全義務を削って場所を作ることは
+  契約が禁じているため、予算引き上げの独立審査として裁定へ返す。
+  規則そのものは {{F:family-contract-assumed-one-cli-shape}} と同じ fragment の F28 再発追記に
+  記録済みで、失われていない。
 
 ## 次の一手差分
 
@@ -70,3 +77,7 @@ title: P3 exploration namespace 族の契約を subcommand / coder 不可 driver
   実行時 `run_campaign` が 0 回のため、族の runtime 側 root 所在検査が空振りする。
   契約記録には `runtime_run_campaign_calls=0` を登録したが、空の assertion は足していない
   (足すと恒真な被覆に見える)。専用 runtime test を置くか、scope 外と明記するかを裁定する。
+- {{T:dev-wave-docs-budget-headroom}} **P2・新規**: `docs/dev-wave/**` の層予算が満杯で、
+  実測に基づく安全義務の追記が入らない (L1 残り約 9 bytes、L1.5 残り約 1 byte)。
+  予算値を上げるか、既存節を意味等価に圧縮するか、L2 へ再配置するかを裁定する。
+  予算のために安全義務を削る選択肢は契約が禁じている。
