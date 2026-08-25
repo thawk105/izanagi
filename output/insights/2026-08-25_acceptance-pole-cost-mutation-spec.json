@@ -1,0 +1,56 @@
+{
+  "estimated_run_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m5_generated_session_rows_require_set_equality"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "pole.m01",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        if False:\n            reasons.append(\"generated session row set mismatch\")\n",
+          "old": "        if sorted(actual_sessions) != sorted(expected_sessions):\n            reasons.append(\"generated session row set mismatch\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_material_report_certification_scope_is_exact_on_all_return_paths"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "pole.m02",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        \"closed_world\": False,\n",
+          "old": "        \"closed_world\": True,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_material_report_certification_scope_is_exact_on_all_return_paths"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "pole.m03",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "    pass\n",
+          "old": "    output[\"certification_scope\"] = _certification_scope()\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 7200
+}
