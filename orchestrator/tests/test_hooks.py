@@ -2571,6 +2571,7 @@ _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
 
 _PEGASUS_EXPECTED_CLASSES = {
     "tools/claude_session_ledger.py": "unknown",
+    "tools/pegasus/acceptance_nproc_study.sh": "dispatch-required",
     "tools/pegasus/certify_calibration.sh": "dispatch-required",
     "tools/pegasus/collect_receipt.py": "unknown",
     "tools/pegasus/collect_t126_qualification.py": "unknown",
@@ -2602,6 +2603,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t503_restore_durability_probe.py": "unknown",
     "tools/pegasus/probes/t503_restore_durability_recover.pbs": "unknown",
     "tools/pegasus/probes/t503_restore_durability_verdict.pbs": "unknown",
+    "tools/pegasus/run_acceptance_nproc_study.py": "dispatch-required",
     "tools/pegasus/run_probe.py": "dispatch-required",
     "tools/pegasus/run_ss2pl_lock_study.py": "dispatch-required",
     "tools/pegasus/run_t139_a12_stress_check.py": "dispatch-required",
@@ -2631,6 +2633,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "inputs are hard-capped; isolated-scope and cap-boundary measurements are unavailable",
         "primary_gate": "hook deny pending isolated-scope admission evidence",
         "evidence": "compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB"
+    },
+    "tools/pegasus/acceptance_nproc_study.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS acceptance nproc measurement job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
     },
     "tools/pegasus/certify_calibration.sh": {
         "class": "dispatch-required",
@@ -2817,6 +2825,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "probe artifact has no login admission ruling",
         "primary_gate": "hook deny pending admission evidence",
         "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/run_acceptance_nproc_study.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side acceptance shard nproc measurement driver",
+        "primary_gate": "compute allocation owned by acceptance_nproc_study.sh",
+        "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/run_probe.py": {
       "class": "dispatch-required",
