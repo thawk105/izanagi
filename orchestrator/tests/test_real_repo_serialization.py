@@ -37,6 +37,10 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 from skiputil import Skip, skip  # noqa: E402
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_ignored_output_prefixes,
+    is_git_ignored_output_path,
+)
 
 
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
@@ -471,8 +475,17 @@ def _run_subprocess(argv, *, cwd, env=None):
 
 
 def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
-    """一時 file の作成後削除も directory timestamp で捉える軽量 snapshot。"""
-    entries = [root, *root.rglob("*")]
+    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    entries = [
+        root,
+        *(
+            path for path in root.rglob("*")
+            if not is_git_ignored_output_path(
+                path.relative_to(root).as_posix(), ignored_prefixes,
+            )
+        ),
+    ]
     return tuple(
         (
             path.relative_to(root).as_posix() if path != root else ".",
@@ -484,6 +497,46 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
         for path in sorted(entries)
         for info in (path.lstat(),)
     )
+
+
+def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert not is_git_ignored_output_path("visible", ignored_prefixes)
+    control = tmp_path / "visible"
+    before = _t080_output_snapshot(tmp_path)
+    try:
+        control.mkdir()
+        (control / "nested").mkdir()
+        payload = control / "nested" / "payload.bin"
+        payload.write_bytes(b"git-visible t080 snapshot positive control")
+
+        after = _t080_output_snapshot(tmp_path)
+        assert after != before
+        relative_control = control.relative_to(tmp_path).as_posix()
+        relative_payload = payload.relative_to(tmp_path).as_posix()
+        assert any(row[0] == relative_control for row in after)
+        assert any(row[0] == relative_payload for row in after)
+    finally:
+        shutil.rmtree(control, ignore_errors=True)
+
+
+def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert "runs" in ignored_prefixes
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
+    try:
+        before = _t080_output_snapshot(tmp_path)
+        control = ignored_parent / "snapshot-ignored-t080"
+        control.mkdir()
+        (control / "nested").mkdir()
+        (control / "nested" / "payload.bin").write_bytes(
+            b"git-ignored t080 snapshot control"
+        )
+
+        assert _t080_output_snapshot(tmp_path) == before
+    finally:
+        shutil.rmtree(ignored_parent, ignore_errors=True)
 
 
 def _require_pytest() -> None:
