@@ -52,7 +52,16 @@ title: [T-1745] fig2 の後継図を tracked 生成器つきで作り、図と p
 - codex 子の異常: 段 6 レビュー B の初回が `metering_status: incomplete` により
   `outcome: not_accepted` で戻った (内容の失敗ではない)。job-id を変えて再投入した。
   また `--reasoning` を review 段へ渡して rc=2 になった (effort は docs 権威から自動導出される)。
+- **変異 matrix は 7 件すべて KILLED、baseline PASSED。** 中でも
+  「図に書く文字だけを `stock adaptive` に変え、記録側は正しいまま」という旧事故そのものの変異が
+  `test_actual_panel_artists_match_serialized_baseline_records` で赤になった。
+- **変異の erratum (DW-M02)。** 初回走行では 2 件が MISMATCH だった。実装の欠陥ではなく
+  期待 node 集合の登録漏れである。生成器のバイト列を変える変異は、実成果物 gate も
+  「generator SHA256 mismatch」で正しく赤にするため、狙った node に加えて 1〜2 件が落ちていた。
+  束縛が意図どおり効いている証拠なので、初回を probe として残し、完全な期待集合へ再登録して
+  再走した (attempt 2 で全件一致)。初回結果は消していない。
 - 工数: codex 子 7 本 (plan 1 / consult 2 / author 1 / review 3 (うち 1 本は不採用) / fix 1)。
+  変異本走 2 回 (初回は expected_nodes の probe)。
 
 ## 次の一手差分
 
@@ -70,6 +79,15 @@ title: [T-1745] fig2 の後継図を tracked 生成器つきで作り、図と p
 
 ### 新規
 
+- {{T:dev-wave-background-waiting-discipline}} **P2・新規**: 背景 job の待機作法を dev-wave docs へ
+  入れる余地を作る。本 wave の段 8 は候補を 2 件出し、DW-O03 の射程是正 (prompt だけでなく
+  brief・裁定・runner script・spec・`python3 -c` も guard に拒否される) は実装できたが、
+  待機の作法は入れる場所が無かった。DW-C00 は L1 予算が満杯 (追記すると 10,749 > 10,625 bytes)、
+  DW-C01 は節全体が exact 契約かつ単節予算 1,000 bytes も満杯 (追記すると 1,136 bytes)。
+  自己改善契約は「予算のために安全義務を削除・弱化してはならない」「予算値を上げる変更は
+  理由付きの独立審査対象」と定めるため実装せず返す。実測の根拠: 本 wave は子の完了待ちで
+  背景待ち手を通知のたびに積み、待機だけで 100 turn 以上を消費した。
+  入れたい規範は「背景へ待ち手を 1 本張ったら完了通知まで足さない」の 1 文である。
 - {{T:fig2b-scope-out-package}} **P3・新規**: [T-1745] で scope 外に置いた 5 件をユーザー裁定へ返す。
   (1) 凍結スナップショット 2 本の誤キャプションをどう扱うか (運用ルール改訂が要る)、
   (2) 図の byte 決定的な再生成 (`SOURCE_DATE_EPOCH`・依存版 pin・font pin)、
