@@ -2053,7 +2053,7 @@ def test_artifact_diagnostic_oserror_preserves_original_invalid_attempt(
     assert invalid["status"] == "invalid"
     assert invalid["error_type"] == "RuntimeError"
     assert invalid["error"] == "original-role-failure"
-    assert invalid["error_artifacts"] == {}
+    assert invalid["error_artifacts"] == {"failure_phase": "pre-raw-write"}
     assert invalid["transport_receipt"] == _VALID_RECEIPT
 
 

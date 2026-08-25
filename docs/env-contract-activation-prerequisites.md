@@ -56,7 +56,7 @@ D778 は段 1 以降 owner の fixture assignment を段 0 blocker から外し�
 |---|---|---|---|---|---|
 | fixture assignment gate = `resolved` | `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT = pending`。raw では blocking、段 0 では除外 | fixture manifest `required_gates`、D778 | `checkout-pinned`; `excluded_stage0_gate_count` 1 | 段と fixture の実体対応が未導出。段 0 の算入からは外れたが gate 自身は未解消 | `stage1-and-later` (manifest literal)。fixture ごとの target stage 割付は未実施 |
 | 繰越 fixture 5 件が `executable` になる | 5 件とも `pending` | fixture cases、設計 §10.2 の逐語 5 ID、contract module の独立 literal | `checkout-pinned`; `unresolved_deferred_fixture_ids` = `approved-freeze-reference` / `bundle-identity-propagation` / `candidate-type-preservation` / `floor-seal-consistency` / `post-cutoff-bundle-identity` | 上位 resolver / admission entrypoint が未実装で、実行可能な入力を構築できない | `stage1-and-later` (manifest literal)。個別 owner は未割当 |
-| 義務解消述語を呼ぶ production caller | 0 件 | `orchestrator/tests/calibration_freeze_authority_contract.py` の `require_stage0_fixture_obligations_discharged()` | `checkout-pinned`; direct caller は同 module のテストだけ | 段 6 の X 候補入口が未実装。設計正本は「将来の段 6 実装が呼ばなければならない」と記す | `unassigned` |
+| 到達可能な段 6 production 経路が義務述語を通る | `unmet`: production adapter 1 件・operational caller 0 件 | `orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py` の `require_stage6_candidate_submission_ready()`、`orchestrator/tests/calibration_freeze_authority_contract.py` の `require_stage0_fixture_obligations_discharged()` | `checkout-pinned`; caller inventory の機械検査が adapter 1 件・operational caller 0 件を固定する | adapter の呼び手と段 6 の候補提出経路が未実装。段 6 policy gate も `unresolved` | `unassigned` |
 
 繰越義務は `require_stage0_fixture_obligations_discharged()` が機械的に要求する。同述語は
 raw pending が 0 かつ fixture assignment gate が非 blocking になるまで、未解消 fixture ID を

@@ -89,6 +89,10 @@ from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
+from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_ignored_output_prefixes,
+    is_git_ignored_output_path,
+)
 
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
@@ -552,8 +556,17 @@ _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
 
 
 def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
-    """一時 file の作成後削除も directory timestamp で捉える軽量 snapshot。"""
-    entries = [root, *root.rglob("*")]
+    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    entries = [
+        root,
+        *(
+            path for path in root.rglob("*")
+            if not is_git_ignored_output_path(
+                path.relative_to(root).as_posix(), ignored_prefixes,
+            )
+        ),
+    ]
     return tuple(
         (
             path.relative_to(root).as_posix() if path != root else ".",
@@ -565,6 +578,50 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
         for path in sorted(entries)
         for info in (path.lstat(),)
     )
+
+
+def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert not is_git_ignored_output_path("visible", ignored_prefixes)
+    control = tmp_path / "visible"
+    before = _t080_output_snapshot(tmp_path)
+    control.mkdir()
+    (control / "nested").mkdir()
+    payload = control / "nested" / "payload.bin"
+    payload.write_bytes(b"git-visible t080 snapshot positive control")
+
+    after = _t080_output_snapshot(tmp_path)
+    assert after != before
+    relative_control = control.relative_to(tmp_path).as_posix()
+    relative_payload = payload.relative_to(tmp_path).as_posix()
+    assert any(row[0] == relative_control for row in after)
+    assert any(row[0] == relative_payload for row in after)
+
+
+def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert "runs" in ignored_prefixes
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
+    before = _t080_output_snapshot(tmp_path)
+    control = ignored_parent / "snapshot-ignored-t080"
+    control.mkdir()
+    (control / "nested").mkdir()
+    (control / "nested" / "payload.bin").write_bytes(
+        b"git-ignored t080 snapshot control"
+    )
+
+    assert _t080_output_snapshot(tmp_path) == before
+
+
+def test_git_ignored_output_prefixes_rejects_entire_output_ignore(monkeypatch):
+    completed = subprocess.CompletedProcess(
+        args=("git", "ls-files"), returncode=0, stdout="output/\n", stderr="",
+    )
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: completed)
+
+    with pytest.raises(AssertionError, match="output/ 全体が Git ignore 対象"):
+        git_ignored_output_prefixes(ROOT)
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:

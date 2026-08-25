@@ -7,6 +7,8 @@ import copy
 import hashlib
 import json
 import subprocess
+import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -26,6 +28,16 @@ def _canonical(value: object) -> bytes:
 
 def _canonical_line(value: object) -> bytes:
     return _canonical(value) + b"\n"
+
+
+def _plain_json(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {key: _plain_json(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_plain_json(item) for item in value]
+    if isinstance(value, list):
+        return [_plain_json(item) for item in value]
+    return value
 
 
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -61,7 +73,72 @@ def _binding_digest(*, holdout: str, arm: str, content_digest: str) -> str:
     ).hexdigest()
 
 
+def _assert_resolved_descriptor_matches_ratified_literals(
+    *, holdout: str, arm: str, descriptor: dict,
+) -> None:
+    """Pin resolver output to the literal H1/H2 legacy-freeze conditions."""
+    expected_descriptors = {
+        ("H1", "on"): {
+            "schema_version": "8b-v1",
+            "source": "campaign_search_config_projection",
+            "read_write": {"read_ratio_percent": 80, "rmw": 0},
+            "contention": {"skew": 0.9, "label": "high"},
+            "scale": {"records": 1_000_000, "threads": 48},
+            "objective": "maximize_throughput_tps",
+            "correctness": "serializable_legacy_and_s2",
+        },
+        ("H1", "swapped"): {
+            "schema_version": "8b-v1",
+            "source": "campaign_search_config_projection",
+            "read_write": {"read_ratio_percent": 20, "rmw": 0},
+            "contention": {"skew": 0.9, "label": "high"},
+            "scale": {"records": 1_000_000, "threads": 48},
+            "objective": "maximize_throughput_tps",
+            "correctness": "serializable_legacy_and_s2",
+        },
+        ("H1", "off"): {
+            "schema_version": "8b-v1",
+            "source": "campaign_search_config_projection",
+            "read_write": {"read_ratio_percent": 50, "rmw": 0},
+            "contention": {"skew": 0.9, "label": "high"},
+            "scale": {"records": 1_000_000, "threads": 48},
+            "objective": "maximize_throughput_tps",
+            "correctness": "serializable_legacy_and_s2",
+        },
+        ("H2", "on"): {
+            "schema_version": "8b-v1",
+            "source": "campaign_search_config_projection",
+            "read_write": {"read_ratio_percent": 20, "rmw": 0},
+            "contention": {"skew": 0.9, "label": "high"},
+            "scale": {"records": 1_000_000, "threads": 48},
+            "objective": "maximize_throughput_tps",
+            "correctness": "serializable_legacy_and_s2",
+        },
+        ("H2", "swapped"): {
+            "schema_version": "8b-v1",
+            "source": "campaign_search_config_projection",
+            "read_write": {"read_ratio_percent": 80, "rmw": 0},
+            "contention": {"skew": 0.9, "label": "high"},
+            "scale": {"records": 1_000_000, "threads": 48},
+            "objective": "maximize_throughput_tps",
+            "correctness": "serializable_legacy_and_s2",
+        },
+        ("H2", "off"): {
+            "schema_version": "8b-v1",
+            "source": "campaign_search_config_projection",
+            "read_write": {"read_ratio_percent": 50, "rmw": 0},
+            "contention": {"skew": 0.9, "label": "high"},
+            "scale": {"records": 1_000_000, "threads": 48},
+            "objective": "maximize_throughput_tps",
+            "correctness": "serializable_legacy_and_s2",
+        },
+    }
+    assert descriptor == expected_descriptors[(holdout, arm)]
+
+
 def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
+    from orchestrator.campaign import s8c_arm_inputs
+
     repo = tmp_path / "repo"
     repo.mkdir()
     assert _run(repo, "init", "-q").returncode == 0
@@ -74,6 +151,8 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
     registry_sha = _write(registry_path, b'{"fixture":"registry"}\n')
     lifecycle_path = repo / "output" / "s8c-trial-registry" / "lifecycle.jsonl"
     lifecycle_sha = _write(lifecycle_path, b'{"fixture":"lifecycle"}\n')
+    s8c_arm_inputs.generate_off_neutral_artifacts(repository_root=repo)
+    introduction = _commit_all(repo, "receipt references and off artifacts")
 
     trial_rows = []
     for holdout in ("H1", "H2"):
@@ -81,21 +160,26 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
             trial_id = f"trial-{holdout.lower()}-{arm}"
             campaign_id = f"campaign-{holdout.lower()}-{arm}"
             workload = f"workload-{holdout.lower()}"
-            descriptor = {
-                "schema_version": "8b-v1",
-                "fixture": {"holdout": holdout, "arm": arm},
-            }
-            content_digest = hashlib.sha256(_canonical(descriptor)).hexdigest()
+            resolved = s8c_arm_inputs.resolve_arm_input(
+                arm=arm,
+                holdout=holdout,
+                repository_root=repo,
+                commit=introduction,
+            )
+            descriptor = json.loads(resolved.canonical_input_bytes)
+            _assert_resolved_descriptor_matches_ratified_literals(
+                holdout=holdout,
+                arm=arm,
+                descriptor=descriptor,
+            )
             arm_execution = {
-                "input_schema_version": "8b-v1",
-                "content_digest_sha256": content_digest,
-                "arm_binding_digest_sha256": _binding_digest(
-                    holdout=holdout, arm=arm, content_digest=content_digest,
-                ),
+                "input_schema_version": resolved.input_schema_version,
+                "content_digest_sha256": resolved.content_digest_sha256,
+                "arm_binding_digest_sha256": resolved.arm_binding_digest_sha256,
             }
             report = {
                 "trial_id": trial_id,
-                "measurement_head": "1" * 40,
+                "measurement_head": introduction,
                 "status": "complete",
                 "arm_execution": arm_execution,
                 "launch_admission": {
@@ -103,7 +187,9 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
                         "arm": arm,
                         "holdout": holdout,
                         "campaign_id": campaign_id,
+                        "measurement_head": introduction,
                         "workload": workload,
+                        "ycsb_rratio": {"H1": "80", "H2": "20"}[holdout],
                     },
                 },
                 "cells": [{"workload": workload, "descriptor": descriptor}],
@@ -124,7 +210,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
                 "holdout": holdout,
                 "campaign_id": campaign_id,
                 "status": "complete",
-                "measurement_head": "1" * 40,
+                "measurement_head": introduction,
                 "report_path": report_path.relative_to(repo).as_posix(),
                 "report_sha256": report_sha,
                 "attempt_journal_path": journal_path.relative_to(repo).as_posix(),
@@ -132,7 +218,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, dict]:
                 "arm_execution": copy.deepcopy(arm_execution),
             })
 
-    introduction = _commit_all(repo, "receipt references")
+    _commit_all(repo, "trial reports and attempt journals")
     value = {
         "schema_version": receipt.PREVIOUS_SCHEMA_VERSION,
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
@@ -243,6 +329,141 @@ def test_verifier_keeps_registry_and_layer3_import_independence() -> None:
     )
 
 
+def test_receipt_import_is_cold_for_arm_authority_modules() -> None:
+    watched = (
+        "orchestrator.campaign.s8b_ratified_freeze",
+        "orchestrator.campaign.s8c_arm_inputs",
+        "orchestrator.campaign.s8b_holdout_freeze",
+        "orchestrator.campaign.s8b_descriptor",
+    )
+    probe = "\n".join((
+        "import sys",
+        "import orchestrator.campaign.s8c_acceptance_receipt",
+        f"watched = {watched!r}",
+        "sys.stdout.write('\\n'.join(name for name in watched if name in sys.modules))",
+    ))
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=Path(receipt.__file__).resolve().parents[2],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == ""
+
+
+def test_arm_authority_imports_are_function_local() -> None:
+    target_modules = {
+        "s8b_ratified_freeze",
+        "s8c_arm_inputs",
+        "s8b_holdout_freeze",
+        "s8b_descriptor",
+    }
+    tree = ast.parse(Path(receipt.__file__).read_text(encoding="utf-8"))
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+
+    def target_names(node: ast.AST) -> set[str]:
+        if isinstance(node, ast.Import):
+            names = {alias.name.rsplit(".", 1)[-1] for alias in node.names}
+        elif isinstance(node, ast.ImportFrom):
+            names = {alias.name.rsplit(".", 1)[-1] for alias in node.names}
+            if node.module:
+                names.add(node.module.rsplit(".", 1)[-1])
+        else:
+            return set()
+        return names & target_modules
+
+    targeted_imports = [
+        (node, target_names(node))
+        for node in ast.walk(tree)
+        if target_names(node)
+    ]
+    assert {
+        name for _node, names in targeted_imports for name in names
+    } >= {
+        "s8b_ratified_freeze",
+        "s8c_arm_inputs",
+        "s8b_holdout_freeze",
+    }
+    for node, _names in targeted_imports:
+        ancestors = []
+        current = node
+        while current in parents:
+            current = parents[current]
+            ancestors.append(current)
+        assert any(
+            isinstance(ancestor, (ast.FunctionDef, ast.AsyncFunctionDef))
+            for ancestor in ancestors
+        )
+
+
+def test_lazy_authority_import_failure_is_acceptance_receipt_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import builtins
+
+    original_import = builtins.__import__
+
+    def reject_authority_import(
+        name: str,
+        globals: object = None,
+        locals: object = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> object:
+        if "s8b_holdout_freeze" in (fromlist or ()):
+            raise ModuleNotFoundError("injected cold authority import failure")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", reject_authority_import)
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-freeze-arm-binding\] ratified legacy freeze "
+            r"cannot be loaded$"
+        ),
+    ) as caught:
+        receipt._require_ratified_legacy_arm_authority()
+    assert isinstance(caught.value.__cause__, ModuleNotFoundError)
+
+
+def test_resolver_exception_contract_is_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import s8c_arm_inputs
+
+    def raise_oserror(**_kwargs: object) -> object:
+        raise OSError("injected resolver failure")
+
+    monkeypatch.setattr(s8c_arm_inputs, "resolve_arm_input", raise_oserror)
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"^\[receipt-freeze-arm-binding\] trial arm input cannot be "
+            r"rederived$"
+        ),
+    ) as caught:
+        receipt._expected_arm_content_digest(tmp_path, "H1", "on", "1" * 40)
+    assert isinstance(caught.value.__cause__, OSError)
+
+    sentinel = receipt.AcceptanceReceiptError("[receipt-specific] sentinel")
+
+    def raise_acceptance_error(**_kwargs: object) -> object:
+        raise sentinel
+
+    monkeypatch.setattr(s8c_arm_inputs, "resolve_arm_input", raise_acceptance_error)
+    with pytest.raises(receipt.AcceptanceReceiptError) as propagated:
+        receipt._expected_arm_content_digest(tmp_path, "H1", "on", "1" * 40)
+    assert propagated.value is sentinel
+
+
 def test_v2_producer_equivalent_full_verify_drops_only_c02(tmp_path: Path) -> None:
     repo, path, value = _fixture(tmp_path)
     verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
@@ -258,6 +479,119 @@ def test_v2_producer_equivalent_full_verify_drops_only_c02(tmp_path: Path) -> No
         match=r"\[receipt-certifying\] receipts are structurally non-certifying$",
     ):
         receipt.parse_acceptance_receipt_bytes(_canonical_line(value))
+
+
+def test_self_consistent_wrong_descriptor_is_rejected_by_freeze_rederivation(
+    tmp_path: Path,
+) -> None:
+    """M1 keeps the old gates coherent and changes only the frozen condition."""
+    repo, path, value = _fixture(tmp_path)
+    row = _trial(value, "H1", "on")
+    report_path = repo / row["report_path"]
+    report = json.loads(report_path.read_bytes())
+    descriptor = report["cells"][0]["descriptor"]
+    assert type(descriptor["read_write"]["read_ratio_percent"]) is int
+    assert descriptor["read_write"]["read_ratio_percent"] == 80
+    descriptor["read_write"]["read_ratio_percent"] = 79
+    report["launch_admission"]["binding"]["ycsb_rratio"] = "79"
+    report_path.write_bytes(_canonical(report))
+
+    content_digest = hashlib.sha256(_canonical(descriptor)).hexdigest()
+    row["arm_execution"]["content_digest_sha256"] = content_digest
+    row["arm_execution"]["arm_binding_digest_sha256"] = _binding_digest(
+        holdout=row["holdout"],
+        arm=row["arm"],
+        content_digest=content_digest,
+    )
+    _synchronize_arm_execution(repo, row, descriptor=descriptor)
+    _rewrite_receipt(repo, path, value, "self-consistent wrong descriptor")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"\[receipt-freeze-arm-binding\] content digest differs from "
+            r"ratified legacy freeze rederivation$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_legacy_holdout_entry_key_drift_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M2 injects loader drift because the fixed artifact hash prevents byte mutation."""
+    from orchestrator.campaign import s8b_ratified_freeze
+
+    repo, path, _value = _fixture(tmp_path)
+    legacy = s8b_ratified_freeze.load_legacy_freeze()
+    document = _plain_json(legacy.document)
+    assert isinstance(document, dict)
+    document["holdouts"]["rr80"]["future_field"] = "drift"
+    doctored = s8b_ratified_freeze.LegacyFreeze(
+        document=document,
+        sha256=legacy.sha256,
+    )
+    monkeypatch.setattr(
+        s8b_ratified_freeze,
+        "load_legacy_freeze",
+        lambda: doctored,
+    )
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"\[receipt-freeze-arm-binding\] ratified legacy holdout entry "
+            r"key set differs: rr80$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_in_source_derangement_drift_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M3 injects source drift because the fixed artifact hash prevents byte mutation."""
+    from orchestrator.campaign import s8b_holdout_freeze
+
+    repo, path, _value = _fixture(tmp_path)
+    monkeypatch.setattr(
+        s8b_holdout_freeze,
+        "DERANGEMENT",
+        {"rr80": "rr20", "rr20": "rr80", "future": "future"},
+    )
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"\[receipt-freeze-arm-binding\] ratified legacy derangement "
+            r"differs from in-source authority$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_binding_measurement_head_mismatch_is_rejected(tmp_path: Path) -> None:
+    """M4 changes only the serialized binding head and its enclosing report hash."""
+    repo, path, value = _fixture(tmp_path)
+    row = _trial(value, "H2", "swapped")
+    report_path = repo / row["report_path"]
+    report = json.loads(report_path.read_bytes())
+    report["launch_admission"]["binding"]["measurement_head"] = "f" * 40
+    report_bytes = _canonical(report)
+    report_path.write_bytes(report_bytes)
+    row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    _rewrite_receipt(repo, path, value, "binding measurement head mismatch")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(
+            r"\[receipt-freeze-arm-binding\] trial report binding "
+            r"measurement_head differs from receipt$"
+        ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
 def test_pairwise_collision_is_rejected_after_binding_recalculation(

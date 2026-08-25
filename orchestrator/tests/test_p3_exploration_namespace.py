@@ -216,7 +216,7 @@ def _paper_story_measure_argv(tmp_path: Path) -> tuple[str, ...]:
     acquisition_path.write_bytes(acquisition_raw)
     return (
         "measure",
-        "--study-id", "paper-story-a1-20260824-exploratory-v1",
+        "--study-id", "paper-story-a1-20260826-sized-v1",
         "--expected-head", "a" * 40,
         "--pbs-jobid", "12345.fixture",
         "--acquisition-receipt", str(acquisition_path),
@@ -871,7 +871,7 @@ def _assert_paper_story_run_call(
         threads=harness.policy["scale"]["threads"],
         workload=harness.module.workload_flags(harness.policy, workload_name),
         extime=harness.policy["scale"]["extime_s"],
-        reps=harness.policy["scale"]["reps"],
+        reps=harness.module._expected_reps(harness.policy, workload_name),
     )
     assert env_tag == harness.runtime_contract.env_tag
     assert clocks_per_us == harness.runtime_contract.clocks_per_us
