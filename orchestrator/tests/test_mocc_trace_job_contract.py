@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -19,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SUBMITTER = REPO_ROOT / "tools/pegasus/submit_mocc_trace.sh"
 POLICY = REPO_ROOT / "tools/pegasus/mocc_trace_v1_policy.json"
 PILOT = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
+CHECKER = REPO_ROOT / "tools/check_trace0_preprocess_identity.py"
 NEW_OID = "058d0c4e5f237d88ec1c2ebe0739113d82906e47"
 BASE_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 
@@ -971,7 +973,10 @@ def test_mocc_trace_verifier_interpreter_gate_fails_closed_and_records_rejection
 
 def _mocc_trace_finalization_fragment() -> str:
     source = PILOT.read_text(encoding="utf-8")
-    start_marker = 'python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"'
+    start_marker = (
+        'RECEIPT_WRITER_SHA=$(python3 - '
+        '"$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"'
+    )
     git_marker = '\ngit -C "$CCBENCH_BASE" worktree remove'
     end_marker = '\nBUILD_SOURCE=""'
     assert source.count(start_marker) == 1
@@ -985,6 +990,17 @@ def _mocc_trace_finalization_fragment() -> str:
     assert 'python3 - "$ATTEMPT_DIR/job-result.json"' in fragment
     assert git_marker.lstrip("\n") in fragment
     return fragment
+
+
+def _mocc_trace_checker_report_sha_fragment() -> str:
+    source = PILOT.read_text(encoding="utf-8")
+    start_marker = "  checker_report_sha_rc=0"
+    end_marker = "\nelse\n  build_mode 1"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker, start)
+    return source[start:end]
 
 
 def _valid_trace0_report(
@@ -1021,6 +1037,32 @@ def _encoded_report(report: object, encoding: str = "compact") -> bytes:
     return (text + "\n").encode("utf-8")
 
 
+def _receipt_tamper_fragment(*, update_sidecar: bool) -> str:
+    update_sidecar_value = "1" if update_sidecar else "0"
+    return f"""
+python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" \
+  "$ATTEMPT_DIR/mocc-trace-pilot-receipt.sha256" \
+  {update_sidecar_value} <<'PY_TAMPER'
+import hashlib
+import json
+import sys
+
+path, sidecar_path, update_sidecar = sys.argv[1:]
+with open(path, encoding="utf-8") as handle:
+    payload = json.load(handle)
+payload["created_epoch"] += 1
+receipt_bytes = (
+    json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+).encode("utf-8")
+with open(path, "wb") as handle:
+    handle.write(receipt_bytes)
+if update_sidecar == "1":
+    with open(sidecar_path, "w", encoding="ascii") as handle:
+        handle.write(hashlib.sha256(receipt_bytes).hexdigest() + "\\n")
+PY_TAMPER
+"""
+
+
 def _run_mocc_trace_finalization(
     tmp_path: Path,
     *,
@@ -1032,6 +1074,9 @@ def _run_mocc_trace_finalization(
     checker_report_sha: str | None = None,
     realpath_aliases: bool = False,
     tamper_receipt_after_write: bool = False,
+    tamper_receipt_and_sidecar_after_write: bool = False,
+    tamper_receipt_after_shell_hash: bool = False,
+    swap_report_to_symlink_before_open: bool = False,
     current_script_sha: str = "fixture-script-sha",
 ) -> tuple[subprocess.CompletedProcess[str], Path, bytes]:
     attempt_dir = tmp_path / "attempt"
@@ -1151,26 +1196,42 @@ def _run_mocc_trace_finalization(
         ]
     )
     fragment = _mocc_trace_finalization_fragment()
-    if tamper_receipt_after_write:
-        tamper = """
-python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" <<'PY_TAMPER'
-import json
-import sys
-
-path = sys.argv[1]
-with open(path, encoding="utf-8") as handle:
-    payload = json.load(handle)
-payload["created_epoch"] += 1
-with open(path, "w", encoding="utf-8") as handle:
-    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
-    handle.write("\\n")
-PY_TAMPER
-"""
+    if swap_report_to_symlink_before_open:
+        swapped_target = tmp_path / "swapped-report-target.json"
+        swapped_target.write_bytes(report_bytes)
+        report_open_marker = "        checker_report_path = os.open(\n"
+        assert fragment.count(report_open_marker) == 1
+        report_swap = (
+            "        os.unlink(checker_report_path)\n"
+            f"        os.symlink({str(swapped_target)!r}, checker_report_path)\n"
+        )
+        fragment = fragment.replace(
+            report_open_marker,
+            report_swap + report_open_marker,
+            1,
+        )
+    prehash_tamper_count = sum(
+        (tamper_receipt_after_write, tamper_receipt_and_sidecar_after_write)
+    )
+    assert prehash_tamper_count <= 1
+    if prehash_tamper_count:
+        tamper = _receipt_tamper_fragment(
+            update_sidecar=tamper_receipt_and_sidecar_after_write
+        )
         receipt_sha_marker = "\nRECEIPT_SHA="
         assert fragment.count(receipt_sha_marker) == 1
         fragment = fragment.replace(
             receipt_sha_marker,
             tamper + receipt_sha_marker,
+            1,
+        )
+    if tamper_receipt_after_shell_hash:
+        tamper = _receipt_tamper_fragment(update_sidecar=False)
+        job_writer_marker = '\npython3 - "$ATTEMPT_DIR/job-result.json"'
+        assert fragment.count(job_writer_marker) == 1
+        fragment = fragment.replace(
+            job_writer_marker,
+            tamper + job_writer_marker,
             1,
         )
     result = subprocess.run(
@@ -1229,13 +1290,16 @@ def test_mocc_trace_report_binding_uses_one_python_report_read() -> None:
     start = source.index('python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"')
     python_start = source.index("\nimport hashlib\n", start)
     python_end = source.index(
-        "\nPY\n  write_failure 2 trace0_preprocess_identity_report_binding",
+        "\nPY\n) || {\n  write_failure 2 "
+        "trace0_preprocess_identity_report_binding",
         python_start,
     )
     writer = source[python_start:python_end]
     outside_writer = source[:python_start] + source[python_end:]
     assert writer.count('open(checker_report_path, "rb")') == 1
     assert writer.count("report_bytes = handle.read()") == 1
+    assert writer.count("os.fstat(checker_report_path)") == 1
+    assert writer.count("checker_report_path, os.O_RDONLY | os.O_NOFOLLOW") == 1
     assert writer.count('json.loads(report_bytes.decode("utf-8"))') == 1
     assert writer.count('report.get("schema")') == 1
     assert writer.count('report.get("guarantee")') == 1
@@ -1243,6 +1307,75 @@ def test_mocc_trace_report_binding_uses_one_python_report_read() -> None:
     assert 'report.get("guarantee")' not in outside_writer
     assert "REPORT_SCHEMA" not in source
     assert "REPORT_GUARANTEE" not in source
+    assert source.count(
+        "fd = os.open(candidate, os.O_RDONLY | os.O_NOFOLLOW)"
+    ) == 1
+    assert source.count("candidate_stat = os.fstat(fd)") == 1
+    assert source.count(
+        "receipt_bytes = read_regular_file_no_follow(receipt_path)"
+    ) == 1
+    assert source.count("read_regular_file_no_follow(receipt_sha_path)") == 1
+
+
+@pytest.mark.parametrize(
+    ("sha256sum_body", "expected_rc", "expected_reason"),
+    (
+        pytest.param(
+            "exit 23\n",
+            23,
+            "failed to hash TRACE=0 preprocess identity report after checker success",
+            id="sha256sum-failure",
+        ),
+        pytest.param(
+            "printf '%s\\n' not-a-sha\n",
+            2,
+            "TRACE=0 preprocess identity report hash is not 64 lowercase hex",
+            id="malformed-digest",
+        ),
+    ),
+)
+def test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage(
+    tmp_path: Path,
+    sha256sum_body: str,
+    expected_rc: int,
+    expected_reason: str,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_executable(bin_dir / "sha256sum", f"#!/bin/bash\n{sha256sum_body}")
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    (attempt_dir / "trace0-preprocess-identity.json").write_text(
+        "{}\n", encoding="utf-8"
+    )
+    failure_path = attempt_dir / "failure.txt"
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    environment["ATTEMPT_DIR"] = str(attempt_dir)
+    environment["FAILURE_PATH"] = str(failure_path)
+    script = "\n".join(
+        (
+            "set -Eeuo pipefail",
+            "write_failure() {",
+            "  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" >\"$FAILURE_PATH\"",
+            "}",
+            "trap 'rc=$?; write_failure \"$rc\" shell \"ERR trap\"; exit \"$rc\"' ERR",
+            _mocc_trace_checker_report_sha_fragment(),
+        )
+    )
+    result = subprocess.run(
+        ["/bin/bash", "-c", script],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == expected_rc, result.stderr
+    assert failure_path.read_text(encoding="utf-8") == (
+        f"{expected_rc}|trace0_preprocess_identity_report_binding|"
+        f"{expected_reason}\n"
+    )
 
 
 def test_mocc_trace_binding_m01_sha_tracks_exact_report_bytes(tmp_path: Path) -> None:
@@ -1344,6 +1477,30 @@ def test_mocc_trace_binding_m09_rejects_compiler_mismatch(tmp_path: Path) -> Non
     _assert_receipt_binding_rejected(result, attempt_dir)
 
 
+@pytest.mark.parametrize("identity", ("repo", "compiler"))
+def test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths(
+    tmp_path: Path, identity: str
+) -> None:
+    real_python = shutil.which("python3")
+    assert real_python is not None
+    if identity == "repo":
+        report_changes = {
+            "repo": str(tmp_path / "build-source" / "does-not-exist" / "..")
+        }
+    else:
+        report_changes = {
+            "compiler": {
+                "path": str(
+                    Path(os.path.realpath(real_python)) / "does-not-exist" / ".."
+                )
+            }
+        }
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, report_changes=report_changes
+    )
+    _assert_receipt_binding_rejected(result, attempt_dir)
+
+
 def test_mocc_trace_binding_m10_rejects_expected_paths_mismatch(tmp_path: Path) -> None:
     result, attempt_dir, _ = _run_mocc_trace_finalization(
         tmp_path, report_changes={"expected_paths": ["cc/mocc/other.cc"]}
@@ -1356,6 +1513,16 @@ def test_mocc_trace_binding_m11_rejects_valid_report_symlink(tmp_path: Path) -> 
         tmp_path, report_mode="symlink"
     )
     _assert_receipt_binding_rejected(result, attempt_dir)
+
+
+def test_mocc_trace_binding_f2_rejects_report_symlink_swap_before_fd_open(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, swap_report_to_symlink_before_open=True
+    )
+    _assert_receipt_binding_rejected(result, attempt_dir)
+    assert (attempt_dir / "trace0-preprocess-identity.json").is_symlink()
 
 
 def test_mocc_trace_binding_m12_rejects_post_checker_report_swap(tmp_path: Path) -> None:
@@ -1383,6 +1550,37 @@ def test_mocc_trace_binding_m13_rejects_receipt_replaced_before_shell_hash(
     assert result.returncode == 2, result.stderr
     assert (attempt_dir / "mocc-trace-pilot-receipt.json").exists()
     assert (attempt_dir / "mocc-trace-pilot-receipt.sha256").exists()
+    assert not (attempt_dir / "job-result.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure == "2|job_result_report_binding|job result report binding failed\n"
+
+
+def test_mocc_trace_binding_f1_rejects_receipt_and_sidecar_replaced_together(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, tamper_receipt_and_sidecar_after_write=True
+    )
+    assert result.returncode == 2, result.stderr
+    receipt_path = attempt_dir / "mocc-trace-pilot-receipt.json"
+    sidecar_path = attempt_dir / "mocc-trace-pilot-receipt.sha256"
+    assert sidecar_path.read_text(encoding="ascii").strip() == hashlib.sha256(
+        receipt_path.read_bytes()
+    ).hexdigest()
+    assert not (attempt_dir / "job-result.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure == "2|job_result_report_binding|job result report binding failed\n"
+
+
+def test_mocc_trace_binding_f4_rejects_receipt_replaced_after_shell_hash(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, tamper_receipt_after_shell_hash=True
+    )
+    assert result.returncode == 2, result.stderr
+    assert (attempt_dir / "mocc-trace-pilot-receipt.json").is_file()
+    assert (attempt_dir / "mocc-trace-pilot-receipt.sha256").is_file()
     assert not (attempt_dir / "job-result.json").exists()
     failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
     assert failure == "2|job_result_report_binding|job result report binding failed\n"
@@ -1486,9 +1684,61 @@ def test_mocc_trace_binding_m20_job_result_copies_only_four_scalars(
     assert sentinel not in job_result_path.read_text(encoding="utf-8")
 
 
-def test_mocc_trace_binding_p01_accepts_aligned_schema_v1_report(
+def test_mocc_trace_binding_f6_receipt_lists_sha_sidecar_artifact(
     tmp_path: Path,
 ) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
+    assert result.returncode == 0, result.stderr
+    artifacts = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")[
+        "artifacts"
+    ]
+    assert isinstance(artifacts, dict)
+    assert artifacts["receipt_sha256_sidecar"] == (
+        "mocc-trace-pilot-receipt.sha256"
+    )
+
+
+def test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract() -> None:
+    checker_tree = ast.parse(CHECKER.read_text(encoding="utf-8"))
+    check_functions = [
+        node
+        for node in checker_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "check"
+    ]
+    assert len(check_functions) == 1
+    payload_returns = [
+        node.value
+        for node in ast.walk(check_functions[0])
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict)
+    ]
+    assert len(payload_returns) == 1
+    checker_payload_keys = {
+        key.value
+        for key in payload_returns[0].keys
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+    fixture_gate_keys = set(
+        _valid_trace0_report(Path("fixture-repo"), Path("fixture-cxx"))
+    )
+    assert fixture_gate_keys == {
+        "schema",
+        "guarantee",
+        "result",
+        "old_oid",
+        "new_oid",
+        "repo",
+        "compiler",
+        "expected_paths",
+    }
+    assert fixture_gate_keys <= checker_payload_keys
+
+
+def test_mocc_trace_binding_p01_accepts_synthetic_aligned_schema_v1_report(
+    tmp_path: Path,
+) -> None:
+    """Accept a synthetic gate-aligned schema-v1 report fixture."""
+
     result, attempt_dir, _ = _run_mocc_trace_finalization(
         tmp_path,
         report_changes={"schema": "izanagi-trace0-preprocess-identity/v1"},
@@ -1498,9 +1748,11 @@ def test_mocc_trace_binding_p01_accepts_aligned_schema_v1_report(
     assert (attempt_dir / "job-result.json").is_file()
 
 
-def test_mocc_trace_binding_p02_accepts_aligned_schema_v2_realpath_report(
+def test_mocc_trace_binding_p02_accepts_synthetic_aligned_schema_v2_realpath_report(
     tmp_path: Path,
 ) -> None:
+    """Accept a synthetic gate-aligned schema-v2 report with realpath aliases."""
+
     result, attempt_dir, _ = _run_mocc_trace_finalization(
         tmp_path,
         report_changes={

@@ -725,7 +725,18 @@ PY
       "TRACE=0 workload skipped because preprocess identity checker failed closed"
     exit "$CHECKER_RC"
   fi
-  CHECKER_REPORT_SHA=$(sha256sum "$ATTEMPT_DIR/trace0-preprocess-identity.json" | awk '{print $1}')
+  checker_report_sha_rc=0
+  CHECKER_REPORT_SHA=$(sha256sum "$ATTEMPT_DIR/trace0-preprocess-identity.json" | awk '{print $1}') || checker_report_sha_rc=$?
+  if [[ "$checker_report_sha_rc" -ne 0 ]]; then
+    write_failure "$checker_report_sha_rc" trace0_preprocess_identity_report_binding \
+      "failed to hash TRACE=0 preprocess identity report after checker success"
+    exit "$checker_report_sha_rc"
+  fi
+  if [[ ! "$CHECKER_REPORT_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+    write_failure 2 trace0_preprocess_identity_report_binding \
+      "TRACE=0 preprocess identity report hash is not 64 lowercase hex"
+    exit 2
+  fi
 else
   build_mode 1
 fi
@@ -1020,7 +1031,7 @@ timeout 30 qstat -x -f "$QSTAT_JOBID" >"$ATTEMPT_DIR/qstat-accounting.stdout" \
   2>"$ATTEMPT_DIR/qstat-accounting.stderr" || qstat_accounting_rc=$?
 printf '%s\n' "$qstat_accounting_rc" >"$ATTEMPT_DIR/qstat-accounting.rc"
 
-python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$ATTEMPT_RECEIPT" \
+RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$ATTEMPT_RECEIPT" \
   "$ATTEMPT_DIR/topology.json" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" \
   "$PBS_JOBID" "$HOSTNAME_SHORT" "$HOSTNAME_FQDN" "$CPU_MODEL" "$TRACE_MODE" \
   "$CXX_PATH" \
@@ -1029,7 +1040,7 @@ python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$ATTEMPT_RECEIPT" \
   "$CHECKER_RC" "$VERIFIER_RC" "$RUN_RC" "$qstat_final_rc" \
   "$qstat_accounting_rc" "$WORKLOAD_JSON" "$CMAKE_TARGET" \
   "$ATTEMPT_DIR/trace0-preprocess-identity.json" "$BUILD_SOURCE" \
-  "$CHECKER_PY" "$VERIFIER_PY" "$CHECKER_REPORT_SHA" <<'PY' || {
+  "$CHECKER_PY" "$VERIFIER_PY" "$CHECKER_REPORT_SHA" <<'PY'
 import hashlib
 import json
 import os
@@ -1068,6 +1079,29 @@ expected_report_path = os.path.join(attempt_dir, "trace0-preprocess-identity.jso
 if os.path.abspath(checker_report_path) != expected_report_path:
     reject("checker report path is outside the attempt directory")
 
+
+def strict_path_identity(path, expected_type, label):
+    if not isinstance(path, str) or not path:
+        reject(f"{label} is not a nonempty path")
+    try:
+        resolved = os.path.realpath(path, strict=True)
+        fd = os.open(resolved, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise ValueError(f"{label} is unavailable") from exc
+    try:
+        identity_stat = os.fstat(fd)
+    finally:
+        os.close(fd)
+    if expected_type == "directory":
+        if not stat.S_ISDIR(identity_stat.st_mode):
+            reject(f"{label} is not a directory")
+    elif expected_type == "regular file":
+        if not stat.S_ISREG(identity_stat.st_mode):
+            reject(f"{label} is not a regular file")
+    else:
+        reject("unsupported strict path identity type")
+    return identity_stat.st_dev, identity_stat.st_ino
+
 if trace_mode_i == 0:
     if checker_rc != "0":
         reject("TRACE=0 checker rc is not zero")
@@ -1075,19 +1109,26 @@ if trace_mode_i == 0:
         reject("TRACE=0 checker interpreter is not a resolved absolute file")
     if verifier_py:
         reject("TRACE=0 unexpectedly selected a verifier interpreter")
-    if os.path.islink(checker_report_path):
-        reject("checker report must not be a symlink")
     try:
-        report_stat = os.stat(checker_report_path)
+        checker_report_path = os.open(
+            checker_report_path, os.O_RDONLY | os.O_NOFOLLOW
+        )
     except OSError as exc:
         raise ValueError("checker report is unavailable") from exc
-    if not stat.S_ISREG(report_stat.st_mode):
-        reject("checker report is not a regular file")
     try:
+        report_stat = os.fstat(checker_report_path)
+        if not stat.S_ISREG(report_stat.st_mode):
+            reject("checker report is not a regular file")
+        # The pathname variable now holds the pinned fd; open() wraps that same fd.
         with open(checker_report_path, "rb") as handle:
+            checker_report_path = None
             report_bytes = handle.read()
+    finally:
+        if checker_report_path is not None:
+            os.close(checker_report_path)
+    try:
         report = json.loads(report_bytes.decode("utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("checker report is not strict UTF-8 JSON") from exc
     if not isinstance(report, dict):
         reject("checker report top level is not an object")
@@ -1111,13 +1152,17 @@ if trace_mode_i == 0:
     if report.get("new_oid") != new_oid:
         reject("checker report new oid does not match the invocation")
     report_repo = report.get("repo")
-    if not isinstance(report_repo, str) or os.path.realpath(report_repo) != os.path.realpath(build_source):
+    if strict_path_identity(
+        report_repo, "directory", "checker report repo"
+    ) != strict_path_identity(build_source, "directory", "invocation repo"):
         reject("checker report repo does not match the invocation")
     compiler = report.get("compiler")
     if not isinstance(compiler, dict):
         reject("checker report compiler is not an object")
     compiler_path = compiler.get("path")
-    if not isinstance(compiler_path, str) or os.path.realpath(compiler_path) != os.path.realpath(cxx_path):
+    if strict_path_identity(
+        compiler_path, "regular file", "checker report compiler"
+    ) != strict_path_identity(cxx_path, "regular file", "invocation compiler"):
         reject("checker report compiler does not match the invocation")
     if report.get("expected_paths") != ["cc/mocc/transaction.cc"]:
         reject("checker report expected paths do not match the invocation")
@@ -1229,6 +1274,7 @@ payload = {
         "run_dir": run_dir,
         "trace_dir": trace_dir,
         "submit_receipt": "submit-receipt.json",
+        "receipt_sha256_sidecar": "mocc-trace-pilot-receipt.sha256",
         "verifier_json": "verifier.json" if int(trace_mode) == 1 else None,
         "throughput_json": "throughput.json" if int(trace_mode) == 0 else None,
     },
@@ -1247,14 +1293,27 @@ with open(output, "xb") as handle:
 receipt_sha_path = os.path.join(attempt_dir, "mocc-trace-pilot-receipt.sha256")
 with open(receipt_sha_path, "x", encoding="ascii") as handle:
     handle.write(receipt_sha + "\n")
+print(receipt_sha)
 PY
+) || {
   write_failure 2 trace0_preprocess_identity_report_binding \
     "preprocess identity report binding failed"
   exit 2
 }
 
+if [[ ! "$RECEIPT_WRITER_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+  write_failure 2 trace0_preprocess_identity_report_binding \
+    "receipt writer did not return a 64 lowercase hex sha"
+  exit 2
+fi
+
 RECEIPT_SHA=$(sha256sum "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" | awk '{print $1}')
-python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$RECEIPT_SHA" \
+if [[ "$RECEIPT_SHA" != "$RECEIPT_WRITER_SHA" ]]; then
+  write_failure 2 job_result_report_binding \
+    "job result report binding failed"
+  exit 2
+fi
+python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$RECEIPT_WRITER_SHA" \
   "$BINARY_SHA" "$CURRENT_SCRIPT_SHA" \
   "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" \
   "$ATTEMPT_DIR/mocc-trace-pilot-receipt.sha256" <<'PY' || {
@@ -1266,22 +1325,33 @@ import sys
 import time
 
 path, job_id, receipt_sha, binary_sha, script_sha, receipt_path, receipt_sha_path = sys.argv[1:]
-if os.path.islink(receipt_path) or os.path.islink(receipt_sha_path):
-    raise ValueError("receipt and receipt sha sidecar must not be symlinks")
-for candidate in (receipt_path, receipt_sha_path):
+
+
+def read_regular_file_no_follow(candidate):
     try:
-        candidate_stat = os.stat(candidate, follow_symlinks=False)
+        fd = os.open(candidate, os.O_RDONLY | os.O_NOFOLLOW)
     except OSError as exc:
         raise ValueError("receipt binding input is unavailable") from exc
-    if not stat.S_ISREG(candidate_stat.st_mode):
-        raise ValueError("receipt binding input is not a regular file")
-with open(receipt_path, "rb") as handle:
-    receipt_bytes = handle.read()
+    try:
+        candidate_stat = os.fstat(fd)
+        if not stat.S_ISREG(candidate_stat.st_mode):
+            raise ValueError("receipt binding input is not a regular file")
+        with os.fdopen(fd, "rb") as handle:
+            fd = None
+            return handle.read()
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+receipt_bytes = read_regular_file_no_follow(receipt_path)
 actual_receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
-with open(receipt_sha_path, encoding="ascii") as handle:
-    writer_receipt_sha = handle.read().strip()
+try:
+    writer_receipt_sha = read_regular_file_no_follow(receipt_sha_path).decode("ascii").strip()
+except UnicodeDecodeError as exc:
+    raise ValueError("receipt sha sidecar is not ASCII") from exc
 if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:
-    raise ValueError("receipt sha does not match writer sidecar and shell digest")
+    raise ValueError("receipt sha does not match writer stdout and sidecar")
 receipt = json.loads(receipt_bytes.decode("utf-8"))
 report_binding = receipt.get("trace0_preprocess_identity_report")
 if not isinstance(report_binding, dict) or set(report_binding) != {
