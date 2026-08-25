@@ -27,12 +27,13 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 
 ## DW-M05 — 復元と単一走行
 
-変異 harness は `tools/mutation_harness.py` を使う（元ソースの固定 HEAD 束縛、起動・復元時の
-内容比較、`flock` 単一走行、逐次 flush、HEAD/spec 束縛の `--resume`、signal 復元を fail-closed で
-強制する。F32）。独自 harness は同等の検査を備えると段 4 で事前登録する。
-起動前に総所要を見積り、外側の実行時間上限に掛からない経路で起動する。この 2 つは tool が
-検証できない自己申告で親の義務に残る。生存 process を `pgrep -f` で照合するなら ERE か literal を
-使い BRE の `\|` を避け、待ち手自身と並行 wave の子に当たらないよう worktree path で一意化する。
+変異harnessは`tools/mutation_harness.py`を使う。同toolは元ソースの固定HEAD束縛、起動/復元時の
+内容比較、`flock`単一走行、逐次flush、HEAD/spec束縛の`--resume`、signal復元をfail-closedで
+強制する（F32）。独自harnessは同等検査を備えると段4で事前登録する。
+変異中は親の編集とworktreeへ書きうる子の起動を止める。起動前に総所要を見積り、外側の
+実行時間上限内の経路で起動する。この2点はtoolが検証不能な親の自己申告義務。
+生存processの`pgrep -f`照合はEREかliteralを使ってBREの`\|`を避け、待ち手自身/並行waveの子を
+除くようworktree pathで一意化する。
 
 ## DW-M06 — hang 変異
 
