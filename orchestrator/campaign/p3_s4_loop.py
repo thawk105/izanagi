@@ -56,7 +56,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import coder_effect_gate, env_contract, ident, trigger_gate_binding, wal  # noqa: E402
+from . import (backoff_hole_grammar, coder_effect_gate, env_contract, ident,  # noqa: E402
+               trigger_gate_binding, wal)
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
@@ -127,7 +128,7 @@ class PlannerProposal:
 class CoderProposal:
     """coder-v4-autonomous の出力 (値 + hole コード)。"""
     axis: str
-    value: float                      # 1..1000 の backoff 量
+    value: int | float                # 無損失整数 1..1000 の backoff 量
     implementation: str               # "double now_backoff = <式>;"
     justification: str = ""
     confidence: str = "medium"
@@ -204,17 +205,33 @@ def quarantine(sub: str, implementation: str,
 
     **前提: 呼び出し元が既に applied(TEMPLATE_PATCH) 下にある** (working-tree に骨格が
     入っている)。手順:
-      1. backoff.hh (骨格入り) を base_text として読む
-      2. parse_template_file で marker を取り source_rel を差し替える (basename 推定を上書き)
-      3. hole を implementation で置換 → edited_text (write=True でファイルに書く)
-      4. working_diff = make_working_diff(base, edited)、head_text=base で structural validate
-      5. structural pass の場合だけ、元の hole implementation そのものを有限 lexical
+      1. backoff marker だけ type/raw-size preflight (path read より前)
+      2. backoff.hh (骨格入り) を base_text として読む
+      3. parse_template_file で marker を取り source_rel を差し替える (basename 推定を上書き)
+      4. hole を implementation で置換 → edited_text (write=True でファイルに書く)
+      5. working_diff = make_working_diff(base, edited)、head_text=base で structural validate
+      6. structural pass の場合だけ、元の hole implementation そのものを有限 lexical
          coder-effect gate へ渡す
+      7. 両既存 gate の pass 後、backoff marker だけ Tier 1 grammar を適用
+
+    既存 ``HOLE_ESCAPE`` / ``HOST_EFFECT`` の理由を保存する契約は、新しい raw-size cap
+    内の入力に限る。type/raw-size は帰属 regex と candidate materialization より先に
+    fail-closed させるため、この二規則だけは従来理由より先になり得る。式の中身は Tier 2
+    なので本 grammar は限定しない。trigger / sort marker の受理集合にも適用しない。
 
     Returns: (DiffQuarantineResult, base_text, edited_text, working_diff)。
     passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
     parse_template_file が None を返す (テンプレ骨格が壊れている) 場合は MALFORMED 相当の
     fails-closed 結果を合成して返す (骨格が読めなければ検疫できない = reject)。"""
+    if marker_id == MARKER_ID:
+        preflight = backoff_hole_grammar.validate_backoff_preflight(
+            implementation
+        )
+        if not preflight.accepted:
+            return _backoff_grammar_rejection(
+                preflight, source_rel=source_rel, marker_id=marker_id,
+            ), "", "", ""
+
     if (marker_id == TRIGGER_MARKER_ID
             and not trigger_gate_binding.is_canonical_predicate(implementation)):
         res = DiffQuarantineResult(
@@ -275,11 +292,49 @@ def quarantine(sub: str, implementation: str,
                 digest=digest,
                 violations=[digest],
             )
+    if res.passed and marker_id == MARKER_ID:
+        decision = backoff_hole_grammar.validate_backoff_implementation(
+            implementation
+        )
+        if not decision.accepted:
+            res = _backoff_grammar_rejection(
+                decision, source_rel=source_rel, marker_id=marker_id,
+            )
     if write:
         if res.passed:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(edited_text)
     return res, base_text, edited_text, working_diff
+
+
+def _backoff_grammar_rejection(
+    decision: backoff_hole_grammar.BackoffGrammarDecision,
+    *,
+    source_rel: str,
+    marker_id: str,
+) -> DiffQuarantineResult:
+    """Project one grammar decision without candidate-derived bytes."""
+
+    if decision.accepted or decision.rule_id is None or decision.stage is None:
+        raise ValueError("backoff grammar rejection requires a fixed decision")
+    reason = "backoff hole が Tier 1 受理文法外"
+    evidence = f"rule_id={decision.rule_id} stage={decision.stage}"
+    digest = {
+        "rejection_type": "diff-quarantine",
+        "subtype": DiffRejectSubtype.BACKOFF_GRAMMAR.value,
+        "reason": reason,
+        "diff_region": source_rel,
+        "template_diff_id": marker_id,
+        "evidence": evidence,
+        "rule_id": decision.rule_id,
+    }
+    return DiffQuarantineResult(
+        passed=False,
+        subtype=DiffRejectSubtype.BACKOFF_GRAMMAR,
+        reason=reason,
+        digest=digest,
+        violations=[digest],
+    )
 
 
 # ==== diff-quarantine reject の WAL 記録 (片肺の書き手側) ======================
@@ -868,6 +923,14 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
     判定: implementation の `now_backoff = <lit>` 代入 literal が value と数値一致すること。
     代入 literal を抽出できない (自由式) 場合は fails-closed で value が implementation に数値
     として現れることを要求する (段 4 の編集面は backoff literal のみ、D39 決定1)。"""
+    implementation_preflight = (
+        backoff_hole_grammar.validate_backoff_preflight(coder.implementation)
+    )
+    if not implementation_preflight.accepted:
+        raise backoff_hole_grammar.BackoffGrammarViolation(
+            implementation_preflight
+        )
+
     fixed_message = (
         "帰属汚染: coder value と hole literal の一致を機械確認できない "
         "(規律6/D39 決定7)"
@@ -881,10 +944,14 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
     if m is not None:
         if float(m.group(1)) != coder_value:
             raise AttributionMismatch(fixed_message)
-        return
-    lits = {float(x) for x in _NUM_RE.findall(coder.implementation)}
-    if coder_value not in lits:
-        raise AttributionMismatch(fixed_message)
+    else:
+        lits = {float(x) for x in _NUM_RE.findall(coder.implementation)}
+        if coder_value not in lits:
+            raise AttributionMismatch(fixed_message)
+
+    value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
+    if not value_decision.accepted:
+        raise backoff_hole_grammar.BackoffGrammarViolation(value_decision)
 
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
@@ -964,11 +1031,14 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
-    genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
-                             "BACKOFF_FIXED": int(coder.value)})
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
+    # type/raw-size preflight は既存帰属より前、value の無損失整数検査は既存帰属の後かつ
+    # int() より前に走る。新 cap 内の既存 AttributionMismatch を保存しつつ、materialization
+    # と int() は固定上限内・検証済みの値にしか到達させない。
     assert_value_literal_consistent(coder)
+    genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
+                             "BACKOFF_FIXED": int(coder.value)})
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     elif do_build and layout.root != exploration_campaign_layout(
@@ -1060,7 +1130,7 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
         justification=p.get("justification", ""), uncertainty=p.get("uncertainty", ""))
     coder = CoderProposal(
-        axis=c["axis"], value=float(c["value"]), implementation=c["implementation"],
+        axis=c["axis"], value=c["value"], implementation=c["implementation"],
         justification=c.get("justification", ""), confidence=c.get("confidence", "medium"))
     # prior_critic_reverse は null か bool のみを許す。非 bool (文字列 "true"・整数 1 等) は
     # _fold_critic_reverse の `is True`/`is False` で黙って no-op し reverse-exhausted の停止
