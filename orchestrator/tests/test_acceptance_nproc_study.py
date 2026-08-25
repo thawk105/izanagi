@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import pty
 import re
+import shutil
 import subprocess
 import sys
 
@@ -66,8 +67,9 @@ _JUNIT_SKIPPED = b"""<?xml version="1.0" encoding="utf-8"?>
 """
 _PATH_BASE_START = "# BEGIN acceptance nproc ambient PATH construction"
 _PATH_BASE_END = "# END acceptance nproc ambient PATH construction"
-_PATH_SHIM_START = "# BEGIN acceptance nproc Python shim PATH prefix"
-_PATH_SHIM_END = "# END acceptance nproc Python shim PATH prefix"
+_PATH_PYTHON_DIR_START = "# BEGIN acceptance nproc Python directory PATH prefix"
+_PATH_PYTHON_DIR_END = "# END acceptance nproc Python directory PATH prefix"
+_SUBMISSION_PYTHON_CANDIDATES = ("python3", "python3.10", "python3.11")
 _FALLBACK_PATH_CONSTRUCTION = """PATH="/usr/bin:/bin"
   for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
     [[ -d "$candidate" ]] || continue
@@ -97,41 +99,102 @@ def _marked_shell_block(text: str, start_marker: str, end_marker: str) -> str:
 
 
 def _evaluated_study_path(
-    text: str, ambient_elements: tuple[str, ...],
+    text: str,
+    ambient_elements: tuple[str, ...],
+    *,
+    python: Path,
+    synthetic_tmp: Path,
 ) -> tuple[str, ...]:
     assert ambient_elements
     assert all(ambient_elements)
+    assert python.is_file()
+    assert not python.is_symlink()
     base_block = _marked_shell_block(text, _PATH_BASE_START, _PATH_BASE_END)
-    shim_block = _marked_shell_block(text, _PATH_SHIM_START, _PATH_SHIM_END)
-    synthetic_tmp = "/synthetic/acceptance-nproc-study"
+    python_dir_block = _marked_shell_block(
+        text, _PATH_PYTHON_DIR_START, _PATH_PYTHON_DIR_END
+    )
     script = "\n".join((
         "set -eu",
         base_block,
-        f"TMPDIR={synthetic_tmp}",
-        shim_block,
+        python_dir_block,
         'printf "%s" "$PATH"',
     ))
     completed = subprocess.run(
         ["/bin/bash", "-c", script],
         check=True,
         capture_output=True,
-        env={"PATH": os.pathsep.join(ambient_elements)},
+        env={
+            "PATH": os.pathsep.join(ambient_elements),
+            "PY": str(python),
+            "TMPDIR": str(synthetic_tmp),
+        },
         text=True,
     )
     assert completed.stderr == ""
     return tuple(completed.stdout.split(os.pathsep))
 
 
-def _assert_exact_study_path_contract(text: str) -> None:
+def _submission_python_executable(path_elements: tuple[str, ...]) -> Path | None:
+    assert path_elements
+    assert all(path_elements)
+    assert _SUBMISSION_PYTHON_CANDIDATES == (
+        "python3", "python3.10", "python3.11",
+    )
+    search_path = os.pathsep.join(path_elements)
+    for candidate in _SUBMISSION_PYTHON_CANDIDATES:
+        found = shutil.which(candidate, path=search_path)
+        if found and Path(found).is_file() and not Path(found).is_symlink():
+            return Path(found).resolve(strict=True)
+    return None
+
+
+def _synthetic_python_tree(tmp_path: Path) -> Path:
+    python_dir = tmp_path / "resolved-python" / "bin"
+    python_dir.mkdir(parents=True)
+    python = python_dir / "python3.10"
+    python.write_bytes(b"synthetic Python interpreter\n")
+    python.chmod(0o755)
+    (python_dir / "python3").symlink_to(python.name)
+    assert python.is_file()
+    assert not python.is_symlink()
+    return python
+
+
+def _assert_submission_python_resolution(
+    path_elements: tuple[str, ...], *, expected: Path,
+) -> None:
+    selected = _submission_python_executable(path_elements)
+    assert selected is not None, (
+        "PATH has no regular non-symlink Python candidate matching the selected "
+        "interpreter"
+    )
+    assert selected == expected.resolve(strict=True)
+    python310 = shutil.which("python3.10", path=os.pathsep.join(path_elements))
+    assert python310 is not None
+    resolved_python310 = Path(python310)
+    assert resolved_python310.is_file()
+    assert not resolved_python310.is_symlink()
+    assert resolved_python310.resolve(strict=True) == expected.resolve(strict=True)
+
+
+def _assert_exact_study_path_contract(
+    text: str, *, python: Path, synthetic_tmp: Path,
+) -> tuple[str, ...]:
     ambient_elements = (
-        "/synthetic/ambient-alpha",
-        "/synthetic/ambient-beta",
-        "/synthetic/ambient-gamma",
+        str(synthetic_tmp / "ambient-alpha"),
+        str(synthetic_tmp / "ambient-beta"),
+        str(synthetic_tmp / "ambient-gamma"),
     )
     assert ambient_elements
-    observed = _evaluated_study_path(text, ambient_elements)
+    assert all(ambient_elements)
+    observed = _evaluated_study_path(
+        text,
+        ambient_elements,
+        python=python,
+        synthetic_tmp=synthetic_tmp,
+    )
     expected = (
-        "/synthetic/acceptance-nproc-study/python-shim",
+        str(python.parent),
         *ambient_elements,
     )
     assert observed == expected, (
@@ -139,23 +202,71 @@ def _assert_exact_study_path_contract(text: str) -> None:
     )
     assert observed[0] == expected[0]
     assert observed[1:] == ambient_elements
+    _assert_submission_python_resolution(observed, expected=python)
+    return observed
 
 
-def test_acceptance_path_prefixes_shim_and_preserves_exact_ambient_order() -> None:
+def test_acceptance_path_prefixes_real_python_dir_and_preserves_ambient_order(
+    tmp_path: Path,
+) -> None:
     shell_text = _acceptance_shell_text()
+    python = _synthetic_python_tree(tmp_path)
     base_block = _marked_shell_block(
         shell_text, _PATH_BASE_START, _PATH_BASE_END
     )
     assert _FALLBACK_PATH_CONSTRUCTION in base_block
-    pinned_shims = """ln -s "$PY" "$TMPDIR/python-shim/python3"
-ln -s "$PY" "$TMPDIR/python-shim/python3.10"""
-    assert pinned_shims in shell_text
-    assert shell_text.index(pinned_shims) < shell_text.index(_PATH_SHIM_START)
-    _assert_exact_study_path_contract(shell_text)
+    assert 'PY_DIR=${PY%/*}' in shell_text
+    assert 'export PATH="$PY_DIR:$PATH"' in shell_text
+    assert "$TMPDIR/python-shim" not in shell_text
+    assert 'ln -s "$PY"' not in shell_text
+    assert '[[ -n "$PINNED_PYTHON" && -f "$PINNED_PYTHON"' in shell_text
+    assert '[[ "$PINNED_PYTHON" == "$PY" ]]' in shell_text
+    observed = _assert_exact_study_path_contract(
+        shell_text, python=python, synthetic_tmp=tmp_path / "study-tmp"
+    )
+    assert observed
+    assert observed[0] == str(python.parent)
 
 
-def test_acceptance_path_contract_rejects_reset_mutation() -> None:
+def test_acceptance_python_resolution_rejects_symlink_shim_mutation(
+    tmp_path: Path,
+) -> None:
     shell_text = _acceptance_shell_text()
+    python = _synthetic_python_tree(tmp_path)
+    synthetic_tmp = tmp_path / "study-tmp"
+    shim = synthetic_tmp / "python-shim"
+    shim.mkdir(parents=True)
+    (shim / "python3").symlink_to(python)
+    (shim / "python3.10").symlink_to(python)
+    assert all((shim / name).is_symlink() for name in ("python3", "python3.10"))
+    assert not (shim / "python3.11").exists()
+
+    python_dir_block = _marked_shell_block(
+        shell_text, _PATH_PYTHON_DIR_START, _PATH_PYTHON_DIR_END
+    )
+    symlink_shim_mutation = 'export PATH="$TMPDIR/python-shim:$PATH"'
+    mutated = shell_text.replace(python_dir_block, symlink_shim_mutation, 1)
+    assert mutated != shell_text
+    ambient_elements = tuple(
+        str(tmp_path / name) for name in ("ambient-alpha", "ambient-beta")
+    )
+    assert ambient_elements
+    observed = _evaluated_study_path(
+        mutated,
+        ambient_elements,
+        python=python,
+        synthetic_tmp=synthetic_tmp,
+    )
+    assert observed[0] == str(shim)
+    assert observed[1:] == ambient_elements
+    assert _submission_python_executable(observed) is None
+    with pytest.raises(AssertionError, match="no regular non-symlink Python"):
+        _assert_submission_python_resolution(observed, expected=python)
+
+
+def test_acceptance_path_contract_rejects_reset_mutation(tmp_path: Path) -> None:
+    shell_text = _acceptance_shell_text()
+    python = _synthetic_python_tree(tmp_path)
     base_block = _marked_shell_block(
         shell_text, _PATH_BASE_START, _PATH_BASE_END
     )
@@ -164,7 +275,9 @@ def test_acceptance_path_contract_rejects_reset_mutation() -> None:
     reset_mutation = shell_text.replace(base_block, _RESET_PATH_MUTATION, 1)
     assert reset_mutation != shell_text
     with pytest.raises(AssertionError, match="observed PATH elements"):
-        _assert_exact_study_path_contract(reset_mutation)
+        _assert_exact_study_path_contract(
+            reset_mutation, python=python, synthetic_tmp=tmp_path / "study-tmp"
+        )
 
 
 @pytest.fixture(autouse=True)
