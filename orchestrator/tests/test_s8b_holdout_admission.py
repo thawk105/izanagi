@@ -12,6 +12,8 @@ from unittest import mock
 
 import pytest
 
+from orchestrator.campaign import attempt_registry_core
+from orchestrator.campaign import s8b_attempt_profile
 from orchestrator.campaign import s8b_floor_campaign
 from orchestrator.campaign import s8b_floor_contract
 from orchestrator.campaign import s8b_floor_stats
@@ -32,6 +34,14 @@ _CONFIGURATIONS = (
     "backoff_fixed_best", "ident_all", "p2_2_flag_opt",
     "sort_best", "stock_common", "system_gate",
 )
+_TEST_RECOVERY_AUTHORITY = ("test-scheduler-authority", "9" * 64)
+
+
+def _pin_test_recovery_authority(monkeypatch, *extra: tuple[str, str]) -> None:
+    monkeypatch.setattr(
+        admission, "_FLOOR_RECOVERY_AUTHORITIES",  # noqa: SLF001
+        frozenset({_TEST_RECOVERY_AUTHORITY, *extra}),
+    )
 
 
 def _canonical(value: object) -> bytes:
@@ -1247,6 +1257,164 @@ def _issued_cell(tmp_path: Path):
     )
 
 
+def _floor_expected_marker(admitted, attempt_id: str) -> dict:
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    return {
+        "schema_version": admission._ATTEMPT_SCHEMA,  # noqa: SLF001
+        "event": "consume",
+        "claim_digest": state.claim_digest,
+        "attempt_id": attempt_id,
+        "campaign_run_id": state.row["campaign_run_id"],
+        "manifest_sha256": state.row["manifest_sha256"],
+        "run_relpath": state.row["run_relpath"],
+        "cell_id": state.row["cell_id"],
+        "freeze_holdout_key": state.row["freeze_holdout_key"],
+        "configuration_id": state.row["configuration_id"],
+        "observation_role": admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    }
+
+
+def _issued_inspection_kwargs(
+    root: Path, protocol: dict, admitted, manifest_sha256: str,
+) -> dict:
+    _fixture_protocol, freeze = _fixture_documents()
+    cells = s8b_floor_contract.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    return {
+        "repo_root": root,
+        "protocol": protocol,
+        "verified_freeze_document": freeze,
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "manifest_sha256": manifest_sha256,
+        "campaign_run_id": "run-a",
+        "run_relpath": "env/fixture-env/calibration/s8b-floor-pilot/run-a",
+        "mode": "pilot",
+        "cells": cells,
+        "schedule": list(state.schedule),
+        "sessions": admission._read_run_journal(  # noqa: SLF001
+            state.run_dir / "journal.jsonl"
+        ),
+    }
+
+
+def _crash_floor_after_marker(monkeypatch, admitted, attempt_id: str) -> None:
+    original = admission._append_ledger  # noqa: SLF001
+
+    def crash(path, rows):
+        if path.name == "attempt-ledger.jsonl":
+            raise RuntimeError("cut-6")
+        return original(path, rows)
+
+    monkeypatch.setattr(admission, "_append_ledger", crash)
+    with pytest.raises(RuntimeError, match="cut-6"):
+        admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    monkeypatch.setattr(admission, "_append_ledger", original)
+
+
+def _append_journal_rows(admitted, *rows: dict) -> None:
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    with (state.run_dir / "journal.jsonl").open("a", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def _write_verified_recovery_registry(
+    admitted, *, trigger_start: dict,
+) -> Path:
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    authority_id, authority_policy_sha256 = _TEST_RECOVERY_AUTHORITY
+    schedule_sha256 = hashlib.sha256(
+        attempt_registry_core.canonical_json_bytes(list(state.schedule))
+    ).hexdigest()
+    binding = s8b_attempt_profile.S8BAttemptBinding(
+        freeze_sha256=state.row["freeze_sha256"],
+        protocol_sha256=state.row["protocol_sha256"],
+        schedule_sha256=schedule_sha256,
+    )
+    profile = s8b_attempt_profile.make_s8b_domain_profile(
+        max_consumptions_per_budget_key=len(state.attempt_ids),
+        recovery_authority_id=authority_id,
+        recovery_authority_policy_sha256=authority_policy_sha256,
+    )
+    target_ordinal = (
+        trigger_start["retry_ordinal"]
+        if trigger_start.get("kind") == "retry" else 0
+    )
+    slots = []
+    for ordinal in range(target_ordinal + 1):
+        slot_identity = {
+            "freeze_holdout_key": state.row["freeze_holdout_key"],
+            "configuration_id": state.row["configuration_id"],
+            "repetition": trigger_start["round"] - 1,
+            "attempt_ordinal": ordinal,
+        }
+        slots.append(s8b_attempt_profile.S8BAttemptSlot(
+            **slot_identity,
+            schedule_row_sha256=hashlib.sha256(
+                attempt_registry_core.canonical_json_bytes(slot_identity)
+            ).hexdigest(),
+        ))
+    rows = attempt_registry_core.create_attempt_registry_genesis(
+        profile=profile, slots=slots, binding=binding,
+    )
+    for ordinal, slot in enumerate(slots):
+        slot_id = s8b_attempt_profile.S8B_SLOT_CODEC.slot_id(slot)
+        rows = attempt_registry_core.reserve_attempt_slot(
+            rows, profile=profile, freeze_id=binding.freeze_sha256,
+            slot_id=slot_id, binding=binding,
+            run_start_receipt_sha256=hashlib.sha256(
+                f"run-start-{ordinal}".encode("utf-8")
+            ).hexdigest(),
+            process_identity={
+                "pid": 101 + ordinal,
+                "starttime": f"test-start-{ordinal}",
+                "execution_uuid": f"test-start-uuid-{ordinal}",
+            },
+            started_at=f"2026-08-25T00:00:{ordinal * 3:02d}+00:00",
+        )
+        start = next(
+            row for row in rows
+            if row.get("event") == "start"
+            and row.get("attempt_ordinal") == ordinal
+        )
+        receipt = {
+            "schema_version": s8b_attempt_profile.S8B_RECOVERY_RECEIPT_SCHEMA_VERSION,
+            "event": s8b_attempt_profile.S8B_RECOVERY_RECEIPT_EVENT,
+            "source": s8b_attempt_profile.S8B_RECOVERY_RECEIPT_SOURCE,
+            "scheduler_request_id": f"test-request-{ordinal}",
+            "target_start_event_sha256": start["event_sha256"],
+            "raw_scheduler_accounting_record_sha256": hashlib.sha256(
+                f"accounting-{ordinal}".encode("utf-8")
+            ).hexdigest(),
+            "authority_id": authority_id,
+            "authority_policy_sha256": authority_policy_sha256,
+            "failure_reason": "node_failure",
+            "collected_at": f"2026-08-25T00:00:{ordinal * 3 + 1:02d}+00:00",
+        }
+        rows = attempt_registry_core.record_attempt_recovery(
+            rows, profile=profile, freeze_id=binding.freeze_sha256,
+            slot_id=slot_id, binding=binding,
+            scheduler_accounting_receipt=receipt,
+            recoverer_process_identity={
+                "pid": 202 + ordinal,
+                "starttime": f"test-recover-{ordinal}",
+                "execution_uuid": f"test-recover-uuid-{ordinal}",
+            },
+            recovered_at=f"2026-08-25T00:00:{ordinal * 3 + 2:02d}+00:00",
+        )
+    relative = s8b_attempt_profile.S8B_REGISTRY_LAYOUT.registry_path.as_posix().format(
+        freeze_sha256=binding.freeze_sha256,
+    )
+    path = state.root.joinpath(*Path(relative).parts)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"".join(
+        attempt_registry_core.canonical_json_bytes(row) + b"\n" for row in rows
+    ))
+    return path
+
+
 def test_attempt_ticket_is_durably_single_use(tmp_path):
     root, protocol, _cell, admitted, attempt_id, _manifest_sha256 = _issued_cell(tmp_path)
     token = admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
@@ -1262,6 +1430,142 @@ def test_attempt_ticket_is_durably_single_use(tmp_path):
     assert attempt_rows[0]["observation_role"] == (
         admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN
     )
+
+
+def test_cut6_rebuilds_attempt_row_and_reissues_same_attempt_under_lock(
+    tmp_path, monkeypatch,
+):
+    root, protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    _crash_floor_after_marker(monkeypatch, admitted, attempt_id)
+    shared = admission.shared_admission_root(root)
+    assert not (shared / "attempt-ledger.jsonl").exists()
+    assert admission.floor_attempt_requires_cut6_replay(
+        admitted, attempt_id=attempt_id,
+    ) is True
+
+    original_issue = admission._issue_floor_attempt_observation  # noqa: SLF001
+
+    def assert_locked(state, *, attempt_id):
+        probe = subprocess.run(
+            ["flock", "-n", str(shared / "ledger.lock"), "true"],
+            check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        assert probe.returncode == 1
+        return original_issue(state, attempt_id=attempt_id)
+
+    monkeypatch.setattr(admission, "_issue_floor_attempt_observation", assert_locked)
+    token = admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+
+    assert token.attempt_id == attempt_id
+    assert token.permitted_run_once_calls == protocol["reps"]
+    assert len(list((shared / "consumed").iterdir())) == 1
+    rows = admission._read_ledger(shared / "attempt-ledger.jsonl")  # noqa: SLF001
+    assert rows == [_floor_expected_marker(admitted, attempt_id)]
+    assert all("retry" not in row["attempt_id"] for row in rows)
+    assert admission.floor_attempt_requires_cut6_replay(
+        admitted, attempt_id=attempt_id,
+    ) is False
+
+
+def test_cut6_replay_query_rejects_start_before_consumed_marker(tmp_path):
+    _root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+
+    assert admission.floor_attempt_requires_cut6_replay(
+        admitted, attempt_id=attempt_id,
+    ) is False
+
+
+def test_floor_recovery_query_signatures_expose_only_admission_verdict_inputs():
+    cut6 = inspect.signature(admission.floor_attempt_requires_cut6_replay)
+    retry = inspect.signature(admission.floor_retry_trigger_for_round)
+    assert tuple(cut6.parameters) == ("admission", "attempt_id")
+    assert tuple(retry.parameters) == ("admission", "round_no")
+    assert cut6.parameters["attempt_id"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert retry.parameters["round_no"].kind is inspect.Parameter.KEYWORD_ONLY
+
+
+def test_cut6_m_plus_a_plus_rejects_before_any_new_marker_write(
+    tmp_path, monkeypatch,
+):
+    _root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+
+    def forbidden_write(*_args, **_kwargs):
+        pytest.fail("M+A+ reached marker creation")
+
+    monkeypatch.setattr(admission, "_write_exclusive", forbidden_write)
+    with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
+        admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+
+
+def test_cut6_marker_absence_does_not_invent_requested_attempt_row(tmp_path):
+    root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    shared = admission.shared_admission_root(root)
+    expected = _floor_expected_marker(admitted, attempt_id)
+
+    with admission._locked(shared):  # noqa: SLF001
+        recovered = admission._recover_floor_attempt_ledger_locked(  # noqa: SLF001
+            shared, expected_marker=expected, completed_attempt=False,
+        )
+
+    assert recovered is False
+    assert not (shared / "attempt-ledger.jsonl").exists()
+    assert list((shared / "consumed").iterdir()) == []
+
+
+def test_cut6_orphan_attempt_row_without_marker_is_rejected(tmp_path):
+    root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    shared = admission.shared_admission_root(root)
+    expected = _floor_expected_marker(admitted, attempt_id)
+    with admission._locked(shared):  # noqa: SLF001
+        admission._append_ledger(  # noqa: SLF001
+            shared / "attempt-ledger.jsonl", [expected],
+        )
+        with pytest.raises(admission.HoldoutAdmissionError, match="no consume marker"):
+            admission._recover_floor_attempt_ledger_locked(  # noqa: SLF001
+                shared, expected_marker=expected, completed_attempt=False,
+            )
+
+
+@pytest.mark.parametrize("tamper", ["extra-key", "claim-mismatch"])
+def test_cut6_recovery_requires_exact_marker_rederived_from_claim(
+    tmp_path, monkeypatch, tamper,
+):
+    root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    _crash_floor_after_marker(monkeypatch, admitted, attempt_id)
+    shared = admission.shared_admission_root(root)
+    marker_path = next((shared / "consumed").iterdir())
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    if tamper == "extra-key":
+        marker["extra"] = "forbidden"
+        match = "exact shape"
+    else:
+        marker["campaign_run_id"] = "different-run"
+        match = "differs from claim and ledger"
+    marker_path.write_bytes(_canonical(marker) + b"\n")
+
+    with pytest.raises(admission.HoldoutAdmissionError, match=match):
+        admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    assert not (shared / "attempt-ledger.jsonl").exists()
+
+
+def test_cut6_completed_session_forbids_reissue_of_same_attempt(
+    tmp_path, monkeypatch,
+):
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    _crash_floor_after_marker(monkeypatch, admitted, attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    start = json.loads((state.run_dir / "journal.jsonl").read_text(encoding="utf-8"))
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": start["seq"], "round": start["round"],
+        "kind": "planned", "cell_id": cell["cell_id"],
+        "attempt_id": attempt_id, "valid": True,
+    })
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="completed attempt"):
+        admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    shared = admission.shared_admission_root(root)
+    assert not (shared / "attempt-ledger.jsonl").exists()
 
 
 def test_ticket_consumption_precedes_crashing_measure_callback_m5(tmp_path):
@@ -1321,6 +1625,482 @@ def test_retry_ticket_without_failed_planned_trigger_is_rejected(tmp_path):
         )
     consumed = admission.shared_admission_root(root) / "consumed"
     assert list(consumed.iterdir()) == []
+
+
+def test_existing_failed_planned_session_retry_still_passes(tmp_path):
+    _root, protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(
+        admitted,
+        {
+            "event": "session", "seq": planned_start["seq"],
+            "round": planned_start["round"], "kind": "planned",
+            "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+            "valid": False, "probe_before": {"competing": False},
+        },
+        {
+            "event": "session-start", "seq": len(state.schedule),
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": 1, "cell_id": cell["cell_id"],
+            "attempt_id": retry_id, "trigger": attempt_id,
+        },
+    )
+
+    token = admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert token.attempt_id == retry_id
+    assert token.permitted_run_once_calls == protocol["reps"]
+
+
+def test_legacy_retry_rejects_extra_completion_for_same_trigger(tmp_path):
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(
+        admitted,
+        {
+            "event": "session", "seq": planned_start["seq"],
+            "round": planned_start["round"], "kind": "planned",
+            "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+            "valid": False, "probe_before": {"competing": False},
+        },
+        {
+            "event": "session", "seq": planned_start["seq"],
+            "round": planned_start["round"], "kind": "planned",
+            "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+            "valid": True, "probe_before": {"competing": False},
+        },
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="more than one"):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+    with pytest.raises(admission.HoldoutAdmissionError, match="exactly one"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    consumed = admission.shared_admission_root(root) / "consumed"
+    assert list(consumed.iterdir()) == []
+
+
+def test_malformed_registry_does_not_disable_existing_failed_session_retry(tmp_path):
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    registry_path = admission._floor_registry_path(state)  # noqa: SLF001
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_bytes(b"{malformed-registry}\n")
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": planned_start["seq"],
+        "round": planned_start["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "valid": False, "probe_before": {"competing": True},
+    })
+    authorization = admission.floor_retry_trigger_for_round(
+        admitted, round_no=planned_start["round"],
+    )
+    assert authorization == admission.FloorRetryAuthorization(
+        trigger_attempt_id=attempt_id, source="legacy-failed-session",
+    )
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    token = admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert token.attempt_id == retry_id
+    assert token.permitted_run_once_calls == protocol["reps"]
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+        "valid": True, "probe_before": {"competing": False},
+    })
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        **_issued_inspection_kwargs(root, protocol, admitted, manifest)
+    )
+    assert inspection["attempt_row_count"] == 1
+
+
+def test_verified_registry_recovery_authorizes_exactly_one_retry_ordinal(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    authorization = admission.floor_retry_trigger_for_round(
+        admitted, round_no=planned_start["round"],
+    )
+    assert authorization == admission.FloorRetryAuthorization(
+        trigger_attempt_id=attempt_id,
+        source="verified-registry-recovery",
+    )
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    token = admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert token.attempt_id == retry_id
+    assert token.permitted_run_once_calls == protocol["reps"]
+    shared = admission.shared_admission_root(root)
+    attempts = admission._read_ledger(shared / "attempt-ledger.jsonl")  # noqa: SLF001
+    assert [row["attempt_id"] for row in attempts] == [attempt_id, retry_id]
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+        "valid": True, "probe_before": {"competing": False},
+    })
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        **_issued_inspection_kwargs(root, protocol, admitted, manifest)
+    )
+    assert inspection["attempt_row_count"] == 2
+
+
+def test_registry_recovery_of_retry_attempt_selects_that_attempt_as_trigger(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    retry1 = f"{cell['cell_id']}::retry1"
+    retry1_start = {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry1, "trigger": attempt_id,
+    }
+    _append_journal_rows(admitted, retry1_start)
+    # The registry contains the prefix recovery for ordinal 0 and the target
+    # recovery for ordinal 1.  No valid=False completion is added, so each
+    # retry start has exactly one side of the XOR authorization.
+    _write_verified_recovery_registry(admitted, trigger_start=retry1_start)
+    admission.consume_attempt_ticket(admitted, attempt_id=retry1)
+
+    authorization = admission.floor_retry_trigger_for_round(
+        admitted, round_no=planned_start["round"],
+    )
+    assert authorization == admission.FloorRetryAuthorization(
+        trigger_attempt_id=retry1,
+        source="verified-registry-recovery",
+    )
+    retry2 = f"{cell['cell_id']}::retry2"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule) + 1,
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 2, "cell_id": cell["cell_id"],
+        "attempt_id": retry2, "trigger": retry1,
+    })
+
+    token = admission.consume_attempt_ticket(admitted, attempt_id=retry2)
+    assert token.attempt_id == retry2
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": len(state.schedule) + 1,
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 2, "cell_id": cell["cell_id"],
+        "attempt_id": retry2, "trigger": retry1,
+        "valid": True, "probe_before": {"competing": False},
+    })
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        **_issued_inspection_kwargs(root, protocol, admitted, manifest)
+    )
+    assert inspection["attempt_row_count"] == 3
+
+
+def test_registry_recovery_authority_is_empty_and_fail_closed(tmp_path):
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    assert admission._FLOOR_RECOVERY_AUTHORITIES == frozenset()  # noqa: SLF001
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    with pytest.raises(admission.HoldoutAdmissionError, match="authority is not pinned"):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+    assert not any(
+        row.get("kind") == "retry"
+        for row in admission._read_run_journal(  # noqa: SLF001
+            state.run_dir / "journal.jsonl"
+        )
+    )
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="authority is not pinned"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    attempts = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "attempt-ledger.jsonl"
+    )
+    assert [row["attempt_id"] for row in attempts] == [attempt_id]
+
+
+@pytest.mark.parametrize("ordinals", [(2,), (1, 2)])
+def test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals(
+    tmp_path, monkeypatch, ordinals,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    starts = [
+        {
+            "event": "session-start", "seq": len(state.schedule) + index,
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": ordinal, "cell_id": cell["cell_id"],
+            "attempt_id": f"{cell['cell_id']}::retry{ordinal}",
+            "trigger": attempt_id,
+        }
+        for index, ordinal in enumerate(ordinals)
+    ]
+    _append_journal_rows(admitted, *starts)
+    target = f"{cell['cell_id']}::retry{ordinals[-1]}"
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="exactly one next"):
+        admission.consume_attempt_ticket(admitted, attempt_id=target)
+    attempts = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "attempt-ledger.jsonl"
+    )
+    assert [row["attempt_id"] for row in attempts] == [attempt_id]
+
+
+def test_verified_registry_recovery_rejects_nonlatest_retry_start(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    retry1 = f"{cell['cell_id']}::retry1"
+    retry2 = f"{cell['cell_id']}::retry2"
+    _append_journal_rows(
+        admitted,
+        {
+            "event": "session-start", "seq": len(state.schedule),
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": 1, "cell_id": cell["cell_id"],
+            "attempt_id": retry1, "trigger": attempt_id,
+        },
+        {
+            "event": "session-start", "seq": len(state.schedule) + 1,
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": 2, "cell_id": cell["cell_id"],
+            "attempt_id": retry2, "trigger": "different-trigger",
+        },
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="exactly one next"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry1)
+    attempts = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "attempt-ledger.jsonl"
+    )
+    assert [row["attempt_id"] for row in attempts] == [attempt_id]
+
+
+@pytest.mark.parametrize("ordinals", [(2,), (1, 2)])
+def test_inspection_rejects_registry_recovery_nonprefix_or_reused_trigger(
+    tmp_path, monkeypatch, ordinals,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    _append_journal_rows(admitted, *(
+        {
+            "event": "session-start", "seq": len(state.schedule) + index,
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": ordinal, "cell_id": cell["cell_id"],
+            "attempt_id": f"{cell['cell_id']}::retry{ordinal}",
+            "trigger": attempt_id,
+        }
+        for index, ordinal in enumerate(ordinals)
+    ))
+
+    _assert_evidence_error(
+        "mismatch", "session-start-invalid",
+        _issued_inspection_kwargs(root, protocol, admitted, manifest),
+    )
+
+
+def test_registry_recovery_without_consumed_trigger_marker_is_rejected(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="no consume marker"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert list((admission.shared_admission_root(root) / "consumed").iterdir()) == []
+
+
+def test_unverified_registry_recovery_row_is_rejected(tmp_path, monkeypatch):
+    _pin_test_recovery_authority(
+        monkeypatch, ("tampered", _TEST_RECOVERY_AUTHORITY[1]),
+    )
+    _root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    registry_path = _write_verified_recovery_registry(
+        admitted, trigger_start=planned_start,
+    )
+    rows = [json.loads(line) for line in registry_path.read_text().splitlines()]
+    recovery = next(row for row in rows if row.get("event") == "recovery")
+    recovery["scheduler_accounting_receipt"]["authority_id"] = "tampered"
+    registry_path.write_bytes(b"".join(
+        attempt_registry_core.canonical_json_bytes(row) + b"\n" for row in rows
+    ))
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="verification failed"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+
+
+def test_failed_session_and_registry_recovery_evidence_are_mutually_exclusive(tmp_path):
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(
+        admitted,
+        {
+            "event": "session", "seq": planned_start["seq"],
+            "round": planned_start["round"], "kind": "planned",
+            "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+            "valid": False, "probe_before": {"competing": False},
+        },
+        {
+            "event": "session-start", "seq": len(state.schedule),
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": 1, "cell_id": cell["cell_id"],
+            "attempt_id": retry_id, "trigger": attempt_id,
+        },
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="exactly one"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    _assert_evidence_error(
+        "mismatch", "session-start-invalid",
+        _issued_inspection_kwargs(root, protocol, admitted, manifest),
+    )
+
+
+def test_registry_recovery_from_other_round_cannot_open_retry(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    _root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(admitted, trigger_start=planned_start)
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"] + 1, "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="cell or round"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+
+
+def test_retry_ordinal_above_frozen_attempt_set_is_rejected(tmp_path):
+    root, protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    ordinal = protocol["retry_slots_per_cell"] + 1
+    retry_id = f"{cell['cell_id']}::retry{ordinal}"
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": ordinal, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="frozen ticket set"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert list((admission.shared_admission_root(root) / "consumed").iterdir()) == []
 
 
 def test_cell_coordinates_are_evidence_checks_not_extra_key_fields(tmp_path):

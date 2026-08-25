@@ -35,6 +35,8 @@ from ..holdout_observation import (
     _protected_signatures_from_verified_freeze_core,
     assert_issued_holdout_observation,
 )
+from . import attempt_registry_core as _attempt_registry_core
+from . import s8b_attempt_profile as _attempt_profile
 from . import s8b_floor_contract as _floor_contract
 from . import s8b_oracle_manifest as _oracle_manifest
 from . import s8b_ratified_freeze as _ratified_freeze
@@ -44,6 +46,7 @@ __all__ = (
     "FloorHoldoutEvidenceInspection",
     "FloorHoldoutEvidenceError",
     "FloorHoldoutReservation",
+    "FloorRetryAuthorization",
     "HoldoutAdmissionError",
     "NPilotReservationReceipt",
     "TransactionInspection",
@@ -54,6 +57,8 @@ __all__ = (
     "OBSERVATION_ROLE_N_PILOT_R33",
     "OBSERVATION_ROLE_ORACLE_DRIVER",
     "assert_cell_holdout_admission",
+    "floor_attempt_requires_cut6_replay",
+    "floor_retry_trigger_for_round",
     "consume_attempt_ticket",
     "consume_n_pilot_attempt_ticket",
     "consume_oracle_attempt_ticket",
@@ -78,6 +83,10 @@ _ROOT_REL = Path("izanagi") / "s8b-holdout-admission-v1"
 _LOCK_NAME = "ledger.lock"
 _LEDGER_NAME = "ledger.jsonl"
 _ATTEMPT_LEDGER_NAME = "attempt-ledger.jsonl"
+# [T-1668] registers the production scheduler authority pairs here after its
+# collector and durable receipt path exist.  Empty is the deliberate current
+# policy: registry recovery cannot authorize a floor retry today.
+_FLOOR_RECOVERY_AUTHORITIES: frozenset[tuple[str, str]] = frozenset()
 _R33_RECEIPT_SCHEMA = "s8b-n-pilot-reservation/v2"
 _R33_MANIFEST_SCHEMA = "s8b-n-pilot-admission-manifest/v1"
 _R33_TRANSACTION_SCHEMA = "s8b-n-pilot-admission-transaction/v2"
@@ -167,6 +176,22 @@ class FloorHoldoutReservation:
     run_relpath: str
     protocol_sha256: str
     freeze_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class FloorRetryAuthorization:
+    """Admission-owned retry trigger choice returned to the campaign runner."""
+
+    trigger_attempt_id: str
+    source: Literal["legacy-failed-session", "verified-registry-recovery"]
+
+    def __post_init__(self) -> None:
+        if type(self.trigger_attempt_id) is not str or not self.trigger_attempt_id:
+            raise ValueError("retry trigger attempt id must be nonempty text")
+        if type(self.source) is not str or self.source not in {
+            "legacy-failed-session", "verified-registry-recovery",
+        }:
+            raise ValueError("retry authorization source is invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -3745,7 +3770,7 @@ def assert_cell_holdout_admission(
 
 def _assert_attempt_authorized_by_journal(
     state: _CellState, *, attempt_id: str,
-) -> None:
+) -> list[dict[str, Any]]:
     records = _read_run_journal(state.run_dir / "journal.jsonl")
     if any(row.get("event") == "terminal" for row in records):
         raise HoldoutAdmissionError("terminal run cannot consume another attempt")
@@ -3776,21 +3801,14 @@ def _assert_attempt_authorized_by_journal(
                 or scheduled.get("round") != start.get("round")
                 or start.get("trigger") is not None):
             raise HoldoutAdmissionError("planned attempt authorization is inconsistent")
-        return
+        return records
     if start.get("kind") != "retry":
         raise HoldoutAdmissionError("attempt authorization kind is unknown")
-    trigger = start.get("trigger")
-    triggering_rows = [
-        row for row in records
-        if row.get("event") == "session" and row.get("attempt_id") == trigger
-    ]
-    if (type(trigger) is not str or len(triggering_rows) != 1
-            or triggering_rows[0].get("cell_id") != state.row["cell_id"]
-            or triggering_rows[0].get("kind") != "planned"
-            or triggering_rows[0].get("valid") is not False):
-        raise HoldoutAdmissionError(
-            "retry attempt lacks its canonical failed planned trigger"
-        )
+    _assert_retry_start_authorized_locked(
+        state, records=records, retry_start=start,
+        authorizing_new_start=True,
+    )
+    return records
 
 
 def consume_attempt_ticket(
@@ -3800,30 +3818,61 @@ def consume_attempt_ticket(
 
     state = _cell_state(admission)
     attempt_id = _require_text(attempt_id, "attempt_id")
+    # Frozen-ticket membership is independent of trigger evidence.
     if attempt_id not in state.attempt_ids:
         raise HoldoutAdmissionError("attempt_id is not in the frozen ticket set")
-    _assert_attempt_authorized_by_journal(state, attempt_id=attempt_id)
-    marker = {
-        "schema_version": _ATTEMPT_SCHEMA,
-        "event": "consume",
-        "claim_digest": state.claim_digest,
-        "attempt_id": attempt_id,
-        "campaign_run_id": state.row["campaign_run_id"],
-        "manifest_sha256": state.row["manifest_sha256"],
-        "run_relpath": state.row["run_relpath"],
-        "cell_id": state.row["cell_id"],
-        "freeze_holdout_key": state.row["freeze_holdout_key"],
-        "configuration_id": state.row["configuration_id"],
-        "observation_role": OBSERVATION_ROLE_FLOOR_CAMPAIGN,
-    }
-    marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
-    path = state.root / "consumed" / f"{state.claim_digest}-{marker_digest}.json"
+    marker = _floor_attempt_document_for_state(state, attempt_id=attempt_id)
+    # Recovery and any replacement receipt stay in this one root lock.
     with _locked(state.root):
+        # The admission root lock serializes admission artifacts only.  Journal
+        # writers do not take it, so moving authorization here does not close
+        # the journal TOCTOU window.
+        records = _assert_attempt_authorized_by_journal(
+            state, attempt_id=attempt_id,
+        )
+        completed = any(
+            row.get("event") == "session" and row.get("attempt_id") == attempt_id
+            for row in records
+        )
+        recovered = _recover_floor_attempt_ledger_locked(
+            state.root, expected_marker=marker,
+            completed_attempt=completed,
+        )
+        path = _floor_canonical_marker_path(state.root, marker)
+        if recovered:
+            # Marker -> ledger -> receipt is fixed, so M+A- statically proves
+            # that no observation receipt was issued for this attempt.
+            # Reissue this exact attempt_id without creating an ordinal.
+            return _issue_floor_attempt_observation(
+                state, attempt_id=attempt_id,
+            )
+        if path.exists():
+            # M+A+ cannot prove whether observation already began.
+            raise HoldoutAdmissionError("attempt ticket was already consumed")
         try:
             _write_exclusive(path, marker)
         except FileExistsError as exc:
             raise HoldoutAdmissionError("attempt ticket was already consumed") from exc
         _append_ledger(state.root / _ATTEMPT_LEDGER_NAME, [marker])
+        return _issue_floor_attempt_observation(state, attempt_id=attempt_id)
+
+
+def _floor_attempt_document_for_state(
+    state: _CellState, *, attempt_id: str,
+) -> dict[str, object]:
+    return _canonical_floor_attempt_document(
+        claim_digest=state.claim_digest, attempt_id=attempt_id,
+        campaign_run_id=state.row["campaign_run_id"],
+        manifest_sha256=state.row["manifest_sha256"],
+        run_relpath=state.row["run_relpath"], cell_id=state.row["cell_id"],
+        freeze_holdout_key=state.row["freeze_holdout_key"],
+        configuration_id=state.row["configuration_id"],
+    )
+
+
+def _issue_floor_attempt_observation(
+    state: _CellState, *, attempt_id: str,
+) -> HoldoutObservationAdmission:
     try:
         receipt = _new_durable_attempt_consumption_receipt(
             attempt_id=attempt_id,
@@ -3867,6 +3916,735 @@ _FLOOR_ATTEMPT_KEYS = frozenset({
     "manifest_sha256", "run_relpath", "cell_id", "freeze_holdout_key",
     "configuration_id", "observation_role",
 })
+
+
+def _canonical_floor_attempt_document(
+    *, claim_digest: object, attempt_id: object, campaign_run_id: object,
+    manifest_sha256: object, run_relpath: object, cell_id: object,
+    freeze_holdout_key: object, configuration_id: object,
+) -> dict[str, object]:
+    """Construct the one canonical floor marker/attempt-ledger projection."""
+
+    document = {
+        "schema_version": _ATTEMPT_SCHEMA,
+        "event": "consume",
+        "claim_digest": _require_sha256(claim_digest, "claim_digest"),
+        "attempt_id": _require_text(attempt_id, "attempt_id"),
+        "campaign_run_id": _require_text(campaign_run_id, "campaign_run_id"),
+        "manifest_sha256": _require_sha256(manifest_sha256, "manifest_sha256"),
+        "run_relpath": _portable_run_relpath(run_relpath),
+        "cell_id": _require_text(cell_id, "cell_id"),
+        "freeze_holdout_key": _require_text(
+            freeze_holdout_key, "freeze_holdout_key",
+        ),
+        "configuration_id": _require_text(configuration_id, "configuration_id"),
+        "observation_role": OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    }
+    if set(document) != set(_FLOOR_ATTEMPT_KEYS):  # pragma: no cover - source invariant
+        raise HoldoutAdmissionError("floor attempt document key source is inconsistent")
+    return document
+
+
+def _floor_canonical_marker_path(
+    root: Path, marker: Mapping[str, object],
+) -> Path:
+    """Return the sole canonical floor marker path for one exact document."""
+
+    if not isinstance(marker, Mapping) or set(marker) != set(_FLOOR_ATTEMPT_KEYS):
+        raise HoldoutAdmissionError("floor consume marker exact shape is invalid")
+    claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
+    attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+    marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
+    return root / "consumed" / f"{claim_digest}-{marker_digest}.json"
+
+
+def _canonical_floor_attempt_ledger_row(
+    *, root: Path, marker: Mapping[str, object],
+) -> dict[str, object]:
+    """Completely rederive one floor attempt projection from claim and L."""
+
+    # T-1670 extends this single exact key source and this helper.
+    if not isinstance(marker, Mapping) or set(marker) != set(_FLOOR_ATTEMPT_KEYS):
+        raise HoldoutAdmissionError("floor consume marker exact shape is invalid")
+    if (
+        marker.get("schema_version") != _ATTEMPT_SCHEMA
+        or marker.get("event") != "consume"
+        or marker.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN
+    ):
+        raise HoldoutAdmissionError("floor consume marker version or role is invalid")
+    claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
+    attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+    claim = _read_canonical_document(_claim_path(root, claim_digest))
+    claim_schema = claim.get("schema_version")
+    expected_claim_keys = (
+        _FLOOR_CLAIM_KEYS_V1
+        if claim_schema == _CLAIM_SCHEMA_V1
+        else _FLOOR_CLAIM_KEYS_V2
+        if claim_schema == _CLAIM_SCHEMA_V2
+        else None
+    )
+    if (
+        expected_claim_keys is None
+        or set(claim) != set(expected_claim_keys)
+        or claim.get("event") != "claim"
+    ):
+        raise HoldoutAdmissionError("floor consume claim exact shape is invalid")
+    key = claim.get("key")
+    if not isinstance(key, Mapping):
+        raise HoldoutAdmissionError("floor consume claim key is invalid")
+    try:
+        canonical_key = _key_fields(
+            freeze_sha256=key["freeze_sha256"],
+            freeze_holdout_key=key["freeze_holdout_key"],
+            configuration_id=key["configuration_id"],
+            ccbench_pin=key["ccbench_pin"], env_tag=key["env_tag"],
+            observation_role=key["observation_role"],
+        )
+    except (KeyError, HoldoutAdmissionError) as exc:
+        raise HoldoutAdmissionError("floor consume claim key is invalid") from exc
+    if dict(key) != canonical_key or _claim_digest(canonical_key) != claim_digest:
+        raise HoldoutAdmissionError("floor consume claim digest mismatch")
+    attempt_ids = claim.get("attempt_ids")
+    if (
+        not isinstance(attempt_ids, list)
+        or any(type(item) is not str or not item for item in attempt_ids)
+        or len(attempt_ids) != len(set(attempt_ids))
+        or attempt_id not in attempt_ids
+    ):
+        raise HoldoutAdmissionError("floor consume claim attempt coverage is invalid")
+    if claim_schema == _CLAIM_SCHEMA_V2:
+        if claim.get("entry_kind") not in {"fresh", "resume"}:
+            raise HoldoutAdmissionError("floor consume claim entry kind is invalid")
+        if _canonical_nondefault_seams(claim.get("nondefault_seams")) != claim.get(
+            "nondefault_seams"
+        ):
+            raise HoldoutAdmissionError("floor consume claim seam list is invalid")
+
+    matching_main: list[dict[str, Any]] = []
+    for row in _read_ledger(root / _LEDGER_NAME):
+        if row.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN:
+            continue
+        if set(row) != set(_FLOOR_LEDGER_KEYS):
+            raise HoldoutAdmissionError("floor admission ledger row shape is invalid")
+        try:
+            row_key = _key_fields(
+                freeze_sha256=row["freeze_sha256"],
+                freeze_holdout_key=row["freeze_holdout_key"],
+                configuration_id=row["configuration_id"],
+                ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
+                observation_role=row["observation_role"],
+            )
+        except (KeyError, HoldoutAdmissionError) as exc:
+            raise HoldoutAdmissionError("floor admission ledger key is invalid") from exc
+        if _claim_digest(row_key) == claim_digest:
+            matching_main.append(row)
+    if len(matching_main) != 1:
+        raise HoldoutAdmissionError(
+            "floor consume claim requires exactly one main ledger row"
+        )
+    main = matching_main[0]
+    manifest_sha256 = _require_sha256(main.get("manifest_sha256"), "manifest_sha256")
+    expected_main = {
+        "schema_version": _LEDGER_SCHEMA,
+        "event": "admit",
+        **canonical_key,
+        "measurement_head": claim["measurement_head"],
+        "protocol_sha256": claim["protocol_sha256"],
+        "manifest_sha256": manifest_sha256,
+        "freeze_candidate_id": claim["freeze_candidate_id"],
+        "trial_workload_name": claim["trial_workload_name"],
+        "cell_id": claim["cell_id"],
+        "records": claim["records"],
+        "threads": claim["threads"],
+        "workload": claim["workload"],
+        "campaign_run_id": claim["campaign_run_id"],
+        "run_relpath": claim["run_relpath"],
+        "mode": claim["mode"],
+        "irreversible_pilot_approved": claim["irreversible_pilot_approved"],
+        "attempt_ids": attempt_ids,
+        "attempt_count": len(attempt_ids),
+    }
+    if main != expected_main:
+        raise HoldoutAdmissionError("floor consume main ledger differs from its claim")
+    expected = _canonical_floor_attempt_document(
+        claim_digest=claim_digest, attempt_id=attempt_id,
+        campaign_run_id=claim["campaign_run_id"],
+        manifest_sha256=manifest_sha256, run_relpath=claim["run_relpath"],
+        cell_id=claim["cell_id"],
+        freeze_holdout_key=canonical_key["freeze_holdout_key"],
+        configuration_id=canonical_key["configuration_id"],
+    )
+    # MUT-A2: no marker field is trusted instead of its complete rederivation.
+    if dict(marker) != expected:
+        raise HoldoutAdmissionError("floor consume marker differs from claim and ledger")
+    return expected
+
+
+def _floor_attempt_recovery_candidate_locked(
+    root: Path, *, expected_marker: Mapping[str, object],
+    completed_attempt: bool,
+) -> dict[str, object] | None:
+    """Return only a fully proved cut-6 M+A- candidate, without writing it."""
+
+    canonical_target = _canonical_floor_attempt_ledger_row(
+        root=root, marker=expected_marker,
+    )
+    target_identity = (
+        str(canonical_target["claim_digest"]),
+        str(canonical_target["attempt_id"]),
+    )
+    marker_by_identity: dict[tuple[str, str], dict[str, object]] = {}
+    consumed = root / "consumed"
+    try:
+        marker_paths = sorted(consumed.iterdir(), key=lambda item: item.name)
+    except OSError as exc:
+        raise HoldoutAdmissionError("floor consumed marker directory is unavailable") from exc
+    for path in marker_paths:
+        if not path.is_file() or path.is_symlink():
+            raise HoldoutAdmissionError(
+                "floor consumed marker directory contains an unsafe entry"
+            )
+        marker = _read_canonical_document(path)
+        if marker.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN:
+            continue
+        canonical = _canonical_floor_attempt_ledger_row(root=root, marker=marker)
+        if path != _floor_canonical_marker_path(root, canonical):
+            raise HoldoutAdmissionError("floor consume marker filename is not canonical")
+        identity = (str(canonical["claim_digest"]), str(canonical["attempt_id"]))
+        if identity in marker_by_identity:
+            raise HoldoutAdmissionError("floor consume marker identity is duplicated")
+        marker_by_identity[identity] = canonical
+
+    ledger_by_identity: dict[tuple[str, str], dict[str, object]] = {}
+    for row in _read_ledger(root / _ATTEMPT_LEDGER_NAME):
+        if row.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN:
+            continue
+        canonical = _canonical_floor_attempt_ledger_row(root=root, marker=row)
+        identity = (str(canonical["claim_digest"]), str(canonical["attempt_id"]))
+        if identity in ledger_by_identity:
+            raise HoldoutAdmissionError("floor attempt ledger has a duplicate identity")
+        if identity not in marker_by_identity:
+            # An A row can never manufacture its missing M authority.
+            raise HoldoutAdmissionError("floor attempt ledger row has no consume marker")
+        if marker_by_identity[identity] != canonical:
+            raise HoldoutAdmissionError("floor attempt ledger differs from its marker")
+        ledger_by_identity[identity] = canonical
+
+    marker = marker_by_identity.get(target_identity)
+    if marker is None:
+        # expected_marker makes this a non-vacuous requested candidate.
+        return None
+    if marker != canonical_target:
+        raise HoldoutAdmissionError("floor recovery marker differs from requested attempt")
+    if target_identity in ledger_by_identity:
+        return None
+    if completed_attempt:
+        # MUT-A6: completed session evidence forbids a second measurement.
+        raise HoldoutAdmissionError("completed attempt cannot be reissued")
+    return marker
+
+
+def _recover_floor_attempt_ledger_locked(
+    root: Path, *, expected_marker: Mapping[str, object],
+    completed_attempt: bool,
+) -> bool:
+    """Recover only the requested M+A- floor attempt while the root is locked."""
+
+    marker = _floor_attempt_recovery_candidate_locked(
+        root, expected_marker=expected_marker,
+        completed_attempt=completed_attempt,
+    )
+    if marker is None:
+        return False
+    _append_ledger(root / _ATTEMPT_LEDGER_NAME, [marker])
+    return True
+
+
+def floor_attempt_requires_cut6_replay(
+    admission: CellHoldoutAdmission, *, attempt_id: str,
+) -> bool:
+    """Prove the exact M+A-, no-completed-session cut before runner replay."""
+
+    state = _cell_state(admission)
+    attempt_id = _require_text(attempt_id, "attempt_id")
+    if attempt_id not in state.attempt_ids:
+        raise HoldoutAdmissionError("attempt_id is not in the frozen ticket set")
+    marker = _floor_attempt_document_for_state(state, attempt_id=attempt_id)
+    with _locked(state.root):
+        records = _assert_attempt_authorized_by_journal(
+            state, attempt_id=attempt_id,
+        )
+        completed = any(
+            row.get("event") == "session" and row.get("attempt_id") == attempt_id
+            for row in records
+        )
+        candidate = _floor_attempt_recovery_candidate_locked(
+            state.root, expected_marker=marker,
+            completed_attempt=completed,
+        )
+        return candidate is not None
+
+
+@dataclass(frozen=True, slots=True)
+class _FloorRegistryRecoveryEvidence:
+    raw: bytes
+    rows: tuple[dict[str, Any], ...]
+    candidates: tuple[dict[str, Any], ...]
+    slot_identity: tuple[str, str, int, int] | None
+
+
+def _floor_registry_path(state: _CellState) -> Path:
+    freeze_sha256 = _require_sha256(state.row.get("freeze_sha256"), "freeze_sha256")
+    template = _attempt_profile.S8B_REGISTRY_LAYOUT.registry_path
+    relative = PurePosixPath(template.as_posix().format(freeze_sha256=freeze_sha256))
+    if relative.is_absolute() or ".." in relative.parts:
+        raise HoldoutAdmissionError("floor registry layout is not canonical")
+    return state.root.joinpath(*relative.parts)
+
+
+def _read_floor_registry_candidate_rows(path: Path) -> tuple[bytes, tuple[dict[str, Any], ...]]:
+    _assert_no_symlink_components(path.parent)
+    try:
+        mode = path.lstat().st_mode
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return b"", ()
+    except OSError as exc:
+        raise HoldoutAdmissionError("cannot read floor attempt registry") from exc
+    if not stat.S_ISREG(mode) or path.is_symlink():
+        raise HoldoutAdmissionError("floor attempt registry is not a regular file")
+    if not raw or len(raw) > _MAX_LEDGER_BYTES or not raw.endswith(b"\n"):
+        raise HoldoutAdmissionError("floor attempt registry framing is invalid")
+    rows: list[dict[str, Any]] = []
+    for index, line in enumerate(raw.splitlines(), 1):
+        if not line:
+            raise HoldoutAdmissionError("floor attempt registry has a blank row")
+        row = _strict_json(line, f"registry.jsonl:{index}")
+        if _attempt_registry_core.canonical_json_bytes(row) != line:
+            raise HoldoutAdmissionError("floor attempt registry row is not canonical")
+        rows.append(row)
+    return raw, tuple(rows)
+
+
+def _trigger_registry_slot_identity(
+    state: _CellState, *, records: Sequence[Mapping[str, object]], trigger: object,
+) -> tuple[str, str, int, int] | None:
+    if type(trigger) is not str:
+        return None
+    trigger_starts = [
+        row for row in records
+        if row.get("event") == "session-start" and row.get("attempt_id") == trigger
+    ]
+    if len(trigger_starts) != 1:
+        return None
+    trigger_start = trigger_starts[0]
+    cell_id = trigger_start.get("cell_id")
+    round_no = trigger_start.get("round")
+    if type(cell_id) is not str or type(round_no) is not int or round_no <= 0:
+        return None
+    kind = trigger_start.get("kind")
+    if kind == "planned":
+        seq = trigger_start.get("seq")
+        scheduled = [row for row in state.schedule if row.get("seq") == seq]
+        if (
+            len(scheduled) != 1
+            or scheduled[0].get("cell_id") != cell_id
+            or scheduled[0].get("round") != round_no
+            or trigger != f"{cell_id}::seq{seq}"
+        ):
+            return None
+        attempt_ordinal = 0
+    elif kind == "retry":
+        series = sorted(
+            (
+                row for row in records
+                if row.get("event") == "session-start"
+                and row.get("kind") == "retry"
+                and row.get("cell_id") == cell_id
+                and row.get("round") == round_no
+            ),
+            key=lambda row: row.get("seq") if type(row.get("seq")) is int else -1,
+        )
+        matches = [index for index, row in enumerate(series, 1) if row is trigger_start]
+        if len(matches) != 1:
+            return None
+        attempt_ordinal = matches[0]
+    else:
+        return None
+    parts = cell_id.rsplit("::", 1)
+    if len(parts) != 2 or not all(parts):
+        return None
+    return parts[0], parts[1], round_no - 1, attempt_ordinal
+
+
+def _floor_registry_recovery_evidence_locked(
+    state: _CellState, *, records: Sequence[Mapping[str, object]],
+    trigger: object,
+) -> _FloorRegistryRecoveryEvidence:
+    raw, rows = _read_floor_registry_candidate_rows(_floor_registry_path(state))
+    if not rows:
+        return _FloorRegistryRecoveryEvidence(raw, rows, (), None)
+    slot_identity = _trigger_registry_slot_identity(
+        state, records=records, trigger=trigger,
+    )
+    if slot_identity is None:
+        return _FloorRegistryRecoveryEvidence(raw, rows, (), None)
+    holdout_key, configuration_id, repetition, attempt_ordinal = slot_identity
+    def is_target_slot(row: Mapping[str, object]) -> bool:
+        return (
+            row.get("freeze_holdout_key") == holdout_key
+            and row.get("configuration_id") == configuration_id
+            and row.get("repetition") == repetition
+            and row.get("attempt_ordinal") == attempt_ordinal
+        )
+
+    target_start_hashes = {
+        row.get("event_sha256") for row in rows
+        if row.get("event") == "start" and is_target_slot(row)
+        and type(row.get("event_sha256")) is str
+    }
+
+    def targets_trigger_start(row: Mapping[str, object]) -> bool:
+        receipt = row.get("scheduler_accounting_receipt")
+        receipt_target = (
+            receipt.get("target_start_event_sha256")
+            if isinstance(receipt, Mapping) else None
+        )
+        return (
+            is_target_slot(row)
+            or row.get("start_event_sha256") in target_start_hashes
+            or receipt_target in target_start_hashes
+        )
+
+    # MUT-T1669-RECOVERY-CANDIDATE-COUNT: count every recovery that claims
+    # this trigger start before exact-slot validation.  A malformed extra row
+    # cannot disappear merely because its copied coordinates were corrupted.
+    candidates = tuple(
+        row for row in rows
+        if row.get("event") == "recovery" and targets_trigger_start(row)
+    )
+    return _FloorRegistryRecoveryEvidence(raw, rows, candidates, slot_identity)
+
+
+def _assert_verified_floor_registry_recovery_locked(
+    state: _CellState, *, evidence: _FloorRegistryRecoveryEvidence,
+) -> None:
+    if len(evidence.candidates) != 1 or evidence.slot_identity is None:
+        raise HoldoutAdmissionError("registry recovery evidence is not unique")
+    genesis = evidence.rows[0]
+    candidate = evidence.candidates[0]
+    receipt = candidate.get("scheduler_accounting_receipt")
+    if not isinstance(receipt, Mapping):
+        raise HoldoutAdmissionError("registry recovery receipt is absent")
+    authority_id = _require_text(
+        receipt.get("authority_id"), "authority_id",
+    )
+    authority_policy_sha256 = _require_sha256(
+        receipt.get("authority_policy_sha256"),
+        "authority_policy_sha256",
+    )
+    # MUT-T1669-AUTHORITY-PIN (retargeted from withdrawn B6): candidate bytes
+    # cannot select their own trust root.
+    if (authority_id, authority_policy_sha256) not in _FLOOR_RECOVERY_AUTHORITIES:
+        raise HoldoutAdmissionError("registry recovery authority is not pinned")
+    max_consumptions = genesis.get("max_consumptions_per_budget_key")
+    if max_consumptions != len(state.attempt_ids):
+        raise HoldoutAdmissionError("registry budget differs from frozen attempts")
+    try:
+        profile = _attempt_profile.make_s8b_domain_profile(
+            max_consumptions_per_budget_key=max_consumptions,
+            recovery_authority_id=authority_id,
+            recovery_authority_policy_sha256=authority_policy_sha256,
+        )
+        binding = _attempt_profile.S8BAttemptBinding(
+            freeze_sha256=_require_sha256(
+                state.row.get("freeze_sha256"), "freeze_sha256",
+            ),
+            protocol_sha256=_require_sha256(
+                state.row.get("protocol_sha256"), "protocol_sha256",
+            ),
+            schedule_sha256=hashlib.sha256(
+                _canonical_bytes(list(state.schedule))
+            ).hexdigest(),
+        )
+        # MUT-B1: full core replay is the verification boundary.  This path
+        # cannot fire in production today because no scheduler collector exists.
+        validated = _attempt_registry_core.load_attempt_registry(
+            evidence.raw, profile=profile, expected_binding=binding,
+        )
+    except (_attempt_registry_core.AttemptRegistryCoreError, HoldoutAdmissionError) as exc:
+        raise HoldoutAdmissionError("registry recovery verification failed") from exc
+    holdout_key, configuration_id, repetition, attempt_ordinal = evidence.slot_identity
+    verified = [
+        row for row in validated
+        if row.get("event") == "recovery"
+        and row.get("freeze_holdout_key") == holdout_key
+        and row.get("configuration_id") == configuration_id
+        and row.get("repetition") == repetition
+        and row.get("attempt_ordinal") == attempt_ordinal
+    ]
+    if len(verified) != 1 or verified[0] != candidate:
+        raise HoldoutAdmissionError("registry recovery did not survive exact replay")
+
+
+def _assert_floor_recovery_trigger_marker_locked(
+    state: _CellState, *, trigger: object,
+    retry_start: Mapping[str, object], records: Sequence[Mapping[str, object]],
+) -> None:
+    if type(trigger) is not str or trigger not in state.attempt_ids:
+        raise HoldoutAdmissionError("registry recovery trigger is outside frozen attempts")
+    trigger_starts = [
+        row for row in records
+        if row.get("event") == "session-start" and row.get("attempt_id") == trigger
+    ]
+    if len(trigger_starts) != 1:
+        raise HoldoutAdmissionError("registry recovery trigger start is not unique")
+    trigger_start = trigger_starts[0]
+    # MUT-B5: a verified recovery from another cell or round cannot open this retry.
+    if (
+        trigger_start.get("cell_id") != state.row["cell_id"]
+        or trigger_start.get("round") != retry_start.get("round")
+    ):
+        raise HoldoutAdmissionError("registry recovery trigger cell or round differs")
+    path = state.root / "consumed" / (
+        f"{state.claim_digest}-"
+        f"{hashlib.sha256(trigger.encode('utf-8')).hexdigest()}.json"
+    )
+    try:
+        marker = _read_canonical_document(path)
+    except HoldoutAdmissionError as exc:
+        # MUT-B2: journal and registry self-report never replace M authority.
+        raise HoldoutAdmissionError("registry recovery trigger has no consume marker") from exc
+    canonical = _canonical_floor_attempt_ledger_row(root=state.root, marker=marker)
+    if (
+        path != _floor_canonical_marker_path(state.root, canonical)
+        or canonical.get("claim_digest") != state.claim_digest
+        or canonical.get("attempt_id") != trigger
+        or canonical.get("cell_id") != state.row["cell_id"]
+    ):
+        raise HoldoutAdmissionError("registry recovery trigger marker differs")
+
+
+def _assert_registry_recovery_opens_one_next_retry(
+    state: _CellState, *, records: Sequence[Mapping[str, object]],
+    retry_start: Mapping[str, object], trigger: object,
+    authorizing_new_start: bool,
+) -> None:
+    retries = sorted(
+        (
+            row for row in records
+            if row.get("event") == "session-start"
+            and row.get("kind") == "retry"
+            and row.get("cell_id") == state.row["cell_id"]
+        ),
+        key=lambda row: row.get("seq") if type(row.get("seq")) is int else -1,
+    )
+    ordinals = [row.get("retry_ordinal") for row in retries]
+    recovery_starts = [row for row in retries if row.get("trigger") == trigger]
+    if (
+        # MUT-T1669-RETRY-PREFIX (retargeted from withdrawn A1).
+        ordinals != list(range(1, len(retries) + 1))
+        or not retries
+        # MUT-T1669-RETRY-LATEST (retargeted from withdrawn A3): consume-only.
+        # A new start must be latest; final inspection revisits earlier starts
+        # after later, legitimate ordinals have already been appended.
+        or (authorizing_new_start and retries[-1] is not retry_start)
+        # MUT-T1669-TRIGGER-UNIQUE (retargeted from withdrawn A4).
+        or len(recovery_starts) != 1
+        or recovery_starts[0] is not retry_start
+    ):
+        raise HoldoutAdmissionError(
+            "verified registry recovery must open exactly one next retry ordinal"
+        )
+
+
+def _trigger_session_candidates(
+    *, records: Sequence[Mapping[str, object]], trigger: object,
+) -> tuple[Mapping[str, object], ...]:
+    """Return every completion row for one trigger attempt, before filtering."""
+
+    if type(trigger) is not str:
+        return ()
+    return tuple(
+        row for row in records
+        if row.get("event") == "session"
+        and row.get("attempt_id") == trigger
+    )
+
+
+def _is_canonical_failed_planned_trigger(
+    state: _CellState, *, row: Mapping[str, object],
+) -> bool:
+    """Return whether one already-unique completion is legacy retry evidence."""
+
+    return (
+        row.get("cell_id") == state.row["cell_id"]
+        and row.get("kind") == "planned"
+        and row.get("valid") is False
+    )
+
+
+def _assert_retry_start_authorized_locked(
+    state: _CellState, *, records: Sequence[Mapping[str, object]],
+    retry_start: Mapping[str, object], authorizing_new_start: bool,
+) -> None:
+    """Enforce the shared legacy-session XOR verified-recovery retry gate."""
+
+    trigger = retry_start.get("trigger")
+    trigger_sessions = _trigger_session_candidates(
+        records=records, trigger=trigger,
+    )
+    try:
+        recovery = _floor_registry_recovery_evidence_locked(
+            state, records=records, trigger=trigger,
+        )
+    except HoldoutAdmissionError:
+        # A malformed, irrelevant registry does not revoke the pre-existing
+        # exact valid=False authorization.  Without that complete legacy
+        # evidence, malformed registry bytes remain fail-closed.
+        if (
+            len(trigger_sessions) == 1
+            and _is_canonical_failed_planned_trigger(
+                state, row=trigger_sessions[0],
+            )
+        ):
+            return
+        raise
+    # MUT-T1669-RETRY-XOR (retargeted from withdrawn A7): count all trigger
+    # completions before applying the canonical legacy predicate.  This keeps
+    # consume and final inspection symmetric when an extra completion exists.
+    if len(trigger_sessions) + len(recovery.candidates) != 1:
+        raise HoldoutAdmissionError(
+            "retry attempt lacks exactly one canonical failed planned trigger "
+            "or verified registry recovery"
+        )
+    if trigger_sessions:
+        if not _is_canonical_failed_planned_trigger(
+            state, row=trigger_sessions[0],
+        ):
+            raise HoldoutAdmissionError(
+                "retry attempt lacks its canonical failed planned trigger"
+            )
+        return
+    _assert_verified_floor_registry_recovery_locked(
+        state, evidence=recovery,
+    )
+    # Both contexts share the same rules; the explicit context only selects
+    # whether "latest" is meaningful at this point in the history.
+    _assert_registry_recovery_opens_one_next_retry(
+        state, records=records, retry_start=retry_start, trigger=trigger,
+        authorizing_new_start=authorizing_new_start,
+    )
+    _assert_floor_recovery_trigger_marker_locked(
+        state, trigger=trigger, retry_start=retry_start, records=records,
+    )
+
+
+def floor_retry_trigger_for_round(
+    admission: CellHoldoutAdmission, *, round_no: int,
+) -> FloorRetryAuthorization | None:
+    """Return admission's sole authorized retry trigger for one cell/round."""
+
+    state = _cell_state(admission)
+    if type(round_no) is not int or round_no <= 0:
+        raise HoldoutAdmissionError("round_no must be a positive exact int")
+    with _locked(state.root):
+        records = _read_run_journal(state.run_dir / "journal.jsonl")
+        if any(row.get("event") == "terminal" for row in records):
+            raise HoldoutAdmissionError("terminal run cannot authorize another retry")
+        try:
+            _floor_contract.validate_session_start_authorizations(
+                [row for row in records if row.get("event") == "session-start"],
+                schedule=state.schedule,
+                retry_slots_per_cell=state.retry_slots_per_cell,
+            )
+        except _floor_contract.FloorContractError as exc:
+            raise HoldoutAdmissionError(
+                f"attempt journal authorization is invalid: {exc}"
+            ) from exc
+
+        starts = tuple(
+            row for row in records
+            if row.get("event") == "session-start"
+            and row.get("cell_id") == state.row["cell_id"]
+            and row.get("round") == round_no
+            and type(row.get("attempt_id")) is str
+        )
+        trigger_sessions: dict[str, tuple[Mapping[str, object], ...]] = {}
+        legacy: list[Mapping[str, object]] = []
+        for start in starts:
+            trigger = str(start["attempt_id"])
+            completions = _trigger_session_candidates(
+                records=records, trigger=trigger,
+            )
+            trigger_sessions[trigger] = completions
+            if len(completions) > 1:
+                raise HoldoutAdmissionError(
+                    "trigger attempt has more than one completion row"
+                )
+            if (
+                len(completions) == 1
+                and completions[0].get("round") == round_no
+                and _is_canonical_failed_planned_trigger(
+                    state, row=completions[0],
+                )
+            ):
+                legacy.append(completions[0])
+        used_recovery_triggers = {
+            row.get("trigger") for row in records
+            if row.get("event") == "session-start"
+            and row.get("kind") == "retry"
+            and row.get("cell_id") == state.row["cell_id"]
+        }
+        recoveries: list[tuple[str, _FloorRegistryRecoveryEvidence]] = []
+        try:
+            for start in starts:
+                trigger = str(start["attempt_id"])
+                if trigger in used_recovery_triggers:
+                    continue
+                evidence = _floor_registry_recovery_evidence_locked(
+                    state, records=records, trigger=trigger,
+                )
+                recoveries.extend(
+                    (trigger, evidence) for _candidate in evidence.candidates
+                )
+        except HoldoutAdmissionError:
+            # POS-B1: malformed registry bytes cannot disable the exact legacy
+            # valid=False path that predates registry recovery.
+            if len(legacy) == 1:
+                return FloorRetryAuthorization(
+                    trigger_attempt_id=str(legacy[0]["attempt_id"]),
+                    source="legacy-failed-session",
+                )
+            raise
+
+        if len(recoveries) + len(legacy) > 1:
+            raise HoldoutAdmissionError(
+                "round has more than one retry trigger evidence candidate"
+            )
+        if recoveries:
+            trigger, evidence = recoveries[0]
+            if trigger_sessions.get(trigger):
+                raise HoldoutAdmissionError(
+                    "retry trigger has both completion and recovery evidence"
+                )
+            _assert_verified_floor_registry_recovery_locked(
+                state, evidence=evidence,
+            )
+            _assert_floor_recovery_trigger_marker_locked(
+                state, trigger=trigger, retry_start={"round": round_no},
+                records=records,
+            )
+            return FloorRetryAuthorization(
+                trigger_attempt_id=trigger,
+                source="verified-registry-recovery",
+            )
+        if legacy:
+            return FloorRetryAuthorization(
+                trigger_attempt_id=str(legacy[0]["attempt_id"]),
+                source="legacy-failed-session",
+            )
+        return None
 
 
 def _portable_admission_projection_row(
@@ -4413,49 +5191,58 @@ def inspect_floor_holdout_admission_evidence(
             raise FloorHoldoutEvidenceError(
                 category="mismatch", reason="session-start-invalid",
             ) from exc
+        inspection_states: dict[str, _CellState] = {}
+        for cell_id, row in main_by_cell.items():
+            token = CellHoldoutAdmission(
+                freeze_holdout_key=str(row["freeze_holdout_key"]),
+                freeze_candidate_id=str(row["freeze_candidate_id"]),
+                trial_workload_name=str(row["trial_workload_name"]),
+                configuration_id=str(row["configuration_id"]),
+                cell_id=cell_id,
+            )
+            inspection_states[cell_id] = _CellState(
+                token=token, root=root, row=row,
+                claim_digest=claim_identities[cell_id],
+                attempt_ids=expected_attempt_ids[cell_id],
+                run_dir=Path(repo_root).joinpath(*PurePosixPath(run_relpath).parts),
+                schedule=tuple(dict(item) for item in schedule),
+                verified_freeze=dict(verified_freeze_document),
+                neutral_holdouts={}, protocol_reps=int(protocol.get("reps", 0)),
+                retry_slots_per_cell=retry_slots,
+            )
         for session_key, start in starts_by_attempt.items():
             cell_id, _attempt_id = session_key
             if start.get("kind") == "retry":
-                trigger = start.get("trigger")
-                triggering = [
-                    session for (_cell, candidate), session
-                    in completed_by_attempt.items() if candidate == trigger
-                ]
-                if (
-                    type(trigger) is not str or len(triggering) != 1
-                    or triggering[0].get("cell_id") != cell_id
-                    or triggering[0].get("kind") != "planned"
-                    or triggering[0].get("valid") is not False
-                ):
+                try:
+                    _assert_retry_start_authorized_locked(
+                        inspection_states[cell_id], records=sessions,
+                        retry_start=start, authorizing_new_start=False,
+                    )
+                except HoldoutAdmissionError as exc:
                     raise FloorHoldoutEvidenceError(
                         category="mismatch", reason="session-start-invalid",
-                    )
+                    ) from exc
 
         frozen_markers: dict[tuple[str, str], dict[str, object]] = {}
         for cell_id, attempt_ids in expected_attempt_ids.items():
             cell = cell_by_id[cell_id]
             digest = claim_identities[cell_id]
             for attempt_id in attempt_ids:
-                frozen_markers[(digest, attempt_id)] = {
-                    "schema_version": _ATTEMPT_SCHEMA,
-                    "event": "consume",
-                    "claim_digest": digest,
-                    "attempt_id": attempt_id,
-                    "campaign_run_id": campaign_run_id,
-                    "manifest_sha256": manifest_sha256,
-                    "run_relpath": run_relpath,
-                    "cell_id": cell_id,
-                    "freeze_holdout_key": cell["holdout_id"],
-                    "configuration_id": cell["configuration_id"],
-                    "observation_role": OBSERVATION_ROLE_FLOOR_CAMPAIGN,
-                }
+                frozen_markers[(digest, attempt_id)] = (
+                    _canonical_floor_attempt_document(
+                        claim_digest=digest, attempt_id=attempt_id,
+                        campaign_run_id=campaign_run_id,
+                        manifest_sha256=manifest_sha256,
+                        run_relpath=run_relpath, cell_id=cell_id,
+                        freeze_holdout_key=cell["holdout_id"],
+                        configuration_id=cell["configuration_id"],
+                    )
+                )
 
         expected_attempt_rows: dict[tuple[str, str], dict[str, object]] = {}
         for key, expected_marker in frozen_markers.items():
             digest, attempt_id = key
-            marker_path = consumed_root / (
-                f"{digest}-{hashlib.sha256(attempt_id.encode('utf-8')).hexdigest()}.json"
-            )
+            marker_path = _floor_canonical_marker_path(root, expected_marker)
             try:
                 marker_path.lstat()
             except FileNotFoundError:
