@@ -1,0 +1,416 @@
+{
+  "estimated_run_seconds": 60,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f1_rejects_receipt_and_sidecar_replaced_together",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f4_rejects_receipt_replaced_after_shell_hash",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f6_receipt_lists_sha_sidecar_artifact",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m01_sha_tracks_exact_report_bytes",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m02_copies_schema_v1",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m03_copies_fixture_guarantee",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m13_rejects_receipt_replaced_before_shell_hash",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m16_uses_v2_document_schemas",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m18_records_checker_interpreter",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m20_job_result_copies_only_four_scalars",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p01_accepts_synthetic_aligned_schema_v1_report",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p02_accepts_synthetic_aligned_schema_v2_realpath_report"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M01-report-sha-constant",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    report_sha = \"0\" * 64\n",
+          "old": "    report_sha = hashlib.sha256(report_bytes).hexdigest()\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m02_copies_schema_v1"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M02-schema-literal",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        \"schema\": \"izanagi-trace0-preprocess-identity/v2\",\n",
+          "old": "        \"schema\": schema,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m03_copies_fixture_guarantee"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M03-guarantee-literal",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        \"guarantee\": \"fixed guarantee literal\",\n",
+          "old": "        \"guarantee\": guarantee,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m04_rejects_unrelated_schema_family"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M04-schema-family-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        or False\n",
+          "old": "        or not schema.startswith(\"izanagi-trace0-preprocess-identity/\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m05_rejects_non_pass_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M05-result-pass-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if report.get(\"result\") != \"pass\":\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m06_rejects_old_oid_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M06-old-oid-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if report.get(\"old_oid\") != base_oid:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m07_rejects_new_oid_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M07-new-oid-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if report.get(\"new_oid\") != new_oid:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[repo]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m08_rejects_repo_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M08-repo-identity-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if strict_path_identity(\n        report_repo, \"directory\", \"checker report repo\"\n    ) != strict_path_identity(\n        os.path.realpath(build_source), \"directory\", \"invocation repo\"\n    ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[compiler]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m09_rejects_compiler_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M09-compiler-identity-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if strict_path_identity(\n        compiler_path, \"regular file\", \"checker report compiler\"\n    ) != strict_path_identity(\n        os.path.realpath(cxx_path), \"regular file\", \"invocation compiler\"\n    ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m10_rejects_expected_paths_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-expected-paths-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if report.get(\"expected_paths\") != [\"cc/mocc/transaction.cc\"]:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f2_rejects_report_symlink_swap_before_fd_open",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m11_rejects_valid_report_symlink",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_report_binding_uses_one_python_report_read"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M11-report-nofollow-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        checker_report_path = os.open(\n            checker_report_path, os.O_RDONLY\n        )\n",
+          "old": "        checker_report_path = os.open(\n            checker_report_path, os.O_RDONLY | os.O_NOFOLLOW\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m12_rejects_post_checker_report_swap"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M12-early-sha-recheck-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if report_sha != checker_report_sha:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m14_rejects_trace1_report_presence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M14-trace1-report-absence-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    if False:\n",
+          "old": "    if os.path.lexists(checker_report_path):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m15_trace1_fields_are_null"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M15-trace1-fields-not-null",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    report_binding = {\n        \"path\": \"trace0-preprocess-identity.json\",\n        \"sha256\": \"0\" * 64,\n        \"schema\": \"izanagi-trace0-preprocess-identity/v2\",\n        \"guarantee\": \"not-run\",\n    }\n",
+          "old": "    report_binding = {\n        \"path\": None,\n        \"sha256\": None,\n        \"schema\": None,\n        \"guarantee\": None,\n    }\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m16_uses_v2_document_schemas"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M16-receipt-schema-version-reverted",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    \"schema_version\": \"mocc-trace-pilot-receipt/v1\",\n",
+          "old": "    \"schema_version\": \"mocc-trace-pilot-receipt/v2\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m17_records_verifier_interpreter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M17-verifier-interpreter-not-recorded",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    verifier_interpreter_path = None\n",
+          "old": "    verifier_interpreter_path = verifier_py\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m18_records_checker_interpreter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M18-checker-interpreter-not-recorded",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    checker_interpreter_path = None\n",
+          "old": "    checker_interpreter_path = checker_py\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m19_globals_precede_receipt_writer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M19-global-verifier-py-init-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "\nCHECKER_PY=\"\"\n",
+          "old": "\nCHECKER_PY=\"\"\nVERIFIER_PY=\"\"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[compiler]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[repo]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "G1-nofollow-open-identity-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        fd = os.open(os.path.realpath(path), os.O_RDONLY)\n",
+          "old": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage[sha256sum-failure]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "F5-early-sha-rc-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "  if false; then\n",
+          "old": "  if [[ \"$checker_report_sha_rc\" -ne 0 ]]; then\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "F1-shell-gate-redundant-layer",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "if false; then\n",
+          "old": "if [[ \"$RECEIPT_SHA\" != \"$RECEIPT_WRITER_SHA\" ]]; then\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f4_rejects_receipt_replaced_after_shell_hash",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "F1a-job-result-sha-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "if False:\n",
+          "old": "if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f1_rejects_receipt_and_sidecar_replaced_together",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f4_rejects_receipt_replaced_after_shell_hash",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m13_rejects_receipt_replaced_before_shell_hash"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "F1b-both-receipt-sha-layers-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "if false; then\n",
+          "old": "if [[ \"$RECEIPT_SHA\" != \"$RECEIPT_WRITER_SHA\" ]]; then\n"
+        },
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "if False:\n",
+          "old": "if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "F1c-sidecar-half-removed",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "if actual_receipt_sha != receipt_sha:\n",
+          "old": "if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

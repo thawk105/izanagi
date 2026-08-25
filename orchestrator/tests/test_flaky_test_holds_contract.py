@@ -35,6 +35,12 @@ _FOCUS_NODE = (
     "orchestrator/tests/test_campaign_claim.py::"
     "test_read_proc_starttime_uses_field_22_with_spaced_comm"
 )
+_STALE_NODE = "orchestrator/tests/test_t1551_stale.py::test_missing_hold"
+_SECOND_STALE_NODE = (
+    "orchestrator/tests/test_t1551_stale.py::test_second_missing_hold"
+)
+_STALE_NODES = (_STALE_NODE, _SECOND_STALE_NODE)
+_INJECTION_MARKER_PREFIX = "IZANAGI_STALE_REGISTRY_INJECTION_V1 "
 
 
 def _valid_hold() -> REG.FlakyTestHold:
@@ -115,16 +121,91 @@ def test_xdist_subprocess_focus_collection_does_not_run_stale_check() -> None:
     assert re.search(r"\b1 passed\b", result.stdout)
 
 
-def test_xdist_subprocess_complete_collection_runs_stale_check() -> None:
+def test_requested_xdist_collect_only_effective_serial_rejects_stale_registry(
+    tmp_path: Path,
+) -> None:
+    plugin_name = "t1551_stale_registry_injector"
+    production_conftest = Path(CONF.__file__).resolve()
+    plugin_source = f'''\
+import json
+from pathlib import Path
+import sys
+
+import pytest
+
+_PRODUCTION_CONFTEST = Path({str(production_conftest)!r})
+_STALE_NODES = {_STALE_NODES!r}
+_MARKER_PREFIX = {_INJECTION_MARKER_PREFIX!r}
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_configure(config):
+    targets = {{}}
+    for _name, plugin in config.pluginmanager.list_name_plugin():
+        plugin_file = getattr(plugin, "__file__", None)
+        if plugin_file is None:
+            continue
+        try:
+            candidate = Path(plugin_file).resolve()
+        except (OSError, TypeError, ValueError):
+            continue
+        if candidate == _PRODUCTION_CONFTEST:
+            targets[id(plugin)] = plugin
+    if len(targets) != 1:
+        raise pytest.UsageError(
+            "IZANAGI_STALE_REGISTRY_INJECTION_TARGET_ERROR "
+            f"target_count={{len(targets)}}"
+        )
+
+    target = next(iter(targets.values()))
+    original = target.FLAKY_TEST_HOLDS
+    if set(_STALE_NODES) & set(original):
+        raise pytest.UsageError(
+            "IZANAGI_STALE_REGISTRY_INJECTION_NODE_ALREADY_PRESENT"
+        )
+    patched = dict(original)
+    for node_id in _STALE_NODES:
+        patched[node_id] = object()
+    target.FLAKY_TEST_HOLDS = patched
+    target.FLAKY_TEST_HOLD_NODE_IDS = frozenset(patched)
+    payload = {{
+        "injected_node_ids": list(_STALE_NODES),
+        "target_count": len(targets),
+    }}
+    print(
+        _MARKER_PREFIX + json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        file=sys.stderr,
+        flush=True,
+    )
+'''
+    (tmp_path / f"{plugin_name}.py").write_text(plugin_source, encoding="utf-8")
+
     environment = os.environ.copy()
+    for name in (
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_DEBUG",
+        "PYTEST_XDIST_WORKER",
+        "PYTEST_XDIST_WORKER_COUNT",
+        "PYTEST_XDIST_TESTRUNUID",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    ):
+        environment.pop(name, None)
     environment["NO_COLOR"] = "1"
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONPATH"] = os.pathsep.join(
+        value
+        for value in (str(tmp_path), environment.get("PYTHONPATH"))
+        if value
+    )
     result = subprocess.run(
         [
             sys.executable,
             "-m",
             "pytest",
             "--color=no",
+            "-p",
+            plugin_name,
             "-n",
             "2",
             "--dist",
@@ -138,10 +219,28 @@ def test_xdist_subprocess_complete_collection_runs_stale_check() -> None:
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        timeout=120,
+        timeout=300,
     )
-    assert result.returncode == 0, result.stdout
-    assert "flaky-test hold keys missing from complete collection" not in result.stdout
+    assert result.returncode == int(pytest.ExitCode.USAGE_ERROR), result.stdout
+    marker_lines = [
+        line for line in result.stdout.splitlines()
+        if line.startswith(_INJECTION_MARKER_PREFIX)
+    ]
+    assert len(marker_lines) == 1, result.stdout
+    marker_payload = json.loads(marker_lines[0][len(_INJECTION_MARKER_PREFIX):])
+    assert marker_payload == {
+        "injected_node_ids": list(_STALE_NODES),
+        "target_count": 1,
+    }
+    expected_missing = (
+        "flaky-test hold keys missing from complete collection: "
+        f"{sorted(_STALE_NODES)!r}"
+    )
+    assert expected_missing in result.stdout
+    scheduler_marker = (
+        'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}'
+    )
+    assert result.stdout.splitlines().count(scheduler_marker) == 1, result.stdout
 
 
 def test_mutation_harness_rejects_an_isolated_expected_failure_node() -> None:
@@ -245,6 +344,52 @@ def test_shard_controller_does_not_recheck_its_selected_xdist_subset() -> None:
 
     config.workerinput = {}
     assert CONF._is_complete_flaky_hold_collection(config) is True
+
+
+def test_xdist_collection_hook_rejects_stale_registry_only_after_all_workers_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """これは受理集合の正しさゲートではなく diagnostic sensitivity pin である。
+
+    stale の拒否は実 xdist の各 worker も同じ検査を行うため、controller 側の
+    再検査は冗長である。ただし hook 本体の ``_note_flaky_hold`` 集約は冗長ではない。
+    これは ``IZANAGI_FLAKY_HOLD_SUMMARY_V1`` を生成する唯一の controller 入力であり、
+    集約が消えると受理集合は同じまま summary 行が失われる。この test は pluggy の
+    実配送を証明しない。
+    """
+    patched_holds = {
+        _HELD_NODE: _valid_hold(),
+        _STALE_NODE: _valid_hold(),
+    }
+    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", patched_holds)
+    monkeypatch.setattr(
+        CONF, "FLAKY_TEST_HOLD_NODE_IDS", frozenset(patched_holds),
+    )
+    config = SimpleNamespace(
+        args=[str(Path(CONF.__file__).resolve().parent)],
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: SimpleNamespace(
+                sched=SimpleNamespace(numnodes=2),
+            ) if name == "dsession" else None,
+        ),
+    )
+    first = SimpleNamespace(
+        config=config,
+        gateway=SimpleNamespace(id="gw0"),
+    )
+    second = SimpleNamespace(
+        config=config,
+        gateway=SimpleNamespace(id="gw1"),
+    )
+
+    CONF.pytest_xdist_node_collection_finished(first, [_HELD_NODE])
+    with pytest.raises(pytest.UsageError) as error:
+        CONF.pytest_xdist_node_collection_finished(second, [])
+
+    message = str(error.value)
+    assert message.endswith(repr([_STALE_NODE]))
+    assert _HELD_NODE not in message
 
 
 def test_flaky_summary_is_separate_and_uses_registry_digest() -> None:

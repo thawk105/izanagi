@@ -57,6 +57,76 @@ WAIVER_LINE = (
 )
 CLAUDE_AUTHOR_WAIVED = CLAUDE_AUTHOR + WAIVER_LINE
 
+_KNOWN_VIOLATION_BASELINE_KEYS_ORACLE = frozenset({
+    ("88f0f9f081f7c76c8ab5fc4a94e2640f70af129b", "missing-ai-agent", ""),
+    ("85dacc27054db0bd3db55d73cab4f8ca3b4843e5", "missing-ai-agent", ""),
+    ("6e69ca5c2bc2df403e1cda595aeffcba3a97c248", "missing-ai-agent", ""),
+    ("16affe169185040b33f8c6cbdd452260bddc4089", "missing-ai-agent", ""),
+    ("905c867a7b2342ff250a1bcf28a3ce74abdacc06", "missing-ai-agent", ""),
+    ("b0a07672737cf03424ec1790cc25a06e4c85b737", "missing-codex-author", ""),
+    ("3f2c43d7580b8c26724d90278589862057508965", "missing-ai-agent", ""),
+    ("f277efd4461d361d5c9aa6db9a7e00b194b76083", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("74b501962092373ba2e8bbca1566d0732e0f16c6", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("7ec088163dee920f0b8e1e9783faa6e36b22b730", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("1d09940463ccacb0dbb0ab3e69ca0698a960fdf1", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("f1406c22abece76276b43dde897750a46aae877e", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("ff264975a04aa19f36f861ca97efe9dc59c88659", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("2c1929533a6f641b513f4f7990fe06e6cdb383b1", "missing-codex-author", ""),
+    ("9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("2b3d06cbe81b1ae2675c153bdf307d508fc35a20", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("30719e517dcee45c014cbf1052c6dc70a8fcf693", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("622bd786191d40bda388596fa2adbf119ee84c9a", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("c75fde903384b6eb9e4d45239b66008b7639cbf7", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("c55ace29e55bba948d7bdca89f6fc1fb1a5191da", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("edf74c94427686f2b91519ef10e94446d0fe89d5", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("7e3cc116f2466fb439ec2bddd38f35dab928c942", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("66769067ee57d78650b208b9a86438ff2f1bf73b", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("aaffa644a969f0a58969b2661318bda4c42ac767", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("6f5411ceb7cc5d872e3112fb6d04013367ac092e", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("797db5def66ef1d318d06c7aa189ea51a66c9312", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author", ""),
+    ("a5b7045b129d062c4731acc7667262795abd3f67", "missing-codex-author", ""),
+    ("333605d680ec15f3f74b00e9e2746ae317b85dc5", "missing-codex-author", ""),
+    ("311d463f89d1d1708a309b86d5bf63f5b034f89d", "missing-codex-author", ""),
+    ("5823caf328a5985476cd2f6f7aa0d13daa5b08f6", "missing-codex-author", ""),
+    ("09ce607b779272fda5629a350676471a16bea9bb", "missing-ai-agent", ""),
+    ("13101ab3ec09a54e1f30462d1c2b4621b121ba65", "missing-ai-agent", ""),
+    ("8440a14850718e63d73dfc510aa66b853a526424", "missing-codex-author", ""),
+    ("d87fd42c0335c1396c1f79557e45357e9bfc163f", "missing-ai-agent", ""),
+    ("75d57796ea8c6af4f80f32031afc952cfef2903a", "missing-ai-agent", ""),
+    ("216493593dbee40fbdac65207ca328bae5bc9f52", "missing-ai-agent", ""),
+    ("e39a8d46567a02d231fce52abae5aee759634ff7", "missing-codex-author", ""),
+    ("3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626", "missing-codex-author", ""),
+    ("387a1daab0d713cf86f19449e88559686f1eb575", "missing-codex-author", ""),
+    ("649fe5a060a39de295f90d2002e8f97082729ea6", "malformed-ai-agent", "product=codex; model=gpt-5.6-luna; reasoning=unknown; role=fix"),
+    ("649fe5a060a39de295f90d2002e8f97082729ea6", "missing-codex-author", ""),
+    ("e86d363a876ab00e7e6b37dfdd94385e5ab03816", "missing-codex-author", ""),
+    ("0c0f3e71b3208370be8d4e7e20a84a2152afe4b2", "missing-codex-author", ""),
+    ("bf92f327cadfbe626e37cab73d55abe80d3994dd", "missing-codex-author", ""),
+    ("b9c07cc22d483a9103dac208a83446872161ffad", "missing-codex-author", ""),
+    ("25614f868c1a1b562a68072233fdf55b0be93cd1", "missing-codex-author", ""),
+    ("94815c57976806da56a3f067ade91c0041b2e2d1", "missing-codex-author", ""),
+    ("3a5e5feb5f5c65e5e91752f847c623ce37e9b14d", "missing-codex-author", ""),
+})
+
+
+def _known_violation_group_stdout(history: int, post_baseline: int) -> str:
+    baseline = "5265fc6782fa5807aa742a198fa16d58006d17fb"
+    return (
+        "check_ai_provenance: known-violations-irreversible-history="
+        f"{history} population=whole-ledger "
+        "excluded=key-not-in-d742-baseline "
+        f"baseline={baseline}\n"
+        "check_ai_provenance: known-violations-post-baseline="
+        f"{post_baseline} population=whole-ledger "
+        "excluded=key-in-d742-baseline "
+        f"baseline={baseline}\n"
+    )
+
 
 def _git(root: Path, *args: str, input_text: str | None = None) -> str:
     result = subprocess.run(
@@ -2565,6 +2635,109 @@ def test_production_registry_matches_one_authoritative_audit():
     )
 
 
+def test_known_violation_baseline_partition_has_upper_and_positive_controls():
+    registry = provenance._known_violation_registry()
+    ledger_keys = frozenset(
+        provenance._known_violation_key(spec)
+        for specs in registry.values()
+        for spec in specs
+    )
+    groups = provenance._known_violation_groups(registry)
+
+    assert provenance.KNOWN_VIOLATION_BASELINE_RULING_COMMIT == (
+        "5265fc6782fa5807aa742a198fa16d58006d17fb"
+    )
+    assert len(_KNOWN_VIOLATION_BASELINE_KEYS_ORACLE) == 53
+    assert (
+        provenance.KNOWN_VIOLATION_BASELINE_KEYS
+        == _KNOWN_VIOLATION_BASELINE_KEYS_ORACLE
+    )
+    assert provenance.KNOWN_VIOLATION_BASELINE_KEYS <= ledger_keys
+    expected_history = _KNOWN_VIOLATION_BASELINE_KEYS_ORACLE & ledger_keys
+    expected_post_baseline = ledger_keys - _KNOWN_VIOLATION_BASELINE_KEYS_ORACLE
+    assert groups.irreversible_history == expected_history
+    assert groups.post_baseline == expected_post_baseline
+
+
+def test_known_violation_group_classifier_has_no_io(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    registry = provenance._known_violation_registry()
+    ledger_keys = frozenset(
+        provenance._known_violation_key(spec)
+        for specs in registry.values()
+        for spec in specs
+    )
+
+    def fail_git(*_args: object, **_kwargs: object) -> str:
+        raise AssertionError("classifier must not call _git")
+
+    class FailSubprocess:
+        def __getattr__(self, name: str) -> object:
+            raise AssertionError(f"classifier must not use subprocess.{name}")
+
+    monkeypatch.setattr(provenance, "_git", fail_git)
+    monkeypatch.setattr(provenance, "subprocess", FailSubprocess())
+    groups = provenance._known_violation_groups(registry)
+
+    assert groups.irreversible_history == (
+        _KNOWN_VIOLATION_BASELINE_KEYS_ORACLE & ledger_keys
+    )
+    assert groups.post_baseline == (
+        ledger_keys - _KNOWN_VIOLATION_BASELINE_KEYS_ORACLE
+    )
+
+
+def test_known_violation_baseline_ancestry_matches_real_repo():
+    registry = provenance._known_violation_registry()
+    groups = provenance._known_violation_groups(registry)
+    ruling_commit = provenance.KNOWN_VIOLATION_BASELINE_RULING_COMMIT
+    post_ruling_commit = _git(REPO, "rev-parse", "HEAD^{commit}")
+
+    assert all(
+        provenance._is_descendant(commit, ruling_commit)
+        for commit, _, _ in groups.irreversible_history
+    )
+    assert all(
+        not provenance._is_descendant(commit, ruling_commit)
+        for commit, _, _ in groups.post_baseline
+    )
+    assert post_ruling_commit != ruling_commit
+    assert provenance._is_descendant(ruling_commit, post_ruling_commit)
+    assert not provenance._is_descendant(post_ruling_commit, ruling_commit)
+
+
+def test_known_violation_group_classifier_liveness_fixture():
+    registry = provenance._known_violation_registry()
+    baseline_spec = next(
+        spec
+        for specs in registry.values()
+        for spec in specs
+        if spec.expected_finding_kind == provenance.MISSING_AI_AGENT
+        and provenance._known_violation_key(spec)
+        in provenance.KNOWN_VIOLATION_BASELINE_KEYS
+        and (
+            spec.commit,
+            provenance.MISSING_CODEX_AUTHOR,
+            "",
+        ) not in provenance.KNOWN_VIOLATION_BASELINE_KEYS
+    )
+    post_baseline_spec = _known_spec(
+        baseline_spec.commit,
+        provenance.MISSING_CODEX_AUTHOR,
+    )
+    groups = provenance._known_violation_groups({
+        baseline_spec.commit: (baseline_spec, post_baseline_spec),
+    })
+
+    assert groups.irreversible_history == frozenset({
+        provenance._known_violation_key(baseline_spec),
+    })
+    assert groups.post_baseline == frozenset({
+        provenance._known_violation_key(post_baseline_spec),
+    })
+
+
 def test_known_violation_ledger_matches_real_commit_findings():
     commits = [
         "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
@@ -3279,7 +3452,7 @@ def test_unregistered_malformed_finding_remains_rc1_with_production_registry(
     ) == 1
     captured = capsys.readouterr()
     assert f"{commit[:12]} outside registry: AI-Agent の形式違反" in captured.err
-    assert "known-violation" not in captured.out
+    assert captured.out == _known_violation_group_stdout(53, 0)
 
 
 def test_malformed_known_violation_missing_finding_is_stale_rc2(
@@ -3523,7 +3696,10 @@ def test_known_violation_outside_range_is_not_stale_end_to_end(
         ["--range", f"{selected}^!"], site=site_policy.OTHER,
     ) == 0
     captured = capsys.readouterr()
-    assert captured.out == "check_ai_provenance: 1 件、違反なし\n"
+    assert captured.out == (
+        _known_violation_group_stdout(0, 1)
+        + "check_ai_provenance: 1 件、違反なし\n"
+    )
     assert captured.err == ""
 
 
@@ -3600,7 +3776,8 @@ def test_known_violation_stdout_is_public_on_rc0_and_rc1(
         "check_ai_provenance: known-violation "
         f"sha={known} finding=missing-ai-agent\n"
         "check_ai_provenance: known-violations=1\n"
-        "check_ai_provenance: 1 件、新規違反なし\n"
+        + _known_violation_group_stdout(0, 1)
+        + "check_ai_provenance: 1 件、新規違反なし\n"
     )
     assert captured.err == ""
 
@@ -3612,6 +3789,7 @@ def test_known_violation_stdout_is_public_on_rc0_and_rc1(
         "check_ai_provenance: known-violation "
         f"sha={known} finding=missing-ai-agent\n"
         "check_ai_provenance: known-violations=1\n"
+        + _known_violation_group_stdout(0, 1)
     )
     assert f"{new[:12]} new: AI-Agent trailer がない" in captured.err
     assert "2 件中 1 新規違反" in captured.err
@@ -3652,6 +3830,7 @@ def test_known_violation_nonempty_note_is_public_on_rc1(
         "check_ai_provenance: known-violation "
         f"sha={known} finding=missing-ai-agent note={note}\n"
         "check_ai_provenance: known-violations=1\n"
+        + _known_violation_group_stdout(0, 1)
     )
     assert f"{new[:12]} new: AI-Agent trailer がない" in captured.err
     assert "2 件中 1 新規違反" in captured.err
@@ -3767,7 +3946,8 @@ def test_ledgered_3f2c43d7580b_is_known_and_rc0(
         "note=trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
         "空行で trailer block 不成立\n"
         "check_ai_provenance: known-violations=1\n"
-        "check_ai_provenance: 1 件、新規違反なし\n"
+        + _known_violation_group_stdout(53, 0)
+        + "check_ai_provenance: 1 件、新規違反なし\n"
     )
     assert captured.err == ""
 
@@ -4721,7 +4901,10 @@ def test_forward_correction_unrelated_history_remains_native_valid(
     monkeypatch.setattr(provenance, "REPO", tmp_path)
     assert _run_range(monkeypatch, f"{commit}^!") == 0
     captured = capsys.readouterr()
-    assert captured.out == "check_ai_provenance: 1 件、違反なし\n"
+    assert captured.out == (
+        _known_violation_group_stdout(53, 0)
+        + "check_ai_provenance: 1 件、違反なし\n"
+    )
     assert captured.err == ""
 
 
@@ -6895,7 +7078,10 @@ def test_audit_history_empty_range_returns_zero_findings(
     monkeypatch.setattr(provenance, "REPO", tmp_path)
     assert _run_range(monkeypatch, f"{commit}..{commit}") == 0
     captured = capsys.readouterr()
-    assert captured.out == "check_ai_provenance: 0 件、違反なし\n"
+    assert captured.out == (
+        _known_violation_group_stdout(53, 0)
+        + "check_ai_provenance: 0 件、違反なし\n"
+    )
     assert captured.err == ""
 
 
