@@ -8809,7 +8809,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     )
     assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 998
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
-    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 830
+    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 949
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 995
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
