@@ -47,7 +47,7 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   (3) 収集段が `rc=16` — 同時刻の `qstat -Q` は gen_S に 101 件 (QUE 35 / RUN 47 / HLD 17) で、
   scheduler 混雑だった。中断した走行の container が fresh 走を塞ぎ、台帳未作成のため
   `--resume` も使えず、新しい `--scratch-root` で再投入した。
-- **受入全走を 2 巡投入し、いずれも非帰属の赤で戻ったため land せず停止した。**
+- **受入全走を 2 巡投入し、いずれも非帰属の赤で戻った。**
   attempt 1 = 20 failed / 16627 collected、attempt 2 = 13 failed。
   変更した 2 file の test は両巡とも 1 件も落ちていない。
   attempt 1 の内訳は preregistration 5 件 (setup の `git add -A` が 180 秒 timeout)、
@@ -60,6 +60,22 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   `docs/failures.md` の運用規則を読み直し、**書き手の identity は型の違いではない**と判断して
   F62 への再発 + supersede 追記へ改めた (「同じ型が再発したら既存エントリに追記して顕在化させる」)。
   `flaky_test_holds.py` への登録はせず、機構の選択を裁定へ回す。
+- **ユーザー裁定を受けて、停止せず機構ごと直した。** 当初は F62 の再発を記録して
+  裁定へ返し land せず停止したが、ユーザーから「誰かがサクッと直すか known violation 登録して
+  みんなが land できるようにすべき」と裁定が出た。並行 session と調整し、
+  受入 lease を持たない当方が引き取った (他 2 session は受入走行中で commit を足すと receipt が無効になる)。
+  known violation 側は機構として存在しないことを確認した — `tools/known_violations/` は
+  `check_ai_provenance.py` 専用で finding は 3 種のみ、テストの赤を登録する field も consumer も無く、
+  `dev_wave_land.py` に受入 receipt の迂回 flag も無い。よって修正一択だった。
+- 修正は「実 `output/` の棚卸しから git ignore 済み path を除外する」形にした。
+  書き手を列挙して直列化する案は、`output/pegasus-dispatch/` が**同じ machine の別 wave の
+  process から書かれる**ため pytest 走行内では原理的に閉じない。
+  除外は `.gitignore` という repo 自身の宣言に乗るため書き手が増えても追随する。
+- **修正は 3 巡かかった。** 1 巡目の正例 test が実 `output/` を汚し
+  ({{F:output-snapshot-fix-reproduced-its-own-contamination}})、2 巡目で
+  `tmp_path` を走査 root に取る形へ直した。3 巡目で
+  **走査 helper が 2 つでなく 3 つあった**ことが判明した
+  ({{F:same-scan-helper-duplicated-three-times}})。
 - 逐語と実測は `output/insights/2026-08-26_t1726-freeze-rederive/`。
 
 ## 次の一手差分
@@ -91,23 +107,12 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   組み合わせで、実行 descriptor が不在のまま expected digest の自己申告を verified receipt に
   できる構造を塞ぐ。`test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof` の
   設計意図と一体のため、受理集合の形を含めて設計し直す必要がある。
-- {{T:output-snapshot-volatile-subtree-exclusion}} **P1・新規 (ユーザー裁定待ち)**:
-  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` が実 repo の `output/` 全体を
-  除外なしで走査する一方、**全走そのものが `output/` へ書く**ため、
-  全走のたびに floor_campaign が連鎖的に赤になる (F62 の 2026-08-26 再発・supersede 追記)。
-  **裁定してほしいこと**: (a) snapshot 側で `output/` の揮発 subtree を除外する、
-  (b) 書き手側の artifact root を repo 外へ移す、
-  (c) `REAL_REPO_SERIAL_NODES` へ登録して直列化する、のどれを採るか。
-  親の推奨は (a) — (b)(c) は書き手を列挙し切ることを前提にするが、
-  `output/pegasus-dispatch/` (毎 dispatch、本 wave 単独で 17 件) と
-  `output/task-runs/reports/` (書き手未特定) が在り列挙は未完了である。
-  ただし (a) は 1 箇所では閉じない — 走査 helper は
-  `test_s8b_floor_campaign.py:1451` の `_real_output_snapshot()` と
-  `test_s8b_oracle_driver.py:554` の `_t080_output_snapshot()` が独立に 2 つ在り、
-  後者は mtime/ctime まで見るため一時 file の作成削除でも落ちる。
-  除外規則の共通化と、揮発 entry の親 directory の扱いが要る。
-  また (a) は「campaign が `output/` に副作用を残さない」検査の射程を狭めるため、
-  どこまでを揮発と認めるかの線引きが要る。受入全走の緑率へ直接効くため P1 とする。
+- {{T:output-snapshot-writer-inventory}} **P2・新規**: 実 `output/` の窓内書き手のうち
+  `output/task-runs/reports/` の書き手が未特定のまま残っている。
+  現行の除外は git ignore 済み path だけを対象にするため、`task-runs/` は tracked であり
+  除外されない。並行 session の観測では窓に入っており、機序が未解明である。
+  入れ子起動の task-run 記録が疑わしいが確定していない。特定して、必要なら除外集合か
+  書き手側を直す。本 wave の修正で観測例は消えたが、この経路は残っている。
 - {{T:dev-wave-l15-budget-exhausted}} **P2・新規 (ユーザー裁定待ち)**: `docs/dev-wave/**` の
   L1.5 層 unique footprint は残り 21 bytes しかなく、本 wave で実測した手順 1 行 (150 bytes) が
   入らなかった。自己改善契約は予算値の引き上げを通常の自己改善から外し、理由付きの独立審査対象と
