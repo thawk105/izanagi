@@ -44,3 +44,16 @@ seq: 3
   列挙させる。実装は {{T:orphan-hold-message-lists-actual-paths}} が持つ。
 - 再発検知: hold を張った状態で解除文言を出させ、`orphan-holds/` だけが存在する場合に
   その path が文言へ現れることを固定する検査を置く。
+
+## 再発
+
+### F333
+
+- **再発: 2026-08-26** — [T-1675] wave の段 7 で、親が `tools/check_ai_provenance.py` を
+  2 分の command timeout で打ち切り、同型の orphan hold
+  (`job-may-remain-without-terminal-evidence`) が武装した。2026-08-24 の再発と引き金・対象
+  command とも同一で、既存記述に修正すべき点は無い。監査自体は計算ノードで成功しており
+  (`child_rc=0`、5858 件・新規違反なし)、実害は復旧作業だけだった。
+  **新しい情報は解除側にある** — 要約 marker を消しても request 別の耐久記録が残る限り
+  hold は解けず、解除文言はその path を名指ししない
+  ({{F:orphan-hold-message-names-only-summary-path}})。
