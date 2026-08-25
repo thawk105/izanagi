@@ -1,0 +1,7 @@
+{
+  "sha": "387a1daab0d713cf86f19449e88559686f1eb575",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (3回目、ユーザー選択: known-violation 登録)",
+  "note": "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 (`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。"
+}

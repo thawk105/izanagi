@@ -1,0 +1,7 @@
+{
+  "sha": "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)",
+  "note": "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と複数waveのccbench provenance known-violation登録を取り込んだもの。`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに既存するテキストの選択・配置のみで解決 (新規著作なし)。`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。"
+}

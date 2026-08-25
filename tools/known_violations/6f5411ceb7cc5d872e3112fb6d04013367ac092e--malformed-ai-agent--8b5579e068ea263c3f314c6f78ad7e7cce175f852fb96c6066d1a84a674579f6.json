@@ -1,0 +1,7 @@
+{
+  "sha": "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
+  "kind": "malformed-ai-agent",
+  "value": "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator",
+  "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t139-r4-probe-provenance-format-violation.md",
+  "note": "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；変更 path 種別=docs（worklog fragment）"
+}

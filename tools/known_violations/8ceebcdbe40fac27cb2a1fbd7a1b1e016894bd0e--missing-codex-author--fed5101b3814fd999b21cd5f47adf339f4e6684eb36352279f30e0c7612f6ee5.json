@@ -1,0 +1,7 @@
+{
+  "sha": "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 (ユーザー選択: known-violation 登録)",
+  "note": "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみでソース著作なし；親作成 commit のため Codex 著者とは記さない"
+}

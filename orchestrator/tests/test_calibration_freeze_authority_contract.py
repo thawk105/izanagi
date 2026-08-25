@@ -2,6 +2,7 @@
 """Calibration/freeze authority fixture manifest 契約の受入・負例。"""
 from __future__ import annotations
 
+import ast
 import hashlib
 import inspect
 import json
@@ -35,6 +36,21 @@ EXPECTED_EXECUTABLE_FIXTURE_IDS = (
     "freeze-history-immutability",
     "orphan-generation-no-authority",
     "unapproved-generation-no-authority",
+)
+EXPECTED_DEFERRED_FIXTURE_IDS = (
+    "approved-freeze-reference",
+    "bundle-identity-propagation",
+    "candidate-type-preservation",
+    "floor-seal-consistency",
+    "post-cutoff-bundle-identity",
+)
+EXPECTED_STAGE0_BLOCKING_GATE_IDS = (
+    "CFAB-STAGE6-POLICY-PREDICATE",
+    "FREEZE-AX-TOPOLOGY",
+    "FREEZE-CONFORMANCE-LITERAL",
+)
+EXPECTED_DEFERRED_GATE_IDS = (
+    "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
 )
 
 
@@ -139,14 +155,38 @@ def test_real_repository_contract_is_consistent_but_incomplete() -> None:
     assert set(result) == {
         "status",
         "pending_count",
+        "raw_pending_count",
+        "excluded_stage0_pending_count",
+        "stage0_blocking_pending_count",
+        "raw_blocking_gate_count",
+        "excluded_stage0_gate_count",
+        "stage0_blocking_gate_count",
+        "raw_pending_fixture_ids",
+        "unresolved_deferred_fixture_ids",
+        "deferred_fixture_ids",
+        "deferred_gate_ids",
+        "stage0_blocking_gate_ids",
         "unresolved_count",
+        "applicable_unresolved_count",
         "row_ids",
         "executable_fixture_ids",
     }
     assert result == {
         "status": "incomplete",
         "pending_count": 5,
+        "raw_pending_count": 5,
+        "excluded_stage0_pending_count": 5,
+        "stage0_blocking_pending_count": 0,
+        "raw_blocking_gate_count": 4,
+        "excluded_stage0_gate_count": 1,
+        "stage0_blocking_gate_count": 3,
+        "raw_pending_fixture_ids": EXPECTED_DEFERRED_FIXTURE_IDS,
+        "unresolved_deferred_fixture_ids": EXPECTED_DEFERRED_FIXTURE_IDS,
+        "deferred_fixture_ids": EXPECTED_DEFERRED_FIXTURE_IDS,
+        "deferred_gate_ids": EXPECTED_DEFERRED_GATE_IDS,
+        "stage0_blocking_gate_ids": EXPECTED_STAGE0_BLOCKING_GATE_IDS,
         "unresolved_count": 2,
+        "applicable_unresolved_count": 2,
         "row_ids": EXPECTED_ROW_IDS,
         "executable_fixture_ids": EXPECTED_EXECUTABLE_FIXTURE_IDS,
     }
@@ -176,8 +216,11 @@ def test_current_repository_is_rejected_as_stage0_incomplete() -> None:
         contract.require_stage0_complete()
     except contract.ContractError as exc:
         assert str(exc) == (
-            "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=4"
+            "stage 0 is incomplete: status=incomplete, raw_pending_count=5, "
+            "excluded_stage0_pending_count=5, "
+            "stage0_blocking_pending_count=0, applicable_unresolved_count=2, "
+            "raw_blocking_gate_count=4, excluded_stage0_gate_count=1, "
+            "stage0_blocking_gate_count=3"
         )
     else:
         raise AssertionError("the incomplete repository was accepted as stage 0 complete")
@@ -227,6 +270,17 @@ def test_adjudicated_ruling_and_gate_projection_is_exact() -> None:
         ("FREEZE-CONFORMANCE-LITERAL", "lower-wa-wave", "unresolved"),
         ("FREEZE-U-A1", "user", "resolved"),
     )
+    assignment_gate = _gate_by_id(
+        manifest, "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT"
+    )
+    assert tuple(assignment_gate["owned_fixture_ids"]) == (
+        EXPECTED_DEFERRED_FIXTURE_IDS
+    )
+    assert tuple(
+        gate["gate_id"]
+        for gate in manifest["required_gates"]["entries"]
+        if "owned_fixture_ids" in gate
+    ) == EXPECTED_DEFERRED_GATE_IDS
 
 
 def test_design_revocation_record_schema_matches_validator() -> None:
@@ -284,11 +338,53 @@ def test_design_stage6_structural_contract_matches_validator() -> None:
     assert policy_gate in contract._EXPECTED_REQUIRED_GATES
 
 
+def test_design_stage0_projection_contract_matches_validator() -> None:
+    fixture_ids = contract._extract_design_stage0_deferred_fixture_ids(
+        contract.DESIGN_DOC
+    )
+    assert fixture_ids == EXPECTED_DEFERRED_FIXTURE_IDS
+    assert fixture_ids == contract._EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS
+
+    formula = """excluded_gates   = blocking_gates ∩ {owner == stage1-and-later かつ owned_fixture_ids を持つ}
+excluded_pending = pending_fixture_ids ∩ excluded_gates.owned_fixture_ids
+effective_pending = raw_pending − excluded_pending
+effective_gates   = blocking_gates − excluded_gates
+incomplete ⇔ applicable_unresolved > 0 or effective_pending > 0 or effective_gates ≠ ∅"""
+    design_text = contract.DESIGN_DOC.read_text(encoding="utf-8")
+    assert design_text.count(formula) == 1
+
+
+def test_design_stage0_deferred_fixture_list_drift_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "deferred fixture ID = `post-cutoff-bundle-identity`。"
+    replacement = "deferred fixture ID = `unapproved-generation-no-authority`。"
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "stage 0 deferred fixture IDs do not exactly match "
+        "manifest/module/design declarations",
+    )
+
+
 def test_stage0_remains_incomplete_after_r1_r2_r3_r4_projection() -> None:
     result = contract.validate_repository()
     assert result["status"] == "incomplete"
-    assert result["pending_count"] == 5
-    assert result["unresolved_count"] == 2
+    assert result["raw_pending_count"] == 5
+    assert result["excluded_stage0_pending_count"] == 5
+    assert result["stage0_blocking_pending_count"] == 0
+    assert result["applicable_unresolved_count"] == 2
+    assert result["raw_blocking_gate_count"] == 4
+    assert result["excluded_stage0_gate_count"] == 1
+    assert result["stage0_blocking_gate_count"] == 3
+    assert result["deferred_gate_ids"] == EXPECTED_DEFERRED_GATE_IDS
+    assert result["stage0_blocking_gate_ids"] == (
+        EXPECTED_STAGE0_BLOCKING_GATE_IDS
+    )
 
     manifest = contract.load_manifest()
     blocking_statuses = {"unresolved", "pending", "nonconforming"}
@@ -307,8 +403,11 @@ def test_stage0_remains_incomplete_after_r1_r2_r3_r4_projection() -> None:
         contract.require_stage0_complete()
     except contract.ContractError as exc:
         assert str(exc) == (
-            "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=4"
+            "stage 0 is incomplete: status=incomplete, raw_pending_count=5, "
+            "excluded_stage0_pending_count=5, "
+            "stage0_blocking_pending_count=0, applicable_unresolved_count=2, "
+            "raw_blocking_gate_count=4, excluded_stage0_gate_count=1, "
+            "stage0_blocking_gate_count=3"
         )
     else:
         raise AssertionError("the R1/R2/R3/R4 projection completed stage 0 early")
@@ -322,6 +421,345 @@ def test_required_gate_entries_have_independent_module_sha_pin() -> None:
     entries_sha256 = hashlib.sha256(_canonical_bytes(gates["entries"])).hexdigest()
     assert entries_sha256 == gates["entries_sha256"]
     assert entries_sha256 == contract._EXPECTED_REQUIRED_GATES_ENTRIES_SHA256
+
+
+def test_stage0_pin_assignments_are_ast_literals() -> None:
+    source_file = inspect.getsourcefile(contract)
+    assert source_file is not None
+    tree = ast.parse(Path(source_file).read_text(encoding="utf-8"))
+    assignments: dict[str, ast.expr] = {}
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        ):
+            assignments[node.targets[0].id] = node.value
+
+    required_gates_sha = assignments[
+        "_EXPECTED_REQUIRED_GATES_ENTRIES_SHA256"
+    ]
+    assert isinstance(required_gates_sha, ast.Constant)
+    assert isinstance(required_gates_sha.value, str)
+    assert len(required_gates_sha.value) == 64
+
+    deferred_fixture_ids = assignments[
+        "_EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS"
+    ]
+    assert isinstance(deferred_fixture_ids, ast.Tuple)
+    assert all(
+        isinstance(element, ast.Constant) and isinstance(element.value, str)
+        for element in deferred_fixture_ids.elts
+    )
+
+
+def test_projection_excludes_exact_deferred_fixture_positive_control() -> None:
+    projection = contract._project_stage0_blockers(
+        contract.load_manifest()["required_gates"]["entries"],
+        contract.load_fixture_cases(),
+    )
+    assert projection["raw_pending_fixture_ids"] == EXPECTED_DEFERRED_FIXTURE_IDS
+    assert projection["unresolved_deferred_fixture_ids"] == (
+        EXPECTED_DEFERRED_FIXTURE_IDS
+    )
+    assert projection["excluded_stage0_pending_fixture_ids"] == (
+        EXPECTED_DEFERRED_FIXTURE_IDS
+    )
+    assert projection["stage0_blocking_pending_fixture_ids"] == ()
+    assert projection["excluded_stage0_gate_ids"] == EXPECTED_DEFERRED_GATE_IDS
+
+
+def test_projection_retains_exact_nonassignment_blocking_gates() -> None:
+    projection = contract._project_stage0_blockers(
+        contract.load_manifest()["required_gates"]["entries"],
+        contract.load_fixture_cases(),
+    )
+    assert projection["raw_blocking_gate_ids"] == (
+        "CFAB-STAGE6-POLICY-PREDICATE",
+        "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
+        "FREEZE-AX-TOPOLOGY",
+        "FREEZE-CONFORMANCE-LITERAL",
+    )
+    assert projection["stage0_blocking_gate_ids"] == (
+        EXPECTED_STAGE0_BLOCKING_GATE_IDS
+    )
+
+
+def test_projection_requires_stage1_and_later_owner() -> None:
+    cases = ({"fixture_id": "owned-case", "binding_state": "pending"},)
+    for owner in ("user", "lower-impl-wave", "lower-wa-wave"):
+        gates = (
+            {
+                "gate_id": f"OWNED-BY-{owner}",
+                "owned_fixture_ids": ["owned-case"],
+                "owner": owner,
+                "status": "pending",
+            },
+        )
+        projection = contract._project_stage0_blockers(gates, cases)
+        assert projection["excluded_stage0_pending_fixture_ids"] == ()
+        assert projection["excluded_stage0_gate_ids"] == ()
+        assert projection["stage0_blocking_gate_ids"] == (f"OWNED-BY-{owner}",)
+
+
+def test_projection_rejects_unknown_owned_fixture() -> None:
+    gates = (
+        {
+            "gate_id": "FIXTURE-ASSIGNMENT",
+            "owned_fixture_ids": ["unknown-case"],
+            "owner": "stage1-and-later",
+            "status": "pending",
+        },
+    )
+    try:
+        contract._project_stage0_blockers(gates, ())
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "owned_fixture_ids names an unknown fixture: unknown-case"
+        )
+    else:
+        raise AssertionError("an unknown owned fixture was projected out")
+
+
+def test_projection_rejects_owned_executable_case() -> None:
+    gates = (
+        {
+            "gate_id": "FIXTURE-ASSIGNMENT",
+            "owned_fixture_ids": ["executable-case"],
+            "owner": "stage1-and-later",
+            "status": "pending",
+        },
+    )
+    cases = ({"fixture_id": "executable-case", "binding_state": "executable"},)
+    try:
+        contract._project_stage0_blockers(gates, cases)
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "owned_fixture_ids may contain only pending fixture cases: "
+            "executable-case"
+        )
+    else:
+        raise AssertionError("an executable owned fixture was projected out")
+
+
+def test_deferred_fixture_three_way_match_rejects_manifest_and_design_drift_together(
+) -> None:
+    manifest_ids = EXPECTED_DEFERRED_FIXTURE_IDS[:-1]
+    design_ids = EXPECTED_DEFERRED_FIXTURE_IDS[:-1]
+    try:
+        contract._validate_stage0_deferred_fixture_ids(manifest_ids, design_ids)
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "stage 0 deferred fixture IDs do not exactly match "
+            "manifest/module/design declarations"
+        )
+    else:
+        raise AssertionError("manifest/design drift bypassed the independent module literal")
+
+
+def test_owned_fixture_ids_must_be_nonempty(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _gate_by_id(
+            document, "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT"
+        )["owned_fixture_ids"] = []
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "owned_fixture_ids must be non-empty",
+    )
+
+
+def test_owned_fixture_ids_must_be_unique_and_sorted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def duplicate(document: dict[str, Any]) -> None:
+        owned = _gate_by_id(
+            document, "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT"
+        )["owned_fixture_ids"]
+        owned.append(owned[-1])
+
+    _rewrite_manifest(fixture_root, duplicate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "owned_fixture_ids has duplicate fixture IDs",
+    )
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path / "reordered")
+
+    def reorder(document: dict[str, Any]) -> None:
+        owned = _gate_by_id(
+            document, "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT"
+        )["owned_fixture_ids"]
+        owned.reverse()
+
+    _rewrite_manifest(fixture_root, reorder)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "owned_fixture_ids must use fixture ID order",
+    )
+
+
+def test_owned_fixture_ids_on_nonassignment_owner_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _gate_by_id(
+            document, "CFAB-STAGE6-POLICY-PREDICATE"
+        )["owned_fixture_ids"] = [EXPECTED_DEFERRED_FIXTURE_IDS[0]]
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "owned_fixture_ids requires owner 'stage1-and-later'",
+    )
+
+
+def _fixture_obligation_summary(
+    *, binding_state: str, assignment_status: str
+) -> dict[str, Any]:
+    synthetic_manifest = {
+        "required_gates": {
+            "entries": [
+                {
+                    "gate_id": EXPECTED_DEFERRED_GATE_IDS[0],
+                    "owned_fixture_ids": list(EXPECTED_DEFERRED_FIXTURE_IDS),
+                    "owner": "stage1-and-later",
+                    "status": assignment_status,
+                },
+                {
+                    "gate_id": "CFAB-STAGE6-POLICY-PREDICATE",
+                    "owner": "user",
+                    "status": "resolved",
+                },
+                {
+                    "gate_id": "FREEZE-AX-TOPOLOGY",
+                    "owner": "lower-impl-wave",
+                    "status": "resolved",
+                },
+                {
+                    "gate_id": "FREEZE-CONFORMANCE-LITERAL",
+                    "owner": "lower-wa-wave",
+                    "status": "resolved",
+                },
+            ]
+        }
+    }
+    cases = tuple(
+        {"fixture_id": fixture_id, "binding_state": binding_state}
+        for fixture_id in EXPECTED_DEFERRED_FIXTURE_IDS
+    )
+    projection = contract._project_stage0_blockers(
+        synthetic_manifest["required_gates"]["entries"], cases
+    )
+    expected_stage0_blocking_pending_fixture_ids = (
+        EXPECTED_DEFERRED_FIXTURE_IDS
+        if binding_state == "pending" and assignment_status == "resolved"
+        else ()
+    )
+    assert projection["stage0_blocking_pending_fixture_ids"] == (
+        expected_stage0_blocking_pending_fixture_ids
+    )
+    assert projection["stage0_blocking_gate_ids"] == ()
+    return {
+        "status": (
+            "incomplete"
+            if expected_stage0_blocking_pending_fixture_ids
+            else "complete"
+        ),
+        "raw_pending_count": len(projection["raw_pending_fixture_ids"]),
+        "raw_pending_fixture_ids": projection["raw_pending_fixture_ids"],
+        "unresolved_deferred_fixture_ids": projection[
+            "unresolved_deferred_fixture_ids"
+        ],
+        "deferred_fixture_ids": projection[
+            "excluded_stage0_pending_fixture_ids"
+        ],
+        "deferred_gate_ids": projection["excluded_stage0_gate_ids"],
+    }
+
+
+def test_deferred_fixture_obligations_are_rejected_even_when_stage0_projection_complete(
+    monkeypatch: Any,
+) -> None:
+    summary = _fixture_obligation_summary(
+        binding_state="pending", assignment_status="pending"
+    )
+    monkeypatch.setattr(
+        contract, "validate_repository", lambda *_args, **_kwargs: summary
+    )
+
+    try:
+        contract.require_stage0_fixture_obligations_discharged()
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "stage 0 fixture obligations are not discharged: "
+            "raw_pending_count=5, unresolved_deferred_fixture_ids=["
+            "approved-freeze-reference,bundle-identity-propagation,"
+            "candidate-type-preservation,floor-seal-consistency,"
+            "post-cutoff-bundle-identity], deferred_gate_ids=["
+            "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT]"
+        )
+    else:
+        raise AssertionError("deferred fixture obligations were treated as discharged")
+
+
+def test_unresolved_deferred_fixture_ids_survive_resolved_assignment_gate(
+    monkeypatch: Any,
+) -> None:
+    summary = _fixture_obligation_summary(
+        binding_state="pending", assignment_status="resolved"
+    )
+    assert summary["deferred_fixture_ids"] == ()
+    assert summary["deferred_gate_ids"] == ()
+    assert summary["unresolved_deferred_fixture_ids"] == (
+        EXPECTED_DEFERRED_FIXTURE_IDS
+    )
+    monkeypatch.setattr(
+        contract, "validate_repository", lambda *_args, **_kwargs: summary
+    )
+
+    try:
+        contract.require_stage0_fixture_obligations_discharged()
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "stage 0 fixture obligations are not discharged: "
+            "raw_pending_count=5, unresolved_deferred_fixture_ids=["
+            "approved-freeze-reference,bundle-identity-propagation,"
+            "candidate-type-preservation,floor-seal-consistency,"
+            "post-cutoff-bundle-identity], deferred_gate_ids=[]"
+        )
+    else:
+        raise AssertionError(
+            "pending deferred fixtures disappeared after assignment resolved"
+        )
+
+
+def test_fixture_obligations_accept_all_executable_and_resolved_assignment(
+    monkeypatch: Any,
+) -> None:
+    summary = _fixture_obligation_summary(
+        binding_state="executable", assignment_status="resolved"
+    )
+    monkeypatch.setattr(
+        contract, "validate_repository", lambda *_args, **_kwargs: summary
+    )
+
+    assert contract.require_stage0_fixture_obligations_discharged() is summary
+
+
+def test_stage0_complete_predicate_does_not_call_fixture_obligation_predicate(
+) -> None:
+    source = inspect.getsource(contract.require_stage0_complete)
+    assert "require_stage0_fixture_obligations_discharged" not in source
 
 
 def test_design_row_removed_is_rejected(tmp_path: Path) -> None:
@@ -1544,9 +1982,11 @@ def test_design_stage6_execution_boundary_tail_drift_is_rejected(
     fixture_root, design_doc = _synthetic_repository(tmp_path)
     text = design_doc.read_text(encoding="utf-8")
     target = contract._EXPECTED_STAGE6_EXECUTION_BOUNDARY
+    assert "将来の段 6 実装は、X 候補提出前に" in target
+    assert "production caller は未実装である" in target
     replacement = target.replace(
-        "それが `pending` である限り段 0 は完了しない。",
-        "それが `pending` であっても段 0 は完了できる。",
+        "段 0 blocker へ数えず、対象後続段へ繰り越す。",
+        "段 0 blocker へ数えず、義務を免除する。",
     )
     assert replacement != target
     assert text.count(target) == 1

@@ -1267,11 +1267,15 @@ def _is_un_narrowed_flaky_hold_collection(config) -> bool:
 
 def _is_complete_flaky_hold_collection(config) -> bool:
     """Return whether this process owns a complete, un-narrowed collection."""
-    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
-    if (
-        not hasattr(config, "workerinput")
-        and numprocesses not in (None, 0, "0")
-    ):
+    dsession = None
+    if not hasattr(config, "workerinput"):
+        try:
+            dsession = config.pluginmanager.get_plugin("dsession")
+        except AttributeError:
+            # Small synthetic configs may not provide a plugin manager.  In
+            # that case there is no xdist hook owner to delegate to.
+            pass
+    if dsession is not None:
         # The xdist controller receives worker collections through the
         # xdist-specific hook below, not through its local item list.
         return False

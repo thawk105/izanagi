@@ -363,7 +363,7 @@ def test_t1574_changed_suite_ledger_node_delta_is_exact() -> None:
     # count-preserving mutation も必ず不一致になる。未実測 node の値は合成しない。
     expected_suite_node_sets = {
         "orchestrator/tests/test_critic.py::": (
-            119, "2bfe5bbab0c58508d782124bb75e023164cce14212d3c97d80c2fe2c752275fa",
+            121, "1e8b4cd41b1e80708c79f247ef9c8ddb21d82bdc7e999cdc53e8713821cb0692",
         ),
         "orchestrator/tests/test_p3_exploration_namespace.py::": (
             26, "db38065c3ebe9834490717df17f634af1c54dddab130d1eea0851723f3db7efa",
@@ -372,7 +372,7 @@ def test_t1574_changed_suite_ledger_node_delta_is_exact() -> None:
             29, "f29aabf31c8ce1ee6b5e15435834ba6a535b2628f14ad186f342b2f47f6c2bed",
         ),
         "orchestrator/tests/test_real_repo_serialization.py::": (
-            39, "4cf4fdd86b181b0f0fe0b787d577cb28e8bd0b49886c2dfe892983cca092f3f9",
+            42, "6fb7e97e2d410d716f45e641092794dafc9fc98717b663429bb9d18528db8874",
         ),
         "orchestrator/tests/test_s1_direct_comparison.py::": (
             97, "ed1a63057f76b8807144943fff4ca7689fa7e0c2936a6c6512ef3ad5ffdce9d5",
@@ -384,7 +384,7 @@ def test_t1574_changed_suite_ledger_node_delta_is_exact() -> None:
             12, "a95979bd14e970ac6e08f1061a1c7b434549a3f4a3e3913d3ef6303b6a3a4ec2",
         ),
         "orchestrator/tests/test_sort_swo_oracle.py::": (
-            63, "1f6404bbe89cc91c599d82df7f7279aacaa3f982d1b00b3c6f7f1c3f87e16f4b",
+            69, "7e97c114b313d8fccb97f486379745e060e3486a132de271a244e9c1e3f6d912",
         ),
     }
 

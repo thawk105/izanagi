@@ -8295,6 +8295,10 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LAUNCHER, tools / "acceptance_launcher.py")
     shutil.copy2(_ROOT / "tools" / "check_ai_provenance.py", tools)
+    shutil.copytree(
+        _ROOT / "tools" / "known_violations",
+        tools / "known_violations",
+    )
     _write_exact_runner(
         repo,
         "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "

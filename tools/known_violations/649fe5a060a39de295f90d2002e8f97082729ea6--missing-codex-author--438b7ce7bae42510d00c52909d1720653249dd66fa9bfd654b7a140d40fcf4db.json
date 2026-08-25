@@ -1,0 +1,7 @@
+{
+  "sha": "649fe5a060a39de295f90d2002e8f97082729ea6",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-22 [T-1477] provenance known-violation登録 (ユーザー選択: known-violation 登録)",
+  "note": "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、内容は正確で綴りだけの誤り"
+}
