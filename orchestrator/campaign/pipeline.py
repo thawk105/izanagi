@@ -253,6 +253,16 @@ class ScreeningConfig:
     reanchor_threshold_s: float = 1800.0
 
     def __post_init__(self) -> None:
+        if type(self.baseline_ref) is not str or not self.baseline_ref:
+            raise ValueError("baseline_ref は non-empty exact str でなければならない")
+        numeric_fields = (
+            "baseline_tps", "baseline_measured_at", "floor", "k",
+            "baseline_abort_rate", "high_abort_factor", "reanchor_threshold_s",
+        )
+        for name in numeric_fields:
+            if type(getattr(self, name)) not in (int, float):
+                raise ValueError(
+                    f"{name} は bool でない exact int/float でなければならない")
         checks = (
             (self.k >= 1.5, "k は 1.5 以上でなければならない"),
             (self.baseline_tps > 0, "baseline_tps は正でなければならない"),
@@ -446,6 +456,57 @@ class _BenchRound:
     rep_returncodes: List[int]
 
 
+_BENCH_DONE_REQUIRED_PAYLOAD_KEYS = frozenset({
+    "build_attempt_id",
+    "median_tps", "cv", "bench_wall_s", "high_variance", "unstable",
+    "rounds", "cv_history", "tps", "settled", "leading_indicators",
+    "rep_notes", "run_cmd",
+})
+_BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS = frozenset({
+    "perf_observation", "screening", "rep_returncodes",
+})
+_BENCH_PAYLOAD_EXTRA_KEYS = frozenset({"screening_disabled"})
+_BENCH_DONE_PAYLOAD_KEYS = (
+    _BENCH_DONE_REQUIRED_PAYLOAD_KEYS
+    | _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
+    | _BENCH_PAYLOAD_EXTRA_KEYS
+)
+
+
+def _assert_bench_done_payload_keys(payload: Mapping[str, object]) -> None:
+    """Fail closed when pipeline._run_bench would leave its declared key set."""
+    actual = set(payload)
+    missing = sorted(_BENCH_DONE_REQUIRED_PAYLOAD_KEYS - actual)
+    unexpected = sorted(actual - _BENCH_DONE_PAYLOAD_KEYS)
+    if missing or unexpected:
+        raise ValueError(
+            "bench_done payload key closure violation: "
+            f"{{'missing': {missing!r}, 'unexpected': {unexpected!r}}}"
+        )
+
+
+def _assert_bench_payload_extra_keys(
+        bench_payload: Dict[str, object], bench_payload_extra: object,
+) -> None:
+    """Accept only the exact caller-owned extension after overlap rejection."""
+    if type(bench_payload_extra) is not dict:
+        raise TypeError("bench_payload_extra は exact dict でなければならない")
+    extra_keys = set(bench_payload_extra)
+    overlap = sorted(set(bench_payload) & extra_keys)
+    if overlap:
+        raise ValueError(
+            "bench_payload_extra overlaps assembled payload: "
+            f"{{'overlap': {overlap!r}}}"
+        )
+    missing = sorted(_BENCH_PAYLOAD_EXTRA_KEYS - extra_keys)
+    unexpected = sorted(extra_keys - _BENCH_PAYLOAD_EXTRA_KEYS)
+    if missing or unexpected:
+        raise ValueError(
+            "bench_payload_extra key closure violation: "
+            f"{{'missing': {missing!r}, 'unexpected': {unexpected!r}}}"
+        )
+
+
 def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                numactl: Optional[Sequence[str]], do_settle: bool,
                layout: CampaignLayout, variant: str, env_tag: str,
@@ -626,11 +687,12 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         bench_payload["screening"] = True
     if selected_returncodes is not None:
         bench_payload["rep_returncodes"] = selected_returncodes
-    if bench_payload_extra:
+    if bench_payload_extra is not None:
+        _assert_bench_payload_extra_keys(bench_payload, bench_payload_extra)
         bench_payload.update(bench_payload_extra)
-    # Extra diagnostic fields are caller-controlled, but attempt ownership is
-    # part of the producer contract and must not be overridden.
+    # Attempt ownership is part of the producer contract.
     bench_payload["build_attempt_id"] = build_attempt_id
+    _assert_bench_done_payload_keys(bench_payload)
     (emit or wal.log)(layout, variant, STAGE_BENCH_DONE, env_tag, bench_payload)
     log(f"  [eval {variant}] bench: median {nf.median:,.0f} tps (CV {nf.cv*100:.2f}%"
         f"{f', {rem.rounds}rounds' if rem.rounds > 1 else ''}"

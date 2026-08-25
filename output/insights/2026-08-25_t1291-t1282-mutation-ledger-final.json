@@ -1,0 +1,1476 @@
+{
+ "baseline": {
+  "artifact": {
+   "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/e94712009532eab955e2a8278bc9ac2a/izdw-e947120095.o946832",
+   "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/e94712009532eab955e2a8278bc9ac2a/receipt.json",
+   "runner_mode": "dispatch",
+   "stdout_sha256": "03fd702dfcffbe0c724e1dc86dfe8d0862ddc68a5e268b29de6347a38760bb8c"
+  },
+  "artifact_error": null,
+  "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+  "duration_s": 42.326,
+  "failed_nodes": [],
+  "rc": 0,
+  "registration_sha256": "620f677a3725f958ab1ed89be60aa1134ff0a6ecc530e38a0164108282e7ae6e",
+  "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+  "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+  "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+  "status": "PASSED",
+  "test_output_sha256": "03fd702dfcffbe0c724e1dc86dfe8d0862ddc68a5e268b29de6347a38760bb8c",
+  "timed_out": false,
+  "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+ },
+ "date": "2026-08-25T08:09:11.760438+00:00",
+ "mutations": [
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/80ec15c1a93184785fe25de73ab26665/izdw-80ec15c1a9.o946836",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/80ec15c1a93184785fe25de73ab26665/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "b98c6456c0e2c97334a9a18032e09eb53afd3d1bb32f5e0ea54c4c65268a4748"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 42.269,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_pipeline_bench_payload_closure_uses_real_view_row",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set",
+    "orchestrator/tests/test_layer3_report.py::test_pipeline_bench_payload_closure_uses_real_view_row",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m01",
+   "injection_diff_sha256": "35a676ab47d2b05849c7ece1d0d6eac84ee0cdf5bc82de34677b6b05a78857c6",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "2da67b320f95e50428cced7dfddfd344bb4e4578498a8d22a1ebf523cb1420a6",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    \"perf_observation\", \"rep_returncodes\",\n",
+     "old": "    \"perf_observation\", \"screening\", \"rep_returncodes\",\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "b98c6456c0e2c97334a9a18032e09eb53afd3d1bb32f5e0ea54c4c65268a4748",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/2da5760703024d8ed050f53dd5ec4b57/izdw-2da5760703.o946839",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/2da5760703024d8ed050f53dd5ec4b57/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "9f970a4d316270e892b45b6cb9af2bb9f56205d0786d6b81886dd565d7ce43a5"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 32.119,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m02",
+   "injection_diff_sha256": "2ceeb5d3bbc721afc99b18e137647caab6459f38106f8794abdf05a66f0f360f",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "c6ff12984032b6274b31b3cc000f2e3cfa27a8fe73bbd33b6d7ff844fcf9a7f3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "        bench_payload[\"screeninx\"] = True\n",
+     "old": "        bench_payload[\"screening\"] = True\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "9f970a4d316270e892b45b6cb9af2bb9f56205d0786d6b81886dd565d7ce43a5",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/d4cc362d1ecf860de9aa0d30c1c54600/izdw-d4cc362d1e.o946840",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/d4cc362d1ecf860de9aa0d30c1c54600/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "7de5c009bc2f17bc6084be969a34bddde7ffa43c06da9fdac671a6e8c9597483"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 42.38,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[annassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[augassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[dict-unpack]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[for-alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[guard-emit-control-block]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[post-guard-update]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[setdefault]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[try]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[while]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[with]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[post-guard-update]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[with]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[dict-unpack]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[augassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[while]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[for-alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[try]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[guard-emit-control-block]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[setdefault]",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[annassign]",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m03",
+   "injection_diff_sha256": "cb191d43001ba56ab20b882678837e73e787d9ed9acdd0b58f1e417b7cc89e44",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "dde3ce0bdadd343e111848daa355d837891b48633c92df76f80840c20a640516",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    pass  # mutant: emit 直前の閉包検査を外す\n",
+     "old": "    _assert_bench_done_payload_keys(bench_payload)\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "7de5c009bc2f17bc6084be969a34bddde7ffa43c06da9fdac671a6e8c9597483",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/33d4f69b5ae9722e4095fb2e8a188db1/izdw-33d4f69b5a.o946841",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/33d4f69b5ae9722e4095fb2e8a188db1/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "e601393c6f04ab495ee8310db33b2fdce830b8cfd7839c269728b8d42492ee85"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 42.396,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m04",
+   "injection_diff_sha256": "b366710e656154e7d4ab49248f49b6f6d2dfe2b7106920e44d4a0033bc8f0db1",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "5d42857699ab45c4caa9342eb33766d4f8784c52f3b106a3343da518d3dca3c8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    unexpected = []\n",
+     "old": "    unexpected = sorted(actual - _BENCH_DONE_PAYLOAD_KEYS)\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "e601393c6f04ab495ee8310db33b2fdce830b8cfd7839c269728b8d42492ee85",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/9bcfd720ca38bd5a70bbb631afe8955a/izdw-9bcfd720ca.o946842",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/9bcfd720ca38bd5a70bbb631afe8955a/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "f5180c0d015df3da17937850ed06553af7b98e3e2d83f5aaea71ed01b89d14a7"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 42.467,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_measurement_overwrite_before_merge",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_overlap_even_when_key_is_extra_owned",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_measurement_overwrite_before_merge",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_overlap_even_when_key_is_extra_owned",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m05",
+   "injection_diff_sha256": "37cdcd0dcbcaf9d204702bdffccdf729bd3fec853c46ab2501a3d66513ed0b11",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "686f98eb6202af854389452dee5d093a6bdc2680e89126c1e518c19ea9374871",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    overlap = []\n",
+     "old": "    overlap = sorted(set(bench_payload) & extra_keys)\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "f5180c0d015df3da17937850ed06553af7b98e3e2d83f5aaea71ed01b89d14a7",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/10f09e08f5807888d67daca298752468/izdw-10f09e08f5.o946843",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/10f09e08f5807888d67daca298752468/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "c96aff503c9656ebd754f720ae6fdcddee6deff4f410356cbebeff1d9c73b584"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 32.235,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_abort_rate]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_measured_at]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_tps]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[high_abort_factor]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[reanchor_threshold_s]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_tps]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_measured_at]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_abort_rate]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[high_abort_factor]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[reanchor_threshold_s]",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m06",
+   "injection_diff_sha256": "7eb1eb5577c3cfaf3ed8ebe1eee5d15dd97db1b9668255ea324c124aada152e0",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "85b87e36690d941bc02bc3acc2ade3157edd4ed1cb76f6954add4bccd94d7dd2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "        if False and type(getattr(self, name)) not in (int, float):\n",
+     "old": "        if type(getattr(self, name)) not in (int, float):\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "c96aff503c9656ebd754f720ae6fdcddee6deff4f410356cbebeff1d9c73b584",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/e255ff9ac41a6de4ffbf17999c945f1c/izdw-e255ff9ac4.o946847",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/e255ff9ac41a6de4ffbf17999c945f1c/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "b252ce3234b18f55ab02e09827438311584c67bfe391d054898596526af9eed4"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 37.238,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[1]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[False]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[1]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[False]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[]",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m07",
+   "injection_diff_sha256": "d34939c4d25e277fea85ff4b7baf5fe15a5a4f65062f71da47473e8fc3df0a60",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "efce8e1e18857433b4719f5470a8926c06b79ac1fae509b2c90e1b1f5975e990",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "        if False and (type(self.baseline_ref) is not str or not self.baseline_ref):\n",
+     "old": "        if type(self.baseline_ref) is not str or not self.baseline_ref:\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "b252ce3234b18f55ab02e09827438311584c67bfe391d054898596526af9eed4",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/ef19dcb43cd8768bd13fd7c3d4d5b013/izdw-ef19dcb43c.o946848",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/ef19dcb43cd8768bd13fd7c3d4d5b013/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "448b20c5f027bbb0fd5ab4f76fae8a004bca2e3aafb98580ebb36fcf70b91dd2"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 400.94,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_and_screening_disabled_are_mutually_exclusive"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_and_screening_disabled_are_mutually_exclusive"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m08",
+   "injection_diff_sha256": "68a7a5482a7a0685dab58648345651bb216ccef18d4a0545fb65245bae0c939a",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "1e408def9f5acb090fc77676edd987dc54c3edcf7ecd9c2e0415b9b8d9e8985f",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "",
+     "old": "        \"not\": {\"required\": [\"screening\", \"screening_disabled\"]},\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "448b20c5f027bbb0fd5ab4f76fae8a004bca2e3aafb98580ebb36fcf70b91dd2",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/a6d1109b58b5649f1fd96dfd2ad23cbb/izdw-a6d1109b58.o946862",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/a6d1109b58b5649f1fd96dfd2ad23cbb/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "139f08e48efedd1371eacbdaca93b05a5b22e653c9f2743dc7054c42d0700fb2"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 308.621,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[unknown]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[unknown]"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m09",
+   "injection_diff_sha256": "e23f49e80f9a6cc6af9ffe07a939e98e3545fd8b36675759ab1a415787b8b5c0",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "a7c8044e25c7bf56c93411597e3b0c4766029ed9be30c2a4a9d61f2c3a99242b",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "          \"settled\": {\"type\": [\"boolean\", \"null\", \"string\"]},\n",
+     "old": "          \"settled\": {\"type\": [\"boolean\", \"null\"]},\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "139f08e48efedd1371eacbdaca93b05a5b22e653c9f2743dc7054c42d0700fb2",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/8b9c1e3df3182b6175efcde8dd061c47/izdw-8b9c1e3df3.o946878",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/8b9c1e3df3182b6175efcde8dd061c47/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "0822c2aed77b693494b4ea47b1dc7ad048fc5a3540e3266d2ebb09ea9bebe712"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 47.499,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields0-const-expected_absolute_path0]",
+    "orchestrator/tests/test_layer3_report.py::test_v2_report_rejects_invalid_screening_value_with_legacy_schema"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields0-const-expected_absolute_path0]",
+    "orchestrator/tests/test_layer3_report.py::test_v2_report_rejects_invalid_screening_value_with_legacy_schema"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m10",
+   "injection_diff_sha256": "636f5fa657ed7fd01f6a5419c58829ebf4fc97c4923b8bd239abd433cc5023de",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "f90d61f14fb1734f772456b1a5f369ce1927ca239258b113b50fa2a379b81b46",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "          \"screening\": {\"type\": \"boolean\"},\n",
+     "old": "          \"screening\": {\"const\": true},\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "0822c2aed77b693494b4ea47b1dc7ad048fc5a3540e3266d2ebb09ea9bebe712",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/6ae6b1b990255b01c1082984b097c867/izdw-6ae6b1b990.o946879",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/6ae6b1b990255b01c1082984b097c867/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "327674cbfcd2128c4e050fe41391094b1cb92f5e4cef3182a1742c4b8a809bed"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 52.578,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_disabled_rejects_non_stale_baseline_reason"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_disabled_rejects_non_stale_baseline_reason"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m11",
+   "injection_diff_sha256": "bb5d460745fa01ade94758b81b08aac70f533571fa44dee386b7a229590f1af3",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "092c08b845e6ce148224b6b6c31d92e22ff4547a6a0740fe404673156e9914ab",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "              \"reason\": {\"type\": \"string\"},\n",
+     "old": "              \"reason\": {\"const\": \"stale-baseline\"},\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "327674cbfcd2128c4e050fe41391094b1cb92f5e4cef3182a1742c4b8a809bed",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/afdf9c73c1d64a0594a2201904c48738/izdw-afdf9c73c1.o946881",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/afdf9c73c1d64a0594a2201904c48738/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "5ed9360e1afa93bc286e5fb615e1323e24ed794cf8112d5e91d07012cca07eaa"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 47.453,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_string_validator"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_string_validator"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m12",
+   "injection_diff_sha256": "5d6f662cecb6c1924665f677277c7b18a264db1d84201e958443d775d7ad2f14",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "4487277db144ff89f5502da4a259de8fb76de58ae9acc9677e16157af577711f",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "            validator = \"mutant\"\n",
+     "old": "            raise ValueError(\"schema validator is not a non-empty string\")\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "5ed9360e1afa93bc286e5fb615e1323e24ed794cf8112d5e91d07012cca07eaa",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/7f71f692650d49f1b7311fe4ddb3fab6/izdw-7f71f69265.o946884",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/7f71f692650d49f1b7311fe4ddb3fab6/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "77f2b1073d669682219d38759a71f75f5f57215310a2354ba9738ddaf9f468f9"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 37.315,
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_json_path_component_and_stays_canonical"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_json_path_component_and_stays_canonical"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m13",
+   "injection_diff_sha256": "bd1906818264d5f9749dd675b5fc3bebc2c6fe7678104b0ddbf1f46b6244dde4",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "23f74ae0f40f1e6e80bdf6b482acada3a1693ade7fd4ebac4c66f2ee81e46b9a",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "                pass  # mutant: 非 JSON path 成分を素通しする\n",
+     "old": "                raise ValueError(\"schema path contains a non-JSON component\")\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "77f2b1073d669682219d38759a71f75f5f57215310a2354ba9738ddaf9f468f9",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  {
+   "anchor_counts": {
+    "0": 1
+   },
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/64df0530da9321e76a20e0dda18c4e96/izdw-64df0530da.o946887",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/64df0530da9321e76a20e0dda18c4e96/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "fbdf079f7658fb096d3c8044007d55827c23e292a7960baea4110534ec3f2869"
+   },
+   "artifact_error": null,
+   "category": "negative",
+   "collection_sha256": "3a7cc6119ebfc1adb357ac27d14c7593221aabb6fb7edd16ed18db0c4c82e124",
+   "duration_s": 52.989,
+   "expected_nodes": [
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_present_invalid_layer3_diagnosis[mapping-with-extra-key]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[extra-key]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[extra-key]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_present_invalid_layer3_diagnosis[mapping-with-extra-key]"
+   ],
+   "hang_risk": false,
+   "id": "t1291.m14",
+   "injection_diff_sha256": "557a0b28a64cf2b546ca0f6044cd389d0653ae2bb10ff6780afbfd9acd594e41",
+   "matches_expectation": true,
+   "rc": 1,
+   "registration_sha256": "a89b6d5ffc9e2d3608ba839727d24784008cb040148c227d3d2f28fd76160238",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+     "new": "    \"\"\"Recognize only the closed, canonical JSON-safe diagnosis contract.\"\"\"\n    if not isinstance(value, Mapping):\n        return False\n",
+     "old": "    \"\"\"Recognize only the closed, canonical JSON-safe diagnosis contract.\"\"\"\n    if not isinstance(value, Mapping) or set(value) != (\n        _LAYER3_ADMISSION_DIAGNOSIS_KEYS\n    ):\n        return False\n"
+    }
+   ],
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "KILLED",
+   "test_output_sha256": "fbdf079f7658fb096d3c8044007d55827c23e292a7960baea4110534ec3f2869",
+   "timed_out": false,
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  }
+ ],
+ "nonterminal_history": [],
+ "procedure": {
+  "collection": {
+   "artifact": {
+    "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/1b7c8f4a2b79964f92b1033482341aa0/izdw-1b7c8f4a2b.o946830",
+    "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/output/pegasus-dispatch/1b7c8f4a2b79964f92b1033482341aa0/receipt.json",
+    "runner_mode": "dispatch",
+    "stdout_sha256": "438f68a88c665c375847ac544162f7ecf118ea80ecd0620f31fb1561c388347f"
+   },
+   "collected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_trigger_build_start_commitment_survives_report_projection_without_raw_mask",
+    "orchestrator/tests/test_layer3_report.py::test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[post-guard-update]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[setdefault]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[augassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[annassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[dict-unpack]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[try]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[with]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[for-alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[while]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[guard-emit-control-block]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set",
+    "orchestrator/tests/test_layer3_report.py::test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_accepts_only_its_exact_key_set_without_overlap",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_measurement_overwrite_before_merge",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_overlap_even_when_key_is_extra_owned",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_tps]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_measured_at]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[floor]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[k]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_abort_rate]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[high_abort_factor]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[reanchor_threshold_s]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[False]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[1]",
+    "orchestrator/tests/test_layer3_report.py::test_pipeline_bench_payload_closure_uses_real_view_row",
+    "orchestrator/tests/test_layer3_report.py::test_settled_accepts_exact_forensic_value_domain[True]",
+    "orchestrator/tests/test_layer3_report.py::test_settled_accepts_exact_forensic_value_domain[False]",
+    "orchestrator/tests/test_layer3_report.py::test_settled_accepts_exact_forensic_value_domain[None]",
+    "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[unknown]",
+    "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[0]",
+    "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[settled2]",
+    "orchestrator/tests/test_layer3_report.py::test_named_screening_artifact_builds_layer3_report_end_to_end",
+    "orchestrator/tests/test_layer3_report.py::test_historical_v1_run_row_without_screening_fields_remains_valid",
+    "orchestrator/tests/test_layer3_report.py::test_v2_and_v3_reports_with_legacy_run_without_screening_remain_valid",
+    "orchestrator/tests/test_layer3_report.py::test_v2_report_rejects_invalid_screening_value_with_legacy_schema",
+    "orchestrator/tests/test_layer3_report.py::test_new_screening_fields_pass_real_view_and_run_schema[new_fields0]",
+    "orchestrator/tests/test_layer3_report.py::test_new_screening_fields_pass_real_view_and_run_schema[new_fields1]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_and_screening_disabled_are_mutually_exclusive",
+    "orchestrator/tests/test_layer3_report.py::test_screening_disabled_rejects_nested_unknown_key",
+    "orchestrator/tests/test_layer3_report.py::test_screening_disabled_rejects_non_stale_baseline_reason",
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields0-const-expected_absolute_path0]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields1-minLength-expected_absolute_path1]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields2-type-expected_absolute_path2]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields3-type-expected_absolute_path3]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields4-required-expected_absolute_path4]",
+    "orchestrator/tests/test_layer3_report.py::test_layer3_schema_version_and_run_required_keys_remain_frozen",
+    "orchestrator/tests/test_layer3_report.py::test_real_legacy_s8a_campaign_is_rejected",
+    "orchestrator/tests/test_layer3_report.py::test_legacy_trigger_sweep_cannot_issue_new_report",
+    "orchestrator/tests/test_layer3_report.py::test_campaign_without_loop_state_has_empty_absent_whiteboard",
+    "orchestrator/tests/test_layer3_report.py::test_historical_build_report_remains_non_certifying",
+    "orchestrator/tests/test_layer3_report.py::test_historical_build_report_displays_e0_without_rejection",
+    "orchestrator/tests/test_layer3_report.py::test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_refs",
+    "orchestrator/tests/test_layer3_report.py::test_report_records_present_policy_hint_at_top_level_and_workload",
+    "orchestrator/tests/test_layer3_report.py::test_report_uses_null_for_absent_policy_hint",
+    "orchestrator/tests/test_layer3_report.py::test_legacy_v2_report_schema_remains_readable",
+    "orchestrator/tests/test_layer3_report.py::test_legacy_v2_without_policy_hint_remains_readable",
+    "orchestrator/tests/test_layer3_report.py::test_report_policy_hint_rejects_non_string_top_level",
+    "orchestrator/tests/test_layer3_report.py::test_existing_v3_missing_new_admission_fields_remains_readable",
+    "orchestrator/tests/test_layer3_report.py::test_existing_certifying_v3_missing_epoch_remains_readable",
+    "orchestrator/tests/test_layer3_report.py::test_generic_generators_have_no_certifying_input_parameter",
+    "orchestrator/tests/test_layer3_report.py::test_reader_rejects_certifying_input_without_acceptance_receipt",
+    "orchestrator/tests/test_layer3_report.py::test_reader_rejects_acceptance_receipt_without_certifying_input",
+    "orchestrator/tests/test_layer3_report.py::test_reader_rejects_certifying_historical_admission",
+    "orchestrator/tests/test_layer3_report.py::test_m14_non_certifying_receipt_is_rejected_downstream",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_rejects_non_certifying_receipt_before_write",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_api_has_no_return_code_or_stdout_parameter",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_unsealed_receipt_capability",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_before_certifying_fields_are_set",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_external_v2_campaign_without_git_head",
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_e0_after_historical_projection",
+    "orchestrator/tests/test_layer3_report.py::test_completeness_rejects_certifying_historical_admission",
+    "orchestrator/tests/test_layer3_report.py::test_completeness_reads_contract_from_v2_authority_and_identity_excludes_it",
+    "orchestrator/tests/test_layer3_report.py::test_completeness_rejects_v1_lock_without_authority",
+    "orchestrator/tests/test_layer3_report.py::test_bench_rep_returncodes_passes_real_view_and_schema",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_survives_render_and_legacy_run_remains_valid",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_unknown_key[observation]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_unknown_key[preflight]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_unknown_key[candidate]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_schema_valid_noncanonical_receipt",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[perf-required-but-counter-not-required]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[use-perf-false-disagrees-with-available]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[use-perf-true-disagrees-with-unavailable]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[no-perf-counter-complete]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[perf-complete-reports-missing-indicators]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[perf-incomplete-reports-no-missing-indicators]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[probe-error-reaches-layer3]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[unavailable-status-claims-available]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[no-perf-reports-missing-indicators]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[available-status-has-unavailable-reason]",
+    "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[unavailable-status-has-probe-error-reason]",
+    "orchestrator/tests/test_layer3_report.py::test_existing_invalid_loop_state_fails_closed[not-json]",
+    "orchestrator/tests/test_layer3_report.py::test_existing_invalid_loop_state_fails_closed[{\"whiteboard\": {}}]",
+    "orchestrator/tests/test_layer3_report.py::test_existing_empty_loop_state_keeps_loop_state_provenance",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_missing_or_invalid_whiteboard_provenance[None]",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_missing_or_invalid_whiteboard_provenance[unknown]",
+    "orchestrator/tests/test_layer3_report.py::test_relative_and_absolute_campaign_paths_are_byte_identical",
+    "orchestrator/tests/test_layer3_report.py::test_unknown_stage_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_shared_known_session_stage_is_outside_layer3_semantic_subset",
+    "orchestrator/tests/test_layer3_report.py::test_nested_duplicate_wal_key_fails_closed_for_one_reason",
+    "orchestrator/tests/test_layer3_report.py::test_wal_wrapper_preserves_specific_parser_diagnosis[missing-key]",
+    "orchestrator/tests/test_layer3_report.py::test_wal_wrapper_preserves_specific_parser_diagnosis[unknown-key]",
+    "orchestrator/tests/test_layer3_report.py::test_wal_wrapper_preserves_specific_parser_diagnosis[wrong-type]",
+    "orchestrator/tests/test_layer3_report.py::test_wal_wrapper_preserves_specific_parser_diagnosis[non-object-payload]",
+    "orchestrator/tests/test_layer3_report.py::test_wal_blank_between_records_uses_shared_strict_contract",
+    "orchestrator/tests/test_layer3_report.py::test_unframed_wal_tail_is_translated_with_framing_cause[complete-json]",
+    "orchestrator/tests/test_layer3_report.py::test_unframed_wal_tail_is_translated_with_framing_cause[multibyte-partial]",
+    "orchestrator/tests/test_layer3_report.py::test_direct_script_starts_with_clean_pythonpath",
+    "orchestrator/tests/test_layer3_report.py::test_body_event_omission_is_detected",
+    "orchestrator/tests/test_layer3_report.py::test_duplicate_wal_and_whiteboard_fail_closed",
+    "orchestrator/tests/test_layer3_report.py::test_layer3_report_rejects_out_of_domain_whiteboard_value",
+    "orchestrator/tests/test_layer3_report.py::test_layer3_report_uses_shared_whiteboard_value_domain_validator",
+    "orchestrator/tests/test_layer3_report.py::test_layer3_report_wraps_missing_whiteboard_value_with_keyerror_cause",
+    "orchestrator/tests/test_layer3_report.py::test_floor_kinds_match_independently_and_classification_records_skips",
+    "orchestrator/tests/test_layer3_report.py::test_between_run_schema_version_does_not_change_floor_classification",
+    "orchestrator/tests/test_layer3_report.py::test_duplicate_matching_floor_of_same_kind_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_floor_candidate_without_workload_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_campaign_without_ycsb_has_honest_null_for_both_floor_kinds",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_inconsistent_floor_result_correlation",
+    "orchestrator/tests/test_layer3_report.py::test_abort_event_renders_abort_view_and_commit_absent_reject",
+    "orchestrator/tests/test_layer3_report.py::test_existing_output_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_write_report_atomic_converts_existing_output_link_collision",
+    "orchestrator/tests/test_layer3_report.py::test_write_report_atomic_rejects_missing_parent_directory",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_existing_output_fails_before_builder",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render]",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_variant_without_commit_is_reject_with_primary_reference",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[variants]",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[runs]",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[verifications]",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[rejects]",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[aborts]",
+    "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[whiteboard]",
+    "orchestrator/tests/test_layer3_report.py::test_git_head_is_real_repository_head",
+    "orchestrator/tests/test_layer3_report.py::test_external_v2_campaign_uses_lock_authority_for_build_and_render",
+    "orchestrator/tests/test_layer3_report.py::test_git_backed_campaign_head_precedes_v2_lock_authority",
+    "orchestrator/tests/test_layer3_report.py::test_source_repo_internal_git_failure_does_not_use_lock_authority",
+    "orchestrator/tests/test_layer3_report.py::test_source_repo_external_v1_without_authority_stays_fail_closed",
+    "orchestrator/tests/test_layer3_report.py::test_explicit_generated_from_head_still_wins",
+    "orchestrator/tests/test_layer3_report.py::test_campaign_outside_repo_fails_closed",
+    "orchestrator/tests/test_layer3_report.py::test_main_accepts_external_campaign_with_output_root",
+    "orchestrator/tests/test_layer3_report.py::test_main_without_output_root_preserves_external_campaign_rejection",
+    "orchestrator/tests/test_layer3_report.py::test_main_forwards_output_root_and_keeps_none_default",
+    "orchestrator/tests/test_layer3_report.py::test_main_rejects_external_campaign_with_nonmatching_output_root",
+    "orchestrator/tests/test_layer3_report.py::test_output_root_relative_path_is_cwd_dependent",
+    "orchestrator/tests/test_layer3_report.py::test_output_root_does_not_shrink_qualification_ancestry_walk",
+    "orchestrator/tests/test_layer3_report.py::test_external_campaign_qualification_ancestry_still_checked",
+    "orchestrator/tests/test_layer3_report.py::test_output_root_inside_campaign_is_rejected",
+    "orchestrator/tests/test_layer3_report.py::test_main_rejects_empty_output_root",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_validation_error_projection_is_closed_and_names_screening",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_additional_property_failure_names_unpathed_property",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_extraction_is_total_and_degrades[missing]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_extraction_is_total_and_degrades[wrong]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_extraction_is_total_and_degrades[unprojectable]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_string_validator",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_json_path_component_and_stays_canonical",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[extra-key]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[schema-version]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[status]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[validator]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[degradation-reason]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[path-container]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[path-component]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[non-utf8-validator-value]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_failure_projection_rejects_present_nonmapping_diagnosis",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_failure_decision_stays_exact_while_projection_carries_diagnosis",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_campaignless_fallback_producer_does_not_gain_diagnosis",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_attempt_journal_append_orders_write_fsync_close",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_run_trial_preserves_chain_exception_identity_and_runs_completeness[ordinary-validation-error]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_run_trial_preserves_chain_exception_identity_and_runs_completeness[surrogate-validator-value]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_required_failure_names_first_missing_property_in_journal[single-missing]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_required_failure_names_first_missing_property_in_journal[multiple-missing-required-order]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_positive_control",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_arm_execution_is_required_exact_and_sha256[missing]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_arm_execution_is_required_exact_and_sha256[extra]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_arm_execution_is_required_exact_and_sha256[format]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_run_rejects_one_missing_digest",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_exploratory_shape_rejects_arm_execution",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_report_passes_completeness_and_digest_chain",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_reason_code_is_required",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_activation_digest_must_be_none",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_binding_is_required",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_registered_key_shape_is_required",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_arm_execution_is_required",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1458_formal_noncertifying_rejects_origin_binding",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_persisted_file_verifier_runs_registered_digest_chain",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[descriptor-cell descriptor content digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[descriptor-binding-descriptor binding digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[descriptor-schema-descriptor binding digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[campaign-search_config exact keys differ]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[proposal-proposal digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[invocation-journal invocation digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[run-start-run-start/report arm_execution differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_digest_chain_rejects_each_bound_sink[terminal-report-run-start/report arm_execution differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed[outside]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed[symlink]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed[non-regular]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed[noncanonical]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_proposal_artifact_is_run_bound_canonical_and_hashed[hash]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_origin_terminal_projection_requires_current_arm_epoch",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[None]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[payload-hash]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[envelope-hash]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[missing-descriptor]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[payload-descriptor]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[payload-arm]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_provider_payload_and_envelope_are_independently_reread[artifact-arm]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[positive]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[arm-key]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[holdout-workload]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[null-arm-key]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[input-digest]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[output-digest]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_provider_payload_projection_has_exact_predicates[content-digest]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_off_validation_receipt_safe_projection_is_exact",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_authoritative_run_root_rejects_coordinated_tree_rebinding",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1311_registered_build_keeps_artifacts_bound_to_trial_run_root",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_p1_complete_three_cell_fixture_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_p2_pre_audit_reject_journaled_skip_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_p3_role_invalid_partial_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_p4_provider_init_error_with_empty_cells_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_p5_generation_boundary_wall_budget_empty_generations_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_multigeneration_in_cell_zero_work_wall_budget_is_accepted",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_multigeneration_zero_work_wall_requires_terminal_accounting",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_multigeneration_in_cell_wall_budget_requires_its_cell",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_bound_shape_and_projection_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_before_run_start_with_empty_cells_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_accepts_empty_string_message",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_build_file_verification_with_cells_still_requires_campaign_root",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_query_ordinals_must_be_contiguous_and_exclude_skips",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_generation_accounting_must_be_bijective",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_discarded_final_critic_requires_partial_generation_accounting[generation-complete]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_discarded_final_critic_requires_partial_generation_accounting[pending-pre-invoke-failure]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_accounting_must_equal_journal_derived_totals",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_accounting_rejects_negative_bench_values",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_large_consistent_bench_time_is_not_a_budget_gate",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_generation_driver_and_gating_spec_digest_must_be_stable[generation_driver]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_generation_driver_and_gating_spec_digest_must_be_stable[gating_spec_sha256]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_payload_exact_keys_are_independently_rechecked",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[missing-is not a Mapping]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[payload-digest-receipt payload digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[workload-descriptor-workload descriptor digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[fixed-literal-fixed literals differ]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[whiteboard-origin-whiteboard origin digest differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_payload_validation_receipt_is_independently_rechecked[seal-receipt seal differs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[duplicate]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[after-run-start]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[missing-receipt]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[wrong-receipt-type]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[report-mismatch]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_binding_mutations_are_rejected[report-missing]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[duplicate-error]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[success-and-error]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[after-run-start]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[extra-field]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[empty-type]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[non-string-type]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[non-string-message]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[wrong-provider]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[forged-report-receipt]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[forged-run-start-receipt]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[forged-run-finish-receipt]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[fatal-mismatch]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[nonempty-cells]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_transport_admission_error_mutations_are_rejected[complete-status]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_pre_workload_wall_budget_terminal_projection_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_empty_requested_complete_report_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-trial_id-report//.trial_id is not a non-empty string]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[start-provider-provider is outside the producer closed set]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-do_build-do_build must be a bool in report and run-start]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[start-max_wall_s-run-start//.max_wall_s must be a positive int]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[report-generation_budget_per_workload-generation budget must be a positive int in report and run-start]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[role-input_payload_sha256-journal role attempt is missing required fields: //['input_payload_sha256'//]]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_missing_envelope_and_role_fields_are_rejected[role-raw_response_path-journal role attempt valid event is missing fields: //['raw_response_path'//]]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[None]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_null_or_empty_harness[harness1]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_fixed_budget_rejects_impossible_invalid_role_history",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_attempt_policy_requires_attempt_one_and_retry_false[attempt-2-journal role attempt//.attempt must be exactly 1]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_attempt_policy_requires_attempt_one_and_retry_false[retry-True-journal role attempt//.retry must be false]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_unknown_stop_reason_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_and_run_start_schema_versions_are_required[report]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_and_run_start_schema_versions_are_required[start]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_schema_v3_and_report_schema_v3_are_required",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_producer_cell_metadata_and_descriptor_binding_are_required",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_after_generation_started",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_metadata_is_required_for_non_error_empty_cell",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verifier_rejects_generation_budget_above_current_producer_limit",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_all_producer_driver_stop_reasons_pass",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_invalid_rejects_prior_terminal_harness_stop",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_auditor_skip_is_journaled_and_has_no_carve_out",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m1_unknown_journal_event_is_rejected_only_by_closed_set",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m2_full_role_record_mismatch_is_rejected_by_multiset",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m3_journal_is_reread_from_disk_not_report_memory",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m4a_producer_supervisor_error_preserves_constructed_generation",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m4b_verifier_rejects_omitted_constructed_generation",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m5_run_start_workload_order_mismatch_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_launch_admission_is_required_and_exact_between_start_and_report[missing-report]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_launch_admission_is_required_and_exact_between_start_and_report[start-mismatch]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_launch_admission_keys_are_closed_seven_or_eight_key_alternatives",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_origin_binding_null_or_unknown_shape_is_rejected[None]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_origin_binding_null_or_unknown_shape_is_rejected[value1]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_launch_admission_unknown_top_level_key_remains_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_origin_terminal_projection_has_the_formal_consumer_shape[True]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_origin_terminal_projection_has_the_formal_consumer_shape[False]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_rejected_origin_terminal_projection_rejects_non_null_receipt",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m6_unexplained_zero_attempt_cell_omission_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m7_journaled_auditor_skip_requires_pre_audit_evidence",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_eventless_non_auditor_role_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_noncontiguous_generations",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_state_machine_rejects_nonprefix_roles",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m9_logical_id_diagnostic_pin_has_no_coverage_failure",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_read_and_verify_bytes_rejects_changed_bytes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_positive_binds_all_fields",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_projects_from_verified_wal_bytes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_missing_bench_wall_s",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_no_build_is_explicitly_unbound",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[input_payload_sha256]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[raw_response_path]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[raw_response_sha256]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[provider_payload_sha256]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[provider_envelope_sha256]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[proposal_path]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[proposal_sha256]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[build_records]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[bench_records]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[artifact_refs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[source_refs]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[admission_decision]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_an_unclassified_wal_record",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1333_campaign_chain_reprojects_descriptor_scale_from_entry",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m5_exploratory_workload_flags_are_the_only_mismatch",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_perf_config_scale_is_independently_bound_to_the_entry",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m6_formal_campaign_scale_is_the_only_mismatch",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1310_consumer_independently_reloads_legacy_source_and_four_keys",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_m10_campaign_chain_rejects_persisted_performance_mutation",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_identity_is_pinned_without_producer_helper_oracle",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_declares_certified_acceptance_purpose",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_reads_legacy_layer3_without_epoch",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_accepts_verified_post_admission_schema",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_persisted_epoch_mutation",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t428_workload_campaign_epoch_and_old_root_nonwrite[ycsb-a-p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c-p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t428_workload_campaign_epoch_and_old_root_nonwrite[ycsb-b-p3-t178-ycsb-b-workload-conditioned-autonomous-1e4b78c7-p3-t178-ycsb-b-workload-conditioned-autonomous-136086b0]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t428_workload_campaign_epoch_and_old_root_nonwrite[ycsb-c-p3-t178-ycsb-c-workload-conditioned-autonomous-c3cccc72-p3-t178-ycsb-c-workload-conditioned-autonomous-4ac6e6a4]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_layer3_admission_decision_is_accepted",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path0-campaign-artifact-admission-decision/v0]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path1-historical-pre-admission-schema]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path2-legacy-unclassified]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path3-historically-certified]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path4-other-campaign]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path5-campaigns/other-campaign]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path6-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path7-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path8-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path9-replacement9]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path10-other.validator]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path11-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path12-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_independent_literal_admission_receipt_field_mutations_are_rejected[path13-other-record]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_missing_persisted_report",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_failure_decision_for_admitted_campaign",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_failure_when_independent_admission_passes",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_accepts_failure_without_any_campaign_identity",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_nonexact_campaignless_failure_fallback[explicit-null-campaign-id]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_nonexact_campaignless_failure_fallback[explicit-null-campaign-root]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_nonexact_campaignless_failure_fallback[extra-descriptor]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_nonexact_campaignless_failure_fallback[discarded-critic-without-generation]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_admitted_cell_with_identity_removed",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_admission_failure_decision_shape_is_closed[<lambda>0]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_admission_failure_decision_shape_is_closed[<lambda>1]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_admission_failure_decision_shape_is_closed[<lambda>2]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_admission_failure_decision_shape_is_closed[<lambda>3]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_admission_failure_decision_shape_is_closed[<lambda>4]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_cell_admission_failure_decision_shape_is_closed[<lambda>5]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_present_invalid_layer3_diagnosis[non-mapping]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_present_invalid_layer3_diagnosis[mapping-with-extra-key]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_workload_suffix_rejects_failure_cell_that_is_not_final",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_nonfinal_failure_with_full_workload_coverage",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_multiple_cell_admission_failures",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_failed_peer_does_not_exempt_missing_admitted_report",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_campaign_chain_rejects_cross_trial_campaign_substitution",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_generated_from_head_mutation_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_terminal_projection_and_journal_hash_are_independent_gates",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path0-other-trial-run-start/report mismatch: trial_id]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path1-other-provider-provider is outside the producer closed set]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path2-2-run-start/report mismatch: generation_budget_per_workload]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path3-True-run-start/report mismatch: do_build]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_run_start_scalar_envelope_fields_are_bound[report_path4-61-run-start/report mismatch: max_wall_s]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_report_attempt_journal_path_is_bound_to_verified_file",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_journal_seq_gap_is_rejected",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_append_io_failure_cannot_publish_incomplete_report",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_journal_change_after_verifier_read_is_fail_closed",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_failure_is_not_caught_and_report_is_not_written",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_direct_cli_starts_with_clean_pythonpath",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t325_optional_commit_fields_preserve_existing_completeness_acceptance[False]",
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_t325_optional_commit_fields_preserve_existing_completeness_acceptance[True]"
+   ],
+   "duration_s": 21.794,
+   "rc": 0,
+   "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+   "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+   "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+   "status": "PASSED",
+   "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5"
+  },
+  "hang_timeout_seconds": 3600.0,
+  "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+  "registration_preflight": {
+   "t1291.m01": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_pipeline_bench_payload_closure_uses_real_view_row",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "35a676ab47d2b05849c7ece1d0d6eac84ee0cdf5bc82de34677b6b05a78857c6",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "    \"perf_observation\", \"rep_returncodes\",\n",
+      "old": "    \"perf_observation\", \"screening\", \"rep_returncodes\",\n"
+     }
+    ]
+   },
+   "t1291.m02": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "2ceeb5d3bbc721afc99b18e137647caab6459f38106f8794abdf05a66f0f360f",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "        bench_payload[\"screeninx\"] = True\n",
+      "old": "        bench_payload[\"screening\"] = True\n"
+     }
+    ]
+   },
+   "t1291.m03": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[alias]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[annassign]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[augassign]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[dict-unpack]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[for-alias]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[guard-emit-control-block]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[post-guard-update]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[setdefault]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[try]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[while]",
+     "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[with]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "cb191d43001ba56ab20b882678837e73e787d9ed9acdd0b58f1e417b7cc89e44",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "    pass  # mutant: emit 直前の閉包検査を外す\n",
+      "old": "    _assert_bench_done_payload_keys(bench_payload)\n"
+     }
+    ]
+   },
+   "t1291.m04": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "b366710e656154e7d4ab49248f49b6f6d2dfe2b7106920e44d4a0033bc8f0db1",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "    unexpected = []\n",
+      "old": "    unexpected = sorted(actual - _BENCH_DONE_PAYLOAD_KEYS)\n"
+     }
+    ]
+   },
+   "t1291.m05": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_measurement_overwrite_before_merge",
+     "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_overlap_even_when_key_is_extra_owned",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "37cdcd0dcbcaf9d204702bdffccdf729bd3fec853c46ab2501a3d66513ed0b11",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "    overlap = []\n",
+      "old": "    overlap = sorted(set(bench_payload) & extra_keys)\n"
+     }
+    ]
+   },
+   "t1291.m06": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_abort_rate]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_measured_at]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_tps]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[high_abort_factor]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[reanchor_threshold_s]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "7eb1eb5577c3cfaf3ed8ebe1eee5d15dd97db1b9668255ea324c124aada152e0",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "        if False and type(getattr(self, name)) not in (int, float):\n",
+      "old": "        if type(getattr(self, name)) not in (int, float):\n"
+     }
+    ]
+   },
+   "t1291.m07": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+     "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+     "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[1]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[False]",
+     "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "d34939c4d25e277fea85ff4b7baf5fe15a5a4f65062f71da47473e8fc3df0a60",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/pipeline.py",
+      "new": "        if False and (type(self.baseline_ref) is not str or not self.baseline_ref):\n",
+      "old": "        if type(self.baseline_ref) is not str or not self.baseline_ref:\n"
+     }
+    ]
+   },
+   "t1291.m08": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_screening_and_screening_disabled_are_mutually_exclusive"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "68a7a5482a7a0685dab58648345651bb216ccef18d4a0545fb65245bae0c939a",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/layer3_schema.json",
+      "new": "",
+      "old": "        \"not\": {\"required\": [\"screening\", \"screening_disabled\"]},\n"
+     }
+    ]
+   },
+   "t1291.m09": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[unknown]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "e23f49e80f9a6cc6af9ffe07a939e98e3545fd8b36675759ab1a415787b8b5c0",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/layer3_schema.json",
+      "new": "          \"settled\": {\"type\": [\"boolean\", \"null\", \"string\"]},\n",
+      "old": "          \"settled\": {\"type\": [\"boolean\", \"null\"]},\n"
+     }
+    ]
+   },
+   "t1291.m10": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields0-const-expected_absolute_path0]",
+     "orchestrator/tests/test_layer3_report.py::test_v2_report_rejects_invalid_screening_value_with_legacy_schema"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "636f5fa657ed7fd01f6a5419c58829ebf4fc97c4923b8bd239abd433cc5023de",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/layer3_schema.json",
+      "new": "          \"screening\": {\"type\": \"boolean\"},\n",
+      "old": "          \"screening\": {\"const\": true},\n"
+     }
+    ]
+   },
+   "t1291.m11": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_report.py::test_screening_disabled_rejects_non_stale_baseline_reason"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "bb5d460745fa01ade94758b81b08aac70f533571fa44dee386b7a229590f1af3",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/layer3_schema.json",
+      "new": "              \"reason\": {\"type\": \"string\"},\n",
+      "old": "              \"reason\": {\"const\": \"stale-baseline\"},\n"
+     }
+    ]
+   },
+   "t1291.m12": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_string_validator"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "5d6f662cecb6c1924665f677277c7b18a264db1d84201e958443d775d7ad2f14",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "new": "            validator = \"mutant\"\n",
+      "old": "            raise ValueError(\"schema validator is not a non-empty string\")\n"
+     }
+    ]
+   },
+   "t1291.m13": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_json_path_component_and_stays_canonical"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "bd1906818264d5f9749dd675b5fc3bebc2c6fe7678104b0ddbf1f46b6244dde4",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "new": "                pass  # mutant: 非 JSON path 成分を素通しする\n",
+      "old": "                raise ValueError(\"schema path contains a non-JSON component\")\n"
+     }
+    ]
+   },
+   "t1291.m14": {
+    "anchor_counts": {
+     "0": 1
+    },
+    "expected_nodes": [
+     "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_present_invalid_layer3_diagnosis[mapping-with-extra-key]",
+     "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[extra-key]"
+    ],
+    "expected_status": "KILLED",
+    "injection_diff_sha256": "557a0b28a64cf2b546ca0f6044cd389d0653ae2bb10ff6780afbfd9acd594e41",
+    "replacements": [
+     {
+      "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+      "new": "    \"\"\"Recognize only the closed, canonical JSON-safe diagnosis contract.\"\"\"\n    if not isinstance(value, Mapping):\n        return False\n",
+      "old": "    \"\"\"Recognize only the closed, canonical JSON-safe diagnosis contract.\"\"\"\n    if not isinstance(value, Mapping) or set(value) != (\n        _LAYER3_ADMISSION_DIAGNOSIS_KEYS\n    ):\n        return False\n"
+     }
+    ]
+   }
+  },
+  "registration_sha256": "620f677a3725f958ab1ed89be60aa1134ff0a6ecc530e38a0164108282e7ae6e",
+  "restore_policy": "write fixed repo_head text then exact read_text equality",
+  "runner_mode": "dispatch",
+  "source_policy": "fixed repo_head blob plus startup/read-back equality",
+  "test_command": [
+   "python3",
+   "tools/run_tests.py",
+   "orchestrator/tests/test_layer3_report.py",
+   "orchestrator/tests/test_layer3_admission_diagnosis.py",
+   "orchestrator/tests/test_autonomous_trial_completeness.py",
+   "-rf",
+   "-q",
+   "--force-dispatch",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "timeout_seconds": 1800.0
+ },
+ "repo_head": "19fda1408be340936f7a942fd80056b912dc5f5f",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "orchestrator/tests/test_layer3_report.py",
+   "orchestrator/tests/test_layer3_admission_diagnosis.py",
+   "orchestrator/tests/test_autonomous_trial_completeness.py",
+   "-rf",
+   "-q",
+   "--force-dispatch",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "35352026bcc482195a61fed81f159478558d4332cc17489eadd8761f135043ae",
+  "dispatch_head_blob_sha256": "35352026bcc482195a61fed81f159478558d4332cc17489eadd8761f135043ae",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "56c3eb1b1908cf32790bc696b5472206d207c39b",
+  "runner_mode": "dispatch"
+ },
+ "runner_sha256": "9cfc484f82b5ef41dd5b2270dae6fcbb184c0d1ef0079da40a248e3f590f5586",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "105bfb310e1d2255782a9bb3a443fdfc70191b1c7a8776b2e0c6312b2df1ee45",
+ "summary": {
+  "KILLED": 14,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 14,
+  "matching": 14,
+  "recorded": 14,
+  "registered": 14
+ },
+ "tool_identity": {
+  "head_blob_sha256": "4c31e3d799ce653ab3a970ebff4258e9e624d73d990e4b392de367c95225c281",
+  "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1291-t1282-layer3-holes/tools/mutation_harness.py",
+  "repo_path": "tools/mutation_harness.py",
+  "sha256": "4c31e3d799ce653ab3a970ebff4258e9e624d73d990e4b392de367c95225c281"
+ },
+ "tool_sha256": "c09f851ea4ead63eb9dbd5806c75327afdb5c91c6b63e7efd8c7b1b0dbdf71e5",
+ "updated_at": "2026-08-25T08:30:53.870554+00:00"
+}
