@@ -4893,6 +4893,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F578 に分離した。
   既存の再発検知条件「単独再走と受入再投入の両方で消える」は、
   **走行が作った dir が残ることを暗黙の前提にしている**。その dir を除去すると条件が崩れる。
+
+- **再発: 2026-08-25 (同日 6 例目)** — 署名は既知形と一致するが、**赤の射程が `test_s8b_floor_campaign.py` の外へ広がった**点が新しい。docs のみ (spool fragment 1 件) の wave の受入 1 回目で、操作者は受入全走を 1 本しか投入せず走行中に repo へ何も書いていないのに 12 failed / 16132 passed / 60 skipped になった。11 件は既存例と同じ `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系で、junit の差分も `first extra item: ('dir', 'task-runs/reports')` と逐語一致する。**12 件目は `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary` で、別 helper `_t080_output_snapshot()` が `output/` 自身の mtime 変化 (1787656942 → 1787657046) を検出したものである。** 既存の「再発検知の補強」は判定条件を「赤が `_real_output_snapshot` 系だけ」と helper 名で書いており、**この 12 件目を含む赤を本件型と判定できない**。判定は helper 名でなく「`output/` の before/after snapshot を assert する検査群」という性質で行う必要がある。帰属は台帳の 3 点で否定した — (1) wave の差分は `docs/spool/worklog/` 配下の新規 1 file だけで実装面 file を 1 つも触らない、(2) 落ちた 3 種の単独走は 16.49 秒で 3 passed、(3) junit 差分は実装ではなく `output/` の dir 増加と mtime を指す。恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は既存の再発と同じ。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -11607,6 +11609,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 現状は目視 (実体確認の手順) のみ。ID単位で closing commit との対応を機械検査する
   lint は無く、次に同型が見つかった場合の再発記録がその lint 化の着手判断材料になる。
 
+
+- **再発: 2026-08-25** — 既存例が「完了したのに carry が未完了と言い続けた」型だったのに対し、本件は **「許可の一部が取り消されたのに carry が許可と言い続けた」型**である点が新しい。[T-425] の carry 本文 (entry 824、2026-08-22) は rr80/rr20 calibration の取得・検証・登録の 3 脚すべてに AI/ツール経路を許していたが、翌 2026-08-23 に別 ID・別 wave ([T-1488]) で land した D716 が**登録の脚だけ**を holdout 解禁まで留保した。D716 は T-425 を引用しないため carry は追随せず、2026-08-25 に「取得・検証・登録」を求める wave が起動した。着手前実測 (`DW-S01` の裁定前提実測、F35 と同じ発火点) が段 1 前に食い違いを露見させ、実害は wave 1 本の空転で止まった。**将来この型を lint 化するとき、closing commit との対応だけを見る検査では取り逃す** — carry 本文が主張する**許可・禁止**が後続 decision で狭められていないかも検査面に要る。局所修復として、同日の worklog エントリで [T-425] の carry 本文を現況へ改めた。
 ### F429. 大量失敗を伴う変異走行で pytest-xdist の集約・終了処理が host 混雑下で無応答になる [infra不調] [測定汚染]
 
 - 事象: `tools/pegasus/dispatch_compute.py` の `_accounting_present` へ「常に False を返す」
@@ -15149,3 +15153,47 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   51 passed / 1 skipped / 0 failed を実測した。
 - 再発検知: 受入の赤を非帰属と判定した報告に「その赤を取り除いた後の再走結果」が無ければ、
   判定は未完了である。差分を戻す実験は「手前の gate の帰属」しか決めない。
+
+### F586. 正本へ新しい D 参照と path 参照を書いた結果、合成 fixture の不足で焦点走が 315 件赤になった [テスト代表性] [手順漏れ]
+
+- 事象: `docs/dev-wave/operations.md` の `DW-O18` を書き換えて `D690` と
+  `orchestrator/tests/flaky_test_holds.py` を参照させたところ、焦点走が **315 failed** になった。
+  実 repo に対する `python3 tools/check_docs.py` は rc=0 で緑だった。
+- 根本原因: `orchestrator/tests/test_check_docs.py` の `_build_min_repo()` が作る合成 repo に
+  `D690` 見出しと当該 path が存在せず、参照実在検査が毎回 2 件余分に発火した。
+  finding 集合を厳密一致で検査する既存テストが軒並み落ちた。**壊れていたのは fixture の完全性
+  であって、検査でも実装差分でもなかった。**
+- 恒久対応: 合成 repo へ不足していた参照実体を足す。**allowlist や条件分岐で新しい参照だけを
+  免除してはならない** — それは受理集合を広げる方向であり、参照実在検査の意味を空洞化する。
+  同型の追加として `tools/check_acceptance_reds.py` と `F242` 見出しも足した。
+- 再発検知: 正本へ新しい `D<番号>` / path 参照を書く wave は、合成 repo にその実体があるかを
+  編集と同じ commit で照合する。実 repo の checker が緑であることは、合成 repo が緑であることを
+  含意しない。
+
+### F587. 節を 10 bytes 伸ばしたことで、事前登録した変異の赤理由が 2 つになった [恒真ゲート] [手順漏れ]
+
+- 事象: 変異 M3 (`受理は\`child-green\`だけ。` を別文言へ置換) が、exact 不一致の 1 件だけを
+  期待していたのに **L2 単節予算超過の finding も併発**し、単一理由性が破れた。
+  段 6 のレビュー指摘に応じて `DW-O18` を 988 → 998 bytes へ改訂した副作用である。
+  同型で M6 も、合成 repo に `tools/check_acceptance_reds.py` が無いためパス実在検査が併発していた。
+- 根本原因: 変異の単一理由性は**変異後の状態**に依存するのに、事前登録時点の節 bytes だけで
+  判定していた。予算に張り付いた節では、文言を増やす向きの変異が予算検査を道連れにする。
+- 恒久対応: 予算に張り付いた節へ変異を登録するときは、**全変異の変異後 bytes を実測**してから
+  登録する。増やす向きが超過するなら削除形へ変える。注入先の節も、余裕のある節を選ぶ
+  (本件では `DW-O19` = 998 bytes を避け `DW-O16` = 552 bytes を使った)。
+- 再発検知: 変異事前登録の直前に、各変異の変異後 bytes と併発しうる検査層を 1 件ずつ書き出す。
+  `DW-M01` の「同じ入力を拒否する層が前後に無いこと」は、**予算検査も層に数える**。
+
+### F588. 機構から削除済みの判定器を正本が指し続け、どの checker も検出しなかった [ドリフト] [恒真ゲート]
+
+- 事象: D690 決定 2 で `tools/dev_wave_wait.py` から判定器の自動起動経路が到達不能化された後も、
+  `DW-O18` は「rc=0+non-attributable-only は受理成功」と**存在しない受理経路**を正本として
+  書き続けていた。実測で `grep -c check_acceptance_reds tools/dev_wave_wait.py` = 0。
+- 根本原因: 正本と機構の対応を検査する仕組みが無い。docs の byte 予算・節構造・孤児検査は
+  「書式が正しいか」しか見ず、「書いてある道具が今も存在し、書いてある挙動をするか」は見ない。
+  この空白が、受入が赤で戻った wave のセッションごとの手作業回避を生んだ。
+- 恒久対応: 当該記述を削除し、廃止語 (`non-attributable-only`、`tools/check_acceptance_reds.py`) を
+  `docs/dev-wave/operations.md` の可視本文から 0 件必須とする禁止語検査を新設した。
+  **backtick の有無で迂回できないよう平文 substring で照合する。**
+- 再発検知: 機構から経路を削除する wave は、その経路を記述している正本を同じ commit で
+  検索して消す。禁止語検査は「消したことを固定する」だけで、「消し忘れを見つける」ことはしない。
