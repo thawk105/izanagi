@@ -53,6 +53,18 @@ MUT-5 -> test_material_packet_source_requires_replayed_snapshot_evidence
 MUT-6 -> test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run
 MUT-7 -> test_verify_replays_complete_fake_codex_experiment
     (the pre-existing positive-path assertion alone kills this mutation)
+
+T-1434 task-manifest mutation nodes:
+M11 -> test_m11_task_manifest_loader_rejects_invalid_utf8_before_json_recovery
+M12 -> test_m12_task_manifest_loader_rejects_duplicate_key_with_equal_values
+M13 -> test_m13_task_manifest_schema_version_requires_exact_int
+M15 -> test_m15_packet_consumer_requires_exact_task_manifest_digest_once
+M16 -> test_m16_cli_external_manifest_is_loaded_before_alias_resolution
+M17 -> test_m17_m21_p05_unavailable_cost_is_noncertifying_and_denominators_are_explicit
+M18 -> test_m18_prelaunch_marker_never_hides_nonzero_accounting
+M19 -> test_m19_verify_snapshot_rejects_task_manifest_option_by_fallback
+M20 -> test_m20_render_prompt_binds_external_task_manifest
+M21 -> test_m17_m21_p05_unavailable_cost_is_noncertifying_and_denominators_are_explicit
 """
 from __future__ import annotations
 
@@ -705,7 +717,10 @@ def _nested_keys(value: Any) -> list[str]:
 
 
 def _schedule(
-    path: Path, benchmark: dict[str, Any]
+    path: Path,
+    benchmark: dict[str, Any],
+    *,
+    task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
 ) -> tuple[Path, list[dict[str, Any]]]:
     slots: list[dict[str, Any]] = []
     number = 0
@@ -732,7 +747,15 @@ def _schedule(
                         ]["submodule_manifest_sha256"],
                     }
                 )
-    return _canonical(path, {"slots": slots}), slots
+    return _canonical(
+        path,
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
+            "slots": slots,
+        },
+    ), slots
 
 
 @pytest.fixture(scope="module")
@@ -860,6 +883,7 @@ def _manual_run(
     start_ns = time.monotonic_ns()
     launch = {
         "schema_version": TOOL.SCHEMA_VERSION,
+        "task_manifest_sha256": TOOL._task_manifest_sha256(),
         "run_id": "r01",
         "slot_id": "s01",
         "attempt": 1,
@@ -1110,7 +1134,7 @@ def _direct_supervisor_launch(
     monkeypatch.setattr(
         TOOL,
         "verify_snapshot",
-        lambda actual_snapshot, case: {
+        lambda actual_snapshot, case, **kwargs: {
             "schema_version": TOOL.SCHEMA_VERSION,
             "case": case,
             "snapshot": os.fspath(Path(actual_snapshot).resolve()),
@@ -1427,6 +1451,22 @@ def test_collect_run_receipt_model_field_mismatch_is_receipt_rc(
     ]
 
 
+def test_collect_run_rejects_launch_task_manifest_digest_exchange(
+    tmp_path: Path,
+) -> None:
+    def mutate_launch(launch: dict[str, Any]) -> None:
+        launch["task_manifest_sha256"] = "0" * 64
+
+    run = _manual_run(
+        tmp_path,
+        mutate_launch_after_identity=mutate_launch,
+    )
+    assert run["rc"] == TOOL.RC_RECEIPT
+    assert run["receipt"]["failure_reasons"] == [
+        "launch receipt task_manifest_sha256 mismatch"
+    ]
+
+
 def test_completed_ledger_row_records_launch_requested_model(tmp_path: Path) -> None:
     launch_path = tmp_path / "launch.json"
     launch_path.write_bytes(
@@ -1482,13 +1522,23 @@ def _full_manifest(
                 case: str,
                 *,
                 spec: dict[str, Any] | None = None,
+                task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
             ) -> dict[str, Any]:
                 if spec is not None:
-                    return original_verify_snapshot(snapshot, case, spec=spec)
+                    return original_verify_snapshot(
+                        snapshot,
+                        case,
+                        spec=spec,
+                        task_manifest=task_manifest,
+                    )
                 identity = (snapshot.resolve().as_posix(), case)
                 if identity not in construction_snapshot_cache:
                     construction_snapshot_cache[identity] = (
-                        original_verify_snapshot(snapshot, case)
+                        original_verify_snapshot(
+                            snapshot,
+                            case,
+                            task_manifest=task_manifest,
+                        )
                     )
                 return copy.deepcopy(construction_snapshot_cache[identity])
 
@@ -1564,7 +1614,13 @@ def _full_manifest(
                 "score": _descriptor(score_path, root),
             }
         )
-    premanifest = _canonical(root / "premanifest.json", {"attempts": attempts})
+    premanifest = _canonical(
+        root / "premanifest.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "attempts": attempts,
+        },
+    )
     custodian_root = root / "mapping-custodian"
     packet_result = TOOL.make_packets(
         premanifest, root / "packets", custodian_root
@@ -1643,6 +1699,7 @@ def _full_manifest(
         )
     manifest = {
         "schema_version": TOOL.SCHEMA_VERSION,
+        "task_manifest_sha256": TOOL._task_manifest_sha256(),
         "run_root": str(run_root.relative_to(root)),
         "attempts_root": str((run_root / "attempts").relative_to(root)),
         "attempt_ledger": _descriptor(
@@ -3785,6 +3842,8 @@ def test_shared_base_copy_preserves_metadata_and_relocates_submodules(
         snapshot: Path,
         case: str,
         golden: dict[str, bytes],
+        *,
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
     ) -> dict[str, Any]:
         nonlocal observed
         assert repo == base.resolve()
@@ -3843,7 +3902,11 @@ def test_build_snapshot_public_path_delegates_in_order(
         return repo, snapshot
 
     def prepare(
-        candidate_repo: Path, candidate_sessions: Path, case: str
+        candidate_repo: Path,
+        candidate_sessions: Path,
+        case: str,
+        *,
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
     ) -> dict[str, bytes]:
         calls.append(("prepare", candidate_repo, candidate_sessions, case))
         return golden
@@ -3857,6 +3920,8 @@ def test_build_snapshot_public_path_delegates_in_order(
         candidate_snapshot: Path,
         case: str,
         candidate_golden: dict[str, bytes],
+        *,
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
     ) -> dict[str, bool]:
         calls.append(
             (
@@ -4575,7 +4640,18 @@ def test_verify_snapshot_submodule_gate_rejects_default_spec_path(
         tmp_path, (("deps/child", False),)
     )
     spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=True)
-    monkeypatch.setattr(TOOL, "_snapshot_spec", lambda case: spec)
+    expected_task_manifest = TOOL.TASK_MANIFEST
+
+    def snapshot_spec(
+        case: str,
+        *,
+        task_manifest: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        assert case == "POS"
+        assert task_manifest is expected_task_manifest
+        return spec
+
+    monkeypatch.setattr(TOOL, "_snapshot_spec", snapshot_spec)
 
     with pytest.raises(TOOL.ValidationError) as caught:
         TOOL.verify_snapshot(snapshot, "POS")
@@ -4595,6 +4671,7 @@ def test_verify_snapshot_submodule_gate_accepts_all_initialized(
 
     assert set(oracle) == {
         "schema_version",
+        "task_manifest_sha256",
         "case",
         "snapshot",
         "head",
@@ -4627,6 +4704,7 @@ def test_verify_snapshot_oracle_and_submodule_row_key_sets_are_literal(
 
     assert set(oracle) == {
         "schema_version",
+        "task_manifest_sha256",
         "case",
         "snapshot",
         "head",
@@ -6023,6 +6101,118 @@ def _synthetic_task_manifest(
     return manifest
 
 
+def test_task_manifest_loader_accepts_only_strict_canonical_json_object(
+    tmp_path: Path,
+) -> None:
+    manifest = _synthetic_task_manifest()
+    path = _canonical(tmp_path / "task-manifest.json", manifest)
+    loaded = TOOL._load_task_manifest(path)
+    assert loaded == manifest
+    assert TOOL._task_manifest_sha256(loaded) == TOOL._sha256(
+        TOOL._canonical_bytes(manifest)
+    )
+
+
+def test_m11_task_manifest_loader_rejects_invalid_utf8_before_json_recovery(
+    tmp_path: Path,
+) -> None:
+    raw = TOOL._canonical_bytes(_synthetic_task_manifest()).replace(
+        b'"task_type":"t181-frozen"',
+        b'"task_type":"t181-\xfffrozen"',
+        1,
+    )
+    assert b"\xff" in raw
+    path = tmp_path / "invalid-utf8.json"
+    path.write_bytes(raw)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(path)
+    assert caught.value.rc == TOOL.RC_ROUTING
+    assert len(caught.value.reasons) == 1
+    assert caught.value.reasons[0].startswith(
+        "task manifest is not strict UTF-8"
+    )
+
+
+def test_m12_task_manifest_loader_rejects_duplicate_key_with_equal_values(
+    tmp_path: Path,
+) -> None:
+    raw = TOOL._canonical_bytes(_synthetic_task_manifest()).replace(
+        b'{"manifest_kind":"t181-task-manifest",',
+        (
+            b'{"manifest_kind":"t181-task-manifest",'
+            b'"manifest_kind":"t181-task-manifest",'
+        ),
+        1,
+    )
+    path = tmp_path / "duplicate-key.json"
+    path.write_bytes(raw)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(path)
+    assert caught.value.rc == TOOL.RC_ROUTING
+    assert caught.value.reasons == (
+        "task manifest JSON is invalid: duplicate JSON key: manifest_kind",
+    )
+
+
+def test_m13_task_manifest_schema_version_requires_exact_int(
+    tmp_path: Path,
+) -> None:
+    manifest = _synthetic_task_manifest()
+    manifest["schema_version"] = 3.0
+    path = _canonical(tmp_path / "float-version.json", manifest)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(path)
+    assert caught.value.rc == TOOL.RC_ROUTING
+    assert caught.value.reasons == (
+        "task manifest schema_version must be 3",
+    )
+
+
+@pytest.mark.parametrize(
+    "value",
+    (["not-an-object"], "not-an-object", None),
+    ids=("array", "string", "null"),
+)
+def test_task_manifest_loader_rejects_non_object_top_level(
+    tmp_path: Path,
+    value: Any,
+) -> None:
+    path = _canonical(tmp_path / "non-object.json", value)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(path)
+    assert caught.value.rc == TOOL.RC_ROUTING
+    assert caught.value.reasons == ("task manifest is not an object",)
+
+
+@pytest.mark.parametrize("constant", ("NaN", "Infinity", "-Infinity"))
+def test_task_manifest_loader_rejects_nonfinite_json_number(
+    tmp_path: Path,
+    constant: str,
+) -> None:
+    raw = TOOL._canonical_bytes(_synthetic_task_manifest()).replace(
+        b'"stage":"stage-1"',
+        f'"stage":{constant}'.encode("ascii"),
+        1,
+    )
+    path = tmp_path / "nonfinite.json"
+    path.write_bytes(raw)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(path)
+    assert caught.value.rc == TOOL.RC_ROUTING
+    assert caught.value.reasons == (
+        f"task manifest JSON is invalid: non-finite JSON number: {constant}",
+    )
+
+
+def test_task_manifest_loader_rejects_unreadable_path(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.json"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(missing)
+    assert caught.value.rc == TOOL.RC_ROUTING
+    assert len(caught.value.reasons) == 1
+    assert caught.value.reasons[0].startswith("cannot read task manifest")
+
+
 def _v3_slot(
     *,
     slot_id: str,
@@ -6680,7 +6870,9 @@ def test_validate_verdict_accepts_manifest_finding_union_while_blind_and_rejects
             ("beta", "NEG", "negative", "beta-finding"),
         )
     )
-    state, parent, _ = _packet_fixture(tmp_path)
+    state, parent, _ = _packet_fixture(
+        tmp_path, task_manifest=manifest
+    )
     parent_value = json.loads(parent.read_text(encoding="utf-8"))
     parent_value["verdicts"][0]["findings"] = [
         {
@@ -7344,9 +7536,16 @@ def test_find_rollout_pinned_rejects_child_candidate_before_full_scan(
     )
     real_verify = TOOL._verify_rollout_sha
     verified: list[tuple[Path, str]] = []
+    expected_verification_sha256: str | None = None
 
-    def record_successful_verification(path: Path, pin_label: str) -> None:
-        real_verify(path, pin_label)
+    def record_successful_verification(
+        path: Path,
+        pin_label: str,
+        *,
+        expected_sha256: str | None = None,
+    ) -> None:
+        assert expected_sha256 == expected_verification_sha256
+        real_verify(path, pin_label, expected_sha256=expected_sha256)
         verified.append((path, pin_label))
 
     monkeypatch.setattr(
@@ -7373,6 +7572,9 @@ def test_find_rollout_pinned_rejects_child_candidate_before_full_scan(
         session_id=verified_id,
         content=verified_content,
     )
+    expected_verification_sha256 = hashlib.sha256(
+        verified_content
+    ).hexdigest()
 
     assert (
         TOOL._find_rollout(
@@ -7713,7 +7915,7 @@ def test_find_rollout_pinned_permission_error_is_speculative(
         os.chmod(candidate, 0o600)
 
 
-def test_find_rollout_pinned_memory_error_is_speculative(
+def test_find_rollout_pinned_memory_error_propagates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     label = "test-memory-fallback"
@@ -7730,14 +7932,53 @@ def test_find_rollout_pinned_memory_error_is_speculative(
         content=content,
     )
 
-    def raise_memory_error(path: Path, requested_label: str) -> None:
+    def raise_memory_error(
+        path: Path,
+        requested_label: str,
+        *,
+        expected_sha256: str | None = None,
+    ) -> None:
+        assert expected_sha256 == hashlib.sha256(content).hexdigest()
         raise MemoryError("sha verification sentinel")
 
     monkeypatch.setattr(TOOL, "_verify_rollout_sha", raise_memory_error)
 
-    with pytest.raises(TOOL.ValidationError) as excinfo:
+    with pytest.raises(MemoryError, match="sha verification sentinel"):
         TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
-    assert excinfo.value.rc == TOOL.RC_SESSION
+
+
+@pytest.mark.parametrize("error_type", (TypeError, AttributeError))
+def test_find_rollout_pinned_verifier_contract_error_propagates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: type[Exception],
+) -> None:
+    label = "test-verifier-contract-error"
+    session_id = "verifier-contract-error-target"
+    content = _session_meta_bytes(session_id)
+    _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    def raise_contract_error(
+        path: Path,
+        requested_label: str,
+        *,
+        expected_sha256: str | None = None,
+    ) -> None:
+        assert expected_sha256 == hashlib.sha256(content).hexdigest()
+        raise error_type("verifier contract sentinel")
+
+    monkeypatch.setattr(TOOL, "_verify_rollout_sha", raise_contract_error)
+
+    with pytest.raises(error_type, match="verifier contract sentinel"):
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
 
 
 def test_find_rollout_pinned_does_not_catch_base_exception(
@@ -7924,15 +8165,16 @@ def test_derive_independent_golden_wires_pins(
     monkeypatch: pytest.MonkeyPatch,
     verify_source_sha: bool,
 ) -> None:
-    calls: list[tuple[str, str | None]] = []
+    calls: list[tuple[str, str | None, str | None]] = []
 
     def observe(
         sessions_root: Path,
         session_id: str,
         *,
         pinned_label: str | None = None,
+        pinned_sha256: str | None = None,
     ) -> Path:
-        calls.append((session_id, pinned_label))
+        calls.append((session_id, pinned_label, pinned_sha256))
         if len(calls) == 3:
             raise RuntimeError("wiring observed")
         return tmp_path / f"{pinned_label}.jsonl"
@@ -7944,7 +8186,65 @@ def test_derive_independent_golden_wires_pins(
             tmp_path, tmp_path, verify_source_sha=verify_source_sha
         )
     assert calls == [
-        (TOOL.SESSION_IDS[label], label)
+        (
+            TOOL.SESSION_IDS[label],
+            label,
+            TOOL.ROLLOUT_SHA256[label],
+        )
+        for label in ("author", "fix1", "fix2")
+    ]
+
+
+def test_external_manifest_golden_does_not_read_module_session_or_rollout_pins(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    auxiliary = manifest["shared_provenance"]["auxiliary_sessions"]
+    for index, label in enumerate(("author", "fix1", "fix2"), 1):
+        auxiliary[label] = {
+            "session_id": f"external-{label}",
+            "rollout_sha256": str(index) * 64,
+        }
+    monkeypatch.setattr(
+        TOOL,
+        "SESSION_IDS",
+        {label: f"poison-{label}" for label in ("author", "fix1", "fix2")},
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "ROLLOUT_SHA256",
+        {label: "f" * 64 for label in ("author", "fix1", "fix2")},
+    )
+    calls: list[tuple[str, str | None, str | None]] = []
+
+    def observe(
+        sessions_root: Path,
+        session_id: str,
+        *,
+        pinned_label: str | None = None,
+        pinned_sha256: str | None = None,
+    ) -> Path:
+        calls.append((session_id, pinned_label, pinned_sha256))
+        if len(calls) == 3:
+            raise RuntimeError("wiring observed")
+        return tmp_path / f"{pinned_label}.jsonl"
+
+    monkeypatch.setattr(TOOL, "_find_rollout", observe)
+    with pytest.raises(RuntimeError, match="wiring observed"):
+        TOOL.derive_independent_golden(
+            tmp_path,
+            tmp_path,
+            task_manifest=manifest,
+        )
+    assert calls == [
+        (
+            auxiliary[label]["session_id"],
+            label,
+            auxiliary[label]["rollout_sha256"],
+        )
         for label in ("author", "fix1", "fix2")
     ]
 
@@ -7957,15 +8257,16 @@ def test_render_prompt_wires_pin(
     case: str,
     verify_source: bool,
 ) -> None:
-    calls: list[tuple[str, str | None]] = []
+    calls: list[tuple[str, str | None, str | None]] = []
 
     def observe(
         sessions_root: Path,
         session_id: str,
         *,
         pinned_label: str | None = None,
+        pinned_sha256: str | None = None,
     ) -> Path:
-        calls.append((session_id, pinned_label))
+        calls.append((session_id, pinned_label, pinned_sha256))
         raise RuntimeError("wiring observed")
 
     monkeypatch.setattr(TOOL, "_find_rollout", observe)
@@ -7977,7 +8278,94 @@ def test_render_prompt_wires_pin(
             tmp_path / "new-root",
             verify_source=verify_source,
         )
-    assert calls == [(TOOL.SESSION_IDS[case], case)]
+    assert calls == [
+        (
+            TOOL.SESSION_IDS[case],
+            case,
+            TOOL.ROLLOUT_SHA256[case],
+        )
+    ]
+
+
+def test_m20_render_prompt_binds_external_task_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    task = manifest["tasks"]["alpha"]
+    task["provenance"] = {
+        **task["provenance"],
+        "session_id": "external-prompt-session",
+        "rollout_sha256": "7" * 64,
+    }
+    task["snapshot"]["artifact_names"] = []
+    rollout = tmp_path / "rollout.jsonl"
+    rollout.write_bytes(b"external rollout bytes\n")
+    observed: list[tuple[str, str | None, str | None]] = []
+
+    def find_external(
+        sessions_root: Path,
+        session_id: str,
+        *,
+        pinned_label: str | None = None,
+        pinned_sha256: str | None = None,
+    ) -> Path:
+        observed.append((session_id, pinned_label, pinned_sha256))
+        return rollout
+
+    monkeypatch.setattr(TOOL, "_find_rollout", find_external)
+    monkeypatch.setattr(TOOL, "extract_user_message", lambda _: "prompt")
+    snapshot_oracle = {
+        "task_manifest_sha256": TOOL._task_manifest_sha256(manifest),
+        "case": "legacy-alpha",
+    }
+    data, receipt = TOOL.render_prompt(
+        tmp_path,
+        "alpha",
+        tmp_path / "neutral-root",
+        verify_source=False,
+        task_manifest=manifest,
+        snapshot_oracle=snapshot_oracle,
+    )
+    assert data == b"prompt"
+    assert observed == [
+        ("external-prompt-session", "legacy-alpha", "7" * 64)
+    ]
+    assert receipt["task_manifest_sha256"] == TOOL._task_manifest_sha256(
+        manifest
+    )
+    assert receipt["snapshot_manifest_sha256"] == TOOL._sha256(
+        TOOL._canonical_bytes(snapshot_oracle)
+    )
+
+    with pytest.raises(
+        TOOL.ValidationError,
+        match="requires a snapshot oracle binding",
+    ):
+        TOOL.render_prompt(
+            tmp_path,
+            "alpha",
+            tmp_path / "neutral-root",
+            verify_source=False,
+            task_manifest=manifest,
+        )
+    with pytest.raises(
+        TOOL.ValidationError,
+        match="prompt snapshot oracle task_manifest_sha256 mismatch",
+    ):
+        TOOL.render_prompt(
+            tmp_path,
+            "alpha",
+            tmp_path / "neutral-root",
+            verify_source=False,
+            task_manifest=manifest,
+            snapshot_oracle={
+                "task_manifest_sha256": TOOL._task_manifest_sha256(),
+                "case": "legacy-alpha",
+            },
+        )
 
 
 @pytest.mark.parametrize("replacement_count", [0, 9, 10])
@@ -8000,7 +8388,9 @@ def test_prompt_replacement_count_zero_expected_and_excess(
     monkeypatch.setattr(
         TOOL, "_find_rollout", lambda *args, **kwargs: rollout
     )
-    monkeypatch.setattr(TOOL, "_verify_rollout_sha", lambda *_: None)
+    monkeypatch.setattr(
+        TOOL, "_verify_rollout_sha", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(TOOL, "extract_user_message", lambda *_: message)
     if replacement_count == TOOL.PROMPT_SOURCE["POS"]["replacements"]:
         _, receipt = TOOL.render_prompt(
@@ -8213,6 +8603,7 @@ def test_verify_replays_complete_fake_codex_experiment(
     result, rc = TOOL.verify_manifest(manifest, run_root)
     assert rc == 0
     assert result["valid"] is True
+    assert result["task_manifest_sha256"] == TOOL._task_manifest_sha256()
     assert result["experiment_complete"] is True
     assert result["primary_judgment_ledger"] == {
         "max": {"k": 3, "n": 3},
@@ -8255,6 +8646,102 @@ def test_verify_replays_complete_fake_codex_experiment(
     assert "generated session row set mismatch" in "\n".join(
         tampered["failure_reasons"]
     )
+
+
+def test_material_replay_rejects_task_manifest_exchange_at_digest_consumers(
+    tmp_path: Path,
+    benchmark_snapshots: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path, run_root = _full_manifest(
+        tmp_path,
+        benchmark_snapshots,
+        monkeypatch,
+        memoize_construction_snapshots=True,
+    )
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    result, rc = TOOL.verify_manifest(
+        manifest_path,
+        run_root,
+        task_manifest=alternate,
+    )
+    assert rc == TOOL.RC_AGGREGATE
+    assert result["valid"] is False
+    assert result["failure_reasons"] == [
+        "material manifest task_manifest_sha256 mismatch"
+    ]
+
+
+def test_material_replay_rejects_schedule_task_manifest_exchange_at_digest_consumers(
+    tmp_path: Path,
+) -> None:
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    schedule = _canonical(
+        tmp_path / "schedule.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(alternate),
+            "slots": [],
+        },
+    )
+    material = _canonical(
+        tmp_path / "material.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "schedule": _descriptor(schedule, tmp_path),
+        },
+    )
+    result, rc = TOOL.verify_manifest(material, tmp_path / "sessions")
+    assert rc == TOOL.RC_AGGREGATE
+    assert result["failure_reasons"] == [
+        "schedule task_manifest_sha256 mismatch"
+    ]
+
+
+def test_material_replay_rejects_ledger_task_manifest_exchange_at_digest_consumers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_root = tmp_path / "run"
+    attempts_root = run_root / "attempts"
+    attempts_root.mkdir(parents=True)
+    schedule = _canonical(
+        run_root / "schedule.json",
+        {"task_manifest_sha256": TOOL._task_manifest_sha256(), "slots": []},
+    )
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    ledger = run_root / "attempt-ledger.jsonl"
+    TOOL._append_jsonl(
+        ledger,
+        {
+            "phase": "reserved",
+            "task_manifest_sha256": TOOL._task_manifest_sha256(alternate),
+        },
+    )
+    material = _canonical(
+        tmp_path / "material.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "schedule": _descriptor(schedule, tmp_path),
+            "schedule_sha256": TOOL._sha256(schedule.read_bytes()),
+            "attempts": [],
+            "run_root": "run",
+            "attempts_root": "run/attempts",
+            "attempt_ledger": _descriptor(ledger, tmp_path),
+            "max_schedule_gap_ms": TOOL.MAX_SCHEDULE_GAP_MS,
+            "max_inter_block_gap_ms": TOOL.MAX_INTER_BLOCK_GAP_MS,
+            "judgments": [],
+        },
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "_validate_schedule",
+        lambda *args, **kwargs: (TOOL._ValidatedScheduleSlots(), []),
+    )
+    _, _, _, reasons = TOOL._replay_manifest(material, tmp_path / "sessions")
+    assert "attempt ledger task_manifest_sha256 mismatch" in reasons
 
 
 def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
@@ -8303,6 +8790,7 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
         tmp_path / "supervisor-schedule.json",
         {
             "schema_version": 3,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "price_snapshot": {
                 "path": _TEST_PRICE_SNAPSHOT_PATH,
                 "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
@@ -8318,6 +8806,9 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
         slot = kwargs["slot"]
         return {
             "schema_version": TOOL.SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                kwargs["task_manifest"]
+            ),
             "phase": "completed",
             "run_id": kwargs["run_id"],
             "slot_id": slot["slot_id"],
@@ -8337,7 +8828,9 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
     monkeypatch.setattr(
         TOOL,
         "verify_snapshot",
-        lambda _snapshot, case: copy.deepcopy(supervisor_oracles[case]),
+        lambda _snapshot, case, **kwargs: copy.deepcopy(
+            supervisor_oracles[case]
+        ),
     )
     monkeypatch.setattr(TOOL, "_supervise_one", complete_supervisor_slot)
     supervised = TOOL.supervise_pair(
@@ -8364,6 +8857,9 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
         (("alpha", "POS", "positive", "alpha-finding"),)
     )
     replay_schedule = _bound_price_schedule()
+    replay_schedule["task_manifest_sha256"] = TOOL._task_manifest_sha256(
+        task_manifest
+    )
     replay_prompt = tmp_path / "replay-prompt.txt"
     replay_prompt.write_bytes(b"bound replay prompt")
     replay_snapshot = tmp_path / "replay-snapshot"
@@ -8472,6 +8968,9 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
     manifest_path = _canonical(
         tmp_path / "replay-manifest.json",
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
             "run_root": replay_root.name,
             "attempts_root": f"{replay_root.name}/attempts",
             "attempt_ledger": _descriptor(ledger_path, tmp_path),
@@ -8491,7 +8990,7 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
     monkeypatch.setattr(
         TOOL,
         "verify_snapshot",
-        lambda _snapshot, _case: copy.deepcopy(replay_oracle),
+        lambda _snapshot, _case, **kwargs: copy.deepcopy(replay_oracle),
     )
     monkeypatch.setattr(
         TOOL,
@@ -8619,9 +9118,13 @@ def test_replay_forwards_only_successful_snapshot_evidence_to_adjudication(
             active_oracle_path = path.resolve()
         return path
 
-    def selective_verify_snapshot(snapshot: Path, case: str) -> dict[str, Any]:
+    def selective_verify_snapshot(
+        snapshot: Path,
+        case: str,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         nonlocal shared_mismatch_replay_calls
-        replay = original_verify_snapshot(snapshot, case)
+        replay = original_verify_snapshot(snapshot, case, **kwargs)
         if active_oracle_path == shared_oracle_path:
             shared_mismatch_replay_calls += 1
         if case == "NEG":
@@ -8721,11 +9224,15 @@ def test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run(
             active_oracle_path = path.resolve()
         return path
 
-    def count_verify_snapshot(snapshot: Path, case: str) -> dict[str, Any]:
+    def count_verify_snapshot(
+        snapshot: Path,
+        case: str,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         nonlocal shared_replay_calls
         if active_oracle_path == shared_oracle_path:
             shared_replay_calls += 1
-        return original_verify_snapshot(snapshot, case)
+        return original_verify_snapshot(snapshot, case, **kwargs)
 
     monkeypatch.setattr(TOOL, "_artifact_path", track_artifact_path)
     monkeypatch.setattr(TOOL, "verify_snapshot", count_verify_snapshot)
@@ -8840,7 +9347,13 @@ def test_replay_passes_schedule_requested_model_to_collect_run(
         "snapshot_manifest_sha256": "2" * 64,
         "submodule_manifest_sha256": "3" * 64,
     }
-    schedule_path = _canonical(run_root / "schedule.json", {"slots": [slot]})
+    schedule_path = _canonical(
+        run_root / "schedule.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "slots": [slot],
+        },
+    )
     schedule_sha = TOOL._sha256(schedule_path.read_bytes())
     prompt = _canonical(root / "prompt.txt", {"prompt": True})
     output = _canonical(root / "output.md", {"output": True})
@@ -8895,6 +9408,7 @@ def test_replay_passes_schedule_requested_model_to_collect_run(
         }
     ]
     manifest = {
+        "task_manifest_sha256": TOOL._task_manifest_sha256(),
         "schedule": _descriptor(schedule_path, root),
         "schedule_sha256": schedule_sha,
         "run_root": "run-root",
@@ -8947,7 +9461,11 @@ def test_replay_passes_schedule_requested_model_to_collect_run(
     )
     monkeypatch.setattr(TOOL, "_apply_pair_invalidations", lambda attempts: None)
     monkeypatch.setattr(TOOL, "_retry_lineage_reasons", lambda grouped: [])
-    monkeypatch.setattr(TOOL, "verify_snapshot", lambda actual, case: oracle_value)
+    monkeypatch.setattr(
+        TOOL,
+        "verify_snapshot",
+        lambda actual, case, **kwargs: oracle_value,
+    )
     monkeypatch.setattr(TOOL, "collect_run", fake_collect_run)
     monkeypatch.setattr(TOOL, "score_run", lambda *args: ({}, 0))
 
@@ -8989,7 +9507,9 @@ def test_cli_benchmark_task_id_is_parsed_and_resolved(
         return "POS"
 
     monkeypatch.setattr(TOOL, "resolve_benchmark_task_id", fake_resolve)
-    monkeypatch.setattr(TOOL, "build_snapshot", lambda *args: {"ok": True})
+    monkeypatch.setattr(
+        TOOL, "build_snapshot", lambda *args, **kwargs: {"ok": True}
+    )
     rc = TOOL.main(
         [
             "build-snapshot",
@@ -9001,6 +9521,218 @@ def test_cli_benchmark_task_id_is_parsed_and_resolved(
     )
     assert rc == 0
     assert observed == {"benchmark_task_id": "POS", "case": None}
+
+
+def test_task_manifest_cli_option_surface_is_closed() -> None:
+    root_parser = TOOL._parser()
+    subparsers_action = next(
+        action
+        for action in root_parser._actions
+        if isinstance(action, TOOL.argparse._SubParsersAction)
+    )
+    option_verbs = {
+        name
+        for name, parser in subparsers_action.choices.items()
+        if any(
+            "--task-manifest" in action.option_strings
+            for action in parser._actions
+        )
+    }
+    assert option_verbs == {
+        "build-snapshot",
+        "render-prompt",
+        "collect-run",
+        "supervise-pair",
+        "aggregate",
+        "verify",
+        "make-packets",
+        "append-verdicts",
+        "freeze-verdicts",
+        "reveal-mapping",
+    }
+    assert "verify-snapshot" not in option_verbs
+    assert not option_verbs & {
+        "freeze-stage2-plan-replayer",
+        "replay-stage2-plan",
+        "freeze-stage5-author-replayer",
+        "validate-stage5-author-application",
+        "validate-stage5-downstream-receipt",
+        "score-run",
+    }
+
+
+def test_m19_verify_snapshot_rejects_task_manifest_option_by_fallback(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(SystemExit) as caught:
+        TOOL._parser().parse_args(
+            [
+                "verify-snapshot",
+                "--snapshot",
+                os.fspath(tmp_path / "snapshot"),
+                "--case",
+                "POS",
+                "--task-manifest",
+                os.fspath(tmp_path / "external.json"),
+            ]
+        )
+    assert caught.value.code == 2
+
+
+def test_m16_cli_external_manifest_is_loaded_before_alias_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    manifest_path = _canonical(tmp_path / "external-manifest.json", manifest)
+    path = os.fspath(tmp_path / "artifact")
+    invocations = {
+        "build-snapshot": (
+            "build_snapshot",
+            ["--snapshot", path, "--benchmark-task-id", "alpha"],
+        ),
+        "render-prompt": (
+            "render_prompt",
+            ["--benchmark-task-id", "alpha", "--new-root", path],
+        ),
+        "collect-run": (
+            "collect_run",
+            [
+                "--run-id", "r01", "--benchmark-task-id", "alpha",
+                "--requested-effort", "max", "--events", path,
+                "--done", path, "--output", path, "--prompt", path,
+                "--sessions-root", path, "--snapshot", path,
+                "--launch-receipt", path,
+            ],
+        ),
+        "supervise-pair": (
+            "supervise_pair",
+            [
+                "--schedule", path, "--run-root", path,
+                "--block-id", "b01", "--attempt", "1",
+                "--snapshot", path, "--prompt", path,
+                "--config-source", path, "--auth-source", path,
+                "--codex-bin", path,
+            ],
+        ),
+        "aggregate": (
+            "aggregate_manifest",
+            ["--manifest", path, "--sessions-root", path],
+        ),
+        "verify": (
+            "verify_manifest",
+            ["--manifest", path, "--sessions-root", path],
+        ),
+        "make-packets": (
+            "make_packets",
+            ["--manifest", path, "--packet-dir", path, "--custodian-root", path],
+        ),
+        "append-verdicts": (
+            "append_verdicts",
+            [
+                "--packet-state", path, "--verdict-log", path,
+                "--reader", "parent", "--input", path,
+            ],
+        ),
+        "freeze-verdicts": (
+            "freeze_verdicts",
+            ["--packet-state", path, "--verdict-log", path, "--output", path],
+        ),
+        "reveal-mapping": (
+            "reveal_mapping",
+            [
+                "--packet-state", path, "--custodian-root", path,
+                "--verdict-log", path, "--verdict-freeze", path,
+                "--output", path,
+            ],
+        ),
+    }
+    for verb, (function_name, arguments) in invocations.items():
+        def observe_forwarding(
+            *args: Any,
+            _verb: str = verb,
+            **kwargs: Any,
+        ) -> Any:
+            assert kwargs["task_manifest"] == manifest
+            raise RuntimeError(f"forwarded:{_verb}")
+
+        monkeypatch.setattr(TOOL, function_name, observe_forwarding)
+        with pytest.raises(RuntimeError, match=f"forwarded:{verb}"):
+            TOOL.main(
+                [
+                    verb,
+                    *arguments,
+                    "--task-manifest",
+                    os.fspath(manifest_path),
+                ]
+            )
+
+
+def test_default_and_explicit_default_task_manifest_cli_results_are_equal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    manifest_path = _canonical(
+        tmp_path / "default-manifest.json", TOOL.TASK_MANIFEST
+    )
+
+    def fake_build_snapshot(
+        repo: Path,
+        snapshot: Path,
+        sessions_root: Path,
+        case: str,
+        *,
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
+    ) -> dict[str, Any]:
+        return {
+            "case": case,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(task_manifest),
+        }
+
+    monkeypatch.setattr(TOOL, "build_snapshot", fake_build_snapshot)
+    common = [
+        "build-snapshot",
+        "--snapshot",
+        os.fspath(tmp_path / "snapshot"),
+        "--benchmark-task-id",
+        "POS",
+    ]
+    assert TOOL.main(common) == 0
+    implicit = capfd.readouterr().out
+    assert TOOL.main(
+        [*common, "--task-manifest", os.fspath(manifest_path)]
+    ) == 0
+    explicit = capfd.readouterr().out
+    assert explicit == implicit
+
+    external_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    external_path = _canonical(
+        tmp_path / "external-manifest.json", external_manifest
+    )
+    assert TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot",
+            os.fspath(tmp_path / "snapshot"),
+            "--benchmark-task-id",
+            "alpha",
+            "--task-manifest",
+            os.fspath(external_path),
+        ]
+    ) == 0
+    external = json.loads(capfd.readouterr().out)
+    assert external["case"] == "alpha"
+    assert external["task_manifest_sha256"] == TOOL._task_manifest_sha256(
+        external_manifest
+    )
+    assert external["task_manifest_sha256"] != json.loads(implicit)[
+        "task_manifest_sha256"
+    ]
 
 
 def test_cli_case_and_benchmark_task_id_conflict_is_fail_closed(
@@ -10764,6 +11496,93 @@ def _timing_reasons(
     return reasons
 
 
+@pytest.mark.parametrize("row_index", (0, 1), ids=("technical", "pair-mate"))
+@pytest.mark.parametrize("field", (*TOOL._COST_TOKEN_FIELDS, "model_calls"))
+def test_f1_supervisor_ledger_rejects_nonzero_not_launched_accounting(
+    tmp_path: Path,
+    row_index: int,
+    field: str,
+) -> None:
+    slots = [
+        {
+            "slot_id": "s01",
+            "case": "POS",
+            "arm": "max",
+            "block_id": "b01",
+            "block_order": 1,
+        },
+        {
+            "slot_id": "s02",
+            "case": "POS",
+            "arm": "high",
+            "block_id": "b01",
+            "block_order": 2,
+        },
+    ]
+    completions: list[dict[str, Any]] = []
+    for index, slot in enumerate(slots):
+        row = {
+            **slot,
+            "phase": "completed",
+            "attempt": 1,
+            "run_id": f"r{index + 1:02d}",
+            "process_started": False,
+            "not_launched": True,
+            "supervision_start_monotonic_ns": 10,
+            "supervision_end_monotonic_ns": 20,
+            "supervision_wall_ms": 0,
+            "launch_receipt": None,
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_output_tokens": 0,
+            "model_calls": 0,
+        }
+        if index == 0:
+            row.update(
+                {
+                    "failure_class": "technical-invalid",
+                    "prelaunch_failure": {
+                        "kind": "prelaunch-exception",
+                        "exception_type": "OSError",
+                        "message": "fixture",
+                    },
+                }
+            )
+        else:
+            row.update(
+                {
+                    "failure_class": "pair-invalidated",
+                    "individual_failure_class": None,
+                    "pair_invalidation": {"technical_run_ids": ["r01"]},
+                }
+            )
+        completions.append(row)
+    completions[row_index][field] = 1
+    reserved = [
+        {
+            "phase": "reserved",
+            "slot_id": row["slot_id"],
+            "block_id": row["block_id"],
+            "attempt": 1,
+        }
+        for row in completions
+    ]
+    attempts = [
+        {"slot_id": row["slot_id"], "attempt": 1, "run_id": row["run_id"]}
+        for row in completions
+    ]
+    _, reasons = TOOL._validate_supervisor_ledger(
+        [*reserved, *completions],
+        slots,
+        attempts,
+        tmp_path,
+        TOOL.MAX_SCHEDULE_GAP_MS,
+        TOOL.MAX_INTER_BLOCK_GAP_MS,
+    )
+    assert any(field in reason and "not-launched" in reason for reason in reasons)
+
+
 def test_pair_timing_simultaneous_is_rejected(tmp_path: Path) -> None:
     slots, attempts, rows = _timing_rows()
     rows[-1]["process_start_monotonic_ns"] = rows[-2]["process_start_monotonic_ns"]
@@ -11005,6 +11824,9 @@ def test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation(
         start_ns = base_ns + launched * 2_000_000
         return {
             "schema_version": TOOL.SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                kwargs["task_manifest"]
+            ),
             "phase": "completed",
             "run_id": kwargs["run_id"],
             "slot_id": slot["slot_id"],
@@ -11987,7 +12809,11 @@ def test_m12_summary_500_byte_exact_boundary() -> None:
     assert below_score["valid"] is False
 
 
-def _packet_fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
+def _packet_fixture(
+    tmp_path: Path,
+    *,
+    task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
+) -> tuple[Path, Path, Path]:
     packet_dir = tmp_path / "packets"
     packet_dir.mkdir()
     packet_id = "a" * 32
@@ -11998,6 +12824,9 @@ def _packet_fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
         packet_dir / "packet-state.json",
         {
             "schema_version": 2,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
             "mask_strength": "same-owner-advisory",
             "packets": [
                 {
@@ -12016,6 +12845,417 @@ def _packet_fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
         {"verdicts": [{"packet_id": packet_id, "r1_detected": False, "findings": []}]},
     )
     return state, parent, second
+
+
+def test_m15_packet_consumer_requires_exact_task_manifest_digest_once(
+    tmp_path: Path,
+) -> None:
+    state, _, _ = _packet_fixture(tmp_path)
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    assert TOOL._task_manifest_sha256(alternate) != TOOL._task_manifest_sha256()
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.freeze_verdicts(
+            state,
+            tmp_path / "not-read-before-digest-mismatch.jsonl",
+            tmp_path / "not-created.json",
+            task_manifest=alternate,
+        )
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert caught.value.reasons == (
+        "packet state task_manifest_sha256 mismatch",
+    )
+
+
+def test_m15_append_verdicts_rejects_packet_state_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    state, _, second = _packet_fixture(tmp_path)
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    packet_path = state.parent / state_value["packets"][0]["filename"]
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    expected = TOOL._task_manifest_sha256()
+    alternate_digest = TOOL._task_manifest_sha256(alternate)
+    assert alternate_digest != expected
+    state_value["task_manifest_sha256"] = alternate_digest
+    _canonical(state, state_value)
+
+    log = tmp_path / "verdicts.jsonl"
+    TOOL._append_jsonl(
+        log,
+        {
+            "packet_id": packet_id,
+            "reader": "parent",
+            "task_manifest_sha256": expected,
+            "packet_sha256_at_read": TOOL._sha256(packet_path.read_bytes()),
+            "r1_detected": True,
+            "findings": [],
+        },
+    )
+    before = log.read_bytes()
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.append_verdicts(state, log, "second-reader", second)
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert caught.value.reasons == (
+        "packet state task_manifest_sha256 mismatch",
+    )
+    assert log.read_bytes() == before
+
+
+def test_m15_supervise_pair_rejects_schedule_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    schedule = _canonical(
+        tmp_path / "schedule.json",
+        {"task_manifest_sha256": TOOL._task_manifest_sha256(), "slots": []},
+    )
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.supervise_pair(
+            schedule_path=schedule,
+            run_root=tmp_path / "run",
+            block_id="b01",
+            attempt=1,
+            snapshot=tmp_path / "snapshot",
+            prompt=tmp_path / "prompt",
+            config_source=tmp_path / "config",
+            auth_source=tmp_path / "auth",
+            codex_binary=tmp_path / "codex",
+            bwrap_binary=tmp_path / "bwrap",
+            dry_run=True,
+            task_manifest=alternate,
+        )
+    assert caught.value.reasons == ("schedule task_manifest_sha256 mismatch",)
+
+
+@pytest.mark.parametrize(
+    "entrypoint",
+    (TOOL.aggregate_manifest, TOOL.verify_manifest),
+    ids=("aggregate", "verify"),
+)
+def test_m15_material_entrypoints_reject_manifest_exchange(
+    tmp_path: Path,
+    entrypoint: Any,
+) -> None:
+    material = _canonical(
+        tmp_path / "material.json",
+        {"task_manifest_sha256": TOOL._task_manifest_sha256()},
+    )
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    result, rc = entrypoint(
+        material,
+        sessions_root=tmp_path / "sessions",
+        task_manifest=alternate,
+    )
+    assert rc == TOOL.RC_AGGREGATE
+    assert result["failure_reasons"] == [
+        "material manifest task_manifest_sha256 mismatch"
+    ]
+
+
+def test_m15_make_packets_rejects_schedule_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    source = _canonical(
+        tmp_path / "source.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "attempts": [],
+            "schedule": {
+                "task_manifest_sha256": TOOL._task_manifest_sha256(alternate),
+                "slots": [],
+            },
+        },
+    )
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.make_packets(
+            source, tmp_path / "packets", tmp_path / "custodian"
+        )
+    assert caught.value.reasons == ("schedule task_manifest_sha256 mismatch",)
+
+
+def test_f3_m15_append_verdicts_rejects_existing_log_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    state, _, second = _packet_fixture(tmp_path)
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    packet_path = state.parent / state_value["packets"][0]["filename"]
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    log = tmp_path / "verdicts.jsonl"
+    TOOL._append_jsonl(
+        log,
+        {
+            "packet_id": packet_id,
+            "reader": "parent",
+            "task_manifest_sha256": TOOL._task_manifest_sha256(alternate),
+            "packet_sha256_at_read": TOOL._sha256(packet_path.read_bytes()),
+            "r1_detected": True,
+            "findings": [],
+        },
+    )
+    before = log.read_bytes()
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.append_verdicts(state, log, "second-reader", second)
+    assert caught.value.reasons == ("verdict row task_manifest_sha256 mismatch",)
+    assert log.read_bytes() == before
+
+
+def test_m15_freeze_verdicts_rejects_log_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    state, parent, _ = _packet_fixture(tmp_path)
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    packet_path = state.parent / state_value["packets"][0]["filename"]
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    log = tmp_path / "verdicts.jsonl"
+    parent_value = json.loads(parent.read_text(encoding="utf-8"))["verdicts"][0]
+    TOOL._append_jsonl(
+        log,
+        {
+            **parent_value,
+            "reader": "parent",
+            "task_manifest_sha256": TOOL._task_manifest_sha256(alternate),
+            "packet_sha256_at_read": TOOL._sha256(packet_path.read_bytes()),
+        },
+    )
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.freeze_verdicts(state, log, tmp_path / "freeze.json")
+    assert caught.value.reasons == ("verdict row task_manifest_sha256 mismatch",)
+
+
+def test_task_manifest_digest_is_recorded_through_packet_freeze_and_reveal(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    output = tmp_path / "answer.md"
+    output.write_text(_long_output(), encoding="utf-8")
+    premanifest = _canonical(
+        tmp_path / "premanifest.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(task_manifest),
+            "attempts": [
+                {
+                    "slot_id": "s01",
+                    "attempt": 1,
+                    "run_id": "r01",
+                    "output": _descriptor(output, tmp_path),
+                }
+            ]
+        },
+    )
+    custodian = tmp_path / "custodian"
+    packet_result = TOOL.make_packets(
+        premanifest,
+        tmp_path / "packets",
+        custodian,
+        task_manifest=task_manifest,
+    )
+    expected = TOOL._task_manifest_sha256(task_manifest)
+    assert packet_result["task_manifest_sha256"] == expected
+    state_path = Path(packet_result["packet_state"])
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["task_manifest_sha256"] == expected
+    private_path = TOOL._custodian_mapping_path(custodian)
+    private = json.loads(private_path.read_text(encoding="utf-8"))
+    assert private["task_manifest_sha256"] == expected
+
+    packet_id = state["packets"][0]["packet_id"]
+    verdict = {
+        "verdicts": [
+            {"packet_id": packet_id, "r1_detected": True, "findings": []}
+        ]
+    }
+    parent = _canonical(tmp_path / "parent.json", verdict)
+    second = _canonical(tmp_path / "second.json", verdict)
+    log = tmp_path / "verdicts.jsonl"
+    parent_result = TOOL.append_verdicts(
+        state_path, log, "parent", parent, task_manifest=task_manifest
+    )
+    second_result = TOOL.append_verdicts(
+        state_path, log, "second-reader", second, task_manifest=task_manifest
+    )
+    assert parent_result["task_manifest_sha256"] == expected
+    assert second_result["task_manifest_sha256"] == expected
+    freeze_path = tmp_path / "freeze.json"
+    freeze = TOOL.freeze_verdicts(
+        state_path, log, freeze_path, task_manifest=task_manifest
+    )
+    assert freeze["task_manifest_sha256"] == expected
+    revealed_path = tmp_path / "revealed.json"
+    revealed = TOOL.reveal_mapping(
+        state_path,
+        custodian,
+        log,
+        freeze_path,
+        revealed_path,
+        task_manifest=task_manifest,
+    )
+    assert revealed["task_manifest_sha256"] == expected
+
+
+def test_m15_reveal_mapping_rejects_private_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "answer.md"
+    output.write_text(_long_output(), encoding="utf-8")
+    source = _canonical(
+        tmp_path / "source.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "attempts": [
+                {
+                    "slot_id": "s01",
+                    "attempt": 1,
+                    "run_id": "r01",
+                    "output": _descriptor(output, tmp_path),
+                }
+            ],
+        },
+    )
+    custodian = tmp_path / "custodian"
+    packets = TOOL.make_packets(source, tmp_path / "packets", custodian)
+    state = Path(packets["packet_state"])
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    verdict = _canonical(
+        tmp_path / "verdict.json",
+        {
+            "verdicts": [
+                {"packet_id": packet_id, "r1_detected": True, "findings": []}
+            ]
+        },
+    )
+    log = tmp_path / "verdicts.jsonl"
+    TOOL.append_verdicts(state, log, "parent", verdict)
+    TOOL.append_verdicts(state, log, "second-reader", verdict)
+    freeze = tmp_path / "freeze.json"
+    TOOL.freeze_verdicts(state, log, freeze)
+    private_path = TOOL._custodian_mapping_path(custodian)
+    private = json.loads(private_path.read_text(encoding="utf-8"))
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    private["task_manifest_sha256"] = TOOL._task_manifest_sha256(alternate)
+    _canonical(private_path, private)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.reveal_mapping(
+            state,
+            custodian,
+            log,
+            freeze,
+            tmp_path / "revealed.json",
+        )
+    assert caught.value.reasons == (
+        "private packet mapping task_manifest_sha256 mismatch",
+    )
+
+
+def test_m15_reveal_mapping_rejects_packet_state_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "answer.md"
+    output.write_text(_long_output(), encoding="utf-8")
+    expected = TOOL._task_manifest_sha256()
+    source = _canonical(
+        tmp_path / "source.json",
+        {
+            "task_manifest_sha256": expected,
+            "attempts": [
+                {
+                    "slot_id": "s01",
+                    "attempt": 1,
+                    "run_id": "r01",
+                    "output": _descriptor(output, tmp_path),
+                }
+            ],
+        },
+    )
+    custodian = tmp_path / "custodian"
+    packets = TOOL.make_packets(source, tmp_path / "packets", custodian)
+    state = Path(packets["packet_state"])
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    verdict = _canonical(
+        tmp_path / "verdict.json",
+        {
+            "verdicts": [
+                {"packet_id": packet_id, "r1_detected": True, "findings": []}
+            ]
+        },
+    )
+    log = tmp_path / "verdicts.jsonl"
+    TOOL.append_verdicts(state, log, "parent", verdict)
+    TOOL.append_verdicts(state, log, "second-reader", verdict)
+    freeze = tmp_path / "freeze.json"
+    TOOL.freeze_verdicts(state, log, freeze)
+
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    alternate_digest = TOOL._task_manifest_sha256(alternate)
+    assert alternate_digest != expected
+    state_value["task_manifest_sha256"] = alternate_digest
+    _canonical(state, state_value)
+
+    freeze_value = json.loads(freeze.read_text(encoding="utf-8"))
+    freeze_value["packet_state_sha256"] = TOOL._sha256(state.read_bytes())
+    _canonical(freeze, freeze_value)
+    private = json.loads(
+        TOOL._custodian_mapping_path(custodian).read_text(encoding="utf-8")
+    )
+    verdict_rows = [
+        json.loads(line)
+        for line in log.read_text(encoding="utf-8").splitlines()
+    ]
+    assert freeze_value["task_manifest_sha256"] == expected
+    assert private["task_manifest_sha256"] == expected
+    assert all(row["task_manifest_sha256"] == expected for row in verdict_rows)
+
+    revealed = tmp_path / "revealed.json"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.reveal_mapping(state, custodian, log, freeze, revealed)
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert caught.value.reasons == (
+        "packet state task_manifest_sha256 mismatch",
+    )
+    assert not revealed.exists()
+
+
+def test_make_packets_rejects_task_manifest_exchange_before_publication(
+    tmp_path: Path,
+) -> None:
+    source = _canonical(
+        tmp_path / "source.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "attempts": [],
+        },
+    )
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["oracle_kind"] = "negative"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.make_packets(
+            source,
+            tmp_path / "packets",
+            tmp_path / "custodian",
+            task_manifest=alternate,
+        )
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert caught.value.reasons == (
+        "packet source manifest task_manifest_sha256 mismatch",
+    )
+    assert not (tmp_path / "packets").exists()
+    assert not (tmp_path / "custodian").exists()
 
 
 def test_two_readers_required_before_mapping_reveal(tmp_path: Path) -> None:
@@ -12040,6 +13280,7 @@ def test_mapping_custodian_blocks_pre_freeze_reveal_and_packet_sha_join(
     manifest = _canonical(
         tmp_path / "manifest.json",
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "attempts": [
                 {
                     "slot_id": f"s{index:02d}",
@@ -12079,7 +13320,11 @@ def test_mapping_custodian_blocks_pre_freeze_reveal_and_packet_sha_join(
     verdict_log.write_bytes(b"")
     invalid_freeze = _canonical(
         tmp_path / "invalid-freeze.json",
-        {"packet_state_sha256": "0" * 64, "verdict_log_sha256": "0" * 64},
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "packet_state_sha256": "0" * 64,
+            "verdict_log_sha256": "0" * 64,
+        },
     )
     with monkeypatch.context() as guard:
         guard.setattr(
@@ -12171,11 +13416,20 @@ def test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind(
             )
     schedule_path = _canonical(
         tmp_path / "schedule.json",
-        {"schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION, "slots": schedule_rows},
+        {
+            "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
+            "slots": schedule_rows,
+        },
     )
     manifest_path = _canonical(
         tmp_path / "manifest.json",
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
             "schedule": _descriptor(schedule_path, tmp_path),
             "attempts": attempts,
         },
@@ -12245,6 +13499,9 @@ def _bound_packet_manifest(tmp_path: Path, *, leak_literal: bool) -> tuple[Path,
         tmp_path / "bound-packet-schedule.json",
         {
             "schema_version": 3,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
             "price_snapshot": {
                 "path": _TEST_PRICE_SNAPSHOT_PATH,
                 "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
@@ -12255,6 +13512,9 @@ def _bound_packet_manifest(tmp_path: Path, *, leak_literal: bool) -> tuple[Path,
     manifest_path = _canonical(
         tmp_path / "bound-packet-manifest.json",
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(
+                task_manifest
+            ),
             "schedule": _descriptor(schedule_path, tmp_path),
             "attempts": attempts,
         },
@@ -12343,11 +13603,16 @@ def test_make_packets_all_null_legacy_schedule_allows_incidental_frozen_literal(
                     }
                 )
     schedule_path = _canonical(
-        tmp_path / "legacy-null-schedule.json", {"slots": schedule_rows}
+        tmp_path / "legacy-null-schedule.json",
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "slots": schedule_rows,
+        },
     )
     manifest_path = _canonical(
         tmp_path / "legacy-null-manifest.json",
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "schedule": _descriptor(schedule_path, tmp_path),
             "attempts": attempts,
         },
@@ -12368,7 +13633,10 @@ def test_make_packets_all_null_legacy_schedule_allows_incidental_frozen_literal(
 def test_make_packets_rejects_empty_packet_only_manifest(tmp_path: Path) -> None:
     manifest_path = _canonical(
         tmp_path / "manifest.json",
-        {"attempts": []},
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "attempts": [],
+        },
     )
     with pytest.raises(
         TOOL.ValidationError,
@@ -12417,11 +13685,15 @@ def test_make_packets_accepts_legacy_schedule_descriptor_without_schema_version(
                 )
     schedule_path = _canonical(
         tmp_path / "legacy-schedule.json",
-        {"slots": schedule_rows},
+        {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
+            "slots": schedule_rows,
+        },
     )
     manifest_path = _canonical(
         tmp_path / "manifest.json",
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "schedule": _descriptor(schedule_path, tmp_path),
             "attempts": attempts,
         },
@@ -12449,6 +13721,7 @@ def test_f3_1_packet_swap_restore_is_rejected(tmp_path: Path) -> None:
         tmp_path / "packet-state.json",
         {
             "schema_version": TOOL.SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "mask_strength": "same-owner-advisory",
             "packets": [
                 {"packet_id": packet_id, "filename": path.name}
@@ -12462,6 +13735,7 @@ def test_f3_1_packet_swap_restore_is_rejected(tmp_path: Path) -> None:
         custodian / ("mapping-" + "c" * 48 + ".json"),
         {
             "schema_version": TOOL.SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "mask_strength": "same-owner-advisory",
             "mapping": [
                 {
@@ -12573,6 +13847,7 @@ def _verdict_packet_swap_restore_fixture(
         tmp_path / "packet-state.json",
         {
             "schema_version": TOOL.SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "mask_strength": "same-owner-advisory",
             "packets": [
                 {"packet_id": packet_id, "filename": packet_path.name}
@@ -12623,6 +13898,7 @@ def _verdict_packet_swap_restore_fixture(
         tmp_path / "revealed-map.json",
         {
             "schema_version": TOOL.SCHEMA_VERSION,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "mask_strength": "same-owner-advisory",
             "verdict_freeze_sha256": TOOL._sha256(
                 verdict_freeze.read_bytes()
@@ -12874,6 +14150,7 @@ def test_reader_disagreement_is_conservative(tmp_path: Path) -> None:
         tmp_path / "packet-state.json",
         {
             "schema_version": 2,
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "mask_strength": "same-owner-advisory",
             "packets": packet_rows,
         },
@@ -12906,6 +14183,7 @@ def test_reader_disagreement_is_conservative(tmp_path: Path) -> None:
     custodian_secret = _canonical(
         custodian_root / ("mapping-" + "c" * 48 + ".json"),
         {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(),
             "mapping": [
                 {
                     "packet_id": packet_id,
@@ -12988,6 +14266,729 @@ def test_tool_import_reuses_ledger_token_and_outcome_definitions() -> None:
     assert "def _billable" not in source
     assert "OUTCOME_PRECEDENCE =" not in source
     assert 'model_reasoning_effort = "max"' not in source
+
+
+def _cost_attempt(**overrides: Any) -> dict[str, Any]:
+    attempt: dict[str, Any] = {
+        "run_id": "cost-run",
+        "slot_id": "s01",
+        "attempt": 1,
+        "input_tokens": 100,
+        "cached_input_tokens": 25,
+        "output_tokens": 10,
+        "reasoning_output_tokens": 4,
+        "model_calls": 1,
+        "failure_class": None,
+        "token_usage_observations": _token_usage_observations(),
+        "turn_protocol": "single-turn-required",
+        "wall_clock_ms": 100,
+        "rate_limited": False,
+        "retry": False,
+        "compaction_observed": False,
+    }
+    attempt.update(overrides)
+    return attempt
+
+
+def _bound_cost_aggregate(
+    tmp_path: Path,
+    attempts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    slots, schedule_reasons = TOOL._validate_schedule(
+        _bound_price_schedule(), task_manifest=task_manifest
+    )
+    assert schedule_reasons == []
+    assert len(attempts) == len(slots)
+    verdicts: dict[str, dict[str, Any]] = {}
+    for index, (slot, attempt) in enumerate(zip(slots, attempts), 1):
+        attempt.update(
+            {
+                "run_id": f"cost-r{index:02d}",
+                "slot_id": slot["slot_id"],
+                "attempt": 1,
+                "benchmark_task_id": slot["benchmark_task_id"],
+                "legacy_case": slot["legacy_case"],
+                "case": slot["case"],
+                "stage": slot["stage"],
+                "requested_model": slot["requested_model"],
+                "cache_condition": slot["cache_condition"],
+                "price_version": slot["price_version"],
+                "oracle_kind": slot["oracle_kind"],
+                "arm": slot["arm"],
+                "block_id": slot["block_id"],
+                "block_order": slot["block_order"],
+            }
+        )
+        verdicts[slot["slot_id"]] = {
+            "r1_detected": True,
+            "findings": [],
+            "reader_agreement": True,
+        }
+    manifest = _canonical(
+        tmp_path / "bound-cost-manifest.json",
+        {"schedule": {"path": "schedule.json", "sha256": "0" * 64}},
+    )
+    return TOOL._aggregate_verified(
+        manifest,
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+        has_schedule_descriptor=True,
+        validated_price_snapshot=slots.price_snapshot,
+    )
+
+
+def test_m10_cost_snapshot_loader_reads_and_validates_one_byte_observation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegated = TOOL._read_frozen_repo_file
+    reads: list[str] = []
+    validated_trees: list[dict[str, Any]] = []
+    cost_tree_ids: list[int] = []
+    delegated_validate = TOOL.PRICE_SNAPSHOT.validate_price_snapshot
+    delegated_cost = TOOL._normalized_cost_for_attempt
+
+    def observed_read(relative_path: str, label: str) -> bytes:
+        reads.append(relative_path)
+        return delegated(relative_path, label)
+
+    def observed_validate(value: Any) -> dict[str, Any]:
+        validated = delegated_validate(value)
+        validated_trees.append(validated)
+        return validated
+
+    def observed_cost(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        cost_tree_ids.append(id(kwargs["price_snapshot"]))
+        return delegated_cost(*args, **kwargs)
+
+    monkeypatch.setattr(TOOL, "_read_frozen_repo_file", observed_read)
+    monkeypatch.setattr(
+        TOOL.PRICE_SNAPSHOT, "validate_price_snapshot", observed_validate
+    )
+    monkeypatch.setattr(TOOL, "_normalized_cost_for_attempt", observed_cost)
+    result = _bound_cost_aggregate(
+        tmp_path, [_cost_attempt(), _cost_attempt()]
+    )
+    assert result["valid"] is True
+    assert reads.count(_TEST_PRICE_SNAPSHOT_PATH) == 1
+    assert reads.count(_TEST_PRICE_EXCERPT_PATH) == 1
+    assert len(validated_trees) == 1
+    assert cost_tree_ids == [id(validated_trees[0]), id(validated_trees[0])]
+
+
+def test_p01_bound_cost_is_mapping_driven_decimal_partial_and_uncertified(
+    tmp_path: Path,
+) -> None:
+    result = _bound_cost_aggregate(
+        tmp_path,
+        [_cost_attempt(), _cost_attempt()],
+    )
+    assert result["valid"] is True
+    sol, luna = [
+        row["normalized_cost"] for row in result["resource_ledger"]
+    ]
+    assert sol["accounted_amount"] == "0.00051000"
+    assert luna["accounted_amount"] == "0.00002750"
+    for cost in (sol, luna):
+        assert cost["status"] == "partial"
+        assert cost["token_availability"] == "observed"
+        assert cost["currency"] == "USD"
+        assert cost["price_unit"] == "per-million-tokens"
+        assert cost["price_version"] == _TEST_PRICE_VERSION
+        assert cost["coverage_status"] == "partial"
+        assert cost["certification_status"] == "not-certified"
+        assert cost["unaccounted_token_categories"] == ["cache_write"]
+        assert "cache_write" in cost["unit_prices"]
+        assert "cache_write" not in cost["components"]
+        assert not any(
+            isinstance(value, float)
+            for value in _walk_json_values(cost)
+        )
+    assert sol["components"] == {
+        "input": {
+            "tokens": 75,
+            "unit_price": "4",
+            "amount": "0.00030000",
+        },
+        "cached_input": {
+            "tokens": 25,
+            "unit_price": "0.4",
+            "amount": "0.00001000",
+        },
+        "output": {
+            "tokens": 10,
+            "unit_price": "20",
+            "amount": "0.00020000",
+        },
+    }
+    assert luna["components"] == {
+        "input": {
+            "tokens": 75,
+            "unit_price": "0.2",
+            "amount": "0.00001500",
+        },
+        "cached_input": {
+            "tokens": 25,
+            "unit_price": "0.02",
+            "amount": "0.00000050",
+        },
+        "output": {
+            "tokens": 10,
+            "unit_price": "1.2",
+            "amount": "0.00001200",
+        },
+    }
+    assert {
+        row["requested_model"]: (
+            row["attempt_count"],
+            row["unavailable_count"],
+            row["not_incurred_count"],
+            row["scheduled_attempt_count"],
+        )
+        for row in result["normalized_cost_axis_ledger"]
+    } == {
+        "gpt-5.6-sol": (1, 0, 0, 1),
+        "gpt-5.6-luna": (1, 0, 0, 1),
+    }
+    assert all(
+        isinstance(row["accounted_amount"], str)
+        and row["coverage_status"] == "partial"
+        and row["certification_status"] == "not-certified"
+        for row in result["normalized_cost_axis_ledger"]
+    )
+    assert {
+        row["requested_model"]: row["accounted_amount"]
+        for row in result["normalized_cost_axis_ledger"]
+    } == {
+        "gpt-5.6-sol": "0.00051000",
+        "gpt-5.6-luna": "0.00002750",
+    }
+
+
+def _walk_json_values(value: Any) -> list[Any]:
+    if isinstance(value, dict):
+        return [value, *[item for child in value.values() for item in _walk_json_values(child)]]
+    if isinstance(value, list):
+        return [value, *[item for child in value for item in _walk_json_values(child)]]
+    return [value]
+
+
+def test_m01_unavailable_zero_tokens_never_enter_cost_denominator(
+    tmp_path: Path,
+) -> None:
+    unavailable = _cost_attempt(
+        input_tokens=0,
+        cached_input_tokens=0,
+        output_tokens=0,
+        reasoning_output_tokens=0,
+    )
+    result = _bound_cost_aggregate(tmp_path, [unavailable, _cost_attempt()])
+    first = result["resource_ledger"][0]["normalized_cost"]
+    assert first["token_availability"] == "unavailable"
+    assert "accounted_amount" not in first
+    assert {
+        row["requested_model"]: (
+            row["attempt_count"],
+            row["unavailable_count"],
+            row["not_incurred_count"],
+            row["scheduled_attempt_count"],
+        )
+        for row in result["normalized_cost_axis_ledger"]
+    } == {
+        "gpt-5.6-sol": (0, 1, 0, 1),
+        "gpt-5.6-luna": (1, 0, 0, 1),
+    }
+    assert result["valid"] is True
+    assert result["failure_reasons"] == []
+
+
+def test_m02_prelaunch_zero_tokens_are_not_incurred_and_not_counted(
+    tmp_path: Path,
+) -> None:
+    prelaunch = _cost_attempt(
+        input_tokens=0,
+        cached_input_tokens=0,
+        output_tokens=0,
+        reasoning_output_tokens=0,
+        model_calls=0,
+        prelaunch_failure={"kind": "prelaunch-exception"},
+    )
+    result = _bound_cost_aggregate(tmp_path, [prelaunch, _cost_attempt()])
+    first = result["resource_ledger"][0]["normalized_cost"]
+    assert first["token_availability"] == "not-incurred"
+    assert "accounted_amount" not in first
+    assert {
+        row["requested_model"]: (
+            row["attempt_count"],
+            row["unavailable_count"],
+            row["not_incurred_count"],
+            row["scheduled_attempt_count"],
+        )
+        for row in result["normalized_cost_axis_ledger"]
+    } == {
+        "gpt-5.6-sol": (0, 0, 1, 1),
+        "gpt-5.6-luna": (1, 0, 0, 1),
+    }
+
+
+@pytest.mark.parametrize("field", (*TOOL._COST_TOKEN_FIELDS, "model_calls"))
+def test_m18_prelaunch_marker_never_hides_nonzero_accounting(
+    tmp_path: Path,
+    field: str,
+) -> None:
+    prelaunch = _cost_attempt(
+        input_tokens=0,
+        cached_input_tokens=0,
+        output_tokens=0,
+        reasoning_output_tokens=0,
+        model_calls=0,
+        prelaunch_failure={"kind": "prelaunch-exception"},
+    )
+    prelaunch[field] = 1
+    result = _bound_cost_aggregate(tmp_path, [prelaunch, _cost_attempt()])
+    first = result["resource_ledger"][0]["normalized_cost"]
+    assert first["token_availability"] == "unavailable"
+    assert "accounted_amount" not in first
+    assert result["valid"] is False
+    assert len(result["failure_reasons"]) == 1
+    assert "not-launched" in result["failure_reasons"][0]
+    assert field in result["failure_reasons"][0]
+
+
+def test_replay_failure_tokens_are_unavailable_and_not_counted(
+    tmp_path: Path,
+) -> None:
+    replay_failed = _cost_attempt(
+        input_tokens=None,
+        cached_input_tokens=None,
+        output_tokens=None,
+        reasoning_output_tokens=None,
+        failure_reasons=["replay failed: frozen receipt mismatch"],
+    )
+    result = _bound_cost_aggregate(
+        tmp_path, [replay_failed, _cost_attempt()]
+    )
+    first = result["resource_ledger"][0]["normalized_cost"]
+    assert first["token_availability"] == "unavailable"
+    assert first["failure_reason"] == "receipt replay failed"
+    assert "accounted_amount" not in first
+    assert {
+        row["requested_model"]: (
+            row["attempt_count"], row["unavailable_count"]
+        )
+        for row in result["normalized_cost_axis_ledger"]
+    } == {"gpt-5.6-sol": (0, 1), "gpt-5.6-luna": (1, 0)}
+    assert result["valid"] is True
+    assert result["failure_reasons"] == []
+
+
+def test_m17_m21_p05_unavailable_cost_is_noncertifying_and_denominators_are_explicit(
+    tmp_path: Path,
+) -> None:
+    unavailable = _cost_attempt(
+        input_tokens=0,
+        cached_input_tokens=0,
+        output_tokens=0,
+        reasoning_output_tokens=0,
+    )
+    result = _bound_cost_aggregate(tmp_path, [unavailable, _cost_attempt()])
+    assert result["valid"] is True
+    assert result["failure_reasons"] == []
+    assert "accounted_amount" not in result["resource_ledger"][0][
+        "normalized_cost"
+    ]
+    assert {
+        row["requested_model"]: {
+            key: row[key]
+            for key in (
+                "attempt_count",
+                "unavailable_count",
+                "not_incurred_count",
+                "scheduled_attempt_count",
+            )
+        }
+        for row in result["normalized_cost_axis_ledger"]
+    } == {
+        "gpt-5.6-sol": {
+            "attempt_count": 0,
+            "unavailable_count": 1,
+            "not_incurred_count": 0,
+            "scheduled_attempt_count": 1,
+        },
+        "gpt-5.6-luna": {
+            "attempt_count": 1,
+            "unavailable_count": 0,
+            "not_incurred_count": 0,
+            "scheduled_attempt_count": 1,
+        },
+    }
+
+
+def test_f7_malformed_cost_input_remains_materially_invalid(
+    tmp_path: Path,
+) -> None:
+    malformed = _cost_attempt(input_tokens=-1)
+    result = _bound_cost_aggregate(tmp_path, [malformed, _cost_attempt()])
+    first = result["resource_ledger"][0]["normalized_cost"]
+    assert first["token_availability"] == "unavailable"
+    assert "accounted_amount" not in first
+    assert result["valid"] is False
+    assert result["failure_reasons"] == [
+        "cost-r01: normalized cost unavailable: "
+        "normalized cost input_tokens is negative"
+    ]
+
+
+@pytest.mark.parametrize("field", TOOL._COST_TOKEN_FIELDS)
+@pytest.mark.parametrize(
+    "replacement",
+    (pytest.param(None, id="missing"), pytest.param(True, id="bool"),
+     pytest.param("1", id="string"), pytest.param(-1, id="negative")),
+)
+def test_cost_token_field_unavailable_matrix(
+    field: str,
+    replacement: Any,
+) -> None:
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    attempt = _cost_attempt()
+    if replacement is None:
+        del attempt[field]
+    else:
+        attempt[field] = replacement
+    with pytest.raises(TOOL.ValidationError, match=field):
+        TOOL._normalized_cost_for_attempt(
+            attempt,
+            requested_model="gpt-5.6-sol",
+            price_version=_TEST_PRICE_VERSION,
+            price_snapshot=snapshot,
+        )
+
+
+def test_m03_cost_json_tree_contains_no_float() -> None:
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    for category in snapshot["sku_mapping"]["gpt-5.6-sol"]["prices"]:
+        snapshot["sku_mapping"]["gpt-5.6-sol"]["prices"][category] = "1"
+    cost = TOOL._normalized_cost_for_attempt(
+        _cost_attempt(
+            input_tokens=9_007_199_254_740_993,
+            cached_input_tokens=0,
+            output_tokens=1,
+            reasoning_output_tokens=0,
+        ),
+        requested_model="gpt-5.6-sol",
+        price_version=_TEST_PRICE_VERSION,
+        price_snapshot=snapshot,
+    )
+    assert cost["components"]["input"]["amount"] == "9007199254.74099300"
+    assert cost["accounted_amount"] == "9007199254.74099400"
+    assert not any(isinstance(value, float) for value in _walk_json_values(cost))
+
+
+def test_m04_cost_rounding_is_eight_place_half_even() -> None:
+    assert TOOL._format_cost_amount(TOOL.Decimal("0.000000005")) == "0.00000000"
+    assert TOOL._format_cost_amount(TOOL.Decimal("0.000000015")) == "0.00000002"
+    assert TOOL._format_cost_amount(TOOL.Decimal("1")) == "1.00000000"
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    for category in snapshot["sku_mapping"]["gpt-5.6-sol"]["prices"]:
+        snapshot["sku_mapping"]["gpt-5.6-sol"]["prices"][category] = "0.005"
+    cost = TOOL._normalized_cost_for_attempt(
+        _cost_attempt(
+            input_tokens=1,
+            cached_input_tokens=0,
+            output_tokens=1,
+            reasoning_output_tokens=0,
+        ),
+        requested_model="gpt-5.6-sol",
+        price_version=_TEST_PRICE_VERSION,
+        price_snapshot=snapshot,
+    )
+    assert cost["components"]["input"]["amount"] == "0.00000000"
+    assert cost["components"]["output"]["amount"] == "0.00000000"
+    assert cost["accounted_amount"] == "0.00000001"
+
+
+def test_m05_reasoning_tokens_are_validated_but_never_added_to_output_cost() -> None:
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    costs = [
+        TOOL._normalized_cost_for_attempt(
+            _cost_attempt(reasoning_output_tokens=reasoning),
+            requested_model="gpt-5.6-sol",
+            price_version=_TEST_PRICE_VERSION,
+            price_snapshot=snapshot,
+        )
+        for reasoning in (0, 10)
+    ]
+    assert costs[0]["accounted_amount"] == costs[1]["accounted_amount"]
+    assert costs[0]["components"]["output"]["tokens"] == 10
+    with pytest.raises(
+        TOOL.ValidationError, match="reasoning_output_tokens exceeds output_tokens"
+    ):
+        TOOL._normalized_cost_for_attempt(
+            _cost_attempt(reasoning_output_tokens=11),
+            requested_model="gpt-5.6-sol",
+            price_version=_TEST_PRICE_VERSION,
+            price_snapshot=snapshot,
+        )
+
+
+def test_m06_cached_input_cannot_exceed_input_for_cost() -> None:
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    with pytest.raises(
+        TOOL.ValidationError, match="cached_input_tokens exceeds input_tokens"
+    ) as caught:
+        TOOL._normalized_cost_for_attempt(
+            _cost_attempt(input_tokens=100, cached_input_tokens=101),
+            requested_model="gpt-5.6-sol",
+            price_version=_TEST_PRICE_VERSION,
+            price_snapshot=snapshot,
+        )
+    assert caught.value.reasons == (
+        "normalized cost cached_input_tokens exceeds input_tokens",
+    )
+
+
+def test_m07_cache_write_is_unaccounted_and_never_a_zero_component() -> None:
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    costs = {
+        model: TOOL._normalized_cost_for_attempt(
+            _cost_attempt(),
+            requested_model=model,
+            price_version=_TEST_PRICE_VERSION,
+            price_snapshot=snapshot,
+        )
+        for model in ("gpt-5.6-sol", "gpt-5.6-luna")
+    }
+    assert costs["gpt-5.6-sol"]["unit_prices"]["cache_write"] == "5"
+    assert costs["gpt-5.6-luna"]["unit_prices"]["cache_write"] == "0.25"
+    assert (
+        TOOL.Decimal(costs["gpt-5.6-sol"]["unit_prices"]["cache_write"])
+        / TOOL.Decimal(costs["gpt-5.6-luna"]["unit_prices"]["cache_write"])
+    ) == 20
+    for cost in costs.values():
+        assert cost["unaccounted_token_categories"] == ["cache_write"]
+        assert "cache_write" not in cost["components"]
+        assert set(cost["components"]) == {"input", "cached_input", "output"}
+
+
+def test_m08_p02_p04_null_v3_and_legacy_emit_no_cost_keys(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    schedule = _bound_price_schedule()
+    for slot in schedule["slots"]:
+        slot["price_version"] = None
+    slots, reasons = TOOL._validate_schedule(schedule, task_manifest=task_manifest)
+    assert reasons == []
+    attempts = [_cost_attempt(), _cost_attempt()]
+    for slot, attempt in zip(slots, attempts):
+        attempt.update({"slot_id": slot["slot_id"], "run_id": slot["slot_id"]})
+    v3 = TOOL._aggregate_verified(
+        _canonical(tmp_path / "null-v3.json", {"schedule": {}}),
+        slots,
+        attempts,
+        {},
+        [],
+        task_manifest=task_manifest,
+    )
+    legacy_slots, legacy_attempts, legacy_verdicts = _aggregate_rows()
+    legacy = TOOL._aggregate_verified(
+        _canonical(tmp_path / "legacy-v2.json", {"schedule": {}}),
+        legacy_slots,
+        legacy_attempts,
+        legacy_verdicts,
+        [],
+    )
+    for result in (v3, legacy):
+        assert "normalized_cost_axis_ledger" not in result
+        assert all(
+            "normalized_cost" not in row for row in result["resource_ledger"]
+        )
+
+    def packet_source(
+        name: str,
+        source_schedule: dict[str, Any],
+        source_slots: list[dict[str, Any]],
+        source_manifest: dict[str, Any],
+    ) -> Path:
+        attempts: list[dict[str, Any]] = []
+        for index, slot in enumerate(source_slots, 1):
+            output = tmp_path / f"{name}-output-{index:02d}.md"
+            output.write_text(_long_output(), encoding="utf-8")
+            attempts.append(
+                {
+                    "slot_id": slot["slot_id"],
+                    "attempt": 1,
+                    "run_id": f"{name}-r{index:02d}",
+                    "output": _descriptor(output, tmp_path),
+                }
+            )
+        source_schedule["task_manifest_sha256"] = TOOL._task_manifest_sha256(
+            source_manifest
+        )
+        return _canonical(
+            tmp_path / f"{name}-source.json",
+            {
+                "task_manifest_sha256": TOOL._task_manifest_sha256(
+                    source_manifest
+                ),
+                "schedule": source_schedule,
+                "attempts": attempts,
+            },
+        )
+
+    null_schedule = copy.deepcopy(schedule)
+    null_source = packet_source(
+        "null-v3", null_schedule, null_schedule["slots"], task_manifest
+    )
+    null_packets = TOOL.make_packets(
+        null_source,
+        tmp_path / "null-v3-packets",
+        tmp_path / "null-v3-custodian",
+        task_manifest=task_manifest,
+    )
+    assert null_packets["packet_count"] == 2
+
+    legacy_rows: list[dict[str, Any]] = []
+    slot_number = 0
+    block_number = 0
+    for case, pairs in (("POS", 3), ("NEG", 2)):
+        for _ in range(pairs):
+            block_number += 1
+            for block_order, arm in enumerate(("max", "high"), 1):
+                slot_number += 1
+                legacy_rows.append(
+                    {
+                        "slot_id": f"legacy-s{slot_number:02d}",
+                        "case": case,
+                        "arm": arm,
+                        "block_id": f"legacy-b{block_number:02d}",
+                        "block_order": block_order,
+                        "prompt_sha256": "a" * 64,
+                        "snapshot_manifest_sha256": "b" * 64,
+                        "submodule_manifest_sha256": "c" * 64,
+                    }
+                )
+    legacy_schedule = {"schema_version": 2, "slots": legacy_rows}
+    legacy_source = packet_source(
+        "legacy-v2", legacy_schedule, legacy_rows, TOOL.TASK_MANIFEST
+    )
+    legacy_packets = TOOL.make_packets(
+        legacy_source,
+        tmp_path / "legacy-v2-packets",
+        tmp_path / "legacy-v2-custodian",
+    )
+    assert legacy_packets["packet_count"] == 10
+
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    with pytest.raises(TOOL.ValidationError, match="price_version"):
+        TOOL._normalized_cost_for_attempt(
+            _cost_attempt(),
+            requested_model="gpt-5.6-sol",
+            price_version=None,
+            price_snapshot=snapshot,
+        )
+
+
+def test_schedule_descriptor_absence_emits_no_cost_keys(tmp_path: Path) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    slots, reasons = TOOL._validate_schedule(
+        _bound_price_schedule(), task_manifest=task_manifest
+    )
+    assert reasons == []
+    attempts = [_cost_attempt(), _cost_attempt()]
+    for slot, attempt in zip(slots, attempts):
+        attempt.update({"slot_id": slot["slot_id"], "run_id": slot["slot_id"]})
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "descriptorless.json", {}),
+        slots,
+        attempts,
+        {},
+        [],
+        task_manifest=task_manifest,
+    )
+    assert "normalized_cost_axis_ledger" not in result
+    assert all("normalized_cost" not in row for row in result["resource_ledger"])
+
+
+def test_f4_aggregate_uses_loaded_descriptor_state_without_manifest_reread(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    slots, reasons = TOOL._validate_schedule(
+        _bound_price_schedule(), task_manifest=task_manifest
+    )
+    assert reasons == []
+    attempts = [_cost_attempt(), _cost_attempt()]
+    for slot, attempt in zip(slots, attempts):
+        attempt.update({"slot_id": slot["slot_id"], "run_id": slot["slot_id"]})
+    manifest = _canonical(tmp_path / "material.json", {"schedule": {}})
+    initial_manifest_sha256 = TOOL._sha256(manifest.read_bytes())
+    slots.has_material_schedule_descriptor = True
+    slots.material_manifest_sha256 = initial_manifest_sha256
+    # Simulate a later path observation with the descriptor gone.  The
+    # aggregate must use the already validated state and tree.
+    _canonical(manifest, {})
+    result = TOOL._aggregate_verified(
+        manifest,
+        slots,
+        attempts,
+        {},
+        [],
+        task_manifest=task_manifest,
+    )
+    assert result["valid"] is True
+    assert result["manifest_sha256"] == initial_manifest_sha256
+    assert len(result["normalized_cost_axis_ledger"]) == 2
+    assert all(
+        "normalized_cost" in row for row in result["resource_ledger"]
+    )
+
+
+def test_m09_unknown_model_has_one_direct_cost_rejection() -> None:
+    snapshot = TOOL._load_frozen_price_snapshot_for_cost()
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._normalized_cost_for_attempt(
+            _cost_attempt(),
+            requested_model="gpt-5.6-unknown",
+            price_version=_TEST_PRICE_VERSION,
+            price_snapshot=snapshot,
+        )
+    assert caught.value.reasons == (
+        "normalized cost requested model has no frozen SKU: gpt-5.6-unknown",
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("operation", "reasoning-field", "nonpositive-price"),
+)
+def test_cost_constant_false_rejections_are_owned_by_snapshot_validator(
+    mutation: str,
+) -> None:
+    value = json.loads((_ROOT / _TEST_PRICE_SNAPSHOT_PATH).read_bytes())
+    sol = value["sku_mapping"]["gpt-5.6-sol"]
+    if mutation == "operation":
+        sol["receipt_token_mapping"]["output"]["operation"] = "unsupported"
+    elif mutation == "reasoning-field":
+        sol["receipt_token_mapping"]["output"]["receipt_fields"] = [
+            "reasoning_output_tokens"
+        ]
+    else:
+        sol["prices"]["input"] = "0"
+    with pytest.raises(TOOL.PRICE_SNAPSHOT.PriceSnapshotError):
+        TOOL.PRICE_SNAPSHOT.validate_price_snapshot(value)
 
 
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402

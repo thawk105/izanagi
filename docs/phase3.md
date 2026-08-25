@@ -217,7 +217,7 @@ draft 第一候補の sort-strategy (lock 獲得経路) は 3 批判者全員が
   合成枝 = D18/Options.cmake の `-1=stock adaptive; >=0=fixed` 契約と一致。`> 0` ではない: 値 0 も合成枝)。
 - **マーカーと #else 枝は人間が一度入れる骨格 (template patch)。coder が触るのは #if 枝の中身だけ**
   (auditor のレビュー対象を局所化)。
-- **閉じた領域制約:** #if 枝は既存 silo API を呼ぶ straight-line code のみ。**#include 追加・新規関数/マクロ
+- **閉じた領域制約:** #if 枝は既存 silo API を呼ぶ straight-line code のみ。ただし `silo-backoff-magnitude` の hole だけは D836 / D901 条項 1 により、初期化子が「value と数値一致する接尾辞なしの数値 literal 1 個」・**ちょうど 1 文**に限定される (受理文法が機械執行)。**#include 追加・新規関数/マクロ
   定義・struct/global/型定義の追加改変を禁止** (型レイアウト変更は trace/perf 両ビルドに入り nm 検査も
   name-based hook も素通りする = observer-effect-by-data-structure 対策)。coder は対象 1 patch 以外の
   ファイルを作成/改変しない (**H3 hook (方針 A) の settings.json 配線済 (2026-07-04, D30/D33) により designated
