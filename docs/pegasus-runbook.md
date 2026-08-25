@@ -1188,6 +1188,15 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
 ```
 
+**`--attempt-out` は `--wrapper-attempt` と同時指定でなければならない** (2026-08-26 実測)。
+片方だけを渡すと `mutation harness aborted: --attempt-out と --wrapper-attempt は同時指定が必要`
+で起動前に落ちる。attempt 記録を取るなら両方渡す。
+
+**`expected_nodes` の nodeid は ASCII だけにする。** `tools/run_tests.py` は子の出力を中継する
+とき非 ASCII を `\uXXXX` へエスケープするため、parametrize の表示 ID に日本語を含む nodeid は
+harness の collection と一致せず `期待 node が pytest collection に実在しない` で必ず落ちる。
+対象テストには `pytest.param(..., id="ascii-only-id")` を先に付ける。
+
 ### 7.5 独立ジョブは並行投入する (2026-08-11 ユーザー裁定)
 
 **§5 の「並列」も §7 の「最大並列で回す」も、すべて job の内側 (OpenMP / MPI / pytest `-n` /

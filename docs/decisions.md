@@ -33367,3 +33367,157 @@ env contract を使って行う。既存の calibration 成果物を、pin か e
 - 短い walltime で試走してから本番を投げる — 投入と queue 待ちが 2 回になり、
   かつ試走用の別 job body を保守することになる。同じ job body の先頭で落とすほうが安い。
 - 検査を省いて本計測へ直行する — 失敗が遅い位置へ移るだけで、期待コストは上がる。
+
+## D926. §8 承認束縛は D461 型 nonce 束縛を official 用に別系統で流用する (2026-08-26)
+
+**決定 (ユーザー裁定):** 床値 official 走行を core が無条件拒否している理由である
+「§8 (承認束縛方式) 未裁定」を、**D461 と同型の submission nonce 束縛**で解く。
+
+- official 専用の zero-arity 引数と nonce env を、pilot 用とは**別系統**で追加する。
+- 投入器が実行時に生成する submission nonce へ承認を束ね、job script が exact 一致を
+  確かめたときだけ driver へ承認を 1 個 append する。不一致 (空文字を含む) は build と
+  driver より前に fail-closed で止める。
+- `tools/pegasus/floor_campaign.sh` は固定 official argv へ変更する。**mode の受け口は作らない**
+  (D323 は不変)。job-result・失敗文言・guard・無条件拒否テスト・手順書を同じ変更単位で直す。
+- submission receipt schema、admission の claim key 6 項目、refreeze 不適格 seam の 18 名集合、
+  `_derive_refreeze_eligibility` の判定式は**変更しない**。
+
+**この決定が保証すること**は「標準投入経路で、その新しい source commit と script blob を明示承認して
+起動した」までである。次は保証しない — 承認者が人間であること (D356)、raw `qsub` や
+Python API 直接呼出しを含む全経路、ユーザーが §8 変更束の内容を理解したこと、
+役割横断の生涯観測数、staged 運搬の意味、床値の科学的妥当性。
+
+**理由:**
+
+- D461 が pilot で同型の問題を既に解いており、source commit・script blob・PBS job の照合が
+  そのまま再利用できる。新しい artifact も schema も増えない。
+- D323 が要求する「別の source commit と script blob hash での再投入」と最も狭く両立する。
+  投入器と job 側が新しい source identity を照合するので、旧 pilot job を official として
+  再解釈できないことが機械的に保たれる。
+- 承認 bool は測定 seam ではないので 18 名集合へ入れない。pilot 承認と同様、
+  seam 分類の対象外である control 引数として扱う。
+
+**却下した選択肢:**
+
+- **§8 実行計画 artifact と nonce を二重に束縛する** — 役割・cell・運搬まで承認対象を明示できるが、
+  新しい artifact と schema を増やす。§8 の再凍結文書自身を明示的に書けば足りる範囲であり、
+  機構を増やす筋ではない。
+- **外部署名された承認 capsule** — 外部 trust root を要求する。D356 が人間性の保証を既に
+  諦めている以上、対価に見合わない。
+- **固定 official wrapper が承認を無条件 append する** — 承認 gate が恒真になり、
+  未承認の投入で一回性 key を焼く。
+- **core の無条件拒否を消して CLI 拒否だけ残す** — private core 直接呼出しが bypass になる。逆も同じ。
+- **receipt へ `user_approved=true` を足す** — D356 が却下済み。
+- **`result.json` の `approved` や `eligible_for_refreeze` を信頼根にする** — producer の
+  自己申告であり D488 に反する。
+- **承認検証を claim 予約より後へ置く** — 壊れた承認輸送で claim を create-only 消費しうる。
+- **scheduler の hold/release だけを承認とする** — release 主体・source identity・nonce・
+  実 driver argv との exact 照合が無く、標準経路外の不可視な bypass になる。
+
+## D927. 既知違反台帳の key は行の digest 対にし、座標を使わない (2026-08-26)
+
+**決定:** D837 が認めた歴史的 carry ID 不一致の既知違反台帳は、
+外側 key を carry を書いている entry の H2 raw 行の sha256、
+内側 key を carry 論理行 (list marker を含む raw slice) の sha256 とする。
+file path・行番号・entry 番号を同一性の key に使わない。
+`KNOWN_PLACEHOLDER_DEBTS` と同型である。
+
+**理由:**
+- worklog の entry は定期的に archive へ移り、file 名も行番号も変わる。
+  座標を key にすると通常のローテーションで台帳が腐る。H2 と項目の bytes は移動しても不変である。
+- entry 番号と task ID と参照先番号の三つ組だけでは、同じ座標に別内容を置く差し替えを
+  既知違反として認証してしまう。これは F58 (同じ ID で内容がすり替わる) と同型の穴である。
+- list marker を含まない論理項目の digest では、`- ` を `1. ` へ書き換えるだけで
+  同じ digest になり、別の行が既知として通る。
+
+**却下した選択肢:**
+- (source entry 番号, task ID, 参照先 entry 番号) の三つ組 — 座標の再利用と内容差し替えを許す。
+- file path と行番号を含める — 最初のローテーションで腐る。
+
+## D928. 母集合の完全性は件数の下限でなく構造の一致で担保する (2026-08-26)
+
+**決定:** carry 検査の母集合が縮退していないことは、
+(1) carry 風 candidate 数と厳密 parse 成功数の一致、
+(2) 全域 entry universe と次の一手索引の key 集合の一致、
+の 2 つで担保する。実測値に固定した下限は**粗い補助**として併置するが、
+完全性の保証とはみなさない。
+
+**理由:**
+- 実測値に固定した下限は、単調増加する量に対して時間とともに腐る。
+  母数が C 件増えた後なら C 件失われても下限を上回るため、部分消失を黙認する。
+- (1) は parser の退行を即座に赤にする。carry を名乗る項目が厳密文法に読めなければ、
+  件数が変わらなくても赤になる。コーパスが増えても腐らない。
+- (2) は索引構築の取りこぼしを赤にする。これも導出値どうしの一致なので腐らない。
+- 下限は「母集合が丸ごと消える」型だけを捉える。(1) は candidate も parsed も 0 なら
+  一致してしまうため、下限と対で持つ必要がある。
+
+**却下した選択肢:**
+- 下限だけを母数 gate にする — 上記のとおり最初の追加から検出力が落ちる。
+- 実測値を exact pin にする — 正常な carry 追加のたびに checker 本体の更新が要る。
+- 凍結 entry ごとに期待件数を固定し fold と原子的に ratchet する — 実効性は高いが
+  `tools/spool_fold.py` 側の変更が要り、本 wave の編集面 2 file を超える。裁定へ返す。
+
+## D929. C03 述語の名前一覧訂正は単独で実施せず、承認権限 activation の改訂単位へ同梱する (2026-08-26)
+
+**決定:** 8c 条件3 (C03) の producer 到達性検査が要求する関数名一覧は、`registered-effective` 時代の
+generic 名 (`reserve_attempt_slot` / `record_attempt_terminal`) のままであり、D618 が確定させた
+formal 経路 (`reserve_formal_attempt_slot` / `record_formal_attempt_terminal`) を受理しない。
+この不一致は real である。**しかし本 wave では実装しない。** 訂正は、承認権限を開ける
+改訂単位 (証拠契約の反転・評価器 registry 登録・`DECIDER_VERSION` bump・新しい条件凍結 record の
+発行) と同じ commit へ同梱する。
+
+**理由:**
+- **訂正しても閂が 1 本も外れない。** 起動可否を決める conjunction は
+  `all(item.status is PredicateStatus.SATISFIED for item in predicates)` の 1 本だけであり、
+  `UNSATISFIED` も `EVIDENCE_UNDEFINED` も等しく非受理である。C03 の訂正で変わるのは
+  gate レポートの status 欄と status count、および activation report digest だけで、
+  起動可否・certified 選択・材料レポートの数値はいずれも不変である。
+- **代償が非対称に重い。** D529 は「判定器・評価器・射影で拒否理由の意味を変える変更」に対し、
+  bytes 差の有無に関わらず版 bump と新世代 record を要求する。C03 の拒否理由は
+  「構造的不成立」から「証明未定義」へ変わるので、この要求に真正面から当たる。
+  診断ラベルの付け替えのために版と世代を 1 つずつ消費することになる。
+- **やり直しが利かない。** 同じ D529 が「凍結の妥当性検査は tip でなく履歴グラフ全体を走る。
+  契約を変えた commit を祖先に残すと、後から正しい世代を足しても拒否され続ける。分割は後から
+  接合できない」と定める。単独で撃つ価値のない改訂に、後戻り不能の履歴を使わない。
+- **同梱すれば世代を二度消費しない。** 承認権限を開ける改訂単位は、どのみち版 bump と
+  世代発行を伴う。C03 の訂正をそこへ入れれば、追加の世代を要さず、履歴汚染のリスクも取らない。
+- 段3 の敵対相談 2 レンズが独立に、単独実施を NO-GO と判定した。
+
+**却下した選択肢:**
+- 述語の名前一覧だけを本 wave で選言へ広げる — 上記のとおり閂は外れず、版と世代を消費する。
+  さらにレンズ A が指摘したとおり、`_declared_call` は名前の到達可能性しか見ないため、
+  formal 名を受理するだけでは「formal wrapper が厳格 profile へ委譲している」ことを
+  何も証明しない。厳格性の証明を伴わない受理形の追加は受理集合の実質的な緩みであり、
+  絶対規律 2 に抵触する。
+- producer 側を generic 名へ戻す — D618 が確定させた formal 経路を捨てることになる。
+  formal profile は generic に `require_terminal_reason_equals_classification=True` を
+  1 つ足した真に厳しい側であり、戻すことは正しさ防壁の後退である。
+
+## D930. 8c 正式系列の閂は経路によって別物であり、非 certifying 経路は 12 述語を一切見ない (2026-08-26)
+
+**決定:** 「8c 正式系列の残 blocker」を 1 つの集合として扱わない。certifying 経路と
+非 certifying 経路では閂が構造的に別物であり、台帳では分けて記す。
+
+- **certifying 経路の閂は承認権限ただ 1 つである。** 受理判定は 12 述語すべてが
+  `SATISFIED` であることを要求するが、`SATISFIABLE_CONDITION_IDS` は空集合であり、
+  さらに評価器が `SATISFIED` を返しても registry がそれを `ERROR` へ書き換える。
+  したがって個々の述語をどれだけ直しても、この経路は開かない。
+- **非 certifying 経路は 12 述語を参照しない。** `admit_registered_formal_noncertifying` が
+  要求するのは明示 opt-in、trial manifest の読み込み、`validate_condition_freeze_at`、
+  launch binding の 4 点だけである。C03 / C05 / C08 はこの経路の閂ではない。
+- **どちらの経路も、事前登録 artifact が 3 つとも不在であることに阻まれている。**
+  `trial-manifest.v1.json`、`prereg-effective-binding.v1.json`、`schedule.v1.json` の
+  いずれも repository に存在しない。
+
+**理由:**
+- 実測で、正式系列を止めているものが述語のコード欠陥ではなく、承認権限と artifact の不在で
+  あることが確定した。述語を blocker 集合として並べる書き方は、直せば進むという誤った期待を
+  生む。実際には C03 を直しても起動可否は 1 ビットも動かない。
+- 経路を混ぜたまま「残 blocker」と数えると、非 certifying 経路にとって閂でないものを
+  閂として数え、逆に真の閂 (manifest の不在) を見落とす。
+
+**却下した選択肢:**
+- 3 artifact を本 wave で生成して commit する — D549 が、暫定 authority で
+  `schedule.v1.json` を正式 artifact として commit することを明示的に却下している。
+  同じ理由が他の 2 artifact にも当てはまる。権威の実体供給が済むまでは、生成した bytes が
+  後から再現不能になる。

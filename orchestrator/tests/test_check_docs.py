@@ -419,6 +419,51 @@ _PLACEHOLDER_MENTION_INSIGHT_B = (
     "日本語メタ変数や欠陥説明の引用を誤検出する。"
 )
 _PLACEHOLDER_ARCHIVE_NAME = "worklog-phase3-0722-0724.md"
+_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME = "worklog-phase3-0726-73-78.md"
+_KNOWN_CARRY_SOURCE_H2 = (
+    "## 2026-07-31 (77) — [T-205] provenance 履歴監査を計算ノードへ移して高速化し、"
+    "Codex author 契約に正規の waiver を開く (コード + docs、branch "
+    "worktree-dev-wave-t205-provenance-compute、受入 = Pegasus gen_S 計算ノード request "
+    "`874788` / 監査 `874793`)"
+)
+_KNOWN_CARRY_ID_MISMATCH_ARCHIVE = f"""# synthetic known carry mismatches
+
+## 2026-07-26 (73) — synthetic carry target
+
+### 次の一手
+- [T-899] deferred bridge
+
+## 2026-07-26 (74) — synthetic bridge 74
+
+- [T-899] consumed
+
+### 次の一手
+
+## 2026-07-26 (75) — synthetic bridge 75
+
+### 次の一手
+
+## 2026-07-26 (76) — synthetic bridge 76
+
+### 次の一手
+
+{_KNOWN_CARRY_SOURCE_H2}
+
+### 次の一手
+- [T-208] 変わらず ((73) 参照)
+- [T-209] 変わらず ((73) 参照)
+- [T-210] 変わらず ((73) 参照)
+- [T-211] 変わらず ((73) 参照)
+
+## 2026-07-26 (78) — synthetic known-carry sink
+
+- [T-208] consumed
+- [T-209] consumed
+- [T-210] consumed
+- [T-211] consumed
+
+### 次の一手
+"""
 
 _PLACEHOLDER_WORKLOG_ENTRIES = f"""## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)
 
@@ -1081,6 +1126,67 @@ def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:
     return res
 
 
+def _replace_once(text: str, old: str, new: str) -> str:
+    assert text.count(old) == 1, (old, text.count(old))
+    return text.replace(old, new, 1)
+
+
+def _replace_carry_ledger_assignment(text: str, value: str) -> str:
+    start_marker = "KNOWN_CARRY_ID_MISMATCHES = {"
+    end_marker = "\nEXPECTED_KNOWN_CARRY_ID_MISMATCHES = "
+    assert text.count(start_marker) == 1
+    assert text.count(end_marker) == 1
+    start = text.index(start_marker)
+    end = text.index(end_marker, start)
+    old = text[start:end]
+    assert text.count(old) == 1
+    return text.replace(
+        old,
+        f"KNOWN_CARRY_ID_MISMATCHES = {value}",
+        1,
+    )
+
+
+def _enable_known_carry_mismatch_fixture(root: str) -> None:
+    """実台帳と対応する採番 archive を一体で opt-in する。"""
+
+    checker_rel = "tools/check_docs.py"
+    checker_text = _read(root, checker_rel)
+    checker_text = _replace_once(
+        checker_text,
+        "KNOWN_CARRY_ID_MISMATCHES = {}",
+        f"KNOWN_CARRY_ID_MISMATCHES = {check_docs.KNOWN_CARRY_ID_MISMATCHES!r}",
+    )
+    checker_text = _replace_once(
+        checker_text,
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 0",
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 4",
+    )
+    checker_text = _replace_once(
+        checker_text,
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 0",
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 4",
+    )
+    _write(root, checker_rel, checker_text)
+
+    archive_rel = f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}"
+    _write(root, archive_rel, _KNOWN_CARRY_ID_MISMATCH_ARCHIVE)
+    readme_rel = "docs/archive/README.md"
+    readme = _read(root, readme_rel)
+    placeholder_line = f"- `{_PLACEHOLDER_ARCHIVE_NAME}`\n"
+    claim = _numbered_archive_claim_line(
+        _KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME,
+        "2026-07-26",
+        73,
+        78,
+    )
+    _write(
+        root,
+        readme_rel,
+        _replace_once(readme, placeholder_line, placeholder_line + claim),
+    )
+
+
 def _build_min_repo() -> str:
     """check_docs が『違反なし』を返す最小合成 repo を tmp に作り、root を返す。
 
@@ -1092,6 +1198,21 @@ def _build_min_repo() -> str:
     _dst = os.path.join(root, "tools", "check_docs.py")
     os.makedirs(os.path.dirname(_dst))
     shutil.copy(check_docs.__file__, _dst)
+    with open(_dst, encoding="utf-8") as fixture_checker:
+        checker_text = fixture_checker.read()
+    checker_text = _replace_carry_ledger_assignment(checker_text, "{}")
+    checker_text = _replace_once(
+        checker_text,
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 4",
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 0",
+    )
+    checker_text = _replace_once(
+        checker_text,
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 404_326",
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 0",
+    )
+    with open(_dst, "w", encoding="utf-8") as fixture_checker:
+        fixture_checker.write(checker_text)
     authority_dst = os.path.join(
         root, "tools", "dev_waves", "launch_authority.py"
     )
@@ -10856,6 +10977,547 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
             shutil.rmtree(root, ignore_errors=True)
 
 
+def _direct_carry_source(
+    module,
+    source_entry: int,
+    items: tuple[str, ...],
+    *,
+    h2: str | None = None,
+    path: str = "docs/worklog.md",
+):
+    raw_h2 = h2 or f"## 2026-08-01 ({source_entry}) — direct carry source"
+    section_body = "".join(f"- {item}\n" for item in items)
+    whole_text = f"{raw_h2}\n\n### 次の一手\n{section_body}"
+    return module._CarrySource(
+        path,
+        whole_text,
+        source_entry,
+        raw_h2,
+        section_body,
+        whole_text.index(section_body),
+    )
+
+
+def test_backlog_guard_carry_same_id_mismatch_is_positive_control():
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-002] continue", "- [T-002] (1)"
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _assert_violation(
+            root,
+            "[T-002]",
+            "entry (1) の次の一手に同じ ID がない",
+            "参照先 H2 docs/worklog.md:",
+            "参照先の次の一手に同じ ID を置くか、carry を正しい参照先へ直す",
+        )
+        assert "docs/worklog.md:" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_known_carry_id_mismatches_are_clean():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "carry 同一 ID 不一致" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_mismatch_ledger_entries_are_pinned_exactly():
+    assert check_docs.KNOWN_CARRY_ID_MISMATCHES == {
+        "6bc0dfb4679d3be38c2a97c7c81c595b62a2b033800e5b27d7f9a63b75c3814b": {
+            "34209a9f738fe90a9f3cd57531c3ef900085884b79fc6c1dd833fdf3c46ee45c": 1,
+            "f46fe17fc7831678f44471bf5c7c460be6bd65bac6a7e5a47cd0535c150a54a6": 1,
+            "f5e03b5bb559682274a1731a73e6d4dca0208c7846fabe312cad1834bc74c14e": 1,
+            "5e4a6cb7d118a27df5b710ca20351ea9e5e45ef764ed559b597dc9931140b666": 1,
+        },
+    }
+    assert check_docs.EXPECTED_KNOWN_CARRY_ID_MISMATCHES == 4
+    assert check_docs.MIN_EXPECTED_CARRY_REFERENCE_COUNT == 404_326
+    assert hashlib.sha256(_KNOWN_CARRY_SOURCE_H2.encode()).hexdigest() in (
+        check_docs.KNOWN_CARRY_ID_MISMATCHES
+    )
+
+
+def test_backlog_guard_known_carry_list_marker_rewrite_is_violation():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        rel = f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}"
+        text = _read(root, rel)
+        original = "- [T-208] 変わらず ((73) 参照)"
+        rewritten = "1. [T-208] 変わらず ((73) 参照)"
+        _write(root, rel, _replace_once(text, original, rewritten))
+        res = _assert_violation(
+            root,
+            "[T-208]",
+            "entry (73) の次の一手に同じ ID がない",
+            "expected=1, actual=0",
+        )
+        assert "carry 同一 ID 不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_item_digest_covers_marker_and_continuation():
+    raw_h2 = "## 2026-08-01 (2) — folded carry source"
+    section_body = "- [T-002] (1)\n  folded detail\n- [T-003] (1)\n"
+    whole_text = f"{raw_h2}\n\n### 次の一手\n{section_body}"
+    source = check_docs._CarrySource(
+        "docs/worklog.md",
+        whole_text,
+        2,
+        raw_h2,
+        section_body,
+        whole_text.index(section_body),
+    )
+    references = list(check_docs._iter_carry_references((source,)))
+    assert [reference.item_digest for reference in references] == [
+        hashlib.sha256(b"- [T-002] (1)\n  folded detail").hexdigest(),
+        hashlib.sha256(b"- [T-003] (1)").hexdigest(),
+    ]
+
+
+def test_backlog_guard_carry_mismatch_ledger_total_is_enforced():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        module = _load_fixture_checker(root)
+        module.EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 5
+        res = _run_loaded_checker(module)
+        assert res.returncode == 1, res.stdout
+        assert (
+            "登録 occurrence 総数が不一致 — expected=5, actual=4"
+            in res.stdout
+        )
+        assert len(_finding_set(res)) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_registered_carry_mismatch_removal_is_violation():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        rel = f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}"
+        text = _read(root, rel)
+        removed = "- [T-211] 変わらず ((73) 参照)\n"
+        assert text.count(removed) == 1
+        _write(root, rel, text.replace(removed, "", 1))
+        module = _load_fixture_checker(root)
+        module.MIN_EXPECTED_CARRY_REFERENCE_COUNT = 0
+        res = _run_loaded_checker(module)
+        assert res.returncode == 1, res.stdout
+        assert "expected=1, actual=0" in res.stdout
+        assert "凍結 archive を編集せず、復元するか裁定へ返す" in res.stdout
+        assert "5e4a6cb7d118a27d" in res.stdout
+        assert len(_finding_set(res)) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_same_target_and_id_from_new_source_is_violation(
+    monkeypatch,
+):
+    known_item = "[T-208] 変わらず ((73) 参照)"
+    source_digest = hashlib.sha256(_KNOWN_CARRY_SOURCE_H2.encode()).hexdigest()
+    item_digest = hashlib.sha256(f"- {known_item}".encode()).hexdigest()
+    monkeypatch.setattr(
+        check_docs,
+        "KNOWN_CARRY_ID_MISMATCHES",
+        {source_digest: {item_digest: 1}},
+    )
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 1)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 2)
+    sources = (
+        _direct_carry_source(
+            check_docs,
+            77,
+            (known_item,),
+            h2=_KNOWN_CARRY_SOURCE_H2,
+            path=f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}",
+        ),
+        _direct_carry_source(
+            check_docs,
+            78,
+            (known_item,),
+            h2="## 2026-08-01 (78) — new source",
+        ),
+    )
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {73: ["target.md:1"], 77: ["known.md:1"], 78: ["new.md:1"]},
+        {73: {"[T-193]"}, 77: set(), 78: set()},
+        sources,
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert any(
+        finding.startswith("docs/worklog.md:4: [T-208]")
+        and "entry (73) の次の一手に同じ ID がない" in finding
+        for finding in findings
+    )
+    assert any("参照先の次の一手に同じ ID を置くか" in finding
+               for finding in findings)
+    assert not any("expected=1, actual=0" in finding for finding in findings)
+    assert not any("母数" in finding for finding in findings)
+    assert not any("candidate" in finding for finding in findings)
+
+
+@pytest.mark.parametrize(
+    "invalid_item",
+    (
+        pytest.param("[T-999] (073)", id="leading-zero"),
+        pytest.param("[T-999] (73 )", id="trailing-space"),
+        pytest.param(
+            "[T-999] 変わらず ( (73) 参照)",
+            id="legacy-inner-space",
+        ),
+    ),
+)
+def test_backlog_guard_carry_candidate_parse_break_is_positive_control(
+    invalid_item: str,
+):
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", "1. [T-999] carry"
+        ).replace(
+            "1. [T-002] continue", f"- {invalid_item}"
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _assert_violation(
+            root,
+            "carry 風 candidate",
+            "厳密 carry 文法に一致しない",
+            "candidate=5, parsed=4",
+            "正例: `- [T-1219] (953)`",
+        )
+        assert _violation_count(res) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("suffix", ("(D837)", "(Python 3)"))
+def test_backlog_guard_non_carry_parenthetical_item_is_clean(suffix: str):
+    root = _build_min_repo()
+    try:
+        item = f"[T-500] {suffix}"
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", f"1. {item}"
+        ).replace("1. [T-002] continue", f"- {item}")
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "carry 風 candidate" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_reference_population_floor_rejects_shrink(
+    monkeypatch,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 2)
+    source = _direct_carry_source(check_docs, 2, ("[T-002] (1)",))
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        {1: {"[T-002]"}, 2: set()},
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert findings == [
+        "carry 参照母数が粗い下限を下回る — minimum=2, actual=1"
+    ]
+
+
+def test_backlog_guard_entry_universe_and_index_must_match(monkeypatch):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 0)
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"]},
+        {},
+        (),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert any("universe にあるが次の一手索引 key が不在" in f for f in findings)
+    assert any("universe / index 集合不一致" in f for f in findings)
+
+
+@pytest.mark.parametrize(
+    (
+        "kind",
+        "target_value",
+        "category_label",
+        "detail",
+        "absent_labels",
+        "absent_details",
+    ),
+    (
+        pytest.param(
+            "missing",
+            "missing",
+            "索引 key 不在",
+            "key 不在",
+            ("索引値 None", "索引値空集合"),
+            ("値 None (section 抽出対象外)", "空集合 (次の一手が空)"),
+            id="index-key-missing",
+        ),
+        pytest.param(
+            "none",
+            None,
+            "索引値 None",
+            "値 None (section 抽出対象外)",
+            ("索引 key 不在", "索引値空集合"),
+            ("key 不在", "空集合 (次の一手が空)"),
+            id="index-value-none",
+        ),
+        pytest.param(
+            "empty",
+            set(),
+            "索引値空集合",
+            "空集合 (次の一手が空)",
+            ("索引 key 不在", "索引値 None"),
+            ("key 不在", "値 None (section 抽出対象外)"),
+            id="index-value-empty",
+        ),
+    ),
+)
+def test_backlog_guard_carry_target_index_states_are_distinct(
+    monkeypatch,
+    kind,
+    target_value,
+    category_label,
+    detail,
+    absent_labels,
+    absent_details,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 1)
+    source = _direct_carry_source(check_docs, 2, ("[T-002] (1)",))
+    index = {2: set()}
+    if kind != "missing":
+        index[1] = target_value
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        index,
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert any(category_label in finding for finding in findings), findings
+    assert any(
+        finding.startswith("docs/worklog.md:4: [T-002]")
+        and "entry (1)" in finding
+        and detail in finding
+        for finding in findings
+    ), findings
+    for forbidden in (*absent_labels, *absent_details):
+        assert not any(forbidden in finding for finding in findings), findings
+
+
+def test_backlog_guard_incomplete_numbered_archive_stops_carry_validation(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        check_docs,
+        "KNOWN_CARRY_ID_MISMATCHES",
+        {"source": {"item": 1}},
+    )
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 9)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 9)
+    source = _direct_carry_source(check_docs, 2, ("[T-002] (1)",))
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        {1: set(), 2: set()},
+        (source,),
+        findings,
+        numbered_archive_input_complete=False,
+    )
+    assert findings == [
+        "docs/archive: 番号付き archive 入力が不完全 — "
+        "carry 参照先の実在検査を停止"
+    ]
+
+
+def test_backlog_guard_fold_shape_carry_chain_is_clean():
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", "1. [T-002] carry"
+        ).replace("1. [T-002] continue", "- [T-002] (1)")
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_references_are_streamed(monkeypatch):
+    sources = (
+        _direct_carry_source(
+            check_docs,
+            10,
+            ("[T-1219] (953)", "[T-1220] (954)"),
+        ),
+        _direct_carry_source(
+            check_docs,
+            11,
+            ("[T-193] 変わらず ((73) 参照)",),
+        ),
+    )
+    source_consumed: list[int] = []
+    item_consumed: list[str] = []
+
+    def source_generator():
+        for source in sources:
+            source_consumed.append(source.source_entry)
+            yield source
+
+    original_top_level_items = check_docs._top_level_items
+
+    def item_generator(body: str):
+        for item in original_top_level_items(body):
+            item_consumed.append(item[0])
+            yield item
+
+    monkeypatch.setattr(check_docs, "_top_level_items", item_generator)
+    scan = check_docs._CarryScanStats()
+    references = check_docs._iter_carry_references(source_generator(), scan)
+    assert iter(references) is references
+    assert source_consumed == []
+    assert item_consumed == []
+    first = next(references)
+    assert first.task_id == "[T-1219]"
+    assert scan.candidate_count == scan.parsed_count == 1
+    assert source_consumed == [10]
+    assert item_consumed == ["[T-1219] (953)"]
+    actual = [first, *references]
+    assert [item.source_entry for item in actual] == [10, 10, 11]
+    assert [item.task_id for item in actual] == [
+        "[T-1219]",
+        "[T-1220]",
+        "[T-193]",
+    ]
+    assert [item.target_entry for item in actual] == [953, 954, 73]
+    assert [item.line for item in actual] == [4, 5, 4]
+    assert scan.candidate_count == scan.parsed_count == 3
+    assert source_consumed == [10, 11]
+
+
+def test_backlog_guard_carry_findings_are_sampled_without_early_stop(
+    monkeypatch,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 25)
+    items = tuple(f"[T-{number:03d}] (1)" for number in range(300, 325))
+    source = _direct_carry_source(check_docs, 2, items)
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        {1: {"[T-001]"}, 2: set()},
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    mismatch_details = [
+        finding for finding in findings
+        if "参照先 entry (1) の次の一手に同じ ID がない" in finding
+    ]
+    assert len(mismatch_details) == 20
+    assert "carry 同一 ID 不一致: 他 5 件を抑止" in findings
+    assert (
+        "carry 同一 ID 不一致: 上記の 5 件は target 数でなく "
+        "carry occurrence 数"
+    ) in findings
+    assert not any("母数" in finding for finding in findings)
+
+
+@pytest.mark.parametrize(
+    ("kind", "category", "detail"),
+    (
+        pytest.param(
+            "missing",
+            "参照先不在",
+            "全域番号 universe に実在しない",
+            id="target-missing",
+        ),
+        pytest.param(
+            "key",
+            "索引 key 不在",
+            "次の一手索引が key 不在",
+            id="index-key-missing",
+        ),
+        pytest.param(
+            "none",
+            "索引値 None",
+            "値 None (section 抽出対象外)",
+            id="index-value-none",
+        ),
+        pytest.param(
+            "empty",
+            "索引値空集合",
+            "空集合 (次の一手が空)",
+            id="index-value-empty",
+        ),
+    ),
+)
+def test_backlog_guard_carry_index_failures_count_every_occurrence(
+    monkeypatch,
+    kind: str,
+    category: str,
+    detail: str,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 25)
+    source = _direct_carry_source(
+        check_docs,
+        2,
+        tuple("[T-300] (1)" for _ in range(25)),
+    )
+    locations = {2: ["source.md:1"]}
+    index: dict[int, set[str] | None] = {2: set()}
+    if kind != "missing":
+        locations[1] = ["target.md:1"]
+    if kind == "none":
+        index[1] = None
+    elif kind == "empty":
+        index[1] = set()
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        locations,
+        index,
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    samples = [finding for finding in findings if detail in finding]
+    assert len(samples) == 20, findings
+    assert f"carry {category}: 他 5 件を抑止" in findings
+    assert (
+        f"carry {category}: 上記の 5 件は target 数でなく "
+        "carry occurrence 数"
+    ) in findings
+    assert not any("母数" in finding for finding in findings)
+
+
 @pytest.mark.parametrize(
     "carry_item",
     (
@@ -10867,7 +11529,9 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
 def test_backlog_guard_carry_reference_existing_in_current_is_clean(carry_item: str):
     root = _build_min_repo()
     try:
-        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", carry_item)
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", "1. [T-002] carry"
+        ).replace("1. [T-002] continue", carry_item)
         _write_backlog_docs(root, worklog_text=worklog)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout + res.stderr
@@ -10913,12 +11577,19 @@ def test_backlog_guard_numbered_archive_entry_is_carry_target():
     root = _build_min_repo()
     try:
         name = "worklog-phase3-0730-1000.md"
-        _write(root, f"docs/archive/{name}", _archive_with_entries(("2026-07-30", "1000")))
+        archive = _archive_with_entries(("2026-07-30", "1000")).replace(
+            "### 次の一手\n",
+            "### 次の一手\n- [T-001] carry target\n",
+            1,
+        )
+        _write(root, f"docs/archive/{name}", archive)
         _write_archive_index(
             root,
             _numbered_archive_claim_line(name, "2026-07-30", 1000),
         )
-        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", "- [T-002] (1000)")
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-002] continue", "- [T-001] (1000)"
+        )
         _write_backlog_docs(root, worklog_text=worklog)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout + res.stderr
