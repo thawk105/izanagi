@@ -728,9 +728,9 @@ PY
   checker_report_sha_rc=0
   CHECKER_REPORT_SHA=$(sha256sum "$ATTEMPT_DIR/trace0-preprocess-identity.json" | awk '{print $1}') || checker_report_sha_rc=$?
   if [[ "$checker_report_sha_rc" -ne 0 ]]; then
-    write_failure "$checker_report_sha_rc" trace0_preprocess_identity_report_binding \
+    write_failure 2 trace0_preprocess_identity_report_binding \
       "failed to hash TRACE=0 preprocess identity report after checker success"
-    exit "$checker_report_sha_rc"
+    exit 2
   fi
   if [[ ! "$CHECKER_REPORT_SHA" =~ ^[0-9a-f]{64}$ ]]; then
     write_failure 2 trace0_preprocess_identity_report_binding \
@@ -1084,8 +1084,7 @@ def strict_path_identity(path, expected_type, label):
     if not isinstance(path, str) or not path:
         reject(f"{label} is not a nonempty path")
     try:
-        resolved = os.path.realpath(path, strict=True)
-        fd = os.open(resolved, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
     except OSError as exc:
         raise ValueError(f"{label} is unavailable") from exc
     try:
@@ -1154,7 +1153,9 @@ if trace_mode_i == 0:
     report_repo = report.get("repo")
     if strict_path_identity(
         report_repo, "directory", "checker report repo"
-    ) != strict_path_identity(build_source, "directory", "invocation repo"):
+    ) != strict_path_identity(
+        os.path.realpath(build_source), "directory", "invocation repo"
+    ):
         reject("checker report repo does not match the invocation")
     compiler = report.get("compiler")
     if not isinstance(compiler, dict):
@@ -1162,7 +1163,9 @@ if trace_mode_i == 0:
     compiler_path = compiler.get("path")
     if strict_path_identity(
         compiler_path, "regular file", "checker report compiler"
-    ) != strict_path_identity(cxx_path, "regular file", "invocation compiler"):
+    ) != strict_path_identity(
+        os.path.realpath(cxx_path), "regular file", "invocation compiler"
+    ):
         reject("checker report compiler does not match the invocation")
     if report.get("expected_paths") != ["cc/mocc/transaction.cc"]:
         reject("checker report expected paths do not match the invocation")

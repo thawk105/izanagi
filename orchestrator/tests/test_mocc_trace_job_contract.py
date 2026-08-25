@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import stat
 import subprocess
@@ -1322,7 +1323,7 @@ def test_mocc_trace_report_binding_uses_one_python_report_read() -> None:
     (
         pytest.param(
             "exit 23\n",
-            23,
+            2,
             "failed to hash TRACE=0 preprocess identity report after checker success",
             id="sha256sum-failure",
         ),
@@ -1376,6 +1377,13 @@ def test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage(
         f"{expected_rc}|trace0_preprocess_identity_report_binding|"
         f"{expected_reason}\n"
     )
+
+
+def test_mocc_trace_binding_g1_avoids_realpath_strict_keyword() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    assert re.search(
+        r"os\.path\.realpath\s*\([^)]*\bstrict\s*=", source, flags=re.DOTALL
+    ) is None
 
 
 def test_mocc_trace_binding_m01_sha_tracks_exact_report_bytes(tmp_path: Path) -> None:
@@ -1718,9 +1726,20 @@ def test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract() -
         for key in payload_returns[0].keys
         if isinstance(key, ast.Constant) and isinstance(key.value, str)
     }
-    fixture_gate_keys = set(
-        _valid_trace0_report(Path("fixture-repo"), Path("fixture-cxx"))
-    )
+    compiler_values = [
+        value
+        for key, value in zip(payload_returns[0].keys, payload_returns[0].values)
+        if isinstance(key, ast.Constant) and key.value == "compiler"
+    ]
+    assert len(compiler_values) == 1
+    assert isinstance(compiler_values[0], ast.Dict)
+    checker_compiler_keys = {
+        key.value
+        for key in compiler_values[0].keys
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+    fixture = _valid_trace0_report(Path("fixture-repo"), Path("fixture-cxx"))
+    fixture_gate_keys = set(fixture)
     assert fixture_gate_keys == {
         "schema",
         "guarantee",
@@ -1732,6 +1751,10 @@ def test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract() -
         "expected_paths",
     }
     assert fixture_gate_keys <= checker_payload_keys
+    fixture_compiler = fixture["compiler"]
+    assert isinstance(fixture_compiler, dict)
+    assert set(fixture_compiler) == {"path", "version"}
+    assert set(fixture_compiler) == checker_compiler_keys
 
 
 def test_mocc_trace_binding_p01_accepts_synthetic_aligned_schema_v1_report(
