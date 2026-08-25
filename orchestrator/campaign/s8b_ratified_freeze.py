@@ -187,7 +187,7 @@ _SORT_SWO_ORACLE_AXIS_SAFE_KEYS = frozenset({
     "materialized_hole_sha256", "proposal_sha256", "corpus_id",
     "corpus_version", "compiler_version_sha256", "compile_flags_sha256",
     "tu_sha256", "tu_template_sha256", "dependency_config_sha256",
-    "receipt_sha256",
+    "dependency_manifest_sha256", "guarantee_boundary", "receipt_sha256",
 })
 _BINDING_KEYS = frozenset({
     "genome_canonical", "src_token", "variant_id", "entry_sha256", "binding_sha256",
