@@ -20,7 +20,26 @@ from tools.pegasus import run_acceptance_nproc_study as study
 
 
 _HEAD = "1" * 40
-_SUBMODULE_STATUS = f" {_HEAD} external/ccbench\n"
+_SHIRAKAMI_HEAD = "2" * 40
+_GOOGLETEST_HEAD = "3" * 40
+_SUBMODULE_ROWS = (
+    (_HEAD, "external/ccbench", None, "external/ccbench"),
+    (
+        _SHIRAKAMI_HEAD,
+        "external/ccbench/third_party/shirakami",
+        "external/ccbench",
+        "third_party/shirakami",
+    ),
+    (
+        _GOOGLETEST_HEAD,
+        "external/ccbench/third_party/shirakami/third_party/googletest",
+        "external/ccbench/third_party/shirakami",
+        "third_party/googletest",
+    ),
+)
+_SUBMODULE_STATUS = "".join(
+    f" {head} {path}\n" for head, path, _parent, _relative in _SUBMODULE_ROWS
+)
 _GITLINK = f"160000 commit {_HEAD}\texternal/ccbench"
 _JUNIT = b"""<?xml version="1.0" encoding="utf-8"?>
 <testsuite tests="2" failures="0" errors="0" skipped="0">
@@ -73,17 +92,65 @@ class FakeExecutor:
     def __init__(
         self, root: Path, host: str, *, dirty_after_measurement: bool = False,
         junit_by_nproc: dict[str, bytes] | None = None,
+        honor_submodule_init: bool = True,
     ):
         self.root = root
         self.host = host
         self.dirty_after_measurement = dirty_after_measurement
         self.junit_by_nproc = {} if junit_by_nproc is None else dict(junit_by_nproc)
+        self.honor_submodule_init = honor_submodule_init
         self.measurement_seen = False
         self.requests: list[study.ExecRequest] = []
+        self.clone_root: Path | None = None
+        self.materialized_order: list[str] = []
+        self.registered: set[str] = set()
+        self.registered_order: list[str] = []
+        self.pre_init_statuses: list[str] = []
+        self.configured_urls: dict[str, str] = {}
+
+    def _clone_relative(self, repo: Path) -> str:
+        assert self.clone_root is not None
+        relative = repo.relative_to(self.clone_root)
+        return "" if relative == Path(".") else relative.as_posix()
+
+    def _direct_submodule(self, owner: Path) -> tuple[str, str]:
+        owner_path = self._clone_relative(owner)
+        matches = [
+            (path, relative)
+            for _head, path, parent, relative in _SUBMODULE_ROWS
+            if (parent or "") == owner_path
+        ]
+        assert len(matches) == 1
+        return matches[0]
+
+    def _scratch_submodule_status(self) -> str:
+        rows: list[str] = []
+        for head, path, parent, _relative in _SUBMODULE_ROWS:
+            if parent is not None and parent not in self.registered:
+                continue
+            prefix = " " if path in self.registered else "-"
+            rows.append(f"{prefix}{head} {path}\n")
+        return "".join(rows)
+
+    def _head_for_repo(self, repo: Path) -> str:
+        roots = (self.root / "repo", self.clone_root)
+        for root in roots:
+            if root is None:
+                continue
+            try:
+                relative = repo.relative_to(root).as_posix()
+            except ValueError:
+                continue
+            for head, path, _parent, _direct in _SUBMODULE_ROWS:
+                if relative == path:
+                    return head
+        return _HEAD
 
     def __call__(self, request: study.ExecRequest) -> study.ExecResult:
         self.requests.append(request)
         stdout = b""
+        stderr = b""
+        returncode = 0
         if request.purpose.startswith("qstat:"):
             stdout = (
                 "(Per-Req) Elapse Time Limit = Max: 14400S\n"
@@ -92,9 +159,11 @@ class FakeExecutor:
             ).encode()
         elif request.purpose == "clone-superproject":
             destination = Path(request.argv[-1])
+            self.clone_root = destination
             (destination / "tools/pegasus").mkdir(parents=True)
         elif request.purpose.startswith("materialize-submodule:"):
             Path(request.argv[-1]).mkdir(parents=True, exist_ok=True)
+            self.materialized_order.append(request.purpose.split(":", 1)[1])
         elif request.purpose == "create-acceptance-shard-session":
             session = self.root / "sessions" / f"session-{len(self.requests):04d}"
             for index in range(2):
@@ -126,13 +195,54 @@ class FakeExecutor:
                 process_cleanup=_cleanup(),
             )
         elif len(request.argv) >= 4 and request.argv[0:2] == ("git", "-C"):
+            repo = Path(request.argv[2])
             args = request.argv[3:]
             if args == ("rev-parse", "HEAD"):
-                stdout = f"{_HEAD}\n".encode()
+                stdout = f"{self._head_for_repo(repo)}\n".encode()
             elif args == ("submodule", "status", "--recursive"):
-                stdout = _SUBMODULE_STATUS.encode()
+                if repo == self.root / "repo":
+                    stdout = _SUBMODULE_STATUS.encode()
+                else:
+                    assert repo == self.clone_root
+                    stdout = self._scratch_submodule_status().encode()
             elif args == ("ls-tree", "HEAD", "external/ccbench"):
                 stdout = f"{_GITLINK}\n".encode()
+            elif args == (
+                "config", "-z", "-f", ".gitmodules", "--get-regexp",
+                r"^submodule\..*\.path$",
+            ):
+                _path, relative = self._direct_submodule(repo)
+                stdout = f"submodule.{relative}.path\n{relative}\0".encode()
+            elif len(args) == 4 and args[:3] == ("submodule", "init", "--"):
+                path, relative = self._direct_submodule(repo)
+                assert args[3] == relative
+                before = self._scratch_submodule_status()
+                self.pre_init_statuses.append(before)
+                if self.honor_submodule_init:
+                    visible = {
+                        row[42:]
+                        for row in before.splitlines()
+                    }
+                    if path not in visible:
+                        returncode = 1
+                        stderr = b"nested submodule is not visible before parent registration"
+                    else:
+                        self.registered.add(path)
+                        self.registered_order.append(path)
+            elif (
+                len(args) == 5
+                and args[:3] == ("config", "--local", "--replace-all")
+            ):
+                path, relative = self._direct_submodule(repo)
+                assert args[3] == f"submodule.{relative}.url"
+                self.configured_urls[path] = args[4]
+            elif (
+                len(args) == 4
+                and args[:3] == ("config", "--local", "--get-all")
+            ):
+                path, relative = self._direct_submodule(repo)
+                assert args[3] == f"submodule.{relative}.url"
+                stdout = f"{self.configured_urls[path]}\n".encode()
             elif args and args[0] == "status":
                 if (
                     self.dirty_after_measurement
@@ -143,13 +253,13 @@ class FakeExecutor:
             elif args and args[0] == "diff":
                 stdout = b""
         return study.ExecResult(
-            returncode=0,
+            returncode=returncode,
             stdout=stdout,
-            stderr=b"",
+            stderr=stderr,
             duration_s=0.001,
             timed_out=False,
             stdout_sha256=study._sha256(stdout),
-            stderr_sha256=study._sha256(b""),
+            stderr_sha256=study._sha256(stderr),
             isolation=_isolation(self.host),
             process_cleanup=_cleanup(),
         )
@@ -595,6 +705,34 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     assert all(run["analysis_included"] for run in receipt["runs"])
     assert receipt["design"]["primary_contrast"] == {"arm": 32, "reference_arm": 48}
     assert {row["priority"] for row in receipt["contrasts"]} == {"primary", "secondary"}
+    expected_submodule_order = [path for _head, path, _parent, _relative in _SUBMODULE_ROWS]
+    assert executor.materialized_order == expected_submodule_order
+    assert executor.registered_order == expected_submodule_order
+    assert executor.pre_init_statuses == [
+        f"-{_HEAD} external/ccbench\n",
+        (
+            f" {_HEAD} external/ccbench\n"
+            f"-{_SHIRAKAMI_HEAD} external/ccbench/third_party/shirakami\n"
+        ),
+        (
+            f" {_HEAD} external/ccbench\n"
+            f" {_SHIRAKAMI_HEAD} external/ccbench/third_party/shirakami\n"
+            f"-{_GOOGLETEST_HEAD} "
+            "external/ccbench/third_party/shirakami/third_party/googletest\n"
+        ),
+    ]
+    assert executor.configured_urls == {
+        path: str(config.repo_root / path) for path in expected_submodule_order
+    }
+    purposes = [request.purpose for request in executor.requests]
+    for index, path in enumerate(expected_submodule_order):
+        assert purposes.index(f"materialize-submodule:{path}") < purposes.index(
+            f"register-submodule:{path}"
+        ) < purposes.index(f"override-submodule-url:{path}")
+        if index + 1 < len(expected_submodule_order):
+            assert purposes.index(f"override-submodule-url:{path}") < purposes.index(
+                f"materialize-submodule:{expected_submodule_order[index + 1]}"
+            )
     measurement_requests = [
         request for request in executor.requests if request.purpose.startswith("measurement:")
     ]
@@ -605,7 +743,6 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         assert request.env["HOME"].startswith(str(config.scratch_root))
         assert not any(key.startswith(("CCACHE_", "SCCACHE_")) for key in request.env)
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
-    purposes = [request.purpose for request in executor.requests]
     for run in receipt["runs"]:
         shard_stage = (
             f"block-{run['global_block_index']}-arm-{run['arm']}"
@@ -651,6 +788,35 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         study.validate_receipt(
             split_session, expected_mode="smoke", require_complete=True
         )
+
+
+def test_materialize_without_registration_stops_setup_with_contract_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode997"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:128.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, honor_submodule_init=False)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["status"] == "failed"
+    assert receipt["failure"] == {
+        "message": "all recursive submodules must be initialized at their gitlinks",
+        "stage": "setup",
+        "type": "ContractError",
+    }
+    assert executor.materialized_order == [
+        path for _head, path, _parent, _relative in _SUBMODULE_ROWS
+    ]
+    assert executor.registered_order == []
+    assert executor.measurement_seen is False
 
 
 def test_full_timeout_is_hash_bound_to_complete_smoke_and_fixed_derivation(

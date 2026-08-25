@@ -888,6 +888,51 @@ def _remaining(deadline: float) -> float:
     return value
 
 
+def _submodule_config_name(
+    executor: Executor, owner: Path, relative_path: Path, *, purpose_path: str,
+    deadline: float,
+) -> str:
+    text = _git(
+        executor,
+        owner,
+        (
+            "config", "-z", "-f", ".gitmodules", "--get-regexp",
+            r"^submodule\..*\.path$",
+        ),
+        purpose=f"resolve-submodule-name:{purpose_path}",
+        timeout_s=_remaining(deadline),
+    )
+    expected_path = relative_path.as_posix()
+    names: list[str] = []
+    for record in text.split("\0"):
+        if not record:
+            continue
+        key, separator, value = record.partition("\n")
+        match = re.fullmatch(r"submodule\.(?P<name>.+)\.path", key)
+        if not separator or match is None:
+            raise ContractError(f"malformed .gitmodules path record for {purpose_path}")
+        if value == expected_path:
+            names.append(match.group("name"))
+    if len(names) != 1:
+        raise ContractError(
+            f"submodule path must have exactly one .gitmodules name: {purpose_path}"
+        )
+    return names[0]
+
+
+def _submodule_owner(
+    path: Path, earlier_paths: Sequence[Path],
+) -> tuple[Path | None, Path]:
+    owners = [
+        candidate for candidate in earlier_paths
+        if len(candidate.parts) < len(path.parts)
+        and path.parts[:len(candidate.parts)] == candidate.parts
+    ]
+    owner = max(owners, key=lambda item: len(item.parts), default=None)
+    relative_path = path if owner is None else path.relative_to(owner)
+    return owner, relative_path
+
+
 def _prepare_clone(
     config: StudyConfig, executor: Executor, *, deadline: float,
 ) -> tuple[Path, dict[str, Any]]:
@@ -920,7 +965,15 @@ def _prepare_clone(
         argv=("git", "-C", str(clone), "checkout", "--detach", canonical_head),
         cwd=config.scratch_root, env=_base_env(), timeout_s=_remaining(deadline),
     ))
-    for row in sorted(canonical_submodules, key=lambda item: len(Path(item["path"]).parts)):
+    ordered_submodules = sorted(
+        canonical_submodules,
+        key=lambda item: (len(Path(item["path"]).parts), item["path"]),
+    )
+    materialized_paths: list[Path] = []
+    for row in ordered_submodules:
+        row_path = Path(row["path"])
+        owner_path, relative_path = _submodule_owner(row_path, materialized_paths)
+        owner = clone if owner_path is None else clone / owner_path
         source = repo / row["path"]
         destination = clone / row["path"]
         destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -937,6 +990,36 @@ def _prepare_clone(
             argv=("git", "-C", str(destination), "checkout", "--detach", row["head"]),
             cwd=config.scratch_root, env=_base_env(), timeout_s=_remaining(deadline),
         ))
+        config_name = _submodule_config_name(
+            executor, owner, relative_path, purpose_path=row["path"], deadline=deadline,
+        )
+        _git(
+            executor,
+            owner,
+            ("submodule", "init", "--", relative_path.as_posix()),
+            purpose=f"register-submodule:{row['path']}",
+            timeout_s=_remaining(deadline),
+        )
+        url_key = f"submodule.{config_name}.url"
+        _git(
+            executor,
+            owner,
+            ("config", "--local", "--replace-all", url_key, str(source)),
+            purpose=f"override-submodule-url:{row['path']}",
+            timeout_s=_remaining(deadline),
+        )
+        configured_urls = _git(
+            executor,
+            owner,
+            ("config", "--local", "--get-all", url_key),
+            purpose=f"verify-submodule-url:{row['path']}",
+            timeout_s=_remaining(deadline),
+        ).splitlines()
+        if configured_urls != [str(source)]:
+            raise ContractError(
+                f"submodule URL is not pinned to the canonical local entity: {row['path']}"
+            )
+        materialized_paths.append(row_path)
     scratch_head = _git(executor, clone, ("rev-parse", "HEAD"),
                         purpose="scratch-head", timeout_s=_remaining(deadline)).strip()
     scratch_submodules = _parse_submodules(_git(
