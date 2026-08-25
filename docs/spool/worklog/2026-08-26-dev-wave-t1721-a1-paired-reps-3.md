@@ -68,6 +68,28 @@ title: [T-1721] A-1 対測定の装置を反復数一般化し事前登録を凍
 - **変異本走は baseline 緑 (233 passed) のうえ、登録 9 件が全件 KILLED。** SURVIVED と MISMATCH は 0。
   spec・台帳・再照準の erratum は `output/insights/2026-08-26_t1721-a1-sized-mutation/`。
   正例対照 (受理集合を過剰に狭める向き) は 23 件の検査を赤化した。
+- **受入 1 回目は 15 failed / 16,586 passed で戻ったが、非帰属と判定した。** 赤は
+  `test_s8b_floor_campaign.py` 11 件、`test_codex_worker_launch_budget.py` 3 件、
+  `test_s8b_oracle_driver.py` 1 件で、**本 wave の差分が触った file を 1 つも参照しない**。
+  floor campaign 系は `_real_output_snapshot` が `output/` 配下全体の bytes を走行前後で
+  突き合わせる形であり、受入が 2 shard で走る間に片方の dispatch が
+  `output/pegasus-dispatch/` へ受領証を書けば必ず壊れる。本 wave が `output/insights/` へ
+  足した file は commit 済みの静的内容なので前後どちらの snapshot にも同じく現れ、この検査を
+  壊さない。**赤くなった 3 file を単独再走したところ 596 passed / 8 skipped / rc=0 で
+  1 件も再現しなかった。** `DW-O18` に従い受入を 1 回だけ再走した (反復していない)。
+  投入時のマシンは他 wave の変異 harness 5 本と Codex の子 6 本が同時に走る高負荷だった。
+  **受入 2 回目は 16,601 passed / 60 skipped / `child-green` で通った。**
+- **親が受入の走行中に追跡 file を編集する違反を自ら踏んだ。** 受入 2 回目の投入直後に worklog
+  fragment を編集した。数十秒で気づいて repo 外へ退避し `git checkout --` で clean へ戻したため
+  受入は緑で完走したが、これは本 wave が {{F:tests-run-while-workspace-write-child-edits}} として
+  記録したのと同じ型の再発である (向きは「子の稼働中に測る」ではなく「受入の稼働中に書く」)。
+- **段 8 の改善候補 2 件を予算超過で取り下げ、裁定パッケージへ回した。** どちらも発火実績があり
+  routing 先も一意に決まるが、`DW-O18` は 998 bytes で単節予算 1,000 に対し残り 2 bytes、
+  `DW-M07` は 978 bytes で残り 22 bytes しかない。必要な 1 文は約 80 bytes である。
+  `DW-O18` の本文は 1 文ごとに別個の義務を担っており、意味等価に 70 bytes 以上を落とせない。
+  **予算のために安全義務を削らない**契約に従い縮約を止めた。恒久対応そのものは failures 台帳と
+  memory で成立しており、欠けているのは dev-wave 手順書への統合だけである。
+  択は (a) 単節予算を上げる (独立審査対象)、(b) 別 wave で意味等価に縮約、(c) 記録だけで足りるとする。
 - 焦点走は変更 3 file と参照関係で引いた consumer test 5 file で 1,094 passed / 4 skipped。
   skip 4 件は CCBench の template patch 未適用による既存の環境 skip で、本 wave の新設検査では
   ないことを `-rs` 付き再走で実測した。
