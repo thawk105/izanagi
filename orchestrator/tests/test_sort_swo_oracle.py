@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import inspect
 import json
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 
 import pytest
 
 from orchestrator.campaign import sort_swo_oracle as O
+from orchestrator.tests import sort_swo_masstree_fixture as masstree_fixture
 from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle_environment_memo
 
 
@@ -28,6 +31,12 @@ def _get_oracle_environment():
 _CLEAN_IMPL = (
     "    sort(write_set_.begin(), write_set_.end(),\n"
     "         [](const auto& a, const auto& b) { return a.key_ < b.key_; });"
+)
+_BODY_IMPL = (
+    "    sort(write_set_.begin(), write_set_.end(),\n"
+    "         [](const auto& a, const auto& b) {\n"
+    "           return a.body_.get_val() < b.body_.get_val();\n"
+    "         });"
 )
 _MULTIPLEXED_NEGATIVE_IMPL = r'''
     sort(write_set_.begin(), write_set_.end(),
@@ -55,7 +64,106 @@ _MULTIPLEXED_NEGATIVE_IMPL = r'''
              ++calls;
              return calls > N * N && &a == &b;
            }
+           if (oracle_test_mode == 8) {
+             observation_count = 0;
+             return a.key_ < b.key_;
+           }
            return std::less<Tuple*>{}(a.rcdptr_, b.rcdptr_);
+         });
+'''
+
+_SNAPSHOT_NEGATIVE_IMPL = r'''
+    sort(write_set_.begin(), write_set_.end(),
+         [](const auto& a, const auto& b) {
+           const int mode = oracle_test_mode % 100;
+           if (mode == 20) {
+             volatile Storage* target =
+                 &const_cast<WriteElement<Tuple>&>(a).storage_;
+             const Storage saved = *target;
+             *target = static_cast<Storage>(7u); *target = saved;
+           } else if (mode == 21 && !a.key_.empty()) {
+             volatile char* target = const_cast<volatile char*>(a.key_.data());
+             const char saved = *target;
+             *target = static_cast<char>(saved ^ 1); *target = saved;
+           } else if (mode == 22) {
+             auto key = a.body_.get_key();
+             volatile char* target = const_cast<volatile char*>(key.data());
+             const char saved = *target;
+             *target = static_cast<char>(saved ^ 1); *target = saved;
+           } else if (mode == 23) {
+             volatile char* target = static_cast<volatile char*>(
+                 const_cast<TupleBody&>(a.body_).get_val_ptr());
+             const char saved = *target;
+             *target = static_cast<char>(saved ^ 1); *target = saved;
+           } else if (mode == 24) {
+             volatile char* target =
+                 const_cast<WriteElement<Tuple>&>(a).get_val_ptr();
+             const char saved = *target;
+             *target = static_cast<char>(saved ^ 1); *target = saved;
+           } else if (mode == 25 && a.rcdptr_ != nullptr) {
+             volatile std::uint64_t* target = &a.rcdptr_->tidword_.obj_;
+             const std::uint64_t saved = *target;
+             *target = saved ^ 1u; *target = saved;
+           } else if (mode == 26 && a.rcdptr_ != nullptr) {
+             auto key = a.rcdptr_->body_.get_key();
+             volatile char* target = const_cast<volatile char*>(key.data());
+             const char saved = *target;
+             *target = static_cast<char>(saved ^ 1); *target = saved;
+           } else if (mode == 27 && a.rcdptr_ != nullptr) {
+             volatile char* target = static_cast<volatile char*>(
+                 a.rcdptr_->body_.get_val_ptr());
+             const char saved = *target;
+             *target = static_cast<char>(saved ^ 1); *target = saved;
+           }
+           return a.key_ < b.key_;
+         });
+'''
+
+_SANDBOX_NEGATIVE_IMPL = r'''
+    sort(write_set_.begin(), write_set_.end(),
+         [](const auto& a, const auto& b) {
+           const int mode = oracle_test_mode % 1000;
+           if (mode == 300) {
+             const int fd = static_cast<int>(::syscall(
+                 SYS_openat, AT_FDCWD, "/proc/self/fd",
+                 O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0));
+             char entries[4096];
+             const long count = fd < 0 ? -1 : ::syscall(
+                 SYS_getdents64, fd, entries, sizeof(entries));
+             if (fd >= 0) ::syscall(SYS_close, fd);
+             if (fd < 0 || count <= 0) return true;
+           } else if (mode == 301) {
+             const unsigned char byte = 0;
+             ::write(198, &byte, 1);
+           } else if (mode == 302) {
+             const long page_size = 4096;
+             void* page = reinterpret_cast<void*>(
+                 reinterpret_cast<std::uintptr_t>(&a) & ~(page_size - 1));
+             if (::mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0) return true;
+             auto& target = const_cast<WriteElement<Tuple>&>(a).storage_;
+             const auto saved = target; target = static_cast<Storage>(9u); target = saved;
+             if (::mprotect(page, page_size, PROT_READ) != 0) return true;
+           } else if (mode == 303) {
+             void* page = oracle_arena_begin + ORACLE_ARENA_SIZE - 4096;
+             if (::munmap(page, 4096) != 0) return true;
+             void* shadow = ::mmap(page, 4096, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+             if (shadow != page) return true;
+             static_cast<unsigned char*>(shadow)[0] = 0x5a;
+           } else if (mode == 304) {
+             struct sigaction action{};
+             action.sa_handler = +[](int) {};
+             if (::sigaction(SIGSEGV, &action, nullptr) != 0) return true;
+           }
+           return a.key_ < b.key_;
+         });
+'''
+
+_ABORT_IMPL = r'''
+    sort(write_set_.begin(), write_set_.end(),
+         [](const auto&, const auto&) {
+           HeapObject empty;
+           return empty.view().size() != 0;
          });
 '''
 
@@ -94,25 +202,8 @@ _COMPILED_ORACLE_ARTIFACTS = None
 _COMPILED_ORACLE_ARTIFACTS_FACTORY = None
 
 
-def _skip_if_real_cpp_e2e_masstree_is_unavailable():
-    oracle_environment = _get_oracle_environment()
-    if type(oracle_environment) is O.OracleEnvironment:
-        dependency_root = oracle_environment.dependency_root
-        has_config = (dependency_root / "config.h").is_file()
-        has_archive = (dependency_root / "libjson.a").is_file()
-        has_object = any(
-            candidate.is_file() for candidate in dependency_root.glob("*.o")
-        )
-        if has_config and has_archive and has_object:
-            return
-    pytest.skip(
-        "masstree 依存が未構築のため実 C++ E2E を skip する "
-        "(config.h はあるが libjson.a / *.o が無い)。修理は別タスクで扱う。"
-    )
-
-
 def _get_compiled_oracle_artifacts(tmp_path_factory):
-    """Exactly two real compiles: one positive TU and one multiplexed negative TU."""
+    """Compile the bounded worker set once for all real boundary checks."""
     global _COMPILED_ORACLE_ARTIFACTS, _COMPILED_ORACLE_ARTIFACTS_FACTORY
     if (
         _COMPILED_ORACLE_ARTIFACTS is not None
@@ -124,26 +215,42 @@ def _get_compiled_oracle_artifacts(tmp_path_factory):
         "real oracle E2E requires an injected oracle environment"
     )
     scratch = tmp_path_factory.mktemp("sort-swo-real")
+    verified_dependency = O._prepare_verified_dependency(
+        oracle_environment.dependency_root,
+        scratch / "verified-masstree",
+    )
     artifacts = {}
     compile_count = 0
     for name, statement in (
         ("positive", _CLEAN_IMPL),
+        ("body", _BODY_IMPL),
         ("negative", _MULTIPLEXED_NEGATIVE_IMPL),
+        ("snapshot", _SNAPSHOT_NEGATIVE_IMPL),
+        ("sandbox", _SANDBOX_NEGATIVE_IMPL),
+        ("abort", _ABORT_IMPL),
     ):
         executable = scratch / name
-        finding, unavailable = O._compile(
+        finding, unavailable = O._compile_verified(
             O._translation_unit(statement), scratch / f"{name}.cpp", executable,
             compiler=str(oracle_environment.compiler), ccbench_dir=oracle_environment.ccbench_dir,
-            masstree_dir=oracle_environment.dependency_root,
+            dependency=verified_dependency,
+            fault_injection=name in {"snapshot", "sandbox"},
         )
         compile_count += 1
         assert unavailable is False
         assert finding is None
         artifacts[name] = executable
     artifacts["compile_count"] = compile_count
+    artifacts["environment"] = oracle_environment
     _COMPILED_ORACLE_ARTIFACTS_FACTORY = tmp_path_factory
     _COMPILED_ORACLE_ARTIFACTS = artifacts
     return artifacts
+
+
+def _copy_masstree_fixture(tmp_path: Path) -> Path:
+    destination = tmp_path / "sort-swo-masstree"
+    shutil.copytree(masstree_fixture.FIXTURE_ROOT, destination)
+    return destination
 
 
 def _matrix(n: int, true_pairs: set[tuple[int, int]]) -> list[bool]:
@@ -175,24 +282,38 @@ def test_matrix_checker_accepts_strict_weak_order():
 
 
 def test_cpp_e2e_clean_generic_lambda_positive(tmp_path_factory):
-    """P1: the existing const-auto-ref, omitted-return-type fixture passes."""
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
+    """POS-1/POS-2: clean key and real-body comparators are exact PASS."""
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
+    assert O._evaluate_executable(compiled_oracle_artifacts["body"]) is None
+    environment = compiled_oracle_artifacts["environment"]
+    for statement in (_CLEAN_IMPL, _BODY_IMPL):
+        result = O.check_materialized_sort_swo(
+            _materialized(statement), marker_id="silo-writeset-sort",
+            proposal_source=statement, environment=environment,
+        )
+        assert result.status is O.OracleStatus.PASS
+        assert result.finding is None
 
 
 def test_cpp_e2e_stable_cross_allocation_pointer_positive(tmp_path_factory):
     """P2: std::less compares pointers from separate allocations stably and passes."""
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=0,
     ) is None
+    result = O.check_materialized_sort_swo(
+        _materialized(_MULTIPLEXED_NEGATIVE_IMPL),
+        marker_id="silo-writeset-sort",
+        proposal_source=_MULTIPLEXED_NEGATIVE_IMPL,
+        environment=compiled_oracle_artifacts["environment"],
+    )
+    assert result.status is O.OracleStatus.PASS
+    assert result.finding is None
 
 
 def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     pointer_matrix, pointer_finding = O._run_matrix(
         compiled_oracle_artifacts["negative"], 0, 0, test_mode=0,
@@ -200,15 +321,15 @@ def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
     assert pointer_finding is None and pointer_matrix is not None
     # Corpus-0 indices 5 and 6 are distinct allocation slots. std::less must
     # order exactly one direction after the real WriteElement ctor.
-    assert O._CORPUS_MANIFEST[0][5][2:] == (2, 0)
-    assert O._CORPUS_MANIFEST[0][6][2:] == (2, 1)
+    assert O._CORPUS_MANIFEST[0][5][2:4] == (2, 0)
+    assert O._CORPUS_MANIFEST[0][6][2:4] == (2, 1)
     assert bool(pointer_matrix[5 * O._N + 6]) != bool(pointer_matrix[6 * O._N + 5])
 
     key_matrix, key_finding = O._run_matrix(
         compiled_oracle_artifacts["positive"], 0, 0,
     )
     assert key_finding is None and key_matrix is not None
-    assert O._CORPUS_MANIFEST[0][:3] == (
+    assert tuple(item[:4] for item in O._CORPUS_MANIFEST[0][:3]) == (
         (0, b"", 1, 0), (0, b"", 1, 0), (0, b"", 1, 0),
     )
     assert all(
@@ -230,7 +351,6 @@ def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
 )
 def test_cpp_e2e_reports_each_axiom_and_exact_indices(
         tmp_path_factory, mode, axiom, pairs):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=mode,
@@ -244,7 +364,6 @@ def test_cpp_e2e_reports_each_axiom_and_exact_indices(
 
 def test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=5,
@@ -258,20 +377,306 @@ def test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing(
 
 def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=6,
     )
     assert finding is not None
-    assert finding.kind is O.OracleRejectKind.MUTATION
-    assert finding.reason_code == "corpus-mutated-by-comparator"
-    assert finding.input_pairs == ((0, 0),)
+    assert finding.kind is O.OracleRejectKind.EXECUTION
+    assert finding.reason_code == "candidate-execution-fault"
+
+    clean_matrix, clean_finding = O._run_matrix(
+        compiled_oracle_artifacts["positive"], 0, 0,
+    )
+    assert clean_finding is None and clean_matrix is not None
+    allocation_classes = {
+        20: "element",
+        21: "element-key-pointee",
+        22: "element-body-key",
+        23: "element-body-value",
+        24: "write-value-buffer",
+        25: "tuple-object",
+        26: "tuple-body-key",
+        27: "tuple-body-value",
+    }
+    for mode, allocation_class in allocation_classes.items():
+        _matrix_value, denied = O._run_matrix(
+            compiled_oracle_artifacts["snapshot"], 0, 0,
+            test_mode=2000 + mode,
+        )
+        assert denied is not None, allocation_class
+        assert denied.kind is O.OracleRejectKind.EXECUTION, allocation_class
+        assert denied.reason_code == "candidate-execution-fault", allocation_class
+        assert all(
+            observation.get("write_denied") is not True
+            for observation in denied.observations
+        ), allocation_class
+
+        control_matrix, control_finding = O._run_matrix(
+            compiled_oracle_artifacts["snapshot"], 0, 0,
+            test_mode=1000 + mode,
+        )
+        assert control_finding is None, allocation_class
+        assert control_matrix == clean_matrix, allocation_class
+
+    sandbox_surfaces = {
+        300: "openat-plus-getdents64",
+        301: "write-non-observation-fd",
+        302: "mprotect",
+        303: "arena-shadow-mmap-plus-munmap",
+        304: "rt-sigaction",
+    }
+    for mode, surface in sandbox_surfaces.items():
+        _matrix_value, denied = O._run_matrix(
+            compiled_oracle_artifacts["sandbox"], 0, 0, test_mode=mode,
+        )
+        assert denied is not None, surface
+        assert denied.kind is O.OracleRejectKind.EXECUTION, surface
+        assert denied.reason_code == "candidate-sandbox-violation", surface
+
+        control_matrix, control_finding = O._run_matrix(
+            compiled_oracle_artifacts["sandbox"], 0, 0,
+            test_mode=1000 + mode,
+        )
+        assert control_finding is None, surface
+        assert control_matrix == clean_matrix, surface
+
+    _matrix_value, aborted = O._run_matrix(
+        compiled_oracle_artifacts["abort"], 0, 0,
+    )
+    assert aborted is not None
+    assert aborted.kind is O.OracleRejectKind.EXECUTION
+    assert aborted.reason_code == "candidate-comparator-aborted"
+
+    fd_timeline = []
+    matrix, timeline_finding = O._run_matrix(
+        compiled_oracle_artifacts["positive"], 0, 0,
+        fd_observer=lambda *event: fd_timeline.append(event),
+    )
+    assert timeline_finding is None and matrix == clean_matrix
+    assert [event[0] for event in fd_timeline] == [
+        "stopped", "authority-sent",
+    ]
+    before, authority_event = fd_timeline
+    assert before[1] == authority_event[1]
+    assert before[2] == authority_event[2]
+    assert before[3] is None
+    assert authority_event[3] not in before[2]
+    assert O._worker_fd_boundary_is_safe(
+        before[2], authority_event[2], authority_event[3],
+        final_created_after_stop=True,
+    )
+    assert not O._worker_fd_boundary_is_safe(
+        before[2], authority_event[2] + (authority_event[3],),
+        authority_event[3],
+        final_created_after_stop=True,
+    )
+    assert not O._worker_fd_boundary_is_safe(
+        before[2], authority_event[2], authority_event[3],
+        final_created_after_stop=False,
+    )
+
+    for mode, mutation in ((1404, "fork-inherit-close"), (1405, "dup-number")):
+        injected_timeline = []
+        expected_phase, expected_detail = (
+            ("protocol-authority", "worker-fd-boundary-verification-failed")
+            if mode == 1404
+            else ("worker-hardening", "worker-hardening-preflight-failed")
+        )
+        with pytest.raises(
+            O._EvaluationUnavailable,
+            match=expected_detail,
+        ) as failure:
+            O._run_matrix(
+                compiled_oracle_artifacts["sandbox"], 0, 0,
+                test_mode=mode,
+                fd_observer=lambda *event: injected_timeline.append(event),
+            )
+        assert failure.value.phase == expected_phase, mutation
+        if mode == 1404:
+            assert [event[0] for event in injected_timeline] == [
+                "stopped", "authority-sent",
+            ], mutation
+            injected_before, injected_authority = injected_timeline
+            assert injected_before[2] == injected_authority[2], mutation
+            assert not O._worker_fd_boundary_is_safe(
+                injected_before[2], injected_authority[2],
+                injected_authority[3], final_created_after_stop=False,
+            ), mutation
+            assert injected_authority[3] not in injected_before[2]
+        else:
+            assert injected_timeline == []
+
+
+def test_broker_rejects_final_pipe_identity_held_at_different_worker_fd(
+        tmp_path):
+    worker_path = tmp_path / "fd-identity-worker"
+    worker_path.write_text(
+        f"""#!{sys.executable}
+import os
+import signal
+import stat
+import sys
+
+observation_fd = int(sys.argv[3])
+expected_identity = tuple(int(value) for value in sys.argv[4:7])
+metadata = os.fstat(observation_fd)
+actual_identity = (
+    metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode),
+)
+if actual_identity != expected_identity:
+    os._exit(76)
+os.closerange(0, observation_fd)
+os.closerange(observation_fd + 1, 65536)
+os.kill(os.getpid(), signal.SIGSTOP)
+os.kill(os.getpid(), signal.SIGSTOP)
+os.write(observation_fd, bytes({2 * O._N * O._N}))
+os._exit(0)
+""",
+        encoding="utf-8",
+    )
+    worker_path.chmod(0o700)
+
+    authority, broker_authority = O.socket.socketpair(
+        O.socket.AF_UNIX, O.socket.SOCK_SEQPACKET,
+    )
+    worker_fd_number = 198
+    assert broker_authority.fileno() != worker_fd_number
+    broker_pid = O.os.fork()
+    if broker_pid == 0:
+        authority.close()
+        O.os.setsid()
+        real_pipe = O.os.pipe
+        real_read = O.os.read
+        real_send_control = O._broker_send_control
+        transferred_pipe_fds = []
+
+        def pipe_with_controller_transfer():
+            observation_read, observation_write = real_pipe()
+            O.os.set_blocking(observation_read, False)
+            if observation_write != worker_fd_number:
+                O.os.dup2(observation_write, worker_fd_number)
+                O.os.close(observation_write)
+            transferred_pipe_fds.extend((
+                O.os.dup(observation_read), O.os.dup(worker_fd_number),
+            ))
+            return observation_read, worker_fd_number
+
+        def send_control_with_pipe(authority_socket, payload):
+            if not payload.startswith(b"R:"):
+                real_send_control(authority_socket, payload)
+                return
+            authority_socket.sendmsg(
+                [payload],
+                [(O.socket.SOL_SOCKET, O.socket.SCM_RIGHTS,
+                  O.array("i", transferred_pipe_fds))],
+            )
+            for fd in transferred_pipe_fds:
+                O.os.close(fd)
+            transferred_pipe_fds.clear()
+
+        def nonblocking_observation_read(fd, size):
+            try:
+                return real_read(fd, size)
+            except BlockingIOError:
+                return b""
+
+        O.os.pipe = pipe_with_controller_transfer
+        O.os.read = nonblocking_observation_read
+        O._broker_send_control = send_control_with_pipe
+        status = O._broker_main([
+            str(worker_path), "0", "0", str(broker_authority.fileno()),
+        ])
+        O.os._exit(status)
+
+    broker_authority.close()
+    final_read_fd = None
+    final_write_fd = None
+    worker_pid = None
+    broker_reaped = False
+    received_fds = []
+    try:
+        authority.settimeout(O._RUN_TIMEOUT_S)
+        item_size = O.array("i").itemsize
+        ready, ancillary, flags, _address = authority.recvmsg(
+            4096, O.socket.CMSG_SPACE(2 * item_size),
+        )
+        assert ready.startswith(b"R:")
+        assert not flags & (O.socket.MSG_CTRUNC | O.socket.MSG_TRUNC)
+        for level, kind, data in ancillary:
+            if level == O.socket.SOL_SOCKET and kind == O.socket.SCM_RIGHTS:
+                values = O.array("i")
+                values.frombytes(data[:len(data) - len(data) % item_size])
+                received_fds.extend(values)
+        assert len(received_fds) == 2
+        final_read_fd, final_write_fd = received_fds
+        received_fds.clear()
+
+        ready_payload = O.json.loads(ready[2:].decode("ascii"))
+        assert set(ready_payload) == {"fd_identities", "pid"}
+        worker_pid = int(ready_payload["pid"])
+        before = tuple(
+            tuple(int(field) for field in identity)
+            for identity in ready_payload["fd_identities"]
+        )
+        final_identity = O._broker_fd_identity(final_write_fd)
+        assert before == (final_identity,)
+        worker_metadata = O.os.stat(f"/proc/{worker_pid}/fd/{worker_fd_number}")
+        assert (
+            worker_metadata.st_dev,
+            worker_metadata.st_ino,
+            stat.S_IFMT(worker_metadata.st_mode),
+        ) == final_identity
+        assert final_write_fd != worker_fd_number
+
+        authority.sendmsg(
+            [b"F"],
+            [(O.socket.SOL_SOCKET, O.socket.SCM_RIGHTS,
+              O.array("i", [final_write_fd]))],
+        )
+        O.os.close(final_write_fd)
+        final_write_fd = None
+        O._broker_send_control(authority, b"A")
+        waited_pid, broker_status = O.os.waitpid(broker_pid, 0)
+        broker_reaped = True
+        assert waited_pid == broker_pid
+        assert O.os.WIFEXITED(broker_status)
+        assert O.os.WEXITSTATUS(broker_status) == 0
+
+        record = O._read_all(final_read_fd, O._RECORD_SIZE)
+        assert len(record) == O._RECORD_SIZE
+        unpacked = O._HEADER.unpack(record[:O._HEADER.size])
+        assert unpacked[5:7] == (
+            O._BROKER_OUTCOME_INFRASTRUCTURE,
+            O._BROKER_DETAIL_FD_BOUNDARY,
+        ), unpacked[5:7]
+    finally:
+        authority.close()
+        for fd in (*received_fds, final_read_fd, final_write_fd):
+            if fd is not None:
+                O.os.close(fd)
+        if not broker_reaped:
+            if worker_pid is not None:
+                try:
+                    O.os.kill(worker_pid, O.signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            try:
+                O.os.killpg(broker_pid, O.signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            try:
+                O.os.kill(broker_pid, O.signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            try:
+                O.os.waitpid(broker_pid, 0)
+            except ChildProcessError:
+                pass
 
 
 def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=7,
@@ -283,11 +688,318 @@ def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
     assert [item["point"] for item in finding.observations] == [
         "first-pass", "second-pass-after-other-pairs",
     ]
+    count_finding = O._evaluate_executable(
+        compiled_oracle_artifacts["negative"], test_mode=8,
+    )
+    assert count_finding is not None
+    assert count_finding.kind is O.OracleRejectKind.EXECUTION
+    assert count_finding.reason_code == "candidate-comparator-call-count-invalid"
 
 
 def test_real_compile_budget_is_fixed_positive_and_negative_only(tmp_path_factory):
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
-    assert compiled_oracle_artifacts["compile_count"] == 2
+    assert compiled_oracle_artifacts["compile_count"] == 6
+
+
+def test_cpp_e2e_canonical_fixture_trusted_control_compiles_and_runs(
+        tmp_path_factory):
+    verified = masstree_fixture.verify_sort_swo_masstree_fixture()
+    assert type(verified) is masstree_fixture.VerifiedFixture
+    assert verified.root == masstree_fixture.FIXTURE_ROOT.resolve()
+    assert verified.manifest_sha256 == (
+        "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+    )
+    assert len(verified.files) == 101
+    assert {"AUTHORS", "LICENSE", "PIN", "config.h"} <= {
+        path for path, _digest in verified.files
+    }
+    assert (verified.root / "PIN").read_text(encoding="ascii") == (
+        masstree_fixture.PIN + "\n"
+    )
+    assert not any(
+        Path(path).suffix in {".a", ".o"} for path, _digest in verified.files
+    )
+    fixture_relative = masstree_fixture.FIXTURE_ROOT.relative_to(_ROOT)
+    required_tracked = {
+        (fixture_relative / relative).as_posix()
+        for relative, _digest in verified.files
+    }
+    completed = subprocess.run(
+        ["git", "ls-files", "--", fixture_relative.as_posix()],
+        cwd=_ROOT, check=True, capture_output=True, text=True,
+    )
+    tracked = set(completed.stdout.splitlines())
+    assert required_tracked <= tracked
+    ignored_required = (fixture_relative / "config.h").as_posix()
+    assert ignored_required in required_tracked
+    assert required_tracked - (tracked - {ignored_required}) == {
+        ignored_required
+    }
+
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
+    environment = compiled_oracle_artifacts["environment"]
+    assert type(environment) is O.OracleEnvironment
+    assert environment.dependency_root == masstree_fixture.FIXTURE_ROOT.resolve()
+    assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
+
+
+def test_production_dependency_verifier_copies_canonical_bytes_privately(tmp_path):
+    private_root = tmp_path / "private-masstree"
+    verified = O._prepare_verified_dependency(
+        masstree_fixture.FIXTURE_ROOT, private_root,
+    )
+    assert type(verified) is O._VerifiedDependencyRoot
+    assert verified.root == private_root.resolve()
+    assert verified.root != masstree_fixture.FIXTURE_ROOT.resolve()
+    assert verified.manifest_sha256 == O.DEPENDENCY_MANIFEST_SHA256
+    assert verified.config_sha256 == dict(verified.files)["config.h"]
+    assert len(verified.files) == 101
+    assert stat.S_IMODE(private_root.stat().st_mode) & 0o077 == 0
+    O._assert_verified_dependency_unchanged(verified)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["unregistered-file", "symlink", "changed-byte", "missing-file"],
+)
+def test_production_dependency_verifier_rejects_manifest_boundary_mutations(
+        tmp_path, mutation):
+    fixture = _copy_masstree_fixture(tmp_path)
+    if mutation == "unregistered-file":
+        (fixture / "unregistered.hh").write_text("// extra\n", encoding="utf-8")
+    elif mutation == "symlink":
+        (fixture / "escape.hh").symlink_to(tmp_path / "outside.hh")
+    elif mutation == "changed-byte":
+        with (fixture / "config.h").open("ab") as stream:
+            stream.write(b"\n")
+    else:
+        (fixture / "config.h").unlink()
+    with pytest.raises(O._DependencyVerificationError):
+        O._prepare_verified_dependency(fixture, tmp_path / "private")
+
+
+def test_compile_verified_fails_closed_before_compiler_on_private_copy_change(
+        monkeypatch, tmp_path):
+    verified = O._prepare_verified_dependency(
+        masstree_fixture.FIXTURE_ROOT, tmp_path / "private",
+    )
+    (verified.root / "config.h").write_bytes(b"changed")
+    compiler_called = False
+
+    def compiler(*args, **kwargs):
+        nonlocal compiler_called
+        compiler_called = True
+        return None, False
+
+    monkeypatch.setattr(O, "_compile", compiler)
+    finding, unavailable = O._compile_verified(
+        "int main() {}", tmp_path / "candidate.cpp", tmp_path / "candidate",
+        compiler="/usr/bin/c++", ccbench_dir=_CCBENCH,
+        dependency=verified,
+    )
+    assert unavailable is True
+    assert finding is not None
+    assert finding.reason_code == "dependency-sha256-mismatch"
+    assert compiler_called is False
+
+
+def test_masstree_manifest_rejects_header_removed_from_manifest(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    manifest = fixture / masstree_fixture.MANIFEST_NAME
+    target_suffix = "  btree_leaflink.hh"
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    assert sum(line.endswith(target_suffix) for line in lines) == 1
+    manifest.write_text(
+        "\n".join(line for line in lines if not line.endswith(target_suffix))
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-file-set-mismatch",
+            unregistered_files=("btree_leaflink.hh",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_unregistered_fixture_file(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    (fixture / "unregistered.fixture").write_bytes(b"unregistered\n")
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-file-set-mismatch",
+            unregistered_files=("unregistered.fixture",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_missing_fixture_file(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    (fixture / "btree_leaflink.hh").unlink()
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-file-set-mismatch",
+            missing_files=("btree_leaflink.hh",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_one_byte_change(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    authors = fixture / "AUTHORS"
+    changed = bytearray(authors.read_bytes())
+    changed[0] ^= 1
+    authors.write_bytes(changed)
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-sha256-mismatch",
+            hash_mismatches=(masstree_fixture.FixtureHashMismatch(
+                "AUTHORS",
+                "a79b96cd3f5e1734cc772598f4005302b296e349ae03d504305dbf9ffe00be9e",
+                "bdee444412ea1acce2afbdf1cb221c398fe0a58bd52baa2e564334041ea2e721",
+            ),),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_symlink_outside_fixture(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    outside = tmp_path / "outside.fixture"
+    outside.write_bytes(b"outside\n")
+    (fixture / "outside-link").symlink_to(outside)
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-symlink-present", paths=("outside-link",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_parent_reference(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    manifest = fixture / masstree_fixture.MANIFEST_NAME
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    assert lines[1].endswith("  AUTHORS")
+    lines[1] = lines[1].replace("  AUTHORS", "  ../outside.fixture")
+    manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-manifest-invalid",
+        )
+    )
+
+
+def test_resolver_config_h_missing_is_exact_failure_not_skip(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    (fixture / "config.h").unlink()
+
+    resolution = O.resolve_oracle_environment(
+        _CCBENCH,
+        compiler=sys.executable,
+        dependency_root=fixture,
+    )
+    assert resolution == O.OracleEnvironmentResolutionFailure(
+        "oracle-environment-dependency-unresolved",
+        (O.OracleEnvironmentCandidate(
+            "argument:compiler", Path(sys.executable), "selected",
+        ),),
+        (O.OracleEnvironmentCandidate(
+            "argument:dependency-root", fixture, "config-h-missing",
+        ),),
+    )
+
+
+def test_resolver_dedicated_environment_root_is_selected(monkeypatch, tmp_path):
+    dependency = tmp_path / "environment-masstree"
+    dependency.mkdir()
+    (dependency / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.setenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", str(dependency))
+
+    resolution = O.resolve_oracle_environment(
+        tmp_path / "checkout",
+        compiler=sys.executable,
+    )
+    assert resolution == O.OracleEnvironment(
+        Path(sys.executable).resolve(),
+        (tmp_path / "checkout").resolve(),
+        dependency.resolve(),
+    )
+
+
+def test_resolver_without_explicit_root_rejects_ccbench_build_residue(
+        monkeypatch, tmp_path):
+    ccbench = tmp_path / "checkout"
+    residue = ccbench / "build" / "_deps" / "masstree-src"
+    residue.mkdir(parents=True)
+    (residue / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.delenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", raising=False)
+
+    resolution = O.resolve_oracle_environment(
+        ccbench,
+        compiler=sys.executable,
+    )
+    assert resolution == O.OracleEnvironmentResolutionFailure(
+        "oracle-environment-dependency-unresolved",
+        (O.OracleEnvironmentCandidate(
+            "argument:compiler", Path(sys.executable), "selected",
+        ),),
+        (O.OracleEnvironmentCandidate(
+            "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
+            None,
+            "not-configured",
+        ),),
+    )
+
+
+def test_resolver_without_explicit_root_rejects_synthetic_ancestor_cache(
+        monkeypatch, tmp_path):
+    ccbench = tmp_path / "izanagi" / "external" / "ccbench"
+    ccbench.mkdir(parents=True)
+    synthetic = tmp_path / "izanagi-thirdparty-cache" / "masstree"
+    synthetic.mkdir(parents=True)
+    (synthetic / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.delenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", raising=False)
+
+    resolution = O.resolve_oracle_environment(
+        ccbench,
+        compiler=sys.executable,
+    )
+    assert resolution == O.OracleEnvironmentResolutionFailure(
+        "oracle-environment-dependency-unresolved",
+        (O.OracleEnvironmentCandidate(
+            "argument:compiler", Path(sys.executable), "selected",
+        ),),
+        (O.OracleEnvironmentCandidate(
+            "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
+            None,
+            "not-configured",
+        ),),
+    )
+
+
+def test_oracle_environment_memo_explicitly_binds_canonical_fixture(monkeypatch):
+    """The sole production resolver call cannot drift back to ambient lookup."""
+    calls = []
+    sentinel = object()
+
+    def resolve(*args, **kwargs):
+        calls.append((args, kwargs))
+        return sentinel
+
+    monkeypatch.setattr(oracle_environment_memo, "_PRODUCTION_RESOLVE", resolve)
+    assert oracle_environment_memo._resolve_now() is sentinel
+    assert calls == [(
+        (oracle_environment_memo.CCBENCH,),
+        {"dependency_root": oracle_environment_memo.MASSTREE_FIXTURE},
+    )]
+    assert oracle_environment_memo.MASSTREE_FIXTURE == (
+        Path(__file__).resolve().parent / "fixtures" / "sort_swo_masstree"
+    )
 
 
 def test_real_patchharness_checkout_and_resolver_use_explicit_binding(tmp_path):
@@ -341,7 +1053,9 @@ def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(
     assert result.receipt.corpus_id == O.CORPUS_ID
     assert result.receipt.compile_flags_sha256 == O.COMPILE_FLAGS_SHA256
     assert result.receipt.tu_template_sha256 == O.TU_TEMPLATE_SHA256
-    assert result.receipt.tu_sha256 == O._sha256(O._translation_unit(observed))
+    assert result.receipt.tu_sha256 == O._translation_unit_bundle_sha256(
+        O._translation_unit(observed)
+    )
     attempt = O.attempt_record(result)
     assert attempt["classification"] == "pass"
     assert attempt["oracle_receipt"] == result.receipt.as_dict()
@@ -1009,10 +1723,18 @@ def test_fixed_corpus_contract_has_required_values_topology_and_triplicate():
         0, 1, 2, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFE, 0xFFFFFFFF,
     }
     assert key_values == {b"", b"a", b"aa", b"b", b"\0", b"a\0", b"\x7f", b"\x80"}
-    assert all(corpus[:3] == ((0, b"", 1, 0),) * 3
+    assert all(tuple(item[:4] for item in corpus[:3]) == ((0, b"", 1, 0),) * 3
                for corpus in O._CORPUS_MANIFEST)
     assert all({item[2] for item in corpus} == {0, 1, 2}
                for corpus in O._CORPUS_MANIFEST)
+    assert all(
+        len(item[4]) > 20 and item[5] and item[6]
+        for corpus in O._CORPUS_MANIFEST for item in corpus
+    )
+    assert all(
+        len(key) > 20 and value
+        for corpus in O._TUPLE_BODY_MANIFEST for key, value in corpus
+    )
     assert O._N >= 17 and O._CORPORA == (0, 1) and O._ORDERS == (0, 1, 2)
 
 
@@ -1022,7 +1744,7 @@ def test_public_oracle_domain_aliases_track_contract_inputs():
 
 def test_contract_digest_binds_axiom_checker_source_component():
     assert O._ORACLE_CONTRACT_COMPONENTS_SCHEMA == (
-        "sort-swo-contract-components-v1"
+        "sort-swo-contract-components-v2"
     )
     assert O._ORACLE_CONTRACT_COMPONENTS == {
         "axiom_checker_implementation_sha256": (
@@ -1030,6 +1752,10 @@ def test_contract_digest_binds_axiom_checker_source_component():
         ),
         "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
         "corpus_sha256": O.CORPUS_SHA256,
+        "dependency_manifest_sha256": O.DEPENDENCY_MANIFEST_SHA256,
+        "guarantee_boundary_sha256": hashlib.sha256(
+            O.SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
+        ).hexdigest(),
         "tu_template_sha256": O.TU_TEMPLATE_SHA256,
     }
     assert O.ORACLE_COMPONENTS_SHA256 == O._contract_components_sha256(
@@ -1068,6 +1794,15 @@ def test_axiom_checker_source_bundle_is_enumerated_and_ordered():
         O._evaluate_executable,
         O._run_matrix,
         O._compile_command,
+        O._parse_dependency_manifest,
+        O._dependency_file_inventory,
+        O._verify_dependency_root,
+        O._read_verified_dependency_file,
+        O._prepare_verified_dependency,
+        O._assert_verified_dependency_unchanged,
+        O._dependency_command,
+        O._dependency_manifest_closure,
+        O._compile_verified,
     )
 
 
@@ -1106,18 +1841,184 @@ def test_axiom_checker_source_digest_changes_with_source_text(monkeypatch):
     assert len(source_a.encode("utf-8")) == len(source_b.encode("utf-8"))
     assert digest_with_target_source(source_a) != digest_with_target_source(source_b)
 
+    worker = O._translation_unit(O._STATEMENT_PLACEHOLDER)
+    current_tu_bundle = O._translation_unit_bundle_sha256(worker)
+    broker_target = O._broker_main
+    broker_source = real_getsource(broker_target)
+    monkeypatch.setattr(
+        O.inspect,
+        "getsource",
+        lambda function: (
+            broker_source + "\n# broker-source-mutation\n"
+            if function is broker_target else real_getsource(function)
+        ),
+    )
+    assert O._translation_unit_bundle_sha256(worker) != current_tu_bundle
+
+
+def _independent_tu_template_sha256() -> str:
+    """Rebuild the canonical worker/broker bundle without producer helpers."""
+    members = [
+        ("worker", O._TU_PREFIX + O._STATEMENT_PLACEHOLDER + O._TU_SUFFIX),
+    ]
+    for function in (
+        O._broker_fd_identity,
+        O._broker_worker_fd_numbers,
+        O._broker_worker_fd_identities_from_snapshot,
+        O._worker_fd_boundary_is_safe,
+        O._broker_send_control,
+        O._broker_receive_control,
+        O._broker_receive_fd,
+        O._broker_write_all,
+        O._broker_order,
+        O._broker_frame,
+        O._broker_main,
+    ):
+        members.append((
+            f"broker:{function.__module__}.{function.__qualname__}",
+            inspect.getsource(function),
+        ))
+    members.append((
+        "broker-semantics",
+        json.dumps(
+            {
+                "broker_details": {
+                    "aborted": O._BROKER_DETAIL_ABORTED,
+                    "call_count": O._BROKER_DETAIL_CALL_COUNT,
+                    "comparator_threw": O._BROKER_DETAIL_COMPARATOR_THREW,
+                    "cpu": O._BROKER_DETAIL_CPU,
+                    "execution_fault": O._BROKER_DETAIL_EXECUTION_FAULT,
+                    "fd_boundary": O._BROKER_DETAIL_FD_BOUNDARY,
+                    "observation_size": O._BROKER_DETAIL_OBSERVATION_SIZE,
+                    "observation_value": O._BROKER_DETAIL_OBSERVATION_VALUE,
+                    "observation_write": O._BROKER_DETAIL_OBSERVATION_WRITE,
+                    "ok": O._BROKER_DETAIL_OK,
+                    "repeat": O._BROKER_DETAIL_REPEAT,
+                    "sandbox": O._BROKER_DETAIL_SANDBOX,
+                    "signal": O._BROKER_DETAIL_SIGNAL,
+                    "sort_contract": O._BROKER_DETAIL_SORT_CONTRACT,
+                },
+                "broker_outcomes": {
+                    "infrastructure": O._BROKER_OUTCOME_INFRASTRUCTURE,
+                    "ok": O._BROKER_OUTCOME_OK,
+                    "reject": O._BROKER_OUTCOME_REJECT,
+                },
+                "header": O._HEADER.format,
+                "magic_hex": O._MAGIC.hex(),
+                "n": O._N,
+                "protocol_version": O.PROTOCOL_VERSION,
+            },
+            sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ),
+    ))
+    digest = hashlib.sha256()
+    for label, source in members:
+        for value in (label.encode("utf-8"), source.encode("utf-8")):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+    return digest.hexdigest()
+
+
+def _independent_axiom_checker_sha256() -> str:
+    digest = hashlib.sha256()
+    for function in (
+        O.check_relation_matrix,
+        O._evaluate_executable,
+        O._run_matrix,
+        O._compile_command,
+        O._parse_dependency_manifest,
+        O._dependency_file_inventory,
+        O._verify_dependency_root,
+        O._read_verified_dependency_file,
+        O._prepare_verified_dependency,
+        O._assert_verified_dependency_unchanged,
+        O._dependency_command,
+        O._dependency_manifest_closure,
+        O._compile_verified,
+    ):
+        for value in (
+            f"{function.__module__}.{function.__qualname__}".encode("utf-8"),
+            inspect.getsource(function).encode("utf-8"),
+        ):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+    semantics = json.dumps(
+        {
+            "_CORPORA": (0, 1),
+            "_DEPENDENCY_MANIFEST_NAME": "SHA256SUMS",
+            "_MIN_DEPENDENCY_MANIFEST_CLOSURE": 31,
+            "_N": 18,
+            "_ORDERS": (0, 1, 2),
+        },
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    digest.update(len(semantics).to_bytes(8, "big"))
+    digest.update(semantics)
+    return digest.hexdigest()
+
+
+def _independent_contract_id(
+    tu_template_sha256: str,
+    dependency_manifest_sha256: str,
+    axiom_checker_sha256: str,
+) -> tuple[str, str]:
+    components = {
+        "axiom_checker_implementation_sha256": axiom_checker_sha256,
+        "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
+        "corpus_sha256": O.CORPUS_SHA256,
+        "dependency_manifest_sha256": dependency_manifest_sha256,
+        "guarantee_boundary_sha256": hashlib.sha256(
+            O.SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
+        ).hexdigest(),
+        "tu_template_sha256": tu_template_sha256,
+    }
+    canonical = json.dumps(
+        {
+            "components": components,
+            "schema": "sort-swo-contract-components-v2",
+        },
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    components_sha256 = hashlib.sha256(canonical).hexdigest()
+    contract_id = (
+        f"sort-swo-v{O.CONTRACT_VERSION}-corpus{O.CORPUS_VERSION}-"
+        f"protocol{O.PROTOCOL_VERSION}-checker{O.AXIOM_CHECKER_VERSION}-"
+        f"grammar{O.GRAMMAR_VERSION}-x{components_sha256}-"
+        f"c{O.CORPUS_SHA256[:12]}-tu{tu_template_sha256[:12]}-"
+        f"f{O.COMPILE_FLAGS_SHA256[:12]}-"
+        f"a{axiom_checker_sha256[:12]}"
+    )
+    return components_sha256, contract_id
+
 
 def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
-    assert O.CORPUS_SHA256 == "436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253"
-    assert O.TU_TEMPLATE_SHA256 == "d1a5e422e226240f286f302a4addde79740547682b538d2b46ebfd9dfdd32bca"
-    assert O.COMPILE_FLAGS_SHA256 == "7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
+    independent_tu_sha256 = _independent_tu_template_sha256()
+    independent_axiom_checker_sha256 = _independent_axiom_checker_sha256()
+    independent_dependency_manifest_sha256 = hashlib.sha256(
+        (masstree_fixture.FIXTURE_ROOT / masstree_fixture.MANIFEST_NAME).read_bytes()
+    ).hexdigest()
+    independent_components_sha256, independent_contract_id = (
+        _independent_contract_id(
+            independent_tu_sha256,
+            independent_dependency_manifest_sha256,
+            independent_axiom_checker_sha256,
+        )
+    )
+    assert independent_tu_sha256 == O.TU_TEMPLATE_SHA256
+    assert independent_axiom_checker_sha256 == O.AXIOM_CHECKER_IMPLEMENTATION_SHA256
+    assert independent_dependency_manifest_sha256 == O.DEPENDENCY_MANIFEST_SHA256
+    assert independent_components_sha256 == O.ORACLE_COMPONENTS_SHA256
+    assert independent_contract_id == O.ORACLE_CONTRACT_ID
+    assert O.CORPUS_SHA256 == "7d25fac23469f4bb807bccd4fb97dc7a6fbcf34dd5de602ba08bcf7bb70df5eb"
+    assert O.TU_TEMPLATE_SHA256 == "7732f044d8ab2b657231cfeb132f59a981b761b9ac62a8d61e6b5338140083e4"
+    assert O.COMPILE_FLAGS_SHA256 == "3caa77f8111ff611183eaec0acfdff11eb75d74c81a3bfec66262674921c3b25"
     assert O.ORACLE_CONTRACT_ID == (
-        "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
-        "x67c3a5d76f3b1604c57d33ab7d0af15f4aaafa896b4810d7c3c95d812d48faa0-"
-        "c436a66d9d5d5-tud1a5e422e226-f7ad0ac262561-a215b718a5bfe"
+        "sort-swo-v4-corpus2-protocol3-checker3-grammar1-"
+        "x5474fdb4483a32d73d82b29908152e7f004bb2c921963d3aa5a3d5654a0c012a-"
+        "c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a0af8a35f3f9a"
     )
     assert (O.CONTRACT_VERSION, O.CORPUS_VERSION, O.PROTOCOL_VERSION,
-            O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (3, 1, 2, 2, 1)
+            O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (4, 2, 3, 3, 1)
 
 
 def test_legacy_v2_contract_cannot_construct_current_oracle_result():
@@ -1154,12 +2055,47 @@ def test_translation_unit_uses_real_type_real_ctor_and_candidate_statement_verba
         source.index(item) for item in includes
     )
     assert "std::vector<WriteElement<Tuple>> elements;" in source
-    assert "OracleWriteSet write_set_;" in source
-    assert "write_set_.emplace_back(static_cast<Storage>(spec.storage)" in source
-    assert "pointer, OpType::UPDATE" in source
+    assert "OracleWriteSet* write_set_storage = nullptr;" in source
+    assert "OracleWriteSet& write_set_ = *write_set_storage;" in source
+    assert "write_set_storage->emplace_back(" in source
+    assert "active_write_set = write_set_storage;" in source
+    assert "first != active_write_set->begin()" in source
+    assert "spec.write_value" in source
+    assert "write_set_storage->elements.back().body_ = TupleBody(" in source
     assert "struct WriteElement" not in source
     assert "const WriteElement<Tuple>& lhs_element" in source
-    assert "snapshot_corpus()" in source
+    assert "inventory_corpus(&write_set_, aliases, separate, corpus_id)" in source
+    assert "mprotect(oracle_arena_begin" in source
+    assert "SECCOMP_RET_KILL_PROCESS" in source
+    assert source.index("offsetof(struct seccomp_data, arch)") < source.index(
+        "offsetof(struct seccomp_data, nr)"
+    )
+    for forbidden_allow in (
+        "SYS_rt_sigprocmask", "SYS_sigaltstack", "SYS_mremap",
+        "SYS_madvise", "SYS_shmat", "SYS_shmdt", "SYS_remap_file_pages",
+        "SYS_process_madvise", "SYS_userfaultfd", "SYS_pidfd_open",
+        "SYS_pidfd_getfd", "SYS_io_uring_setup", "SYS_io_uring_enter",
+        "SYS_io_uring_register", "SYS_dup", "SYS_dup2", "SYS_dup3",
+        "SYS_fcntl", "SYS_recvmsg", "SYS_ptrace", "SYS_process_vm_writev",
+    ):
+        assert f"allow_syscall(*filter, {forbidden_allow})" not in source
+    assert "mode == 1300" in source and "allow_syscall(*filter, SYS_openat)" in source
+    assert "mode == 1301" in source and "allow_any_write" in source
+    assert "mode == 1302" in source and "allow_syscall(*filter, SYS_mprotect)" in source
+    assert "mode == 1303" in source and "allow_syscall(*filter, SYS_mmap)" in source
+    assert "mode == 1304" in source and "allow_syscall(*filter, SYS_rt_sigaction)" in source
+    assert "PR_SET_NO_NEW_PRIVS" in source
+    assert "PR_SET_DUMPABLE" in source
+    assert "::fstat(observation_fd, &observation_stat)" in source
+    assert "expected_observation_dev" in source
+    assert "expected_observation_ino" in source
+    assert "expected_observation_type" in source
+    assert "#ifdef NDEBUG" in source
+    assert "IZSWO3" not in source
+    assert "_BROKER_OUTCOME" not in source
+    assert "trusted_snapshot" not in source
+    assert "Known residual" in source
+    assert O._COMPILE_FLAGS[-1] == "-DFORCE_ENABLE_ASSERTIONS=1"
     assert _CLEAN_IMPL in source
     for axiom_name in ("irreflexive", "asymmetric", "transitive-equivalence"):
         assert axiom_name not in source
@@ -1203,7 +2139,7 @@ def test_run_limits_cover_required_resources(monkeypatch):
     O._limit_run()
     assert {name for name, _ in calls} == {
         O.resource.RLIMIT_CPU, O.resource.RLIMIT_AS, O.resource.RLIMIT_FSIZE,
-        O.resource.RLIMIT_NPROC, O.resource.RLIMIT_NOFILE, O.resource.RLIMIT_CORE,
+        O.resource.RLIMIT_NOFILE, O.resource.RLIMIT_CORE,
     }
 
 
@@ -1226,43 +2162,51 @@ def test_hard_timeout_kills_process_group(monkeypatch):
     assert killed == [(316, O.signal.SIGKILL)]
 
 
-def test_candidate_stdout_stderr_are_discarded_and_matrix_uses_dedicated_fd(monkeypatch, tmp_path):
-    captured = {}
+def test_candidate_stdout_stderr_are_discarded_and_matrix_uses_dedicated_fd():
+    runner = inspect.getsource(O._run_matrix)
+    broker = inspect.getsource(O._broker_main)
+    assert "stdout=subprocess.DEVNULL" in runner
+    assert "stderr=subprocess.DEVNULL" in runner
+    assert "pass_fds=tuple(inherited_fds)" in runner
+    assert runner.index("_broker_receive_control(authority)") < runner.index(
+        "if final_created_after_stop:"
+    )
+    assert "SCM_RIGHTS" in runner
+    assert "after = before" not in runner
+    assert "after = before" not in broker
+    assert "_broker_worker_fd_identities_from_snapshot(" in broker
+    assert broker.index("acknowledged = _broker_receive_control(authority)") < broker.index(
+        "observed_numbers = _broker_worker_fd_numbers(worker_fd_directory)"
+    )
+    assert broker.index("worker_pid = os.fork()") < broker.index(
+        "final_fd = _broker_receive_fd(authority)"
+    )
+    assert 'test_mode == "1405"' in broker
+    assert "os.dup2(injected_final_fd, observation_write)" in broker
+    assert "final_created_after_stop=injected_final_fd is None" in broker
+    assert broker.index("reaped = os.waitid") < broker.index(
+        "_broker_write_all(final_fd, frame)"
+    )
+    assert "_broker_write_all" not in O._translation_unit(_CLEAN_IMPL)
 
-    class FailedProcess:
-        pid = 317
-        returncode = 71
 
-        def communicate(self, timeout=None):
-            return b"", b""
+def test_unattributed_runtime_exit_is_infrastructure_unavailable():
+    import types
 
-    def fake_popen(command, **kwargs):
-        captured["command"] = command
-        captured["kwargs"] = kwargs
-        return FailedProcess()
-
-    monkeypatch.setattr(O.subprocess, "Popen", fake_popen)
-    _matrix_value, finding = O._run_matrix(tmp_path / "oracle", 0, 0)
-    assert finding is not None and finding.kind is O.OracleRejectKind.EXECUTION
-    assert captured["kwargs"]["stdout"] == O.subprocess.DEVNULL
-    assert captured["kwargs"]["stderr"] == O.subprocess.DEVNULL
-    assert len(captured["kwargs"]["pass_fds"]) == 1
-    assert captured["command"][3] == str(captured["kwargs"]["pass_fds"][0])
-
-
-def test_unattributed_runtime_exit_is_infrastructure_unavailable(monkeypatch, tmp_path):
-    class FailedProcess:
-        pid = 319
-        returncode = 1
-
-        def communicate(self, timeout=None):
-            return b"", b""
-
-    monkeypatch.setattr(O.subprocess, "Popen", lambda *args, **kwargs: FailedProcess())
-    with pytest.raises(O._EvaluationUnavailable) as caught:
-        O._run_matrix(tmp_path / "oracle", 0, 0)
-    assert caught.value.phase == "run-exit"
-    assert caught.value.detail_code == "unattributed-run-exit-1"
+    wait_result = types.SimpleNamespace(
+        si_code=O.os.CLD_EXITED, si_status=1,
+    )
+    frame = O._broker_frame(
+        wait_result, b"", 0, 0, fd_boundary_safe=True,
+    )
+    unpacked = O._HEADER.unpack(frame[:O._HEADER.size])
+    assert unpacked[5:10] == (
+        O._BROKER_OUTCOME_REJECT,
+        O._BROKER_DETAIL_SIGNAL,
+        O._WITNESS_NONE,
+        O._WITNESS_NONE,
+        1,
+    )
 
 
 def test_compile_command_reproduces_probe_c2_contract(monkeypatch, tmp_path):
@@ -1293,12 +2237,23 @@ def test_compile_command_reproduces_probe_c2_contract(monkeypatch, tmp_path):
         "-DGLOBAL=extern", "-DCACHE_LINE_SIZE=64", "-DVAL_SIZE=4", "-DKEY_SIZE=8",
         "-DMASSTREE_USE=0", "-DCLOCKS_PER_US=2100", "-DBACK_OFF=1", "-DWAL=0",
         "-DNO_WAIT_LOCKING_IN_VALIDATION=1", "-DTRACE=0", "-DSORT_VARIANT=0",
-        "-DKEY_SORT=0", "-DPARTITION_TABLE=0",
+        "-DKEY_SORT=0", "-DPARTITION_TABLE=0", "-DFORCE_ENABLE_ASSERTIONS=1",
     ):
         assert flag in command
     assert str(_CCBENCH) in command
     assert str(_CCBENCH / "include") in command
     assert "/fixture/masstree" in command
+    assert command[-1] == "-DFORCE_ENABLE_ASSERTIONS=1"
+    assert "-DIZANAGI_ORACLE_FAULT_INJECTION=1" not in command
+    fault_command = O._compile_command(
+        tmp_path / "fault.cpp", tmp_path / "fault",
+        compiler="/usr/bin/g++", ccbench_dir=_CCBENCH,
+        masstree_dir=Path("/fixture/masstree"), fault_injection=True,
+    )
+    assert fault_command[-2:] == [
+        "-DIZANAGI_ORACLE_FAULT_INJECTION=1",
+        "-DFORCE_ENABLE_ASSERTIONS=1",
+    ]
 
 
 def test_compile_diagnostic_is_bounded_hashed_and_not_serialized_to_critic(
@@ -1347,6 +2302,8 @@ def test_no_optional_or_none_pass_api_and_no_unbounded_fixture_enumeration():
     assert "/work/" not in resolver_source
     assert "IZANAGI_SORT_SWO_CXX" in resolver_source
     assert "IZANAGI_SORT_SWO_MASSTREE_ROOT" in resolver_source
+    assert "ccbench-build-dependency" not in resolver_source
+    assert "ancestor-cache:" not in resolver_source
 
 
 def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, tmp_path):

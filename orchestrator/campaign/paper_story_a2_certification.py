@@ -29,6 +29,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
+from ..scheduler_nqsv import (
+    QSTAT_REQUEST_ID_RE,
+    target_bound_qstat_state_result,
+)
 from . import buildcache
 from .pipeline import PerfConfig
 
@@ -63,8 +67,9 @@ _NQSV_GROUP_RE = re.compile(r"(?m)^[ \t]*Group Name:[ \t]*(\S+)[ \t]*$")
 _NQSV_STARTED_RE = re.compile(r"(?m)^[ \t]*Started Request Time:[ \t]*\S.*$")
 _NQSV_ENDED_RE = re.compile(r"(?m)^[ \t]*Ended Request Time:[ \t]*\S.*$")
 _NQSV_ELAPSE_RE = re.compile(r"(?m)^[ \t]*Elapse:[ \t]*\S.*$")
-_NQSV_REQUEST_STATE_RE = re.compile(
-    r"(?m)^[ \t]*Request[ \t]+State[ \t]*=[ \t]*(\S+)[ \t]*$"
+_NQSV_ENDED_REQUEST_TIME_RE = re.compile(
+    r"(?im)^[ \t]*Ended[ \t]+Request[ \t]+Time[ \t]*=[ \t]*(.*?)"
+    r"[ \t]*$"
 )
 _NQSV_DISAPPEARED_RE = re.compile(
     r"[ \t]*Batch[ \t]+Request:[ \t]+(\S+)[ \t]+does[ \t]+not[ \t]+"
@@ -134,6 +139,7 @@ _RESERVATION_ENV_KEYS = {
 }
 _RESULT_LIMIT = 2 * 1024 * 1024
 _QSUB_JOB_NAME = "paper-a2-cert"
+_SUBMISSION_VISIBLE_STATES = frozenset({"QUE", "RUN"})
 _COLLECT_TEST_TOKEN = object()
 
 
@@ -820,10 +826,6 @@ def _validate_submission_receipt(policy: Policy, payload: Mapping[str, Any],
     visibility = payload["qstat_visibility"]
     visibility_stdout = (
         visibility.get("stdout") if type(visibility) is dict else None)
-    visibility_states = (
-        _NQSV_REQUEST_STATE_RE.findall(visibility_stdout)
-        if type(visibility_stdout) is str else []
-    )
     if (type(visibility) is not dict or set(visibility) != {
             "observed", "observed_at_utc", "request_id", "argv", "returncode",
             "state", "stdout", "stderr"}
@@ -835,12 +837,58 @@ def _validate_submission_receipt(policy: Policy, payload: Mapping[str, Any],
             or visibility.get("argv") != ["qstat", "-f", request_id]
             or visibility.get("returncode") != 0
             or visibility.get("stderr") != ""
-            or visibility.get("state") not in {"QUE", "RUN"}
-            or visibility_states != [visibility.get("state")]
-            or type(visibility_stdout) is not str
-            or [_normalize_request_id(value) for value in
-                _NQSV_REQUEST_RE.findall(visibility_stdout)] != [request_id]):
+            or type(visibility_stdout) is not str):
         raise CertificationError("qstat visibility evidence is incomplete")
+    if _NQSV_DISAPPEARED_RE.search(visibility_stdout) is not None:
+        raise CertificationError(
+            "qstat visibility contains a disappeared request signature")
+    ended_matches = list(
+        _NQSV_ENDED_REQUEST_TIME_RE.finditer(visibility_stdout))
+    if not ended_matches:
+        raise CertificationError(
+            "qstat visibility ended request time is missing")
+    if len(ended_matches) != 1:
+        raise CertificationError(
+            "qstat visibility ended request time is duplicated")
+    if ended_matches[0].group(1).strip() != "(none)":
+        raise CertificationError(
+            "qstat visibility ended request time is not (none)")
+    request_matches = list(QSTAT_REQUEST_ID_RE.finditer(visibility_stdout))
+    if (len(request_matches) == 1
+            and ended_matches[0].start() < request_matches[0].end()):
+        raise CertificationError(
+            "qstat visibility ended request time precedes request ID")
+    if _TERMINAL_STATE_RE.search(visibility_stdout) is not None:
+        raise CertificationError("qstat visibility contains a terminal state")
+    parsed_state = target_bound_qstat_state_result(
+        visibility_stdout, request_id)
+    parse_errors = {
+        "request-id-count": "qstat visibility request ID count is not one",
+        "request-id-mismatch": "qstat visibility request ID differs from submission",
+        "state-before-target-request-id": (
+            "qstat visibility has state before the target request ID"),
+        "state-field-duplicated": "qstat visibility state field is duplicated",
+        "state-fields-conflict": "qstat visibility state fields conflict",
+        "state-field-missing": "qstat visibility state field is missing",
+        "state-vocabulary-unknown": "qstat visibility state vocabulary is unknown",
+        "noncanonical-state-whitespace": (
+            "qstat visibility state whitespace is noncanonical"),
+        "invalid-target-request-id": "qstat visibility target request ID is invalid",
+        "invalid-observed-request-id": (
+            "qstat visibility observed request ID is invalid"),
+    }
+    if parsed_state.state is None:
+        raise CertificationError(parse_errors.get(
+            parsed_state.reason, "qstat visibility is not target-bound"))
+    if parsed_state.state not in _SUBMISSION_VISIBLE_STATES:
+        raise CertificationError(
+            "qstat visibility state is outside the submission acceptance set")
+    if visibility.get("state") not in _SUBMISSION_VISIBLE_STATES:
+        raise CertificationError(
+            "qstat visibility receipt state is outside the submission acceptance set")
+    if visibility.get("state") != parsed_state.state:
+        raise CertificationError(
+            "qstat visibility receipt state differs from canonical stdout state")
     return {
         "request_id": request_id,
         "source_commit": payload["source_commit"],

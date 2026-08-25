@@ -151,15 +151,17 @@ non-attributable-only は受理成功、赤だけで失敗と早合点しない�
 
 ## DW-O20 — clean-tree gate
 
-専用handoffはworktree外（背景jobはrepo外）に置き、untracked handoffを残してgateを走らせない。
-cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
-worktreeを流用しない。作成直後は`tools/check_wave_startup.py`、再開直後は`--mode resume`付きで
-実行し（背景jobは`--external-handoff <handoff>`も）、非0なら停止する。resumeも
-branch・clean tree・main包含を要求。HEAD差は`--ff-only`で揃える（F48）。
-新規worktreeはsubmodule未初期化で非0になる。worktree内で`DW-C01`に従い初期化して
-再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
-受入投入前に`git submodule update --recursive`で記録へ揃える。
-子を走らせるworktreeは`git worktree lock`する（cwd走査はlauncher型の子を検出しない）。
+専用handoffはworktree外（背景jobはrepo外）。untrackedを残してgateを走らせない。
+cwdがworktreeなら作らず、directory/branch不一致をhandoff・worklogに記しwave用へ流用しない。
+開始gateは`tools/check_wave_startup.py`（再開は`--mode resume`、背景jobは
+`--external-handoff`も）。非0なら停止。resumeもbranch・clean tree・main包含を要求。
+gate成功後の前進でgateを再走しない。取り込みは
+`tools/dev_wave_wait.py acceptance`のpost-claim merge。
+待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
+HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
+`DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
+`git submodule update --recursive`で揃える。
+子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
 
 ## DW-O23 — 並行 session の local main land
 

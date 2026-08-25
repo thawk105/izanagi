@@ -1,0 +1,7 @@
+{
+  "sha": "8440a14850718e63d73dfc510aa66b853a526424",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (ユーザー選択: known-violation 登録)",
+  "note": "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した 19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ (T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc 8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。親作成 merge のため Codex 著者とは記さない。"
+}

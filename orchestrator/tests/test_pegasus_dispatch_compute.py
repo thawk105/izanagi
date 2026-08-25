@@ -23,6 +23,7 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from tools.pegasus import dispatch_compute as DC
+from orchestrator import scheduler_nqsv as NQSV
 
 
 _JOB_ID = "0:424242.nqsv"
@@ -1131,6 +1132,27 @@ def test_fa1_rc0_request_disappearance_is_terminal_within_one_poll(tmp_path):
 )
 def test_scheduler_state_accepts_nqsv_full_and_abbreviated_forms(text, expected):
     assert DC._scheduler_state(text) == expected
+
+
+def test_dispatcher_uses_the_shared_target_bound_nqsv_authority():
+    assert DC._GATE_STATE_FIELD_RE is NQSV.GATE_STATE_FIELD_RE
+    assert DC._gate_state_value is NQSV.gate_state_value
+    assert DC._target_bound_qstat_state is NQSV.target_bound_qstat_state
+
+
+def test_shared_target_bound_nqsv_authority_is_stdlib_only():
+    tree = ast.parse(Path(NQSV.__file__).read_text(encoding="utf-8"))
+    imported_roots = {
+        alias.name.split(".", 1)[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    } | {
+        (node.module or "").split(".", 1)[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+    }
+    assert imported_roots == {"__future__", "dataclasses", "re", "typing"}
 
 
 def _gate_qstat_result(*, state="QUE", rc=0, stdout=None, stderr=""):

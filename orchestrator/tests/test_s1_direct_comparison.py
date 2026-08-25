@@ -534,6 +534,7 @@ def _capture_prepare_quarantine(
         tu_template_sha256=oracle.TU_TEMPLATE_SHA256,
         dependency_root_realpath="/fixture/dependency",
         dependency_config_sha256="4" * 64,
+        dependency_manifest_sha256=oracle.DEPENDENCY_MANIFEST_SHA256,
     )
     monkeypatch.setattr(
         oracle, "check_materialized_sort_swo",
@@ -572,14 +573,16 @@ def _oracle_reject_result():
         tu_template_sha256=oracle.TU_TEMPLATE_SHA256,
         dependency_root_realpath="/fixture/dependency",
         dependency_config_sha256="d" * 64,
+        dependency_manifest_sha256=oracle.DEPENDENCY_MANIFEST_SHA256,
     )
     finding = oracle.SortSwoFinding(
         oracle.OracleRejectKind.MUTATION,
-        "corpus-mutated-by-comparator",
-        input_pairs=((1, 2),),
+        "snapshot-arena-write-denied",
         corpus_id=f"{oracle.CORPUS_ID}/corpus-0",
         order_id=1,
-        observations=({"point": "after-call", "changed": True},),
+        observations=({
+            "point": "kernel-read-only-arena", "write_denied": True,
+        },),
     )
     return oracle.SortSwoOracleResult(
         oracle.OracleStatus.REJECT,
@@ -1404,7 +1407,7 @@ def test_s1_oracle_reject_is_distinct_terminal_and_resume_does_not_prepare(tmp_p
     results = [event for event in events if event.get("event") == "session-result"]
     assert len(results) == 1
     assert results[0]["status"] == "oracle-reject"
-    assert results[0]["reason"] == "corpus-mutated-by-comparator"
+    assert results[0]["reason"] == "snapshot-arena-write-denied"
     assert results[0]["status"] != "verifier-red"
     assert not any(event.get("event") == "retry" for event in events)
     assert evaluate_calls == []

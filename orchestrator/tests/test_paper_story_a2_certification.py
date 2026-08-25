@@ -36,6 +36,14 @@ from orchestrator.campaign.pipeline import (
 
 CURRENT_PIN = "1" * 40
 SOURCE_COMMIT = "2" * 40
+QSTAT_VISIBILITY_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "paper_story_a2"
+    / "qstat-visibility-945411.stdout"
+)
+NON_ACCEPTED_VISIBILITY_VOCABULARY = (
+    ("Held", "outside the submission acceptance set"),
+    ("Suspended", "state vocabulary is unknown"),
+)
 
 
 def _policy(tmp_path):
@@ -245,12 +253,12 @@ def _write_receipt_bundle(
             A2.write_json_x(raw_root / f"{result['cell_id']}.json", result)
     manifest_path = A2.finalize_raw_manifest(
         policy, attempt_root, CURRENT_PIN)
-    request_id = "12345.nqsv"
+    request_id = "945411.nqsv"
     stdout_path = attempt_root / "scheduler" / "job.stdout"
     stderr_path = attempt_root / "scheduler" / "job.stderr"
     stdout_path.write_text("job output\n", encoding="utf-8")
     stderr_path.write_text(
-        "Request ID: 12345.nqsv\nGroup Name: SFC\n"
+        "Request ID: 945411.nqsv\nGroup Name: SFC\n"
         "Started Request Time: now\nEnded Request Time: later\nElapse: 1\n",
         encoding="utf-8",
     )
@@ -274,7 +282,7 @@ def _write_receipt_bundle(
     allocation_stdout = attempt_root / "scheduler" / "allocation-qstat.stdout"
     allocation_stderr = attempt_root / "scheduler" / "allocation-qstat.stderr"
     allocation_stdout.write_text(
-        "Request ID: 12345.nqsv\nStarted Request Time = now\n"
+        "Request ID: 945411.nqsv\nStarted Request Time = now\n"
         "(Per-Req) Elapse Time Limit = Max: 21600S\n",
         encoding="utf-8",
     )
@@ -319,7 +327,7 @@ def _write_receipt_bundle(
         "submission_cwd": str(repo_root),
         "qsub_environment": qsub_environment,
         "job_body_sha256": hashlib.sha256(job_body.read_bytes()).hexdigest(),
-        "qsub_stdout": "Request 12345.nqsv submitted\n",
+        "qsub_stdout": "Request 945411.nqsv submitted\n",
         "qsub_stderr": "",
         "qsub_returncode": 0,
         "request_id": request_id,
@@ -329,8 +337,8 @@ def _write_receipt_bundle(
             "request_id": request_id,
             "argv": ["qstat", "-f", request_id],
             "returncode": 0,
-            "state": "RUN",
-            "stdout": "Request ID: 12345.nqsv\nRequest State = RUN\n",
+            "state": "QUE",
+            "stdout": QSTAT_VISIBILITY_FIXTURE.read_text(encoding="utf-8"),
             "stderr": "",
         },
     }
@@ -344,9 +352,9 @@ def _write_receipt_bundle(
         "current_pin": CURRENT_PIN,
     })
     terminal_stdout = (
-        "Request ID: 12345.nqsv\nRequest State = EXT\n"
+        "Request ID: 945411.nqsv\nRequest State = EXT\n"
         if terminal_reason == "scheduler-end-state"
-        else "Batch Request: 12345.nqsv does not exist on nqsv.\n"
+        else "Batch Request: 945411.nqsv does not exist on nqsv.\n"
     )
     completion = {
         "schema_version": A2.COMPLETION_SCHEMA,
@@ -637,13 +645,13 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
     acquisition, submission = _write_receipt_bundle(policy, root)
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
-    assert evidence["request_id"] == "12345.nqsv"
+    assert evidence["request_id"] == "945411.nqsv"
     assert "scheduler_stdout" not in submission
     assert "scheduler_stderr" not in submission
     assert "scheduler_stdout" in evidence["completion"]
     assert "scheduler_stderr" in evidence["completion"]
     binding = reservation.read_binding(evidence["reservation_result"]["environment"])
-    assert binding.job_id == "12345.nqsv"
+    assert binding.job_id == "945411.nqsv"
     assert binding.deadline_epoch == binding.scheduler_started_epoch + 21600
     with pytest.raises(FileExistsError):
         A2.record_submission_receipt(
@@ -695,26 +703,210 @@ def test_submission_argv_environment_nodes_and_job_body_are_exact(
             policy, mutant, root.name, root, CURRENT_PIN)
 
 
+def _assert_real_submission_visibility_is_accepted(policy, root, submission):
+    binding = A2._validate_submission_receipt(
+        policy, submission, root.name, root, CURRENT_PIN)
+    assert binding["request_id"] == "945411.nqsv"
+    assert submission["qstat_visibility"]["state"] == "QUE"
+
+
+def test_submission_visibility_uses_the_full_real_qstat_fixture(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-real-qstat", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    fixture_bytes = QSTAT_VISIBILITY_FIXTURE.read_bytes()
+    assert hashlib.sha256(fixture_bytes).hexdigest() == (
+        "55bc7a633cd903bfa592ab71c4f347b6a50cce7ca295acb068de50b390ef830d"
+    )
+    fixture = fixture_bytes.decode("utf-8")
+    assert submission["qstat_visibility"]["stdout"] == fixture
+    assert len(fixture.splitlines()) == 94
+    assert "Current State           = Staging" in fixture
+    assert "Request State = RUN" not in fixture
+    assert A2.SUBMISSION_SCHEMA == "paper-story-a2-submission-receipt/v3"
+    assert A2._SUBMISSION_VISIBLE_STATES == frozenset({"QUE", "RUN"})
+    _assert_real_submission_visibility_is_accepted(
+        policy, root, submission)
+
+
+def test_submission_visibility_rejects_another_request_block(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-another-block", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] = (
+        "Request ID: 999999.nqsv\nCurrent State = Running\n"
+        + mutant["qstat_visibility"]["stdout"])
+    with pytest.raises(A2.CertificationError, match="request ID count is not one"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_rejects_conflicting_state_fields(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-state-conflict", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] += "Request State = RUN\n"
+    with pytest.raises(A2.CertificationError, match="state fields conflict"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_rejects_state_before_target_id(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-state-before-id", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] = (
+        "Request State = QUE\n" + mutant["qstat_visibility"]["stdout"])
+    with pytest.raises(
+        A2.CertificationError, match="state before the target request ID"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_rejects_non_none_ended_time(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-ended-time", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] = mutant[
+        "qstat_visibility"]["stdout"].replace(
+            "Ended Request Time   = (none)",
+            "Ended Request Time   = Tue Aug 25 09:00:00 2026",
+            1,
+        )
+    with pytest.raises(A2.CertificationError, match=r"not \(none\)"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "signature"),
+    (
+        ("missing", "ended request time is missing"),
+        ("duplicated", "ended request time is duplicated"),
+        ("before-request-id", "ended request time precedes request ID"),
+    ),
+)
+def test_submission_visibility_requires_one_ended_time_after_request_id(
+        tmp_path, mutation, signature):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-ended-time-" + mutation, CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    ended_line = "    Ended Request Time   = (none)\n"
+    stdout = mutant["qstat_visibility"]["stdout"]
+    assert stdout.count(ended_line) == 1
+    if mutation == "missing":
+        stdout = stdout.replace(ended_line, "", 1)
+    elif mutation == "duplicated":
+        stdout = stdout.replace(ended_line, ended_line * 2, 1)
+    else:
+        stdout = ended_line + stdout.replace(ended_line, "", 1)
+    mutant["qstat_visibility"]["stdout"] = stdout
+    with pytest.raises(A2.CertificationError, match=signature):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_rejects_disappearance_with_visible_block(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-visible-and-disappeared", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] += (
+        "Batch Request: 945411.nqsv does not exist on nqsv.\n")
+    with pytest.raises(
+            A2.CertificationError,
+            match="contains a disappeared request signature"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_rejects_receipt_state_mismatch(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-receipt-state-mismatch", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["state"] = "RUN"
+    with pytest.raises(
+            A2.CertificationError,
+            match="receipt state differs from canonical stdout state"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_rejects_finished_request_stdout(tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-finished-request", CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] = mutant[
+        "qstat_visibility"]["stdout"].replace(
+            "Current State           = Staging",
+            "Current State           = Completed",
+            1,
+        )
+    with pytest.raises(A2.CertificationError, match="contains a terminal state"):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+@pytest.mark.parametrize(
+    ("raw_state", "signature"),
+    NON_ACCEPTED_VISIBILITY_VOCABULARY,
+)
+def test_submission_visibility_rejects_nonaccepted_vocabulary(
+        tmp_path, raw_state, signature):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-submit-vocab-" + raw_state.casefold(), CURRENT_PIN)
+    _, submission = _write_receipt_bundle(policy, root)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
+    mutant = copy.deepcopy(submission)
+    mutant["qstat_visibility"]["stdout"] = mutant[
+        "qstat_visibility"]["stdout"].replace(
+            "Current State           = Staging",
+            "Current State           = " + raw_state,
+            1,
+        )
+    with pytest.raises(A2.CertificationError, match=signature):
+        A2._validate_submission_receipt(
+            policy, mutant, root.name, root, CURRENT_PIN)
+
+
+def test_submission_visibility_vocabulary_sets_are_nonvacuous_and_exact():
+    assert NON_ACCEPTED_VISIBILITY_VOCABULARY
+    assert {item[0] for item in NON_ACCEPTED_VISIBILITY_VOCABULARY} == {
+        "Held", "Suspended"}
+    assert A2._SUBMISSION_VISIBLE_STATES == frozenset({"QUE", "RUN"})
+
+
 def test_submission_visibility_requires_timestamped_nonterminal_state(tmp_path):
     policy = _policy(tmp_path)
     root = A2.preregister_attempt(
-        policy, "attempt-submit-terminal-visibility", CURRENT_PIN)
+        policy, "attempt-submit-missing-timestamp", CURRENT_PIN)
     _, submission = _write_receipt_bundle(policy, root)
-
-    terminal = copy.deepcopy(submission)
-    terminal["qstat_visibility"]["state"] = "EXT"
-    terminal["qstat_visibility"]["stdout"] = (
-        "Request ID: 12345.nqsv\nRequest State = EXT\n")
-    with pytest.raises(A2.CertificationError, match="qstat visibility"):
-        A2._validate_submission_receipt(
-            policy, terminal, root.name, root, CURRENT_PIN)
-
-    terminal_output = copy.deepcopy(submission)
-    terminal_output["qstat_visibility"]["stdout"] = (
-        "Request ID: 12345.nqsv\nRequest State = EXT\n")
-    with pytest.raises(A2.CertificationError, match="qstat visibility"):
-        A2._validate_submission_receipt(
-            policy, terminal_output, root.name, root, CURRENT_PIN)
+    _assert_real_submission_visibility_is_accepted(policy, root, submission)
 
     missing_time = copy.deepcopy(submission)
     missing_time["qstat_visibility"].pop("observed_at_utc")
@@ -881,7 +1073,7 @@ def test_completion_accepts_both_canonical_terminal_observations(
     assert evidence["raw_manifest_valid"] is True
     if terminal_reason == "request-disappeared-after-visibility":
         assert evidence["completion"]["terminal_observation"]["stdout"] == (
-            "Batch Request: 12345.nqsv does not exist on nqsv.\n")
+            "Batch Request: 945411.nqsv does not exist on nqsv.\n")
 
 
 @pytest.mark.parametrize(
@@ -899,7 +1091,7 @@ def test_disappeared_terminal_rejects_noncanonical_observations(
     if mutation == "empty-output":
         terminal["stdout"] = ""
     elif mutation == "visible-output":
-        terminal["stdout"] = "Request ID: 12345.nqsv\nRequest State = RUN\n"
+        terminal["stdout"] = "Request ID: 945411.nqsv\nRequest State = RUN\n"
     elif mutation == "nonzero-rc":
         terminal["returncode"] = 1
     else:

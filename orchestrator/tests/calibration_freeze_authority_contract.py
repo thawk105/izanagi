@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from collections.abc import Iterable
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -30,6 +31,7 @@ __all__ = (
     "load_fixture_cases",
     "validate_repository",
     "require_stage0_complete",
+    "require_stage0_fixture_obligations_discharged",
 )
 
 
@@ -50,6 +52,10 @@ _DESIGN_TABLE_ROW_RE = re.compile(
 )
 _DESIGN_DECLARED_ROW_RE = re.compile(
     r"^row ID\s*=\s*`(CFAB-11\.2-[0-9]{2})`[.。]$", re.MULTILINE
+)
+_DESIGN_DECLARED_STAGE0_DEFERRED_FIXTURE_RE = re.compile(
+    r"^deferred fixture ID\s*=\s*`([a-z0-9]+(?:-[a-z0-9]+)*)`[.。]$",
+    re.MULTILINE,
 )
 _RULING_TABLE_ROW_RE = re.compile(
     r"^\|\s*`((?:CFAB|FREEZE)-[^`]+)`\s*\|[^|]*\|\s*(.*?)\s*\|\s*$",
@@ -104,6 +110,8 @@ _ENTRYPOINT_RE = re.compile(
 )
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PLACEHOLDER_RE = re.compile(r"TODO|FIXME|\.\.\.", re.IGNORECASE)
+_BLOCKING_GATE_STATUSES = frozenset({"unresolved", "pending", "nonconforming"})
+_STAGE0_DEFERRED_OWNER = "stage1-and-later"
 
 _PROFILE_IDS = (
     "CFAB-Q1-PLACEMENT",
@@ -200,8 +208,23 @@ _EXPECTED_STAGE6_STRUCTURAL_CONTROL = (
 _EXPECTED_STAGE6_EXECUTION_BOUNDARY = (
     "**本行が固定するのは predicate であって実行ではない** — "
     "実 entrypoint と fixture の対応付けは "
-    "`CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番であり、"
-    "それが `pending` である限り段 0 は完了しない。"
+    "`CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番である。"
+    "その owner が `stage1-and-later` であり、対応する fixture が "
+    "`owned_fixture_ids` に宣言されている間、gate と当該 pending fixture は"
+    "段 0 blocker へ数えず、対象後続段へ繰り越す。"
+    "fixture assignment 自身の完了条件は緩めない。"
+    "将来の段 6 実装は、X 候補提出前に "
+    "`require_stage0_fixture_obligations_discharged()` を呼び、同述語が緑であることを"
+    "要求しなければならない。現時点では段 6 の候補入口とこの production caller は"
+    "未実装である。"
+)
+
+_EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS = (
+    "approved-freeze-reference",
+    "bundle-identity-propagation",
+    "candidate-type-preservation",
+    "floor-seal-consistency",
+    "post-cutoff-bundle-identity",
 )
 
 # These literals were calculated once from the checked-in case-file bytes.  They
@@ -255,7 +278,7 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("FREEZE-U-A1", "user", "resolved"),
 })
 _EXPECTED_REQUIRED_GATES_ENTRIES_SHA256 = (
-    "51efdac40cd987636046d88fd10197bac1f60f8d547d9e43bcbc3e52bcd0164d"
+    "3489df06e36dfe429ee6530318f6918f6229be8f2ddb1914781ce21772a54109"
 )
 
 
@@ -491,6 +514,27 @@ def extract_design_row_ids() -> tuple[str, ...]:
     return _extract_design_row_ids(DESIGN_DOC)
 
 
+def _extract_design_stage0_deferred_fixture_ids(path: Path) -> tuple[str, ...]:
+    text = _read_design(path)
+    start_marker = "### 10.2 段 0 の完了 status と、段 8 の完了判定"
+    start = text.find(start_marker)
+    if start < 0 or text.find(start_marker, start + 1) >= 0:
+        raise ContractError("design §10.2 heading is missing or duplicated")
+    end = text.find("\n## ", start + len(start_marker))
+    if end < 0:
+        raise ContractError("design §10.2 terminator is missing")
+    fixture_ids = tuple(
+        _DESIGN_DECLARED_STAGE0_DEFERRED_FIXTURE_RE.findall(text[start:end])
+    )
+    if not fixture_ids:
+        raise ContractError("design §10.2 deferred fixture IDs are missing")
+    if len(fixture_ids) != len(set(fixture_ids)):
+        raise ContractError("design §10.2 has duplicate deferred fixture IDs")
+    if fixture_ids != tuple(sorted(fixture_ids)):
+        raise ContractError("design §10.2 deferred fixture IDs must be sorted")
+    return fixture_ids
+
+
 def _extract_ruling_ids(path: Path) -> tuple[str, ...]:
     text = _read_design(path)
     start_marker = "### 8.1 裁定 profile の exact schema"
@@ -697,6 +741,98 @@ def _fixture_assignment_gate_id_from_design(path: Path) -> str:
     )
 
 
+def _validate_stage0_deferred_fixture_ids(
+    manifest_fixture_ids: Iterable[str],
+    design_fixture_ids: Iterable[str],
+) -> tuple[str, ...]:
+    manifest_ids = tuple(manifest_fixture_ids)
+    design_ids = tuple(design_fixture_ids)
+    if not (
+        manifest_ids
+        == _EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS
+        == design_ids
+    ):
+        raise ContractError(
+            "stage 0 deferred fixture IDs do not exactly match "
+            "manifest/module/design declarations"
+        )
+    return manifest_ids
+
+
+def _project_stage0_blockers(
+    gates: Iterable[Mapping[str, Any]],
+    cases: Iterable[Mapping[str, Any]],
+) -> Mapping[str, tuple[str, ...]]:
+    """parsed gate/case 集合を raw・deferred・段 0 blocker へ純粋射影する。"""
+
+    gate_entries = tuple(gates)
+    case_entries = tuple(cases)
+    case_by_id = {case["fixture_id"]: case for case in case_entries}
+    raw_pending_fixture_ids = tuple(
+        sorted(
+            case["fixture_id"]
+            for case in case_entries
+            if case["binding_state"] == "pending"
+        )
+    )
+    unresolved_deferred_fixture_ids = tuple(
+        fixture_id
+        for fixture_id in _EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS
+        if fixture_id in raw_pending_fixture_ids
+    )
+    raw_blocking_gate_ids = tuple(
+        sorted(
+            gate["gate_id"]
+            for gate in gate_entries
+            if gate["status"] in _BLOCKING_GATE_STATUSES
+        )
+    )
+
+    excluded_gate_ids: set[str] = set()
+    excluded_pending_fixture_ids: set[str] = set()
+    for gate in gate_entries:
+        if not (
+            gate["status"] in _BLOCKING_GATE_STATUSES
+            and gate["owner"] == _STAGE0_DEFERRED_OWNER
+            and "owned_fixture_ids" in gate
+        ):
+            continue
+        for fixture_id in gate["owned_fixture_ids"]:
+            case = case_by_id.get(fixture_id)
+            if case is None:
+                raise ContractError(
+                    "owned_fixture_ids names an unknown fixture: "
+                    f"{fixture_id}"
+                )
+            if case["binding_state"] != "pending":
+                raise ContractError(
+                    "owned_fixture_ids may contain only pending fixture cases: "
+                    f"{fixture_id}"
+                )
+            excluded_pending_fixture_ids.add(fixture_id)
+        excluded_gate_ids.add(gate["gate_id"])
+
+    return {
+        "raw_pending_fixture_ids": raw_pending_fixture_ids,
+        "unresolved_deferred_fixture_ids": unresolved_deferred_fixture_ids,
+        "excluded_stage0_pending_fixture_ids": tuple(
+            sorted(excluded_pending_fixture_ids)
+        ),
+        "stage0_blocking_pending_fixture_ids": tuple(
+            fixture_id
+            for fixture_id in raw_pending_fixture_ids
+            if fixture_id not in excluded_pending_fixture_ids
+        ),
+        "raw_blocking_gate_ids": raw_blocking_gate_ids,
+        "excluded_stage0_gate_ids": tuple(sorted(excluded_gate_ids)),
+        "stage0_blocking_gate_ids": tuple(
+            gate_id
+            for gate_id in raw_blocking_gate_ids
+            if gate_id not in excluded_gate_ids
+        ),
+    }
+
+
 def _validate_manifest(document: dict[str, Any]) -> None:
     _expect_exact_keys(
         document,
@@ -808,11 +944,40 @@ def _validate_manifest(document: dict[str, Any]) -> None:
     gate_ids: list[str] = []
     for index, entry in enumerate(gate_entries):
         label = f"required_gates.entries[{index}]"
-        _expect_exact_keys(
-            entry, frozenset({"gate_id", "owner", "status"}), label=label
+        has_owned_fixture_ids = "owned_fixture_ids" in entry
+        expected_keys = {"gate_id", "owner", "status"}
+        if has_owned_fixture_ids:
+            expected_keys.add("owned_fixture_ids")
+        _expect_exact_keys(entry, frozenset(expected_keys), label=label)
+        gate_ids.append(
+            _expect_nonempty_string(entry["gate_id"], label=f"{label}.gate_id")
         )
-        gate_ids.append(_expect_nonempty_string(entry["gate_id"], label=f"{label}.gate_id"))
-        _expect_nonempty_string(entry["owner"], label=f"{label}.owner")
+        owner = _expect_nonempty_string(entry["owner"], label=f"{label}.owner")
+        if has_owned_fixture_ids:
+            if owner != _STAGE0_DEFERRED_OWNER:
+                raise ContractError(
+                    f"{label}.owned_fixture_ids requires owner "
+                    f"{_STAGE0_DEFERRED_OWNER!r}"
+                )
+            owned_values = _expect_list(
+                entry["owned_fixture_ids"], label=f"{label}.owned_fixture_ids"
+            )
+            if not owned_values:
+                raise ContractError(f"{label}.owned_fixture_ids must be non-empty")
+            owned_fixture_ids = [
+                _expect_identifier(
+                    value, label=f"{label}.owned_fixture_ids[{owned_index}]"
+                )
+                for owned_index, value in enumerate(owned_values)
+            ]
+            if len(owned_fixture_ids) != len(set(owned_fixture_ids)):
+                raise ContractError(
+                    f"{label}.owned_fixture_ids has duplicate fixture IDs"
+                )
+            if owned_fixture_ids != sorted(owned_fixture_ids):
+                raise ContractError(
+                    f"{label}.owned_fixture_ids must use fixture ID order"
+                )
         if type(entry["status"]) is not str or entry["status"] not in {
             "resolved",
             "unresolved",
@@ -1131,6 +1296,26 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
         raise ContractError(
             "design §10 stage scope does not exactly match the fixture assignment gate ID"
         )
+    owned_gate_entries = [
+        entry
+        for entry in manifest["required_gates"]["entries"]
+        if "owned_fixture_ids" in entry
+    ]
+    if (
+        len(owned_gate_entries) != 1
+        or owned_gate_entries[0]["gate_id"] != expected_assignment_gate_id
+    ):
+        raise ContractError(
+            "design-derived fixture assignment gate must be the unique gate "
+            "with owned_fixture_ids"
+        )
+    design_deferred_fixture_ids = _extract_design_stage0_deferred_fixture_ids(
+        design_doc
+    )
+    _validate_stage0_deferred_fixture_ids(
+        owned_gate_entries[0]["owned_fixture_ids"],
+        design_deferred_fixture_ids,
+    )
 
     declared_entries = manifest["fixtures"]["entries"]
     declared_by_id = {entry["fixture_id"]: entry for entry in declared_entries}
@@ -1209,21 +1394,32 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
             "row_coverage.row_ids_sha256 does not match its independent pin"
         )
 
-    pending_count = sum(case["binding_state"] == "pending" for case in cases)
-    if row_coverage["pending_count"] != pending_count:
+    projection = _project_stage0_blockers(
+        manifest["required_gates"]["entries"], cases
+    )
+    raw_pending_count = len(projection["raw_pending_fixture_ids"])
+    if row_coverage["pending_count"] != raw_pending_count:
         raise ContractError(
             "row_coverage.pending_count does not match pending fixture cases: "
-            f"manifest={row_coverage['pending_count']}, actual={pending_count}"
+            f"manifest={row_coverage['pending_count']}, actual={raw_pending_count}"
         )
     unresolved_count = _applicable_unresolved_count(profile)
-    blocking_gate_statuses = {"unresolved", "pending", "nonconforming"}
-    has_blocking_gate = any(
-        entry["status"] in blocking_gate_statuses
-        for entry in manifest["required_gates"]["entries"]
+    excluded_stage0_pending_count = len(
+        projection["excluded_stage0_pending_fixture_ids"]
     )
+    stage0_blocking_pending_count = len(
+        projection["stage0_blocking_pending_fixture_ids"]
+    )
+    raw_blocking_gate_count = len(projection["raw_blocking_gate_ids"])
+    excluded_stage0_gate_count = len(projection["excluded_stage0_gate_ids"])
+    stage0_blocking_gate_count = len(projection["stage0_blocking_gate_ids"])
     computed_status = (
         "incomplete"
-        if pending_count > 0 or unresolved_count > 0 or has_blocking_gate
+        if (
+            stage0_blocking_pending_count > 0
+            or unresolved_count > 0
+            or stage0_blocking_gate_count > 0
+        )
         else "complete"
     )
     if manifest["status"] != computed_status:
@@ -1234,8 +1430,24 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
 
     return {
         "status": computed_status,
-        "pending_count": pending_count,
+        "pending_count": raw_pending_count,
+        "raw_pending_count": raw_pending_count,
+        "excluded_stage0_pending_count": excluded_stage0_pending_count,
+        "stage0_blocking_pending_count": stage0_blocking_pending_count,
+        "raw_blocking_gate_count": raw_blocking_gate_count,
+        "excluded_stage0_gate_count": excluded_stage0_gate_count,
+        "stage0_blocking_gate_count": stage0_blocking_gate_count,
+        "raw_pending_fixture_ids": projection["raw_pending_fixture_ids"],
+        "unresolved_deferred_fixture_ids": projection[
+            "unresolved_deferred_fixture_ids"
+        ],
+        "deferred_fixture_ids": projection[
+            "excluded_stage0_pending_fixture_ids"
+        ],
+        "deferred_gate_ids": projection["excluded_stage0_gate_ids"],
+        "stage0_blocking_gate_ids": projection["stage0_blocking_gate_ids"],
         "unresolved_count": unresolved_count,
+        "applicable_unresolved_count": unresolved_count,
         "row_ids": design_row_ids,
         "executable_fixture_ids": tuple(
             sorted(
@@ -1263,23 +1475,49 @@ def require_stage0_complete(
     """段 0 の完了を要求し、blocker が一つでもあれば fail-closed にする。"""
 
     summary = validate_repository(fixture_root, design_doc)
-    manifest = _load_manifest(fixture_root)
-    blocking_gate_statuses = {"unresolved", "pending", "nonconforming"}
-    blocking_gate_count = sum(
-        entry["status"] in blocking_gate_statuses
-        for entry in manifest["required_gates"]["entries"]
-    )
     if (
         summary["status"] != "complete"
-        or summary["pending_count"] != 0
-        or summary["unresolved_count"] != 0
-        or blocking_gate_count != 0
+        or summary["stage0_blocking_pending_count"] != 0
+        or summary["applicable_unresolved_count"] != 0
+        or summary["stage0_blocking_gate_count"] != 0
     ):
         raise ContractError(
             "stage 0 is incomplete: "
-            f"status={summary['status']}, pending={summary['pending_count']}, "
-            f"applicable_unresolved={summary['unresolved_count']}, "
-            f"blocking_gates={blocking_gate_count}"
+            f"status={summary['status']}, "
+            f"raw_pending_count={summary['raw_pending_count']}, "
+            "excluded_stage0_pending_count="
+            f"{summary['excluded_stage0_pending_count']}, "
+            "stage0_blocking_pending_count="
+            f"{summary['stage0_blocking_pending_count']}, "
+            "applicable_unresolved_count="
+            f"{summary['applicable_unresolved_count']}, "
+            f"raw_blocking_gate_count={summary['raw_blocking_gate_count']}, "
+            "excluded_stage0_gate_count="
+            f"{summary['excluded_stage0_gate_count']}, "
+            f"stage0_blocking_gate_count={summary['stage0_blocking_gate_count']}"
+        )
+
+    return summary
+
+
+def require_stage0_fixture_obligations_discharged(
+    fixture_root: Path = FIXTURE_ROOT,
+    design_doc: Path = DESIGN_DOC,
+) -> Mapping[str, Any]:
+    """繰越を免除へ変えず、raw fixture assignment 義務の解消を要求する。"""
+
+    summary = validate_repository(fixture_root, design_doc)
+    if summary["raw_pending_count"] != 0 or summary["deferred_gate_ids"]:
+        unresolved_deferred_fixture_ids = ",".join(
+            summary["unresolved_deferred_fixture_ids"]
+        )
+        deferred_gate_ids = ",".join(summary["deferred_gate_ids"])
+        raise ContractError(
+            "stage 0 fixture obligations are not discharged: "
+            f"raw_pending_count={summary['raw_pending_count']}, "
+            "unresolved_deferred_fixture_ids="
+            f"[{unresolved_deferred_fixture_ids}], "
+            f"deferred_gate_ids=[{deferred_gate_ids}]"
         )
 
     return summary

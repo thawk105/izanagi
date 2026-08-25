@@ -1,0 +1,7 @@
+{
+  "sha": "e39a8d46567a02d231fce52abae5aee759634ff7",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-22 dev-wave-t1479-known-violation-merge-authorship 受入前裁定 (2回目、ユーザー選択: known-violation 登録)",
+  "note": "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。"
+}
