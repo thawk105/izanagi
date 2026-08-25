@@ -45,3 +45,19 @@ seq: 3
   別系統の作業と見なして同時に進めた。**main 取り込みは変異の前に済ませる** — そうすれば
   base digest も同時に確定するため、順序としても自然である。今回は orphan hold も一時的に張られたが
   harness 自身が撤去していた。
+
+### F57
+
+- **再発: 2026-08-26** — 受入全走 attempt 2 (16657 passed / 1 failed / 60 skipped) で
+  `test_sigterm_ignoring_child_is_killed` が 1 件落ちた。assertion 本文は
+  `child.pid was not registered before deadline; stderr=''` で、launcher の子が
+  **2 秒の deadline 内に child.pid を登録しなかった**という時間依存の主張である。
+  同一 tree の単独走は 202 passed / 8.27 秒で再現しない。当該 wave の差分 20 file に
+  `tools/` は 1 つも含まれないため帰属しない。**落ちる node がまた移動した** (attempt 1 は
+  `test_s8b_floor_campaign.py` の `output/` snapshot 系 11 件 +
+  `test_s8b_oracle_driver.py` 1 件で、attempt 2 では全て緑)。
+  `orchestrator/tests/flaky_test_holds.py` への登録は、検証器が
+  「evidence F の本文が test 関数名と failure_signature を逐語で含むこと」を要求するため、
+  本再発が canonical へ fold されるまで**構造的に不可能**である。この 2 段依存
+  (hold は既 land の証拠を要求し、証拠の land は受入 green を要求する) 自体が
+  非帰属 flake で塞がれた wave を land 不能にする経路であり、裁定パッケージへ送る。
