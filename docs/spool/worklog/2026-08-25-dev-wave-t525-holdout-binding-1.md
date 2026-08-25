@@ -80,6 +80,12 @@ title: [T-525] holdout の完全条件を実行引数と報告側で束縛した
   `1_000_000` と `48` が直接現れることを要求する。二重の真実を消す素直な改善が
   この述語を落とす。リテラルを残し続けるか、shared condition constructor の
   到達性検査へ更新するかを裁定する。[T-525] はリテラルを残した。
+- {{T:dw-o01-launcher-rc-budget}} **P3・新規 (段 8 で予算に阻まれた、ユーザー裁定待ち)**:
+  `DW-O01` の「採用は `check_codex_output.py` の rc=0」は一文だけ読むと十分条件に読め、
+  本 wave の親はそれで launcher の赤を迂回した。`launcher_rc=0` も必須と追記したいが
+  `docs/dev-wave/**` の L1.5 予算が満杯で、この 1 文だけで 9653 bytes > 予算 9566 になる。
+  安全義務を削って空きを作ることは自己改善契約が禁じる。予算値を上げるか、
+  同 L1.5 集合の別箇所を意味等価に縮約して空きを作るかを裁定する。
 - {{T:jsonl-splitlines-u2028-hardening}} **P3・新規**:
   `tools/codex_worker_launch.py` は JSONL を `str.splitlines()` で切る (6 箇所) ため、
   子が読んだ行に生の U+2028 / U+2029 があると event 行が割れて成果物が全損する

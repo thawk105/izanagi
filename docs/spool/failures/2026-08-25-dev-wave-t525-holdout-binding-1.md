@@ -49,7 +49,11 @@ seq: 1
 - 恒久対応: F540 が定める手当て (同じ prompt を別の `--job-id` で 1 回だけ再投入) を実施し、
   `outcome=accepted` / `launcher_rc=0` / `evidence_status=complete` の成果物を正規採用した。
   不採用版は「保全して読む価値はあるが唯一の根拠にしてはならない」二次資料として残した。
-  `DW-O01` へ `launcher_rc=0` も必須である旨を追記する。
+  **拘束力を持つ禁止は F540 本文の「不採用の成果物を採用へ回してはならない」であり、
+  本エントリはその再発事例である。** `DW-O01` へ `launcher_rc=0` も必須と追記しようとしたが、
+  `docs/dev-wave/**` の L1.5 予算が満杯で入らなかった (この 1 文だけで 9653 bytes > 予算 9566)。
+  安全義務を削って空きを作ることは自己改善契約が禁じるため、入口追記は
+  {{T:dw-o01-launcher-rc-budget}} としてユーザー裁定へ送った。
 - 再発検知: receipt の `outcome` と `launcher_rc` を見ずに `check_codex_output.py` の rc だけで
   採用判断をしない。子の成果物を採用する前に receipt の 2 field を必ず読む。
 
