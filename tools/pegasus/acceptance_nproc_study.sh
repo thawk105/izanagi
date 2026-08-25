@@ -162,7 +162,8 @@ OUTPUT=${IZANAGI_ACCEPTANCE_NPROC_OUTPUT:-}
 unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
 unset LD_PRELOAD LD_LIBRARY_PATH CPATH CPLUS_INCLUDE_PATH LIBRARY_PATH
 unset COMPILER_PATH GCC_EXEC_PREFIX CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE
-unset PYTHONPATH PYTHONHOME PYTHONSTARTUP PYTEST_ADDOPTS PYTEST_PLUGINS MAKEFLAGS
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP PYTHONUSERBASE
+unset PYTEST_ADDOPTS PYTEST_PLUGINS MAKEFLAGS
 while IFS= read -r env_name; do
   case "$env_name" in
     GIT_*|CCACHE_*|SCCACHE_*|DISTCC_*|ICECC_*|XDG_*) unset "$env_name" ;;
@@ -185,6 +186,14 @@ for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
   fi
 done
 [[ -n "$PY" ]] || { echo "Python 3.10 is required" >&2; exit 2; }
+
+CURRENT_STAGE=python-user-base
+PYTHONUSERBASE=$("$PY" -I -B -c 'import site; print(site.getuserbase())')
+[[ -n "$PYTHONUSERBASE" && "$PYTHONUSERBASE" == /* ]] || {
+  echo "Python user base must be a nonempty absolute path" >&2
+  exit 2
+}
+export PYTHONUSERBASE
 
 export PATH="/usr/bin:/bin"
 for candidate in /opt/nec/nqsv/bin /system/tool/bin; do

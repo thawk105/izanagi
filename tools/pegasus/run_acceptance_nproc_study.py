@@ -1147,6 +1147,9 @@ def _create_session(executor: Executor, config: StudyConfig, clone: Path,
 
 def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
                      root: Path) -> dict[str, str]:
+    python_user_base = os.environ.get("PYTHONUSERBASE", "")
+    if not python_user_base or not Path(python_user_base).is_absolute():
+        raise ContractError("driver PYTHONUSERBASE must be a nonempty absolute path")
     env = _base_env()
     for key in ("HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME",
                 "XDG_DATA_HOME", "XDG_STATE_HOME", "PYTEST_ADDOPTS",
@@ -1155,7 +1158,12 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     for key in list(env):
         if key.startswith(("XDG_", *_CACHE_ENV_PREFIXES)) or key in _CACHE_ENV_NAMES:
             env.pop(key, None)
-    run_root = root / f"run-{global_run_index:03d}"
+    run_name = (
+        "setup-import-probe"
+        if global_run_index == -1
+        else f"run-{global_run_index:03d}"
+    )
+    run_root = root / run_name
     paths = {
         "HOME": run_root / "home",
         "TMPDIR": run_root / "tmp",
@@ -1169,7 +1177,29 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     env.update({key: str(value) for key, value in paths.items()})
     env["IZANAGI_TEST_NPROC"] = str(arm)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONUSERBASE"] = python_user_base
     return env
+
+
+def _validate_measurement_imports(
+    executor: Executor, config: StudyConfig, clone: Path, root: Path, *, timeout_s: float,
+) -> None:
+    env = _run_environment(
+        config, global_run_index=-1, arm=ARMS[0], root=root
+    )
+    try:
+        _execute_checked(executor, ExecRequest(
+            purpose="validate-measurement-imports",
+            argv=(config.python_command, "-c", "import pytest, xdist"),
+            cwd=clone,
+            env=env,
+            timeout_s=timeout_s,
+        ))
+    except ContractError as exc:
+        raise ContractError(
+            "measurement interpreter cannot import pytest and xdist in isolated run env: "
+            f"{exc}"
+        ) from exc
 
 
 def _schedule_document(blocks: Sequence[ScheduleBlock], *, seed: str) -> list[dict[str, Any]]:
@@ -1490,6 +1520,10 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
             })
             receipt["cleanup"]["canonical_fingerprint_before_sha256"] = canonical_before["digest_sha256"]
             receipt["invariant_checks"]["submodules_materialized"] = True
+            current_stage = "setup-import-check"
+            _validate_measurement_imports(
+                executor, config, clone, env_root, timeout_s=_remaining(setup_deadline)
+            )
             global_run_index = 0
             flat_arm_index = 0
             for block in schedule:
@@ -1580,7 +1614,10 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                         assert result is not None
                         junit_path = session / f"shard-{shard_index}" / "junit.xml"
                         if not junit_path.is_file() or junit_path.is_symlink():
-                            raise ContractError(f"run {global_run_index} JUnit is missing or unsafe")
+                            raise ContractError(
+                                f"run {global_run_index} JUnit is missing or unsafe: "
+                                f"child_returncode={result.returncode}"
+                            )
                         junit = analyze_junit(junit_path.read_bytes())
                         run_record = {
                             "analysis_block_index": block.analysis_block_index,

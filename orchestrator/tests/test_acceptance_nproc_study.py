@@ -60,6 +60,13 @@ _JUNIT_ONE_TEST = b"""<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+@pytest.fixture(autouse=True)
+def _fixed_python_user_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PYTHONUSERBASE", str(tmp_path / "python-user-base"))
+
+
 def _cleanup(*, residual: list[int] | None = None) -> dict[str, object]:
     return {
         "kill_sent": False,
@@ -93,12 +100,18 @@ class FakeExecutor:
         self, root: Path, host: str, *, dirty_after_measurement: bool = False,
         junit_by_nproc: dict[str, bytes] | None = None,
         honor_submodule_init: bool = True,
+        imports_available: bool = True,
+        write_junit: bool = True,
+        measurement_returncode: int = 0,
     ):
         self.root = root
         self.host = host
         self.dirty_after_measurement = dirty_after_measurement
         self.junit_by_nproc = {} if junit_by_nproc is None else dict(junit_by_nproc)
         self.honor_submodule_init = honor_submodule_init
+        self.imports_available = imports_available
+        self.write_junit = write_junit
+        self.measurement_returncode = measurement_returncode
         self.measurement_seen = False
         self.requests: list[study.ExecRequest] = []
         self.clone_root: Path | None = None
@@ -164,6 +177,10 @@ class FakeExecutor:
         elif request.purpose.startswith("materialize-submodule:"):
             Path(request.argv[-1]).mkdir(parents=True, exist_ok=True)
             self.materialized_order.append(request.purpose.split(":", 1)[1])
+        elif request.purpose == "validate-measurement-imports":
+            if not self.imports_available:
+                returncode = 86
+                stderr = b"fake pytest/xdist import failure"
         elif request.purpose == "create-acceptance-shard-session":
             session = self.root / "sessions" / f"session-{len(self.requests):04d}"
             for index in range(2):
@@ -182,9 +199,10 @@ class FakeExecutor:
             session = Path(session_token.split("=", 1)[1])
             shard = int(shard_token.split("=", 1)[1])
             junit = self.junit_by_nproc.get(request.env["IZANAGI_TEST_NPROC"], _JUNIT)
-            (session / f"shard-{shard}" / "junit.xml").write_bytes(junit)
+            if self.write_junit:
+                (session / f"shard-{shard}" / "junit.xml").write_bytes(junit)
             return study.ExecResult(
-                returncode=0,
+                returncode=self.measurement_returncode,
                 stdout=b"measurement stdout",
                 stderr=b"",
                 duration_s=1.0 + shard / 10,
@@ -609,6 +627,37 @@ def test_internal_shard_argv_rejects_any_extra_n_option(tmp_path: Path) -> None:
         )
 
 
+def test_run_environment_requires_driver_pythonuserbase(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _config(tmp_path)
+    monkeypatch.delenv("PYTHONUSERBASE")
+    with pytest.raises(
+        study.ContractError,
+        match="driver PYTHONUSERBASE must be a nonempty absolute path",
+    ):
+        study._run_environment(
+            config, global_run_index=0, arm=16,
+            root=config.scratch_root / "run-environments",
+        )
+
+
+def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
+    tmp_path: Path,
+) -> None:
+    config = _config(tmp_path)
+    root = config.scratch_root / "run-environments"
+    first = study._run_environment(
+        config, global_run_index=0, arm=16, root=root
+    )
+    second = study._run_environment(
+        config, global_run_index=1, arm=48, root=root
+    )
+    assert first["HOME"] != second["HOME"]
+    assert first["PYTHONUSERBASE"] == second["PYTHONUSERBASE"]
+    assert first["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
+
+
 def test_process_cleanup_rejects_residual_group_member() -> None:
     with pytest.raises(study.ContractError, match="fully reaped"):
         study.validate_process_cleanup(_cleanup(residual=[1234]))
@@ -737,6 +786,17 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         request for request in executor.requests if request.purpose.startswith("measurement:")
     ]
     assert len(measurement_requests) == 6
+    import_request = next(
+        request for request in executor.requests
+        if request.purpose == "validate-measurement-imports"
+    )
+    assert import_request.argv == ("python3.10", "-c", "import pytest, xdist")
+    assert purposes.index("validate-measurement-imports") < purposes.index("measurement:0")
+    assert import_request.env["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
+    assert len({request.env["HOME"] for request in measurement_requests}) == 6
+    assert {
+        request.env["PYTHONUSERBASE"] for request in measurement_requests
+    } == {os.environ["PYTHONUSERBASE"]}
     for request in measurement_requests:
         assert "-n" not in request.argv
         assert request.env["IZANAGI_TEST_NPROC"] in {"16", "32", "48"}
@@ -788,6 +848,73 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         study.validate_receipt(
             split_session, expected_mode="smoke", require_complete=True
         )
+
+
+def test_setup_import_probe_failure_stops_before_measurement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode996"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:129.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, imports_available=False)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["failure"]["stage"] == "setup-import-check"
+    assert receipt["failure"]["type"] == "ContractError"
+    assert "cannot import pytest and xdist" in receipt["failure"]["message"]
+    assert "rc=86" in receipt["failure"]["message"]
+    assert "fake pytest/xdist import failure" in receipt["failure"]["message"]
+    assert executor.measurement_seen is False
+
+
+def test_setup_import_probe_success_reaches_measurement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode995"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:130.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, imports_available=True)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 0
+    assert receipt["status"] == "complete"
+    assert executor.measurement_seen is True
+
+
+def test_missing_junit_diagnostic_includes_child_returncode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode994"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:131.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(
+        tmp_path, host, write_junit=False, measurement_returncode=86,
+    )
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["failure"]["type"] == "ContractError"
+    assert receipt["failure"]["stage"].endswith("shard-0")
+    assert receipt["failure"]["message"].endswith("child_returncode=86")
 
 
 def test_materialize_without_registration_stops_setup_with_contract_error(
@@ -957,6 +1084,11 @@ def test_static_contract_has_signal_traps_exact_registry_and_no_red_checker() ->
     assert "os.path.realpath(sys.executable)" in shell_text
     assert '[[ "$resolved_python" == /* && -x "$resolved_python" ]]' in shell_text
     assert 'PY=$resolved_python' in shell_text
+    assert '[[ -n "$PYTHONUSERBASE" && "$PYTHONUSERBASE" == /* ]]' in shell_text
+    assert "site.getuserbase()" in shell_text
+    assert shell_text.index("site.getuserbase()") < shell_text.index(
+        'export HOME="$TMPDIR/job-home"'
+    )
     assert "IZANAGI_ACCEPTANCE_NPROC_SMOKE_RECEIPT" in shell_text
     assert "manual arm timeout overrides are forbidden" in shell_text
     assert "postrun_deadline = time.monotonic()" in driver_text
