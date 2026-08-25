@@ -84,6 +84,27 @@ title: [T-1594] 非帰属の受入赤が出た wave の着地手順を正本化�
   安全義務削除を禁じ、収まらなければ変更を止めて裁定へ返すと定めるので、正本統合は行わず
   failures 台帳の記載のまま {{T:mutation-byte-layer-doc}} として裁定へ送る。
 
+- **本 wave が正式化した手順を、自分が最初の利用者として実行した。** 受入 1 回目は 13 failed
+  (16372 passed)。assertion 本文と差分実体で判定した結果、12 件は既知の非帰属赤と逐語一致
+  (`assert repo_before == _real_output_snapshot()`、差分は実 `output/` に `runs/` と
+  `task-runs/reports` が増えた)、1 件は fd 番号の再利用テストだった。**単独再走 13 passed /
+  24.37 秒で全件非再現**。手順どおり受入を 1 回だけ再走し、**1 failed / 16384 passed** になった。
+- **再赤なので反復せず、main 既存の F480 を証拠に hold を登録した。** 赤は
+  `test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released`
+  で、破れたのは `first.join(10)` 直後の `assert not first.is_alive()`。F480 が定める判定 3 点
+  ((a) 単独走の緑 = **1 passed / 13.56 秒**、(b) 差分の到達不能性 = 本 wave の差分 6 file 中
+  dispatch/pegasus 系 0 件、(c) 破れた assert が実時間の上界) をすべて実測で満たした。
+- **registry が親の言い換え署名を拒否した。拒否は正しい。** `failure_signature` は F 節の本文に
+  (backtick 除去・空白正規化のうえ) 逐語で存在することを要求する。F480 節に実在する
+  `assert not first.is_alive() and not second.is_alive()` へ差し替えて通した。
+  **「main 既存の F を証拠にする」経路は、F の本文と署名の一致まで機械が検証する** —
+  名ばかりの証拠では通らないことが実測で確かめられた。
+- **契約テスト 2 件が「registry はちょうど 1 件」の pin で赤になった。** D662 決定 5 が
+  「登録数が増えること自体は問題としない」と定め「新規登録に上限や事前承認を課す」案を明示的に
+  不採用としているので、これは承認ゲートでなく保守 pin と裁定した。exact 比較を維持し既存 hold の
+  per-field assertion を全部残したまま 2 件へ更新し、test 名も実体に合わせて改名した
+  (焦点走 **27 passed / rc=0**)。
+
 ## 次の一手差分
 
 ### 完了
