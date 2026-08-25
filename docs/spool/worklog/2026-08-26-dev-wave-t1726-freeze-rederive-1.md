@@ -47,6 +47,18 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   (3) 収集段が `rc=16` — 同時刻の `qstat -Q` は gen_S に 101 件 (QUE 35 / RUN 47 / HLD 17) で、
   scheduler 混雑だった。中断した走行の container が fresh 走を塞ぎ、台帳未作成のため
   `--resume` も使えず、新しい `--scratch-root` で再投入した。
+- **受入全走を 2 巡投入し、いずれも非帰属の赤で戻ったため land せず停止した。**
+  attempt 1 = 20 failed / 16627 collected、attempt 2 = 13 failed。
+  変更した 2 file の test は両巡とも 1 件も落ちていない。
+  attempt 1 の内訳は preregistration 5 件 (setup の `git add -A` が 180 秒 timeout)、
+  launcher 9 件、cleanup 6 件で、単独再走で前 2 者は緑になった。
+  attempt 2 は floor_campaign 11 件 + launcher 2 件で、機序は
+  {{F:launcher-failure-artifacts-break-output-snapshot}} に記録した。
+  単独再走は `test_codex_worker_launch.py` = 202 passed / 8.83s、
+  `test_s8b_floor_campaign.py` = 455 passed / 2 skipped / 34.21s でいずれも緑。
+  `DW-O18` は「非再現なら受入を 1 回再走。反復しない」「F 不在なら登録せず裁定へ送り停止」と定める。
+  floor_campaign の連鎖型は既載 F62 / F115 (親が全走中に `output/` を書いた型) と原因が異なるため、
+  `flaky_test_holds.py` への登録はせず本項を裁定へ回す。
 - 逐語と実測は `output/insights/2026-08-26_t1726-freeze-rederive/`。
 
 ## 次の一手差分
@@ -78,6 +90,15 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   組み合わせで、実行 descriptor が不在のまま expected digest の自己申告を verified receipt に
   できる構造を塞ぐ。`test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof` の
   設計意図と一体のため、受理集合の形を含めて設計し直す必要がある。
+- {{T:launcher-artifact-root-vs-output-snapshot}} **P1・新規 (ユーザー裁定待ち)**:
+  `test_codex_worker_launch.py` の失敗診断 root (`output/runs/pytest-launcher-failures`) が
+  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` の走査範囲に入っており、
+  全走で launcher が負荷で落ちるたび floor_campaign が連鎖的に赤になる
+  ({{F:launcher-failure-artifacts-break-output-snapshot}})。
+  **裁定してほしいこと**: (a) snapshot 側で `output/runs/` を除外する、
+  (b) launcher の失敗 artifact root を実 repo の `output/` 外へ移す、のどちらを採るか。
+  (a) は「campaign が `output/` に副作用を残さない」という検査の射程を狭める。
+  (b) は診断の保存先が repo 外になり収集導線を変える。受入全走の緑率へ直接効くため P1 とする。
 - {{T:dev-wave-l15-budget-exhausted}} **P2・新規 (ユーザー裁定待ち)**: `docs/dev-wave/**` の
   L1.5 層 unique footprint は残り 21 bytes しかなく、本 wave で実測した手順 1 行 (150 bytes) が
   入らなかった。自己改善契約は予算値の引き上げを通常の自己改善から外し、理由付きの独立審査対象と
