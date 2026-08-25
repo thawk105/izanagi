@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """Fixed-session memo for the sort-SWO oracle environment.
 
-The production resolver inspects compiler and Masstree candidates in the real
-checkout.  This module gives the controller/serial collection barrier the sole
-resolver call and gives test consumers a read-only, fail-closed snapshot.  It
-is intentionally a sibling of ``real_repo_receipt_memo``: the two memos have
-different production resolvers and different wire schemas.
+The controller binds the production resolver to the canonical test-owned
+Masstree fixture.  This module gives the controller/serial collection barrier
+the sole resolver call and gives test consumers a read-only, fail-closed
+snapshot.  It is intentionally a sibling of ``real_repo_receipt_memo``: the
+two memos have different production resolvers and different wire schemas.
 """
 from __future__ import annotations
 
@@ -27,6 +27,9 @@ from orchestrator.campaign import sort_swo_oracle as oracle
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
 CCBENCH = ROOT / "external" / "ccbench"
+MASSTREE_FIXTURE = (
+    ORCHESTRATOR / "tests" / "fixtures" / "sort_swo_masstree"
+)
 
 # Capture the production seam once.  The consumer path below never calls this
 # seam; keeping it as a private value also makes tests able to prove the
@@ -101,7 +104,9 @@ OracleMemoError = OracleEnvironmentMemoError
 
 def _resolve_now():
     """Call the production resolver; callers are limited to ``prewarm``."""
-    return _PRODUCTION_RESOLVE(CCBENCH)
+    return _PRODUCTION_RESOLVE(
+        CCBENCH, dependency_root=MASSTREE_FIXTURE,
+    )
 
 
 def _repo_head() -> Optional[str]:

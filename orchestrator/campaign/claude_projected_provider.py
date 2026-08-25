@@ -5,6 +5,11 @@ The provider deliberately lowers every source role to ``tools=[]`` at runtime.
 The caller must project every byte the role may inspect into the JSON payload.
 This is the same fresh-context/headless isolation used by the ratified 8b
 selector runner, generalized for planner/coder/auditor/critic roles.
+
+The transport-metadata exclusions below are only a candidate enumeration.  They
+are not a substitute for enumerating fields in the 8c preregistration text;
+reflecting them there is a separate turn with a refreezing ceremony.  Their
+invisibility to the role has not been proved.
 """
 from __future__ import annotations
 
@@ -17,6 +22,7 @@ import subprocess
 import tempfile
 from collections.abc import Callable, Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from .claude_transport import ClaudeTransportAdmission
@@ -191,7 +197,7 @@ class ClaudeProjectedRoleProvider:
             source_env = os.environ if environ is None else environ
             self.env = {
                 key: source_env[key]
-                for key in CLAUDE_ENV_ALLOWLIST
+                for key in sorted(CLAUDE_ENV_ALLOWLIST)
                 if key in source_env
             }
             if "HOME" not in self.env:
@@ -373,3 +379,36 @@ class ClaudeProjectedRoleProvider:
             raw_response=result,
             provenance=provenance,
         )
+
+
+PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSIONS = frozenset({
+    "argv.mcp_config_path",
+    "kwargs.cwd",
+})
+
+PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSION_REASONS = MappingProxyType({
+    "argv.mcp_config_path": (
+        "Candidate only: s8b_prediction_runner.py:1040-1065 derives the neutral "
+        "root with tempfile.mkdtemp(prefix=...) and no holdout, workload, arm, or "
+        "binding-digest input; claude_projected_provider.py:179-192 adds the fixed "
+        "empty-mcp-config.json leaf. The generation-1 supervisor-to-CLI matrix test "
+        "measures that actual values contain no holdout name, workload name, or "
+        "binding digest. It pins the temp parent, izanagi-projected- prefix, fixed "
+        "leaf, shared parent with cwd, and repository-external location, excluding "
+        "only the random final neutral-root element. Invisibility to the role is "
+        "not proved."
+    ),
+    "kwargs.cwd": (
+        "Candidate only: claude_projected_provider.py:267-270 derives cwd solely "
+        "from the neutral root and cwd- prefix, with no holdout, workload, arm, or "
+        "binding-digest input. The generation-1 supervisor-to-CLI matrix test "
+        "measures that actual values contain no holdout name, workload name, or "
+        "binding digest. It pins the temp parent, cwd- prefix, parent relationship "
+        "to empty-mcp-config.json, and repository-external location, excluding only "
+        "the random final cwd element. Invisibility to the role is not proved."
+    ),
+})
+
+assert PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSIONS == frozenset(
+    PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSION_REASONS
+)
