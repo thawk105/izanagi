@@ -46,6 +46,10 @@ title: [T-1283] 受入全走の実行器を tested main の blob へ束縛した
   という読み方は今回の実測 (単独 nodeid 投入でも同じ本文で落ちる) では成立しない。
 - 焦点走の途中で `/tmp/.git` の迷子 (空 directory) を見つけ、F457 記載の手順どおり `rmdir` で除去した。
 
+- **受入全走 attempt 1 は非帰属の赤 1 件で戻った** (claimed main `d8f777a4`、16477 passed / 61 skipped / 1 failed)。赤は
+  `test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[wave-parent]` で、F273 の
+  再発として台帳の手順どおり実測した (並行 codex launcher 11 本、単独走は 202 passed で緑)。受入は 1 回だけ再走した。
+
 ## 次の一手差分
 
 ### 完了

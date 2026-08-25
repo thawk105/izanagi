@@ -45,3 +45,20 @@ seq: 3
   L1.5 層の unique footprint が 9772 bytes となり予算 9566 bytes を 206 bytes 超えた。
   自己改善契約は予算のために安全義務を削ることを禁じ、予算値の引き上げを独立審査へ回すため、
   入口・reference への追記は行わず本項を正本とする。
+
+### F273
+
+- **再発: 2026-08-25** — dev-wave-t1283-runner-main-blob の受入全走 attempt 1
+  (claimed main `d8f777a4`) が **16477 passed / 61 skipped / 1 failed** で戻り、唯一の赤が
+  `test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[wave-parent]`
+  だった。本文は子 process の `returncode=2` (`NG: receipt truth table が不正`) で、
+  同日の先行再発項と逐語一致する。
+  台帳の再発検知どおり実測した — 受入時の並行 `codex_worker_launch.py run` は **11 本**、
+  並行 `run_tests.py` は 11 本、login node の load average は 5.76 / 6.52 / 7.79。
+  同ファイルの単独走 (`--force-dispatch`) は **202 passed / 8.20 秒 / rc=0** で緑。
+  本 wave の差分は `tools/acceptance_launcher.py` / `tools/dev_wave_land.py` と両者の test だけで、
+  `tools/codex_worker_launch.py` への到達経路は無い。よって実装差分へ帰属させない。
+- 追加の観測: 同じ全走で、焦点走では決定的に落ちていた
+  `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` (F57) は**緑だった**。
+  F57 が記録する「大きい file 集合では緑・小さい集合で赤」という同居依存が、
+  16539 item の全走と 291 item の単走の対比で再現している。
