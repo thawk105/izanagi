@@ -170,7 +170,7 @@ def _validate_config(config: _Config, runner_argv: Sequence[str]) -> None:
         raise LauncherFailure("invalid protocol fd")
 
 
-def _read_runner_blob(repo: Path, tested_tip: str) -> bytes:
+def _read_runner_blob(repo: Path, revision: str) -> bytes:
     environment = dict(os.environ)
     environment.update(_GIT_ENV_OVERRIDES)
     result = subprocess.run(
@@ -184,7 +184,7 @@ def _read_runner_blob(repo: Path, tested_tip: str) -> bytes:
             str(repo),
             "cat-file",
             "blob",
-            f"{tested_tip}:{_RUNNER_PATH}",
+            f"{revision}:{_RUNNER_PATH}",
         ),
         check=False,
         stdout=subprocess.PIPE,
@@ -192,7 +192,7 @@ def _read_runner_blob(repo: Path, tested_tip: str) -> bytes:
         env=environment,
     )
     if result.returncode != 0:
-        raise LauncherFailure("cannot read tested-tip runner blob")
+        raise LauncherFailure("cannot read runner blob at requested revision")
     return result.stdout
 
 
@@ -433,17 +433,20 @@ def _launch(
 ) -> None:
     _validate_config(config, runner_argv)
     canonical_runner_path = config.repo_root / _RUNNER_PATH
-    source = blob_reader(config.repo_root, config.tested_tip)
+    source = blob_reader(config.repo_root, config.tested_main)
+    tip_source = blob_reader(config.repo_root, config.tested_tip)
+    if source != tip_source:
+        raise LauncherFailure("tested-main and tested-tip runner blobs differ")
     runner_executed_sha256 = hashlib.sha256(source).hexdigest()
     child_rc = blob_runner(source, canonical_runner_path, config.log_file)
 
-    # Fetch the immutable tested-tip blob independently after execution. This is
+    # Fetch the immutable tested-main blob independently after execution. This is
     # intentionally not derived from the executed buffer: M3 must fail closed if
-    # the observed tip content and the bytes handed to compile/exec ever differ.
-    tip_source = blob_reader(config.repo_root, config.tested_tip)
-    tip_content_sha256 = hashlib.sha256(tip_source).hexdigest()
-    if runner_executed_sha256 != tip_content_sha256:
-        raise LauncherFailure("executed runner does not match tested-tip blob")
+    # the observed main content and the bytes handed to compile/exec ever differ.
+    main_source = blob_reader(config.repo_root, config.tested_main)
+    main_content_sha256 = hashlib.sha256(main_source).hexdigest()
+    if runner_executed_sha256 != main_content_sha256:
+        raise LauncherFailure("executed runner does not match tested-main blob")
     try:
         log_sha256 = hashlib.sha256(config.log_file.read_bytes()).hexdigest()
     except OSError as exc:

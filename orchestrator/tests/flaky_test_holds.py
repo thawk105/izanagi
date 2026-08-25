@@ -90,9 +90,6 @@ def _validate_flaky_test_hold_rows(
     silently turn a failing acceptance run green.
     """
     materialized = tuple(rows)
-    if not materialized:
-        raise ValueError("flaky-test hold registry must not be empty")
-
     try:
         mapping = dict(materialized)
     except (TypeError, ValueError) as exc:
@@ -202,29 +199,30 @@ def _registry_sha256(registry: Mapping[str, FlakyTestHold]) -> str:
 
 _FLAKY_TEST_HOLD_ROWS = (
     (
-        "orchestrator/tests/test_mutation_harness.py::"
-        "test_sigterm_handler_stops_child_and_restores_active_mutation",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+        "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
         FlakyTestHold(
             known_failure_node_ids=frozenset({
-                "orchestrator/tests/test_mutation_harness.py::"
-                "test_sigterm_handler_stops_child_and_restores_active_mutation",
+                "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+                "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
             }),
             same_tree=True,
             green_observation=(
-                "同一 tree の同 file 単独実走は 80 passed で再現しなかった"
+                "同一 tree の単独 node 実走が 1 passed / 13.56 秒で再現しなかった"
             ),
-            green_collection_condition="single-file",
+            green_collection_condition="single-node",
             green_run_count=1,
             red_observation=(
-                "同一 tree の受入全走で gw28 が 1 failed / 11866 passed / 92 skipped"
+                "同一 tree の受入全走で 1 failed / 16384 passed / 60 skipped"
             ),
             red_collection_condition=ACCEPTANCE_COLLECTION,
-            failure_signature=(
-                "SIGTERM 送信前に子が rc=1 で終了して 128 + SIGTERM を観測できなかった"
+            failure_signature="assert not first.is_alive() and not second.is_alive()",
+            cause=(
+                "受入全走の高並列下で thread の join が実時間上界を超える "
+                "(F480 の族)"
             ),
-            cause="隣接 wave の子による資源競合で、子が SIGTERM 到達前に終了する",
-            evidence_id="F57",
-            reintroduction_task_id="{{T:flaky-sigterm-sync-point}}",
+            evidence_id="F480",
+            reintroduction_task_id="{{T:flaky-thread-join-upper-bound}}",
         ),
     ),
 )

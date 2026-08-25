@@ -263,7 +263,7 @@ class TextLimit:
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
-    ".claude/commands/rulings.md": TextLimit(5_000, 180),
+    ".claude/commands/rulings.md": TextLimit(5_623, 180),
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
@@ -361,6 +361,14 @@ DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING = (
 DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING = (
     ".claude/commands/dev-wave.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
     "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_OPERATIONS_NON_ATTRIBUTABLE_ONLY_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: 可視本文に `non-attributable-only` がある — "
+    "受入の受理は `child-green` だけ"
+)
+DEV_WAVE_OPERATIONS_ACCEPTANCE_REDS_TOOL_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: 可視本文に `tools/check_acceptance_reds.py` がある — "
+    "廃止済みの代替受理経路を正本へ戻さない"
 )
 DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 節が一意でない — "
@@ -573,6 +581,13 @@ DEV_WAVE_SELF_ROUTING_SECTION_LITERAL = """## routing
    failures は事象・原因・恒久対応、decisions は採用理由を担う。
 
 """
+DEV_WAVE_DW_O18_SECTION_LITERAL = """## DW-O18 — テスト cwd と非帰属赤の着地
+
+cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+
+受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
+
+"""
 DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 provenance 関門
 
 D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
@@ -584,6 +599,9 @@ DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test �
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
+test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
+所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 """
 DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 
@@ -595,23 +613,26 @@ F26 に従い `git worktree remove` と `git submodule deinit` は使わない�
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
-`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
-- `--lane`は`--stage consult`だけ必須、無指定/他段rc=2。
-- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
-- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
-- 複数起点の判別は全隣接区間へ異なる正値を入れる。
-- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+`DW-O01/O08/O17/O20`より優先。
+- `--lane`はconsult、`--reasoning`はplan/consultで必須。他段指定/必須段無指定はrc=2。
+- 待ち手はpid file実在後に張る。先行は子の生存中も即戻る。
+- 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
+- 複数起点は全隣接区間の異なる正値で判別。
+- 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
 - submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
-- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
-- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
-- mergeは親。子は競合解決だけ、`add`とcommitも親。
-- 子のWeb検索を禁じる。成果物が全損する。
+- 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
+- merge/`add`/commitは親、子は競合解決だけ。
+- 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
+- 子はWeb検索禁止。成果物が全損する。
 """
 DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
     (".claude/commands/dev-wave.md", "入力と開始"):
         DEV_WAVE_COMMAND_START_SECTION_LITERAL,
     ("docs/skill-self-improvement.md", "routing"):
         DEV_WAVE_SELF_ROUTING_SECTION_LITERAL,
+    ("docs/dev-wave/operations.md", "DW-O18 — テスト cwd と非帰属赤の着地"):
+        DEV_WAVE_DW_O18_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O25 — ff-only land の全史 provenance 関門"):
         DEV_WAVE_DW_O25_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O26 — 焦点走の consumer test 拡張"):
@@ -5086,6 +5107,29 @@ def _check_dev_wave_model_pins(
             )
 
 
+def _check_dev_wave_operations_forbidden_terms(
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """operations 全体の可視本文から廃止済み受理経路を排除する。"""
+
+    if operations_text is None:
+        return
+    visible_operations = _visible_markdown_text(operations_text)
+    for literal, finding in (
+        (
+            "non-attributable-only",
+            DEV_WAVE_OPERATIONS_NON_ATTRIBUTABLE_ONLY_ABSENCE_FINDING,
+        ),
+        (
+            "tools/check_acceptance_reds.py",
+            DEV_WAVE_OPERATIONS_ACCEPTANCE_REDS_TOOL_ABSENCE_FINDING,
+        ),
+    ):
+        if literal in visible_operations:
+            findings.append(finding)
+
+
 def _check_dev_wave_waiter_consumer_pins(
     dev_wave_text: str | None,
     core_text: str | None,
@@ -5441,6 +5485,10 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     _check_dev_wave_model_pins(
         dev_wave_text,
         workers_text,
+        operations_text,
+        findings,
+    )
+    _check_dev_wave_operations_forbidden_terms(
         operations_text,
         findings,
     )

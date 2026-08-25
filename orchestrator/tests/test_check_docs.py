@@ -163,6 +163,13 @@ _PRE_WAVE_SELF_ROUTING_SECTION = """## routing
    failures は事象・原因・恒久対応、decisions は採用理由を担う。
 
 """
+_SYNTHETIC_DW_O18_SECTION = """## DW-O18 — テスト cwd と非帰属赤の着地
+
+cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+
+受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
+
+"""
 _SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance 関門
 
 D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
@@ -174,6 +181,9 @@ _SYNTHETIC_DW_O26_SECTION = """## DW-O26 — 焦点走の consumer test 拡張
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
+test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
+所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 """
 _SYNTHETIC_DW_O28_SECTION = """## DW-O28 — land 後の自己撤去
 
@@ -185,17 +195,18 @@ F26 に従い `git worktree remove` と `git submodule deinit` は使わない�
 """
 _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 
-`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
-- `--lane`は`--stage consult`だけ必須、無指定/他段rc=2。
-- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
-- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
-- 複数起点の判別は全隣接区間へ異なる正値を入れる。
-- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+`DW-O01/O08/O17/O20`より優先。
+- `--lane`はconsult、`--reasoning`はplan/consultで必須。他段指定/必須段無指定はrc=2。
+- 待ち手はpid file実在後に張る。先行は子の生存中も即戻る。
+- 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
+- 複数起点は全隣接区間の異なる正値で判別。
+- 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
 - submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
-- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
-- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
-- mergeは親。子は競合解決だけ、`add`とcommitも親。
-- 子のWeb検索を禁じる。成果物が全損する。
+- 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
+- merge/`add`/commitは親、子は競合解決だけ。
+- 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
+- 子はWeb検索禁止。成果物が全損する。
 """
 
 _SYNTHETIC_OPERATION_SECTION_IDS = (
@@ -931,7 +942,9 @@ description: synthetic Codex rulings skill
                 )
             if rel == "docs/dev-wave/operations.md" and section == "DW-O23":
                 body += "\n\n`tools/dev_wave_land.py`"
-            if rel == "docs/dev-wave/operations.md" and section == "DW-O25":
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O18":
+                rendered_sections.append(_SYNTHETIC_DW_O18_SECTION.rstrip("\n"))
+            elif rel == "docs/dev-wave/operations.md" and section == "DW-O25":
                 rendered_sections.append(_SYNTHETIC_DW_O25_SECTION.rstrip("\n"))
             elif rel == "docs/dev-wave/operations.md" and section == "DW-O26":
                 rendered_sections.append(_SYNTHETIC_DW_O26_SECTION.rstrip("\n"))
@@ -943,7 +956,7 @@ description: synthetic Codex rulings skill
                 rendered_sections.append(f"## {section} — synthetic\n\n{body}")
         text = "# synthetic reference\n\n" + "\n\n".join(rendered_sections) + "\n"
         if rel == "docs/dev-wave/operations.md":
-            # O25 の既存 exact pin を保ったまま、確定文面を直後へ追加する。
+            # exact pin 済みの節 slice を次の H2 直前の改行までに保つ。
             text = text.replace(
                 _SYNTHETIC_DW_O25_SECTION.rstrip("\n")
                 + "\n\n## DW-O26",
@@ -1106,13 +1119,25 @@ def _build_min_repo() -> str:
         "s8b_holdout_admission.py",
         admission_dst,
     )
+    _write(
+        root,
+        os.path.join("orchestrator", "tests", "flaky_test_holds.py"),
+        "# synthetic path placeholder\n",
+    )
+    _write(
+        root,
+        os.path.join("tools", "check_acceptance_reds.py"),
+        "# synthetic path placeholder\n",
+    )
     _write(root, os.path.join("docs", "decisions.md"),
            "## D1. placeholder decision\n\n本文。\n\n"
            "## D254. placeholder decision\n\n本文。\n\n"
            "## D271. placeholder decision\n\n本文。\n\n"
+           "## D690. placeholder decision\n\n本文。\n\n"
            + _SYNTHETIC_R33_DECISION_SECTION)
     _write(root, os.path.join("docs", "failures.md"),
-           "# placeholder failures\n")
+           "# placeholder failures\n\n"
+           "## F242. placeholder failure\n\n本文。\n")
     _write(root, os.path.join("docs", "archive", "README.md"),
            _archive_readme())
     _write(
@@ -2146,12 +2171,12 @@ def test_backlog_guard_preservation_rule_still_rejects_implicit_drop():
 def test_raised_rulings_budget_still_rejects_new_limit():
     """N22: rulings の引上げ後予算を 1 byte 超える入力で gate 生存を固定する。"""
 
-    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_000
+    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_623
 
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_001)
-        _assert_violation(root, ".claude/commands/rulings.md", "予算 5000 bytes")
+        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_624)
+        _assert_violation(root, ".claude/commands/rulings.md", "予算 5623 bytes")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -7368,8 +7393,11 @@ def test_command_guard_case_registration_is_complete():
         "test_condition_26_contract_pins_exact_trigger_and_target",
         "test_condition_27_contract_pins_exact_trigger_and_target",
         "test_dev_wave_dispatch_accepts_comma_delimited_section_references",
+        "test_dw_o18_exact_section_pin_accepts_synthetic_fixture",
         "test_dw_o26_exact_section_pin_accepts_synthetic_fixture",
         "test_dw_o28_exact_section_pin_accepts_synthetic_fixture",
+        "test_non_attributable_landing_contract_mutations_have_one_finding",
+        "test_non_attributable_landing_general_terms_are_accepted",
         "test_normative_exact_section_contract_is_handwritten_and_complete",
         "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
         "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
@@ -8766,6 +8794,9 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_O25_SECTION_LITERAL == (
         _SYNTHETIC_DW_O25_SECTION
     )
+    assert check_docs.DEV_WAVE_DW_O18_SECTION_LITERAL == (
+        _SYNTHETIC_DW_O18_SECTION
+    )
     assert check_docs.DEV_WAVE_DW_O26_SECTION_LITERAL == (
         _SYNTHETIC_DW_O26_SECTION
     )
@@ -8775,15 +8806,20 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_C01_SECTION_LITERAL == (
         _SYNTHETIC_DW_C01_SECTION
     )
+    assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 998
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
-    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 470
+    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 830
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
-    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 970
+    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 995
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
             _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,
         ("docs/skill-self-improvement.md", "routing"):
             _SYNTHETIC_SELF_ROUTING_SECTION,
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O18 — テスト cwd と非帰属赤の着地",
+        ): _SYNTHETIC_DW_O18_SECTION,
         (
             "docs/dev-wave/operations.md",
             "DW-O25 — ff-only land の全史 provenance 関門",
@@ -8803,7 +8839,22 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     }
     assert len(check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS[
         ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法")
-    ].encode("utf-8")) == 971
+    ].encode("utf-8")) == 996
+
+
+def test_dw_o18_exact_section_pin_accepts_synthetic_fixture():
+    """DW-O18/DW-O26 の独立全文 literal を持つ baseline 正例を固定する。"""
+
+    root = _build_min_repo()
+    try:
+        operations = _read(root, "docs/dev-wave/operations.md")
+        assert operations.count(_SYNTHETIC_DW_O18_SECTION) == 1
+        assert operations.count(_SYNTHETIC_DW_O26_SECTION) == 1
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "違反なし" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():
@@ -8816,6 +8867,105 @@ def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():
         result = _run_check(root)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "違反なし" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("case", ("M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"))
+def test_non_attributable_landing_contract_mutations_have_one_finding(case):
+    """段 4 の M1〜M8 は、それぞれ対応する単一理由だけで拒否する。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        o18_finding = (
+            f"{rel}: 可視 H2 節 'DW-O18 — テスト cwd と非帰属赤の着地' の"
+            "節全体が exact 契約と不一致 — sections=1"
+        )
+        o26_finding = (
+            f"{rel}: 可視 H2 節 'DW-O26 — 焦点走の consumer test 拡張' の"
+            "節全体が exact 契約と不一致 — sections=1"
+        )
+        if case == "M1":
+            changed = text.replace(
+                "非帰属赤の着地に5分超を使わず悩まない(D690)。",
+                "5分を目安にする。",
+                1,
+            )
+            expected = o18_finding
+        elif case == "M2":
+            changed = text.replace("F不在なら登録せず裁定へ送り停止。", "", 1)
+            expected = o18_finding
+        elif case == "M3":
+            changed = text.replace(
+                "受理は`child-green`だけ。",
+                "",
+                1,
+            )
+            expected = o18_finding
+        elif case == "M4":
+            changed = text.replace("判定不能・原因未理解も除外せず停止。", "", 1)
+            expected = o18_finding
+        elif case == "M5":
+            changed = _append_reference_section_body(
+                text,
+                "DW-O16",
+                "non-attributable-only",
+            )
+            expected = (
+                check_docs.DEV_WAVE_OPERATIONS_NON_ATTRIBUTABLE_ONLY_ABSENCE_FINDING
+            )
+        elif case == "M6":
+            changed = _append_reference_section_body(
+                text,
+                "DW-O16",
+                "tools/check_acceptance_reds.py",
+            )
+            expected = (
+                check_docs.DEV_WAVE_OPERATIONS_ACCEPTANCE_REDS_TOOL_ABSENCE_FINDING
+            )
+        elif case == "M7":
+            changed = text.replace(
+                "## DW-O18 — テスト cwd と非帰属赤の着地",
+                "## DW-O18 — テスト cwd と非帰属赤の処理",
+                1,
+            )
+            expected = o18_finding.replace("sections=1", "sections=0")
+        elif case == "M8":
+            changed = text.replace(
+                "変更した test file は受入全走前に単独走で確認する"
+                "（全走緑は file 単独緑を含意しない）。",
+                "",
+                1,
+            )
+            expected = o26_finding
+        else:  # pragma: no cover - parameter 集合を上で固定する
+            raise AssertionError(case)
+        assert changed != text
+        _write(root, rel, changed)
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert _finding_set(result) == {expected}, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_non_attributable_landing_general_terms_are_accepted():
+    """M9: 一般語だけの追記を禁止語として過検出しない。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _append_reference_section_body(
+            _read(root, rel),
+            "DW-O16",
+            "非帰属という語は分類用語として用いられる。",
+        )
+        _write(root, rel, text)
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert _finding_set(result) == set()
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -8836,7 +8986,7 @@ def test_dw_o28_exact_section_pin_accepts_synthetic_fixture():
 
 
 def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
-    """pin 済み 7 節の内側へ raw HTML block を差し込むと拒否する。"""
+    """pin 済み 8 節の内側へ raw HTML block を差し込むと拒否する。"""
 
     cases = (
         (
@@ -8846,6 +8996,10 @@ def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
         (
             "docs/skill-self-improvement.md",
             "routing",
+        ),
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O18 — テスト cwd と非帰属赤の着地",
         ),
         (
             "docs/dev-wave/operations.md",

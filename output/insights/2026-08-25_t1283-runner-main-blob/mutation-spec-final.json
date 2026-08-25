@@ -1,0 +1,98 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-launcher-equality-after-run",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_launcher.py::test_main_tip_runner_blob_mismatch_is_rejected_before_execution"
+      ],
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "old": "    if source != tip_source:\n        raise LauncherFailure(\"tested-main and tested-tip runner blobs differ\")\n    runner_executed_sha256 = hashlib.sha256(source).hexdigest()\n    child_rc = blob_runner(source, canonical_runner_path, config.log_file)\n",
+          "new": "    runner_executed_sha256 = hashlib.sha256(source).hexdigest()\n    child_rc = blob_runner(source, canonical_runner_path, config.log_file)\n    if source != tip_source:\n        raise LauncherFailure(\"tested-main and tested-tip runner blobs differ\")\n"
+        }
+      ]
+    },
+    {
+      "id": "M2-land-equality-back-into-non-attributable",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_rejects_child_green_runner_blob_divergence"
+      ],
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        or main_runner_entry[1] != tip_runner_entry[1]\n",
+          "new": ""
+        },
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "                or receipt.get(\"checker_blob_sha\") != checker_blob\n",
+          "new": "                or receipt.get(\"checker_blob_sha\") != checker_blob\n                or main_runner_entry[1] != tip_runner_entry[1]\n"
+        }
+      ]
+    },
+    {
+      "id": "M3-launcher-reads-tip-again",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_launcher.py::test_m3_runner_digest_mismatch_is_rejected",
+        "orchestrator/tests/test_acceptance_launcher.py::test_main_tip_runner_blob_mismatch_is_rejected_before_execution",
+        "orchestrator/tests/test_acceptance_launcher.py::test_matching_main_and_tip_runner_blobs_execute_tested_main_source",
+        "orchestrator/tests/test_acceptance_launcher.py::test_missing_tested_main_runner_is_rejected_before_execution",
+        "orchestrator/tests/test_acceptance_launcher.py::test_missing_tested_tip_runner_is_rejected_before_execution"
+      ],
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "old": "    source = blob_reader(config.repo_root, config.tested_main)\n",
+          "new": "    source = blob_reader(config.repo_root, config.tested_tip)\n"
+        }
+      ]
+    },
+    {
+      "id": "M4-tip-read-failure-falls-back-to-main",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_acceptance_launcher.py::test_missing_tested_tip_runner_is_rejected_before_execution"
+      ],
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "old": "    tip_source = blob_reader(config.repo_root, config.tested_tip)\n",
+          "new": "    try:\n        tip_source = blob_reader(config.repo_root, config.tested_tip)\n    except LauncherFailure:\n        tip_source = source\n"
+        }
+      ]
+    },
+    {
+      "id": "M5-land-uses-locked-main",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_child_green_matching_main_and_tip_runner_blobs",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_runner_gate_uses_tested_main_after_main_reaches_tip"
+      ],
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    main_runner_entry = _runner_tree_entry(repository, tested_main)\n",
+          "new": "    main_runner_entry = _runner_tree_entry(repository, locked_main)\n"
+        }
+      ]
+    }
+  ]
+}
