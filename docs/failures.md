@@ -2750,6 +2750,49 @@
   (本件はこの検査が正しく発火した結果である)。差分が到達しえないファイルで出た赤は `DW-O18` に従い
   単独再走で再現性を実測してから帰属する — 本件も再走で偽赤と確定した
 
+
+- **再発: 2026-08-26** — 受入全走 attempt 2 (claimed_main
+  `f4c2c5ded29d72d8f06bca66992a5ef5694fcb51`) で `test_s8b_floor_campaign.py` の
+  official / pilot 系 **11 件**が同じ `assert repo_before == _real_output_snapshot()` で落ちた。
+  **書き手は親ではなく、同じ全走の中の並行テストである。** 差分本文は
+  `At index 13837 diff: ('dir','s1-budget') != ('dir','runs/pytest-launcher-failures/0-948253.nqsv--bnode042')` で、
+  侵入 entry は `orchestrator/tests/test_codex_worker_launch.py:55` の `_FAILURE_ARTIFACT_ROOT`
+  (`output/runs/pytest-launcher-failures`) を `_failure_run_directory()` (87-92 行) が
+  **失敗時にだけ**掘ったものである。親は attempt 1 / 2 の実行中に `output/` を一切書いていない。
+  同 wave の attempt 1 は launcher 9 件 + floor 0 件、attempt 2 は launcher 2 件 + floor 11 件で、
+  件数でなく書き込みと snapshot 窓の重なりで決まる。
+  単独走はいずれも緑 (`--force-dispatch`) — `test_codex_worker_launch.py` = 202 passed / 8.83s、
+  `test_s8b_floor_campaign.py` = 455 passed / 2 skipped / 34.21s。`DW-O18` に従い実装差分へ帰属させず、
+  land せずに停止した。
+- **再発: 2026-08-26 (別 wave・別 helper。同日 2 例目)** — branch
+  `worktree-dev-wave-t1219-carry-same-id` (tip `b190116c`) の受入 attempt 2 で
+  `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary`
+  が落ちた。junit
+  `/work/1/SFC/tanab/.izanagi-acceptance-shards/fcb3b5638d9f8a70135f34950072047a/junit.xml`
+  を直接読んで確認した (全走 13 failed)。**検査は `_real_output_snapshot()` ではなく、
+  `orchestrator/tests/test_s8b_oracle_driver.py:554` の `_t080_output_snapshot()` という
+  別 file の独立した 2 つ目の helper である** (呼出しは 1138 / 1150 行)。
+  こちらは各 entry の `st_mode` / `st_size` / `st_mtime_ns` / `st_ctime_ns` を記録するため、
+  内容が変わらなくても**一時 file の作成削除による directory timestamp の変化だけで落ちる**。
+  侵入 entry は `runs` と `task-runs/reports` の 2 つで、`runs` の mtime は同じ snapshot 内の
+  `s1-budget` より **12,261 秒後** (1787680919 対 1787668658) であり走行中に掘られたことと整合する。
+  一方 `task-runs/reports` の mtime は `s1-budget` の 1 秒後 (1787668659) で走行中の生成では
+  説明できず、entry として現れた機序は未解明である。
+  **同じ 2 entry が別 wave・別 branch・別 junit で観測されており、書き手は wave 固有ではない。**
+- **再発: 2026-08-26 (書き手の棚卸し)** — 本件を機に `output/` 配下の窓内書き手を数えたところ、
+  親の編集 (F62 の元事例) 以外に少なくとも次が在り、**列挙は完了していない。**
+  (i) `output/runs/pytest-launcher-failures/<PBS_JOBID>--<host>/` — launcher テストの失敗時診断。
+  `.gitignore:18` 済みで git 系検査には現れない。
+  (ii) `output/pegasus-dispatch/<hash>/receipt.json` — dispatch ごとの receipt。`.gitignore:26` 済み。
+  **失敗時でなく毎回書く** — 本 wave 単独で 17 件生成された。並行 wave が変異走行や
+  dispatch を回していれば全走中に増える。
+  (iii) `output/task-runs/reports/` — tracked (ignore されない) 点で (i)(ii) と異なる。
+  窓内の書き手は未特定である (`tools/run_tests.py:1068` は root を既定するが、
+  `record_test_run` の呼出しは `duration_s` / `exit_status` を取る走行後の位置 1211-1220 行にあり、
+  外側の走行自体は窓内で書かない)。
+  並行 session の独立実測では **launcher の赤が 0 件**でも floor_campaign の 11 件が落ちており、
+  **launcher の失敗は十分条件であって必要条件ではない。**
+- **supersede: 2026-08-26** — 恒久対応の「受入全走の実行中は `output/` 配下を一切編集しない」は親向けの行動規律であり、同じ全走の中にいる並行テストや dispatch receipt の書き込みには効かない。機構側の対応が要る。選択肢は (a) `output/` の揮発 subtree を除外する、(b) 書き手側の artifact root を repo 外へ移す、(c) `orchestrator/tests/conftest.py:338` の `REAL_REPO_SERIAL_NODES` へ落ちた node を登録して `xdist_group("real-repo")` で直列化する (1326-1330 行、`test_s8b_floor_campaign.py` は 394/395/421 行の 3 node が登録済みで本件の 11 件は未登録) の 3 つ。(b)(c) はいずれも書き手を列挙し切ることを前提にするが本追記のとおり列挙は未完了であり、(a) だけが列挙に依存しない。ただし (a) は 1 箇所では閉じない — 走査 helper は `test_s8b_floor_campaign.py:1451` の `_real_output_snapshot()` と `test_s8b_oracle_driver.py:554` の `_t080_output_snapshot()` の 2 つが独立に在り、後者は mtime/ctime まで見るため除外規則を共通化して両方へ適用し、揮発 entry の親 directory も対象に含める必要がある。どれを採るかは受理集合の射程を変えるため裁定へ返した。
 ### F63. cleanup-branches が要求する submodule 実体化検査に、guard_bash を通る書き方が無かった [手順漏れ]
 - 事象: `/cleanup-branches` 実行中、F26 の risk 判定 (どの worktree で `external/ccbench` が
   実体化しているか) を worktree ごとに数える shell を 2 度書き、2 度とも `guard_bash` が
@@ -9648,6 +9691,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **新しい情報は解除側にある** — 要約 marker を消しても request 別の耐久記録が残る限り
   hold は解けず、解除文言はその path を名指ししない
   (F603)。
+
+- **再発: 2026-08-26 (3 例目)** — 親が焦点走へ `timeout 3000` を掛けて打ち切ったため
+  dispatch 親が落ち、PBS job `948508.nqsv` が孤児化して
+  `output/pegasus-dispatch/orphan-hold.json` が武装し、この worktree からの dispatch が全停止した。
+  打ち切りの見積り自体が誤りで、**実際の所要は 2 分 20 秒**だった
+  (`test_real_repo_serialization.py` が pytest を再帰起動する型だと知っていたため過大に見積もった)。
+  既載の再発検知どおりの型だが、次の 3 点は台帳に無かった。
+  (i) **hold の記録は実態を過小に書く。** 本件の hold は `phase: "pending-qsub"` /
+  `request_id: null` / `qdel.attempted: false` だったが、`qstat` には
+  `948508.nqsv izdw-b2d ... PRR` が**生きて**いた。qsub は通っており記録更新前に打ち切られている。
+  **記録の phase を job 不在の根拠にしてはならない。** job 名 (`job_name`) で `qstat` を引く。
+  (ii) **hold は自己解除される。** 孤児 job が終端に達し dispatch 機構が成果物を収集した時点で
+  `orphan-hold.json` は機構自身が削除した。手動削除の前に不在を確認すると空振りする。
+  復旧手順の "final-step" は、既に消えている場合を想定した書き方になっていない。
+  (iii) **打ち切った走行の結果は捨てなくてよい。** 提出 dir
+  (`output/pegasus-dispatch/<hash>/`) に `<job>.o<id>` が残り、本件では
+  `619 passed, 9 skipped in 140.01s` が読めた。再走せずに済んだ。
+  親は手動 qdel をしていない (hold の `manual-qdel-warning` どおり、手動 qdel は F47 の
+  `submission-disabled.json` を武装させ、その解除もユーザー手番になるため)。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -16014,3 +16076,79 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   予算の変更は `docs/skill-self-improvement.md` により独立審査対象であり、裁定へ送った。
 - 再発検知: 変異本走の報告に「登録 ID → spec ID」の対応表が無い、または登録件数と
   `registered` の値が食い違うこと。焦点再レビューの lens に登録表との突き合わせを含める。
+
+### F618. 変異 harness の観測 root に共有 checkout が入り並行 land で落ちる [手順漏れ]
+
+- 事象: 変異走行が 5 変異とも完走した直後、wrapper が `rc=125`
+  (`source/main 共有木の観測 bytes が変化した`) で中止し、収集済みの結果が受理されなかった。
+- 根本原因: `tools/mutation_worktree.py` の観測 root は
+  (`--source-repo` の primary worktree, `--source-repo`) であり、既定では共有 checkout が入る。
+  並行 wave の land が走行中に status bytes を変えると必ず事後検査に落ちる。走行が長いほど確率が上がる。
+- 恒久対応: 検出は `tools/mutation_worktree.py` の fail-closed な事後検査
+  (`_assert_shared_unchanged`) が既に担っており、欠けているのは「独立 clone を渡す」という手順である。
+  `docs/dev-wave/mutation.md` の `DW-M05` へ 1 行追記したが、L1.5 層の byte 予算
+  (残 21 bytes に対し追記 150 bytes) に収まらず戻した。予算値の引き上げは自己改善の範囲外のため、
+  本エントリを手順の正本ポインタとし、予算側は裁定へ回した。
+- 再発検知: 変異 harness が `rc=125` で止まったら、変異でなく観測 root を疑い、
+  `--source-repo` が共有 checkout を指していないか確認する。
+  clone の submodule url を local path にする場合は `-c protocol.file.allow=always` が要る
+  (既定は `user` で submodule の file transport を拒否する)。
+
+### F619. 収集段で落ちた変異走行が resume も fresh 走も塞ぐ [手順漏れ]
+
+- 事象: 変異本走が収集段で `rc=16` (`receipt scheduler_logs.stdout.path がない`、
+  同時刻の `qstat -Q` は gen_S に 101 件で scheduler 混雑) により中止した。
+  復帰しようとして 3 回の起動を失った。
+- 根本原因: 中止点が台帳作成より手前だと、resume の前提と fresh 走の前提が同時に満たせない。
+  `--resume` は `--out` の既存 file を要求するが収集段中止では `--out` が作られない。
+  一方 retained container が残るため、同じ `--scratch-root` の fresh 走は
+  「container が既に存在するため所有を拒否」で止まる。
+  さらに `--resume` の `--attempt-out` は**既存 file 必須**で、
+  `DW-O19` の「再走は `--out` と `--attempt-out` を新 path にする」と要求が逆向きである。
+- 恒久対応: 中止した走行から復帰する経路は**新しい `--scratch-root` での fresh 走**だけである。
+  検出は harness の fail-closed な 2 つの拒否 (`container が既に存在する` /
+  `--resume には既存の ... --out file が必要`) が担い、本エントリを手順の正本ポインタとする。
+- 再発検知: 上記いずれかのメッセージで止まったら resume を繰り返さず、
+  新しい `--scratch-root` を作って fresh 走で再投入する。
+
+### F620. 汚染を消す修正の正例 test が同じ汚染を作った [テスト代表性] [計測汚染]
+
+- 事象: 実 `output/` の棚卸し検査から git ignore 済み path を除外する修正
+  (F62 の 2026-08-26 再発への恒久対応) を実装した際、実装子が足した**正例 test が
+  実 repo の `output/` へ git 可視の directory を作った**。
+  `test_..._detects_git_visible_real_output_changes` が
+  `ROOT / "output" / f"snapshot-positive-...{pid}-{time_ns}"` を `mkdir` する形である。
+  静的レビューでは妥当に見えたが、親が 2 file を単独走したところ
+  **12 failed** で露見した。作成中の窓に並行して走る棚卸し test 10 件と、
+  除外側の新 test 自身が巻き添えになった。修正後の同じ走は 576 passed / 8 skipped / rc=0。
+- 根本原因: 「実 `output/` への git 可視な書き込みが検出されること」を示す正例は、
+  素直に書くと**実 `output/` へ書く**ことになり、消そうとしている汚染源と同型になる。
+  対象が共有された可変資源であるため、検出力の証明と非汚染が正面から衝突する。
+- 恒久対応: snapshot helper は走査 root を引数に取る
+  (`_t080_output_snapshot(root)` / `_real_output_snapshot(output=...)`)。
+  **`tmp_path` を root に渡し、tmp 側へ実 ignore prefix と同じ相対名を作る**ことで、
+  実 repo を 1 byte も触らずに除外と検出の両方を固定できる。
+  ignore prefix はハードコードせず `git_ignored_output_prefixes(ROOT)` に実在することを
+  test 内で先に assert する (`orchestrator/tests/output_snapshot_ignores.py`)。
+- 再発検知: 共有された実資源を棚卸しする検査へ正例を足すときは、
+  正例が**その実資源へ書いていないか**を実装後に必ず見る。
+  静的レビューでは通る。対象 file を単独走させ、同じ走の中の他 test が
+  巻き添えで落ちないことを確認する。
+
+### F621. 同じ実 output 走査 helper が 3 file へ複製されていた [ドリフト]
+
+- 事象: 実 `output/` を before/after で棚卸しする helper は、当初 2 つと認識されていた
+  (`test_s8b_floor_campaign.py:1451` `_real_output_snapshot()` と
+  `test_s8b_oracle_driver.py:554` `_t080_output_snapshot()`)。
+  並行 session と親の双方がその前提で機構を設計したが、実際には
+  `test_real_repo_serialization.py:473` に `_t080_output_snapshot()` の
+  **byte 単位で同じ 3 つ目の複製**があり、実 `ROOT / "output"` を走査していた
+  (呼び手は `test_t080_import_temp_environment_fails_closed_for_foreign_module` 826 / 842 行)。
+  2 つだけ直しても連鎖赤は残る状態だった。
+- 根本原因: 同じ不変条件を持つ helper が共有されず file ごとに複製されていた。
+  複製は grep すれば出るが、**議論が「2 つ」で始まると誰も数え直さない。**
+- 恒久対応: 除外規則を共有 module `orchestrator/tests/output_snapshot_ignores.py` へ 1 本化し、
+  3 file すべてがそこから import する形にした。以後の複製は同 module を使う。
+- 再発検知: 「N 箇所ある」と述べる前に識別子で全件検索する
+  (`grep -rln '_real_output_snapshot\|_t080_output_snapshot' orchestrator/tests/*.py` は 3 file を返す)。
+  他者から渡された件数を数え直さずに設計の前提に置かない。
