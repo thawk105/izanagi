@@ -119,6 +119,14 @@ _REPO_DISCOVERY_ENV = {
 }
 
 
+def _repo_discovery_isolated_env() -> dict[str, str]:
+    """ambient repository discovery override を除いた subprocess 環境。"""
+    return {
+        key: value for key, value in os.environ.items()
+        if key not in _REPO_DISCOVERY_ENV
+    }
+
+
 @dataclass(frozen=True)
 class ForwardCorrectionSpec:
     """一回限りの incident 固有 correction。一般 registry へ拡張しない。"""
@@ -214,6 +222,7 @@ def _known_violation_git(
         proc = subprocess.run(
             ["git", *args],
             cwd=repo_root,
+            env=_repo_discovery_isolated_env(),
             input=input_bytes,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -854,6 +863,7 @@ def _known_violation_append_only_git(
         proc = subprocess.run(
             ["git", *args],
             cwd=repo_root,
+            env=_repo_discovery_isolated_env(),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
@@ -883,6 +893,9 @@ def check_known_violation_append_only_history(repo_root: Path) -> None:
     filename の digest 成分が防ぐのは filename 据え置きの本文改変だけであり、
     裁定根拠の真正性は保証しない。この append-only 履歴検査が、着地後の blob
     改変・削除・rename を履歴全体から拒否することで真正性を担う。
+
+    production では引数なしの authoritative 全史監査だけが呼ぶ。合成 repo を
+    監査する --range からは呼ばず、lazy 契約を持つ --message-file からも呼ばない。
     """
     root = Path(repo_root)
     prefix = "known provenance violation append-only history check failed"
@@ -909,7 +922,7 @@ def check_known_violation_append_only_history(repo_root: Path) -> None:
         )
     changed = _known_violation_append_only_git(
         root,
-        "log", "--no-renames", "--diff-filter=MD",
+        "log", "--full-history", "-m", "--no-renames", "--diff-filter=MDT",
         "--format=%H", "--name-only", "--",
         _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix(),
     )
@@ -1073,10 +1086,9 @@ def _git(*args: str, input_text: str | None = None) -> str:
 def _canonical_trailer_env(parse_cwd: Path) -> dict[str, str]:
     """ambient config と repo discovery から隔離した trailer parser 環境。"""
     env = {
-        key: value for key, value in os.environ.items()
+        key: value for key, value in _repo_discovery_isolated_env().items()
         if key != "GIT_CONFIG"
         and not key.startswith("GIT_CONFIG_")
-        and key not in _REPO_DISCOVERY_ENV
     }
     env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_CONFIG_GLOBAL"] = os.devnull
@@ -1948,9 +1960,9 @@ def _audit_history(
     head: str | None = None,
 ) -> HistoryAudit:
     """selected revision set を順序非依存の membership/lineage 条件で監査する。"""
-    registry = _known_violation_registry()
     if not commits:
         return HistoryAudit([], [], [])
+    registry = _known_violation_registry()
     if authoritative:
         if head is None:
             raise RuntimeError("authoritative history requires a pinned HEAD")
@@ -2977,6 +2989,9 @@ def main(
             head = _resolve_head() if authoritative else None
             if authoritative:
                 _assert_authoritative_repository()
+                check_known_violation_append_only_history(
+                    _KNOWN_VIOLATION_REPO_ROOT
+                )
             commits = _commit_range(args.rev_range, head=head)
             history = _audit_history(
                 commits,

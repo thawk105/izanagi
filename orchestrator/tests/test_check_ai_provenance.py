@@ -1084,6 +1084,7 @@ def test_explicit_range_and_message_file_skip_authoritative_repository_guards(
         "_resolve_head",
         "_assert_head_unchanged",
         "_assert_authoritative_repository",
+        "check_known_violation_append_only_history",
     ):
         monkeypatch.setattr(
             provenance,
@@ -1937,6 +1938,52 @@ def test_known_violation_append_only_history_accepts_current_repo():
     provenance.check_known_violation_append_only_history(REPO)
 
 
+def test_authoritative_main_invokes_append_only_history(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    head = "a" * 40
+    append_only = mock.Mock()
+    monkeypatch.setattr(provenance, "_resolve_head", lambda: head)
+    monkeypatch.setattr(provenance, "_assert_authoritative_repository", mock.Mock())
+    monkeypatch.setattr(provenance, "_commit_range", lambda rev_range, **kwargs: [])
+    monkeypatch.setattr(
+        provenance,
+        "_audit_history",
+        lambda commits, **kwargs: provenance.HistoryAudit([], [], []),
+    )
+    monkeypatch.setattr(provenance, "_assert_head_unchanged", mock.Mock())
+    monkeypatch.setattr(
+        provenance,
+        "check_known_violation_append_only_history",
+        append_only,
+    )
+
+    assert provenance.main([], site=site_policy.OTHER) == 0
+    append_only.assert_called_once_with(provenance._KNOWN_VIOLATION_REPO_ROOT)
+
+
+def test_authoritative_main_folds_append_only_failure_into_rc2(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    head = "a" * 40
+    monkeypatch.setattr(provenance, "_resolve_head", lambda: head)
+    monkeypatch.setattr(provenance, "_assert_authoritative_repository", mock.Mock())
+    monkeypatch.setattr(
+        provenance,
+        "check_known_violation_append_only_history",
+        mock.Mock(side_effect=RuntimeError("synthetic append-only failure")),
+    )
+    monkeypatch.setattr(
+        provenance,
+        "_commit_range",
+        mock.Mock(side_effect=AssertionError("history selection must not run")),
+    )
+
+    assert provenance.main([], site=site_policy.OTHER) == 2
+    assert "synthetic append-only failure" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("mutation", ["modify", "delete", "rename"])
 def test_known_violation_append_only_history_rejects_landed_entry_mutation(
     tmp_path: Path,
@@ -1966,6 +2013,93 @@ def test_known_violation_append_only_history_rejects_landed_entry_mutation(
 
     with pytest.raises(RuntimeError, match="append-only history check failed"):
         provenance.check_known_violation_append_only_history(root)
+
+
+def test_known_violation_append_only_history_rejects_side_branch_mutation(
+    tmp_path: Path,
+):
+    spec, path = _seed_known_violation_repo(tmp_path)
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    base = _git(tmp_path, "rev-parse", "HEAD")
+    _git(tmp_path, "switch", "-q", "-c", "mutating-side", base)
+    changed = provenance.KnownViolationSpec(
+        spec.commit,
+        spec.expected_finding_kind,
+        "side branch changed ruling",
+    )
+    path.write_bytes(_known_violation_bytes(changed))
+    _commit_known_violation_state(tmp_path, "mutate entry on side")
+    _git(tmp_path, "switch", "-q", main_branch)
+    _commit(tmp_path, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "merge", "--no-ff", "-m", "merge mutating side", "mutating-side")
+
+    with pytest.raises(RuntimeError, match="append-only history check failed"):
+        provenance.check_known_violation_append_only_history(tmp_path)
+
+
+def test_known_violation_append_only_history_rejects_pruned_side_mutation(
+    tmp_path: Path,
+):
+    spec, path = _seed_known_violation_repo(tmp_path)
+    original = path.read_bytes()
+    relative = str(path.relative_to(tmp_path))
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    base = _git(tmp_path, "rev-parse", "HEAD")
+    _git(tmp_path, "switch", "-q", "-c", "discarded-side", base)
+    changed = provenance.KnownViolationSpec(
+        spec.commit,
+        spec.expected_finding_kind,
+        "discarded side ruling",
+    )
+    path.write_bytes(_known_violation_bytes(changed))
+    _commit_known_violation_state(tmp_path, "mutate entry on discarded side")
+    _git(tmp_path, "switch", "-q", main_branch)
+    _commit(tmp_path, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "merge", "--no-ff", "--no-commit", "discarded-side")
+    _git(
+        tmp_path,
+        "restore",
+        "--source=HEAD",
+        "--staged",
+        "--worktree",
+        "--",
+        relative,
+    )
+    _git(tmp_path, "commit", "-q", "-m", "merge while keeping main entry")
+    assert path.read_bytes() == original
+
+    with pytest.raises(RuntimeError, match="append-only history check failed"):
+        provenance.check_known_violation_append_only_history(tmp_path)
+
+
+def test_known_violation_append_only_history_rejects_gitlink_round_trip(
+    tmp_path: Path,
+):
+    _, path = _seed_known_violation_repo(tmp_path)
+    relative = str(path.relative_to(tmp_path))
+    original_blob = _git(tmp_path, "rev-parse", f"HEAD:{relative}")
+    target_commit = _git(tmp_path, "rev-parse", "HEAD")
+    _git(
+        tmp_path,
+        "update-index",
+        "--cacheinfo",
+        "160000",
+        target_commit,
+        relative,
+    )
+    _git(tmp_path, "commit", "-q", "-m", "turn entry into gitlink")
+    _git(
+        tmp_path,
+        "update-index",
+        "--cacheinfo",
+        "100644",
+        original_blob,
+        relative,
+    )
+    _git(tmp_path, "commit", "-q", "-m", "restore regular entry")
+
+    with pytest.raises(RuntimeError, match="append-only history check failed"):
+        provenance.check_known_violation_append_only_history(tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -2003,6 +2137,63 @@ def test_known_violation_append_only_history_fails_closed(
     monkeypatch.setattr(provenance.subprocess, "run", injected_run)
     with pytest.raises(RuntimeError, match="append-only history check failed"):
         provenance.check_known_violation_append_only_history(root)
+
+
+def test_known_violation_append_only_history_rejects_real_shallow_clone(
+    tmp_path: Path,
+):
+    source = tmp_path / "source"
+    source.mkdir()
+    _seed_known_violation_repo(source)
+    clone = tmp_path / "shallow"
+    _git(
+        tmp_path,
+        "clone",
+        "-q",
+        "--depth",
+        "1",
+        source.resolve().as_uri(),
+        str(clone),
+    )
+    assert _git(clone, "rev-parse", "--is-shallow-repository") == "true"
+
+    with pytest.raises(RuntimeError, match="authoritative history is unavailable"):
+        provenance.check_known_violation_append_only_history(clone)
+
+
+def test_known_violation_git_calls_ignore_ambient_repository_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    guarded = tmp_path / "guarded"
+    guarded.mkdir()
+    spec, _ = _seed_known_violation_repo(guarded)
+    hostile = tmp_path / "hostile"
+    hostile.mkdir()
+    _init_repo(hostile)
+    _commit(hostile, {"docs/hostile.md": "hostile\n"}, CODEX_AUTHOR)
+    hostile_git = hostile / ".git"
+    for name in provenance._REPO_DISCOVERY_ENV:
+        monkeypatch.setenv(name, str(hostile_git))
+
+    real_run = subprocess.run
+    observed_envs: list[dict[str, str]] = []
+
+    def recording_run(command, **kwargs):
+        if command and command[0] == "git":
+            observed_envs.append(kwargs["env"])
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, "run", recording_run)
+    assert provenance._known_violation_registry(guarded) == {
+        spec.commit: (spec,),
+    }
+    provenance.check_known_violation_append_only_history(guarded)
+    assert observed_envs
+    assert all(
+        provenance._REPO_DISCOVERY_ENV.isdisjoint(env)
+        for env in observed_envs
+    )
 
 
 @pytest.mark.parametrize(
@@ -2048,6 +2239,16 @@ def test_known_violation_loader_rejects_schema_and_storage_mutations(
     }
 
     def commit_blob(raw: bytes, message: str) -> None:
+        nonlocal path
+        renamed = path.with_name(_known_violation_filename(spec, raw))
+        if renamed != path:
+            _git(
+                tmp_path,
+                "mv",
+                str(path.relative_to(tmp_path)),
+                str(renamed.relative_to(tmp_path)),
+            )
+            path = renamed
         path.write_bytes(raw)
         _commit_known_violation_state(tmp_path, message)
 
@@ -2113,13 +2314,7 @@ def test_known_violation_loader_rejects_schema_and_storage_mutations(
         raw = (
             json.dumps(reordered, ensure_ascii=False, indent=2) + "\n"
         ).encode()
-        renamed = path.with_name(_known_violation_filename(spec, raw))
-        _git(
-            tmp_path, "mv", str(path.relative_to(tmp_path)),
-            str(renamed.relative_to(tmp_path)),
-        )
-        renamed.write_bytes(raw)
-        _commit_known_violation_state(tmp_path, case)
+        commit_blob(raw, case)
     elif case == "canonical-terminal-lf":
         commit_blob(canonical.removesuffix(b"\n"), case)
     elif case == "symlink":
@@ -2161,6 +2356,9 @@ def test_known_violation_loader_rejects_schema_and_storage_mutations(
             str(renamed.relative_to(tmp_path)),
         )
         _git(tmp_path, "commit", "-q", "-m", case)
+        if case == "nested-path":
+            renamed.replace(path)
+            renamed.parent.rmdir()
     else:
         assert case == "gitlink"
         relative = str(path.relative_to(tmp_path))
@@ -2171,7 +2369,33 @@ def test_known_violation_loader_rejects_schema_and_storage_mutations(
         )
         _git(tmp_path, "commit", "-q", "-m", case)
 
-    with pytest.raises(RuntimeError):
+    diagnostics = {
+        "duplicate-key": "has duplicate key",
+        "unknown-key": "has unknown keys",
+        "missing-key": "has missing keys",
+        "field-type-sha": "has invalid field type",
+        "field-type-kind": "has invalid field type",
+        "field-type-value": "has invalid field type",
+        "field-type-ruling": "has invalid field type",
+        "field-type-note": "has invalid field type",
+        "filename-sha": "filename/body mismatch",
+        "filename-kind": "filename/body mismatch",
+        "filename-digest": "filename/body mismatch",
+        "canonical-bom": "is not canonical UTF-8 JSON",
+        "canonical-crlf": "is not canonical UTF-8 JSON",
+        "canonical-key-order": "is not canonical UTF-8 JSON",
+        "canonical-terminal-lf": "is not canonical UTF-8 JSON",
+        "symlink": "is symlink",
+        "untracked": "is untracked",
+        "ignored": "is ignored",
+        "skip-worktree": "has skip-worktree",
+        "assume-unchanged": "has assume-unchanged",
+        "uppercase-filename": "has invalid filename",
+        "non-json-extension": "has invalid filename",
+        "nested-path": "git index has nested path",
+        "gitlink": "index entry is not a stage-0 regular file",
+    }
+    with pytest.raises(RuntimeError, match=diagnostics[case]):
         provenance._known_violation_registry(tmp_path)
 
 
@@ -6598,6 +6822,7 @@ def test_audit_history_empty_range_returns_zero_findings(
 
     monkeypatch.setattr(provenance, "_git", refuse_git)
     monkeypatch.setattr(provenance, "_build_ancestry", refuse_git)
+    monkeypatch.setattr(provenance, "_known_violation_registry", refuse_git)
     assert provenance._audit_history([]) == provenance.HistoryAudit([], [], [])
     monkeypatch.undo()
 
