@@ -1,0 +1,355 @@
+{
+  "baseline": {
+    "collection_sha256": "cbd3e002f23b082ab96216f0e9a21766675ca484b3e1825dfc862639a43a2c14",
+    "duration_s": 84.922,
+    "failed_nodes": [],
+    "rc": 0,
+    "status": "PASSED",
+    "test_output_sha256": "3752185adb358c213578479e5c49fafd2fd9f977077e437577c05a290b29d2ca"
+  },
+  "date": "2026-08-25T08:32:23.991984+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 54.366,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed"
+      ],
+      "hang_risk": false,
+      "id": "M01-HYPHEN-ALIAS",
+      "injection_diff_sha256": "e4c3f33d25ea757aebf48ae0b281252cfb9ea4cedcf0446b06be201441723d2c",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "3506eafaa390b3a8b6edb3e1a9c14702c2161f7941bbd8a22d8fd4092a71a1aa",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 69.67,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed",
+        "orchestrator/tests/test_holdout_observation.py::test_positive_controls_pass_the_old_ratio_gate_but_fail_the_full_gate"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_positive_controls_pass_the_old_ratio_gate_but_fail_the_full_gate"
+      ],
+      "hang_risk": false,
+      "id": "M02-NONCANONICAL-FORM",
+      "injection_diff_sha256": "d686ae1d586947e6ec72fa42f0671e9cdb87dbc251fa3f24bebe9d1a3f46f95e",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "06e385b44219633adcc2c22b6233783657e3bed95469053c2a516ddef2a202e3",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 54.037,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed"
+      ],
+      "hang_risk": false,
+      "id": "M03-AFTER-TERMINATOR",
+      "injection_diff_sha256": "e3232030ae81658c1f7f854769db1d74bb8a90767215a92efddd0da254e76c01",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "348ed4529031b0eee3aa401e5ee1e3a72234bcc5ffaee70a89b18f7330e8eabf",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 53.862,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_ratio=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_th_num=48]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--epoch_time=40]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--ycsb_max_ope=10]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_th_num=48]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--epoch_time=40]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_ratio=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--ycsb_max_ope=10]"
+      ],
+      "hang_risk": false,
+      "id": "M04-ALLOWLIST",
+      "injection_diff_sha256": "6d062d8f48215375325883f6d381fe609a431e82521751e214f790eeca285fcd",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "db6a68ea2f22ae6e399bff489ecde2604cd64771f0e3cd8635bccebf3f7eca69",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 69.603,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--clocks-per-us=1800]",
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--extime]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--extime]",
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--clocks-per-us=1800]"
+      ],
+      "hang_risk": false,
+      "id": "M05-ALLOWLIST-SPELLING",
+      "injection_diff_sha256": "299178460c764081a6b14f6c5db7ae7962f5349d5184414c3f26b91064704f11",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "aaa010b9d7ee1cb2430dcff11d8c3edfcb73f3a34ec3f9dcbf6324a293dc0b8c",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 79.316,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M06-SHADOWED-VALUE",
+      "injection_diff_sha256": "4bb82de1dc4791d95046e0a38b48e254e8f646e5eb2fc743d26611d82e7c269b",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "7bba1f46b736b65d90a3568b01964a548196f413fbac08c8ddcfa7e4ed2a4be4",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 84.816,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_direct_gflags_apply_gflags_hyphen_normalization_before_classification",
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_hyphen_alias_for_protected_ratio_is_not_unprotected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_direct_gflags_apply_gflags_hyphen_normalization_before_classification",
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_hyphen_alias_for_protected_ratio_is_not_unprotected"
+      ],
+      "hang_risk": false,
+      "id": "M07-GFLAGS-NORMALIZATION",
+      "injection_diff_sha256": "0684c44a30a5dfaea790eafe031cce73bccc19528bfc31c5bfeffc526b864c2d",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "634722d3874da5c7ac1143d65724a8cb690f74af2d22a3b31d4520a482697471",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 53.75,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t525_holdout_bindings_are_deeply_immutable"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t525_holdout_bindings_are_deeply_immutable"
+      ],
+      "hang_risk": false,
+      "id": "M08-BINDINGS-IMMUTABLE",
+      "injection_diff_sha256": "22d89fe893594e6b216a054eb0136a18da8cc965eb711cc5dca85326c3504480",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "7486bdee288a61d917ec7ff6f10857e9beb004e63f170c0029d357cd0931916e",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 319.957,
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t525_no_lock_scale_must_match_frozen_descriptor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t525_no_lock_scale_must_match_frozen_descriptor"
+      ],
+      "hang_risk": false,
+      "id": "M09-NOLOCK-SCALE",
+      "injection_diff_sha256": "03d6f25128889af69e2af0a3f10cceb27c299ff79f92e909c51474e7c666baa1",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "41f1cf1b8cd32a4924e9c46a28b712cb43686b374bb037d918cd7d84be83f23a",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "positive",
+      "duration_s": 69.229,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--clocks-per-us=1800]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[pipeline._run_bench.measure_point]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_floor_campaign.measure_fn]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_oracle_driver.pipeline.evaluate]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_oracle_n_pilot.run_sessions]",
+        "orchestrator/tests/test_holdout_observation.py::test_one_attempt_allows_exactly_one_measure_point_repetition_set",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_ratio=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_th_num=48]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--epoch_time=40]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--ycsb_max_ope=10]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_floor_campaign.measure_fn]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--epoch_time=40]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_th_num=48]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_ratio=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--clocks-per-us=1800]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_oracle_driver.pipeline.evaluate]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[pipeline._run_bench.measure_point]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--ycsb_max_ope=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_oracle_n_pilot.run_sessions]",
+        "orchestrator/tests/test_holdout_observation.py::test_one_attempt_allows_exactly_one_measure_point_repetition_set"
+      ],
+      "hang_risk": false,
+      "id": "M10-OVERREJECTION-POSITIVE-CONTROL",
+      "injection_diff_sha256": "038459637c41de012ef6ece5561d996e8cf4052cc5186465a0b0e34edac5204c",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "5594bd03ad99fdc54f195911c6fa4127bb61d20fb35751a60db5fc37576c5027",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "category": "negative",
+      "duration_s": 69.239,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M11-EFFECTIVE-CONDITION-GATE",
+      "injection_diff_sha256": "31cbbe851e85cf62d6aea8f8b51d18b7fe81c36ddd2d30dadae2f7da4b5e84f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "fe44c503781368c82478972e9b3949848d46b659bfb970f8366a70a136b8cfb8",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "category": "negative",
+      "duration_s": 69.158,
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M12-TWO-LAYER-VALUE-AND-CONDITION",
+      "injection_diff_sha256": "e1606db1a29b34800b224a083d5bc0db154047cdd1aec02c545bbba3ad607bff",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "test_output_sha256": "1c88073996719c6df530a17175709c94cdc451b4932ff0e54e8783a339f10948",
+      "timed_out": false
+    }
+  ],
+  "note": "harness result の射影。raw stdout は凍結 holdout の三軸値を逐語で含み、そのまま repo へ置くと未知性検索の conjunction に当たるため除いた。原本は wave の job directory にある。",
+  "repo_head": "bd4d3576d51edcdad23db35d66adaa3aa1d8239d",
+  "runner_sha256": "738e9dd8c8af47ce7a8fbcc9f27f3d14907db378a741acb0c293609a65dcbfdc",
+  "schema_source": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "7e1ff1e37b01bf89128aaa15ced5ae06132c715fe5ace398ebb6b29646a1c99f",
+  "summary": {
+    "KILLED": 12,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 12,
+    "recorded": 12,
+    "registered": 12
+  },
+  "tool_sha256": "dcaeb843b444bf165dba83abc1f07aba9084c0efd0068525f564e5d18d9cbe11"
+}
