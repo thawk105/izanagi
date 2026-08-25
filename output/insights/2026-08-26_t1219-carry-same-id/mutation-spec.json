@@ -79,9 +79,9 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] (073)]",
-        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] (73 )]",
-        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] 変わらず ( (73) 参照)]"
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[leading-zero]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[trailing-space]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[legacy-inner-space]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -113,7 +113,7 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_target_index_states_are_distinct[missing-missing-索引 key 不在-key 不在-absent_labels0-absent_details0]"
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_target_index_states_are_distinct[index-key-missing]"
       ],
       "expected_status": "KILLED",
       "hang_risk": false

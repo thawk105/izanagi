@@ -11091,9 +11091,12 @@ def test_backlog_guard_same_target_and_id_from_new_source_is_violation(
 @pytest.mark.parametrize(
     "invalid_item",
     (
-        "[T-999] (073)",
-        "[T-999] (73 )",
-        "[T-999] 変わらず ( (73) 参照)",
+        pytest.param("[T-999] (073)", id="leading-zero"),
+        pytest.param("[T-999] (73 )", id="trailing-space"),
+        pytest.param(
+            "[T-999] 変わらず ( (73) 参照)",
+            id="legacy-inner-space",
+        ),
     ),
 )
 def test_backlog_guard_carry_candidate_parse_break_is_positive_control(
@@ -11182,29 +11185,32 @@ def test_backlog_guard_entry_universe_and_index_must_match(monkeypatch):
         "absent_details",
     ),
     (
-        (
+        pytest.param(
             "missing",
             "missing",
             "索引 key 不在",
             "key 不在",
             ("索引値 None", "索引値空集合"),
             ("値 None (section 抽出対象外)", "空集合 (次の一手が空)"),
+            id="index-key-missing",
         ),
-        (
+        pytest.param(
             "none",
             None,
             "索引値 None",
             "値 None (section 抽出対象外)",
             ("索引 key 不在", "索引値空集合"),
             ("key 不在", "空集合 (次の一手が空)"),
+            id="index-value-none",
         ),
-        (
+        pytest.param(
             "empty",
             set(),
             "索引値空集合",
             "空集合 (次の一手が空)",
             ("索引 key 不在", "索引値 None"),
             ("key 不在", "値 None (section 抽出対象外)"),
+            id="index-value-empty",
         ),
     ),
 )
@@ -11365,10 +11371,30 @@ def test_backlog_guard_carry_findings_are_sampled_without_early_stop(
 @pytest.mark.parametrize(
     ("kind", "category", "detail"),
     (
-        ("missing", "参照先不在", "全域番号 universe に実在しない"),
-        ("key", "索引 key 不在", "次の一手索引が key 不在"),
-        ("none", "索引値 None", "値 None (section 抽出対象外)"),
-        ("empty", "索引値空集合", "空集合 (次の一手が空)"),
+        pytest.param(
+            "missing",
+            "参照先不在",
+            "全域番号 universe に実在しない",
+            id="target-missing",
+        ),
+        pytest.param(
+            "key",
+            "索引 key 不在",
+            "次の一手索引が key 不在",
+            id="index-key-missing",
+        ),
+        pytest.param(
+            "none",
+            "索引値 None",
+            "値 None (section 抽出対象外)",
+            id="index-value-none",
+        ),
+        pytest.param(
+            "empty",
+            "索引値空集合",
+            "空集合 (次の一手が空)",
+            id="index-value-empty",
+        ),
     ),
 )
 def test_backlog_guard_carry_index_failures_count_every_occurrence(
