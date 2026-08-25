@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
 """Tier 1 grammar for coder-supplied backoff EVOLVE-BLOCK text.
 
-The validator deliberately leaves the initializer expression opaque.  Calls,
-arithmetic, conditionals, comma expressions, and lambdas belong to the Tier 2
-policy decision and are not rejected here.  Tier 1 only enforces the declared
-``double now_backoff = <expression>;`` binding, the explicitly frozen
-straight-line/storage rules, and the scalar ``coder.value`` contract.
+The validator requires one ``double now_backoff = <literal>;`` statement whose
+initializer is exactly one suffix-free strict C++ numeric literal.  It also
+enforces the explicitly frozen straight-line/storage rules and the scalar
+``coder.value`` contract.
 
 Decision order is part of the public contract:
 
 ``input-type -> raw-size -> empty -> tokenize/resource -> storage ->
 control-flow/label -> reference -> declaration-type -> single-declarator ->
-declaration-count -> rebinding``.
+declaration-count -> rebinding -> initializer-literal -> statement-count``.
 
-Only the input-type and raw-size preflight runs ahead of attribution and
-materialization.  Consequently the pre-existing structural and host-effect
-reasons are preserved only for inputs within the new raw-size cap.  Every
-public rejection contains fixed rule/reason bytes; candidate identifiers,
-literals, statements, and internal exception text are never projected.
+The full validator runs ahead of attribution in ``run_one_iteration`` and is
+rechecked by quarantine after the pre-existing structural and host-effect
+gates.  Every public rejection contains fixed rule/reason bytes; candidate
+identifiers, literals, statements, and internal exception text are never
+projected.
 """
 from __future__ import annotations
 
@@ -118,6 +117,14 @@ _REJECTIONS = {
     "rebinding": (
         "backoff-grammar.rebinding.v1",
         "backoff hole rebinds now_backoff",
+    ),
+    "initializer-literal": (
+        "backoff-grammar.initializer-literal.v1",
+        "backoff hole initializer must be exactly one suffix-free strict C++ numeric literal",
+    ),
+    "statement-count": (
+        "backoff-grammar.statement-count.v1",
+        "backoff hole must contain exactly one statement",
     ),
     "value-integer": (
         "backoff-grammar.value-integer.v1",
@@ -328,6 +335,23 @@ def _cpp_number_value(token: str) -> int | float:
     raise _Malformed
 
 
+def _cpp_number_suffix(token: str) -> str:
+    """Return the standard suffix of one syntactically strict numeric literal."""
+
+    for pattern in (
+        _HEX_FLOAT_RE,
+        _DECIMAL_FLOAT_RE,
+        _BINARY_INTEGER_RE,
+        _HEX_INTEGER_RE,
+        _OCTAL_INTEGER_RE,
+        _DECIMAL_INTEGER_RE,
+    ):
+        match = pattern.fullmatch(token)
+        if match is not None:
+            return match.group("suffix")
+    raise _Malformed
+
+
 def _tokens(
     source: str, *, skip_comments: bool = False,
 ) -> tuple[_Token, ...]:
@@ -479,8 +503,7 @@ def _top_level_statements(
         elif token.text in _CLOSERS:
             depth -= 1
         elif token.text == ";" and depth == 0:
-            if tokens[start:index]:
-                statements.append((tokens[start:index], True))
+            statements.append((tokens[start:index], True))
             start = index + 1
     if start < len(tokens):
         statements.append((tokens[start:], False))
@@ -663,6 +686,26 @@ def validate_backoff_implementation(implementation: object) -> BackoffGrammarDec
         for token in tokens
     ):
         return _reject("rebinding")
+
+    declaration = exact_declarations[0]
+    binding_index = next(
+        index
+        for index, token in enumerate(declaration)
+        if token.ordinal in declaration_ordinals
+    )
+    initializer = declaration[binding_index + 2:]
+    if len(initializer) != 1 or initializer[0].kind != "number":
+        return _reject("initializer-literal")
+    try:
+        _cpp_number_value(initializer[0].text)
+        suffix = _cpp_number_suffix(initializer[0].text)
+    except _Malformed:
+        return _reject("initializer-literal")
+    if suffix:
+        return _reject("initializer-literal")
+
+    if len(statements) != 1:
+        return _reject("statement-count")
     return _ACCEPT
 
 

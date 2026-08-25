@@ -124,10 +124,11 @@ def _arm(
     )
     attempt_id = _attempt_id_fixture(name)
     variant = f"variant-{name}"
+    reps = paired._expected_reps(policy, workload_name)
     values = list(tps if tps is not None else (
-        [100.0, 102.0, 104.0, 106.0, 108.0]
+        [1_000_000.0 + 10.0 * index for index in range(reps)]
         if name == "adaptive"
-        else [90.0, 92.0, 94.0, 96.0, 98.0]
+        else [990_000.0 + 20.0 * index for index in range(reps)]
     ))
     numeric = all(
         not isinstance(value, bool)
@@ -272,7 +273,12 @@ def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict,
     ]
     if invalid_workload:
         workloads[1]["valid"] = False
+        workloads[1]["errors"] = ["fixture-invalid"]
         workloads[1]["statistics"] = None
+        workloads[1]["terminal_result"] = {
+            "status": "invalid",
+            "reasons": ["fixture-invalid"],
+        }
     result = paired.assemble_result(
         policy,
         policy_sha256=policy_sha,
@@ -289,6 +295,10 @@ def _raw_documents(*, invalid_workload: bool = False) -> tuple[dict, dict, dict,
         "formal": False,
         "promotion_prohibited": True,
         "pbs_jobid": "0:12345.nqsv",
+        "policy": {
+            "path": paired.POLICY_RELATIVE_PATH,
+            "sha256": paired.POLICY_SHA256,
+        },
         "source_binding": _source_binding(),
         "roots": {
             "attempt_root": "/durable/attempt",
@@ -428,6 +438,7 @@ def _frame_for(arm: dict, stage: str) -> dict:
 
 def test_policy_file_is_the_exact_preregistered_contract() -> None:
     policy, digest = paired.load_policy()
+    assert policy["schema_version"] == "paper-story-a1-paired-policy/v2"
     assert policy["study_id"] == paired.STUDY_ID
     assert policy["arm_order"] == ["adaptive", "static10"]
     assert [item["name"] for item in policy["workloads"]] == list(
@@ -438,14 +449,111 @@ def test_policy_file_is_the_exact_preregistered_contract() -> None:
         "formal": False,
         "promotion_prohibited": True,
         "result_authority": "exploratory",
-        "statistics_authority": "D95 plan-v2 preregistration",
+        "statistics_authority": "T-1721 stage-4 sized preregistration",
         "d510_role": "analogy-only",
     }
     assert policy["execution"]["durable_measurement_base"] == (
         "/work/1/SFC/tanab/dev-wave-jobs/"
-        "dev-wave-paper-story-a1-paired-20260824/measurement"
+        "dev-wave-paper-story-a1-paired-20260826-sized/measurement"
     )
+    assert policy["execution"]["materialization_relative_path"] == (
+        "output/insights/2026-08-26_paper-story-a1-sized"
+    )
+    assert policy["execution"]["bench_max_rounds"] == 3
+    assert {
+        item["name"]: (
+            item["reps"], item["df"], item["k"], item["planned_sigma_tps"]
+        )
+        for item in policy["workloads"]
+    } == {
+        "write-heavy": (72, 71, 1.993943, 103551.0849),
+        "balanced": (205, 204, 1.971661, 156906.1857),
+        "read-heavy": (28, 27, 2.051831, 60384.6868),
+    }
+    assert policy["statistics"]["floor"]["floor_fraction"] == 0.030
+    assert policy["statistics"]["classification_rules"] == paired.CLASSIFICATION_RULES
+    assert policy["statistics"]["variance_plan_breach"][
+        "overrides_classification"
+    ] is False
+    assert policy["rerun"]["allowed_reasons"] == paired.RERUN_REASONS
+    assert policy["preregistration"] == {
+        "path": paired.PREREGISTRATION_RELATIVE_PATH,
+        "sha256": paired.PREREGISTRATION_SHA256,
+    }
     assert hashlib.sha256(paired.POLICY_PATH.read_bytes()).hexdigest() == digest
+
+
+def test_historical_v1_is_unchanged_and_inactive() -> None:
+    historical = paired.POLICY_PATH.with_name("paper_story_a1_paired.v1.json")
+    assert paired.POLICY_PATH != historical
+    assert paired.POLICY_PATH.name == "paper_story_a1_paired.v2.json"
+    assert hashlib.sha256(historical.read_bytes()).hexdigest() == (
+        "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+    )
+
+
+def test_human_preregistration_binding_has_no_policy_self_reference() -> None:
+    preregistration = (
+        Path(paired.__file__).resolve().parents[2]
+        / paired.PREREGISTRATION_RELATIVE_PATH
+    )
+    raw = preregistration.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == paired.PREREGISTRATION_SHA256
+    assert paired.POLICY_SHA256.encode("ascii") not in raw
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "reps-too-small",
+        "df-mismatch",
+        "k-mismatch",
+        "reps-k-mismatch",
+        "pair-range-mismatch",
+        "missing-workload",
+    ],
+)
+def test_policy_semantics_reject_incoherent_workload_design(
+    mutation: str,
+) -> None:
+    policy = copy.deepcopy(_policy())
+    write = next(
+        item for item in policy["workloads"] if item["name"] == "write-heavy"
+    )
+    if mutation == "reps-too-small":
+        write["reps"] = 1
+        write["df"] = 0
+        write["pair_indices"]["stop_exclusive"] = 1
+    elif mutation == "df-mismatch":
+        write["df"] = write["reps"]
+    elif mutation == "k-mismatch":
+        write["k"] = 1.0
+    elif mutation == "reps-k-mismatch":
+        write["reps"] = 73
+        write["df"] = 72
+        write["pair_indices"]["stop_exclusive"] = 73
+    elif mutation == "pair-range-mismatch":
+        write["pair_indices"]["stop_exclusive"] = 71
+    else:
+        policy["workloads"] = [
+            item for item in policy["workloads"]
+            if item["name"] != "read-heavy"
+        ]
+    with pytest.raises(paired.PaperStoryError):
+        paired._validate_policy_semantics(policy)
+
+
+def test_policy_pair_ranges_are_exact_workload_reps() -> None:
+    policy = _policy()
+    for workload_name, expected_reps in {
+        "write-heavy": 72,
+        "balanced": 205,
+        "read-heavy": 28,
+    }.items():
+        indices = paired._pair_indices(policy, workload_name)
+        assert indices.start == 0
+        assert indices.stop == expected_reps
+        assert len(indices) == expected_reps
 
 
 def test_workload_rratio_is_exactly_bound_from_policy_through_campaign_M24() -> None:
@@ -544,21 +652,87 @@ def test_campaign_identity_binds_study_and_arms_M3() -> None:
     assert ident.campaign_id(cfg) != ident.campaign_id(without_arms)
 
 
-@pytest.mark.parametrize("count", [4, 6])
-def test_collector_requires_exact_five_points_M4(count: int) -> None:
+@pytest.mark.parametrize(
+    ("workload_name", "count"),
+    [
+        ("write-heavy", 71),
+        ("write-heavy", 73),
+        ("balanced", 204),
+        ("balanced", 206),
+        ("read-heavy", 27),
+        ("read-heavy", 29),
+        ("write-heavy", 5),
+        ("balanced", 5),
+        ("read-heavy", 5),
+    ],
+)
+def test_collector_requires_exact_workload_policy_reps_M4(
+    workload_name: str, count: int,
+) -> None:
     policy = _policy()
-    adaptive = _arm(policy, "adaptive", [100.0] * count)
+    adaptive = _arm(
+        policy, "adaptive", [1_000_000.0] * count,
+        workload_name=workload_name,
+    )
     result = paired.validate_workload_evidence(
         policy,
-        workload_name="write-heavy",
+        workload_name=workload_name,
         campaign_id="campaign-a",
         env_tag="pegasus",
-        arms=[adaptive, _arm(policy, "static10")],
+        arms=[
+            adaptive,
+            _arm(policy, "static10", workload_name=workload_name),
+        ],
         wal_evidence={},
         source_binding=_source_binding(),
     )
     assert result["valid"] is False
-    assert any("tps-not-exact-five" in error for error in result["errors"])
+    assert any(
+        "tps-length-or-value-disagrees-with-workload-policy" in error
+        for error in result["errors"]
+    )
+
+
+def test_validate_arm_has_an_independent_exact_length_gate_F8() -> None:
+    policy = _policy()
+    workload_name = "write-heavy"
+    reps = paired._expected_reps(policy, workload_name)
+    evidence = _arm(
+        policy,
+        "adaptive",
+        [1_000_000.0 + index for index in range(reps + 1)],
+        workload_name=workload_name,
+    )
+    arm_policy = next(
+        item for item in policy["arms"] if item["name"] == "adaptive"
+    )
+    result = paired._validate_arm(
+        arm_policy,
+        evidence,
+        policy=policy,
+        workload_name=workload_name,
+        env_tag="pegasus",
+        source_binding=_source_binding(),
+    )
+    assert result["errors"] == [
+        "tps-length-or-value-disagrees-with-workload-policy"
+    ]
+
+
+def test_positional_statistics_has_an_independent_exact_length_gate_F8() -> None:
+    policy = _policy()
+    workload_name = "write-heavy"
+    reps = paired._expected_reps(policy, workload_name)
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="adaptive length differs from workload policy reps",
+    ):
+        paired.positional_statistics(
+            policy,
+            workload_name,
+            [1_000_000.0 + index for index in range(reps + 1)],
+            [990_000.0 + index for index in range(reps)],
+        )
 
 
 @pytest.mark.parametrize(
@@ -581,7 +755,10 @@ def test_collector_rejects_bool_nonfinite_and_nonpositive_M5(bad: object) -> Non
         source_binding=_source_binding(),
     )
     assert result["valid"] is False
-    assert any("tps-not-exact-five" in error for error in result["errors"])
+    assert any(
+        "tps-length-or-value-disagrees-with-workload-policy" in error
+        for error in result["errors"]
+    )
 
 
 @pytest.mark.parametrize("mutation", ["second-attempt", "stage-order"])
@@ -659,36 +836,290 @@ def test_collector_rejects_remeasured_or_unstable_arm_M7(mutation: str) -> None:
     )
 
 
-def test_statistics_keep_static_minus_adaptive_direction_M8() -> None:
-    stats = paired.positional_statistics(
-        [100, 100, 100, 100, 100],
-        [90, 91, 92, 93, 94],
-    )
-    assert [pair["signed_difference_tps"] for pair in stats["pairs"]] == [
-        -10.0, -9.0, -8.0, -7.0, -6.0
+def test_statistics_keep_static_minus_adaptive_positional_sign_M8() -> None:
+    policy = _policy()
+    reps = paired._expected_reps(policy, "write-heavy")
+    adaptive = [1_000_000.0 + 3.0 * index for index in range(reps)]
+    static10 = [999_990.0 + 5.0 * index for index in range(reps)]
+    expected_differences = [
+        -10.0 + 2.0 * index for index in range(reps)
     ]
-    assert stats["mean_signed_positional_difference_tps"] == -8.0
-    assert stats["observed_mean_negative"] is True
-
-
-def test_statistics_use_n_minus_one_and_emit_variance_M9() -> None:
     stats = paired.positional_statistics(
-        [100, 100, 100, 100, 100],
-        [101, 103, 105, 107, 109],
+        policy,
+        "write-heavy",
+        adaptive,
+        static10,
     )
-    assert stats["mean_signed_positional_difference_tps"] == 5.0
-    assert stats["sample_variance_positional_difference_tps2"] == 10.0
-    assert stats["sample_sd_positional_difference_tps"] == math.sqrt(10.0)
+    assert [pair["signed_difference_tps"] for pair in stats["pairs"]] == (
+        expected_differences
+    )
+    assert stats["mean_signed_positional_difference_tps"] == statistics.fmean(
+        expected_differences
+    )
+    assert "direction" not in stats
 
 
-def test_incomplete_workload_suppresses_cross_workload_conclusion_M10() -> None:
+@pytest.mark.parametrize("workload_name", paired.WORKLOAD_ORDER)
+def test_statistics_use_workload_n_minus_one_and_emit_exact_variance_M9(
+    workload_name: str,
+) -> None:
+    policy = _policy()
+    reps = paired._expected_reps(policy, workload_name)
+    differences = [float(index) for index in range(1, reps + 1)]
+    stats = paired.positional_statistics(
+        policy,
+        workload_name,
+        [1_000_000.0] * reps,
+        [1_000_000.0 + value for value in differences],
+    )
+    assert stats["n"] == reps
+    assert stats["df"] == reps - 1
+    assert stats["mean_signed_positional_difference_tps"] == statistics.fmean(
+        differences
+    )
+    assert stats["sample_variance_positional_difference_tps2"] == (
+        statistics.variance(differences)
+    )
+    assert stats["sample_sd_positional_difference_tps"] == statistics.stdev(
+        differences
+    )
+
+
+@pytest.mark.parametrize(
+    ("workload_name", "expected"),
+    [
+        (
+            "write-heavy",
+            {
+                "adaptive_mean_tps": 1_000_355.0,
+                "floor_boundary_tps": 30_010.649999999998,
+                "descriptive_half_width_tps": 49.179436265677225,
+                "descriptive_interval_tps": [
+                    -9_694.179436265676,
+                    -9_595.820563734324,
+                ],
+                "classification": "bounded-below-floor",
+            },
+        ),
+        (
+            "balanced",
+            {
+                "adaptive_mean_tps": 1_001_020.0,
+                "floor_boundary_tps": 30_030.6,
+                "descriptive_half_width_tps": 81.69119201693485,
+                "descriptive_interval_tps": [
+                    -9_061.691192016935,
+                    -8_898.308807983065,
+                ],
+                "classification": "bounded-below-floor",
+            },
+        ),
+        (
+            "read-heavy",
+            {
+                "adaptive_mean_tps": 1_000_135.0,
+                "floor_boundary_tps": 30_004.05,
+                "descriptive_half_width_tps": 31.897009149797125,
+                "descriptive_interval_tps": [
+                    -9_896.897009149798,
+                    -9_833.102990850202,
+                ],
+                "classification": "bounded-below-floor",
+            },
+        ),
+    ],
+)
+def test_production_statistics_derive_exact_B_h_interval_and_classification_F4(
+    workload_name: str,
+    expected: dict[str, object],
+) -> None:
+    result = _validated_workload(
+        workload_name, f"campaign-statistics-{workload_name}"
+    )
+    assert result["valid"] is True
+    statistics_result = result["statistics"]
+    assert statistics_result["adaptive_mean_tps"] == expected["adaptive_mean_tps"]
+    assert statistics_result["floor_boundary_tps"] == expected[
+        "floor_boundary_tps"
+    ]
+    assert statistics_result["descriptive_half_width_tps"] == expected[
+        "descriptive_half_width_tps"
+    ]
+    assert statistics_result["descriptive_interval_tps"] == expected[
+        "descriptive_interval_tps"
+    ]
+    assert statistics_result["classification"] == expected["classification"]
+
+
+@pytest.mark.parametrize("sign", [-1.0, 1.0])
+def test_classification_boundaries_are_exact_and_prioritized(sign: float) -> None:
+    boundary = 30.0
+    half_width = 10.0
+    above_edge = sign * (boundary + half_width)
+    below_edge = sign * (boundary - half_width)
+    assert paired._classify_difference(
+        above_edge, half_width, boundary
+    ) == "unresolved"
+    assert paired._classify_difference(
+        math.nextafter(above_edge, math.copysign(math.inf, sign)),
+        half_width,
+        boundary,
+    ) == "resolved-above-floor"
+    assert paired._classify_difference(
+        below_edge, half_width, boundary
+    ) == "bounded-below-floor"
+    assert paired._classify_difference(
+        math.nextafter(below_edge, math.copysign(math.inf, sign)),
+        half_width,
+        boundary,
+    ) == "unresolved"
+
+
+def test_variance_plan_breach_does_not_override_classification() -> None:
+    policy = _policy()
+    workload_name = "write-heavy"
+    reps = paired._expected_reps(policy, workload_name)
+    differences = [
+        300_000.0 if index % 2 == 0 else 700_000.0
+        for index in range(reps)
+    ]
+    stats = paired.positional_statistics(
+        policy,
+        workload_name,
+        [1_000_000.0] * reps,
+        [1_000_000.0 + value for value in differences],
+    )
+    assert stats["variance_plan_breach"] is True
+    assert stats["classification"] == "resolved-above-floor"
+
+
+def test_variance_plan_breach_uses_strict_greater_than_boundary_F7() -> None:
+    policy = copy.deepcopy(_policy())
+    workload = next(
+        item for item in policy["workloads"]
+        if item["name"] == "write-heavy"
+    )
+    workload["reps"] = 2
+    workload["df"] = 1
+    workload["pair_indices"]["stop_exclusive"] = 2
+    differences = [2.0, 6.0]
+    realized_sd = statistics.stdev(differences)
+    workload["planned_sigma_tps"] = realized_sd
+    equal = paired.positional_statistics(
+        policy,
+        "write-heavy",
+        [1_000.0, 1_000.0],
+        [1_002.0, 1_006.0],
+    )
+    assert equal["sample_sd_positional_difference_tps"] == realized_sd
+    assert equal["planned_sigma_tps"] == realized_sd
+    assert equal["variance_plan_breach"] is False
+
+    just_above_policy = copy.deepcopy(policy)
+    just_above_workload = next(
+        item for item in just_above_policy["workloads"]
+        if item["name"] == "write-heavy"
+    )
+    just_above_workload["planned_sigma_tps"] = math.nextafter(
+        realized_sd, -math.inf
+    )
+    just_above = paired.positional_statistics(
+        just_above_policy,
+        "write-heavy",
+        [1_000.0, 1_000.0],
+        [1_002.0, 1_006.0],
+    )
+    assert just_above["sample_sd_positional_difference_tps"] == realized_sd
+    assert just_above["planned_sigma_tps"] == math.nextafter(
+        realized_sd, -math.inf
+    )
+    assert just_above["variance_plan_breach"] is True
+
+
+@pytest.mark.parametrize("workload_name", paired.WORKLOAD_ORDER)
+def test_exact_registered_workload_reps_are_accepted_and_classified(
+    workload_name: str,
+) -> None:
+    result = _validated_workload(workload_name, f"campaign-{workload_name}")
+    expected = {"write-heavy": 72, "balanced": 205, "read-heavy": 28}
+    assert result["valid"] is True
+    assert result["statistics"]["n"] == expected[workload_name]
+    adaptive_tps = result["arms"]["adaptive"]["raw_tps"]
+    static10_tps = result["arms"]["static10"]["raw_tps"]
+    assert len(set(adaptive_tps)) == expected[workload_name]
+    assert len(set(static10_tps)) == expected[workload_name]
+    assert [
+        pair["signed_difference_tps"]
+        for pair in result["statistics"]["pairs"]
+    ] == [
+        -10_000.0 + 10.0 * index
+        for index in range(expected[workload_name])
+    ]
+    assert result["statistics"]["classification"] in {
+        "resolved-above-floor",
+        "bounded-below-floor",
+        "unresolved",
+    }
+    assert result["terminal_result"] == {
+        "status": "valid",
+        "classification": result["statistics"]["classification"],
+    }
+
+
+def test_active_statistics_path_has_no_fixed_count_pin() -> None:
+    tree = ast.parse(Path(paired.__file__).read_text(encoding="utf-8"))
+    targets = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "positional_statistics"
+    ]
+    assert len(targets) == 1
+    constants = [
+        node.value for node in ast.walk(targets[0])
+        if isinstance(node, ast.Constant)
+    ]
+    assert 5 not in constants
+    assert all(
+        "five" not in value.lower()
+        for value in constants if type(value) is str
+    )
+    assert not any(
+        isinstance(node, ast.BinOp)
+        and isinstance(node.op, ast.Div)
+        and isinstance(node.right, ast.Constant)
+        and node.right.value == 4
+        for node in ast.walk(targets[0])
+    )
+    arm_validators = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_validate_arm"
+    ]
+    assert len(arm_validators) == 1
+    assert all(
+        not (
+            isinstance(node, ast.Constant)
+            and (
+                node.value == 5
+                or (type(node.value) is str and "five" in node.value.lower())
+            )
+        )
+        for node in ast.walk(arm_validators[0])
+    )
+
+
+def test_invalid_workload_keeps_independent_terminal_results_M10() -> None:
     policy, policy_sha = paired.load_policy()
     workloads = [
         _validated_workload(name, f"campaign-{index}")
         for index, name in enumerate(paired.WORKLOAD_ORDER)
     ]
     workloads[1]["valid"] = False
+    workloads[1]["errors"] = ["fixture-invalid"]
     workloads[1]["statistics"] = None
+    workloads[1]["terminal_result"] = {
+        "status": "invalid",
+        "reasons": ["fixture-invalid"],
+    }
     result = paired.assemble_result(
         policy,
         policy_sha256=policy_sha,
@@ -697,8 +1128,11 @@ def test_incomplete_workload_suppresses_cross_workload_conclusion_M10() -> None:
         workloads=workloads,
     )
     assert result["complete"] is False
-    assert result["cross_workload_conclusion"] is None
-    assert "No cross-workload conclusion" in paired._readme(result)
+    assert result["all_workloads_terminal"] is True
+    assert "cross_workload_conclusion" not in result
+    assert workloads[0]["statistics"] is not None
+    assert workloads[2]["statistics"] is not None
+    assert "invalid: fixture-invalid" in paired._readme(result)
 
 
 def test_validate_raw_documents_accepts_matching_complete_positive() -> None:
@@ -707,6 +1141,43 @@ def test_validate_raw_documents_accepts_matching_complete_positive() -> None:
     assert paired.validate_raw_documents(
         result, receipt, terminal, policy
     ) == (result, receipt, terminal)
+
+
+def test_validate_raw_documents_accepts_invalid_reason_as_terminal_outcome() -> None:
+    result, receipt, terminal, policy = _raw_documents(invalid_workload=True)
+    assert result["all_workloads_terminal"] is True
+    assert result["complete"] is False
+    assert paired.validate_raw_documents(
+        result, receipt, terminal, policy
+    ) == (result, receipt, terminal)
+
+
+def test_materializer_rejects_tampered_result_policy_sha() -> None:
+    result, receipt, terminal, policy = _raw_documents()
+    result["policy_sha256"] = "0" * 64
+    with pytest.raises(paired.PaperStoryError, match="result policy hash"):
+        paired.validate_raw_documents(result, receipt, terminal, policy)
+
+
+@pytest.mark.parametrize("field", ["path", "sha256"])
+def test_materializer_rejects_tampered_receipt_policy_binding(
+    field: str,
+) -> None:
+    result, receipt, terminal, policy = _raw_documents()
+    receipt["policy"][field] = "wrong" if field == "path" else "0" * 64
+    with pytest.raises(paired.PaperStoryError, match="receipt policy binding"):
+        paired.validate_raw_documents(result, receipt, terminal, policy)
+
+
+def test_materializer_rejects_tampered_v2_policy_source_binding() -> None:
+    result, receipt, terminal, policy = _raw_documents()
+    assert paired.POLICY_RELATIVE_PATH.endswith(".v2.json")
+    assert paired.POLICY_RELATIVE_PATH in result["source_binding"]["files"]
+    result["source_binding"]["files"][paired.POLICY_RELATIVE_PATH][
+        "working_sha256"
+    ] = "0" * 64
+    with pytest.raises(paired.PaperStoryError, match="source bindings differ"):
+        paired.validate_raw_documents(result, receipt, terminal, policy)
 
 
 def test_validate_raw_documents_rejects_reservation_terminal_mismatch() -> None:
@@ -753,6 +1224,48 @@ def test_materialize_refuses_existing_destination_M11(tmp_path: Path) -> None:
     paired._exclusive_write(target, {"first": True})
     with pytest.raises(paired.PaperStoryError, match="create-only write refused"):
         paired._exclusive_write(target, {"second": True})
+
+
+def test_materialization_rejects_bundle_before_all_workloads_are_terminal(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "insight"
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="terminal outcomes for every workload",
+    ):
+        paired._publish_materialization_bundle(
+            destination,
+            {"receipt": True},
+            {
+                "complete": False,
+                "all_workloads_terminal": False,
+                "workloads": [],
+            },
+        )
+    assert not destination.exists()
+    assert list(tmp_path.glob(".insight.staging-*")) == []
+
+
+def test_materialization_second_publish_to_same_destination_is_rejected(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "insight"
+    result = {
+        "complete": False,
+        "all_workloads_terminal": True,
+        "workloads": [],
+        "workload_reps": {},
+        "limitations": [],
+    }
+    paired._publish_materialization_bundle(destination, {"receipt": True}, result)
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="no-replace|destination already exists",
+    ):
+        paired._publish_materialization_bundle(
+            destination, {"receipt": True}, result
+        )
 
 
 def test_exclusive_write_bytes_refuses_existing_path_M26(tmp_path: Path) -> None:
@@ -817,7 +1330,7 @@ def test_einval_fallback_publishes_absent_destination_and_records_limits_M37(
         {"receipt": True},
         {
             "complete": False,
-            "cross_workload_conclusion": None,
+            "all_workloads_terminal": True,
             "limitations": [],
         },
     )
@@ -879,7 +1392,7 @@ def test_einval_fallback_refuses_existing_destination_M36(
             {"receipt": True},
             {
                 "complete": False,
-                "cross_workload_conclusion": None,
+                "all_workloads_terminal": True,
                 "limitations": [],
             },
         )
@@ -913,7 +1426,7 @@ def test_unpublished_materialization_staging_is_removed(
         paired._publish_materialization_bundle(
             destination,
             {"receipt": True},
-            {"complete": False, "cross_workload_conclusion": None},
+            {"complete": False, "all_workloads_terminal": True},
         )
     assert not staging.exists()
     assert not destination.exists()
@@ -942,7 +1455,7 @@ def test_publish_error_after_rename_does_not_remove_destination(
         paired._publish_materialization_bundle(
             destination,
             {"receipt": True},
-            {"complete": False, "cross_workload_conclusion": None},
+            {"complete": False, "all_workloads_terminal": True},
         )
     assert destination.is_dir()
     assert paired.COMPLETION_MARKER in {
@@ -974,6 +1487,127 @@ def test_revalidate_raw_wals_accepts_exact_producer_layout_for_all_workloads_B11
         {"workloads": workloads, "source_binding": _source_binding()},
         {"roots": {"output_root": os.fspath(output_root)}},
     )
+
+
+def test_raw_wal_rederivation_rejects_self_consistent_stored_reclassification(
+    tmp_path: Path,
+) -> None:
+    output_root = (tmp_path / "campaign-output").resolve()
+    workload = _production_wal_workload(tmp_path, "write-heavy")
+    original = workload["statistics"]["classification"]
+    replacement = (
+        "unresolved" if original != "unresolved" else "bounded-below-floor"
+    )
+    workload["statistics"]["classification"] = replacement
+    workload["terminal_result"]["classification"] = replacement
+    assert paired._workload_has_terminal_result(workload)
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="raw WAL snapshot",
+    ):
+        paired._revalidate_raw_wals(
+            {"workloads": [workload], "source_binding": _source_binding()},
+            {"roots": {"output_root": os.fspath(output_root)}},
+        )
+
+
+def test_raw_wal_rederivation_does_not_preserve_stored_campaign_errors_F1(
+    tmp_path: Path,
+) -> None:
+    output_root = (tmp_path / "campaign-output").resolve()
+    workload = _production_wal_workload(tmp_path, "write-heavy")
+    workload["valid"] = False
+    workload["errors"] = ["campaign-error:forged"]
+    workload["statistics"] = None
+    workload["terminal_result"] = {
+        "status": "invalid",
+        "reasons": ["campaign-error:forged"],
+    }
+    assert paired._workload_has_terminal_result(workload)
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="raw WAL snapshot",
+    ):
+        paired._revalidate_raw_wals(
+            {"workloads": [workload], "source_binding": _source_binding()},
+            {"roots": {"output_root": os.fspath(output_root)}},
+        )
+
+
+def test_raw_wal_rederivation_rejects_stored_raw_tps_statistics_and_terminal_F2(
+    tmp_path: Path,
+) -> None:
+    output_root = (tmp_path / "campaign-output").resolve()
+    workload = _production_wal_workload(tmp_path, "write-heavy")
+    policy = _policy()
+    reps = paired._expected_reps(policy, "write-heavy")
+    stored_adaptive = [
+        1_200_000.0 + 3.0 * index for index in range(reps)
+    ]
+    stored_static10 = [
+        1_190_000.0 + 8.0 * index for index in range(reps)
+    ]
+    workload["arms"]["adaptive"]["raw_tps"] = stored_adaptive
+    workload["arms"]["static10"]["raw_tps"] = stored_static10
+    workload["statistics"] = paired.positional_statistics(
+        policy,
+        "write-heavy",
+        stored_adaptive,
+        stored_static10,
+    )
+    workload["terminal_result"] = {
+        "status": "valid",
+        "classification": workload["statistics"]["classification"],
+    }
+    assert paired._workload_has_terminal_result(workload)
+
+    result, receipt, terminal, raw_policy = _raw_documents()
+    result["workloads"][0] = workload
+    assert paired.validate_raw_documents(
+        result, receipt, terminal, raw_policy
+    ) == (result, receipt, terminal)
+    with pytest.raises(
+        paired.PaperStoryError,
+        match="raw WAL snapshot",
+    ):
+        paired._revalidate_raw_wals(
+            {"workloads": [workload], "source_binding": _source_binding()},
+            {"roots": {"output_root": os.fspath(output_root)}},
+        )
+
+
+def test_production_materialize_route_calls_raw_wal_rederivation_F2() -> None:
+    tree = ast.parse(Path(paired.__file__).read_text(encoding="utf-8"))
+    materializer = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "run_materialize"
+    )
+    rederivations = [
+        node
+        for node in ast.walk(materializer)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_revalidate_raw_wals"
+        )
+    ]
+    assert len(rederivations) == 1
+    assert [argument.id for argument in rederivations[0].args] == [
+        "result",
+        "receipt",
+    ]
+    publishes = [
+        node
+        for node in ast.walk(materializer)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_publish_materialization_bundle"
+        )
+    ]
+    assert len(publishes) == 1
+    assert rederivations[0].lineno < publishes[0].lineno
 
 
 @pytest.mark.parametrize(
@@ -1293,7 +1927,7 @@ def test_trace0_binds_build_directory_and_binary_bytes(
         ("unbound-stage", "stage-sequence-mismatch"),
         ("duplicate-macro", "trace0-source-route-incomplete"),
         ("wrong-workload-argv", "trace0-source-route-incomplete"),
-        ("huge-integer", "tps-not-exact-five"),
+        ("huge-integer", "tps-length-or-value-disagrees-with-workload-policy"),
     ],
 )
 def test_production_wal_mutations_are_invalid(
@@ -1352,11 +1986,21 @@ def test_clean_exact_two_arm_three_workload_positive_case() -> None:
         workloads=workloads,
     )
     assert result["complete"] is True
-    assert result["cross_workload_conclusion"] == {
-        "observed_all_workloads_negative": True,
-        "claim_scope": "this one arm-grouped exploratory run only",
-    }
-    assert "All-workload observed negative direction: `yes`" in paired._readme(result)
+    assert result["all_workloads_terminal"] is True
+    assert "cross_workload_conclusion" not in result
+    readme = paired._readme(result)
+    assert "No cross-workload conclusion is produced" in readme
+    for workload_name, reps in {"write-heavy": 72, "balanced": 205, "read-heavy": 28}.items():
+        assert f"| {workload_name} | valid | {reps} |" in readme
+        workload = next(
+            item for item in result["workloads"]
+            if item["workload"] == workload_name
+        )
+        interval = workload["statistics"]["descriptive_interval_tps"]
+        assert f"[{interval[0]:.6f}, {interval[1]:.6f}]" in readme
+        assert workload["statistics"]["classification"] in readme
+    assert paired.PREREGISTERED_LIMITATIONS in readme
+    assert "five" not in readme.lower()
 
 
 def test_result_and_readme_disclose_nqsv_observation_scope() -> None:
@@ -1393,6 +2037,12 @@ def test_result_and_readme_disclose_nqsv_observation_scope() -> None:
         {"driver_rc": 0, "shell_rc": 0, "status": "finished"},
     )
     evidence = materialized["materialization_evidence"]
+    assert evidence["derivation"] == {
+        "authoritative_input": "raw WAL byte sequence",
+        "workload_rederivation": "recollected from raw WAL before publish",
+        "result_receipt_comparison": "self-consistency check only",
+        "independent_evidence_claimed": False,
+    }
     assert evidence["scheduler_terminal"] == scheduler_terminal
     terminal_forms = evidence["interpretation"]["terminal_forms"]
     assert set(terminal_forms) == {
@@ -1463,6 +2113,10 @@ def test_materializer_requires_exact_zero_driver_and_shell_rc(
         "study_id": paired.STUDY_ID,
         "formal": False,
         "promotion_prohibited": True,
+        "policy": {
+            "path": paired.POLICY_RELATIVE_PATH,
+            "sha256": paired.POLICY_SHA256,
+        },
         "pbs_jobid": "12345.nqsv",
         "source_binding": _source_binding(),
         "roots": {"completion_receipt": "/durable/attempt.completion.json"},

@@ -141,7 +141,9 @@ inert 軸」を「coder が #if 枝の中身を合成する編集面」へ昇格
 - **マーカー・#else 枝・#if/#else/#endif 骨格は人間が一度入れた不可触骨格**。coder が触るのは #if 枝の
   中身だけ (auditor のレビュー対象を局所化)。
 - **閉じた領域制約** (D23 道Y、Phase 3 タスク3 の hook が機械執行予定): #if 枝は既存 silo API を呼ぶ
-  straight-line code のみ。`#include`・型/関数/マクロ定義の追加、生 `#if/#ifdef/#elif`、非決定 builtin
+  straight-line code のみ。ただし `silo-backoff-magnitude` の hole は D836 / D901 条項 1 により
+  「接尾辞なしの数値 literal 1 個・ちょうど 1 文」へ限定される (骨格 patch のコメント自体は
+  identity 保持のため不可触。上書きしたのは受理文法と `src/coder-spec.md` である)。`#include`・型/関数/マクロ定義の追加、生 `#if/#ifdef/#elif`、非決定 builtin
   (`__DATE__` 等) を禁止 → 「digest が見る枝 = 実ビルドがコンパイルする枝」を構造保証する。
 - **inert は preprocess 後ハッシュで実証**: マーカーは `//` コメントゆえ `cpp -E -P` で除去される +
   既定 `BACKOFF_FIXED=-1` は `#else`=stock を選ぶ → working-tree の preprocess 出力が HEAD 原本と

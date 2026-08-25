@@ -78,6 +78,10 @@ from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight  # noqa: E402
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
+from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_ignored_output_prefixes,
+    is_git_ignored_output_path,
+)
 
 buildcache = s8b_floor_campaign.buildcache
 
@@ -1449,14 +1453,18 @@ def _digest(abspath: str) -> str:
 # 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
 # critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
 def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
-    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。
+    """実 repo の Git-visible な output/ を統合テストが変えないことを固定する。
 
     旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
     を定義域とする。
     """
     if not output.exists():
         return ()
-    entries = _walk_entries(output)
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    entries = [
+        entry for entry in _walk_entries(output)
+        if not is_git_ignored_output_path(entry[1], ignored_prefixes)
+    ]
     files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
     digest_by_rel = {}
     for rel, abspath in files:
@@ -1474,12 +1482,15 @@ def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
 
 
 def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
-    """並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。"""
+    """最適化版の独立 oracle として保持する ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
     snapshot = []
     for path in sorted(output.rglob("*"), key=lambda item: item.as_posix()):
         rel = path.relative_to(output).as_posix()
+        if is_git_ignored_output_path(rel, ignored_prefixes):
+            continue
         if path.is_symlink():
             snapshot.append(("symlink", rel, path.readlink().as_posix()))
         elif path.is_file():
@@ -1506,6 +1517,46 @@ def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
     actual = _real_output_snapshot(output)
     assert actual == _real_output_snapshot_reference(output)
     assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert not is_git_ignored_output_path("visible", ignored_prefixes)
+    control = tmp_path / "visible"
+    before = _real_output_snapshot(tmp_path)
+    before_reference = _real_output_snapshot_reference(tmp_path)
+    control.mkdir()
+    (control / "nested").mkdir()
+    payload = control / "nested" / "payload.bin"
+    payload.write_bytes(b"git-visible snapshot positive control")
+
+    after = _real_output_snapshot(tmp_path)
+    after_reference = _real_output_snapshot_reference(tmp_path)
+    assert after != before
+    assert after_reference != before_reference
+    assert any(row[1] == control.name for row in after)
+    assert any(row[1] == control.name for row in after_reference)
+    relative_payload = payload.relative_to(tmp_path).as_posix()
+    assert any(row[1] == relative_payload for row in after)
+    assert any(row[1] == relative_payload for row in after_reference)
+
+
+def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert "runs" in ignored_prefixes
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
+    before = _real_output_snapshot(tmp_path)
+    before_reference = _real_output_snapshot_reference(tmp_path)
+    control = ignored_parent / "snapshot-ignored-floor"
+    control.mkdir()
+    (control / "nested").mkdir()
+    (control / "nested" / "payload.bin").write_bytes(
+        b"git-ignored snapshot control"
+    )
+
+    assert _real_output_snapshot(tmp_path) == before
+    assert _real_output_snapshot_reference(tmp_path) == before_reference
 
 
 def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):

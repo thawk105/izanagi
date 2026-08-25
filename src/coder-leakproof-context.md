@@ -99,7 +99,7 @@ rmw0_readmindwrite / max_ope10_ops_per_tx / extime3_execution_time_seconds
 ```
 以下の情報を用いて、backoff 値の提案を考えてください：
 
-1. Template 仕様: [エージェント定義 (coder-v4-autonomous.md) の出力節 — implementation は `double now_backoff = <式>;` 形]
+1. Template 仕様: [エージェント定義 (coder-v4-autonomous.md) の出力節 — axis=silo-backoff-magnitude の場合、implementation は `double now_backoff = <value と数値一致する接尾辞なしの数値 literal 1 個>;` の**ちょうど 1 文** (D836 / D901 条項 1)。計算式・呼び出し・括弧・後続の文は受理されない]
 2. Planner の方向ヒント: {direction} / {magnitude} (「増加」「低下」「両方探索」)
 3. Leading indicators: [メインセッションが射影した leading_indicators (JSON inline)]
 4. 現行 baseline: [メインセッションが射影した baseline (JSON inline)]
@@ -111,7 +111,7 @@ rmw0_readmindwrite / max_ope10_ops_per_tx / extime3_execution_time_seconds
     "axis": "silo-backoff-magnitude",
     "value": <数値>,
     "justification": "...",
-    "implementation": "double now_backoff = ...;",
+    "implementation": "double now_backoff = <数値 literal 1 個>;",
     "confidence": "high" | "medium" | "low"
   }
 }
