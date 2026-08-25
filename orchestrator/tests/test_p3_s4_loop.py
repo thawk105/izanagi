@@ -1086,6 +1086,377 @@ def test_make_critic_digest_reflux_off_drops_red_section():
     assert "diff-quarantine" not in off       # off アームは落とす
 
 
+def test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders(
+    monkeypatch,
+):
+    """harness が生成する critic digest で off 時の loader 非呼出を固定する。
+
+    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
+    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
+    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
+    それは本 wave の scope 外である。
+    """
+    from orchestrator.critic.digest import (
+        DiffQuarantineRejection,
+        LivenessRejection,
+        Rejection,
+        VerifyAbortSignal,
+    )
+
+    lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_reflux_loader_gate_"))
+    _log_projection_start(lay.ensure(), "reflux-loader-gate", "loader-gate-attempt")
+    view = _critic_view(lay)
+    calls = []
+    rejection_marker = "T1-REJECTION-LOADER-MARKER"
+    liveness_marker = "T1-LIVENESS-LOADER-MARKER"
+    other_marker = "T1-OTHER-LOADER-MARKER"
+    abort_marker = "T1-ABORT-LOADER-MARKER"
+    diff_marker = "T1-DIFF-LOADER-MARKER"
+
+    def spy_rejections(actual_view):
+        assert actual_view is view
+        calls.append("load_rejections")
+        return [Rejection(
+            genome=rejection_marker,
+            flags={},
+            verdict="indeterminate",
+            stats={"txns": 0},
+            origin_kind="synthetic-fixture",
+        )]
+
+    def spy_liveness(actual_view):
+        assert actual_view is view
+        calls.append("load_liveness_rejections")
+        return (
+            [LivenessRejection(
+                genome=liveness_marker,
+                flags={},
+                reason="trace-empty",
+            )],
+            {other_marker: 1},
+        )
+
+    def spy_abort_signals(actual_view):
+        assert actual_view is view
+        calls.append("load_verify_abort_signals")
+        return [VerifyAbortSignal(
+            variant=abort_marker,
+            genome="abort-loader-fixture",
+            commits=1,
+            aborts=1,
+        )]
+
+    def spy_diff_rejections(actual_view):
+        assert actual_view is view
+        calls.append("load_diff_rejections")
+        return [DiffQuarantineRejection(
+            genome=diff_marker,
+            flags={},
+            subtype="hole-escape",
+            reason="fixture-reason",
+        )]
+
+    monkeypatch.setattr(L, "load_rejections", spy_rejections)
+    monkeypatch.setattr(L, "load_liveness_rejections", spy_liveness)
+    monkeypatch.setattr(L, "load_verify_abort_signals", spy_abort_signals)
+    monkeypatch.setattr(L, "load_diff_rejections", spy_diff_rejections)
+
+    tag = "reflux-loader-gate"
+    green = L.render_text([L.build_digest(tag, {}, view)])
+    on = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=True,
+        identity_projection=IdentityProjection.RAW,
+    )
+    loader_names = {
+        "load_rejections",
+        "load_liveness_rejections",
+        "load_verify_abort_signals",
+        "load_diff_rejections",
+    }
+    assert set(calls) == loader_names
+    assert all(calls.count(name) == 1 for name in loader_names)
+    for marker in (
+        rejection_marker,
+        liveness_marker,
+        other_marker,
+        abort_marker,
+        diff_marker,
+    ):
+        assert marker in on
+
+    calls.clear()
+    off = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=False,
+        identity_projection=IdentityProjection.RAW,
+    )
+    assert calls == []
+    assert off == green
+    assert all(marker not in off for marker in (
+        rejection_marker,
+        liveness_marker,
+        other_marker,
+        abort_marker,
+        diff_marker,
+    ))
+
+
+def test_make_critic_digest_reflux_off_is_byte_identical_to_green_only():
+    """harness が生成する critic digest の off を緑 digest と byte 一致で固定する。
+
+    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
+    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
+    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
+    それは本 wave の scope 外である。
+    """
+    lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_reflux_green_bytes_"))
+    _log_projection_start(lay.ensure(), "reflux-green-bytes", "green-bytes-attempt")
+    view = _critic_view(lay)
+    tag = "reflux-green-byte-control"
+    projection = L.make_critic_identity_projection(view)
+    expected_green = L.render_text([L.build_digest(tag, {}, view)])
+
+    off = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=False,
+        identity_projection=projection,
+    )
+    on = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=True,
+        identity_projection=projection,
+    )
+
+    rejection_heading = (
+        "# rejections — 正しさ/liveness/frame/screening で不採用 "
+        "(未認証性能数値は表示しない)"
+    )
+    abort_heading = (
+        "# verify run の abort 統計 (シグナル — reject 理由ではない。"
+        "閾値判定なし、異常かどうかは読み手が stock 対照比で判断)"
+    )
+    assert off == expected_green
+    assert rejection_heading not in off and rejection_heading in on
+    assert abort_heading not in off and abort_heading in on
+
+
+def test_default_cfg_reflux_separates_campaign_identity():
+    """3 driver とも reflux だけを変えて on/off campaign を物理分離する。"""
+    def without_reflux(cfg):
+        return {
+            **vars(cfg),
+            "search_config": {
+                key: value
+                for key, value in cfg.search_config.items()
+                if key != "reflux"
+            },
+        }
+
+    for driver in (L, SORT_LOOP, TRIGGER_LOOP):
+        on = driver.default_cfg(reflux=True)
+        off = driver.default_cfg(reflux=False)
+
+        assert on.search_config["reflux"] == "on"
+        assert off.search_config["reflux"] == "off"
+        assert without_reflux(on) == without_reflux(off)
+        assert ident.canonical_preimage(on) != ident.canonical_preimage(off)
+        assert ident.campaign_id(on) != ident.campaign_id(off)
+
+        on_layout = L.exploration_campaign_layout(str(ident.campaign_id(on)))
+        off_layout = L.exploration_campaign_layout(str(ident.campaign_id(off)))
+        assert on_layout.wal_file != off_layout.wal_file
+        assert L.loop_state_path(on_layout) != L.loop_state_path(off_layout)
+        assert (
+            os.path.join(on_layout.root, "s4_loop_digest.txt")
+            != os.path.join(off_layout.root, "s4_loop_digest.txt")
+        )
+
+
+def test_reflux_off_reject_keeps_wal_and_whiteboard(
+    monkeypatch,
+    ratified_enforcement_source,
+):
+    """off でも hole escape を reject し、赤 WAL と checkpoint を on と同形で残す。"""
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    monkeypatch.setattr(
+        patchharness,
+        "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    sub = _mk_template_dir(L.SOURCE_REL)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="#define EVIL 1\ndouble now_backoff = 20.0;",
+    )
+    layouts = {
+        reflux: CampaignLayout(
+            root=tempfile.mkdtemp(prefix=f"izanagi_reflux_{reflux}_reject_")
+        ).ensure()
+        for reflux in ("on", "off")
+    }
+    outcomes = {}
+    records = {}
+    for reflux in ("on", "off"):
+        outcomes[reflux] = L.drive_iteration(
+            L.default_cfg(reflux=(reflux == "on")),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            sub,
+            do_build=False,
+            layout=layouts[reflux],
+            log=lambda *_args: None,
+        )
+        records[reflux] = wal.read_records(layouts[reflux])
+
+    assert outcomes["on"]["outcome"] == "rejected"
+    assert outcomes["off"]["outcome"] == "rejected"
+    for reflux in ("on", "off"):
+        assert any(record.stage == STAGE_ABORT for record in records[reflux])
+        assert any(
+            record.stage == STAGE_ABORT
+            and record.payload.get("reason") == DIFF_QUARANTINE_REASON
+            for record in records[reflux]
+        )
+        checkpoint = L.load_loop_state(layouts[reflux])
+        assert checkpoint is not None
+        assert [entry.result for entry in checkpoint.whiteboard] == ["rejected"]
+
+    expected_record_fields = {"variant", "stage", "env_tag", "ts", "payload"}
+    expected_payload_fields = [
+        {"genome", "src_token", "build_attempt_id"},
+        {"reason", "build_attempt_id", "genome", "diff_quarantine"},
+    ]
+    for reflux in ("on", "off"):
+        assert [set(vars(record)) for record in records[reflux]] == [
+            expected_record_fields,
+            expected_record_fields,
+        ]
+        assert [set(record.payload) for record in records[reflux]] == (
+            expected_payload_fields
+        )
+
+    # 正規化で除外する揮発 field は record.ts と payload.build_attempt_id だけ。
+    # record.variant は genome + implementation の決定的 hash なので比較に残す。
+    volatile_record_fields = frozenset({"ts"})
+    volatile_payload_fields = frozenset({"build_attempt_id"})
+
+    def normalized_wal(wal_records):
+        normalized = []
+        for record in wal_records:
+            stable_record = {
+                key: value
+                for key, value in vars(record).items()
+                if key not in volatile_record_fields and key != "payload"
+            }
+            stable_record["payload"] = {
+                key: value
+                for key, value in record.payload.items()
+                if key not in volatile_payload_fields
+            }
+            normalized.append(stable_record)
+        return normalized
+
+    assert normalized_wal(records["on"]) == normalized_wal(records["off"])
+
+
+def test_sanctioned_cli_stdout_omits_red_detail_fields(
+    capsys,
+    monkeypatch,
+    tmp_path,
+):
+    """CLI stdout の投影だけを固定し、API 戻り値での digest/records 遮断は主張しない。"""
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_sanctioned_cli_projection_")
+    ).ensure()
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_args: None)
+    sentinels = {
+        "digest": "T5-RED-DIGEST-DETAIL-SENTINEL",
+        "records": "T5-RED-RECORDS-DETAIL-SENTINEL",
+        "reason": "T5-RED-REASON-DETAIL-SENTINEL",
+    }
+    fixture_returned = {}
+
+    def fake_run_one_iteration(*_args, **_kwargs):
+        result = {
+            "outcome": "dry-pass",
+            "variant": None,
+            **sentinels,
+        }
+        fixture_returned.update(result)
+        return result
+
+    monkeypatch.setattr(L, "run_one_iteration", fake_run_one_iteration)
+
+    assert L.main(["--no-build"]) == 0
+    stdout = capsys.readouterr().out
+    assert all(
+        fixture_returned[field] == sentinel
+        for field, sentinel in sentinels.items()
+    )
+    assert all(sentinel not in stdout for sentinel in sentinels.values())
+
+    proposal_path = tmp_path / "proposal.json"
+    proposal_path.write_text(json.dumps({
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": 20.0,
+            "implementation": "double now_backoff = 20.0;",
+        },
+        "prior_critic_reverse": None,
+    }), encoding="utf-8")
+    iteration_returned = {}
+
+    def fake_drive_iteration(*_args, **_kwargs):
+        L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
+        result = {
+            "ran": True,
+            "outcome": "rejected",
+            "variant": "t5-run-iteration-variant",
+            "iteration": 1,
+            "stop_reason": "continue",
+            **sentinels,
+        }
+        iteration_returned.update(result)
+        return result
+
+    monkeypatch.setattr(L, "drive_iteration", fake_drive_iteration)
+
+    assert L.main([
+        "--run-iteration", str(proposal_path),
+        "--no-build",
+        "--reflux", "off",
+    ]) == 0
+    stdout = capsys.readouterr().out
+    assert all(
+        iteration_returned[field] == sentinel
+        for field, sentinel in sentinels.items()
+    )
+    assert all(sentinel not in stdout for sentinel in sentinels.values())
+
+
 def _log_projection_start(lay, source_tag, attempt, *, stock=False):
     """admission API と wal API で正規の terminal attempt を組む。"""
     src_token = (
