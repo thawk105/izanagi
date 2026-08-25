@@ -44,8 +44,13 @@
   （先行分は `output/insights/2026-08-24_paper-story-a3-evidence-integration/README.md`）。
 - **`figures/fig2_backoff_mechanism.png` は baseline を誤って label している。** 図中の横破線には
   `stock adaptive backoff` と書かれているが、その値は無 backoff（`BACK_OFF=0`）である。
-  2026-07-10 版と 2026-08-23 版のキャプションも同じ誤りを持つ。この図を使うときは
-  キャプションで baseline を訂正するか、使わない。詳細と再作成の扱いは上記 insight。
+  2026-07-10 版と 2026-08-23 版のキャプションも同じ誤りを持つ。**旧図と旧キャプションは凍結物なので
+  訂正しない。** 詳細は上記 insight。
+  **後継図 `figures/fig2b_backoff_sweep_3workload.png`（ベクター版は同名の `.pdf`）を作った。**
+  headline 適格な sweep 系列を 3 workload 分描き、基準線を無 backoff 対照 1 本に限定し、
+  tracked な生成器 `tools/plotting/plot_backoff.py` で再現できる。再現コマンド・入力・
+  キャプション正文・旧図との対応は `figures/README.md` にある。
+  **論文で P2-4 の図を使うときは後継図を使い、旧図を使わない。**
 - **§8 の A-1・A-2 も 2026-08-23 版の時点から進んだ。** 現況は `docs/worklog.md` と
   `docs/phase3.md` が正本であり、A/B/C の一覧を最新状態として読まない。
 

@@ -354,9 +354,9 @@ def test_plot_backoff_excludes_and_reports_uncertified_bench_done(tmp_path, caps
 
     out_prefix = str(tmp_path / "plot")
     original_make_figure = plot.make_figure
-    plot.make_figure = lambda camps, out: {
+    plot.make_figure = lambda camps, out: ({
         "fixture": {"best_M": 0.12, "best_bf": 5, "none_M": 0.10,
-                    "adapt_M": 0.11, "n_reps": 2}}
+                    "adapt_M": 0.11, "n_reps": 2}}, [[]])
     try:
         assert plot.main(["plot_backoff.py", out_prefix, layout.root]) == 0
     finally:
