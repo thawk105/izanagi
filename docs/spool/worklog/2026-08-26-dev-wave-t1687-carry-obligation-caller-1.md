@@ -49,8 +49,13 @@ title: [T-1687] 繰越義務述語を段 6 候補提出の前提関門 adapter �
   `test_real_repo_serialization.py` の単体実行も 5 件赤 (4 件は同じ fixture 未供給、
   1 件は `cache-path-unavailable`)。いずれも main の blob と照合して差分外を確認した。
   別変更単位で解消する。
-- 工数: Codex 子 7 本 (plan 1、consult 2、review 2、author 1、fix 1)。全件 `gpt-5.6-sol` / xhigh /
-  accepted。
+- **段 8 の自己改善候補 2 件は、いずれも文書の層予算に収まらず実施できなかった。**
+  `DW-M01` へ「spec を組んだら登録 ID と 1:1 で照合する」、`DW-M05` へ「変異走行中は tree へ
+  書かない」を足す案。L1 は 10,625 bytes、L1.5 は 9,566 bytes の予算に対して現状がちょうど
+  満杯で、どちらも 1 byte も入らない。予算の変更は独立審査対象のため裁定へ送る
+  ({{F:mutation-spec-drops-registered-ids-silently}})。
+- 工数: Codex 子 9 本 (plan 1、consult 2、review 2、focus 1、author 1、fix 2)。全件 `gpt-5.6-sol` /
+  xhigh / accepted。
 
 ## 次の一手差分
 
