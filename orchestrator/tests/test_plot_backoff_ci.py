@@ -7,9 +7,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import math
 import os
 import sys
+import tempfile
+from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -99,6 +102,185 @@ def test_ci95_large_n_uses_normal_approx():
     expected_half = 1.96 * a.std(ddof=1) / math.sqrt(30)
     _, half = plot._ci95(reps)
     assert abs(half - expected_half) < 1e-9, (half, expected_half)
+
+
+class _RecordingAxis:
+    def __init__(self):
+        self.spans = []
+        self.lines = []
+        self.texts = []
+
+    def axhspan(self, low, high, **kwargs):
+        self.spans.append((low, high, kwargs))
+
+    def axhline(self, center, **kwargs):
+        self.lines.append((center, kwargs))
+
+    def get_yaxis_transform(self):
+        return "recording-transform"
+
+    def text(self, x, y, label, **kwargs):
+        self.texts.append((x, y, label, kwargs))
+
+
+def test_each_baseline_draws_mean_line_and_t95_band():
+    """no-backoff / stock-adaptive のどちらも同じ CI 帯契約を使う。"""
+    plot = _load_plot_module()
+    reps = [1.0e6, 2.0e6, 3.0e6, 4.0e6, 5.0e6]
+    expected_half_M = 2.776 * math.sqrt(0.5)
+    for baseline in plot.BASELINE_ORDER:
+        axis = _RecordingAxis()
+        record = plot._draw_baseline(axis, reps, plot.BASELINE_SPECS[baseline])
+        assert record["value_tps"] == 3.0e6
+        assert record["label"] == plot.BASELINE_SPECS[baseline]["label"]
+        assert abs(record["ci95_half_tps"] - expected_half_M * 1e6) < 1e-6
+        assert len(axis.lines) == 1
+        assert len(axis.spans) == 1
+        assert axis.texts[0][1:3] == (3.0, record["label"])
+        low, high, _style = axis.spans[0]
+        assert abs(low - (3.0 - expected_half_M)) < 1e-9
+        assert abs(high - (3.0 + expected_half_M)) < 1e-9
+
+
+def test_baseline_single_sample_draws_line_without_ci_band():
+    """n<2 は平均線だけを描き、幅ゼロの 95% CI 帯は作らない。"""
+    plot = _load_plot_module()
+    axis = _RecordingAxis()
+    record = plot._draw_baseline(
+        axis, [123456.0], plot.BASELINE_SPECS["no-backoff"])
+    assert record == {
+        "label": "no backoff",
+        "value_tps": 123456.0,
+        "ci95_half_tps": None,
+    }
+    assert len(axis.lines) == 1
+    assert axis.spans == []
+
+
+def test_baseline_cli_keeps_legacy_call_and_accepts_no_backoff_only():
+    plot = _load_plot_module(need_numpy=False)
+    legacy = plot._parse_cli(["plot_backoff.py", "out", "campaign"])
+    assert legacy == ("out", ["campaign"], ("no-backoff", "stock-adaptive"))
+    selected = plot._parse_cli([
+        "plot_backoff.py", "--baselines", "no-backoff", "out", "campaign",
+    ])
+    assert selected == ("out", ["campaign"], ("no-backoff",))
+
+
+def test_baseline_cli_rejects_unknown_name():
+    plot = _load_plot_module(need_numpy=False)
+    try:
+        plot._parse_cli([
+            "plot_backoff.py", "--baselines", "no-backoff,mystery", "out", "campaign",
+        ])
+    except ValueError as exc:
+        assert "mystery" in str(exc)
+    else:
+        raise AssertionError("unknown baseline was accepted")
+
+
+def test_boolean_condition_spellings_and_numactl_arguments_are_meaning_preserving():
+    plot = _load_plot_module(need_numpy=False)
+    assert plot._condition_scalar("ycsb_rmw", "false") is False
+    assert plot._condition_scalar("ycsb_rmw", "0") is False
+    assert plot._condition_scalar("ycsb_rmw", "true") is True
+    assert plot._condition_scalar("ycsb_rmw", "1") is True
+    assert plot._numactl_arguments(
+        "numactl --interleave=all /tmp/ycsb_silo.exe") == ["--interleave=all"]
+    assert plot._numactl_arguments(
+        "numactl --localalloc /tmp/ycsb_silo.exe") == ["--localalloc"]
+
+
+def test_empty_tps_is_rejected_instead_of_becoming_nan():
+    plot = _load_plot_module(need_numpy=False)
+    try:
+        plot._mean_tps([])
+    except ValueError as exc:
+        assert "must not be empty" in str(exc)
+    else:
+        raise AssertionError("empty tps repetitions were accepted")
+
+
+def _figure_campaign(name, workload, scale):
+    return {
+        "campaign": name,
+        "workload": workload,
+        "pts": [
+            (2, [2.0e6 * scale, 2.2e6 * scale]),
+            (4, [2.4e6 * scale, 2.6e6 * scale]),
+            (8, [2.1e6 * scale, 2.3e6 * scale]),
+        ],
+        "none": [1.8e6 * scale, 2.0e6 * scale],
+        "adapt": [1.1e6 * scale, 1.3e6 * scale],
+        "baseline_genomes": {
+            "no-backoff": {"BACKOFF_FIXED": "-1", "BACK_OFF": "0"},
+            "stock-adaptive": {"BACKOFF_FIXED": "-1", "BACK_OFF": "1"},
+        },
+        "abort_ipc": {2: (1.0, 1.1), 4: (2.0, 1.2), 8: (3.0, 1.3)},
+        "threads": [48],
+        "env": "linux-baremetal",
+        "dir": f"output/campaigns/{name}",
+        "wal": f"output/campaigns/{name}/runs/wal.jsonl",
+        "wal_sha256": "w" * 64,
+        "dat": f"output/campaigns/{name}/reports/{name}.dat",
+        "dat_sha256": "d" * 64,
+        "lock": f"output/campaigns/{name}/campaign.lock",
+        "lock_sha256": "l" * 64,
+        "conditions": {},
+        "excluded_uncertified": [],
+        "read_purpose": "HISTORICAL_RAW",
+        "campaign_verifier_epoch": {
+            "campaign_verifier_epoch": "E0",
+            "state": "absent",
+            "reason_code": "fixture",
+            "identity_scope": [],
+            "excluded_scope": [],
+        },
+    }
+
+
+def test_actual_panel_artists_match_serialized_baseline_records():
+    """各 panel の line y / text label と main が書く baselines[] を直接照合する。"""
+    plot = _load_plot_module(need_numpy=False)
+    campaigns = {
+        "write": _figure_campaign("write", "write-heavy", 1.0),
+        "balanced": _figure_campaign("balanced", "balanced", 1.3),
+    }
+    original_load_campaign = plot.load_campaign
+    plot.load_campaign = campaigns.__getitem__
+    try:
+        with tempfile.TemporaryDirectory(prefix="backoff-artist-") as temp:
+            out_prefix = str(Path(temp) / "figure")
+            assert plot.main([
+                "plot_backoff.py", out_prefix, "write", "balanced",
+            ]) == 0
+            provenance = json.loads(Path(
+                out_prefix + ".provenance.json").read_text(encoding="utf-8"))
+            figure = plot.plt.gcf()
+            top_axes = figure.axes[:len(campaigns)]
+            assert len(provenance["inputs"]) == len(top_axes)
+            for axis, input_row in zip(top_axes, provenance["inputs"]):
+                rows = input_row["baselines"]
+                labels = {row["label"] for row in rows}
+                baseline_texts = [text for text in axis.texts if text.get_text() in labels]
+                assert len(baseline_texts) == len(rows)
+                horizontal_y = []
+                for line in axis.lines:
+                    ydata = list(line.get_ydata())
+                    if len(ydata) == 2 and math.isclose(float(ydata[0]), float(ydata[1])):
+                        horizontal_y.append(float(ydata[0]))
+                assert len(horizontal_y) == len(rows)
+                for row in rows:
+                    expected_y = row["value_tps"] / 1e6
+                    matches = [text for text in baseline_texts
+                               if text.get_text() == row["label"]]
+                    assert len(matches) == 1
+                    assert math.isclose(float(matches[0].get_position()[1]), expected_y)
+                    assert sum(math.isclose(y, expected_y) for y in horizontal_y) == 1
+    finally:
+        plot.load_campaign = original_load_campaign
+        if plot.plt is not None:
+            plot.plt.close("all")
 
 
 def test_figure_epoch_label_keeps_exact_recorded_epochs():
