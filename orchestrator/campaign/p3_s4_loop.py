@@ -133,6 +133,9 @@ class CoderProposal:
     justification: str = ""
     confidence: str = "medium"
 
+    def __post_init__(self) -> None:
+        _assert_coder_value_domain(self.value)
+
 
 @dataclass
 class WhiteboardEntry:
@@ -904,6 +907,25 @@ class AttributionMismatch(ValueError):
     値と走る literal の不一致を素通しせず、ここで止める (謳うだけの整合規約にしない)。"""
 
 
+_CODER_VALUE_DOMAIN_MESSAGE = (
+    "帰属汚染: coder value は bool でない 1..1000 の有限な整数でなければならない "
+    "(規律6/D39 決定7)"
+)
+
+
+def _assert_coder_value_domain(value) -> None:
+    """Tier 1 値域判定を main の固定例外契約へ適配する。"""
+
+    decision = backoff_hole_grammar.validate_backoff_value(value)
+    if decision.accepted:
+        return
+    error = AttributionMismatch(_CODER_VALUE_DOMAIN_MESSAGE)
+    error.stage = decision.stage
+    error.rule_id = decision.rule_id
+    error.reason = decision.reason
+    raise error
+
+
 def assert_value_literal_consistent(coder: CoderProposal) -> None:
     """coder.value と implementation の backoff literal の整合を機械強制する (D39 決定7)。
 
@@ -927,6 +949,8 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
             implementation_preflight
         )
 
+    _assert_coder_value_domain(coder.value)
+
     fixed_message = (
         "帰属汚染: coder value と hole literal の一致を機械確認できない "
         "(規律6/D39 決定7)"
@@ -949,10 +973,6 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
             raise AttributionMismatch(fixed_message)
     elif coder_value not in literal_values:
         raise AttributionMismatch(fixed_message)
-
-    value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
-    if not value_decision.accepted:
-        raise backoff_hole_grammar.BackoffGrammarViolation(value_decision)
 
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
@@ -1067,9 +1087,9 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
             }
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
-    # type/raw-size preflight は既存帰属より前、value の無損失整数検査は既存帰属の後かつ
-    # int() より前に走る。新 cap 内の既存 AttributionMismatch を保存しつつ、materialization
-    # と int() は固定上限内・検証済みの値にしか到達させない。
+    # type/raw-size preflight は帰属より前、value の無損失整数検査は正本への
+    # adapter 経由で帰属より前に走る。materialization と int() は固定上限内・
+    # 検証済みの値にしか到達させない。
     assert_value_literal_consistent(coder)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
@@ -1152,8 +1172,8 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
          "prior_critic_reverse": true|false|null}
 
     Model Y の入力射影点 — メインセッションはここに **abstract な proposal だけ** を書く
-    (勝ち筋値・機序を harness へ運ぶ経路にしない)。value↔literal 整合は run_one_iteration が
-    機械強制する (D39 決定7)。"""
+    (勝ち筋値・機序を harness へ運ぶ経路にしない)。value 値域は CoderProposal
+    構築時、value↔literal 整合は run_one_iteration が機械強制する (D39 決定7)。"""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
     assert_closed_proposal_schema(
@@ -1195,6 +1215,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
 
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
+    _assert_coder_value_domain(coder.value)
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:

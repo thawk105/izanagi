@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import replace
+from decimal import Decimal
 import hashlib
 import inspect
 import json
@@ -607,36 +608,33 @@ def test_backoff_value_requires_lossless_integer_in_closed_range(
     assert decision.rule_id == rule_id
 
 
-def test_backoff_value_gate_preserves_existing_attribution_precedence_within_cap():
-    with pytest.raises(L.AttributionMismatch):
-        L.assert_value_literal_consistent(L.CoderProposal(
-            axis=L.MARKER_ID,
-            value=1001,
-            implementation="double now_backoff = 20;",
-        ))
-
-    with pytest.raises(BHG.BackoffGrammarViolation) as caught:
-        L.assert_value_literal_consistent(L.CoderProposal(
-            axis=L.MARKER_ID,
-            value=1001,
-            implementation="double now_backoff = 1001;",
-        ))
-    assert caught.value.rule_id == "backoff-grammar.value-range.v1"
-
-    matching_invalid_values = (
+@pytest.mark.parametrize(
+    ("value", "literal", "rule_id"),
+    (
         (True, "1", "backoff-grammar.value-integer.v1"),
         ("20", "20", "backoff-grammar.value-integer.v1"),
         (20.5, "20.5", "backoff-grammar.value-integer.v1"),
         (0, "0", "backoff-grammar.value-range.v1"),
-    )
-    for value, literal, rule_id in matching_invalid_values:
-        with pytest.raises(BHG.BackoffGrammarViolation) as rejected:
-            L.assert_value_literal_consistent(L.CoderProposal(
-                axis=L.MARKER_ID,
-                value=value,
-                implementation=f"double now_backoff = {literal};",
-            ))
-        assert rejected.value.rule_id == rule_id
+        (1001, "1001", "backoff-grammar.value-range.v1"),
+    ),
+)
+def test_backoff_value_adapter_preserves_main_exception_and_structured_rule(
+    value,
+    literal,
+    rule_id,
+):
+    decision = BHG.validate_backoff_value(value)
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=value,
+            implementation=f"double now_backoff = {literal};",
+        )
+    assert type(caught.value) is L.AttributionMismatch
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert caught.value.stage == decision.stage
+    assert caught.value.rule_id == rule_id == decision.rule_id
+    assert caught.value.reason == decision.reason
 
 
 def test_backoff_preflight_runs_before_path_read_render_and_attribution():
@@ -1464,6 +1462,109 @@ def test_value_literal_consistency_accepts_match():
                         implementation="double now_backoff = 20.0;"))
 
 
+@pytest.mark.parametrize(
+    "value",
+    [1, 1.0, 20, 20.0, 1000, 1000.0],
+    ids=["lower-int", "lower-float", "middle-int", "middle-float",
+         "upper-int", "upper-float"],
+)
+def test_coder_proposal_value_domain_accepts_declared_integral_boundaries(value):
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=value,
+        implementation=f"double now_backoff = {value};",
+    )
+    L.assert_value_literal_consistent(coder)
+
+
+class _FloatableTwenty:
+    def __float__(self):
+        return 20.0
+
+
+@pytest.mark.parametrize(
+    ("value", "implementation", "rule_id"),
+    [
+        (20.5, "double now_backoff = 20.5;", "backoff-grammar.value-integer.v1"),
+        (True, "double now_backoff = 1;", "backoff-grammar.value-integer.v1"),
+        (float("nan"), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
+        (float("inf"), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
+        (0, "double now_backoff = 0;", "backoff-grammar.value-range.v1"),
+        (-1, "double now_backoff = -1;", "backoff-grammar.value-range.v1"),
+        (1001, "double now_backoff = 1001;", "backoff-grammar.value-range.v1"),
+        (Decimal("20"), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
+        (_FloatableTwenty(), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
+    ],
+    ids=["nonintegral", "bool", "nan", "inf", "zero", "negative",
+         "above-upper", "decimal", "floatable-object"],
+)
+def test_coder_proposal_rejects_values_outside_exact_integral_domain(
+    value, implementation, rule_id,
+):
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=value,
+            implementation=implementation,
+        )
+    assert type(caught.value) is L.AttributionMismatch
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert caught.value.rule_id == rule_id
+
+
+def test_value_literal_consistency_rechecks_mutated_nonintegral_value():
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    coder.value = 20.5
+    coder.implementation = "double now_backoff = 20.5;"
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.assert_value_literal_consistent(coder)
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert caught.value.rule_id == "backoff-grammar.value-integer.v1"
+
+
+def test_run_one_iteration_rechecks_mutated_nonintegral_value_before_genome_construction():
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    coder.value = 20.5
+    coder.implementation = "double now_backoff = 20.5;"
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
+    )
+    genome_poison = AssertionError("nonintegral value reached Genome construction")
+    with unittest.mock.patch.object(
+        L, "Genome", side_effect=genome_poison,
+    ) as genome_spy, unittest.mock.patch.object(
+        L, "record_diff_reject",
+    ) as reject_spy, unittest.mock.patch.object(
+        L, "run_campaign",
+    ) as campaign_spy:
+        with pytest.raises(L.AttributionMismatch) as caught:
+            L.run_one_iteration(
+                L.default_cfg(),
+                L.default_perf(),
+                planner,
+                coder,
+                L.LoopState(start_ts=time.monotonic()),
+                "/must/not-be-touched",
+                do_build=False,
+            )
+
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert caught.value.rule_id == "backoff-grammar.value-integer.v1"
+    genome_spy.assert_not_called()
+    reject_spy.assert_not_called()
+    campaign_spy.assert_not_called()
+
+
 def test_value_literal_consistency_rejects_mismatch():
     """value=20 だが literal=999 → 帰属汚染で AttributionMismatch (規律6/D39 決定7)。"""
     try:
@@ -1489,8 +1590,8 @@ def test_value_literal_consistency_fails_closed_when_value_absent():
 def test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections():
     """自由記述 bytes だけが対象。宣言済み genome scalar BACKOFF_FIXED は帰属 field で対象外。"""
     sentinels = (
-        "913579.125",
-        "824680.25",
+        "913.0",
+        "824.0",
         "SENTINEL_IMPLEMENTATION_b73e",
     )
     exception_projections = []
@@ -2560,6 +2661,49 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted(
     assert st.reverse_recommendations == L.REVERSE_STREAK
 
 
+def test_drive_iteration_rechecks_mutated_nonintegral_value_before_entry_stop(
+    ratified_enforcement_source,
+):
+    lay = _tmp_layout("domain-before-stop")
+    seed = L.LoopState(
+        iteration=0,
+        start_wall=time.time(),
+        reverse_recommendations=L.REVERSE_STREAK - 1,
+    )
+    L.save_loop_state(lay, seed)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    coder.value = 20.5
+    coder.implementation = "double now_backoff = 20.5;"
+
+    with unittest.mock.patch.object(L, "run_one_iteration") as run_spy:
+        with pytest.raises(L.AttributionMismatch) as caught:
+            L.drive_iteration(
+                L.default_cfg(),
+                L.default_perf(),
+                planner,
+                coder,
+                prior_critic_reverse=True,
+                sub="/must/not-be-touched",
+                do_build=False,
+                layout=lay,
+            )
+
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert caught.value.rule_id == "backoff-grammar.value-integer.v1"
+    run_spy.assert_not_called()
+    unchanged = L.load_loop_state(lay)
+    assert unchanged.reverse_recommendations == L.REVERSE_STREAK - 1
+
+
 def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
     lay = _tmp_layout("recover-before-stop")
     cfg, perf = L.default_cfg(), L.default_perf()
@@ -2774,19 +2918,18 @@ def test_load_proposal_file_accepts_null_and_bool_prior_reverse():
 
 
 @pytest.mark.parametrize(
-    ("value", "rule_id"),
-    (
-        (True, "backoff-grammar.value-integer.v1"),
-        ("20", "backoff-grammar.value-integer.v1"),
-        (20.5, "backoff-grammar.value-integer.v1"),
-        (0, "backoff-grammar.value-range.v1"),
-        (1001, "backoff-grammar.value-range.v1"),
-    ),
+    ("value", "literal", "sentinel", "value_token"),
+    [
+        (20.5, "20.5", "LOADER_NONINTEGRAL_41bd", "20.5"),
+        (True, "1", "LOADER_BOOL_d28c", "true"),
+        ("20", "20", "LOADER_NUMERIC_STRING_8eb4", "20"),
+    ],
+    ids=["nonintegral", "bool", "numeric-string"],
 )
-def test_load_proposal_file_preserves_value_for_gate_before_float_coercion(
-    value,
-    rule_id,
+def test_load_proposal_file_rejects_coder_values_outside_exact_integral_domain(
+    tmp_path, value, literal, sentinel, value_token,
 ):
+    implementation = f"double now_backoff = {literal}; // {sentinel}"
     document = {
         "planner": {
             "axis": L.MARKER_ID,
@@ -2796,20 +2939,23 @@ def test_load_proposal_file_preserves_value_for_gate_before_float_coercion(
         "coder": {
             "axis": L.MARKER_ID,
             "value": value,
-            "implementation": "double now_backoff = 20;",
+            "implementation": implementation,
         },
         "prior_critic_reverse": None,
     }
-    path = os.path.join(
-        tempfile.mkdtemp(prefix="izanagi_backoff_value_proposal_"),
-        "proposal.json",
-    )
-    with open(path, "w", encoding="utf-8") as stream:
-        json.dump(document, stream)
-    _planner, coder, _prior = L.load_proposal_file(path)
-    decision = BHG.validate_backoff_value(coder.value)
-    assert not decision.accepted
-    assert decision.rule_id == rule_id
+    path = tmp_path / f"{sentinel}.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.load_proposal_file(str(path))
+
+    assert type(caught.value) is L.AttributionMismatch
+    message = str(caught.value)
+    assert message == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert caught.value.rule_id == "backoff-grammar.value-integer.v1"
+    assert sentinel not in message
+    assert implementation not in message
+    assert value_token not in message
 
 
 # ==== ability-probe 射影 tripwire (T-139 / A-9・B-1・B-3) ======================
