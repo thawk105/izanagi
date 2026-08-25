@@ -8,6 +8,7 @@ import inspect
 import json
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -214,6 +215,10 @@ def _get_compiled_oracle_artifacts(tmp_path_factory):
         "real oracle E2E requires an injected oracle environment"
     )
     scratch = tmp_path_factory.mktemp("sort-swo-real")
+    verified_dependency = O._prepare_verified_dependency(
+        oracle_environment.dependency_root,
+        scratch / "verified-masstree",
+    )
     artifacts = {}
     compile_count = 0
     for name, statement in (
@@ -225,10 +230,10 @@ def _get_compiled_oracle_artifacts(tmp_path_factory):
         ("abort", _ABORT_IMPL),
     ):
         executable = scratch / name
-        finding, unavailable = O._compile(
+        finding, unavailable = O._compile_verified(
             O._translation_unit(statement), scratch / f"{name}.cpp", executable,
             compiler=str(oracle_environment.compiler), ccbench_dir=oracle_environment.ccbench_dir,
-            masstree_dir=oracle_environment.dependency_root,
+            dependency=verified_dependency,
             fault_injection=name in {"snapshot", "sandbox"},
         )
         compile_count += 1
@@ -377,8 +382,8 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
         compiled_oracle_artifacts["negative"], test_mode=6,
     )
     assert finding is not None
-    assert finding.kind is O.OracleRejectKind.MUTATION
-    assert finding.reason_code == "snapshot-arena-write-denied"
+    assert finding.kind is O.OracleRejectKind.EXECUTION
+    assert finding.reason_code == "candidate-execution-fault"
 
     clean_matrix, clean_finding = O._run_matrix(
         compiled_oracle_artifacts["positive"], 0, 0,
@@ -400,8 +405,12 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
             test_mode=2000 + mode,
         )
         assert denied is not None, allocation_class
-        assert denied.kind is O.OracleRejectKind.MUTATION, allocation_class
-        assert denied.reason_code == "snapshot-arena-write-denied", allocation_class
+        assert denied.kind is O.OracleRejectKind.EXECUTION, allocation_class
+        assert denied.reason_code == "candidate-execution-fault", allocation_class
+        assert all(
+            observation.get("write_denied") is not True
+            for observation in denied.observations
+        ), allocation_class
 
         control_matrix, control_finding = O._run_matrix(
             compiled_oracle_artifacts["snapshot"], 0, 0,
@@ -446,23 +455,57 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
     )
     assert timeline_finding is None and matrix == clean_matrix
     assert [event[0] for event in fd_timeline] == [
-        "stopped", "authority-received",
+        "stopped", "authority-sent",
     ]
-    before, after = fd_timeline
-    assert before[1] == after[1]
-    assert before[2] == after[2]
+    before, authority_event = fd_timeline
+    assert before[1] == authority_event[1]
+    assert before[2] == authority_event[2]
     assert before[3] is None
-    assert after[3] not in after[2]
+    assert authority_event[3] not in before[2]
     assert O._worker_fd_boundary_is_safe(
-        before[2], after[2], after[3], final_created_after_stop=True,
-    )
-    assert not O._worker_fd_boundary_is_safe(
-        before[2], after[2] + (after[3],), after[3],
+        before[2], authority_event[2], authority_event[3],
         final_created_after_stop=True,
     )
     assert not O._worker_fd_boundary_is_safe(
-        before[2], after[2], after[3], final_created_after_stop=False,
+        before[2], authority_event[2] + (authority_event[3],),
+        authority_event[3],
+        final_created_after_stop=True,
     )
+    assert not O._worker_fd_boundary_is_safe(
+        before[2], authority_event[2], authority_event[3],
+        final_created_after_stop=False,
+    )
+
+    for mode, mutation in ((1404, "fork-inherit-close"), (1405, "dup-number")):
+        injected_timeline = []
+        expected_phase, expected_detail = (
+            ("protocol-authority", "worker-fd-boundary-verification-failed")
+            if mode == 1404
+            else ("worker-hardening", "worker-hardening-preflight-failed")
+        )
+        with pytest.raises(
+            O._EvaluationUnavailable,
+            match=expected_detail,
+        ) as failure:
+            O._run_matrix(
+                compiled_oracle_artifacts["sandbox"], 0, 0,
+                test_mode=mode,
+                fd_observer=lambda *event: injected_timeline.append(event),
+            )
+        assert failure.value.phase == expected_phase, mutation
+        if mode == 1404:
+            assert [event[0] for event in injected_timeline] == [
+                "stopped", "authority-sent",
+            ], mutation
+            injected_before, injected_authority = injected_timeline
+            assert injected_before[2] == injected_authority[2], mutation
+            assert not O._worker_fd_boundary_is_safe(
+                injected_before[2], injected_authority[2],
+                injected_authority[3], final_created_after_stop=False,
+            ), mutation
+            assert injected_authority[3] not in injected_before[2]
+        else:
+            assert injected_timeline == []
 
 
 def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
@@ -531,6 +574,68 @@ def test_cpp_e2e_canonical_fixture_trusted_control_compiles_and_runs(
     assert type(environment) is O.OracleEnvironment
     assert environment.dependency_root == masstree_fixture.FIXTURE_ROOT.resolve()
     assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
+
+
+def test_production_dependency_verifier_copies_canonical_bytes_privately(tmp_path):
+    private_root = tmp_path / "private-masstree"
+    verified = O._prepare_verified_dependency(
+        masstree_fixture.FIXTURE_ROOT, private_root,
+    )
+    assert type(verified) is O._VerifiedDependencyRoot
+    assert verified.root == private_root.resolve()
+    assert verified.root != masstree_fixture.FIXTURE_ROOT.resolve()
+    assert verified.manifest_sha256 == O.DEPENDENCY_MANIFEST_SHA256
+    assert verified.config_sha256 == dict(verified.files)["config.h"]
+    assert len(verified.files) == 101
+    assert stat.S_IMODE(private_root.stat().st_mode) & 0o077 == 0
+    O._assert_verified_dependency_unchanged(verified)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["unregistered-file", "symlink", "changed-byte", "missing-file"],
+)
+def test_production_dependency_verifier_rejects_manifest_boundary_mutations(
+        tmp_path, mutation):
+    fixture = _copy_masstree_fixture(tmp_path)
+    if mutation == "unregistered-file":
+        (fixture / "unregistered.hh").write_text("// extra\n", encoding="utf-8")
+    elif mutation == "symlink":
+        (fixture / "escape.hh").symlink_to(tmp_path / "outside.hh")
+    elif mutation == "changed-byte":
+        with (fixture / "config.h").open("ab") as stream:
+            stream.write(b"\n")
+    else:
+        (fixture / "config.h").unlink()
+    with pytest.raises(O._DependencyVerificationError):
+        O._prepare_verified_dependency(fixture, tmp_path / "private")
+
+
+def test_compile_verified_fails_closed_before_compiler_on_private_copy_change(
+        monkeypatch, tmp_path):
+    verified = O._prepare_verified_dependency(
+        masstree_fixture.FIXTURE_ROOT, tmp_path / "private",
+    )
+    (verified.root / "config.h").write_bytes(b"changed")
+    compiler_called = False
+
+    def compiler(*args, **kwargs):
+        nonlocal compiler_called
+        compiler_called = True
+        return None, False
+
+    monkeypatch.setattr(O, "_compile", compiler)
+    finding, unavailable = O._compile_verified(
+        "int main() {}", tmp_path / "candidate.cpp", tmp_path / "candidate",
+        compiler="/usr/bin/c++", ccbench_dir=_CCBENCH,
+        dependency=verified,
+    )
+    assert unavailable is True
+    assert finding is not None
+    assert finding.reason_code == "dependency-sha256-mismatch"
+    assert compiler_called is False
+
+
 def test_masstree_manifest_rejects_header_removed_from_manifest(tmp_path):
     fixture = _copy_masstree_fixture(tmp_path)
     manifest = fixture / masstree_fixture.MANIFEST_NAME
@@ -1481,6 +1586,9 @@ def test_contract_digest_binds_axiom_checker_source_component():
         "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
         "corpus_sha256": O.CORPUS_SHA256,
         "dependency_manifest_sha256": O.DEPENDENCY_MANIFEST_SHA256,
+        "guarantee_boundary_sha256": hashlib.sha256(
+            O.SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
+        ).hexdigest(),
         "tu_template_sha256": O.TU_TEMPLATE_SHA256,
     }
     assert O.ORACLE_COMPONENTS_SHA256 == O._contract_components_sha256(
@@ -1519,6 +1627,15 @@ def test_axiom_checker_source_bundle_is_enumerated_and_ordered():
         O._evaluate_executable,
         O._run_matrix,
         O._compile_command,
+        O._parse_dependency_manifest,
+        O._dependency_file_inventory,
+        O._verify_dependency_root,
+        O._read_verified_dependency_file,
+        O._prepare_verified_dependency,
+        O._assert_verified_dependency_unchanged,
+        O._dependency_command,
+        O._dependency_manifest_closure,
+        O._compile_verified,
     )
 
 
@@ -1579,8 +1696,11 @@ def _independent_tu_template_sha256() -> str:
     ]
     for function in (
         O._broker_fd_identity,
-        O._broker_worker_fd_identities,
+        O._broker_worker_fd_numbers,
+        O._broker_worker_fd_identities_from_snapshot,
         O._worker_fd_boundary_is_safe,
+        O._broker_send_control,
+        O._broker_receive_control,
         O._broker_receive_fd,
         O._broker_write_all,
         O._broker_order,
@@ -1597,10 +1717,10 @@ def _independent_tu_template_sha256() -> str:
             {
                 "broker_details": {
                     "aborted": O._BROKER_DETAIL_ABORTED,
-                    "arena_write": O._BROKER_DETAIL_ARENA_WRITE,
                     "call_count": O._BROKER_DETAIL_CALL_COUNT,
                     "comparator_threw": O._BROKER_DETAIL_COMPARATOR_THREW,
                     "cpu": O._BROKER_DETAIL_CPU,
+                    "execution_fault": O._BROKER_DETAIL_EXECUTION_FAULT,
                     "fd_boundary": O._BROKER_DETAIL_FD_BOUNDARY,
                     "observation_size": O._BROKER_DETAIL_OBSERVATION_SIZE,
                     "observation_value": O._BROKER_DETAIL_OBSERVATION_VALUE,
@@ -1632,15 +1752,57 @@ def _independent_tu_template_sha256() -> str:
     return digest.hexdigest()
 
 
+def _independent_axiom_checker_sha256() -> str:
+    digest = hashlib.sha256()
+    for function in (
+        O.check_relation_matrix,
+        O._evaluate_executable,
+        O._run_matrix,
+        O._compile_command,
+        O._parse_dependency_manifest,
+        O._dependency_file_inventory,
+        O._verify_dependency_root,
+        O._read_verified_dependency_file,
+        O._prepare_verified_dependency,
+        O._assert_verified_dependency_unchanged,
+        O._dependency_command,
+        O._dependency_manifest_closure,
+        O._compile_verified,
+    ):
+        for value in (
+            f"{function.__module__}.{function.__qualname__}".encode("utf-8"),
+            inspect.getsource(function).encode("utf-8"),
+        ):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+    semantics = json.dumps(
+        {
+            "_CORPORA": (0, 1),
+            "_DEPENDENCY_MANIFEST_NAME": "SHA256SUMS",
+            "_MIN_DEPENDENCY_MANIFEST_CLOSURE": 31,
+            "_N": 18,
+            "_ORDERS": (0, 1, 2),
+        },
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    digest.update(len(semantics).to_bytes(8, "big"))
+    digest.update(semantics)
+    return digest.hexdigest()
+
+
 def _independent_contract_id(
     tu_template_sha256: str,
     dependency_manifest_sha256: str,
+    axiom_checker_sha256: str,
 ) -> tuple[str, str]:
     components = {
-        "axiom_checker_implementation_sha256": O.AXIOM_CHECKER_IMPLEMENTATION_SHA256,
+        "axiom_checker_implementation_sha256": axiom_checker_sha256,
         "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
         "corpus_sha256": O.CORPUS_SHA256,
         "dependency_manifest_sha256": dependency_manifest_sha256,
+        "guarantee_boundary_sha256": hashlib.sha256(
+            O.SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
+        ).hexdigest(),
         "tu_template_sha256": tu_template_sha256,
     }
     canonical = json.dumps(
@@ -1657,13 +1819,14 @@ def _independent_contract_id(
         f"grammar{O.GRAMMAR_VERSION}-x{components_sha256}-"
         f"c{O.CORPUS_SHA256[:12]}-tu{tu_template_sha256[:12]}-"
         f"f{O.COMPILE_FLAGS_SHA256[:12]}-"
-        f"a{O.AXIOM_CHECKER_IMPLEMENTATION_SHA256[:12]}"
+        f"a{axiom_checker_sha256[:12]}"
     )
     return components_sha256, contract_id
 
 
 def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
     independent_tu_sha256 = _independent_tu_template_sha256()
+    independent_axiom_checker_sha256 = _independent_axiom_checker_sha256()
     independent_dependency_manifest_sha256 = hashlib.sha256(
         (masstree_fixture.FIXTURE_ROOT / masstree_fixture.MANIFEST_NAME).read_bytes()
     ).hexdigest()
@@ -1671,19 +1834,21 @@ def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
         _independent_contract_id(
             independent_tu_sha256,
             independent_dependency_manifest_sha256,
+            independent_axiom_checker_sha256,
         )
     )
     assert independent_tu_sha256 == O.TU_TEMPLATE_SHA256
+    assert independent_axiom_checker_sha256 == O.AXIOM_CHECKER_IMPLEMENTATION_SHA256
     assert independent_dependency_manifest_sha256 == O.DEPENDENCY_MANIFEST_SHA256
     assert independent_components_sha256 == O.ORACLE_COMPONENTS_SHA256
     assert independent_contract_id == O.ORACLE_CONTRACT_ID
     assert O.CORPUS_SHA256 == "7d25fac23469f4bb807bccd4fb97dc7a6fbcf34dd5de602ba08bcf7bb70df5eb"
-    assert O.TU_TEMPLATE_SHA256 == "e3d38870af10d4cd4192e5113d1a758bf927e0351a74c214c9185fa25dc6fd03"
+    assert O.TU_TEMPLATE_SHA256 == "7732f044d8ab2b657231cfeb132f59a981b761b9ac62a8d61e6b5338140083e4"
     assert O.COMPILE_FLAGS_SHA256 == "3caa77f8111ff611183eaec0acfdff11eb75d74c81a3bfec66262674921c3b25"
     assert O.ORACLE_CONTRACT_ID == (
         "sort-swo-v4-corpus2-protocol3-checker3-grammar1-"
-        "x661b3bcd6cbc18ebd5c8c7a10bdb6266b997d1eeb5d74daa5629506c6fd9ffb1-"
-        "c7d25fac23469-tue3d38870af10-f3caa77f8111f-ac8ff1160dd51"
+        "x5474fdb4483a32d73d82b29908152e7f004bb2c921963d3aa5a3d5654a0c012a-"
+        "c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a0af8a35f3f9a"
     )
     assert (O.CONTRACT_VERSION, O.CORPUS_VERSION, O.PROTOCOL_VERSION,
             O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (4, 2, 3, 3, 1)
@@ -1754,6 +1919,10 @@ def test_translation_unit_uses_real_type_real_ctor_and_candidate_statement_verba
     assert "mode == 1304" in source and "allow_syscall(*filter, SYS_rt_sigaction)" in source
     assert "PR_SET_NO_NEW_PRIVS" in source
     assert "PR_SET_DUMPABLE" in source
+    assert "::fstat(observation_fd, &observation_stat)" in source
+    assert "expected_observation_dev" in source
+    assert "expected_observation_ino" in source
+    assert "expected_observation_type" in source
     assert "#ifdef NDEBUG" in source
     assert "IZSWO3" not in source
     assert "_BROKER_OUTCOME" not in source
@@ -1831,12 +2000,23 @@ def test_candidate_stdout_stderr_are_discarded_and_matrix_uses_dedicated_fd():
     broker = inspect.getsource(O._broker_main)
     assert "stdout=subprocess.DEVNULL" in runner
     assert "stderr=subprocess.DEVNULL" in runner
-    assert "pass_fds=(broker_authority.fileno(),)" in runner
-    assert runner.index("ready = authority.recv") < runner.index("read_fd, write_fd = os.pipe()")
+    assert "pass_fds=tuple(inherited_fds)" in runner
+    assert runner.index("_broker_receive_control(authority)") < runner.index(
+        "if final_created_after_stop:"
+    )
     assert "SCM_RIGHTS" in runner
+    assert "after = before" not in runner
+    assert "after = before" not in broker
+    assert "_broker_worker_fd_identities_from_snapshot(" in broker
+    assert broker.index("acknowledged = _broker_receive_control(authority)") < broker.index(
+        "observed_numbers = _broker_worker_fd_numbers(worker_fd_directory)"
+    )
     assert broker.index("worker_pid = os.fork()") < broker.index(
         "final_fd = _broker_receive_fd(authority)"
     )
+    assert 'test_mode == "1405"' in broker
+    assert "os.dup2(injected_final_fd, observation_write)" in broker
+    assert "final_created_after_stop=injected_final_fd is None" in broker
     assert broker.index("reaped = os.waitid") < broker.index(
         "_broker_write_all(final_fd, frame)"
     )

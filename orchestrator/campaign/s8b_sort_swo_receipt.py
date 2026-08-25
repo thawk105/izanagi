@@ -5,6 +5,8 @@
 の durable な辺であって、oracle が実際に走ったことの証明ではない。receipt の全 field
 は公開かつ決定的で、oracle を実行せずに合成できる。``receipt_sha256`` は private
 evidence への commitment であり、raw receipt が到達可能な環境でだけ検算できる。
+``guarantee_boundary`` は、候補による corpus 変異と protocol frame write を防ぐ一方、
+報告 relation matrix が comparator の真の関係であることは保証しない、と明記する。
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from .sort_swo_oracle import (
     CORPUS_VERSION,
     DEPENDENCY_MANIFEST_SHA256,
     ORACLE_CONTRACT_ID,
+    SORT_SWO_GUARANTEE_BOUNDARY,
     TU_TEMPLATE_SHA256,
 )
 
@@ -41,7 +44,7 @@ _RAW_RECEIPT_KEYS = frozenset({
     "corpus_version", "compiler_realpath", "compiler_version",
     "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
     "dependency_root_realpath", "dependency_config_sha256",
-    "dependency_manifest_sha256",
+    "dependency_manifest_sha256", "guarantee_boundary",
 })
 _PORTABLE_KEYS = frozenset({
     "schema", "cell_id", "holdout_id", "configuration_id", "entry_sha256",
@@ -49,7 +52,7 @@ _PORTABLE_KEYS = frozenset({
     "materialized_hole_sha256", "proposal_sha256", "corpus_id",
     "corpus_version", "compiler_version_sha256", "compile_flags_sha256",
     "tu_sha256", "tu_template_sha256", "dependency_config_sha256",
-    "dependency_manifest_sha256", "receipt_sha256",
+    "dependency_manifest_sha256", "guarantee_boundary", "receipt_sha256",
 })
 _HEX64 = frozenset("0123456789abcdef")
 
@@ -123,6 +126,8 @@ def _validate_fixed_receipt_fields(value: Mapping[str, object]) -> None:
         raise SortSwoReceiptError("tu_template_sha256 が現行 oracle と不一致")
     if value["dependency_manifest_sha256"] != DEPENDENCY_MANIFEST_SHA256:
         raise SortSwoReceiptError("dependency_manifest_sha256 が現行 oracle と不一致")
+    if value["guarantee_boundary"] != SORT_SWO_GUARANTEE_BOUNDARY:
+        raise SortSwoReceiptError("guarantee_boundary が現行 oracle と不一致")
     for key in (
         "materialized_hole_sha256", "proposal_sha256", "compiler_version_sha256",
         "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
@@ -142,6 +147,8 @@ def project_sort_swo_pass_attempt(
     の durable な辺であって、oracle が実際に走ったことの証明ではない。receipt の全 field
     は公開かつ決定的で、oracle を実行せずに合成できる。``receipt_sha256`` は private
     evidence への commitment であり、raw receipt が到達可能な環境でだけ検算できる。
+    ``guarantee_boundary`` は、候補による corpus 変異と protocol frame write を防ぐ一方、
+    報告 relation matrix が comparator の真の関係であることは保証しない、と明記する。
     """
 
     _validate_identity(
@@ -200,6 +207,7 @@ def project_sort_swo_pass_attempt(
         "tu_template_sha256": raw["tu_template_sha256"],
         "dependency_config_sha256": raw["dependency_config_sha256"],
         "dependency_manifest_sha256": raw["dependency_manifest_sha256"],
+        "guarantee_boundary": raw["guarantee_boundary"],
         "receipt_sha256": hashlib.sha256(
             _canonical_bytes(_plain_json(raw))
         ).hexdigest(),
@@ -219,6 +227,8 @@ def validate_portable_sort_swo_pass_receipt(
     の durable な辺であって、oracle が実際に走ったことの証明ではない。receipt の全 field
     は公開かつ決定的で、oracle を実行せずに合成できる。``receipt_sha256`` は private
     evidence への commitment であり、raw receipt が到達可能な環境でだけ検算できる。
+    ``guarantee_boundary`` は、候補による corpus 変異と protocol frame write を防ぐ一方、
+    報告 relation matrix が comparator の真の関係であることは保証しない、と明記する。
     """
 
     if isinstance(value, Mapping) and (

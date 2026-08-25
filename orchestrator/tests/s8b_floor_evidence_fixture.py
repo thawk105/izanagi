@@ -14,6 +14,7 @@ from orchestrator.campaign.sort_swo_oracle import (
     CORPUS_VERSION,
     DEPENDENCY_MANIFEST_SHA256,
     ORACLE_CONTRACT_ID,
+    SORT_SWO_GUARANTEE_BOUNDARY,
     TU_TEMPLATE_SHA256,
 )
 
@@ -52,6 +53,7 @@ def fake_sort_swo_pass_attempt() -> dict[str, object]:
             b"fixture-dependency-config"
         ).hexdigest(),
         "dependency_manifest_sha256": DEPENDENCY_MANIFEST_SHA256,
+        "guarantee_boundary": SORT_SWO_GUARANTEE_BOUNDARY,
     }
     return {
         "event": "sort-swo-oracle-attempt",
@@ -95,6 +97,7 @@ def expected_portable_sort_swo_pass_receipt(
         "tu_template_sha256": raw["tu_template_sha256"],
         "dependency_config_sha256": raw["dependency_config_sha256"],
         "dependency_manifest_sha256": raw["dependency_manifest_sha256"],
+        "guarantee_boundary": raw["guarantee_boundary"],
         "receipt_sha256": hashlib.sha256(canonical_json_bytes(raw)).hexdigest(),
     }
 

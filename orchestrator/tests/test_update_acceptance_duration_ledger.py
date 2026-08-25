@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -355,7 +356,63 @@ def test_t1574_changed_suite_ledger_node_delta_is_exact() -> None:
     }
     assert removed.isdisjoint(durations)
     assert {node: durations.get(node) for node in added} == added
-    assert payload["nodeid_count"] == 14_457 - len(removed) + len(added)
+
+    # CS-1/2/3 が変更した suite ごとに、current collection から台帳へ登録済みの
+    # node 集合を sorted UTF-8 + LF の SHA-256 で exact 固定する。件数だけでなく
+    # node bytes 全体への commitment なので、current 1 件を stale 1 件へ入れ替える
+    # count-preserving mutation も必ず不一致になる。未実測 node の値は合成しない。
+    expected_suite_node_sets = {
+        "orchestrator/tests/test_critic.py::": (
+            119, "2bfe5bbab0c58508d782124bb75e023164cce14212d3c97d80c2fe2c752275fa",
+        ),
+        "orchestrator/tests/test_p3_exploration_namespace.py::": (
+            26, "db38065c3ebe9834490717df17f634af1c54dddab130d1eea0851723f3db7efa",
+        ),
+        "orchestrator/tests/test_p3_s4_loop_sort.py::": (
+            29, "f29aabf31c8ce1ee6b5e15435834ba6a535b2628f14ad186f342b2f47f6c2bed",
+        ),
+        "orchestrator/tests/test_real_repo_serialization.py::": (
+            39, "4cf4fdd86b181b0f0fe0b787d577cb28e8bd0b49886c2dfe892983cca092f3f9",
+        ),
+        "orchestrator/tests/test_s1_direct_comparison.py::": (
+            97, "ed1a63057f76b8807144943fff4ca7689fa7e0c2936a6c6512ef3ad5ffdce9d5",
+        ),
+        "orchestrator/tests/test_s8b_materialization.py::": (
+            30, "31ee53d57df57fdc3e8c350c97d9425afa4e9897aa2c716efe0608e822884f5b",
+        ),
+        "orchestrator/tests/test_s8b_sort_swo_receipt.py::": (
+            12, "a95979bd14e970ac6e08f1061a1c7b434549a3f4a3e3913d3ef6303b6a3a4ec2",
+        ),
+        "orchestrator/tests/test_sort_swo_oracle.py::": (
+            63, "1f6404bbe89cc91c599d82df7f7279aacaa3f982d1b00b3c6f7f1c3f87e16f4b",
+        ),
+    }
+
+    def exact_node_set_identity(nodes: set[str]) -> tuple[int, str]:
+        canonical = "".join(f"{node}\n" for node in sorted(nodes)).encode(
+            "utf-8"
+        )
+        return len(nodes), hashlib.sha256(canonical).hexdigest()
+
+    observed_by_suite = {
+        prefix: {node for node in durations if node.startswith(prefix)}
+        for prefix in expected_suite_node_sets
+    }
+    assert {
+        prefix: exact_node_set_identity(nodes)
+        for prefix, nodes in observed_by_suite.items()
+    } == expected_suite_node_sets
+
+    # 同数入替えを明示的に反転させ、hash gate が count-only でないことを固定する。
+    critic_prefix = "orchestrator/tests/test_critic.py::"
+    count_preserving_swap = set(observed_by_suite[critic_prefix])
+    count_preserving_swap.remove(min(count_preserving_swap))
+    count_preserving_swap.add(
+        "orchestrator/tests/test_critic.py::test_stale_count_preserving_swap"
+    )
+    assert exact_node_set_identity(count_preserving_swap) != (
+        expected_suite_node_sets[critic_prefix]
+    )
 
 
 def test_g7f_coverage_reports_complete_and_missing_nodeids(

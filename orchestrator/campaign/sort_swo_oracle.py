@@ -23,6 +23,7 @@ import json
 import os
 import re
 import resource
+import shlex
 import shutil
 import signal
 import socket
@@ -34,7 +35,7 @@ import tempfile
 from array import array
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Mapping, Optional, Sequence
 
 
@@ -80,6 +81,14 @@ CORPUS_ID = f"sort-swo-corpus-v{CORPUS_VERSION}"
 DEPENDENCY_MANIFEST_SHA256 = (
     "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
 )
+SORT_SWO_GUARANTEE_BOUNDARY = (
+    "guarantees[candidate-corpus-mutation-is-impossible,"
+    "candidate-protocol-frame-write-is-impossible];"
+    "does-not-guarantee[reported-relation-matrix-is-comparator-true-relation]"
+)
+_DEPENDENCY_MANIFEST_NAME = "SHA256SUMS"
+_DEPENDENCY_MANIFEST_LINE = re.compile(r"([0-9a-f]{64})  ([^\r\n]+)")
+_MIN_DEPENDENCY_MANIFEST_CLOSURE = 31
 INFRASTRUCTURE_REASON_CODE = "sort-swo-oracle-infrastructure-unavailable"
 _TRUSTED_CONTROL_STATEMENT = (
     "sort(write_set_.begin(), write_set_.end(), "
@@ -214,6 +223,7 @@ class OracleReceipt:
     dependency_root_realpath: str
     dependency_config_sha256: str
     dependency_manifest_sha256: str = DEPENDENCY_MANIFEST_SHA256
+    guarantee_boundary: str = SORT_SWO_GUARANTEE_BOUNDARY
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -230,6 +240,7 @@ class OracleReceipt:
             "dependency_root_realpath": self.dependency_root_realpath,
             "dependency_config_sha256": self.dependency_config_sha256,
             "dependency_manifest_sha256": self.dependency_manifest_sha256,
+            "guarantee_boundary": self.guarantee_boundary,
         }
 
 
@@ -377,6 +388,21 @@ class OracleEnvironment:
 
 
 @dataclass(frozen=True)
+class _VerifiedDependencyRoot:
+    root: Path
+    manifest_sha256: str
+    manifest_bytes: bytes
+    files: tuple[tuple[str, str], ...]
+    config_sha256: str
+
+
+class _DependencyVerificationError(RuntimeError):
+    def __init__(self, detail_code: str):
+        super().__init__(detail_code)
+        self.detail_code = detail_code
+
+
+@dataclass(frozen=True)
 class SortSwoOracleResult:
     status: OracleStatus
     materialized_hole_sha256: str
@@ -402,7 +428,9 @@ class SortSwoOracleResult:
                 or self.receipt.compile_flags_sha256 != COMPILE_FLAGS_SHA256
                 or self.receipt.tu_template_sha256 != TU_TEMPLATE_SHA256
                 or self.receipt.dependency_manifest_sha256
-                != DEPENDENCY_MANIFEST_SHA256):
+                != DEPENDENCY_MANIFEST_SHA256
+                or self.receipt.guarantee_boundary
+                != SORT_SWO_GUARANTEE_BOUNDARY):
             raise ValueError("oracle receipt/result binding mismatch")
         if self.status is OracleStatus.PASS and (
                 self.finding is not None or self.receipt is None
@@ -765,6 +793,7 @@ _TU_PREFIX = r'''#include <array>
 #include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include "include/masstree_wrapper.hh"
@@ -1128,13 +1157,26 @@ static void close_worker_fds_except(int keep) {
 }
 
 int main(int argc, char** argv) {
-  if (argc != 4 && argc != 5) return 64;
+  if (argc != 7 && argc != 8) return 64;
   const int corpus_id = std::atoi(argv[1]);
   const int order_id = std::atoi(argv[2]);
   observation_fd = std::atoi(argv[3]);
+  const unsigned long long expected_observation_dev = std::strtoull(argv[4], nullptr, 10);
+  const unsigned long long expected_observation_ino = std::strtoull(argv[5], nullptr, 10);
+  const unsigned long long expected_observation_type = std::strtoull(argv[6], nullptr, 10);
   if (corpus_id < 0 || corpus_id > 1 || order_id < 0 || order_id > 2
       || observation_fd < 0) return 65;
-  if (argc == 5) oracle_test_mode = std::atoi(argv[4]);
+  struct stat observation_stat{};
+  if (::fstat(observation_fd, &observation_stat) != 0
+      || static_cast<unsigned long long>(observation_stat.st_dev)
+             != expected_observation_dev
+      || static_cast<unsigned long long>(observation_stat.st_ino)
+             != expected_observation_ino
+      || static_cast<unsigned long long>(observation_stat.st_mode & S_IFMT)
+             != expected_observation_type) {
+    std::_Exit(76);
+  }
+  if (argc == 8) oracle_test_mode = std::atoi(argv[7]);
   oracle_arena_begin = static_cast<unsigned char*>(::mmap(
       nullptr, ORACLE_ARENA_SIZE, PROT_READ | PROT_WRITE,
       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
@@ -1224,7 +1266,7 @@ _BROKER_DETAIL_COMPARATOR_THREW = 2
 _BROKER_DETAIL_CALL_COUNT = 3
 _BROKER_DETAIL_ABORTED = 4
 _BROKER_DETAIL_SANDBOX = 5
-_BROKER_DETAIL_ARENA_WRITE = 6
+_BROKER_DETAIL_EXECUTION_FAULT = 6
 _BROKER_DETAIL_SIGNAL = 7
 _BROKER_DETAIL_OBSERVATION_SIZE = 8
 _BROKER_DETAIL_OBSERVATION_VALUE = 9
@@ -1239,20 +1281,28 @@ def _broker_fd_identity(fd: int) -> tuple[int, int, int]:
     return (metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode))
 
 
-def _broker_worker_fd_identities(pid: int) -> tuple[tuple[int, int, int], ...]:
-    identities = []
-    directory = Path(f"/proc/{pid}/fd")
-    for entry in os.scandir(directory):
-        if not entry.name.isdecimal():
-            continue
-        try:
-            metadata = os.stat(entry.path)
-        except FileNotFoundError:
-            continue
-        identities.append(
-            (metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode))
-        )
-    return tuple(sorted(identities))
+def _broker_worker_fd_numbers(directory_fd: int) -> tuple[int, ...]:
+    os.lseek(directory_fd, 0, os.SEEK_SET)
+    return tuple(sorted(
+        int(entry.name) for entry in os.scandir(directory_fd)
+        if entry.name.isdecimal()
+    ))
+
+
+def _broker_worker_fd_identities_from_snapshot(
+    observed_numbers: Sequence[int], expected_numbers: Sequence[int],
+    expected_identities: Sequence[tuple[int, int, int]],
+) -> tuple[tuple[int, int, int], ...]:
+    # Default-deny seccomp permits no close/dup/fcntl/open operation between
+    # snapshots, and the worker is stopped throughout authority receipt.  An
+    # exact independent fd-number re-observation therefore preserves the
+    # anchored object identities; any number change fails closed.
+    if (
+        tuple(observed_numbers) != tuple(expected_numbers)
+        or len(expected_identities) != len(expected_numbers)
+    ):
+        return ()
+    return tuple(expected_identities)
 
 
 def _worker_fd_boundary_is_safe(
@@ -1269,6 +1319,38 @@ def _worker_fd_boundary_is_safe(
         and final_identity not in before
         and final_identity not in after
     )
+
+
+def _broker_send_control(authority: socket.socket, payload: bytes) -> None:
+    authority.sendmsg(
+        [payload],
+        [(socket.SOL_SOCKET, socket.SCM_RIGHTS,
+          array("i", [authority.fileno()]))],
+    )
+
+
+def _broker_receive_control(authority: socket.socket) -> bytes:
+    item_size = array("i").itemsize
+    payload, ancillary, flags, _address = authority.recvmsg(
+        4096, socket.CMSG_SPACE(item_size),
+    )
+    received = []
+    for level, kind, data in ancillary:
+        if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS:
+            values = array("i")
+            values.frombytes(data[:len(data) - len(data) % item_size])
+            received.extend(values)
+    expected_count = 1
+    if (
+        flags & (socket.MSG_CTRUNC | socket.MSG_TRUNC)
+        or len(received) != expected_count
+    ):
+        for fd in received:
+            os.close(fd)
+        raise RuntimeError("broker control marker fd mismatch")
+    if received:
+        os.close(received[0])
+    return payload
 
 
 def _broker_receive_fd(authority: socket.socket) -> int:
@@ -1374,7 +1456,11 @@ def _broker_frame(
     elif wait_result.si_status == signal.SIGSYS:
         detail = _BROKER_DETAIL_SANDBOX
     elif wait_result.si_status in {signal.SIGSEGV, signal.SIGBUS}:
-        detail = _BROKER_DETAIL_ARENA_WRITE
+        # waitid identifies only the terminating signal.  It supplies neither
+        # the fault address nor the access type, so this cannot be attributed
+        # specifically to an attempted corpus write.
+        detail = _BROKER_DETAIL_EXECUTION_FAULT
+        detail_value = wait_result.si_status
     elif wait_result.si_status == signal.SIGABRT:
         detail = _BROKER_DETAIL_ABORTED
     elif wait_result.si_status == signal.SIGXCPU:
@@ -1389,10 +1475,13 @@ def _broker_frame(
 
 
 def _broker_main(arguments: Sequence[str]) -> int:
-    if len(arguments) not in {4, 5}:
+    if len(arguments) not in {4, 5, 6}:
         return 64
     worker_path, corpus_text, order_text, authority_text = arguments[:4]
     test_mode = None if len(arguments) == 4 else arguments[4]
+    injected_final_fd = None if len(arguments) < 6 else int(arguments[5])
+    if injected_final_fd is not None and test_mode not in {"1404", "1405"}:
+        return 64
     corpus = int(corpus_text)
     order_id = int(order_text)
     authority = socket.socket(
@@ -1400,14 +1489,26 @@ def _broker_main(arguments: Sequence[str]) -> int:
         fileno=int(authority_text),
     )
     observation_read, observation_write = os.pipe()
+    worker_observation_fd = observation_write
+    worker_observation_identity = _broker_fd_identity(observation_write)
     worker_pid = os.fork()
     if worker_pid == 0:
         try:
             authority.close()
             os.close(observation_read)
+            if injected_final_fd is not None:
+                if test_mode == "1405":
+                    if injected_final_fd != observation_write:
+                        os.dup2(injected_final_fd, observation_write)
+                        os.close(injected_final_fd)
+                else:
+                    # MUT-4: final authority was inherited at fork, then
+                    # closed before the first worker stop.
+                    os.close(injected_final_fd)
             os.set_inheritable(observation_write, True)
             worker_arguments = [
                 worker_path, corpus_text, order_text, str(observation_write),
+                *(str(field) for field in worker_observation_identity),
             ]
             if test_mode is not None:
                 worker_arguments.append(test_mode)
@@ -1415,7 +1516,10 @@ def _broker_main(arguments: Sequence[str]) -> int:
         finally:
             os._exit(76)
     os.close(observation_write)
+    if injected_final_fd is not None:
+        os.close(injected_final_fd)
     final_fd = None
+    worker_fd_directory = None
     try:
         inspection_stop = os.waitid(
             os.P_PID, worker_pid, os.WSTOPPED | os.WEXITED
@@ -1425,9 +1529,14 @@ def _broker_main(arguments: Sequence[str]) -> int:
             or inspection_stop.si_code != os.CLD_STOPPED
             or inspection_stop.si_status != signal.SIGSTOP
         ):
-            authority.send(b"F:worker-hardening-preflight-failed")
+            _broker_send_control(authority, b"F:worker-hardening-preflight-failed")
             return 76
-        before = _broker_worker_fd_identities(worker_pid)
+        before_numbers = (worker_observation_fd,)
+        before = (worker_observation_identity,)
+        worker_fd_directory = os.open(
+            f"/proc/{worker_pid}/fd",
+            os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0),
+        )
         os.kill(worker_pid, signal.SIGCONT)
         hardened_stop = os.waitid(
             os.P_PID, worker_pid, os.WSTOPPED | os.WEXITED
@@ -1437,23 +1546,27 @@ def _broker_main(arguments: Sequence[str]) -> int:
             or hardened_stop.si_code != os.CLD_STOPPED
             or hardened_stop.si_status != signal.SIGSTOP
         ):
-            authority.send(b"F:worker-hardening-preflight-failed")
+            _broker_send_control(authority, b"F:worker-hardening-preflight-failed")
             return 76
         ready_payload = json.dumps(
             {"fd_identities": before, "pid": worker_pid},
             sort_keys=True, separators=(",", ":"), ensure_ascii=True,
         ).encode("ascii")
-        authority.send(b"R:" + ready_payload)
+        _broker_send_control(authority, b"R:" + ready_payload)
         final_fd = _broker_receive_fd(authority)
         final_identity = _broker_fd_identity(final_fd)
-        # The worker remains stopped from the completed hardening stop through
-        # authority receipt.  Its exact fd set therefore cannot change here.
-        after = before
-        boundary_safe = _worker_fd_boundary_is_safe(
-            before, after, final_identity, final_created_after_stop=True,
+        acknowledged = _broker_receive_control(authority) == b"A"
+        # The authority handshake is now complete, but the worker is still
+        # stopped.  Re-enumerate only now; no authority write follows this
+        # observation, which also works under the /proc information-flow guard.
+        observed_numbers = _broker_worker_fd_numbers(worker_fd_directory)
+        after = _broker_worker_fd_identities_from_snapshot(
+            observed_numbers, before_numbers, before,
         )
-        authority.send(b"V" if boundary_safe else b"B")
-        acknowledged = authority.recv(1) == b"A"
+        boundary_safe = _worker_fd_boundary_is_safe(
+            before, after, final_identity,
+            final_created_after_stop=injected_final_fd is None,
+        )
         if boundary_safe and acknowledged:
             os.kill(worker_pid, signal.SIGCONT)
         else:
@@ -1474,17 +1587,39 @@ def _broker_main(arguments: Sequence[str]) -> int:
         )
         _broker_write_all(final_fd, frame)
         return 0
+    except Exception as exc:
+        try:
+            _broker_send_control(
+                authority,
+                b"E:broker-" + type(exc).__name__.encode("ascii", errors="replace")
+            )
+        except OSError:
+            pass
+        try:
+            os.kill(worker_pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            os.waitid(os.P_PID, worker_pid, os.WEXITED)
+        except ChildProcessError:
+            pass
+        return 76
     finally:
         os.close(observation_read)
         if final_fd is not None:
             os.close(final_fd)
+        if worker_fd_directory is not None:
+            os.close(worker_fd_directory)
         authority.close()
 
 
 _BROKER_SOURCE_FUNCTIONS = (
     _broker_fd_identity,
-    _broker_worker_fd_identities,
+    _broker_worker_fd_numbers,
+    _broker_worker_fd_identities_from_snapshot,
     _worker_fd_boundary_is_safe,
+    _broker_send_control,
+    _broker_receive_control,
     _broker_receive_fd,
     _broker_write_all,
     _broker_order,
@@ -1506,10 +1641,10 @@ def _translation_unit_bundle_sha256(worker_source: str) -> str:
         {
             "broker_details": {
                 "aborted": _BROKER_DETAIL_ABORTED,
-                "arena_write": _BROKER_DETAIL_ARENA_WRITE,
                 "call_count": _BROKER_DETAIL_CALL_COUNT,
                 "comparator_threw": _BROKER_DETAIL_COMPARATOR_THREW,
                 "cpu": _BROKER_DETAIL_CPU,
+                "execution_fault": _BROKER_DETAIL_EXECUTION_FAULT,
                 "fd_boundary": _BROKER_DETAIL_FD_BOUNDARY,
                 "observation_size": _BROKER_DETAIL_OBSERVATION_SIZE,
                 "observation_value": _BROKER_DETAIL_OBSERVATION_VALUE,
@@ -1603,6 +1738,210 @@ def _bounded_diagnostic(path: Path) -> CompilerDiagnostic:
     )
 
 
+def _parse_dependency_manifest(
+    raw: bytes,
+) -> tuple[tuple[str, str], ...]:
+    try:
+        text = raw.decode("utf-8", "strict")
+    except UnicodeDecodeError as exc:
+        raise _DependencyVerificationError(
+            "dependency-manifest-invalid",
+        ) from exc
+    if not text.endswith("\n"):
+        raise _DependencyVerificationError("dependency-manifest-invalid")
+    entries: list[tuple[str, str]] = []
+    for line in text.splitlines():
+        match = _DEPENDENCY_MANIFEST_LINE.fullmatch(line)
+        if match is None:
+            raise _DependencyVerificationError("dependency-manifest-invalid")
+        digest, relative = match.groups()
+        path = PurePosixPath(relative)
+        if (
+            path.is_absolute()
+            or relative == _DEPENDENCY_MANIFEST_NAME
+            or str(path) != relative
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            raise _DependencyVerificationError("dependency-manifest-invalid")
+        entries.append((relative, digest))
+    paths = [relative for relative, _digest in entries]
+    if not entries or paths != sorted(paths) or len(paths) != len(set(paths)):
+        raise _DependencyVerificationError("dependency-manifest-invalid")
+    return tuple(entries)
+
+
+def _dependency_file_inventory(root: Path) -> tuple[set[str], set[str]]:
+    regular_files: set[str] = set()
+    forbidden_entries: set[str] = set()
+    for directory, directory_names, file_names in os.walk(root, followlinks=False):
+        directory_path = Path(directory)
+        for name in (*directory_names, *file_names):
+            path = directory_path / name
+            relative = path.relative_to(root).as_posix()
+            try:
+                metadata = path.lstat()
+            except OSError as exc:
+                raise _DependencyVerificationError(
+                    "dependency-filesystem-error",
+                ) from exc
+            if stat.S_ISLNK(metadata.st_mode):
+                forbidden_entries.add(relative)
+            elif stat.S_ISREG(metadata.st_mode):
+                regular_files.add(relative)
+            elif not stat.S_ISDIR(metadata.st_mode):
+                forbidden_entries.add(relative)
+    return regular_files, forbidden_entries
+
+
+def _verify_dependency_root(root: Path) -> _VerifiedDependencyRoot:
+    fixture_root = Path(root)
+    try:
+        root_metadata = fixture_root.lstat()
+        if stat.S_ISLNK(root_metadata.st_mode):
+            raise _DependencyVerificationError("dependency-root-symlink")
+        if not stat.S_ISDIR(root_metadata.st_mode):
+            raise _DependencyVerificationError("dependency-root-not-directory")
+        root_realpath = fixture_root.resolve(strict=True)
+        regular_files, forbidden_entries = _dependency_file_inventory(
+            fixture_root,
+        )
+    except _DependencyVerificationError:
+        raise
+    except OSError as exc:
+        raise _DependencyVerificationError(
+            "dependency-filesystem-error",
+        ) from exc
+    if forbidden_entries:
+        raise _DependencyVerificationError("dependency-forbidden-entry")
+    if _DEPENDENCY_MANIFEST_NAME not in regular_files:
+        raise _DependencyVerificationError(
+            "dependency-manifest-not-regular-file",
+        )
+    manifest_path = fixture_root / _DEPENDENCY_MANIFEST_NAME
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+    except OSError as exc:
+        raise _DependencyVerificationError(
+            "dependency-filesystem-error",
+        ) from exc
+    entries = _parse_dependency_manifest(manifest_bytes)
+    declared = {relative for relative, _digest in entries}
+    actual = regular_files - {_DEPENDENCY_MANIFEST_NAME}
+    if declared != actual:
+        raise _DependencyVerificationError("dependency-file-set-mismatch")
+    for relative, expected_sha256 in entries:
+        path = fixture_root.joinpath(*PurePosixPath(relative).parts)
+        try:
+            resolved = path.resolve(strict=True)
+            if not resolved.is_relative_to(root_realpath):
+                raise _DependencyVerificationError(
+                    "dependency-path-escapes-root",
+                )
+            actual_sha256 = _file_sha256(path)
+        except _DependencyVerificationError:
+            raise
+        except OSError as exc:
+            raise _DependencyVerificationError(
+                "dependency-filesystem-error",
+            ) from exc
+        if actual_sha256 != expected_sha256:
+            raise _DependencyVerificationError("dependency-sha256-mismatch")
+    files = tuple(entries)
+    hashes = dict(files)
+    if "config.h" not in hashes:
+        raise _DependencyVerificationError("dependency-config-not-declared")
+    return _VerifiedDependencyRoot(
+        root=root_realpath,
+        manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        manifest_bytes=manifest_bytes,
+        files=files,
+        config_sha256=hashes["config.h"],
+    )
+
+
+def _read_verified_dependency_file(
+    root: Path, relative: str, expected_sha256: str,
+) -> bytes:
+    path = root.joinpath(*PurePosixPath(relative).parts)
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(path, flags)
+        try:
+            metadata = os.fstat(fd)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise _DependencyVerificationError(
+                    "dependency-copy-source-not-regular-file",
+                )
+            chunks = []
+            while True:
+                chunk = os.read(fd, 64 * 1024)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            os.close(fd)
+    except _DependencyVerificationError:
+        raise
+    except OSError as exc:
+        raise _DependencyVerificationError(
+            "dependency-copy-source-unavailable",
+        ) from exc
+    raw = b"".join(chunks)
+    if hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise _DependencyVerificationError("dependency-copy-source-changed")
+    return raw
+
+
+def _prepare_verified_dependency(
+    source_root: Path, private_root: Path,
+) -> _VerifiedDependencyRoot:
+    source = _verify_dependency_root(source_root)
+    if source.manifest_sha256 != DEPENDENCY_MANIFEST_SHA256:
+        raise _DependencyVerificationError("dependency-manifest-not-canonical")
+    try:
+        private_root.mkdir(mode=0o700)
+        manifest_path = private_root / _DEPENDENCY_MANIFEST_NAME
+        manifest_path.write_bytes(source.manifest_bytes)
+        for relative, expected_sha256 in source.files:
+            raw = _read_verified_dependency_file(
+                source.root, relative, expected_sha256,
+            )
+            destination = private_root.joinpath(*PurePosixPath(relative).parts)
+            destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            destination.write_bytes(raw)
+    except _DependencyVerificationError:
+        raise
+    except OSError as exc:
+        raise _DependencyVerificationError(
+            "dependency-private-copy-failed",
+        ) from exc
+    copied = _verify_dependency_root(private_root)
+    source_after = _verify_dependency_root(source.root)
+    if (
+        copied.manifest_sha256 != DEPENDENCY_MANIFEST_SHA256
+        or copied.files != source.files
+        or source_after.manifest_sha256 != source.manifest_sha256
+        or source_after.files != source.files
+    ):
+        raise _DependencyVerificationError("dependency-private-copy-mismatch")
+    return copied
+
+
+def _assert_verified_dependency_unchanged(
+    expected: _VerifiedDependencyRoot,
+) -> None:
+    actual = _verify_dependency_root(expected.root)
+    if (
+        actual.manifest_sha256 != expected.manifest_sha256
+        or actual.manifest_bytes != expected.manifest_bytes
+        or actual.files != expected.files
+        or actual.config_sha256 != expected.config_sha256
+    ):
+        raise _DependencyVerificationError("dependency-private-copy-changed")
+
+
 def _compile_command(
     source_path: Path, executable: Path, *, compiler: str,
     ccbench_dir: Path, masstree_dir: Path, fault_injection: bool = False,
@@ -1615,6 +1954,76 @@ def _compile_command(
         "-I", str(ccbench_dir), "-I", str(ccbench_dir / "include"),
         "-I", str(masstree_dir), *flags[2:],
     ]
+
+
+def _dependency_command(
+    source_path: Path, *, compiler: str, ccbench_dir: Path,
+    dependency_root: Path, fault_injection: bool,
+) -> list[str]:
+    flags = list(_COMPILE_FLAGS)
+    if fault_injection:
+        flags.insert(-1, "-DIZANAGI_ORACLE_FAULT_INJECTION=1")
+    return [
+        compiler, *flags[:2], "-M", "-MT", "oracle-dependency-closure",
+        str(source_path), "-I", str(ccbench_dir),
+        "-I", str(ccbench_dir / "include"), "-I", str(dependency_root),
+        *flags[2:],
+    ]
+
+
+def _dependency_manifest_closure(
+    source_path: Path, *, compiler: str, ccbench_dir: Path,
+    dependency: _VerifiedDependencyRoot, fault_injection: bool,
+) -> tuple[str, ...]:
+    command = _dependency_command(
+        source_path, compiler=compiler, ccbench_dir=ccbench_dir,
+        dependency_root=dependency.root, fault_injection=fault_injection,
+    )
+    try:
+        completed = subprocess.run(
+            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, timeout=_COMPILE_TIMEOUT_S, check=False,
+            start_new_session=True, preexec_fn=_limit_compile,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise _DependencyVerificationError(
+            "dependency-closure-scan-unavailable",
+        ) from exc
+    if completed.returncode != 0:
+        raise _DependencyVerificationError("dependency-closure-scan-failed")
+    try:
+        text = completed.stdout.decode("utf-8", "strict").replace("\\\n", " ")
+        target, separator, body = text.partition(":")
+        if separator != ":" or target.strip() != "oracle-dependency-closure":
+            raise ValueError("unexpected dependency target")
+        tokens = shlex.split(body, comments=False, posix=True)
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise _DependencyVerificationError(
+            "dependency-closure-output-invalid",
+        ) from exc
+    declared = {relative for relative, _digest in dependency.files}
+    used: set[str] = set()
+    for token in tokens:
+        candidate = Path(token)
+        if not candidate.is_absolute():
+            candidate = Path.cwd() / candidate
+        try:
+            resolved = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise _DependencyVerificationError(
+                "dependency-closure-path-unavailable",
+            ) from exc
+        if not resolved.is_relative_to(dependency.root):
+            continue
+        relative = resolved.relative_to(dependency.root).as_posix()
+        if relative not in declared:
+            raise _DependencyVerificationError(
+                "dependency-closure-outside-manifest",
+            )
+        used.add(relative)
+    if "config.h" not in used or len(used) < _MIN_DEPENDENCY_MANIFEST_CLOSURE:
+        raise _DependencyVerificationError("dependency-closure-too-small")
+    return tuple(sorted(used))
 
 
 def _compile(
@@ -1674,6 +2083,37 @@ def _compile(
     return None, False
 
 
+def _compile_verified(
+    source: str, source_path: Path, executable: Path, *, compiler: str,
+    ccbench_dir: Path, dependency: _VerifiedDependencyRoot,
+    fault_injection: bool = False,
+) -> tuple[Optional[SortSwoFinding], bool]:
+    try:
+        _assert_verified_dependency_unchanged(dependency)
+        source_path.write_text(source, encoding="utf-8")
+        _dependency_manifest_closure(
+            source_path, compiler=compiler, ccbench_dir=ccbench_dir,
+            dependency=dependency, fault_injection=fault_injection,
+        )
+        _assert_verified_dependency_unchanged(dependency)
+    except _DependencyVerificationError as exc:
+        return SortSwoFinding(
+            OracleRejectKind.COMPILE, exc.detail_code,
+        ), True
+    finding, unavailable = _compile(
+        source, source_path, executable, compiler=compiler,
+        ccbench_dir=ccbench_dir, masstree_dir=dependency.root,
+        fault_injection=fault_injection,
+    )
+    try:
+        _assert_verified_dependency_unchanged(dependency)
+    except _DependencyVerificationError as exc:
+        return SortSwoFinding(
+            OracleRejectKind.COMPILE, exc.detail_code,
+        ), True
+    return finding, unavailable
+
+
 def _read_all(fd: int, expected: int) -> bytes:
     chunks = []
     remaining = expected + 1
@@ -1710,21 +2150,35 @@ def _run_matrix(
         command.append(str(test_mode))
     read_fd = None
     write_fd = None
+    final_created_after_stop = test_mode not in {1404, 1405}
+    if not final_created_after_stop:
+        # MUT-4/MUT-5 deliberately create the final object before the broker
+        # forks its worker.  Normal production never enters these test modes.
+        read_fd, write_fd = os.pipe()
+        os.set_blocking(read_fd, False)
+        command.append(str(write_fd))
+    inherited_fds = [broker_authority.fileno()]
+    if write_fd is not None:
+        inherited_fds.append(write_fd)
     try:
         process = subprocess.Popen(
             command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, pass_fds=(broker_authority.fileno(),),
+            stderr=subprocess.DEVNULL, pass_fds=tuple(inherited_fds),
             start_new_session=True, preexec_fn=_limit_run,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         authority.close()
         broker_authority.close()
+        if read_fd is not None:
+            os.close(read_fd)
+        if write_fd is not None:
+            os.close(write_fd)
         raise _EvaluationUnavailable("run-launch", "loader-or-launch-failed") from exc
     broker_authority.close()
     authority.settimeout(_RUN_TIMEOUT_S)
     acknowledged = False
     try:
-        ready = authority.recv(4096)
+        ready = _broker_receive_control(authority)
         if ready.startswith(b"F:"):
             process.communicate(timeout=_RUN_TIMEOUT_S)
             raise _EvaluationUnavailable(
@@ -1742,10 +2196,12 @@ def _run_matrix(
         )
         if fd_observer is not None:
             fd_observer("stopped", worker_pid, before, None)
-        # The final pipe is deliberately born only after the exact hardened
-        # worker pid has been observed stopped by the fixed broker.
-        read_fd, write_fd = os.pipe()
-        os.set_blocking(read_fd, False)
+        # Except in explicit MUT-4/MUT-5 fault injection, the final pipe is born
+        # only after the exact hardened worker pid has been observed stopped.
+        if final_created_after_stop:
+            read_fd, write_fd = os.pipe()
+            os.set_blocking(read_fd, False)
+        assert write_fd is not None
         final_identity = _broker_fd_identity(write_fd)
         authority.sendmsg(
             [b"F"],
@@ -1753,20 +2209,12 @@ def _run_matrix(
         )
         os.close(write_fd)
         write_fd = None
-        verified = authority.recv(1)
-        # The exact hardened worker remains stopped until this acknowledgement.
-        after = before
         if fd_observer is not None:
-            fd_observer("authority-received", worker_pid, after, final_identity)
-        if verified != b"V" or not _worker_fd_boundary_is_safe(
-            before, after, final_identity, final_created_after_stop=True,
-        ):
-            authority.send(b"A")
-            acknowledged = True
-            raise _EvaluationUnavailable(
-                "protocol-authority", "worker-fd-boundary-verification-failed"
-            )
-        authority.send(b"A")
+            fd_observer("authority-sent", worker_pid, before, final_identity)
+        # ACK completes the authority channel, but does not authorize worker
+        # resume.  The broker independently observes the stopped worker after
+        # this ACK and encodes failure only in the final protocol frame.
+        _broker_send_control(authority, b"A")
         acknowledged = True
     except Exception as exc:
         try:
@@ -1832,12 +2280,6 @@ def _run_matrix(
         )
     if outcome != _BROKER_OUTCOME_REJECT:
         raise _EvaluationUnavailable("protocol", "record-outcome-invalid")
-    if detail == _BROKER_DETAIL_ARENA_WRITE:
-        return None, SortSwoFinding(
-            OracleRejectKind.MUTATION, "snapshot-arena-write-denied",
-            corpus_id=execution_corpus_id, order_id=order,
-            observations=({"point": "kernel-read-only-arena", "write_denied": True},),
-        )
     if detail == _BROKER_DETAIL_REPEAT:
         if (witness_lhs >= _N or witness_rhs >= _N
                 or detail_value not in {1, 2}):
@@ -1869,6 +2311,9 @@ def _run_matrix(
         ),
         _BROKER_DETAIL_SANDBOX: (
             OracleRejectKind.EXECUTION, "candidate-sandbox-violation"
+        ),
+        _BROKER_DETAIL_EXECUTION_FAULT: (
+            OracleRejectKind.EXECUTION, "candidate-execution-fault"
         ),
         _BROKER_DETAIL_SIGNAL: (
             OracleRejectKind.EXECUTION, "candidate-process-signalled"
@@ -2053,6 +2498,15 @@ _AXIOM_CHECKER_SOURCE_FUNCTIONS = (
     _evaluate_executable,
     _run_matrix,
     _compile_command,
+    _parse_dependency_manifest,
+    _dependency_file_inventory,
+    _verify_dependency_root,
+    _read_verified_dependency_file,
+    _prepare_verified_dependency,
+    _assert_verified_dependency_unchanged,
+    _dependency_command,
+    _dependency_manifest_closure,
+    _compile_verified,
 )
 
 
@@ -2077,7 +2531,15 @@ def _source_bundle_sha256(
             digest.update(len(value).to_bytes(8, "big"))
             digest.update(value)
     semantic_constants = json.dumps(
-        {"_CORPORA": tuple(corpora), "_N": n, "_ORDERS": tuple(orders)},
+        {
+            "_CORPORA": tuple(corpora),
+            "_DEPENDENCY_MANIFEST_NAME": _DEPENDENCY_MANIFEST_NAME,
+            "_MIN_DEPENDENCY_MANIFEST_CLOSURE": (
+                _MIN_DEPENDENCY_MANIFEST_CLOSURE
+            ),
+            "_N": n,
+            "_ORDERS": tuple(orders),
+        },
         sort_keys=True, separators=(",", ":"), ensure_ascii=True,
     ).encode("utf-8")
     digest.update(len(semantic_constants).to_bytes(8, "big"))
@@ -2097,6 +2559,9 @@ _ORACLE_CONTRACT_COMPONENTS = {
     "compile_flags_sha256": COMPILE_FLAGS_SHA256,
     "corpus_sha256": CORPUS_SHA256,
     "dependency_manifest_sha256": DEPENDENCY_MANIFEST_SHA256,
+    "guarantee_boundary_sha256": hashlib.sha256(
+        SORT_SWO_GUARANTEE_BOUNDARY.encode("ascii")
+    ).hexdigest(),
     "tu_template_sha256": TU_TEMPLATE_SHA256,
 }
 
@@ -2154,7 +2619,8 @@ def _file_sha256(path: Path) -> str:
 
 def _receipt(
     *, environment: OracleEnvironment, compiler_version: str,
-    materialized_hash: str, proposal_hash: str, source: str,
+    dependency: _VerifiedDependencyRoot, materialized_hash: str,
+    proposal_hash: str, source: str,
 ) -> OracleReceipt:
     return OracleReceipt(
         contract_id=ORACLE_CONTRACT_ID,
@@ -2167,9 +2633,10 @@ def _receipt(
         compile_flags_sha256=COMPILE_FLAGS_SHA256,
         tu_sha256=_translation_unit_bundle_sha256(source),
         tu_template_sha256=TU_TEMPLATE_SHA256,
-        dependency_root_realpath=os.fspath(environment.dependency_root),
-        dependency_config_sha256=_file_sha256(environment.dependency_root / "config.h"),
-        dependency_manifest_sha256=DEPENDENCY_MANIFEST_SHA256,
+        dependency_root_realpath=os.fspath(dependency.root),
+        dependency_config_sha256=dependency.config_sha256,
+        dependency_manifest_sha256=dependency.manifest_sha256,
+        guarantee_boundary=SORT_SWO_GUARANTEE_BOUNDARY,
     )
 
 
@@ -2282,12 +2749,24 @@ def check_materialized_sort_swo(
             dir=None if scratch_root is None else os.fspath(scratch_root),
         ) as temporary:
             temp = Path(temporary)
+            try:
+                dependency = _prepare_verified_dependency(
+                    environment.dependency_root,
+                    temp / "verified-masstree",
+                )
+            except _DependencyVerificationError as exc:
+                return _unavailable_result(
+                    materialized_hash, proposal_hash,
+                    phase="dependency-verification",
+                    detail_code=exc.detail_code,
+                    environment=environment,
+                )
             control_source = _translation_unit(_TRUSTED_CONTROL_STATEMENT)
             control_executable = temp / "trusted-control"
-            control_finding, control_unavailable = _compile(
+            control_finding, control_unavailable = _compile_verified(
                 control_source, temp / "trusted-control.cpp", control_executable,
                 compiler=os.fspath(environment.compiler), ccbench_dir=ccbench,
-                masstree_dir=environment.dependency_root,
+                dependency=dependency,
             )
             if control_unavailable or control_finding is not None:
                 return _unavailable_result(
@@ -2318,13 +2797,14 @@ def check_materialized_sort_swo(
             candidate_source = _translation_unit(statement)
             receipt = _receipt(
                 environment=environment, compiler_version=compiler_version,
+                dependency=dependency,
                 materialized_hash=materialized_hash, proposal_hash=proposal_hash,
                 source=candidate_source,
             )
-            finding, unavailable = _compile(
+            finding, unavailable = _compile_verified(
                 candidate_source, temp / "oracle.cpp", executable,
                 compiler=os.fspath(environment.compiler), ccbench_dir=ccbench,
-                masstree_dir=environment.dependency_root,
+                dependency=dependency,
             )
             if finding is not None or unavailable:
                 candidate_artifacts = (
@@ -2363,13 +2843,13 @@ def check_materialized_sort_swo(
                             ),
                         )
                         try:
-                            postflight_finding, postflight_unavailable = _compile(
+                            postflight_finding, postflight_unavailable = _compile_verified(
                                 control_source,
                                 postflight_source_path,
                                 postflight_executable,
                                 compiler=os.fspath(environment.compiler),
                                 ccbench_dir=ccbench,
-                                masstree_dir=environment.dependency_root,
+                                dependency=dependency,
                             )
                         finally:
                             for artifact in postflight_artifacts:
@@ -2532,6 +3012,7 @@ __all__ = [
     "GRAMMAR_VERSION", "N", "ORDERS",
     "INFRASTRUCTURE_REASON_CODE", "ORACLE_COMPONENTS_SHA256",
     "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
+    "SORT_SWO_GUARANTEE_BOUNDARY",
     "TU_TEMPLATE_SHA256", "CompilerDiagnostic", "OracleEnvironment",
     "OracleEnvironmentCandidate", "OracleEnvironmentResolutionFailure",
     "OracleInfrastructureFailure", "OracleReceipt", "OracleRejectKind",
