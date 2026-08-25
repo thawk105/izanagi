@@ -2131,6 +2131,36 @@ class _FloorOracleDependencyBinding:
         return result
 
 
+def _post_oracle_dependency_binding(
+        attempt: object, dependency: _FloorOracleDependencyBinding,
+) -> dict[str, str]:
+    """Project the oracle content authority into the build capability."""
+    if (not isinstance(attempt, Mapping)
+            or attempt.get("classification") != "pass"
+            or attempt.get("reason_code") != "sort-swo-oracle-pass"):
+        raise FloorCampaignError("sort_best post-oracle binding の PASS attempt が不正")
+    receipt = attempt.get("oracle_receipt")
+    if not isinstance(receipt, Mapping):
+        raise FloorCampaignError("sort_best post-oracle binding の oracle receipt が不正")
+    manifest_sha256 = receipt.get("dependency_manifest_sha256")
+    config_sha256 = receipt.get("dependency_config_sha256")
+    for label, value in (
+            ("dependency_manifest_sha256", manifest_sha256),
+            ("dependency_config_sha256", config_sha256)):
+        if (type(value) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", value) is None):
+            raise FloorCampaignError(
+                f"sort_best post-oracle binding の {label} が不正"
+            )
+    return {
+        "fetchcontent_base_dir": str(dependency.source_root.parent),
+        "dependency_manifest_sha256": manifest_sha256,
+        "masstree_head": dependency.observed_head,
+        "config_sha256": config_sha256,
+        "archive_sha256": dependency.archive_sha256,
+    }
+
+
 @dataclass(frozen=True)
 class _LoadedFloorMasstreePayloadPolicy:
     schema_version: str
@@ -3977,9 +4007,15 @@ def build_cells(
                     dependency=dependency_binding,
                 )
             build_kwargs = {}
-            if (dependency_binding is not None
-                    and configuration_id == "sort_best"):
-                assert fetchcontent_base is not None
+            dependency_bound_sort = (
+                dependency_binding is not None
+                and configuration_id == "sort_best"
+            )
+            if dependency_bound_sort:
+                if fetchcontent_base is None:
+                    raise FloorCampaignError(
+                        "sort_best post-oracle capability の FetchContent base がない"
+                    )
                 build_kwargs = {
                     "fetchcontent_base_dir": str(fetchcontent_base),
                     "fetchcontent_dependency_receipt": (
@@ -3988,7 +4024,17 @@ def build_cells(
                     "fetchcontent_archive_sha256": (
                         dependency_binding.archive_sha256
                     ),
+                    "post_oracle_dependency_binding": (
+                        _post_oracle_dependency_binding(
+                            oracle_attempt, dependency_binding,
+                        )
+                    ),
                 }
+                if build_fn is not buildcache.build_v2:
+                    raise FloorCampaignError(
+                        "dependency-bound sort_best は exact buildcache.build_v2 "
+                        "builder が必須"
+                    )
                 if dependency_binding.transport_mode == "source-dir":
                     build_kwargs.update({
                         "masstree_source_dir": str(
@@ -4001,6 +4047,17 @@ def build_cells(
                             fetchcontent_base / "googletest-src"
                         ),
                     })
+            if dependency_bound_sort:
+                if build_fn is not buildcache.build_v2:
+                    raise FloorCampaignError(
+                        "dependency-bound sort_best の builder が exact "
+                        "buildcache.build_v2 でない"
+                    )
+                if "post_oracle_dependency_binding" not in build_kwargs:
+                    raise FloorCampaignError(
+                        "dependency-bound sort_best の build 直前に "
+                        "post-oracle capability がない"
+                    )
             try:
                 result = build_fn(
                     prepared.genome,

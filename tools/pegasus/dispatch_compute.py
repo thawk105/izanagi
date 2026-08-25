@@ -103,10 +103,12 @@ class _TaskSpec:
     child_script: tuple[str, ...]
     env_allowlist: frozenset[str]
     probe_imports: tuple[str, ...]
+    env_mode: str
+    argv_policy: str
 
 
-# 閉じた task enum。任意 command 化は「tools/pegasus/* の glob 許可はしない」
-# (D103 決定 5) と正面衝突するため、受理する task はここに列挙したものだけとする。
+# 閉じた task enum。generic も login で直接 exec せず、既存の job script / _job_run
+# 二重 compute gate の内側だけで argv を実行する。
 TASKS = {
     "tests": _TaskSpec(
         child_script=("tools", "run_tests.py"),
@@ -124,6 +126,8 @@ TASKS = {
             "IZANAGI_RUN_GROWTH_HELD_TESTS",
         }),
         probe_imports=("pytest", "xdist", "packaging"),
+        env_mode="inherit",
+        argv_policy="passthrough",
     ),
     # provenance 履歴監査は stdlib + git だけで動き、GIT_* は checker 自身が隔離するので
     # 親の環境値を 1 つも必要としない。
@@ -131,6 +135,25 @@ TASKS = {
         child_script=("tools", "check_ai_provenance.py"),
         env_allowlist=frozenset(),
         probe_imports=(),
+        env_mode="inherit",
+        argv_policy="passthrough",
+    ),
+    # wrapper は同じ interpreter で harness と run_tests.py を起動する。後者は
+    # packaging を import し、Pegasus compute では pytest / xdist を要求する。
+    "mutation": _TaskSpec(
+        child_script=("tools", "mutation_worktree.py"),
+        env_allowlist=frozenset(),
+        probe_imports=("pytest", "xdist", "packaging"),
+        env_mode="clean",
+        argv_policy="mutation-worktree-v1",
+    ),
+    # <argv> は argv 自体を shell=False で実行する静的 inventory 用 sentinel。
+    "generic": _TaskSpec(
+        child_script=("<argv>",),
+        env_allowlist=frozenset(),
+        probe_imports=(),
+        env_mode="clean",
+        argv_policy="generic-v1",
     ),
 }
 DEFAULT_TASK = "tests"
@@ -138,6 +161,28 @@ _REQUEST_SCHEMA = "pegasus-dispatch-request/v2"
 # v1 も受理する: queue 待ちの in-flight job は投入時点の request を、起動時点の live repo の
 # _job_run で読む。一方向 bump は待ち中に land した job を殺すので互換受理を持つ。
 _LEGACY_REQUEST_SCHEMA = "pegasus-dispatch-request/v1"
+_REQUEST_BINDING = "sha256-job-script/v1"
+_REQUEST_SHA256_ENV = "IZANAGI_DISPATCH_REQUEST_SHA256"
+# v1 を生成していた a34266d2 の正規 request overlay 集合。現行 tests の
+# allowlist と混ぜると、queue 待ち中の正規 v1 request を過剰拒否する。
+_LEGACY_V1_ENV_ALLOWLIST = frozenset({
+    "PYTEST_ADDOPTS",
+    "IZANAGI_TEST_NPROC",
+    "IZANAGI_TEST_TRIGGER",
+    "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS",
+})
+_LEGACY_UNBOUND_TASKS = frozenset({"tests", "provenance"})
+_CLEAN_CHILD_ENV_KEYS = frozenset({
+    "HOME",
+    "LANG",
+    "LANGUAGE",
+    "LC_ALL",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "TZ",
+    "USER",
+})
 _RECEIPT_SCHEMA = "pegasus-dispatch-receipt/v2"
 _QSTAT_ERROR_MARKERS = {
     "permission": (
@@ -392,13 +437,20 @@ def _write_json_x(path: Path, payload: Mapping[str, Any], *, mode: int = 0o600) 
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             descriptor = -1
-            json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
-            handle.write("\n")
+            handle.write(_canonical_json_text(payload))
             handle.flush()
             os.fsync(handle.fileno())
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _canonical_json_text(payload: Mapping[str, Any]) -> str:
+    """_write_json_x と同じ canonical JSON bytes を事前計算する。"""
+
+    return json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, indent=2,
+    ) + "\n"
 
 
 def _write_json_atomic_replace(
@@ -559,6 +611,7 @@ def _job_script(
     submission_dir: Path,
     request_path: Path,
     probe_path: Path,
+    request_sha256: str,
     walltime: str,
     dispatcher_path: Optional[Path] = None,
     task: str = DEFAULT_TASK,
@@ -587,6 +640,7 @@ set -u
 RESULT={shlex.quote(str(result_path))}
 PROBE={shlex.quote(str(probe_path))}
 REQUEST={shlex.quote(str(request_path))}
+REQUEST_SHA256={shlex.quote(request_sha256)}
 REPO={shlex.quote(str(repo_root))}
 DISPATCHER={shlex.quote(str(dispatcher))}
 MARKER={shlex.quote(str(marker_path))}
@@ -628,6 +682,7 @@ if ! cd "$REPO"; then
 fi
 
 export PATH="$(dirname "$selected"):$PATH"
+export {_REQUEST_SHA256_ENV}="$REQUEST_SHA256"
 unset {_TASK_RUN_ENV} {_TASK_RUN_ROOT_ENV}
 {task_transport_unset}exec "$selected" "$DISPATCHER" --job-run "$REQUEST"
 """
@@ -644,6 +699,21 @@ def _read_json_object(path: Path) -> dict[str, Any]:
     if type(value) is not dict:
         raise DispatchError(f"JSON object ではありません: {path}")
     return value
+
+
+def _read_request_object_and_sha256(path: Path) -> tuple[dict[str, Any], str]:
+    """request bytes を 1 度だけ読み、parse 対象と SHA-256 を同じ bytes に束縛する。"""
+
+    if path.is_symlink() or not path.is_file():
+        raise DispatchError(f"required JSON がありません: {path}")
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DispatchError(f"JSON を読めません: {path}: {exc}") from exc
+    if type(value) is not dict:
+        raise DispatchError(f"JSON object ではありません: {path}")
+    return value, hashlib.sha256(raw).hexdigest()
 
 
 def _resolve_request(request: Mapping[str, Any]) -> tuple[str, Any]:
@@ -672,7 +742,193 @@ def _import_probe_modules(spec: _TaskSpec) -> None:
         __import__(name)
 
 
-def _job_run(request_path: Path) -> int:
+def _validate_task_argv(task: str, spec: _TaskSpec, argv: Any) -> None:
+    """親と compute 子の双方で task 固有 argv 契約を同じ実装から検査する。"""
+
+    if type(argv) is not list or not all(type(value) is str for value in argv):
+        raise DispatchError("args は string list でなければなりません")
+    if spec.argv_policy == "passthrough":
+        return
+    if spec.argv_policy == "generic-v1":
+        if not argv or not argv[0]:
+            raise DispatchError("generic args は空にできません")
+        return
+    if spec.argv_policy != "mutation-worktree-v1":
+        raise DispatchError(
+            f"task {task!r} の argv policy が未知です: {spec.argv_policy!r}"
+        )
+
+    try:
+        runner_separator = argv.index("--")
+    except ValueError as exc:
+        raise DispatchError("mutation args に runner separator -- がありません") from exc
+    wrapper_argv = argv[:runner_separator]
+    runner_argv = argv[runner_separator + 1:]
+    runner_modes: list[str] = []
+    for index, value in enumerate(wrapper_argv):
+        option_name = value.split("=", 1)[0]
+        if (
+            option_name != "--runner-mode"
+            and len(option_name) > 2
+            and "--runner-mode".startswith(option_name)
+        ):
+            raise DispatchError("mutation --runner-mode の省略形は使えません")
+        if value == "--runner-mode":
+            if index + 1 >= len(wrapper_argv):
+                raise DispatchError("mutation --runner-mode に値がありません")
+            runner_modes.append(wrapper_argv[index + 1])
+        elif value.startswith("--runner-mode="):
+            runner_modes.append(value.split("=", 1)[1])
+    if runner_modes != ["local"]:
+        raise DispatchError("mutation task は --runner-mode local を 1 回要求します")
+    if "--detached" not in wrapper_argv:
+        raise DispatchError("mutation task は --detached を要求します")
+    if len(runner_argv) < 2:
+        raise DispatchError("mutation runner argv が不足しています")
+    if Path(runner_argv[0]).resolve() != Path(sys.executable).resolve():
+        raise DispatchError("mutation runner は dispatcher と同じ Python を要求します")
+    runner_script = Path(runner_argv[1])
+    if not runner_script.is_absolute():
+        runner_script = _REPO_ROOT / runner_script
+    if runner_script.resolve() != (_REPO_ROOT / "tools" / "run_tests.py").resolve():
+        raise DispatchError("mutation runner は tools/run_tests.py を要求します")
+
+    # argparse は nargs=0 の短 option 後を cluster として再解釈する。
+    # pytest の selector/plugin/config option へ到達できる cluster だけを閉じる。
+    cluster_prefix_flags = frozenset("lqsvx")
+    forbidden_cluster_flags = frozenset("ckmop")
+    for value in argv:
+        if value.startswith("@"):
+            raise DispatchError("mutation args に pytest @argfile は使えません")
+        if "::" in value:
+            raise DispatchError("mutation args に pytest nodeid selector は使えません")
+        if value.startswith("-") and not value.startswith("--"):
+            short_body = value[1:]
+            for option in short_body:
+                if option in forbidden_cluster_flags:
+                    raise DispatchError(
+                        f"mutation args に pytest -{option} option は使えません"
+                    )
+                if option not in cluster_prefix_flags:
+                    break
+        long_option = value.split("=", 1)[0]
+        if value.startswith("--deselect") or (
+            len(long_option) > 2 and "--deselect".startswith(long_option)
+        ):
+            raise DispatchError("mutation args に pytest --deselect は使えません")
+        if value.startswith("--ignore") or (
+            len(long_option) > 2 and "--ignore".startswith(long_option)
+        ):
+            raise DispatchError("mutation args に pytest --ignore* は使えません")
+        if value.startswith("--override-ini") or (
+            len(long_option) > 2 and "--override-ini".startswith(long_option)
+        ):
+            raise DispatchError("mutation args に pytest --override-ini は使えません")
+        if value.startswith("--config-file") or (
+            len(long_option) > 2 and "--config-file".startswith(long_option)
+        ):
+            raise DispatchError("mutation args に pytest --config-file は使えません")
+        if value.startswith("--force-dispatch") or (
+            len(long_option) > 2 and "--force-dispatch".startswith(long_option)
+        ):
+            raise DispatchError("mutation args に --force-dispatch は使えません")
+        env_name = value.split("=", 1)[0]
+        if env_name in {"PYTEST_ADDOPTS", "PYTEST_PLUGINS"}:
+            raise DispatchError(f"mutation args に {env_name} は使えません")
+
+
+def _child_environment(spec: _TaskSpec) -> dict[str, str]:
+    """request overlay 適用前の task 固有 base environment を作る。"""
+
+    if spec.env_mode == "inherit":
+        return os.environ.copy()
+    if spec.env_mode == "clean":
+        return {
+            name: os.environ[name]
+            for name in _CLEAN_CHILD_ENV_KEYS
+            if name in os.environ
+        }
+    raise DispatchError(f"未知の env mode です: {spec.env_mode!r}")
+
+
+def _is_regular_pbs_jobid(pbs_jobid: str) -> bool:
+    """PBS が設定する request ID の既知の文字集合だけを受理する。"""
+
+    if pbs_jobid == "unknown":
+        return False
+    try:
+        normalized = _normalize_request_id(pbs_jobid)
+    except DispatchError:
+        return False
+    return re.fullmatch(
+        r"[0-9]+(?:\.[A-Za-z0-9][A-Za-z0-9_-]*)+",
+        normalized,
+    ) is not None
+
+
+def _is_legacy_unbound_job_envelope(request_path: Path, pbs_jobid: str) -> bool:
+    """pre-binding job script の既存 submission envelope だけを grandfather する。"""
+
+    if not _is_regular_pbs_jobid(pbs_jobid) or request_path.name != "request.json":
+        return False
+    script_path = request_path.parent / "dispatch.sh"
+    probe_path = request_path.parent / "interpreter_probe.py"
+    if (
+        script_path.is_symlink()
+        or not script_path.is_file()
+        or probe_path.is_symlink()
+        or not probe_path.is_file()
+    ):
+        return False
+    try:
+        script = script_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return (
+        f"REQUEST={shlex.quote(str(request_path))}\n" in script
+        and '--job-run "$REQUEST"' in script
+        and _REQUEST_SHA256_ENV not in script
+        and "REQUEST_SHA256=" not in script
+    )
+
+
+def _is_bound_job_envelope(
+    request_path: Path,
+    expected_request_sha256: str,
+    pbs_jobid: str,
+) -> bool:
+    """現行 job script が request path と hash を保持することを検査する。"""
+
+    if not _is_regular_pbs_jobid(pbs_jobid) or request_path.name != "request.json":
+        return False
+    script_path = request_path.parent / "dispatch.sh"
+    probe_path = request_path.parent / "interpreter_probe.py"
+    if (
+        script_path.is_symlink()
+        or not script_path.is_file()
+        or probe_path.is_symlink()
+        or not probe_path.is_file()
+    ):
+        return False
+    try:
+        script = script_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return (
+        f"REQUEST={shlex.quote(str(request_path))}\n" in script
+        and f"REQUEST_SHA256={shlex.quote(expected_request_sha256)}\n" in script
+        and (
+            f'export {_REQUEST_SHA256_ENV}="$REQUEST_SHA256"\n'
+            in script
+        )
+        and 'exec "$selected" "$DISPATCHER" --job-run "$REQUEST"' in script
+    )
+
+
+def _job_run(
+    request_path: Path,
+    expected_request_sha256: Optional[str] = None,
+) -> int:
     """計算ノード内でだけ呼ばれる child launcher。"""
 
     result_path = request_path.parent / "result.json"
@@ -681,46 +937,88 @@ def _job_run(request_path: Path) -> int:
     pbs_jobid = os.environ.get("PBS_JOBID", "unknown")
     interpreter = str(Path(sys.executable).resolve())
     hostname = ""
+    request_sha256: Optional[str] = None
     try:
         if sys.version_info < (3, 10):
             raise DispatchError("interpreter version < 3.10")
 
-        request = _read_json_object(request_path)
+        request, request_sha256 = _read_request_object_and_sha256(request_path)
         task, argv = _resolve_request(request)
         # 親 (_dispatch_impl) と独立に子でも閉集合照合する二層 fail-closed。
         if task not in TASKS:
             raise DispatchError(f"未知の task です: {task!r}")
         spec = TASKS[task]
+        if expected_request_sha256 is None:
+            # 旧 script は hash 引数を持たない。queue 内の v1/v2 を一方向 bump で
+            # 殺さないため歴史的 2 task だけを grandfather するが、新規 request
+            # marker と新規 task は無束縛の公開 --job-run から起動させない。
+            if (
+                request.get("request_binding") is not None
+                or task not in _LEGACY_UNBOUND_TASKS
+                or not _is_legacy_unbound_job_envelope(request_path, pbs_jobid)
+            ):
+                raise DispatchError("request SHA-256 束縛がありません")
+        else:
+            if re.fullmatch(r"[0-9a-f]{64}", expected_request_sha256) is None:
+                raise DispatchError("request SHA-256 の形式が不正です")
+            if request_sha256 != expected_request_sha256:
+                raise DispatchError("request SHA-256 が job script と不一致です")
+            if request.get("request_binding") != _REQUEST_BINDING:
+                raise DispatchError("request binding が現行契約と不一致です")
+            if not _is_bound_job_envelope(
+                request_path,
+                expected_request_sha256,
+                pbs_jobid,
+            ):
+                raise DispatchError("bound job envelope または PBS_JOBID が不正です")
         _import_probe_modules(spec)
 
         repo_root = Path(request["repo_root"]).resolve()
         requested_env = request.get("environment", {})
-        if type(argv) is not list or not all(type(value) is str for value in argv):
-            raise DispatchError("args は string list でなければなりません")
+        _validate_task_argv(task, spec, argv)
         if type(requested_env) is not dict or not all(
             type(key) is str and type(value) is str
             for key, value in requested_env.items()
         ):
             raise DispatchError("environment は string mapping でなければなりません")
+        env_allowlist = (
+            _LEGACY_V1_ENV_ALLOWLIST
+            if request.get("schema_version") == _LEGACY_REQUEST_SCHEMA
+            else spec.env_allowlist
+        )
+        unexpected_env = set(requested_env) - env_allowlist
+        if unexpected_env:
+            raise DispatchError(
+                "environment に task allowlist 外 key があります: "
+                + ", ".join(sorted(unexpected_env))
+            )
         hostname = os.uname().nodename
         if re.fullmatch(r"bnode[0-9]+(?:\..*)?", hostname) is None:
             raise DispatchError(f"計算ノード hostname ではありません: {hostname}")
         os.chdir(repo_root)
-        child_env = os.environ.copy()
+        child_env = _child_environment(spec)
         child_env.update(requested_env)
         child_env.pop(_TASK_RUN_ENV, None)
         child_env.pop(_TASK_RUN_ROOT_ENV, None)
+        child_env.pop(_REQUEST_SHA256_ENV, None)
         for name in (_TASK_RUN_SIDECAR_ENV, _TASK_RUN_AUTO_RECORD_ENV):
             if name not in spec.env_allowlist:
                 child_env.pop(name, None)
         executable_dir = str(Path(sys.executable).resolve().parent)
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
         child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+        child_argv = (
+            list(argv)
+            if spec.argv_policy == "generic-v1"
+            else [sys.executable, str(repo_root.joinpath(*spec.child_script)), *argv]
+        )
         stage = "child"
         child_rc = subprocess.call(
-            [sys.executable, str(repo_root.joinpath(*spec.child_script)), *argv],
+            child_argv,
             cwd=str(repo_root),
             env=child_env,
+            stdin=subprocess.DEVNULL,
+            shell=False,
         )
     except Exception as exc:
         stage = stage if stage != "child" else "child-launch"
@@ -737,6 +1035,7 @@ def _job_run(request_path: Path) -> int:
         "hostname": hostname,
         "interpreter": interpreter,
         "error": error,
+        "request_sha256": request_sha256,
     }
     try:
         _write_json_x(result_path, payload)
@@ -2399,6 +2698,16 @@ def _dispatch_impl(
     if task not in TASKS:
         raise ValueError(f"未知の task です: {task!r}")
     spec = TASKS[task]
+    if spec.argv_policy == "generic-v1" and type(args) is not list:
+        raise ValueError("generic args は string list でなければなりません")
+    if isinstance(args, (str, bytes)) and spec.argv_policy != "passthrough":
+        raise ValueError(f"task {task!r} は shell 文字列を受理しません")
+    request_args = list(args)
+    if spec.argv_policy != "passthrough":
+        try:
+            _validate_task_argv(task, spec, request_args)
+        except DispatchError as exc:
+            raise ValueError(str(exc)) from exc
 
     repo = (
         Path(__file__).resolve().parents[2]
@@ -2537,7 +2846,7 @@ def _dispatch_impl(
             "walltime": walltime,
             "job_name": job_name,
             "task": task,
-            "args": list(args),
+            "args": request_args,
         },
         "state_history": [],
         "qdel": {"attempted": False},
@@ -2545,13 +2854,18 @@ def _dispatch_impl(
     request_path = submission_dir / "request.json"
     probe_path = submission_dir / "interpreter_probe.py"
     script_path = submission_dir / "dispatch.sh"
-    _write_json_x(request_path, {
+    request_payload = {
         "schema_version": _REQUEST_SCHEMA,
         "repo_root": str(repo),
         "task": task,
-        "args": list(args),
+        "args": request_args,
         "environment": request_env,
-    })
+        "request_binding": _REQUEST_BINDING,
+    }
+    request_text = _canonical_json_text(request_payload)
+    request_sha256 = hashlib.sha256(request_text.encode("utf-8")).hexdigest()
+    receipt["request"]["sha256"] = request_sha256
+    _write_text_x(request_path, request_text, mode=0o600)
     _write_text_x(probe_path, _interpreter_probe_source(task), mode=0o600)
     _write_text_x(
         script_path,
@@ -2560,6 +2874,7 @@ def _dispatch_impl(
             submission_dir=submission_dir,
             request_path=request_path,
             probe_path=probe_path,
+            request_sha256=request_sha256,
             walltime=walltime,
             task=task,
         ),
@@ -3137,6 +3452,8 @@ def _dispatch_impl(
             raise DispatchError("result の PBS job ID が submit receipt と不一致です")
         if result.get("stage") != "child":
             raise DispatchError(f"job bootstrap failure: stage={result.get('stage')}")
+        if result.get("request_sha256") != request_sha256:
+            raise DispatchError("result.request_sha256 が投入 request と不一致です")
         if type(child_rc) is not int:
             raise DispatchError("result.child_rc が int ではありません")
         observed_child_rc = child_rc
@@ -3486,8 +3803,18 @@ def dispatch(
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
-    if len(values) == 2 and values[0] == "--job-run":
-        return _job_run(Path(values[1]).resolve())
+    if values[:1] == ["--job-run"]:
+        if len(values) == 3:
+            return _job_run(Path(values[1]).resolve(), values[2])
+        if len(values) == 2:
+            # pre-binding in-flight v1/v2 script compatibility is decided by
+            # _job_run after parsing the request; new tasks fail closed there.
+            return _job_run(
+                Path(values[1]).resolve(),
+                os.environ.get(_REQUEST_SHA256_ENV),
+            )
+        print("--job-run は request path と SHA-256 を要求します", file=sys.stderr)
+        return INFRA_RC
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--walltime", default=DEFAULT_WALLTIME)

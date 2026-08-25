@@ -213,10 +213,15 @@ _EXPECTED_STAGE6_EXECUTION_BOUNDARY = (
     "`owned_fixture_ids` に宣言されている間、gate と当該 pending fixture は"
     "段 0 blocker へ数えず、対象後続段へ繰り越す。"
     "fixture assignment 自身の完了条件は緩めない。"
-    "将来の段 6 実装は、X 候補提出前に "
-    "`require_stage0_fixture_obligations_discharged()` を呼び、同述語が緑であることを"
-    "要求しなければならない。現時点では段 6 の候補入口とこの production caller は"
-    "未実装である。"
+    "段 6 の X 候補提出前には、繰越義務の解消を要求する。"
+    "この要求は `orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py` の "
+    "`require_stage6_candidate_submission_ready()` が担い、同 adapter が "
+    "`require_stage0_fixture_obligations_discharged()` を呼ぶ。"
+    "段 6 の operational caller は義務解消述語を直接呼ばず、この adapter を呼ぶ。"
+    "直接呼ぶと adapter の policy 終端を迂回する。"
+    "production adapter 1 件・operational caller 0 件である。"
+    "段 6 の候補入口・構造述語 5 条件・policy 実装はいずれも未実装であり、"
+    "候補提出も完了も発効も成立していない。"
 )
 
 _EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS = (

@@ -1,0 +1,112 @@
+{
+ "estimated_run_seconds": 900,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_self_consistent_wrong_descriptor_is_rejected_by_freeze_rederivation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1-CONTENT-DIGEST-REDERIVATION",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "    if False and arm_execution.content_digest_sha256 != expected_content_digest:\n",
+     "old": "    if arm_execution.content_digest_sha256 != expected_content_digest:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_legacy_holdout_entry_key_drift_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2-LEGACY-ENTRY-KEY-SET",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "            or False\n",
+     "old": "            or set(legacy_entry) != legacy_entry_keys\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_in_source_derangement_drift_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3-DERANGEMENT-EXACT",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "    if False and derangement_differs:\n",
+     "old": "    if derangement_differs:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_measurement_head_mismatch_is_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4-BINDING-MEASUREMENT-HEAD",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "    if False and binding.get(\"measurement_head\") != trial.measurement_head:\n",
+     "old": "    if binding.get(\"measurement_head\") != trial.measurement_head:\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_digest_is_rederived_from_self_consistent_three_way_claim",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_measurement_head_mismatch_is_rejected",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_in_source_derangement_drift_is_rejected",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_legacy_holdout_entry_key_drift_is_rejected",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_origin_terminal_projection_is_retained_and_reverified",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_receipt_digest_divergence_is_attributed_to_report_descriptor",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_run_start_mismatch_is_rejected_after_reference_hashes_match",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_self_consistent_wrong_descriptor_is_rejected_by_freeze_rederivation",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_trial_report_arm_execution_mismatch_is_rejected_after_reference_hashes_match",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v2_never_routes_through_v1_mandatory_reason_set",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v2_producer_equivalent_full_verify_drops_only_c02",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_aggregate_is_recomputed_from_trial_leaves",
+    "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_requires_cross_binding_receipt_sha256",
+    "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5-AUTHORITY-ROOT-OVER-REJECTION",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "def _require_ratified_legacy_arm_authority(subject_root=None) -> None:\n",
+     "old": "def _require_ratified_legacy_arm_authority() -> None:\n"
+    },
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "        legacy = s8b_ratified_freeze.load_legacy_freeze(subject_root)\n",
+     "old": "        legacy = s8b_ratified_freeze.load_legacy_freeze()\n"
+    },
+    {
+     "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+     "new": "        _require_ratified_legacy_arm_authority(root)\n",
+     "old": "        _require_ratified_legacy_arm_authority()\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}

@@ -26,10 +26,11 @@ artifact と共有しない。専用場所を確保できなければ作成を�
 出力へ結合文字 U+0300〜U+036F を使わせない。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
-## DW-O03 — 防護パスを含む prompt
+## DW-O03 — 防護パスを含む file
 
-WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む prompt は
+WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
+prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
 
 ## DW-O04 — 防護パスを含む commit message
 
@@ -179,6 +180,7 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+焦点走の分割投入は直列にする。同一 worktree の並行 dispatch は orphan hold で rc=16 になる。
 変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
 test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
 所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。

@@ -90,9 +90,6 @@ def _validate_flaky_test_hold_rows(
     silently turn a failing acceptance run green.
     """
     materialized = tuple(rows)
-    if not materialized:
-        raise ValueError("flaky-test hold registry must not be empty")
-
     try:
         mapping = dict(materialized)
     except (TypeError, ValueError) as exc:
@@ -202,32 +199,6 @@ def _registry_sha256(registry: Mapping[str, FlakyTestHold]) -> str:
 
 _FLAKY_TEST_HOLD_ROWS = (
     (
-        "orchestrator/tests/test_mutation_harness.py::"
-        "test_sigterm_handler_stops_child_and_restores_active_mutation",
-        FlakyTestHold(
-            known_failure_node_ids=frozenset({
-                "orchestrator/tests/test_mutation_harness.py::"
-                "test_sigterm_handler_stops_child_and_restores_active_mutation",
-            }),
-            same_tree=True,
-            green_observation=(
-                "同一 tree の同 file 単独実走は 80 passed で再現しなかった"
-            ),
-            green_collection_condition="single-file",
-            green_run_count=1,
-            red_observation=(
-                "同一 tree の受入全走で gw28 が 1 failed / 11866 passed / 92 skipped"
-            ),
-            red_collection_condition=ACCEPTANCE_COLLECTION,
-            failure_signature=(
-                "SIGTERM 送信前に子が rc=1 で終了して 128 + SIGTERM を観測できなかった"
-            ),
-            cause="隣接 wave の子による資源競合で、子が SIGTERM 到達前に終了する",
-            evidence_id="F57",
-            reintroduction_task_id="{{T:flaky-sigterm-sync-point}}",
-        ),
-    ),
-    (
         "orchestrator/tests/test_pegasus_dispatch_compute.py::"
         "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
         FlakyTestHold(
@@ -252,6 +223,69 @@ _FLAKY_TEST_HOLD_ROWS = (
             ),
             evidence_id="F480",
             reintroduction_task_id="{{T:flaky-thread-join-upper-bound}}",
+        ),
+    ),
+    (
+        "orchestrator/tests/test_s8b_oracle_driver.py::"
+        "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({
+                "orchestrator/tests/test_s8b_oracle_driver.py::"
+                "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+            }),
+            same_tree=True,
+            green_observation=(
+                "親が同一 tree で単独 node を実走し 1 passed / 11.83 秒だった"
+            ),
+            green_collection_condition="single-node",
+            green_run_count=1,
+            red_observation=(
+                "同一 tree の受入全走で 1 failed / 16558 passed / 60 skipped"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature=(
+                "別 helper _t080_output_snapshot() が output/ 自身の mtime 変化"
+            ),
+            cause=(
+                "受入全走の shard 経路が同じ作業木から 2 request を重ねて投入し、"
+                "片方の output/runs/pytest-launcher-failures の mtime 変化をもう片方の "
+                "output/ before/after snapshot 検査が拾う (F136 の族)"
+            ),
+            evidence_id="F136",
+            reintroduction_task_id="{{T:t080-output-snapshot-shard-race}}",
+        ),
+    ),
+    (
+        "orchestrator/tests/test_real_repo_serialization.py::"
+        "test_receipt_memo_real_xdist_order_has_no_worker_payer",
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({
+                "orchestrator/tests/test_real_repo_serialization.py::"
+                "test_receipt_memo_real_xdist_order_has_no_worker_payer",
+            }),
+            same_tree=True,
+            green_observation=(
+                "同一 tree で本 node を含む 4 node の単独走が "
+                "4 passed / 6.91 秒 / rc=0 だった"
+            ),
+            green_collection_condition="single-node",
+            green_run_count=1,
+            red_observation=(
+                "同一 tree の受入全走で 1 回目は 4 failed / 16870 passed / "
+                "61 skipped、2 回目は 1 failed / 16873 passed / 61 skipped"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature=(
+                "観測 trace = ['controller-hook', 'prewarm-controller', "
+                "'worker-hook', 'finish-controller']"
+            ),
+            cause=(
+                "不変条件はすべて成立し、受入全走の高並列下で xdist の"
+                "スケジューリング遅延により worker-hook と controller-hook の"
+                "相対順序だけが反転する (F480 の族)"
+            ),
+            evidence_id="F480",
+            reintroduction_task_id="{{T:flaky-xdist-hook-order}}",
         ),
     ),
 )

@@ -1,0 +1,26 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "D1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_through_generator_exp",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_through_list_comp",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_through_set_comp"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -3,7 +3,8 @@
 
 This module deliberately has no dependency on ``trial_registry`` or
 ``layer3_report``.  It verifies the receipt artifact, every immutable byte
-hash it names, and the recorded lifecycle prefix; it does not infer approval
+hash it names, the recorded lifecycle prefix, and that recorded arm execution
+can be rederived from the ratified legacy freeze.  It does not infer approval
 authority or certify an experimental arm.
 """
 from __future__ import annotations
@@ -22,8 +23,12 @@ from typing import Any
 
 LEGACY_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v1"
 PREVIOUS_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v2"
-SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v3"
-CROSS_BINDING_RECEIPT_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v1"
+CROSS_BINDING_V1_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v3"
+SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v4"
+LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION = (
+    "p3-8c-cross-binding-receipt/v1"
+)
+CROSS_BINDING_RECEIPT_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v2"
 DEFAULT_RECEIPT_DIR = PurePosixPath("output/s8c-trial-registry/receipts")
 LEGACY_MANDATORY_NON_CERTIFYING_REASONS = frozenset({
     "c02-arm-binding-unproven",
@@ -58,7 +63,8 @@ _V2_TOP_LEVEL_KEYS = frozenset(_BASE_TOP_LEVEL_KEYS)
 _V3_TOP_LEVEL_KEYS = _BASE_TOP_LEVEL_KEYS | {
     "cross_binding_receipt_sha256",
 }
-_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
+_V4_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
+_TOP_LEVEL_KEYS = _V4_TOP_LEVEL_KEYS
 _V1_TRIAL_KEYS = frozenset({
     "trial_id",
     "arm",
@@ -77,6 +83,8 @@ _V3_TRIAL_KEYS = _V2_TRIAL_KEYS | {"cross_binding_receipt_sha256"}
 _V3_TRIAL_KEYS_WITH_ORIGIN = (
     _V3_TRIAL_KEYS | {"origin_terminal_projection"}
 )
+_V4_TRIAL_KEYS = _V3_TRIAL_KEYS
+_V4_TRIAL_KEYS_WITH_ORIGIN = _V3_TRIAL_KEYS_WITH_ORIGIN
 _ARM_EXECUTION_KEYS = frozenset({
     "input_schema_version",
     "content_digest_sha256",
@@ -176,10 +184,15 @@ def _canonical_bytes(value: Any) -> bytes:
         ) from exc
 
 
-def cross_binding_aggregate_sha256(
-    trials: Sequence[Mapping[str, Any]],
+def _cross_binding_aggregate_sha256_for_schema(
+    trials: Sequence[Mapping[str, Any]], *, cross_binding_schema_version: str,
 ) -> str:
-    """Hash the sorted per-trial cross-binding leaves for receipt v3."""
+    """Hash sorted leaves under one explicit cross-binding schema domain."""
+    if cross_binding_schema_version not in {
+        LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+        CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    }:
+        _fail("receipt-cross-binding", "unsupported cross-binding schema domain")
     leaves: list[dict[str, str]] = []
     for index, trial in enumerate(trials):
         if not isinstance(trial, Mapping):
@@ -197,10 +210,20 @@ def cross_binding_aggregate_sha256(
     if len({leaf["trial_id"] for leaf in leaves}) != len(leaves):
         _fail("receipt-cross-binding", "cross-binding leaves reuse a trial_id")
     payload = {
-        "schema_version": CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+        "schema_version": cross_binding_schema_version,
         "trials": sorted(leaves, key=lambda leaf: leaf["trial_id"]),
     }
     return hashlib.sha256(_canonical_bytes(payload)).hexdigest()
+
+
+def cross_binding_aggregate_sha256(
+    trials: Sequence[Mapping[str, Any]],
+) -> str:
+    """Hash cross-binding v2 leaves for newly issued outer receipt v4 bytes."""
+    return _cross_binding_aggregate_sha256_for_schema(
+        trials,
+        cross_binding_schema_version=CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    )
 
 
 def _reject_constant(value: str) -> None:
@@ -346,13 +369,15 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         _fail("receipt-schema", "receipt.schema_version is missing")
     schema_version = value["schema_version"]
     if schema_version not in {
-        LEGACY_SCHEMA_VERSION, PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION,
+        LEGACY_SCHEMA_VERSION, PREVIOUS_SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
     }:
         _fail("receipt-schema", "unsupported schema_version")
     expected_top_keys = {
         LEGACY_SCHEMA_VERSION: _V1_TOP_LEVEL_KEYS,
         PREVIOUS_SCHEMA_VERSION: _V2_TOP_LEVEL_KEYS,
-        SCHEMA_VERSION: _V3_TOP_LEVEL_KEYS,
+        CROSS_BINDING_V1_SCHEMA_VERSION: _V3_TOP_LEVEL_KEYS,
+        SCHEMA_VERSION: _V4_TOP_LEVEL_KEYS,
     }[schema_version]
     _exact_keys(value, expected_top_keys, "receipt")
 
@@ -383,7 +408,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
     )
     cross_binding_digest = (
         None
-        if schema_version != SCHEMA_VERSION
+        if schema_version not in {
+            CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+        }
         else _require_sha256(
             value["cross_binding_receipt_sha256"],
             "cross_binding_receipt_sha256",
@@ -412,11 +439,17 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             if schema_version == LEGACY_SCHEMA_VERSION
             else (
                 (
+                    _V4_TRIAL_KEYS_WITH_ORIGIN
+                    if "origin_terminal_projection" in raw
+                    else _V4_TRIAL_KEYS
+                )
+                if schema_version == SCHEMA_VERSION
+                else (
                     _V3_TRIAL_KEYS_WITH_ORIGIN
                     if "origin_terminal_projection" in raw
                     else _V3_TRIAL_KEYS
                 )
-                if schema_version == SCHEMA_VERSION
+                if schema_version == CROSS_BINDING_V1_SCHEMA_VERSION
                 else (
                     _V2_TRIAL_KEYS_WITH_ORIGIN
                     if "origin_terminal_projection" in raw
@@ -472,7 +505,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             ),
             cross_binding_receipt_sha256=(
                 None
-                if schema_version != SCHEMA_VERSION
+                if schema_version not in {
+                    CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+                }
                 else _require_sha256(
                     raw["cross_binding_receipt_sha256"],
                     f"trials[{index}].cross_binding_receipt_sha256",
@@ -500,7 +535,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             "receipt-measurement-head-coherence",
             "trials do not share one measurement_head",
         )
-    if schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}:
+    if schema_version in {
+        PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+    }:
         expected_cells = {
             (holdout, arm)
             for holdout in ("H1", "H2")
@@ -692,6 +729,163 @@ def _arm_binding_digest(
     ).hexdigest()
 
 
+def _require_ratified_legacy_arm_authority() -> None:
+    """Require exact agreement between fixed legacy and in-source authority.
+
+    This gate rejects v2/v3/v4 arm records that cannot be rederived from the
+    verifier checkout's ratified legacy freeze.  It does not reject a receipt
+    because the subject repository lacks a copy of that legacy freeze.
+    """
+    try:
+        from . import s8b_holdout_freeze
+        from . import s8b_ratified_freeze
+
+        legacy = s8b_ratified_freeze.load_legacy_freeze()
+    except AcceptanceReceiptError:
+        raise
+    except Exception as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-freeze-arm-binding] ratified legacy freeze cannot be loaded"
+        ) from exc
+
+    document = legacy.document
+    legacy_holdouts = (
+        document.get("holdouts") if isinstance(document, Mapping) else None
+    )
+    source_holdouts = s8b_holdout_freeze.HOLDOUTS
+    if (
+        not isinstance(legacy_holdouts, Mapping)
+        or not isinstance(source_holdouts, Mapping)
+        or set(legacy_holdouts) != set(source_holdouts)
+    ):
+        _fail(
+            "receipt-freeze-arm-binding",
+            "ratified legacy holdout names differ from in-source authority",
+        )
+
+    legacy_entry_keys = {
+        "candidate_id",
+        "ycsb",
+        "records",
+        "threads",
+        "unknownness_check",
+        "variant_binding",
+    }
+    for name, source_entry in source_holdouts.items():
+        legacy_entry = legacy_holdouts.get(name)
+        if (
+            not isinstance(legacy_entry, Mapping)
+            or set(legacy_entry) != legacy_entry_keys
+        ):
+            _fail(
+                "receipt-freeze-arm-binding",
+                f"ratified legacy holdout entry key set differs: {name}",
+            )
+        legacy_ycsb = legacy_entry.get("ycsb")
+        source_ycsb = (
+            source_entry.get("ycsb")
+            if isinstance(source_entry, Mapping)
+            else None
+        )
+        if not isinstance(legacy_ycsb, Mapping) or not isinstance(
+            source_ycsb, Mapping
+        ):
+            _fail(
+                "receipt-freeze-arm-binding",
+                f"ratified legacy holdout projection is malformed: {name}",
+            )
+        legacy_projection = {
+            "candidate_id": legacy_entry.get("candidate_id"),
+            "ycsb": dict(legacy_ycsb),
+            "records": legacy_entry.get("records"),
+            "threads": legacy_entry.get("threads"),
+        }
+        source_projection = {
+            "candidate_id": source_entry.get("candidate_id"),
+            "ycsb": dict(source_ycsb),
+            "records": source_entry.get("records"),
+            "threads": source_entry.get("threads"),
+        }
+        try:
+            legacy_projection_bytes = _canonical_bytes(legacy_projection)
+            source_projection_bytes = _canonical_bytes(source_projection)
+        except AcceptanceReceiptError as exc:
+            raise AcceptanceReceiptError(
+                "[receipt-freeze-arm-binding] holdout projection is not canonical JSON"
+            ) from exc
+        if legacy_projection_bytes != source_projection_bytes:
+            _fail(
+                "receipt-freeze-arm-binding",
+                f"ratified legacy holdout differs from in-source authority: {name}",
+            )
+
+    legacy_derangement = (
+        document.get("derangement") if isinstance(document, Mapping) else None
+    )
+    try:
+        derangement_differs = (
+            not isinstance(legacy_derangement, Mapping)
+            or _canonical_bytes(dict(legacy_derangement))
+            != _canonical_bytes(s8b_holdout_freeze.DERANGEMENT)
+        )
+    except AcceptanceReceiptError as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-freeze-arm-binding] derangement is not canonical JSON"
+        ) from exc
+    if derangement_differs:
+        _fail(
+            "receipt-freeze-arm-binding",
+            "ratified legacy derangement differs from in-source authority",
+        )
+
+
+def _expected_arm_content_digest(
+    root: Path,
+    holdout: str,
+    arm: str,
+    commit: str,
+) -> str:
+    """Rederive one content digest from the subject's historical arm input."""
+    try:
+        from . import s8c_arm_inputs
+
+        resolved = s8c_arm_inputs.resolve_arm_input(
+            arm=arm,
+            holdout=holdout,
+            repository_root=root,
+            commit=commit,
+        )
+        return resolved.content_digest_sha256
+    except AcceptanceReceiptError:
+        raise
+    except Exception as exc:
+        raise AcceptanceReceiptError(
+            "[receipt-freeze-arm-binding] trial arm input cannot be rederived"
+        ) from exc
+
+
+def _assert_rederived_trial_arm_execution(
+    root: Path,
+    trial: AcceptanceReceiptTrial,
+) -> None:
+    """Require the receipt content digest to equal independent rederivation."""
+    arm_execution = trial.arm_execution
+    if arm_execution is None:
+        _fail("receipt-freeze-arm-binding", "v2 trial arm_execution is absent")
+    expected_content_digest = _expected_arm_content_digest(
+        root,
+        trial.holdout,
+        trial.arm,
+        trial.measurement_head,
+    )
+    if arm_execution.content_digest_sha256 != expected_content_digest:
+        _fail(
+            "receipt-freeze-arm-binding",
+            "content digest differs from ratified legacy freeze rederivation",
+        )
+    # Expected binding equality follows from this comparison and the existing binding gate.
+
+
 def _reference_object(data: bytes, *, label: str) -> Mapping[str, Any]:
     value = _decode_json(data)
     if not isinstance(value, Mapping):
@@ -772,6 +966,11 @@ def _verify_v2_trial_arm_execution(
         )
     ):
         _fail("receipt-arm-binding", "trial report arm cell differs from receipt")
+    if binding.get("measurement_head") != trial.measurement_head:
+        _fail(
+            "receipt-freeze-arm-binding",
+            "trial report binding measurement_head differs from receipt",
+        )
 
     cells = report.get("cells")
     if not isinstance(cells, list) or len(cells) > 1:
@@ -959,6 +1158,13 @@ def verify_acceptance_receipt(
         receipt.lifecycle_prefix_sha256,
         "lifecycle",
     )
+    rederive_arm_execution = receipt.schema_version in {
+        PREVIOUS_SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION,
+        SCHEMA_VERSION,
+    }
+    if rederive_arm_execution:
+        _require_ratified_legacy_arm_authority()
     descriptor_proofs: list[bool] = []
     for trial in receipt.trials:
         report_bytes = _assert_digest(
@@ -970,14 +1176,19 @@ def verify_acceptance_receipt(
             trial.attempt_journal_sha256,
             "attempt journal",
         )
-        if receipt.schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}:
-            descriptor_proofs.append(_verify_v2_trial_arm_execution(
+        if rederive_arm_execution:
+            descriptor_proven = _verify_v2_trial_arm_execution(
                 trial,
                 report_bytes=report_bytes,
                 journal_bytes=journal_bytes,
-            ))
+            )
+            _assert_rederived_trial_arm_execution(root, trial)
+            descriptor_proofs.append(descriptor_proven)
     if (
-        receipt.schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}
+        receipt.schema_version in {
+            PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION,
+            SCHEMA_VERSION,
+        }
         and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes
         and not _arm_execution_authorizes_reason_drop(descriptor_proofs)
     ):
@@ -985,14 +1196,21 @@ def verify_acceptance_receipt(
             "receipt-mandatory-reasons",
             "c02-arm-binding-unproven was dropped without descriptor proof",
         )
-    if receipt.schema_version == SCHEMA_VERSION:
-        aggregate = cross_binding_aggregate_sha256([
+    if receipt.schema_version in {
+        CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+    }:
+        cross_binding_schema_version = (
+            LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION
+            if receipt.schema_version == CROSS_BINDING_V1_SCHEMA_VERSION
+            else CROSS_BINDING_RECEIPT_SCHEMA_VERSION
+        )
+        aggregate = _cross_binding_aggregate_sha256_for_schema([
             {
                 "trial_id": trial.trial_id,
                 "receipt_sha256": trial.cross_binding_receipt_sha256,
             }
             for trial in receipt.trials
-        ])
+        ], cross_binding_schema_version=cross_binding_schema_version)
         if receipt.cross_binding_receipt_sha256 != aggregate:
             _fail(
                 "receipt-cross-binding",

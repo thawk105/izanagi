@@ -10,6 +10,7 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ assert _SPEC is not None and _SPEC.loader is not None
 MH = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = MH
 _SPEC.loader.exec_module(MH)
+_REAL_CURRENT_SITE = MH.site_policy.current_site
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -53,6 +55,8 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 import json
 import os
 import signal
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -62,15 +66,64 @@ import pytest
 TARGET = Path(__file__).parents[1] / "target.py"
 
 
+def _publish_sigterm_record(path, payload):
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as stream:
+            json.dump(payload, stream, sort_keys=True)
+            stream.write("\\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _publish_sigterm_discovery(calls, value, written_monotonic_ns):
+    discovery = calls.with_name("sigterm-discovery-v1.json")
+    _publish_sigterm_record(
+        discovery,
+        {
+            "schema": "izanagi-mutation-sigterm-discovery/v1",
+            "value": value,
+            "pid": os.getpid(),
+            "pgid": os.getpgid(0),
+            "written_monotonic_ns": written_monotonic_ns,
+        },
+    )
+
+
+def _publish_sigterm_ready(calls, child_pid):
+    marker = calls.with_name("sigterm-ready-v1.json")
+    _publish_sigterm_record(marker, {
+        "schema": "izanagi-mutation-sigterm-ready/v1",
+        "pid": os.getpid(),
+        "child_pid": child_pid,
+        "pgid": os.getpgid(0),
+        "ready_monotonic_ns": time.monotonic_ns(),
+    })
+
+
 @pytest.fixture(scope="session", autouse=True)
 def record_run():
     value = TARGET.read_text(encoding="utf-8").splitlines()[0].split("=", 1)[1].strip()
     calls = Path(os.environ["IZANAGI_MUTATION_TEST_CALLS"])
+    mode = os.environ.get("IZANAGI_MUTATION_TEST_MODE")
+    discovery_written_ns = None
     with calls.open("a", encoding="utf-8") as stream:
+        if mode == "hang-three-sigterm-ready" and value == "3":
+            discovery_written_ns = time.monotonic_ns()
         stream.write(value + "\\n")
         stream.flush()
         os.fsync(stream.fileno())
-    mode = os.environ.get("IZANAGI_MUTATION_TEST_MODE")
+    if discovery_written_ns is not None:
+        _publish_sigterm_discovery(calls, value, discovery_written_ns)
     dispatch_modes = {
         "hang-three-dispatched",
         "hang-three-dispatched-missing-request",
@@ -118,6 +171,33 @@ def test_gate(case):
     mode = os.environ.get("IZANAGI_MUTATION_TEST_MODE", "normal")
     if mode == "kill-parent-two" and value == "2":
         os.kill(os.getppid(), signal.SIGKILL)
+    if mode == "hang-three-sigterm-ready" and value == "3":
+        child = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys, time; time.sleep(120); "
+                    "print('sigterm descendant 120-second absolute cap reached', "
+                    "file=sys.stderr, flush=True)"
+                ),
+            ],
+            start_new_session=False,
+        )
+        try:
+            _publish_sigterm_ready(
+                Path(os.environ["IZANAGI_MUTATION_TEST_CALLS"]), child.pid
+            )
+        except BaseException as exc:
+            time.sleep(120)
+            pytest.fail(
+                "sigterm descendant 120-second absolute cap reached after "
+                f"readiness publication failure: {type(exc).__name__}: {exc}"
+            )
+        time.sleep(120)
+        pytest.fail(
+            "sigterm descendant 120-second absolute cap reached before SIGTERM cleanup"
+        )
     if mode in {
         "hang-three",
         "hang-three-dispatched",
@@ -149,6 +229,11 @@ def pytest_sessionfinish(session, exitstatus):
     _git(root, "commit", "-qm", "fixture")
     monkeypatch.setenv("IZANAGI_MUTATION_TEST_CALLS", str(root.parent / "calls.txt"))
     monkeypatch.setenv("IZANAGI_MUTATION_TEST_MODE", "normal")
+    monkeypatch.setattr(
+        MH.site_policy,
+        "current_site",
+        lambda *, require_evidence=False: MH.site_policy.OTHER,
+    )
     return root
 
 
@@ -244,6 +329,135 @@ def _single_spec(path: Path) -> None:
 
 def _calls(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+@pytest.mark.parametrize(
+    "site", [MH.site_policy.PEGASUS_LOGIN, MH.site_policy.PEGASUS_SUSPECT]
+)
+def test_local_site_gate_rejects_before_lock_and_collection(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    observed: list[bool] = []
+
+    def current_site(*, require_evidence: bool = False) -> str:
+        observed.append(require_evidence)
+        return site
+
+    def unexpected(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("site gate より後の lock/collection へ到達した")
+
+    monkeypatch.setattr(MH.site_policy, "current_site", current_site)
+    monkeypatch.setattr(MH, "_lock_for", unexpected)
+    monkeypatch.setattr(MH, "_collect_expected_nodes", unexpected)
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+    assert observed == [True]
+    assert not MH._lock_path_for(repo.resolve()).exists()
+    assert not calls.exists()
+
+
+def test_local_site_gate_requires_evidence_for_nqsv_unreadable_login_hostname(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    assert (
+        MH.site_policy.classify_site("pegasus02", {}, has_nqsv=False)
+        == MH.site_policy.OTHER
+    )
+    monkeypatch.setattr(MH.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MH.site_policy.socket, "gethostname", lambda: "pegasus02")
+    monkeypatch.setattr(MH.site_policy, "_has_nqsv", lambda: False)
+    monkeypatch.setattr(
+        MH,
+        "_lock_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("require_evidence=True なら lock へ到達しない")
+        ),
+    )
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+    assert not calls.exists()
+
+
+@pytest.mark.parametrize(
+    "site", [MH.site_policy.OTHER, MH.site_policy.PEGASUS_COMPUTE]
+)
+def test_local_site_gate_preserves_other_and_compute(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    observed: list[bool] = []
+
+    def current_site(*, require_evidence: bool = False) -> str:
+        observed.append(require_evidence)
+        return site
+
+    monkeypatch.setattr(MH.site_policy, "current_site", current_site)
+    argv = _argv(repo, spec, out, calls, mode)
+    argv.insert(argv.index("--"), "--plan-only")
+
+    assert MH.main(argv) == 0
+    assert observed == [True]
+    assert not calls.exists()
+
+
+def test_dispatch_mode_does_not_consult_local_site_gate(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["schema"] = "izanagi-dev-wave-mutation-spec/v999"
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        MH.site_policy,
+        "current_site",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("dispatch mode で local site gate を呼んだ")
+        ),
+    )
+    argv = _argv(repo, spec, out, calls, mode)
+    argv[argv.index("--runner-mode") + 1] = "dispatch"
+
+    with pytest.raises(MH.HarnessError, match="未知の spec schema"):
+        MH.main(argv)
+    assert not calls.exists()
+
+
+def _pid_is_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    fields = stat.rsplit(") ", 1)
+    return len(fields) != 2 or not fields[1].startswith("Z ")
+
+
+def _sigterm_marker_content(marker: Path) -> str:
+    try:
+        return marker.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return "<not created>"
+    except OSError as exc:
+        return f"<unreadable: {type(exc).__name__}: {exc}>"
 
 
 def test_normal_run_uses_cumulative_replacements_and_full_failed_line(repo: Path) -> None:
@@ -1806,8 +2020,12 @@ def test_completed_record_is_flushed_before_next_runner_sigkill(repo: Path) -> N
         (repo / "target.py").write_text(original, encoding="utf-8")
 
 
-def test_sigterm_handler_stops_child_and_restores_active_mutation(repo: Path) -> None:
+def test_sigterm_handler_stops_child_and_restores_active_mutation(
+    repo: Path, record_property: Callable[[str, object], None]
+) -> None:
     spec, out, calls, mode = _paths(repo)
+    discovery = calls.with_name("sigterm-discovery-v1.json").resolve()
+    marker = calls.with_name("sigterm-ready-v1.json").resolve()
     mutation = {
         "id": "H1",
         "category": "negative",
@@ -1820,9 +2038,9 @@ def test_sigterm_handler_stops_child_and_restores_active_mutation(repo: Path) ->
     }
     _write_spec(spec, [mutation])
     document = json.loads(spec.read_text(encoding="utf-8"))
-    document["hang_timeout_seconds"] = 10
+    document["hang_timeout_seconds"] = 60
     spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
-    mode.write_text("hang-three\n", encoding="utf-8")
+    mode.write_text("hang-three-sigterm-ready\n", encoding="utf-8")
     command = [sys.executable, str(_TOOL), *_argv(repo, spec, out, calls, mode)]
     process = subprocess.Popen(
         command,
@@ -1830,13 +2048,246 @@ def test_sigterm_handler_stops_child_and_restores_active_mutation(repo: Path) ->
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+    spawned_monotonic_ns = time.monotonic_ns()
+    discovery_payload: dict[str, object] | None = None
+    marker_payload: dict[str, object] | None = None
+    cleanup_deadline: float | None = None
+
+    def cleanup_warning(message: str) -> None:
+        print(f"WARNING: {message}", file=sys.stderr, flush=True)
+
+    def read_wait_record(path: Path, label: str) -> dict[str, object] | None:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            pytest.fail(
+                f"{label} unreadable: path={str(path)!r}; "
+                f"error={type(exc).__name__}: {exc}"
+            )
+        try:
+            candidate = json.loads(content)
+        except json.JSONDecodeError as exc:
+            pytest.fail(
+                f"{label} is corrupt JSON: path={str(path)!r}; "
+                f"content={content!r}; error={exc}"
+            )
+        if not isinstance(candidate, dict):
+            pytest.fail(
+                f"{label} is corrupt: JSON root is not an object: "
+                f"path={str(path)!r}; content={content!r}"
+            )
+        return candidate
+
+    def positive_record_int(
+        payload: dict[str, object], field: str, label: str
+    ) -> int:
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            pytest.fail(
+                f"{label} is corrupt: {field} must be a positive int; "
+                f"value={value!r}"
+            )
+        return value
+
+    def communicate_or_fail(label: str) -> tuple[str, str]:
+        try:
+            stdout, stderr = process.communicate(timeout=20)
+        except subprocess.TimeoutExpired as exc:
+            pytest.fail(
+                f"{label} communicate 20-second timeout exceeded: "
+                f"partial_stdout={exc.output!r}; partial_stderr={exc.stderr!r}; "
+                f"calls={_calls(calls)!r}; "
+                f"discovery_content={_sigterm_marker_content(discovery)!r}; "
+                f"marker_content={_sigterm_marker_content(marker)!r}"
+            )
+        return stdout, stderr
+
+    def fail_early_exit(rc: int) -> None:
+        _stdout, stderr = communicate_or_fail("harness early-exit diagnostic")
+        pytest.fail(
+            "harness exited before sigterm readiness: "
+            f"rc={rc}; stderr={stderr!r}; calls={_calls(calls)!r}; "
+            f"discovery_path={str(discovery)!r}; "
+            f"discovery_content={_sigterm_marker_content(discovery)!r}; "
+            f"marker_path={str(marker)!r}; "
+            f"marker_content={_sigterm_marker_content(marker)!r}"
+        )
+
     try:
-        deadline = time.monotonic() + 5
-        while _calls(calls) != ["0", "3"] and time.monotonic() < deadline:
+        deadline = time.monotonic() + 30
+        while True:
+            rc = process.poll()
+            if rc is not None:
+                fail_early_exit(rc)
+
+            if discovery_payload is None:
+                discovery_payload = read_wait_record(
+                    discovery, "sigterm discovery record"
+                )
+            if marker_payload is None:
+                marker_payload = read_wait_record(
+                    marker, "sigterm readiness marker"
+                )
+            if marker_payload is not None and discovery_payload is None:
+                pytest.fail(
+                    "sigterm readiness marker appeared before the required discovery "
+                    f"record: discovery_path={str(discovery)!r}; "
+                    f"marker_content={_sigterm_marker_content(marker)!r}"
+                )
+            if marker_payload is not None and discovery_payload is not None:
+                break
+
+            if time.monotonic() >= deadline:
+                rc = process.poll()
+                if rc is not None:
+                    fail_early_exit(rc)
+                process.kill()
+                _stdout, stderr = communicate_or_fail(
+                    "readiness-deadline cleanup"
+                )
+                pytest.fail(
+                    "sigterm readiness 30-second deadline exceeded: "
+                    f"rc={process.returncode}; stderr={stderr!r}; "
+                    f"calls={_calls(calls)!r}; "
+                    f"discovery_path={str(discovery)!r}; "
+                    f"discovery_content={_sigterm_marker_content(discovery)!r}; "
+                    f"marker_path={str(marker)!r}; "
+                    f"marker_content={_sigterm_marker_content(marker)!r}"
+                )
             time.sleep(0.02)
-        assert _calls(calls) == ["0", "3"]
+
+        discovery_required = {
+            "schema",
+            "value",
+            "pid",
+            "pgid",
+            "written_monotonic_ns",
+        }
+        discovery_missing = discovery_required - set(discovery_payload)
+        if discovery_missing:
+            pytest.fail(
+                "sigterm discovery record is corrupt: "
+                f"missing_fields={sorted(discovery_missing)!r}; "
+                f"payload={discovery_payload!r}"
+            )
+        if (
+            discovery_payload.get("schema")
+            != "izanagi-mutation-sigterm-discovery/v1"
+            or discovery_payload.get("value") != "3"
+        ):
+            pytest.fail(
+                "sigterm discovery record is corrupt: schema/value mismatch; "
+                f"payload={discovery_payload!r}"
+            )
+        discovery_pid = positive_record_int(
+            discovery_payload, "pid", "sigterm discovery record"
+        )
+        discovery_pgid = positive_record_int(
+            discovery_payload, "pgid", "sigterm discovery record"
+        )
+        written_monotonic_ns = positive_record_int(
+            discovery_payload,
+            "written_monotonic_ns",
+            "sigterm discovery record",
+        )
+
+        marker_fields = {
+            "schema",
+            "pid",
+            "child_pid",
+            "pgid",
+            "ready_monotonic_ns",
+        }
+        if set(marker_payload) != marker_fields:
+            pytest.fail(
+                "sigterm readiness marker is corrupt: field set mismatch; "
+                f"expected={sorted(marker_fields)!r}; "
+                f"actual={sorted(marker_payload)!r}"
+            )
+        if marker_payload.get("schema") != "izanagi-mutation-sigterm-ready/v1":
+            pytest.fail(
+                "sigterm readiness marker is corrupt: schema mismatch; "
+                f"payload={marker_payload!r}"
+            )
+        marker_pid = positive_record_int(
+            marker_payload, "pid", "sigterm readiness marker"
+        )
+        child_pid = positive_record_int(
+            marker_payload, "child_pid", "sigterm readiness marker"
+        )
+        pgid = positive_record_int(
+            marker_payload, "pgid", "sigterm readiness marker"
+        )
+        ready_monotonic_ns = positive_record_int(
+            marker_payload,
+            "ready_monotonic_ns",
+            "sigterm readiness marker",
+        )
+        if discovery_pid != marker_pid or discovery_pgid != pgid:
+            pytest.fail(
+                "sigterm discovery/readiness process identity mismatch: "
+                f"discovery_pid={discovery_pid}, marker_pid={marker_pid}, "
+                f"discovery_pgid={discovery_pgid}, marker_pgid={pgid}"
+            )
+        if written_monotonic_ns > ready_monotonic_ns:
+            pytest.fail(
+                "sigterm monotonic timestamps are corrupt: discovery write follows "
+                f"readiness; written={written_monotonic_ns}, ready={ready_monotonic_ns}"
+            )
+        assert marker_pid != child_pid
+        assert pgid != os.getpgrp()
+        try:
+            marker_actual_pgid = os.getpgid(marker_pid)
+        except ProcessLookupError as exc:
+            pytest.fail(
+                "sigterm runner PID vanished before group validation; "
+                "harness の 60 秒 hang timeout が先に発火した可能性: "
+                f"marker_pid={marker_pid}, recorded_pgid={pgid}, "
+                f"harness_rc={process.poll()}; error={exc}"
+            )
+        except OSError as exc:
+            pytest.fail(
+                "sigterm runner process-group validation failed: "
+                f"marker_pid={marker_pid}, recorded_pgid={pgid}; "
+                f"error={type(exc).__name__}: {exc}"
+            )
+        try:
+            child_actual_pgid = os.getpgid(child_pid)
+        except ProcessLookupError as exc:
+            pytest.fail(
+                "sigterm descendant PID vanished before group validation; "
+                "the descendant 120-second absolute cap may have fired: "
+                f"child_pid={child_pid}, recorded_pgid={pgid}; error={exc}"
+            )
+        except OSError as exc:
+            pytest.fail(
+                "sigterm descendant process-group validation failed: "
+                f"child_pid={child_pid}, recorded_pgid={pgid}; "
+                f"error={type(exc).__name__}: {exc}"
+            )
+        assert marker_actual_pgid == pgid
+        assert child_actual_pgid == pgid
+
+        rc = process.poll()
+        if rc is not None:
+            fail_early_exit(rc)
+        sigterm_sent_ns = time.monotonic_ns()
         process.send_signal(signal.SIGTERM)
-        _stdout, stderr = process.communicate(timeout=10)
+        record_property(
+            "readiness_to_sigterm_s",
+            (sigterm_sent_ns - ready_monotonic_ns) / 1_000_000_000,
+        )
+        record_property(
+            "calls3_to_sigterm_s",
+            (sigterm_sent_ns - written_monotonic_ns) / 1_000_000_000,
+        )
+        record_property(
+            "spawn_to_readiness_s",
+            (ready_monotonic_ns - spawned_monotonic_ns) / 1_000_000_000,
+        )
+        _stdout, stderr = communicate_or_fail("post-SIGTERM")
         assert process.returncode == 128 + signal.SIGTERM
         assert "active mutation restore attempted" in stderr
         assert (repo / "target.py").read_text(encoding="utf-8") == _git(
@@ -1844,10 +2295,186 @@ def test_sigterm_handler_stops_child_and_restores_active_mutation(repo: Path) ->
         )
         ledger = json.loads(out.read_text(encoding="utf-8"))
         assert ledger["mutations"] == []
+        assert _calls(calls) == ["0", "3"]
+
+        cleanup_deadline = time.monotonic() + 10
+        while _pid_is_alive(child_pid) and time.monotonic() < cleanup_deadline:
+            time.sleep(0.02)
+        if _pid_is_alive(child_pid):
+            pytest.fail(
+                "post-SIGTERM descendant cleanup 10-second deadline exceeded: "
+                f"child_pid={child_pid}, pgid={pgid}"
+            )
     finally:
+        if cleanup_deadline is None:
+            cleanup_deadline = time.monotonic() + 10
         if process.poll() is None:
             process.kill()
-            process.wait(timeout=5)
+            try:
+                process.wait(timeout=max(0.0, cleanup_deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                cleanup_warning(
+                    "sigterm finally cleanup 10-second deadline exceeded while "
+                    f"waiting for harness pid={process.pid}"
+                )
+
+        def reread_cleanup_record(
+            path: Path, label: str
+        ) -> dict[str, object] | None:
+            try:
+                content = path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                cleanup_warning(
+                    f"sigterm cleanup {label} was not available: path={path}"
+                )
+                return None
+            except OSError as exc:
+                cleanup_warning(
+                    f"sigterm cleanup {label} reread failed: path={path}; "
+                    f"error={type(exc).__name__}: {exc}"
+                )
+                return None
+            try:
+                candidate = json.loads(content)
+            except json.JSONDecodeError as exc:
+                cleanup_warning(
+                    f"sigterm cleanup {label} reread found corrupt JSON: "
+                    f"path={path}; error={exc}"
+                )
+                return None
+            if not isinstance(candidate, dict):
+                cleanup_warning(
+                    f"sigterm cleanup {label} reread found non-object JSON: path={path}"
+                )
+                return None
+            return candidate
+
+        discovery_reread = reread_cleanup_record(discovery, "discovery record")
+        marker_reread = reread_cleanup_record(marker, "readiness marker")
+        cleanup_records = (
+            ("cached discovery record", discovery_payload, False),
+            ("reread discovery record", discovery_reread, False),
+            ("cached readiness marker", marker_payload, True),
+            ("reread readiness marker", marker_reread, True),
+        )
+        cleanup_groups: dict[int, dict[int, set[str]]] = {}
+        for label, payload, has_child in cleanup_records:
+            if payload is None:
+                continue
+            candidate_pgid = payload.get("pgid")
+            if (
+                isinstance(candidate_pgid, bool)
+                or not isinstance(candidate_pgid, int)
+                or candidate_pgid <= 0
+                or candidate_pgid == os.getpgrp()
+            ):
+                cleanup_warning(
+                    f"sigterm cleanup ignored invalid pgid from {label}: "
+                    f"pgid={candidate_pgid!r}"
+                )
+                continue
+            members = cleanup_groups.setdefault(candidate_pgid, {})
+            for field in (("pid", "runner"), ("child_pid", "descendant")):
+                if field[0] == "child_pid" and not has_child:
+                    continue
+                candidate_pid = payload.get(field[0])
+                if (
+                    isinstance(candidate_pid, int)
+                    and not isinstance(candidate_pid, bool)
+                    and candidate_pid > 0
+                ):
+                    members.setdefault(candidate_pid, set()).add(
+                        f"{label} {field[1]}"
+                    )
+                elif candidate_pid is not None:
+                    cleanup_warning(
+                        f"sigterm cleanup ignored invalid {field[0]} from {label}: "
+                        f"pid={candidate_pid!r}"
+                    )
+
+        def confirmed_group_member(
+            candidate_pgid: int,
+            members: dict[int, set[str]],
+            signal_name: str,
+        ) -> int | None:
+            observed_alive = False
+            for candidate_pid, sources in sorted(members.items()):
+                if not _pid_is_alive(candidate_pid):
+                    continue
+                observed_alive = True
+                try:
+                    actual_pgid = os.getpgid(candidate_pid)
+                except ProcessLookupError:
+                    cleanup_warning(
+                        "sigterm cleanup ownership recheck lost a recorded PID; "
+                        f"killpg({signal_name}) not authorized by pid={candidate_pid}, "
+                        f"recorded_pgid={candidate_pgid}, sources={sorted(sources)!r}"
+                    )
+                    continue
+                except OSError as exc:
+                    cleanup_warning(
+                        "sigterm cleanup ownership recheck failed; "
+                        f"killpg({signal_name}) not authorized by pid={candidate_pid}, "
+                        f"recorded_pgid={candidate_pgid}, sources={sorted(sources)!r}; "
+                        f"error={type(exc).__name__}: {exc}"
+                    )
+                    continue
+                if actual_pgid != candidate_pgid:
+                    cleanup_warning(
+                        "sigterm cleanup ownership mismatch; "
+                        f"killpg({signal_name}) skipped for pid={candidate_pid}, "
+                        f"recorded_pgid={candidate_pgid}, actual_pgid={actual_pgid}, "
+                        f"sources={sorted(sources)!r}"
+                    )
+                    continue
+                return candidate_pid
+            if observed_alive:
+                cleanup_warning(
+                    "sigterm cleanup could not confirm any recorded PID in its "
+                    f"recorded pgid={candidate_pgid}; killpg({signal_name}) skipped"
+                )
+            return None
+
+        for cleanup_pgid, cleanup_members in sorted(cleanup_groups.items()):
+            if not any(_pid_is_alive(pid) for pid in cleanup_members):
+                continue
+            member_pid = confirmed_group_member(
+                cleanup_pgid, cleanup_members, "SIGTERM"
+            )
+            if member_pid is None:
+                continue
+            try:
+                os.killpg(cleanup_pgid, signal.SIGTERM)
+            except OSError as exc:
+                cleanup_warning(
+                    "sigterm cleanup killpg(SIGTERM) failed after ownership "
+                    f"confirmation: pgid={cleanup_pgid}, member_pid={member_pid}; "
+                    f"error={type(exc).__name__}: {exc}"
+                )
+            while (
+                any(_pid_is_alive(pid) for pid in cleanup_members)
+                and time.monotonic() < cleanup_deadline
+            ):
+                time.sleep(0.02)
+            if not any(_pid_is_alive(pid) for pid in cleanup_members):
+                continue
+            cleanup_warning(
+                "sigterm finally cleanup 10-second deadline exceeded for "
+                f"pgid={cleanup_pgid}; escalating to SIGKILL"
+            )
+            member_pid = confirmed_group_member(
+                cleanup_pgid, cleanup_members, "SIGKILL"
+            )
+            if member_pid is None:
+                continue
+            try:
+                os.killpg(cleanup_pgid, signal.SIGKILL)
+            except OSError as exc:
+                cleanup_warning(
+                    "sigterm cleanup killpg(SIGKILL) failed after ownership "
+                    f"confirmation: pgid={cleanup_pgid}, member_pid={member_pid}; "
+                    f"error={type(exc).__name__}: {exc}"
+                )
 
 
 def test_dispatch_reader_uses_receipt_bound_full_job_stdout(repo: Path) -> None:

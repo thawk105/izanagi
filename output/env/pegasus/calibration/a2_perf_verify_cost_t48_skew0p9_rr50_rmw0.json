@@ -1,0 +1,108 @@
+{
+  "schema_version": "a2-perf-verify-cost/v1",
+  "env_tag": "pegasus",
+  "workload": "rr50",
+  "rratio": "50",
+  "ccbench_commit": "511c953",
+  "ccbench_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "cc": "gcc",
+  "cxx": "g++",
+  "clocks_per_us": 2100,
+  "workload_argv": [
+    "-thread_num=48",
+    "-ycsb_tuple_num=1000000",
+    "-ycsb_zipf_skew=0.9",
+    "-ycsb_rratio=50",
+    "-ycsb_rmw=0",
+    "-ycsb_max_ope=10",
+    "-extime=3",
+    "-clocks_per_us=2100"
+  ],
+  "timeouts_seconds": {
+    "run": 900.0,
+    "verifier": 7200.0
+  },
+  "minimum_free_disk_gb": 60.0,
+  "free_disk_gb_at_start": 5463.99401473999,
+  "genomes": [
+    {
+      "id": "rr50-stock",
+      "defines": {
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+        "BACKOFF_NOINLINE": 0,
+        "BACK_OFF": 0,
+        "BACKOFF_FIXED": -1
+      },
+      "genome": "silo|BACKOFF_FIXED=-1,BACKOFF_NOINLINE=0,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "build": {
+        "binary_sha256": "d87187c5cd26d519c30a470569e006df8faf42535380d91306bb4b075d4e397f",
+        "cache_hit": true
+      },
+      "run": {
+        "exit_code": 0,
+        "wall_seconds": 3.35458772117272,
+        "commits": 4178321,
+        "batch_commits": 0,
+        "aborts": 16420628,
+        "abort_rate": 0.7971585346417431,
+        "trace": {
+          "files": 48,
+          "bytes": 1610795950,
+          "lines": 49850198
+        }
+      },
+      "verifier": {
+        "exit_code": 0,
+        "wall_seconds": 332.31843207171187,
+        "peak_rss_kb": 21270412,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "txns": 4178321,
+        "edges": 58864141
+      }
+    },
+    {
+      "id": "rr50-fixed5",
+      "defines": {
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0,
+        "BACKOFF_NOINLINE": 0,
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 5
+      },
+      "genome": "silo|BACKOFF_FIXED=5,BACKOFF_NOINLINE=0,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "build": {
+        "binary_sha256": "cb5e6436bb8e08fc1f0dbd694c57532c2f1f0aa08dfe281b0e54f5e8fb3e88f5",
+        "cache_hit": false
+      },
+      "run": {
+        "exit_code": 0,
+        "wall_seconds": 3.3674938729964197,
+        "commits": 1581009,
+        "batch_commits": 0,
+        "aborts": 540881,
+        "abort_rate": 0.2549052966930425,
+        "trace": {
+          "files": 48,
+          "bytes": 598062584,
+          "lines": 18862887
+        }
+      },
+      "verifier": {
+        "exit_code": 0,
+        "wall_seconds": 116.44393441081047,
+        "peak_rss_kb": 8237532,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "txns": 1581009,
+        "edges": 20839801
+      }
+    }
+  ],
+  "measured_at_utc": "2026-08-25T15:52:07.172096+00:00"
+}

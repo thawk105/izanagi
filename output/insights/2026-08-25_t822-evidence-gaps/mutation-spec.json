@@ -1,0 +1,110 @@
+{
+  "estimated_run_seconds": 320,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_ccbench_commit_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M01-CCBENCH-COMMIT-CROSS-CHECK",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "            if False:\n                _fail(\n                    \"measurement-target\",\n                    \"layer3 reports do not share one meta.ccbench_commit; \"\n",
+          "old": "            if ccbench_commit != baseline_ccbench:\n                _fail(\n                    \"measurement-target\",\n                    \"layer3 reports do not share one meta.ccbench_commit; \"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_env_tag_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M02-ENV-TAG-CROSS-CHECK",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "            if False:\n                _fail(\n                    \"measurement-target\",\n                    \"layer3 reports do not share one env_tag; \"\n",
+          "old": "            if env_tag != baseline_env:\n                _fail(\n                    \"measurement-target\",\n                    \"layer3 reports do not share one env_tag; \"\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_zero_layer3_reports_in_complete_build_bundle",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_missing_layer3_in_complete_build_bundle"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M03-POPULATION-LOWER-BOUND",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    if False and complete_build_bundle and len(snapshots) != 6:\n",
+          "old": "    if complete_build_bundle and len(snapshots) != 6:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_zero_layer3_reports_in_complete_build_bundle"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M04-EMPTY-POPULATION-VACUITY",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    if snapshots and complete_build_bundle and len(snapshots) != 6:\n",
+          "old": "    if complete_build_bundle and len(snapshots) != 6:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_strictly_rejects_duplicate_layer3_json_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M05-SNAPSHOT-IDENTITY",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "        layer3 = json.loads(layer3_bytes.decode(\"utf-8\"))\n",
+          "old": "        layer3 = _decode_json(\n            layer3_bytes,\n            label=f\"trial {trial_id!r} layer3 report\",\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads",
+        "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_missing_layer3_in_complete_build_bundle",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_reports_changed_layer3_snapshot_identity",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_ccbench_commit_mismatch",
+        "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_env_tag_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M06-OVERREJECTION-CONTROL",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    if complete_build_bundle and len(snapshots) != 5:\n",
+          "old": "    if complete_build_bundle and len(snapshots) != 6:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

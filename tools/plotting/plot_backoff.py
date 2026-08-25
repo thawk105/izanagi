@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """backoff sweep campaign の WAL/dat から論文品質の図を生成する。
 
-proof-chain: 図は WAL (runs/wal.jsonl, throughput の n 反復生値) と
-dat (reports/*.dat, abort%/IPC の集約値) だけを入力とし、生成した図の
+proof-chain: 図は WAL (runs/wal.jsonl, throughput の n 反復生値)、
+dat (reports/*.dat, abort%/IPC の集約値)、campaign.lock を入力とし、生成した図の
 provenance ヘッダに「どの campaign のどの commit / ファイルから作ったか」を刻む。
 
 使い方:
-    python plot_backoff.py OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
+    python plot_backoff.py [--baselines LIST] OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
 
     OUT_PREFIX      出力ファイルの接頭辞 (例: figures/backoff_sweep)
     CAMPAIGN_DIR    output/campaigns/<id> のパス。複数指定すると
                     その順で 1 枚の図に横並び (workload 比較) される。
+    --baselines    no-backoff / stock-adaptive の comma 区切り部分集合。
+                    既定は no-backoff,stock-adaptive。
 
 出力:
     <OUT_PREFIX>.png / .pdf   図 (上段 throughput+95%CI, 下段 abort%+IPC)
@@ -19,7 +21,7 @@ provenance ヘッダに「どの campaign のどの commit / ファイルから�
 依存: matplotlib, numpy のみ (figure-style スキル非依存・自己完結)。
 実行は計測機の外で (計測機上では走らせない — 図生成に計測は不要)。
 """
-import sys, os, json, re, glob, hashlib, datetime
+import sys, os, json, re, glob, hashlib, datetime, statistics, shlex
 
 # この script を cwd/PYTHONPATH に依存せず直接起動できるよう、repo 内の中央 campaign
 # admission 層への import root を __file__ から解決する。独自の WAL reader は持たない。
@@ -63,6 +65,27 @@ def _style():
 
 FOCAL="#1f6fb2"; NONE="#666666"; ADAPT="#d1495b"; ABORT="#e08214"; IPC="#3a923a"
 
+BASELINE_ORDER=("no-backoff", "stock-adaptive")
+BASELINE_SPECS={
+    "no-backoff": {
+        "label": "no backoff", "data_key": "none", "color": NONE, "linestyle": "--",
+        "linewidth": 1.2,
+    },
+    "stock-adaptive": {
+        "label": "stock adaptive", "data_key": "adapt", "color": ADAPT, "linestyle": ":",
+        "linewidth": 1.3,
+    },
+}
+
+_RUN_CONDITION_KEYS=(
+    "thread_num", "ycsb_tuple_num", "extime", "clocks_per_us",
+    "ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw",
+)
+_INTEGER_CONDITIONS={
+    "thread_num", "ycsb_tuple_num", "extime", "clocks_per_us", "ycsb_rratio",
+    "CCBENCH_TRACE",
+}
+
 # ---- パース ----------------------------------------------------------------
 def _parse_genome(g):
     d={}
@@ -71,6 +94,129 @@ def _parse_genome(g):
         if "=" in kv:
             k,v=kv.split("=",1); d[k]=v
     return d
+
+def _condition_scalar(key, value):
+    """WAL の command/build payload に記録された scalar だけを型付きで返す。"""
+    if key=="ycsb_rmw":
+        normalized=str(value).strip().lower()
+        if normalized in ("false", "0"):
+            return False
+        if normalized in ("true", "1"):
+            return True
+        raise ValueError(f"ycsb_rmw は boolean でなければならない: {value!r}")
+    if key in _INTEGER_CONDITIONS:
+        return int(value)
+    if key == "ycsb_zipf_skew":
+        return float(value)
+    return value
+
+def _unique_condition(values):
+    """1 値は scalar、不一致は集約せず安定順の list で返す。"""
+    unique=[]
+    for value in values:
+        if value not in unique:
+            unique.append(value)
+    unique.sort(key=lambda value: (type(value).__name__, repr(value)))
+    return unique[0] if len(unique)==1 else unique
+
+def _numactl_arguments(run_cmd):
+    """run command 内の numactl 引数列を、順序と綴りを保って返す。"""
+    try:
+        tokens=shlex.split(run_cmd)
+    except ValueError:
+        return None
+    for index,token in enumerate(tokens):
+        if os.path.basename(token)!="numactl":
+            continue
+        arguments=[]
+        take_value=False
+        for candidate in tokens[index+1:]:
+            if take_value:
+                arguments.append(candidate)
+                take_value=False
+                continue
+            if not candidate.startswith("-"):
+                break
+            arguments.append(candidate)
+            if candidate in (
+                "-i", "--interleave", "-m", "--membind", "-N", "--cpunodebind",
+                "-C", "--physcpubind", "-p", "--preferred", "-w", "--weighted-interleave",
+            ):
+                take_value=True
+        return arguments
+    return None
+
+def _extract_conditions(records, cdir):
+    """campaign 条件を WAL/build payload/campaign.lock の観測値から構成する。"""
+    observed={key: [] for key in _RUN_CONDITION_KEYS}
+    observed["numactl_args"]=[]
+    run_commands=[]
+    env_values=[]
+    trace_values=[]
+    build_done_count=0
+    trace_observation_count=0
+    for record in records:
+        env_tag=getattr(record, "env_tag", None)
+        if env_tag:
+            env_values.append(str(env_tag))
+        payload=record.payload
+        run_cmd=payload.get("run_cmd")
+        if run_cmd:
+            run_commands.append(run_cmd)
+            numactl_args=_numactl_arguments(run_cmd)
+            if numactl_args is not None:
+                observed["numactl_args"].append(numactl_args)
+            for key in _RUN_CONDITION_KEYS:
+                match=re.search(rf"(?:^|\s)-{re.escape(key)}=([^\s]+)", run_cmd)
+                if match:
+                    observed[key].append(_condition_scalar(key, match.group(1)))
+        if record.stage=="build_done":
+            build_done_count+=1
+            found=[]
+            for value in payload.values():
+                if not isinstance(value, str):
+                    continue
+                found.extend(re.findall(r"(?:^|\s)-DCCBENCH_TRACE=([^\s]+)", value))
+            if found:
+                trace_observation_count+=1
+                trace_values.extend(_condition_scalar("CCBENCH_TRACE", value)
+                                    for value in found)
+
+    conditions={}
+    unresolved=[]
+    incomplete=[]
+    for key in _RUN_CONDITION_KEYS+("numactl_args",):
+        values=observed[key]
+        if values:
+            conditions[key]=_unique_condition(values)
+            if len(values)<len(run_commands):
+                incomplete.append(key)
+        else:
+            unresolved.append(key)
+    if env_values:
+        conditions["env"]=_unique_condition(env_values)
+    else:
+        unresolved.append("env")
+    if trace_values:
+        conditions["CCBENCH_TRACE"]=_unique_condition(trace_values)
+        if trace_observation_count<build_done_count:
+            incomplete.append("CCBENCH_TRACE")
+    else:
+        unresolved.append("CCBENCH_TRACE")
+
+    lock_path=os.path.join(cdir, "campaign.lock")
+    try:
+        with open(lock_path, encoding="utf-8") as fh:
+            ccbench_commit=json.load(fh).get("ccbench_commit")
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        ccbench_commit=None
+    if ccbench_commit is not None:
+        conditions["ccbench_commit"]=ccbench_commit
+    else:
+        unresolved.append("ccbench_commit")
+    conditions["unresolved_fields"]=sorted(unresolved)
+    conditions["incomplete_fields"]=sorted(incomplete)
+    return conditions
 
 # t_{0.975, df} (両側 95% = 上側 0.025 臨界値) df=1..28。df>=29 (=n>=30) は正規
 # 近似 1.96 を使う。正本: FIGURE_CONVENTIONS.md §2 (小 n は t_{0.975,n-1}·s/√n、
@@ -98,9 +244,16 @@ def _ci95(reps):
     None を返し、描画側 (`_ci95_half_M`) が誤差棒を抑止する。
     """
     a=np.asarray(reps,dtype=float)
-    if len(a)<2: return float(np.mean(a)), None
+    center=_mean_tps(reps)
+    if len(a)<2: return center, None
     n=len(a)
-    return float(np.mean(a)), _t975(n-1)*a.std(ddof=1)/np.sqrt(n)
+    return center, _t975(n-1)*a.std(ddof=1)/np.sqrt(n)
+
+def _mean_tps(reps):
+    """baseline の描画値と provenance 値で共有する標本平均。"""
+    if not reps:
+        raise ValueError("tps repetitions must not be empty")
+    return float(statistics.fmean(float(x) for x in reps))
 
 def _ci95_half_M(reps):
     """errorbar 用の 95% CI 半幅 (M tps)。CI 計算不能 (n<2) は NaN を返す。
@@ -143,13 +296,25 @@ def load_campaign(cdir):
         elif x.stage=="commit" and variant in pending_bench:
             committed_bench[variant]=pending_bench.pop(variant)
     excluded_uncertified=sorted(pending_bench)
-    pts=[]; none=None; adapt=None
+    pts=[]; none=None; adapt=None; baseline_genomes={}
     for x in committed_bench.values():
         g=genome.get(x.variant,{}); p=x.payload
         reps=p.get("tps",[]); bf=g.get("BACKOFF_FIXED","-1"); bo=g.get("BACK_OFF","0")
-        if bo=="1" and bf not in ("-1",None): pts.append((int(bf),reps))
-        elif bo=="0": none=reps
-        if bo=="1" and bf=="-1": adapt=reps
+        if bo=="1" and bf not in ("-1",None):
+            if not reps:
+                raise ValueError(
+                    f"{cdir}: static backoff {bf}us の tps repetitions が空")
+            pts.append((int(bf),reps))
+        elif bo=="0":
+            none=reps
+            baseline_genomes["no-backoff"]=dict(sorted({
+                **g, "BACK_OFF": bo, "BACKOFF_FIXED": bf,
+            }.items()))
+        if bo=="1" and bf=="-1":
+            adapt=reps
+            baseline_genomes["stock-adaptive"]=dict(sorted({
+                **g, "BACK_OFF": bo, "BACKOFF_FIXED": bf,
+            }.items()))
     pts.sort()
 
     # dat から abort%/IPC (集約値) と workload メタを読む
@@ -165,12 +330,17 @@ def load_campaign(cdir):
             if len(parts)>=4 and parts[0].lstrip("-").isdigit():
                 abort_ipc[int(parts[0])]=(float(parts[2]),float(parts[3]))
 
+    lock_path=os.path.join(cdir, "campaign.lock")
     return {
         "dir":cdir, "wal":wal_path, "dat":dat_path,
         "wal_sha256":_sha256(wal_path), "dat_sha256":_sha256(dat_path),
+        "lock":lock_path,
+        "lock_sha256":_sha256(lock_path) if os.path.isfile(lock_path) else None,
         "workload":meta.get("workload","?"), "env":meta.get("env","?"),
         "campaign":meta.get("campaign",os.path.basename(cdir)),
         "threads":sorted(thread_nums), "pts":pts, "none":none, "adapt":adapt,
+        "baseline_genomes":baseline_genomes,
+        "conditions":_extract_conditions(recs, cdir),
         "abort_ipc":abort_ipc,
         "excluded_uncertified":excluded_uncertified,
         "read_purpose":historical_view.read_purpose.value,
@@ -188,7 +358,19 @@ def _sha256(path):
     h=hashlib.sha256()
     with open(path,"rb") as fh:
         for b in iter(lambda: fh.read(65536), b""): h.update(b)
-    return h.hexdigest()[:16]
+    return h.hexdigest()
+
+def _provenance_path(path):
+    """repo 内 path は provenance gate が要求する repo-relative 表記へ正規化する。"""
+    value=os.fspath(path)
+    resolved=os.path.abspath(value)
+    try:
+        if os.path.commonpath((_REPO_ROOT, resolved))==_REPO_ROOT:
+            return os.path.relpath(resolved, _REPO_ROOT)
+    except ValueError:
+        pass
+    # repo 外は standalone consumer の互換 seam。着地成果物 gate はこれを拒否する。
+    return value
 
 # ---- 作図 ------------------------------------------------------------------
 def _short_wl(wl):
@@ -202,27 +384,60 @@ def _figure_epoch_label(camps):
     })
     return epochs[0] if len(epochs)==1 else ", ".join(epochs)
 
-def make_figure(camps, out_prefix):
+def _draw_baseline(axis, reps, spec):
+    """baseline を描き、実際に渡した line y / text label / CI 半幅を返す。"""
+    if not reps:
+        return None
+    center,half=_ci95(reps)
+    center_m=center/1e6
+    if half is not None:
+        axis.axhspan((center-half)/1e6, (center+half)/1e6,
+                     color=spec["color"], alpha=0.10, lw=0, zorder=1)
+    axis.axhline(center_m,color=spec["color"],ls=spec["linestyle"],
+                 lw=spec["linewidth"],zorder=2)
+    label=spec["label"]
+    axis.text(0.58,center_m,label,transform=axis.get_yaxis_transform(),
+              color=spec["color"],va="bottom",ha="left",fontsize=6)
+    return {
+        "label": label,
+        "value_tps": center_m*1e6,
+        "ci95_half_tps": None if half is None else float(half),
+    }
+
+def make_figure(camps, out_prefix, baselines=BASELINE_ORDER):
     _load_plot_deps()
     _style()
+    baselines=_validated_baselines(baselines)
     n=len(camps)
     fig,axes=plt.subplots(2,n,figsize=(3.9*n,6.6),squeeze=False)
     twins=[]
     facts={}
+    rendered_baselines=[]
     for j,c in enumerate(camps):
         wl=_short_wl(c["workload"]); pts=c["pts"]
         if not pts:
             raise ValueError(
                 f"{c['campaign']}: historical committed static-backoff pointが無い "
                 f"(excluded uncertified BENCH_DONE={len(c['excluded_uncertified'])})")
+        if any(not reps for _,reps in pts):
+            raise ValueError(f"{c['campaign']}: static backoff の tps repetitions が空")
         xs=[bf for bf,_ in pts]
         ms=[_ci95(r)[0]/1e6 for _,r in pts]; cis=[_ci95_half_M(r) for _,r in pts]
         none_m=_ci95(c["none"])[0]/1e6 if c["none"] else None
         adapt_m=_ci95(c["adapt"])[0]/1e6 if c["adapt"] else None
         # top: throughput
         axt=axes[0,j]
-        if none_m is not None: axt.axhline(none_m,color=NONE,ls="--",lw=1.2)
-        if adapt_m is not None: axt.axhline(adapt_m,color=ADAPT,ls=":",lw=1.3)
+        panel_baselines=[]
+        for baseline in baselines:
+            spec=BASELINE_SPECS[baseline]
+            record=_draw_baseline(axt, c.get(spec["data_key"]), spec)
+            if record is not None:
+                genome=c.get("baseline_genomes", {}).get(baseline)
+                if not genome:
+                    raise ValueError(
+                        f"{c['campaign']}: {baseline} の描画 genome が無い")
+                panel_baselines.append({**record, "genome": dict(genome)})
+        rendered_baselines.append(panel_baselines)
         axt.errorbar(xs,ms,yerr=cis,fmt="o-",color=FOCAL,capsize=3,ms=5.5,zorder=3)
         pk=int(np.argmax(ms))
         if 0<pk<len(ms)-1:
@@ -231,12 +446,6 @@ def make_figure(camps, out_prefix):
                          fontsize=6.5,color=FOCAL,fontweight="bold")
         _logx(axt,xs); axt.set_ylim(0,None); axt.margins(y=0.20)
         axt.set_title(wl,pad=14)
-        if none_m is not None:
-            axt.text(0.58,none_m,"no backoff",transform=axt.get_yaxis_transform(),
-                     color=NONE,va="bottom",ha="left",fontsize=6)
-        if adapt_m is not None:
-            axt.text(0.58,adapt_m,"stock adaptive",transform=axt.get_yaxis_transform(),
-                     color=ADAPT,va="bottom",ha="left",fontsize=6)
         # bottom: abort% + IPC
         axb=axes[1,j]
         ab=[c["abort_ipc"].get(bf,(np.nan,np.nan))[0] for bf in xs]
@@ -282,7 +491,7 @@ def make_figure(camps, out_prefix):
     fig.savefig(out_prefix+".png", bbox_inches="tight")
     fig.savefig(out_prefix+".pdf", bbox_inches="tight")
     _overlap_check(fig)
-    return facts
+    return facts,rendered_baselines
 
 def _logx(ax,xs):
     ax.set_xscale("log")
@@ -302,12 +511,74 @@ def _overlap_check(fig):
     if ov: sys.stderr.write(f"[warn] text overlaps: {ov}\n")
 
 # ---- main ------------------------------------------------------------------
+def _validated_baselines(values):
+    values=tuple(values)
+    unknown=[value for value in values if value not in BASELINE_SPECS]
+    if unknown:
+        raise ValueError(f"未知の baseline: {', '.join(unknown)}")
+    if not values:
+        raise ValueError("--baselines は空にできない")
+    if len(set(values))!=len(values):
+        raise ValueError("--baselines に同じ値を重複指定できない")
+    return tuple(value for value in BASELINE_ORDER if value in values)
+
+def _parse_cli(argv):
+    positional=[]
+    baseline_arg=None
+    index=1
+    while index<len(argv):
+        arg=argv[index]
+        if arg in ("-h", "--help"):
+            return None
+        if arg=="--baselines":
+            if baseline_arg is not None:
+                raise ValueError("--baselines は 1 回だけ指定する")
+            index+=1
+            if index>=len(argv):
+                raise ValueError("--baselines に LIST が必要")
+            baseline_arg=argv[index]
+        elif arg.startswith("--baselines="):
+            if baseline_arg is not None:
+                raise ValueError("--baselines は 1 回だけ指定する")
+            baseline_arg=arg.split("=",1)[1]
+        elif arg.startswith("-"):
+            raise ValueError(f"未知の option: {arg}")
+        else:
+            positional.append(arg)
+        index+=1
+    if len(positional)<2:
+        raise ValueError("OUT_PREFIX と 1 件以上の CAMPAIGN_DIR が必要")
+    if baseline_arg is None:
+        baselines=BASELINE_ORDER
+    else:
+        baselines=_validated_baselines(baseline_arg.split(","))
+    return positional[0], positional[1:], baselines
+
+def _output_provenance(out_prefix):
+    paths=[out_prefix+".png", out_prefix+".pdf"]
+    if not all(os.path.isfile(path) for path in paths):
+        return []
+    return [{"path": _provenance_path(path), "sha256": _sha256(path)} for path in paths]
+
 def main(argv):
-    if len(argv)<3:
-        sys.stderr.write(__doc__); return 2
-    out_prefix=argv[1]; cdirs=argv[2:]
+    try:
+        parsed=_parse_cli(argv)
+    except ValueError as exc:
+        sys.stderr.write(f"[error] {exc}\n")
+        sys.stderr.write(__doc__)
+        return 2
+    if parsed is None:
+        sys.stdout.write(__doc__)
+        return 0
+    out_prefix,cdirs,baselines=parsed
     camps=[load_campaign(d) for d in cdirs]
-    facts=make_figure(camps, out_prefix)
+    # 既存 consumer は 2 引数の make_figure を差し替える。既定時はその seam を保つ。
+    if baselines==BASELINE_ORDER:
+        facts,rendered_baselines=make_figure(camps, out_prefix)
+    else:
+        facts,rendered_baselines=make_figure(camps, out_prefix, baselines=baselines)
+    if len(rendered_baselines)!=len(camps):
+        raise ValueError("make_figure の baseline 描画記録数が campaign 数と一致しない")
     for c in camps:
         wl=_short_wl(c["workload"])
         if wl in facts:
@@ -317,16 +588,25 @@ def main(argv):
             )
             facts[wl].setdefault("read_purpose", c["read_purpose"])
     prov={
+        "schema": "izanagi-backoff-figure-provenance/v2",
         "generated_utc": datetime.datetime.utcnow().isoformat()+"Z",
         "generator": os.path.basename(__file__),
-        "inputs": [{"campaign":c["campaign"],"dir":c["dir"],
-                    "wal":c["wal"],"wal_sha256":c["wal_sha256"],
-                    "dat":c["dat"],"dat_sha256":c["dat_sha256"],
+        "generator_source": {
+            "path": os.path.relpath(os.path.abspath(__file__), _REPO_ROOT),
+            "sha256": _sha256(os.path.abspath(__file__)),
+        },
+        "outputs": _output_provenance(out_prefix),
+        "inputs": [{"campaign":c["campaign"],"dir":_provenance_path(c["dir"]),
+                    "wal":_provenance_path(c["wal"]),"wal_sha256":c["wal_sha256"],
+                    "dat":_provenance_path(c["dat"]),"dat_sha256":c["dat_sha256"],
+                    "lock":_provenance_path(c["lock"]),"lock_sha256":c["lock_sha256"],
                     "threads":c["threads"],"env":c["env"],
+                    "baselines":rendered_baselines[index],
+                    "conditions":c["conditions"],
                     "read_purpose":c["read_purpose"],
                     "campaign_verifier_epoch":c["campaign_verifier_epoch"],
                     "excluded_uncertified_bench_done":c["excluded_uncertified"]}
-                   for c in camps],
+                   for index,c in enumerate(camps)],
         "facts": facts,
     }
     with open(out_prefix+".provenance.json","w") as fh:

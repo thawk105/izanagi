@@ -1,20 +1,29 @@
 # plot_backoff.py — backoff sweep campaign の論文品質作図
 
-`output/campaigns/<id>` の WAL/dat から、論文品質の backoff sweep 図を生成する
-共通スクリプト。図は WAL (throughput の n 反復生値) と dat (abort%/IPC 集約値) を
-唯一の入力とし、生成した図の provenance を記録する — 「どの WAL からどの図を作ったか」
-が閉じる (proof-chain 思想と整合)。
+`output/campaigns/<id>` の artifact から、論文品質の backoff sweep 図を生成する
+共通スクリプト。図の数値は WAL (throughput の n 反復生値) と dat (abort%/IPC 集約値) から
+その場で計算し、CCBench commit は campaign の lock file から読む。生成した図の provenance には
+入力・生成器・出力の SHA-256 と、**実際に描いた基準線の label・値・genome** を記録する —
+「どの WAL からどの図を作り、図のどの線が何を指しているか」が閉じる (proof-chain 思想と整合)。
 
 ## 使い方
 
 ```
-python plot_backoff.py OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
+python plot_backoff.py [--baselines LIST] OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
+```
+
+`--baselines` は `no-backoff` / `stock-adaptive` の comma 区切り部分集合。既定は
+`no-backoff,stock-adaptive` で、従来の 2 基準線を保つ。`no-backoff` だけを描くときは
+次のように明示する。未知の値はエラーになる。
+
+```
+python plot_backoff.py --baselines no-backoff OUT_PREFIX CAMPAIGN_DIR [CAMPAIGN_DIR ...]
 ```
 
 例 (3 workload を 1 枚に統合):
 
 ```
-python plot_backoff.py figures/backoff_sweep \
+python plot_backoff.py --baselines no-backoff figures/backoff_sweep \
     output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9 \
     output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e \
     output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7
@@ -25,14 +34,19 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
 ## 出力
 
 - `OUT_PREFIX.png` / `.pdf` — 図 (上段 throughput+95%CI・baseline、下段 abort%+IPC)
-- `OUT_PREFIX.provenance.json` — 入力ファイルの SHA256・campaign id・スレッド数・env・
-  各 workload の best/none/adapt 値。図の再現性記録。
+- `OUT_PREFIX.provenance.json` — schema `izanagi-backoff-figure-provenance/v2`。
+  campaign ごとに WAL・dat・lock file の repo-relative path と **full SHA-256**、
+  生成器自身の path と SHA-256、出力 PNG / PDF の SHA-256、測定条件 (`conditions`)、
+  そして `baselines[]` を記録する。`baselines[]` は **実際に図へ描いた基準線だけ**を、
+  図中の label 文字列・その線の y 値 (tps)・95% CI 半幅・genome の組で持つ。
+  この list が「図のどの線が何を指しているか」の機械可読な正本である。
 
 ## 設計上の約束
 
 作法の全文は `FIGURE_CONVENTIONS.md` (図種に依存しない規約の本体)。本スクリプトはその backoff sweep 向け実装。
 
-- **入力は WAL/dat のみ**。図の数値はすべてその場で再計算 (記憶・手写しなし)。
+- **入力は WAL・dat・campaign の lock file の 3 種**。図の数値はすべてその場で再計算する
+  (記憶・手写しなし)。3 種とも provenance で SHA-256 束縛する。
 - **95% CI は throughput の n 反復生値から** (点推定 = 標本平均、半幅 = 小 n では
   t 分布 `t_{0.975,n-1}·s/√n`、n≥30 は `1.96·s/√n` の正規近似。正本は
   `FIGURE_CONVENTIONS.md` §2)。n<2 は分散を推定できず CI 計算不能なので、その点は

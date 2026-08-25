@@ -1,0 +1,167 @@
+{
+  "estimated_run_seconds": 150,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m01_rejects_proposal_side_predicate_mutation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m02_rejects_wal_side_predicate_mutation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M01-E1-PREDICATE-DIGEST",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "            if False:\n",
+          "old": "            if binding.predicate_sha256 != proposal[\"predicate_sha256\"]:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m01_rejects_proposal_side_predicate_mutation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m02_rejects_wal_side_predicate_mutation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M02B-E1-PREDICATE-PAIR",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "            if False:\n",
+          "old": "            if binding.mask != proposal[\"mask\"]:\n"
+        },
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "            if False:\n",
+          "old": "            if binding.predicate_sha256 != proposal[\"predicate_sha256\"]:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m03_rejects_source_preimage_digest_mutation",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_each_reference_mutation[proposal_build_source_bindings]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M03-E2-DIGEST",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "                if False:\n",
+          "old": "                if preimage_sha256 != source.source_bytes_sha256:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m04_rejects_duplicate_gate_line",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m04_rejects_exact_predicate_source_mismatch",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_unmaterialized_skeleton_predicate_is_always_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M04-E2-ASSOCIATION",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if False:\n",
+          "old": "    if (\n        len(contexts) != expected_context_count\n        or unexpected_source_markers\n        or any(Counter(lines) != expected_lines for lines in observed_lines)\n    ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_e3_rejects_source_identity_only_mutation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M05-E3-IDENTITY",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "                if False:\n",
+          "old": "                if (\n                    preimage_sha256 != source.src_token\n                    or source.src_token != start.payload.get(\"src_token\")\n                ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m05_rejects_non_trigger_axis_instead_of_skipping[coder]",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m05_rejects_non_trigger_axis_instead_of_skipping[planner]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M06-G3-AXIS",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "                if False:\n",
+          "old": "                if item.get(\"axis\") != \"silo-backoff-trigger-gating\":\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m06_rejects_caller_injected_driver"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M07-G1-DRIVER",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if False:\n",
+          "old": "    if driver != _STANDARD_GENERATION_DRIVER:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m07_rejects_abort_only_materialized_cell"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M08-G2-POPULATION",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if False:\n",
+          "old": "    if built_and_benched < 1:\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t1749_m08_accepts_success_with_coexisting_abort_attempt",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_positive_binds_all_fields",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_projects_from_verified_wal_bytes",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_an_unclassified_wal_record",
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_verify_s8c_cross_binding_rejects_missing_bench_wall_s"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M09-G2-OVERREJECT-POSITIVE-CONTROL",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    if built_and_benched < 2:\n",
+          "old": "    if built_and_benched < 1:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 600
+}

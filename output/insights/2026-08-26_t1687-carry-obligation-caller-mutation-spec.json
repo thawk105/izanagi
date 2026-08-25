@@ -1,0 +1,250 @@
+{
+ "estimated_run_seconds": 600,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_real_repository_rejects_stage6_candidate_for_undischarged_fixture_obligations",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_paths",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_propagates_non_contract_exception"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "        pass",
+     "old": "        contract.require_stage0_fixture_obligations_discharged(\n            fixture_root=fixture_root,\n            design_doc=design_doc,\n        )"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_real_repository_rejects_stage6_candidate_for_undischarged_fixture_obligations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "        pass",
+     "old": "        raise Stage6FixtureObligationGateRejected(\n            \"stage 6 candidate submission fixture obligation gate rejected: \"\n            f\"{exc}\"\n        ) from exc"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_discharged_fixture_obligations_reach_unresolved_stage6_policy_terminal",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_paths",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_propagates_non_contract_exception"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "        raise contract.ContractError(\n            \"stage 0 fixture obligations are not discharged: \"\n            \"raw_pending_count=5, unresolved_deferred_fixture_ids=[\"\n            \"approved-freeze-reference,bundle-identity-propagation,\"\n            \"candidate-type-preservation,floor-seal-consistency,\"\n            \"post-cutoff-bundle-identity], deferred_gate_ids=[\"\n            \"CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT]\"\n        )",
+     "old": "        contract.require_stage0_fixture_obligations_discharged(\n            fixture_root=fixture_root,\n            design_doc=design_doc,\n        )"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_discharged_fixture_obligations_reach_unresolved_stage6_policy_terminal",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "    return None",
+     "old": "    raise Stage6PolicyUnresolvedAfterFixtureObligations(\n        \"stage 6 candidate submission is blocked: \"\n        \"CFAB-STAGE6-POLICY-PREDICATE is unresolved\"\n    )"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "            fixture_root=contract.FIXTURE_ROOT,\n            design_doc=contract.DESIGN_DOC,",
+     "old": "            fixture_root=fixture_root,\n            design_doc=design_doc,"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_propagates_non_contract_exception"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "    except Exception as exc:",
+     "old": "    except contract.ContractError as exc:"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "        contract.require_stage0_fixture_obligations_discharged(\n            fixture_root=fixture_root,\n            design_doc=design_doc,\n        )\n        contract.require_stage0_fixture_obligations_discharged(\n            fixture_root=fixture_root,\n            design_doc=design_doc,\n        )",
+     "old": "        contract.require_stage0_fixture_obligations_discharged(\n            fixture_root=fixture_root,\n            design_doc=design_doc,\n        )"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_discharged_fixture_obligations_reach_unresolved_stage6_policy_terminal",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py",
+     "new": "    raise Stage6FixtureObligationGateRejected(",
+     "old": "    raise Stage6PolicyUnresolvedAfterFixtureObligations("
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_inventory_path_selection_is_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m07",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py",
+     "new": "    return frozenset(\n        path\n        for path in paths\n        if path.suffix == \".py\"\n        and path.parts[:2] not in {(\"orchestrator\", \"tests\"), (\"orchestrator\", \"campaign\")}\n    )",
+     "old": "    return frozenset(\n        path\n        for path in paths\n        if path.suffix == \".py\"\n        and path.parts[:2] != (\"orchestrator\", \"tests\")\n    )"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_detects_additional_callers"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m08",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py",
+     "new": "    if False:\n        raise AssertionError(\n            f\"{label} caller inventory drifted: \"\n",
+     "old": "    if observed != expected:\n        raise AssertionError(\n            f\"{label} caller inventory drifted: \"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m09",
+   "replacements": [
+    {
+     "file": "docs/env-contract-activation-prerequisites.md",
+     "new": "| `met`: production adapter 1 件・operational caller 0 件 |",
+     "old": "| `unmet`: production adapter 1 件・operational caller 0 件 |"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_case_and_manifest_hash_tamper_together_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_case_file_bytes_tamper_with_manifest_unchanged_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_current_repository_is_rejected_as_stage0_incomplete",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_declared_design_row_removed_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_crlf_fence_is_accepted",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_fence_closer_with_trailing_spaces_is_accepted",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_fence_closer_without_suffix_is_accepted",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_longer_fence_closer_is_accepted",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_row_removed_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage0_deferred_fixture_list_drift_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_execution_boundary_tail_drift_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_policy_gate_id_drift_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_structural_contract_matches_validator",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage_scope_matches_fixture_assignment_gate_id",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_three_space_indented_fence_closer_is_accepted",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_three_space_indented_fence_opener_is_accepted",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_tilde_fence_info_may_contain_backtick",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_false_pending_count_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_manifest_entry_without_case_file_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_manifest_raw_sha256_literal_tamper_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_manifest_status_cannot_claim_complete_while_gates_remain",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_orphan_case_file_is_rejected",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_real_repository_contract_is_consistent_but_incomplete",
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_stage0_remains_incomplete_after_r1_r2_r3_r4_projection",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_real_repository_rejects_stage6_candidate_for_undischarged_fixture_obligations"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m10",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+     "new": "    \"現時点では段 6 の候補入口とこの production caller は未実装である。\"",
+     "old": "    \"段 6 の候補入口・構造述語 5 条件・policy 実装はいずれも未実装であり、\"\n    \"候補提出も完了も発効も成立していない。\""
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_fixture_obligations_accept_all_executable_and_resolved_assignment",
+    "orchestrator/tests/test_calibration_freeze_stage6_candidate_gate.py::test_discharged_fixture_obligations_reach_unresolved_stage6_policy_terminal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1687.m11",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+     "new": "    summary = validate_repository(fixture_root, design_doc)\n    if True:",
+     "old": "    summary = validate_repository(fixture_root, design_doc)\n    if summary[\"raw_pending_count\"] != 0 or summary[\"deferred_gate_ids\"]:"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 2400
+}

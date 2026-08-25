@@ -26,6 +26,12 @@ from importlib import metadata
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if os.fspath(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, os.fspath(_REPO_ROOT))
+
+from orchestrator.campaign import site_policy  # noqa: E402
+
 
 SPEC_SCHEMA = "izanagi-dev-wave-mutation-spec/v1"
 LEDGER_SCHEMA = "izanagi-dev-wave-mutation/v4"
@@ -2929,6 +2935,15 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _refusing_local_site(runner_mode: str) -> str | None:
+    if runner_mode != "local":
+        return None
+    site = site_policy.current_site(require_evidence=True)
+    if site in {site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT}:
+        return site
+    return None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if (args.attempt_out is None) is not (args.wrapper_attempt is None):
@@ -2964,6 +2979,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         repo = args.repo.resolve(strict=True)
     except OSError as exc:
         raise HarnessError(f"--repo を解決できない: {exc}") from exc
+    refusing_site = _refusing_local_site(args.runner_mode)
+    if refusing_site is not None:
+        print(
+            "mutation harness aborted: --runner-mode local は "
+            f"{refusing_site} で実行できない",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 2
     out = args.out.resolve()
     orphan_stop = _orphan_stop_path(out)
     if _path_present_fail_closed(orphan_stop):

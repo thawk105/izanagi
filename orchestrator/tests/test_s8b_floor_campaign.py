@@ -78,6 +78,10 @@ from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight  # noqa: E402
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
+from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_ignored_output_prefixes,
+    is_git_ignored_output_path,
+)
 
 buildcache = s8b_floor_campaign.buildcache
 
@@ -362,6 +366,7 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
                    source_evidence=None, expected_toolchain_manifest=None,
                    fetchcontent_base_dir="", fetchcontent_dependency_receipt=None,
                    fetchcontent_archive_sha256=None,
+                   post_oracle_dependency_binding=None,
                    masstree_source_dir=None, mimalloc_source_dir=None,
                    googletest_source_dir=None):
         del jobs
@@ -398,6 +403,8 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
             masstree_source_root_sha256 = hashlib.sha256(
                 str(Path(fetchcontent_base_dir) / "masstree-src").encode("utf-8")
             ).hexdigest()
+        if post_oracle_dependency_binding is not None:
+            configure_argv.append("-DFETCHCONTENT_FULLY_DISCONNECTED=ON")
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
             bin_sha256=bin_sha256, bin_hash=bin_sha256[:16],
@@ -1449,14 +1456,18 @@ def _digest(abspath: str) -> str:
 # 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
 # critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
 def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
-    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。
+    """実 repo の Git-visible な output/ を統合テストが変えないことを固定する。
 
     旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
     を定義域とする。
     """
     if not output.exists():
         return ()
-    entries = _walk_entries(output)
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    entries = [
+        entry for entry in _walk_entries(output)
+        if not is_git_ignored_output_path(entry[1], ignored_prefixes)
+    ]
     files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
     digest_by_rel = {}
     for rel, abspath in files:
@@ -1474,12 +1485,15 @@ def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
 
 
 def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
-    """並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。"""
+    """最適化版の独立 oracle として保持する ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
     snapshot = []
     for path in sorted(output.rglob("*"), key=lambda item: item.as_posix()):
         rel = path.relative_to(output).as_posix()
+        if is_git_ignored_output_path(rel, ignored_prefixes):
+            continue
         if path.is_symlink():
             snapshot.append(("symlink", rel, path.readlink().as_posix()))
         elif path.is_file():
@@ -1506,6 +1520,46 @@ def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
     actual = _real_output_snapshot(output)
     assert actual == _real_output_snapshot_reference(output)
     assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert not is_git_ignored_output_path("visible", ignored_prefixes)
+    control = tmp_path / "visible"
+    before = _real_output_snapshot(tmp_path)
+    before_reference = _real_output_snapshot_reference(tmp_path)
+    control.mkdir()
+    (control / "nested").mkdir()
+    payload = control / "nested" / "payload.bin"
+    payload.write_bytes(b"git-visible snapshot positive control")
+
+    after = _real_output_snapshot(tmp_path)
+    after_reference = _real_output_snapshot_reference(tmp_path)
+    assert after != before
+    assert after_reference != before_reference
+    assert any(row[1] == control.name for row in after)
+    assert any(row[1] == control.name for row in after_reference)
+    relative_payload = payload.relative_to(tmp_path).as_posix()
+    assert any(row[1] == relative_payload for row in after)
+    assert any(row[1] == relative_payload for row in after_reference)
+
+
+def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert "runs" in ignored_prefixes
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
+    before = _real_output_snapshot(tmp_path)
+    before_reference = _real_output_snapshot_reference(tmp_path)
+    control = ignored_parent / "snapshot-ignored-floor"
+    control.mkdir()
+    (control / "nested").mkdir()
+    (control / "nested" / "payload.bin").write_bytes(
+        b"git-ignored snapshot control"
+    )
+
+    assert _real_output_snapshot(tmp_path) == before
+    assert _real_output_snapshot_reference(tmp_path) == before_reference
 
 
 def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
@@ -2268,6 +2322,10 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     monkeypatch.setattr(
         s8b_floor_campaign, "prepare_cell", production_prepare,
     )
+    fake_build = _make_fake_build(tmp_path / "bin")
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", fake_build,
+    )
     monkeypatch.setenv("CXX", "/ambient/cxx")
     monkeypatch.setenv("IZANAGI_SORT_SWO_CXX", "/ambient/oracle-cxx")
     built = s8b_floor_campaign.build_cells(
@@ -2278,7 +2336,7 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
         prepare_fn=production_prepare,
         contract=contract,
         verified_calibration=verified,
-        build_fn=_make_fake_build(tmp_path / "bin"),
+        build_fn=fake_build,
         fetchcontent_base_dir=fetchcontent_base,
         phase_marker_root=marker_root,
     )
@@ -2305,6 +2363,135 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     assert dependency_attempt["dependency_toolchain_manifest_sha256"] == (
         dependency.expected_toolchain_manifest_sha256
     )
+
+
+def test_dependency_bound_sort_best_rejects_nonexact_builder_before_call(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK,
+        )
+        if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    fetchcontent_base = tmp_path / "fetchcontent"
+    fetchcontent_base.mkdir()
+    dependency = _fixture_dependency_binding(fetchcontent_base)
+    build_calls = []
+
+    @contextlib.contextmanager
+    def production_prepare(
+            cell, ccbench_pin, *, cxx, oracle_dependency_root,
+            oracle_compiler, oracle_phase_marker):
+        del oracle_compiler
+        assert oracle_dependency_root == dependency.source_root
+        oracle_phase_marker()
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            yield prepared
+
+    def nonexact_builder(*args, **kwargs):
+        build_calls.append((args, kwargs))
+        pytest.fail("non-exact builder は呼ばれてはならない")
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency",
+        lambda _base, **_kwargs: dependency,
+    )
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="exact buildcache.build_v2"):
+        s8b_floor_campaign.build_cells(
+            freeze,
+            cells,
+            ccbench_pin="0" * 40,
+            out_root=tmp_path / "out",
+            prepare_fn=production_prepare,
+            contract=contract,
+            verified_calibration=verified,
+            build_fn=nonexact_builder,
+            fetchcontent_base_dir=fetchcontent_base,
+            phase_marker_root=marker_root,
+        )
+    assert build_calls == []
+
+
+def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK,
+        )
+        if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    fetchcontent_base = tmp_path / "fetchcontent"
+    fetchcontent_base.mkdir()
+    dependency = _fixture_dependency_binding(fetchcontent_base)
+    fake_build = _make_fake_build(tmp_path / "bin")
+    observed = []
+
+    @contextlib.contextmanager
+    def production_prepare(
+            cell, ccbench_pin, *, cxx, oracle_dependency_root,
+            oracle_compiler, oracle_phase_marker):
+        del oracle_compiler
+        assert oracle_dependency_root == dependency.source_root
+        oracle_phase_marker()
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            yield prepared
+
+    def exact_builder(genome, **kwargs):
+        observed.append(dict(kwargs))
+        return fake_build(genome, **kwargs)
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency",
+        lambda _base, **_kwargs: dependency,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_build_dependency",
+        lambda _result, _argv, **_kwargs: dependency,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", exact_builder,
+    )
+    built = s8b_floor_campaign.build_cells(
+        freeze,
+        cells,
+        ccbench_pin="0" * 40,
+        out_root=tmp_path / "out",
+        prepare_fn=production_prepare,
+        contract=contract,
+        verified_calibration=verified,
+        fetchcontent_base_dir=fetchcontent_base,
+        phase_marker_root=marker_root,
+    )
+
+    assert len(built) == 1
+    assert len(observed) == 1
+    assert observed[0]["post_oracle_dependency_binding"] == {
+        "fetchcontent_base_dir": str(fetchcontent_base.resolve()),
+        "dependency_manifest_sha256": (
+            "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+        ),
+        "masstree_head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "config_sha256": (
+            "a83df08ab41531df92b7ddc54fcb00b332345d0e9715047f8c75446d0c3855b3"
+        ),
+        "archive_sha256": (
+            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ),
+    }
 
 
 def test_production_floor_requires_staging_before_toolchain_or_oracle_or_build(
@@ -2420,6 +2607,7 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
         s8b_floor_campaign, "_verify_floor_build_dependency",
         lambda _result, _argv, **_kwargs: dependency,
     )
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build)
     built = s8b_floor_campaign.build_cells(
         freeze,
         cells,
@@ -2493,6 +2681,7 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
         s8b_floor_campaign, "_verify_floor_build_dependency",
         lambda _result, _argv, **_kwargs: dependency,
     )
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", build)
     built = s8b_floor_campaign.build_cells(
         freeze, cells, ccbench_pin="0" * 40,
         out_root=tmp_path / "out", prepare_fn=production_prepare,
@@ -3421,6 +3610,9 @@ def test_build_cells_production_postflight_rejects_dependency_drift(
         s8b_floor_campaign, "_prepare_floor_oracle_dependency",
         lambda *_args, **_kwargs: before,
     )
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", drifting_build,
+    )
     with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
         s8b_floor_campaign.build_cells(
             freeze, cells, ccbench_pin="0" * 40,
@@ -4050,12 +4242,16 @@ def test_floor_postflight_failure_persists_unavailable_before_binary_admission(
         "issue_binary_admission_receipt",
         lambda **_kwargs: pytest.fail("postflight 拒否後に admission を発行しない"),
     )
+    fake_build = _make_fake_build(tmp_path / "bin", cached=cached)
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", fake_build,
+    )
     with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
         s8b_floor_campaign.build_cells(
             freeze, cells, ccbench_pin="0" * 40,
             out_root=tmp_path / "out", prepare_fn=production_prepare,
             contract=contract, verified_calibration=verified,
-            build_fn=_make_fake_build(tmp_path / "bin", cached=cached),
+            build_fn=fake_build,
             fetchcontent_base_dir=base.resolve(), phase_marker_root=marker_root,
         )
     assert caught.value.result.infrastructure.phase == "floor-dependency-postflight"
@@ -4118,6 +4314,9 @@ def test_sort_best_build_failure_persists_bounded_exception_diagnostic(
         s8b_floor_campaign._binary_admission,
         "issue_binary_admission_receipt",
         lambda **_kwargs: pytest.fail("build failure 後に admission を発行しない"),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", fail_build,
     )
     with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
         s8b_floor_campaign.build_cells(
