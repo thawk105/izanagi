@@ -319,9 +319,10 @@ def _run_floor_admission_fixture(
     bin_dir.mkdir()
     mkdir_marker = tmp_path / "mkdir-invoked"
     driver_marker = tmp_path / "driver-invoked"
-    job_id = "floor-preflight:" + hashlib.sha256(
-        str(tmp_path).encode("utf-8")
-    ).hexdigest()[:12]
+    job_number = int(
+        hashlib.sha256(str(tmp_path).encode("utf-8")).hexdigest()[:12], 16
+    )
+    job_id = f"0:{job_number}.nqsv"
     scratch = Path("/scr") / job_id.replace(":", "_")
     (bin_dir / "mkdir").write_text(
         _mkdir_shim_text(scratch=scratch, marker=mkdir_marker), encoding="utf-8"
@@ -338,8 +339,9 @@ def _run_floor_admission_fixture(
     )
     (bin_dir / "python3").chmod(0o755)
     evidence_root = tmp_path / "job-evidence"
+    evidence_job_id = job_id.removeprefix("0:")
     checkpoint = (
-        evidence_root / "pegasus" / job_id / nonce / "checkpoint.jsonl"
+        evidence_root / "pegasus" / evidence_job_id / nonce / "checkpoint.jsonl"
     )
     output_before = _path_tree_snapshot(repo / "output")
     scratch_before = _path_tree_snapshot(scratch)
