@@ -39,10 +39,11 @@ if [[ -e "$result" || -L "$result" ]]; then
   echo "compute result already exists" >&2
   exit 2
 fi
+pbs_jobid_path_component=${PBS_JOBID//:/_}
 finish() {
   rc=$?
   trap - EXIT
-  tmp=$attempt/.compute-result.${PBS_JOBID}.tmp
+  tmp=$attempt/.compute-result.${pbs_jobid_path_component}.tmp
   printf '{"schema_version":"paper-story-a2-compute-result/v1","driver_rc":%s,"pbs_jobid":"%s","current_pin":"%s"}\n' \
     "$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN" >"$tmp"
   sync "$tmp"
@@ -61,6 +62,29 @@ if [[ ! -d "$dependency_source" || -L "$dependency_source" ]]; then
   exit 2
 fi
 
+resolve_python() {
+  local candidate resolved selected=""
+  for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+    resolved=$(command -v "$candidate" 2>/dev/null || true)
+    if [[ -n "$resolved" ]] && (
+      cd "$repo" &&
+      "$resolved" -B -c \
+        'import sys; sys.version_info >= (3, 10) or sys.exit(1); import orchestrator.campaign.paper_story_a2_certification' \
+        >/dev/null 2>&1
+    ); then
+      selected=$resolved
+      break
+    fi
+  done
+  if [[ -z "$selected" ]]; then
+    echo "no Python 3.10+ interpreter can import the A-2 driver" >&2
+    return 2
+  fi
+  PY=$selected
+  export PATH="$(dirname "$selected"):$PATH"
+}
+resolve_python || exit 2
+
 qstat_jobid=${PBS_JOBID#0:}
 allocation_qstat_stdout=$attempt/scheduler/allocation-qstat.stdout
 allocation_qstat_stderr=$attempt/scheduler/allocation-qstat.stderr
@@ -72,7 +96,7 @@ fi
 qstat -f "$qstat_jobid" >"$allocation_qstat_stdout" 2>"$allocation_qstat_stderr"
 sync "$allocation_qstat_stdout" "$allocation_qstat_stderr"
 readarray -t reservation_observation < <(
-  python3 - "$allocation_qstat_stdout" <<'PY'
+  "$PY" - "$allocation_qstat_stdout" <<'PY'
 import re
 import subprocess
 import sys
@@ -130,7 +154,7 @@ if [[ -e "$reservation_result" || -L "$reservation_result" ]]; then
   echo "reservation result is not fresh" >&2
   exit 2
 fi
-python3 - "$reservation_result" "$allocation_qstat_stdout" \
+"$PY" - "$reservation_result" "$allocation_qstat_stdout" \
   "$allocation_qstat_stderr" <<'PY'
 import hashlib
 import json
@@ -196,7 +220,7 @@ if [[ -e "$raw_root" || -L "$raw_root" ]]; then
 fi
 
 scratch_base=/scr/${USER}/paper-story-a2-certification
-scratch=$scratch_base/${PBS_JOBID}
+scratch=$scratch_base/${pbs_jobid_path_component}
 dependency_prefix=$scratch/dependencies
 if [[ -e "$scratch" || -L "$scratch" ]]; then
   echo "scratch root is not fresh" >&2
@@ -208,7 +232,7 @@ mkdir "$dependency_prefix"
 cp -a "$dependency_source"/. "$dependency_prefix"/
 
 export PYTHONDONTWRITEBYTECODE=1
-python3 -m orchestrator.campaign.paper_story_a2_certification \
+"$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
   compute-preflight \
   --attempt-root "$attempt" \
   --raw-root "$raw_root" \
@@ -216,7 +240,7 @@ python3 -m orchestrator.campaign.paper_story_a2_certification \
   --repo-root "$repo" \
   --dependency-prefix "$dependency_prefix"
 
-python3 -m orchestrator.campaign.paper_story_a2_certification \
+"$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
   run-workload \
   --workload rr5 \
   --attempt-root "$attempt" \
@@ -225,7 +249,7 @@ python3 -m orchestrator.campaign.paper_story_a2_certification \
   --dependency-prefix "$dependency_prefix" \
   --ccbench-dir "$ccbench_root"
 
-python3 -m orchestrator.campaign.paper_story_a2_certification \
+"$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
   run-workload \
   --workload rr50 \
   --attempt-root "$attempt" \
@@ -234,7 +258,7 @@ python3 -m orchestrator.campaign.paper_story_a2_certification \
   --dependency-prefix "$dependency_prefix" \
   --ccbench-dir "$ccbench_root"
 
-python3 -m orchestrator.campaign.paper_story_a2_certification \
+"$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
   finalize-raw \
   --attempt-root "$attempt" \
   --current-pin "$IZANAGI_A2_CURRENT_PIN"

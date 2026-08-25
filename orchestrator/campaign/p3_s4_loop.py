@@ -43,6 +43,7 @@ import argparse
 import contextlib
 import difflib
 import json
+import math
 import os
 import re
 import secrets

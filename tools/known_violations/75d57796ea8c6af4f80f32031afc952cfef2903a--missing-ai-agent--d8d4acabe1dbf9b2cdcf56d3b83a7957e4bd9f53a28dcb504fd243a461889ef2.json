@@ -1,0 +1,7 @@
+{
+  "sha": "75d57796ea8c6af4f80f32031afc952cfef2903a",
+  "kind": "missing-ai-agent",
+  "value": "",
+  "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
+  "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenanceregistry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment"
+}

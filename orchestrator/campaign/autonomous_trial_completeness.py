@@ -76,6 +76,19 @@ _CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
 _CELL_ADMISSION_FAILURE_SCHEMA = (
     "p3-autonomous-workload-trial-cell-admission-failure/v1"
 )
+LAYER3_ADMISSION_DIAGNOSIS_KEY = "layer3_admission_diagnosis"
+LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION = (
+    "p3-autonomous-workload-trial-layer3-admission-diagnosis/v1"
+)
+_LAYER3_ADMISSION_DIAGNOSIS_KEYS = frozenset({
+    "schema_version", "status", "validator", "validator_value",
+    "absolute_instance_path", "absolute_schema_path",
+    "offending_property", "degradation_reason",
+})
+_LAYER3_ADMISSION_DEGRADATION_REASONS = frozenset({
+    "validation-error-cause-not-found",
+    "validation-error-projection-failed",
+})
 _PENDING_CRITIC_DISPOSITION_SCHEMA = (
     "p3-autonomous-workload-trial-pending-critic-disposition/v1"
 )
@@ -226,6 +239,65 @@ def is_exact_cell_admission_failure_decision(decision: Any) -> bool:
     )
 
 
+def is_exact_layer3_admission_diagnosis(value: Any) -> bool:
+    """Recognize only the closed, canonical JSON-safe diagnosis contract."""
+    if not isinstance(value, Mapping) or set(value) != (
+        _LAYER3_ADMISSION_DIAGNOSIS_KEYS
+    ):
+        return False
+    plain = dict(value)
+    try:
+        encoded = json.dumps(
+            plain,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        if json.loads(encoded.decode("utf-8")) != plain:
+            return False
+    except (TypeError, ValueError, UnicodeError):
+        return False
+    if value.get("schema_version") != (
+        "p3-autonomous-workload-trial-layer3-admission-diagnosis/v1"
+    ):
+        return False
+    instance_path = value.get("absolute_instance_path")
+    schema_path = value.get("absolute_schema_path")
+    if type(instance_path) is not list or type(schema_path) is not list:
+        return False
+    if any(
+        not (
+            type(component) is str
+            or (type(component) is int and component >= 0)
+        )
+        for component in [*instance_path, *schema_path]
+    ):
+        return False
+    offending_property = value.get("offending_property")
+    if offending_property is not None and type(offending_property) is not str:
+        return False
+    status = value.get("status")
+    if status == "validation-error":
+        validator = value.get("validator")
+        return (
+            type(validator) is str
+            and bool(validator)
+            and value.get("degradation_reason") is None
+        )
+    if status == "degraded":
+        return (
+            value.get("validator") is None
+            and value.get("validator_value") is None
+            and instance_path == []
+            and schema_path == []
+            and offending_property is None
+            and value.get("degradation_reason")
+            in _LAYER3_ADMISSION_DEGRADATION_REASONS
+        )
+    return False
+
+
 def _is_exact_pending_critic_disposition(value: Any) -> bool:
     if not isinstance(value, Mapping) or set(value) != (
         _PENDING_CRITIC_DISPOSITION_KEYS
@@ -279,17 +351,27 @@ def cell_admission_failure_projection(
     cells: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
     """Project exact failure decisions into the existing run-finish event."""
-    return [
-        {
+    projections: list[dict[str, Any]] = []
+    for index, cell in enumerate(cells):
+        if not is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        ):
+            continue
+        projection = {
             "cell_index": index,
             "workload": cell.get("workload"),
             "admission_decision": dict(cell["admission_decision"]),
         }
-        for index, cell in enumerate(cells)
-        if is_exact_cell_admission_failure_decision(
-            cell.get("admission_decision")
-        )
-    ]
+        if LAYER3_ADMISSION_DIAGNOSIS_KEY in cell:
+            diagnosis = cell[LAYER3_ADMISSION_DIAGNOSIS_KEY]
+            if not is_exact_layer3_admission_diagnosis(diagnosis):
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] Layer-3 admission diagnosis is not exact",
+                )
+            projection[LAYER3_ADMISSION_DIAGNOSIS_KEY] = dict(diagnosis)
+        projections.append(projection)
+    return projections
 
 
 _ROLE_PAYLOAD_KEY_SPEC = {
@@ -2852,6 +2934,19 @@ def assert_autonomous_trial_completeness(
     failure_indices: list[int] = []
     for index, cell in enumerate(cells):
         decision = cell.get("admission_decision")
+        if LAYER3_ADMISSION_DIAGNOSIS_KEY in cell:
+            if not is_exact_layer3_admission_diagnosis(
+                cell[LAYER3_ADMISSION_DIAGNOSIS_KEY]
+            ):
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] Layer-3 admission diagnosis is not exact",
+                )
+            if not is_exact_cell_admission_failure_decision(decision):
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] diagnosis has no exact admission failure",
+                )
         if do_build is False:
             if decision != {"admission_status": "not-applicable"}:
                 _fail(
@@ -3917,6 +4012,16 @@ def assert_campaign_layer3_chain(
         failure_decision = is_exact_cell_admission_failure_decision(
             cell.get("admission_decision")
         )
+        if LAYER3_ADMISSION_DIAGNOSIS_KEY in cell and (
+            not failure_decision
+            or not is_exact_layer3_admission_diagnosis(
+                cell[LAYER3_ADMISSION_DIAGNOSIS_KEY]
+            )
+        ):
+            _fail(
+                "campaign-chain",
+                f"cells[{index}] Layer-3 admission diagnosis is not exact",
+            )
         if failure_decision and not _is_exact_pending_critic_disposition(
             cell.get("pending_critic_disposition")
         ):

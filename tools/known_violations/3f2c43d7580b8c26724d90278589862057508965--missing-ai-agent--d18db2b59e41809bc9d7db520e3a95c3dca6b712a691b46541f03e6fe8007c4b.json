@@ -1,0 +1,7 @@
+{
+  "sha": "3f2c43d7580b8c26724d90278589862057508965",
+  "kind": "missing-ai-agent",
+  "value": "",
+  "ruling": "worklog(293) 2026-08-07 /rulings",
+  "note": "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の空行で trailer block 不成立"
+}

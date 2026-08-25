@@ -4,10 +4,10 @@
 rc=0 は cwd / argv 参照による占有を inspect できた範囲で検出しなかったことだけを
 表す。cmdline は列挙した PID 全体を走査するが、cwd は inspect できる PID に限られ、
 他ユーザーおよび non-dumpable process の cwd は観測できない。同じ uid または uid
-判定不能の観測不能 process は pid と comm を残る盲点として列挙するため、worker で
-ありうる process が一つでもあれば削除してはならない。PID 走査後に始まる process、
-別 PID namespace、FD 経由の参照も観測できないため、削除の必要条件であって十分条件
-ではない。恒久解は lease であり、本 wave の scope 外である。
+判定不能の観測不能 process は pid と comm を非阻害の診断として列挙するだけであり、
+非空でも status と rc は変わらず rc0 になりうる。PID 走査後に始まる process、別 PID
+namespace、FD 経由の参照も観測できないため、削除の必要条件であって十分条件ではない。
+恒久解は lease であり、本 wave の scope 外である。
 """
 
 from __future__ import annotations
@@ -643,15 +643,14 @@ def _report_payload(report: ScanReport) -> dict[str, object]:
     payload: dict[str, object] = {
         "issues": [asdict(issue) for issue in report.issues],
         "occupants": [asdict(occupant) for occupant in report.occupants],
+        "same_uid_cwd_unreachable": [
+            asdict(process) for process in report.same_uid_cwd_unreachable
+        ],
         "scanned": report.scanned,
         "status": report.status,
         "unreachable": unreachable,
         "worktree": str(report.worktree),
     }
-    if report.same_uid_cwd_unreachable:
-        payload["same_uid_cwd_unreachable"] = [
-            asdict(process) for process in report.same_uid_cwd_unreachable
-        ]
     return payload
 
 
@@ -667,9 +666,9 @@ def main(
             "worktree への cwd / argv 参照による占有を検出する。rc0 は inspect できた"
             "範囲で占有を検出しなかったことだけを表す。cmdline は列挙した全 PID を走査"
             "するが、cwd は他ユーザーおよび non-dumpable process では観測できない。"
-            "同じ uid または uid 判定不能の観測不能 process は pid と comm を残る"
-            "盲点として列挙する。"
-            "列挙中に worker でありうる process が一つでもあれば削除してはならない。"
+            "同じ uid または uid 判定不能の観測不能 process は pid と comm を非阻害の"
+            "診断として列挙するだけであり、非空でも status と rc は変わらず rc0 に"
+            "なりうる。"
             "走査後に始まる process、別 PID namespace、FD 参照も観測できないため、"
             "rc0 は削除の必要条件であって十分条件ではない。恒久解は lease であり、"
             "本 wave の scope 外である。"
