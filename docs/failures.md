@@ -801,6 +801,19 @@
   親の手順として「対応表からの転記を禁じ、注入 → 走行 → 復元で再導出してから登録する」まで
   具体化すること。検出は段 6 レビューのレンズに「事前登録変異の kill 帰属が成立するか」を
   入れていたことによる (F28 の恒久対応がそのまま効いた)。
+
+- **再発: 2026-08-25** ([T-1622] 系列とは別の P3 族契約 wave)。段 5 実装子が事前登録変異
+  11 件すべてについて「期待 node は単独 1 件」と報告したが、**実測では 10 件中 4 件で誤りだった**。
+  段 6 の敵対レビュー (証拠束縛レンズ) が本走前に、識別子を変える変異は所有外 consumer を含め
+  20 node、registry 登録を消す変異は 7 node、他 3 件も各 2 node を落とすと指摘した。
+  親は推定を採らず、`DW-M07` の probe 経路 (全件 SURVIVED 期待で登録して観測 node を集める) を
+  走らせ、観測値を `expected_nodes` へ焼き込んでから本走した。probe の観測件数は
+  レビューの予測と 10 件すべて一致した (M1=2, M2=1, M3=20, M4=1, M5=1, M6=7, M7=1, M8=2, M9=1, M11=2)。
+  型は F28 と同じ「事前登録を実測でなく設計・推定から書いた」であり、
+  2026-08-16 の再発では親が転記元にしたのが裁定文の対応表、今回は**子の自己申告**である点が
+  新しい顕在化である。恒久対応は変更なし (`DW-M08` の完全集合 + `DW-M07` の probe 経路が
+  そのまま効いた)。防壁として効いたのは段 6 レビューのレンズに
+  「事前登録変異の kill 帰属が成立するか」を入れていたことと、親が子の申告を実測で置き換えたこと。
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -14977,3 +14990,90 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受入の赤が `_real_output_snapshot` 系だけで、junit 差分が
   `runs/pytest-launcher-failures` を指し、**再投入で消えない**なら本エントリである。
   worktree の作成時刻と当該 dir の有無を確かめる。既存 dir を削除してはならない。
+
+### F579. 計測経路の 5 gate が PBS Pro を仮定し NQSV で恒真に偽だった [ドリフト] [恒真ゲート]
+
+- 事象: A-1 の計測投入が実機で 5 段階に分かれて拒否された。敵対レビュー 2 巡と焦点再レビューを
+  通過した実装が、実際の scheduler では正当な走行を 1 件も受理しなかった。
+  (1) job が受け取る `PBS_JOBID` は `0:944076.nqsv` で、qsub 標準出力から得る request ID と
+  文字列が一致しない。(2) `PBS_O_QUEUE` は NQSV が job へ渡さないため、必須検査が必ず発火する。
+  (3) job の stdout は pipe、stderr は NQSV の spool path であり、どちらも qsub の `-o` / `-e` で
+  指定した path ではない。(4) qsub の標準出力は request ID 単体ではなく
+  `Request <id> submitted to queue: <q>.` である。(5) `qstat` の状態欄は `QUE` や `RUN` の
+  3 文字で、1 文字の大文字を要求する検査は決して一致しない。
+- 根本原因: codex 実装子は sandbox から scheduler socket へ到達できないため、この層を動的に
+  確かめられない。静的レビューは形式の妥当性しか見ないので、「この site が実際に何を返すか」は
+  原理的に検出できない。結果として PBS Pro の一般的挙動を仮定した実装が、レビューを通過した。
+  (2) と (5) は**存在しない値を必須にする恒真に偽の gate**であり、正しさの証拠を 1 つも
+  生まないまま正当な走行だけを落とす。
+- 恒久対応: D870 に従い、長時間計測の投入前に数秒の probe job で
+  `PBS_JOBID` / `PBS_O_HOST` / `PBS_O_WORKDIR` / `PBS_O_QUEUE` / FD 実体 / `nproc` を実測する。
+  正規化と解析の正本は `tools/pegasus/dispatch_compute.py` の `_normalize_request_id` と
+  `_REQUEST_RE` とし、新しい scheduler 解釈を発明しない。job が原理的に観測できないもの
+  (配送後の `-o` / `-e` file) は job でなく親が終端後に hash して cross-bind する。
+  存在しない値は落として「落とした」と成果物へ明記し、空値や 0 で埋めて観測したと記録しない。
+- 再発検知: 計測経路を持つ wave が段 1 brief で probe 実測を必須にする。scheduler 由来の値へ
+  形式検査を書くときは、その形式をこの site が実際に出すことを実測で示すまで closed にしない。
+
+### F580. 実装が要求した環境機能 3 件がこの site に無かった [ドリフト] [恒真ゲート]
+
+- 事象: scheduler 語彙の是正後も、計測は 3 回に分かれて止まった。(1) job body が
+  `IZANAGI_RESERVATION_*` の 8 変数を 1 つも export しておらず campaign が起動しなかった。
+  (2) CCBench の build が `Could NOT find gflags` で失敗し、job は 63 秒で終わって bench が
+  1 度も走らなかった。(3) 全証拠検査を通過した後、publish が `renameat2` の
+  `RENAME_NOREPLACE` で `EINVAL` を返した。publish 先は Lustre であり、この flag を実装しない。
+- 根本原因: (1) と (2) は段 4 裁定が「compute-only とし依存 staging を検査してから開始する」と
+  決めていたのに実装が持たなかったもので、**段 2 と段 3 で読めたはずの見落とし**である。
+  正本 (`tools/pegasus/certify_calibration.sh`) は同じ job 種別で reservation の組み立てと
+  gflags / glog の pin 付き static build/install を実際に行っている。(3) は scheduler ではなく
+  filesystem の能力仮定であり、前記 F と同型だが層が違う。
+- 恒久対応: 既存の同種 job body を正本として読み、そこが実際に行っている手順との差分を段 2 の
+  プラン段階で照合する。環境能力を要求する実装は、その能力がこの site に在ることを実測で
+  示してから closed にする。`RENAME_NOREPLACE` の代替は filesystem 名による事前分岐にせず、
+  実際に `EINVAL` を観測したときだけ落ちる形にする (名前分岐は別環境で静かに緩む)。
+  代替経路で保証できない範囲は恒真な保証で覆わず成果物へ構造化して残す。
+- 再発検知: 計測 wave の段 1 brief で、同種の既存 job body を 1 本名指しして「そこが行っていて
+  自分が行っていない手順」を列挙する。0 件と書くならその根拠を示す。
+
+### F581. 敵対レビュー 2 巡を通過した実装に発火しない保証が 2 件残っていた [恒真ゲート] [テスト代表性]
+
+- 事象: 段 6 の変異 matrix 第 1 巡 (22 件) で SURVIVED が 6 件出た。うち 2 件は実欠落だった。
+  3 workload の `ycsb_rratio` を全て `50` に書き換えても焦点テストは緑のままで、どの workload が
+  どの rratio を持つかを検証するテストが存在しなかった。campaign ID の相異は workload 名だけで
+  保たれるため、ID の distinctness 検査では捕まらない。もう 1 件は raw document の top-level
+  `complete` 再計算の照合を丸ごと無効化しても緑で、この照合は一度も走っていなかった。
+- 根本原因: どちらも「謳うだけで発火しない保証」である。敵対レビュー 2 巡はこれを検出できなかった。
+  レビューは実装の意図と構造を読むので、意図どおりに書かれているが**その経路をテストが
+  一度も通っていない**ことは見えにくい。
+- 恒久対応: 変異 matrix を所見ゼロの裏取りとしてだけでなく、レビュー通過後の必須検査として扱う。
+  残る SURVIVED は mask か等価変異か実欠落かを個別に裁定し、mask は両層同時変異で裏取りする。
+  本 wave では第 1 巡の生存 6 件を実欠落 2 / 照準ミス 1 / 相互 mask 2 / 前段 mask 1 に分類し、
+  実欠落を塞ぎ、相互 mask を 1 entry 2 replacement の同時変異へ組み替え、本走で 23 件全件を
+  事前登録した exact node 集合と完全一致で KILLED にした。
+- 再発検知: 変異の生存を「等価だから問題ない」で閉じない。実効 gate へ再照準し、初回結果を
+  erratum として残したうえで再走する。
+
+### F582. 族へ自動編入する契約が単一 CLI 形状を暗黙前提にしており、別形状の driver が構造的に入れなかった [テスト代表性] [誤前提]
+
+- 事象: `orchestrator/tests/test_p3_exploration_namespace.py` は `orchestrator/campaign/*.py` を
+  glob と AST で列挙し、exploration campaign root を作る module を自動的に族へ編入する。
+  この族の generic 契約は「subcommand を持たない単一 CLI」「`module._cfg()` が無引数」
+  「`module.main([])` を引数なしで呼べる」「実行時 `run_campaign` はちょうど 2 回」
+  「`module._assert_single_tenant` が module namespace にある」を**どこにも書かずに**前提していた。
+  `paper_story_a1_paired` は `measure` / `materialize` の subcommand を required で持ち、
+  必須 option を 9 個要求し、3 workload を巡回し、`p2_2._assert_single_tenant()` を修飾名で呼ぶため、
+  driver を置いた瞬間に 4 node が赤になった。前 wave はこれを 4 巡かけて閉じられず land できなかった。
+- 根本原因: 族の編入条件 (campaign root を作るか) と、族の検査が要求する形状 (単一 CLI) が
+  別々に決まっており、両者の整合を機械検査していなかった。編入は AST で自動、
+  形状要求は各 test 本文へ散在という非対称のため、新形状の driver は
+  「族に入るが契約を満たせない」状態へ構造的に落ちる。
+- 恒久対応: D872。族の形状要求を既定値のない
+  `_DRIVER_CONTRACTS` の必須 field へ集約し、driver ごとに CLI authority mode・
+  期待 generator・entrypoint site・3 種の argv factory・呼出し数・期待 campaign ID の
+  独立導出を登録する。登録漏れは直接 index の `KeyError` と発見集合との完全一致 assertion の
+  両方で落ち、`.get()` の既定契約・名前による除外・`skip` を作らない。
+- 再発検知: `test_driver_contract_registry_is_exact` (発見集合と登録集合の完全一致)、
+  `test_driver_contract_schema_has_only_required_fields_and_closed_cli_modes`
+  (field 集合の exact tuple と全 field の `default` / `default_factory` が `MISSING`)、
+  `test_missing_driver_contract_is_hard_failure` (欠落 map を lookup helper へ渡して `KeyError` を要求し、
+  hard fail 自体の恒真化を塞ぐ)。事前登録変異 p3c.m06 / p3c.m07 が本走で KILLED。
