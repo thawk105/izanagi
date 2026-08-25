@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-25
 wave: dev-wave-b4-reflux-ablation-prereg
 seq: 1
-title: [B-4] 還流 on/off ablation を実行できる形にした。配線は既存で、実証を阻んでいたのは off アームが遮断になっていないことだった (docs + テスト、branch worktree-dev-wave-b4-reflux-ablation-prereg)
+title: [B-4] 還流 on/off ablation の事前登録を発効前 draft で置き、負の対照 5 本を実装した。配線は既存で、実証を阻んでいたのは off アームが遮断になっていないことだった (docs + テスト、branch worktree-dev-wave-b4-reflux-ablation-prereg、変異 matrix = baseline PASSED・9/9 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -73,6 +73,43 @@ title: [B-4] 還流 on/off ablation を実行できる形にした。配線は�
   「critic への射影を切っても測れるのは評価の劣化であって機構の効果ではない」と明言する。
   一方その新架構の hidden constraint 機構は存在しない。親の推奨は
   「段 4 の旧形で事前登録し、新架構分は別事前登録に予約する」。
+
+- **変異 matrix の実測 (段 6)。** baseline PASSED、**9/9 KILLED・SURVIVED 0・MISMATCH 0**、
+  期待 node 完全一致。事前登録した 10 件のうち M5 (identity preimage から reflux key を落とす) は
+  `ident.py` 側の単一置換点を確定できず**単一理由性を満たせないため登録を見送った**。
+  probe 相で 2 件 (m6/m7) が生存したが、原因は**照準ミス**だった — reject 経路は 2 つあり
+  (`p3_s4_loop.py` の no-build 側と build 側)、T4 は `do_build=False` で前者を通るのに
+  後者を狙っていた。実効経路へ再照準して両件とも KILLED になった。
+- **検出力の純増を実測した (`DW-M08`)。9 変異のうち 8 件は新テストだけが検出し、
+  変更前 HEAD 版のテスト 117 本はどれも検出しなかった。** 残る 1 件 (off が緑+赤を返す変異) だけが
+  既存 2 本でも検出される。導出根拠は「本走の失敗 node は完全集合であり完全一致だけを KILLED と
+  数える」契約であり、失敗集合が新規 node のみ = 旧テストは 1 本も検出しなかった、が同じ実走から従う。
+  **旧版テストを repo 外から直接走らせる経路は、兄弟モジュール `campaign_lock_test_support` の
+  import が解決できず不成立だった** (実測)。
+- **受入全走は 2 回走らせた。1 回目は非帰属赤 12 件、2 回目は完全緑。**
+  1 回目 = 12 failed / 15921 passed / 60 skipped。**署名でなく assertion 本文と差分実体まで読んで
+  非帰属と判定した** — 全件 `assert repo_before == _real_output_snapshot()` で、差分は
+  「実 `output/` に `runs/` と `task-runs/reports` が増えた」。直前 wave が記録した既知赤と
+  逐語一致し、内訳 (`test_s8b_floor_campaign.py` 11 + `test_s8b_oracle_driver.py` t080 1) も一致する。
+  本 wave の差分はこれらを 1 byte も生まない。2 回目 = **15933 passed / 60 skipped / 0 failed**、
+  receipt は `verdict=child-green`・`red_nodeids=[]`・`child_rc=0`。
+- **親が走行中の変異 harness のツリーへ干渉した (自己申告)。** 背景待ち手が `.done` 不在のまま
+  完了通知を返したのを信じ、注入中の変異を `git checkout` で消した。probe 走行を汚染したため
+  結果は node 収集にのみ使い、判定には clean な本走を使った。同種の偽完了はこの wave で**計 5 回**
+  再現した。原因は (a) Monitor の実行環境から detached プロセスが見えない、
+  (b) 自作判定器が自分のシェルラッパーを数える・プロセス不在を即異常と判定する、の 2 系統。
+  **恒久対応は「通知を受けても実プロセスと `.done` の両方を直接確認してから行動する」**であり、
+  既存の `tools/dev_wave_wait.py` を自作待ち手で代替しないことである。
+- **段 5 が報告書式だけで全損した。** 実装は完成していたが `## 総括` 見出しを欠いて不採用 (F43)。
+  段 5b で prompt 冒頭に書式要件を置いて再投入し、そこで**実欠陥 2 件が是正された** —
+  空 layout では admitted view が成立しない (`ensure()` は WAL を作らない)、
+  T4 の `variant` は揮発しないので正規化除外から外す。
+- **段 6 の敵対レビュー 2 本が独立に同じ最重要欠陥へ到達した** — T5 が実運転の `--run-iteration`
+  分岐を通らず、事前登録した変異 M9 を殺せない。fix 後は m9 が T5 だけを赤にすることを実測した。
+  **レビュー B は親の記録の虚偽も指摘した** — 変異を走らせる前に「走らせた」と断定形で書いていた。
+  訂正済みで、その経緯を本項に残す。
+- **静的レビューは実走を代替しなかった。** 2 レンズとも「実走で落ちる箇所は無い」と予測したが、
+  親の焦点走で T4 が fixture (`ratified_enforcement_source`) 未受け取りで落ちた。
 
 ## 次の一手差分
 
