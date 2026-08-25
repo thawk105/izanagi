@@ -1,0 +1,85 @@
+{
+  "calibration_sha256": null,
+  "formal": false,
+  "host": "bnode072",
+  "materialization": {
+    "destination": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/output/insights/2026-08-24_paper-story-a1-paired",
+    "job_terminal": {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/job-terminal.json",
+      "sha256": "de39a5ac90bade6cba8ea6260aaebe79e678e32b3e0886de185de2173701b9f0"
+    },
+    "raw_receipt": {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/results/receipt.json",
+      "sha256": "14c5341953806e80567605517381d659c1f8789b4721a0b900fab745ec81bb24"
+    },
+    "raw_result": {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/results/result.json",
+      "sha256": "9fadd84a05eaa340281322593ec32163ccc5c23494b02e471fb4a28df7691ee6"
+    },
+    "scheduler_completion_receipt": {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.completion.json",
+      "sha256": "0f010c58dfcb2a878ccd72760a5fbd12941fd6c48f299f2bd488ff48d7f46550"
+    }
+  },
+  "pbs_jobid": "0:945187.nqsv",
+  "policy": {
+    "path": "orchestrator/campaign/paper_story_a1_paired.v1.json",
+    "sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+  },
+  "promotion_prohibited": true,
+  "recorded_epoch": 1787603656,
+  "result": {
+    "complete": true,
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/results/result.json",
+    "sha256": "9fadd84a05eaa340281322593ec32163ccc5c23494b02e471fb4a28df7691ee6"
+  },
+  "roots": {
+    "attempt_identity": {
+      "st_dev": 743766374,
+      "st_ino": 144118373515538931
+    },
+    "attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010",
+    "cache_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache",
+    "completion_receipt": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.completion.json",
+    "output_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output",
+    "raw_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw",
+    "result_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/results",
+    "stderr_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.stderr",
+    "stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.stdout",
+    "submission_receipt": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.submission.json",
+    "tmp_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/tmp"
+  },
+  "route": "direct-qsub",
+  "scheduler_completion_receipt": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.completion.json"
+  },
+  "schema_version": "paper-story-a1-paired-receipt/v2",
+  "source_binding": {
+    "artifact_standalone_proof": false,
+    "evidence_level": "source-routed-trace0",
+    "files": {
+      "orchestrator/campaign/paper_story_a1_paired.py": {
+        "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+        "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+        "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+        "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+      },
+      "orchestrator/campaign/pipeline.py": {
+        "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+        "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+      },
+      "tools/pegasus/paper_story_a1_paired.sh": {
+        "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+        "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+      }
+    },
+    "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953"
+  },
+  "study_id": "paper-story-a1-20260824-exploratory-v1",
+  "submission_receipt": {
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010.submission.json",
+    "sha256": "7f6237b069add07f38edb4d6b3392e73e8ef3d366c91d5186331e630fe395f29"
+  }
+}

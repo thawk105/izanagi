@@ -475,6 +475,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/mocc_trace_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/oracle_n_pilot.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/paper_story_a1_paired.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/paper_story_a2_certification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
 | `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
@@ -821,17 +822,10 @@ W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
 N=<attempt 番号。再走のたびに 1 ずつ増やす>
 python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   --merge-message-file <merge 用 message file> \
-  --owned-path <この wave が所有する実装面 path (所有ごとに繰り返す)> \
   --receipt-file <repo 外の job directory>/acceptance-receipt-$N.json \
   --log-file <repo 外の job directory>/acceptance-child-$N.log \
   -- python3 tools/run_tests.py
 ```
-
-- **`--owned-path` を所有ごとに渡す。** 省略すると待ち手は
-  `acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します` を stderr へ出し、
-  claim 後の main 自動取り込みが wave の所有 file を触っても止まらない。渡してあれば
-  `owned-path-overlap` で fail-closed になり、両親が同じ実装面 file を触る merge を
-  self-report の message のまま通す事故を投入時点で塞げる。
 
 - **`--receipt-file` は必須である ([T-908])。** 待ち手経由の受入だけが権威ある dev-wave 受入で
   あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。

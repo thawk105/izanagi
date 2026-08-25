@@ -50,6 +50,11 @@ class MaterializerRegistration:
 
 
 MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
+    "orchestrator.campaign.paper_story_a1_paired._trace0_commands_match":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "exploratory trace validator only parses recorded build argv and never materializes",
+        ),
     "orchestrator.campaign.s2_verify_calibration._broken_build_and_verify":
         MaterializerRegistration(
             NON_ADMISSIBLE,
