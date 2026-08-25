@@ -53,6 +53,7 @@ from .model import (  # noqa: E402
     STAGE_VERIFY_DONE,
 )
 from .pipeline import PerfConfig  # noqa: E402
+from .p2_2 import _assert_single_tenant  # noqa: E402
 from .reservation import (  # noqa: E402
     ReservationBinding,
     ReservationError,
@@ -526,6 +527,15 @@ def campaign_config(
         trial=policy["study_id"],
     )
     return ident.bind_environment_contract(cfg, contract)
+
+
+def default_campaign_configs() -> tuple[CampaignConfig, ...]:
+    """Return the legacy identity configs in the preregistered workload order."""
+    policy, _policy_sha = load_policy()
+    return tuple(
+        campaign_config(policy, workload_name)
+        for workload_name in WORKLOAD_ORDER
+    )
 
 
 def _run_git(repo_root: Path, *args: str) -> str:
@@ -2219,7 +2229,7 @@ def run_measurement(args) -> int:
         summary = None
         campaign_error = None
         try:
-            p2_2._assert_single_tenant()
+            _assert_single_tenant()
             perf = PerfConfig(
                 records=policy["scale"]["records"],
                 threads=policy["scale"]["threads"],
