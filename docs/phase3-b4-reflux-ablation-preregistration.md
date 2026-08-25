@@ -182,6 +182,18 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
    `Bash` を与え、`python3 orchestrator/critic/digest.py --campaign-dir` の自己実行を
    **明示的に許可**している。同 CLI は reflux 引数を持たず、screening を含む赤の全節を常に描画する。
    **この critic role を使う実走は off アームとして数えない。**
+
+   **現在地 (2026-08-26、[T-1697]):** 実験専用の閉じた起動形を
+   `orchestrator/campaign/p3_b4_closed_critic.py` に置いた。role file は 1 byte も変えていない
+   (D904)。同 module は未改変の `critic.md` を runtime `tools=[]` へ落とした projected provider へ
+   渡し、payload を `projected_digest` と coarse な `result` の 2 key に限り、campaign path /
+   campaign_id / repository root の exact literal が payload の canonical JSON bytes に
+   現れないことを 3 view で検査し、on/off を別 controller・別 provider・別 context・別 session で
+   起動して receipt を残す。
+   **ただし前提条件 3 はこれで完了しない。** 段 4 driver への必須配線は行っておらず
+   (legacy の `Agent(subagent_type='critic')` 経路は依然使用可能)、§5 の欄は未記入で、
+   その事前 commit も済んでいない。**「機構は用意された。正式経路への採用と §5 の事前 commit は
+   未了」が現在地である。**
 4. **API 直呼びと `policy_hint` の規律が守られている。** `run_one_iteration()` の戻り値には
    reject 時に `digest`、certified/aborted 時に `records` (WAL payload 一式) が載る。
    sanctioned CLI はこれを表示しないが、Python API を直接呼ぶ controller には見える。
@@ -221,6 +233,13 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   (critic role の Bash、digest CLI、`run_one_iteration` の戻り値、`policy_hint`) は
   いずれもテストで閉じられない。負の対照 (§8) が固定するのは
   **harness が生成する critic digest における loader 非呼出**までである。
+  **[T-1697] の閉じた起動形は、この 4 経路のうち専用 route 内の 2 つ
+  (critic role の Bash、digest CLI) だけを、その route を通る限りにおいて閉じる。**
+  `run_one_iteration` の戻り値と `policy_hint` は開いたままであり、legacy route も開いたままである。
+  同 module が保証しないことは receipt の非保証 field に列挙してある — 間接識別子
+  (variant label / src token / genome label / WAL 由来自由文) の非開示、報告されない local な
+  tool 使用の不在、同一 process からの module 属性書換えに対する耐性、進んだ WAL と
+  一世代古い loop state の組合せの排除、storage failure 時の receipt 完全性。
 - **既知の生存変異が 2 件ある** (§8 の末尾)。
 
 ## 8. 負の対照 (前提条件 7)
@@ -242,6 +261,10 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 **このテスト群が証明しないこと (省略不可の限定):**
 
 - **critic role の能力遮断を証明しない。** §7.2 の経路は閉じられない。
+  [T-1697] が足した `orchestrator/tests/test_p3_b4_closed_critic.py` も同様で、そこが示すのは
+  **専用 invocation の declared tools と、観測された envelope の事実**だけである
+  (`declared_tools=[]`、`permission_denials==[]`、`server_tool_use` 全 0、`num_turns==1`)。
+  critic role 自体の能力遮断も、他 route の遮断も示さない。
 - **T4 は `do_build=False` で走るため、verifier・auditor gate・build/verify/bench の順序を
   検査しない。** 固定するのは base driver の diff-quarantine reject 1 経路である (§4)。
 - **項目 3 が固定するのは campaign identity の分離であって、実 path の分離は
@@ -271,8 +294,9 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 ## 10. 本書が閉じないこと
 
 - §2.3 の架構択一 (ユーザー裁定待ち)。
-- 広い主張を成立させる実装 — 閉じた critic invocation、role-facing の型付き結果 projection、
-  `prior_critic_reverse` の receipt 束縛。
+- 広い主張を成立させる実装 — 閉じた critic invocation の**正式経路への必須配線**
+  (機構自体は [T-1697] で用意した。段 4 driver がそれを要求する配線は未了)、
+  role-facing の型付き結果 projection、`prior_critic_reverse` の receipt 束縛。
 - file-drawer の機械強制 (manifest・append-only registry・完全性 consumer)。
 - 第 3 アーム reason-only による「構造化された帰属」と「赤の存在の通知」の弁別。
 - 新架構 (機械が導いた制約の適用 on/off) の還流 ablation。

@@ -1835,10 +1835,7 @@ def test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders(
 ):
     """harness が生成する critic digest で off 時の loader 非呼出を固定する。
 
-    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
-    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
-    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
-    それは本 wave の scope 外である。
+    本 test が固定するのは harness 生成 digest の性質だけであり、critic role 自体の能力遮断も専用 controller の実効 lowering も証明しない。
     """
     from orchestrator.critic.digest import (
         DiffQuarantineRejection,
@@ -1951,10 +1948,7 @@ def test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders(
 def test_make_critic_digest_reflux_off_is_byte_identical_to_green_only():
     """harness が生成する critic digest の off を緑 digest と byte 一致で固定する。
 
-    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
-    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
-    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
-    それは本 wave の scope 外である。
+    本 test が固定するのは harness 生成 digest の性質だけであり、critic role 自体の能力遮断も専用 controller の実効 lowering も証明しない。
     """
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_reflux_green_bytes_"))
     _log_projection_start(lay.ensure(), "reflux-green-bytes", "green-bytes-attempt")
