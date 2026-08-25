@@ -143,6 +143,7 @@ LIVING_DOCS = [
     REPO / "docs" / "phase3-main-experiment.md",  # 事前登録 (サンプル設計数値の確定追記が残るため living)
     REPO / "docs" / "phase3-8b-descriptor-design.md",  # 段 8b の実走前凍結設計 (draft の間は living)
     REPO / "docs" / "phase3-8c-preregistration.md",  # 段 8c の実走前事前登録 (発効前は living)
+    REPO / "docs" / "phase3-b4-reflux-ablation-preregistration.md",  # B-4 還流 ablation の実走前事前登録 (発効前は living)
     REPO / "docs" / "glossary.md",
     REPO / "docs" / "agent-architecture.md",
     REPO / "docs" / "orchestrator-design.md",

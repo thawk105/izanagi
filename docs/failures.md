@@ -1680,6 +1680,17 @@
   実ファイル書き込み自体は正しい内容 (NaN/Inf 拒否テスト2件) で完了していたが、正式な採用
   記録がないため、4回目の fix へ「現状確認し、既にあれば重複させない」指示で再投入し
   accepted 記録を得た。同日中に既出の2件 (2026-08-18 型の3回目相当) と同型。
+
+- **再発: 2026-08-26** — 第 4 の型。段 3 敵対相談の 1 レンズが `failure_class=f43_fragment` で
+  不採用 (rc=1、`codex_exit_code=0`、model call 11、454 秒、`output_bytes=6372`)。原因は
+  **親の prompt が `## 総括` を `### 総括` (見出しレベル 3) と書いていた**こと。子は prompt の
+  出力形式どおりに書いており、過去 3 型 (fence 内配置・太字代替・500 bytes 未達) と違って
+  子の逸脱ではなく親の指示の誤りである。出力形式節の下位見出しを `###` で並べると、
+  `## 総括` だけレベルが上がるため転記時にレベルを揃えてしまう。両 prompt を直して再投入し 2/2 で解消。
+  2026-07-28 裁定 (`DW-O01` への prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、
+  今回も prose 追記はしない — 親検収で拾えており実害は子 1 本の再投入に留まる (near-miss)。
+  併せて実測: 停止時に launcher script の process group へ `kill -TERM` を送っても
+  **codex 本体は孤児として生き残り**、本体 pid を直接 kill するまで走り続けた。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -4960,6 +4971,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **走行が作った dir が残ることを暗黙の前提にしている**。その dir を除去すると条件が崩れる。
 
 - **再発: 2026-08-25 (同日 6 例目)** — 署名は既知形と一致するが、**赤の射程が `test_s8b_floor_campaign.py` の外へ広がった**点が新しい。docs のみ (spool fragment 1 件) の wave の受入 1 回目で、操作者は受入全走を 1 本しか投入せず走行中に repo へ何も書いていないのに 12 failed / 16132 passed / 60 skipped になった。11 件は既存例と同じ `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系で、junit の差分も `first extra item: ('dir', 'task-runs/reports')` と逐語一致する。**12 件目は `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary` で、別 helper `_t080_output_snapshot()` が `output/` 自身の mtime 変化 (1787656942 → 1787657046) を検出したものである。** 既存の「再発検知の補強」は判定条件を「赤が `_real_output_snapshot` 系だけ」と helper 名で書いており、**この 12 件目を含む赤を本件型と判定できない**。判定は helper 名でなく「`output/` の before/after snapshot を assert する検査群」という性質で行う必要がある。帰属は台帳の 3 点で否定した — (1) wave の差分は `docs/spool/worklog/` 配下の新規 1 file だけで実装面 file を 1 つも触らない、(2) 落ちた 3 種の単独走は 16.49 秒で 3 passed、(3) junit 差分は実装ではなく `output/` の dir 増加と mtime を指す。恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は既存の再発と同じ。
+
+- **再発: 2026-08-26** — docs-only (spool fragment 3 file) の wave の受入 1 回目で
+  12 failed / 16547 passed / 60 skipped になった。11 件は `test_s8b_floor_campaign.py` の
+  `_real_output_snapshot()` 系で junit 差分は `first extra item: ('dir', 'task-runs/reports')`、
+  12 件目は `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary`
+  で、いずれも同日 6 例目と逐語一致する。帰属は台帳の 3 点で否定した — (1) 差分は
+  `docs/spool/` 配下の新規 3 file だけで実装面を 1 つも触らない、(2) 落ちた 2 file の単独走は
+  571 passed / 8 skipped で緑、(3) junit 差分は実装ではなく `output/` の dir 増加を指す。
+  **DW-O18 に従い受入を 1 回だけ再走したところ 1 failed / 16558 passed / 60 skipped となり、
+  11 件は消えて t080 の 1 件だけが再赤になった。** 再赤の junit 差分は
+  `runs/pytest-launcher-failures` の mtime 変化 (1787679360 → 1787680223) で、
+  別 helper `_t080_output_snapshot()` が検出したものである。単独 node の再走は
+  1 passed / 11.83 秒で緑。**新しいのは、同一 tree・同一操作で 11 件が消えて 1 件が残った点**で、
+  この族の赤が決定的でなく shard の実行順序に依存することを示す。DW-O18 の規定どおり、
+  F136 を証拠に当該 node を `orchestrator/tests/flaky_test_holds.py` へ登録した
+  (Codex role=author)。恒久対応は受入基盤の所有 wave に委ね、解除条件は
+  [T-1773] に置いた。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -6878,6 +6906,9 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (16 model call / 624 秒 / 入力 1.33M token)。**縮約を要さずに通ったので、
   2026-08-25 の「回避できた手段は prompt の縮約だけ」も因果ではない可能性が上がった。**
   read-only 段では launcher 自身の再試行が有効な回避策になる。
+
+- **再発: 2026-08-26** — 段 2 の plan 子が 6 回連続で不採用になった。
+  根本原因は F609 で特定した。以降の調査はそちらを先に読む。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -12903,6 +12934,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変更 file の consumer を含む焦点走を段 6 で必ず実走する。本 wave では
   この焦点走が赤 2 件として実際に検出し、受入全走まで持ち越さなかった。
 
+
+- **再発: 2026-08-26** — 向きが逆の同型。親は「`EVIDENCE_UNDEFINED` を区別する production
+  consumer は存在しない」を、その literal を全 production file へ grep して 0 件と測り、
+  段 2 の plan もこの前提の上に版 bump 不要を組み立てた。実際には gate レポートが
+  `PredicateStatus` の enum を総なめして status count を出しており、literal を 1 度も書かない
+  ため grep に掛からなかった。段 3 のレンズ B が参照関係から発見した。F474 が「値を複製する
+  consumer」を探せと定めたのに対し、本件は「値を一度も綴らず enum ごと畳み込む consumer」で
+  あり、単一の綴りによる grep はどちら向きにも閉包にならない。不在を主張するときは、
+  値を綴る箇所と綴らない箇所 (enum 反復・総なめ・動的解決) の両方を型から引く。
 ### F475. 差分ゼロの作業ツリーで再現しても環境変数は継承されるので repo 側の性質の証明にならない [計測汚染] [テスト代表性]
 
 - 事象: 親の焦点走で、本 wave の変更と無関係な node が赤になった。subprocess の pytest 出力を
@@ -15697,3 +15737,93 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave の起動 script の注記行。
 - 再発検知: 起動 script に `--max-attempts` を書く時点で `--sandbox` の値を見る。
   `workspace-write` なら書かない。
+
+### F606. 段 1 の編集面重複走査が、まだ 1 行も書いていない併走 wave の編集予約を落とした [手順漏れ]
+
+- 事象: [T-1696] の段 1 で、対象文書 `docs/phase3-b4-reflux-ablation-preregistration.md` を触る
+  他 wave を全 local branch の `git diff main...<branch>` と登録済み全 worktree の
+  `git status --porcelain` で走査し、**0 件**と結論して brief に「編集面重複ゼロ」と書いた。
+  段 3 の敵対レンズが repo 外の job directory を調べ、併走 wave `dev-wave-t1697-closed-critic` が
+  **同じ文書の §6 前提条件 3・§7.2・§8・§10 を書き換える brief と plan を既に持つ**ことを見つけた。
+  親が job dir の brief と plan を読んで裏取りし、real と裁定した。near-miss — 気づかずに進めば
+  同一節を両 wave が別方向へ書き換え、後着側が意味衝突を手作業で解く羽目になっていた。
+- 根本原因: 走査面が「branch tip の差分」と「worktree の現在差分」に限られていた。dev-wave は
+  段 1〜4 の間 repo へ 1 行も書かないため、**稼働中でも両方の走査面に現れない期間がある**。
+  その期間の編集予約は repo 外の job directory (brief・plan・prompt) にしか存在しない。
+  「dirt まで見れば足りる」という既存の作法は、書き始めた後の wave しか捕まえない。
+- 恒久対応: 段 1 の重複実測に **repo 外 job directory の走査を含める** — 稼働中 wave の
+  brief・plan・prompt を対象文書 path で grep し、hit した wave の scope 節を読んで
+  編集予約の有無を判定する。落ちた面は「無い」と書かず、走査面を明示して限定した結論を書く
+  (F606 本文の走査手順)。
+  本 wave はこれを受けて scope を D903 の反映だけに限定し、予約が重なる 3 箇所を触らずに残した。
+- 再発検知: 段 3 / 段 6 の敵対レンズへ「親の実測の走査面が落とすもの」を明示的に探させる
+  prompt 節 (本 wave で実際に発火し、この F を生んだ経路そのもの)。
+
+### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
+
+- 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
+  `output/insights/<wave>/` 配下を除去した。実体は親が書いた段 1 brief・段 4 裁定・段 6 裁定で、
+  未追跡だったため git から復元できなかった。job dir の控えから手で戻した。
+- 根本原因: 子 prompt が「`output/` を編集するな」と書いていたが、
+  **子が自分で作った一時物を片付ける動作と、親の成果物を消す動作を区別する記述が無かった。**
+  加えて親が、workspace-write の子を起動する前に自分の成果物を commit していなかった。
+- 恒久対応: 親側の手順を `docs/dev-wave/operations.md` の `DW-O02` へ寄せる
+  (D933)。
+  子 prompt には「`output/insights/` 配下は親の成果物である。一時コピーではない。消すな」を
+  明示的に書く。
+- 再発検知: 変異 harness と受入 preflight が未追跡 file を拒否するため、
+  親が commit を怠ったまま次段へ進むと機械的に止まる (`mutation harness aborted:
+  tracked/index dirt または untracked file があるため停止`)。
+
+### F608. 連鎖する検査を 1 変異で代表させ、他リンクの穴を取り逃しかけた [恒真ゲート]
+
+- 事象: task manifest の digest 連鎖 8 箇所に対して変異を 1 件だけ登録していた。
+  段 6 の敵対レビューが「freeze の 1 リンクしか殺せない」と指摘し、
+  親が consumer ごとに 8 分割して登録し直したところ、
+  **`append-verdicts` と `reveal-mapping` の packet state 検査を外す変異が 588 件緑のまま生存した。**
+  分割しなければ「KILLED 1/1」で通っていた。
+- 根本原因: 同じ helper を呼ぶ検査群を「1 つの機構」と数え、
+  **呼び出し側ごとに独立した防壁であることを勘定に入れていなかった。**
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M01` に従い、
+  連鎖する検査は consumer ごとに登録する (D934)。
+- 再発検知: 変異 matrix の SURVIVED が 0 でなければ land できない。
+  分割前は SURVIVED が出ず、分割後に 2 件出た。分割自体が検出器である。
+
+### F609. codex 子の完成した成果物が U+2028 / U+2029 で全損する [恒真ゲート] [手順漏れ]
+
+- 事象: 段 2 の plan 子が 6 回連続で `evidence_status=invalid` により不採用になった。
+  `codex_exit_code=0`、内容検査 `validator_rc=0`、成果物 17〜24KB が完成していたのに破棄された。
+  完成済み成果物 6 本と約 2 時間を失った。F217 の再発だが、今回は根本原因を特定した。
+- 根本原因: `tools/codex_worker_launch.py` は子の stdout を
+  `orchestrator/codex_roles/events.py` の `parse_jsonl` へ渡す。同関数は bytes を str へ
+  decode したのち **`str.splitlines()`** で分割する。これは改行に加えて U+2028
+  (LINE SEPARATOR) と U+2029 (PARAGRAPH SEPARATOR) でも分割する。この 2 文字は
+  **JSON 文字列内では escape 不要の正当な文字**なので codex は raw のまま出力する。
+  正常な 1 event が途中で切られ `Unterminated string` となり `stdout_invalid` が立つ。
+  この 2 文字は子が repo のソースを読むと `item.completed` event に載る。
+  リテラルで含む tracked file は repo 全体で 2 つあり、**どちらも本 wave の主編集面**
+  だった (`orchestrator/campaign/p3_autonomous_workload_trial.py` の制御文字除去正規表現と、
+  `orchestrator/tests/test_p3_autonomous_workload_trial.py` のその負例)。
+  この 2 file を読む必要のある wave は構造的に全 attempt を失う。
+  全 wave の invalid 率が 1142 attempt 中 25 件 (2%) なのに本 wave が 6/6 で失敗した理由である。
+  失敗した attempt の rollout と stdout を実物で検査すると最終状態はすべて正常であり
+  (改行終端あり、`session_meta` 1 件、`turn_context` 1 件、壊れた行 0 件、byte 数一致)、
+  成果物の欠陥ではないことを確認した。
+- 恒久対応: 未実施。`[T-1774]` として裁定パッケージへ送った。
+  `parse_jsonl` の `text.splitlines()` を `text.split("\n")` へ変えれば構造的に断てる。
+  本 wave で実測した回避策は、該当行を無害化した写しを job dir へ置き、
+  子には repo を読ませず写しを読ませることである (行番号を保てば file:line 引用はそのまま使える)。
+  7 回目の投入で rc=0 になった。
+- 再発検知: 同 T が要求する `text.split("\n")` への変更と、U+2028 / U+2029 を含む
+  event 行を受理することの負例テスト。それまでは本エントリを検索して回避策を適用する。
+
+### F610. 変異走行に自分の作業ツリーを渡すと rc=125 で中止する [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py --source-repo` に wave 自身の worktree を渡したところ、
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で中止した (rc=125)。
+  投入直後に失敗していたが親が完了通知を待っており、約 4 時間の空転を招いた。
+- 根本原因: 作業ツリーは wave 自身の他の処理も触るため、走行前後で観測 bytes が一致しない。
+  `DW-M05` は独自 harness の要件を定めるが `--source-repo` に何を渡すかを書いていない。
+- 恒久対応: 未実施。`[T-1775]` として裁定パッケージへ送った。
+  実測で有効な運用は、固定 commit の独立 clone を作って `--source-repo` に渡すことである。
+- 再発検知: 同 T が要求する `DW-M05` への 1 行追記。それまでは本エントリを検索する。

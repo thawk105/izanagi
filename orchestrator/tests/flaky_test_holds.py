@@ -225,6 +225,36 @@ _FLAKY_TEST_HOLD_ROWS = (
             reintroduction_task_id="{{T:flaky-thread-join-upper-bound}}",
         ),
     ),
+    (
+        "orchestrator/tests/test_s8b_oracle_driver.py::"
+        "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({
+                "orchestrator/tests/test_s8b_oracle_driver.py::"
+                "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+            }),
+            same_tree=True,
+            green_observation=(
+                "親が同一 tree で単独 node を実走し 1 passed / 11.83 秒だった"
+            ),
+            green_collection_condition="single-node",
+            green_run_count=1,
+            red_observation=(
+                "同一 tree の受入全走で 1 failed / 16558 passed / 60 skipped"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature=(
+                "別 helper _t080_output_snapshot() が output/ 自身の mtime 変化"
+            ),
+            cause=(
+                "受入全走の shard 経路が同じ作業木から 2 request を重ねて投入し、"
+                "片方の output/runs/pytest-launcher-failures の mtime 変化をもう片方の "
+                "output/ before/after snapshot 検査が拾う (F136 の族)"
+            ),
+            evidence_id="F136",
+            reintroduction_task_id="{{T:t080-output-snapshot-shard-race}}",
+        ),
+    ),
 )
 
 
