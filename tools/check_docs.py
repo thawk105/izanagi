@@ -21,7 +21,7 @@ import re
 import stat
 import sys
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
@@ -246,6 +246,25 @@ KNOWN_PLACEHOLDER_MENTIONS = {
 # 新規 hit に例外を認めない。台帳への追加はユーザーの明示裁定のみ。
 EXPECTED_KNOWN_PLACEHOLDER_DEBTS = 4
 EXPECTED_KNOWN_PLACEHOLDER_MENTIONS = 5
+
+# D837 (c) で認められた歴史的な carry ID 不一致だけを固定する。
+# 外側 key は source entry の H2 raw 行、内側 key は list marker と継続行を
+# 含む carry 論理項目の raw slice の sha256。追加はユーザーの明示裁定に限る。
+# この境界はレビュー契約であり、
+# 台帳と期待総数を同じ patch で変えること自体を機械的に禁止するものではない。
+KNOWN_CARRY_ID_MISMATCHES = {
+    "6bc0dfb4679d3be38c2a97c7c81c595b62a2b033800e5b27d7f9a63b75c3814b": {
+        "34209a9f738fe90a9f3cd57531c3ef900085884b79fc6c1dd833fdf3c46ee45c": 1,
+        "f46fe17fc7831678f44471bf5c7c460be6bd65bac6a7e5a47cd0535c150a54a6": 1,
+        "f5e03b5bb559682274a1731a73e6d4dca0208c7846fabe312cad1834bc74c14e": 1,
+        "5e4a6cb7d118a27df5b710ca20351ea9e5e45ef764ed559b597dc9931140b666": 1,
+    },
+}
+EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 4
+# candidate == parsed が parser の完全性を担う。これは母集合全体が消える型だけを
+# 捉える粗い補助下限であり、完全性の保証ではない。
+MIN_EXPECTED_CARRY_REFERENCE_COUNT = 404_326
+_CARRY_FINDING_SAMPLE_LIMIT = 20
 PHASE3 = REPO / "docs" / "phase3.md"
 
 # --- command / reference anti-bloat ---
@@ -1042,6 +1061,32 @@ class _CarryReference:
     path: str
     line: int
     task_id: str
+    source_entry: int
+    target_entry: int
+    source_h2_digest: str
+    item_digest: str
+
+
+@dataclass(frozen=True)
+class _CarrySource:
+    path: str
+    whole_text: str
+    source_entry: int
+    h2_raw_line: str
+    section_body: str
+    section_offset: int
+
+
+@dataclass
+class _CarryScanStats:
+    candidate_count: int = 0
+    parsed_count: int = 0
+    invalid_count: int = 0
+    invalid_samples: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.invalid_samples is None:
+            self.invalid_samples = []
 
 
 @dataclass(frozen=True)
@@ -1856,15 +1901,13 @@ def _check_exact_visible_h2_section(
         )
 
 
-def _top_level_items(body: str) -> list[tuple[str, int]]:
-    """code fence / HTML comment 外にあるトップレベル項目と offset を返す。"""
+def _top_level_items(body: str) -> Iterator[tuple[str, int]]:
+    """code fence / HTML comment 外にあるトップレベル項目を逐次返す。"""
 
-    items: list[tuple[str, int]] = []
     for visible, offset, _ in _visible_markdown_lines(body):
         item = TOP_LEVEL_ITEM_RE.fullmatch(visible)
         if item is not None:
-            items.append((item.group("text"), offset))
-    return items
+            yield item.group("text"), offset
 
 
 def _top_level_ids(body: str) -> list[str]:
@@ -1878,13 +1921,127 @@ def _top_level_ids(body: str) -> list[str]:
     return ids
 
 
+def _entry_h2_raw_line(
+    whole_text: str,
+    entry: tuple[str, str, int],
+) -> str:
+    """entry tuple の body offset 直前にある H2 raw 物理行を返す。"""
+
+    h2_end = entry[2]
+    h2_start = whole_text.rfind("\n", 0, h2_end) + 1
+    return whole_text[h2_start:h2_end]
+
+
+def _top_level_item_raw_slice(body: str, item_offset: int) -> str:
+    """list marker から継続物理行の終端までの raw slice を返す。"""
+
+    assert 0 <= item_offset < len(body)
+    line_end = item_offset
+    while line_end < len(body) and body[line_end] not in "\r\n":
+        line_end += 1
+    raw_end = line_end
+    cursor = line_end
+    while cursor < len(body):
+        if body[cursor] == "\r":
+            cursor += 1
+            if cursor < len(body) and body[cursor] == "\n":
+                cursor += 1
+        elif body[cursor] == "\n":
+            cursor += 1
+        continuation_end = cursor
+        while (
+            continuation_end < len(body)
+            and body[continuation_end] not in "\r\n"
+        ):
+            continuation_end += 1
+        continuation = body[cursor:continuation_end]
+        if not continuation.startswith((" ", "\t")):
+            break
+        raw_end = continuation_end
+        cursor = continuation_end
+    return body[item_offset:raw_end]
+
+
+def _is_carry_candidate(item_text: str) -> bool:
+    """厳密 parser の取りこぼしを拾う、意図的に広い carry 候補述語。"""
+
+    task = TASK_ID_AT_HEAD_RE.match(item_text)
+    if task is None:
+        return False
+    unchanged_at = item_text.find("変わらず", task.end())
+    reference_at = item_text.find("参照", unchanged_at + len("変わらず"))
+    if (
+        unchanged_at >= 0
+        and reference_at > unchanged_at
+        and re.search(
+            r"[0-9]", item_text[unchanged_at:reference_at]
+        ) is not None
+    ):
+        return True
+    return re.fullmatch(
+        r"[ \t]*\((?=[ \t0-9]*[0-9])[ \t0-9]*\)",
+        item_text[task.end():],
+    ) is not None
+
+
+def _iter_carry_references(
+    sources: Iterable[_CarrySource],
+    stats: _CarryScanStats | None = None,
+) -> Iterator[_CarryReference]:
+    """carry occurrence を entry source 群から逐次 yield する。"""
+
+    scan = stats if stats is not None else _CarryScanStats()
+    for source in sources:
+        source_h2_digest = _placeholder_line_digest(source.h2_raw_line)
+        for item_text, item_offset in _top_level_items(source.section_body):
+            candidate = _is_carry_candidate(item_text)
+            carry = CARRY_REFERENCE_RE.fullmatch(item_text)
+            if carry is None:
+                carry = LEGACY_CARRY_REFERENCE_RE.search(item_text)
+            if candidate:
+                scan.candidate_count += 1
+            if carry is None:
+                if candidate:
+                    scan.invalid_count += 1
+                    assert scan.invalid_samples is not None
+                    if len(scan.invalid_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                        lineno = _line_number(
+                            source.whole_text,
+                            source.section_offset + item_offset,
+                        )
+                        scan.invalid_samples.append(
+                            f"{source.path}:{lineno}: carry 風 candidate {item_text!r} が"
+                            "厳密 carry 文法に一致しない — 正例: `- [T-1219] (953)`"
+                        )
+                continue
+            # 厳密 parser の受理集合は広い candidate 集合の部分集合でなければならない。
+            # 将来この前提を壊す parser 変更も candidate == parsed で赤にする。
+            scan.parsed_count += 1
+            yield _CarryReference(
+                source.path,
+                _line_number(
+                    source.whole_text,
+                    source.section_offset + item_offset,
+                ),
+                carry.group("id"),
+                source.source_entry,
+                int(carry.group("target")),
+                source_h2_digest,
+                _placeholder_line_digest(
+                    _top_level_item_raw_slice(
+                        source.section_body,
+                        item_offset,
+                    )
+                ),
+            )
+
+
 def _validate_next_action_items(
     rel: str,
     whole_text: str,
     entry: tuple[str, str, int],
     section: tuple[str, int],
     findings: list[str],
-    carry_references: dict[int, _CarryReference] | None = None,
     *,
     latest: bool = False,
 ) -> None:
@@ -1917,17 +2074,6 @@ def _validate_next_action_items(
                 f"{rel}:{lineno}: {label} の `### 次の一手` 内で ID {task_id} が重複"
             )
         seen.add(task_id)
-
-        if carry_references is not None:
-            carry = CARRY_REFERENCE_RE.fullmatch(item_text)
-            if carry is None:
-                carry = LEGACY_CARRY_REFERENCE_RE.search(item_text)
-            if carry is not None:
-                target = int(carry.group("target"))
-                carry_references.setdefault(
-                    target,
-                    _CarryReference(rel, lineno, carry.group("id")),
-                )
 
 
 def _archive_filename_entry_range(path: Path) -> _ArchiveFilenameClaim:
@@ -2046,9 +2192,38 @@ def _validate_claimed_entry_range(
     )
 
 
+def _append_sampled_findings(
+    findings: list[str],
+    category: str,
+    samples: Sequence[str],
+    total: int,
+    *,
+    unit: str = "carry occurrence",
+) -> None:
+    """分類別 finding を上限付きで出し、抑止件数を必ず明示する。"""
+
+    if total == 0:
+        return
+    findings.extend(samples)
+    suppressed = max(0, total - len(samples))
+    findings.append(
+        f"carry {category}: 他 {suppressed} 件を抑止"
+    )
+    if unit == "carry occurrence":
+        findings.append(
+            f"carry {category}: 上記の {suppressed} 件は target 数でなく "
+            "carry occurrence 数"
+        )
+    else:
+        findings.append(
+            f"carry {category}: 上記の {suppressed} 件の単位は {unit}"
+        )
+
+
 def _validate_entry_universe(
-    locations: dict[int, list[str]],
-    carry_references: dict[int, _CarryReference],
+    locations: Mapping[int, list[str]],
+    next_action_ids_by_entry: Mapping[int, set[str] | None],
+    carry_sources: Sequence[_CarrySource],
     findings: list[str],
     *,
     numbered_archive_input_complete: bool,
@@ -2068,12 +2243,189 @@ def _validate_entry_universe(
             "carry 参照先の実在検査を停止"
         )
         return
-    for target, carry in sorted(carry_references.items()):
-        if target in locations or target in duplicated:
-            continue
+
+    registered_total = sum(
+        expected
+        for entries in KNOWN_CARRY_ID_MISMATCHES.values()
+        for expected in entries.values()
+    )
+    if registered_total != EXPECTED_KNOWN_CARRY_ID_MISMATCHES:
         findings.append(
+            "KNOWN_CARRY_ID_MISMATCHES の登録 occurrence 総数が不一致 — "
+            f"expected={EXPECTED_KNOWN_CARRY_ID_MISMATCHES}, actual={registered_total}"
+        )
+
+    universe = set(locations)
+    index = set(next_action_ids_by_entry)
+    index_samples: list[str] = []
+    index_total = 0
+    for number in sorted(universe - index):
+        index_total += 1
+        if len(index_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+            index_samples.append(
+                f"entry ({number}) は全域 universe にあるが次の一手索引 key が不在"
+            )
+    for number in sorted(index - universe):
+        index_total += 1
+        if len(index_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+            index_samples.append(
+                f"entry ({number}) は次の一手索引にあるが全域 universe に不在"
+            )
+    _append_sampled_findings(
+        findings,
+        "universe / index 集合不一致",
+        index_samples,
+        index_total,
+        unit="entry key",
+    )
+
+    scan = _CarryScanStats()
+    missing_samples: list[_CarryReference] = []
+    missing_total = 0
+    index_key_missing_samples: list[_CarryReference] = []
+    index_key_missing_total = 0
+    index_none_samples: list[_CarryReference] = []
+    index_none_total = 0
+    index_empty_samples: list[_CarryReference] = []
+    index_empty_total = 0
+    mismatch_samples: list[str] = []
+    mismatch_total = 0
+    observed_known: dict[tuple[str, str], int] = {}
+
+    for carry in _iter_carry_references(carry_sources, scan):
+        target = carry.target_entry
+        if target not in locations:
+            missing_total += 1
+            if len(missing_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                missing_samples.append(carry)
+            continue
+        if target in duplicated:
+            continue
+        if target not in next_action_ids_by_entry:
+            index_key_missing_total += 1
+            if len(index_key_missing_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                index_key_missing_samples.append(carry)
+            continue
+        target_ids = next_action_ids_by_entry[target]
+        if target_ids is None:
+            index_none_total += 1
+            if len(index_none_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                index_none_samples.append(carry)
+            continue
+        if not target_ids:
+            index_empty_total += 1
+            if len(index_empty_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                index_empty_samples.append(carry)
+            continue
+        if carry.task_id in target_ids:
+            continue
+
+        known_key = (carry.source_h2_digest, carry.item_digest)
+        expected = KNOWN_CARRY_ID_MISMATCHES.get(
+            carry.source_h2_digest, {}
+        ).get(carry.item_digest)
+        if expected is not None:
+            observed_known[known_key] = observed_known.get(known_key, 0) + 1
+            continue
+
+        mismatch_total += 1
+        if len(mismatch_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+            target_location = locations[target][0]
+            mismatch_samples.append(
+                f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
+                f"({target}) の次の一手に同じ ID がない — 参照先 H2 "
+                f"{target_location}; 参照先の次の一手に同じ ID を置くか、"
+                "carry を正しい参照先へ直す"
+            )
+
+    if scan.candidate_count != scan.parsed_count:
+        assert scan.invalid_samples is not None
+        detail = " | ".join(scan.invalid_samples)
+        suppressed = max(0, scan.invalid_count - len(scan.invalid_samples))
+        findings.append(
+            "carry 風 candidate 数と厳密 parse 成功数が不一致 — "
+            f"candidate={scan.candidate_count}, parsed={scan.parsed_count}; "
+            f"厳密 carry 文法に一致しない sample={detail}; "
+            f"他 {suppressed} carry occurrence を抑止"
+        )
+
+    missing_sample_text = [
+        f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
+        f"({carry.target_entry}) が全域番号 universe に実在しない — 宙吊り参照"
+        for carry in missing_samples
+    ]
+    _append_sampled_findings(
+        findings,
+        "参照先不在",
+        missing_sample_text,
+        missing_total,
+    )
+
+    def target_index_samples(
+        references: Sequence[_CarryReference],
+        detail: str,
+    ) -> list[str]:
+        return [
             f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
-            f"({target}) が全域番号 universe に実在しない — 宙吊り参照"
+            f"({carry.target_entry}) の次の一手索引が {detail} — 参照先 H2 "
+            f"{locations[carry.target_entry][0]}"
+            for carry in references
+        ]
+
+    for category, references, total, detail in (
+        (
+            "索引 key 不在",
+            index_key_missing_samples,
+            index_key_missing_total,
+            "key 不在",
+        ),
+        (
+            "索引値 None",
+            index_none_samples,
+            index_none_total,
+            "値 None (section 抽出対象外)",
+        ),
+        (
+            "索引値空集合",
+            index_empty_samples,
+            index_empty_total,
+            "空集合 (次の一手が空)",
+        ),
+    ):
+        _append_sampled_findings(
+            findings,
+            category,
+            target_index_samples(references, detail),
+            total,
+        )
+
+    _append_sampled_findings(
+        findings,
+        "同一 ID 不一致",
+        mismatch_samples,
+        mismatch_total,
+    )
+
+    for source_digest, entries in KNOWN_CARRY_ID_MISMATCHES.items():
+        for item_digest, expected in entries.items():
+            actual = observed_known.get((source_digest, item_digest), 0)
+            if actual == expected:
+                continue
+            remediation = (
+                "凍結 archive を編集せず、復元するか裁定へ返す"
+                if actual == 0
+                else "凍結 archive を編集せず、重複を裁定へ返す"
+            )
+            findings.append(
+                "KNOWN_CARRY_ID_MISMATCHES の登録 digest が観測数不一致 — "
+                f"source_h2={source_digest}, item={item_digest}, "
+                f"expected={expected}, actual={actual}; {remediation}"
+            )
+
+    if scan.parsed_count < MIN_EXPECTED_CARRY_REFERENCE_COUNT:
+        findings.append(
+            "carry 参照母数が粗い下限を下回る — "
+            f"minimum={MIN_EXPECTED_CARRY_REFERENCE_COUNT}, actual={scan.parsed_count}"
         )
 
 
@@ -2565,7 +2917,8 @@ def _check_backlog_guard(
         return _BacklogCheckResult({}, False)
 
     entry_locations: dict[int, list[str]] = {}
-    carry_references: dict[int, _CarryReference] = {}
+    next_action_ids_by_entry: dict[int, set[str] | None] = {}
+    carry_sources: list[_CarrySource] = []
     for entry in entries:
         match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
         assert match is not None
@@ -2579,6 +2932,13 @@ def _check_backlog_guard(
     ]
     sources = [set(_top_level_ids(section[0])) if section is not None else set()
                for section in next_actions]
+    for entry, section, source_ids in zip(entries, next_actions, sources):
+        match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
+        assert match is not None
+        number = int(match.group("order"))
+        next_action_ids_by_entry[number] = (
+            source_ids if section is not None else None
+        )
     if not any(sources):
         findings.append(
             "docs/worklog.md: 現行 worklog に有効 ID を持つエントリが 1 件もない — "
@@ -2595,8 +2955,19 @@ def _check_backlog_guard(
                 entry,
                 section,
                 findings,
-                carry_references,
                 latest=i == len(entries) - 1,
+            )
+            match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
+            assert match is not None
+            carry_sources.append(
+                _CarrySource(
+                    "docs/worklog.md",
+                    worklog_text,
+                    int(match.group("order")),
+                    _entry_h2_raw_line(worklog_text, entry),
+                    section[0],
+                    section[1],
+                )
             )
 
     def check_transition(
@@ -2723,6 +3094,12 @@ def _check_backlog_guard(
             archive_next_actions.append(section)
             source_ids = set(_top_level_ids(section[0])) if section is not None else set()
             archive_sources.append(source_ids)
+            if filename_claim.classification == "numbered":
+                number = _entry_number_from_title(entry[0])
+                if number is not None:
+                    next_action_ids_by_entry[number] = (
+                        source_ids if section is not None else None
+                    )
             if entry_has_id and section is not None:
                 _validate_next_action_items(
                     archive_rel,
@@ -2730,10 +3107,20 @@ def _check_backlog_guard(
                     entry,
                     section,
                     findings,
-                    carry_references
-                    if filename_claim.classification == "numbered"
-                    else None,
                 )
+                if filename_claim.classification == "numbered":
+                    number = _entry_number_from_title(entry[0])
+                    assert number is not None
+                    carry_sources.append(
+                        _CarrySource(
+                            archive_rel,
+                            archive_text,
+                            number,
+                            _entry_h2_raw_line(archive_text, entry),
+                            section[0],
+                            section[1],
+                        )
+                    )
 
         archive = _ArchiveWorklog(
             archive_path,
@@ -2799,7 +3186,8 @@ def _check_backlog_guard(
 
     _validate_entry_universe(
         entry_locations,
-        carry_references,
+        next_action_ids_by_entry,
+        carry_sources,
         findings,
         numbered_archive_input_complete=numbered_archive_input_complete,
     )
