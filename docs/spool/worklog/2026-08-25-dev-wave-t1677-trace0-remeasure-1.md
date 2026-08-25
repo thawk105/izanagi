@@ -37,6 +37,16 @@ title: [T-1677] TRACE=0 の材料値を束縛済み script で測り直した。
   新規項として起票した ({{T:mocc-pilot-compiler-pin}})。
 - **昇格側の gate はまだ無い。** 本レポートの 4 項目は親が退避済み証拠に対して手で再計算して
   確かめたものであり、機械 gate が発火した結果ではない。これは [T-1678] の scope である。
+- **段 8 の候補 1 件は予算に阻まれて実施しなかった (1 例目として記録する)。** `DW-C00` は
+  「待ち手は `tools/dev_wave_wait.py` を使う」と書くが、同 tool の subcommand は local pid を持つ
+  producer と受入 lease の 2 つだけで、qsub して即戻る sanctioned submitter
+  (`tools/pegasus/submit_mocc_trace.sh` 等) を使う wave はこれで待てない。本 wave は待ち手を自作し、
+  終端を `qstat` の rc でなく本文の request ID 可視性で判定した (この不変条件は
+  `tools/pegasus/dispatch_compute.py` の `_qstat_mentions_request` が既に実装している)。
+  `DW-C00` へ 1 文足す案は L1 予算 (10,625 bytes) を 300 bytes 超過した。D730 に従い既存記述の
+  削減を試したが、L1 に残るのは安全義務であり「予算のために安全義務を削除・弱化してはならない」に
+  抵触する。独立例はまだ 1 件で例外収容の条件 (3 例) を満たさず、上限引き上げは通常の自己改善の
+  対象外である。よって実施しない。再訪条件 = 同型が独立 3 例に達したとき。
 
 ## 次の一手差分
 
