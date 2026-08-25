@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-25
 wave: dev-wave-t1434-price-version-binding
 seq: 1
-title: [T-1434] price snapshot を schedule へ凍結束縛し、事前登録文書の陳腐化を実測へ張り替えた (コード + docs、branch worktree-dev-wave-t1434-price-version-binding)
+title: [T-1434] price snapshot を schedule へ凍結束縛し、事前登録文書の陳腐化を実測へ張り替えた (コード + docs、branch worktree-dev-wave-t1434-price-version-binding、変異 matrix = baseline PASSED・10/10 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -52,7 +52,25 @@ title: [T-1434] price snapshot を schedule へ凍結束縛し、事前登録文
   段 3 が指摘した「自己追認になっていないか」への直接の答えである。
 - テスト file の削除行が 0 から増えたので、**HEAD の全 11936 行が順序どおり保存されているか**を
   検査した。欠落ゼロ。差分上の削除は hunk 再整列の産物であり、既存テストの改変ではなかった。
+- **変異 matrix は baseline PASSED・10/10 KILLED・SURVIVED 0・MISMATCH 0。** 期待 node は
+  完全集合で登録し全件一致した。うち 1 件は **cache 側の control** で、これが KILLED である
+  ことが「cache の受理集合が 1 bit も動いていない」ことの証拠になる。
+- **変異の baseline は 18 件を `--deselect` して緑にした。** `tools/mutation_worktree.py` は
+  使い捨て worktree で外部 benchmark の submodule を 1 段しか初期化せず、入れ子を初期化しない。
+  そのため該当 fixture に依存する 18 test が setup で error になる。**同じ 18 件は親の
+  worktree では緑** (505 passed を実測)。外した 18 件は price 束縛の gate を通らないので
+  検出力は落ちていない。根拠と全件名は insights に書いた。
+- **親の予測が外れた (erratum)。** 段 5 直後に「過剰決定のため単独 clause の変異は SURVIVED」と
+  予測したが、本走の当該変異は KILLED だった。ただし**登録したのは 2 条件の同時変異であり、
+  単独 clause の変異ではない**。予測はまだ検証されていない、が正確な状態である。
+- **本走 wrapper は rc=125 で終わった。** 原因は**別 session が走行中に local main を進めた**
+  ことで、親の worktree は前後とも clean だった。wrapper の共有木不変の主張は無効だが、
+  測定は固定 commit の隔離 worktree で行われており実体は健全である (F383 と同型)。
+- 変異走行では手続き上の失敗を 3 件踏んだ (入れ子 submodule 未初期化、`--resume` の
+  `--attempt-out` は既存 file 必須、runner に wrapper を挟めない)。いずれも実装とは無関係で、
+  詳細は insights に書いた。
 - 設計判断は {{D:frozen-price-binding-trust-root}} と {{D:bind-path-only-hardening}}。
+  逐語と変異台帳は `output/insights/2026-08-25_t1434-price-version-binding.md`。
 
 ## 次の一手差分
 
