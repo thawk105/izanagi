@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import replace
+from decimal import Decimal
 import hashlib
 import inspect
 import json
@@ -821,6 +822,106 @@ def test_value_literal_consistency_accepts_match():
                         implementation="double now_backoff = 20.0;"))
 
 
+@pytest.mark.parametrize(
+    "value",
+    [1, 1.0, 20, 20.0, 1000, 1000.0],
+    ids=["lower-int", "lower-float", "middle-int", "middle-float",
+         "upper-int", "upper-float"],
+)
+def test_coder_proposal_value_domain_accepts_declared_integral_boundaries(value):
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=value,
+        implementation=f"double now_backoff = {value};",
+    )
+    L.assert_value_literal_consistent(coder)
+
+
+class _FloatableTwenty:
+    def __float__(self):
+        return 20.0
+
+
+@pytest.mark.parametrize(
+    ("value", "implementation"),
+    [
+        (20.5, "double now_backoff = 20.5;"),
+        (True, "double now_backoff = 1;"),
+        (float("nan"), "double now_backoff = 20;"),
+        (float("inf"), "double now_backoff = 20;"),
+        (0, "double now_backoff = 0;"),
+        (-1, "double now_backoff = -1;"),
+        (1001, "double now_backoff = 1001;"),
+        (Decimal("20"), "double now_backoff = 20;"),
+        (_FloatableTwenty(), "double now_backoff = 20;"),
+    ],
+    ids=["nonintegral", "bool", "nan", "inf", "zero", "negative",
+         "above-upper", "decimal", "floatable-object"],
+)
+def test_coder_proposal_rejects_values_outside_exact_integral_domain(
+    value, implementation,
+):
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=value,
+            implementation=implementation,
+        )
+    assert type(caught.value) is L.AttributionMismatch
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+
+
+def test_value_literal_consistency_rechecks_mutated_nonintegral_value():
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    coder.value = 20.5
+    coder.implementation = "double now_backoff = 20.5;"
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.assert_value_literal_consistent(coder)
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+
+
+def test_run_one_iteration_rechecks_mutated_nonintegral_value_before_genome_construction():
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    coder.value = 20.5
+    coder.implementation = "double now_backoff = 20.5;"
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
+    )
+    genome_poison = AssertionError("nonintegral value reached Genome construction")
+    with unittest.mock.patch.object(
+        L, "Genome", side_effect=genome_poison,
+    ) as genome_spy, unittest.mock.patch.object(
+        L, "record_diff_reject",
+    ) as reject_spy, unittest.mock.patch.object(
+        L, "run_campaign",
+    ) as campaign_spy:
+        with pytest.raises(L.AttributionMismatch) as caught:
+            L.run_one_iteration(
+                L.default_cfg(),
+                L.default_perf(),
+                planner,
+                coder,
+                L.LoopState(start_ts=time.monotonic()),
+                "/must/not/be-touched",
+                do_build=False,
+            )
+
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    genome_spy.assert_not_called()
+    reject_spy.assert_not_called()
+    campaign_spy.assert_not_called()
+
+
 def test_value_literal_consistency_rejects_mismatch():
     """value=20 だが literal=999 → 帰属汚染で AttributionMismatch (規律6/D39 決定7)。"""
     try:
@@ -846,8 +947,8 @@ def test_value_literal_consistency_fails_closed_when_value_absent():
 def test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections():
     """自由記述 bytes だけが対象。宣言済み genome scalar BACKOFF_FIXED は帰属 field で対象外。"""
     sentinels = (
-        "913579.125",
-        "824680.25",
+        "913.0",
+        "824.0",
         "SENTINEL_IMPLEMENTATION_b73e",
     )
     exception_projections = []
@@ -1084,6 +1185,377 @@ def test_make_critic_digest_reflux_off_drops_red_section():
     )
     assert "diff-quarantine" in on            # on アームは赤を還流
     assert "diff-quarantine" not in off       # off アームは落とす
+
+
+def test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders(
+    monkeypatch,
+):
+    """harness が生成する critic digest で off 時の loader 非呼出を固定する。
+
+    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
+    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
+    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
+    それは本 wave の scope 外である。
+    """
+    from orchestrator.critic.digest import (
+        DiffQuarantineRejection,
+        LivenessRejection,
+        Rejection,
+        VerifyAbortSignal,
+    )
+
+    lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_reflux_loader_gate_"))
+    _log_projection_start(lay.ensure(), "reflux-loader-gate", "loader-gate-attempt")
+    view = _critic_view(lay)
+    calls = []
+    rejection_marker = "T1-REJECTION-LOADER-MARKER"
+    liveness_marker = "T1-LIVENESS-LOADER-MARKER"
+    other_marker = "T1-OTHER-LOADER-MARKER"
+    abort_marker = "T1-ABORT-LOADER-MARKER"
+    diff_marker = "T1-DIFF-LOADER-MARKER"
+
+    def spy_rejections(actual_view):
+        assert actual_view is view
+        calls.append("load_rejections")
+        return [Rejection(
+            genome=rejection_marker,
+            flags={},
+            verdict="indeterminate",
+            stats={"txns": 0},
+            origin_kind="synthetic-fixture",
+        )]
+
+    def spy_liveness(actual_view):
+        assert actual_view is view
+        calls.append("load_liveness_rejections")
+        return (
+            [LivenessRejection(
+                genome=liveness_marker,
+                flags={},
+                reason="trace-empty",
+            )],
+            {other_marker: 1},
+        )
+
+    def spy_abort_signals(actual_view):
+        assert actual_view is view
+        calls.append("load_verify_abort_signals")
+        return [VerifyAbortSignal(
+            variant=abort_marker,
+            genome="abort-loader-fixture",
+            commits=1,
+            aborts=1,
+        )]
+
+    def spy_diff_rejections(actual_view):
+        assert actual_view is view
+        calls.append("load_diff_rejections")
+        return [DiffQuarantineRejection(
+            genome=diff_marker,
+            flags={},
+            subtype="hole-escape",
+            reason="fixture-reason",
+        )]
+
+    monkeypatch.setattr(L, "load_rejections", spy_rejections)
+    monkeypatch.setattr(L, "load_liveness_rejections", spy_liveness)
+    monkeypatch.setattr(L, "load_verify_abort_signals", spy_abort_signals)
+    monkeypatch.setattr(L, "load_diff_rejections", spy_diff_rejections)
+
+    tag = "reflux-loader-gate"
+    green = L.render_text([L.build_digest(tag, {}, view)])
+    on = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=True,
+        identity_projection=IdentityProjection.RAW,
+    )
+    loader_names = {
+        "load_rejections",
+        "load_liveness_rejections",
+        "load_verify_abort_signals",
+        "load_diff_rejections",
+    }
+    assert set(calls) == loader_names
+    assert all(calls.count(name) == 1 for name in loader_names)
+    for marker in (
+        rejection_marker,
+        liveness_marker,
+        other_marker,
+        abort_marker,
+        diff_marker,
+    ):
+        assert marker in on
+
+    calls.clear()
+    off = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=False,
+        identity_projection=IdentityProjection.RAW,
+    )
+    assert calls == []
+    assert off == green
+    assert all(marker not in off for marker in (
+        rejection_marker,
+        liveness_marker,
+        other_marker,
+        abort_marker,
+        diff_marker,
+    ))
+
+
+def test_make_critic_digest_reflux_off_is_byte_identical_to_green_only():
+    """harness が生成する critic digest の off を緑 digest と byte 一致で固定する。
+
+    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
+    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
+    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
+    それは本 wave の scope 外である。
+    """
+    lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_reflux_green_bytes_"))
+    _log_projection_start(lay.ensure(), "reflux-green-bytes", "green-bytes-attempt")
+    view = _critic_view(lay)
+    tag = "reflux-green-byte-control"
+    projection = L.make_critic_identity_projection(view)
+    expected_green = L.render_text([L.build_digest(tag, {}, view)])
+
+    off = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=False,
+        identity_projection=projection,
+    )
+    on = L.make_critic_digest(
+        view,
+        tag=tag,
+        reflux=True,
+        identity_projection=projection,
+    )
+
+    rejection_heading = (
+        "# rejections — 正しさ/liveness/frame/screening で不採用 "
+        "(未認証性能数値は表示しない)"
+    )
+    abort_heading = (
+        "# verify run の abort 統計 (シグナル — reject 理由ではない。"
+        "閾値判定なし、異常かどうかは読み手が stock 対照比で判断)"
+    )
+    assert off == expected_green
+    assert rejection_heading not in off and rejection_heading in on
+    assert abort_heading not in off and abort_heading in on
+
+
+def test_default_cfg_reflux_separates_campaign_identity():
+    """3 driver とも reflux だけを変えて on/off campaign を物理分離する。"""
+    def without_reflux(cfg):
+        return {
+            **vars(cfg),
+            "search_config": {
+                key: value
+                for key, value in cfg.search_config.items()
+                if key != "reflux"
+            },
+        }
+
+    for driver in (L, SORT_LOOP, TRIGGER_LOOP):
+        on = driver.default_cfg(reflux=True)
+        off = driver.default_cfg(reflux=False)
+
+        assert on.search_config["reflux"] == "on"
+        assert off.search_config["reflux"] == "off"
+        assert without_reflux(on) == without_reflux(off)
+        assert ident.canonical_preimage(on) != ident.canonical_preimage(off)
+        assert ident.campaign_id(on) != ident.campaign_id(off)
+
+        on_layout = L.exploration_campaign_layout(str(ident.campaign_id(on)))
+        off_layout = L.exploration_campaign_layout(str(ident.campaign_id(off)))
+        assert on_layout.wal_file != off_layout.wal_file
+        assert L.loop_state_path(on_layout) != L.loop_state_path(off_layout)
+        assert (
+            os.path.join(on_layout.root, "s4_loop_digest.txt")
+            != os.path.join(off_layout.root, "s4_loop_digest.txt")
+        )
+
+
+def test_reflux_off_reject_keeps_wal_and_whiteboard(
+    monkeypatch,
+    ratified_enforcement_source,
+):
+    """off でも hole escape を reject し、赤 WAL と checkpoint を on と同形で残す。"""
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    monkeypatch.setattr(
+        patchharness,
+        "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    sub = _mk_template_dir(L.SOURCE_REL)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="#define EVIL 1\ndouble now_backoff = 20.0;",
+    )
+    layouts = {
+        reflux: CampaignLayout(
+            root=tempfile.mkdtemp(prefix=f"izanagi_reflux_{reflux}_reject_")
+        ).ensure()
+        for reflux in ("on", "off")
+    }
+    outcomes = {}
+    records = {}
+    for reflux in ("on", "off"):
+        outcomes[reflux] = L.drive_iteration(
+            L.default_cfg(reflux=(reflux == "on")),
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            sub,
+            do_build=False,
+            layout=layouts[reflux],
+            log=lambda *_args: None,
+        )
+        records[reflux] = wal.read_records(layouts[reflux])
+
+    assert outcomes["on"]["outcome"] == "rejected"
+    assert outcomes["off"]["outcome"] == "rejected"
+    for reflux in ("on", "off"):
+        assert any(record.stage == STAGE_ABORT for record in records[reflux])
+        assert any(
+            record.stage == STAGE_ABORT
+            and record.payload.get("reason") == DIFF_QUARANTINE_REASON
+            for record in records[reflux]
+        )
+        checkpoint = L.load_loop_state(layouts[reflux])
+        assert checkpoint is not None
+        assert [entry.result for entry in checkpoint.whiteboard] == ["rejected"]
+
+    expected_record_fields = {"variant", "stage", "env_tag", "ts", "payload"}
+    expected_payload_fields = [
+        {"genome", "src_token", "build_attempt_id"},
+        {"reason", "build_attempt_id", "genome", "diff_quarantine"},
+    ]
+    for reflux in ("on", "off"):
+        assert [set(vars(record)) for record in records[reflux]] == [
+            expected_record_fields,
+            expected_record_fields,
+        ]
+        assert [set(record.payload) for record in records[reflux]] == (
+            expected_payload_fields
+        )
+
+    # 正規化で除外する揮発 field は record.ts と payload.build_attempt_id だけ。
+    # record.variant は genome + implementation の決定的 hash なので比較に残す。
+    volatile_record_fields = frozenset({"ts"})
+    volatile_payload_fields = frozenset({"build_attempt_id"})
+
+    def normalized_wal(wal_records):
+        normalized = []
+        for record in wal_records:
+            stable_record = {
+                key: value
+                for key, value in vars(record).items()
+                if key not in volatile_record_fields and key != "payload"
+            }
+            stable_record["payload"] = {
+                key: value
+                for key, value in record.payload.items()
+                if key not in volatile_payload_fields
+            }
+            normalized.append(stable_record)
+        return normalized
+
+    assert normalized_wal(records["on"]) == normalized_wal(records["off"])
+
+
+def test_sanctioned_cli_stdout_omits_red_detail_fields(
+    capsys,
+    monkeypatch,
+    tmp_path,
+):
+    """CLI stdout の投影だけを固定し、API 戻り値での digest/records 遮断は主張しない。"""
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_sanctioned_cli_projection_")
+    ).ensure()
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_args: None)
+    sentinels = {
+        "digest": "T5-RED-DIGEST-DETAIL-SENTINEL",
+        "records": "T5-RED-RECORDS-DETAIL-SENTINEL",
+        "reason": "T5-RED-REASON-DETAIL-SENTINEL",
+    }
+    fixture_returned = {}
+
+    def fake_run_one_iteration(*_args, **_kwargs):
+        result = {
+            "outcome": "dry-pass",
+            "variant": None,
+            **sentinels,
+        }
+        fixture_returned.update(result)
+        return result
+
+    monkeypatch.setattr(L, "run_one_iteration", fake_run_one_iteration)
+
+    assert L.main(["--no-build"]) == 0
+    stdout = capsys.readouterr().out
+    assert all(
+        fixture_returned[field] == sentinel
+        for field, sentinel in sentinels.items()
+    )
+    assert all(sentinel not in stdout for sentinel in sentinels.values())
+
+    proposal_path = tmp_path / "proposal.json"
+    proposal_path.write_text(json.dumps({
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": 20.0,
+            "implementation": "double now_backoff = 20.0;",
+        },
+        "prior_critic_reverse": None,
+    }), encoding="utf-8")
+    iteration_returned = {}
+
+    def fake_drive_iteration(*_args, **_kwargs):
+        L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
+        result = {
+            "ran": True,
+            "outcome": "rejected",
+            "variant": "t5-run-iteration-variant",
+            "iteration": 1,
+            "stop_reason": "continue",
+            **sentinels,
+        }
+        iteration_returned.update(result)
+        return result
+
+    monkeypatch.setattr(L, "drive_iteration", fake_drive_iteration)
+
+    assert L.main([
+        "--run-iteration", str(proposal_path),
+        "--no-build",
+        "--reflux", "off",
+    ]) == 0
+    stdout = capsys.readouterr().out
+    assert all(
+        iteration_returned[field] == sentinel
+        for field, sentinel in sentinels.items()
+    )
+    assert all(sentinel not in stdout for sentinel in sentinels.values())
 
 
 def _log_projection_start(lay, source_tag, attempt, *, stock=False):
@@ -1917,6 +2389,48 @@ def test_drive_iteration_stops_before_running_when_reverse_exhausted(
     assert st.reverse_recommendations == L.REVERSE_STREAK
 
 
+def test_drive_iteration_rechecks_mutated_nonintegral_value_before_entry_stop(
+    ratified_enforcement_source,
+):
+    lay = _tmp_layout("domain-before-stop")
+    seed = L.LoopState(
+        iteration=0,
+        start_wall=time.time(),
+        reverse_recommendations=L.REVERSE_STREAK - 1,
+    )
+    L.save_loop_state(lay, seed)
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID,
+        direction="increase",
+        magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20.0,
+        implementation="double now_backoff = 20.0;",
+    )
+    coder.value = 20.5
+    coder.implementation = "double now_backoff = 20.5;"
+
+    with unittest.mock.patch.object(L, "run_one_iteration") as run_spy:
+        with pytest.raises(L.AttributionMismatch) as caught:
+            L.drive_iteration(
+                L.default_cfg(),
+                L.default_perf(),
+                planner,
+                coder,
+                prior_critic_reverse=True,
+                sub="/must/not-be-touched",
+                do_build=False,
+                layout=lay,
+            )
+
+    assert str(caught.value) == L._CODER_VALUE_DOMAIN_MESSAGE
+    run_spy.assert_not_called()
+    unchanged = L.load_loop_state(lay)
+    assert unchanged.reverse_recommendations == L.REVERSE_STREAK - 1
+
+
 def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
     lay = _tmp_layout("recover-before-stop")
     cfg, perf = L.default_cfg(), L.default_perf()
@@ -2093,6 +2607,46 @@ def test_load_proposal_file_accepts_null_and_bool_prior_reverse():
             json.dump({**base, "prior_critic_reverse": val}, f)
         _pl, _cd, prior = L.load_proposal_file(p)
         assert prior is expect
+
+
+@pytest.mark.parametrize(
+    ("value", "literal", "sentinel", "value_token"),
+    [
+        (20.5, "20.5", "LOADER_NONINTEGRAL_41bd", "20.5"),
+        (True, "1", "LOADER_BOOL_d28c", "true"),
+        ("20", "20", "LOADER_NUMERIC_STRING_8eb4", "20"),
+    ],
+    ids=["nonintegral", "bool", "numeric-string"],
+)
+def test_load_proposal_file_rejects_coder_values_outside_exact_integral_domain(
+    tmp_path, value, literal, sentinel, value_token,
+):
+    implementation = f"double now_backoff = {literal}; // {sentinel}"
+    document = {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": value,
+            "implementation": implementation,
+        },
+        "prior_critic_reverse": None,
+    }
+    path = tmp_path / f"{sentinel}.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.load_proposal_file(str(path))
+
+    assert type(caught.value) is L.AttributionMismatch
+    message = str(caught.value)
+    assert message == L._CODER_VALUE_DOMAIN_MESSAGE
+    assert sentinel not in message
+    assert implementation not in message
+    assert value_token not in message
 
 
 # ==== ability-probe 射影 tripwire (T-139 / A-9・B-1・B-3) ======================
