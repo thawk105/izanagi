@@ -5,6 +5,7 @@ import concurrent.futures
 import copy
 from dataclasses import replace
 import json
+import math
 import multiprocessing
 import multiprocessing.context
 import os
@@ -799,14 +800,97 @@ def test_remaining_budget_strictly_rejects_equality() -> None:
 
 
 def test_arm_timeout_preserves_every_postrun_fingerprint_window() -> None:
-    assert study.allocate_shard_timeout(arm_remaining_s=600.0, remaining_shards=2) == 270.0
     assert study.allocate_shard_timeout(
         arm_remaining_s=600.0,
         remaining_shards=2,
+        mode="smoke",
+        remaining_shard_walls_s=None,
+    ) == 270.0
+    assert study.allocate_shard_timeout(
+        arm_remaining_s=600.0,
+        remaining_shards=2,
+        mode="smoke",
+        remaining_shard_walls_s=None,
         observed_cleanup_reserve_s=5.0,
     ) == 265.0
     with pytest.raises(study.ContractError, match="postrun fingerprint"):
-        study.allocate_shard_timeout(arm_remaining_s=60.0, remaining_shards=2)
+        study.allocate_shard_timeout(
+            arm_remaining_s=60.0,
+            remaining_shards=2,
+            mode="smoke",
+            remaining_shard_walls_s=None,
+        )
+
+
+@pytest.mark.parametrize(
+    "smoke_walls_s",
+    ((224.0, 140.0), (232.0, 108.0), (244.0, 116.0)),
+)
+def test_full_shard_weighting_prevents_equal_split_underallocation(
+    smoke_walls_s: tuple[float, float],
+) -> None:
+    cleanup_reserve_s = 20.0
+    arm_timeout_s = (
+        math.ceil(
+            math.fsum(smoke_walls_s)
+            * study.FULL_TIMEOUT_MULTIPLIER_NUMERATOR
+            / study.FULL_TIMEOUT_MULTIPLIER_DENOMINATOR
+        )
+        + study.FULL_TIMEOUT_FIXED_RESERVE_S
+    )
+    available_s = arm_timeout_s - study.SHARD_COUNT * (
+        study.PER_SHARD_POSTRUN_RESERVE_S + cleanup_reserve_s
+    )
+    equal_split_s = available_s / study.SHARD_COUNT
+    weighted_s = study.allocate_shard_timeout(
+        arm_remaining_s=float(arm_timeout_s),
+        remaining_shards=study.SHARD_COUNT,
+        mode="full",
+        remaining_shard_walls_s=smoke_walls_s,
+        observed_cleanup_reserve_s=cleanup_reserve_s,
+    )
+
+    assert equal_split_s < smoke_walls_s[0]
+    assert weighted_s >= smoke_walls_s[0]
+
+
+def test_full_shard_weighting_equalizes_relative_margin() -> None:
+    smoke_walls_s = (12.0, 5.0)
+    cleanup_reserve_s = 7.0
+    arm_remaining_s = 250.0
+    available_s = arm_remaining_s - study.SHARD_COUNT * (
+        study.PER_SHARD_POSTRUN_RESERVE_S + cleanup_reserve_s
+    )
+    first_timeout_s = study.allocate_shard_timeout(
+        arm_remaining_s=arm_remaining_s,
+        remaining_shards=study.SHARD_COUNT,
+        mode="full",
+        remaining_shard_walls_s=smoke_walls_s,
+        observed_cleanup_reserve_s=cleanup_reserve_s,
+    )
+    second_timeout_s = available_s - first_timeout_s
+
+    assert first_timeout_s + second_timeout_s == pytest.approx(available_s)
+    assert first_timeout_s / smoke_walls_s[0] == pytest.approx(
+        second_timeout_s / smoke_walls_s[1]
+    )
+
+
+@pytest.mark.parametrize(
+    "smoke_walls_s",
+    (None, (), (8.0,), (8.0, 0.0), (8.0, -1.0),
+     (8.0, float("nan")), (8.0, float("inf"))),
+)
+def test_full_shard_weighting_rejects_missing_or_invalid_ratio_basis(
+    smoke_walls_s: tuple[float, ...] | None,
+) -> None:
+    with pytest.raises(study.ContractError, match="smoke shard wall"):
+        study.allocate_shard_timeout(
+            arm_remaining_s=200.0,
+            remaining_shards=study.SHARD_COUNT,
+            mode="full",
+            remaining_shard_walls_s=smoke_walls_s,
+        )
 
 
 def test_timeout_basis_rejects_small_smoke_cap_and_full_without_calibration(
@@ -2205,11 +2289,31 @@ def test_full_timeout_is_hash_bound_to_complete_smoke_and_fixed_derivation(
     full_nodefile.write_text(host + "\n", encoding="utf-8")
     monkeypatch.setenv("PBS_JOBID", "0:127.nqsv")
     monkeypatch.setenv("PBS_NODEFILE", str(full_nodefile))
+    allocation_calls: list[dict[str, object]] = []
+    real_allocate_shard_timeout = study.allocate_shard_timeout
+
+    def record_allocate_shard_timeout(**kwargs: object) -> float:
+        allocation_calls.append(dict(kwargs))
+        return real_allocate_shard_timeout(**kwargs)
+
+    monkeypatch.setattr(
+        study, "allocate_shard_timeout", record_allocate_shard_timeout
+    )
     full_rc, full_receipt = study.run_study(
         full_config, FakeExecutor(full_root, host)
     )
     assert full_rc == 0
     assert full_receipt["budget"]["timeout_calibration"] == calibration
+    assert allocation_calls
+    assert len(allocation_calls) == len(full_receipt["runs"])
+    for call, run in zip(allocation_calls, full_receipt["runs"]):
+        shard_index = run["shard_index"]
+        expected_walls = calibration["smoke_arm_shard_walls_s"][str(run["arm"])][
+            shard_index:
+        ]
+        assert call["mode"] == "full"
+        assert call["remaining_shards"] == study.SHARD_COUNT - shard_index
+        assert call["remaining_shard_walls_s"] == expected_walls
     study.validate_receipt(full_receipt, expected_mode="full", require_complete=True)
 
     missing_hash = copy.deepcopy(full_receipt)

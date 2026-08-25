@@ -320,9 +320,11 @@ def validate_remaining_budget(
 
 def allocate_shard_timeout(
     *, arm_remaining_s: float, remaining_shards: int,
+    mode: str,
+    remaining_shard_walls_s: Sequence[float] | None,
     observed_cleanup_reserve_s: float = 0.0,
 ) -> float:
-    """Reserve postrun fingerprints and the observed cleanup maximum per shard."""
+    """Reserve postrun work and weight full-run time by smoke shard walls."""
     if (
         not math.isfinite(arm_remaining_s)
         or arm_remaining_s <= 0
@@ -335,8 +337,40 @@ def allocate_shard_timeout(
     available = arm_remaining_s - remaining_shards * (
         PER_SHARD_POSTRUN_RESERVE_S + observed_cleanup_reserve_s
     )
-    timeout = available / remaining_shards
-    if timeout <= 0:
+    if available <= 0:
+        raise ContractError("arm cap cannot preserve all postrun fingerprint windows")
+    if mode == "smoke":
+        if remaining_shard_walls_s is not None:
+            raise ContractError("smoke shard allocation must not consume calibration walls")
+        timeout = available / remaining_shards
+    elif mode == "full":
+        if (
+            not isinstance(remaining_shard_walls_s, Sequence)
+            or isinstance(remaining_shard_walls_s, (str, bytes))
+            or len(remaining_shard_walls_s) != remaining_shards
+        ):
+            raise ContractError(
+                "full shard allocation requires every remaining smoke shard wall"
+            )
+        try:
+            walls = tuple(float(value) for value in remaining_shard_walls_s)
+            total_wall = math.fsum(walls)
+        except (OverflowError, TypeError, ValueError) as exc:
+            raise ContractError(
+                "full shard allocation requires positive finite smoke shard walls"
+            ) from exc
+        if (
+            any(not math.isfinite(value) or value <= 0 for value in walls)
+            or not math.isfinite(total_wall)
+            or total_wall <= 0
+        ):
+            raise ContractError(
+                "full shard allocation requires positive finite smoke shard walls"
+            )
+        timeout = available * walls[0] / total_wall
+    else:
+        raise ContractError("shard allocation mode must be smoke or full")
+    if not math.isfinite(timeout) or timeout <= 0:
         raise ContractError("arm cap cannot preserve all postrun fingerprint windows")
     return timeout
 
@@ -2204,6 +2238,24 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                     session = _create_session(
                         executor, config, clone, timeout_s=_remaining(arm_deadline)
                     )
+                    calibration_arm_walls: Sequence[float] | None = None
+                    if config.mode == "full":
+                        calibration_walls = timeout_calibration.get(
+                            "smoke_arm_shard_walls_s"
+                        )
+                        if not isinstance(calibration_walls, Mapping):
+                            raise ContractError(
+                                "full shard allocation lacks smoke shard wall calibration"
+                            )
+                        raw_arm_walls = calibration_walls.get(str(arm))
+                        if (
+                            not isinstance(raw_arm_walls, list)
+                            or len(raw_arm_walls) != SHARD_COUNT
+                        ):
+                            raise ContractError(
+                                f"full shard allocation lacks arm {arm} smoke shard walls"
+                            )
+                        calibration_arm_walls = raw_arm_walls
                     for shard_index in range(SHARD_COUNT):
                         current_stage = (
                             f"block-{block.global_block_index}-arm-{arm}-shard-{shard_index}"
@@ -2248,6 +2300,12 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                         child_timeout_s = allocate_shard_timeout(
                             arm_remaining_s=_remaining(arm_deadline),
                             remaining_shards=SHARD_COUNT - shard_index,
+                            mode=config.mode,
+                            remaining_shard_walls_s=(
+                                None
+                                if calibration_arm_walls is None
+                                else calibration_arm_walls[shard_index:]
+                            ),
                             observed_cleanup_reserve_s=max(
                                 observed_cleanup_wall_s, default=0.0,
                             ),
