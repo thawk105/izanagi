@@ -1,0 +1,276 @@
+{
+ "estimated_run_seconds": 120,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_pipeline_bench_payload_closure_uses_real_view_row",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    \"perf_observation\", \"rep_returncodes\",\n",
+     "old": "    \"perf_observation\", \"screening\", \"rep_returncodes\",\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_emits_exact_declared_payload_key_set"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "        bench_payload[\"screeninx\"] = True\n",
+     "old": "        bench_payload[\"screening\"] = True\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_assignments_exactly_match_declared_payload_keys",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[annassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[augassign]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[dict-unpack]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[for-alias]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[guard-emit-control-block]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[post-guard-update]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[setdefault]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[try]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[while]",
+    "orchestrator/tests/test_layer3_report.py::test_run_bench_ast_contract_rejects_known_bypass_routes[with]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    pass  # mutant: emit 直前の閉包検査を外す\n",
+     "old": "    _assert_bench_done_payload_keys(bench_payload)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    unexpected = []\n",
+     "old": "    unexpected = sorted(actual - _BENCH_DONE_PAYLOAD_KEYS)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_measurement_overwrite_before_merge",
+    "orchestrator/tests/test_layer3_report.py::test_bench_payload_extra_rejects_overlap_even_when_key_is_extra_owned",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "    overlap = []\n",
+     "old": "    overlap = sorted(set(bench_payload) & extra_keys)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_abort_rate]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_measured_at]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[baseline_tps]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[high_abort_factor]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_rejects_bool_for_every_numeric_field[reanchor_threshold_s]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "        if False and type(getattr(self, name)) not in (int, float):\n",
+     "old": "        if type(getattr(self, name)) not in (int, float):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+    "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+    "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[1]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[False]",
+    "orchestrator/tests/test_layer3_report.py::test_screening_config_requires_nonempty_exact_string_baseline_ref[]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "new": "        if False and (type(self.baseline_ref) is not str or not self.baseline_ref):\n",
+     "old": "        if type(self.baseline_ref) is not str or not self.baseline_ref:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_and_screening_disabled_are_mutually_exclusive"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "",
+     "old": "        \"not\": {\"required\": [\"screening\", \"screening_disabled\"]},\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_settled_rejects_values_outside_exact_forensic_domain[unknown]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "          \"settled\": {\"type\": [\"boolean\", \"null\", \"string\"]},\n",
+     "old": "          \"settled\": {\"type\": [\"boolean\", \"null\"]},\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_fields_reject_nonproducer_values[new_fields0-const-expected_absolute_path0]",
+    "orchestrator/tests/test_layer3_report.py::test_v2_report_rejects_invalid_screening_value_with_legacy_schema"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "          \"screening\": {\"type\": \"boolean\"},\n",
+     "old": "          \"screening\": {\"const\": true},\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_report.py::test_screening_disabled_rejects_non_stale_baseline_reason"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m11",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/layer3_schema.json",
+     "new": "              \"reason\": {\"type\": \"string\"},\n",
+     "old": "              \"reason\": {\"const\": \"stale-baseline\"},\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_string_validator"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "            validator = \"mutant\"\n",
+     "old": "            raise ValueError(\"schema validator is not a non-empty string\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_diagnosis_degrades_for_non_json_path_component_and_stays_canonical"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "new": "                pass  # mutant: 非 JSON path 成分を素通しする\n",
+     "old": "                raise ValueError(\"schema path contains a non-JSON component\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_completeness_rejects_present_invalid_layer3_diagnosis[mapping-with-extra-key]",
+    "orchestrator/tests/test_layer3_admission_diagnosis.py::test_layer3_admission_diagnosis_exact_predicate_rejects_mutations[extra-key]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1291.m14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+     "new": "    \"\"\"Recognize only the closed, canonical JSON-safe diagnosis contract.\"\"\"\n    if not isinstance(value, Mapping):\n        return False\n",
+     "old": "    \"\"\"Recognize only the closed, canonical JSON-safe diagnosis contract.\"\"\"\n    if not isinstance(value, Mapping) or set(value) != (\n        _LAYER3_ADMISSION_DIAGNOSIS_KEYS\n    ):\n        return False\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
