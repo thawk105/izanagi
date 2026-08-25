@@ -1,0 +1,2202 @@
+{
+  "authority": "exploratory",
+  "complete": true,
+  "cross_workload_conclusion": {
+    "claim_scope": "this one arm-grouped exploratory run only",
+    "observed_all_workloads_negative": false
+  },
+  "formal": false,
+  "limitations": [
+    "Arm-grouped ordinal positions are not shared time blocks.",
+    "No causal effect, population mean, significance, or confidence interval is claimed.",
+    "Source-routed trace0 evidence is not an artifact-standalone proof.",
+    "An invalid workload suppresses every cross-workload conclusion.",
+    "EINVAL publish fallback is not atomic no-replace against a non-cooperating destination writer."
+  ],
+  "materialization_evidence": {
+    "interpretation": {
+      "job_outcome": "driver_rc=0, shell_rc=0, and job terminal status=finished establish job success even when a disappeared request has no observable scheduler exit status",
+      "terminal_forms": {
+        "request-disappeared-after-visibility": "submission qstat_visibility proves the request was visible before a later successful qstat observation no longer exposes it; scheduler state and exit status are explicitly unobserved",
+        "scheduler-end-state": "qstat still exposes terminal state and scheduler exit status"
+      }
+    },
+    "job_terminal_outcome": {
+      "driver_rc": 0,
+      "shell_rc": 0,
+      "status": "finished"
+    },
+    "publish": {
+      "guarantees": [
+        "A destination present at the fallback existence check is refused without publication.",
+        "Cooperating A-1 publishers cannot hold the same exclusive sibling claim.",
+        "Every materialized file and the completion marker exist in staging before publish.",
+        "No file is written below destination after directory publish."
+      ],
+      "limitations": [
+        "Fallback publication is not atomic no-replace against a non-cooperating writer.",
+        "An empty type-compatible destination created after the existence check and before the flags-zero renameat2 call may be replaced."
+      ],
+      "schema_version": "paper-story-a1-paired-materialization-publish/v1",
+      "selected_mechanism": "a1-exclusive-claim-check-then-renameat2",
+      "selection_observation": {
+        "errno": "EINVAL",
+        "rename_noreplace_attempted": true
+      }
+    },
+    "scheduler_terminal": {
+      "exit_status": {
+        "observed": false
+      },
+      "observed_epoch": 1787603673,
+      "qstat_rc": 0,
+      "qstat_stdout": "Batch Request: 945187.nqsv does not exist on nqsv.\n",
+      "qstat_stdout_sha256": "c513d6005b823b715476c4de5dc2b61ae1b737eab81ae6501612f4664d04e361",
+      "qstat_visible": false,
+      "state": {
+        "observed": false
+      },
+      "terminal_reason": "request-disappeared-after-visibility"
+    },
+    "schema_version": "paper-story-a1-paired-materialization-evidence/v1"
+  },
+  "measurement_error": null,
+  "pairing_design": "arm-grouped-positional-v1",
+  "pbs_evidence_scope": {
+    "delivery_log_binding": "scheduler completion receipt path/bytes SHA-256 plus job-terminal SHA-256",
+    "job_environment_fields": [
+      "PBS_JOBID",
+      "PBS_O_HOST",
+      "PBS_O_WORKDIR"
+    ],
+    "omitted_job_observations": [
+      "PBS_O_QUEUE (not exported by this NQSV site)",
+      "stdout/stderr FD targets (not the qsub -o/-e delivery files on NQSV)"
+    ],
+    "queue_binding": "submission qstat_visibility only"
+  },
+  "policy_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44",
+  "promotion_prohibited": true,
+  "reservation_binding": {
+    "boot_id": "2142982a-2265-4b35-9e12-9717f84914fe",
+    "deadline_epoch": 1787624857.0,
+    "host": "bnode072",
+    "job_id": "0:945187.nqsv",
+    "nonce": "attempt-0010",
+    "requested_s": 21600,
+    "scheduler_started_epoch": 1787603257.0,
+    "script_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+  },
+  "schema_version": "paper-story-a1-paired-result/v2",
+  "source_binding": {
+    "artifact_standalone_proof": false,
+    "evidence_level": "source-routed-trace0",
+    "files": {
+      "orchestrator/campaign/paper_story_a1_paired.py": {
+        "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+        "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+        "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+        "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+      },
+      "orchestrator/campaign/pipeline.py": {
+        "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+        "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+      },
+      "tools/pegasus/paper_story_a1_paired.sh": {
+        "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+        "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+      }
+    },
+    "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953"
+  },
+  "study_id": "paper-story-a1-20260824-exploratory-v1",
+  "workloads": [
+    {
+      "arms": {
+        "adaptive": {
+          "actual_rounds": 1,
+          "attempt_count": 1,
+          "correctness_evidence": {
+            "certified": [
+              true
+            ],
+            "verify_configs": [
+              "legacy"
+            ],
+            "verify_done_frames": [
+              {
+                "byte_end": 3989,
+                "byte_start": 3650,
+                "line_number": 3,
+                "raw_sha256": "b740f48a5c6d245b4cd6f8c016c735cf9df12b4c6d8714ba4581f2b0b7479671",
+                "stage": "verify_done"
+              }
+            ]
+          },
+          "errors": [],
+          "genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+          "name": "adaptive",
+          "ordered_attempt_frames": [
+            {
+              "byte_end": 1254,
+              "byte_start": 0,
+              "line_number": 1,
+              "raw_sha256": "b01f158a4560043171426b92a43d637e33507db141d84e19134db2d72f4d5760",
+              "stage": "build_start"
+            },
+            {
+              "byte_end": 3650,
+              "byte_start": 1254,
+              "line_number": 2,
+              "raw_sha256": "7c27a718bfc8563263cccbe264a831678d1a0684e4ecf3b22be87284e755d913",
+              "stage": "build_done"
+            },
+            {
+              "byte_end": 3989,
+              "byte_start": 3650,
+              "line_number": 3,
+              "raw_sha256": "b740f48a5c6d245b4cd6f8c016c735cf9df12b4c6d8714ba4581f2b0b7479671",
+              "stage": "verify_done"
+            },
+            {
+              "byte_end": 5639,
+              "byte_start": 3989,
+              "line_number": 4,
+              "raw_sha256": "a825f2bbca5a4080764b5375e5d147d6a0238ec5de0142154aa911ee7a0781f0",
+              "stage": "bench_done"
+            },
+            {
+              "byte_end": 6873,
+              "byte_start": 5639,
+              "line_number": 5,
+              "raw_sha256": "18ea924758591e229323d248dc3195fbcd3a5dfad3ceda3729b2a25e2aa0fdbc",
+              "stage": "commit"
+            }
+          ],
+          "performance_trace0_evidence": {
+            "artifact_standalone_proof": false,
+            "bench_done_frame": {
+              "byte_end": 5639,
+              "byte_start": 3989,
+              "line_number": 4,
+              "raw_sha256": "a825f2bbca5a4080764b5375e5d147d6a0238ec5de0142154aa911ee7a0781f0",
+              "stage": "bench_done"
+            },
+            "bench_run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10",
+            "build_done_frame": {
+              "byte_end": 3650,
+              "byte_start": 1254,
+              "line_number": 2,
+              "raw_sha256": "7c27a718bfc8563263cccbe264a831678d1a0684e4ecf3b22be87284e755d913",
+              "stage": "build_done"
+            },
+            "evidence_level": "source-routed-trace0",
+            "files": {
+              "orchestrator/campaign/paper_story_a1_paired.py": {
+                "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+                "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+              },
+              "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+                "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+                "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+              },
+              "orchestrator/campaign/pipeline.py": {
+                "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+                "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+              },
+              "tools/pegasus/paper_story_a1_paired.sh": {
+                "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+                "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+              }
+            },
+            "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953",
+            "perf_bin_sha256": "dcfc670c652810389d6c1b60e7139a7c66fb3c37c4e11c5d9af916142d5da087",
+            "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac --target ycsb_silo.exe -j 48",
+            "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0"
+          },
+          "raw_tps": [
+            1404385.0,
+            1375658.0,
+            1361597.0,
+            1351246.0,
+            1363417.0
+          ],
+          "rep_notes": [],
+          "unstable": false,
+          "valid": true,
+          "variant": "602b4ce9c788"
+        },
+        "static10": {
+          "actual_rounds": 1,
+          "attempt_count": 1,
+          "correctness_evidence": {
+            "certified": [
+              true
+            ],
+            "verify_configs": [
+              "legacy"
+            ],
+            "verify_done_frames": [
+              {
+                "byte_end": 10862,
+                "byte_start": 10522,
+                "line_number": 8,
+                "raw_sha256": "c3be5259950bd3f2be098e6a4c4a6b0f3b44aaad5063025d332af74b02ec90d0",
+                "stage": "verify_done"
+              }
+            ]
+          },
+          "errors": [],
+          "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+          "name": "static10",
+          "ordered_attempt_frames": [
+            {
+              "byte_end": 8127,
+              "byte_start": 6873,
+              "line_number": 6,
+              "raw_sha256": "a124e2a07ba070e843f5abdde34ddf4b207ff74b3cadc4c917735a7b07836937",
+              "stage": "build_start"
+            },
+            {
+              "byte_end": 10522,
+              "byte_start": 8127,
+              "line_number": 7,
+              "raw_sha256": "b30accce62e1de4fca45ed21362836973507011d04bf46b2c87a9e71da0e78e6",
+              "stage": "build_done"
+            },
+            {
+              "byte_end": 10862,
+              "byte_start": 10522,
+              "line_number": 8,
+              "raw_sha256": "c3be5259950bd3f2be098e6a4c4a6b0f3b44aaad5063025d332af74b02ec90d0",
+              "stage": "verify_done"
+            },
+            {
+              "byte_end": 12507,
+              "byte_start": 10862,
+              "line_number": 9,
+              "raw_sha256": "32f5fd597ecef6acf2f8bd6cde4214f77704d1f6088a72f1915d7b8fed506ea9",
+              "stage": "bench_done"
+            },
+            {
+              "byte_end": 13739,
+              "byte_start": 12507,
+              "line_number": 10,
+              "raw_sha256": "45d3f61e4eba3d3cd40652236dce90864181cfadad81ae0a11bb7e6b8622dd03",
+              "stage": "commit"
+            }
+          ],
+          "performance_trace0_evidence": {
+            "artifact_standalone_proof": false,
+            "bench_done_frame": {
+              "byte_end": 12507,
+              "byte_start": 10862,
+              "line_number": 9,
+              "raw_sha256": "32f5fd597ecef6acf2f8bd6cde4214f77704d1f6088a72f1915d7b8fed506ea9",
+              "stage": "bench_done"
+            },
+            "bench_run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10",
+            "build_done_frame": {
+              "byte_end": 10522,
+              "byte_start": 8127,
+              "line_number": 7,
+              "raw_sha256": "b30accce62e1de4fca45ed21362836973507011d04bf46b2c87a9e71da0e78e6",
+              "stage": "build_done"
+            },
+            "evidence_level": "source-routed-trace0",
+            "files": {
+              "orchestrator/campaign/paper_story_a1_paired.py": {
+                "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+                "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+              },
+              "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+                "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+                "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+              },
+              "orchestrator/campaign/pipeline.py": {
+                "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+                "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+              },
+              "tools/pegasus/paper_story_a1_paired.sh": {
+                "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+                "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+              }
+            },
+            "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953",
+            "perf_bin_sha256": "52fc5e3347913a80ea9fbf494442087589e3f6407729d4d566a858f47cb9be5e",
+            "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 --target ycsb_silo.exe -j 48",
+            "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=10 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0"
+          },
+          "raw_tps": [
+            1324098.0,
+            1400976.0,
+            1374660.0,
+            1372713.0,
+            1355366.0
+          ],
+          "rep_notes": [],
+          "unstable": false,
+          "valid": true,
+          "variant": "e44bf7ae9d29"
+        }
+      },
+      "campaign_binding": {
+        "campaign_lock_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-10587b82/campaign.lock",
+        "campaign_lock_sha256": "daa7bdd6e60ce8118406662f964b8b0d9a7486f7481b15faa95f69b8a53357ee",
+        "campaign_lock_size": 4561,
+        "canonical_preimage": "{\"authority\":{\"activation_serial\":1,\"activation_state_sha256\":\"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed\",\"contract_loader_blob_sha256s\":{\"orchestrator/campaign/artifact_admission.py\":\"267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f\",\"orchestrator/campaign/campaign_lock.py\":\"91a273a86afef1abcf4ace2df717d95abab93da77b4db2c59b609588f4bbe663\",\"orchestrator/campaign/contract_loader_binding.py\":\"679666c76f6f1f94f7daa6e743ace9e69838972db0120a4018ddac13c14f1dcc\",\"orchestrator/campaign/enforcement_source_ratification.py\":\"b48455e9300810ac42749cc4990346a97905b0da3426b47da6c0846abb671d69\",\"orchestrator/campaign/env_contract.py\":\"292bbed314a6824e0618da83d1d94253f0290e4db0b3e509200a79221508bc9a\",\"orchestrator/campaign/env_contract_activation.py\":\"679b6ef0d356d6d1d7377eee3846793757b7bc9a2e0b91f26f07d5d69741ef6b\",\"orchestrator/campaign/execution_guard.py\":\"12cdad02d1a605f52d0fb3514e4c74b160bef9c2f9f6ea9eae26d758e33a2030\",\"orchestrator/campaign/guided.py\":\"5b57bcbdb69b800f68143105f1168ee6de8eef36863906a8d45eba9835bb4d1d\",\"orchestrator/campaign/ident.py\":\"0fbd7291d264a2f5b330cae035b3f99b83b922cac4fd5a1c29deaaca9a67c09d\",\"orchestrator/campaign/loop.py\":\"d2208103d410dc2646880b0e9dba32db62e3de8cf38fa96707486f7df87ae0aa\",\"orchestrator/campaign/pipeline.py\":\"b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68\",\"orchestrator/campaign/replay.py\":\"b5ed150e1b163cefe81c521e87e7263be957d44c321726eea8c59b7a296c07d4\",\"orchestrator/campaign/s8c_generation_projection.py\":\"5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457\",\"orchestrator/campaign/s8c_preregistration.py\":\"5257cde7ea906beecd9961e6232d09f2d3dfebd012796abe8da337dad5b67113\",\"orchestrator/campaign/s8c_preregistration_evidence.py\":\"f69498890dfa0150cd1607c33811197348c10b8fb09beab8716508d146612394\",\"orchestrator/campaign/wal.py\":\"9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2\",\"orchestrator/qualification/artifacts.py\":\"97831abd9dc3be135464c11002b95dca2468bbfc52d90cdb27b0da4863780674\",\"orchestrator/qualification/t126_driver.py\":\"0eb6db242ce68fb31ebbd0199877cc656e83cd75506c413daacbd6ee8b0e2550\",\"orchestrator/verifier/__init__.py\":\"8f5389312139152866bffbf7f24369a717178ccaab352c00b8e874b5a3d89719\",\"orchestrator/verifier/commit_receipt.py\":\"1b3fd468b8cd66eeff728390bac62780a7be132052432a82eb7649b728878d49\",\"orchestrator/verifier/core.py\":\"5a02a4468fc094a949e2cb32835c7085a80c3e7a51bfbbd6cb8d9aa1a1d1934c\",\"orchestrator/verifier/dsg.py\":\"508f88a3d61b2f3370b637231fa8b38869a6984afe8c015d5269b387d88b4be5\",\"orchestrator/verifier/model.py\":\"8835c8e0932ad2431a6a5cd48bb55b84c2b722cd1925a6aa329130d65605dd46\",\"orchestrator/verifier/parse.py\":\"d9fed974e09b09aa181f4b03fcfa490ba5d52588369b27593f38022b2d424083\",\"orchestrator/verifier/report.py\":\"e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd\"},\"contract_loader_commit\":\"449b8525e7fe1d727bc18ddb8a3df10877df6953\",\"environment_contract_sha256\":\"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01\"},\"identity_preimage\":\"{\\\"ccbench_commit\\\":\\\"511c953\\\",\\\"search_config\\\":{\\\"arm_order\\\":[\\\"adaptive\\\",\\\"static10\\\"],\\\"arms\\\":[{\\\"genome\\\":\\\"silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0\\\",\\\"name\\\":\\\"adaptive\\\"},{\\\"genome\\\":\\\"silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0\\\",\\\"name\\\":\\\"static10\\\"}],\\\"build_admission\\\":{\\\"coder_authority\\\":\\\"cli-opt-in\\\",\\\"generator_registry\\\":[\\\"backoff-overthrottle\\\",\\\"backoff-profile\\\",\\\"backoff-repro\\\",\\\"backoff-sweep\\\",\\\"s1-extime-calibration\\\",\\\"s6-sort-sweep\\\",\\\"s8a-trigger-sweep\\\"],\\\"repo_stock_pin\\\":\\\"511c953\\\",\\\"review_registry\\\":[\\\"s1-known-axes\\\",\\\"s8b-floor\\\",\\\"s8b-oracle\\\"],\\\"schema\\\":\\\"build-admission-policy/v1\\\"},\\\"formal\\\":false,\\\"measurement_env\\\":\\\"pegasus\\\",\\\"pairing_design\\\":\\\"arm-grouped-positional-v1\\\",\\\"promotion_prohibited\\\":true,\\\"scale\\\":{\\\"expected_verify_configs\\\":[\\\"legacy\\\"],\\\"extime_s\\\":3,\\\"records\\\":1000000,\\\"reps\\\":5,\\\"threads\\\":48,\\\"ycsb_max_ope\\\":\\\"10\\\",\\\"ycsb_rmw\\\":\\\"0\\\",\\\"ycsb_zipf_skew\\\":\\\"0.9\\\"},\\\"schema\\\":\\\"paper-story-a1-paired-campaign/v1\\\",\\\"study_id\\\":\\\"paper-story-a1-20260824-exploratory-v1\\\",\\\"workload\\\":{\\\"name\\\":\\\"write-heavy\\\",\\\"ycsb_max_ope\\\":\\\"10\\\",\\\"ycsb_rmw\\\":\\\"0\\\",\\\"ycsb_rratio\\\":\\\"5\\\",\\\"ycsb_zipf_skew\\\":\\\"0.9\\\"}},\\\"search_tag\\\":\\\"paired\\\",\\\"spec_content\\\":\\\"D95 exploratory A-1 static10 minus adaptive, arm-grouped positional comparison, workload=write-heavy\\\",\\\"trial\\\":\\\"paper-story-a1-20260824-exploratory-v1\\\"}\",\"schema_version\":\"campaign-lock/v2\"}",
+        "layout_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-10587b82",
+        "recomputed_campaign_id": "paper-story-a1-write-heavy-paired-10587b82",
+        "wal_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-10587b82/runs/wal.jsonl"
+      },
+      "campaign_id": "paper-story-a1-write-heavy-paired-10587b82",
+      "errors": [],
+      "statistics": {
+        "contrast": "static10-minus-adaptive",
+        "mean_signed_positional_difference_tps": -5698.0,
+        "observed_mean_negative": true,
+        "pairing_design": "arm-grouped-positional-v1",
+        "pairs": [
+          {
+            "adaptive_tps": 1404385.0,
+            "pair_index": 0,
+            "signed_difference_tps": -80287.0,
+            "static10_tps": 1324098.0
+          },
+          {
+            "adaptive_tps": 1375658.0,
+            "pair_index": 1,
+            "signed_difference_tps": 25318.0,
+            "static10_tps": 1400976.0
+          },
+          {
+            "adaptive_tps": 1361597.0,
+            "pair_index": 2,
+            "signed_difference_tps": 13063.0,
+            "static10_tps": 1374660.0
+          },
+          {
+            "adaptive_tps": 1351246.0,
+            "pair_index": 3,
+            "signed_difference_tps": 21467.0,
+            "static10_tps": 1372713.0
+          },
+          {
+            "adaptive_tps": 1363417.0,
+            "pair_index": 4,
+            "signed_difference_tps": -8051.0,
+            "static10_tps": 1355366.0
+          }
+        ],
+        "sample_sd_positional_difference_tps": 43649.05535060295,
+        "sample_variance_positional_difference_tps2": 1905240033.0
+      },
+      "valid": true,
+      "wal_evidence": {
+        "expected_env_tag": "pegasus",
+        "line_issues": [],
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-10587b82/runs/wal.jsonl",
+        "records": [
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission": {
+                "authority_kind": null,
+                "class": "stock-baseline",
+                "generator_id": null,
+                "generator_receipt": null,
+                "input_sha256": null,
+                "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+                "receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+                "review_id": null,
+                "review_receipt": null,
+                "schema": "build-admission/v1",
+                "source": {
+                  "ccbench_commit": "511c953",
+                  "genome_sha256": "602b4ce9c788d8d906edc157f72776fcdf993ea91fc862720adbbbb7df67ff61",
+                  "schema": "source-evidence/v1",
+                  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+                  "source_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench",
+                  "src_token": "stock",
+                  "tracked_clean": true,
+                  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "tracked_paths": []
+                }
+              },
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "eee93b6fcc23ed829410ce0aa672dd61",
+              "genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+              "src_token": "stock"
+            },
+            "stage": "build_start",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "eee93b6fcc23ed829410ce0aa672dd61",
+              "perf_bin": "dcfc670c65281038",
+              "perf_bin_sha256": "dcfc670c652810389d6c1b60e7139a7c66fb3c37c4e11c5d9af916142d5da087",
+              "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac --target ycsb_silo.exe -j 48",
+              "perf_cached": false,
+              "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0",
+              "toolchain": {
+                "cc": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+                  "requested": "gcc",
+                  "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                },
+                "cmake": {
+                  "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+                  "requested": "cmake",
+                  "version_first_line": "cmake version 3.25.0"
+                },
+                "cxx": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+                  "requested": "g++",
+                  "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                }
+              },
+              "toolchain_record_sha256": "6a73081a1bead42ac9f8ad18fcaeaf196aed0955482ce5459d9e2656c34625c0",
+              "trace_bin": "0ef26274a6c68f8a",
+              "trace_bin_sha256": "0ef26274a6c68f8af5a55d6e94388bcaa38a7aea94fdb29cde8661ea376b2d82",
+              "trace_cached": false
+            },
+            "stage": "build_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "aborts": 9844,
+              "anomalies": 0,
+              "build_attempt_id": "eee93b6fcc23ed829410ce0aa672dd61",
+              "certified": true,
+              "commit_witness": {
+                "batch_commit_counts": 0,
+                "commit_counts": 251570
+              },
+              "commits": 251570,
+              "verdict": "serializable",
+              "workload": {
+                "tag": "legacy"
+              }
+            },
+            "stage": "verify_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "bench_wall_s": 16.823345220065676,
+              "build_attempt_id": "eee93b6fcc23ed829410ce0aa672dd61",
+              "cv": 0.014909916574805745,
+              "cv_history": [
+                0.014909916574805745
+              ],
+              "high_variance": false,
+              "leading_indicators": {
+                "abort_rate": 0.1194,
+                "ipc": null,
+                "latency_ns": 35205.6634,
+                "llc_miss_rate": null,
+                "throughput_tps": 1363417.0
+              },
+              "median_tps": 1363417.0,
+              "perf_observation": {
+                "claim_scope": {
+                  "perf_required": "unsupported",
+                  "throughput": "eligible"
+                },
+                "counter_status": "not_required",
+                "missing_leading_indicators": [],
+                "preflight": {
+                  "available": false,
+                  "candidates": [
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+                      "rc": 0
+                    },
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+                      "rc": 0
+                    }
+                  ],
+                  "parsed_events": [],
+                  "probe_argv": [
+                    "perf",
+                    "stat",
+                    "-x,",
+                    "-o",
+                    "<tmp>/perf.csv",
+                    "-e",
+                    "LLC-load-misses,LLC-loads,instructions,cycles",
+                    "--",
+                    "/bin/true"
+                  ],
+                  "rc": 2,
+                  "reason": "nonzero-rc",
+                  "schema": "izanagi-perf-preflight/v1",
+                  "status": "unavailable",
+                  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+                },
+                "use_perf": false
+              },
+              "rep_notes": [],
+              "rounds": 1,
+              "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10",
+              "settled": true,
+              "tps": [
+                1404385.0,
+                1375658.0,
+                1361597.0,
+                1351246.0,
+                1363417.0
+              ],
+              "unstable": false
+            },
+            "stage": "bench_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "eee93b6fcc23ed829410ce0aa672dd61",
+              "commit_verification_receipt": {
+                "issuer_pid": 3152237,
+                "issuer_process_seal_sha256": "579974b5d20c7ec0b74af4bda8b15972f78ad14cb08277cb6efdb9726b51250b",
+                "lock_identity_sha256": "daa7bdd6e60ce8118406662f964b8b0d9a7486f7481b15faa95f69b8a53357ee",
+                "operation_identity": "eee93b6fcc23ed829410ce0aa672dd61",
+                "receipt_id": "62a5e72f4b5619e4337b21cce8b87a291b43ae0f9430ae738c8d293b7f01cbb1",
+                "replay_provenance": null,
+                "schema": "campaign-commit-verification-receipt/v1",
+                "sink_kind": "campaign-wal",
+                "terminal_payload_sha256": "3a0f2e5e4c163a6a569b993e4cd83b0f3e47643f2bcfc45cd3c793d2c608bc21",
+                "variant": "602b4ce9c788",
+                "verifier_evidence": [
+                  {
+                    "certified": true,
+                    "verdict": "serializable",
+                    "verifier_result_sha256": "871be63604e76739dfc7694ec244712518d46f73488b684409a91a032b88dbe2",
+                    "workload_tag": "legacy"
+                  }
+                ]
+              },
+              "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "cv": 0.014909916574805745,
+              "fitness_tps": 1363417.0,
+              "high_variance": false,
+              "unstable": false,
+              "verify_configs": [
+                "legacy"
+              ]
+            },
+            "stage": "commit",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission": {
+                "authority_kind": null,
+                "class": "stock-baseline",
+                "generator_id": null,
+                "generator_receipt": null,
+                "input_sha256": null,
+                "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+                "receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+                "review_id": null,
+                "review_receipt": null,
+                "schema": "build-admission/v1",
+                "source": {
+                  "ccbench_commit": "511c953",
+                  "genome_sha256": "e44bf7ae9d29dee35f7b9966b5484b3db07ab1c10547a5588d89d12ad172a16c",
+                  "schema": "source-evidence/v1",
+                  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+                  "source_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench",
+                  "src_token": "stock",
+                  "tracked_clean": true,
+                  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "tracked_paths": []
+                }
+              },
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "a1a72c520cae126489cff7a9ffa2bc05",
+              "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+              "src_token": "stock"
+            },
+            "stage": "build_start",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "a1a72c520cae126489cff7a9ffa2bc05",
+              "perf_bin": "52fc5e3347913a80",
+              "perf_bin_sha256": "52fc5e3347913a80ea9fbf494442087589e3f6407729d4d566a858f47cb9be5e",
+              "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 --target ycsb_silo.exe -j 48",
+              "perf_cached": false,
+              "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=10 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0",
+              "toolchain": {
+                "cc": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+                  "requested": "gcc",
+                  "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                },
+                "cmake": {
+                  "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+                  "requested": "cmake",
+                  "version_first_line": "cmake version 3.25.0"
+                },
+                "cxx": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+                  "requested": "g++",
+                  "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                }
+              },
+              "toolchain_record_sha256": "6a73081a1bead42ac9f8ad18fcaeaf196aed0955482ce5459d9e2656c34625c0",
+              "trace_bin": "ad478538daa47071",
+              "trace_bin_sha256": "ad478538daa47071179272e5ff7913bc0a2a7565266b2e5a777849741647d8e9",
+              "trace_cached": false
+            },
+            "stage": "build_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "aborts": 8590,
+              "anomalies": 0,
+              "build_attempt_id": "a1a72c520cae126489cff7a9ffa2bc05",
+              "certified": true,
+              "commit_witness": {
+                "batch_commit_counts": 0,
+                "commit_counts": 260784
+              },
+              "commits": 260784,
+              "verdict": "serializable",
+              "workload": {
+                "tag": "legacy"
+              }
+            },
+            "stage": "verify_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "bench_wall_s": 16.7784960110439,
+              "build_attempt_id": "a1a72c520cae126489cff7a9ffa2bc05",
+              "cv": 0.02074902601444439,
+              "cv_history": [
+                0.02074902601444439
+              ],
+              "high_variance": false,
+              "leading_indicators": {
+                "abort_rate": 0.1225,
+                "ipc": null,
+                "latency_ns": 34967.251,
+                "llc_miss_rate": null,
+                "throughput_tps": 1372713.0
+              },
+              "median_tps": 1372713.0,
+              "perf_observation": {
+                "claim_scope": {
+                  "perf_required": "unsupported",
+                  "throughput": "eligible"
+                },
+                "counter_status": "not_required",
+                "missing_leading_indicators": [],
+                "preflight": {
+                  "available": false,
+                  "candidates": [
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+                      "rc": 0
+                    },
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+                      "rc": 0
+                    }
+                  ],
+                  "parsed_events": [],
+                  "probe_argv": [
+                    "perf",
+                    "stat",
+                    "-x,",
+                    "-o",
+                    "<tmp>/perf.csv",
+                    "-e",
+                    "LLC-load-misses,LLC-loads,instructions,cycles",
+                    "--",
+                    "/bin/true"
+                  ],
+                  "rc": 2,
+                  "reason": "nonzero-rc",
+                  "schema": "izanagi-perf-preflight/v1",
+                  "status": "unavailable",
+                  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+                },
+                "use_perf": false
+              },
+              "rep_notes": [],
+              "rounds": 1,
+              "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10",
+              "settled": null,
+              "tps": [
+                1324098.0,
+                1400976.0,
+                1374660.0,
+                1372713.0,
+                1355366.0
+              ],
+              "unstable": false
+            },
+            "stage": "bench_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "a1a72c520cae126489cff7a9ffa2bc05",
+              "commit_verification_receipt": {
+                "issuer_pid": 3152237,
+                "issuer_process_seal_sha256": "579974b5d20c7ec0b74af4bda8b15972f78ad14cb08277cb6efdb9726b51250b",
+                "lock_identity_sha256": "daa7bdd6e60ce8118406662f964b8b0d9a7486f7481b15faa95f69b8a53357ee",
+                "operation_identity": "a1a72c520cae126489cff7a9ffa2bc05",
+                "receipt_id": "fcb59a63a4f29897654da301e37df96887fc25711fc9bc2d280f5f01e52eec97",
+                "replay_provenance": null,
+                "schema": "campaign-commit-verification-receipt/v1",
+                "sink_kind": "campaign-wal",
+                "terminal_payload_sha256": "2f74afe2877d37c5e2278e2289c20db8aafd3906a4a6cc9c231b45cb60a124a0",
+                "variant": "e44bf7ae9d29",
+                "verifier_evidence": [
+                  {
+                    "certified": true,
+                    "verdict": "serializable",
+                    "verifier_result_sha256": "f2d1a400f06a3b295b1ccd12811e2059654fe124c7f44f7cb3c2083222bc92d3",
+                    "workload_tag": "legacy"
+                  }
+                ]
+              },
+              "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "cv": 0.02074902601444439,
+              "fitness_tps": 1372713.0,
+              "high_variance": false,
+              "unstable": false,
+              "verify_configs": [
+                "legacy"
+              ]
+            },
+            "stage": "commit",
+            "variant": "e44bf7ae9d29"
+          }
+        ],
+        "sha256": "523ca0de98abf46097a8dafe58078afbf0651578e3f025f3fb43f69331887fe9",
+        "size": 13739,
+        "truncated_tail": false
+      },
+      "workload": "write-heavy"
+    },
+    {
+      "arms": {
+        "adaptive": {
+          "actual_rounds": 1,
+          "attempt_count": 1,
+          "correctness_evidence": {
+            "certified": [
+              true
+            ],
+            "verify_configs": [
+              "legacy"
+            ],
+            "verify_done_frames": [
+              {
+                "byte_end": 3988,
+                "byte_start": 3648,
+                "line_number": 3,
+                "raw_sha256": "425fd01a2aa0ae1e34ecacd0fc8ac232bae5dac3e67891c6a1a58e1249894b33",
+                "stage": "verify_done"
+              }
+            ]
+          },
+          "errors": [],
+          "genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+          "name": "adaptive",
+          "ordered_attempt_frames": [
+            {
+              "byte_end": 1254,
+              "byte_start": 0,
+              "line_number": 1,
+              "raw_sha256": "3826ef3e7b6d4a279f321688b8b8b0690feff9d45ea45cb655b8bc2e869c4427",
+              "stage": "build_start"
+            },
+            {
+              "byte_end": 3648,
+              "byte_start": 1254,
+              "line_number": 2,
+              "raw_sha256": "10c5a1d9ff96adb514f9d8c71b33a9d67c6796f0c1df6f8fa72ecfefb1116f14",
+              "stage": "build_done"
+            },
+            {
+              "byte_end": 3988,
+              "byte_start": 3648,
+              "line_number": 3,
+              "raw_sha256": "425fd01a2aa0ae1e34ecacd0fc8ac232bae5dac3e67891c6a1a58e1249894b33",
+              "stage": "verify_done"
+            },
+            {
+              "byte_end": 5639,
+              "byte_start": 3988,
+              "line_number": 4,
+              "raw_sha256": "e25ad68c92e6cdfc710267711ecb14757733a3d780a707cd47b9ac359b3b8dde",
+              "stage": "bench_done"
+            },
+            {
+              "byte_end": 6873,
+              "byte_start": 5639,
+              "line_number": 5,
+              "raw_sha256": "5306bec571c471899ff3a30ac6f0cf8709913f2052292015f81c2addfeab4997",
+              "stage": "commit"
+            }
+          ],
+          "performance_trace0_evidence": {
+            "artifact_standalone_proof": false,
+            "bench_done_frame": {
+              "byte_end": 5639,
+              "byte_start": 3988,
+              "line_number": 4,
+              "raw_sha256": "e25ad68c92e6cdfc710267711ecb14757733a3d780a707cd47b9ac359b3b8dde",
+              "stage": "bench_done"
+            },
+            "bench_run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0 -ycsb_max_ope=10",
+            "build_done_frame": {
+              "byte_end": 3648,
+              "byte_start": 1254,
+              "line_number": 2,
+              "raw_sha256": "10c5a1d9ff96adb514f9d8c71b33a9d67c6796f0c1df6f8fa72ecfefb1116f14",
+              "stage": "build_done"
+            },
+            "evidence_level": "source-routed-trace0",
+            "files": {
+              "orchestrator/campaign/paper_story_a1_paired.py": {
+                "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+                "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+              },
+              "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+                "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+                "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+              },
+              "orchestrator/campaign/pipeline.py": {
+                "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+                "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+              },
+              "tools/pegasus/paper_story_a1_paired.sh": {
+                "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+                "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+              }
+            },
+            "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953",
+            "perf_bin_sha256": "dcfc670c652810389d6c1b60e7139a7c66fb3c37c4e11c5d9af916142d5da087",
+            "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac --target ycsb_silo.exe -j 48",
+            "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0"
+          },
+          "raw_tps": [
+            1140625.0,
+            1240400.0,
+            1232363.0,
+            1196583.0,
+            1222422.0
+          ],
+          "rep_notes": [],
+          "unstable": false,
+          "valid": true,
+          "variant": "602b4ce9c788"
+        },
+        "static10": {
+          "actual_rounds": 1,
+          "attempt_count": 1,
+          "correctness_evidence": {
+            "certified": [
+              true
+            ],
+            "verify_configs": [
+              "legacy"
+            ],
+            "verify_done_frames": [
+              {
+                "byte_end": 10860,
+                "byte_start": 10521,
+                "line_number": 8,
+                "raw_sha256": "00fecfdf06088ee67d562cb68fdad728372a70b038ebceab41c4885a9d20d510",
+                "stage": "verify_done"
+              }
+            ]
+          },
+          "errors": [],
+          "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+          "name": "static10",
+          "ordered_attempt_frames": [
+            {
+              "byte_end": 8127,
+              "byte_start": 6873,
+              "line_number": 6,
+              "raw_sha256": "29e99dcfb876f5039de3bff9e1be806f6a9ebfd3f84b862605c0d341858d1004",
+              "stage": "build_start"
+            },
+            {
+              "byte_end": 10521,
+              "byte_start": 8127,
+              "line_number": 7,
+              "raw_sha256": "f83c737a433582797e7847595e529704d93d6548b1725a32de545ec9b9d5b994",
+              "stage": "build_done"
+            },
+            {
+              "byte_end": 10860,
+              "byte_start": 10521,
+              "line_number": 8,
+              "raw_sha256": "00fecfdf06088ee67d562cb68fdad728372a70b038ebceab41c4885a9d20d510",
+              "stage": "verify_done"
+            },
+            {
+              "byte_end": 12508,
+              "byte_start": 10860,
+              "line_number": 9,
+              "raw_sha256": "7989484fc3ab3aa8efbb116ce4c302c16ff63e5969359a47ddd0c173f11713cf",
+              "stage": "bench_done"
+            },
+            {
+              "byte_end": 13742,
+              "byte_start": 12508,
+              "line_number": 10,
+              "raw_sha256": "c453f2f407728f36d99e1f8b77656124ae7af7af95b94289f39e5082b8ad4f91",
+              "stage": "commit"
+            }
+          ],
+          "performance_trace0_evidence": {
+            "artifact_standalone_proof": false,
+            "bench_done_frame": {
+              "byte_end": 12508,
+              "byte_start": 10860,
+              "line_number": 9,
+              "raw_sha256": "7989484fc3ab3aa8efbb116ce4c302c16ff63e5969359a47ddd0c173f11713cf",
+              "stage": "bench_done"
+            },
+            "bench_run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0 -ycsb_max_ope=10",
+            "build_done_frame": {
+              "byte_end": 10521,
+              "byte_start": 8127,
+              "line_number": 7,
+              "raw_sha256": "f83c737a433582797e7847595e529704d93d6548b1725a32de545ec9b9d5b994",
+              "stage": "build_done"
+            },
+            "evidence_level": "source-routed-trace0",
+            "files": {
+              "orchestrator/campaign/paper_story_a1_paired.py": {
+                "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+                "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+              },
+              "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+                "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+                "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+              },
+              "orchestrator/campaign/pipeline.py": {
+                "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+                "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+              },
+              "tools/pegasus/paper_story_a1_paired.sh": {
+                "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+                "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+              }
+            },
+            "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953",
+            "perf_bin_sha256": "52fc5e3347913a80ea9fbf494442087589e3f6407729d4d566a858f47cb9be5e",
+            "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 --target ycsb_silo.exe -j 48",
+            "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=10 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0"
+          },
+          "raw_tps": [
+            1329253.0,
+            1275362.0,
+            1277907.0,
+            1232581.0,
+            1271294.0
+          ],
+          "rep_notes": [],
+          "unstable": false,
+          "valid": true,
+          "variant": "e44bf7ae9d29"
+        }
+      },
+      "campaign_binding": {
+        "campaign_lock_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-balanced-paired-b759b5b9/campaign.lock",
+        "campaign_lock_sha256": "3761272727112bf66206373df9cd0910cc325880dcb1421aab966d07f0102edf",
+        "campaign_lock_size": 4556,
+        "canonical_preimage": "{\"authority\":{\"activation_serial\":1,\"activation_state_sha256\":\"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed\",\"contract_loader_blob_sha256s\":{\"orchestrator/campaign/artifact_admission.py\":\"267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f\",\"orchestrator/campaign/campaign_lock.py\":\"91a273a86afef1abcf4ace2df717d95abab93da77b4db2c59b609588f4bbe663\",\"orchestrator/campaign/contract_loader_binding.py\":\"679666c76f6f1f94f7daa6e743ace9e69838972db0120a4018ddac13c14f1dcc\",\"orchestrator/campaign/enforcement_source_ratification.py\":\"b48455e9300810ac42749cc4990346a97905b0da3426b47da6c0846abb671d69\",\"orchestrator/campaign/env_contract.py\":\"292bbed314a6824e0618da83d1d94253f0290e4db0b3e509200a79221508bc9a\",\"orchestrator/campaign/env_contract_activation.py\":\"679b6ef0d356d6d1d7377eee3846793757b7bc9a2e0b91f26f07d5d69741ef6b\",\"orchestrator/campaign/execution_guard.py\":\"12cdad02d1a605f52d0fb3514e4c74b160bef9c2f9f6ea9eae26d758e33a2030\",\"orchestrator/campaign/guided.py\":\"5b57bcbdb69b800f68143105f1168ee6de8eef36863906a8d45eba9835bb4d1d\",\"orchestrator/campaign/ident.py\":\"0fbd7291d264a2f5b330cae035b3f99b83b922cac4fd5a1c29deaaca9a67c09d\",\"orchestrator/campaign/loop.py\":\"d2208103d410dc2646880b0e9dba32db62e3de8cf38fa96707486f7df87ae0aa\",\"orchestrator/campaign/pipeline.py\":\"b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68\",\"orchestrator/campaign/replay.py\":\"b5ed150e1b163cefe81c521e87e7263be957d44c321726eea8c59b7a296c07d4\",\"orchestrator/campaign/s8c_generation_projection.py\":\"5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457\",\"orchestrator/campaign/s8c_preregistration.py\":\"5257cde7ea906beecd9961e6232d09f2d3dfebd012796abe8da337dad5b67113\",\"orchestrator/campaign/s8c_preregistration_evidence.py\":\"f69498890dfa0150cd1607c33811197348c10b8fb09beab8716508d146612394\",\"orchestrator/campaign/wal.py\":\"9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2\",\"orchestrator/qualification/artifacts.py\":\"97831abd9dc3be135464c11002b95dca2468bbfc52d90cdb27b0da4863780674\",\"orchestrator/qualification/t126_driver.py\":\"0eb6db242ce68fb31ebbd0199877cc656e83cd75506c413daacbd6ee8b0e2550\",\"orchestrator/verifier/__init__.py\":\"8f5389312139152866bffbf7f24369a717178ccaab352c00b8e874b5a3d89719\",\"orchestrator/verifier/commit_receipt.py\":\"1b3fd468b8cd66eeff728390bac62780a7be132052432a82eb7649b728878d49\",\"orchestrator/verifier/core.py\":\"5a02a4468fc094a949e2cb32835c7085a80c3e7a51bfbbd6cb8d9aa1a1d1934c\",\"orchestrator/verifier/dsg.py\":\"508f88a3d61b2f3370b637231fa8b38869a6984afe8c015d5269b387d88b4be5\",\"orchestrator/verifier/model.py\":\"8835c8e0932ad2431a6a5cd48bb55b84c2b722cd1925a6aa329130d65605dd46\",\"orchestrator/verifier/parse.py\":\"d9fed974e09b09aa181f4b03fcfa490ba5d52588369b27593f38022b2d424083\",\"orchestrator/verifier/report.py\":\"e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd\"},\"contract_loader_commit\":\"449b8525e7fe1d727bc18ddb8a3df10877df6953\",\"environment_contract_sha256\":\"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01\"},\"identity_preimage\":\"{\\\"ccbench_commit\\\":\\\"511c953\\\",\\\"search_config\\\":{\\\"arm_order\\\":[\\\"adaptive\\\",\\\"static10\\\"],\\\"arms\\\":[{\\\"genome\\\":\\\"silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0\\\",\\\"name\\\":\\\"adaptive\\\"},{\\\"genome\\\":\\\"silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0\\\",\\\"name\\\":\\\"static10\\\"}],\\\"build_admission\\\":{\\\"coder_authority\\\":\\\"cli-opt-in\\\",\\\"generator_registry\\\":[\\\"backoff-overthrottle\\\",\\\"backoff-profile\\\",\\\"backoff-repro\\\",\\\"backoff-sweep\\\",\\\"s1-extime-calibration\\\",\\\"s6-sort-sweep\\\",\\\"s8a-trigger-sweep\\\"],\\\"repo_stock_pin\\\":\\\"511c953\\\",\\\"review_registry\\\":[\\\"s1-known-axes\\\",\\\"s8b-floor\\\",\\\"s8b-oracle\\\"],\\\"schema\\\":\\\"build-admission-policy/v1\\\"},\\\"formal\\\":false,\\\"measurement_env\\\":\\\"pegasus\\\",\\\"pairing_design\\\":\\\"arm-grouped-positional-v1\\\",\\\"promotion_prohibited\\\":true,\\\"scale\\\":{\\\"expected_verify_configs\\\":[\\\"legacy\\\"],\\\"extime_s\\\":3,\\\"records\\\":1000000,\\\"reps\\\":5,\\\"threads\\\":48,\\\"ycsb_max_ope\\\":\\\"10\\\",\\\"ycsb_rmw\\\":\\\"0\\\",\\\"ycsb_zipf_skew\\\":\\\"0.9\\\"},\\\"schema\\\":\\\"paper-story-a1-paired-campaign/v1\\\",\\\"study_id\\\":\\\"paper-story-a1-20260824-exploratory-v1\\\",\\\"workload\\\":{\\\"name\\\":\\\"balanced\\\",\\\"ycsb_max_ope\\\":\\\"10\\\",\\\"ycsb_rmw\\\":\\\"0\\\",\\\"ycsb_rratio\\\":\\\"50\\\",\\\"ycsb_zipf_skew\\\":\\\"0.9\\\"}},\\\"search_tag\\\":\\\"paired\\\",\\\"spec_content\\\":\\\"D95 exploratory A-1 static10 minus adaptive, arm-grouped positional comparison, workload=balanced\\\",\\\"trial\\\":\\\"paper-story-a1-20260824-exploratory-v1\\\"}\",\"schema_version\":\"campaign-lock/v2\"}",
+        "layout_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-balanced-paired-b759b5b9",
+        "recomputed_campaign_id": "paper-story-a1-balanced-paired-b759b5b9",
+        "wal_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-balanced-paired-b759b5b9/runs/wal.jsonl"
+      },
+      "campaign_id": "paper-story-a1-balanced-paired-b759b5b9",
+      "errors": [],
+      "statistics": {
+        "contrast": "static10-minus-adaptive",
+        "mean_signed_positional_difference_tps": 70800.8,
+        "observed_mean_negative": false,
+        "pairing_design": "arm-grouped-positional-v1",
+        "pairs": [
+          {
+            "adaptive_tps": 1140625.0,
+            "pair_index": 0,
+            "signed_difference_tps": 188628.0,
+            "static10_tps": 1329253.0
+          },
+          {
+            "adaptive_tps": 1240400.0,
+            "pair_index": 1,
+            "signed_difference_tps": 34962.0,
+            "static10_tps": 1275362.0
+          },
+          {
+            "adaptive_tps": 1232363.0,
+            "pair_index": 2,
+            "signed_difference_tps": 45544.0,
+            "static10_tps": 1277907.0
+          },
+          {
+            "adaptive_tps": 1196583.0,
+            "pair_index": 3,
+            "signed_difference_tps": 35998.0,
+            "static10_tps": 1232581.0
+          },
+          {
+            "adaptive_tps": 1222422.0,
+            "pair_index": 4,
+            "signed_difference_tps": 48872.0,
+            "static10_tps": 1271294.0
+          }
+        ],
+        "sample_sd_positional_difference_tps": 66139.40154854744,
+        "sample_variance_positional_difference_tps2": 4374420437.2
+      },
+      "valid": true,
+      "wal_evidence": {
+        "expected_env_tag": "pegasus",
+        "line_issues": [],
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-balanced-paired-b759b5b9/runs/wal.jsonl",
+        "records": [
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission": {
+                "authority_kind": null,
+                "class": "stock-baseline",
+                "generator_id": null,
+                "generator_receipt": null,
+                "input_sha256": null,
+                "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+                "receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+                "review_id": null,
+                "review_receipt": null,
+                "schema": "build-admission/v1",
+                "source": {
+                  "ccbench_commit": "511c953",
+                  "genome_sha256": "602b4ce9c788d8d906edc157f72776fcdf993ea91fc862720adbbbb7df67ff61",
+                  "schema": "source-evidence/v1",
+                  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+                  "source_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench",
+                  "src_token": "stock",
+                  "tracked_clean": true,
+                  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "tracked_paths": []
+                }
+              },
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "bbe0fbde6bce3139120bbf1b2098f54c",
+              "genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+              "src_token": "stock"
+            },
+            "stage": "build_start",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "bbe0fbde6bce3139120bbf1b2098f54c",
+              "perf_bin": "dcfc670c65281038",
+              "perf_bin_sha256": "dcfc670c652810389d6c1b60e7139a7c66fb3c37c4e11c5d9af916142d5da087",
+              "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac --target ycsb_silo.exe -j 48",
+              "perf_cached": true,
+              "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0",
+              "toolchain": {
+                "cc": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+                  "requested": "gcc",
+                  "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                },
+                "cmake": {
+                  "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+                  "requested": "cmake",
+                  "version_first_line": "cmake version 3.25.0"
+                },
+                "cxx": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+                  "requested": "g++",
+                  "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                }
+              },
+              "toolchain_record_sha256": "6a73081a1bead42ac9f8ad18fcaeaf196aed0955482ce5459d9e2656c34625c0",
+              "trace_bin": "0ef26274a6c68f8a",
+              "trace_bin_sha256": "0ef26274a6c68f8af5a55d6e94388bcaa38a7aea94fdb29cde8661ea376b2d82",
+              "trace_cached": true
+            },
+            "stage": "build_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "aborts": 8526,
+              "anomalies": 0,
+              "build_attempt_id": "bbe0fbde6bce3139120bbf1b2098f54c",
+              "certified": true,
+              "commit_witness": {
+                "batch_commit_counts": 0,
+                "commit_counts": 254362
+              },
+              "commits": 254362,
+              "verdict": "serializable",
+              "workload": {
+                "tag": "legacy"
+              }
+            },
+            "stage": "verify_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "bench_wall_s": 16.795074584893882,
+              "build_attempt_id": "bbe0fbde6bce3139120bbf1b2098f54c",
+              "cv": 0.033436696688397764,
+              "cv_history": [
+                0.033436696688397764
+              ],
+              "high_variance": false,
+              "leading_indicators": {
+                "abort_rate": 0.2151,
+                "ipc": null,
+                "latency_ns": 39266.309,
+                "llc_miss_rate": null,
+                "throughput_tps": 1222422.0
+              },
+              "median_tps": 1222422.0,
+              "perf_observation": {
+                "claim_scope": {
+                  "perf_required": "unsupported",
+                  "throughput": "eligible"
+                },
+                "counter_status": "not_required",
+                "missing_leading_indicators": [],
+                "preflight": {
+                  "available": false,
+                  "candidates": [
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+                      "rc": 0
+                    },
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+                      "rc": 0
+                    }
+                  ],
+                  "parsed_events": [],
+                  "probe_argv": [
+                    "perf",
+                    "stat",
+                    "-x,",
+                    "-o",
+                    "<tmp>/perf.csv",
+                    "-e",
+                    "LLC-load-misses,LLC-loads,instructions,cycles",
+                    "--",
+                    "/bin/true"
+                  ],
+                  "rc": 2,
+                  "reason": "nonzero-rc",
+                  "schema": "izanagi-perf-preflight/v1",
+                  "status": "unavailable",
+                  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+                },
+                "use_perf": false
+              },
+              "rep_notes": [],
+              "rounds": 1,
+              "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0 -ycsb_max_ope=10",
+              "settled": false,
+              "tps": [
+                1140625.0,
+                1240400.0,
+                1232363.0,
+                1196583.0,
+                1222422.0
+              ],
+              "unstable": false
+            },
+            "stage": "bench_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "bbe0fbde6bce3139120bbf1b2098f54c",
+              "commit_verification_receipt": {
+                "issuer_pid": 3152237,
+                "issuer_process_seal_sha256": "579974b5d20c7ec0b74af4bda8b15972f78ad14cb08277cb6efdb9726b51250b",
+                "lock_identity_sha256": "3761272727112bf66206373df9cd0910cc325880dcb1421aab966d07f0102edf",
+                "operation_identity": "bbe0fbde6bce3139120bbf1b2098f54c",
+                "receipt_id": "7e24357ee9a289b4e7e4bc37b62f03e7b09995f2f4cfc40d0fc642a7c566829f",
+                "replay_provenance": null,
+                "schema": "campaign-commit-verification-receipt/v1",
+                "sink_kind": "campaign-wal",
+                "terminal_payload_sha256": "b5e390c5a75939379200e30a6ef9ddca58581332dbfe7a5d64bbd268fbc7ad43",
+                "variant": "602b4ce9c788",
+                "verifier_evidence": [
+                  {
+                    "certified": true,
+                    "verdict": "serializable",
+                    "verifier_result_sha256": "36681e0ced959fd9ee5206406b36f1dfc0fbcdcfff42ace5ae8644a7809affb7",
+                    "workload_tag": "legacy"
+                  }
+                ]
+              },
+              "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "cv": 0.033436696688397764,
+              "fitness_tps": 1222422.0,
+              "high_variance": false,
+              "unstable": false,
+              "verify_configs": [
+                "legacy"
+              ]
+            },
+            "stage": "commit",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission": {
+                "authority_kind": null,
+                "class": "stock-baseline",
+                "generator_id": null,
+                "generator_receipt": null,
+                "input_sha256": null,
+                "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+                "receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+                "review_id": null,
+                "review_receipt": null,
+                "schema": "build-admission/v1",
+                "source": {
+                  "ccbench_commit": "511c953",
+                  "genome_sha256": "e44bf7ae9d29dee35f7b9966b5484b3db07ab1c10547a5588d89d12ad172a16c",
+                  "schema": "source-evidence/v1",
+                  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+                  "source_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench",
+                  "src_token": "stock",
+                  "tracked_clean": true,
+                  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "tracked_paths": []
+                }
+              },
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "d57e64be9f7517302786f422b13a5190",
+              "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+              "src_token": "stock"
+            },
+            "stage": "build_start",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "d57e64be9f7517302786f422b13a5190",
+              "perf_bin": "52fc5e3347913a80",
+              "perf_bin_sha256": "52fc5e3347913a80ea9fbf494442087589e3f6407729d4d566a858f47cb9be5e",
+              "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 --target ycsb_silo.exe -j 48",
+              "perf_cached": true,
+              "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=10 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0",
+              "toolchain": {
+                "cc": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+                  "requested": "gcc",
+                  "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                },
+                "cmake": {
+                  "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+                  "requested": "cmake",
+                  "version_first_line": "cmake version 3.25.0"
+                },
+                "cxx": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+                  "requested": "g++",
+                  "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                }
+              },
+              "toolchain_record_sha256": "6a73081a1bead42ac9f8ad18fcaeaf196aed0955482ce5459d9e2656c34625c0",
+              "trace_bin": "ad478538daa47071",
+              "trace_bin_sha256": "ad478538daa47071179272e5ff7913bc0a2a7565266b2e5a777849741647d8e9",
+              "trace_cached": true
+            },
+            "stage": "build_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "aborts": 7774,
+              "anomalies": 0,
+              "build_attempt_id": "d57e64be9f7517302786f422b13a5190",
+              "certified": true,
+              "commit_witness": {
+                "batch_commit_counts": 0,
+                "commit_counts": 251336
+              },
+              "commits": 251336,
+              "verdict": "serializable",
+              "workload": {
+                "tag": "legacy"
+              }
+            },
+            "stage": "verify_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "bench_wall_s": 16.80142750008963,
+              "build_attempt_id": "d57e64be9f7517302786f422b13a5190",
+              "cv": 0.026948333458687707,
+              "cv_history": [
+                0.026948333458687707
+              ],
+              "high_variance": false,
+              "leading_indicators": {
+                "abort_rate": 0.2125,
+                "ipc": null,
+                "latency_ns": 37636.373,
+                "llc_miss_rate": null,
+                "throughput_tps": 1275362.0
+              },
+              "median_tps": 1275362.0,
+              "perf_observation": {
+                "claim_scope": {
+                  "perf_required": "unsupported",
+                  "throughput": "eligible"
+                },
+                "counter_status": "not_required",
+                "missing_leading_indicators": [],
+                "preflight": {
+                  "available": false,
+                  "candidates": [
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+                      "rc": 0
+                    },
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+                      "rc": 0
+                    }
+                  ],
+                  "parsed_events": [],
+                  "probe_argv": [
+                    "perf",
+                    "stat",
+                    "-x,",
+                    "-o",
+                    "<tmp>/perf.csv",
+                    "-e",
+                    "LLC-load-misses,LLC-loads,instructions,cycles",
+                    "--",
+                    "/bin/true"
+                  ],
+                  "rc": 2,
+                  "reason": "nonzero-rc",
+                  "schema": "izanagi-perf-preflight/v1",
+                  "status": "unavailable",
+                  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+                },
+                "use_perf": false
+              },
+              "rep_notes": [],
+              "rounds": 1,
+              "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0 -ycsb_max_ope=10",
+              "settled": null,
+              "tps": [
+                1329253.0,
+                1275362.0,
+                1277907.0,
+                1232581.0,
+                1271294.0
+              ],
+              "unstable": false
+            },
+            "stage": "bench_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "d57e64be9f7517302786f422b13a5190",
+              "commit_verification_receipt": {
+                "issuer_pid": 3152237,
+                "issuer_process_seal_sha256": "579974b5d20c7ec0b74af4bda8b15972f78ad14cb08277cb6efdb9726b51250b",
+                "lock_identity_sha256": "3761272727112bf66206373df9cd0910cc325880dcb1421aab966d07f0102edf",
+                "operation_identity": "d57e64be9f7517302786f422b13a5190",
+                "receipt_id": "514e15123de56c44a8273a410016c87a4bfeb3417a2a4c56437852be132b8ca1",
+                "replay_provenance": null,
+                "schema": "campaign-commit-verification-receipt/v1",
+                "sink_kind": "campaign-wal",
+                "terminal_payload_sha256": "812f907fa81665988f23e58ec2a656a8b3e4355c17f3d3f80f9fe9854deb7cbf",
+                "variant": "e44bf7ae9d29",
+                "verifier_evidence": [
+                  {
+                    "certified": true,
+                    "verdict": "serializable",
+                    "verifier_result_sha256": "bf4ca71ee8b4f19da24c961e8d847e293bbdea4ffe25433d774d5ea470fa488d",
+                    "workload_tag": "legacy"
+                  }
+                ]
+              },
+              "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "cv": 0.026948333458687707,
+              "fitness_tps": 1275362.0,
+              "high_variance": false,
+              "unstable": false,
+              "verify_configs": [
+                "legacy"
+              ]
+            },
+            "stage": "commit",
+            "variant": "e44bf7ae9d29"
+          }
+        ],
+        "sha256": "47c2165a06524e16353c90ed2e16f895b0350535305694ad0a94e516e9d6be3d",
+        "size": 13742,
+        "truncated_tail": false
+      },
+      "workload": "balanced"
+    },
+    {
+      "arms": {
+        "adaptive": {
+          "actual_rounds": 1,
+          "attempt_count": 1,
+          "correctness_evidence": {
+            "certified": [
+              true
+            ],
+            "verify_configs": [
+              "legacy"
+            ],
+            "verify_done_frames": [
+              {
+                "byte_end": 3988,
+                "byte_start": 3648,
+                "line_number": 3,
+                "raw_sha256": "242f199502a4eacc4fc719c36be27e3169c3c2319b42f742528758ca89df4e80",
+                "stage": "verify_done"
+              }
+            ]
+          },
+          "errors": [],
+          "genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+          "name": "adaptive",
+          "ordered_attempt_frames": [
+            {
+              "byte_end": 1254,
+              "byte_start": 0,
+              "line_number": 1,
+              "raw_sha256": "9392264439993fc6ce1eba81ff185dd75ab79cbf060fd66b13031f4097adeafa",
+              "stage": "build_start"
+            },
+            {
+              "byte_end": 3648,
+              "byte_start": 1254,
+              "line_number": 2,
+              "raw_sha256": "ca634c4a90c925098e13d0c0d27b129dd10a520b7aa961bfcaaf61ef160a1ef2",
+              "stage": "build_done"
+            },
+            {
+              "byte_end": 3988,
+              "byte_start": 3648,
+              "line_number": 3,
+              "raw_sha256": "242f199502a4eacc4fc719c36be27e3169c3c2319b42f742528758ca89df4e80",
+              "stage": "verify_done"
+            },
+            {
+              "byte_end": 5640,
+              "byte_start": 3988,
+              "line_number": 4,
+              "raw_sha256": "6ced778c28a10ab4c0e231e7d7fbfe2c02df06174ef1f4c8656da1d7e10fd534",
+              "stage": "bench_done"
+            },
+            {
+              "byte_end": 6874,
+              "byte_start": 5640,
+              "line_number": 5,
+              "raw_sha256": "1e7ec9e56d31b15fd8365a87158b2032c87d5a0b0c65205f8b2b369cfa64eadb",
+              "stage": "commit"
+            }
+          ],
+          "performance_trace0_evidence": {
+            "artifact_standalone_proof": false,
+            "bench_done_frame": {
+              "byte_end": 5640,
+              "byte_start": 3988,
+              "line_number": 4,
+              "raw_sha256": "6ced778c28a10ab4c0e231e7d7fbfe2c02df06174ef1f4c8656da1d7e10fd534",
+              "stage": "bench_done"
+            },
+            "bench_run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=95 -ycsb_rmw=0 -ycsb_max_ope=10",
+            "build_done_frame": {
+              "byte_end": 3648,
+              "byte_start": 1254,
+              "line_number": 2,
+              "raw_sha256": "ca634c4a90c925098e13d0c0d27b129dd10a520b7aa961bfcaaf61ef160a1ef2",
+              "stage": "build_done"
+            },
+            "evidence_level": "source-routed-trace0",
+            "files": {
+              "orchestrator/campaign/paper_story_a1_paired.py": {
+                "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+                "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+              },
+              "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+                "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+                "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+              },
+              "orchestrator/campaign/pipeline.py": {
+                "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+                "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+              },
+              "tools/pegasus/paper_story_a1_paired.sh": {
+                "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+                "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+              }
+            },
+            "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953",
+            "perf_bin_sha256": "dcfc670c652810389d6c1b60e7139a7c66fb3c37c4e11c5d9af916142d5da087",
+            "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac --target ycsb_silo.exe -j 48",
+            "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0"
+          },
+          "raw_tps": [
+            2325976.0,
+            2304014.0,
+            2333867.0,
+            2342449.0,
+            2324289.0
+          ],
+          "rep_notes": [],
+          "unstable": false,
+          "valid": true,
+          "variant": "602b4ce9c788"
+        },
+        "static10": {
+          "actual_rounds": 1,
+          "attempt_count": 1,
+          "correctness_evidence": {
+            "certified": [
+              true
+            ],
+            "verify_configs": [
+              "legacy"
+            ],
+            "verify_done_frames": [
+              {
+                "byte_end": 10861,
+                "byte_start": 10521,
+                "line_number": 8,
+                "raw_sha256": "db4e328c78203c9d704c363bac03aa28391a01c65a6277f355ec73ad3cd27b6c",
+                "stage": "verify_done"
+              }
+            ]
+          },
+          "errors": [],
+          "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+          "name": "static10",
+          "ordered_attempt_frames": [
+            {
+              "byte_end": 8128,
+              "byte_start": 6874,
+              "line_number": 6,
+              "raw_sha256": "7fb49efc3674217ef389f11a9b44da4c6bdef16b3360a89a1c9bffbc050a8648",
+              "stage": "build_start"
+            },
+            {
+              "byte_end": 10521,
+              "byte_start": 8128,
+              "line_number": 7,
+              "raw_sha256": "a2f5a1f16bfec47861221cf6fb810bffc1bf64e043f2fa60a3e736821182f504",
+              "stage": "build_done"
+            },
+            {
+              "byte_end": 10861,
+              "byte_start": 10521,
+              "line_number": 8,
+              "raw_sha256": "db4e328c78203c9d704c363bac03aa28391a01c65a6277f355ec73ad3cd27b6c",
+              "stage": "verify_done"
+            },
+            {
+              "byte_end": 12514,
+              "byte_start": 10861,
+              "line_number": 9,
+              "raw_sha256": "afeffbadfe8eb4080d8e41a90a31b9e9e8f3b45bc2231e911085c590083bc6db",
+              "stage": "bench_done"
+            },
+            {
+              "byte_end": 13749,
+              "byte_start": 12514,
+              "line_number": 10,
+              "raw_sha256": "fbf1daf89fa77d783bb2278d40f962a48ec3d328a5d673a2da8c86b21b7e4638",
+              "stage": "commit"
+            }
+          ],
+          "performance_trace0_evidence": {
+            "artifact_standalone_proof": false,
+            "bench_done_frame": {
+              "byte_end": 12514,
+              "byte_start": 10861,
+              "line_number": 9,
+              "raw_sha256": "afeffbadfe8eb4080d8e41a90a31b9e9e8f3b45bc2231e911085c590083bc6db",
+              "stage": "bench_done"
+            },
+            "bench_run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=95 -ycsb_rmw=0 -ycsb_max_ope=10",
+            "build_done_frame": {
+              "byte_end": 10521,
+              "byte_start": 8128,
+              "line_number": 7,
+              "raw_sha256": "a2f5a1f16bfec47861221cf6fb810bffc1bf64e043f2fa60a3e736821182f504",
+              "stage": "build_done"
+            },
+            "evidence_level": "source-routed-trace0",
+            "files": {
+              "orchestrator/campaign/paper_story_a1_paired.py": {
+                "git_blob_oid": "9f6083798665bf79485242f2485e5857dbba07e4",
+                "working_sha256": "a05d53fe2956d0b2b045b6006dad7a6f8a4b2a79f2dec67c60bc6c30f5a0827f"
+              },
+              "orchestrator/campaign/paper_story_a1_paired.v1.json": {
+                "git_blob_oid": "c89bc0f6a6626c849227b4d93a9c28f98c9d48b2",
+                "working_sha256": "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+              },
+              "orchestrator/campaign/pipeline.py": {
+                "git_blob_oid": "d888aba9ca06fbdd5a3d1093c68e418dcaa1d256",
+                "working_sha256": "b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68"
+              },
+              "tools/pegasus/paper_story_a1_paired.sh": {
+                "git_blob_oid": "3a92bf9c2467a1e0c607c852c678c1f1f1c279f7",
+                "working_sha256": "06e22f9ca097360a5543e972bb7603a5abae1848b2aeb6f267202c6d8a32a49e"
+              }
+            },
+            "measurement_source_commit": "449b8525e7fe1d727bc18ddb8a3df10877df6953",
+            "perf_bin_sha256": "52fc5e3347913a80ea9fbf494442087589e3f6407729d4d566a858f47cb9be5e",
+            "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 --target ycsb_silo.exe -j 48",
+            "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=10 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0"
+          },
+          "raw_tps": [
+            2342053.0,
+            2345961.0,
+            2332390.0,
+            2315498.0,
+            2322748.0
+          ],
+          "rep_notes": [],
+          "unstable": false,
+          "valid": true,
+          "variant": "e44bf7ae9d29"
+        }
+      },
+      "campaign_binding": {
+        "campaign_lock_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-read-heavy-paired-98f6f047/campaign.lock",
+        "campaign_lock_sha256": "58796ba9fcb6a9084de81108e00c07dc2845bbc159d8fbbdf68a37d32c83a654",
+        "campaign_lock_size": 4560,
+        "canonical_preimage": "{\"authority\":{\"activation_serial\":1,\"activation_state_sha256\":\"f78072854651b316e1f2d78c2dfc58bfd995160515ed721a80a267ced54cd3ed\",\"contract_loader_blob_sha256s\":{\"orchestrator/campaign/artifact_admission.py\":\"267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f\",\"orchestrator/campaign/campaign_lock.py\":\"91a273a86afef1abcf4ace2df717d95abab93da77b4db2c59b609588f4bbe663\",\"orchestrator/campaign/contract_loader_binding.py\":\"679666c76f6f1f94f7daa6e743ace9e69838972db0120a4018ddac13c14f1dcc\",\"orchestrator/campaign/enforcement_source_ratification.py\":\"b48455e9300810ac42749cc4990346a97905b0da3426b47da6c0846abb671d69\",\"orchestrator/campaign/env_contract.py\":\"292bbed314a6824e0618da83d1d94253f0290e4db0b3e509200a79221508bc9a\",\"orchestrator/campaign/env_contract_activation.py\":\"679b6ef0d356d6d1d7377eee3846793757b7bc9a2e0b91f26f07d5d69741ef6b\",\"orchestrator/campaign/execution_guard.py\":\"12cdad02d1a605f52d0fb3514e4c74b160bef9c2f9f6ea9eae26d758e33a2030\",\"orchestrator/campaign/guided.py\":\"5b57bcbdb69b800f68143105f1168ee6de8eef36863906a8d45eba9835bb4d1d\",\"orchestrator/campaign/ident.py\":\"0fbd7291d264a2f5b330cae035b3f99b83b922cac4fd5a1c29deaaca9a67c09d\",\"orchestrator/campaign/loop.py\":\"d2208103d410dc2646880b0e9dba32db62e3de8cf38fa96707486f7df87ae0aa\",\"orchestrator/campaign/pipeline.py\":\"b9f12cc4a492180324b285e19fc09dbb0c3e26fdc730768659c48299acccaf68\",\"orchestrator/campaign/replay.py\":\"b5ed150e1b163cefe81c521e87e7263be957d44c321726eea8c59b7a296c07d4\",\"orchestrator/campaign/s8c_generation_projection.py\":\"5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457\",\"orchestrator/campaign/s8c_preregistration.py\":\"5257cde7ea906beecd9961e6232d09f2d3dfebd012796abe8da337dad5b67113\",\"orchestrator/campaign/s8c_preregistration_evidence.py\":\"f69498890dfa0150cd1607c33811197348c10b8fb09beab8716508d146612394\",\"orchestrator/campaign/wal.py\":\"9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2\",\"orchestrator/qualification/artifacts.py\":\"97831abd9dc3be135464c11002b95dca2468bbfc52d90cdb27b0da4863780674\",\"orchestrator/qualification/t126_driver.py\":\"0eb6db242ce68fb31ebbd0199877cc656e83cd75506c413daacbd6ee8b0e2550\",\"orchestrator/verifier/__init__.py\":\"8f5389312139152866bffbf7f24369a717178ccaab352c00b8e874b5a3d89719\",\"orchestrator/verifier/commit_receipt.py\":\"1b3fd468b8cd66eeff728390bac62780a7be132052432a82eb7649b728878d49\",\"orchestrator/verifier/core.py\":\"5a02a4468fc094a949e2cb32835c7085a80c3e7a51bfbbd6cb8d9aa1a1d1934c\",\"orchestrator/verifier/dsg.py\":\"508f88a3d61b2f3370b637231fa8b38869a6984afe8c015d5269b387d88b4be5\",\"orchestrator/verifier/model.py\":\"8835c8e0932ad2431a6a5cd48bb55b84c2b722cd1925a6aa329130d65605dd46\",\"orchestrator/verifier/parse.py\":\"d9fed974e09b09aa181f4b03fcfa490ba5d52588369b27593f38022b2d424083\",\"orchestrator/verifier/report.py\":\"e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd\"},\"contract_loader_commit\":\"449b8525e7fe1d727bc18ddb8a3df10877df6953\",\"environment_contract_sha256\":\"e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01\"},\"identity_preimage\":\"{\\\"ccbench_commit\\\":\\\"511c953\\\",\\\"search_config\\\":{\\\"arm_order\\\":[\\\"adaptive\\\",\\\"static10\\\"],\\\"arms\\\":[{\\\"genome\\\":\\\"silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0\\\",\\\"name\\\":\\\"adaptive\\\"},{\\\"genome\\\":\\\"silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0\\\",\\\"name\\\":\\\"static10\\\"}],\\\"build_admission\\\":{\\\"coder_authority\\\":\\\"cli-opt-in\\\",\\\"generator_registry\\\":[\\\"backoff-overthrottle\\\",\\\"backoff-profile\\\",\\\"backoff-repro\\\",\\\"backoff-sweep\\\",\\\"s1-extime-calibration\\\",\\\"s6-sort-sweep\\\",\\\"s8a-trigger-sweep\\\"],\\\"repo_stock_pin\\\":\\\"511c953\\\",\\\"review_registry\\\":[\\\"s1-known-axes\\\",\\\"s8b-floor\\\",\\\"s8b-oracle\\\"],\\\"schema\\\":\\\"build-admission-policy/v1\\\"},\\\"formal\\\":false,\\\"measurement_env\\\":\\\"pegasus\\\",\\\"pairing_design\\\":\\\"arm-grouped-positional-v1\\\",\\\"promotion_prohibited\\\":true,\\\"scale\\\":{\\\"expected_verify_configs\\\":[\\\"legacy\\\"],\\\"extime_s\\\":3,\\\"records\\\":1000000,\\\"reps\\\":5,\\\"threads\\\":48,\\\"ycsb_max_ope\\\":\\\"10\\\",\\\"ycsb_rmw\\\":\\\"0\\\",\\\"ycsb_zipf_skew\\\":\\\"0.9\\\"},\\\"schema\\\":\\\"paper-story-a1-paired-campaign/v1\\\",\\\"study_id\\\":\\\"paper-story-a1-20260824-exploratory-v1\\\",\\\"workload\\\":{\\\"name\\\":\\\"read-heavy\\\",\\\"ycsb_max_ope\\\":\\\"10\\\",\\\"ycsb_rmw\\\":\\\"0\\\",\\\"ycsb_rratio\\\":\\\"95\\\",\\\"ycsb_zipf_skew\\\":\\\"0.9\\\"}},\\\"search_tag\\\":\\\"paired\\\",\\\"spec_content\\\":\\\"D95 exploratory A-1 static10 minus adaptive, arm-grouped positional comparison, workload=read-heavy\\\",\\\"trial\\\":\\\"paper-story-a1-20260824-exploratory-v1\\\"}\",\"schema_version\":\"campaign-lock/v2\"}",
+        "layout_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-read-heavy-paired-98f6f047",
+        "recomputed_campaign_id": "paper-story-a1-read-heavy-paired-98f6f047",
+        "wal_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-read-heavy-paired-98f6f047/runs/wal.jsonl"
+      },
+      "campaign_id": "paper-story-a1-read-heavy-paired-98f6f047",
+      "errors": [],
+      "statistics": {
+        "contrast": "static10-minus-adaptive",
+        "mean_signed_positional_difference_tps": 5611.0,
+        "observed_mean_negative": false,
+        "pairing_design": "arm-grouped-positional-v1",
+        "pairs": [
+          {
+            "adaptive_tps": 2325976.0,
+            "pair_index": 0,
+            "signed_difference_tps": 16077.0,
+            "static10_tps": 2342053.0
+          },
+          {
+            "adaptive_tps": 2304014.0,
+            "pair_index": 1,
+            "signed_difference_tps": 41947.0,
+            "static10_tps": 2345961.0
+          },
+          {
+            "adaptive_tps": 2333867.0,
+            "pair_index": 2,
+            "signed_difference_tps": -1477.0,
+            "static10_tps": 2332390.0
+          },
+          {
+            "adaptive_tps": 2342449.0,
+            "pair_index": 3,
+            "signed_difference_tps": -26951.0,
+            "static10_tps": 2315498.0
+          },
+          {
+            "adaptive_tps": 2324289.0,
+            "pair_index": 4,
+            "signed_difference_tps": -1541.0,
+            "static10_tps": 2322748.0
+          }
+        ],
+        "sample_sd_positional_difference_tps": 25453.471001024594,
+        "sample_variance_positional_difference_tps2": 647879186.0
+      },
+      "valid": true,
+      "wal_evidence": {
+        "expected_env_tag": "pegasus",
+        "line_issues": [],
+        "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/raw/campaign-output/exploration/campaigns/paper-story-a1-read-heavy-paired-98f6f047/runs/wal.jsonl",
+        "records": [
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission": {
+                "authority_kind": null,
+                "class": "stock-baseline",
+                "generator_id": null,
+                "generator_receipt": null,
+                "input_sha256": null,
+                "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+                "receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+                "review_id": null,
+                "review_receipt": null,
+                "schema": "build-admission/v1",
+                "source": {
+                  "ccbench_commit": "511c953",
+                  "genome_sha256": "602b4ce9c788d8d906edc157f72776fcdf993ea91fc862720adbbbb7df67ff61",
+                  "schema": "source-evidence/v1",
+                  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+                  "source_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench",
+                  "src_token": "stock",
+                  "tracked_clean": true,
+                  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "tracked_paths": []
+                }
+              },
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "e96ac1218921497264a044fd7eceeb13",
+              "genome": "silo|BACKOFF_FIXED=-1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+              "src_token": "stock"
+            },
+            "stage": "build_start",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "e96ac1218921497264a044fd7eceeb13",
+              "perf_bin": "dcfc670c65281038",
+              "perf_bin_sha256": "dcfc670c652810389d6c1b60e7139a7c66fb3c37c4e11c5d9af916142d5da087",
+              "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac --target ycsb_silo.exe -j 48",
+              "perf_cached": true,
+              "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=-1 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0",
+              "toolchain": {
+                "cc": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+                  "requested": "gcc",
+                  "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                },
+                "cmake": {
+                  "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+                  "requested": "cmake",
+                  "version_first_line": "cmake version 3.25.0"
+                },
+                "cxx": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+                  "requested": "g++",
+                  "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                }
+              },
+              "toolchain_record_sha256": "6a73081a1bead42ac9f8ad18fcaeaf196aed0955482ce5459d9e2656c34625c0",
+              "trace_bin": "0ef26274a6c68f8a",
+              "trace_bin_sha256": "0ef26274a6c68f8af5a55d6e94388bcaa38a7aea94fdb29cde8661ea376b2d82",
+              "trace_cached": true
+            },
+            "stage": "build_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "aborts": 8293,
+              "anomalies": 0,
+              "build_attempt_id": "e96ac1218921497264a044fd7eceeb13",
+              "certified": true,
+              "commit_witness": {
+                "batch_commit_counts": 0,
+                "commit_counts": 254410
+              },
+              "commits": 254410,
+              "verdict": "serializable",
+              "workload": {
+                "tag": "legacy"
+              }
+            },
+            "stage": "verify_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "bench_wall_s": 16.818197565036826,
+              "build_attempt_id": "e96ac1218921497264a044fd7eceeb13",
+              "cv": 0.006150361983522758,
+              "cv_history": [
+                0.006150361983522758
+              ],
+              "high_variance": false,
+              "leading_indicators": {
+                "abort_rate": 0.0406,
+                "ipc": null,
+                "latency_ns": 20636.4984,
+                "llc_miss_rate": null,
+                "throughput_tps": 2325976.0
+              },
+              "median_tps": 2325976.0,
+              "perf_observation": {
+                "claim_scope": {
+                  "perf_required": "unsupported",
+                  "throughput": "eligible"
+                },
+                "counter_status": "not_required",
+                "missing_leading_indicators": [],
+                "preflight": {
+                  "available": false,
+                  "candidates": [
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+                      "rc": 0
+                    },
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+                      "rc": 0
+                    }
+                  ],
+                  "parsed_events": [],
+                  "probe_argv": [
+                    "perf",
+                    "stat",
+                    "-x,",
+                    "-o",
+                    "<tmp>/perf.csv",
+                    "-e",
+                    "LLC-load-misses,LLC-loads,instructions,cycles",
+                    "--",
+                    "/bin/true"
+                  ],
+                  "rc": 2,
+                  "reason": "nonzero-rc",
+                  "schema": "izanagi-perf-preflight/v1",
+                  "status": "unavailable",
+                  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+                },
+                "use_perf": false
+              },
+              "rep_notes": [],
+              "rounds": 1,
+              "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/03aaefdb2d8980adbed44fc962745768be823b37f647cbbf160e79439ea2c3ac/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=95 -ycsb_rmw=0 -ycsb_max_ope=10",
+              "settled": false,
+              "tps": [
+                2325976.0,
+                2304014.0,
+                2333867.0,
+                2342449.0,
+                2324289.0
+              ],
+              "unstable": false
+            },
+            "stage": "bench_done",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "212c0e0f611c6552e9d5b7937e9cd7ffe710f56f4ffcc9064b19f28f987591e7",
+              "build_attempt_id": "e96ac1218921497264a044fd7eceeb13",
+              "commit_verification_receipt": {
+                "issuer_pid": 3152237,
+                "issuer_process_seal_sha256": "579974b5d20c7ec0b74af4bda8b15972f78ad14cb08277cb6efdb9726b51250b",
+                "lock_identity_sha256": "58796ba9fcb6a9084de81108e00c07dc2845bbc159d8fbbdf68a37d32c83a654",
+                "operation_identity": "e96ac1218921497264a044fd7eceeb13",
+                "receipt_id": "2534c318907c618a53588ab8c5fe840a853ddd96dc99528ea066a0a5eed00c6b",
+                "replay_provenance": null,
+                "schema": "campaign-commit-verification-receipt/v1",
+                "sink_kind": "campaign-wal",
+                "terminal_payload_sha256": "818df846a3a365ac2b50ce7cb4a670cffe8d175bbbabb7844de2af5f7c037962",
+                "variant": "602b4ce9c788",
+                "verifier_evidence": [
+                  {
+                    "certified": true,
+                    "verdict": "serializable",
+                    "verifier_result_sha256": "1dfadc224321149177bfa5ef090c9554228fb1523390086cb086f27a467f0aed",
+                    "workload_tag": "legacy"
+                  }
+                ]
+              },
+              "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "cv": 0.006150361983522758,
+              "fitness_tps": 2325976.0,
+              "high_variance": false,
+              "unstable": false,
+              "verify_configs": [
+                "legacy"
+              ]
+            },
+            "stage": "commit",
+            "variant": "602b4ce9c788"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission": {
+                "authority_kind": null,
+                "class": "stock-baseline",
+                "generator_id": null,
+                "generator_receipt": null,
+                "input_sha256": null,
+                "policy_sha256": "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44",
+                "receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+                "review_id": null,
+                "review_receipt": null,
+                "schema": "build-admission/v1",
+                "source": {
+                  "ccbench_commit": "511c953",
+                  "genome_sha256": "e44bf7ae9d29dee35f7b9966b5484b3db07ab1c10547a5588d89d12ad172a16c",
+                  "schema": "source-evidence/v1",
+                  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+                  "source_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench",
+                  "src_token": "stock",
+                  "tracked_clean": true,
+                  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "tracked_paths": []
+                }
+              },
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "1b9391b668eb397022840220690d8691",
+              "genome": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+              "src_token": "stock"
+            },
+            "stage": "build_start",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "1b9391b668eb397022840220690d8691",
+              "perf_bin": "52fc5e3347913a80",
+              "perf_bin_sha256": "52fc5e3347913a80ea9fbf494442087589e3f6407729d4d566a858f47cb9be5e",
+              "perf_build_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 --target ycsb_silo.exe -j 48",
+              "perf_cached": true,
+              "perf_configure_cmd": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake -S /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-paper-story-a1-paired-20260824/external/ccbench -B /work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_PREFIX_PATH=/scr/0_945187.nqsv.attempt-0010.Wp06yNru/gflags-install;/scr/0_945187.nqsv.attempt-0010.Wp06yNru/glog-install -DCCBENCH_BACKOFF_FIXED=10 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0",
+              "toolchain": {
+                "cc": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+                  "requested": "gcc",
+                  "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                },
+                "cmake": {
+                  "realpath": "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+                  "requested": "cmake",
+                  "version_first_line": "cmake version 3.25.0"
+                },
+                "cxx": {
+                  "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+                  "requested": "g++",
+                  "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+                }
+              },
+              "toolchain_record_sha256": "6a73081a1bead42ac9f8ad18fcaeaf196aed0955482ce5459d9e2656c34625c0",
+              "trace_bin": "ad478538daa47071",
+              "trace_bin_sha256": "ad478538daa47071179272e5ff7913bc0a2a7565266b2e5a777849741647d8e9",
+              "trace_cached": true
+            },
+            "stage": "build_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "aborts": 7746,
+              "anomalies": 0,
+              "build_attempt_id": "1b9391b668eb397022840220690d8691",
+              "certified": true,
+              "commit_witness": {
+                "batch_commit_counts": 0,
+                "commit_counts": 252101
+              },
+              "commits": 252101,
+              "verdict": "serializable",
+              "workload": {
+                "tag": "legacy"
+              }
+            },
+            "stage": "verify_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "bench_wall_s": 16.880715128965676,
+              "build_attempt_id": "1b9391b668eb397022840220690d8691",
+              "cv": 0.0054824266163625126,
+              "cv_history": [
+                0.0054824266163625126
+              ],
+              "high_variance": false,
+              "leading_indicators": {
+                "abort_rate": 0.0407,
+                "ipc": null,
+                "latency_ns": 20579.7487,
+                "llc_miss_rate": null,
+                "throughput_tps": 2332390.0
+              },
+              "median_tps": 2332390.0,
+              "perf_observation": {
+                "claim_scope": {
+                  "perf_required": "unsupported",
+                  "throughput": "eligible"
+                },
+                "counter_status": "not_required",
+                "missing_leading_indicators": [],
+                "preflight": {
+                  "available": false,
+                  "candidates": [
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+                      "rc": 0
+                    },
+                    {
+                      "executable": true,
+                      "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+                      "rc": 0
+                    }
+                  ],
+                  "parsed_events": [],
+                  "probe_argv": [
+                    "perf",
+                    "stat",
+                    "-x,",
+                    "-o",
+                    "<tmp>/perf.csv",
+                    "-e",
+                    "LLC-load-misses,LLC-loads,instructions,cycles",
+                    "--",
+                    "/bin/true"
+                  ],
+                  "rc": 2,
+                  "reason": "nonzero-rc",
+                  "schema": "izanagi-perf-preflight/v1",
+                  "status": "unavailable",
+                  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+                },
+                "use_perf": false
+              },
+              "rep_notes": [],
+              "rounds": 1,
+              "run_cmd": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement/attempt-0010/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/db818156632c4f9b6722da5c70ef84fcf19b0f4fbf49fe437bd862040f7b73c5/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=95 -ycsb_rmw=0 -ycsb_max_ope=10",
+              "settled": null,
+              "tps": [
+                2342053.0,
+                2345961.0,
+                2332390.0,
+                2315498.0,
+                2322748.0
+              ],
+              "unstable": false
+            },
+            "stage": "bench_done",
+            "variant": "e44bf7ae9d29"
+          },
+          {
+            "env_tag": "pegasus",
+            "payload": {
+              "build_admission_receipt_sha256": "9d0a347749fef0354b7d34090c47207b4542ba1c5c18770316fbbac03ac1fbbb",
+              "build_attempt_id": "1b9391b668eb397022840220690d8691",
+              "commit_verification_receipt": {
+                "issuer_pid": 3152237,
+                "issuer_process_seal_sha256": "579974b5d20c7ec0b74af4bda8b15972f78ad14cb08277cb6efdb9726b51250b",
+                "lock_identity_sha256": "58796ba9fcb6a9084de81108e00c07dc2845bbc159d8fbbdf68a37d32c83a654",
+                "operation_identity": "1b9391b668eb397022840220690d8691",
+                "receipt_id": "a8621f44879a6829ecfa77949d05d22bb9bd9f8b1e04bcb5af7c4505dd413f9f",
+                "replay_provenance": null,
+                "schema": "campaign-commit-verification-receipt/v1",
+                "sink_kind": "campaign-wal",
+                "terminal_payload_sha256": "a9b309f27c668d96faeeecce074f6bad97da17018a3d41ea59c00603f35842ec",
+                "variant": "e44bf7ae9d29",
+                "verifier_evidence": [
+                  {
+                    "certified": true,
+                    "verdict": "serializable",
+                    "verifier_result_sha256": "c64fbd14c264ea57f7d41953c1a34978caee662ff4c0a69a6f39f8d1d295be3d",
+                    "workload_tag": "legacy"
+                  }
+                ]
+              },
+              "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+              "cv": 0.0054824266163625126,
+              "fitness_tps": 2332390.0,
+              "high_variance": false,
+              "unstable": false,
+              "verify_configs": [
+                "legacy"
+              ]
+            },
+            "stage": "commit",
+            "variant": "e44bf7ae9d29"
+          }
+        ],
+        "sha256": "ddc86058fea0bf70a9e0ac56ead6aa00efd8b9e4f3022a0fa135f51a082d399d",
+        "size": 13749,
+        "truncated_tail": false
+      },
+      "workload": "read-heavy"
+    }
+  ]
+}

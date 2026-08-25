@@ -6158,6 +6158,152 @@ class _Runner:
         )
 
 
+_T1354_TRANSPORT_MODES = ("opt-out", "opt-in")
+_T1354_TRANSPORT_SNAPSHOT_KEYS = frozenset({
+    "argv",
+    "input",
+    "cwd",
+    "env",
+    "timeout",
+    "check",
+    "stdout",
+    "stderr",
+})
+_T1354_TRANSPORT_EXCLUSIONS = frozenset({
+    "argv.mcp_config_path",
+    "kwargs.cwd",
+})
+_T1354_EXCLUDED_VALUE = "<t1354-transport-metadata>"
+
+
+def _t1354_role_envelope(role: str, *, session_id: str) -> dict:
+    if role == "planner":
+        result = {
+            "proposal": {
+                "axis": A.trigger.MARKER_ID,
+                "direction": "explore_both",
+                "magnitude": "small",
+                "justification": "fixture planner direction",
+                "uncertainty": "fixture only",
+            },
+        }
+    elif role == "coder":
+        result = {
+            "proposal": {
+                "axis": A.trigger.MARKER_ID,
+                "wire": "11111",
+                "justification": "fixture coder proposal",
+                "confidence": "low",
+            },
+        }
+    elif role == "auditor":
+        result = {
+            "verdict": "pass",
+            "diff_digest": hashlib.sha256(b"fixture diff").hexdigest(),
+            "violations": [],
+            "nits": [],
+            "proposed_tests": [],
+            "uncertainty": "fixture only",
+        }
+    else:  # pragma: no cover - caller is closed over three generation-1 roles
+        raise AssertionError(f"unexpected T-1354 role: {role}")
+    envelope = _envelope()
+    envelope["result"] = A._canonical_json_bytes(result).decode("utf-8")
+    envelope["session_id"] = session_id
+    return envelope
+
+
+def _t1354_runner_snapshot(runner: _Runner) -> dict[str, Any]:
+    assert len(runner.calls) == 1
+    argv, kwargs = runner.calls[0]
+    assert type(argv) is list
+    assert len(argv) == 19
+    assert argv.count("--mcp-config") == 1
+    assert argv.index("--mcp-config") == 16
+    assert argv[-1] == "--no-session-persistence"
+    assert set(kwargs) == {
+        "input", "cwd", "env", "timeout", "check", "stdout", "stderr",
+    }
+    assert type(kwargs["input"]) is bytes
+    assert type(kwargs["cwd"]) is str
+    assert type(kwargs["env"]) is dict
+    return {
+        "argv": tuple(argv),
+        "input": kwargs["input"],
+        "cwd": kwargs["cwd"],
+        "env": tuple(kwargs["env"].items()),
+        "timeout": kwargs["timeout"],
+        "check": kwargs["check"],
+        "stdout": kwargs["stdout"],
+        "stderr": kwargs["stderr"],
+    }
+
+
+def _t1354_normalize_transport_snapshot(
+    snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    assert set(snapshot) == _T1354_TRANSPORT_SNAPSHOT_KEYS
+    assert P.PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSIONS == (
+        _T1354_TRANSPORT_EXCLUSIONS
+    )
+    assert set(P.PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSION_REASONS) == (
+        _T1354_TRANSPORT_EXCLUSIONS
+    )
+    normalized = copy.deepcopy(snapshot)
+    argv = list(normalized["argv"])
+    assert len(argv) == 19
+    assert argv.count("--mcp-config") == 1
+    assert argv.index("--mcp-config") == 16
+    assert type(normalized["input"]) is bytes
+    assert type(normalized["cwd"]) is str
+    assert type(normalized["env"]) is tuple
+    assert all(
+        type(item) is tuple
+        and len(item) == 2
+        and type(item[0]) is str
+        and type(item[1]) is str
+        for item in normalized["env"]
+    )
+    for field in sorted(P.PROJECTED_PROVIDER_TRANSPORT_METADATA_EXCLUSIONS):
+        if field == "argv.mcp_config_path":
+            argv[17] = _T1354_EXCLUDED_VALUE
+        elif field == "kwargs.cwd":
+            normalized["cwd"] = _T1354_EXCLUDED_VALUE
+        else:  # pragma: no cover - exact production/test pins reject this first
+            raise AssertionError(f"unknown transport exclusion: {field}")
+    normalized["argv"] = tuple(argv)
+    return normalized
+
+
+def _t1354_assert_actual_transport_metadata(
+    snapshot: dict[str, Any],
+    *,
+    holdout: str,
+    workload: str,
+    arm_binding_digest_sha256: str,
+    repositories: tuple[Path, ...],
+) -> None:
+    argv = snapshot["argv"]
+    mcp_config_path = Path(argv[17])
+    neutral_root = mcp_config_path.parent
+    cwd = Path(snapshot["cwd"])
+    temp_parent = Path(P.tempfile.gettempdir()).resolve()
+    assert neutral_root.parent == temp_parent
+    assert neutral_root.name.startswith("izanagi-projected-")
+    assert mcp_config_path.name == "empty-mcp-config.json"
+    assert mcp_config_path.read_bytes() == b'{"mcpServers":{}}'
+    assert cwd.parent == neutral_root
+    assert cwd.name.startswith("cwd-")
+    assert cwd.is_dir() and not any(cwd.iterdir())
+    for repository in repositories:
+        assert not neutral_root.is_relative_to(repository.resolve())
+        assert not cwd.is_relative_to(repository.resolve())
+    for actual_value in (str(mcp_config_path), str(cwd)):
+        assert holdout not in actual_value
+        assert workload not in actual_value
+        assert arm_binding_digest_sha256 not in actual_value
+
+
 def _projected_provider_call(tmp_path: Path) -> ClaudeProjectedRoleProvider:
     provider = ClaudeProjectedRoleProvider(
         artifact_root=tmp_path / "artifacts",
@@ -6730,6 +6876,393 @@ def t325_registered_trial(tmp_path, monkeypatch):
         capability=capability,
         admission=admission,
     )
+
+
+def test_generation1_off_arm_supervisor_to_claude_cli_launch_contract_is_holdout_invariant(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    """正式 H1 / H2 の `off` arm に限る。
+
+    `on` / `swapped` は不一致を要求する正の対照である。Generation 1 の
+    supervisor から Claude CLI への launch contract だけを検査する。
+
+    実 CLI の outbound request bytes、除外 2 field の role 不可視性、実走時の
+    cross-cell env 同一性、generation 2 以降は含意しない。
+    """
+    roles = ("planner", "coder", "auditor")
+    holdouts = {"H1": "rr80", "H2": "rr20"}
+    arms = ("on", "off", "swapped")
+    expected_snapshot_keys = {
+        (holdout, arm, role)
+        for holdout in holdouts
+        for arm in arms
+        for role in roles
+    }
+    snapshots: dict[tuple[str, str, str], dict[str, dict[str, Any]]] = {}
+    arm_binding_digests: dict[tuple[str, str], str] = {}
+    executable = _executable(tmp_path)
+    base_env = {
+        "TERM": "t1354-term",
+        "PATH": "/t1354/bin",
+        "LC_ALL": "C",
+        "LANG": "C.UTF-8",
+        "HOME": "/t1354/home",
+    }
+    expected_base_env = tuple(
+        (key, base_env[key]) for key in sorted(S.CLAUDE_ENV_ALLOWLIST)
+    )
+    transport_admission, transport_receipt = _pegasus_transport_fixture()
+    transport_env = transport_admission.env_dict()
+
+    def stop_after_first_generation(*args, **kwargs):
+        outcome = _fake_drive(*args, **kwargs)
+        outcome["stop_reason"] = "budget-iterations"
+        return outcome
+
+    for transport_mode in _T1354_TRANSPORT_MODES:
+        if transport_mode == "opt-out":
+            source_env = base_env
+            admission_for_provider = None
+            receipt_for_run = None
+        else:
+            source_env = {
+                **base_env,
+                "PBS_JOBID": transport_receipt["pbs_jobid"],
+                **transport_env,
+            }
+            admission_for_provider = transport_admission
+            receipt_for_run = transport_receipt
+        expected_env = expected_base_env + (
+            tuple(transport_env.items()) if admission_for_provider is not None else ()
+        )
+
+        for holdout, workload in holdouts.items():
+            for arm in arms:
+                trial_id = f"t325-{holdout.lower()}-{arm}"
+                launch_admission = A.trial_registry.admit_registered_launch(
+                    effective_preregistration=t325_registered_trial.capability,
+                    manifest_path=t325_registered_trial.manifest_path,
+                    trial_id=trial_id,
+                    workloads=[workload],
+                    repository_root=t325_registered_trial.repo,
+                    registry_path=t325_registered_trial.registry_path,
+                )
+                arm_execution = A.trial_registry.bind_trial_arm(
+                    launch_admission.binding,
+                    repository_root=t325_registered_trial.repo,
+                )
+                arm_digest = arm_execution.arm_binding_digest_sha256
+                arm_binding_digests[(holdout, arm)] = arm_digest
+                run_root = (
+                    tmp_path
+                    / "t1354-matrix"
+                    / transport_mode
+                    / holdout
+                    / arm
+                )
+                (run_root / "raw").mkdir(parents=True)
+                (run_root / "proposals").mkdir()
+                journal = A.AttemptJournal(run_root / "attempts.jsonl")
+                providers = {}
+                runners = {}
+                try:
+                    for role in roles:
+                        runner = _Runner(_t1354_role_envelope(
+                            role,
+                            session_id=(
+                                f"t1354-{transport_mode}-{holdout.lower()}-{arm}-{role}"
+                            ),
+                        ))
+                        runners[role] = runner
+                        role_file, role_name = A.ROLE_FILES[role]
+                        provider_kwargs = {
+                            "artifact_root": run_root / "provider" / role,
+                            "role_file": role_file,
+                            "role_name": role_name,
+                            "mediated_contract": A.ROLE_CONTRACTS[role],
+                            "repository_root": _ROOT,
+                            "executable": executable,
+                            "runner": runner,
+                            "allow_pegasus_compute_transport": (
+                                admission_for_provider is not None
+                            ),
+                            "transport_admission": admission_for_provider,
+                        }
+                        if admission_for_provider is None:
+                            with monkeypatch.context() as env_patch:
+                                env_patch.setattr(P.os, "environ", source_env)
+                                providers[role] = ClaudeProjectedRoleProvider(
+                                    **provider_kwargs
+                                )
+                        else:
+                            providers[role] = ClaudeProjectedRoleProvider(
+                                environ=source_env,
+                                **provider_kwargs,
+                            )
+
+                    scope = A._RunScopeBinding(
+                        launch_admission,
+                        A._RUN_SCOPE_SEAL,
+                        None,
+                        arm_execution,
+                    )
+                    token = A._ACTIVE_TRIAL_BINDING.set(scope)
+                    try:
+                        cell = A._run_workload(
+                            workload=workload,
+                            generations=2,
+                            providers=providers,
+                            journal=journal,
+                            run_root=run_root,
+                            sub="/unused",
+                            do_build=False,
+                            cache_root="",
+                            trial_id=trial_id,
+                            started_monotonic=time.monotonic(),
+                            max_wall_s=3600,
+                            drive=stop_after_first_generation,
+                            preview=_fake_preview,
+                            transport_receipt=receipt_for_run,
+                            transport_admission=admission_for_provider,
+                            build_context=_no_build_context(),
+                            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
+                        )
+                    finally:
+                        A._ACTIVE_TRIAL_BINDING.reset(token)
+
+                    assert len(cell["generations"]) == 1
+                    assert cell["generations"][0]["generation"] == 1
+                    journal_role_event_list = [
+                        event
+                        for event in (
+                            json.loads(line)
+                            for line in journal.path.read_text(
+                                encoding="utf-8"
+                            ).splitlines()
+                        )
+                        if event["event"] == "role-attempt"
+                    ]
+                    assert len(journal_role_event_list) == 3
+                    assert {
+                        role: sum(
+                            event["role"] == role
+                            for event in journal_role_event_list
+                        )
+                        for role in roles
+                    } == {role: 1 for role in roles}
+                    journal_role_events = {
+                        event["role"]: event
+                        for event in journal_role_event_list
+                    }
+                    assert set(journal_role_events) == set(roles)
+                    for role in roles:
+                        snapshot = _t1354_runner_snapshot(runners[role])
+                        assert snapshot["env"] == expected_env
+                        assert "PBS_JOBID" not in dict(snapshot["env"])
+                        _t1354_assert_actual_transport_metadata(
+                            snapshot,
+                            holdout=holdout,
+                            workload=workload,
+                            arm_binding_digest_sha256=arm_digest,
+                            repositories=(_ROOT, t325_registered_trial.repo),
+                        )
+                        payload = json.loads(snapshot["input"])
+                        assert payload["generation"] == 1
+                        payload_shape = (
+                            "planner-generation-1" if role == "planner" else role
+                        )
+                        assert set(payload) == set(
+                            A.ROLE_PAYLOAD_KEY_SPEC[payload_shape]
+                        )
+                        audit_id = (
+                            f"arm-{arm}.exec-{arm_digest}."
+                            f"{workload}.g1.{role}"
+                        )
+                        journal_event = journal_role_events[role]
+                        assert journal_event["arm_binding_digest_sha256"] == (
+                            arm_digest
+                        )
+                        assert journal_event["invocation_id"] == audit_id
+                        key = (holdout, arm, role)
+                        per_transport = snapshots.setdefault(key, {})
+                        assert transport_mode not in per_transport
+                        per_transport[transport_mode] = snapshot
+                finally:
+                    A._close_owned_providers(providers)
+
+    assert len(snapshots) == 18
+    assert set(snapshots) == expected_snapshot_keys
+    assert all(
+        set(per_transport) == set(_T1354_TRANSPORT_MODES)
+        for per_transport in snapshots.values()
+    )
+    sensitive_tokens = {
+        *holdouts,
+        *holdouts.values(),
+        *arm_binding_digests.values(),
+    }
+    for per_transport in snapshots.values():
+        for snapshot in per_transport.values():
+            actual_metadata = (snapshot["argv"][17], snapshot["cwd"])
+            assert all(
+                token not in actual_value
+                for actual_value in actual_metadata
+                for token in sensitive_tokens
+            )
+
+    for arm in ("on", "swapped"):
+        assert arm_binding_digests[("H1", arm)] != arm_binding_digests[("H2", arm)]
+
+    for transport_mode in _T1354_TRANSPORT_MODES:
+        for role in roles:
+            off_h1 = snapshots[("H1", "off", role)][transport_mode]
+            off_h2 = snapshots[("H2", "off", role)][transport_mode]
+            assert off_h1["input"] == off_h2["input"]
+            assert off_h1["env"] == off_h2["env"]
+            assert _t1354_normalize_transport_snapshot(off_h1) == (
+                _t1354_normalize_transport_snapshot(off_h2)
+            )
+
+            for arm in ("on", "swapped"):
+                positive_h1 = snapshots[("H1", arm, role)][transport_mode]
+                positive_h2 = snapshots[("H2", arm, role)][transport_mode]
+                normalized_h1 = _t1354_normalize_transport_snapshot(positive_h1)
+                normalized_h2 = _t1354_normalize_transport_snapshot(positive_h2)
+                assert normalized_h1 != normalized_h2
+                assert positive_h1["input"] != positive_h2["input"]
+                normalized_h1["input"] = b"<t1354-positive-control-input>"
+                normalized_h2["input"] = b"<t1354-positive-control-input>"
+                assert normalized_h1 == normalized_h2
+
+
+def test_generation1_supervisor_to_claude_cli_launch_contract_oracle_rejects_unexcluded_mutations(
+    tmp_path, monkeypatch,
+) -> None:
+    """Generation 1 の supervisor から Claude CLI への launch contract に限る。
+
+    実 CLI の outbound request bytes、除外 2 field の role 不可視性、実走時の
+    cross-cell env 同一性、generation 2 以降は含意しない。
+    """
+    baseline = {
+        "argv": (
+            "/fixture/claude",
+            "-p",
+            "--agent",
+            "izanagi-projected-inline",
+            "--agents",
+            "{}",
+            "--output-format",
+            "json",
+            "--input-format",
+            "text",
+            "--effort",
+            "high",
+            "--setting-sources",
+            "",
+            "--disable-slash-commands",
+            "--strict-mcp-config",
+            "--mcp-config",
+            "/tmp/izanagi-projected-alpha/empty-mcp-config.json",
+            "--no-session-persistence",
+        ),
+        "input": b'{"generation":1,"workload":"off-neutral"}',
+        "cwd": "/tmp/izanagi-projected-alpha/cwd-alpha",
+        "env": (("HOME", "/fixture/home"), ("PATH", "/fixture/bin")),
+        "timeout": S.CLAUDE_TIMEOUT_S,
+        "check": False,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+    }
+    normalized_baseline = _t1354_normalize_transport_snapshot(baseline)
+
+    excluded_mutations = {}
+    mcp_mutation = copy.deepcopy(baseline)
+    mcp_argv = list(mcp_mutation["argv"])
+    mcp_argv[17] = "/tmp/izanagi-projected-beta/empty-mcp-config.json"
+    mcp_mutation["argv"] = tuple(mcp_argv)
+    excluded_mutations["argv.mcp_config_path"] = mcp_mutation
+    cwd_mutation = copy.deepcopy(baseline)
+    cwd_mutation["cwd"] = "/tmp/izanagi-projected-alpha/cwd-beta"
+    excluded_mutations["kwargs.cwd"] = cwd_mutation
+    assert set(excluded_mutations) == _T1354_TRANSPORT_EXCLUSIONS
+    assert len(excluded_mutations) == 2
+    for mutation in excluded_mutations.values():
+        assert _t1354_normalize_transport_snapshot(mutation) == normalized_baseline
+
+    mutations = {}
+    argv_mutation = copy.deepcopy(baseline)
+    argv_values = list(argv_mutation["argv"])
+    argv_values[0] = "/fixture/other-claude"
+    argv_mutation["argv"] = tuple(argv_values)
+    mutations["argv.non_mcp"] = argv_mutation
+    input_mutation = copy.deepcopy(baseline)
+    input_mutation["input"] = b'{"generation":1,"workload":"leaked"}'
+    mutations["kwargs.input"] = input_mutation
+    env_value_mutation = copy.deepcopy(baseline)
+    env_value_mutation["env"] = (
+        ("HOME", "/fixture/other-home"),
+        ("PATH", "/fixture/bin"),
+    )
+    mutations["kwargs.env.value"] = env_value_mutation
+    env_order_mutation = copy.deepcopy(baseline)
+    env_order_mutation["env"] = tuple(reversed(env_order_mutation["env"]))
+    mutations["kwargs.env.order"] = env_order_mutation
+    for field, replacement in (
+        ("timeout", S.CLAUDE_TIMEOUT_S + 1),
+        ("check", True),
+        ("stdout", None),
+        ("stderr", None),
+    ):
+        mutation = copy.deepcopy(baseline)
+        mutation[field] = replacement
+        mutations[f"kwargs.{field}"] = mutation
+    unknown_field_mutation = copy.deepcopy(baseline)
+    unknown_field_mutation["unknown"] = "rejected"
+    mutations["kwargs.unknown"] = unknown_field_mutation
+    missing_field_mutation = copy.deepcopy(baseline)
+    del missing_field_mutation["stderr"]
+    mutations["shape.missing"] = missing_field_mutation
+
+    assert set(mutations) == {
+        "argv.non_mcp",
+        "kwargs.input",
+        "kwargs.env.value",
+        "kwargs.env.order",
+        "kwargs.timeout",
+        "kwargs.check",
+        "kwargs.stdout",
+        "kwargs.stderr",
+        "kwargs.unknown",
+        "shape.missing",
+    }
+    assert len(mutations) == 10
+    for label, mutation in mutations.items():
+        try:
+            normalized_mutation = _t1354_normalize_transport_snapshot(mutation)
+        except AssertionError:
+            continue
+        assert normalized_mutation != normalized_baseline, label
+
+    deliberately_unordered_allowlist = tuple(
+        reversed(sorted(S.CLAUDE_ENV_ALLOWLIST))
+    )
+    monkeypatch.setattr(
+        P, "CLAUDE_ENV_ALLOWLIST", deliberately_unordered_allowlist,
+    )
+    provider = ClaudeProjectedRoleProvider(
+        artifact_root=tmp_path / "env-order-provider",
+        role_file=_role_file(tmp_path / "env-order-role.md"),
+        role_name="fixture-auditor",
+        mediated_contract="Return JSON only.",
+        repository_root=_ROOT,
+        executable=_executable(tmp_path),
+        environ={key: f"value-{key}" for key in deliberately_unordered_allowlist},
+    )
+    try:
+        assert tuple(provider.env) == tuple(sorted(deliberately_unordered_allowlist))
+        assert tuple(provider.env) != deliberately_unordered_allowlist
+    finally:
+        provider.close()
 
 
 def _t325_run(fixture, run_root: Path, **overrides):

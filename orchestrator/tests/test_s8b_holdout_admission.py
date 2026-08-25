@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import nullcontext
 import hashlib
@@ -23,6 +24,7 @@ from orchestrator.holdout_observation import (
     HoldoutObservationError,
     assert_holdout_observation_admitted,
     assert_issued_holdout_observation,
+    protected_signatures_from_verified_freeze,
 )
 from orchestrator.tests.s8b_floor_evidence_fixture import (
     build_floor_admission_evidence,
@@ -88,6 +90,37 @@ def _fixture_documents(master_seed: str = "seed-a") -> tuple[dict, dict]:
         "stock_configuration": "stock_common",
     }
     return protocol, freeze
+
+
+def _formal_gflags(freeze: Mapping[str, object], key: str) -> list[str]:
+    entry = freeze["holdouts"][key]
+    ycsb = entry["ycsb"]
+    return [
+        f"--ycsb_zipf_skew={ycsb['ycsb_zipf_skew']}",
+        f"--ycsb_rratio={ycsb['ycsb_rratio']}",
+        f"--ycsb_rmw={ycsb['ycsb_rmw']}",
+        f"--ycsb_tuple_num={entry['records']}",
+        f"--thread_num={entry['threads']}",
+    ]
+
+
+def test_all_neutral_projection_sites_use_complete_signature_conditions():
+    _protocol, freeze = _fixture_documents()
+    signatures = protected_signatures_from_verified_freeze(freeze)
+    projected = admission._neutral_holdouts_from_signatures(tuple(signatures))
+    assert projected == {
+        key: {
+            "candidate_id": entry["candidate_id"],
+            "records": entry["records"],
+            "threads": entry["threads"],
+            "ycsb": dict(entry["ycsb"]),
+        }
+        for key, entry in freeze["holdouts"].items()
+    }
+    source = Path(admission.__file__).read_text(encoding="utf-8")
+    assert source.count(
+        "neutral_holdouts = _neutral_holdouts_from_signatures(tuple(signatures))"
+    ) == 4
 
 
 def _git(root: Path, *args: str) -> str:
@@ -550,14 +583,14 @@ def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp
     )
     assert_issued_holdout_observation(token)
     assert token.permitted_run_once_calls == floor_protocol["reps"]
-    ratio = freeze["holdouts"][token.freeze_holdout_key]["ycsb"]["ycsb_rratio"]
+    gflags = _formal_gflags(freeze, token.freeze_holdout_key)
     for _ in range(floor_protocol["reps"]):
         assert_holdout_observation_admitted(
-            gflags=[f"--ycsb_rratio={ratio}"], admission=token,
+            gflags=gflags, admission=token,
         )
     with pytest.raises(HoldoutObservationError, match="exhausted"):
         assert_holdout_observation_admitted(
-            gflags=[f"--ycsb_rratio={ratio}"], admission=token,
+            gflags=gflags, admission=token,
         )
     with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
         admission.consume_n_pilot_attempt_ticket(admitted[0], schedule_index=0)
@@ -2291,11 +2324,17 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
         })()
 
     def internal_measure(
-            measured_binary, _records, _threads, workload, *,
+            measured_binary, measured_records, measured_threads, workload, *,
             _holdout_observation_admission):
         return calibrator_runner.run_once(
             measured_binary,
-            [f"--ycsb_rratio={workload['ycsb_rratio']}"],
+            [
+                f"--ycsb_zipf_skew={workload['ycsb_zipf_skew']}",
+                f"--ycsb_rratio={workload['ycsb_rratio']}",
+                f"--ycsb_rmw={workload['ycsb_rmw']}",
+                f"--ycsb_tuple_num={measured_records}",
+                f"--thread_num={measured_threads}",
+            ],
             subprocess_runner=subprocess_spy, use_perf=False,
             holdout_observation_admission=_holdout_observation_admission,
         )
