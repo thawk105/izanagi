@@ -4971,6 +4971,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **走行が作った dir が残ることを暗黙の前提にしている**。その dir を除去すると条件が崩れる。
 
 - **再発: 2026-08-25 (同日 6 例目)** — 署名は既知形と一致するが、**赤の射程が `test_s8b_floor_campaign.py` の外へ広がった**点が新しい。docs のみ (spool fragment 1 件) の wave の受入 1 回目で、操作者は受入全走を 1 本しか投入せず走行中に repo へ何も書いていないのに 12 failed / 16132 passed / 60 skipped になった。11 件は既存例と同じ `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系で、junit の差分も `first extra item: ('dir', 'task-runs/reports')` と逐語一致する。**12 件目は `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary` で、別 helper `_t080_output_snapshot()` が `output/` 自身の mtime 変化 (1787656942 → 1787657046) を検出したものである。** 既存の「再発検知の補強」は判定条件を「赤が `_real_output_snapshot` 系だけ」と helper 名で書いており、**この 12 件目を含む赤を本件型と判定できない**。判定は helper 名でなく「`output/` の before/after snapshot を assert する検査群」という性質で行う必要がある。帰属は台帳の 3 点で否定した — (1) wave の差分は `docs/spool/worklog/` 配下の新規 1 file だけで実装面 file を 1 つも触らない、(2) 落ちた 3 種の単独走は 16.49 秒で 3 passed、(3) junit 差分は実装ではなく `output/` の dir 増加と mtime を指す。恒久対応は本 wave の scope 外で、受入基盤の所有 wave の判断に委ねる点は既存の再発と同じ。
+
+- **再発: 2026-08-26** — docs-only (spool fragment 3 file) の wave の受入 1 回目で
+  12 failed / 16547 passed / 60 skipped になった。11 件は `test_s8b_floor_campaign.py` の
+  `_real_output_snapshot()` 系で junit 差分は `first extra item: ('dir', 'task-runs/reports')`、
+  12 件目は `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary`
+  で、いずれも同日 6 例目と逐語一致する。帰属は台帳の 3 点で否定した — (1) 差分は
+  `docs/spool/` 配下の新規 3 file だけで実装面を 1 つも触らない、(2) 落ちた 2 file の単独走は
+  571 passed / 8 skipped で緑、(3) junit 差分は実装ではなく `output/` の dir 増加を指す。
+  **DW-O18 に従い受入を 1 回だけ再走したところ 1 failed / 16558 passed / 60 skipped となり、
+  11 件は消えて t080 の 1 件だけが再赤になった。** 再赤の junit 差分は
+  `runs/pytest-launcher-failures` の mtime 変化 (1787679360 → 1787680223) で、
+  別 helper `_t080_output_snapshot()` が検出したものである。単独 node の再走は
+  1 passed / 11.83 秒で緑。**新しいのは、同一 tree・同一操作で 11 件が消えて 1 件が残った点**で、
+  この族の赤が決定的でなく shard の実行順序に依存することを示す。DW-O18 の規定どおり、
+  F136 を証拠に当該 node を `orchestrator/tests/flaky_test_holds.py` へ登録した
+  (Codex role=author)。恒久対応は受入基盤の所有 wave に委ね、解除条件は
+  [T-1773] に置いた。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -12914,6 +12931,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変更 file の consumer を含む焦点走を段 6 で必ず実走する。本 wave では
   この焦点走が赤 2 件として実際に検出し、受入全走まで持ち越さなかった。
 
+
+- **再発: 2026-08-26** — 向きが逆の同型。親は「`EVIDENCE_UNDEFINED` を区別する production
+  consumer は存在しない」を、その literal を全 production file へ grep して 0 件と測り、
+  段 2 の plan もこの前提の上に版 bump 不要を組み立てた。実際には gate レポートが
+  `PredicateStatus` の enum を総なめして status count を出しており、literal を 1 度も書かない
+  ため grep に掛からなかった。段 3 のレンズ B が参照関係から発見した。F474 が「値を複製する
+  consumer」を探せと定めたのに対し、本件は「値を一度も綴らず enum ごと畳み込む consumer」で
+  あり、単一の綴りによる grep はどちら向きにも閉包にならない。不在を主張するときは、
+  値を綴る箇所と綴らない箇所 (enum 反復・総なめ・動的解決) の両方を型から引く。
 ### F475. 差分ゼロの作業ツリーで再現しても環境変数は継承されるので repo 側の性質の証明にならない [計測汚染] [テスト代表性]
 
 - 事象: 親の焦点走で、本 wave の変更と無関係な node が赤になった。subprocess の pytest 出力を
@@ -15729,3 +15755,33 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave はこれを受けて scope を D903 の反映だけに限定し、予約が重なる 3 箇所を触らずに残した。
 - 再発検知: 段 3 / 段 6 の敵対レンズへ「親の実測の走査面が落とすもの」を明示的に探させる
   prompt 節 (本 wave で実際に発火し、この F を生んだ経路そのもの)。
+
+### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
+
+- 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
+  `output/insights/<wave>/` 配下を除去した。実体は親が書いた段 1 brief・段 4 裁定・段 6 裁定で、
+  未追跡だったため git から復元できなかった。job dir の控えから手で戻した。
+- 根本原因: 子 prompt が「`output/` を編集するな」と書いていたが、
+  **子が自分で作った一時物を片付ける動作と、親の成果物を消す動作を区別する記述が無かった。**
+  加えて親が、workspace-write の子を起動する前に自分の成果物を commit していなかった。
+- 恒久対応: 親側の手順を `docs/dev-wave/operations.md` の `DW-O02` へ寄せる
+  (D933)。
+  子 prompt には「`output/insights/` 配下は親の成果物である。一時コピーではない。消すな」を
+  明示的に書く。
+- 再発検知: 変異 harness と受入 preflight が未追跡 file を拒否するため、
+  親が commit を怠ったまま次段へ進むと機械的に止まる (`mutation harness aborted:
+  tracked/index dirt または untracked file があるため停止`)。
+
+### F608. 連鎖する検査を 1 変異で代表させ、他リンクの穴を取り逃しかけた [恒真ゲート]
+
+- 事象: task manifest の digest 連鎖 8 箇所に対して変異を 1 件だけ登録していた。
+  段 6 の敵対レビューが「freeze の 1 リンクしか殺せない」と指摘し、
+  親が consumer ごとに 8 分割して登録し直したところ、
+  **`append-verdicts` と `reveal-mapping` の packet state 検査を外す変異が 588 件緑のまま生存した。**
+  分割しなければ「KILLED 1/1」で通っていた。
+- 根本原因: 同じ helper を呼ぶ検査群を「1 つの機構」と数え、
+  **呼び出し側ごとに独立した防壁であることを勘定に入れていなかった。**
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M01` に従い、
+  連鎖する検査は consumer ごとに登録する (D934)。
+- 再発検知: 変異 matrix の SURVIVED が 0 でなければ land できない。
+  分割前は SURVIVED が出ず、分割後に 2 件出た。分割自体が検出器である。
