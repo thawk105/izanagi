@@ -12867,6 +12867,43 @@ def test_m15_packet_consumer_requires_exact_task_manifest_digest_once(
     )
 
 
+def test_m15_append_verdicts_rejects_packet_state_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    state, _, second = _packet_fixture(tmp_path)
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    packet_path = state.parent / state_value["packets"][0]["filename"]
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    expected = TOOL._task_manifest_sha256()
+    alternate_digest = TOOL._task_manifest_sha256(alternate)
+    assert alternate_digest != expected
+    state_value["task_manifest_sha256"] = alternate_digest
+    _canonical(state, state_value)
+
+    log = tmp_path / "verdicts.jsonl"
+    TOOL._append_jsonl(
+        log,
+        {
+            "packet_id": packet_id,
+            "reader": "parent",
+            "task_manifest_sha256": expected,
+            "packet_sha256_at_read": TOOL._sha256(packet_path.read_bytes()),
+            "r1_detected": True,
+            "findings": [],
+        },
+    )
+    before = log.read_bytes()
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.append_verdicts(state, log, "second-reader", second)
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert caught.value.reasons == (
+        "packet state task_manifest_sha256 mismatch",
+    )
+    assert log.read_bytes() == before
+
+
 def test_m15_supervise_pair_rejects_schedule_manifest_exchange(
     tmp_path: Path,
 ) -> None:
@@ -13122,6 +13159,76 @@ def test_m15_reveal_mapping_rejects_private_manifest_exchange(
     assert caught.value.reasons == (
         "private packet mapping task_manifest_sha256 mismatch",
     )
+
+
+def test_m15_reveal_mapping_rejects_packet_state_manifest_exchange(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "answer.md"
+    output.write_text(_long_output(), encoding="utf-8")
+    expected = TOOL._task_manifest_sha256()
+    source = _canonical(
+        tmp_path / "source.json",
+        {
+            "task_manifest_sha256": expected,
+            "attempts": [
+                {
+                    "slot_id": "s01",
+                    "attempt": 1,
+                    "run_id": "r01",
+                    "output": _descriptor(output, tmp_path),
+                }
+            ],
+        },
+    )
+    custodian = tmp_path / "custodian"
+    packets = TOOL.make_packets(source, tmp_path / "packets", custodian)
+    state = Path(packets["packet_state"])
+    state_value = json.loads(state.read_text(encoding="utf-8"))
+    packet_id = state_value["packets"][0]["packet_id"]
+    verdict = _canonical(
+        tmp_path / "verdict.json",
+        {
+            "verdicts": [
+                {"packet_id": packet_id, "r1_detected": True, "findings": []}
+            ]
+        },
+    )
+    log = tmp_path / "verdicts.jsonl"
+    TOOL.append_verdicts(state, log, "parent", verdict)
+    TOOL.append_verdicts(state, log, "second-reader", verdict)
+    freeze = tmp_path / "freeze.json"
+    TOOL.freeze_verdicts(state, log, freeze)
+
+    alternate = copy.deepcopy(TOOL.TASK_MANIFEST)
+    alternate["tasks"]["POS"]["task_type"] = "alternate-valid-task-type"
+    alternate_digest = TOOL._task_manifest_sha256(alternate)
+    assert alternate_digest != expected
+    state_value["task_manifest_sha256"] = alternate_digest
+    _canonical(state, state_value)
+
+    freeze_value = json.loads(freeze.read_text(encoding="utf-8"))
+    freeze_value["packet_state_sha256"] = TOOL._sha256(state.read_bytes())
+    _canonical(freeze, freeze_value)
+    private = json.loads(
+        TOOL._custodian_mapping_path(custodian).read_text(encoding="utf-8")
+    )
+    verdict_rows = [
+        json.loads(line)
+        for line in log.read_text(encoding="utf-8").splitlines()
+    ]
+    assert freeze_value["task_manifest_sha256"] == expected
+    assert private["task_manifest_sha256"] == expected
+    assert all(row["task_manifest_sha256"] == expected for row in verdict_rows)
+
+    revealed = tmp_path / "revealed.json"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.reveal_mapping(state, custodian, log, freeze, revealed)
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert caught.value.reasons == (
+        "packet state task_manifest_sha256 mismatch",
+    )
+    assert not revealed.exists()
 
 
 def test_make_packets_rejects_task_manifest_exchange_before_publication(
