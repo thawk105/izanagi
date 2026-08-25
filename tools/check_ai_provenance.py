@@ -612,14 +612,18 @@ def _decode_known_violation_object(
                 f"has invalid field type: {relative_path}: "
                 f"field={field} type={type(value).__name__}"
             )
+    canonical_obj = {
+        field: obj[field] for field in _KNOWN_VIOLATION_DATA_FIELDS
+    }
     canonical = (
-        json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
+        json.dumps(canonical_obj, ensure_ascii=False, indent=2, sort_keys=False)
+        + "\n"
     ).encode("utf-8")
     if raw != canonical:
         raise _known_violation_data_error(
             f"is not canonical UTF-8 JSON: {relative_path}"
         )
-    return {field: obj[field] for field in _KNOWN_VIOLATION_DATA_FIELDS}
+    return canonical_obj
 
 
 def _append_known_violation_spec(
