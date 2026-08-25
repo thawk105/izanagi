@@ -643,15 +643,14 @@ def _report_payload(report: ScanReport) -> dict[str, object]:
     payload: dict[str, object] = {
         "issues": [asdict(issue) for issue in report.issues],
         "occupants": [asdict(occupant) for occupant in report.occupants],
+        "same_uid_cwd_unreachable": [
+            asdict(process) for process in report.same_uid_cwd_unreachable
+        ],
         "scanned": report.scanned,
         "status": report.status,
         "unreachable": unreachable,
         "worktree": str(report.worktree),
     }
-    if report.same_uid_cwd_unreachable:
-        payload["same_uid_cwd_unreachable"] = [
-            asdict(process) for process in report.same_uid_cwd_unreachable
-        ]
     return payload
 
 
