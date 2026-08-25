@@ -15,6 +15,11 @@ if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
   echo "unsafe PBS_JOBID" >&2
   exit 2
 fi
+WORKLOAD=${IZANAGI_T1683_WORKLOAD-rr5}
+if [[ "$WORKLOAD" != "rr5" && "$WORKLOAD" != "rr50" ]]; then
+  echo "IZANAGI_T1683_WORKLOAD must be rr5 or rr50" >&2
+  exit 2
+fi
 
 COMPUTE_HOST=$(hostname)
 if [[ ! "$COMPUTE_HOST" =~ ^bnode[0-9]+([.].*)?$ ]]; then
@@ -147,4 +152,4 @@ if [[ ! -d "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" ]]; then
 fi
 
 cd "$REPO_ROOT"
-exec "$PY" -B "$DRIVER"
+exec "$PY" -B "$DRIVER" --workload "$WORKLOAD"
