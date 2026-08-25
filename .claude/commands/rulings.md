@@ -16,11 +16,11 @@ argument-hint: [件数 (既定 5) / "all" / ID 指定]
    実体 ID − 索引 ID の差集合が空か検査する**。前エントリとの ID 差分も見る。裁定なく消えた・
    降格した ID は fragment 上書きの退行を疑い原文へ遡る
 2. 裁定パッケージ (推奨案と根拠の正本) = 指す insights の §裁定パッケージ節 と `docs/decisions.md` / `docs/failures.md` の同語全文検索。**T-ID 無しの裁定待ちは台帳側にしか無い**
-3. handoff の着手条件。**`docs/handoff/` は README のみが正常。生きた handoff・台帳未記録の
+3. handoff の着手条件。**`docs/handoff/` の残置は生死不明 (ID 終端で判定)。生きた handoff・台帳未記録の
    裁定 inbox・稼働 wave の裁定パッケージは repo 外** (所在は環境 runbook)。
    **稼働 branch の未 land fragment (worklog・decisions) も読み**、未採番なので起票せず索引に出す。
    **inbox / handoff の項も 1 と同様に台帳の実体へ遡り、裁定済みは控えに済みを記し除外。
-   handoff だけが正本の未採番候補は rulings-inbox へ控えを残す** (wave 終端で消えるため)
+   handoff だけが正本の未採番候補は rulings-inbox へ控えを残す** (消えるため)
 4. `docs/phase3.md` の現行チェックポイント・着手順にあるユーザー gate
 5. `docs/phase3.md` 見送り台帳のうち発火条件が成立していそうな項 (確認できたものだけ)。
    全項を毎回評価せず、前回の裁定記録以降に wave が新設・変更した gate / validator / producer /
