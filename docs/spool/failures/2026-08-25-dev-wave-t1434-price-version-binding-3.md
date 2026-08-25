@@ -38,3 +38,42 @@ seq: 3
   **型検査として実装したか**を段 4 の gate 署名で確認する。
   変異事前登録では、対象 gate を恒真化する変異と対に、
   **型混同値を通す正例が拒否されること**を負例として登録する。
+
+### {{F:mutation-worktree-skips-nested-submodule}}. 変異の使い捨て worktree が入れ子 submodule を初期化せず、baseline を 3 回止めた [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py` の使い捨て worktree で baseline が `PARSE_ERROR` になり、
+  変異を 1 件も走らせないまま 3 回連続で中止した。実体は 20 件の
+  `submodule is not initialized: external/ccbench/third_party/shirakami` である。
+  親の worktree では**同じ test file が 505 passed で緑**であり、実装の赤ではない。
+- 根本原因: 同 tool は worktree 生成後に外部 benchmark の submodule を **1 段だけ**初期化し、
+  入れ子の submodule を初期化しない。`git worktree add` 由来の worktree は submodule が
+  未初期化で生まれるため、入れ子を要求する fixture に依存する test は必ず setup で error になる。
+  この wave 固有ではなく、submodule 依存 test を変異対象に含む全 wave で再現する。
+- 復旧を 2 回失敗した理由も記録する。(a) 後から submodule を初期化して `--resume` しても、
+  **resume は記録済みの baseline 判定を再利用する**ため赤のまま (計画上も `baseline=0 run`)。
+  (b) runner に初期化を前置する案は、harness が runner の入口を `python -m pytest` か
+  固定 HEAD の `tools/run_tests.py` に限定するため構造的に不可能で、
+  `bash -c` は `-rf` が独立トークンでなくなる点でも拒否される。
+- 恒久対応: `DW-M05` の「既存赤は `--deselect` で外し根拠を台帳へ書く」をこの型にも適用する。
+  外す前に、外す test 群が変異対象の gate を通らないことを確認する
+  (通るなら検出力が落ちるので外してはならない)。本 wave は 18 件を外し、
+  10 変異すべてが残った test だけで KILLED になることを実測した。
+  根拠と全件名は `output/insights/2026-08-25_t1434-price-version-binding.md`。
+  tool 自体を再帰初期化へ直す作業は {{T:mutation-worktree-recursive-submodule}} が持つ。
+- 再発検知: 変異 baseline が `PARSE_ERROR` で、job stdout に
+  `submodule is not initialized` が出ている場合。digest には node が残らないので
+  一次資料は job stdout の全文である。
+
+## 再発
+
+### F300
+
+- **再発: 2026-08-25** — 本走は 10/10 KILLED で完了したが wrapper が `rc=125`
+  (`共有木の事後検査に失敗`) を返した。**ただし原因が F300 本文と異なる。**
+  親の worktree は走行前後とも `git status --porcelain` が空で、repo 内での作業はしていない。
+  変化したのは**別 session が走行中に local main を進めた**ことによる共有木側である
+  (`6d1d43ac` → `06bb563e`)。測定自体は固定 commit の隔離 worktree で完走しており実体は健全。
+
+## supersede 追記
+
+- F300 **supersede: 2026-08-25** — 恒久対応の「repo 内で作業しない」は必要だが十分ではない。同じ `rc=125` は並行 session が local main を進めるだけでも起きる。待ち時間の使い方を正しても防げない型が存在する。

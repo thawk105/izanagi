@@ -98,6 +98,11 @@ title: [T-1434] price snapshot を schedule へ凍結束縛し、事前登録文
   検査・集計できる。supervisor・replay・make-packets の 3 入口で
   「一度だけ読み、その同じ bytes から descriptor SHA・schedule SHA・JSON・validation を導く」形へ
   直す。本 wave 以前から存在し price 束縛が悪化させるものではないため scope 外とした。
+- {{T:mutation-worktree-recursive-submodule}} **P2・新規**: `tools/mutation_worktree.py` が
+  使い捨て worktree で外部 benchmark の submodule を 1 段しか初期化しないため、入れ子を要求する
+  fixture に依存する test が baseline で必ず error になる。本 wave は 18 件を `--deselect` して
+  回避したが、submodule 依存 test を変異対象に含む全 wave で再現する。再帰初期化へ直す。
+  `--resume` が baseline 判定を再利用する点も併せて見直す (初期化後に再開しても赤が残る)。
 - {{T:schedule-less-packet-uncertified}} **P2・新規**: schedule descriptor を持たない
   legacy 互換の packet 生成経路には price 束縛も一様性検査も無い。塞ぐと旧受理集合が縮むため、
   本 wave では docs で uncertified と明示するに留めた。専用 mode を設けるか、
