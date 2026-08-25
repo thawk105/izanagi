@@ -33112,3 +33112,212 @@ spool fragment を証拠に取れるようにする。ただし **採番・正�
 **却下した選択肢:**
 - **今のうちに一般化する** — 使われない汎用性の費用を先払いする。
 - **限界を明記せず現状のまま** — 実証範囲を超えて読まれうる。
+
+## D917. 受入全走の所要は 4 相へ分解して測り、compute 相の下限は real-repo 直列鎖で決まる (2026-08-25)
+
+**決定:** 受入全走の所要を論じるときは、次の 4 相へ分解した値で論じる。単一の総時間や
+pytest の総時間だけを根拠にした高速化案は採らない。
+
+| 相 | 中央値 | 母集合 |
+|---|---|---|
+| login preflight (claim・merge・全史 provenance 監査・dispatch 準備) | 96 秒 | pid→intent の実測 7 本 (64/70/92/96/104/123/643) |
+| PBS queue 待ち | 14 秒 (平均 111、最大 849) | 141 session |
+| compute job | 288 秒 | 141 session |
+| 併合・後処理 | 約 17 秒 | session 内 mtime |
+| **end-to-end** | **471〜502 秒** | pid→done の実測 12 本 |
+
+compute 相の内訳は 288 session 分の shard report で安定している。
+
+- shard-0: pytest wall 中央値 275 秒 = pole 中央値 211 秒 + 残余中央値 63 秒
+- shard-1: pytest wall 中央値 139 秒 = pole 中央値 92 秒 + 残余中央値 47 秒
+- pole は `real-repo` loadgroup を 1 worker が抱えた時間そのもので、shard-0 の ideal
+  (busy/48) を常に上回る
+
+**理由:**
+- D820 は「shard 数の増加と shard 間 balance の是正は現行の worker 数では律速を動かさない」と
+  決めた。本決定はその母集合を pole の中身が入れ替わった後で取り直し、結論が保たれることを
+  確認したものである。ある session の実測では real-repo 183.9 秒 (74 test) に対し
+  shard-0 の busy 合計は 5954 秒・ideal は 124.0 秒で、pole が ideal を 60 秒上回っていた
+- 割付 weight は `tools/acceptance_shards.py` が item 件数で計算しており所要時間を見ていない。
+  それでも shard-0 は pole 拘束なので、weight を所要時間へ変えても max(shard) は動かない
+- 相分解を経ずに「pytest が遅い」とだけ見ると、実際には pytest の外にある
+  login preflight (全体の約 20%) を取り逃す
+
+**却下した選択肢:**
+- shard 数を 3 へ上げる — D820 の実測に加え、本決定の母集合でも pole > ideal が保たれるため
+  max(shard) が動かない。受領証の `env_projection` を動かす副作用だけが残る
+- `real-repo` loadgroup を分割する — 直列性が防壁そのものであり規律 2 に反する。D820 が却下済み
+- 総時間だけを見て高速化案を選ぶ — 相ごとに律速の性質が違うため、効かない層へ投資することになる
+
+## D918. pytest の assertion-rewrite cache は受入で既に効いており、外部 cache を足しても利得はない (2026-08-25)
+
+**決定:** 受入全走の高速化手段として、repo 外の共有 bytecode / assertion-rewrite cache を
+新設しない。既存の repo 内 `__pycache__` が既に同じ役割を果たしていることを実測で確定した。
+
+**実測:**
+- 計算ノードで test を 1 件も実行しない走行 (48 worker) の所要は、cache を持たない worktree で
+  49.32 秒、cache を満たした worktree で **15.40 秒**。差は 33.9 秒
+- しかし実在する wave worktree 49 個はすべて 548〜577 件の `.pyc` を持ち、うち 247〜259 件が
+  pytest rewrite cache である。mtime + size 照合でいずれも 100% 有効だった
+- ある wave の 4 回の受入は、それぞれ 254 / 255 / 258 / 258 件 (全 258 件中) の rewrite cache が
+  **既に書かれた後**に走っていた。cache 最古 09:57 に対し受入は 11:48・12:06・12:45・13:12
+- login 側の focus 走が repo 内 `__pycache__` を書き、計算ノードは読み出しだけを行う。
+  dispatch が計算ノードの子へ渡す `PYTHONDONTWRITEBYTECODE=1` は**書き込みしか止めない**
+  (`_pytest/assertion/rewrite.py` の `write = not sys.dont_write_bytecode`)
+
+**理由:**
+- 上の 49.32 秒は「pytest を一度も走らせていない新品 worktree」でしか出ない値であり、
+  実運用の受入はこの条件に入らない。probe の条件が本番を代表していなかった
+- 外部 cache を新設する案は、独立 2 レンズの敵対相談がいずれも NO-GO と判定した。
+  (a) generation identity が pytest version だけでは不足する。rewrite 結果は
+  `Config` の `enable_assertion_pass_hook` にも依存する。(b) 走行前の sidecar 検証では
+  F52 型の TOCTOU が閉じない。受入の tree fingerprint は走行前後の境界しか見ないため、
+  走行中の同一長・同一秒の往復を観測できない。(c) rewrite cache を作るには
+  `sys.dont_write_bytecode` を解除する writer が要り、「子に bytecode を書かせない」現行の
+  防壁と両立しない
+- 全 `.py` の内容 digest で generation を鍵付けする設計の実 hit 率は 8.0% (直近 3 日の
+  受入受領証 112 件を tested tip の Python tree で比較)。損益分岐は 24〜33% なので、
+  採用すれば 1 走あたり平均で悪化する
+
+**却下した選択肢:**
+- `PYTHONPYCACHEPREFIX` で repo 外へ cache を集約する — 上記のとおり利得がゼロで、
+  正しさの穴が 3 件残る
+- `compileall` で warm する — 利得の主部である rewrite cache を作れない。実測で
+  cache 無し 32.78 秒に対し 31.34 秒にしかならなかった
+- 子の bytecode 書き込み禁止を緩める — F52 の再発面を広げる。速度のために正しさゲートを
+  緩めない (規律 2)
+
+## D919. 正式受入は計測対象の同一性を要求する (2026-08-26)
+
+**決定:** 正式受入は 6 report が同じ measurement authority commit を持つことに加え、
+各 trial の層 3 レポートを再読し、`meta.ccbench_commit` と `env_tags` (ちょうど 1 要素) が
+6 件すべてで同一であることを要求する。完全 build 束では層 3 レポートがちょうど 6 件
+存在することも要求し、欠落・0 件は hard failure とする。
+
+**理由:**
+- `measurement_head` は izanagi 側の git commit であって計測対象ではない。
+  従来の受入は「何を計測したか」を一切照合しておらず、6 セルが別々の CCBench source を
+  別々の環境で計測した束も受理した。
+- arm 間比較の差を機構へ帰属させる成果物にとって、対象と環境の同一性は前提である。
+  異なる環境の混在は treatment effect へ直接混入する。
+- 件数だけを見る検査は母集合が空でも緑になる。母数下限を対で置かないと恒真化する。
+
+**却下した選択肢:**
+- 新しい非 certifying 理由コードを足す — 受領証は構造上つねに非 certifying であり、
+  理由コードは fail-closed 機構として働かない。不一致は拒否でなければ意味がない。
+- 不一致時に検査を飛ばす — 受理集合を広げる方向であり規律 2 に反する。
+
+## D920. 同じ走行側が書く投影は独立証拠にしない (2026-08-26)
+
+**決定:** 検査が「独立に再導出した」と称してよいのは、権威ある byte 列から導いた値だけとする。
+同じ走行主体が書いた別ファイルの値どうしを突き合わせるだけの述語は、
+自己整合検査として記録し、独立再導出として台帳へ書かない。
+
+**理由:**
+- 探索ループの checkpoint は原典自身が「WAL でなく loop 状態の投影 — 正本は WAL」と定義し、
+  復元関数も「iteration 整合・entry 件数・campaign/run origin は検査しない」と明記している。
+  同じ走行側が report・journal・checkpoint の 3 つを揃えれば四者等式は通る。
+- 弱い述語を強い証明として記録すると、後続がその「完了状態」を参照して構築するため、
+  恒真な保証が下流へ伝播する。これは規律 2 が禁じる型である。
+
+**却下した選択肢:**
+- 弱い述語でも受理集合は狭まるので入れておく — 入れること自体は害がないが、
+  それで当該条件を閉じたと記録すると下流が誤る。実装しないほうが安全である。
+
+## D921. 不完全な正式束の扱いはユーザー裁定へ返す (2026-08-26)
+
+**決定:** 正式受入が no-build または層 3 不在の trial を含む 6 report 束を拒否すべきか、
+現状どおり理由コード付きの非 certifying 受領証を発行すべきかは、親が決めずユーザー裁定へ返す。
+
+**理由:**
+- 拒否へ倒すと、正式試行が失敗したことを台帳へ残す経路を同時に設計し直す必要がある。
+  受入の成果物の形が変わるため、親が単独で決める範囲を超える。
+- 現状維持のままでは、証拠契約が要求する「no-build を certify しない」保証が恒真である。
+  受領証は構造上つねに非 certifying なので、何も certify できない以上その保証は自動的に
+  成り立ってしまう。承認権限が入った時点で実質的な穴になる。
+
+**却下した選択肢:**
+- 親の判断で拒否側へ倒す — 既存テストが現行挙動を逐語で固定しており、
+  失敗試行の記録経路の設計を伴う。設計択一として返すのが正しい。
+
+## D922. 取り残し branch の着地判定は commit closure を対象にし、決定的証拠を exact tree state と fold receipt だけに限る (2026-08-26)
+
+**決定:** D720 条件 1 (未着地であること) の機械判定を `tools/check_branch_landed.py` として実装し、
+次の 6 点を固定する。条件 2 (現況で妥当であること) は機械化せず、出力に未検査であることを明示する。
+
+1. **判定対象は commit closure である。** `git rev-list <対象> --not <main>` の全 commit を列挙し、
+   各 commit が**全ての親に対して**導入した tree entry の状態だけを証明義務にする。
+   tip の net 差分を対象にしない。merge commit も対象に含める。
+2. **決定的な証拠は 2 つだけである。** (a) `(path, mode, object type, oid)` の同時状態が
+   main から到達可能であること、(b) spool fragment なら正式 schema を満たす fold receipt に
+   その `content_sha256` があること。別々の commit から mode と blob を拾って合成しない。
+3. **patch の指紋・台帳の task ID 検索・本文の逐語照合は `observations` であり verdict を動かさない。**
+   `git cherry` は merge commit を落とし、この機体の git 2.34.1 は `patch-id --verbatim` を持たず
+   空白差を無視する。逐語照合は重複した節・頻出行で偽陽性を作れる。
+4. **判定は 3 値とし、`not-landed` は closed-world の負証拠があるときだけ返す。**
+   探索の打ち切り・timeout・上限超過・parse 不能・shallow・履歴書き換え・ref 移動は
+   すべて `indeterminate` に倒す。同一 path の blob 不一致だけを未着地の証拠にしない
+   (別 path への移植を排除できない)。
+5. **fold receipt に無いことを未着地の証拠にしない。** fragment は別 wave 名へ re-home されてから
+   fold されることがあり、その場合 whole-file の sha が変わる。実例が現存する
+   (`worktree-roadmap-workload-hint` の decisions fragment は receipt に無いが D568 として着地済み)。
+   receipt 不在は `indeterminate` とし、非決定の `ledger_probe` が
+   frontmatter の `title:` を identity 単位、本文の構造単位を補助として
+   canonical 台帳と `docs/archive/` を検索して手掛かりを返す。
+6. **入力は local branch 名と commit-ish の両方を受ける。** 取り残しの実体は削除後には
+   到達不能 commit であり、判定が最も要るのは削除の直前と直後である。
+   両方が解決する曖昧な入力は fail-closed で `indeterminate` にする。
+
+**理由:**
+- **tip の net 差分は削除で失われる内容を測れない。** merge commit が持つ競合解決の結果と、
+  branch 途中でだけ存在した blob は net 差分に現れない。判定の目的は
+  「この ref を消したとき何が到達不能になるか」であり、対象は closure でなければならない。
+- **逆に、和集合で数えると証明義務が実データで一桁膨らむ。** `worktree-t1458-side-ccbench-provenance-fix`
+  の merge は全親に対する差が 0 file だが、parent edge ごとの和集合では 17 file が課される。
+  実装初版はこれで 18 file を要求し `indeterminate` になった。積集合へ直すと 1 file になり
+  `landed` を返せた。同じ機序で `t1484-backup-before-trailer-fix` は 171 unit から 6 unit へ減った。
+- **偽の `landed` と偽の `not-landed` は損害が非対称である。** 前者は削除で内容を失い、
+  後者は着地済みを二重に台帳へ入れる。前者を優先して塞ぎ、後者は `indeterminate` で人へ返す。
+- 決定的証拠を絞った結果、実データ 8 件のうち 4 件が `landed`、4 件が `indeterminate` になり、
+  `not-landed` は 0 件だった。**未 fold の fragment を機械で名指しできないのは意図した保守性である**が、
+  そのままでは回収対象を選べないため、非決定の観測層で手掛かりを出す形にした。
+
+**却下した選択肢:**
+- **`git cherry` の `-` を landed の十分条件にする** — 空白差を無視し merge を落とす。
+  実データ 4 本で closure の commit 数と `git cherry` の行数が食い違った。
+- **追加行が main に逐語で存在すれば landed とする** — main 側に同じ節が複製されていると、
+  branch が変更した節とは別の複製に偶然一致する。反例が構成的に作れる。
+- **fold receipt に無い fragment を未着地とする** — 実データで 5 件中 3 件が誤りになる。
+  うち 1 件は D568 の二重採番を招く。
+- **生成物らしい file を照合対象から外す一般則を作る** — 都合の悪い file を外す抜け道になる。
+  再生成される不透明 blob は `indeterminate` に残す。
+- **判定を 2 値にする** — 「まだ着地していない」と「着地したか判定できない」が混ざる。
+  実データに、blob も逐語も一致しないが未着地とは言えない file が現存する。
+
+## D923. 隔離台帳が空でも走行末尾の要約行を必ず出す (2026-08-26)
+
+**決定:** flaky-node 隔離の要約行 `IZANAGI_FLAKY_HOLD_SUMMARY_V1` は、registry が空のときも
+controller が必ず 1 行出す。値は `registered_node_count` / `matched_node_count` /
+`skipped_node_count` がすべて 0 と、空 registry の digest である。
+非空時の出力条件・形式・値は変えない。
+
+**理由:**
+
+- D697 決定 4 は「隔離は走行末尾の要約に必ず出す」と定めるが、実装は matched が非空のときだけ
+  行を書いていた。隔離対象が 0 件になった瞬間に行自体が消える。
+- その状態では、**「隔離ゼロ」と「隔離 hook が load / 配送 / 集約されていない」が同じ出力になる。**
+  隔離は本質的に検査を走らせなくする操作であり、機構が生きていることの走行時 attestation を
+  失うと、絶対規律 2 が要求する「正しさゲートを緩める変更を検出できる状態」が保てない。
+- 隔離件数が 0 の状態は運用目標であって例外ではない。目標状態でだけ attestation が消えるのは、
+  最も長く続く状態で最も証拠が薄いということである。
+- 空を含めて常に出すことで、受入走行の出力から registry の digest が常に読める。
+  将来 entry を足したときの差分も同じ行で追える。
+
+**却下した選択肢:**
+
+- 空のときは行を出さないまま、別の行で hook の生存を示す — 出所が 2 つに割れ、
+  どちらが欠けたのかを受領証から判定できない。
+- 空のときだけ別 schema の行を出す — consumer が 2 形式を扱うことになり、
+  digest の比較が形式境界をまたぐ。
+- 空 registry を禁止し続け、隔離解除時にダミー entry を残す — D697 決定 2 の受理 6 条件を
+  満たさない entry を台帳へ置くことになり、証拠束縛の意味が壊れる。
