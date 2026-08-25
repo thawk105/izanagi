@@ -1,0 +1,107 @@
+{
+  "schema_version": "paper-story-a1-paired-policy/v1",
+  "study_id": "paper-story-a1-20260824-exploratory-v1",
+  "authority": {
+    "formal": false,
+    "promotion_prohibited": true,
+    "result_authority": "exploratory",
+    "statistics_authority": "D95 plan-v2 preregistration",
+    "d510_role": "analogy-only"
+  },
+  "arm_order": [
+    "adaptive",
+    "static10"
+  ],
+  "arms": [
+    {
+      "name": "adaptive",
+      "protocol": "silo",
+      "flags": {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": -1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0
+      }
+    },
+    {
+      "name": "static10",
+      "protocol": "silo",
+      "flags": {
+        "BACK_OFF": 1,
+        "BACKOFF_FIXED": 10,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0
+      }
+    }
+  ],
+  "workloads": [
+    {
+      "name": "write-heavy",
+      "ycsb_rratio": "5"
+    },
+    {
+      "name": "balanced",
+      "ycsb_rratio": "50"
+    },
+    {
+      "name": "read-heavy",
+      "ycsb_rratio": "95"
+    }
+  ],
+  "scale": {
+    "records": 1000000,
+    "threads": 48,
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rmw": "0",
+    "ycsb_max_ope": "10",
+    "extime_s": 3,
+    "reps": 5,
+    "expected_verify_configs": [
+      "legacy"
+    ]
+  },
+  "pairing": {
+    "design": "arm-grouped-positional-v1",
+    "pair_indices": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "execution_order": "all adaptive reps, then all static10 reps",
+    "time_block_shared": false
+  },
+  "statistics": {
+    "contrast": "static10-minus-adaptive",
+    "mean": "arithmetic mean of five signed positional differences",
+    "sample_sd": "sqrt(sum((d-mean)^2)/(n-1))",
+    "sample_variance": "sum((d-mean)^2)/(n-1)",
+    "inference": "descriptive-only"
+  },
+  "invalid_rules": [
+    "campaign variant set is not exactly the two registered arms",
+    "an arm has anything other than exactly one build attempt",
+    "attempt stages are not exactly build_start, build_done, registered verify_done sequence, bench_done, commit",
+    "final terminal is not commit",
+    "a verify_done is not certified true or its workload tag differs",
+    "bench tps is not exactly five non-bool finite positive numbers",
+    "bench rep_notes is not exactly an empty list",
+    "bench rounds is not exactly integer one",
+    "bench unstable is not exactly false",
+    "bench and commit numeric or verify projections differ",
+    "trace0 source-routed evidence is incomplete or inconsistent",
+    "any workload is invalid"
+  ],
+  "execution": {
+    "mode": "exploration",
+    "site": "pegasus-compute-only",
+    "campaign_shape": "one fresh exact-two-arm campaign per workload",
+    "automatic_retry": false,
+    "default_remeasure_is_retained_but_rounds_other_than_one_are_invalid": true,
+    "materialization": "terminal raw bundle to exclusive-create destination",
+    "durable_measurement_base": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260824/measurement"
+  }
+}

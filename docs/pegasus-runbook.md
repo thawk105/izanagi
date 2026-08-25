@@ -475,6 +475,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/mocc_trace_pilot.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/oracle_n_pilot.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/paper_story_a1_paired.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/paper_story_a2_certification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
 | `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
@@ -485,6 +486,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t139_r4_env_probe.sh` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t1403_walltime_sigterm_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t1403_walltime_sigterm_probe.py` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/probes/t1683_rr5_cost_probe.pbs` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/probes/t1683_rr5_cost_probe.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/probes/t293_perf_site_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t293_perf_site_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t316_sandbox_backend_probe.pbs` | `dispatch-required` | `static job-body classification` |
@@ -821,17 +824,10 @@ W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
 N=<attempt 番号。再走のたびに 1 ずつ増やす>
 python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   --merge-message-file <merge 用 message file> \
-  --owned-path <この wave が所有する実装面 path (所有ごとに繰り返す)> \
   --receipt-file <repo 外の job directory>/acceptance-receipt-$N.json \
   --log-file <repo 外の job directory>/acceptance-child-$N.log \
   -- python3 tools/run_tests.py
 ```
-
-- **`--owned-path` を所有ごとに渡す。** 省略すると待ち手は
-  `acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します` を stderr へ出し、
-  claim 後の main 自動取り込みが wave の所有 file を触っても止まらない。渡してあれば
-  `owned-path-overlap` で fail-closed になり、両親が同じ実装面 file を触る merge を
-  self-report の message のまま通す事故を投入時点で塞げる。
 
 - **`--receipt-file` は必須である ([T-908])。** 待ち手経由の受入だけが権威ある dev-wave 受入で
   あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。
@@ -884,8 +880,11 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   rc=1 / rc=2 も受理しない。
 - **受領証の内容は待ち手ではなく `tools/acceptance_launcher.py` が作る ([T-1283])。**
   待ち手は launcher の source を Git blob から取り、`python3 -I -c` の stdin へ渡して実行する。
-  launcher は `tested_tip:tools/run_tests.py` の blob bytes を同じ形で exec して runner の rc を
-  観測し、canonical な v5 receipt を待ち手が渡した一時 path へ書く。待ち手は保管と publish
+  launcher は `tested_main:tools/run_tests.py` の blob bytes を同じ形で exec して runner の rc を
+  観測し、canonical な v5 receipt を待ち手が渡した一時 path へ書く (D838)。実行前に
+  `tested_tip:tools/run_tests.py` の bytes も別に読み、**一致しなければ suite を一度も起動せずに**
+  rc=70 で止まる。実行器に `tested-tip-bootstrap` 相当の例外は無く、`tested_main` 側の欠落も
+  fail-closed である。待ち手は保管と publish
   だけを担い、launcher が非 0 で終われば receipt を publish しない。
   **この形は runner が `main(argv)` を公開していることを要求する** (pathname から import
   しないため)。v5 は `launcher_source_revision` / `launcher_blob_sha` /
@@ -898,11 +897,18 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   **閉じていない残余**: 改変された tip 側待ち手は launcher を起動せず受領証を自作でき、
   bounded / dispatch の内側の子は pathname を読み直すため実行 bytes の束縛外にある。
   land verifier 自身も候補コードである。いずれも [T-696] の協調境界に残る。
-- **`tools/run_tests.py` または `tools/check_acceptance_reds.py` を変更した wave は経路 (ii) を
-  使えない。** 経路 (ii) の受領証は、待ち手と land の双方が
+- **`tools/run_tests.py` を変更した wave は、どの verdict でも受入を通せない (D838)。**
+  launcher は suite 起動前に、land は verdict によらず共通に、
   `tested_main:tools/run_tests.py` と `tested_tip:tools/run_tests.py` の object type が `blob`
-  であることと blob SHA の等値を要求する (checker についての既存の等値要求と同型)。
-  この 2 つを触る wave は**完全に緑の走行 (child-green) でしか land できない**ので、
+  であることと blob SHA の等値を要求する。受領証の `runner_executed_sha256` の照合先も
+  `tested_main` 側の blob である。実行器を触る wave は受入そのものが通らないので、
+  **実行器の変更と他の変更を同じ wave に載せない**こと。
+  この等値は、claim 後・待ち手の内部 merge 前に**別の wave が実行器の変更を main へ land した**
+  場合にも破れる。実行器を触っていない wave が一度拒否され、受入をやり直すことになる。
+  そのときは新しい main を取り込んでから再投入する。
+- **`tools/check_acceptance_reds.py` を変更した wave は経路 (ii) だけ使えない。**
+  経路 (ii) の受領証は、待ち手と land の双方が判定器の main/tip 等値を要求する。
+  こちらを触る wave は**完全に緑の走行 (child-green) でしか land できない**ので、
   受入をそう計画すること。等値が保証するのは同一 bytes の runner が両側で使われたことだけで、
   import 閉包・cwd・環境変数・pytest の選択と scheduler・`conftest.py`・plugin の同一性は
   保証しない。

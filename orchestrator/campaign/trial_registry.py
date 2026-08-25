@@ -22,6 +22,7 @@ import tempfile
 import threading
 from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath as _PurePosixPath
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -37,6 +38,8 @@ from .autonomous_trial_completeness import (
     is_exact_cell_admission_failure_decision,
     verify_s8c_cross_binding,
 )
+from ..holdout_observation import HoldoutCondition
+from . import s8b_holdout_freeze
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
 from . import s8c_arm_inputs
@@ -69,10 +72,34 @@ DEFAULT_LIFECYCLE_PATH = Path("output/s8c-trial-registry/lifecycle.jsonl")
 LIFECYCLE_SCHEMA_VERSION = "p3-8c-trial-lifecycle/v2"
 ARMS = ("on", "off", "swapped")
 HOLDOUTS = ("H1", "H2")
-HOLDOUT_BINDINGS: Mapping[str, Mapping[str, str]] = {
-    "H1": {"workload": "rr80", "ycsb_rratio": "80"},
-    "H2": {"workload": "rr20", "ycsb_rratio": "20"},
-}
+
+
+def _holdout_bindings_from_freeze() -> Mapping[str, Mapping[str, str | int]]:
+    bindings: dict[str, Mapping[str, str | int]] = {}
+    for workload, frozen in s8b_holdout_freeze.HOLDOUTS.items():
+        ycsb = frozen["ycsb"]
+        condition = HoldoutCondition(
+            candidate_id=frozen["candidate_id"],
+            ycsb_zipf_skew=ycsb[s8b_holdout_freeze.SKEW_KEY],
+            ycsb_rratio=ycsb[s8b_holdout_freeze.RRATIO_KEY],
+            ycsb_rmw=ycsb[s8b_holdout_freeze.RMW_KEY],
+            records=frozen["records"],
+            threads=frozen["threads"],
+        )
+        bindings[condition.candidate_id] = MappingProxyType({
+            "workload": workload,
+            "ycsb_zipf_skew": condition.ycsb_zipf_skew,
+            "ycsb_rratio": condition.ycsb_rratio,
+            "ycsb_rmw": condition.ycsb_rmw,
+            "records": condition.records,
+            "threads": condition.threads,
+        })
+    return MappingProxyType(bindings)
+
+
+HOLDOUT_BINDINGS: Mapping[str, Mapping[str, str | int]] = (
+    _holdout_bindings_from_freeze()
+)
 HOLDOUT_WORKLOADS = frozenset(
     binding["workload"] for binding in HOLDOUT_BINDINGS.values()
 )
@@ -1608,13 +1635,63 @@ def _assert_runtime_report_cells(
     if is_exact_campaignless_failure_fallback_cell(cell):
         return [cell]
     flags = cell.get("workload_flags")
-    if (
-        not isinstance(flags, Mapping)
-        or flags.get("ycsb_rratio") != expected_workload["ycsb_rratio"]
-        or cell.get("campaign_id") != trial.campaign_id
-    ):
-        _fail("runtime-cell-set", "runtime cell differs from its trial projection")
+    if not isinstance(flags, Mapping):
+        _fail(
+            "runtime-cell-set",
+            "runtime cell differs from its trial projection: "
+            "workload_flags is not an object",
+        )
+    for field in ("ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw"):
+        if flags.get(field) != expected_workload[field]:
+            _fail(
+                "runtime-cell-set",
+                "runtime cell differs from its trial projection: "
+                f"workload_flags.{field} differs",
+            )
+    scale = cell.get("perf_config_scale")
+    if not isinstance(scale, Mapping):
+        _fail(
+            "runtime-cell-set",
+            "runtime cell differs from its trial projection: "
+            "perf_config_scale is not an object",
+        )
+    for field in ("records", "threads"):
+        if scale.get(field) != expected_workload[field]:
+            _fail(
+                "runtime-cell-set",
+                "runtime cell differs from its trial projection: "
+                f"perf_config_scale.{field} differs",
+            )
+    if cell.get("campaign_id") != trial.campaign_id:
+        _fail(
+            "runtime-cell-set",
+            "runtime cell differs from its trial projection: campaign_id differs",
+        )
     return [cell]
+
+
+def _assert_holdout_cell_condition(
+    cell: Mapping[str, Any],
+    *,
+    expected: Mapping[str, str | int],
+    campaign_id: str,
+    gate: str,
+    message: str,
+) -> None:
+    flags = cell.get("workload_flags")
+    if not isinstance(flags, Mapping):
+        _fail(gate, f"{message}: workload_flags is not an object")
+    for field in ("ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw"):
+        if flags.get(field) != expected[field]:
+            _fail(gate, f"{message}: workload_flags.{field} differs")
+    scale = cell.get("perf_config_scale")
+    if not isinstance(scale, Mapping):
+        _fail(gate, f"{message}: perf_config_scale is not an object")
+    for field in ("records", "threads"):
+        if scale.get(field) != expected[field]:
+            _fail(gate, f"{message}: perf_config_scale.{field} differs")
+    if cell.get("campaign_id") != campaign_id:
+        _fail(gate, f"{message}: campaign_id differs")
 
 
 def append_trial_registration(
@@ -5322,6 +5399,155 @@ def _exclusive_create_acceptance_receipt(
     return relative_path.as_posix(), hashlib.sha256(payload).hexdigest()
 
 
+def _diagnostic_text_value(value: str) -> str:
+    encoded = value.encode("utf-8")
+    if len(encoded) <= 64:
+        return repr(value)
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
+def _read_acceptance_measurement_targets(
+    loaded: Sequence[_LoadedReport],
+) -> tuple[tuple[str, Path, bytes], ...]:
+    """Require one shared CCBench/environment target across materialized trials."""
+    complete_build_bundle = True
+    snapshots: list[tuple[str, Path, bytes]] = []
+    targets: list[tuple[str, Path]] = []
+    missing_targets: list[tuple[str, Path]] = []
+    identities: list[tuple[str, Path, str, str]] = []
+    for item in loaded:
+        report = item.report
+        trial_id = report.get("trial_id")
+        do_build = report.get("do_build")
+        if type(do_build) is not bool:
+            _fail("campaign-chain", "report.do_build is not a bool")
+        if do_build is False:
+            complete_build_bundle = False
+            continue
+        cells = report.get("cells")
+        if not isinstance(cells, list) or len(cells) > 1:
+            _fail(
+                "terminal-projection",
+                "report cells must contain zero or one cell",
+            )
+        if not cells:
+            _fail(
+                "campaign-chain",
+                "do_build=True requires a non-empty report.cells list",
+            )
+        cell = cells[0]
+        if not isinstance(cell, Mapping):
+            _fail("campaign-chain", "cells[0] is not an object")
+        if is_exact_campaignless_failure_fallback_cell(cell):
+            complete_build_bundle = False
+            continue
+        campaign_root_value = cell.get("campaign_root")
+        if type(campaign_root_value) is not str or not campaign_root_value:
+            _fail(
+                "campaign-chain",
+                "cells[0].campaign_root is required for build",
+            )
+        run_root = item.journal_path.resolve().parent
+        try:
+            declared_campaign_root = Path(campaign_root_value)
+            campaign_root = (
+                declared_campaign_root
+                if declared_campaign_root.is_absolute()
+                else run_root / declared_campaign_root
+            ).resolve(strict=True)
+        except (OSError, ValueError) as exc:
+            raise TrialRegistryError(
+                "[campaign-chain] cells[0].campaign_root cannot be resolved"
+            ) from exc
+        if not campaign_root.is_dir():
+            _fail("campaign-chain", "cells[0].campaign_root is not a directory")
+        layer3_path = campaign_root / "reports" / "layer3_report.json"
+        trial_id_text = str(trial_id)
+        targets.append((trial_id_text, layer3_path))
+        if not layer3_path.exists() and not layer3_path.is_symlink():
+            missing_targets.append((trial_id_text, layer3_path))
+            continue
+        layer3_bytes = _read_regular_bytes(
+            layer3_path,
+            gate="measurement-target",
+            label=f"trial {trial_id!r} layer3 report",
+        )
+        layer3 = _decode_json(
+            layer3_bytes,
+            label=f"trial {trial_id!r} layer3 report",
+        )
+        if not isinstance(layer3, Mapping):
+            _fail("measurement-target", f"trial {trial_id!r} layer3 report is not an object")
+        meta = layer3.get("meta")
+        ccbench_commit = meta.get("ccbench_commit") if isinstance(meta, Mapping) else None
+        if not isinstance(ccbench_commit, str) or not ccbench_commit:
+            _fail(
+                "measurement-target",
+                f"trial {trial_id!r} layer3 meta.ccbench_commit is not a non-empty string",
+            )
+        env_tags = layer3.get("env_tags")
+        if type(env_tags) is not list:
+            _fail(
+                "measurement-target",
+                f"trial {trial_id!r} layer3 env_tags is not a list",
+            )
+        if (
+            len(env_tags) != 1
+            or not isinstance(env_tags[0], str)
+            or not env_tags[0]
+        ):
+            _fail(
+                "measurement-target",
+                f"trial {trial_id!r} layer3 env_tags must contain exactly one non-empty string",
+            )
+        snapshots.append((trial_id_text, layer3_path, layer3_bytes))
+        identities.append(
+            (trial_id_text, layer3_path, ccbench_commit, env_tags[0])
+        )
+
+    if complete_build_bundle and len(snapshots) != 6:
+        if snapshots:
+            reference_trial_id = snapshots[0][0]
+        elif targets:
+            reference_trial_id = targets[0][0]
+        else:
+            reference_trial_id = "<none>"
+        missing_detail = ", ".join(
+            f"trial {trial_id!r} value=<missing> path={str(path)!r}"
+            for trial_id, path in missing_targets
+        )
+        _fail(
+            "measurement-target",
+            "complete build bundle requires exactly 6 readable layer3 reports; "
+            f"found {len(snapshots)}; reference trial {reference_trial_id!r}; "
+            f"missing=[{missing_detail}]",
+        )
+    if identities:
+        baseline_trial_id, baseline_path, baseline_ccbench, baseline_env = identities[0]
+        for trial_id, path, ccbench_commit, env_tag in identities[1:]:
+            if ccbench_commit != baseline_ccbench:
+                _fail(
+                    "measurement-target",
+                    "layer3 reports do not share one meta.ccbench_commit; "
+                    f"baseline trial {baseline_trial_id!r} "
+                    f"value={_diagnostic_text_value(baseline_ccbench)} "
+                    f"path={str(baseline_path)!r}; differing trial {trial_id!r} "
+                    f"value={_diagnostic_text_value(ccbench_commit)} "
+                    f"path={str(path)!r}",
+                )
+            if env_tag != baseline_env:
+                _fail(
+                    "measurement-target",
+                    "layer3 reports do not share one env_tag; "
+                    f"baseline trial {baseline_trial_id!r} "
+                    f"value={_diagnostic_text_value(baseline_env)} "
+                    f"path={str(baseline_path)!r}; differing trial {trial_id!r} "
+                    f"value={_diagnostic_text_value(env_tag)} "
+                    f"path={str(path)!r}",
+                )
+    return tuple(snapshots)
+
+
 def assert_trial_registry_acceptance(
     *,
     effective_preregistration: s8c_preregistration.EffectivePreregistration,
@@ -5387,6 +5613,7 @@ def assert_trial_registry_acceptance(
         for path in report_paths:
             loaded.append(_read_report_and_journal(Path(path)))
         _assert_runtime_report_trial_set(loaded, manifest)
+        measurement_target_snapshots = _read_acceptance_measurement_targets(loaded)
 
         manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
         accepted: list[AcceptedTrial] = []
@@ -5598,15 +5825,16 @@ def assert_trial_registry_acceptance(
                     )
                     and is_exact_campaignless_failure_fallback_cell(cell)
                 )
-                flags = cell.get("workload_flags")
                 if cell.get("workload") != expected_workload["workload"]:
                     _fail("terminal-projection", "report cell differs from manifest projection")
-                if not failure_cell and (
-                    not isinstance(flags, Mapping)
-                    or flags.get("ycsb_rratio") != expected_workload["ycsb_rratio"]
-                    or cell.get("campaign_id") != trial.campaign_id
-                ):
-                    _fail("terminal-projection", "report cell differs from manifest projection")
+                if not failure_cell:
+                    _assert_holdout_cell_condition(
+                        cell,
+                        expected=expected_workload,
+                        campaign_id=trial.campaign_id,
+                        gate="terminal-projection",
+                        message="report cell differs from manifest projection",
+                    )
             cells = _assert_runtime_report_cells(report, trial=trial)
             if cells:
                 cell = cells[0]
@@ -5772,6 +6000,33 @@ def assert_trial_registry_acceptance(
             relative_path=registry_relative,
             current_head=current_head,
         )
+        if measurement_target_snapshots:
+            baseline_trial_id, baseline_path, baseline_bytes = (
+                measurement_target_snapshots[0]
+            )
+        else:
+            baseline_trial_id, baseline_path, baseline_bytes = (
+                "<none>",
+                Path("<none>"),
+                b"",
+            )
+        for trial_id, layer3_path, expected_bytes in measurement_target_snapshots:
+            observed_bytes = _read_regular_bytes(
+                layer3_path,
+                gate="measurement-target-snapshot",
+                label=f"trial {trial_id!r} layer3 report",
+            )
+            if observed_bytes != expected_bytes:
+                _fail(
+                    "measurement-target-snapshot",
+                    "layer3 report changed during acceptance; "
+                    f"baseline trial {baseline_trial_id!r} "
+                    f"sha256={hashlib.sha256(baseline_bytes).hexdigest()} "
+                    f"path={str(baseline_path)!r}; differing trial {trial_id!r} "
+                    f"expected_sha256={hashlib.sha256(expected_bytes).hexdigest()} "
+                    f"observed_sha256={hashlib.sha256(observed_bytes).hexdigest()} "
+                    f"path={str(layer3_path)!r}",
+                )
         receipt_trials: list[dict[str, Any]] = []
         descriptor_proofs: list[bool] = []
         for trial in sorted(manifest.trials, key=lambda item: item.trial_id):

@@ -2584,6 +2584,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/make_acquisition_receipt.py": "dispatch-required",
     "tools/pegasus/mocc_trace_pilot.sh": "dispatch-required",
     "tools/pegasus/oracle_n_pilot.sh": "dispatch-required",
+    "tools/pegasus/paper_story_a1_paired.sh": "dispatch-required",
     "tools/pegasus/paper_story_a2_certification.sh": "dispatch-required",
     "tools/pegasus/probes/t139_positive_control_probe.pbs": "unknown",
     "tools/pegasus/probes/t139_positive_control_probe.sh": "unknown",
@@ -2592,6 +2593,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t139_r4_env_probe.sh": "dispatch-required",
     "tools/pegasus/probes/t1403_walltime_sigterm_probe.pbs": "unknown",
     "tools/pegasus/probes/t1403_walltime_sigterm_probe.py": "unknown",
+    "tools/pegasus/probes/t1683_rr5_cost_probe.pbs": "dispatch-required",
+    "tools/pegasus/probes/t1683_rr5_cost_probe.py": "dispatch-required",
     "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
     "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": "dispatch-required",
@@ -2711,6 +2714,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },
+    "tools/pegasus/paper_story_a1_paired.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS paper-story A-1 paired measurement job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
     "tools/pegasus/paper_story_a2_certification.sh": {
         "class": "dispatch-required",
         "reason": "PBS paper-story A-2 certification job body",
@@ -2758,6 +2767,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "probe artifact has no login admission ruling",
         "primary_gate": "hook deny pending admission evidence",
         "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t1683_rr5_cost_probe.pbs": {
+        "class": "dispatch-required",
+        "reason": "PBS rr5 full-scale trace and verifier cost measurement job body",
+        "primary_gate": "PBS allocation and job-body compute-host validation",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t1683_rr5_cost_probe.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side rr5 full-scale trace and verifier cost measurement driver",
+        "primary_gate": "compute allocation owned by t1683_rr5_cost_probe.pbs",
+        "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t293_perf_site_probe.pbs": {
         "class": "unknown",

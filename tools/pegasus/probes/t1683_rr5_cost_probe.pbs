@@ -1,0 +1,155 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=06:00:00
+#PBS -b 1
+
+set -Eeuo pipefail
+umask 077
+
+if [[ -z "${PBS_JOBID:-}" || -z "${PBS_O_WORKDIR:-}" ]]; then
+  echo "PBS_JOBID and PBS_O_WORKDIR are required" >&2
+  exit 2
+fi
+if [[ ! "$PBS_JOBID" =~ ^([0-9]+:)?[A-Za-z0-9._-]+$ ]]; then
+  echo "unsafe PBS_JOBID" >&2
+  exit 2
+fi
+WORKLOAD=${IZANAGI_T1683_WORKLOAD-rr5}
+if [[ "$WORKLOAD" != "rr5" && "$WORKLOAD" != "rr50" ]]; then
+  echo "IZANAGI_T1683_WORKLOAD must be rr5 or rr50" >&2
+  exit 2
+fi
+
+COMPUTE_HOST=$(hostname)
+if [[ ! "$COMPUTE_HOST" =~ ^bnode[0-9]+([.].*)?$ ]]; then
+  echo "rr5 cost probe is compute-only: hostname=$COMPUTE_HOST" >&2
+  exit 2
+fi
+
+REPO_ROOT=$(realpath -e -- "$PBS_O_WORKDIR")
+if [[ "$REPO_ROOT" != "$PBS_O_WORKDIR" ]]; then
+  echo "PBS_O_WORKDIR must be the canonical repository root" >&2
+  exit 2
+fi
+DRIVER="$REPO_ROOT/tools/pegasus/probes/t1683_rr5_cost_probe.py"
+POLICY="$REPO_ROOT/tools/pegasus/policy.json"
+if [[ ! -f "$DRIVER" || -L "$DRIVER" || ! -f "$POLICY" || -L "$POLICY" ]]; then
+  echo "probe driver or Pegasus policy is unavailable" >&2
+  exit 2
+fi
+
+export TMPDIR="/scr/${PBS_JOBID//:/_}"
+if ! mkdir -m 700 -- "$TMPDIR"; then
+  echo "TMPDIR already exists or cannot be created: $TMPDIR" >&2
+  exit 2
+fi
+
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+PY=""
+for candidate in python3.10 python3.11 python3.12 python3; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" ]] || continue
+  if "$resolved" -I -S -B -c \
+      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \
+      >/dev/null 2>&1; then
+    PY=$(realpath -e -- "$resolved")
+    break
+  fi
+done
+if [[ -z "$PY" ]]; then
+  echo "Python 3.10 or newer is required" >&2
+  exit 2
+fi
+export PATH="$(dirname "$PY"):$PATH"
+
+readarray -t policy_values < <("$PY" -I -B - "$POLICY" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    policy = json.load(handle)
+print(policy["gflags_source_path"])
+print(policy["gflags_expected_head"])
+print(policy["glog_source_path"])
+print(policy["glog_expected_head"])
+PY
+)
+if [[ ${#policy_values[@]} -ne 4 ]]; then
+  echo "Pegasus dependency policy is incomplete" >&2
+  exit 2
+fi
+GFLAGS_SOURCE_PATH=${policy_values[0]}
+GFLAGS_EXPECTED_HEAD=${policy_values[1]}
+GLOG_SOURCE_PATH=${policy_values[2]}
+GLOG_EXPECTED_HEAD=${policy_values[3]}
+
+CC_PATH=$(realpath -e -- "$(command -v gcc)")
+CXX_PATH=$(realpath -e -- "$(command -v g++)")
+
+if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
+  echo "gflags source path is unavailable" >&2
+  exit 2
+fi
+GFLAGS_SOURCE_HEAD=$(git -C "$GFLAGS_SOURCE_PATH" rev-parse HEAD)
+if [[ "$GFLAGS_SOURCE_HEAD" != "$GFLAGS_EXPECTED_HEAD" ]]; then
+  echo "gflags source HEAD mismatch" >&2
+  exit 2
+fi
+if [[ -n "$(git -C "$GFLAGS_SOURCE_PATH" status --porcelain --untracked-files=all)" ]]; then
+  echo "gflags source tree is dirty" >&2
+  exit 2
+fi
+
+GFLAGS_BUILD_DIR="$TMPDIR/gflags-build"
+GFLAGS_INSTALL_DIR="$TMPDIR/gflags-install"
+mkdir -- "$GFLAGS_BUILD_DIR"
+gflags_configure_argv=(cmake -S "$GFLAGS_SOURCE_PATH" -B "$GFLAGS_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH")
+gflags_build_argv=(cmake --build "$GFLAGS_BUILD_DIR" -j 48)
+gflags_install_argv=(cmake --install "$GFLAGS_BUILD_DIR")
+timeout 60 "${gflags_configure_argv[@]}"
+timeout 60 "${gflags_build_argv[@]}"
+timeout 60 "${gflags_install_argv[@]}"
+
+if [[ ! -d "$GLOG_SOURCE_PATH" ]]; then
+  echo "glog source path is unavailable" >&2
+  exit 2
+fi
+GLOG_SOURCE_HEAD=$(git -C "$GLOG_SOURCE_PATH" rev-parse HEAD)
+if [[ "$GLOG_SOURCE_HEAD" != "$GLOG_EXPECTED_HEAD" ]]; then
+  echo "glog source HEAD mismatch" >&2
+  exit 2
+fi
+if [[ -n "$(git -C "$GLOG_SOURCE_PATH" status --porcelain --untracked-files=all)" ]]; then
+  echo "glog source tree is dirty" >&2
+  exit 2
+fi
+
+GLOG_BUILD_DIR="$TMPDIR/glog-build"
+GLOG_INSTALL_DIR="$TMPDIR/glog-install"
+mkdir -- "$GLOG_BUILD_DIR"
+glog_configure_argv=(cmake -S "$GLOG_SOURCE_PATH" -B "$GLOG_BUILD_DIR"
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL_DIR"
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"
+  "-DCMAKE_C_COMPILER=$CC_PATH" "-DCMAKE_CXX_COMPILER=$CXX_PATH")
+glog_build_argv=(cmake --build "$GLOG_BUILD_DIR" -j 48)
+glog_install_argv=(cmake --install "$GLOG_BUILD_DIR")
+timeout 120 "${glog_configure_argv[@]}"
+timeout 120 "${glog_build_argv[@]}"
+timeout 120 "${glog_install_argv[@]}"
+
+export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache
+if [[ ! -d "$IZANAGI_PEGASUS_THIRDPARTY_CACHE" ]]; then
+  echo "Pegasus third-party source cache is unavailable" >&2
+  exit 2
+fi
+
+cd "$REPO_ROOT"
+exec "$PY" -B "$DRIVER" --workload "$WORKLOAD"
