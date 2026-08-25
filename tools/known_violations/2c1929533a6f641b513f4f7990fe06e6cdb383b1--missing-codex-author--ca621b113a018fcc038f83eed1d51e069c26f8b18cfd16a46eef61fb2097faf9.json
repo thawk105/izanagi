@@ -1,0 +1,7 @@
+{
+  "sha": "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-09 dev-wave-jobs/rulings-inbox/2026-08-09-t659-provenance-and-f37-rulings.md",
+  "note": "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）"
+}

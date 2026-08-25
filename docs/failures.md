@@ -5774,6 +5774,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (「親が実編集 probe を行う前に `git status --porcelain` が空であることを確認する」
   「dev-wave 入口の `DW-O19` 条件へ『親の probe でも成立する』ことを明記する」) が
   未だ `DW-O19` 本文へ反映されていないことが 2 回目の再発で裏付けられた。
+
+- **再発: 2026-08-25** — [T-1551] wave の段 6 で、段 5 実装子の未 commit 変更が乗った tree に
+  probe 変異を当て、復元に `git checkout -- orchestrator/tests/conftest.py` を使ったため
+  実装子の変更ごと HEAD へ戻った。3 例目である。今回は probe 適用**前**に
+  `git diff` 全文を退避してあり、`git apply --include=<path>` で復元して
+  `cmp` により byte 一致を確認した (実害ゼロ)。以後の probe では復元のたびに
+  同じ退避 patch との `cmp` を行い、一致を確認してから次へ進んだ。
+  F174 の恒久対応「実編集 probe の前に `git status --porcelain` が空であることを確認する」は
+  **本 wave でも守られなかった**。守れない要因は、段 6 の probe が「未 commit の子成果が
+  乗っている状態」を前提に行われることであり、precondition が構造的に成立しない。
+  退避 patch + `git apply --include=` + `cmp` の 3 点を、空 tree 確認の代替経路として記録する。
 ### F175. フレークの計装が、そのフレークの発火条件で `DID NOT RAISE` になった [テストフレーク] [恒真ゲート]
 
 - 事象: F57 の launcher フレークを観測するために新設した wiring meta-test が、
@@ -6665,6 +6676,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   そのまま持続していることの実証である。** 本 wave の親も consult prompt に禁止を書き忘れ、
   Web 禁止を明記した prompt で再走して初めて受理を得た (結論は両走とも同一)。
   機械強制は [T-1350] で起票する。
+
+- **再発: 2026-08-25** — 段 3 の敵対相談 lens B が `evidence_status=invalid` /
+  `accepted=false` で **4 回連続**不採用になり、完成済み成果物 4 本 (22923 / 20446 / 19932 /
+  20051 bytes) と約 70 分を失った。**既知の 2 原因を両方とも反証した。**
+  (1) web 検索は全 4 件で使用ゼロ。1 件で文字列が hit したが中身は子が走らせた test の nodeid
+  (`..._is_rejected[web_search]`) であり実検索ではない。
+  (2) 非 NFC でもない — 失敗 2 件・成功 1 件とも `is_normalized('NFC')=True`、結合文字 0。
+  さらに最終 artifact は判定条件を全部満たしていた (session_meta 1 / turn_context 1 /
+  model・effort・cwd 一致 / 不正 JSON 0 / 最長行 474727・210887 で上限 4MiB 未満 / 末尾改行あり)。
+  **成功した run の方がむしろ大きい** (rollout 6615347 bytes、最長行 2240502)。
+  したがって `invalid` は最終 artifact の性質ではなく、**tailing 中に立った sticky flag** であり、
+  外部から最終 artifact を見ても再現できない。**第 3 の原因が存在する。**
+  回避できた手段は prompt の縮約だけで、重い command を禁じ調査範囲を絞った版は 6 分で rc=0 に
+  なった (因果は未証明)。4 回目の stderr には guard_bash が repo 全体の `rg` と
+  checker の import を 4 回拒否した記録が残っていた。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -9303,6 +9329,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「親の打ち切りは orphan-hold で worktree の dispatch を全停止する」と既に書いていた。
   **記録があったのに前景で繋いだ**のが本件の実質的な原因である。
   監査・受入・変異のように dispatch する検査は前景の短い枠へ繋がない。
+
+- **再発: 2026-08-25 (同日 2 例目、引き金が別の族)** — 親が `tools/run_tests.py` の**焦点走**を
+  Bash の既定 2 分タイムアウトのまま前景で投げ、打ち切りで dispatch job `945538.nqsv` を
+  孤児化して `pegasus-orphan-hold/v1` を武装させた。既存記述は引き金を
+  「監査・受入・変異のように dispatch する検査」と書いていたが、**焦点走もこの族である**。
+  「テスト 1 ファイルだけだから軽い」という見積りが誤りで、dispatch するか否かは
+  runner 側の自動判定が決める。作業ツリーへの被害はゼロ (変更 2 file・差分・HEAD すべて不変)。
+  `qdel.attempted` が false だったので F47 の submission-disabled は武装せず、
+  hold の recovery 契約 (request の不在確認 → source の clean/HEAD 確認 → 手動削除) を
+  親が実行して 140 秒で解除した。`qstat` は消えた request にも rc=0 を返すため、
+  不在判定は出力本文で行った。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
@@ -13112,6 +13149,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   動けば digest が変わり新しい行が要る。したがって批准と official 新規 campaign の起動は
   近接させる必要があり、間に 25 file を触る wave が着地すると再び塞がる。
 
+
+- **再発: 2026-08-25** — paper-story A-2 の 4-cell certification 実走 2 回目が、
+  同じ `enforcement-source-closure-unratified` で 16 秒で止まった
+  (attempt `t1647-20260825b`、request `946056.nqsv`、`driver_rc=1`)。
+  本 wave は閉包 25 path のいずれにも触れておらず、HEAD の closure digest は main と
+  完全に一致する (`1111720da46ae17801b13af608c0b9e119b23c87a6eeb8686df7df478d64df71`)。
+  批准台帳 `hooks/enforcement-source-closure-ratifications.v1.jsonl` は
+  **main に存在しない**。2026-08-25 02:59 に人間が開設した commit `6188a8d4` は
+  branch `worktree-dev-wave-paper-story-a1-paired-20260824` にあり未着地で、
+  そこで批准された digest `db511c3d841128bfdbf5ba7c6bbdb2ce4da1fe0fdefe8d52aaacb0906ddeea44`
+  は A-1 が `loop.py` と `pipeline.py` を変更した後の closure に対応する。
+  すなわち **main の現行 closure には批准行が 1 件も無い**。
+  D526 により追記経路は AI に閉じており、解除は人間手番である。
+  A-1 の land か、main の現行 digest の批准のいずれかが要る。
 ### F499. merge 途中の作業ツリーでは Codex 子を起動できず、子自身に merge させることもできないため「子は競合解決だけ」が字義どおり実行不能だった [ドリフト] [手順不整合]
 
 - 事象: [T-1477] の再開 wave で local main を取り込んだところ AI provenance の known-violation
@@ -14263,3 +14314,129 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異 harness は `KILLED` 期待の失敗 node 集合が登録値と完全一致することを要求する
   (`tools/mutation_harness.py`、`DW-M08`)。登録と実体がずれた変異は `MISMATCH` として
   ledger に残るため、両走行の `MISMATCH: 0` が照合済みの証拠になる。
+
+### F554. partition から作った positive control が、その partition の定義から導かれる恒真だった [恒真ゲート] [テスト代表性]
+
+- 事象: known-violation 台帳を 2 群へ分ける wave で、親が段 4 の裁定に
+  「上限と対で置く positive control」として次の 3 つを指定した — 2 群の和が台帳全体と一致する、
+  2 群が互いに素である、群ごとの件数の和が台帳の件数と一致する。
+  裁定文には「台帳を空にすればこの 3 つが赤になる」と書いた。**これは誤りだった。**
+  実装は歴史群を `台帳 ∩ baseline`、新規群を `台帳 − baseline` と定義しており、
+  この 3 つは集合演算の定義から導かれるので、**valid な入力では 1 つも falsify できない。**
+  台帳を空にしても 3 つとも緑である。実際に空台帳を捕まえるのは
+  「baseline ⊆ 台帳」の 1 本だけだった。
+- 根本原因: positive control を**分割そのものから作った**こと。
+  分割 `H = L ∩ B` / `G = L − B` の内部整合性は定義の言い換えであって、
+  外部の事実を何も検査しない。上限が守るべき対象 (凍結された B の内容) は分割の**外**にあるのに、
+  検査は分割の**中**だけを見ていた。同じ理由で「凍結 baseline の 53 キー」にも
+  独立した oracle が無く、baseline 定数を台帳から実行時導出する退行が全検査を通過した。
+- 恒久対応: 上限の対象を分割の外へ出し、production から独立した 53 複合キーの literal oracle を
+  テスト側へ置いて完全一致を要求する形にした (D800)。
+  恒真だった 3 assertion は削除し、独立 oracle と正規化台帳から期待値を作る検査へ置き換えた。
+- 再発検知: 変異 `t1605.m01` (凍結 baseline から 1 要素を削除) と `t1605.m02` (baseline を空にする) を
+  事前登録した。どちらも独立 oracle が唯一の拒否理由になる。
+  設計時の一般則は「positive control は、それが守る対象と同じ定義から導けてはならない」。
+
+### F555. 冗長な照合層を検出力として数えた [恒真ゲート]
+
+- 事象: 段 6 の fix が受領証 SHA の照合を 3 点へ増やし、対応する変異を事前登録した。親が変異を
+  実走すると、3 点のうち 2 点は単独で取り除いても **SURVIVED** した。shell 側の照合は job-result
+  writer 側が包含していたため冗長で、sidecar 照合は既存の負例がすべて受領証本体も一緒に
+  書き換えていたため手前の照合が先に拒否しており、単独の拒否理由になる入力が 1 つも無かった。
+- 根本原因: 「その入力が拒否される」ことを「その述語が拒否した」ことの証拠として数えた。
+  防壁を足した数と、単独で発火する述語の数が一致すると暗黙に仮定していた。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M03` (fixture が単一理由か確認し、過剰決定なら
+  単一理由へ差し替えるか冗長 gate と明記して単独変異の証拠から外す) を、**自分が同じ wave で
+  足した防壁にも適用する**。本 wave では sidecar 照合に単一理由の負例
+  (`orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper`)
+  を足し、shell 側は SURVIVED 期待として冗長 gate と明記して登録した。
+- 再発検知: 変異 spec で新設した各述語を単独で取り除く変異を必ず登録する。SURVIVED は等価変異と
+  して片付けず、`DW-M02` に従い実効 gate へ再照準して両層同時変異まで裏取りする。
+
+### F556. 受領証へ値を写すことを証拠の鎖と取り違えた [恒真ゲート]
+
+- 事象: 裁定 (D779) が名指した 4 項目 (report の path・SHA-256・schema・guarantee) を受領証へ
+  写す設計を段 2 で起草した。段 3 の敵対相談 2 本が独立に「report が自分で名乗った値を写しても、
+  その検査がその保証を与えた証拠にならない」と反証した。所定 path に偽の report を置けば内容述語は
+  すべて通り、SHA-256 は偽の自己申告を含む bytes を正確に束縛するだけになる。
+- 根本原因: 裁定の**条項**だけを読み、裁定の**理由節**を実装要件へ落とさなかった。D779 の理由は
+  「どの検査が何を保証したかを証拠の鎖として辿れない」ことであり、求められていたのは鎖である。
+- 恒久対応: D801 — report の自己申告を producer の実引数
+  (commit の新旧・repo・compiler・対象 path) と照合する。実装は
+  `tools/pegasus/mocc_trace_pilot.sh` の受領証 writer にあり、変異 M06〜M10 が各述語を単独で守る。
+- 再発検知: 受領証・台帳へ「検査を通った」と書く field を足す wave では、その値が producer の
+  実行と結合していない経路を敵対レンズの必須攻撃面に含める。
+
+### F557. 親の一時変異が走っている tree を read-only の子が読み、誤った must-fix を出した [テスト代表性] [手順漏れ]
+
+- 事象: 段 6 の敵対レビュー 2 本を起動した後、親が同じ worktree で変異 probe
+  (`if False and ...` を production へ一時適用) を実行した。レビュー子の 1 本がその窓で
+  tree を読み、「事前登録した変異が production に残存しており受入は静的に赤である」を
+  最重要 must-fix として報告した。実際には probe は復元済みで、親が `cmp` で
+  段 5 成果物との byte 一致を確認できた。所見は誤報だった。
+- 根本原因: `DW-O19` は一時変異の**復元**を規定するが、**その間に同じ tree を読む
+  read-only の子が居ないこと**を要求していない。親は「復元すれば影響ない」と考えたが、
+  観測者は復元前後の任意の時点を読みうる。
+- 影響: 誤報 1 件。親が現物照合で否定し、fix 子の prompt へ「これは誤報である」と
+  明示したため実装への波及はゼロ。ただし焦点再レビューまで誤報が伝播しており、
+  否定を渡さなければ実装子が無害な callsite を「直す」危険があった。
+- 恒久対応: 一時変異は read-only の子が 1 本も走っていない窓でだけ行う。
+  子の生存は `pgrep -af <worktree path>` で確認する。この規律は
+  D804 とは独立で、`DW-O19` の復元規律に足す運用側の条件である。
+- 再発検知: 変異 probe の直前に子の生存確認を行った記録が handoff にあること。
+  誤報が出た場合は現物 (`cmp` と `git diff`) で否定してから fix へ渡すこと。
+
+### F558. 親が変異走行中に commit して HEAD を動かし、harness を fail-closed で止めた [手順漏れ]
+
+- 事象: 16 変異の probe を計算ノードへ投入した直後、親が待ち時間を使って main の merge を
+  commit した。harness は `run 中に HEAD が変化: expected=9405a080..., actual=1b703335...` で
+  中断し、走行中の 1 変異が失われた。`output/pegasus-dispatch/orphan-hold.json` が残り、
+  同 worktree からの全 dispatch が塞がった。
+- 根本原因: 変異走行中の禁止事項を「tree へ書かない」とだけ理解していた。
+  harness が束縛するのは working tree ではなく **HEAD** であり、commit は tree を汚さずに
+  HEAD を動かす。`git status` が clean のままなので、禁止に触れている自覚が生まれない。
+- 誘発要因: 変異走行が数十分かかるため、その間に別の作業を進めたくなる。
+  merge も commit も「tree を汚さない安全な操作」に見える。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M05` が要求する単一走行の理解を
+  「HEAD を動かす操作 (commit / merge / reset / checkout) も禁止」まで広げる。
+  実体は harness 自身の HEAD 束縛検査 (`run 中に HEAD が変化` で fail-closed) であり、
+  この検査は既に存在する。欠けていたのは親側の運用規律である。
+- 再発検知: 変異 ledger の `repo_head` と harness の中断理由。走行中に HEAD を動かすと
+  必ずこの理由で止まるため、静かに壊れることはない。
+- 波及: orphan hold は request の終端 (`child_rc=0`、scheduler 上で消滅) と
+  木の clean / HEAD を確認する recovery 手順を踏む。本件では harness 自身が撤去していた。
+
+### F559. 防壁の代替として必須化した検査を、本番監査経路へ配線せず test からしか呼んでいなかった [恒真ゲート] [手順漏れ]
+
+- 事象: 逐語 mirror を畳む条件として append-only 履歴検査を必須と裁定し、実装子は
+  公開関数として正しく実装した。しかし呼出しは pytest node だけで、`main()` からは
+  呼ばれていなかった。**land の全史監査関門でも発火しない**状態で、焦点走は 353 passed の
+  緑だった。段 6 の敵対レビュー 2 本が独立に同じ穴を指摘して初めて判明した。
+- 根本原因: 親の裁定文が「検査を置く」とだけ書き、**どの経路から呼ぶか**を書いていなかった。
+  実装子への指示にも呼出し点の指定が無く、「関数を用意する」で契約が閉じてしまった。
+  テストが公開関数を直接呼ぶため、未配線でも緑になる。
+- 恒久対応: 防壁の代替として検査を新設する裁定では、**呼出し点 (どの CLI 経路・どの分岐から
+  呼ぶか) を裁定文へ明記**し、`main()` から呼ばれることを固定する test を同じ wave で置く。
+  本 wave では `test_authoritative_main_invokes_append_only_history` と
+  `test_authoritative_main_folds_append_only_failure_into_rc2` を置き、配線除去の変異が
+  この 2 本に殺されることを確認した。
+- 再発検知: 新設した検査関数を repo 内で grep し、**production 側の call site が
+  0 件でないこと**を確かめる。call site が test file にしか無ければ本 F。
+
+### F560. append-only 検査が merge commit 自身の改変を見なかった [変異] [テスト代表性]
+
+- 事象: `git log --no-renames --diff-filter=MD -- <dir>` で着地済み file の変更を拒否する
+  検査を置き、merge 経由の改変・削除・rename の負例も用意して全部緑にした。
+  しかし変異検査で `-m` を外す変異が**生存**した。実測すると、既存の merge 負例は
+  **side branch 側の commit が改変を持つ**形なので `--full-history` だけで捕まり、
+  `-m` の有無に依存していなかった。**merge commit 自身が entry を改変する evil merge** は
+  `-m` が無いと完全に不可視で、現行 command が 4 行出力するところ 0 行だった。
+- 根本原因: 負例を「merge を経由するか」で設計し、「**改変を持つ commit が merge 自身か
+  親側か**」で分けていなかった。path 限定 `git log` は既定で merge の差分を出さないため、
+  この 2 つは別の経路である。この repo では親が作る merge commit が日常的であり、
+  evil merge は最も現実的な偽造経路だった。
+- 恒久対応: merge を含む履歴検査の負例は、**改変の所在 (merge commit 自身 / 親側 commit)**
+  で必ず 2 分する。`-m` と `--full-history` はそれぞれ別の経路を担うため、両方に単独の負例を置く。
+  file type 変更 (`T`) も `MD` に入らないため diff-filter へ明示する。
+- 再発検知: 履歴検査の変異で option を 1 つずつ外し、**それぞれに専用の kill node があるか**を
+  見る。option を外しても死なない検査は、その option が守る経路の負例が無い。

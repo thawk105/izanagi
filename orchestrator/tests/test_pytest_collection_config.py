@@ -573,6 +573,44 @@ def test_duplicate_default_roots_cannot_bypass_completeness_with_receipt(
     assert CONF._SELECTION_RECEIPT_PREFIX not in capsys.readouterr().err
 
 
+def test_requested_xdist_without_dsession_keeps_local_flaky_completeness_check():
+    config = SimpleNamespace(
+        option=SimpleNamespace(numprocesses=2),
+        args=(str(_HERE),),
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(get_plugin=lambda _name: None),
+    )
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+    del config.pluginmanager
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+
+def test_usable_dsession_delegates_flaky_completeness_to_xdist_hook():
+    dsession = SimpleNamespace(sched=SimpleNamespace(numnodes=1))
+    config = SimpleNamespace(
+        args=(str(_HERE),),
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: dsession if name == "dsession" else None,
+        ),
+    )
+    assert CONF._is_complete_flaky_hold_collection(config) is False
+
+
+def test_xdist_worker_keeps_local_flaky_completeness_check():
+    dsession = object()
+    config = SimpleNamespace(
+        workerinput={},
+        args=(str(_HERE),),
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: dsession if name == "dsession" else None,
+        ),
+    )
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+
 @pytest.mark.parametrize(
     "args",
     [

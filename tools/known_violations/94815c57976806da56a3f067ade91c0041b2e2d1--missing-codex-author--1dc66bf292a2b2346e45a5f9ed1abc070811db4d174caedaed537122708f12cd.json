@@ -1,0 +1,7 @@
+{
+  "sha": "94815c57976806da56a3f067ade91c0041b2e2d1",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)",
+  "note": "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ `_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit `25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。manager (claude) が直接 commit したため Codex `role=author` trailer がなく、`missing-codex-author` として検出された。"
+}
