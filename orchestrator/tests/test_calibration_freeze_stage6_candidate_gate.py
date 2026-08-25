@@ -127,6 +127,31 @@ def _select_inventory_paths(paths: Iterable[Path]) -> frozenset[Path]:
     )
 
 
+def _assert_exact_inventory_roots(
+    enumerated_paths: Iterable[Path],
+    selected_paths: Iterable[Path],
+) -> None:
+    """列挙された production Python と選択集合の top-level root を exact 比較する。"""
+
+    expected = frozenset(
+        path.parts[0]
+        for path in enumerated_paths
+        if path.parts
+        and path.suffix == ".py"
+        and path.parts[:2] != ("orchestrator", "tests")
+    )
+    observed = frozenset(
+        path.parts[0]
+        for path in selected_paths
+        if path.parts
+    )
+    if observed != expected:
+        raise AssertionError(
+            "caller inventory top-level roots drifted: "
+            f"expected={sorted(expected)!r} observed={sorted(observed)!r}"
+        )
+
+
 def _assert_exact_paths(
     expected: frozenset[str],
     observed: frozenset[str],
@@ -144,16 +169,19 @@ def _assert_exact_paths(
 
 def _caller_inventory(
     sources: Mapping[str, str],
-) -> tuple[frozenset[str], frozenset[str]]:
-    """Source mapping から 2 関門の caller module 集合を純粋に抽出する。
+) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
+    """2 関門の caller 集合と曖昧参照 module 集合を純粋に抽出する。
 
     NFKC 後に両 target のどちらも含まない source は AST parse を省くため、
     target と無関係な source の構文不正はこの inventory の検査対象外である。
     target を含む source は元 source を parse し、構文不正を fail-closed にする。
+
+    module を跨ぐ alias の再 export は 1 file の AST では解決できない。
     """
 
     obligation_callers: set[str] = set()
     adapter_callers: set[str] = set()
+    ambiguous_callers: set[str] = set()
     for module_path, source in sources.items():
         normalized_source = unicodedata.normalize("NFKC", source)
         if not any(
@@ -163,17 +191,44 @@ def _caller_inventory(
             continue
         tree = ast.parse(source, filename=module_path)
         aliases = _target_aliases(tree)
-        called_names = {
-            target
+        resolved_callees = {
+            id(node.func): target
             for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             if (target := _referenced_target(node.func, aliases)) is not None
         }
+        called_names = frozenset(resolved_callees.values())
+        syntactic_references = (
+            node
+            for node in ast.walk(tree)
+            if (
+                isinstance(node, ast.Attribute)
+                and node.attr in _TARGET_PREDICATES
+            )
+            or (
+                isinstance(node, ast.Name)
+                and isinstance(node.ctx, ast.Load)
+                and _referenced_target(node, aliases) is not None
+            )
+            or (
+                isinstance(node, ast.Call)
+                and _referenced_target(node, aliases) is not None
+            )
+        )
+        if any(
+            id(reference) not in resolved_callees
+            for reference in syntactic_references
+        ):
+            ambiguous_callers.add(module_path)
         if _OBLIGATION_PREDICATE in called_names:
             obligation_callers.add(module_path)
         if _ADAPTER_PREDICATE in called_names:
             adapter_callers.add(module_path)
-    return frozenset(obligation_callers), frozenset(adapter_callers)
+    return (
+        frozenset(obligation_callers),
+        frozenset(adapter_callers),
+        frozenset(ambiguous_callers),
+    )
 
 
 def test_real_repository_rejects_stage6_candidate_for_undischarged_fixture_obligations(
@@ -245,10 +300,14 @@ def test_stage6_candidate_gate_executes_obligation_predicate_with_forwarded_path
 ) -> None:
     fixture_root = object()
     design_doc = object()
+    default_fixture_root = object()
+    default_design_doc = object()
     calls: list[tuple[object, object]] = []
 
     def obligation_spy(
-        *, fixture_root: object, design_doc: object
+        *,
+        fixture_root: object = default_fixture_root,
+        design_doc: object = default_design_doc,
     ) -> dict[str, object]:
         calls.append((fixture_root, design_doc))
         return {}
@@ -280,8 +339,16 @@ def test_stage6_candidate_gate_propagates_non_contract_exception() -> None:
         pass
 
     sentinel = SentinelError("throwing-spy sentinel")
+    fixture_root = object()
+    design_doc = object()
+    default_fixture_root = object()
+    default_design_doc = object()
 
-    def throwing_spy(*, fixture_root: object, design_doc: object) -> None:
+    def throwing_spy(
+        *,
+        fixture_root: object = default_fixture_root,
+        design_doc: object = default_design_doc,
+    ) -> None:
         raise sentinel
 
     original = contract.require_stage0_fixture_obligations_discharged
@@ -290,8 +357,8 @@ def test_stage6_candidate_gate_propagates_non_contract_exception() -> None:
         contract.require_stage0_fixture_obligations_discharged = throwing_spy
         try:
             gate.require_stage6_candidate_submission_ready(
-                fixture_root=object(),
-                design_doc=object(),
+                fixture_root=fixture_root,
+                design_doc=design_doc,
             )
         except BaseException as exc:
             observed = exc
@@ -307,24 +374,18 @@ def test_stage6_candidate_gate_propagates_non_contract_exception() -> None:
 
 def test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs(
 ) -> None:
-    candidate_paths = _select_inventory_paths(
-        list_tracked_and_untracked_files(ROOT)
-    )
+    enumerated_paths = list_tracked_and_untracked_files(ROOT)
+    candidate_paths = _select_inventory_paths(enumerated_paths)
     assert candidate_paths, "caller inventory の production Python 母集合が空"
-    assert any(
-        path.parts[:2] == ("orchestrator", "campaign")
-        for path in candidate_paths
-    ), "caller inventory が orchestrator/campaign/ を選んでいない"
-    assert any(
-        path.parts[:1] == ("tools",)
-        for path in candidate_paths
-    ), "caller inventory が tools/ を選んでいない"
+    _assert_exact_inventory_roots(enumerated_paths, candidate_paths)
     sources = {
         path.as_posix(): (ROOT / path).read_text(encoding="utf-8")
         for path in candidate_paths
     }
 
-    obligation_callers, adapter_callers = _caller_inventory(sources)
+    obligation_callers, adapter_callers, ambiguous_callers = _caller_inventory(
+        sources
+    )
     _assert_exact_paths(
         frozenset({_ADAPTER_PATH}),
         obligation_callers,
@@ -334,6 +395,11 @@ def test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs(
         frozenset(),
         adapter_callers,
         label="stage 6 adapter",
+    )
+    _assert_exact_paths(
+        frozenset(),
+        ambiguous_callers,
+        label="ambiguous target reference",
     )
 
     prerequisite = ROOT / "docs" / "env-contract-activation-prerequisites.md"
@@ -364,13 +430,28 @@ def test_stage6_candidate_gate_inventory_path_selection_is_exact() -> None:
         Path("tools/submit.py"),
         Path("another_package/worker.py"),
     )
-    assert _select_inventory_paths(synthetic_paths) == frozenset(
+    selected_paths = _select_inventory_paths(synthetic_paths)
+    assert selected_paths == frozenset(
         {
             Path("orchestrator/campaign/adapter.py"),
             Path("tools/submit.py"),
             Path("another_package/worker.py"),
         }
     )
+    _assert_exact_inventory_roots(synthetic_paths, selected_paths)
+
+    shrunken_paths = frozenset(
+        {
+            Path("orchestrator/campaign/adapter.py"),
+            Path("tools/submit.py"),
+        }
+    )
+    try:
+        _assert_exact_inventory_roots(synthetic_paths, shrunken_paths)
+    except AssertionError as exc:
+        assert "top-level roots drifted" in str(exc)
+    else:
+        raise AssertionError("inventory root comparison accepted a shrunken set")
 
 
 def test_stage6_candidate_gate_caller_inventory_detects_additional_callers(
@@ -380,7 +461,9 @@ def test_stage6_candidate_gate_caller_inventory_detects_additional_callers(
             "contract.require_stage0_fixture_obligations_discharged()\n"
         ),
     }
-    obligation_callers, adapter_callers = _caller_inventory(baseline_sources)
+    obligation_callers, adapter_callers, ambiguous_callers = _caller_inventory(
+        baseline_sources
+    )
     expected_obligation_callers = frozenset({_ADAPTER_PATH})
     expected_adapter_callers = frozenset()
     _assert_exact_paths(
@@ -393,6 +476,11 @@ def test_stage6_candidate_gate_caller_inventory_detects_additional_callers(
         adapter_callers,
         label="baseline stage 6 adapter",
     )
+    _assert_exact_paths(
+        frozenset(),
+        ambiguous_callers,
+        label="baseline ambiguous target reference",
+    )
 
     additional_path = "orchestrator/campaign/synthetic_stage6_submitter.py"
     sources_with_additional_caller = dict(baseline_sources)
@@ -400,11 +488,12 @@ def test_stage6_candidate_gate_caller_inventory_detects_additional_callers(
         "contract.require_stage0_fixture_obligations_discharged()\n"
         "candidate_gate.require_stage6_candidate_submission_ready()\n"
     )
-    obligation_callers, adapter_callers = _caller_inventory(
-        sources_with_additional_caller
+    obligation_callers, adapter_callers, ambiguous_callers = (
+        _caller_inventory(sources_with_additional_caller)
     )
     assert obligation_callers == frozenset({_ADAPTER_PATH, additional_path})
     assert adapter_callers == frozenset({additional_path})
+    assert ambiguous_callers == frozenset()
     for label, expected, observed in (
         (
             "additional obligation predicate",
@@ -438,10 +527,39 @@ def test_stage6_candidate_gate_caller_inventory_detects_additional_callers(
         "nfkc.py": (
             "contract.ｒｅｑｕｉｒｅ_stage0_fixture_obligations_discharged()\n"
         ),
+        "mapping.py": (
+            "{'submit': gate.require_stage6_candidate_submission_ready}"
+            "['submit']()\n"
+        ),
+        "partial.py": (
+            "partial(gate.require_stage6_candidate_submission_ready)()\n"
+        ),
     }
-    obligation_callers, adapter_callers = _caller_inventory(indirect_controls)
+    obligation_callers, adapter_callers, ambiguous_callers = _caller_inventory(
+        indirect_controls
+    )
     assert obligation_callers == frozenset({"nfkc.py"})
     assert adapter_callers == frozenset({"alias.py", "getattr.py"})
+    assert ambiguous_callers == frozenset(
+        {"alias.py", "mapping.py", "partial.py"}
+    )
+
+    non_reference_controls = {
+        "docstring.py": (
+            "'''require_stage6_candidate_submission_ready'''\n"
+        ),
+        "comment.py": (
+            "# require_stage0_fixture_obligations_discharged\n"
+        ),
+        "plain_string.py": (
+            "label = 'require_stage6_candidate_submission_ready'\n"
+        ),
+    }
+    assert _caller_inventory(non_reference_controls) == (
+        frozenset(),
+        frozenset(),
+        frozenset(),
+    )
 
 
 _EXPECTED_TEST_NAMES = frozenset(
