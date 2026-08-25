@@ -66,9 +66,21 @@ class _Item:
     ) -> None:
         self.nodeid = nodeid
         self.path = ROOT / nodeid.split("::", 1)[0]
-        self._markers = tuple(markers)
+        self._markers = list(markers)
         self.keywords = dict(keywords or {})
         self.user_properties = list(user_properties)
+
+    def add_marker(self, marker, append=True) -> None:
+        if isinstance(marker, str):
+            marker = getattr(pytest.mark, marker)
+        mark = getattr(marker, "mark", None)
+        if mark is None:
+            raise ValueError("is not a string or pytest.mark.* Marker")
+        self.keywords[mark.name] = marker
+        if append:
+            self._markers.append(mark)
+        else:
+            self._markers.insert(0, mark)
 
     def iter_markers(self, name=None):
         return (

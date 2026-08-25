@@ -4,8 +4,8 @@
 #PBS -l elapstim_req=04:00:00
 #PBS -b 1
 
-# Full: setup 900 + 7 blocks * (600 + 600 + 600) + finalize 300 =
-# 13800 seconds, strictly below the requested 14400 seconds.
+# Smoke uses fixed 3600-second per-arm liveness caps.  Full caps are derived by
+# the driver from one successful smoke receipt and validated against elapstim.
 set -Eeuo pipefail
 umask 077
 
@@ -14,6 +14,11 @@ FAILURE_WRITTEN=0
 PY=""
 OUTPUT=""
 MODE="${IZANAGI_ACCEPTANCE_NPROC_MODE:-}"
+ACTIVE_CHILD_PID=""
+ACTIVE_CHILD_PGID=""
+DRIVER_MAX_RECOVERY_S=90
+OUTER_KILL_AFTER_S=120
+ACTIVE_RECOVERY_GRACE_S=150
 
 write_failure_receipt() {
   local rc=$1 stage=$2 message=$3
@@ -54,9 +59,54 @@ finally:
 PY
 }
 
+clear_active_child() {
+  ACTIVE_CHILD_PID=""
+  ACTIVE_CHILD_PGID=""
+}
+
+recover_active_child() {
+  [[ -n "$ACTIVE_CHILD_PID" && -n "$ACTIVE_CHILD_PGID" ]] || return 0
+  local recovery_failed=0 deadline
+  if kill -0 -- "-$ACTIVE_CHILD_PGID" 2>/dev/null; then
+    kill -TERM -- "-$ACTIVE_CHILD_PGID" 2>/dev/null || true
+    deadline=$((SECONDS + ACTIVE_RECOVERY_GRACE_S))
+    while kill -0 -- "-$ACTIVE_CHILD_PGID" 2>/dev/null; do
+      (( SECONDS < deadline )) || break
+      sleep 1
+    done
+  fi
+  if kill -0 -- "-$ACTIVE_CHILD_PGID" 2>/dev/null; then
+    kill -KILL -- "-$ACTIVE_CHILD_PGID" 2>/dev/null || true
+  fi
+  if wait "$ACTIVE_CHILD_PID" 2>/dev/null; then :; else :; fi
+  if kill -0 -- "-$ACTIVE_CHILD_PGID" 2>/dev/null; then
+    printf 'tracked child process group remains after KILL: pgid=%s\n' \
+      "$ACTIVE_CHILD_PGID" >&2
+    recovery_failed=1
+  fi
+  clear_active_child
+  return "$recovery_failed"
+}
+
+run_tracked() {
+  local cap_s=$1 kill_after_s=$2 rc=0
+  shift 2
+  setsid timeout --signal=TERM --kill-after="$kill_after_s" "$cap_s" "$@" &
+  ACTIVE_CHILD_PID=$!
+  ACTIVE_CHILD_PGID=$ACTIVE_CHILD_PID
+  if wait "$ACTIVE_CHILD_PID"; then :; else rc=$?; fi
+  if kill -0 -- "-$ACTIVE_CHILD_PGID" 2>/dev/null; then
+    recover_active_child || rc=125
+  else
+    clear_active_child
+  fi
+  return "$rc"
+}
+
 on_error() {
   local rc=$? line=${BASH_LINENO[0]:-unknown}
   trap - ERR
+  recover_active_child || true
   write_failure_receipt "$rc" "$CURRENT_STAGE" "command failed at line $line"
   exit "$rc"
 }
@@ -65,12 +115,14 @@ on_signal() {
   local signum=$1
   local rc=$((128 + signum))
   trap - ERR TERM HUP INT
+  recover_active_child || true
   write_failure_receipt "$rc" "$CURRENT_STAGE" "job script received signal $signum"
   exit "$rc"
 }
 
 on_exit() {
   local rc=$?
+  recover_active_child || true
   if [[ "$rc" -ne 0 ]]; then
     write_failure_receipt "$rc" "$CURRENT_STAGE" "job script exited nonzero"
   fi
@@ -124,8 +176,12 @@ for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
   if "$resolved" -I -B -c \
       'import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 10) else 1)' \
       >/dev/null 2>&1; then
-    PY=$resolved
-    break
+    resolved_python=$("$resolved" -I -B -c \
+      'import os, sys; print(os.path.realpath(sys.executable))')
+    if [[ "$resolved_python" == /* && -x "$resolved_python" ]]; then
+      PY=$resolved_python
+      break
+    fi
   fi
 done
 [[ -n "$PY" ]] || { echo "Python 3.10 is required" >&2; exit 2; }
@@ -136,7 +192,7 @@ for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
   PATH="${PATH}:$candidate"
 done
 export PATH
-for command_name in git qstat timeout mkdir ln; do
+for command_name in git qstat timeout mkdir ln setsid sleep; do
   command -v -- "$command_name" >/dev/null 2>&1 || {
     echo "required command is unavailable: $command_name" >&2
     exit 2
@@ -165,29 +221,55 @@ DRIVER="$REPO_ROOT/tools/pegasus/run_acceptance_nproc_study.py"
 
 REQUESTED_ELAPSTIM_S=14400
 SETUP_CAP_S=${IZANAGI_ACCEPTANCE_NPROC_SETUP_CAP_S:-900}
-TIMEOUT_16_S=${IZANAGI_ACCEPTANCE_NPROC_TIMEOUT_16_S:-600}
-TIMEOUT_32_S=${IZANAGI_ACCEPTANCE_NPROC_TIMEOUT_32_S:-600}
-TIMEOUT_48_S=${IZANAGI_ACCEPTANCE_NPROC_TIMEOUT_48_S:-600}
 FINALIZE_RESERVE_S=${IZANAGI_ACCEPTANCE_NPROC_FINALIZE_RESERVE_S:-300}
-MARGIN_S=${IZANAGI_ACCEPTANCE_NPROC_MARGIN_S:-60}
-for numeric_value in \
-  "$SETUP_CAP_S" "$TIMEOUT_16_S" "$TIMEOUT_32_S" "$TIMEOUT_48_S" \
-  "$FINALIZE_RESERVE_S" "$MARGIN_S"; do
+MARGIN_S=${IZANAGI_ACCEPTANCE_NPROC_MARGIN_S:-180}
+SMOKE_ARM_LIVENESS_CAP_S=3600
+for override_name in \
+  IZANAGI_ACCEPTANCE_NPROC_TIMEOUT_16_S \
+  IZANAGI_ACCEPTANCE_NPROC_TIMEOUT_32_S \
+  IZANAGI_ACCEPTANCE_NPROC_TIMEOUT_48_S; do
+  if [[ -v "$override_name" ]]; then
+    echo "manual arm timeout overrides are forbidden: $override_name" >&2
+    exit 2
+  fi
+done
+for numeric_value in "$SETUP_CAP_S" "$FINALIZE_RESERVE_S" "$MARGIN_S"; do
   [[ "$numeric_value" =~ ^[1-9][0-9]*$ ]] || {
     echo "all study budget overrides must be positive decimal integers" >&2
     exit 2
   }
 done
-if [[ "$MODE" == full ]]; then BLOCKS=7; else BLOCKS=1; fi
-PLANNED_S=$((SETUP_CAP_S + BLOCKS * (TIMEOUT_16_S + TIMEOUT_32_S + TIMEOUT_48_S) + FINALIZE_RESERVE_S))
-if [[ "$PLANNED_S" -ge "$REQUESTED_ELAPSTIM_S" ]]; then
-  echo "study budget must be strictly below the requested elapstim" >&2
+(( OUTER_KILL_AFTER_S > DRIVER_MAX_RECOVERY_S )) || {
+  echo "outer kill-after must exceed the driver recovery bound" >&2
   exit 2
+}
+(( MARGIN_S > OUTER_KILL_AFTER_S )) || {
+  echo "study margin must exceed outer kill-after" >&2
+  exit 2
+}
+CALIBRATION_ARGS=()
+if [[ "$MODE" == smoke ]]; then
+  PLANNED_S=$((SETUP_CAP_S + 3 * SMOKE_ARM_LIVENESS_CAP_S + FINALIZE_RESERVE_S))
+  if [[ "$PLANNED_S" -ge "$REQUESTED_ELAPSTIM_S" ]]; then
+    echo "smoke liveness budget must be strictly below the requested elapstim" >&2
+    exit 2
+  fi
+else
+  SMOKE_RECEIPT=${IZANAGI_ACCEPTANCE_NPROC_SMOKE_RECEIPT:-}
+  [[ -n "$SMOKE_RECEIPT" && "$SMOKE_RECEIPT" == /* ]] || {
+    echo "full requires an absolute IZANAGI_ACCEPTANCE_NPROC_SMOKE_RECEIPT" >&2
+    exit 2
+  }
+  [[ -f "$SMOKE_RECEIPT" && ! -L "$SMOKE_RECEIPT" ]] || {
+    echo "full smoke receipt must be a regular non-symlink file" >&2
+    exit 2
+  }
+  CALIBRATION_ARGS=(--calibration-receipt "$SMOKE_RECEIPT")
 fi
 
 CURRENT_STAGE=driver
 DRIVER_CAP_S=$((REQUESTED_ELAPSTIM_S - MARGIN_S))
-timeout --signal=TERM --kill-after=10 "$DRIVER_CAP_S" \
+run_tracked "$DRIVER_CAP_S" "$OUTER_KILL_AFTER_S" \
   "$PY" -I -B "$DRIVER" \
   --repo-root "$REPO_ROOT" \
   --output "$OUTPUT" \
@@ -196,15 +278,13 @@ timeout --signal=TERM --kill-after=10 "$DRIVER_CAP_S" \
   --seed "$SEED" \
   --requested-elapstim-s "$REQUESTED_ELAPSTIM_S" \
   --setup-cap-s "$SETUP_CAP_S" \
-  --arm-timeout-s "16=$TIMEOUT_16_S" \
-  --arm-timeout-s "32=$TIMEOUT_32_S" \
-  --arm-timeout-s "48=$TIMEOUT_48_S" \
   --finalize-reserve-s "$FINALIZE_RESERVE_S" \
   --margin-s "$MARGIN_S" \
-  --python-command python3.10
+  --python-command python3.10 \
+  "${CALIBRATION_ARGS[@]}"
 
 CURRENT_STAGE=finalize
-timeout 120 "$PY" -I -B "$DRIVER" \
+run_tracked 120 30 "$PY" -I -B "$DRIVER" \
   --validate-receipt "$OUTPUT" --expected-mode "$MODE"
 
 CURRENT_STAGE=complete

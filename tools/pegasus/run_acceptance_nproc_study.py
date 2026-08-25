@@ -30,6 +30,15 @@ ARMS = (16, 32, 48)
 SHARD_COUNT = 2
 FULL_MEASUREMENT_BLOCKS = 6
 PER_SHARD_POSTRUN_RESERVE_S = 30
+FAILURE_FINALIZE_CAP_S = 30
+SMOKE_ARM_LIVENESS_CAP_S = 3600
+FULL_TIMEOUT_MULTIPLIER_NUMERATOR = 5
+FULL_TIMEOUT_MULTIPLIER_DENOMINATOR = 4
+FULL_TIMEOUT_FIXED_RESERVE_S = 3 * PER_SHARD_POSTRUN_RESERVE_S
+SMOKE_TIMEOUT_RULE = "fixed 3600s per-arm liveness cap; excluded from estimand"
+FULL_TIMEOUT_RULE = (
+    "ceil(5/4 * sum(smoke shard wall_s)) + 90s per arm from one complete smoke receipt"
+)
 EXCLUDED_ESTIMANDS = (
     {
         "excluded": True,
@@ -83,6 +92,7 @@ class StudyConfig:
     finalize_reserve_s: int
     margin_s: int
     python_command: str = "python3.10"
+    calibration_receipt: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -238,6 +248,125 @@ def allocate_shard_timeout(*, arm_remaining_s: float, remaining_shards: int) -> 
     return timeout
 
 
+def _smoke_arm_shard_walls(
+    runs: Sequence[Mapping[str, Any]],
+) -> dict[str, list[float]]:
+    walls: dict[str, list[float]] = {}
+    for arm in ARMS:
+        pair = sorted(
+            (
+                run for run in runs
+                if run.get("analysis_included") is True and run.get("arm") == arm
+            ),
+            key=lambda run: int(run.get("shard_index", -1)),
+        )
+        if (
+            len(pair) != SHARD_COUNT
+            or [run.get("shard_index") for run in pair] != list(range(SHARD_COUNT))
+        ):
+            raise ContractError(f"smoke calibration arm {arm} has an invalid shard pair")
+        values = [float(run.get("wall_s", math.nan)) for run in pair]
+        if any(not math.isfinite(value) or value <= 0 for value in values):
+            raise ContractError(f"smoke calibration arm {arm} has an invalid wall time")
+        walls[str(arm)] = values
+    return walls
+
+
+def _derive_full_timeouts_from_walls(
+    walls: Mapping[str, Any],
+) -> dict[int, int]:
+    if set(walls) != {str(arm) for arm in ARMS}:
+        raise ContractError("smoke calibration walls must contain exactly 16/32/48")
+    normalized: dict[int, list[float]] = {}
+    for arm in ARMS:
+        raw_values = walls[str(arm)]
+        if not isinstance(raw_values, list) or len(raw_values) != SHARD_COUNT:
+            raise ContractError(f"smoke calibration arm {arm} must have two shard walls")
+        values = [float(value) for value in raw_values]
+        if any(not math.isfinite(value) or value <= 0 for value in values):
+            raise ContractError(f"smoke calibration arm {arm} has an invalid wall time")
+        normalized[arm] = values
+    return {
+        arm: (
+            math.ceil(
+                math.fsum(normalized[arm])
+                * FULL_TIMEOUT_MULTIPLIER_NUMERATOR
+                / FULL_TIMEOUT_MULTIPLIER_DENOMINATOR
+            )
+            + FULL_TIMEOUT_FIXED_RESERVE_S
+        )
+        for arm in ARMS
+    }
+
+
+def derive_full_arm_timeouts(
+    smoke_receipt: Mapping[str, Any],
+) -> tuple[dict[int, int], dict[str, list[float]]]:
+    """Derive full caps only from a complete fixed-cap smoke receipt."""
+    validate_receipt(smoke_receipt, expected_mode="smoke", require_complete=True)
+    walls = _smoke_arm_shard_walls(smoke_receipt["runs"])
+    derived = _derive_full_timeouts_from_walls(walls)
+    return derived, walls
+
+
+def _read_smoke_calibration(
+    path: Path,
+) -> tuple[dict[int, int], dict[str, Any]]:
+    if not path.is_absolute():
+        raise ContractError("full calibration receipt path must be absolute")
+    if path.is_symlink() or not path.is_file():
+        raise ContractError("full calibration receipt must be a regular non-symlink file")
+    resolved = path.resolve(strict=True)
+    raw = resolved.read_bytes()
+    try:
+        document = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ContractError("full calibration receipt is not valid JSON") from exc
+    if not isinstance(document, Mapping):
+        raise ContractError("full calibration receipt must be a JSON object")
+    derived, walls = derive_full_arm_timeouts(document)
+    calibration = {
+        "derivation_rule": FULL_TIMEOUT_RULE,
+        "derived_arm_timeout_s": {str(arm): derived[arm] for arm in ARMS},
+        "kind": "complete-smoke-receipt",
+        "smoke_arm_shard_walls_s": walls,
+        "smoke_liveness_cap_s": SMOKE_ARM_LIVENESS_CAP_S,
+        "smoke_receipt_path": str(resolved),
+        "smoke_receipt_sha256": _sha256(raw),
+    }
+    return derived, calibration
+
+
+def validate_timeout_calibration(config: StudyConfig) -> dict[str, Any]:
+    expected_keys = set(ARMS)
+    if set(config.arm_timeout_s) != expected_keys:
+        raise ContractError("arm timeout map must contain exactly 16/32/48")
+    observed = {arm: int(config.arm_timeout_s[arm]) for arm in ARMS}
+    if config.mode == "smoke":
+        if config.calibration_receipt is not None:
+            raise ContractError("smoke must not consume a calibration receipt")
+        expected = {arm: SMOKE_ARM_LIVENESS_CAP_S for arm in ARMS}
+        if observed != expected:
+            raise ContractError("smoke must use the fixed per-arm liveness cap")
+        return {
+            "derivation_rule": SMOKE_TIMEOUT_RULE,
+            "derived_arm_timeout_s": {str(arm): expected[arm] for arm in ARMS},
+            "kind": "fixed-smoke-liveness-cap",
+            "smoke_arm_shard_walls_s": {},
+            "smoke_liveness_cap_s": SMOKE_ARM_LIVENESS_CAP_S,
+            "smoke_receipt_path": "",
+            "smoke_receipt_sha256": "",
+        }
+    if config.mode != "full":
+        raise ContractError("timeout calibration mode must be smoke or full")
+    if config.calibration_receipt is None:
+        raise ContractError("full requires a complete smoke calibration receipt")
+    derived, calibration = _read_smoke_calibration(config.calibration_receipt)
+    if observed != derived:
+        raise ContractError("full arm timeouts differ from the fixed smoke derivation")
+    return calibration
+
+
 def _parse_duration(value: str | None, context: str) -> float:
     try:
         result = float(value or "0")
@@ -378,10 +507,10 @@ def summarize_isolation_samples(
         }
         if delta or created or disappeared:
             process_rows.append(row)
-        if not row["exempt"] and delta >= 2:
+        if not row["exempt"] and row["uid"] == own_uid and delta >= 2:
             candidates.append({
                 **row,
-                "uid_relation": "same" if row["uid"] == own_uid else "other",
+                "uid_relation": "same",
             })
     hosts = [str(sample.get("hostname", "")) for sample in samples]
     max_gap = max(gaps, default=0.0)
@@ -389,7 +518,9 @@ def summarize_isolation_samples(
     valid = not read_errors and max_gap <= interval_s * 1.75 and host_match
     return {
         "disturbance_candidates": candidates,
-        "disturbance_rule": "non-exempt process CPU delta >=2 ticks over continuous samples",
+        "disturbance_rule": (
+            "non-exempt same-uid process CPU delta >=2 ticks over continuous samples"
+        ),
         "disturbed": bool(candidates),
         "host_end": hosts[-1],
         "host_match": host_match,
@@ -691,20 +822,21 @@ def _git(executor: Executor, repo: Path, args: Sequence[str], *, purpose: str,
 
 def collect_fingerprint(executor: Executor, repo: Path, *, label: str,
                         timeout_s: float) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_s
     head = _git(executor, repo, ("rev-parse", "HEAD"), purpose=f"{label}:head",
-                timeout_s=timeout_s).strip()
+                timeout_s=_remaining(deadline)).strip()
     status = _git(
         executor, repo,
         ("status", "--porcelain=v1", "--untracked-files=all", "--ignore-submodules=none"),
-        purpose=f"{label}:status", timeout_s=timeout_s,
+        purpose=f"{label}:status", timeout_s=_remaining(deadline),
     )
     diff = _git(executor, repo, ("diff", "--binary"), purpose=f"{label}:diff",
-                timeout_s=timeout_s)
+                timeout_s=_remaining(deadline))
     cached = _git(executor, repo, ("diff", "--cached", "--binary"),
-                  purpose=f"{label}:cached-diff", timeout_s=timeout_s)
+                  purpose=f"{label}:cached-diff", timeout_s=_remaining(deadline))
     submodule_text = _git(
         executor, repo, ("submodule", "status", "--recursive"),
-        purpose=f"{label}:submodule-status", timeout_s=timeout_s,
+        purpose=f"{label}:submodule-status", timeout_s=_remaining(deadline),
     )
     submodules = _parse_submodules(submodule_text)
     sub_rows: list[dict[str, Any]] = []
@@ -712,17 +844,18 @@ def collect_fingerprint(executor: Executor, repo: Path, *, label: str,
         child = repo / row["path"]
         child_head = _git(executor, child, ("rev-parse", "HEAD"),
                           purpose=f"{label}:submodule-head:{row['path']}",
-                          timeout_s=timeout_s).strip()
+                          timeout_s=_remaining(deadline)).strip()
         child_status = _git(
             executor, child, ("status", "--porcelain=v1", "--untracked-files=all"),
-            purpose=f"{label}:submodule-clean:{row['path']}", timeout_s=timeout_s,
+            purpose=f"{label}:submodule-clean:{row['path']}",
+            timeout_s=_remaining(deadline),
         )
         child_diff = _git(executor, child, ("diff", "--binary"),
                           purpose=f"{label}:submodule-diff:{row['path']}",
-                          timeout_s=timeout_s)
+                          timeout_s=_remaining(deadline))
         child_cached = _git(executor, child, ("diff", "--cached", "--binary"),
                             purpose=f"{label}:submodule-cached:{row['path']}",
-                            timeout_s=timeout_s)
+                            timeout_s=_remaining(deadline))
         sub_rows.append({
             "cached_diff_sha256": _sha256(child_cached.encode()),
             "diff_sha256": _sha256(child_diff.encode()),
@@ -988,6 +1121,23 @@ def _expected_run_manifest(
     return tuple(manifest)
 
 
+def _expected_budget_stages(
+    blocks: Sequence[ScheduleBlock],
+) -> tuple[str, ...]:
+    stages = ["setup"]
+    for block in blocks:
+        stages.append(f"block-{block.global_block_index}")
+        for arm in block.arm_order:
+            arm_stage = f"block-{block.global_block_index}-arm-{arm}"
+            stages.append(arm_stage)
+            stages.extend(
+                f"{arm_stage}-shard-{shard_index}"
+                for shard_index in range(SHARD_COUNT)
+            )
+    stages.append("finalize")
+    return tuple(stages)
+
+
 def validate_run_manifest(
     runs: Sequence[Mapping[str, Any]], blocks: Sequence[ScheduleBlock],
 ) -> None:
@@ -1084,7 +1234,10 @@ def _derive_analysis(runs: Sequence[Mapping[str, Any]], *, mode: str) -> tuple[l
 
 
 def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
-                 planned_total_s: int) -> dict[str, Any]:
+                 planned_total_s: int,
+                 timeout_calibration: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    if timeout_calibration is None:
+        timeout_calibration = validate_timeout_calibration(config)
     schedule_doc = _schedule_document(schedule, seed=config.seed)
     return {
         "arm_outcomes": [],
@@ -1097,6 +1250,7 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "requested_elapstim_s": config.requested_elapstim_s,
             "setup_cap_s": config.setup_cap_s,
             "strict_inequality": True,
+            "timeout_calibration": dict(timeout_calibration),
         },
         "cleanup": {
             "canonical_fingerprint_after_sha256": "",
@@ -1191,11 +1345,12 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
     config = StudyConfig(
         repo, output, scratch, config.mode, config.seed, config.requested_elapstim_s,
         config.setup_cap_s, dict(config.arm_timeout_s), config.finalize_reserve_s,
-        config.margin_s, config.python_command,
+        config.margin_s, config.python_command, config.calibration_receipt,
     )
     if output.exists() or output.parent.is_symlink():
         raise ContractError("output must be an absent absolute path under a real parent")
     schedule = build_schedule(config.mode, config.seed)
+    timeout_calibration = validate_timeout_calibration(config)
     planned = validate_budget(
         setup_cap_s=config.setup_cap_s, block_count=len(schedule),
         arm_timeout_s=config.arm_timeout_s,
@@ -1207,7 +1362,10 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
     artifact_root.mkdir(mode=0o700, exist_ok=False)
     env_root = scratch / "acceptance-nproc-run-env"
     env_root.mkdir(mode=0o700, exist_ok=False)
-    receipt = _new_receipt(config, schedule, planned_total_s=planned)
+    receipt = _new_receipt(
+        config, schedule, planned_total_s=planned,
+        timeout_calibration=timeout_calibration,
+    )
     error: BaseException | None = None
     current_stage = "bootstrap"
     canonical_before: Mapping[str, Any] | None = None
@@ -1275,6 +1433,11 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                         current_stage = (
                             f"block-{block.global_block_index}-arm-{arm}-shard-{shard_index}"
                         )
+                        _budget_check(
+                            executor, config, receipt["budget"]["budget_checks"],
+                            stage=current_stage,
+                            remaining_arm_timeout_s=arm_remaining,
+                        )
                         before = collect_fingerprint(
                             executor, clone,
                             label=f"run-{global_run_index}-before",
@@ -1316,10 +1479,14 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                             validate_process_cleanup(result.process_cleanup)
                         except BaseException as exc:
                             child_error = exc
+                        postrun_deadline = time.monotonic() + min(
+                            _remaining(arm_deadline),
+                            float(PER_SHARD_POSTRUN_RESERVE_S),
+                        )
                         after = collect_fingerprint(
                             executor, clone,
                             label=f"run-{global_run_index}-after",
-                            timeout_s=_remaining(arm_deadline),
+                            timeout_s=_remaining(postrun_deadline),
                         )
                         if after["digest_sha256"] != before["digest_sha256"]:
                             raise PostrunDirt(
@@ -1431,7 +1598,10 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
             try:
                 canonical_after = collect_fingerprint(
                     executor, repo, label="canonical-failure-finalize",
-                    timeout_s=max(1.0, min(60.0, float(config.finalize_reserve_s))),
+                    timeout_s=max(
+                        1.0,
+                        min(float(FAILURE_FINALIZE_CAP_S), float(config.finalize_reserve_s)),
+                    ),
                 )
                 unchanged = canonical_after["digest_sha256"] == canonical_before["digest_sha256"]
                 receipt["cleanup"].update({
@@ -1506,6 +1676,61 @@ def _validate_isolation(value: Any, context: str) -> None:
                      f"{context}.disturbance_candidates[{index}]")
 
 
+def _validate_timeout_calibration_document(
+    value: Any, *, mode: str, arm_timeout_s: Mapping[str, Any],
+) -> None:
+    row = _expect_keys(
+        value,
+        {
+            "derivation_rule", "derived_arm_timeout_s", "kind",
+            "smoke_arm_shard_walls_s", "smoke_liveness_cap_s",
+            "smoke_receipt_path", "smoke_receipt_sha256",
+        },
+        "receipt.budget.timeout_calibration",
+    )
+    derived_document = _expect_keys(
+        row["derived_arm_timeout_s"], {"16", "32", "48"},
+        "receipt.budget.timeout_calibration.derived_arm_timeout_s",
+    )
+    budget_timeouts = {arm: int(arm_timeout_s[str(arm)]) for arm in ARMS}
+    recorded_timeouts = {arm: derived_document[str(arm)] for arm in ARMS}
+    if any(type(value) is not int or value <= 0 for value in recorded_timeouts.values()):
+        raise ContractError("recorded derived arm timeouts must be positive integers")
+    if recorded_timeouts != budget_timeouts:
+        raise ContractError("receipt arm timeouts differ from their calibration record")
+    if mode == "smoke":
+        expected = {
+            "derivation_rule": SMOKE_TIMEOUT_RULE,
+            "derived_arm_timeout_s": {
+                str(arm): SMOKE_ARM_LIVENESS_CAP_S for arm in ARMS
+            },
+            "kind": "fixed-smoke-liveness-cap",
+            "smoke_arm_shard_walls_s": {},
+            "smoke_liveness_cap_s": SMOKE_ARM_LIVENESS_CAP_S,
+            "smoke_receipt_path": "",
+            "smoke_receipt_sha256": "",
+        }
+        if dict(row) != expected:
+            raise ContractError("smoke timeout record differs from the fixed liveness cap")
+        return
+    if mode != "full":
+        raise ContractError("receipt timeout calibration mode is invalid")
+    if (
+        row["kind"] != "complete-smoke-receipt"
+        or row["derivation_rule"] != FULL_TIMEOUT_RULE
+        or row["smoke_liveness_cap_s"] != SMOKE_ARM_LIVENESS_CAP_S
+        or not isinstance(row["smoke_receipt_path"], str)
+        or not Path(row["smoke_receipt_path"]).is_absolute()
+        or not isinstance(row["smoke_receipt_sha256"], str)
+        or _HASH_RE.fullmatch(row["smoke_receipt_sha256"]) is None
+        or not isinstance(row["smoke_arm_shard_walls_s"], Mapping)
+    ):
+        raise ContractError("full timeout calibration provenance is invalid")
+    recomputed = _derive_full_timeouts_from_walls(row["smoke_arm_shard_walls_s"])
+    if recomputed != recorded_timeouts:
+        raise ContractError("full arm timeouts differ from the fixed smoke derivation")
+
+
 def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
                      require_complete: bool = True) -> None:
     root = _expect_keys(
@@ -1537,10 +1762,15 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     budget = _expect_keys(
         root["budget"],
         {"arm_timeout_s", "budget_checks", "finalize_reserve_s", "margin_s", "planned_total_s",
-         "requested_elapstim_s", "setup_cap_s", "strict_inequality"},
+         "requested_elapstim_s", "setup_cap_s", "strict_inequality",
+         "timeout_calibration"},
         "receipt.budget",
     )
     _expect_keys(budget["arm_timeout_s"], {"16", "32", "48"}, "receipt.budget.arm_timeout_s")
+    _validate_timeout_calibration_document(
+        budget["timeout_calibration"], mode=expected_mode,
+        arm_timeout_s=budget["arm_timeout_s"],
+    )
     for index, check in enumerate(budget["budget_checks"]):
         _expect_keys(check, {"passed", "remaining_s", "required_s", "stage"},
                      f"receipt.budget.budget_checks[{index}]")
@@ -1667,6 +1897,14 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             for check in budget["budget_checks"]
         ):
             raise ContractError("completed receipt has a failed remaining-walltime check")
+        observed_budget_stages = tuple(
+            str(check["stage"]) for check in budget["budget_checks"]
+        )
+        expected_budget_stages = _expected_budget_stages(expected_blocks)
+        if observed_budget_stages != expected_budget_stages:
+            raise ContractError(
+                "completed receipt lacks an exact stage-start remaining-walltime check"
+            )
 
 
 def validate_job_failure_receipt(document: Mapping[str, Any]) -> None:
@@ -1747,6 +1985,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--finalize-reserve-s", type=int)
     parser.add_argument("--margin-s", type=int)
     parser.add_argument("--python-command", choices=("python3.10",), default="python3.10")
+    parser.add_argument("--calibration-receipt", type=Path)
     parser.add_argument("--validate-receipt", type=Path)
     parser.add_argument("--expected-mode", choices=("smoke", "full"))
     parser.add_argument("--internal-create-session")
@@ -1773,7 +2012,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     missing = sorted(key for key, value in required.items() if value is None)
     if missing:
         raise SystemExit(f"missing required study arguments: {missing}")
-    arm_timeouts = _parse_arm_timeout(args.arm_timeout_s)
+    supplied_timeouts = _parse_arm_timeout(args.arm_timeout_s)
+    if args.mode == "smoke":
+        if args.calibration_receipt is not None:
+            raise SystemExit("smoke must not receive --calibration-receipt")
+        arm_timeouts = {arm: SMOKE_ARM_LIVENESS_CAP_S for arm in ARMS}
+    else:
+        if args.calibration_receipt is None:
+            raise SystemExit("full requires --calibration-receipt")
+        arm_timeouts, _calibration = _read_smoke_calibration(args.calibration_receipt)
+    if supplied_timeouts and supplied_timeouts != arm_timeouts:
+        raise SystemExit("supplied arm timeouts differ from the fixed timeout basis")
     config = StudyConfig(
         repo_root=args.repo_root, output=args.output, scratch_root=args.scratch_root,
         mode=args.mode, seed=args.seed,
@@ -1781,6 +2030,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         setup_cap_s=args.setup_cap_s, arm_timeout_s=arm_timeouts,
         finalize_reserve_s=args.finalize_reserve_s, margin_s=args.margin_s,
         python_command=args.python_command,
+        calibration_receipt=args.calibration_receipt,
     )
     try:
         rc, document = run_study(config, ProcessExecutor())

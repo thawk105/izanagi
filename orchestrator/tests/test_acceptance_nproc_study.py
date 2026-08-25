@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import copy
+from dataclasses import replace
 import json
 import multiprocessing
 import multiprocessing.context
 import os
 from pathlib import Path
 import pty
+import re
 import subprocess
 import sys
 
@@ -51,7 +53,9 @@ def _cleanup(*, residual: list[int] | None = None) -> dict[str, object]:
 def _isolation(host: str) -> dict[str, object]:
     return {
         "disturbance_candidates": [],
-        "disturbance_rule": "non-exempt process CPU delta >=2 ticks over continuous samples",
+        "disturbance_rule": (
+            "non-exempt same-uid process CPU delta >=2 ticks over continuous samples"
+        ),
         "disturbed": False,
         "host_end": host,
         "host_match": True,
@@ -166,7 +170,9 @@ def _config(tmp_path: Path) -> study.StudyConfig:
         seed="unit-seed",
         requested_elapstim_s=14400,
         setup_cap_s=900,
-        arm_timeout_s={16: 600, 32: 600, 48: 600},
+        arm_timeout_s={
+            arm: study.SMOKE_ARM_LIVENESS_CAP_S for arm in study.ARMS
+        },
         finalize_reserve_s=300,
         margin_s=60,
     )
@@ -350,6 +356,18 @@ def test_arm_timeout_preserves_every_postrun_fingerprint_window() -> None:
         study.allocate_shard_timeout(arm_remaining_s=60.0, remaining_shards=2)
 
 
+def test_timeout_basis_rejects_small_smoke_cap_and_full_without_calibration(
+    tmp_path: Path,
+) -> None:
+    smoke = _config(tmp_path)
+    with pytest.raises(study.ContractError, match="fixed per-arm liveness cap"):
+        study.validate_timeout_calibration(
+            replace(smoke, arm_timeout_s={16: 600, 32: 600, 48: 600})
+        )
+    with pytest.raises(study.ContractError, match="complete smoke calibration receipt"):
+        study.validate_timeout_calibration(replace(smoke, mode="full"))
+
+
 def test_junit_diagnostics_record_serial_work_and_real_repo_chain() -> None:
     result = study.analyze_junit(_JUNIT)
     assert result["test_count"] == 2
@@ -385,6 +403,30 @@ def test_continuous_isolation_detects_middle_only_same_uid_consumer() -> None:
     assert result["disturbance_candidates"][0]["uid_relation"] == "same"
     assert result["disturbance_candidates"][0]["created"] is True
     assert result["disturbance_candidates"][0]["disappeared"] is True
+
+
+def test_continuous_isolation_does_not_reject_other_uid_system_activity() -> None:
+    identity = (91, 654)
+    system_process = {
+        "command": "pbs-monitor", "pgroup": 700, "ticks": 20, "uid": 0,
+    }
+    samples = [
+        {
+            "hostname": "bnode001", "monotonic_s": 0.0,
+            "processes": {identity: {**system_process, "ticks": 2}}, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 1.0,
+            "processes": {identity: system_process}, "read_errors": [],
+        },
+    ]
+    result = study.summarize_isolation_samples(
+        samples, own_uid=42, exempt_pgroups=set(), expected_host="bnode001"
+    )
+    assert result["valid"] is True
+    assert result["disturbed"] is False
+    assert result["disturbance_candidates"] == []
+    assert result["processes"][0]["uid"] == 0
 
 
 def test_sampler_gap_or_read_failure_is_invalid() -> None:
@@ -507,6 +549,25 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         assert request.env["HOME"].startswith(str(config.scratch_root))
         assert not any(key.startswith(("CCACHE_", "SCCACHE_")) for key in request.env)
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
+    purposes = [request.purpose for request in executor.requests]
+    for run in receipt["runs"]:
+        shard_stage = (
+            f"block-{run['global_block_index']}-arm-{run['arm']}"
+            f"-shard-{run['shard_index']}"
+        )
+        assert purposes.index(f"qstat:{shard_stage}") < purposes.index(
+            f"run-{run['global_run_index']}-before:head"
+        )
+
+    missing_shard_gate = copy.deepcopy(receipt)
+    missing_shard_gate["budget"]["budget_checks"] = [
+        check for check in missing_shard_gate["budget"]["budget_checks"]
+        if check["stage"] != "block-0-arm-16-shard-0"
+    ]
+    with pytest.raises(study.ContractError, match="stage-start remaining-walltime"):
+        study.validate_receipt(
+            missing_shard_gate, expected_mode="smoke", require_complete=True
+        )
 
     different_set = copy.deepcopy(receipt)
     different_set["runs"][2]["junit"]["testcase_identity_set_sha256"] = study._sha256(
@@ -534,6 +595,72 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         study.validate_receipt(
             split_session, expected_mode="smoke", require_complete=True
         )
+
+
+def test_full_timeout_is_hash_bound_to_complete_smoke_and_fixed_derivation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    host = "bnode998"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+
+    smoke_root = tmp_path / "smoke"
+    smoke_config = _config(smoke_root)
+    smoke_nodefile = smoke_config.scratch_root / "pbs-nodefile"
+    smoke_nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:126.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(smoke_nodefile))
+    smoke_rc, smoke_receipt = study.run_study(
+        smoke_config, FakeExecutor(smoke_root, host)
+    )
+    assert smoke_rc == 0
+    raw_smoke = (
+        json.dumps(smoke_receipt, ensure_ascii=True, sort_keys=True) + "\n"
+    ).encode()
+    smoke_path = tmp_path / "successful-smoke.json"
+    smoke_path.write_bytes(raw_smoke)
+
+    derived, calibration = study._read_smoke_calibration(smoke_path)
+    assert derived == {16: 93, 32: 93, 48: 93}
+    assert calibration["smoke_receipt_sha256"] == study._sha256(raw_smoke)
+    assert calibration["derivation_rule"] == study.FULL_TIMEOUT_RULE
+
+    failed_smoke = copy.deepcopy(smoke_receipt)
+    failed_smoke["status"] = "failed"
+    failed_smoke["failure"] = {
+        "message": "forced failure", "stage": "unit", "type": "ContractError",
+    }
+    failed_path = tmp_path / "failed-smoke.json"
+    failed_path.write_text(json.dumps(failed_smoke), encoding="utf-8")
+    with pytest.raises(study.ContractError, match="completed receipt was required"):
+        study._read_smoke_calibration(failed_path)
+
+    full_root = tmp_path / "full"
+    full_base = _config(full_root)
+    full_config = replace(
+        full_base, mode="full", arm_timeout_s=derived,
+        calibration_receipt=smoke_path,
+    )
+    full_nodefile = full_config.scratch_root / "pbs-nodefile"
+    full_nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:127.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(full_nodefile))
+    full_rc, full_receipt = study.run_study(
+        full_config, FakeExecutor(full_root, host)
+    )
+    assert full_rc == 0
+    assert full_receipt["budget"]["timeout_calibration"] == calibration
+    study.validate_receipt(full_receipt, expected_mode="full", require_complete=True)
+
+    missing_hash = copy.deepcopy(full_receipt)
+    missing_hash["budget"]["timeout_calibration"]["smoke_receipt_sha256"] = ""
+    with pytest.raises(study.ContractError, match="calibration provenance"):
+        study.validate_receipt(missing_hash, expected_mode="full", require_complete=True)
+
+    changed_rule = copy.deepcopy(full_receipt)
+    changed_rule["budget"]["timeout_calibration"]["derivation_rule"] = "ad hoc"
+    with pytest.raises(study.ContractError, match="calibration provenance"):
+        study.validate_receipt(changed_rule, expected_mode="full", require_complete=True)
 
 
 def test_postrun_dirt_overrides_a_green_child(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -580,6 +707,39 @@ def test_static_contract_has_signal_traps_exact_registry_and_no_red_checker() ->
     assert "#PBS -b 1" in shell_text
     for signal_name in ("ERR", "TERM", "HUP", "INT", "EXIT"):
         assert f" {signal_name}" in shell_text or f"{signal_name} " in shell_text
+    for recovery_contract in (
+        "ACTIVE_CHILD_PID=$!",
+        "ACTIVE_CHILD_PGID=$ACTIVE_CHILD_PID",
+        'kill -TERM -- "-$ACTIVE_CHILD_PGID"',
+        'kill -KILL -- "-$ACTIVE_CHILD_PGID"',
+        'wait "$ACTIVE_CHILD_PID"',
+        'kill -0 -- "-$ACTIVE_CHILD_PGID"',
+        "recover_active_child",
+    ):
+        assert recovery_contract in shell_text
+    driver_recovery = int(
+        re.search(r"^DRIVER_MAX_RECOVERY_S=([0-9]+)$", shell_text, re.MULTILINE).group(1)
+    )
+    outer_kill_after = int(
+        re.search(r"^OUTER_KILL_AFTER_S=([0-9]+)$", shell_text, re.MULTILINE).group(1)
+    )
+    shell_smoke_cap = int(
+        re.search(r"^SMOKE_ARM_LIVENESS_CAP_S=([0-9]+)$", shell_text, re.MULTILINE).group(1)
+    )
+    assert driver_recovery > (
+        study.PER_SHARD_POSTRUN_RESERVE_S + study.FAILURE_FINALIZE_CAP_S + 15
+    )
+    assert outer_kill_after > driver_recovery
+    assert shell_smoke_cap == study.SMOKE_ARM_LIVENESS_CAP_S
+    assert 'timeout --signal=TERM --kill-after="$kill_after_s"' in shell_text
+    assert "os.path.realpath(sys.executable)" in shell_text
+    assert '[[ "$resolved_python" == /* && -x "$resolved_python" ]]' in shell_text
+    assert 'PY=$resolved_python' in shell_text
+    assert "IZANAGI_ACCEPTANCE_NPROC_SMOKE_RECEIPT" in shell_text
+    assert "manual arm timeout overrides are forbidden" in shell_text
+    assert "postrun_deadline = time.monotonic()" in driver_text
+    assert "deadline = time.monotonic() + timeout_s" in driver_text
+    assert "min(float(FAILURE_FINALIZE_CAP_S)" in driver_text
     forbidden = "tools/" + "check_acceptance_reds.py"
     assert forbidden not in shell_text
     assert forbidden not in driver_text
