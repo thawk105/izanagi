@@ -560,6 +560,7 @@ def test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling
         matched_holds={_HELD_NODE: _synthetic_valid_hold()},
         stale_sentinels={},
     )
+    environment = _subprocess_environment(tmp_path)
     result = subprocess.run(
         [
             sys.executable,
@@ -574,7 +575,7 @@ def test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling
             _SIBLING_NODE,
         ],
         cwd=_REPO,
-        env=_subprocess_environment(tmp_path),
+        env=environment,
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -609,6 +610,7 @@ def test_xdist_subprocess_focus_collection_does_not_run_stale_check(
         matched_holds={},
         stale_sentinels=_stale_sentinels(*_STALE_NODES),
     )
+    environment = _subprocess_environment(tmp_path)
     result = subprocess.run(
         [
             sys.executable,
@@ -626,7 +628,7 @@ def test_xdist_subprocess_focus_collection_does_not_run_stale_check(
             _FOCUS_NODE,
         ],
         cwd=_REPO,
-        env=_subprocess_environment(tmp_path),
+        env=environment,
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -653,6 +655,7 @@ def test_requested_xdist_collect_only_effective_serial_rejects_stale_registry(
         matched_holds={},
         stale_sentinels=_stale_sentinels(*_STALE_NODES),
     )
+    environment = _subprocess_environment(tmp_path)
     result = subprocess.run(
         [
             sys.executable,
@@ -669,7 +672,7 @@ def test_requested_xdist_collect_only_effective_serial_rejects_stale_registry(
             str(Path(CONF.__file__).resolve().parent),
         ],
         cwd=_REPO,
-        env=_subprocess_environment(tmp_path),
+        env=environment,
         check=False,
         text=True,
         stdout=subprocess.PIPE,
