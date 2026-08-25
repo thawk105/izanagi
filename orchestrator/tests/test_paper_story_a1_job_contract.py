@@ -1572,3 +1572,12 @@ def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> N
         assert cfg.search_config["build_admission"] == json.loads(
             context.policy._preimage_json
         )
+
+
+def _run() -> int:
+    """Keep this test file covered by the repository plain-runner contract."""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
