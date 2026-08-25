@@ -814,6 +814,21 @@
   新しい顕在化である。恒久対応は変更なし (`DW-M08` の完全集合 + `DW-M07` の probe 経路が
   そのまま効いた)。防壁として効いたのは段 6 レビューのレンズに
   「事前登録変異の kill 帰属が成立するか」を入れていたことと、親が子の申告を実測で置き換えたこと。
+
+- **再発: 2026-08-25** — dev-wave-t1283-runner-main-blob の段 4 で、親が事前登録した変異 5 件の
+  うち 2 件の単一理由性が成立していなかった。型は F28 と同じ「事前登録を実測でなく設計から書いた」。
+  (i) M2 (land の main/tip 一致検査を非帰属枝へ戻す) の殺し手として、負例の受領証へ**旧実装相当の
+  tip 側 digest** を持たせれば拒否理由が一致違反へ分離されると書いたが、実装は digest を **main 側**
+  blob と照合するため、一致検査が消えても digest 不一致で先に拒否される。分離の向きが逆だった。
+  (ii) M5 (land が `tested_main` でなく `locked_main` を引く) の殺し手は fixture 上
+  `locked_main == tested_main` であり、置換しても値が変わらず殺せなかった。
+  **どちらも「その位置より手前に同じ入力を落とす検査があるか」をコードで辿れば実装前に分かる**もので、
+  親は散文の推論で単一理由性を宣言していた。段 6 の敵対レビューが 2 件とも must-fix として検出し、
+  訂正後の本走は 5/5 KILLED となった。
+- 恒久対応の追補: 事前登録の単一理由性は、変異位置から**拒否が起きる地点までの分岐を 1 つずつ辿った
+  根拠**を裁定文へ書く。「fixture がこう渡すから分離される」という宣言だけでは、照合先が逆でも
+  文面が成立してしまう。あわせて過剰拒否の正例は、変異が置換する 2 つの値が fixture 上で
+  **異なる**ことを確認してから登録する。
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -2561,6 +2576,21 @@
   追加事実は、**フレークの引き金が worker 数ではなく file 集合 (xdist の同居関係) でも成立する**
   点である。D690 に従い `--deselect` で外して先へ進めた。
   **申し送り**: この node の file 集合依存を根治する作業は別 wave が要る。
+
+- **再発: 2026-08-25** — dev-wave-t1283-runner-main-blob の焦点走で
+  `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` が再び落ちた。
+  本文は 2026-08-24 の再発項と逐語一致で、`orchestrator/campaign/execution_guard.py` の
+  `CertifiedWriterAuthorizationError`「Pegasus compute では receipt state 内で一意な required
+  authorization_contract だけを受理する」。当 wave の差分は campaign 層にも当該テストにも触れていない。
+  **前回の再発項が残した「引き金は file 集合 (xdist の同居関係)」という読み方は、今回の実測では
+  成立しない。** 当該 nodeid を**単独で**投入した走行 (1 件だけの収集) でも同じ本文で落ちた。
+  差分の有無でも変わらず、実装前後の 2 回の焦点走で同一である。共通しているのは計算ノードで
+  走ったことだけで、`_site_policy.current_site() == PEGASUS_COMPUTE` の枝でのみ発火する条件は
+  ソース上も一致する。すなわち観測されているのは file 集合依存ではなく **site 依存の決定的な赤**
+  である可能性が高い。login node では重量ガードが pytest の直接起動を拒むため、当 wave では
+  対照の緑を取れていない。所有は引き続き [T-1079]。
+- 影響範囲: この機体の計算ノードで走る焦点走・変異 baseline。変異 baseline は
+  `--deselect` で外して緑を確保した (DW-C01 の既定手順)。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -8147,6 +8177,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「触っていないから無関係」だけでは切れない。1 件のみで系統的な形をしておらず、
   単独走が緑で、同日に同一 node の 4 件赤が別 wave でも起きていることから負荷由来と判定したが、
   この経路の存在自体は次に同型が出たときの検査対象として残す。
+
+- **再発: 2026-08-25** — dev-wave-t1283-runner-main-blob の受入全走 attempt 1
+  (claimed main `d8f777a4`) が **16477 passed / 61 skipped / 1 failed** で戻り、唯一の赤が
+  `test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[wave-parent]`
+  だった。本文は子 process の `returncode=2` (`NG: receipt truth table が不正`) で、
+  同日の先行再発項と逐語一致する。
+  台帳の再発検知どおり実測した — 受入時の並行 `codex_worker_launch.py run` は **11 本**、
+  並行 `run_tests.py` は 11 本、login node の load average は 5.76 / 6.52 / 7.79。
+  同ファイルの単独走 (`--force-dispatch`) は **202 passed / 8.20 秒 / rc=0** で緑。
+  本 wave の差分は `tools/acceptance_launcher.py` / `tools/dev_wave_land.py` と両者の test だけで、
+  `tools/codex_worker_launch.py` への到達経路は無い。よって実装差分へ帰属させない。
+- 追加の観測: 同じ全走で、焦点走では決定的に落ちていた
+  `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` (F57) は**緑だった**。
+  F57 が記録する「大きい file 集合では緑・小さい集合で赤」という同居依存が、
+  16539 item の全走と 291 item の単走の対比で再現している。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -8715,6 +8760,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変化したのは**別 session が走行中に local main を進めた**ことによる共有木側である
   (`6d1d43ac` → `06bb563e`)。測定自体は固定 commit の隔離 worktree で完走しており実体は健全。
 - **supersede: 2026-08-25** — 恒久対応の「repo 内で作業しない」は必要だが十分ではない。同じ `rc=125` は並行 session が local main を進めるだけでも起きる。待ち時間の使い方を正しても防げない型が存在する。
+
+- **再発: 2026-08-25** — dev-wave-t1283-runner-main-blob の変異 **plan-only** が
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で `rc=125` になった。
+  走行そのものは 1 件も始まっていない段階で落ちており、原因は 2026-08-25 の先行再発項と同じく
+  **並行 wave が local main を進めた**ことである。
+- **今回は防ぐ手段が取れた。** 直前の supersede は「待ち時間の使い方を正しても防げない型が存在する」で
+  終わっていたが、観測点は `--source-repo` から `git rev-parse --git-common-dir` で導かれる
+  primary worktree と source の 2 つだけである (`tools/mutation_worktree.py`)。したがって
+  **対象 commit を checkout した独立 clone を `--source-repo` へ渡すと、観測点がその clone 自身の
+  1 点に畳まれ、共有 main checkout が何回進んでも事後検査は成立する。**
+  本 wave は `git clone --shared <wave worktree> <scratch>/src-clone` の後に対象 commit を
+  checkout して渡し、probe と本走の 2 回とも完走した (本走 5/5 KILLED)。
+  副次的な利点として、観測点が自分の作業ツリーから外れるため、**変異走行中も記録作業を進められる**。
+- 恒久対応の追補: 並行 wave が常時走る機体では、変異 harness の `--source-repo` に共有 checkout や
+  その worktree を渡さず、対象 commit だけを持つ独立 clone を渡す。
+  この手順を `docs/dev-wave/mutation.md` の `DW-M05` へ 1 文で入れることを試みたが、
+  L1.5 層の unique footprint が 9772 bytes となり予算 9566 bytes を 206 bytes 超えた。
+  自己改善契約は予算のために安全義務を削ることを禁じ、予算値の引き上げを独立審査へ回すため、
+  入口・reference への追記は行わず本項を正本とする。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -15343,3 +15407,78 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 批准後に 25 path のいずれかが動いた時点で digest が変わり、次の official 新規
   campaign 初期化が `enforcement-source-closure-unratified` で即座に fail-closed する
   (`orchestrator/campaign/ident.py` の `_capture_current_loader_binding`)。実害は時間損失に限られる。
+
+### F595. 新品 worktree で測った probe を本番の代表値として裁定に使いかけた [測定条件] [near-miss]
+
+- 事象: 受入全走の高速化 wave で、親が自分の新品 worktree から計算ノードへ probe を投げ、
+  test 0 件の走行に 49.32 秒かかることを「受入の固定 overhead」として brief と裁定へ書いた。
+  同じ probe を cache が満ちた worktree で走らせると 15.40 秒だったため、親は
+  「外部 cache を足せば 34 秒縮む」と結論しかけた。段 5 の直前に自分で反証し、実装へ進む前に止めた。
+- 根本原因: probe を走らせた worktree は pytest を一度も実行していなかった。実運用の受入は
+  必ず focus 走の後に走るため、repo 内 `__pycache__` が既に満ちている。**probe の条件が
+  本番の条件と違うことを、probe を投げる前にも後にも照合していなかった。**
+  実在する wave worktree 49 個はすべて 247〜259 件の pytest rewrite cache を持ち、
+  ある wave の 4 回の受入はいずれも 254 件以上が既に書かれた後に走っていた。
+- 恒久対応: D918 に、この cache が既に効いている事実と
+  その確認手順 (実在 worktree の rewrite pyc 件数と mtime + size 有効性、受入時刻との前後関係) を
+  凍結した。同種の高速化を再提案する場合は、この節の実測値を先に反証する必要がある。
+- 再発検知: 同じ probe を「本番と同じ状態の worktree」でもう一度走らせて値が変わるか見る。
+  変わるなら probe 条件が本番を代表していない。
+
+### F596. 並列に投げた probe の出力を投入順と取り違えて報告した [帰属誤り]
+
+- 事象: 同じ wave で、`IZANAGI_TEST_NPROC` を 8 と 24 に変えた probe を 1 つの背景 command で
+  連続投入し、2 つの log を `grep -h` でまとめて読んだ。出力の並びを投入順と仮定したため、
+  8 worker = 41.00 秒 / 24 worker = 36.57 秒と報告した。正しくは 8 = 36.57 / 24 = 41.00 である。
+  この取り違えにより「固定 overhead は worker 数にほぼ依存しない」という誤った一般化を
+  brief と親のユーザー報告へ書いた。段 3 の敵対レンズが実成果物から指摘し、親が
+  dispatch receipt の `request.json` と job stdout を突き合わせて訂正した。
+- 根本原因: 値の帰属を、実行条件を持つ成果物 (`request.json` の環境と job の stdout が
+  同じ dispatch directory に同居する) ではなく、**log を読んだ順序**という外部の仮定から決めた。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O02` が要求する「wave 専用 subdirectory の
+  artifact から読む」に従い、条件つきの測定値は条件を保持している成果物 field から
+  join して読む。並べた log の行順を条件の代理にしない。
+- 再発検知: 条件を変えた測定を報告する前に、条件 field と値を 1 行ずつ同じ成果物から
+  join して表にする。表を作れないなら帰属が確定していない。
+
+### F597. 親が呼び出しの存在を保証の発火と取り違えた [防壁の射程誤認] [誤前提]
+
+- 事象: 段 1 brief で親は「D863 の証拠欠落 3 件は既に実装済みで閉じている」と結論し、
+  wave の実装 scope を 1 件へ絞った。段 3 レンズ A が 3 件すべてを原典で反証し、
+  親が逐語で裏取りして brief を撤回した。段 3 を省いていれば、閉じていない条件を
+  閉じたと台帳へ書き、正式系列の起動条件を誤って解除していた。
+- 根本原因: 親は grep で呼び出し箇所を見つけ、判定器で当該条件が合格終端に達していることを
+  確認し、それを「保証が発火する」と読んだ。実際には (a) 呼び出しは `do_build=False` と
+  campaignless failure cell で迂回でき、(b) 契約が謳う「no-build を certify しない」保証は
+  受領証が構造上つねに非 certifying であるため恒真で、(c) 6 report の commit 一致は
+  計測対象の一致ではなかった。**呼び出しの存在・判定器の合格終端・条件の見た目の充足は、
+  いずれも保証が発火する証拠ではない。**
+- 恒久対応: `docs/dev-wave/core.md` の `DW-C00` が「設計択一が割れる・正しさ防壁に触る・
+  受理集合が変わる段では独立の敵対検証子を省かない」と定めている。本件はこの規定が
+  実際に機能した事例であり、規定を緩める提案 (軽量版で段 3 を省く) を
+  正しさ防壁に触る wave へ適用してはならない。加えて、既裁定の前提が古いと親が判断した
+  場合でも、**その判断自体を反証させるレンズを段 3 へ立てる**ことを本 wave で実施し有効だった。
+- 再発検知: 段 1 brief で「既に閉じている」と結論した項目があるとき、段 3 の 1 レンズを
+  その結論の反証専任にする。反証できなければ「反証できなかった」と、
+  何をどこまで確かめたかを添えて書かせる。
+
+### F598. 変異 harness の起動条件で 5 回連続ではじかれた [手順漏れ]
+
+- 事象: `tools/mutation_harness.py` の起動が 5 回連続で rc=2 停止した。停止理由は
+  (1) 走行 argv に `-rf` が必須、(2) `--spec` は試験対象 checkout の外に置く、
+  (3) spec の key は `schema` + `timeout_seconds` (`schema_version` ではない)、
+  (4) 作業ツリーが固定 HEAD blob と一致していること = 実装 commit が先、
+  (5) untracked file が 1 つでもあると停止。各回とも 1 往復を要した。
+- 根本原因: 起動条件が `--help` にも既存 spec の例にも現れず、実行して初めて分かる。
+  とくに (4) は「変異は段 6、commit は段 7」という段順と衝突するため、
+  手順どおり進めると必ず踏む。
+- 恒久対応: 起動前に `--plan-only` で preflight だけを走らせて全条件を一度に出す。
+  本 wave の spec (`output/insights/2026-08-25_t822-evidence-gaps/mutation-spec.json`) は
+  5 条件すべてを満たした実例として参照できる。
+- 再発検知: 変異 spec を書いたら `--plan-only` を 1 回通す。通らなければ本走を投入しない。
+- 付記 (別事象、同 wave 内): 最終巡は M02 が `PARSE_ERROR`
+  (`rc=1 だが canonical stdout から failed node を確実に抽出できないため停止`) で止まった。
+  同一の変異内容が直前の probe 巡では node 1 件の `KILLED` になっており、
+  変異でなく捕捉側の一過性の失敗である。既存の同署名エントリ (F149 は runner の
+  local 実行へのドリフト、F194 は parametrize の自動 id) とは根本原因が異なるため、
+  それらの再発としては記録しない。`--resume` で続きから再開して完走した。
