@@ -130,7 +130,7 @@ class CoderProposal:
     """coder-v4-autonomous の出力 (値 + hole コード)。"""
     axis: str
     value: int | float                # 無損失整数 1..1000 の backoff 量
-    implementation: str               # "double now_backoff = <式>;"
+    implementation: str               # value と一致する suffix-free strict numeric literal 1個の1文
     justification: str = ""
     confidence: str = "medium"
 
@@ -220,8 +220,9 @@ def quarantine(sub: str, implementation: str,
 
     既存 ``HOLE_ESCAPE`` / ``HOST_EFFECT`` の理由を保存する契約は、新しい raw-size cap
     内の入力に限る。type/raw-size は帰属 regex と candidate materialization より先に
-    fail-closed させるため、この二規則だけは従来理由より先になり得る。式の中身は Tier 2
-    なので本 grammar は限定しない。trigger / sort marker の受理集合にも適用しない。
+    fail-closed させるため、この二規則だけは従来理由より先になり得る。backoff 初期化子は
+    suffix-free strict numeric literal 1 個に限定する。trigger / sort marker の受理集合には
+    適用しない。
 
     Returns: (DiffQuarantineResult, base_text, edited_text, working_diff)。
     passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
@@ -940,8 +941,7 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
     fitness 帰属が壊れるため、本検査は value ↔ literal の一致を保ったまま明示値を使う。
 
     判定: implementation の `now_backoff = <lit>` 代入 literal が value と数値一致すること。
-    代入 literal を抽出できない (自由式) 場合は fails-closed で value が implementation に数値
-    として現れることを要求する (段 4 の編集面は backoff literal のみ、D39 決定1)。"""
+    代入 literal を抽出できない場合は無条件に fails-closed とする。"""
     implementation_preflight = (
         backoff_hole_grammar.validate_backoff_preflight(coder.implementation)
     )
@@ -962,18 +962,36 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
         raise AttributionMismatch(fixed_message) from None
 
     try:
-        assigned, assigned_value, literal_values = (
+        assigned, assigned_value, _literal_values = (
             backoff_hole_grammar.attribution_numeric_literals(
                 coder.implementation
             )
         )
     except Exception:
         raise AttributionMismatch(fixed_message) from None
-    if assigned:
-        if assigned_value != coder_value:
-            raise AttributionMismatch(fixed_message)
-    elif coder_value not in literal_values:
+    if not assigned or assigned_value != coder_value:
         raise AttributionMismatch(fixed_message)
+
+
+def _check_attribution_before_quarantine(
+    coder: CoderProposal,
+) -> backoff_hole_grammar.BackoffGrammarDecision:
+    """Run attribution only for candidates accepted by the full grammar.
+
+    The full grammar is an attribution guard, not an outer rejection selector.
+    Rejected candidates still go through ``quarantine()`` so its established
+    HOLE_ESCAPE -> HOST_EFFECT -> backoff grammar order chooses the result.
+    Invalid values retain the existing attribution-domain failure even when the
+    implementation has an independent full-grammar violation.
+    """
+
+    decision = backoff_hole_grammar.validate_backoff_implementation(
+        coder.implementation
+    )
+    value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
+    if decision.accepted or not value_decision.accepted:
+        assert_value_literal_consistent(coder)
+    return decision
 
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================
@@ -1053,23 +1071,23 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
-    preflight = backoff_hole_grammar.validate_backoff_preflight(
+    preflight_decision = backoff_hole_grammar.validate_backoff_preflight(
         coder.implementation
     )
     preflight_rejection = None
-    if not preflight.accepted and type(coder.implementation) is str:
+    if not preflight_decision.accepted and type(coder.implementation) is str:
         value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
         if value_decision.accepted:
             preflight_rejection = _backoff_grammar_rejection(
-                preflight, source_rel=SOURCE_REL, marker_id=MARKER_ID,
+                preflight_decision, source_rel=SOURCE_REL, marker_id=MARKER_ID,
             )
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
-    # type/raw-size preflight は帰属より前、value の無損失整数検査は正本への
-    # adapter 経由で帰属より前に走る。materialization と int() は固定上限内・
-    # 検証済みの値にしか到達させない。
+    # 全文法は帰属を実行するかだけを決め、外側の rejection 選択は quarantine に委ねる。
+    # type/raw-size preflight と value の無損失整数検査は正本への adapter 経由で先に走る。
+    # materialization と int() は固定上限内・検証済みの値にしか到達させない。
     if preflight_rejection is None:
-        assert_value_literal_consistent(coder)
+        _check_attribution_before_quarantine(coder)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
     if layout is None:
