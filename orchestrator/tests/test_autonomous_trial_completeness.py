@@ -2083,6 +2083,39 @@ def test_invalid_raw_response_pointer_rejects_parent_symlink(tmp_path) -> None:
         _verify(run, report)
 
 
+def test_invalid_raw_response_pointer_rejects_directory_after_binding(
+    tmp_path, monkeypatch,
+) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_bytes = b"fixture invalid raw response"
+    raw_path.write_bytes(raw_bytes)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    })
+    _persist(run, events, report)
+    original = C._bound_regular_bytes
+
+    def swap_to_directory_after_binding(value, *, run_root, gate, label):
+        result = original(value, run_root=run_root, gate=gate, label=label)
+        Path(value).unlink()
+        Path(value).mkdir()
+        return result
+
+    monkeypatch.setattr(C, "_bound_regular_bytes", swap_to_directory_after_binding)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"raw_response_path is not a regular file$"
+        ),
+    ):
+        _verify(run, report)
+
+
 def test_invalid_raw_response_pointer_rejects_swap_after_binding(
     tmp_path, monkeypatch,
 ) -> None:
