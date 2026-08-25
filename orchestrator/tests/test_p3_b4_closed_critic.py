@@ -964,6 +964,27 @@ def test_r1_terminal_pair_revalidation_rejects_status_and_payload_byte_tamper():
         context.__exit__(None, None, None)
 
 
+def test_r1_terminal_pair_revalidation_rejects_raw_envelope_byte_tamper():
+    context, _pair, _layouts, _calls, on, off = _invoke_pair()
+    try:
+        C.assert_b4_arm_pair(
+            on.terminal_receipt_path,
+            off.terminal_receipt_path,
+        )
+        envelope_path = on.terminal_receipt_path.parent / "envelope_b4-on-1.json"
+        envelope_path.write_bytes(envelope_path.read_bytes() + b"\n")
+        error = _raises(
+            C.B4ReceiptError,
+            lambda: C.assert_b4_arm_pair(
+                on.terminal_receipt_path,
+                off.terminal_receipt_path,
+            ),
+        )
+        assert str(error) == "raw envelope hash does not match its bytes"
+    finally:
+        context.__exit__(None, None, None)
+
+
 def test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests():
     with _pair_fixture() as (pair, layouts, calls):
         loop_state_before = {
