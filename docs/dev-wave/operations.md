@@ -108,8 +108,8 @@ monkeypatch は最後の手段とする（D78）。
 
 所見ごとの closed / partial / regressed 対応表を要求し、表なしで root cause が閉じたと判定しない（D78）。
 PATH 構築・interpreter 解決・外部 command 選定など実行環境に依存する実装は、レビュー通過だけで
-closed とせず実機で動かすまで確かめる。
-NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で裏取りして残る所見を real/refuted に
+closed とせず実機で動かすまで確かめる。実機の構造が子の推測と食い違えば親が測って prompt へ貼る。
+NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blocker は別枠)、親が変異で裏取りして残る所見を real/refuted に
 裁定して閉じる。根拠は worklog に書く。
 
 ## DW-O17 — commit trailer

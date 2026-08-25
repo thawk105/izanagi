@@ -1,0 +1,235 @@
+{
+  "estimated_run_seconds": 200,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M01-HYPHEN-ALIAS",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False:\n            raise HoldoutObservationError(\n                f\"protected holdout field {field} hyphen alias is forbidden\"\n            )\n",
+          "old": "        if raw_name != name:\n            raise HoldoutObservationError(\n                f\"protected holdout field {field} hyphen alias is forbidden\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-bare-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-undashed-must use name=value direct gflag form]",
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed",
+        "orchestrator/tests/test_holdout_observation.py::test_positive_controls_pass_the_old_ratio_gate_but_fail_the_full_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M02-NONCANONICAL-FORM",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False:\n            raise HoldoutObservationError(\n                f\"protected holdout field {field} must use name=value direct gflag form\"\n            )\n",
+          "old": "        if not direct or not separator:\n            raise HoldoutObservationError(\n                f\"protected holdout field {field} must use name=value direct gflag form\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[thread_num-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rmw-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_rratio-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_tuple_num-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_formal_gate_rejects_every_noncanonical_protected_field_occurrence[ycsb_zipf_skew-after_terminator-is forbidden after --]",
+        "orchestrator/tests/test_holdout_observation.py::test_gflags_alias_two_token_and_terminator_bypasses_are_all_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M03-AFTER-TERMINATOR",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False:\n            raise HoldoutObservationError(\n                f\"protected holdout field {field} is forbidden after --\"\n            )\n        if raw_name != name:\n",
+          "old": "        if after_terminator:\n            raise HoldoutObservationError(\n                f\"protected holdout field {field} is forbidden after --\"\n            )\n        if raw_name != name:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_ratio=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_th_num=48]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--epoch_time=40]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--ycsb_max_ope=10]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M04-ALLOWLIST",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False:\n            raise HoldoutObservationError(\n                f\"direct gflag {name} is not admitted for a protected holdout run\"\n            )\n",
+          "old": "        if name not in _FORMAL_RUN_DIRECT_GFLAG_ALLOWLIST:\n            raise HoldoutObservationError(\n                f\"direct gflag {name} is not admitted for a protected holdout run\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--clocks-per-us=1800]",
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--extime]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M05-ALLOWLIST-SPELLING",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False:\n            raise HoldoutObservationError(\n                f\"allowlisted direct gflag {name} must use its canonical \"\n                \"name=value spelling\"\n            )\n",
+          "old": "        if raw_name != name or not has_value:\n            raise HoldoutObservationError(\n                f\"allowlisted direct gflag {name} must use its canonical \"\n                \"name=value spelling\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M06-SHADOWED-VALUE",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False and has_value and name in expected_values and value != expected_values[name]:\n",
+          "old": "        if has_value and name in expected_values and value != expected_values[name]:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_direct_gflags_apply_gflags_hyphen_normalization_before_classification",
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_hyphen_alias_for_protected_ratio_is_not_unprotected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M07-GFLAGS-NORMALIZATION",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        raw_name, separator, value = body.partition(\"=\")\n        name = raw_name\n        if name in _INDIRECT_GFLAGS:\n",
+          "old": "        raw_name, separator, value = body.partition(\"=\")\n        name = raw_name.replace(\"-\", \"_\")\n        if name in _INDIRECT_GFLAGS:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_t525_holdout_bindings_are_deeply_immutable"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M08-BINDINGS-IMMUTABLE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    return bindings\n",
+          "old": "    return MappingProxyType(bindings)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_autonomous_trial_completeness.py::test_t525_no_lock_scale_must_match_frozen_descriptor"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M09-NOLOCK-SCALE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "    for field in ():\n        if perf_config_scale.get(field) != descriptor_scale.get(field):\n            _fail(\n                \"arm-digest-chain\",\n                f\"benchmark perf_config_scale.{field} differs from cell descriptor\",\n            )\n",
+          "old": "    for field in (\"records\", \"threads\"):\n        if perf_config_scale.get(field) != descriptor_scale.get(field):\n            _fail(\n                \"arm-digest-chain\",\n                f\"benchmark perf_config_scale.{field} differs from cell descriptor\",\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_allowlisted_direct_flags_still_require_canonical_name_value_form[--clocks-per-us=1800]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[pipeline._run_bench.measure_point]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_floor_campaign.measure_fn]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_oracle_driver.pipeline.evaluate]",
+        "orchestrator/tests/test_holdout_observation.py::test_current_protected_measure_point_callers_pass_closed_argv_allowlist[s8b_oracle_n_pilot.run_sessions]",
+        "orchestrator/tests/test_holdout_observation.py::test_one_attempt_allows_exactly_one_measure_point_repetition_set",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_ratio=10]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--batch_th_num=48]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--epoch_time=40]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_run_rejects_every_direct_flag_outside_closed_allowlist[--ycsb_max_ope=10]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-OVERREJECTION-POSITIVE-CONTROL",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "",
+          "old": "    # Caller env-contract-bound conversion; it adds no free workload/scale axis.\n    \"clocks_per_us\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M11-EFFECTIVE-CONDITION-GATE",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "            if False and state.signature.condition != effective_condition:\n",
+          "old": "            if state.signature.condition != effective_condition:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M12-TWO-LAYER-VALUE-AND-CONDITION",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "        if False and has_value and name in expected_values and value != expected_values[name]:\n",
+          "old": "        if has_value and name in expected_values and value != expected_values[name]:\n"
+        },
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "new": "            if False and state.signature.condition != effective_condition:\n",
+          "old": "            if state.signature.condition != effective_condition:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}
