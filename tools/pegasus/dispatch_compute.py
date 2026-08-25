@@ -26,6 +26,17 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from orchestrator.scheduler_nqsv import (  # noqa: E402
+    GATE_STATE_FIELD_RE as _GATE_STATE_FIELD_RE,
+    gate_state_value as _gate_state_value,
+    target_bound_qstat_state as _target_bound_qstat_state,
+)
+
+
 INFRA_RC = 16
 _DISPATCH_OUTCOME_PREFIX = "IZANAGI_DISPATCH_OUTCOME_V1 "
 _DISPATCH_INFRA_REASONS = frozenset({
@@ -174,10 +185,6 @@ _QSTAT_REQUEST_NAME_RE = re.compile(
     r"(?im)^\s*Request\s+Name\s*[:=]\s*(\S+)\s*$"
 )
 _GATE_REQUEST_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
-_GATE_STATE_FIELD_RE = re.compile(
-    r"(?im)^(\s*)(Request\s+State|Current\s+State|State)"
-    r"\s*=\s*([^\r\n]+?)\s*$"
-)
 _QDEL_CLEANUP_POLICY = "fresh-qstat-gate/v1"
 _INTERPRETER_CANDIDATES = (
     "python3.10",
@@ -336,116 +343,11 @@ def _classify_qstat_response(
 def _scheduler_state(stdout: str) -> Optional[str]:
     match = _STATE_RE.search(stdout)
     if match is not None:
-        abbreviated = match.group(1).upper()
-        if abbreviated == "STG":
-            return "QUE"
-        if abbreviated == "EXT":
-            return "END"
-        return abbreviated
+        return _gate_state_value("State", match.group(1))
     match = _CURRENT_STATE_RE.search(stdout)
     if match is None:
         return None
-    value = match.group(1).strip().lower()
-    if value in {"running", "pre-running", "run"}:
-        return "RUN"
-    if value in {"queued", "queue", "waiting", "wait", "staging", "stg"}:
-        return "QUE"
-    if value in {"held", "hold", "holding"}:
-        return "HLD"
-    if value in {
-        "completed", "complete", "finished", "ended", "exited", "exit",
-        "terminated", "exiting", "post-running", "ext",
-    }:
-        return "END"
-    return None
-
-
-def _gate_state_value(field: str, value: str) -> Optional[str]:
-    """gate field ごとに既存 parser と同じ状態語彙を正規化する。"""
-
-    key = " ".join(field.casefold().split())
-    if key in {"request state", "state"}:
-        abbreviated = value.strip().upper()
-        if abbreviated in {"QUE", "RUN", "HLD"}:
-            return abbreviated
-        if abbreviated == "STG":
-            return "QUE"
-        if abbreviated == "EXT":
-            return "END"
-        return None
-    if key != "current state":
-        return None
-    full = value.strip().casefold()
-    if full in {"running", "pre-running", "run"}:
-        return "RUN"
-    if full in {"queued", "queue", "waiting", "wait", "staging", "stg"}:
-        return "QUE"
-    if full in {"held", "hold", "holding"}:
-        return "HLD"
-    if full in {
-        "completed", "complete", "finished", "ended", "exited", "exit",
-        "terminated", "exiting", "post-running", "ext",
-    }:
-        return "END"
-    return None
-
-
-def _target_bound_qstat_state(stdout: str, request_id: str) -> Optional[str]:
-    r"""対象 ID だけの一意な qstat block から矛盾のない状態を返す。
-
-    destructive gate 専用であり、監視ループの permissive な
-    ``_scheduler_state()`` とは受理集合を共有しない。正規化 ID が全出力中に
-    ちょうど一つ存在し、その前に認識可能な state がなく、対象 block の bare
-    ``State`` / ``Request State`` / ``Current State`` が各々高々一つで、併存時に
-    正規化後の値が一致するときだけ状態を返す。既存 parser と同じ ``\s`` で
-    field を数えるが、従来 gate が受理していなかった space/tab 以外の行頭空白は
-    受理集合を広げず UNKNOWN へ倒す。
-    """
-
-    try:
-        expected = _normalize_request_id(request_id)
-    except DispatchError:
-        return None
-    id_matches = list(_QSTAT_REQUEST_ID_RE.finditer(stdout))
-    if len(id_matches) != 1:
-        return None
-    try:
-        observed = _normalize_request_id(id_matches[0].group(1))
-    except DispatchError:
-        return None
-    if observed != expected:
-        return None
-
-    request_match = id_matches[0]
-    for state_match in _GATE_STATE_FIELD_RE.finditer(
-        stdout[:request_match.start()],
-    ):
-        leading, field, value = state_match.groups()
-        line_leading = leading.rsplit("\n", 1)[-1].rsplit("\r", 1)[-1]
-        if any(character not in " \t" for character in line_leading):
-            return None
-        key = " ".join(field.casefold().split())
-        if _gate_state_value(key, value) is not None:
-            return None
-    fields: dict[str, list[str]] = {}
-    for state_match in _GATE_STATE_FIELD_RE.finditer(
-        stdout[request_match.end():],
-    ):
-        leading, field, value = state_match.groups()
-        line_leading = leading.rsplit("\n", 1)[-1].rsplit("\r", 1)[-1]
-        if any(character not in " \t" for character in line_leading):
-            return None
-        key = " ".join(field.casefold().split())
-        fields.setdefault(key, []).append(value)
-    if not fields or any(len(values) != 1 for values in fields.values()):
-        return None
-    states = set()
-    for field, values in fields.items():
-        value = values[0]
-        states.add(_gate_state_value(field, value))
-    if None in states or len(states) != 1:
-        return None
-    return states.pop()
+    return _gate_state_value("Current State", match.group(1))
 
 
 def _progress(message: str) -> None:
