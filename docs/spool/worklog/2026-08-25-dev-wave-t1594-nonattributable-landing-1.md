@@ -53,6 +53,16 @@ title: [T-1594] 非帰属の受入赤が出た wave の着地手順を正本化�
 - **段 4 の変異事前登録に層の取り違えがあった (erratum)。** 段 4 で登録した M1〜M9 は
   テスト内の合成 fixture に対する負例を記述したもので、harness が production 実体へ注入する
   変異とは層が違う。production 層の変異 P1〜P9 を段 6 で追加登録した。初回登録は消さず残す。
+- **変異の初回本走は baseline PASSED・KILLED 3 / MISMATCH 1 / SURVIVED 5 で、うち 4 件は mask だった
+  (erratum、初回結果は消さない)。** 正本の必須文を壊す P5〜P8 が期待した
+  `test_normative_exact_section_pins_accept_real_repo` は `GROWTH_TEST_HOLDS` に登録されており
+  **既定 skip** である (解除はユーザー明示命令のみ)。`DW-M02` に従い実効 gate へ再照準し、
+  **4 文をそれぞれ実 repo へ 1 件ずつ注入して `check_docs.py` を直接走らせたところ 4 件とも
+  rc=1 で検出**し、いずれも `DW-O18` の exact 不一致として報告された (復元は全件 git 照合で確認)。
+  **実 repo の正本改変を守る実効 gate は `check_docs.py` の直接実行であって pytest node ではない。**
+  P1 の MISMATCH は親の期待集合の誤りで、実際には予測より 1 件多く 7 node を検出していた
+  (予測外に raw HTML 拒否テストが落ち、pin 除去では落ちない正例テストを予測に入れていた)。
+  期待集合を是正し、実効 gate が pytest node でない P5〜P8 を外した spec で再走した。
 - **launcher が 2 度 `evidence_status=invalid` で成果物を不採用にした** (fix2 と fix4)。
   いずれも編集自体は tree に入っており、報告は artifact の `attempt-0001.output.md` から
   直接回収して内容を確認した。既知の握り潰された例外で、内容とは無関係である。
