@@ -64,6 +64,107 @@ _JUNIT_SKIPPED = b"""<?xml version="1.0" encoding="utf-8"?>
   <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
 </testsuite>
 """
+_PATH_BASE_START = "# BEGIN acceptance nproc ambient PATH construction"
+_PATH_BASE_END = "# END acceptance nproc ambient PATH construction"
+_PATH_SHIM_START = "# BEGIN acceptance nproc Python shim PATH prefix"
+_PATH_SHIM_END = "# END acceptance nproc Python shim PATH prefix"
+_FALLBACK_PATH_CONSTRUCTION = """PATH="/usr/bin:/bin"
+  for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
+    [[ -d "$candidate" ]] || continue
+    PATH="${PATH}:$candidate"
+  done"""
+_RESET_PATH_MUTATION = """export PATH="/usr/bin:/bin"
+for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
+  [[ -d "$candidate" ]] || continue
+  PATH="${PATH}:$candidate"
+done
+export PATH"""
+
+
+def _acceptance_shell_text() -> str:
+    repo = Path(__file__).resolve().parents[2]
+    return (repo / "tools/pegasus/acceptance_nproc_study.sh").read_text(
+        encoding="utf-8"
+    )
+
+
+def _marked_shell_block(text: str, start_marker: str, end_marker: str) -> str:
+    assert text.count(start_marker) == 1
+    assert text.count(end_marker) == 1
+    start = text.index(start_marker) + len(start_marker)
+    end = text.index(end_marker, start)
+    return text[start:end].strip()
+
+
+def _evaluated_study_path(
+    text: str, ambient_elements: tuple[str, ...],
+) -> tuple[str, ...]:
+    assert ambient_elements
+    assert all(ambient_elements)
+    base_block = _marked_shell_block(text, _PATH_BASE_START, _PATH_BASE_END)
+    shim_block = _marked_shell_block(text, _PATH_SHIM_START, _PATH_SHIM_END)
+    synthetic_tmp = "/synthetic/acceptance-nproc-study"
+    script = "\n".join((
+        "set -eu",
+        base_block,
+        f"TMPDIR={synthetic_tmp}",
+        shim_block,
+        'printf "%s" "$PATH"',
+    ))
+    completed = subprocess.run(
+        ["/bin/bash", "-c", script],
+        check=True,
+        capture_output=True,
+        env={"PATH": os.pathsep.join(ambient_elements)},
+        text=True,
+    )
+    assert completed.stderr == ""
+    return tuple(completed.stdout.split(os.pathsep))
+
+
+def _assert_exact_study_path_contract(text: str) -> None:
+    ambient_elements = (
+        "/synthetic/ambient-alpha",
+        "/synthetic/ambient-beta",
+        "/synthetic/ambient-gamma",
+    )
+    assert ambient_elements
+    observed = _evaluated_study_path(text, ambient_elements)
+    expected = (
+        "/synthetic/acceptance-nproc-study/python-shim",
+        *ambient_elements,
+    )
+    assert observed == expected, (
+        f"observed PATH elements {observed!r} differ from exact {expected!r}"
+    )
+    assert observed[0] == expected[0]
+    assert observed[1:] == ambient_elements
+
+
+def test_acceptance_path_prefixes_shim_and_preserves_exact_ambient_order() -> None:
+    shell_text = _acceptance_shell_text()
+    base_block = _marked_shell_block(
+        shell_text, _PATH_BASE_START, _PATH_BASE_END
+    )
+    assert _FALLBACK_PATH_CONSTRUCTION in base_block
+    pinned_shims = """ln -s "$PY" "$TMPDIR/python-shim/python3"
+ln -s "$PY" "$TMPDIR/python-shim/python3.10"""
+    assert pinned_shims in shell_text
+    assert shell_text.index(pinned_shims) < shell_text.index(_PATH_SHIM_START)
+    _assert_exact_study_path_contract(shell_text)
+
+
+def test_acceptance_path_contract_rejects_reset_mutation() -> None:
+    shell_text = _acceptance_shell_text()
+    base_block = _marked_shell_block(
+        shell_text, _PATH_BASE_START, _PATH_BASE_END
+    )
+    assert "AMBIENT_PATH=${PATH:-}" in base_block
+    assert shell_text.count(base_block) == 1
+    reset_mutation = shell_text.replace(base_block, _RESET_PATH_MUTATION, 1)
+    assert reset_mutation != shell_text
+    with pytest.raises(AssertionError, match="observed PATH elements"):
+        _assert_exact_study_path_contract(reset_mutation)
 
 
 @pytest.fixture(autouse=True)

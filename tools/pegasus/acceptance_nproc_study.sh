@@ -196,12 +196,19 @@ PYTHONUSERBASE=$("$PY" -I -B -c 'import site; print(site.getuserbase())')
 }
 export PYTHONUSERBASE
 
-export PATH="/usr/bin:/bin"
-for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
-  [[ -d "$candidate" ]] || continue
-  PATH="${PATH}:$candidate"
-done
+# BEGIN acceptance nproc ambient PATH construction
+AMBIENT_PATH=${PATH:-}
+if [[ -n "$AMBIENT_PATH" ]]; then
+  PATH=$AMBIENT_PATH
+else
+  PATH="/usr/bin:/bin"
+  for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
+    [[ -d "$candidate" ]] || continue
+    PATH="${PATH}:$candidate"
+  done
+fi
 export PATH
+# END acceptance nproc ambient PATH construction
 for command_name in git qstat timeout mkdir ln setsid sleep; do
   command -v -- "$command_name" >/dev/null 2>&1 || {
     echo "required command is unavailable: $command_name" >&2
@@ -217,7 +224,9 @@ fi
 mkdir "$TMPDIR/python-shim" "$TMPDIR/job-home" "$TMPDIR/job-xdg"
 ln -s "$PY" "$TMPDIR/python-shim/python3"
 ln -s "$PY" "$TMPDIR/python-shim/python3.10"
+# BEGIN acceptance nproc Python shim PATH prefix
 export PATH="$TMPDIR/python-shim:$PATH"
+# END acceptance nproc Python shim PATH prefix
 export HOME="$TMPDIR/job-home"
 export XDG_CACHE_HOME="$TMPDIR/job-xdg/cache"
 export XDG_CONFIG_HOME="$TMPDIR/job-xdg/config"
