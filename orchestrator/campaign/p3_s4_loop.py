@@ -43,6 +43,7 @@ import argparse
 import contextlib
 import difflib
 import json
+import math
 import os
 import re
 import secrets
@@ -131,6 +132,9 @@ class CoderProposal:
     implementation: str               # "double now_backoff = <式>;"
     justification: str = ""
     confidence: str = "medium"
+
+    def __post_init__(self) -> None:
+        _assert_coder_value_domain(self.value)
 
 
 @dataclass
@@ -849,6 +853,26 @@ class AttributionMismatch(ValueError):
     値と走る literal の不一致を素通しせず、ここで止める (謳うだけの整合規約にしない)。"""
 
 
+_CODER_VALUE_DOMAIN_MESSAGE = (
+    "帰属汚染: coder value は bool でない 1..1000 の有限な整数でなければならない "
+    "(規律6/D39 決定7)"
+)
+
+
+def _assert_coder_value_domain(value) -> None:
+    """coder value を exact built-in int または有限な整数値 float の 1..1000 へ閉じる。"""
+    integral = (
+        type(value) is int
+        or (
+            type(value) is float
+            and math.isfinite(value)
+            and value.is_integer()
+        )
+    )
+    if not integral or not 1 <= value <= 1000:
+        raise AttributionMismatch(_CODER_VALUE_DOMAIN_MESSAGE)
+
+
 _NOW_BACKOFF_RE = re.compile(r"now_backoff\s*=\s*(-?\d+(?:\.\d+)?)")
 _NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
 
@@ -868,6 +892,7 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
     判定: implementation の `now_backoff = <lit>` 代入 literal が value と数値一致すること。
     代入 literal を抽出できない (自由式) 場合は fails-closed で value が implementation に数値
     として現れることを要求する (段 4 の編集面は backoff literal のみ、D39 決定1)。"""
+    _assert_coder_value_domain(coder.value)
     fixed_message = (
         "帰属汚染: coder value と hole literal の一致を機械確認できない "
         "(規律6/D39 決定7)"
@@ -964,11 +989,11 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    # 帰属整合を先に検査し、非整数 value を int() で切り詰めた genome を
+    # 一度も生成しない (規律6/D39 決定7)。
+    assert_value_literal_consistent(coder)
     genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
                              "BACKOFF_FIXED": int(coder.value)})
-    # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
-    # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
-    assert_value_literal_consistent(coder)
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     elif do_build and layout.root != exploration_campaign_layout(
@@ -1060,7 +1085,7 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
         axis=p["axis"], direction=p["direction"], magnitude=p["magnitude"],
         justification=p.get("justification", ""), uncertainty=p.get("uncertainty", ""))
     coder = CoderProposal(
-        axis=c["axis"], value=float(c["value"]), implementation=c["implementation"],
+        axis=c["axis"], value=c["value"], implementation=c["implementation"],
         justification=c.get("justification", ""), confidence=c.get("confidence", "medium"))
     # prior_critic_reverse は null か bool のみを許す。非 bool (文字列 "true"・整数 1 等) は
     # _fold_critic_reverse の `is True`/`is False` で黙って no-op し reverse-exhausted の停止
@@ -1091,6 +1116,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
 
     Returns: run_one_iteration の dict + {"stop_reason", "iteration", "ran"}。ran=False は
     入口停止 (iteration 未消費) を表す。"""
+    _assert_coder_value_domain(coder.value)
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:

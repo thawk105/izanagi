@@ -4072,6 +4072,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同じ順序違反を犯した。**規律の言語化が順序の設計の代わりにならない**という 2026-08-06 以来の
   観察を、これで 3 例目として強める。恒久対応は F106 のまま。本 wave は記録と段 8 の編集を
   すべて commit し終えてから最終受入を投入する順序へ切り替えた。
+
+- **再発: 2026-08-25** — [T-843] coder value 値域 wave。変異 probe を計算ノードへ投入した直後、
+  親が待ち時間に段 7 の decisions fragment を worktree へ書いた。`tools/mutation_harness.py` の
+  preflight が untracked file を検出して rc=2 で止まり、8 run 分の走行が投入前に破棄された。
+  fail-closed で止まったので実害は再走の一手間だけである。本 wave の親は起動前に自分の handoff へ
+  「変異走行中は tree を触らない」と書き、read-only レビュー子との競合を理由に変異の起動時刻まで
+  ずらしたうえで、なお踏んだ。2026-08-06 の「注意書きでは誘因が消えない」という観察を 1 例強める。
+  恒久対応は F106 のままとし、本 wave の親は再走前に fragment を commit してツリーを clean に戻した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -8337,6 +8345,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   以後の背景 wave が 1 本ずつ同じ停止を払う。** dev-wave 入口へ
   「tracked な残置は main で直接撤去してよい」を書く案は `docs/dev-wave/**` の
   byte 予算が尽きているため裁定パッケージへ送った。
+- **supersede: 2026-08-25** — D409 の恒久対応で起動時の赤は消えたが、land が `docs/handoff` 直下を保護する (`rc=21`) ため撤去経路は無いままで、landed handoff は誰にも撤去されず恒久的に溜まる。実測 9 件。詳細と恒久対応の候補は F562。
 ### F287. 段 1 brief の「存在しない」実測を head で切った検索から書いた [誤前提]
 
 - 事象: 親が段 1 brief に「finding の `observations` を生成する箇所は 0 件」と書いた。実際は
@@ -11805,6 +11814,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave では見送り、ユーザー裁定へ返す。
 - 再発検知: なし (dispatch 表複合行の読了を機械的に検査する仕組みは未整備。Claude memory は
   同一ユーザーの別セッションへは伝播するが、Codex 子や他 AI 作業者には伝播しない)。
+- **supersede: 2026-08-25** — dispatch 表複合行の分割・強調は D730 を適用して実施しないへ落とした。独立 2 例で 3 例の例外基準に届かない。再訪条件は 3 例目の実測。
 
 ### F441. 変異harnessのcollection段階でPegasus dispatch自体がインフラ的に失敗した [手順漏れ]
 
@@ -12479,6 +12489,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `--plan-only`による事前確認運用である。
 - 再発検知: 変異matrix投入前に`--plan-only`で事前確認する運用と、DW-M07を段6条件15の
   発火時に必ず再読する規律 (本fragment自身がその実例)。
+- **supersede: 2026-08-25** — `DW-M07` への未文書 7 事項の追記は D730 を適用して実施しないへ落とした。実測 1 例。当面の実体は同エントリ本文と `--plan-only` の事前確認運用が持つ。
 
 ### F470. commit 前 provenance preflight が merge の path 集合を combined diff まで絞らず偽赤を出す [検査の非対称] [偽赤]
 
@@ -12888,6 +12899,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同 file の L1.5 unique footprint が予算満杯 (追記 218 bytes がそのまま超過分) のため
   実施できず、ユーザー裁定へ返す。**
 - 再発検知: harness の起動前 untracked 検出。撤去漏れは land の clean-tree gate が拒否する。
+- **supersede: 2026-08-25** — `DW-M05` への走行後 untracked 確認義務の明文化は D730 を適用して実施しないへ落とした。実測 1 例で、harness 自身の起動前 untracked 検出が fail-closed で残る。
 
 ### F489. zombie 1 本で占有検査が恒久的に判定不能になり、worktree 掃除が構造的に不可能だった [恒真ゲート] [誤前提]
 
@@ -13476,6 +13488,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変えるため裁定パッケージへ送る。本 F はその未実施を明示するために書いている。
 - 再発検知: 同型は「canonical を書き換える機構の出力が、その機構を承認した検査の後に走る」
   形で再発する。fold 以外に land 相で canonical を触る機構を足す wave は、この F を読むこと。
+- **supersede: 2026-08-25** — 残余として挙げた「fold 後の tree を検査する経路が無い」は裁定待ちではない。D752 (2026-08-24 ユーザー裁定) が land 前関門の追加を既に裁定しており、本 fold で実装項として起票した。
 
 ### F513. carry 鎖を辿る自作 resolver が凍結エントリ用の第 2 形式を知らず、stub 自身を実体として digest した [誤前提]
 
@@ -13858,6 +13871,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   子の仕事自体が正規表現リテラルを扱う内容 (本waveの制御文字除去がまさにそれ) のときは
   決定的に再発すると考えてよい。
 
+
+- **再発: 2026-08-25** — [T-843] coder value 値域 wave の段 6 敵対レビュー レンズ A。
+  `codex_exit_code=0`・15 model call・4685 bytes・`check_codex_output.py` rc=0 の健全な出力が
+  `evidence_status=invalid` / `accepted=false` で不採用になり `-o` が書かれなかった。
+  F217 (web_search) ではない — 親の prompt は全子に web 検索禁止を明記しており、
+  events に `web_search` は 0 件だった。台帳が定める判定法どおり
+  `orchestrator.codex_roles.events.parse_jsonl` へ events を通すと
+  `JSONL:35 のJSON parse失敗: Unterminated string starting at: line 1 column 328` を得た。
+  子の仕事は `p3_s4_loop.py` の差分読解であり、同 file は
+  `_NOW_BACKOFF_RE = re.compile(r"now_backoff\s*=\s*(-?\d+(?:\.\d+)?)")` のような backslash を
+  多く含む正規表現リテラルを持つ。F531 が「子の仕事自体が正規表現リテラルを扱う内容のときは
+  決定的に再発すると考えてよい」と書いたとおりの条件で、これで 6 例目である。
+  **新しい情報は、差分を読ませるだけの読み手でも発火する点である** — 子が正規表現を
+  書く wave でなくても、対象 file が正規表現を持てば `git show` / `sed` の tool 出力経由で入る。
+  親は F531 の回避手順どおり `attempt-0001.output.md` を検収して保全し、
+  内容を変えない新 job として再投入して rc=0 を得た。独立 2 走とも所見ゼロで一致した。
+  恒久対応は F531 のまま未実施である。
 ### F532. 両親が同じ実装面fileを触るmergeで、規約が要求するCodex author子を起動する経路が機械的に存在しない [手順漏れ]
 
 - 事象: local main の取り込みで両親が同じ実装面 file を触ったため、`check_ai_provenance.py` が
@@ -13880,6 +13910,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   DW-O17 の本文へ手順を統合する案は、L2 単節予算 1000 bytes に対し DW-O17 が既に 974 bytes を
   使っており入らない。予算値の引き上げは自己改善の範囲外 (`docs/skill-self-improvement.md`) のため
   ユーザー裁定へ返す。
+- **supersede: 2026-08-25** — `DW-O17` への両親重複 merge 手順の統合は D730 を適用して実施しないへ落とした。実測 1 例で、恒久対応の本体である D770 の 2 commit 分割は既に在る。
 
 ### F533. blob として読まれる面への変異が見えず偽 SURVIVED を作りかけた [恒真ゲート] [テスト代表性]
 
@@ -14440,3 +14471,58 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   file type 変更 (`T`) も `MD` に入らないため diff-filter へ明示する。
 - 再発検知: 履歴検査の変異で option を 1 つずつ外し、**それぞれに専用の kill node があるか**を
   見る。option を外しても死なない検査は、その option が守る経路の負例が無い。
+
+### F561. /rulings が既裁定を項目単位でしか照合せず、絶対規律に触れる推奨を出した [手順漏れ]
+
+- 事象: `/rulings all` が裁定待ち 23 件を提示し、ユーザーが全件を推奨どおり裁定した後、
+  land 前の最終照合で **10 件が誤りと判明した。** 内訳は (a) 既裁定と正面から矛盾する推奨 3 件、
+  (b) そもそもユーザー裁定待ちでない項目 7 件。最も重いのは床値の項で、rulings は
+  「pilot 値を pilot 由来と明記して freeze へ発効させる」を推奨したが、D323 が
+  「`eligible_for_refreeze` は緩めない」を 2026-08-12 のユーザー裁定として確定しており、
+  D446 の理由欄はこの 1 bit を**絶対規律 2 の直接の攻撃面**と名指ししていた。
+  ユーザーの承認を得た状態で台帳へ着地する寸前まで進んでいた near miss である。
+- 根本原因: `.claude/commands/rulings.md` の作法「推奨前に同じ面の既裁定と却下案を
+  worklog・archive・decisions・roadmap で検索し矛盾させない」を、**項目の識別子単位でしか
+  実行しなかった。** 裁定待ちは個別の T / F として現れるが、それを覆う既裁定は
+  **機構名 (面) の側**に立っている。個別 ID で decisions を引くと 0 件になり、照合したつもりで
+  素通りする。実測した対応は次のとおり。手順書 byte 予算の 6 件 → D730 + D782 が AI への
+  委任まで含めて既決。fold 後 tree 検査 → D752 が既決。床値 → D323 / D446 / D488。
+  批准経路 → D758 (執行経路が未実装で推奨が実行不能だった)。受領印の束縛先 → D796
+  (registry は marker を書かないので推奨と逆)。
+- 恒久対応: `.claude/commands/rulings.md` の作法節に、照合を機構名でも行う義務を書く案は
+  同 file が予算上限 5,000 bytes に対し 4,997 bytes で入らない。D730 / D782 の手順に従い、
+  実測 1 例の段階では原則どおり実施しないへ落とし、**memory `ruling-lookup-discipline`
+  (既裁定は機構名で検索する) を正本とする。** 同 memory は既存で、本件はその適用漏れである。
+  再訪条件 = 同型の実害が独立 3 例に達したとき。
+- 再発検知: 索引提示から land までの間に、各項の機構名 (`eligible_for_refreeze`、
+  `consumed marker`、`fold`、節 ID など) で `docs/decisions.md` を全文検索し、0 件でないものを
+  すべて読むこと。本 wave はこの検索で 10 件を摘出した。
+
+### F562. landed handoff が撤去経路を持たないまま恒久滞留し、収集が生きた handoff と誤認する [ドリフト] [手順漏れ]
+
+- 事象: `docs/handoff/` に README 以外が 9 件残っていた。`docs/handoff/README.md` は
+  「ファイルが残っている = 稼働中か中断」と定め、`.claude/commands/rulings.md` は
+  「`docs/handoff/` は README のみが正常」と書くが、**9 件すべてが着地済み wave の残置だった。**
+  9 件とも記載された基準コミットが `refs/heads/main` の祖先で、branch を記す 8 件のうち
+  7 件は branch が削除済み、1 件は `main..<branch>` の commit 数が 0、branch を記さない 1 件も
+  基準コミットが main に在る。本 wave の収集は 9 件を生きた handoff の候補として全部読み、
+  1 件ずつ終端を確認する手間を払った。
+- 根本原因: 撤去経路が構造的に無い。`tools/dev_wave_land.py` は land のたびに main の
+  `docs/handoff/` を列挙し、README 以外の全ファイル名を保護対象として記録する
+  (`_handoff_snapshot`)。取り込む wave の変更対象がそれと重なると `rc=21` で拒否する
+  (`_verify_target_collisions`)。したがって **自分が置いた handoff でも landed 後は
+  wave 側から消せない。** 一方 F286 の恒久対応 (D409、2026-08-15) 以後
+  `tools/check_wave_startup.py` は main へ landed した tracked handoff を通すようになった。
+  **赤で気づく経路が消えたため、残置は誰にも撤去されないまま溜まり続ける。**
+  恒久対応が別の失敗を作った形である。
+- 恒久対応: 本 wave は先例 `a3168d85` / `952fd45d` に従い main で直接撤去した (land 経路では
+  撤去できないため)。**恒久対応そのものは未実施で、担い手は既存の handoff 生存判定の項が持つ。**
+  推奨は repo 内 handoff を廃して repo 外へ寄せること — 背景 job は `DW-O20` で既に repo 外を
+  義務づけられており、repo 内 handoff を使うのは main checkout で直接動くセッションだけである。
+  そちらも repo 外へ寄せれば land の保護対象に入らなくなる。land 側へ台帳読みを足す案は、
+  最も壊してはいけない経路に判定を足す方向なので採らない。
+- 再発検知: `git ls-files docs/handoff/` が README.md 以外を返し、かつ返した file の基準コミットが
+  `refs/heads/main` の祖先であること。**`状態:` 行と最終更新日を生存判定に使わない** — landed
+  残置は `状態: 作業中` のまま永久に残る。**表題の T-ID も使わない** — handoff は fold 前の
+  予測番号を書いていることがあり、本 wave の 9 件のうち 1 件は表題の ID が実際には別項へ
+  割り当てられていた (採番は fold の瞬間にしか確定しない、D70 決定 5)。
