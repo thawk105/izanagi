@@ -1874,6 +1874,64 @@ def test_registry_recovery_authority_is_empty_and_fail_closed(tmp_path):
     assert [row["attempt_id"] for row in attempts] == [attempt_id]
 
 
+def test_registry_recovery_counts_corrupt_extra_candidate_before_replay(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    _root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(
+        tmp_path,
+    )
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    registry_path = _write_verified_recovery_registry(
+        admitted, trigger_start=planned_start,
+    )
+    raw, valid_rows = admission._read_floor_registry_candidate_rows(  # noqa: SLF001
+        registry_path,
+    )
+    valid_recovery = next(
+        row for row in valid_rows if row.get("event") == "recovery"
+    )
+    corrupt_extra = dict(valid_recovery)
+    corrupt_extra["configuration_id"] = "corrupt-extra-coordinate"
+    corrupt_extra = attempt_registry_core.chained_event_row(
+        corrupt_extra, event_index=len(valid_rows),
+        previous_event_sha256=valid_rows[-1]["event_sha256"],
+    )
+    assert (
+        corrupt_extra["configuration_id"] != valid_recovery["configuration_id"]
+    )
+    assert (
+        corrupt_extra["start_event_sha256"] == valid_recovery["start_event_sha256"]
+    )
+    malformed_raw = raw + attempt_registry_core.canonical_json_bytes(
+        corrupt_extra,
+    ) + b"\n"
+    registry_path.write_bytes(malformed_raw)
+
+    # Keep exact replay on the original valid history so only the candidate
+    # count can reject the extra row.  The corrupt row still targets the same
+    # start hash and must therefore survive candidate collection.
+    def replay_valid_prefix(data, *, profile, expected_binding=None):
+        assert data == malformed_raw
+        return valid_rows
+
+    monkeypatch.setattr(
+        attempt_registry_core, "load_attempt_registry", replay_valid_prefix,
+    )
+
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match="more than one retry trigger evidence candidate",
+    ):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+
+
 @pytest.mark.parametrize("ordinals", [(2,), (1, 2)])
 def test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals(
     tmp_path, monkeypatch, ordinals,
@@ -1942,6 +2000,33 @@ def test_verified_registry_recovery_rejects_nonlatest_retry_start(
         admission.shared_admission_root(root) / "attempt-ledger.jsonl"
     )
     assert [row["attempt_id"] for row in attempts] == [attempt_id]
+
+
+def test_registry_recovery_rejects_two_starts_when_target_is_first(tmp_path):
+    _root, _protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    retry1 = {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": f"{cell['cell_id']}::retry1", "trigger": attempt_id,
+    }
+    retry2 = {
+        "event": "session-start", "seq": len(state.schedule) + 1,
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 2, "cell_id": cell["cell_id"],
+        "attempt_id": f"{cell['cell_id']}::retry2", "trigger": attempt_id,
+    }
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="exactly one next"):
+        admission._assert_registry_recovery_opens_one_next_retry(  # noqa: SLF001
+            state, records=[planned_start, retry1, retry2],
+            retry_start=retry1, trigger=attempt_id,
+            authorizing_new_start=False,
+        )
 
 
 @pytest.mark.parametrize("ordinals", [(2,), (1, 2)])

@@ -10188,6 +10188,27 @@ def _write_verified_campaign_recovery_registry(
     return path
 
 
+def test_cut6_replay_rejects_truthy_non_bool_verdict():
+    runner = object.__new__(s8b_floor_campaign._Runner)  # noqa: SLF001
+    runner.holdout_admissions = {"cell": object()}
+    runner.cut6_replay_query_fn = (
+        lambda _admission, *, attempt_id: "approved"
+    )
+    replayed = []
+    runner._run_session = lambda **kwargs: replayed.append(kwargs)  # noqa: SLF001
+    start = {
+        "seq": 0, "round": 1, "cell_id": "cell", "kind": "planned",
+        "retry_ordinal": None, "trigger": None, "attempt_id": "cell::seq0",
+    }
+
+    with pytest.raises(
+        s8b_floor_campaign.CampaignAbort,
+        match="cut-6 replay admission returned an invalid verdict",
+    ):
+        runner._replay_cut6_start(start)  # noqa: SLF001
+    assert replayed == []
+
+
 def test_resume_runner_produces_one_retry_from_admission_selected_recovery(
     tmp_path, monkeypatch,
 ):
