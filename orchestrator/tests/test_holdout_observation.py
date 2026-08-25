@@ -713,6 +713,90 @@ def test_positive_controls_pass_the_old_ratio_gate_but_fail_the_full_gate():
     assert rejected_count > 0
 
 
+def test_canonical_value_mismatches_reach_both_binding_layers_and_are_rejected():
+    cases = [
+        (
+            "ycsb_zipf_skew", "ycsb_zipf_skew",
+            _MISMATCH_ZIPF_SKEW, _MISMATCH_ZIPF_SKEW,
+        ),
+        ("ycsb_rratio", "ycsb_rratio", _TEST_RR20, _TEST_RR20),
+        ("ycsb_rmw", "ycsb_rmw", _MISMATCH_RMW, _MISMATCH_RMW),
+        (
+            "ycsb_tuple_num", "records",
+            _MISMATCH_RECORDS, int(_MISMATCH_RECORDS),
+        ),
+        (
+            "thread_num", "threads",
+            _MISMATCH_THREADS, int(_MISMATCH_THREADS),
+        ),
+    ]
+    assert cases
+    rejected_count = 0
+    for argv_field, condition_field, argv_value, condition_value in cases:
+        token = _issued("rr80")
+        mismatched_flags = _full_gflags(overrides={argv_field: argv_value})
+
+        old_classification = _old_ratio_only_signature(mismatched_flags)
+        if argv_field == "ycsb_rratio":
+            assert old_classification is not None
+            assert old_classification.freeze_holdout_key == "rr20"
+            assert old_classification.freeze_holdout_key != token.freeze_holdout_key
+        else:
+            assert old_classification is not None
+            assert old_classification.freeze_holdout_key == token.freeze_holdout_key
+
+        with pytest.raises(
+            observation.HoldoutObservationError,
+            match=r"does not match (?:the )?protected signature",
+        ):
+            observation.assert_holdout_observation_admitted(
+                gflags=mismatched_flags, admission=token,
+            )
+        rejected_count += 1
+
+        # The effective last-wins condition matches the freeze, so this probe
+        # can be rejected only by the per-occurrence argv value layer.
+        shadowed_mismatch = [
+            f"--{argv_field}={argv_value}",
+            *_full_gflags(),
+        ]
+        shadowed_old_classification = _old_ratio_only_signature(
+            shadowed_mismatch,
+        )
+        assert shadowed_old_classification is not None
+        assert (
+            shadowed_old_classification.freeze_holdout_key
+            == token.freeze_holdout_key
+        )
+        with pytest.raises(
+            observation.HoldoutObservationError,
+            match=r"does not match (?:the )?protected signature",
+        ):
+            observation.assert_holdout_observation_admitted(
+                gflags=shadowed_mismatch, admission=token,
+            )
+
+        # Exercise the issued-state comparison independently of argv parsing.
+        mismatched_condition = dataclasses.replace(
+            token.condition,
+            **{condition_field: condition_value},
+        )
+        with pytest.raises(
+            observation.HoldoutObservationError,
+            match=r"does not match (?:the )?protected signature",
+        ):
+            observation._consume_holdout_observation_run_once(
+                token, effective_condition=mismatched_condition,
+            )
+
+        observation.assert_holdout_observation_admitted(
+            gflags=_full_gflags(), admission=token,
+        )
+
+    assert rejected_count == len(cases)
+    assert rejected_count > 0
+
+
 @pytest.mark.parametrize(
     "caller",
     [
