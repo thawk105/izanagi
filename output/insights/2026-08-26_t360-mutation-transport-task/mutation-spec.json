@@ -1,0 +1,164 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "        unexpected_env = set(requested_env) - env_allowlist\n        if unexpected_env:\n",
+          "new": "        unexpected_env = set(requested_env) - env_allowlist\n        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_allowlist_external_environment_before_child"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            if request_sha256 != expected_request_sha256:\n                raise DispatchError(\"request SHA-256 が job script と不一致です\")\n",
+          "new": "            if False:\n                raise DispatchError(\"request SHA-256 が job script と不一致です\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_rejects_request_hash_mismatch_before_child"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "    request_args = list(args)\n    if spec.argv_policy != \"passthrough\":\n",
+          "new": "    request_args = list(args)\n    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_generic_rejects_empty_argv_and_shell_string_before_qsub",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[abbreviated-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[abbreviated-config-file]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[addopts-env]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[argfile]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[cluster-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[cluster-k]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[cluster-m]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[cluster-p]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[config-file]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[deselect]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[force-dispatch]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[ignore]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[k-selector]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[long-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[m-selector]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[nodeid]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[plugin-option]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[plugins-env]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_rejects_before_qsub[short-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_rejects_before_qsub[abbreviated-mode-override]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_rejects_before_qsub[dispatch-mode]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_rejects_before_qsub[foreign-python]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_rejects_before_qsub[foreign-runner]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_rejects_before_qsub[missing-detached]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "        _validate_task_argv(task, spec, argv)\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[abbreviated-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[abbreviated-config-file]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[argfile]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[cluster-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[cluster-k]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[cluster-m]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[cluster-p]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[config-file]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[direct-k]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[long-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_argv_policy_fires_independently_in_job_run[short-addopts]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_fires_independently_in_job_run[abbreviated-mode-override]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_fires_independently_in_job_run[dispatch-mode]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_fires_independently_in_job_run[foreign-python]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_fires_independently_in_job_run[foreign-runner]",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_mutation_structure_policy_fires_independently_in_job_run[missing-detached]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "            stdin=subprocess.DEVNULL,\n",
+          "new": "            stdin=None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_generic_job_run_executes_direct_argv_with_clean_contract",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_closes_stdin_uses_repo_cwd_and_cleans_mutation_env"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    site = site_policy.current_site(require_evidence=True)\n    if site in {site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT}:\n        return site\n",
+          "new": "    site = site_policy.current_site(require_evidence=True)\n    if False:\n        return site\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_local_site_gate_rejects_before_lock_and_collection[PEGASUS_LOGIN]",
+        "orchestrator/tests/test_mutation_harness.py::test_local_site_gate_rejects_before_lock_and_collection[PEGASUS_SUSPECT]",
+        "orchestrator/tests/test_mutation_harness.py::test_local_site_gate_requires_evidence_for_nqsv_unreadable_login_hostname"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_through_list_comp",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_through_set_comp",
+        "orchestrator/tests/test_check_docs.py::test_dispatch_inventory_rejects_tasks_alias_through_generator_exp"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
