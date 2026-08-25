@@ -22,25 +22,29 @@ literals, statements, and internal exception text are never projected.
 from __future__ import annotations
 
 import math
+import re
+import struct
 from dataclasses import dataclass
+
+from .coder_effect_gate import MAX_HOLE_TOKENS
 
 __all__ = [
     "BackoffGrammarDecision",
     "BackoffGrammarViolation",
+    "BACKOFF_GRAMMAR_RULE_IDS",
     "MAX_BACKOFF_HOLE_BYTES",
-    "MAX_BACKOFF_HOLE_CODEPOINTS",
     "MAX_BACKOFF_HOLE_NESTING",
     "MAX_BACKOFF_HOLE_TOKENS",
+    "attribution_numeric_literals",
     "validate_backoff_implementation",
     "validate_backoff_preflight",
     "validate_backoff_value",
 ]
 
 
-MAX_BACKOFF_HOLE_CODEPOINTS = 4096
 MAX_BACKOFF_HOLE_BYTES = 4096
-MAX_BACKOFF_HOLE_TOKENS = 1024
-MAX_BACKOFF_HOLE_NESTING = 64
+MAX_BACKOFF_HOLE_TOKENS = MAX_HOLE_TOKENS
+MAX_BACKOFF_HOLE_NESTING = 256
 
 
 @dataclass(frozen=True)
@@ -124,6 +128,9 @@ _REJECTIONS = {
         "backoff coder value is outside the closed range",
     ),
 }
+BACKOFF_GRAMMAR_RULE_IDS = frozenset(
+    rule_id for rule_id, _reason in _REJECTIONS.values()
+)
 
 
 def _reject(stage: str) -> BackoffGrammarDecision:
@@ -156,9 +163,6 @@ _PUNCTUATORS = tuple(sorted((
 ), key=len, reverse=True))
 _OPEN_TO_CLOSE = {"(": ")", "[": "]", "{": "}"}
 _CLOSERS = frozenset(_OPEN_TO_CLOSE.values())
-_ASSIGNMENTS = frozenset({
-    "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=",
-})
 _CONTROL_FLOW = frozenset({
     "goto", "return", "throw", "break", "continue",
     "if", "else", "switch", "case", "default", "for", "while", "do",
@@ -172,8 +176,6 @@ def validate_backoff_preflight(implementation: object) -> BackoffGrammarDecision
 
     if type(implementation) is not str:
         return _reject("input-type")
-    if len(implementation) > MAX_BACKOFF_HOLE_CODEPOINTS:
-        return _reject("raw-size")
     try:
         encoded = implementation.encode("utf-8")
     except UnicodeError:
@@ -238,14 +240,130 @@ def _scan_number(source: str, offset: int) -> int:
     return cursor
 
 
-def _tokens(source: str) -> tuple[_Token, ...]:
+_DECIMAL_DIGITS = r"[0-9](?:'?[0-9])*"
+_HEX_DIGITS = r"[0-9a-fA-F](?:'?[0-9a-fA-F])*"
+_BINARY_DIGITS = r"[01](?:'?[01])*"
+_OCTAL_DIGITS = r"[0-7](?:'?[0-7])*"
+_INTEGER_SUFFIX = (
+    r"(?:[uU](?:(?:ll|LL)|[lL])?|(?:(?:ll|LL)|[lL])[uU]?)?"
+)
+_DECIMAL_FLOAT_RE = re.compile(
+    rf"(?P<body>(?:(?:{_DECIMAL_DIGITS})\.(?:{_DECIMAL_DIGITS})?"
+    rf"|\.(?:{_DECIMAL_DIGITS}))"
+    rf"(?:[eE][+-]?(?:{_DECIMAL_DIGITS}))?"
+    rf"|(?:{_DECIMAL_DIGITS})[eE][+-]?(?:{_DECIMAL_DIGITS}))"
+    r"(?P<suffix>[fFlL]?)\Z"
+)
+_HEX_FLOAT_RE = re.compile(
+    rf"(?P<body>0[xX](?:(?:{_HEX_DIGITS})\.(?:{_HEX_DIGITS})?"
+    rf"|\.(?:{_HEX_DIGITS})|(?:{_HEX_DIGITS}))"
+    rf"[pP][+-]?(?:{_DECIMAL_DIGITS}))"
+    r"(?P<suffix>[fFlL]?)\Z"
+)
+_BINARY_INTEGER_RE = re.compile(
+    rf"0[bB](?P<body>{_BINARY_DIGITS})(?P<suffix>{_INTEGER_SUFFIX})\Z"
+)
+_HEX_INTEGER_RE = re.compile(
+    rf"0[xX](?P<body>{_HEX_DIGITS})(?P<suffix>{_INTEGER_SUFFIX})\Z"
+)
+_OCTAL_INTEGER_RE = re.compile(
+    rf"0(?P<body>(?:{_OCTAL_DIGITS})?)(?P<suffix>{_INTEGER_SUFFIX})\Z"
+)
+_DECIMAL_INTEGER_RE = re.compile(
+    rf"(?P<body>[1-9](?:'?[0-9])*)(?P<suffix>{_INTEGER_SUFFIX})\Z"
+)
+
+
+def _rounded_float(value: float, suffix: str) -> float:
+    if suffix in {"f", "F"}:
+        return struct.unpack("!f", struct.pack("!f", value))[0]
+    return value
+
+
+def _cpp_number_value(token: str) -> int | float:
+    """Interpret one complete C++ numeric-literal preprocessing token.
+
+    User-defined suffixes and malformed preprocessing numbers are deliberately
+    rejected: their runtime value cannot be established from the token alone.
+    """
+
+    match = _HEX_FLOAT_RE.fullmatch(token)
+    if match is not None:
+        try:
+            value = float.fromhex(match.group("body").replace("'", ""))
+            value = _rounded_float(value, match.group("suffix"))
+        except (OverflowError, ValueError):
+            raise _Malformed from None
+        if not math.isfinite(value):
+            raise _Malformed
+        return value
+
+    match = _DECIMAL_FLOAT_RE.fullmatch(token)
+    if match is not None:
+        try:
+            value = float(match.group("body").replace("'", ""))
+            value = _rounded_float(value, match.group("suffix"))
+        except (OverflowError, ValueError):
+            raise _Malformed from None
+        if not math.isfinite(value):
+            raise _Malformed
+        return value
+
+    for pattern, base in (
+        (_BINARY_INTEGER_RE, 2),
+        (_HEX_INTEGER_RE, 16),
+        (_OCTAL_INTEGER_RE, 8),
+        (_DECIMAL_INTEGER_RE, 10),
+    ):
+        match = pattern.fullmatch(token)
+        if match is None:
+            continue
+        body = match.group("body").replace("'", "")
+        if pattern is _OCTAL_INTEGER_RE and not body:
+            body = "0"
+        try:
+            return int(body, base)
+        except ValueError:
+            raise _Malformed from None
+    raise _Malformed
+
+
+def _tokens(
+    source: str, *, skip_comments: bool = False,
+) -> tuple[_Token, ...]:
     tokens: list[_Token] = []
     stack: list[str] = []
     offset = 0
     while offset < len(source):
         character = source[offset]
-        if character.isspace():
+        if character in " \t\r\n":
             offset += 1
+            continue
+        if character.isspace():
+            raise _Malformed
+        if skip_comments and source.startswith("//", offset):
+            offset += 2
+            while offset < len(source):
+                if source[offset] == "\\" and offset + 1 < len(source):
+                    if source[offset + 1] == "\n":
+                        offset += 2
+                        continue
+                    if (
+                        source[offset + 1] == "\r"
+                        and offset + 2 < len(source)
+                        and source[offset + 2] == "\n"
+                    ):
+                        offset += 3
+                        continue
+                if source[offset] in "\r\n":
+                    break
+                offset += 1
+            continue
+        if skip_comments and source.startswith("/*", offset):
+            close = source.find("*/", offset + 2)
+            if close < 0:
+                raise _Malformed
+            offset = close + 2
             continue
 
         prefix = next(
@@ -280,7 +398,7 @@ def _tokens(source: str) -> tuple[_Token, ...]:
                 character == "." and offset + 1 < len(source) and source[offset + 1].isdigit()
             ):
                 end = _scan_number(source, offset)
-                token = _Token("number", "", len(tokens))
+                token = _Token("number", source[offset:end], len(tokens))
                 offset = end
             else:
                 punctuator = next(
@@ -305,6 +423,48 @@ def _tokens(source: str) -> tuple[_Token, ...]:
     if stack:
         raise _Malformed
     return tuple(tokens)
+
+
+def attribution_numeric_literals(
+    implementation: str,
+) -> tuple[bool, int | float | None, tuple[int | float, ...]]:
+    """Return the direct binding literal and all complete numeric literals.
+
+    The boolean distinguishes an absent direct literal from a literal whose
+    value is otherwise falsey.  Any pp-number which is not a strict C++
+    numeric literal makes the whole attribution scan fail closed.
+    """
+
+    tokens = _tokens(implementation, skip_comments=True)
+    values: dict[int, int | float] = {}
+    for token in tokens:
+        if token.kind == "number":
+            values[token.ordinal] = _cpp_number_value(token.text)
+
+    for index, token in enumerate(tokens):
+        if token.kind != "identifier" or token.text != "now_backoff":
+            continue
+        cursor = index + 1
+        if cursor >= len(tokens) or tokens[cursor].text != "=":
+            continue
+        cursor += 1
+        sign = 1
+        if cursor < len(tokens) and tokens[cursor].text in {"+", "-"}:
+            if tokens[cursor].text == "-":
+                sign = -1
+            cursor += 1
+        if cursor < len(tokens) and tokens[cursor].kind == "number":
+            return (
+                True,
+                sign * values[tokens[cursor].ordinal],
+                tuple(values[token.ordinal] for token in tokens if token.kind == "number"),
+            )
+        break
+    return (
+        False,
+        None,
+        tuple(values[token.ordinal] for token in tokens if token.kind == "number"),
+    )
 
 
 def _top_level_statements(
@@ -340,11 +500,20 @@ def _has_additional_declarator(tokens: tuple[_Token, ...]) -> bool:
             depth -= 1
         elif token.text == "," and depth == 0:
             cursor = index + 1
+            parenthesized = 0
+            while cursor < len(tokens) and tokens[cursor].text == "(":
+                parenthesized += 1
+                cursor += 1
             while cursor < len(tokens) and tokens[cursor].text in {"*", "&", "&&"}:
                 cursor += 1
             if cursor >= len(tokens) or tokens[cursor].kind != "identifier":
                 continue
             cursor += 1
+            while parenthesized and cursor < len(tokens) and tokens[cursor].text == ")":
+                parenthesized -= 1
+                cursor += 1
+            if parenthesized:
+                continue
             if cursor == len(tokens) or tokens[cursor].text in {
                 "=", "(", "{", "[", ",",
             }:
@@ -356,7 +525,26 @@ def _has_label(tokens: tuple[_Token, ...]) -> bool:
     for index, token in enumerate(tokens[:-1]):
         if token.kind != "identifier" or tokens[index + 1].text != ":":
             continue
-        previous = None if index == 0 else tokens[index - 1].text
+        cursor = index - 1
+        while (
+            cursor >= 1
+            and tokens[cursor - 1].text == "]"
+            and tokens[cursor].text == "]"
+        ):
+            attribute_start = next(
+                (
+                    candidate
+                    for candidate in range(cursor - 2, -1, -1)
+                    if candidate + 1 < len(tokens)
+                    and tokens[candidate].text == "["
+                    and tokens[candidate + 1].text == "["
+                ),
+                None,
+            )
+            if attribute_start is None:
+                break
+            cursor = attribute_start - 1
+        previous = None if cursor < 0 else tokens[cursor].text
         if previous is None or previous in {";", "{", "}"}:
             return True
     return False
@@ -369,7 +557,7 @@ def validate_backoff_implementation(implementation: object) -> BackoffGrammarDec
     if not preflight.accepted:
         return preflight
     assert type(implementation) is str
-    if not implementation.strip():
+    if not implementation.strip(" \t\r\n"):
         return _reject("empty")
     try:
         tokens = _tokens(implementation)
@@ -398,6 +586,16 @@ def validate_backoff_implementation(implementation: object) -> BackoffGrammarDec
     saw_reference = False
     saw_wrong_type = False
     saw_multiple_declarator = False
+
+    double_declaration_ordinals = set()
+    for index, token in enumerate(tokens):
+        if token.kind != "identifier" or token.text != "now_backoff":
+            continue
+        cursor = index - 1
+        while cursor >= 0 and tokens[cursor].text in {"&", "&&"}:
+            cursor -= 1
+        if cursor >= 0 and tokens[cursor].text == "double":
+            double_declaration_ordinals.add(token.ordinal)
 
     for statement, terminated in statements:
         for index, token in enumerate(statement):
@@ -452,31 +650,19 @@ def validate_backoff_implementation(implementation: object) -> BackoffGrammarDec
         return _reject("declaration-type")
     if saw_multiple_declarator:
         return _reject("single-declarator")
-    if len(exact_declarations) != 1:
+    if (
+        len(exact_declarations) != 1
+        or len(double_declaration_ordinals) != 1
+    ):
         return _reject("declaration-count")
 
-    for statement, _terminated in statements:
-        for index, token in enumerate(statement):
-            if (
-                token.kind != "identifier"
-                or token.text != "now_backoff"
-                or token.ordinal in declaration_ordinals
-                or not _unqualified(statement, index)
-            ):
-                continue
-            left = index - 1
-            while left >= 0 and statement[left].text == "(":
-                left -= 1
-            right = index + 1
-            while right < len(statement) and statement[right].text == ")":
-                right += 1
-            previous = None if left < 0 else statement[left].text
-            following = None if right == len(statement) else statement[right].text
-            if (
-                previous in {"++", "--"}
-                or following in _ASSIGNMENTS | {"++", "--"}
-            ):
-                return _reject("rebinding")
+    if any(
+        token.kind == "identifier"
+        and token.text == "now_backoff"
+        and token.ordinal not in declaration_ordinals
+        for token in tokens
+    ):
+        return _reject("rebinding")
     return _ACCEPT
 
 

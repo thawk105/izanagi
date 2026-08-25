@@ -904,10 +904,6 @@ class AttributionMismatch(ValueError):
     値と走る literal の不一致を素通しせず、ここで止める (謳うだけの整合規約にしない)。"""
 
 
-_NOW_BACKOFF_RE = re.compile(r"now_backoff\s*=\s*(-?\d+(?:\.\d+)?)")
-_NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
-
-
 def assert_value_literal_consistent(coder: CoderProposal) -> None:
     """coder.value と implementation の backoff literal の整合を機械強制する (D39 決定7)。
 
@@ -940,14 +936,19 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
     except (TypeError, ValueError, OverflowError):
         raise AttributionMismatch(fixed_message) from None
 
-    m = _NOW_BACKOFF_RE.search(coder.implementation)
-    if m is not None:
-        if float(m.group(1)) != coder_value:
+    try:
+        assigned, assigned_value, literal_values = (
+            backoff_hole_grammar.attribution_numeric_literals(
+                coder.implementation
+            )
+        )
+    except Exception:
+        raise AttributionMismatch(fixed_message) from None
+    if assigned:
+        if assigned_value != coder_value:
             raise AttributionMismatch(fixed_message)
-    else:
-        lits = {float(x) for x in _NUM_RE.findall(coder.implementation)}
-        if coder_value not in lits:
-            raise AttributionMismatch(fixed_message)
+    elif coder_value not in literal_values:
+        raise AttributionMismatch(fixed_message)
 
     value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
     if not value_decision.accepted:
@@ -1031,6 +1032,39 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
+    preflight = backoff_hole_grammar.validate_backoff_preflight(
+        coder.implementation
+    )
+    if not preflight.accepted and type(coder.implementation) is str:
+        value_decision = backoff_hole_grammar.validate_backoff_value(coder.value)
+        if value_decision.accepted:
+            genome = Genome("silo", {**_BASE, "BACK_OFF": 1,
+                                     "BACKOFF_FIXED": int(coder.value)})
+            if layout is None:
+                layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+            elif do_build and layout.root != exploration_campaign_layout(
+                    str(ident.campaign_id(cfg))).root:
+                raise ValueError(
+                    "build 経路の layout 注入は cfg 由来と一致必須 "
+                    f"(WAL 分裂防止): {layout.root} != cfg 由来"
+                )
+            layout.ensure()
+            ident.ensure_resumable_attempts(
+                cfg, layout, admission_policy=build_context.policy,
+            )
+            res = _backoff_grammar_rejection(
+                preflight, source_rel=SOURCE_REL, marker_id=MARKER_ID,
+            )
+            variant = record_diff_reject(
+                layout, genome, coder.implementation, res,
+            )
+            project_whiteboard(state, planner, "rejected")
+            if do_build:
+                log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
+            return {
+                "outcome": "rejected", "variant": variant,
+                "digest": res.digest,
+            }
     # 帰属整合の機械強制 (D39 決定7): value と hole literal が食い違うと certified fitness が
     # genome{BACKOFF_FIXED=value} に紐付くのに binary は別 literal で走り帰属が汚染される (規律6)。
     # type/raw-size preflight は既存帰属より前、value の無損失整数検査は既存帰属の後かつ

@@ -312,7 +312,6 @@ def test_backoff_tier1_accepts_exact_binding_and_leaves_tier2_expressions_open()
         "double now_backoff = (helper(), 20);",
         "double now_backoff = rdtscp() & 1;",
         "double now_backoff = condition ? 20 : 40;",
-        "double now_backoff = 20;\nhelper(now_backoff);",
     )
     for implementation in implementations:
         decision = BHG.validate_backoff_implementation(implementation)
@@ -320,18 +319,15 @@ def test_backoff_tier1_accepts_exact_binding_and_leaves_tier2_expressions_open()
 
 
 def test_backoff_numeric_spelling_stage_is_frozen_without_tier2_policy():
-    with pytest.raises(L.AttributionMismatch):
-        L.assert_value_literal_consistent(L.CoderProposal(
-            axis=L.MARKER_ID,
-            value=100,
-            implementation="double now_backoff = 1e2;",
-        ))
-
     attribution_and_grammar_pass = (
+        (100, "double now_backoff = 1e2;"),
         (1, "double now_backoff = 001;"),
         (1, "double now_backoff = 1.0f;"),
-        (1, "double now_backoff = 1..0;"),
-        (20, "double now_backoff = 20_backoff;"),
+        (16, "double now_backoff = 020;"),
+        (20, "double now_backoff = 2'0;"),
+        (20, "double now_backoff = 20.0;"),
+        (20, "double now_backoff = 20.00;"),
+        (20, "double now_backoff = (helper(), 20);"),
     )
     for value, implementation in attribution_and_grammar_pass:
         L.assert_value_literal_consistent(L.CoderProposal(
@@ -340,6 +336,22 @@ def test_backoff_numeric_spelling_stage_is_frozen_without_tier2_policy():
             implementation=implementation,
         ))
         assert BHG.validate_backoff_implementation(implementation).accepted
+
+    attribution_rejections = (
+        (1, "double now_backoff = 1e2;"),
+        (20, "double now_backoff = 020;"),
+        (2, "double now_backoff = 2'0;"),
+        (1, "double now_backoff = 1..0;"),
+        (20, "double now_backoff = 20_backoff;"),
+        (20, "double now_backoff = helper(); // 20"),
+    )
+    for value, implementation in attribution_rejections:
+        with pytest.raises(L.AttributionMismatch):
+            L.assert_value_literal_consistent(L.CoderProposal(
+                axis=L.MARKER_ID,
+                value=value,
+                implementation=implementation,
+            ))
 
 
 @pytest.mark.parametrize(
@@ -367,6 +379,26 @@ def test_backoff_numeric_spelling_stage_is_frozen_without_tier2_policy():
         (
             "double now_backoff = 20; (now_backoff) = 30;",
             "backoff-grammar.rebinding.v1",
+        ),
+        (
+            "double now_backoff = 20; helper(now_backoff);",
+            "backoff-grammar.rebinding.v1",
+        ),
+        (
+            "double now_backoff = 20, (other) = 0;",
+            "backoff-grammar.single-declarator.v1",
+        ),
+        (
+            "double now_backoff = 20, (*callback)() = nullptr;",
+            "backoff-grammar.single-declarator.v1",
+        ),
+        (
+            "double now_backoff = 20; { double now_backoff(30); }",
+            "backoff-grammar.declaration-count.v1",
+        ),
+        (
+            "double now_backoff = 20; [[likely]] bypass: ;",
+            "backoff-grammar.control-flow.v1",
         ),
         (
             "static double now_backoff = 20;",
@@ -423,6 +455,90 @@ def test_backoff_tier1_rejects_each_frozen_shape_with_fixed_rule(
     assert decision.rule_id == rule_id
 
 
+def test_backoff_adversarial_32_shape_corpus_pins_each_outcome():
+    corpus = (
+        ("canonical-integer", "double now_backoff = 20;", None),
+        ("canonical-decimal", "double now_backoff = 20.0;", None),
+        ("opaque-call", "double now_backoff = helper(20);", None),
+        ("straight-line-helper", "double now_backoff = 20; helper();", None),
+        ("scientific-tier2", "double now_backoff = 1e2;", None),
+        ("malformed-pp-number-tier2", "double now_backoff = 1..0;", None),
+        ("empty", "", "backoff-grammar.empty.v1"),
+        ("missing-declaration", "helper();", "backoff-grammar.declaration-count.v1"),
+        ("wrong-type", "int now_backoff = 20;", "backoff-grammar.declaration-type.v1"),
+        ("missing-initializer", "double now_backoff;", "backoff-grammar.declaration-type.v1"),
+        ("missing-semicolon", "double now_backoff = 20", "backoff-grammar.declaration-type.v1"),
+        ("reference", "double &now_backoff = source;", "backoff-grammar.reference-binding.v1"),
+        ("second-declarator", "double now_backoff = 20, other = 0;", "backoff-grammar.single-declarator.v1"),
+        ("paren-declarator", "double now_backoff = 20, (other) = 0;", "backoff-grammar.single-declarator.v1"),
+        ("function-pointer-declarator", "double now_backoff = 20, (*callback)() = nullptr;", "backoff-grammar.single-declarator.v1"),
+        ("duplicate-top-level", "double now_backoff = 20; double now_backoff = 30;", "backoff-grammar.declaration-count.v1"),
+        ("nested-paren-declaration", "double now_backoff = 20; { double now_backoff(30); }", "backoff-grammar.declaration-count.v1"),
+        ("nested-brace-declaration", "double now_backoff = 20; { double now_backoff{30}; }", "backoff-grammar.declaration-count.v1"),
+        ("lambda-shadow", "double now_backoff = ([](double now_backoff) {}(1), 20);", "backoff-grammar.declaration-count.v1"),
+        ("lambda-reference-write", "double now_backoff = 20; [](double& x) { x = 30; }(now_backoff);", "backoff-grammar.rebinding.v1"),
+        ("array-alias-write", "double now_backoff = 20; (&now_backoff)[0] = 30;", "backoff-grammar.rebinding.v1"),
+        ("pointer-alias-write", "double now_backoff = 20; *(&now_backoff + 0) = 30;", "backoff-grammar.rebinding.v1"),
+        ("read-after-declaration", "double now_backoff = 20; helper(now_backoff);", "backoff-grammar.rebinding.v1"),
+        ("increment", "double now_backoff = 20; ++now_backoff;", "backoff-grammar.rebinding.v1"),
+        ("static-storage", "static double now_backoff = 20;", "backoff-grammar.storage-duration.v1"),
+        ("thread-storage", "thread_local double now_backoff = 20;", "backoff-grammar.storage-duration.v1"),
+        ("goto", "double now_backoff = 20; goto done;", "backoff-grammar.control-flow.v1"),
+        ("attribute-label", "double now_backoff = 20; [[likely]] bypass: ;", "backoff-grammar.control-flow.v1"),
+        ("conditional", "double now_backoff = 20; if (condition) helper();", "backoff-grammar.control-flow.v1"),
+        ("nbsp-separator", "double\u00a0now_backoff = 20;", "backoff-grammar.tokenize.v1"),
+        ("ideographic-separator", "double\u3000now_backoff = 20;", "backoff-grammar.tokenize.v1"),
+        ("homoglyph", "double now_back\u043eff = 20;", "backoff-grammar.declaration-count.v1"),
+    )
+    assert len(corpus) == 32
+    assert len({name for name, _source, _rule_id in corpus}) == 32
+    for name, implementation, expected_rule_id in corpus:
+        decision = BHG.validate_backoff_implementation(implementation)
+        assert decision.accepted is (expected_rule_id is None), name
+        assert decision.rule_id == expected_rule_id, name
+
+
+def _composed_attribution_and_quarantine(value, implementation):
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=value, implementation=implementation,
+    )
+    try:
+        L.assert_value_literal_consistent(coder)
+    except L.AttributionMismatch:
+        return "attribution-mismatch"
+    result, *_ = L.quarantine(
+        _mk_template_dir(), implementation,
+        source_rel=_SRC_REL, write=False,
+    )
+    if result.passed:
+        return "accepted"
+    if result.subtype is DiffRejectSubtype.BACKOFF_GRAMMAR:
+        return result.digest["rule_id"]
+    return result.subtype.value
+
+
+def test_backoff_review_vectors_are_closed_on_composed_production_order():
+    cases = (
+        ("scientific-prefix", 1, "double now_backoff = 1e2;", "attribution-mismatch"),
+        ("octal-prefix", 20, "double now_backoff = 020;", "attribution-mismatch"),
+        ("separator-prefix", 2, "double now_backoff = 2'0;", "attribution-mismatch"),
+        ("lambda-reference", 20, "double now_backoff = 20; [](double& x) { x = 30; }(now_backoff);", "backoff-grammar.rebinding.v1"),
+        ("array-alias", 20, "double now_backoff = 20; (&now_backoff)[0] = 30;", "backoff-grammar.rebinding.v1"),
+        ("pointer-alias", 20, "double now_backoff = 20; *(&now_backoff + 0) = 30;", "backoff-grammar.rebinding.v1"),
+        ("lambda-shadow", 20, "double now_backoff = ([](double now_backoff) {}(1), 20);", "backoff-grammar.declaration-count.v1"),
+        ("paren-declarator", 20, "double now_backoff = 20, (other) = 0;", "backoff-grammar.single-declarator.v1"),
+        ("function-pointer-declarator", 20, "double now_backoff = 20, (*callback)() = nullptr;", "backoff-grammar.single-declarator.v1"),
+        ("nested-paren", 20, "double now_backoff = 20; { double now_backoff(30); }", "backoff-grammar.declaration-count.v1"),
+        ("nested-brace", 20, "double now_backoff = 20; { double now_backoff{30}; }", "backoff-grammar.declaration-count.v1"),
+        ("attribute-label", 20, "double now_backoff = 20; [[likely]] bypass: ;", "backoff-grammar.control-flow.v1"),
+        ("nbsp", 20, "double\u00a0now_backoff = 20;", "attribution-mismatch"),
+        ("ideographic-space", 20, "double\u3000now_backoff = 20;", "attribution-mismatch"),
+        ("homoglyph", 20, "double now_back\u043eff = 20;", "backoff-grammar.declaration-count.v1"),
+    )
+    for name, value, implementation, expected in cases:
+        assert _composed_attribution_and_quarantine(value, implementation) == expected, name
+
+
 def test_backoff_tier1_preflight_and_resource_order_is_exact():
     non_string = BHG.validate_backoff_implementation(None)
     assert non_string.stage == "input-type"
@@ -447,12 +563,20 @@ def test_backoff_tier1_preflight_and_resource_order_is_exact():
     )
     assert surrogate.stage == "raw-size"
 
-    too_many_tokens = "double now_backoff = 20;" + " x;" * 600
-    token_limited = BHG.validate_backoff_implementation(too_many_tokens)
-    assert token_limited.stage == "tokenize"
-    assert token_limited.rule_id == "backoff-grammar.tokenize.v1"
+    assert BHG.MAX_BACKOFF_HOLE_TOKENS == L.coder_effect_gate.MAX_HOLE_TOKENS == 4096
+    assert len(BHG._tokens("!" * 4096)) == 4096
+    with pytest.raises(BHG._Malformed):
+        BHG._tokens("!" * 4097)
 
-    too_deep = "double now_backoff = " + "(" * 65 + "20" + ")" * 65 + ";"
+    at_depth = (
+        "double now_backoff = "
+        + "(" * BHG.MAX_BACKOFF_HOLE_NESTING
+        + "20"
+        + ")" * BHG.MAX_BACKOFF_HOLE_NESTING
+        + ";"
+    )
+    assert BHG.validate_backoff_implementation(at_depth).accepted
+    too_deep = at_depth.replace("20", "(20)", 1)
     depth_limited = BHG.validate_backoff_implementation(too_deep)
     assert depth_limited.stage == "tokenize"
     assert depth_limited.rule_id == "backoff-grammar.tokenize.v1"
@@ -541,11 +665,13 @@ def test_backoff_preflight_runs_before_path_read_render_and_attribution():
         implementation="x" * (BHG.MAX_BACKOFF_HOLE_BYTES + 1),
     )
     attribution = unittest.mock.Mock()
-    with unittest.mock.patch.object(L, "_NOW_BACKOFF_RE", attribution):
+    with unittest.mock.patch.object(
+        BHG, "attribution_numeric_literals", attribution,
+    ):
         with pytest.raises(BHG.BackoffGrammarViolation) as caught:
             L.assert_value_literal_consistent(coder)
     assert caught.value.rule_id == "backoff-grammar.raw-size.v1"
-    assert attribution.search.call_count == 0
+    assert attribution.call_count == 0
 
 
 def test_backoff_grammar_preserves_existing_reasons_within_cap_only():
@@ -557,6 +683,14 @@ def test_backoff_grammar_preserves_existing_reasons_within_cap_only():
     )
     assert structural.subtype is DiffRejectSubtype.HOLE_ESCAPE
 
+    overlapping_structural, *_ = L.quarantine(
+        _mk_template_dir(),
+        "#define X 1\nint now_backoff = 20;",
+        source_rel=_SRC_REL,
+        write=False,
+    )
+    assert overlapping_structural.subtype is DiffRejectSubtype.HOLE_ESCAPE
+
     host_effect, *_ = L.quarantine(
         _mk_template_dir(),
         'double now_backoff = 20; std::system("ignored");',
@@ -564,6 +698,14 @@ def test_backoff_grammar_preserves_existing_reasons_within_cap_only():
         write=False,
     )
     assert host_effect.subtype is DiffRejectSubtype.HOST_EFFECT
+
+    overlapping_host_effect, *_ = L.quarantine(
+        _mk_template_dir(),
+        'int now_backoff = 20; std::system("ignored");',
+        source_rel=_SRC_REL,
+        write=False,
+    )
+    assert overlapping_host_effect.subtype is DiffRejectSubtype.HOST_EFFECT
 
     oversized_structural, *_ = L.quarantine(
         "/path/that/must/not-be-read",
@@ -576,40 +718,104 @@ def test_backoff_grammar_preserves_existing_reasons_within_cap_only():
 
 
 def test_backoff_grammar_rejection_projections_are_disclosure_free():
-    sentinel_identifier = "SENTINEL_BACKOFF_IDENTIFIER_7f31"
-    sentinel_literal = "913579"
-    implementation = f"int {sentinel_identifier} = {sentinel_literal};"
+    class FixedIdentityProjection(IdentityProjection):
+        def project_variant(self, _value):
+            return "candidate-fixed"
+
+        def project_src_token(self, _variant, _value):
+            return ""
+
+        def project_build_attempt_id(self, _variant, _value):
+            return "attempt-fixed"
+
+        def project_build_admission_receipt_sha256(self, _variant, _value):
+            return "admission-fixed"
+
+    implementations = (
+        "int SENTINEL_BACKOFF_IDENTIFIER_7f31 = 913579;",
+        "long DIFFERENT_SENTINEL_STATEMENT_4ab2 = 82468025;       ",
+    )
+    projections = []
+    digests = []
+    for implementation in implementations:
+        result, *_ = L.quarantine(
+            _mk_template_dir(), implementation,
+            source_rel=_SRC_REL, write=False,
+        )
+        assert result.subtype is DiffRejectSubtype.BACKOFF_GRAMMAR
+        assert result.digest["reason"] == "backoff hole が Tier 1 受理文法外"
+        digests.append(result.digest)
+
+        layout = CampaignLayout(
+            root=tempfile.mkdtemp(prefix="izanagi_backoff_grammar_redact_")
+        ).ensure()
+        L.record_diff_reject(layout, _G, implementation, result)
+        payload_projection = json.dumps(
+            [
+                {
+                    key: value
+                    for key, value in record.payload.items()
+                    if key != "build_attempt_id"
+                }
+                for record in wal.read_records(layout)
+            ],
+            ensure_ascii=False,
+        )
+        loaded = load_diff_rejections(_critic_view(layout))
+        assert loaded[0].rule_id == "backoff-grammar.declaration-count.v1"
+        critic_projection = render_rejections(
+            [], [], {}, None, diff_rejections=loaded,
+            identity_projection=FixedIdentityProjection(),
+        )
+        projections.append(
+            json.dumps(result.digest, ensure_ascii=False)
+            + repr(result)
+            + payload_projection
+            + critic_projection
+        )
+
+    assert digests[0] == digests[1]
+    assert projections[0] == projections[1]
+    combined = "".join(projections)
+    for sentinel in (
+        "SENTINEL_BACKOFF_IDENTIFIER_7f31",
+        "DIFFERENT_SENTINEL_STATEMENT_4ab2",
+        "913579",
+        "82468025",
+    ):
+        assert sentinel not in combined
+    assert "byte_length" not in combined
+
+    with pytest.raises(L.AttributionMismatch) as caught:
+        L.assert_value_literal_consistent(L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=1,
+            implementation="double now_backoff = 1..0;",
+        ))
+    assert "1..0" not in repr(caught.value)
+
+
+def test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint():
+    implementation = "int now_backoff = 20;"
     result, *_ = L.quarantine(
         _mk_template_dir(), implementation,
         source_rel=_SRC_REL, write=False,
     )
-    assert result.subtype is DiffRejectSubtype.BACKOFF_GRAMMAR
-    projected = json.dumps(result.digest, ensure_ascii=False) + repr(result)
-
     layout = CampaignLayout(
-        root=tempfile.mkdtemp(prefix="izanagi_backoff_grammar_redact_")
+        root=tempfile.mkdtemp(prefix="izanagi_backoff_grammar_critic_")
     ).ensure()
     L.record_diff_reject(layout, _G, implementation, result)
-    projected += json.dumps(
-        [record.payload for record in wal.read_records(layout)],
-        ensure_ascii=False,
-    )
     loaded = load_diff_rejections(_critic_view(layout))
-    projected += render_rejections(
+    assert len(loaded) == 1
+    assert loaded[0].subtype == "backoff-grammar"
+    assert loaded[0].rule_id == "backoff-grammar.declaration-type.v1"
+    rendered = render_rejections(
         [], [], {}, None, diff_rejections=loaded,
         identity_projection=IdentityProjection.RAW,
     )
-
-    with pytest.raises(BHG.BackoffGrammarViolation) as caught:
-        L.assert_value_literal_consistent(L.CoderProposal(
-            axis=L.MARKER_ID,
-            value=1001,
-            implementation="double now_backoff = 1001;",
-        ))
-    projected += repr(caught.value)
-    assert sentinel_identifier not in projected
-    assert sentinel_literal not in projected
-    assert result.digest["reason"] == "backoff hole が Tier 1 受理文法外"
+    assert "grammar_rule_id=backoff-grammar.declaration-type.v1" in rendered
+    assert "backoff hole の Tier 1 宣言・straight-line・資源契約に不適合" in rendered
+    assert "フレーム/hole 逸脱" not in rendered
 
 
 def test_backoff_grammar_dispatch_is_exact_marker_only():
@@ -634,22 +840,47 @@ def test_backoff_grammar_dispatch_is_exact_marker_only():
     assert trigger_result.passed
 
 
-def test_backoff_coder_text_materialization_ingress_is_closed_and_nonempty():
-    campaign_dir = Path(L.__file__).resolve().parent
+def _render_hole_ingress_callers(paths):
     observed = set()
-    for path in campaign_dir.glob("*.py"):
+    for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         parents = {}
         for parent in ast.walk(tree):
             for child in ast.iter_child_nodes(parent):
                 parents[child] = parent
+
+        aliases = {"render_hole"}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for imported in node.names:
+                    if imported.name == "render_hole":
+                        aliases.add(imported.asname or imported.name)
+
+        def refers_to_render_hole(node):
+            return (
+                isinstance(node, ast.Name) and node.id in aliases
+                or isinstance(node, ast.Attribute) and node.attr == "render_hole"
+            )
+
+        changed = True
+        while changed:
+            changed = False
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                    continue
+                value = node.value
+                if value is None or not refers_to_render_hole(value):
+                    continue
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target in targets:
+                    if isinstance(target, ast.Name) and target.id not in aliases:
+                        aliases.add(target.id)
+                        changed = True
+
         for call in (
             node for node in ast.walk(tree)
             if isinstance(node, ast.Call)
-            and (
-                isinstance(node.func, ast.Name) and node.func.id == "render_hole"
-                or isinstance(node.func, ast.Attribute) and node.func.attr == "render_hole"
-            )
+            and refers_to_render_hole(node.func)
         ):
             owner = parents.get(call)
             while owner is not None and not isinstance(
@@ -657,10 +888,45 @@ def test_backoff_coder_text_materialization_ingress_is_closed_and_nonempty():
             ):
                 owner = parents.get(owner)
             observed.add((path.name, None if owner is None else owner.name))
+    return observed
 
+
+def _assert_backoff_materialization_ingress_closed(paths):
+    observed = _render_hole_ingress_callers(paths)
     registered = {("p3_s4_loop.py", "quarantine")}
     assert registered
     assert observed == registered
+
+
+def _backoff_production_python_paths():
+    orchestrator_root = Path(_ORCH)
+    return tuple(
+        path
+        for path in orchestrator_root.rglob("*.py")
+        if "tests" not in path.relative_to(orchestrator_root).parts
+    )
+
+
+def test_backoff_coder_text_materialization_ingress_is_closed_and_nonempty():
+    _assert_backoff_materialization_ingress_closed(
+        _backoff_production_python_paths()
+    )
+
+
+def test_backoff_materialization_ingress_closure_positive_control(tmp_path):
+    fixture = tmp_path / "synthetic_ingress.py"
+    fixture.write_text(
+        "from orchestrator.campaign.p3_s4_loop import render_hole\n"
+        "alias = render_hole\n"
+        "function_value = alias\n"
+        "def bypass(base, marker, implementation):\n"
+        "    return function_value(base, marker, implementation)\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(AssertionError):
+        _assert_backoff_materialization_ingress_closed(
+            (*_backoff_production_python_paths(), fixture)
+        )
 
 
 def test_quarantine_rejects_marker_forgery_in_hole():
@@ -2327,6 +2593,41 @@ def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
         "reason": "recovery-abort-incomplete-attempt",
         "build_attempt_id": "crashed-attempt",
     }
+
+
+def test_run_one_iteration_records_oversized_preflight_as_rejection(
+    ratified_enforcement_source,
+):
+    from orchestrator.campaign import patchharness
+
+    implementation = "double now_backoff = 20;" + " " * (
+        BHG.MAX_BACKOFF_HOLE_BYTES - len("double now_backoff = 20;") + 1
+    )
+    assert len(implementation.encode("utf-8")) == BHG.MAX_BACKOFF_HOLE_BYTES + 1
+    layout = _tmp_layout("oversized-preflight-reject")
+    state = L.LoopState(start_wall=time.time())
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=20, implementation=implementation,
+    )
+    with unittest.mock.patch.object(patchharness, "applied") as applied:
+        outcome = L.run_one_iteration(
+            L.default_cfg(), L.default_perf(), planner, coder, state,
+            "/path/that/must/not-be-read", do_build=False,
+            layout=layout, log=lambda *_args: None,
+        )
+
+    assert outcome["outcome"] == "rejected"
+    assert outcome["digest"]["rule_id"] == "backoff-grammar.raw-size.v1"
+    assert applied.call_count == 0
+    records = wal.read_records(layout)
+    assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert records[-1].payload["diff_quarantine"]["rule_id"] == \
+        "backoff-grammar.raw-size.v1"
+    assert len(state.whiteboard) == 1
+    assert state.whiteboard[0].result == "rejected"
 
 
 def test_inner_run_recovers_reject_start_before_writing_retry_start():

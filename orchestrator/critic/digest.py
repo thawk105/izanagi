@@ -29,7 +29,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.critic"
 
-from orchestrator.campaign import pipeline, wal                    # noqa: E402
+from orchestrator.campaign import backoff_hole_grammar, pipeline, wal  # noqa: E402
 from orchestrator.campaign.artifact_admission import (             # noqa: E402
     CampaignReadPurpose,
     CampaignVerifierEpoch,
@@ -749,7 +749,11 @@ def _load_diff_rejections(
             rule_id = dq.get("rule_id", "")
             category = dq.get("category", "")
             finding_count = dq.get("finding_count", 0)
-            if (
+            if subtype == "backoff-grammar":
+                if rule_id not in backoff_hole_grammar.BACKOFF_GRAMMAR_RULE_IDS:
+                    rule_id = ""
+                category = ""
+            elif (
                 subtype != "host-effect"
                 or RULE_CATEGORY_ALLOWLIST.get(rule_id) != category
             ):
@@ -1222,6 +1226,11 @@ def render_rejections(rejections: List[Rejection],
                 L.append(f"  finding_count={dq.finding_count}")
             L.append("  修正: 有限 lexical policy が報告した identifier / loop 形を除く。"
                      "通過は計算のみを意味せず、host 安全性を証明しない。")
+        elif (dq.subtype or "") == "backoff-grammar":
+            if dq.rule_id:
+                L.append(f"  grammar_rule_id={dq.rule_id}")
+            L.append("  読み方: backoff hole の Tier 1 宣言・straight-line・資源契約に不適合。"
+                     "rule ID が示す固定規則を満たす形へ修正する。")
         elif (dq.subtype or "") == "sort-swo-oracle":
             # Candidate stdout/stderr is never rendered or interpreted.  This
             # branch consumes the trusted Python matrix check restored from WAL.
