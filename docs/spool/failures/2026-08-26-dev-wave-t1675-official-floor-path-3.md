@@ -27,3 +27,20 @@ seq: 3
 - 再発検知: 「経路を開く」「gate を外す」型の wave の段 3 レンズに、
   「この経路が実際に通るために越える門を全部挙げよ。1 つでも別の理由で止まるなら名指しせよ」を
   必ず含める。本 wave ではこのレンズが実際に 2 件とも検出した。
+
+### {{F:orphan-hold-message-names-only-summary-path}}. orphan hold の解除文言が、実際に閉塞している耐久記録を名指ししない [手順漏れ]
+
+- 事象: 親が全史 provenance 監査を 2 分のタイムアウトで打ち切り、計算ノード job の終端を
+  観測し損ねて orphan hold が武装した (rc=16)。文言の指示どおり
+  `output/pegasus-dispatch/orphan-hold.json` を削除して再走したが、同じ rc=16 が返った。
+  実際に gate を成立させていたのは request 別の耐久記録
+  `output/pegasus-dispatch/orphan-holds/948009.nqsv.json` だった。
+- 根本原因: `tools/pegasus/dispatch_compute.py` の `_orphan_hold_present` は
+  要約 marker `orphan-hold.json` の実在**または** `orphan-holds/` 配下のエントリ 1 件以上で
+  真を返すが、同 file が出す解除文言は要約 marker の path しか名指ししない。
+  指示に従って削除しても hold が残り、しかも文言は不在の path を指し続けるため、
+  次の手掛かりが無い。
+- 恒久対応: 解除文言に、成立要因となった実 path (要約 marker と request 別記録の両方) を
+  列挙させる。実装は {{T:orphan-hold-message-lists-actual-paths}} が持つ。
+- 再発検知: hold を張った状態で解除文言を出させ、`orphan-holds/` だけが存在する場合に
+  その path が文言へ現れることを固定する検査を置く。

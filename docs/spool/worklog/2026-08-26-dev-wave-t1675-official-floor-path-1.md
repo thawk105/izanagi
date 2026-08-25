@@ -52,6 +52,12 @@ official 専用役割を足すなら 4 から 5 への変更になる (段 2 プ
 別 identity で再投入した。ローカルの `codex login status` は「ログイン済み」と答えるのに
 サーバが 401 を返す状態が、走行の途中で発生しうる。
 
+**記録中に dispatch を自分で止めた。** 親が全史 provenance 監査を 2 分のタイムアウトで打ち切り、
+計算ノード job の終端を観測し損ねて orphan hold が武装した。監査自体は計算ノードで成功しており
+(`child_rc=0`、5858 件・新規違反なし)、実害は復旧作業だけだった。解除の過程で、解除文言が
+実際に閉塞している耐久記録を名指ししないことが分かった
+({{F:orphan-hold-message-names-only-summary-path}})。
+
 ## 次の一手差分
 
 ### 更新
@@ -75,3 +81,7 @@ official 専用役割を足すなら 4 から 5 への変更になる (段 2 プ
 - {{T:cross-role-observation-budget}} **P2・ユーザー裁定待ち**: official 専用の観測役割を
   足すことに対し、役割横断の生涯観測上限を別途要求するか。承認 nonce は将来の役割追加を
   止めないため、上限を置かないと役割ごとに観測を増やせる形が残る。
+- {{T:orphan-hold-message-lists-actual-paths}} **P3・新規**: Pegasus の orphan hold 解除文言に、
+  gate を成立させた実 path を列挙させる。現在は要約 marker の path しか出さないため、
+  request 別の耐久記録だけが残っている場合、指示どおり削除しても hold が解けず、
+  文言は不在の path を指し続ける。
