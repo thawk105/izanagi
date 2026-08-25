@@ -33239,3 +33239,131 @@ compute 相の内訳は 288 session 分の shard report で安定している。
 **却下した選択肢:**
 - 親の判断で拒否側へ倒す — 既存テストが現行挙動を逐語で固定しており、
   失敗試行の記録経路の設計を伴う。設計択一として返すのが正しい。
+
+## D922. 取り残し branch の着地判定は commit closure を対象にし、決定的証拠を exact tree state と fold receipt だけに限る (2026-08-26)
+
+**決定:** D720 条件 1 (未着地であること) の機械判定を `tools/check_branch_landed.py` として実装し、
+次の 6 点を固定する。条件 2 (現況で妥当であること) は機械化せず、出力に未検査であることを明示する。
+
+1. **判定対象は commit closure である。** `git rev-list <対象> --not <main>` の全 commit を列挙し、
+   各 commit が**全ての親に対して**導入した tree entry の状態だけを証明義務にする。
+   tip の net 差分を対象にしない。merge commit も対象に含める。
+2. **決定的な証拠は 2 つだけである。** (a) `(path, mode, object type, oid)` の同時状態が
+   main から到達可能であること、(b) spool fragment なら正式 schema を満たす fold receipt に
+   その `content_sha256` があること。別々の commit から mode と blob を拾って合成しない。
+3. **patch の指紋・台帳の task ID 検索・本文の逐語照合は `observations` であり verdict を動かさない。**
+   `git cherry` は merge commit を落とし、この機体の git 2.34.1 は `patch-id --verbatim` を持たず
+   空白差を無視する。逐語照合は重複した節・頻出行で偽陽性を作れる。
+4. **判定は 3 値とし、`not-landed` は closed-world の負証拠があるときだけ返す。**
+   探索の打ち切り・timeout・上限超過・parse 不能・shallow・履歴書き換え・ref 移動は
+   すべて `indeterminate` に倒す。同一 path の blob 不一致だけを未着地の証拠にしない
+   (別 path への移植を排除できない)。
+5. **fold receipt に無いことを未着地の証拠にしない。** fragment は別 wave 名へ re-home されてから
+   fold されることがあり、その場合 whole-file の sha が変わる。実例が現存する
+   (`worktree-roadmap-workload-hint` の decisions fragment は receipt に無いが D568 として着地済み)。
+   receipt 不在は `indeterminate` とし、非決定の `ledger_probe` が
+   frontmatter の `title:` を identity 単位、本文の構造単位を補助として
+   canonical 台帳と `docs/archive/` を検索して手掛かりを返す。
+6. **入力は local branch 名と commit-ish の両方を受ける。** 取り残しの実体は削除後には
+   到達不能 commit であり、判定が最も要るのは削除の直前と直後である。
+   両方が解決する曖昧な入力は fail-closed で `indeterminate` にする。
+
+**理由:**
+- **tip の net 差分は削除で失われる内容を測れない。** merge commit が持つ競合解決の結果と、
+  branch 途中でだけ存在した blob は net 差分に現れない。判定の目的は
+  「この ref を消したとき何が到達不能になるか」であり、対象は closure でなければならない。
+- **逆に、和集合で数えると証明義務が実データで一桁膨らむ。** `worktree-t1458-side-ccbench-provenance-fix`
+  の merge は全親に対する差が 0 file だが、parent edge ごとの和集合では 17 file が課される。
+  実装初版はこれで 18 file を要求し `indeterminate` になった。積集合へ直すと 1 file になり
+  `landed` を返せた。同じ機序で `t1484-backup-before-trailer-fix` は 171 unit から 6 unit へ減った。
+- **偽の `landed` と偽の `not-landed` は損害が非対称である。** 前者は削除で内容を失い、
+  後者は着地済みを二重に台帳へ入れる。前者を優先して塞ぎ、後者は `indeterminate` で人へ返す。
+- 決定的証拠を絞った結果、実データ 8 件のうち 4 件が `landed`、4 件が `indeterminate` になり、
+  `not-landed` は 0 件だった。**未 fold の fragment を機械で名指しできないのは意図した保守性である**が、
+  そのままでは回収対象を選べないため、非決定の観測層で手掛かりを出す形にした。
+
+**却下した選択肢:**
+- **`git cherry` の `-` を landed の十分条件にする** — 空白差を無視し merge を落とす。
+  実データ 4 本で closure の commit 数と `git cherry` の行数が食い違った。
+- **追加行が main に逐語で存在すれば landed とする** — main 側に同じ節が複製されていると、
+  branch が変更した節とは別の複製に偶然一致する。反例が構成的に作れる。
+- **fold receipt に無い fragment を未着地とする** — 実データで 5 件中 3 件が誤りになる。
+  うち 1 件は D568 の二重採番を招く。
+- **生成物らしい file を照合対象から外す一般則を作る** — 都合の悪い file を外す抜け道になる。
+  再生成される不透明 blob は `indeterminate` に残す。
+- **判定を 2 値にする** — 「まだ着地していない」と「着地したか判定できない」が混ざる。
+  実データに、blob も逐語も一致しないが未着地とは言えない file が現存する。
+
+## D923. 隔離台帳が空でも走行末尾の要約行を必ず出す (2026-08-26)
+
+**決定:** flaky-node 隔離の要約行 `IZANAGI_FLAKY_HOLD_SUMMARY_V1` は、registry が空のときも
+controller が必ず 1 行出す。値は `registered_node_count` / `matched_node_count` /
+`skipped_node_count` がすべて 0 と、空 registry の digest である。
+非空時の出力条件・形式・値は変えない。
+
+**理由:**
+
+- D697 決定 4 は「隔離は走行末尾の要約に必ず出す」と定めるが、実装は matched が非空のときだけ
+  行を書いていた。隔離対象が 0 件になった瞬間に行自体が消える。
+- その状態では、**「隔離ゼロ」と「隔離 hook が load / 配送 / 集約されていない」が同じ出力になる。**
+  隔離は本質的に検査を走らせなくする操作であり、機構が生きていることの走行時 attestation を
+  失うと、絶対規律 2 が要求する「正しさゲートを緩める変更を検出できる状態」が保てない。
+- 隔離件数が 0 の状態は運用目標であって例外ではない。目標状態でだけ attestation が消えるのは、
+  最も長く続く状態で最も証拠が薄いということである。
+- 空を含めて常に出すことで、受入走行の出力から registry の digest が常に読める。
+  将来 entry を足したときの差分も同じ行で追える。
+
+**却下した選択肢:**
+
+- 空のときは行を出さないまま、別の行で hook の生存を示す — 出所が 2 つに割れ、
+  どちらが欠けたのかを受領証から判定できない。
+- 空のときだけ別 schema の行を出す — consumer が 2 形式を扱うことになり、
+  digest の比較が形式境界をまたぐ。
+- 空 registry を禁止し続け、隔離解除時にダミー entry を残す — D697 決定 2 の受理 6 条件を
+  満たさない entry を台帳へ置くことになり、証拠束縛の意味が壊れる。
+
+## D924. コストを測る器具は、測る対象と同じ pin・同じ env contract で走らせる (2026-08-26)
+
+**決定:** ある走行のコストを見積もるための計測は、その走行が実際に使う ccbench pin と
+env contract を使って行う。既存の calibration 成果物を、pin か env tag のどちらかが
+違うまま見積りの根拠にしない。器具側が別の pin を固定しているなら、その器具は使わず、
+対象と同じ条件で走る計測経路を用意する。
+
+**理由:**
+- pin が違えば測る対象の実装が違う。本 wave の起票根拠だった参照値は
+  `s2_verify_calibration.py` が産んだもので、同 driver は歴史再現用に
+  ccbench pin を `dff0f1e` へ固定している。A-2 の現行 pin は `511c953` である。
+- env contract が違えば実行条件が違う。`linux-baremetal` は
+  `clocks_per_us=1800` で numactl を前置するが、`pegasus` は `2100` で numactl を前置しない。
+  同じ workload flag を書いても、走る条件は同じにならない。
+- 本 wave の実測では、条件を揃えた結果として**最も重い cell の同定が入れ替わった**。
+  参照値から比で外挿していれば write-heavy (rr5) が律速だと結論していたが、
+  実際に最も重いのは balanced (rr50) の backoff 無し cell だった。
+  比の転移は絶対値を外すだけでなく、順序も外す。
+
+**却下した選択肢:**
+- 既存の参照値へ workload 比を掛けて外挿する — 上記のとおり順序ごと外す。
+  ユーザー裁定でも明示的に禁じられた。
+- 器具側の pin 固定を現行 pin へ書き換える — 同 driver は歴史再現の役割を負っており、
+  pin を動かすと過去の成果物との対応が切れる。別経路を用意するほうが安い。
+- env contract の値を計測側へ literal で写す — 写した時点で contract の変更に追随しなくなる。
+  `env_contract.lookup()` から引く。
+
+## D925. 長い予約枠を取る計測は、同じ枠の中で最初に安く落ちるように組む (2026-08-26)
+
+**決定:** 数時間規模の walltime を予約して行う計測は、失敗が予約枠の先頭で
+安く露見する順に検査を並べる。具体的には、計算ノードでしか判明しない前提
+(toolchain の実在、受理判定、単独性、空き容量) を、重い build と本計測より前に置く。
+
+**理由:**
+- 本 wave の実走 4 回のうち 2 回は probe の欠陥で落ちたが、どちらも 22〜23 秒で
+  終わったため 6 時間の枠をほとんど消費しなかった。落ちた位置が
+  build 完了後や計測途中であれば、1 回の失敗で数十分から数時間を捨てていた。
+- 計算ノードでしか判明しない前提は、login node の検査や子の sandbox では
+  原理的に確かめられない。「実走して初めて分かる」ことは避けられないので、
+  **分かるのを早くする**ほうを設計する。
+
+**却下した選択肢:**
+- 短い walltime で試走してから本番を投げる — 投入と queue 待ちが 2 回になり、
+  かつ試走用の別 job body を保守することになる。同じ job body の先頭で落とすほうが安い。
+- 検査を省いて本計測へ直行する — 失敗が遅い位置へ移るだけで、期待コストは上がる。

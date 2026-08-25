@@ -829,6 +829,21 @@
   根拠**を裁定文へ書く。「fixture がこう渡すから分離される」という宣言だけでは、照合先が逆でも
   文面が成立してしまう。あわせて過剰拒否の正例は、変異が置換する 2 つの値が fixture 上で
   **異なる**ことを確認してから登録する。
+
+- **再発: 2026-08-26** ([T-1239] wave)。事前登録 10 件のうち 3 件が無効で、段 6 の敵対レビューが
+  静的に実証した。M8 (blob 一致で path を要求) は tree entry の取得関数が常に要求 path を返すため
+  比較する 2 つの path が恒等的に同じで、さらに後段が別 path の blob を再度拒否するので**完全に
+  masking**されていた。M4 (merge を closure へ含める) は fixture の side commit が変異後も
+  `indeterminate` を保つため verdict 上は masking され、proof-unit 集合の assertion だけが落ちる形で
+  「merge-only を落とすと landed になる」という登録した単一理由になっていなかった。
+  M2 (逐語層を landed の十分条件に戻す) はそのような合成式が実装に存在せず、変異点として成立しない。
+  **今回の新しさは、事前登録の時点で実装が存在しなかったことである。**
+  `DW-M01` は「同じ入力を拒否する層が前後に無いことをコードで確認する」と定めるが、
+  新設 tool の wave では段 4 の裁定時にコードが無く、確認は規則名の水準でしかできない。
+  親は登録を規則名で行い、実装後の段 6 で再照準した (M2 を取り下げ M2' を新設、M4→M4'、M8→M8')。
+  恒久対応の追補 = **新設 tool の wave では、段 4 の事前登録を暫定と明記し、
+  段 6 のレビューへ「事前登録変異の帰属が実装後も成立するか」を必ずレンズ項目として渡す。**
+  本 wave はこれを prompt に明記して実施し、3 件の無効を実装前でなく実装直後に落とせた。
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -9955,6 +9970,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: wrapper の走行後検査が現に落ちた (fail-closed)。
   検知は効いており、失われたのは走行 1 回分の時間だけである。
 
+
+- **再発: 2026-08-25** — 書き手が親ではなく**並行して走らせた Codex 子**だった初の例である。
+  親は変異 probe 走を投入した直後、待ち時間を使って別の author 子を起動した。
+  その子が worktree へ 2 file を書き、wrapper の走行後検査が
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で `rc=125` になった。
+  既載の恒久対応は「待機中に進めてよい作業から repo への書き込みを除く」だが、
+  **子を起動する判断そのものが repo への書き込みになりうる**点が抜けていた。
+  親が自分で書かなければ安全、という読み方が成立しない。
+  変異結果自体は 6 変異とも完走しており、本走の `expected_nodes` はこの probe から採れた。
+  失われたのは走行 1 回分の時間だけで、検知は fail-closed で効いている。
+  **変異走行中は、親の直接編集だけでなく worktree へ書きうる子の起動も止める。**
 ### F351. 保留 guard が同 file 内の正規 consumer を壊し、受入で差し戻された [受理集合の過剰縮小] [手順漏れ]
 
 - 事象: 成長比例テストの恒久保留を `test_s8b_floor_campaign.py` へ登録し、
@@ -14016,6 +14042,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 家族: F297 / F489 と同じ「掃除の関門が本番環境で構造的に通れない」型で、
   滞留の規模 (worktree 32 本・branch 121 本) も F489 の実測に近い。
 - **supersede: 2026-08-25** — 恒久対応の「分割実行への是正は本 wave の編集面の外」は解消した。`_landed_reference_matches()` は D788 の二重上限で分割実行し、再発検知は変異 15 件 (全件 KILLED) と `SC_ARG_MAX` 由来の母集合で pin した。argv 上限の手前で `SIGKILL` される領域があることも同時に判明したため、上限は byte だけでなく本数にも掛けている。実探索根に対する本番相当の実走は 2:16:05 で完走し rc=1 (所見あり) を返した。
+- **supersede: 2026-08-25** — [T-1636] の分割実行が main へ着地し、同じ探索根 `dev-wave-jobs` で監査は **rc=1 で完走**した (実測 56 分、抑止 7,051 対 / 要確認 28 commit)。argv 上限による永久 rc=2 は解消したが、代わりに **stdout が完走直前まで 0 byte のまま 1 時間走る**ため、無出力を停止と誤読しやすく (本 wave でユーザーから「フリーズしてるよね」の指摘)、`timeout` で切ると原因を見ずに捨てる。背景実行にして完了通知で待つ。
 
 ### F527. 占有検査に相対 path を渡し、22 本すべてを偽の「撤去可」と判定した [恒真ゲート] [誤前提]
 
@@ -14251,6 +14278,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: wrapper receipt の `shared_snapshot_matches` と `failure` を毎回読む。
   `false` のときに帰属を分けずに機構の一般化を書いたら再発とする。
 
+
+- **再発 (near miss): 2026-08-26** ([T-1239] wave)。**共有 main checkout の untracked 集合を
+  掃除で書き換える経路が、除外設定の追加以外にもう 1 本あった** — `.codex/worktrees/` 配下の
+  worktree 残骸そのものを撤去することである。親は t1563 系 11 本を退避し、その結果
+  共有 root の `git status --porcelain=v1 --untracked-files=all` の出力行が 16 から 5 へ減った。
+  `tools/mutation_worktree.py` の `_observe_shared()` は走行前後でこの stdout bytes の完全一致を
+  要求するため、共有木を観測する変異が走行中であれば `shared_snapshot_matches=false` /
+  `MUT_RC=125` で空振りしていた。**実害は出ていない** — 撤去直後に `pgrep -af` で確認したところ、
+  走行中の変異は `tools/mutation_harness.py` を直接呼ぶ 1 本 (T-1434 の probe) だけで、
+  これは `--repo` に自分の wave worktree を取り共有木を観測しない。`mutation_worktree.py` 由来の
+  process は 0 本だった。**しかし親はこの確認を撤去の前でなく後に行った。**
+  恒久対応 = memory `shared-untracked-set-preflight-before-worktree-retire` — 共有 main checkout の
+  untracked 集合を変える操作 (worktree 残骸の撤去を含む) の直前に `pgrep -af mutation_worktree.py` で
+  共有木観測の走行が 0 本であることを確かめ、撤去は削除でなく退避とする 5 点検査を記録する。
+  再発検知: `shared_snapshot_matches=false` は既に `MUT_RC=125` で fails-closed に落ちるが、
+  それは被害が出た後の検知である。事前の防壁は本エントリと当該 memory だけで、機械検査は持たない。
 ### F538. 停止 wave の棚卸しを 20 分前のスナップショットで提示し、6 件すべてが空振りになった [観測] [手順漏れ]
 
 - 事象: 死んだ codex の worktree を巻き取る作業で、親が停止中の wave を棚卸しし、
@@ -15482,3 +15525,67 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異でなく捕捉側の一過性の失敗である。既存の同署名エントリ (F149 は runner の
   local 実行へのドリフト、F194 は parametrize の自動 id) とは根本原因が異なるため、
   それらの再発としては記録しない。`--resume` で続きから再開して完走した。
+
+### F599. 掃除の「git status クリーン」を目的化して変異 harness の共有木観測を壊しかけた [観測] [誤前提]
+
+- 事象: `/cleanup-branches` §4 は `git status` がクリーンであることを求めるが、共有 main checkout は
+  `?? .codex/worktrees/` を常に 1 行返す。`.claude/worktrees/` だけが `.git/info/exclude` に
+  載っているという非対称を「揃え忘れ」と読み、`**/.codex/worktrees/` を同ファイルへ足した。
+  直後に F537 の記録から、この 1 行が `tools/mutation_worktree.py` の `_observe_shared()` が
+  走行前後で bytes 一致を要求する観測対象そのものであると判った。除外を足すと共有 root の
+  snapshot bytes が変わり、走行中の変異が `shared_snapshot_matches=false` / `MUT_RC=125` で
+  空振りする。実測時点で t1434 の変異 scratch worktree が 2 本、作成 1 時間以内で在籍していた。
+  害が出る前に除外行を撤去して原状へ戻した (near miss)。
+- 根本原因: 掃除の目的を「台帳と worktree の整合」でなく「`git status` の見た目のクリーンさ」と
+  取り違えた。`.git/info/exclude` は common git-dir にあり全 worktree と全並行 wave へ同時に効くため、
+  掃除の局所的な整形が他機構の観測面を書き換える。非対称は欠陥ではなく、
+  `.claude/worktrees/` 側だけが D で明示的に除外された結果である。
+- 恒久対応: memory `codex-worktrees-untracked-line-is-load-bearing` — `?? .codex/worktrees/` を
+  未追跡のまま残すことと、掃除で `.git/info/exclude` を触らないことを記録する。
+- 再発検知: 変異の `shared_snapshot_matches=false` は既に MUT_RC=125 で fails-closed に落ちる。
+  除外の追加は本 memory と本エントリが唯一の防壁であり、機械検査は持たない。
+- 家族: F537 と同じ「共有 main の観測面を局所作業が動かす」型。
+
+### F600. 批准台帳の履歴検査が merge commit を台帳の改版と数え、台帳が byte 不変でも必ず赤になる [恒真ゲート]
+
+- 事象: `enforcement-source-closure-unratified` を解くために人間が批准行を足しても
+  gate は開かない。現行 main で走らせると、digest 不一致ではなく
+  `ratification history is not a strict prefix extension` で落ちる。
+- 根本原因: `orchestrator/campaign/enforcement_source_ratification.py` の
+  `_committed_ratification_digests` が
+  `git log --format=%H --reverse --full-history <HEAD> -- <台帳 path>` の各 commit を
+  「台帳の改版」とみなし、各版に対して直前の版の byte 前置拡張かつ行数 +1 を要求する。
+  ところが `--full-history` は path を含む merge commit も列挙するため、
+  **台帳の中身が 1 byte も変わっていなくても版数が増え続ける。**
+  2 件目以降は `len(blob) <= len(previous)` を満たすので必ず落ちる。
+- 実測: 台帳の blob は開設 commit 以来 `42885e36` のまま byte 不変で行数 1。
+  列挙される版数は main が進むたびに増え、`d8f777a4` で 13、`9a6adfd9` で 14 だった。
+  現行 closure digest は
+  `6d497998c4b80a186cd9ee3fc98154e29ddd0aa23f82f7da215558b90e32bf5a`、
+  台帳の唯一の行は `db511c3d...` である。
+- 影響: A-2 certification の実走が構造的に不可能。批准は人間手番だが、
+  **人間の 1 操作では解けない。** 検査側の修理が先に要る。
+  T-1647 と T-1722 はどちらも「残る障壁は人間の批准だけ」という前提で書かれており、
+  その前提が覆った。
+- 恒久対応: 未実施。[T-1759] として起票した。
+  修理は「merge commit を改版と数えない」方向であり、検査を緩める方向にしない。
+- 再発検知: 台帳が byte 不変のまま main を 1 commit 進めて gate を走らせ、
+  緑のままであることを確かめる positive control。現状はこれが赤になる。
+
+### F601. 前方一致の検査が、下流の完全一致要求に対する値の取り違えを素通りさせた [恒真ゲート]
+
+- 事象: 計測 probe が ccbench の pin として submodule の 40 桁 HEAD を渡していた。
+  `patchharness.assert_pinned_clean` は緑で通り、その後
+  `build_admission.derive_build_admission` が
+  `source evidence は stock/review/generator/coder のどれも支持しない` で落ちた。
+  計算ノードのジョブを 22 秒消費して初めて露見した。
+- 根本原因: `assert_pinned_clean` は `head.startswith(pin_commit)` で照合する。
+  40 桁 HEAD は 7 桁の正本 `CURRENT_PIN` で始まるため通る。一方
+  `derive_build_admission` の stock 枝は `source.ccbench_commit == CURRENT_PIN` と
+  **完全一致**で見るため、同じ値が拒否される。
+  前段の緩い照合が、後段の厳しい照合に対する誤りを隠した。
+- 恒久対応: probe 側は build 系へ渡す pin を `CURRENT_PIN` へ統一し、
+  40 桁 HEAD が同定数で始まることの検査は残した (submodule が動いていたら測る対象が変わるため)。
+  一般則としては、**同じ値を前方一致と完全一致の両方で見る経路があるとき、
+  緩いほうの通過を厳しいほうの根拠にしない。**
+- 再発検知: pin を渡す全呼び出しで、渡す値の桁数と受け手の照合方法を対で確認する。
