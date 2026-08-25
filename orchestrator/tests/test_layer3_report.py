@@ -2,12 +2,15 @@
 """D12 層3材料レポートの決定論的な完全射影を検査する。"""
 from __future__ import annotations
 
+import ast
 import dataclasses
 import hashlib
+import inspect
 import json
 import os
 import subprocess
 import sys
+import textwrap
 from collections.abc import Mapping
 from types import SimpleNamespace
 from pathlib import Path
@@ -28,6 +31,7 @@ from orchestrator.campaign import (  # noqa: E402
     model,
     p3_autonomous_workload_trial,
     p3_s4_loop,
+    pipeline,
     s8c_acceptance_receipt,
     trigger_gate_binding,
     wal,
@@ -516,6 +520,361 @@ def _perf_observation(
             "perf_required": "unsupported",
         }
     return observation
+
+
+class _BenchPayloadAssignmentVisitor(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.conditional_depth = 0
+        self.unconditional = set()
+        self.conditional = set()
+        self.extra_routes = []
+        self.producer_events = []
+
+    def visit_If(self, node: ast.If) -> None:
+        self.visit(node.test)
+        self.conditional_depth += 1
+        for statement in node.body:
+            self.visit(statement)
+        for statement in node.orelse:
+            self.visit(statement)
+        self.conditional_depth -= 1
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "bench_payload":
+                assert isinstance(node.value, ast.Dict)
+                keys = {
+                    key.value for key in node.value.keys
+                    if isinstance(key, ast.Constant) and isinstance(key.value, str)
+                }
+                assert len(keys) == len(node.value.keys)
+                self.unconditional.update(keys)
+            if (
+                isinstance(target, ast.Subscript)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "bench_payload"
+                and isinstance(target.slice, ast.Constant)
+                and isinstance(target.slice.value, str)
+            ):
+                destination = (
+                    self.conditional if self.conditional_depth
+                    else self.unconditional
+                )
+                destination.add(target.slice.value)
+        self.generic_visit(node.value)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "bench_payload"
+            and node.func.attr == "update"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Name)
+        ):
+            self.extra_routes.append(node.args[0].id)
+            self.producer_events.append("extra_update")
+        if isinstance(node.func, ast.Name) and node.func.id in {
+            "_assert_bench_payload_extra_keys",
+            "_assert_bench_done_payload_keys",
+        }:
+            self.producer_events.append(node.func.id)
+        self.generic_visit(node)
+
+
+def _bench_run_schema():
+    schema = json.loads(
+        (ROOT / "orchestrator/campaign/layer3_schema.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    return schema["properties"]["runs"]["items"]
+
+
+def _screening_disabled_payload(**extra):
+    payload = {
+        "reason": "stale-baseline",
+        "age_s": 1900.0,
+        "threshold_s": 1800.0,
+        "baseline_ref": "baseline.json",
+    }
+    payload.update(extra)
+    return payload
+
+
+def test_run_bench_ast_assignments_exactly_match_declared_payload_keys():
+    """Close only pipeline._run_bench; guided.py's producer stays out of scope."""
+    source = textwrap.dedent(inspect.getsource(pipeline._run_bench))
+    function = ast.parse(source).body[0]
+    assert isinstance(function, ast.FunctionDef)
+    visitor = _BenchPayloadAssignmentVisitor()
+    visitor.visit(function)
+
+    assert visitor.unconditional == pipeline._BENCH_DONE_REQUIRED_PAYLOAD_KEYS
+    assert visitor.conditional == pipeline._BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
+    assert visitor.extra_routes == ["bench_payload_extra"]
+    assert len(visitor.unconditional) == 13
+    assert len(visitor.conditional) == 3
+    assert visitor.producer_events == [
+        "_assert_bench_payload_extra_keys",
+        "extra_update",
+        "_assert_bench_done_payload_keys",
+    ]
+    assert pipeline._BENCH_DONE_PAYLOAD_KEYS == (
+        visitor.unconditional
+        | visitor.conditional
+        | pipeline._BENCH_PAYLOAD_EXTRA_KEYS
+    )
+
+
+def test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately():
+    payload = {
+        key: None for key in pipeline._BENCH_DONE_REQUIRED_PAYLOAD_KEYS
+        if key != "tps"
+    }
+    payload["unknown_diagnostic"] = None
+
+    with pytest.raises(ValueError) as exc_info:
+        pipeline._assert_bench_done_payload_keys(payload)
+
+    message = str(exc_info.value)
+    assert "'missing': ['tps']" in message
+    assert "'unexpected': ['unknown_diagnostic']" in message
+
+
+def test_bench_payload_extra_accepts_only_its_exact_key_set_without_overlap():
+    pipeline._assert_bench_payload_extra_keys(
+        {}, {"screening_disabled": _screening_disabled_payload()},
+    )
+
+    with pytest.raises(ValueError, match="missing"):
+        pipeline._assert_bench_payload_extra_keys({}, {})
+
+    with pytest.raises(ValueError, match="unexpected"):
+        pipeline._assert_bench_payload_extra_keys(
+            {},
+            {
+                "screening_disabled": _screening_disabled_payload(),
+                "future_extra": {},
+            },
+        )
+
+
+def test_bench_payload_extra_rejects_measurement_overwrite_before_merge():
+    assembled = {"median_tps": 100.0}
+    extra = {
+        "screening_disabled": _screening_disabled_payload(),
+        "median_tps": 0.0,
+    }
+
+    with pytest.raises(ValueError, match=r"overlap.*median_tps"):
+        pipeline._assert_bench_payload_extra_keys(assembled, extra)
+    assert assembled == {"median_tps": 100.0}
+
+
+def test_bench_payload_extra_rejects_overlap_even_when_key_is_extra_owned():
+    assembled = {"screening_disabled": _screening_disabled_payload()}
+
+    with pytest.raises(ValueError, match=r"overlap.*screening_disabled"):
+        pipeline._assert_bench_payload_extra_keys(
+            assembled,
+            {"screening_disabled": _screening_disabled_payload()},
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "baseline_tps", "baseline_measured_at", "floor", "k",
+        "baseline_abort_rate", "high_abort_factor", "reanchor_threshold_s",
+    ],
+)
+def test_screening_config_rejects_bool_for_every_numeric_field(field):
+    values = {
+        "baseline_tps": 100.0,
+        "baseline_ref": "baseline.json",
+        "baseline_measured_at": 1.0,
+        "floor": 0.1,
+        "k": 1.5,
+        "baseline_abort_rate": 0.0,
+        "high_abort_factor": 2.0,
+        "reanchor_threshold_s": 1800.0,
+    }
+    values[field] = True
+
+    with pytest.raises(ValueError, match=field):
+        pipeline.ScreeningConfig(**values)
+
+
+@pytest.mark.parametrize("baseline_ref", ["", False, 1])
+def test_screening_config_requires_nonempty_exact_string_baseline_ref(
+    baseline_ref,
+):
+    with pytest.raises(ValueError, match="baseline_ref"):
+        pipeline.ScreeningConfig(
+            baseline_tps=100.0,
+            baseline_ref=baseline_ref,
+            baseline_measured_at=1.0,
+            floor=0.1,
+            baseline_abort_rate=0.0,
+        )
+
+
+def test_pipeline_bench_payload_closure_uses_real_view_row():
+    """Close pipeline._run_bench only; guided.py bench_done remains out of scope."""
+    payload = {
+        "build_attempt_id": "attempt-1",
+        "build_admission_receipt_sha256": "a" * 64,
+        "median_tps": 1.0,
+        "cv": 0.0,
+        "bench_wall_s": 1.0,
+        "high_variance": False,
+        "unstable": False,
+        "rounds": 1,
+        "cv_history": [0.0],
+        "tps": [1.0],
+        "settled": True,
+        "leading_indicators": {},
+        "rep_notes": [],
+        "run_cmd": "./benchmark",
+        "perf_observation": _perf_observation(),
+        "screening": True,
+        "rep_returncodes": [0],
+        "screening_disabled": _screening_disabled_payload(),
+    }
+    row = layer3_report._view_row(_record("bench_done", **payload))
+
+    assert "build_attempt_id" not in row
+    assert "build_admission_receipt_sha256" not in row
+    assert set(row) == (
+        (pipeline._BENCH_DONE_PAYLOAD_KEYS - {"build_attempt_id"})
+        | {"variant", "source_ref"}
+    )
+    assert set(row) == set(_bench_run_schema()["properties"])
+
+
+def test_historical_v1_run_row_without_screening_fields_remains_valid():
+    """Pin only the v1 runs-item shape, not full-v1 report readability."""
+    event = _bench(
+        build_attempt_id="attempt-1",
+        build_admission_receipt_sha256="a" * 64,
+    )
+    row = layer3_report._view_row(event)
+
+    assert "screening" not in row
+    assert "screening_disabled" not in row
+    jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+
+
+def test_v2_and_v3_reports_with_legacy_run_without_screening_remain_valid(
+    tmp_path,
+):
+    campaign, output_root = _campaign(tmp_path, [_bench()])
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert len(report["runs"]) == 1
+    assert "screening" not in report["runs"][0]
+    assert "screening_disabled" not in report["runs"][0]
+    layer3_report._validate_schema(report)
+
+    report["schema_version"] = "layer3-material-report/v2"
+    del report["admission_decision"]
+    del report["acceptance_receipt"]
+    del report["certifying_input"]
+    layer3_report._validate_schema(report)
+
+
+@pytest.mark.parametrize(
+    "new_fields",
+    [
+        {"screening": True},
+        {"screening_disabled": _screening_disabled_payload()},
+    ],
+)
+def test_new_screening_fields_pass_real_view_and_run_schema(
+    tmp_path, new_fields,
+):
+    campaign, output_root = _campaign(
+        tmp_path, [_bench(**new_fields)],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert len(report["runs"]) == 1
+    for key, value in new_fields.items():
+        assert report["runs"][0][key] == value
+
+
+def test_screening_and_screening_disabled_are_mutually_exclusive():
+    row = layer3_report._view_row(_bench(
+        build_attempt_id="attempt-1",
+        build_admission_receipt_sha256="a" * 64,
+        screening=True,
+        screening_disabled=_screening_disabled_payload(),
+    ))
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+
+
+def test_screening_disabled_rejects_nested_unknown_key():
+    row = layer3_report._view_row(_bench(
+        build_attempt_id="attempt-1",
+        build_admission_receipt_sha256="a" * 64,
+        screening_disabled=_screening_disabled_payload(unknown=True),
+    ))
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+
+
+@pytest.mark.parametrize(
+    "new_fields",
+    [
+        {"screening": False},
+        {"screening_disabled": _screening_disabled_payload(baseline_ref="")},
+        {"screening_disabled": _screening_disabled_payload(age_s=True)},
+        {"screening_disabled": _screening_disabled_payload(threshold_s=True)},
+        {
+            "screening_disabled": {
+                "age_s": 1900.0,
+                "threshold_s": 1800.0,
+                "baseline_ref": "baseline.json",
+            },
+        },
+    ],
+)
+def test_screening_fields_reject_nonproducer_values(new_fields):
+    row = layer3_report._view_row(_bench(**new_fields))
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+
+
+def test_layer3_schema_version_and_run_required_keys_remain_frozen():
+    schema = json.loads(
+        (ROOT / "orchestrator/campaign/layer3_schema.json").read_text(
+            encoding="utf-8",
+        )
+    )
+
+    assert schema["properties"]["schema_version"] == {
+        "const": "layer3-material-report/v3",
+    }
+    assert schema["properties"]["runs"]["items"]["required"] == [
+        "variant", "source_ref", "tps", "median_tps", "cv", "rounds",
+        "leading_indicators",
+    ]
+    screening_disabled = schema["properties"]["runs"]["items"][
+        "properties"
+    ]["screening_disabled"]
+    assert screening_disabled["additionalProperties"] is False
+    assert screening_disabled["required"] == [
+        "reason", "age_s", "threshold_s", "baseline_ref",
+    ]
 
 
 def test_real_legacy_s8a_campaign_is_rejected(tmp_path):

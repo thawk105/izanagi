@@ -16,6 +16,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["variant", "source_ref", "tps", "median_tps", "cv", "rounds", "leading_indicators"],
+        "not": {"required": ["screening", "screening_disabled"]},
         "properties": {
           "variant": {"type": "string"},
           "source_ref": {"$ref": "#/definitions/wal_ref"},
@@ -32,6 +33,18 @@
           "rep_notes": {"type": "array"},
           "run_cmd": {"type": "string"},
           "rep_returncodes": {"type": "array", "items": {"type": "integer"}},
+          "screening": {"const": true},
+          "screening_disabled": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reason", "age_s", "threshold_s", "baseline_ref"],
+            "properties": {
+              "reason": {"const": "stale-baseline"},
+              "age_s": {"type": "number", "exclusiveMinimum": 0},
+              "threshold_s": {"type": "number", "exclusiveMinimum": 0},
+              "baseline_ref": {"type": "string", "minLength": 1}
+            }
+          },
           "perf_observation": {
             "type": "object",
             "additionalProperties": false,

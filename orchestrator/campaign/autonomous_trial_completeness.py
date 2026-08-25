@@ -76,6 +76,10 @@ _CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
 _CELL_ADMISSION_FAILURE_SCHEMA = (
     "p3-autonomous-workload-trial-cell-admission-failure/v1"
 )
+LAYER3_ADMISSION_DIAGNOSIS_KEY = "layer3_admission_diagnosis"
+LAYER3_ADMISSION_DIAGNOSIS_SCHEMA_VERSION = (
+    "p3-autonomous-workload-trial-layer3-admission-diagnosis/v1"
+)
 _PENDING_CRITIC_DISPOSITION_SCHEMA = (
     "p3-autonomous-workload-trial-pending-critic-disposition/v1"
 )
@@ -279,17 +283,22 @@ def cell_admission_failure_projection(
     cells: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
     """Project exact failure decisions into the existing run-finish event."""
-    return [
-        {
+    projections: list[dict[str, Any]] = []
+    for index, cell in enumerate(cells):
+        if not is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        ):
+            continue
+        projection = {
             "cell_index": index,
             "workload": cell.get("workload"),
             "admission_decision": dict(cell["admission_decision"]),
         }
-        for index, cell in enumerate(cells)
-        if is_exact_cell_admission_failure_decision(
-            cell.get("admission_decision")
-        )
-    ]
+        diagnosis = cell.get(LAYER3_ADMISSION_DIAGNOSIS_KEY)
+        if isinstance(diagnosis, Mapping):
+            projection[LAYER3_ADMISSION_DIAGNOSIS_KEY] = dict(diagnosis)
+        projections.append(projection)
+    return projections
 
 
 _ROLE_PAYLOAD_KEY_SPEC = {
