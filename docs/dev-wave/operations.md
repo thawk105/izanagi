@@ -26,10 +26,11 @@ artifact と共有しない。専用場所を確保できなければ作成を�
 出力へ結合文字 U+0300〜U+036F を使わせない。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
-## DW-O03 — 防護パスを含む prompt
+## DW-O03 — 防護パスを含む file
 
-WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む prompt は
+WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
+prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
 
 ## DW-O04 — 防護パスを含む commit message
 

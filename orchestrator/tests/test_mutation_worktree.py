@@ -31,6 +31,7 @@ assert _SPEC is not None and _SPEC.loader is not None
 MW = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = MW
 _SPEC.loader.exec_module(MW)
+_REAL_CURRENT_SITE = MW.site_policy.current_site
 
 _LIMIT = (
     "共有木の観測点間で git status / git submodule status の stdout bytes が"
@@ -41,6 +42,15 @@ _LIMIT = (
 def _limited(function):
     function.__doc__ = _LIMIT
     return function
+
+
+@pytest.fixture(autouse=True)
+def _default_non_pegasus_site(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        MW.site_policy,
+        "current_site",
+        lambda *, require_evidence=False: MW.site_policy.OTHER,
+    )
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -237,6 +247,20 @@ def _make_repository(
         encoding="utf-8",
     )
     (main / ".gitignore").write_text("output/\n", encoding="utf-8")
+    campaign = main / "orchestrator" / "campaign"
+    campaign.mkdir(parents=True)
+    (campaign.parent / "__init__.py").write_text("", encoding="utf-8")
+    (campaign / "__init__.py").write_text("", encoding="utf-8")
+    (campaign / "site_policy.py").write_text(
+        "OTHER = 'OTHER'\n"
+        "PEGASUS_LOGIN = 'PEGASUS_LOGIN'\n"
+        "PEGASUS_COMPUTE = 'PEGASUS_COMPUTE'\n"
+        "PEGASUS_SUSPECT = 'PEGASUS_SUSPECT'\n\n"
+        "def current_site(*, require_evidence=False):\n"
+        "    del require_evidence\n"
+        "    return OTHER\n",
+        encoding="utf-8",
+    )
     if fake_dispatch:
         runner = main / "tools" / "run_tests.py"
         runner.write_text(_fake_dispatch_source(), encoding="utf-8")
@@ -246,7 +270,15 @@ def _make_repository(
         dispatcher = pegasus / "dispatch_compute.py"
         dispatcher.write_text(_fake_dispatch_source(), encoding="utf-8")
         dispatcher.chmod(0o755)
-    _git(main, "add", ".gitignore", "tools", "target.py", "tests/test_gate.py")
+    _git(
+        main,
+        "add",
+        ".gitignore",
+        "orchestrator",
+        "tools",
+        "target.py",
+        "tests/test_gate.py",
+    )
     _git(
         main,
         "-c",
@@ -347,6 +379,108 @@ def _wrapper_argv(
         else [sys.executable, "-m", "pytest", "tests/test_gate.py", "-q", "-rf"]
     )
     return [*args, "--", *runner]
+
+
+@_limited
+@pytest.mark.parametrize(
+    "site", [MW.site_policy.PEGASUS_LOGIN, MW.site_policy.PEGASUS_SUSPECT]
+)
+def test_local_site_gate_rejects_before_preflight_lock_and_worktree_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    observed: list[bool] = []
+
+    def current_site(*, require_evidence: bool = False) -> str:
+        observed.append(require_evidence)
+        return site
+
+    def unexpected(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("site gate より後の preflight/lock/worktree へ到達した")
+
+    monkeypatch.setattr(MW.site_policy, "current_site", current_site)
+    monkeypatch.setattr(MW, "_preflight", unexpected)
+    monkeypatch.setattr(MW, "_out_lock", unexpected)
+    monkeypatch.setattr(MW, "_worktree_add", unexpected)
+
+    assert MW.main(_wrapper_argv(fixture)) == 2
+    assert observed == [True]
+    assert not Path(f"{fixture.out}.lock").exists()
+    assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
+
+
+@_limited
+def test_local_site_gate_requires_evidence_for_nqsv_unreadable_login_hostname_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    assert (
+        MW.site_policy.classify_site("pegasus02", {}, has_nqsv=False)
+        == MW.site_policy.OTHER
+    )
+    monkeypatch.setattr(MW.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MW.site_policy.socket, "gethostname", lambda: "pegasus02")
+    monkeypatch.setattr(MW.site_policy, "_has_nqsv", lambda: False)
+    monkeypatch.setattr(
+        MW,
+        "_preflight",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("require_evidence=True なら preflight へ到達しない")
+        ),
+    )
+
+    assert MW.main(_wrapper_argv(fixture)) == 2
+    assert not Path(f"{fixture.out}.lock").exists()
+    assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
+
+
+@_limited
+@pytest.mark.parametrize(
+    "site", [MW.site_policy.OTHER, MW.site_policy.PEGASUS_COMPUTE]
+)
+def test_local_site_gate_preserves_other_and_compute_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    observed: list[bool] = []
+
+    def current_site(*, require_evidence: bool = False) -> str:
+        observed.append(require_evidence)
+        return site
+
+    monkeypatch.setattr(MW.site_policy, "current_site", current_site)
+
+    assert MW.main(_wrapper_argv(fixture, plan_only=True)) == 0
+    assert observed == [True]
+    assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
+
+
+@_limited
+def test_dispatch_mode_does_not_consult_local_site_gate_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setattr(
+        MW.site_policy,
+        "current_site",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("dispatch mode で local site gate を呼んだ")
+        ),
+    )
+
+    assert (
+        MW.main(
+            _wrapper_argv(fixture, runner_mode="dispatch", plan_only=True)
+        )
+        == 0
+    )
+    assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
 
 
 def _fake_preflight(tmp_path: Path) -> tuple[SimpleNamespace, MW.AdminBinding, Path]:
