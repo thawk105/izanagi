@@ -1,0 +1,164 @@
+{
+ "estimated_run_seconds": 900,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_config_mismatch_refuses_before_configure",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_effective_disconnected_off_refuses_before_build",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_flag_is_exact_one_and_generic_base_only_stays_zero",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_manifest_rejects_changed_declared_non_config_file",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_policy_forces_miss_against_same_material_generic_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M01-FLAG-DROPPED",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "new": "    fully_disconnected_define = []\n",
+     "old": "    fully_disconnected_define = (\n        [_FETCHCONTENT_FULLY_DISCONNECTED_DEFINE]\n        if post_oracle_dependency_binding is not None else []\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M02-MANIFEST-AUTHORITY-DROPPED",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "new": "    if False:\n        raise BuildCacheError(\n            \"FetchContent dependency SHA256SUMS が oracle receipt と不一致\"\n        )\n",
+     "old": "    if verified.manifest_sha256 != binding[\"dependency_manifest_sha256\"]:\n        raise BuildCacheError(\n            \"FetchContent dependency SHA256SUMS が oracle receipt と不一致\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_effective_disconnected_off_refuses_before_build"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M03-EFFECTIVE-VALUE-DROPPED",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "new": "            if post_oracle_binding is not None:\n                _assert_post_oracle_dependency_material(post_oracle_binding)\n",
+     "old": "            if post_oracle_binding is not None:\n                _assert_fetchcontent_fully_disconnected_effective(staging)\n                _assert_post_oracle_dependency_material(post_oracle_binding)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_policy_forces_miss_against_same_material_generic_entry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M04-IDENTITY-POLICY-DROPPED",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "new": "        fetchcontent_population_policy=None,\n        fetchcontent_dependency_manifest_sha256=None,\n",
+     "old": "        fetchcontent_population_policy=(\n            _POST_ORACLE_POPULATION_POLICY_ID\n            if post_oracle_binding is not None else None\n        ),\n        fetchcontent_dependency_manifest_sha256=(\n            post_oracle_binding[\"dependency_manifest_sha256\"]\n            if post_oracle_binding is not None else None\n        ),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_ambient_prefix_path_list_encoding_is_injective",
+    "orchestrator/tests/test_buildcache_v2.py::test_cache_hit_keeps_legacy_extra_member_compatibility[v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_cache_hit_rejects_symlinked_member_without_running_build[binary-intermediate-v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_cache_hit_rejects_symlinked_member_without_running_build[metadata-v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_completion_manifest_rejects_missing_receipt",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_destination_swap_after_hash_is_rejected_on_same_fd[v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_fresh_publishes_exact_host_set_and_hit_is_executable[v2-completion.json]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_gate_order_is_exact_through_rename[v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_rejects_staging_entry_swap_while_retaining_held_fd[v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_rejects_unsafe_allowlisted_leaf_without_completed_entry[directory-v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_rejects_unsafe_allowlisted_leaf_without_completed_entry[fifo-v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_rejects_unsafe_allowlisted_leaf_without_completed_entry[hardlink-v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_rejects_unsafe_allowlisted_leaf_without_completed_entry[symlink-v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_copyout_sha_fd_inode_is_the_published_binary_inode[v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_explicit_relative_prefix_is_bound_to_effective_cwd",
+    "orchestrator/tests/test_buildcache_v2.py::test_gate_failure_discards_staging_and_clean_but_v2_keeps_claim[v2]",
+    "orchestrator/tests/test_buildcache_v2.py::test_m10_explicit_prefix_is_one_argv_token_and_removes_ambient_env",
+    "orchestrator/tests/test_buildcache_v2.py::test_m13_caller_injected_site_does_not_change_v2_identity",
+    "orchestrator/tests/test_buildcache_v2.py::test_m13_v2_rejects_non_allowlisted_member_in_clean_candidate",
+    "orchestrator/tests/test_buildcache_v2.py::test_m6_host_metadata_never_uses_staging_bytes[v2-completion.json]",
+    "orchestrator/tests/test_buildcache_v2.py::test_m7_v2_actual_site_change_is_cache_miss",
+    "orchestrator/tests/test_buildcache_v2.py::test_m8_v2_explicit_dependency_prefix_change_is_cache_miss",
+    "orchestrator/tests/test_buildcache_v2.py::test_m9_v2_ambient_dependency_prefix_change_is_cache_miss",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_cache_and_generated_masstree_roots_must_match_before_publish",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_cache_hit_rejects_complete_toolchain_version_drift",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_ccbench_path_is_not_cache_preimage_when_src_token_is_identical",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_contract_changes_namespace_only",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_contract_trace_four_quadrants_are_distinct",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_copied_entry_cannot_cross_contract_namespace",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_custom_ccbench_tree_drives_commit_allowlist_identity_and_trace_checks",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_expected_manifest_gate_fires_without_official_declared_use_class",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_expected_toolchain_manifest_exact_match_is_accepted",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_manifest_records_complete_identity",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_missing_manifest_and_binary_mismatch_fail_closed",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_never_hits_legacy_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_nonofficial_hit_accepts_entry_with_complete_manifest",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_official_hit_rejects_legacy_entry_without_complete_manifest",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_flag_is_exact_one_and_generic_base_only_stays_zero",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_policy_forces_miss_against_same_material_generic_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_run_local_archive_observations_allow_distinct_build_bytes_across_runs",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_run_local_archive_replacement_during_cache_hit_is_rejected",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_run_local_archive_replacement_during_fresh_build_is_rejected",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_runs_all_observer_and_identity_checks_on_fresh_and_hit",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_source_dir_transport_reaches_configure_and_completion_identity",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_stale_claim_blocks_even_a_complete_hit",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_tampered_manifest_fails_closed_without_touching_binary[missing-commit]",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_tampered_manifest_fails_closed_without_touching_binary[partial-marker]",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_timeout_is_applied_to_configure_and_build",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_toolchain_version_change_is_cache_miss",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_two_real_processes_only_one_claims",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_validation_parent_close_error_does_not_lose_result_fd",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_wrong_effective_root_never_publishes_or_hits_same_key"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M05-FLAG-UNCONDITIONAL",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "new": "    fully_disconnected_define = [_FETCHCONTENT_FULLY_DISCONNECTED_DEFINE]\n",
+     "old": "    fully_disconnected_define = (\n        [_FETCHCONTENT_FULLY_DISCONNECTED_DEFINE]\n        if post_oracle_dependency_binding is not None else []\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_config_mismatch_refuses_before_configure",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M06-PRECONFIGURE-CHECK-DROPPED",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "new": "            if post_oracle_binding is not None:\n                pass\n            try:\n                if site is None:\n",
+     "old": "            if post_oracle_binding is not None:\n                _assert_post_oracle_dependency_material(post_oracle_binding)\n            try:\n                if site is None:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 2400
+}
