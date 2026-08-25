@@ -68,6 +68,15 @@ title: [T-1354] off arm の launch contract 非干渉性を generation 1 で機�
   実測値 (M1〜M4 が新設検査に排他的に帰属) は静的推定の 3/8 を上回る。
   受理版レンズ B は「実装 semantics に新しい blocker は無い」と明記している。
 
+- **段 8 の自己改善は 1 件を試みて予算で撤回した。** 本 wave の F540 違反を招いた命令は
+  `DW-O01` の「採用は `tools/check_codex_output.py` の rc=0」である。launcher の `accepted` を
+  要件に含めておらず、実測で誤りと判明した既存命令に当たる。receipt の `accepted` を要件へ
+  足す最小形 (36 bytes 増) を実際に当てて `tools/check_docs.py` を走らせたところ、
+  `docs/dev-wave/**` の L1.5 unique footprint が 9,602 bytes となり予算 9,566 bytes を超えて
+  赤になった。安全義務を削る縮約はせず、契約どおり編集を撤回して裁定へ回した
+  ({{T:dev-wave-l15-budget-headroom}})。**同じ壁に当たって編集を撤回するのはこれで 3 度目**で
+  ある (F217 に 2026-08-11 と 2026-08-13 の記録がある)。
+
 ## 次の一手差分
 
 ### 更新
@@ -118,6 +127,14 @@ title: [T-1354] off arm の launch contract 非干渉性を generation 1 で機�
 - {{T:s8b-provider-env-order}} **P2・新規**: `s8b_prediction_runner` の同型 provider は
   allowlist の反復順で env を作り続けており、同一入力でも envp 順が run ごとに変わる。
   固定順化は容易だが s8b freeze の bytes への影響を独立に裁定してから行う。
+
+- {{T:dev-wave-l15-budget-headroom}} **P1・ユーザー裁定待ち**: `docs/dev-wave/**` の L1.5
+  unique footprint 予算 9,566 bytes に余地がゼロで、**実測で誤りと判明した安全義務の是正すら
+  入らない**。本 wave は `DW-O01` の採用条件へ receipt の `accepted` を足す 36 bytes の
+  最小形を当てて赤にし、契約に従い撤回した。同じ壁での撤回は 3 度目である (F217)。
+  選択肢は L1.5 の圧縮で枠を作る、予算値を独立審査で上げる、当該義務を機械強制へ移す
+  (`tools/dev_wave_codex.py` または待ち手が `accepted=false` の成果物複製を拒む) のいずれか。
+  **予算のために安全義務を削る道は取らない。**
 
 - {{T:evidence-invalid-reason-in-receipt}} **P2・新規**: `_evidence_status()` がどの条件で
   invalid を返したかを receipt の attempt record へ 1 field 記録する。F540 が恒久対応として
