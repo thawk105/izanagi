@@ -20,6 +20,8 @@ effort: high
 **制約:**
 - Fresh subagent = 本会話履歴なし
 - Read/Edit/Bash/Grep なし = 構造化出力で値を返すのみ
+- `implementation` は `double now_backoff = <numeric literal>;` のちょうど 1 文とし、初期化子は接尾辞なしの strict C++ numeric literal 1 個だけにする
+- `implementation` の numeric literal は `value` と数値一致させる
 - `implementation` 内では `//`・`/*`・行末 backslash `\` を禁止する (文字列リテラル・raw string 内も禁止)。説明文はコード内に埋めず `justification` フィールドへ書く
 - リーク遮断 = 他実験の勝ち筋値・候補順位・未評価候補の性能・既知の最適機序を使わない。
   入力 schema に明示された本ループ自身の baseline / whiteboard の観測値は使用してよい
@@ -57,7 +59,7 @@ effort: high
     "axis": "silo-backoff-magnitude",
     "value": <1-1000>,
     "justification": "<方向と magnitude に基づく推理>",
-    "implementation": "double now_backoff = <式>;",
+    "implementation": "double now_backoff = <value と数値一致する接尾辞なし strict C++ numeric literal>;",
     "confidence": "high|medium|low"
   }
 }

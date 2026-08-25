@@ -728,7 +728,7 @@
         "additionalProperties": false
       },
       "consumer": null,
-      "projection_instructions": "本ループ自身のbaseline、abstract planner direction、評価済みwhiteboardからbackoff値とholeコードを合成する。他実験の勝ち筋、候補順位、未評価性能、既知最適機序は使わない。"
+      "projection_instructions": "本ループ自身のbaseline、abstract planner direction、評価済みwhiteboardからbackoff値とholeコードを合成する。他実験の勝ち筋、候補順位、未評価性能、既知最適機序は使わない。implementationはvalueと数値一致する接尾辞なしstrict C++ numeric literal 1個を初期化子に持つちょうど1文とする。"
     },
     "coder-v4-autonomous-sort": {
       "claude": {

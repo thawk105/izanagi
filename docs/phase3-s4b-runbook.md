@@ -70,8 +70,10 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
   `src/coder-spec.md` は sweet-spot 漏れリスクありゆえ coder に直接渡さない (leakproof 版を使う)。
 - coder は tools=[] ゆえ prompt に無い情報を読めない = 構造的リーク閉。
 - 出力 = `{proposal: {axis, value(1-1000), implementation, justification, confidence}}`。
-  `implementation` は `double now_backoff = <値>;` 形。value と literal は一致させる
-  (不一致は harness の `assert_value_literal_consistent` が AttributionMismatch で弾く、決定7)。
+  `implementation` は `double now_backoff = <数値 literal 1 個>;` の**ちょうど 1 文**。
+  literal は接尾辞を持たず、value と数値が一致すること (D836 / D901 条項 1)。
+  計算式・呼び出し・括弧・三項・後続の文は受理文法が拒否する。値の不一致は harness の
+  `assert_value_literal_consistent` が AttributionMismatch で弾く (決定7)。
 
 ### (c) proposal ファイルを書く
 `<scratch>/prop.json`:
