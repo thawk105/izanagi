@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -56,6 +57,7 @@ _CACHE_ENV_NAMES = {
     "GCC_EXEC_PREFIX",
     "PYTHONPYCACHEPREFIX",
 }
+THIRDPARTY_CACHE_ENV = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
 
 
 class ContractError(RuntimeError):
@@ -549,7 +551,7 @@ def _read_proc_snapshot() -> dict[str, Any]:
     errors: list[str] = []
     try:
         entries = list(Path("/proc").iterdir())
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         return {"processes": {}, "read_errors": [f"proc:{type(exc).__name__}"]}
     for entry in entries:
         if not entry.name.isdigit():
@@ -702,6 +704,7 @@ class ProcessExecutor:
                 list(request.argv), cwd=request.cwd, env=dict(request.env),
                 stdin=subprocess.DEVNULL, stdout=stdout_handle, stderr=stderr_handle,
                 start_new_session=True,
+                umask=0o022,
             )
             if request.sample_isolation:
                 sampler = _IsolationSampler(
@@ -933,6 +936,123 @@ def _submodule_owner(
     return owner, relative_path
 
 
+def _non_symlink_mode(path: Path, *, context: str, kind: str) -> int:
+    try:
+        mode = path.lstat().st_mode
+    except (OSError, RuntimeError) as exc:
+        raise ContractError(f"{context} is missing or unreadable: {path}") from exc
+    expected = stat.S_ISREG if kind == "file" else stat.S_ISDIR
+    if path.is_symlink() or not expected(mode):
+        raise ContractError(f"{context} is not a non-symlink {kind}: {path}")
+    return mode
+
+
+def _thirdparty_cache_root() -> Path:
+    raw = os.environ.get(THIRDPARTY_CACHE_ENV, "")
+    if not raw:
+        raise ContractError(f"{THIRDPARTY_CACHE_ENV} is required")
+    path = Path(raw)
+    if not path.is_absolute():
+        raise ContractError(f"{THIRDPARTY_CACHE_ENV} must be an absolute path")
+    try:
+        resolved = path.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ContractError(
+            f"{THIRDPARTY_CACHE_ENV} does not identify an existing directory"
+        ) from exc
+    if not resolved.is_dir():
+        raise ContractError(
+            f"{THIRDPARTY_CACHE_ENV} does not identify an existing directory"
+        )
+    return resolved
+
+
+def _validate_absorbed_gitfile(
+    marker: Path, expected_gitdir: Path, *, submodule_path: str,
+) -> None:
+    try:
+        marker_mode = marker.lstat().st_mode
+    except OSError as exc:
+        raise ContractError(
+            "initialized submodule git marker is missing or unreadable: "
+            f"{submodule_path}"
+        ) from exc
+    if marker.is_symlink() or not stat.S_ISREG(marker_mode):
+        raise ContractError(
+            "initialized submodule git marker is not a non-symlink regular file: "
+            f"{submodule_path}"
+        )
+    _non_symlink_mode(
+        expected_gitdir,
+        context=f"absorbed submodule gitdir for {submodule_path}",
+        kind="directory",
+    )
+    try:
+        text = marker.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ContractError(
+            f"initialized submodule git marker is unreadable: {submodule_path}"
+        ) from exc
+    match = re.fullmatch(r"gitdir: (?P<target>[^\r\n]+)\r?\n?", text)
+    if match is None:
+        raise ContractError(
+            f"initialized submodule git marker is not a gitfile: {submodule_path}"
+        )
+    raw_target = Path(match.group("target"))
+    target = raw_target if raw_target.is_absolute() else marker.parent / raw_target
+    try:
+        target_resolved = target.resolve(strict=True)
+        expected_resolved = expected_gitdir.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ContractError(
+            f"submodule gitfile target is unavailable: {submodule_path}"
+        ) from exc
+    if target_resolved != expected_resolved:
+        raise ContractError(
+            f"submodule gitfile target mismatch: {submodule_path}"
+        )
+
+
+def validate_setup_equivalence(
+    canonical: Path, clone: Path, submodules: Sequence[Mapping[str, Any]],
+) -> Path:
+    """Reject a non-equivalent work clone before the first measurement command."""
+    canonical_mode = _non_symlink_mode(
+        canonical / ".gitmodules", context="canonical .gitmodules", kind="file"
+    )
+    scratch_mode = _non_symlink_mode(
+        clone / ".gitmodules", context="scratch .gitmodules", kind="file"
+    )
+    if scratch_mode != canonical_mode:
+        raise ContractError(
+            f"st_mode mismatch .gitmodules: {oct(scratch_mode)} != {oct(canonical_mode)}"
+        )
+
+    root_gitdir = clone / ".git"
+    _non_symlink_mode(root_gitdir, context="scratch superproject gitdir", kind="directory")
+    ordered_paths = sorted(
+        (Path(str(row["path"])) for row in submodules),
+        key=lambda path: (len(path.parts), path.as_posix()),
+    )
+    materialized_paths: list[Path] = []
+    absorbed_gitdirs: dict[Path, Path] = {}
+    for path in ordered_paths:
+        owner_path, relative_path = _submodule_owner(path, materialized_paths)
+        owner_gitdir = (
+            root_gitdir if owner_path is None else absorbed_gitdirs[owner_path]
+        )
+        expected_gitdir = owner_gitdir / "modules" / relative_path
+        _validate_absorbed_gitfile(
+            clone / path / ".git",
+            expected_gitdir,
+            submodule_path=path.as_posix(),
+        )
+        absorbed_gitdirs[path] = expected_gitdir
+        materialized_paths.append(path)
+
+    return _thirdparty_cache_root()
+
+
 def _prepare_clone(
     config: StudyConfig, executor: Executor, *, deadline: float,
 ) -> tuple[Path, dict[str, Any]]:
@@ -1019,6 +1139,13 @@ def _prepare_clone(
             raise ContractError(
                 f"submodule URL is not pinned to the canonical local entity: {row['path']}"
             )
+        _git(
+            executor,
+            owner,
+            ("submodule", "absorbgitdirs", "--", relative_path.as_posix()),
+            purpose=f"absorb-submodule-gitdir:{row['path']}",
+            timeout_s=_remaining(deadline),
+        )
         materialized_paths.append(row_path)
     scratch_head = _git(executor, clone, ("rev-parse", "HEAD"),
                         purpose="scratch-head", timeout_s=_remaining(deadline)).strip()
@@ -1176,6 +1303,7 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
         path.mkdir(mode=0o700, parents=True, exist_ok=False)
     env.update({key: str(value) for key, value in paths.items()})
     env["IZANAGI_TEST_NPROC"] = str(arm)
+    env[THIRDPARTY_CACHE_ENV] = str(_thirdparty_cache_root())
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONUSERBASE"] = python_user_base
     return env
@@ -1519,6 +1647,10 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                 **clone_inputs, "clone_root": str(clone), "repo_root": str(repo),
             })
             receipt["cleanup"]["canonical_fingerprint_before_sha256"] = canonical_before["digest_sha256"]
+            current_stage = "setup-equivalence-gate"
+            validate_setup_equivalence(
+                repo, clone, clone_inputs["canonical_submodules"]
+            )
             receipt["invariant_checks"]["submodules_materialized"] = True
             current_stage = "setup-import-check"
             _validate_measurement_imports(

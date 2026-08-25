@@ -65,6 +65,9 @@ def _fixed_python_user_base(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("PYTHONUSERBASE", str(tmp_path / "python-user-base"))
+    cache_root = tmp_path / "thirdparty-cache"
+    cache_root.mkdir()
+    monkeypatch.setenv(study.THIRDPARTY_CACHE_ENV, str(cache_root))
 
 
 def _cleanup(*, residual: list[int] | None = None) -> dict[str, object]:
@@ -103,6 +106,9 @@ class FakeExecutor:
         imports_available: bool = True,
         write_junit: bool = True,
         measurement_returncode: int = 0,
+        honor_absorbgitdirs: bool = True,
+        missing_absorbed_gitdir: str | None = None,
+        clone_gitmodules_mode: int | None = None,
     ):
         self.root = root
         self.host = host
@@ -112,6 +118,9 @@ class FakeExecutor:
         self.imports_available = imports_available
         self.write_junit = write_junit
         self.measurement_returncode = measurement_returncode
+        self.honor_absorbgitdirs = honor_absorbgitdirs
+        self.missing_absorbed_gitdir = missing_absorbed_gitdir
+        self.clone_gitmodules_mode = clone_gitmodules_mode
         self.measurement_seen = False
         self.requests: list[study.ExecRequest] = []
         self.clone_root: Path | None = None
@@ -120,6 +129,8 @@ class FakeExecutor:
         self.registered_order: list[str] = []
         self.pre_init_statuses: list[str] = []
         self.configured_urls: dict[str, str] = {}
+        self.absorbed_gitdirs: dict[str, Path] = {}
+        self.absorbed_order: list[str] = []
 
     def _clone_relative(self, repo: Path) -> str:
         assert self.clone_root is not None
@@ -174,8 +185,19 @@ class FakeExecutor:
             destination = Path(request.argv[-1])
             self.clone_root = destination
             (destination / "tools/pegasus").mkdir(parents=True)
+            (destination / ".git").mkdir()
+            canonical_gitmodules = self.root / "repo/.gitmodules"
+            clone_gitmodules = destination / ".gitmodules"
+            clone_gitmodules.write_bytes(canonical_gitmodules.read_bytes())
+            clone_gitmodules.chmod(
+                canonical_gitmodules.stat().st_mode & 0o777
+                if self.clone_gitmodules_mode is None
+                else self.clone_gitmodules_mode
+            )
         elif request.purpose.startswith("materialize-submodule:"):
-            Path(request.argv[-1]).mkdir(parents=True, exist_ok=True)
+            destination = Path(request.argv[-1])
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / ".git").mkdir()
             self.materialized_order.append(request.purpose.split(":", 1)[1])
         elif request.purpose == "validate-measurement-imports":
             if not self.imports_available:
@@ -261,6 +283,30 @@ class FakeExecutor:
                 path, relative = self._direct_submodule(repo)
                 assert args[3] == f"submodule.{relative}.url"
                 stdout = f"{self.configured_urls[path]}\n".encode()
+            elif (
+                len(args) == 4
+                and args[:3] == ("submodule", "absorbgitdirs", "--")
+            ):
+                path, relative = self._direct_submodule(repo)
+                assert args[3] == relative
+                self.absorbed_order.append(path)
+                if self.honor_absorbgitdirs:
+                    owner_path = self._clone_relative(repo)
+                    owner_gitdir = (
+                        self.clone_root / ".git"
+                        if not owner_path
+                        else self.absorbed_gitdirs[owner_path]
+                    )
+                    target = owner_gitdir / "modules" / relative
+                    marker = repo / relative / ".git"
+                    marker.rmdir()
+                    if path != self.missing_absorbed_gitdir:
+                        target.mkdir(parents=True)
+                    marker.write_text(
+                        f"gitdir: {os.path.relpath(target, marker.parent)}\n",
+                        encoding="utf-8",
+                    )
+                    self.absorbed_gitdirs[path] = target
             elif args and args[0] == "status":
                 if (
                     self.dirty_after_measurement
@@ -288,6 +334,10 @@ def _config(tmp_path: Path) -> study.StudyConfig:
     scratch = tmp_path / "scratch"
     output_root = tmp_path / "receipts"
     (repo / "external/ccbench").mkdir(parents=True)
+    (repo / ".gitmodules").write_text(
+        "[submodule \"external/ccbench\"]\n", encoding="utf-8"
+    )
+    (repo / ".gitmodules").chmod(0o644)
     scratch.mkdir()
     output_root.mkdir()
     return study.StudyConfig(
@@ -656,6 +706,8 @@ def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
     assert first["HOME"] != second["HOME"]
     assert first["PYTHONUSERBASE"] == second["PYTHONUSERBASE"]
     assert first["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
+    assert first[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+    assert second[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
 
 
 def test_process_cleanup_rejects_residual_group_member() -> None:
@@ -757,6 +809,7 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     expected_submodule_order = [path for _head, path, _parent, _relative in _SUBMODULE_ROWS]
     assert executor.materialized_order == expected_submodule_order
     assert executor.registered_order == expected_submodule_order
+    assert executor.absorbed_order == expected_submodule_order
     assert executor.pre_init_statuses == [
         f"-{_HEAD} external/ccbench\n",
         (
@@ -773,13 +826,28 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     assert executor.configured_urls == {
         path: str(config.repo_root / path) for path in expected_submodule_order
     }
+    assert executor.clone_root is not None
+    assert executor.absorbed_gitdirs["external/ccbench"] == (
+        executor.clone_root / ".git/modules/external/ccbench"
+    )
+    for path in expected_submodule_order:
+        marker = executor.clone_root / path / ".git"
+        assert marker.is_file()
+        assert not marker.is_symlink()
+        assert executor.absorbed_gitdirs[path].is_dir()
+    assert (
+        (executor.clone_root / ".gitmodules").stat().st_mode
+        == (config.repo_root / ".gitmodules").stat().st_mode
+    )
     purposes = [request.purpose for request in executor.requests]
     for index, path in enumerate(expected_submodule_order):
         assert purposes.index(f"materialize-submodule:{path}") < purposes.index(
             f"register-submodule:{path}"
-        ) < purposes.index(f"override-submodule-url:{path}")
+        ) < purposes.index(f"override-submodule-url:{path}") < purposes.index(
+            f"absorb-submodule-gitdir:{path}"
+        )
         if index + 1 < len(expected_submodule_order):
-            assert purposes.index(f"override-submodule-url:{path}") < purposes.index(
+            assert purposes.index(f"absorb-submodule-gitdir:{path}") < purposes.index(
                 f"materialize-submodule:{expected_submodule_order[index + 1]}"
             )
     measurement_requests = [
@@ -793,6 +861,9 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     assert import_request.argv == ("python3.10", "-c", "import pytest, xdist")
     assert purposes.index("validate-measurement-imports") < purposes.index("measurement:0")
     assert import_request.env["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
+    assert import_request.env[study.THIRDPARTY_CACHE_ENV] == os.environ[
+        study.THIRDPARTY_CACHE_ENV
+    ]
     assert len({request.env["HOME"] for request in measurement_requests}) == 6
     assert {
         request.env["PYTHONUSERBASE"] for request in measurement_requests
@@ -800,6 +871,9 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     for request in measurement_requests:
         assert "-n" not in request.argv
         assert request.env["IZANAGI_TEST_NPROC"] in {"16", "32", "48"}
+        assert request.env[study.THIRDPARTY_CACHE_ENV] == os.environ[
+            study.THIRDPARTY_CACHE_ENV
+        ]
         assert request.env["HOME"].startswith(str(config.scratch_root))
         assert not any(key.startswith(("CCACHE_", "SCCACHE_")) for key in request.env)
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
@@ -946,6 +1020,81 @@ def test_materialize_without_registration_stops_setup_with_contract_error(
     assert executor.measurement_seen is False
 
 
+@pytest.mark.parametrize(
+    ("executor_options", "message"),
+    (
+        (
+            {"honor_absorbgitdirs": False},
+            "initialized submodule git marker is not a non-symlink regular file",
+        ),
+        (
+            {"missing_absorbed_gitdir": _SUBMODULE_ROWS[-1][1]},
+            "absorbed submodule gitdir",
+        ),
+        (
+            {"clone_gitmodules_mode": 0o600},
+            "st_mode mismatch .gitmodules: 0o100600 != 0o100644",
+        ),
+    ),
+)
+def test_setup_equivalence_gate_rejects_topology_or_mode_before_measurement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    executor_options: dict[str, object],
+    message: str,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode993"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:132.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, **executor_options)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["failure"]["stage"] == "setup-equivalence-gate"
+    assert receipt["failure"]["type"] == "ContractError"
+    assert message in receipt["failure"]["message"]
+    assert executor.measurement_seen is False
+
+
+def test_setup_equivalence_gate_requires_existing_thirdparty_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode992"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:133.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    monkeypatch.setenv(
+        study.THIRDPARTY_CACHE_ENV, str(tmp_path / "missing-thirdparty-cache")
+    )
+    executor = FakeExecutor(tmp_path, host)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["failure"]["stage"] == "setup-equivalence-gate"
+    assert receipt["failure"]["type"] == "ContractError"
+    assert "does not identify an existing directory" in receipt["failure"]["message"]
+    assert executor.measurement_seen is False
+
+
+def test_thirdparty_cache_environment_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(study.THIRDPARTY_CACHE_ENV)
+    with pytest.raises(study.ContractError, match="is required"):
+        study._thirdparty_cache_root()
+
+
 def test_full_timeout_is_hash_bound_to_complete_smoke_and_fixed_derivation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1054,6 +1203,10 @@ def test_static_contract_has_signal_traps_exact_registry_and_no_red_checker() ->
     shell_text = (repo / "tools/pegasus/acceptance_nproc_study.sh").read_text(encoding="utf-8")
     driver_text = (repo / "tools/pegasus/run_acceptance_nproc_study.py").read_text(encoding="utf-8")
     assert "#PBS -b 1" in shell_text
+    assert "#PBS -v IZANAGI_PEGASUS_THIRDPARTY_CACHE" in shell_text
+    assert "umask 077" in shell_text
+    assert "umask=0o022" in driver_text
+    assert "THIRDPARTY_CACHE_ENV" in driver_text
     for signal_name in ("ERR", "TERM", "HUP", "INT", "EXIT"):
         assert f" {signal_name}" in shell_text or f"{signal_name} " in shell_text
     for recovery_contract in (

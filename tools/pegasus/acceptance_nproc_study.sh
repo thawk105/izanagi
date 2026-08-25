@@ -3,6 +3,7 @@
 #PBS -q gen_S
 #PBS -l elapstim_req=04:00:00
 #PBS -b 1
+#PBS -v IZANAGI_PEGASUS_THIRDPARTY_CACHE
 
 # Smoke uses fixed 3600-second per-arm liveness caps.  Full caps are derived by
 # the driver from one successful smoke receipt and validated against elapstim.
