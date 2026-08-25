@@ -10,8 +10,8 @@ import pytest
 
 from orchestrator.campaign import s8b_sort_swo_receipt as receipt
 from orchestrator.tests.s8b_floor_evidence_fixture import (
-    expected_portable_sort_swo_pass_receipt,
-    fake_sort_swo_pass_attempt,
+    expected_portable_sort_swo_pass_receipt as _fixture_expected_portable,
+    fake_sort_swo_pass_attempt as _fixture_fake_attempt,
 )
 
 
@@ -24,6 +24,26 @@ _IDENTITY = {
     "entry_sha256": _ENTRY_SHA,
     "binary_sha256": _BINARY_SHA,
 }
+
+
+def fake_sort_swo_pass_attempt() -> dict[str, object]:
+    attempt = _fixture_fake_attempt()
+    raw = attempt["oracle_receipt"]
+    assert isinstance(raw, dict)
+    raw["guarantee_boundary"] = receipt.SORT_SWO_GUARANTEE_BOUNDARY
+    return attempt
+
+
+def expected_portable_sort_swo_pass_receipt(**identity) -> dict[str, object]:
+    expected = _fixture_expected_portable(**identity)
+    expected["guarantee_boundary"] = receipt.SORT_SWO_GUARANTEE_BOUNDARY
+    raw = fake_sort_swo_pass_attempt()["oracle_receipt"]
+    canonical = json.dumps(
+        raw, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    expected["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
+    return expected
 
 
 def _project() -> dict[str, object]:
@@ -50,6 +70,13 @@ def test_projection_matches_independent_fixture_and_hashes_full_raw_receipt():
 
 def test_validator_accepts_exact_projection_and_binds_all_identity_fields():
     projected = _project()
+    assert projected["schema"] == "s8b-sort-swo-pass-receipt/v2"
+    assert projected["dependency_manifest_sha256"] == (
+        receipt.DEPENDENCY_MANIFEST_SHA256
+    )
+    assert projected["guarantee_boundary"] == (
+        receipt.SORT_SWO_GUARANTEE_BOUNDARY
+    )
     assert receipt.validate_portable_sort_swo_pass_receipt(
         projected,
         expected_cell_id=_IDENTITY["cell_id"],
@@ -73,6 +100,43 @@ def test_validator_accepts_exact_projection_and_binds_all_identity_fields():
         "project_sort_swo_pass_attempt",
         "validate_portable_sort_swo_pass_receipt",
     )
+
+
+def test_validator_rejects_dependency_manifest_transplant():
+    projected = _project()
+    projected["dependency_manifest_sha256"] = "0" * 64
+    with pytest.raises(receipt.SortSwoReceiptError, match="dependency_manifest"):
+        receipt.validate_portable_sort_swo_pass_receipt(
+            projected,
+            expected_cell_id=_IDENTITY["cell_id"],
+            expected_holdout_id=_IDENTITY["holdout_id"],
+            expected_configuration_id=_IDENTITY["configuration_id"],
+            expected_entry_sha256=_ENTRY_SHA,
+            expected_binary_sha256=_BINARY_SHA,
+        )
+
+
+def test_projector_and_validator_require_exact_guarantee_boundary():
+    attempt = fake_sort_swo_pass_attempt()
+    raw = attempt["oracle_receipt"]
+    assert isinstance(raw, dict)
+    raw["guarantee_boundary"] = (
+        "guarantees[everything];does-not-guarantee[nothing]"
+    )
+    with pytest.raises(receipt.SortSwoReceiptError, match="guarantee_boundary"):
+        receipt.project_sort_swo_pass_attempt(attempt, **_IDENTITY)
+
+    projected = _project()
+    projected["guarantee_boundary"] = "missing-relation-provenance-nonclaim"
+    with pytest.raises(receipt.SortSwoReceiptError, match="guarantee_boundary"):
+        receipt.validate_portable_sort_swo_pass_receipt(
+            projected,
+            expected_cell_id=_IDENTITY["cell_id"],
+            expected_holdout_id=_IDENTITY["holdout_id"],
+            expected_configuration_id=_IDENTITY["configuration_id"],
+            expected_entry_sha256=_ENTRY_SHA,
+            expected_binary_sha256=_BINARY_SHA,
+        )
 
 
 @pytest.mark.parametrize(
@@ -137,6 +201,7 @@ def test_guarantee_boundary_is_documented_on_module_and_both_public_functions():
         doc = inspect.getdoc(target) or ""
         assert "oracle が実際に走ったことの証明ではない" in doc
         assert "private" in doc and "commitment" in doc
+        assert "真の関係であることは保証しない" in doc
 
 
 if __name__ == "__main__":

@@ -142,6 +142,7 @@ _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN = frozenset({
 # conftest.py, so a registry edit cannot update its expected set in lockstep.
 ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN = frozenset({
     "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+    "test_sort_swo_oracle.py::test_cpp_e2e_canonical_fixture_trusted_control_compiles_and_runs",
     "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
     "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
     "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
@@ -1726,9 +1727,9 @@ def _assert_oracle_environment_inventory(
         f"extra={sorted(configured_for_exact - set(consumers))}"
     )
     assert len(direct) == 16
-    assert len(indirect) == 8
-    assert len(consumers) == 24
-    assert node_count == 27
+    assert len(indirect) == 9
+    assert len(consumers) == 25
+    assert node_count == 28
     assert not set(direct) & set(indirect)
     assert helper_getter_calls == 1, (
         "compiled oracle helper が memo getter を厳密に 1 回呼ばない: "
@@ -1908,9 +1909,9 @@ def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(
                 f"constants={sorted(values & (forbidden_environment_values | {'build', '_deps', 'masstree-src', '-thirdparty-cache', 'masstree'}))}"
             )
 
-    # Use a disposable checkout-shaped tree for every executable probe.  The
-    # candidate set includes the exact values inspected by the production
-    # resolver, including the bounded ancestor fallback.
+    # Use a disposable checkout-shaped tree for every executable probe.  Keep
+    # the retired build/ancestor locations in the writer audit even though the
+    # fail-closed resolver no longer inspects them.
     from orchestrator.campaign import sort_swo_oracle as oracle
     from orchestrator.campaign import site_policy
 
@@ -2180,14 +2181,11 @@ def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(
     assert [item.path for item in resolution.compiler_candidates] == [
         compiler, cxx, gxx,
     ]
-    assert [item.origin for item in resolution.dependency_candidates][:2] == [
+    assert [item.origin for item in resolution.dependency_candidates] == [
         "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
-        "ccbench-build-dependency",
     ]
     assert [item.path for item in resolution.dependency_candidates] == [
         dependency,
-        ccbench / "build" / "_deps" / "masstree-src",
-        *ancestor_candidates,
     ]
     after_resolution = {path: candidate_state(path) for path in candidate_paths}
     assert after_writers == after_resolution, (
