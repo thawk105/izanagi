@@ -126,6 +126,23 @@ _REAL_TOKEN_SLICE = (
 _REAL_TOKEN_SLICE_SHA = (
     "4491137b7bea866921f7b117d2302adc80cd58e82e70c531de83b3e7c3ad82c9"
 )
+_TEST_PRICE_SNAPSHOT_PATH = (
+    "output/t189-routing-preregistration/price-snapshot-v1.json"
+)
+_TEST_PRICE_SNAPSHOT_SHA256 = (
+    "a0b2c71654d2ba1c58ca2184f903c856e269de5d46f3a64a6148ec035db8b3b1"
+)
+_TEST_PRICE_VERSION = (
+    "openai-pricing-standard-short-context:sha256:"
+    "fca40df4ec205375f6751fb59d9770f9aa8234c25968a758a8b6b70c34e97675"
+)
+_TEST_PRICE_EXCERPT_PATH = (
+    "output/t189-routing-preregistration/price-standard-table-excerpt.html"
+)
+_TEST_PRICE_EXCERPT_SHA256 = (
+    "32d016abae45142697ed608fb56f43e35483e43715965fb7b935bdf7dc6a78d4"
+)
+_TEST_PRICE_EXCERPT_BYTES = 19_117
 
 
 def _canonical(path: Path, value: Any) -> Path:
@@ -6033,6 +6050,544 @@ def _v3_slot(
     }
 
 
+def _bound_price_schedule(
+    *,
+    task_id: str = "alpha",
+    block_id: str = "b01",
+) -> dict[str, Any]:
+    return {
+        "schema_version": 3,
+        "price_snapshot": {
+            "path": _TEST_PRICE_SNAPSHOT_PATH,
+            "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
+        },
+        "slots": [
+            {
+                **_v3_slot(
+                    slot_id="s01",
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=1,
+                    arm="max",
+                    requested_model="gpt-5.6-sol",
+                ),
+                "price_version": _TEST_PRICE_VERSION,
+            },
+            {
+                **_v3_slot(
+                    slot_id="s02",
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=2,
+                    arm="max",
+                    requested_model="gpt-5.6-luna",
+                ),
+                "price_version": _TEST_PRICE_VERSION,
+            },
+        ],
+    }
+
+
+def test_cli_real_import_loads_dataclass_price_verifier() -> None:
+    completed = subprocess.run(
+        [sys.executable, os.fspath(_TOOL_PATH), "--help"],
+        cwd=_ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr.decode("utf-8", "replace")
+    assert b"supervise-pair" in completed.stdout
+
+
+def test_frozen_price_test_literals_independently_pin_repo_bytes() -> None:
+    snapshot_bytes = (_ROOT / _TEST_PRICE_SNAPSHOT_PATH).read_bytes()
+    excerpt_bytes = (_ROOT / _TEST_PRICE_EXCERPT_PATH).read_bytes()
+    assert hashlib.sha256(snapshot_bytes).hexdigest() == _TEST_PRICE_SNAPSHOT_SHA256
+    assert hashlib.sha256(excerpt_bytes).hexdigest() == _TEST_PRICE_EXCERPT_SHA256
+    assert len(excerpt_bytes) == _TEST_PRICE_EXCERPT_BYTES
+    artifact = json.loads(snapshot_bytes)
+    assert artifact["price_table_version"] == _TEST_PRICE_VERSION
+    assert artifact["excerpt"] == {
+        "storage": "repository",
+        "path": _TEST_PRICE_EXCERPT_PATH,
+        "relative_to": "repository-root",
+        "sha256": _TEST_PRICE_EXCERPT_SHA256,
+        "byte_offset": 275_792,
+        "byte_length": _TEST_PRICE_EXCERPT_BYTES,
+    }
+
+
+def test_nullable_price_accepts_only_exact_frozen_expected_binding() -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": _TEST_PRICE_VERSION,
+    }
+    assert TOOL.validate_nullable_dimensions(
+        row,
+        schema_version=3,
+        expected_price_version=_TEST_PRICE_VERSION,
+    ) == row
+
+
+@pytest.mark.parametrize(
+    ("price_version", "expected_price_version", "match"),
+    (
+        ("opaque-version-token", _TEST_PRICE_VERSION, "frozen price binding"),
+        (
+            "openai-pricing-standard-short-context:sha256:" + "0" * 64,
+            _TEST_PRICE_VERSION,
+            "frozen price binding",
+        ),
+        (_TEST_PRICE_VERSION, None, "non-null values are not supported"),
+        ("", _TEST_PRICE_VERSION, "must be non-empty"),
+        (7, _TEST_PRICE_VERSION, "must be a string or null"),
+        (
+            "openai-pricing-standard-short-context:sha256:" + "0" * 64,
+            "openai-pricing-standard-short-context:sha256:" + "0" * 64,
+            "frozen price binding",
+        ),
+    ),
+    ids=(
+        "opaque",
+        "other-snapshot",
+        "missing-expected",
+        "empty",
+        "non-string",
+        "nonfrozen-expected",
+    ),
+)
+def test_nullable_price_negative_matrix_is_fail_closed(
+    price_version: Any,
+    expected_price_version: str | None,
+    match: str,
+) -> None:
+    row = {
+        "benchmark_task_id": "POS",
+        "case": "POS",
+        "cache_condition": None,
+        "price_version": price_version,
+    }
+    with pytest.raises(TOOL.ValidationError, match=match) as caught:
+        TOOL.validate_nullable_dimensions(
+            row,
+            schema_version=3,
+            expected_price_version=expected_price_version,
+        )
+    assert caught.value.rc == TOOL.RC_ROUTING
+
+
+def test_slot_dimensions_direct_price_and_cache_gates_are_exposed() -> None:
+    slot = _bound_price_schedule()["slots"][0]
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    dimensions = TOOL._slot_dimensions(
+        slot,
+        task_manifest=manifest,
+        expected_price_version=_TEST_PRICE_VERSION,
+    )
+    assert dimensions["price_version"] == _TEST_PRICE_VERSION
+
+    wrong = {**slot, "price_version": "opaque-version-token"}
+    with pytest.raises(TOOL.ValidationError, match="frozen price binding") as caught:
+        TOOL._slot_dimensions(
+            wrong,
+            task_manifest=manifest,
+            expected_price_version=_TEST_PRICE_VERSION,
+        )
+    assert caught.value.rc == TOOL.RC_ROUTING
+
+    cache = {**slot, "cache_condition": "cold"}
+    with pytest.raises(
+        TOOL.ValidationError,
+        match="non-null values are not supported without attestation",
+    ) as caught:
+        TOOL._slot_dimensions(
+            cache,
+            task_manifest=manifest,
+            expected_price_version=_TEST_PRICE_VERSION,
+        )
+    assert caught.value.rc == TOOL.RC_ROUTING
+
+
+def test_validate_schedule_accepts_exact_bound_price_and_calls_verifier_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    schedule = _bound_price_schedule()
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    reads: list[tuple[str, str]] = []
+    delegated_read = TOOL._read_frozen_repo_file
+    verifier_calls = 0
+    delegated_validate = TOOL.PRICE_SNAPSHOT.validate_price_snapshot
+
+    def observed_read(relative_path: str, label: str) -> bytes:
+        reads.append((relative_path, label))
+        return delegated_read(relative_path, label)
+
+    def observed_validate(value: Any) -> dict[str, Any]:
+        nonlocal verifier_calls
+        verifier_calls += 1
+        return delegated_validate(value)
+
+    monkeypatch.setattr(TOOL, "_read_frozen_repo_file", observed_read)
+    monkeypatch.setattr(
+        TOOL.PRICE_SNAPSHOT, "validate_price_snapshot", observed_validate
+    )
+    slots, reasons = TOOL._validate_schedule(schedule, task_manifest=manifest)
+    assert reasons == []
+    assert {row["price_version"] for row in slots} == {_TEST_PRICE_VERSION}
+    assert reads == [
+        (_TEST_PRICE_SNAPSHOT_PATH, "frozen price snapshot"),
+        (_TEST_PRICE_EXCERPT_PATH, "frozen price excerpt"),
+    ]
+    assert verifier_calls == 1
+
+
+@pytest.mark.parametrize("schema_version", (2, None), ids=("v2", "missing"))
+def test_non_null_price_binding_is_schema_v3_only(schema_version: int | None) -> None:
+    schedule = _bound_price_schedule()
+    if schema_version is None:
+        del schedule["schema_version"]
+    else:
+        schedule["schema_version"] = schema_version
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any("non-null values are not supported" in reason for reason in reasons)
+
+
+def test_non_null_price_binding_rejects_float_schema_v3() -> None:
+    schedule = _bound_price_schedule()
+    schedule["schema_version"] = 3.0
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any("non-null values are not supported" in reason for reason in reasons)
+
+
+@pytest.mark.parametrize(
+    ("slot_index", "block_order"),
+    ((0, True), (1, 2.0)),
+    ids=("bool", "float"),
+)
+def test_bound_price_requires_exact_integer_block_order(
+    slot_index: int,
+    block_order: Any,
+) -> None:
+    schedule = _bound_price_schedule()
+    schedule["slots"][slot_index]["block_order"] = block_order
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any(
+        "bound schedule block_order must be an exact integer" in reason
+        for reason in reasons
+    )
+
+
+@pytest.mark.parametrize("stage", (True, 1.0), ids=("bool", "float"))
+def test_bound_price_rejects_numeric_stage_type_confusion(stage: Any) -> None:
+    schedule = _bound_price_schedule()
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    manifest["tasks"]["alpha"]["stage"] = 1
+    for row in schedule["slots"]:
+        row["stage"] = stage
+    _, reasons = TOOL._validate_schedule(schedule, task_manifest=manifest)
+    assert any(
+        "bound schedule stage type does not match" in reason for reason in reasons
+    )
+
+
+def test_bound_price_accepts_exact_integer_block_order_and_stage() -> None:
+    schedule = _bound_price_schedule()
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    manifest["tasks"]["alpha"]["stage"] = 1
+    for row in schedule["slots"]:
+        row["stage"] = 1
+    slots, reasons = TOOL._validate_schedule(schedule, task_manifest=manifest)
+    assert reasons == []
+    assert [row["block_order"] for row in slots] == [1, 2]
+    assert {row["stage"] for row in slots} == {1}
+
+
+@pytest.mark.parametrize(
+    "record",
+    (
+        None,
+        [],
+        {"path": _TEST_PRICE_SNAPSHOT_PATH},
+        {"sha256": _TEST_PRICE_SNAPSHOT_SHA256},
+        {
+            "path": _TEST_PRICE_SNAPSHOT_PATH,
+            "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
+            "extra": "forbidden",
+        },
+        {"path": "output/other.json", "sha256": _TEST_PRICE_SNAPSHOT_SHA256},
+        {"path": _TEST_PRICE_SNAPSHOT_PATH, "sha256": "0" * 64},
+    ),
+    ids=(
+        "missing",
+        "non-object",
+        "missing-sha",
+        "missing-path",
+        "extra-key",
+        "wrong-path",
+        "wrong-sha",
+    ),
+)
+def test_price_snapshot_record_is_exact_and_pinned(record: Any) -> None:
+    schedule = _bound_price_schedule()
+    if record is None:
+        del schedule["price_snapshot"]
+    else:
+        schedule["price_snapshot"] = record
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons
+    assert any("price_snapshot" in reason for reason in reasons)
+
+
+@pytest.mark.parametrize(
+    "target", ("snapshot", "excerpt"), ids=("snapshot", "excerpt")
+)
+def test_bound_price_rejects_changed_snapshot_or_excerpt_bytes(
+    target: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegated = TOOL._read_frozen_repo_file
+
+    def changed_bytes(relative_path: str, label: str) -> bytes:
+        data = delegated(relative_path, label)
+        if target in label:
+            return data + b"changed"
+        return data
+
+    monkeypatch.setattr(TOOL, "_read_frozen_repo_file", changed_bytes)
+    _, reasons = TOOL._validate_schedule(
+        _bound_price_schedule(),
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any(f"{target} bytes sha256 mismatch" in reason for reason in reasons)
+
+
+@pytest.mark.parametrize(
+    ("leaf", "replacement", "match"),
+    (
+        ("path", "output/wrong-excerpt.html", "excerpt path mismatch"),
+        ("sha256", "0" * 64, "excerpt sha256 mismatch"),
+        (
+            "byte_length",
+            _TEST_PRICE_EXCERPT_BYTES + 1,
+            "excerpt byte length mismatch",
+        ),
+    ),
+    ids=("path", "sha256", "byte-length"),
+)
+def test_bound_price_rejects_validated_excerpt_metadata_mismatch(
+    leaf: str,
+    replacement: Any,
+    match: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegated = TOOL.PRICE_SNAPSHOT.validate_price_snapshot
+
+    def wrong_excerpt(value: Any) -> dict[str, Any]:
+        validated = delegated(value)
+        validated["excerpt"][leaf] = replacement
+        return validated
+
+    monkeypatch.setattr(
+        TOOL.PRICE_SNAPSHOT, "validate_price_snapshot", wrong_excerpt
+    )
+    _, reasons = TOOL._validate_schedule(
+        _bound_price_schedule(),
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert any(match in reason for reason in reasons)
+
+
+def test_bound_price_rejects_validated_price_version_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegated = TOOL.PRICE_SNAPSHOT.validate_price_snapshot
+
+    def wrong_version(value: Any) -> dict[str, Any]:
+        validated = delegated(value)
+        validated["price_table_version"] = (
+            "openai-pricing-standard-short-context:sha256:" + "0" * 64
+        )
+        return validated
+
+    monkeypatch.setattr(
+        TOOL.PRICE_SNAPSHOT, "validate_price_snapshot", wrong_version
+    )
+    _, reasons = TOOL._validate_schedule(
+        _bound_price_schedule(),
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert "frozen price version mismatch" in reasons
+
+
+@pytest.mark.parametrize(
+    "kind", ("symlink", "directory"), ids=("symlink", "directory")
+)
+def test_frozen_repo_file_rejects_symlink_and_nonregular_targets(
+    kind: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "artifact"
+    if kind == "symlink":
+        source = tmp_path / "source"
+        source.write_bytes(b"bytes")
+        target.symlink_to(source)
+        match = "symlink"
+    else:
+        target.mkdir()
+        match = "not a regular file"
+    monkeypatch.setattr(TOOL, "_ROOT", tmp_path)
+    with pytest.raises(TOOL.ValidationError, match=match) as caught:
+        TOOL._read_frozen_repo_file("artifact", "fixture artifact")
+    assert caught.value.rc == TOOL.RC_ROUTING
+
+
+def test_price_version_global_concentration_rejects_null_and_frozen_blocks() -> None:
+    schedule = _bound_price_schedule()
+    schedule["slots"].extend(
+        [
+            {
+                **_v3_slot(
+                    slot_id="s03",
+                    task_id="alpha",
+                    block_id="b02",
+                    block_order=1,
+                    arm="high",
+                    requested_model="gpt-5.6-sol",
+                ),
+                "price_version": None,
+            },
+            {
+                **_v3_slot(
+                    slot_id="s04",
+                    task_id="alpha",
+                    block_id="b02",
+                    block_order=2,
+                    arm="high",
+                    requested_model="gpt-5.6-luna",
+                ),
+                "price_version": None,
+            },
+        ]
+    )
+    _, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons == [
+        "schedule price_version concentration must be all null or all frozen"
+    ]
+
+
+def test_all_null_v3_schedule_ignores_unbound_price_snapshot_metadata() -> None:
+    schedule = _bound_price_schedule()
+    schedule["price_snapshot"] = {
+        "malformed": "ignored for the legacy all-null acceptance set"
+    }
+    for row in schedule["slots"]:
+        row["price_version"] = None
+    slots, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons == []
+    assert {row["price_version"] for row in slots} == {None}
+
+
+def test_all_null_float_schema_v3_remains_accepted() -> None:
+    schedule = _bound_price_schedule()
+    schedule["schema_version"] = 3.0
+    for row in schedule["slots"]:
+        row["price_version"] = None
+    slots, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons == []
+    assert {row["price_version"] for row in slots} == {None}
+
+
+@pytest.mark.parametrize(
+    ("slot_index", "block_order"),
+    ((0, True), (1, 2.0)),
+    ids=("bool", "float"),
+)
+def test_all_null_numeric_equivalent_block_order_remains_accepted(
+    slot_index: int,
+    block_order: Any,
+) -> None:
+    schedule = _bound_price_schedule()
+    schedule["slots"][slot_index]["block_order"] = block_order
+    for row in schedule["slots"]:
+        row["price_version"] = None
+    slots, reasons = TOOL._validate_schedule(
+        schedule,
+        task_manifest=_synthetic_task_manifest(
+            (("alpha", "POS", "positive", "alpha-finding"),)
+        ),
+    )
+    assert reasons == []
+    assert slots[slot_index]["block_order"] == block_order
+    assert type(slots[slot_index]["block_order"]) is type(block_order)
+
+
+@pytest.mark.parametrize("stage", (True, 1.0), ids=("bool", "float"))
+def test_all_null_numeric_equivalent_stage_remains_accepted(stage: Any) -> None:
+    schedule = _bound_price_schedule()
+    manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    manifest["tasks"]["alpha"]["stage"] = 1
+    for row in schedule["slots"]:
+        row["price_version"] = None
+        row["stage"] = stage
+    slots, reasons = TOOL._validate_schedule(schedule, task_manifest=manifest)
+    assert reasons == []
+    assert {row["stage"] for row in slots} == {1}
+
+
 def test_validate_schedule_accepts_same_arm_different_requested_model_pair() -> None:
     schedule = {
         "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
@@ -7700,6 +8255,294 @@ def test_verify_replays_complete_fake_codex_experiment(
     assert "generated session row set mismatch" in "\n".join(
         tampered["failure_reasons"]
     )
+
+
+def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prompt = tmp_path / "supervisor-prompt.txt"
+    prompt.write_bytes(b"bound supervisor prompt")
+    snapshot = tmp_path / "supervisor-snapshot"
+    snapshot.mkdir()
+    submodule_sha256 = TOOL._submodule_manifest_sha256([])
+    supervisor_oracles = {
+        case: {
+            "case": case,
+            "snapshot": os.fspath(snapshot.resolve()),
+            "submodules": [],
+            "submodule_manifest_sha256": submodule_sha256,
+        }
+        for case in ("POS", "NEG")
+    }
+    supervisor_slots: list[dict[str, Any]] = []
+    slot_number = 0
+    for case, block_count in (("POS", 3), ("NEG", 2)):
+        for block in range(block_count):
+            order = ("max", "high") if block % 2 == 0 else ("high", "max")
+            block_id = f"b{len(supervisor_slots) // 2 + 1:02d}"
+            for block_order, arm in enumerate(order, 1):
+                slot_number += 1
+                supervisor_slots.append(
+                    {
+                        "slot_id": f"s{slot_number:02d}",
+                        "case": case,
+                        "arm": arm,
+                        "block_id": block_id,
+                        "block_order": block_order,
+                        "cache_condition": None,
+                        "price_version": _TEST_PRICE_VERSION,
+                        "prompt_sha256": TOOL._sha256(prompt.read_bytes()),
+                        "snapshot_manifest_sha256": TOOL._sha256(
+                            TOOL._canonical_bytes(supervisor_oracles[case])
+                        ),
+                        "submodule_manifest_sha256": submodule_sha256,
+                    }
+                )
+    supervisor_schedule = _canonical(
+        tmp_path / "supervisor-schedule.json",
+        {
+            "schema_version": 3,
+            "price_snapshot": {
+                "path": _TEST_PRICE_SNAPSHOT_PATH,
+                "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
+            },
+            "slots": supervisor_slots,
+        },
+    )
+    clock = 0
+
+    def complete_supervisor_slot(**kwargs: Any) -> dict[str, Any]:
+        nonlocal clock
+        clock += 2_000_000
+        slot = kwargs["slot"]
+        return {
+            "schema_version": TOOL.SCHEMA_VERSION,
+            "phase": "completed",
+            "run_id": kwargs["run_id"],
+            "slot_id": slot["slot_id"],
+            "block_id": slot["block_id"],
+            "block_order": slot["block_order"],
+            "attempt": kwargs["attempt"],
+            "parent_run_id": kwargs["parent_run_id"],
+            "case": slot["case"],
+            "arm": slot["arm"],
+            "process_start_monotonic_ns": clock,
+            "process_exit_monotonic_ns": clock + 1_000_000,
+            "process_wall_ms": 1,
+            "exit_code": 0,
+            "snapshot_unchanged": True,
+        }
+
+    monkeypatch.setattr(
+        TOOL,
+        "verify_snapshot",
+        lambda _snapshot, case: copy.deepcopy(supervisor_oracles[case]),
+    )
+    monkeypatch.setattr(TOOL, "_supervise_one", complete_supervisor_slot)
+    supervised = TOOL.supervise_pair(
+        schedule_path=supervisor_schedule,
+        run_root=tmp_path / "supervisor-run",
+        block_id="b01",
+        attempt=1,
+        snapshot=snapshot,
+        prompt=prompt,
+        config_source=tmp_path / "unused-config",
+        auth_source=tmp_path / "unused-auth",
+        codex_binary=tmp_path / "unused-codex",
+        bwrap_binary=tmp_path / "unused-bwrap",
+        dry_run=True,
+    )
+    assert len(supervised["runs"]) == 2
+
+    replay_root = tmp_path / "replay-run"
+    attempts_root = replay_root / "attempts"
+    sessions_root = tmp_path / "sessions"
+    attempts_root.mkdir(parents=True)
+    sessions_root.mkdir()
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    replay_schedule = _bound_price_schedule()
+    replay_prompt = tmp_path / "replay-prompt.txt"
+    replay_prompt.write_bytes(b"bound replay prompt")
+    replay_snapshot = tmp_path / "replay-snapshot"
+    replay_snapshot.mkdir()
+    replay_oracle = {
+        "snapshot": os.fspath(replay_snapshot.resolve()),
+        "submodule_manifest_sha256": "c" * 64,
+    }
+    oracle_path = _canonical(tmp_path / "replay-oracle.json", replay_oracle)
+    oracle_sha256 = TOOL._sha256(oracle_path.read_bytes())
+    for slot in replay_schedule["slots"]:
+        slot["case"] = "legacy-alpha"
+        slot["prompt_sha256"] = TOOL._sha256(replay_prompt.read_bytes())
+        slot["snapshot_manifest_sha256"] = oracle_sha256
+    replay_schedule_path = _canonical(
+        replay_root / "schedule.json", replay_schedule
+    )
+    replay_schedule_sha256 = TOOL._sha256(replay_schedule_path.read_bytes())
+    ledger_path = _canonical(replay_root / "attempt-ledger.jsonl", {})
+    attempt_descriptors: list[dict[str, Any]] = []
+    replay_receipts: dict[str, dict[str, Any]] = {}
+    replay_scores: dict[str, dict[str, Any]] = {}
+    supervisor_completions: list[dict[str, Any]] = []
+    for index, slot in enumerate(replay_schedule["slots"], 1):
+        run_id = f"r{index:02d}"
+        attempt_root = attempts_root / run_id
+        attempt_root.mkdir()
+        events = _canonical(attempt_root / "events.jsonl", {"events": index})
+        done = _canonical(attempt_root / "done.json", {"done": index})
+        output = attempt_root / "answer.md"
+        output.write_text(_long_output(), encoding="utf-8")
+        rollout = _canonical(
+            sessions_root / f"rollout-{run_id}.jsonl", {"rollout": index}
+        )
+        launch = _canonical(
+            attempt_root / "launch.json",
+            {
+                "run_id": run_id,
+                "slot_id": slot["slot_id"],
+                "attempt": 1,
+                "parent_run_id": None,
+                "case": slot["case"],
+                "arm": slot["arm"],
+                "requested_model": slot["requested_model"],
+                "schedule_sha256": replay_schedule_sha256,
+                "prompt": {"sha256": slot["prompt_sha256"]},
+                "snapshot_oracle": {
+                    "sha256": slot["snapshot_manifest_sha256"]
+                },
+                "treatment_identity_sha256": "bound-price-identity",
+            },
+        )
+        receipt = {
+            "run_id": run_id,
+            "rollout_path": os.fspath(rollout.resolve()),
+            "wall_clock_ms": 0,
+            "failure_reasons": [],
+            "failure_class": None,
+            "valid": True,
+            "input_tokens": 1,
+            "cached_input_tokens": 0,
+            "output_tokens": 1,
+            "reasoning_output_tokens": 0,
+            "cli_reported": 2,
+            "model_calls": 1,
+            "token_usage_observations": _token_usage_observations(),
+            "turn_protocol": "single-turn-required",
+            "rate_limited": False,
+            "retry": False,
+            "compaction_observed": False,
+        }
+        score = {
+            "valid": True,
+            "r1_candidate": True,
+            "decision": "NO-GO",
+        }
+        receipt_path = _canonical(attempt_root / "receipt.json", receipt)
+        score_path = _canonical(attempt_root / "score.json", score)
+        replay_receipts[run_id] = receipt
+        replay_scores[run_id] = score
+        supervisor_completions.append(
+            {
+                "run_id": run_id,
+                "process_started": True,
+                "process_wall_ms": 0,
+            }
+        )
+        attempt_descriptors.append(
+            {
+                "run_id": run_id,
+                "slot_id": slot["slot_id"],
+                "attempt": 1,
+                "parent_run_id": None,
+                "launch_receipt": _descriptor(launch, tmp_path),
+                "events": _descriptor(events, tmp_path),
+                "done": _descriptor(done, tmp_path),
+                "prompt": _descriptor(replay_prompt, tmp_path),
+                "output": _descriptor(output, tmp_path),
+                "snapshot_oracle": _descriptor(oracle_path, tmp_path),
+                "snapshot_after": _descriptor(oracle_path, tmp_path),
+                "rollout": _descriptor(rollout, tmp_path),
+                "receipt": _descriptor(receipt_path, tmp_path),
+                "score": _descriptor(score_path, tmp_path),
+            }
+        )
+    manifest_path = _canonical(
+        tmp_path / "replay-manifest.json",
+        {
+            "run_root": replay_root.name,
+            "attempts_root": f"{replay_root.name}/attempts",
+            "attempt_ledger": _descriptor(ledger_path, tmp_path),
+            "max_schedule_gap_ms": TOOL.MAX_SCHEDULE_GAP_MS,
+            "max_inter_block_gap_ms": TOOL.MAX_INTER_BLOCK_GAP_MS,
+            "schedule": _descriptor(replay_schedule_path, tmp_path),
+            "schedule_sha256": replay_schedule_sha256,
+            "attempts": attempt_descriptors,
+        },
+    )
+
+    monkeypatch.setattr(
+        TOOL,
+        "_validate_supervisor_ledger",
+        lambda *args, **kwargs: (supervisor_completions, []),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "verify_snapshot",
+        lambda _snapshot, _case: copy.deepcopy(replay_oracle),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "collect_run",
+        lambda **kwargs: (copy.deepcopy(replay_receipts[kwargs["run_id"]]), 0),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "score_run",
+        lambda _path, run_id: (copy.deepcopy(replay_scores[run_id]), 0),
+    )
+    verdicts = {
+        slot["slot_id"]: {
+            "r1_detected": True,
+            "findings": [],
+            "reader_agreement": True,
+        }
+        for slot in replay_schedule["slots"]
+    }
+    monkeypatch.setattr(
+        TOOL,
+        "_load_adjudication",
+        lambda *args, **kwargs: (copy.deepcopy(verdicts), []),
+    )
+
+    result, rc = TOOL.verify_manifest(
+        manifest_path,
+        sessions_root,
+        task_manifest=task_manifest,
+    )
+    assert rc == 0
+    assert result["valid"] is True
+    assert result["experiment_complete"] is True
+    assert len(result["resource_ledger"]) == 2
+    assert {
+        row["price_version"] for row in result["resource_ledger"]
+    } == {_TEST_PRICE_VERSION}
+    assert {
+        row["cache_condition"] for row in result["resource_ledger"]
+    } == {None}
+    assert {
+        row["price_version"]
+        for row in result["primary_judgment_axis_ledger"]
+    } == {_TEST_PRICE_VERSION}
+    aggregated, aggregate_rc = TOOL.aggregate_manifest(
+        manifest_path,
+        sessions_root=sessions_root,
+        task_manifest=task_manifest,
+    )
+    assert aggregate_rc == 0
+    assert aggregated["resource_ledger"] == result["resource_ledger"]
 
 
 def test_replay_forwards_only_successful_snapshot_evidence_to_adjudication(
@@ -10485,6 +11328,60 @@ def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
     assert result["decision"]["by_axis"]
 
 
+def test_bound_price_aggregate_rejects_attempt_price_mismatch(
+    tmp_path: Path,
+) -> None:
+    task_manifest = _synthetic_task_manifest(
+        (("alpha", "POS", "positive", "alpha-finding"),)
+    )
+    slots, schedule_reasons = TOOL._validate_schedule(
+        _bound_price_schedule(), task_manifest=task_manifest
+    )
+    assert schedule_reasons == []
+    attempts: list[dict[str, Any]] = []
+    verdicts: dict[str, dict[str, Any]] = {}
+    for index, slot in enumerate(slots, 1):
+        attempts.append(
+            {
+                **slot,
+                "run_id": f"r{index:02d}",
+                "attempt": 1,
+                "failure_class": None,
+                "input_tokens": 1,
+                "cached_input_tokens": 0,
+                "output_tokens": 1,
+                "reasoning_output_tokens": 0,
+                "cli_reported": 2,
+                "model_calls": 1,
+                "token_usage_observations": _token_usage_observations(),
+                "turn_protocol": "single-turn-required",
+                "wall_clock_ms": 100,
+                "rate_limited": False,
+                "retry": False,
+                "compaction_observed": False,
+            }
+        )
+        verdicts[slot["slot_id"]] = {
+            "r1_detected": True,
+            "findings": [],
+            "reader_agreement": True,
+        }
+    attempts[0]["price_version"] = None
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "bound-aggregate-manifest.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+    )
+    assert result["valid"] is False
+    assert result["experiment_complete"] is False
+    assert "r01: attempt price_version does not match scheduled slot" in result[
+        "failure_reasons"
+    ]
+
+
 def test_zero_component_total_only_aggregate_counts_by_arm_and_case(
     tmp_path: Path,
 ) -> None:
@@ -11303,6 +12200,169 @@ def test_make_packets_uses_dynamic_schedule_count_and_keeps_public_state_blind(
         "price_version",
     ):
         assert forbidden not in public_state
+
+
+def _bound_packet_manifest(tmp_path: Path, *, leak_literal: bool) -> tuple[Path, dict[str, Any]]:
+    task_manifest = _synthetic_task_manifest()
+    schedule_rows: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    for index, task_id in enumerate(("alpha", "beta", "gamma"), 1):
+        for order, model in enumerate(("gpt-5.6-sol", "gpt-5.6-luna"), 1):
+            slot_id = f"s{(index - 1) * 2 + order:02d}"
+            schedule_rows.append(
+                {
+                    **_v3_slot(
+                        slot_id=slot_id,
+                        task_id=task_id,
+                        block_id=f"b{index:02d}",
+                        block_order=order,
+                        arm="max",
+                        requested_model=model,
+                    ),
+                    "price_version": _TEST_PRICE_VERSION,
+                }
+            )
+            output = tmp_path / f"bound-output-{slot_id}.md"
+            output.write_text(
+                _long_output()
+                + (
+                    "\n" + _TEST_PRICE_VERSION
+                    if leak_literal and slot_id == "s01"
+                    else ""
+                ),
+                encoding="utf-8",
+            )
+            attempts.append(
+                {
+                    "slot_id": slot_id,
+                    "attempt": 1,
+                    "run_id": f"r{(index - 1) * 2 + order:02d}",
+                    "price_version": _TEST_PRICE_VERSION,
+                    "output": _descriptor(output, tmp_path),
+                }
+            )
+    schedule_path = _canonical(
+        tmp_path / "bound-packet-schedule.json",
+        {
+            "schema_version": 3,
+            "price_snapshot": {
+                "path": _TEST_PRICE_SNAPSHOT_PATH,
+                "sha256": _TEST_PRICE_SNAPSHOT_SHA256,
+            },
+            "slots": schedule_rows,
+        },
+    )
+    manifest_path = _canonical(
+        tmp_path / "bound-packet-manifest.json",
+        {
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": attempts,
+        },
+    )
+    return manifest_path, task_manifest
+
+
+def test_make_packets_with_bound_non_null_price_keeps_value_out_of_public_packets(
+    tmp_path: Path,
+) -> None:
+    manifest_path, task_manifest = _bound_packet_manifest(
+        tmp_path, leak_literal=False
+    )
+    result = TOOL.make_packets(
+        manifest_path,
+        tmp_path / "bound-packets",
+        tmp_path / "bound-custodian",
+        task_manifest=task_manifest,
+    )
+    state_path = Path(result["packet_state"])
+    public_bytes = state_path.read_bytes() + b"".join(
+        path.read_bytes()
+        for path in sorted(state_path.parent.glob("packet-*.md"))
+    )
+    assert b"price_version" not in public_bytes
+    assert _TEST_PRICE_VERSION.encode("utf-8") not in public_bytes
+    assert result["packet_count"] == 6
+
+
+def test_make_packets_rejects_bound_price_literal_before_publication(
+    tmp_path: Path,
+) -> None:
+    manifest_path, task_manifest = _bound_packet_manifest(
+        tmp_path, leak_literal=True
+    )
+    packet_dir = tmp_path / "bound-packets"
+    custodian = tmp_path / "bound-custodian"
+    with pytest.raises(TOOL.ValidationError, match="literal") as caught:
+        TOOL.make_packets(
+            manifest_path,
+            packet_dir,
+            custodian,
+            task_manifest=task_manifest,
+        )
+    assert caught.value.rc == TOOL.RC_AGGREGATE
+    assert not packet_dir.exists()
+    assert not custodian.exists()
+
+
+def test_make_packets_all_null_legacy_schedule_allows_incidental_frozen_literal(
+    tmp_path: Path,
+) -> None:
+    schedule_rows: list[dict[str, Any]] = []
+    attempts: list[dict[str, Any]] = []
+    slot_number = 0
+    for case, block_count in (("POS", 3), ("NEG", 2)):
+        for _ in range(block_count):
+            block_id = f"b{len(schedule_rows) // 2 + 1:02d}"
+            for block_order, arm in enumerate(("max", "high"), 1):
+                slot_number += 1
+                slot_id = f"s{slot_number:02d}"
+                schedule_rows.append(
+                    {
+                        "slot_id": slot_id,
+                        "case": case,
+                        "arm": arm,
+                        "block_id": block_id,
+                        "block_order": block_order,
+                        "prompt_sha256": "a" * 64,
+                        "snapshot_manifest_sha256": "b" * 64,
+                        "submodule_manifest_sha256": "c" * 64,
+                    }
+                )
+                output = tmp_path / f"legacy-output-{slot_id}.md"
+                output.write_text(
+                    _long_output()
+                    + ("\n" + _TEST_PRICE_VERSION if slot_id == "s01" else ""),
+                    encoding="utf-8",
+                )
+                attempts.append(
+                    {
+                        "slot_id": slot_id,
+                        "attempt": 1,
+                        "run_id": f"r{slot_number:02d}",
+                        "output": _descriptor(output, tmp_path),
+                    }
+                )
+    schedule_path = _canonical(
+        tmp_path / "legacy-null-schedule.json", {"slots": schedule_rows}
+    )
+    manifest_path = _canonical(
+        tmp_path / "legacy-null-manifest.json",
+        {
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": attempts,
+        },
+    )
+    result = TOOL.make_packets(
+        manifest_path,
+        tmp_path / "legacy-packets",
+        tmp_path / "legacy-custodian",
+    )
+    assert result["packet_count"] == 10
+    public_bodies = b"".join(
+        path.read_bytes()
+        for path in Path(result["packet_state"]).parent.glob("packet-*.md")
+    )
+    assert _TEST_PRICE_VERSION.encode("utf-8") in public_bodies
 
 
 def test_make_packets_rejects_empty_packet_only_manifest(tmp_path: Path) -> None:

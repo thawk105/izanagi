@@ -45,6 +45,32 @@ finally:
     sys.dont_write_bytecode = _ORIGINAL_DONT_WRITE_BYTECODE
 
 
+_PRICE_SNAPSHOT_TOOL_PATH = Path(__file__).with_name("t189_price_snapshot.py")
+_PRICE_SNAPSHOT_MODULE_NAME = (
+    f"t189_price_snapshot_for_reasoning_ab_{uuid.uuid4().hex}"
+)
+_PRICE_SNAPSHOT_SPEC = importlib.util.spec_from_file_location(
+    _PRICE_SNAPSHOT_MODULE_NAME, _PRICE_SNAPSHOT_TOOL_PATH
+)
+if _PRICE_SNAPSHOT_SPEC is None or _PRICE_SNAPSHOT_SPEC.loader is None:
+    raise ImportError(
+        f"price snapshot verifier を import できない: {_PRICE_SNAPSHOT_TOOL_PATH}"
+    )
+PRICE_SNAPSHOT = importlib.util.module_from_spec(_PRICE_SNAPSHOT_SPEC)
+sys.modules[_PRICE_SNAPSHOT_MODULE_NAME] = PRICE_SNAPSHOT
+try:
+    _ORIGINAL_DONT_WRITE_BYTECODE = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = True
+        _PRICE_SNAPSHOT_SPEC.loader.exec_module(PRICE_SNAPSHOT)
+    finally:
+        sys.dont_write_bytecode = _ORIGINAL_DONT_WRITE_BYTECODE
+except BaseException:
+    if sys.modules.get(_PRICE_SNAPSHOT_MODULE_NAME) is PRICE_SNAPSHOT:
+        sys.modules.pop(_PRICE_SNAPSHOT_MODULE_NAME, None)
+    raise
+
+
 LEGACY_SCHEMA_VERSION = 2
 TASK_MANIFEST_SCHEMA_VERSION = 3
 SCHEDULE_SCHEMA_VERSION = 3
@@ -66,6 +92,22 @@ INTEGRATED_COMMIT = "9b26b3bd3acc10df95ef6ef6684a91d2ff3fa2ec"
 ARTIFACT_COMMIT = "08a7e5f2fc08d57309a86ef70d00e9b050ebec9c"
 BRANCH = "codex/dev-wave-t153e-t15423"
 MODEL = "gpt-5.6-sol"
+FROZEN_PRICE_SNAPSHOT_PATH = (
+    "output/t189-routing-preregistration/price-snapshot-v1.json"
+)
+FROZEN_PRICE_SNAPSHOT_SHA256 = (
+    "a0b2c71654d2ba1c58ca2184f903c856e269de5d46f3a64a6148ec035db8b3b1"
+)
+FROZEN_PRICE_VERSION = (
+    "openai-pricing-standard-short-context:sha256:"
+    "fca40df4ec205375f6751fb59d9770f9aa8234c25968a758a8b6b70c34e97675"
+)
+FROZEN_PRICE_EXCERPT_PATH = (
+    "output/t189-routing-preregistration/price-standard-table-excerpt.html"
+)
+FROZEN_PRICE_EXCERPT_SHA256 = (
+    "32d016abae45142697ed608fb56f43e35483e43715965fb7b935bdf7dc6a78d4"
+)
 OLD_ROOT = (
     "/home/SFC/tanab/github/izanagi/.codex/worktrees/"
     "dev-wave-t153e-t15423"
@@ -2587,16 +2629,83 @@ def _validate_task_manifest(
 validate_task_manifest = _validate_task_manifest
 
 
+def _validate_cache_condition(normalized: dict[str, Any], schema_version: int) -> None:
+    field = "cache_condition"
+    if field not in normalized:
+        if schema_version == LEGACY_SCHEMA_VERSION:
+            normalized[field] = None
+        else:
+            raise ValidationError(
+                f"schedule slot missing required field: {field}", RC_ROUTING
+            )
+    value = normalized[field]
+    if value is not None and not isinstance(value, str):
+        raise ValidationError(
+            f"schedule slot {field} must be a string or null", RC_ROUTING
+        )
+    if value == "":
+        raise ValidationError(
+            f"schedule slot {field} must be non-empty when present", RC_ROUTING
+        )
+    if value is not None:
+        raise ValidationError(
+            f"schedule slot {field} non-null values are not supported without attestation",
+            RC_ROUTING,
+        )
+
+
+def _validate_price_version(
+    normalized: dict[str, Any],
+    schema_version: int,
+    expected_price_version: str | None,
+) -> None:
+    field = "price_version"
+    if field not in normalized:
+        if schema_version == LEGACY_SCHEMA_VERSION:
+            normalized[field] = None
+        else:
+            raise ValidationError(
+                f"schedule slot missing required field: {field}", RC_ROUTING
+            )
+    value = normalized[field]
+    if value is not None and not isinstance(value, str):
+        raise ValidationError(
+            f"schedule slot {field} must be a string or null", RC_ROUTING
+        )
+    if value == "":
+        raise ValidationError(
+            f"schedule slot {field} must be non-empty when present", RC_ROUTING
+        )
+    if value is None:
+        return
+    if expected_price_version is None:
+        raise ValidationError(
+            f"schedule slot {field} non-null values are not supported without attestation",
+            RC_ROUTING,
+        )
+    if (
+        schema_version != SCHEDULE_SCHEMA_VERSION
+        or expected_price_version != FROZEN_PRICE_VERSION
+        or value != expected_price_version
+        or value != FROZEN_PRICE_VERSION
+    ):
+        raise ValidationError(
+            "schedule slot price_version does not match the frozen price binding",
+            RC_ROUTING,
+        )
+
+
 def validate_nullable_dimensions(
     slot: Mapping[str, Any],
     *,
     schema_version: int = TASK_MANIFEST_SCHEMA_VERSION,
+    expected_price_version: str | None = None,
 ) -> dict[str, Any]:
     """Validate nullable dimensions and return a non-mutating normalized row.
 
     v3 requires both keys to be present.  A v2 row may omit them and receives
-    explicit nulls only in the normalized copy.  Non-null values are rejected
-    deliberately: no provider attestation exists in this wave.
+    explicit nulls only in the normalized copy.  Cache remains null-only;
+    price accepts only the caller-provided, repository-frozen v3 binding.
 
     The live _validate_schedule path uses this helper through the schedule
     normalizer before supervisor or replay consumers receive a slot.
@@ -2608,28 +2717,10 @@ def validate_nullable_dimensions(
             f"unsupported schedule schema_version: {schema_version}", RC_ROUTING
         )
     normalized = dict(slot)
-    for field in ("cache_condition", "price_version"):
-        if field not in normalized:
-            if schema_version == LEGACY_SCHEMA_VERSION:
-                normalized[field] = None
-            else:
-                raise ValidationError(
-                    f"schedule slot missing required field: {field}", RC_ROUTING
-                )
-        value = normalized[field]
-        if value is not None and not isinstance(value, str):
-            raise ValidationError(
-                f"schedule slot {field} must be a string or null", RC_ROUTING
-            )
-        if value == "":
-            raise ValidationError(
-                f"schedule slot {field} must be non-empty when present", RC_ROUTING
-            )
-        if value is not None:
-            raise ValidationError(
-                f"schedule slot {field} non-null values are not supported without attestation",
-                RC_ROUTING,
-            )
+    _validate_cache_condition(normalized, schema_version)
+    _validate_price_version(
+        normalized, schema_version, expected_price_version
+    )
     return normalized
 
 
@@ -2641,6 +2732,7 @@ def _normalize_schedule_slot(
     *,
     schema_version: int,
     manifest: Mapping[str, Any],
+    expected_price_version: str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(slot, Mapping):
         raise ValidationError("schedule slot is not an object", RC_ROUTING)
@@ -2659,13 +2751,18 @@ def _normalize_schedule_slot(
             "schedule legacy_case does not match benchmark task", RC_ROUTING
         )
     normalized.setdefault("case", task["legacy_case"])
-    return validate_nullable_dimensions(normalized, schema_version=schema_version)
+    return validate_nullable_dimensions(
+        normalized,
+        schema_version=schema_version,
+        expected_price_version=expected_price_version,
+    )
 
 
 def normalize_legacy_schedule(
     schedule: Mapping[str, Any],
     *,
     manifest: Mapping[str, Any] = TASK_MANIFEST,
+    expected_price_version: str | None = None,
 ) -> dict[str, Any]:
     """Convert a v2 schedule to a v3 view without changing its source bytes.
 
@@ -2686,7 +2783,10 @@ def normalize_legacy_schedule(
     normalized["manifest_kind"] = "t181-task-manifest"
     normalized["slots"] = [
         _normalize_schedule_slot(
-            row, schema_version=LEGACY_SCHEMA_VERSION, manifest=manifest
+            row,
+            schema_version=LEGACY_SCHEMA_VERSION,
+            manifest=manifest,
+            expected_price_version=expected_price_version,
         )
         for row in slots
     ]
@@ -2697,6 +2797,7 @@ def normalize_schedule(
     schedule: Mapping[str, Any],
     *,
     manifest: Mapping[str, Any] = TASK_MANIFEST,
+    expected_price_version: str | None = None,
 ) -> dict[str, Any]:
     """Return the canonical v3 schedule view, dispatching v2 explicitly.
 
@@ -2708,7 +2809,11 @@ def normalize_schedule(
         raise ValidationError("schedule is not an object", RC_ROUTING)
     version = schedule.get("schema_version")
     if version == LEGACY_SCHEMA_VERSION:
-        return normalize_legacy_schedule(schedule, manifest=manifest)
+        return normalize_legacy_schedule(
+            schedule,
+            manifest=manifest,
+            expected_price_version=expected_price_version,
+        )
     if version != TASK_MANIFEST_SCHEMA_VERSION:
         raise ValidationError(
             f"unsupported schedule schema_version: {version}", RC_ROUTING
@@ -2719,7 +2824,10 @@ def normalize_schedule(
     normalized = dict(schedule)
     normalized["slots"] = [
         _normalize_schedule_slot(
-            row, schema_version=TASK_MANIFEST_SCHEMA_VERSION, manifest=manifest
+            row,
+            schema_version=TASK_MANIFEST_SCHEMA_VERSION,
+            manifest=manifest,
+            expected_price_version=expected_price_version,
         )
         for row in slots
     ]
@@ -2733,6 +2841,8 @@ _normalize_schedule = normalize_schedule
 def expected_schedule_from_manifest(
     manifest: Mapping[str, Any] = TASK_MANIFEST,
     schedule: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
+    *,
+    expected_price_version: str | None = None,
 ) -> dict[tuple[str, str], int]:
     """Derive task/arm counts from a schedule, retaining v2 counts as a gate."""
     source: Mapping[str, Any]
@@ -2757,9 +2867,17 @@ def expected_schedule_from_manifest(
             "slots": list(schedule),
         }
     if source.get("schema_version") == LEGACY_SCHEMA_VERSION:
-        normalize_legacy_schedule(source, manifest=manifest)
+        normalize_legacy_schedule(
+            source,
+            manifest=manifest,
+            expected_price_version=expected_price_version,
+        )
         return dict(LEGACY_EXPECTED_SCHEDULE)
-    normalized = normalize_schedule(source, manifest=manifest)
+    normalized = normalize_schedule(
+        source,
+        manifest=manifest,
+        expected_price_version=expected_price_version,
+    )
     counts: dict[tuple[str, str], int] = {}
     for row in normalized["slots"]:
         arm = row.get("arm")
@@ -8492,10 +8610,146 @@ def _scan_session_rows(
     return found
 
 
+def _read_frozen_repo_file(relative_path: str, label: str) -> bytes:
+    relative = Path(relative_path)
+    if (
+        relative.is_absolute()
+        or "\\" in relative_path
+        or not relative.parts
+        or any(part in {"", ".", ".."} for part in relative.parts)
+    ):
+        raise ValidationError(f"{label} path is not repository-relative", RC_ROUTING)
+    candidate = _ROOT
+    try:
+        for index, component in enumerate(relative.parts):
+            candidate /= component
+            metadata = candidate.lstat()
+            final = index == len(relative.parts) - 1
+            if stat.S_ISLNK(metadata.st_mode):
+                raise ValidationError(f"{label} path contains a symlink", RC_ROUTING)
+            if final:
+                if not stat.S_ISREG(metadata.st_mode):
+                    raise ValidationError(
+                        f"{label} is not a regular file", RC_ROUTING
+                    )
+            elif not stat.S_ISDIR(metadata.st_mode):
+                raise ValidationError(
+                    f"{label} parent is not a directory", RC_ROUTING
+                )
+        before = candidate.lstat()
+        data = candidate.read_bytes()
+        after = candidate.lstat()
+    except ValidationError:
+        raise
+    except OSError as exc:
+        raise ValidationError(f"{label} cannot be read: {exc}", RC_ROUTING) from exc
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+    ):
+        raise ValidationError(f"{label} changed while it was read", RC_ROUTING)
+    return data
+
+
+def _validate_frozen_price_snapshot_record(record: Any) -> str:
+    if not isinstance(record, dict):
+        raise ValidationError("price_snapshot must be an object", RC_ROUTING)
+    if set(record) != {"path", "sha256"}:
+        raise ValidationError("price_snapshot field set mismatch", RC_ROUTING)
+    if record["path"] != FROZEN_PRICE_SNAPSHOT_PATH:
+        raise ValidationError("price_snapshot path mismatch", RC_ROUTING)
+    if record["sha256"] != FROZEN_PRICE_SNAPSHOT_SHA256:
+        raise ValidationError("price_snapshot sha256 mismatch", RC_ROUTING)
+
+    snapshot_bytes = _read_frozen_repo_file(
+        FROZEN_PRICE_SNAPSHOT_PATH, "frozen price snapshot"
+    )
+    actual_snapshot_sha256 = _sha256(snapshot_bytes)
+    if actual_snapshot_sha256 != FROZEN_PRICE_SNAPSHOT_SHA256:
+        raise ValidationError(
+            "frozen price snapshot bytes sha256 mismatch", RC_ROUTING
+        )
+    try:
+        snapshot_value = json.loads(snapshot_bytes)
+        validated = PRICE_SNAPSHOT.validate_price_snapshot(snapshot_value)
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        PRICE_SNAPSHOT.PriceSnapshotError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise ValidationError(
+            f"frozen price snapshot validation failed: {exc}", RC_ROUTING
+        ) from exc
+    if validated.get("price_table_version") != FROZEN_PRICE_VERSION:
+        raise ValidationError("frozen price version mismatch", RC_ROUTING)
+    excerpt = validated.get("excerpt")
+    if not isinstance(excerpt, dict):
+        raise ValidationError("frozen price excerpt record missing", RC_ROUTING)
+    if excerpt.get("path") != FROZEN_PRICE_EXCERPT_PATH:
+        raise ValidationError("frozen price excerpt path mismatch", RC_ROUTING)
+    if excerpt.get("sha256") != FROZEN_PRICE_EXCERPT_SHA256:
+        raise ValidationError("frozen price excerpt sha256 mismatch", RC_ROUTING)
+    excerpt_bytes = _read_frozen_repo_file(
+        FROZEN_PRICE_EXCERPT_PATH, "frozen price excerpt"
+    )
+    if _sha256(excerpt_bytes) != FROZEN_PRICE_EXCERPT_SHA256:
+        raise ValidationError(
+            "frozen price excerpt bytes sha256 mismatch", RC_ROUTING
+        )
+    if len(excerpt_bytes) != excerpt.get("byte_length"):
+        raise ValidationError(
+            "frozen price excerpt byte length mismatch", RC_ROUTING
+        )
+    return FROZEN_PRICE_VERSION
+
+
+def _schedule_expected_price_version(schedule: Mapping[str, Any]) -> str | None:
+    slots = schedule.get("slots")
+    if not isinstance(slots, list):
+        return None
+    non_null_versions = [
+        row.get("price_version")
+        for row in slots
+        if isinstance(row, Mapping) and row.get("price_version") is not None
+    ]
+    if not non_null_versions:
+        return None
+    schema_version = schedule.get("schema_version")
+    if (
+        type(schema_version) is not int
+        or schema_version != SCHEDULE_SCHEMA_VERSION
+    ):
+        return None
+    if any(value != FROZEN_PRICE_VERSION for value in non_null_versions):
+        return None
+    return _validate_frozen_price_snapshot_record(schedule.get("price_snapshot"))
+
+
+def _validated_slots_price_version(
+    slots: Sequence[Mapping[str, Any]],
+    reasons: list[str] | None = None,
+) -> str | None:
+    versions = {slot.get("price_version") for slot in slots}
+    if not versions or versions == {None}:
+        return None
+    if versions == {FROZEN_PRICE_VERSION}:
+        return FROZEN_PRICE_VERSION
+    reason = "schedule price_version concentration must be all null or all frozen"
+    if reasons is not None:
+        reasons.append(reason)
+        return None
+    raise ValidationError(reason, RC_ROUTING)
+
+
 def _slot_dimensions(
     slot: Mapping[str, Any],
     *,
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+    expected_price_version: str | None = None,
 ) -> dict[str, Any]:
     """Return the canonical task/stage/model/cache dimensions for one slot."""
     if not isinstance(slot, Mapping):
@@ -8513,7 +8767,17 @@ def _slot_dimensions(
         raise ValidationError(
             "schedule legacy_case does not match benchmark task", RC_ROUTING
         )
-    if slot.get("stage", task.get("stage")) != task.get("stage"):
+    slot_stage = slot.get("stage", task.get("stage"))
+    task_stage = task.get("stage")
+    if (
+        expected_price_version is not None
+        and type(slot_stage) is not type(task_stage)
+    ):
+        raise ValidationError(
+            "bound schedule stage type does not match benchmark task manifest",
+            RC_ROUTING,
+        )
+    if slot_stage != task_stage:
         raise ValidationError(
             "schedule stage does not match benchmark task manifest", RC_ROUTING
         )
@@ -8525,11 +8789,31 @@ def _slot_dimensions(
             f"schedule requested_model is not allowed: {requested_model}",
             RC_ROUTING,
         )
-    for field in ("cache_condition", "price_version"):
-        value = slot.get(field)
-        if value is not None:
+    cache_condition = slot.get("cache_condition")
+    if cache_condition is not None:
+        raise ValidationError(
+            "schedule slot cache_condition non-null values are not supported without attestation",
+            RC_ROUTING,
+        )
+    price_version = slot.get("price_version")
+    if price_version is not None:
+        if not isinstance(price_version, str):
             raise ValidationError(
-                f"schedule slot {field} non-null values are not supported without attestation",
+                "schedule slot price_version must be a string or null", RC_ROUTING
+            )
+        if not price_version:
+            raise ValidationError(
+                "schedule slot price_version must be non-empty when present",
+                RC_ROUTING,
+            )
+        if (
+            expected_price_version is None
+            or expected_price_version != FROZEN_PRICE_VERSION
+            or price_version != expected_price_version
+            or price_version != FROZEN_PRICE_VERSION
+        ):
+            raise ValidationError(
+                "schedule slot price_version does not match the frozen price binding",
                 RC_ROUTING,
             )
     oracle_kind = task.get("oracle_kind")
@@ -8573,8 +8857,13 @@ def _validate_schedule(
     # a v2 compatibility view without changing the caller's source mapping.
     source_schedule = _legacy_schedule_view(schedule)
     try:
+        expected_price_version = _schedule_expected_price_version(
+            source_schedule
+        )
         normalized_schedule = normalize_schedule(
-            source_schedule, manifest=task_manifest
+            source_schedule,
+            manifest=task_manifest,
+            expected_price_version=expected_price_version,
         )
     except ValidationError as exc:
         return [], list(exc.reasons)
@@ -8595,7 +8884,11 @@ def _validate_schedule(
         row = dict(raw_row)
         slot_id = row["slot_id"]
         try:
-            dimensions = _slot_dimensions(row, task_manifest=task_manifest)
+            dimensions = _slot_dimensions(
+                row,
+                task_manifest=task_manifest,
+                expected_price_version=expected_price_version,
+            )
         except ValidationError as exc:
             reasons.extend(f"{slot_id}: {reason}" for reason in exc.reasons)
             dimensions = {}
@@ -8626,13 +8919,20 @@ def _validate_schedule(
             reasons.append(f"{slot_id}: block_id missing")
         else:
             blocks.setdefault(block_id, []).append({**row, "_index": index})
-        if row.get("block_order") not in {1, 2}:
+        block_order = row.get("block_order")
+        if expected_price_version is not None and type(block_order) is not int:
+            reasons.append(
+                f"{slot_id}: bound schedule block_order must be an exact integer"
+            )
+        if block_order not in {1, 2}:
             reasons.append(f"{slot_id}: block_order must be 1 or 2")
         slots.append(row)
 
     try:
         expected_counts = expected_schedule_from_manifest(
-            task_manifest, source_schedule
+            task_manifest,
+            source_schedule,
+            expected_price_version=expected_price_version,
         )
     except ValidationError as exc:
         reasons.extend(exc.reasons)
@@ -8681,6 +8981,7 @@ def _validate_schedule(
         reasons.append(
             "POS/NEG submodule initialization and gitlink state mismatch"
         )
+    _validated_slots_price_version(slots, reasons)
     return slots, reasons
 
 
@@ -8992,11 +9293,14 @@ def _slot_dimension_map(
     task_manifest: Mapping[str, Any],
 ) -> dict[str, dict[str, Any]]:
     dimensions: dict[str, dict[str, Any]] = {}
+    expected_price_version = _validated_slots_price_version(slots, reasons)
     for slot in slots:
         slot_id = str(slot.get("slot_id"))
         try:
             dimensions[slot_id] = _slot_dimensions(
-                slot, task_manifest=task_manifest
+                slot,
+                task_manifest=task_manifest,
+                expected_price_version=expected_price_version,
             )
         except ValidationError as exc:
             reasons.extend(f"{slot_id}: {reason}" for reason in exc.reasons)
@@ -10313,6 +10617,7 @@ def make_packets(
         if isinstance(row, dict) and isinstance(row.get("slot_id"), str):
             grouped.setdefault(row["slot_id"], []).append(row)
     schedule_descriptor = manifest.get("schedule")
+    bound_price_version: str | None = None
     if schedule_descriptor is None and not grouped:
         raise ValidationError(
             "packets require at least one logical slot", RC_AGGREGATE
@@ -10331,8 +10636,11 @@ def make_packets(
         )
         if schedule_reasons:
             raise ValidationError(schedule_reasons, RC_AGGREGATE)
+        bound_price_version = _validated_slots_price_version(schedule_slots)
         expected_counts = expected_schedule_from_manifest(
-            task_manifest, schedule
+            task_manifest,
+            schedule,
+            expected_price_version=bound_price_version,
         )
         observed_counts: dict[tuple[str, str], int] = {}
         for row in schedule_slots:
@@ -10352,6 +10660,23 @@ def make_packets(
             )
     # Old packet-only fixtures have no schedule descriptor.  Their distinct
     # attempt slot IDs are the only available cardinality authority.
+    packet_candidates: list[tuple[str, dict[str, Any], bytes]] = []
+    for slot_id, slot_attempts in grouped.items():
+        final = max(slot_attempts, key=lambda row: int(row.get("attempt", 0)))
+        run_id = final.get("run_id")
+        output_path = _artifact_path(
+            manifest_path.resolve(), final.get("output"), f"{run_id}:packet-output"
+        )
+        body = output_path.read_bytes()
+        if (
+            bound_price_version == FROZEN_PRICE_VERSION
+            and FROZEN_PRICE_VERSION.encode("utf-8") in body
+        ):
+            raise ValidationError(
+                "bound price_version literal appears in public packet output",
+                RC_AGGREGATE,
+            )
+        packet_candidates.append((slot_id, final, body))
     if packet_dir.exists():
         raise ValidationError(f"packet directory already exists: {packet_dir}", RC_AGGREGATE)
     packet_dir = packet_dir.resolve()
@@ -10375,18 +10700,12 @@ def make_packets(
     custodian_root.chmod(0o700)
     rows: list[dict[str, Any]] = []
     private_rows: list[dict[str, str]] = []
-    candidates = list(grouped.items())
-    secrets.SystemRandom().shuffle(candidates)
-    for slot_id, slot_attempts in candidates:
-        final = max(slot_attempts, key=lambda row: int(row.get("attempt", 0)))
+    secrets.SystemRandom().shuffle(packet_candidates)
+    for slot_id, final, body in packet_candidates:
         run_id = final.get("run_id")
-        output_path = _artifact_path(
-            manifest_path.resolve(), final.get("output"), f"{run_id}:packet-output"
-        )
         packet_id = secrets.token_hex(16)
         filename = f"packet-{packet_id}.md"
         target = packet_dir / filename
-        body = output_path.read_bytes()
         target.write_bytes(body)
         os.utime(target, ns=(PACKET_MTIME_NS, PACKET_MTIME_NS))
         rows.append(
