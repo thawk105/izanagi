@@ -1064,6 +1064,23 @@ PY_TAMPER
 """
 
 
+def _receipt_sidecar_tamper_fragment() -> str:
+    return """
+python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.sha256" \
+  "$RECEIPT_WRITER_SHA" <<'PY_TAMPER_SIDECAR'
+import sys
+
+sidecar_path, writer_sha = sys.argv[1:]
+with open(sidecar_path, encoding="ascii") as handle:
+    sidecar_sha = handle.read().strip()
+assert sidecar_sha == writer_sha
+replacement_prefix = "0" if writer_sha[0] != "0" else "1"
+with open(sidecar_path, "w", encoding="ascii") as handle:
+    handle.write(replacement_prefix + writer_sha[1:] + "\\n")
+PY_TAMPER_SIDECAR
+"""
+
+
 def _run_mocc_trace_finalization(
     tmp_path: Path,
     *,
@@ -1076,6 +1093,7 @@ def _run_mocc_trace_finalization(
     realpath_aliases: bool = False,
     tamper_receipt_after_write: bool = False,
     tamper_receipt_and_sidecar_after_write: bool = False,
+    tamper_sidecar_after_write: bool = False,
     tamper_receipt_after_shell_hash: bool = False,
     swap_report_to_symlink_before_open: bool = False,
     current_script_sha: str = "fixture-script-sha",
@@ -1212,12 +1230,20 @@ def _run_mocc_trace_finalization(
             1,
         )
     prehash_tamper_count = sum(
-        (tamper_receipt_after_write, tamper_receipt_and_sidecar_after_write)
+        (
+            tamper_receipt_after_write,
+            tamper_receipt_and_sidecar_after_write,
+            tamper_sidecar_after_write,
+        )
     )
     assert prehash_tamper_count <= 1
     if prehash_tamper_count:
-        tamper = _receipt_tamper_fragment(
-            update_sidecar=tamper_receipt_and_sidecar_after_write
+        tamper = (
+            _receipt_sidecar_tamper_fragment()
+            if tamper_sidecar_after_write
+            else _receipt_tamper_fragment(
+                update_sidecar=tamper_receipt_and_sidecar_after_write
+            )
         )
         receipt_sha_marker = "\nRECEIPT_SHA="
         assert fragment.count(receipt_sha_marker) == 1
@@ -1575,6 +1601,22 @@ def test_mocc_trace_binding_f1_rejects_receipt_and_sidecar_replaced_together(
     assert sidecar_path.read_text(encoding="ascii").strip() == hashlib.sha256(
         receipt_path.read_bytes()
     ).hexdigest()
+    assert not (attempt_dir / "job-result.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure == "2|job_result_report_binding|job result report binding failed\n"
+
+
+def test_mocc_trace_binding_h1_rejects_sidecar_only_tamper(tmp_path: Path) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, tamper_sidecar_after_write=True
+    )
+    assert result.returncode == 2, result.stderr
+    receipt_path = attempt_dir / "mocc-trace-pilot-receipt.json"
+    sidecar_path = attempt_dir / "mocc-trace-pilot-receipt.sha256"
+    receipt_sha = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    tampered_sidecar_sha = sidecar_path.read_text(encoding="ascii").strip()
+    assert re.fullmatch(r"[0-9a-f]{64}", tampered_sidecar_sha)
+    assert tampered_sidecar_sha != receipt_sha
     assert not (attempt_dir / "job-result.json").exists()
     failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
     assert failure == "2|job_result_report_binding|job result report binding failed\n"
