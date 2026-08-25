@@ -171,6 +171,66 @@ class KnownViolationSpec:
     expected_finding_value: str = ""
 
 
+KNOWN_VIOLATION_BASELINE_RULING_COMMIT = (
+    "5265fc6782fa5807aa742a198fa16d58006d17fb"
+)
+KNOWN_VIOLATION_BASELINE_KEYS: frozenset[tuple[str, str, str]] = frozenset({
+    ("88f0f9f081f7c76c8ab5fc4a94e2640f70af129b", "missing-ai-agent", ""),
+    ("85dacc27054db0bd3db55d73cab4f8ca3b4843e5", "missing-ai-agent", ""),
+    ("6e69ca5c2bc2df403e1cda595aeffcba3a97c248", "missing-ai-agent", ""),
+    ("16affe169185040b33f8c6cbdd452260bddc4089", "missing-ai-agent", ""),
+    ("905c867a7b2342ff250a1bcf28a3ce74abdacc06", "missing-ai-agent", ""),
+    ("b0a07672737cf03424ec1790cc25a06e4c85b737", "missing-codex-author", ""),
+    ("3f2c43d7580b8c26724d90278589862057508965", "missing-ai-agent", ""),
+    ("f277efd4461d361d5c9aa6db9a7e00b194b76083", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("74b501962092373ba2e8bbca1566d0732e0f16c6", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("7ec088163dee920f0b8e1e9783faa6e36b22b730", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("1d09940463ccacb0dbb0ab3e69ca0698a960fdf1", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("f1406c22abece76276b43dde897750a46aae877e", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("ff264975a04aa19f36f861ca97efe9dc59c88659", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("2c1929533a6f641b513f4f7990fe06e6cdb383b1", "missing-codex-author", ""),
+    ("9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("2b3d06cbe81b1ae2675c153bdf307d508fc35a20", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("30719e517dcee45c014cbf1052c6dc70a8fcf693", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("622bd786191d40bda388596fa2adbf119ee84c9a", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("c75fde903384b6eb9e4d45239b66008b7639cbf7", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("c55ace29e55bba948d7bdca89f6fc1fb1a5191da", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("edf74c94427686f2b91519ef10e94446d0fe89d5", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("7e3cc116f2466fb439ec2bddd38f35dab928c942", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("66769067ee57d78650b208b9a86438ff2f1bf73b", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("aaffa644a969f0a58969b2661318bda4c42ac767", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("6f5411ceb7cc5d872e3112fb6d04013367ac092e", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("797db5def66ef1d318d06c7aa189ea51a66c9312", "malformed-ai-agent", "product=claude; model=claude-opus-5[1m]; reasoning=high; role=orchestrator"),
+    ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author", ""),
+    ("a5b7045b129d062c4731acc7667262795abd3f67", "missing-codex-author", ""),
+    ("333605d680ec15f3f74b00e9e2746ae317b85dc5", "missing-codex-author", ""),
+    ("311d463f89d1d1708a309b86d5bf63f5b034f89d", "missing-codex-author", ""),
+    ("5823caf328a5985476cd2f6f7aa0d13daa5b08f6", "missing-codex-author", ""),
+    ("09ce607b779272fda5629a350676471a16bea9bb", "missing-ai-agent", ""),
+    ("13101ab3ec09a54e1f30462d1c2b4621b121ba65", "missing-ai-agent", ""),
+    ("8440a14850718e63d73dfc510aa66b853a526424", "missing-codex-author", ""),
+    ("d87fd42c0335c1396c1f79557e45357e9bfc163f", "missing-ai-agent", ""),
+    ("75d57796ea8c6af4f80f32031afc952cfef2903a", "missing-ai-agent", ""),
+    ("216493593dbee40fbdac65207ca328bae5bc9f52", "missing-ai-agent", ""),
+    ("e39a8d46567a02d231fce52abae5aee759634ff7", "missing-codex-author", ""),
+    ("3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626", "missing-codex-author", ""),
+    ("387a1daab0d713cf86f19449e88559686f1eb575", "missing-codex-author", ""),
+    ("649fe5a060a39de295f90d2002e8f97082729ea6", "malformed-ai-agent", "product=codex; model=gpt-5.6-luna; reasoning=unknown; role=fix"),
+    ("649fe5a060a39de295f90d2002e8f97082729ea6", "missing-codex-author", ""),
+    ("e86d363a876ab00e7e6b37dfdd94385e5ab03816", "missing-codex-author", ""),
+    ("0c0f3e71b3208370be8d4e7e20a84a2152afe4b2", "missing-codex-author", ""),
+    ("bf92f327cadfbe626e37cab73d55abe80d3994dd", "missing-codex-author", ""),
+    ("b9c07cc22d483a9103dac208a83446872161ffad", "missing-codex-author", ""),
+    ("25614f868c1a1b562a68072233fdf55b0be93cd1", "missing-codex-author", ""),
+    ("94815c57976806da56a3f067ade91c0041b2e2d1", "missing-codex-author", ""),
+    ("3a5e5feb5f5c65e5e91752f847c623ce37e9b14d", "missing-codex-author", ""),
+})
+
+
 _KNOWN_VIOLATION_RULING = "worklog(284) 2026-08-07 /rulings"
 _T139_MALFORMED_RULING = (
     "2026-08-09 dev-wave-jobs/rulings-inbox/"
@@ -882,6 +942,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
 )
 
 
+@dataclass(frozen=True)
+class _KnownViolationGroups:
+    irreversible_history: frozenset[tuple[str, str, str]]
+    post_baseline: frozenset[tuple[str, str, str]]
+
+
 def _contains_prohibited_registry_character(value: str) -> bool:
     return any(
         char in _ZERO_WIDTH_REGISTRY_CHARACTERS
@@ -1013,6 +1079,50 @@ def _known_violation_registry() -> dict[str, tuple[KnownViolationSpec, ...]]:
         commit: tuple(specs)
         for commit, specs in registry.items()
     }
+
+
+def _known_violation_key(spec: KnownViolationSpec) -> tuple[str, str, str]:
+    return (
+        spec.commit,
+        spec.expected_finding_kind,
+        spec.expected_finding_value,
+    )
+
+
+def _known_violation_groups(
+    registry: dict[str, tuple[KnownViolationSpec, ...]],
+) -> _KnownViolationGroups:
+    """正規化済み台帳を凍結 baseline との純粋な集合演算で二分する。"""
+
+    try:
+        ledger_keys = frozenset(
+            _known_violation_key(spec)
+            for specs in registry.values()
+            for spec in specs
+        )
+        irreversible_history = ledger_keys & KNOWN_VIOLATION_BASELINE_KEYS
+        post_baseline = ledger_keys - KNOWN_VIOLATION_BASELINE_KEYS
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise RuntimeError(
+            "known provenance violation group classification failed"
+        ) from exc
+    return _KnownViolationGroups(irreversible_history, post_baseline)
+
+
+def _print_known_violation_groups(groups: _KnownViolationGroups) -> None:
+    baseline = KNOWN_VIOLATION_BASELINE_RULING_COMMIT
+    print(
+        "check_ai_provenance: known-violations-irreversible-history="
+        f"{len(groups.irreversible_history)} population=whole-ledger "
+        "excluded=key-not-in-d742-baseline "
+        f"baseline={baseline}"
+    )
+    print(
+        "check_ai_provenance: known-violations-post-baseline="
+        f"{len(groups.post_baseline)} population=whole-ledger "
+        "excluded=key-in-d742-baseline "
+        f"baseline={baseline}"
+    )
 
 
 def _known_violation_line(spec: KnownViolationSpec) -> str:
@@ -3010,6 +3120,7 @@ def main(
         corrected: list[ForwardCorrected] = []
         waived: list[ImplementationWaived] = []
         known_violations: tuple[KnownViolationSpec, ...] = ()
+        known_violation_groups: _KnownViolationGroups | None = None
         correction_preflight = False
         merge_preflight = False
         if args.message_file is not None:
@@ -3055,6 +3166,9 @@ def main(
             corrected = history.corrected
             waived = history.waived
             known_violations = history.known_violations
+            known_violation_groups = _known_violation_groups(
+                _known_violation_registry()
+            )
             checked = len(commits)
     except (OSError, RuntimeError, UnicodeError) as exc:
         print(f"check_ai_provenance: 実行不能: {exc}", file=sys.stderr)
@@ -3089,6 +3203,8 @@ def main(
                 "check_ai_provenance: known-violations="
                 f"{len(known_violations)}"
             )
+        if known_violation_groups is not None:
+            _print_known_violation_groups(known_violation_groups)
         return 1
 
     for record in corrected:
@@ -3115,6 +3231,8 @@ def main(
             "check_ai_provenance: known-violations="
             f"{len(known_violations)}"
         )
+    if known_violation_groups is not None:
+        _print_known_violation_groups(known_violation_groups)
     qualifier = "新規" if known_violations else ""
     print(f"check_ai_provenance: {checked} 件、{qualifier}違反なし")
     return 0
