@@ -1063,7 +1063,8 @@ def _verify_acceptance_receipt(
     except UnicodeError:
         raise _acceptance_rejected() from None
     tip_runner_entry = _runner_tree_entry(repository, tested_tip)
-    if tip_runner_entry is None:
+    main_runner_entry = _runner_tree_entry(repository, tested_main)
+    if tip_runner_entry is None or main_runner_entry is None:
         raise _acceptance_rejected()
     waiter_entry = _acceptance_tree_entry(
         repository,
@@ -1076,17 +1077,19 @@ def _verify_acceptance_receipt(
         or _SHA_RE.fullmatch(waiter_entry[2]) is None
         or receipt.get("waiter_executed_sha256")
         != _acceptance_blob_content_sha256(repository, waiter_entry[2])
+        or main_runner_entry[0] != "blob"
         or tip_runner_entry[0] != "blob"
+        or _SHA_RE.fullmatch(main_runner_entry[1]) is None
         or _SHA_RE.fullmatch(tip_runner_entry[1]) is None
+        or main_runner_entry[1] != tip_runner_entry[1]
         or receipt.get("runner_executed_sha256")
-        != _acceptance_blob_content_sha256(repository, tip_runner_entry[1])
+        != _acceptance_blob_content_sha256(repository, main_runner_entry[1])
     ):
         raise _acceptance_rejected()
     checker_blob = ""
     checker_result: _GitResult | None = None
     main_checker_blob = ""
     main_checker_result: _GitResult | None = None
-    main_runner_entry: tuple[str, str] | None = None
     if verdict == "non-attributable-only":
         main_checker_result = _git(
             repository.wave,
@@ -1103,9 +1106,6 @@ def _verify_acceptance_receipt(
             or checker_result.returncode != 0
         ):
             raise _acceptance_rejected(retryable_same_request=True)
-        main_runner_entry = _runner_tree_entry(repository, tested_main)
-        if main_runner_entry is None:
-            raise _acceptance_rejected()
         try:
             main_checker_blob = main_checker_result.stdout.decode("ascii").strip()
             checker_blob = checker_result.stdout.decode("ascii").strip()
@@ -1123,10 +1123,6 @@ def _verify_acceptance_receipt(
                 or _SHA_RE.fullmatch(checker_blob) is None
                 or main_checker_blob != checker_blob
                 or receipt.get("checker_blob_sha") != checker_blob
-                or main_runner_entry is None
-                or main_runner_entry[0] != "blob"
-                or tip_runner_entry[0] != "blob"
-                or main_runner_entry[1] != tip_runner_entry[1]
             )
         )
     ):
