@@ -300,35 +300,174 @@ def test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_by
     assert "\n".join(extracted).encode("utf-8") == scan.call_args.args[0].encode("utf-8")
 
 
-def test_backoff_tier1_accepts_exact_binding_and_leaves_tier2_expressions_open():
-    implementations = (
-        "double now_backoff = 20;",
-        "double now_backoff = 1e2;",
-        "double now_backoff = 001;",
-        "double now_backoff = 20.0f;",
-        "double now_backoff = 1..0;",
-        "double now_backoff = 20_backoff;",
-        "double now_backoff = Backoff_.load(std::memory_order_acquire);",
-        "double now_backoff = helper<int, long>();",
-        "double now_backoff = (helper(), 20);",
-        "double now_backoff = rdtscp() & 1;",
-        "double now_backoff = condition ? 20 : 40;",
+def test_backoff_literal_only_accepts_strict_cpp_numeric_spellings():
+    cases = (
+        (20, "double now_backoff = 20;"),
+        (20, "double now_backoff = 20.0;"),
+        (100, "double now_backoff = 1e2;"),
+        (1, "double now_backoff = 001;"),
+        (20, "double now_backoff = 0x14;"),
+        (20, "double now_backoff = 024;"),
+        (20, "double now_backoff = 0b10100;"),
+        (20, "double now_backoff = 2'0;"),
+        (20, "double now_backoff = 0x1.4p4;"),
+        (255, "double now_backoff = 0xFF;"),
     )
-    for implementation in implementations:
+    for value, implementation in cases:
         decision = BHG.validate_backoff_implementation(implementation)
         assert decision.accepted, (implementation, decision)
+        L.assert_value_literal_consistent(L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=value,
+            implementation=implementation,
+        ))
 
 
-def test_backoff_numeric_spelling_stage_is_frozen_without_tier2_policy():
+@pytest.mark.parametrize(
+    "implementation",
+    (
+        "double now_backoff = Backoff_.load(std::memory_order_acquire);",
+        "double now_backoff = helper<int, long>();",
+        "double now_backoff = 20.0 * 2.0;",
+        "double now_backoff = (20.0);",
+        "double now_backoff = {20.0};",
+        "double now_backoff = condition ? 20 : 40;",
+        "double now_backoff = +20;",
+        "double now_backoff = -20;",
+    ),
+)
+def test_backoff_literal_only_rejects_nonliteral_initializer_with_fixed_rule(
+    implementation,
+):
+    decision = BHG.validate_backoff_implementation(implementation)
+    assert not decision.accepted
+    assert decision.stage == "initializer-literal"
+    assert decision.rule_id == "backoff-grammar.initializer-literal.v1"
+    assert decision.reason == (
+        "backoff hole initializer must be exactly one suffix-free strict C++ "
+        "numeric literal"
+    )
+
+
+@pytest.mark.parametrize(
+    "implementation",
+    (
+        "double now_backoff = 1..0;",
+        "double now_backoff = 20.0_km;",
+        "double now_backoff = 20_backoff;",
+    ),
+)
+def test_backoff_literal_only_rejects_malformed_pp_number_and_udl(
+    implementation,
+):
+    decision = BHG.validate_backoff_implementation(implementation)
+    assert decision.stage == "initializer-literal"
+    assert decision.rule_id == "backoff-grammar.initializer-literal.v1"
+
+
+@pytest.mark.parametrize(
+    "literal",
+    (
+        "19.99999904632568349375f",
+        "0x1.3ffffeffffffffffp4f",
+        "20.0f",
+        "20.0F",
+        "20.0l",
+        "20.0L",
+        "2e1f",
+        "20u",
+        "20U",
+        "20l",
+        "20L",
+        "20ul",
+        "20UL",
+        "20LU",
+        "20ll",
+        "20llu",
+        "20ULL",
+    ),
+)
+def test_backoff_literal_only_rejects_all_standard_suffixes(literal):
+    decision = BHG.validate_backoff_implementation(
+        f"double now_backoff = {literal};"
+    )
+    assert decision.stage == "initializer-literal"
+    assert decision.rule_id == "backoff-grammar.initializer-literal.v1"
+
+
+@pytest.mark.parametrize("base_literal", ("20", "0x14", "024", "0b10100"))
+@pytest.mark.parametrize("suffix", ("z", "Z", "uz", "ZU", "uLL", "LLu"))
+def test_backoff_literal_only_rejects_suffix_combinations_for_every_integer_base(
+    base_literal,
+    suffix,
+):
+    decision = BHG.validate_backoff_implementation(
+        f"double now_backoff = {base_literal}{suffix};"
+    )
+    assert not decision.accepted
+    assert decision.stage == "initializer-literal"
+    assert decision.rule_id == "backoff-grammar.initializer-literal.v1"
+    assert decision.reason == (
+        "backoff hole initializer must be exactly one suffix-free strict C++ "
+        "numeric literal"
+    )
+
+
+@pytest.mark.parametrize(
+    "implementation",
+    (
+        "double now_backoff = 20; helper();",
+        "double now_backoff = 20; (void)0;",
+        "; double now_backoff = 20;",
+        "double now_backoff = 20;;",
+    ),
+)
+def test_backoff_single_statement_rejects_trailing_and_empty_statements(
+    implementation,
+):
+    decision = BHG.validate_backoff_implementation(implementation)
+    assert decision.stage == "statement-count"
+    assert decision.rule_id == "backoff-grammar.statement-count.v1"
+    assert decision.reason == "backoff hole must contain exactly one statement"
+
+
+@pytest.mark.parametrize(
+    ("implementation", "rule_id"),
+    (
+        (
+            "int now_backoff = (20); helper();",
+            "backoff-grammar.declaration-type.v1",
+        ),
+        (
+            "double now_backoff = (20.0); helper();",
+            "backoff-grammar.initializer-literal.v1",
+        ),
+        (
+            "double now_backoff = 20; helper();",
+            "backoff-grammar.statement-count.v1",
+        ),
+        (
+            "double now_backoff = ([](double now_backoff) {}(1), 20);",
+            "backoff-grammar.declaration-count.v1",
+        ),
+    ),
+)
+def test_backoff_new_rule_order_preserves_existing_rule_ids(
+    implementation,
+    rule_id,
+):
+    decision = BHG.validate_backoff_implementation(implementation)
+    assert decision.rule_id == rule_id
+
+
+def test_backoff_numeric_spelling_and_attribution_remain_value_exact():
     attribution_and_grammar_pass = (
         (100, "double now_backoff = 1e2;"),
         (1, "double now_backoff = 001;"),
-        (1, "double now_backoff = 1.0f;"),
         (16, "double now_backoff = 020;"),
         (20, "double now_backoff = 2'0;"),
         (20, "double now_backoff = 20.0;"),
         (20, "double now_backoff = 20.00;"),
-        (20, "double now_backoff = (helper(), 20);"),
     )
     for value, implementation in attribution_and_grammar_pass:
         L.assert_value_literal_consistent(L.CoderProposal(
@@ -460,10 +599,10 @@ def test_backoff_adversarial_32_shape_corpus_pins_each_outcome():
     corpus = (
         ("canonical-integer", "double now_backoff = 20;", None),
         ("canonical-decimal", "double now_backoff = 20.0;", None),
-        ("opaque-call", "double now_backoff = helper(20);", None),
-        ("straight-line-helper", "double now_backoff = 20; helper();", None),
+        ("opaque-call", "double now_backoff = helper(20);", "backoff-grammar.initializer-literal.v1"),
+        ("straight-line-helper", "double now_backoff = 20; helper();", "backoff-grammar.statement-count.v1"),
         ("scientific-tier2", "double now_backoff = 1e2;", None),
-        ("malformed-pp-number-tier2", "double now_backoff = 1..0;", None),
+        ("malformed-pp-number-tier2", "double now_backoff = 1..0;", "backoff-grammar.initializer-literal.v1"),
         ("empty", "", "backoff-grammar.empty.v1"),
         ("missing-declaration", "helper();", "backoff-grammar.declaration-count.v1"),
         ("wrong-type", "int now_backoff = 20;", "backoff-grammar.declaration-type.v1"),
@@ -504,18 +643,18 @@ def _composed_attribution_and_quarantine(value, implementation):
         axis=L.MARKER_ID, value=value, implementation=implementation,
     )
     try:
-        L.assert_value_literal_consistent(coder)
+        L._check_attribution_before_quarantine(coder)
     except L.AttributionMismatch:
         return "attribution-mismatch"
     result, *_ = L.quarantine(
         _mk_template_dir(), implementation,
         source_rel=_SRC_REL, write=False,
     )
-    if result.passed:
-        return "accepted"
     if result.subtype is DiffRejectSubtype.BACKOFF_GRAMMAR:
         return result.digest["rule_id"]
-    return result.subtype.value
+    if not result.passed:
+        return result.subtype.value
+    return "accepted"
 
 
 def test_backoff_review_vectors_are_closed_on_composed_production_order():
@@ -532,12 +671,68 @@ def test_backoff_review_vectors_are_closed_on_composed_production_order():
         ("nested-paren", 20, "double now_backoff = 20; { double now_backoff(30); }", "backoff-grammar.declaration-count.v1"),
         ("nested-brace", 20, "double now_backoff = 20; { double now_backoff{30}; }", "backoff-grammar.declaration-count.v1"),
         ("attribute-label", 20, "double now_backoff = 20; [[likely]] bypass: ;", "backoff-grammar.control-flow.v1"),
-        ("nbsp", 20, "double\u00a0now_backoff = 20;", "attribution-mismatch"),
-        ("ideographic-space", 20, "double\u3000now_backoff = 20;", "attribution-mismatch"),
+        ("nbsp", 20, "double\u00a0now_backoff = 20;", "backoff-grammar.tokenize.v1"),
+        ("ideographic-space", 20, "double\u3000now_backoff = 20;", "backoff-grammar.tokenize.v1"),
         ("homoglyph", 20, "double now_back\u043eff = 20;", "backoff-grammar.declaration-count.v1"),
     )
     for name, value, implementation, expected in cases:
         assert _composed_attribution_and_quarantine(value, implementation) == expected, name
+
+
+@pytest.mark.parametrize(
+    ("value", "implementation", "expected"),
+    (
+        (
+            20,
+            "double now_backoff = 20.0 * 2.0;",
+            "backoff-grammar.initializer-literal.v1",
+        ),
+        (
+            40,
+            "double now_backoff = 40.0 / 2.0;",
+            "backoff-grammar.initializer-literal.v1",
+        ),
+        (
+            50,
+            "double now_backoff = std::ceil(50.0 * 1.5);",
+            "backoff-grammar.initializer-literal.v1",
+        ),
+        (
+            20,
+            "double now_backoff = true ? 20.0 : 99.0;",
+            "backoff-grammar.initializer-literal.v1",
+        ),
+        (
+            20,
+            "double now_backoff = 20.0; (void)0;",
+            "backoff-grammar.statement-count.v1",
+        ),
+    ),
+)
+def test_d819_bypass_vectors_do_not_reach_composed_acceptance(
+    value,
+    implementation,
+    expected,
+):
+    assert _composed_attribution_and_quarantine(value, implementation) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "implementation", "grammar_accepted", "final_outcome"),
+    (
+        (5, "double now_backoff = .5;", True, "attribution-mismatch"),
+        (5, "double now_backoff = 5.;", True, "accepted"),
+    ),
+)
+def test_backoff_leading_and_trailing_decimal_point_spellings_pin_final_outcome(
+    value,
+    implementation,
+    grammar_accepted,
+    final_outcome,
+):
+    decision = BHG.validate_backoff_implementation(implementation)
+    assert decision.accepted is grammar_accepted
+    assert _composed_attribution_and_quarantine(value, implementation) == final_outcome
 
 
 def test_backoff_tier1_preflight_and_resource_order_is_exact():
@@ -576,7 +771,9 @@ def test_backoff_tier1_preflight_and_resource_order_is_exact():
         + ")" * BHG.MAX_BACKOFF_HOLE_NESTING
         + ";"
     )
-    assert BHG.validate_backoff_implementation(at_depth).accepted
+    at_depth_decision = BHG.validate_backoff_implementation(at_depth)
+    assert at_depth_decision.stage == "initializer-literal"
+    assert at_depth_decision.rule_id == "backoff-grammar.initializer-literal.v1"
     too_deep = at_depth.replace("20", "(20)", 1)
     depth_limited = BHG.validate_backoff_implementation(too_deep)
     assert depth_limited.stage == "tokenize"
@@ -813,6 +1010,10 @@ def test_backoff_grammar_rule_survives_wal_loader_and_gets_dedicated_hint():
     )
     assert "grammar_rule_id=backoff-grammar.declaration-type.v1" in rendered
     assert "backoff hole の Tier 1 宣言・straight-line・資源契約に不適合" in rendered
+    assert (
+        "初期化子を接尾辞なしの strict C++ numeric literal 1 個とする"
+        "ちょうど 1 文へ修正"
+    ) in rendered
     assert "フレーム/hole 逸脱" not in rendered
 
 
@@ -1587,6 +1788,16 @@ def test_value_literal_consistency_fails_closed_when_value_absent():
         pass
 
 
+def test_value_literal_consistency_rejects_fallback_even_when_value_occurs_elsewhere():
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=20,
+        implementation="double now_backoff = (20.0);",
+    )
+    with pytest.raises(L.AttributionMismatch):
+        L.assert_value_literal_consistent(coder)
+
+
 def test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections():
     """自由記述 bytes だけが対象。宣言済み genome scalar BACKOFF_FIXED は帰属 field で対象外。"""
     sentinels = (
@@ -1835,10 +2046,7 @@ def test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders(
 ):
     """harness が生成する critic digest で off 時の loader 非呼出を固定する。
 
-    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
-    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
-    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
-    それは本 wave の scope 外である。
+    本 test が固定するのは harness 生成 digest の性質だけであり、critic role 自体の能力遮断も専用 controller の実効 lowering も証明しない。
     """
     from orchestrator.critic.digest import (
         DiffQuarantineRejection,
@@ -1951,10 +2159,7 @@ def test_make_critic_digest_reflux_off_skips_all_structured_anomaly_loaders(
 def test_make_critic_digest_reflux_off_is_byte_identical_to_green_only():
     """harness が生成する critic digest の off を緑 digest と byte 一致で固定する。
 
-    これは critic role の能力遮断を証明しない。.claude/agents/critic.md は critic に
-    Bash を与え、python3 orchestrator/critic/digest.py --campaign-dir の自己実行を
-    明示的に許可している。off アームの実効的な遮断には閉じた critic invocation が要るが、
-    それは本 wave の scope 外である。
+    本 test が固定するのは harness 生成 digest の性質だけであり、critic role 自体の能力遮断も専用 controller の実効 lowering も証明しない。
     """
     lay = CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_reflux_green_bytes_"))
     _log_projection_start(lay.ensure(), "reflux-green-bytes", "green-bytes-attempt")
@@ -3141,6 +3346,108 @@ def test_run_one_iteration_records_oversized_preflight_as_rejection(
     assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
     assert records[-1].payload["diff_quarantine"]["rule_id"] == \
         "backoff-grammar.raw-size.v1"
+    assert len(state.whiteboard) == 1
+    assert state.whiteboard[0].result == "rejected"
+
+
+def test_run_one_iteration_records_nonliteral_initializer_as_structured_rejection(
+    ratified_enforcement_source,
+):
+    import contextlib
+
+    from orchestrator.campaign import patchharness
+
+    implementation = "double now_backoff = (20.0);"
+    layout = _tmp_layout("nonliteral-initializer-reject")
+    state = L.LoopState(start_wall=time.time())
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=20, implementation=implementation,
+    )
+    with unittest.mock.patch.object(
+        patchharness,
+        "applied",
+        side_effect=lambda *_args, **_kwargs: contextlib.nullcontext(),
+    ) as applied:
+        outcome = L.run_one_iteration(
+            L.default_cfg(), L.default_perf(), planner, coder, state,
+            _mk_template_dir(L.SOURCE_REL), do_build=False,
+            layout=layout, log=lambda *_args: None,
+        )
+
+    assert outcome["outcome"] == "rejected"
+    assert outcome["digest"]["rule_id"] == \
+        "backoff-grammar.initializer-literal.v1"
+    assert outcome["digest"]["evidence"] == (
+        "rule_id=backoff-grammar.initializer-literal.v1 "
+        "stage=initializer-literal"
+    )
+    assert applied.call_count == 1
+    records = wal.read_records(layout)
+    assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert records[-1].payload["diff_quarantine"]["rule_id"] == \
+        "backoff-grammar.initializer-literal.v1"
+    assert len(state.whiteboard) == 1
+    assert state.whiteboard[0].result == "rejected"
+
+
+@pytest.mark.parametrize(
+    ("implementation", "subtype", "rule_id"),
+    (
+        (
+            'double now_backoff = 20; std::system("ignored");',
+            "host-effect",
+            "host-effect.process-shell.v1",
+        ),
+        (
+            "#define EVIL 1\ndouble now_backoff = 20;",
+            "hole-escape",
+            None,
+        ),
+    ),
+)
+def test_run_one_iteration_preserves_outer_quarantine_rejection_order(
+    ratified_enforcement_source,
+    implementation,
+    subtype,
+    rule_id,
+):
+    import contextlib
+
+    from orchestrator.campaign import patchharness
+
+    layout = _tmp_layout(f"outer-order-{subtype}")
+    state = L.LoopState(start_wall=time.time())
+    planner = L.PlannerProposal(
+        axis=L.MARKER_ID, direction="increase", magnitude="small",
+    )
+    coder = L.CoderProposal(
+        axis=L.MARKER_ID, value=20, implementation=implementation,
+    )
+    with unittest.mock.patch.object(
+        patchharness,
+        "applied",
+        side_effect=lambda *_args, **_kwargs: contextlib.nullcontext(),
+    ) as applied, unittest.mock.patch.object(
+        L, "assert_value_literal_consistent",
+    ) as attribution:
+        outcome = L.run_one_iteration(
+            L.default_cfg(), L.default_perf(), planner, coder, state,
+            _mk_template_dir(L.SOURCE_REL), do_build=False,
+            layout=layout, log=lambda *_args: None,
+        )
+
+    assert outcome["outcome"] == "rejected"
+    assert outcome["digest"]["subtype"] == subtype
+    if rule_id is not None:
+        assert outcome["digest"]["rule_id"] == rule_id
+    applied.assert_called_once()
+    attribution.assert_not_called()
+    records = wal.read_records(layout)
+    assert [record.stage for record in records] == [STAGE_BUILD_START, STAGE_ABORT]
+    assert records[-1].payload["diff_quarantine"]["subtype"] == subtype
     assert len(state.whiteboard) == 1
     assert state.whiteboard[0].result == "rejected"
 

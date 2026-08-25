@@ -1,0 +1,244 @@
+{
+ "estimated_run_seconds": 60,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m1_campaign_id_gate_accepts_real_digest_and_rejects_only_literal_injection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "",
+     "old": "        (\"campaign_id\", campaign_id),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m12_normalized_view_accepts_real_digest_and_rejects_parent_alias",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m2_repository_root_gate_accepts_real_digest_and_rejects_only_literal_injection",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_json_decode_accepts_literal_escape_explanation_and_rejects_json_alias",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_quoted_space_path_accepts_policy_digest_and_rejects_normalized_alias"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "",
+     "old": "        (\"repository_root\", str(trusted_root)),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m3_campaign_path_gate_accepts_real_digest_and_rejects_only_literal_injection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "",
+     "old": "        (\"campaign_path\", str(campaign_path)),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m4_module_root_control_accepts_exact_root_and_rejects_decoy_before_factory"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4TrustRootError(\"repository_root differs from the module-derived root\")\n",
+     "old": "    if supplied != REPOSITORY_ROOT:\n        raise B4TrustRootError(\"repository_root differs from the module-derived root\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m18_certified_factory_has_no_executable_seam_and_resolves_fixed_claude",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    resolved = shutil.which(\"python3\")\n",
+     "old": "    resolved = shutil.which(\"claude\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m10_p3_response_parser_accepts_exact_five_fields_and_rejects_extra_key"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if type(value) is not dict or not _RESPONSE_KEYS <= set(value):\n",
+     "old": "    if type(value) is not dict or set(value) != _RESPONSE_KEYS:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m12_normalized_view_accepts_real_digest_and_rejects_parent_alias",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_quoted_space_path_accepts_policy_digest_and_rejects_normalized_alias"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "",
+     "old": "        (\"path-lexically-normalized\", _lexically_normalized_path_view(leaves)),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_raw_envelope_byte_tamper"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4ReceiptError(\"raw envelope hash does not match its bytes\")\n",
+     "old": "    if _sha256(envelope_bytes) != receipt.evidence_raw_envelope_sha256:\n        raise B4ReceiptError(\"raw envelope hash does not match its bytes\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_a13_fake_envelope_positive_control_and_combined_tool_surface_negative",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_a3_shared_tracker_accepts_unique_sessions_and_rejects_cross_arm_reuse",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m14_success_and_failure_both_create_start_and_exclusive_terminal_receipts",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r11_terminal_slot_precedes_query_and_start_failure_gets_terminal_record",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_num_turns_gate_has_one_field_positive_negative_pair",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_permission_denials_gate_has_one_field_positive_negative_pair",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_server_tool_use_gate_has_one_field_positive_negative_pair"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "                else \"success\"\n",
+     "old": "                else \"failure\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M15",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "",
+     "old": "        (\"orchestrator/campaign/claude_projected_provider.py\", PROVIDER_FILE),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M16",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "                reflux=True,\n",
+     "old": "                reflux=(self.__binding.arm == \"on\"),\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m17_pair_id_accepts_one_factory_and_rejects_mixed_factories_only"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M17",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4ReceiptError(\"pair receipts have different pair_id commitments\")\n",
+     "old": "    if on.pair_id != off.pair_id:\n        raise B4ReceiptError(\"pair receipts have different pair_id commitments\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M19",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4ReceiptError(\"pair validation requires terminal receipt file paths\")\n",
+     "old": "    if isinstance(terminal_receipt_path, B4ClosedCriticReceipt):\n        raise B4ReceiptError(\"pair validation requires terminal receipt file paths\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M20",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "",
+     "old": "        (\"orchestrator/campaign/artifact_admission.py\", ARTIFACT_ADMISSION_FILE),\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 2400
+}

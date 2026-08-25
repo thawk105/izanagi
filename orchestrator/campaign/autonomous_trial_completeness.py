@@ -29,6 +29,7 @@ from . import campaign_lock
 from . import layer3_report as _layer3_report
 from . import s8b_holdout_freeze
 from . import s8b_ratified_freeze
+from . import s8c_generation_projection
 from . import trigger_gate_binding
 from . import wal
 from .artifact_admission import (
@@ -59,6 +60,20 @@ _TERMINAL_EVENTS = frozenset({
     "transport-admission-error",
 })
 _ROLE_ORDER = ("planner", "coder", "auditor", "critic")
+_ROLE_FAILURE_PHASES = frozenset({
+    "pre-raw-write",
+    "raw-write",
+    "json-syntax",
+    "json-shape",
+    "role-schema",
+    "parser-error",
+})
+_ROLE_FAILURE_PHASES_AFTER_RAW_WRITE = frozenset({
+    "json-syntax",
+    "json-shape",
+    "role-schema",
+    "parser-error",
+})
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _GIT_OBJECT_ID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 _ADMISSION_DECISION_KEYS = frozenset({
@@ -601,6 +616,54 @@ def _bound_regular_bytes(
         raise AutonomousTrialCompletenessError(
             f"[{gate}] {label} cannot be read as a run-root regular file"
         ) from exc
+
+
+def _read_bound_role_raw_bytes(
+    value: Any, *, run_root: Path, gate: str, label: str,
+) -> tuple[Path, bytes]:
+    bound_path, _preliminary_bytes = _bound_regular_bytes(
+        value, run_root=run_root, gate=gate, label=label,
+    )
+    authority_root = Path(run_root).resolve(strict=True)
+    relative = bound_path.relative_to(authority_root)
+    directory_fds: list[int] = []
+    file_fd: int | None = None
+    directory_flags = (
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    )
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+    try:
+        directory_fds.append(os.open(authority_root, directory_flags))
+        for component in relative.parts[:-1]:
+            directory_fds.append(os.open(
+                component,
+                directory_flags,
+                dir_fd=directory_fds[-1],
+            ))
+        file_fd = os.open(
+            relative.parts[-1], file_flags, dir_fd=directory_fds[-1],
+        )
+        metadata = os.fstat(file_fd)
+        if not stat.S_ISREG(metadata.st_mode):
+            _fail(gate, f"{label} is not a regular file")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(file_fd, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return bound_path, b"".join(chunks)
+    except AutonomousTrialCompletenessError:
+        raise
+    except (OSError, ValueError) as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[{gate}] {label} cannot be read from a no-follow file descriptor"
+        ) from exc
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        for directory_fd in reversed(directory_fds):
+            os.close(directory_fd)
 
 
 def read_and_verify_bytes(
@@ -1457,7 +1520,7 @@ def _check_payload_validation_receipt(
         "schema_version": _ROLE_SCHEMA_VERSION,
         "pilot_scope": _PILOT_SCOPE,
         "scientific_claim": False,
-        "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
+        "attempt_policy": dict(s8c_generation_projection.ATTEMPT_POLICY),
         "stop_policy": {
             "performance_early_stop": False,
             "generation_budget_is_fixed": True,
@@ -1609,7 +1672,9 @@ def _check_payload_validation_receipts(
             )
 
 
-def _check_role_event_shape(record: Mapping[str, Any], *, label: str) -> None:
+def _check_role_event_shape(
+    record: Mapping[str, Any], *, label: str, run_root: Path,
+) -> None:
     required = {
         "event", "workload", "generation", "role", "status", "seq", "ts",
         "invocation_id", "input_payload_sha256", "descriptor_sha256",
@@ -1663,10 +1728,84 @@ def _check_role_event_shape(record: Mapping[str, Any], *, label: str) -> None:
             _fail("role-event-shape", f"{label}.error_type is not a non-empty string")
         if not isinstance(record["error"], str):
             _fail("role-event-shape", f"{label}.error is not a string")
-        _mapping(
+        error_artifacts = _mapping(
             record["error_artifacts"], gate="role-event-shape",
             label=f"{label}.error_artifacts",
         )
+        failure_phase = error_artifacts.get("failure_phase")
+        if (
+            type(failure_phase) is not str
+            or failure_phase not in _ROLE_FAILURE_PHASES
+        ):
+            _fail(
+                "role-event-shape",
+                f"{label}.error_artifacts.failure_phase is invalid",
+            )
+        raw_keys = {"raw_response_path", "raw_response_sha256"}
+        present_raw_keys = raw_keys & set(error_artifacts)
+        if present_raw_keys and present_raw_keys != raw_keys:
+            _fail(
+                "role-event-shape",
+                f"{label}.error_artifacts raw response pointer is incomplete",
+            )
+        if (
+            failure_phase in _ROLE_FAILURE_PHASES_AFTER_RAW_WRITE
+            and present_raw_keys != raw_keys
+        ):
+            _fail(
+                "role-event-shape",
+                f"{label}.error_artifacts raw response pointer is required",
+            )
+        expected_raw_path = (
+            Path(run_root)
+            / "raw"
+            / f"raw_{record.get('invocation_id')}.txt"
+        )
+        try:
+            expected_raw_exists = (
+                expected_raw_path.exists() or expected_raw_path.is_symlink()
+            )
+        except OSError as exc:
+            raise AutonomousTrialCompletenessError(
+                "[role-event-shape] "
+                f"{label} expected raw response path cannot be inspected"
+            ) from exc
+        if (
+            expected_raw_exists
+            and failure_phase not in _ROLE_FAILURE_PHASES_AFTER_RAW_WRITE
+        ):
+            _fail(
+                "role-event-shape",
+                f"{label}.error_artifacts.failure_phase contradicts an existing raw response",
+            )
+        if present_raw_keys == raw_keys:
+            raw_path_value = error_artifacts["raw_response_path"]
+            raw_sha256 = error_artifacts["raw_response_sha256"]
+            if type(raw_path_value) is not str or not raw_path_value:
+                _fail(
+                    "role-event-shape",
+                    f"{label}.error_artifacts.raw_response_path is not a non-empty string",
+                )
+            _sha256_field(
+                raw_sha256,
+                label=f"{label}.error_artifacts.raw_response_sha256",
+            )
+            if raw_path_value != str(expected_raw_path):
+                _fail(
+                    "role-event-shape",
+                    f"{label}.error_artifacts.raw_response_path differs from the invocation raw path",
+                )
+            _raw_path, raw_bytes = _read_bound_role_raw_bytes(
+                raw_path_value,
+                run_root=Path(run_root),
+                gate="role-event-shape",
+                label=f"{label}.error_artifacts.raw_response_path",
+            )
+            if hashlib.sha256(raw_bytes).hexdigest() != raw_sha256:
+                _fail(
+                    "role-event-shape",
+                    f"{label}.error_artifacts raw response bytes differ from sha256",
+                )
     elif status == "skipped":
         if record.get("role") != "auditor":
             _fail("role-event-shape", f"{label} non-auditor role cannot be skipped")
@@ -1688,8 +1827,10 @@ def _check_role_event_shape(record: Mapping[str, Any], *, label: str) -> None:
         _fail("query-ordinal", f"{label} provider attempt lacks an ordinal")
 
 
-def _logical_id(record: Mapping[str, Any], *, label: str) -> tuple[Any, ...]:
-    _check_role_event_shape(record, label=label)
+def _logical_id(
+    record: Mapping[str, Any], *, label: str, run_root: Path,
+) -> tuple[Any, ...]:
+    _check_role_event_shape(record, label=label, run_root=run_root)
     keys = ("workload", "generation", "role", "attempt", "invocation_id")
     missing = [key for key in keys if key not in record]
     if missing:
@@ -1711,12 +1852,17 @@ def _logical_id(record: Mapping[str, Any], *, label: str) -> tuple[Any, ...]:
 
 
 def _require_unique_attempts(
-    records: Sequence[Mapping[str, Any]], *, side: str,
+    records: Sequence[Mapping[str, Any]], *, side: str, run_root: Path,
 ) -> None:
     refs = [_canonical_ref(record) for record in records]
     if len(refs) != len(set(refs)):
         _fail("canonical-duplicate", f"{side} has an exact canonical duplicate")
-    logical = [_logical_id(record, label=f"{side} role attempt") for record in records]
+    logical = [
+        _logical_id(
+            record, label=f"{side} role attempt", run_root=run_root,
+        )
+        for record in records
+    ]
     if len(logical) != len(set(logical)):
         _fail("logical-id", f"{side} has a duplicate logical role attempt ID")
 
@@ -2436,7 +2582,7 @@ def _check_cell_metadata(
 
 def _scan_report_attempts(
     *, cells: Sequence[Mapping[str, Any]], journal_attempts: Sequence[Mapping[str, Any]],
-    budget: int,
+    budget: int, run_root: Path,
 ) -> list[Mapping[str, Any]]:
     report_attempts: list[Mapping[str, Any]] = []
     for cell_index, cell in enumerate(cells):
@@ -2484,7 +2630,11 @@ def _scan_report_attempts(
                     or entry.get("role") != role
                 ):
                     _fail("role-placement", f"{workload}.g{number}.{role} is misplaced")
-                _check_role_event_shape(entry, label=f"{workload}.g{number}.{role}")
+                _check_role_event_shape(
+                    entry,
+                    label=f"{workload}.g{number}.{role}",
+                    run_root=run_root,
+                )
                 if entry.get("descriptor_sha256") != descriptor_sha256:
                     _fail(
                         "descriptor-binding",
@@ -2926,7 +3076,9 @@ def assert_autonomous_trial_completeness(
 ) -> None:
     """Re-read *attempt_journal* and verify its complete report projection."""
     report = _mapping(report, gate="report-shape", label="report")
-    journal_bytes, events = _read_journal(Path(attempt_journal))
+    attempt_journal = Path(attempt_journal)
+    run_root = attempt_journal.resolve().parent
+    journal_bytes, events = _read_journal(attempt_journal)
     expected_hash = hashlib.sha256(journal_bytes).hexdigest()
     if report.get("attempt_journal_sha256") != expected_hash:
         _fail("journal-hash", "attempt_journal_sha256 does not match bytes read")
@@ -2934,7 +3086,7 @@ def assert_autonomous_trial_completeness(
     _check_journal_sequence(events)
     _check_transport_admission(report=report, events=events)
     _check_run_envelope(
-        report=report, events=events, attempt_journal=Path(attempt_journal),
+        report=report, events=events, attempt_journal=attempt_journal,
     )
     _check_origin_terminal_projection(report)
     launch = report.get("launch_admission")
@@ -3032,14 +3184,21 @@ def assert_autonomous_trial_completeness(
     if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
         _fail("state-machine", "generation budget is not a positive int")
     journal_attempts = [event for event in events if event.get("event") == "role-attempt"]
-    _require_unique_attempts(journal_attempts, side="journal")
+    _require_unique_attempts(
+        journal_attempts, side="journal", run_root=run_root,
+    )
     _check_role_session_isolation(
         provider=report.get("provider"), records=journal_attempts,
     )
     report_attempts = _scan_report_attempts(
-        cells=cells, journal_attempts=journal_attempts, budget=budget,
+        cells=cells,
+        journal_attempts=journal_attempts,
+        budget=budget,
+        run_root=run_root,
     )
-    _require_unique_attempts(report_attempts, side="report")
+    _require_unique_attempts(
+        report_attempts, side="report", run_root=run_root,
+    )
     _check_attempt_sequence(journal_attempts, report_attempts)
     if Counter(map(_canonical_ref, journal_attempts)) != Counter(
         map(_canonical_ref, report_attempts)

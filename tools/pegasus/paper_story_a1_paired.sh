@@ -10,11 +10,11 @@
 set -Eeuo pipefail
 umask 077
 
-EXPECTED_STUDY_ID="paper-story-a1-20260824-exploratory-v1"
+EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"
 EXPECTED_QUEUE="gen_S"
 SUBMISSION_SCHEMA="paper-story-a1-paired-submission/v1"
 DRIVER_RELATIVE="orchestrator/campaign/paper_story_a1_paired.py"
-POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v1.json"
+POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"
 PIPELINE_RELATIVE="orchestrator/campaign/pipeline.py"
 JOB_RELATIVE="tools/pegasus/paper_story_a1_paired.sh"
 PEGASUS_POLICY_RELATIVE="tools/pegasus/policy.json"

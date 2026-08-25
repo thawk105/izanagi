@@ -563,15 +563,30 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
     択 (b)。[T-1031])。** 上の委任下の測定のような非 canonical な結果は、台帳へ evidence として
     残してよいが、`local-ok` など class を軽い側へ倒す根拠にはしない。
 - **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
-  である (D103 決定 2 / D105 決定 3 が enum を閉じている)。表に無い重い処理は自動化されていない
-  ので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。sanctioned な経路が無ければ
-  **走らせずに止める**。task を勝手に増やさない (追加には D105 の supersede が要る)。
-- **未充足の明示。** ユーザー依頼は「一定メモリ以上のものを計算ノードへ**投げる**」だったが、
-  **本節が実装したのは admission 規範 (login で走らせない) だけで、第 3 の entry point を
-  閾値判定後に自動 dispatch する経路は実装していない**。D105 決定 3 が task enum を 2 値に
-  固定しており、拡張には (a) D105 の supersede、(b) `_job_run` 側の `env_allowlist` 強制、
-  (c) stdin / cwd / artifact 可視性、(d) 子 rc の意味の確定が同時に要る。
-  **この差分は依頼のうち「自動で投げる」部分を満たしていない** — 裁定待ちとして worklog に残す。
+  である (D103 決定 2 が経路を定め、D842 / D895 が現行 enum を定める)。表に無い重い処理は
+  自動化されていないので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。
+  sanctioned な経路が無ければ **走らせずに止める**。task を勝手に増やさない
+  (追加は D842 / D895 と同じくユーザー裁定を要する)。
+- **任意コマンドは `generic` task で送る (D895)。** 子 script 欄の `<argv>` は固定 script を
+  持たないことを表す sentinel であり、渡された argv 自体を `shell=False` で実行する。
+  受理するのは非空の string list だけで、shell 文字列は受理しない。request からの環境値を
+  一切受け取らず、stdin は閉じ、cwd は repo root に固定し、子 rc をそのまま伝播する。
+  **`generic` も計算ノードでしか子を起動しない** — `_job_script` と `_job_run` の
+  二重 bnode gate を通る。したがって「login で任意 argv を実行しない」という D103 決定 5 の
+  一次層の性質は保たれる。
+- **`mutation` task の射程 (D842)。** 変異 wrapper 1 呼び出しを計算ノードの 1 job へ束ねる。
+  **既存の `--runner-mode dispatch` 経路を置き換えるものではなく、並存する。**
+  束ねた job の内側は local 実行になるため、**変異対象が runner 実行経路
+  (`tools/run_tests.py` / `tools/pegasus/dispatch_compute.py`) を含む場合は使わない** —
+  `docs/dev-wave/mutation.md` の `DW-M07` が言う「runner が自壊し収集段が `rc=16` になる」が
+  そのまま起きる。含まない変異でだけ使い、queue 回数の削減は実測値でだけ主張する。
+- **なお未充足のもの。** 「実測メモリが閾値を超えたら**自動で**投げる」判定は依然として
+  実装していない。本節が持つのは admission 規範 (login で走らせない) と、上表の task を
+  明示的に呼んだときの dispatch だけである。閾値判定からの自動 dispatch は裁定待ちとして残る。
+  また `hooks/guard_bash.py` は `generic` gateway の内側 argv を綴りによって
+  拒否したりしなかったりする (`-- pytest` は通り `-- python -m pytest` は拒否される)。
+  hooks subtree は `hooks/guard_write.py` が編集を拒否するため本節の変更単位では直せない。
+  正規手順は `hooks/README.md` に従う。**裁定待ちである。**
 - **開発 harness そのものは、当面この規範の dispatch 要求から除外する (暫定例外)。** 対象は
   `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` / `tools/dev_waves/*` が起こす
   codex・claude 子と、`tools/dev_waves/checker.py` および `tools/check_docs.py` の login 実行である。
@@ -589,6 +604,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 |---|---|
 | `tests` | `tools/run_tests.py` |
 | `provenance` | `tools/check_ai_provenance.py` |
+| `mutation` | `tools/mutation_worktree.py` |
+| `generic` | `<argv>` |
 
 `tools/check_docs.py` がこの表と `tools/pegasus/dispatch_compute.py` の `TASKS` の乖離を検査する。
 同 checker は本節の admission 投影表・`unknown` 表・実測表と、`tools/pegasus/README.md` の
@@ -1170,6 +1187,15 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   --expected-spec-sha256 <sha> --out <ledger> --runner-mode dispatch --detached \
   -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
 ```
+
+**`--attempt-out` は `--wrapper-attempt` と同時指定でなければならない** (2026-08-26 実測)。
+片方だけを渡すと `mutation harness aborted: --attempt-out と --wrapper-attempt は同時指定が必要`
+で起動前に落ちる。attempt 記録を取るなら両方渡す。
+
+**`expected_nodes` の nodeid は ASCII だけにする。** `tools/run_tests.py` は子の出力を中継する
+とき非 ASCII を `\uXXXX` へエスケープするため、parametrize の表示 ID に日本語を含む nodeid は
+harness の collection と一致せず `期待 node が pytest collection に実在しない` で必ず落ちる。
+対象テストには `pytest.param(..., id="ascii-only-id")` を先に付ける。
 
 ### 7.5 独立ジョブは並行投入する (2026-08-11 ユーザー裁定)
 

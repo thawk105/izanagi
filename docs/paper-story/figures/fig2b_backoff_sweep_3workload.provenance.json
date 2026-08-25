@@ -1,0 +1,212 @@
+{
+  "schema": "izanagi-backoff-figure-provenance/v2",
+  "generated_utc": "2026-08-25T19:14:23.462984Z",
+  "generator": "plot_backoff.py",
+  "generator_source": {
+    "path": "tools/plotting/plot_backoff.py",
+    "sha256": "bdb3c223192835379661e6ba3b288d871e36da9201e89438c41fd10840c0bf5e"
+  },
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig2b_backoff_sweep_3workload.png",
+      "sha256": "d72054607bef4d1694d3c3f68e213c9fffcad08e49460709e8df47b247738b54"
+    },
+    {
+      "path": "docs/paper-story/figures/fig2b_backoff_sweep_3workload.pdf",
+      "sha256": "353d403dc8746b432d04f28ac9b0dafc6da53fc367d7ff8074e3a3a0ed64e735"
+    }
+  ],
+  "inputs": [
+    {
+      "campaign": "backoff-sweep-silo-write-heavy-sweep-493813a7",
+      "dir": "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7",
+      "wal": "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/runs/wal.jsonl",
+      "wal_sha256": "9c179331a7171969ac6f4ed2b1d09e4afbf52378cfbac7bd133696a6589fe926",
+      "dat": "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/reports/backoff-sweep-write-heavy.dat",
+      "dat_sha256": "5adb4c7d51188de5c4fd00842742b1d4e2f14b0efd2d2714bfe1ec5c1aedabe3",
+      "lock": "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/campaign.lock",
+      "lock_sha256": "493813a705e73908d8cbd99e55cba679f831b5cd3b8e1f40fc9f45d9dbee08ca",
+      "threads": [
+        48
+      ],
+      "env": "linux-baremetal",
+      "baselines": [
+        {
+          "label": "no backoff",
+          "value_tps": 1891738.6,
+          "ci95_half_tps": 32201.049325436317,
+          "genome": {
+            "BACKOFF_FIXED": "-1",
+            "BACK_OFF": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "WAL": "0"
+          }
+        }
+      ],
+      "conditions": {
+        "thread_num": 48,
+        "ycsb_tuple_num": 1000000,
+        "extime": 3,
+        "clocks_per_us": 1800,
+        "ycsb_zipf_skew": 0.9,
+        "ycsb_rratio": 5,
+        "ycsb_rmw": false,
+        "numactl_args": [
+          "--interleave=all"
+        ],
+        "env": "linux-baremetal",
+        "CCBENCH_TRACE": 0,
+        "ccbench_commit": "6656e93",
+        "unresolved_fields": [],
+        "incomplete_fields": []
+      },
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "excluded_uncertified_bench_done": []
+    },
+    {
+      "campaign": "backoff-sweep-silo-balanced-sweep-484c663e",
+      "dir": "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e",
+      "wal": "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/runs/wal.jsonl",
+      "wal_sha256": "8ac3f47e55274fada20e6518eea9cbb0e822170eeda1b424df99e76e11fd789c",
+      "dat": "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/reports/backoff-sweep-balanced.dat",
+      "dat_sha256": "9ceb1b447c99abe7dcc7b50d34d44c84a6b2e4e1e4d6059ab7a317abfa0b5eb1",
+      "lock": "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/campaign.lock",
+      "lock_sha256": "484c663ea167ec12ac1a44b30bf15353a3b66393ac6f528dacd4d97d3f67c857",
+      "threads": [
+        48
+      ],
+      "env": "linux-baremetal",
+      "baselines": [
+        {
+          "label": "no backoff",
+          "value_tps": 2777618.0,
+          "ci95_half_tps": 37101.15443512767,
+          "genome": {
+            "BACKOFF_FIXED": "-1",
+            "BACK_OFF": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "WAL": "0"
+          }
+        }
+      ],
+      "conditions": {
+        "thread_num": 48,
+        "ycsb_tuple_num": 1000000,
+        "extime": 3,
+        "clocks_per_us": 1800,
+        "ycsb_zipf_skew": 0.9,
+        "ycsb_rratio": 50,
+        "ycsb_rmw": false,
+        "numactl_args": [
+          "--interleave=all"
+        ],
+        "env": "linux-baremetal",
+        "CCBENCH_TRACE": 0,
+        "ccbench_commit": "6656e93",
+        "unresolved_fields": [],
+        "incomplete_fields": []
+      },
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "excluded_uncertified_bench_done": []
+    },
+    {
+      "campaign": "backoff-sweep-silo-read-heavy-sweep-610004b9",
+      "dir": "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9",
+      "wal": "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/runs/wal.jsonl",
+      "wal_sha256": "c74d5837a4facd071704a515f905d1d638463878850661cf217b96cd694774dc",
+      "dat": "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/reports/backoff-sweep-read-heavy.dat",
+      "dat_sha256": "49144820ec737485615209ca4b61e600a6543e4b11fa0374f5067ec46d0afcfd",
+      "lock": "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/campaign.lock",
+      "lock_sha256": "610004b9e27e2f8d6961f919b720d757e05ec6169d66ef3d5b0108c79a930c56",
+      "threads": [
+        48
+      ],
+      "env": "linux-baremetal",
+      "baselines": [
+        {
+          "label": "no backoff",
+          "value_tps": 8464789.4,
+          "ci95_half_tps": 35249.986074428554,
+          "genome": {
+            "BACKOFF_FIXED": "-1",
+            "BACK_OFF": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "WAL": "0"
+          }
+        }
+      ],
+      "conditions": {
+        "thread_num": 48,
+        "ycsb_tuple_num": 1000000,
+        "extime": 3,
+        "clocks_per_us": 1800,
+        "ycsb_zipf_skew": 0.9,
+        "ycsb_rratio": 95,
+        "ycsb_rmw": false,
+        "numactl_args": [
+          "--interleave=all"
+        ],
+        "env": "linux-baremetal",
+        "CCBENCH_TRACE": 0,
+        "ccbench_commit": "6656e93",
+        "unresolved_fields": [],
+        "incomplete_fields": []
+      },
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "excluded_uncertified_bench_done": []
+    }
+  ],
+  "facts": {
+    "write-heavy": {
+      "best_bf": 10,
+      "best_M": 2.6127026,
+      "none_M": 1.8917386,
+      "adapt_M": 1.0512793999999999,
+      "n_reps": 5,
+      "campaign_verifier_epoch": "E0",
+      "read_purpose": "HISTORICAL_RAW"
+    },
+    "balanced": {
+      "best_bf": 5,
+      "best_M": 3.094894,
+      "none_M": 2.777618,
+      "adapt_M": 0.9158256,
+      "n_reps": 5,
+      "campaign_verifier_epoch": "E0",
+      "read_purpose": "HISTORICAL_RAW"
+    },
+    "read-heavy": {
+      "best_bf": 2,
+      "best_M": 7.8847798,
+      "none_M": 8.4647894,
+      "adapt_M": 1.913919,
+      "n_reps": 5,
+      "campaign_verifier_epoch": "E0",
+      "read_purpose": "HISTORICAL_RAW"
+    }
+  }
+}
