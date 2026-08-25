@@ -37,8 +37,8 @@ seq: 2
   走行中の変異は `tools/mutation_harness.py` を直接呼ぶ 1 本 (T-1434 の probe) だけで、
   これは `--repo` に自分の wave worktree を取り共有木を観測しない。`mutation_worktree.py` 由来の
   process は 0 本だった。**しかし親はこの確認を撤去の前でなく後に行った。**
-  恒久対応 = 共有 main checkout の untracked 集合を変える操作 (worktree 残骸の撤去を含む) の直前に、
-  `pgrep -af mutation_worktree.py` で共有木観測の走行が 0 本であることを確かめる。
-  撤去は削除でなく退避とし、`/work/1/SFC/tanab/dev-wave-jobs/orphaned-worktree-residue/` へ移す。
+  恒久対応 = memory `shared-untracked-set-preflight-before-worktree-retire` — 共有 main checkout の
+  untracked 集合を変える操作 (worktree 残骸の撤去を含む) の直前に `pgrep -af mutation_worktree.py` で
+  共有木観測の走行が 0 本であることを確かめ、撤去は削除でなく退避とする 5 点検査を記録する。
   再発検知: `shared_snapshot_matches=false` は既に `MUT_RC=125` で fails-closed に落ちるが、
   それは被害が出た後の検知である。事前の防壁は本エントリと当該 memory だけで、機械検査は持たない。

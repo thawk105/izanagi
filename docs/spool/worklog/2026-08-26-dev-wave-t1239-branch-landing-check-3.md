@@ -58,6 +58,14 @@ title: [T-1239] 取り残し branch の着地判定を機械検査にし、workt
   他 wave の slug を参照しない限り re-home は不要である。sha256 が原本と一致することを確認した。
   なお同 fragment の F526 supersede 追記は canonical に別内容の supersede が既にあり、
   fold 後は同じ日付の supersede が 2 行並ぶ。歴史記録としては両方とも実測であり、取り消さない。
+- **段 8 の自己改善は 2 件のうち 1 件だけ実施した。** 実施したのは F537 の恒久対応を
+  memory `shared-untracked-set-preflight-before-worktree-retire` へ実体化することである。
+  実施しなかったのは `DW-M01` へ「新設 tool の wave は段 4 でコードが無く規則名でしか登録できないため
+  暫定と明記する」を統合することで、`docs/dev-wave/**` の L1 予算が 10,625 bytes に対し
+  残り 9 bytes しかなく、165 bytes の追記が入らなかった (実測 10,781 bytes で赤)。
+  D730 に従い原則どおり「実施しない」へ落とす — 同型の実害は本 wave の 1 例だけで 3 例に満たない。
+  規則自体は F28 の再発として台帳に残るため失われない。
+  `.claude/commands/cleanup-branches.md` も 3,949 / 4,000 bytes で残り 51 bytes のため触れていない。
 - 子の工数: codex 8 本 (plan 1・consult 2・author 1・review 2・fix 3)。全て `launcher_rc=0`。
 - 変異 matrix は本 wave では未実施。段 6 の fix 3 巡で実装が大きく変わったため、
   最終 commit に対する本走は段 7 の記録 commit 後に行う。
