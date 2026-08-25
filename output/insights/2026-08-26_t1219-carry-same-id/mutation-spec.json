@@ -1,0 +1,170 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if carry.task_id in target_ids:\n            continue\n",
+          "new": "        if True:\n            continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_same_id_mismatch_is_positive_control"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if expected is not None:\n            observed_known[known_key] = observed_known.get(known_key, 0) + 1\n            continue\n",
+          "new": "        if True:\n            observed_known[known_key] = observed_known.get(known_key, 0) + 1\n            continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_same_id_mismatch_is_positive_control"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            actual = observed_known.get((source_digest, item_digest), 0)\n            if actual == expected:\n                continue\n",
+          "new": "            actual = observed_known.get((source_digest, item_digest), 0)\n            if True:\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_registered_carry_mismatch_removal_is_violation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if registered_total != EXPECTED_KNOWN_CARRY_ID_MISMATCHES:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_mismatch_ledger_total_is_enforced"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if scan.candidate_count != scan.parsed_count:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] (073)]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] (73 )]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] 変わらず ( (73) 参照)]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if scan.parsed_count < MIN_EXPECTED_CARRY_REFERENCE_COUNT:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_reference_population_floor_rejects_shrink"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        if target not in next_action_ids_by_entry:\n            index_key_missing_total += 1\n            if len(index_key_missing_samples) < _CARRY_FINDING_SAMPLE_LIMIT:\n                index_key_missing_samples.append(carry)\n            continue\n        target_ids = next_action_ids_by_entry[target]\n",
+          "new": "        target_ids = next_action_ids_by_entry.get(target, set())\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_target_index_states_are_distinct[missing-missing-索引 key 不在-key 不在-absent_labels0-absent_details0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    for carry in _iter_carry_references(carry_sources, scan):\n        target = carry.target_entry\n",
+          "new": "    _collapsed_targets: set[int] = set()\n    for carry in _iter_carry_references(carry_sources, scan):\n        target = carry.target_entry\n        if target in _collapsed_targets:\n            continue\n        _collapsed_targets.add(target)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_same_target_and_id_from_new_source_is_violation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    universe = set(locations)\n    index = set(next_action_ids_by_entry)\n",
+          "new": "    universe = set()\n    index = set()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_entry_universe_and_index_must_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            \"docs/archive: 番号付き archive 入力が不完全 — \"\n            \"carry 参照先の実在検査を停止\"\n        )\n        return\n",
+          "new": "            \"docs/archive: 番号付き archive 入力が不完全 — \"\n            \"carry 参照先の実在検査を停止\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_incomplete_numbered_archive_stops_carry_validation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
