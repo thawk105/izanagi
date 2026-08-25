@@ -68,6 +68,20 @@ title: 到達不能 commit 監査を 2 時間 23 分から 4 分 43 秒へ短縮
 - 実測の一次資料は `dev-wave-jobs/dangling-audit-speed/` の `measure-baseline.txt`、
   `measure-r1.txt`、`measure-r2.txt`、`measure-r3.txt`。修正前 tool の写しも同 dir に置いた
   (sha256 `df95e4b9f5780782ce31a495c51079d246bc8e086f0330ed68d611e0df060944`)。
+- **変異 matrix は本体 11 件が 11/11 一致で閉じた。** 最終 commit `8ecb9325` に対する本走で
+  KILLED 10 件がいずれも期待 node の完全集合と一致し、MISMATCH 0。M05 だけは SURVIVED 期待で、
+  `git log --no-walk` の出力が `--root` の有無で byte 同一 (480 bytes) であることを実測して
+  等価変異と確定した。probe は全件 SURVIVED 期待で回して観測 node を集め、本走で
+  KILLED 期待へ差し替える DW-M07 の手順に従っている。
+- **busy-spin の変異 (M12) は本体から分離した。** これは D560 が未閉鎖残件として記録済みの
+  構造的非互換で、hang する変異は PBS に強制終了されるため正常完了マーカーを残せず、
+  walltime 値に関わらず毎回 orphan-hold に落ちる。D560 は同型の変異を matrix から除外して
+  閉じており、本 wave も同じ扱いにした。検出力そのものは実測で確認できている —
+  独立 2 走 (948690 / 948747) がいずれも 144 件中ちょうど 1 件を落としており、
+  {{F:progress-interval-doubles-as-poll-timeout}} の control が発火する形と整合する。
+  ただしその 1 件がどの test node かは、pytest が SIGKILL されて短縮サマリを書けないため
+  出力から特定できていない。**この 2 走に約 2 時間を費やしたのは親の手順漏れである**
+  ({{F:hang-mutation-orphan-limit-relearned-by-experiment}})。
 - **走行中に auto-gc が到達不能 object を刈ることを実測した。** 監査中に pack が書き直され、
   probe が `fatal: bad object` で止まった。到達不能 commit 数は同じ 20 分で 2,782 → 2,780 → 2,781 と
   動く。遅い監査ほど「報告される前に消える」窓が広く、高速化はこの意味でも効く。
@@ -89,6 +103,15 @@ title: 到達不能 commit 監査を 2 時間 23 分から 4 分 43 秒へ短縮
   commit ごとの argv 上限つき batch なので fork 数が finding 規模に比例する。現行規模では
   51 commit / 616 対で 51 本程度であり実測 300 秒の中で支配項ではないが、規模が伸びれば効く。
   commit 横断の常駐 batch へ寄せる案がある。
+
+- {{T:hang-mutation-settlement-under-dispatch}} **P3・新規**: hang する変異を dispatch 経路で
+  清算できるようにする。D560 が未閉鎖残件として記録した構造的非互換
+  (PBS 強制終了 job は正常完了マーカーを残せず毎回 orphan-hold) が本 wave で再発し、
+  該当変異は 2 wave 続けて matrix から除外されている。案は (a) walltime 超過による
+  終了を harness が TIMEOUT の終端証拠として受理する、(b) `hang_risk` の変異だけ
+  `IZANAGI_DISPATCH_WALLTIME_OVERRIDE` を自動で短く設定して孤児の占有を最小化する、
+  (c) 現状維持として DW-M06 に「dispatch では hang 変異を本走に載せない」と明記する。
+  (c) だけでも {{F:hang-mutation-orphan-limit-relearned-by-experiment}} の再発は止まる。
 
 ### 見送り追記
 
