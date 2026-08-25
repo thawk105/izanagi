@@ -78,6 +78,12 @@ title: [T-1726] 受入 receipt verifier を ratified legacy freeze の条件再�
   組み合わせで、実行 descriptor が不在のまま expected digest の自己申告を verified receipt に
   できる構造を塞ぐ。`test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof` の
   設計意図と一体のため、受理集合の形を含めて設計し直す必要がある。
+- {{T:dev-wave-l15-budget-exhausted}} **P2・新規 (ユーザー裁定待ち)**: `docs/dev-wave/**` の
+  L1.5 層 unique footprint は残り 21 bytes しかなく、本 wave で実測した手順 1 行 (150 bytes) が
+  入らなかった。自己改善契約は予算値の引き上げを通常の自己改善から外し、理由付きの独立審査対象と
+  している。**裁定してほしいこと**: (a) 予算値を上げる、(b) L1.5 の既存節を機械検査へ移して空ける、
+  (c) この種の手順は failures 台帳だけに置く運用を明文化する、のどれを採るか。
+  現状は (c) の運用で着地させた ({{F:mutation-observation-root-shared-checkout}} 参照)。
 - {{T:shared-arm-authority-leaf}} **P2・新規**: producer / issuer / verifier が共有する
   副作用のない軽量 authority leaf を新設し、`trial_registry` の受入経路に残る
   legacy freeze との断絶を閉じる。併せて `s8c_acceptance_receipt` が v2/v3 検証時に
