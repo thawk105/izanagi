@@ -272,6 +272,29 @@ def test_full_schedule_uses_each_permutation_once_and_excludes_warmup() -> None:
     )
 
 
+def test_validate_full_schedule_rejects_missing_or_duplicate_permutations() -> None:
+    valid = study.build_schedule("full", "seed-a")
+    study.validate_schedule(valid, mode="full")
+
+    only_five_measured = list(valid)
+    only_five_measured[-1] = replace(only_five_measured[-1], phase="warmup")
+    with pytest.raises(study.ContractError) as missing_exc:
+        study.validate_schedule(only_five_measured, mode="full")
+    assert str(missing_exc.value) == (
+        "full measurement schedule must use all six permutations once"
+    )
+
+    duplicate_permutation = list(valid)
+    duplicate_permutation[-1] = replace(
+        duplicate_permutation[-1], arm_order=duplicate_permutation[-2].arm_order
+    )
+    with pytest.raises(study.ContractError) as duplicate_exc:
+        study.validate_schedule(duplicate_permutation, mode="full")
+    assert str(duplicate_exc.value) == (
+        "full measurement schedule must use all six permutations once"
+    )
+
+
 def test_smoke_has_one_measured_block_and_no_warmup() -> None:
     schedule = study.build_schedule("smoke", "seed-a")
     assert len(schedule) == 1
@@ -383,6 +406,24 @@ def test_junit_identity_set_digest_is_order_independent() -> None:
     assert (
         original["testcase_identity_set_sha256"]
         == reversed_order["testcase_identity_set_sha256"]
+    )
+
+
+def test_junit_identity_sets_require_every_shard_index() -> None:
+    digest = study._sha256(b"fixed-testcase-identity-set")
+    valid = [
+        {
+            "shard_index": shard_index,
+            "junit": {"testcase_identity_set_sha256": digest},
+        }
+        for shard_index in range(study.SHARD_COUNT)
+    ]
+    study.validate_junit_identity_sets(valid)
+
+    with pytest.raises(study.ContractError) as exc_info:
+        study.validate_junit_identity_sets(valid[:1])
+    assert str(exc_info.value) == (
+        "JUnit testcase identity sets do not cover every shard"
     )
 
 
@@ -502,6 +543,21 @@ def test_receipt_schema_rejects_missing_excluded_estimand_and_unknown_field(
     unknown["unexpected"] = True
     with pytest.raises(study.ContractError, match="unknown"):
         study.validate_receipt(unknown, expected_mode="smoke", require_complete=False)
+
+
+def test_receipt_schema_rejects_changed_excluded_estimand_value(
+    tmp_path: Path,
+) -> None:
+    valid = _failed_schema_fixture(tmp_path)
+    study.validate_receipt(valid, expected_mode="smoke", require_complete=False)
+
+    changed = copy.deepcopy(valid)
+    changed["excluded_estimands"][0]["statement_ja"] = "別の除外項"
+    with pytest.raises(study.ContractError) as exc_info:
+        study.validate_receipt(changed, expected_mode="smoke", require_complete=False)
+    assert str(exc_info.value) == (
+        "receipt excluded_estimands differs from the fixed exclusion"
+    )
 
 
 def test_job_failure_schema_is_closed() -> None:
