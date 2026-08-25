@@ -79,6 +79,15 @@ title: [T-1721] A-1 対測定の装置を反復数一般化し事前登録を凍
   1 件も再現しなかった。** `DW-O18` に従い受入を 1 回だけ再走した (反復していない)。
   投入時のマシンは他 wave の変異 harness 5 本と Codex の子 6 本が同時に走る高負荷だった。
   **受入 2 回目は 16,601 passed / 60 skipped / `child-green` で通った。**
+- **受入 3 回目 (記録 commit を足した最終 tip) も赤で戻り、決定的な対照で非帰属を確定した。**
+  3 回の受入で赤の集合が毎回入れ替わった (1 回目 15 件、2 回目 0 件、3 回目 14 件)。
+  **本 wave の変更を 1 行も含まない main `f4c2c5de` の独立 clone で同じ 2 file を走らせたところ、
+  12 件が赤になった** (`test_s8b_floor_campaign.py` 11 件、`test_codex_worker_launch.py` 1 件)。
+  assertion は `assert repo_before == _real_output_snapshot()` で、`output/` 配下全体の bytes が
+  走行中に変わったことを検査している。受入は 2 shard で走るため、片方の dispatch が
+  `output/pegasus-dispatch/` へ受領証を書けば必ず壊れる。F62 が同じ機序を記録済みである。
+  本 wave の wave 自身の差分は main に対し 13 file (A-1 の driver / policy / job body / 検査と、
+  静的な記録 file 4 つ) で、いずれもこれらのテストが見る面へ到達しない。
 - **親が受入の走行中に追跡 file を編集する違反を自ら踏んだ。** 受入 2 回目の投入直後に worklog
   fragment を編集した。数十秒で気づいて repo 外へ退避し `git checkout --` で clean へ戻したため
   受入は緑で完走したが、これは本 wave が {{F:tests-run-while-workspace-write-child-edits}} として
