@@ -12,10 +12,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib
+import json
 import os
 import re
 import secrets
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,6 +31,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+_KNOWN_VIOLATION_REPO_ROOT = Path(__file__).resolve().parent.parent
+_KNOWN_VIOLATION_RELATIVE_DIRECTORY = Path("tools/known_violations")
+_KNOWN_VIOLATION_DIRECTORY = (
+    _KNOWN_VIOLATION_REPO_ROOT / _KNOWN_VIOLATION_RELATIVE_DIRECTORY
+)
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
@@ -171,715 +178,546 @@ class KnownViolationSpec:
     expected_finding_value: str = ""
 
 
-_KNOWN_VIOLATION_RULING = "worklog(284) 2026-08-07 /rulings"
-_T139_MALFORMED_RULING = (
-    "2026-08-09 dev-wave-jobs/rulings-inbox/"
-    "2026-08-09-t139-r4-probe-provenance-format-violation.md"
+_KNOWN_VIOLATION_DATA_FIELDS = ("sha", "kind", "value", "ruling", "note")
+_KNOWN_VIOLATION_DATA_PREFIX = "known provenance violation data"
+_KNOWN_VIOLATION_FILENAME = re.compile(
+    r"^(?P<sha>[0-9a-f]{40})--"
+    rf"(?P<kind>{'|'.join(sorted(_LEDGER_FINDING_KINDS))})--"
+    r"(?P<digest>[0-9a-f]{64})\.json$"
 )
-_T659_PROBE_RULING = (
-    "2026-08-09 dev-wave-jobs/rulings-inbox/"
-    "2026-08-09-t659-provenance-and-f37-rulings.md"
-)
-_T316_GITLINK_RULING = (
-    "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 "
-    "(ユーザー選択: known-violation 登録)"
-)
-_T316_GITLINK_NOTE = (
-    "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を"
-    "古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみで"
-    "ソース著作なし；親作成 commit のため Codex 著者とは記さない"
-)
-_T470_MERGE2_RULING = (
-    "2026-08-20 dev-wave-t470-accepted-consumer land 前裁定 "
-    "(2回目、ユーザー選択: known-violation 登録)"
-)
-_T470_MERGE2_NOTE = (
-    "2回目の local main 取り込み merge。`tools/check_ai_provenance.py` / "
-    "`orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-470 の "
-    "known-violation エントリと main 側の別裁定 (T-619) のエントリが同じ末尾へ競合し、"
-    "両方を残すだけの union で解決した。`orchestrator/tests/test_layer3_report.py` は "
-    "main 側の新規変更と衝突しなかった。`git diff-tree --cc a5b7045b` は全差分行が "
-    "いずれかの親に既存で、両親のどちらにも無い新規行はない。wave 側の実装面は Codex "
-    "`role=author` が commit `c0936079` / `2d111bfc` / `d59f53d4` で書き、main 側は各 wave "
-    "の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
-)
-_T567_MERGE2_RULING = (
-    "2026-08-21 dev-wave-t567-attempt-binding land 前裁定 "
-    "(2回目、ユーザー選択: known-violation 登録)"
-)
-_T567_MERGE2_NOTE = (
-    "2回目の受入投入前 local main 取り込み merge "
-    "`5823caf328a5985476cd2f6f7aa0d13daa5b08f6`。`tools/check_ai_provenance.py` / "
-    "`orchestrator/tests/test_check_ai_provenance.py` で、本 wave が追加した T-567 の "
-    "known-violation エントリと main 側の別 wave (T-565、merge "
-    "`76248294bf40eb7fa0d806ce4df5010d685036de`) のエントリが同じ末尾へ競合し、"
-    "両方を残すだけの union で解決した。`orchestrator/tests/test_campaign.py` は "
-    "main 側の新規変更と衝突しなかった。`git diff-tree --cc "
-    "5823caf328a5985476cd2f6f7aa0d13daa5b08f6 -- "
-    "orchestrator/tests/test_campaign.py orchestrator/tests/test_check_ai_provenance.py "
-    "tools/check_ai_provenance.py` では `test_campaign.py` が combined diff に現れず、"
-    "2 checker file の追加行もいずれかの親に既存で、両親のどちらにも無い新規行はない。"
-    "結果は両側の known-violation エントリを並べただけの union で、競合解決による新規著作なし。"
-    "親作成 merge のため Codex 著者とは記さない。"
-)
-_T1371_MERGE2_RULING = (
-    "2026-08-21 dev-wave-t1371-official-run-root "
-    "受入lease待機長期化に伴う2回目のlocal main取り込み裁定 "
-    "(ユーザー選択: known-violation 登録)"
-)
-_T1371_MERGE2_NOTE = (
-    "受入投入前に親が作成した local main 取り込み merge "
-    "`311d463f89d1d1708a309b86d5bf63f5b034f89d`。実装面で両側が触ったのは "
-    "`orchestrator/campaign/layout.py` / "
-    "`orchestrator/campaign/s8b_oracle_driver.py` / "
-    "`orchestrator/tests/conftest.py` / "
-    "`orchestrator/tests/test_campaign.py` / "
-    "`orchestrator/tests/test_check_ai_provenance.py` / "
-    "`orchestrator/tests/test_s8b_oracle_driver.py` / "
-    "`tools/check_ai_provenance.py` の 7 file で、7 path を個別に `git diff-tree --cc "
-    "311d463f89d1d1708a309b86d5bf63f5b034f89d -- <path>` で確認した。"
-    "`layout.py` / `conftest.py` / `test_campaign.py` / `test_s8b_oracle_driver.py` は commit SHA 行のみで"
-    "実質空、`s8b_oracle_driver.py` は wave 側が Codex `role=author` の commit `756228db` で既に書いた "
-    "`_OFFICIAL_OUTPUT_ROOT_ENV` import と main 側が独立追加した `site_policy` / `MACHINE_ENV_TAG` "
-    "import の除去の和集合で、`MACHINE_ENV_TAG` の孤立参照もない。2 checker file は本 wave の "
-    "`_T1371_MERGE_RULING` / `_T1371_MERGE_NOTE` と main 側の複数 wave "
-    "(`_T565_MERGE_RULING` / `_T972_MERGE_RULING` / `_T567_MERGE*_RULING` 等) の "
-    "known-violation エントリを両方残す union で解決した。競合解決による新規著作はなく、結果は両側の"
-    "変更の単純な和集合。main 側の T-1444 site-aware 化は別 wave が Codex `role=author` で書き、"
-    "各 wave の land 時に監査済み。親作成 merge のため Codex 著者とは記さない。"
-)
-_T1479_MERGE_RULING = (
-    "2026-08-22 dev-wave-t1479-known-violation-merge-authorship "
-    "受入前裁定 (ユーザー選択: known-violation 登録)"
-)
-_T1479_MERGE_NOTE = (
-    "受入投入前に親が作成した local main `a714e8e0` 取り込み merge。wave 側が削除済みと検証した "
-    "19 SHA は main 側に残っていても削除し、main 側が独立追加した新規5エントリ "
-    "(T-1371 の3 merge、`09ce607b`、`13101ab3`) は保持する基準で解決した。"
-    "この基準は新規著作ではなく既存 entry の取捨選択である。`git diff-tree --cc "
-    "8440a14850718e63d73dfc510aa66b853a526424 -- tools/check_ai_provenance.py "
-    "orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、削除された行と保持された行が"
-    "混在するためである。`dev_wave_codex.py` の authority-snapshot 検査が mid-merge・conflict マーカーありの "
-    "working tree を拒否したため Codex に委任できず、親が直接解決した（job-id `t1479-merge-resolve1`、rc=2）。"
-    "親作成 merge のため Codex 著者とは記さない。"
-)
-_T1479_MERGE2_RULING = (
-    "2026-08-22 dev-wave-t1479-known-violation-merge-authorship "
-    "受入前裁定 (2回目、ユーザー選択: known-violation 登録)"
-)
-_T1479_MERGE2_NOTE = (
-    "受入投入前に親が作成した local main `aa20419e` 取り込み merge。wave側 (T-1479のmerge登録) と"
-    " main側 (T-755起源の3件) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合したが、削除は無く"
-    "純粋な追加同士のunionで解決した。`git diff-tree --cc e39a8d46567a02d231fce52abae5aee759634ff7 -- "
-    "tools/check_ai_provenance.py orchestrator/tests/test_check_ai_provenance.py` が非自明になるのは、"
-    "両側の追加が互いに相手に無い新規行として現れるためである。親作成 merge のため Codex 著者とは記さない。"
-)
-_T1479_MERGE3_RULING = (
-    "2026-08-22 dev-wave-t1479-known-violation-merge-authorship "
-    "受入前裁定 (3回目、ユーザー選択: known-violation 登録)"
-)
-_T1479_MERGE3_NOTE = (
-    "受入投入前に親が作成した local main `93a274a2` 取り込み merge。wave側の既存2件 "
-    "(`8440a14850718e63d73dfc510aa66b853a526424`、`e39a8d46567a02d231fce52abae5aee759634ff7`) と "
-    "main側 (T-1476) の既存2件 (`6f2d97c88aa66e571771d5b83992fcfd6d2aefaa`、"
-    "`3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626`) が `KNOWN_PROVENANCE_VIOLATIONS` タプル末尾で競合し、"
-    "削除なしの純粋なunionで解決した。親作成mergeのためCodex著者とは記さない。"
-)
-_T139_MALFORMED_VALUE = (
-    "product=claude; model=claude-opus-5[1m]; reasoning=high; "
-    "role=orchestrator"
-)
-_T1476_MERGE3_RULING = (
-    "2026-08-21 dev-wave-t1476-verify-state-committed 受入前裁定 "
-    "(ユーザー選択: known-violation 登録)"
-)
-_T1476_MERGE3_NOTE = (
-    "受入全走4回目が owned-path-overlap で終端し親が作成した3回目の local main 取り込み"
-    "merge。tools/check_ai_provenance.py と orchestrator/tests/test_check_ai_provenance.py の"
-    "KNOWN_PROVENANCE_VIOLATIONS/expected tuple 末尾に、本wave (6f2d97c8の1エントリ) とmain側"
-    "(T-755、d87fd42c/75d57796/216493593の3エントリ) がそれぞれ独立に別内容のエントリを追加した"
-    "union型の競合。git diff-tree --cc 3eaf2038は両側の追加分がそれぞれ現れる単純なunionで、"
-    "既存2ブロックの連結のみ (一字一句の変更・削除なし)、新規著作なし。authority docs"
-    "(docs/dev-wave/{core,operations}.md) とtools/pegasus/admission_registry.jsonがmerge中で"
-    "working tree driftしCodex dispatchが構造的に使えなかったため親が直接union解消した。"
-    "親作成mergeのためCodex著者とは記さない。"
-)
-_T1477_RULING = (
-    "2026-08-22 [T-1477] provenance known-violation登録 "
-    "(ユーザー選択: known-violation 登録)"
-)
-_T1477_NOTE = (
-    "`role=fix` は許可値でなく `author` の誤記。実装は Codex `role=author` が書き親が統合したもので、"
-    "内容は正確で綴りだけの誤り"
-)
-_T1477_MALFORMED_VALUE = (
-    "product=codex; model=gpt-5.6-luna; reasoning=unknown; "
-    "role=fix"
-)
-_T1458_MERGE2_RULING = (
-    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、3回目)"
-)
-_T1458_MERGE2_NOTE = (
-    "merge commit `e86d363a876ab00e7e6b37dfdd94385e5ab03816` は、本waveとmain側の別waveが独立にcommit "
-    "`09ce607b779272fda5629a350676471a16bea9bb` (ユーザーのccbench pin更新commit) を "
-    "known-violation登録したことによる重複エントリの競合を、親のClaudeセッションが直接解決したものである。"
-    "実装面で競合したのは `tools/check_ai_provenance.py` と "
-    "`orchestrator/tests/test_check_ai_provenance.py` の2 fileで、解決は両親のいずれかに既存するテキストの"
-    "選択・配置のみ (新規著作なし) であることを、親セッションが両親の内容と結合結果を行単位で"
-    "機械比較して確認済み (結合結果の全行がどちらかの親に存在)。`git diff-tree --cc` combined diff実測 "
-    "(2026-08-22、T-1479のロジック改修後に親が再検証) でも `tools/check_ai_provenance.py` のpatch本体が"
-    "非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。"
-)
-_T1458_MERGE3_RULING = (
-    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-21、4回目)"
-)
-_T1458_MERGE3_NOTE = (
-    "merge commit `0c0f3e71b3208370be8d4e7e20a84a2152afe4b2` は、main側off-arm neutralization (C02) 対応と"
-    "複数waveのccbench provenance known-violation登録を取り込んだもの。"
-    "`tools/check_ai_provenance.py`/`orchestrator/tests/test_check_ai_provenance.py`の競合は親が両親のいずれかに"
-    "既存するテキストの選択・配置のみで解決 (新規著作なし)。"
-    "`orchestrator/campaign/autonomous_trial_completeness.py`他4fileは競合マーカーなしで自動マージされ、"
-    "結合結果の全行がどちらかの親に存在することを機械比較で確認済み (新規著作0行)。"
-    "ただし自動マージの結果、`registered`→`arm_execution_permitted`改名箇所とmain側off-arm処理が追加した"
-    "同名の古い変数参照が意味的に衝突しNameErrorになったため、直後のcommit `b7c9c5af` (Codex role=author) で"
-    "1行修正し焦点走1378 passedを確認した。`git diff-tree --cc` combined diff実測 (2026-08-22、T-1479のロジック"
-    "改修後に親が再検証) でも `tools/check_ai_provenance.py`/`test_check_ai_provenance.py` 双方のpatch本体が"
-    "非空であることを確認しており、新ロジックの下でも引き続き実装面著作として検出される。"
-)
-_T1458_MERGE5_RULING = (
-    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、6回目)"
-)
-_T1458_MERGE5_NOTE = (
-    "受入投入前に local main 側36コミット（dev-wave-t1476-verify-state-committed の s8b oracle "
-    "report/holdout freeze 関連実装、T-1434 の cache probe insight、T-646 の master seed toctou 修正、"
-    "docs系spool/fold多数）を取り込んだ6回目の merge "
-    "`bf92f327cadfbe626e37cab73d55abe80d3994dd`。"
-    "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の "
-    "KNOWN_PROVENANCE_VIOLATIONS / expected tuple 末尾への、本 wave の4エントリ "
-    "(664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca) と main 側の別 wave "
-    "(dev-wave-t1476-verify-state-committed、6f2d97c8 / 3eaf2038) の独立追加が3箇所で競合し、"
-    "親の Claude セッションが直接両側の既存エントリを残す union で解決した。"
-    "`git diff-tree --cc bf92f327cadfbe626e37cab73d55abe80d3994dd` 相当の確認では、"
-    "3箇所の結合結果は両親に既存する known-violation エントリの単純な unionであり、"
-    "競合解決による新規著作なしと確認済み。"
-    "本 wave 担当5 file（`orchestrator/campaign/autonomous_trial_completeness.py` 等）は main 側が変更せず、"
-    "`git status` にも現れなかった。main 側由来で自動マージされた "
-    "`orchestrator/campaign/s8b_holdout_freeze.py` / `orchestrator/campaign/s8b_oracle_report.py` 他も"
-    "構文確認済みで、焦点走は対象3 fileで762 passed、s8b/pegasus関連5 fileで527 passed・2 skippedを確認した。"
-    "merge commit は `AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` "
-    "だけで Codex `role=author` 行がないため checker が missing-codex-author を検出した。"
-    "親作成 merge のため Codex 著者とは記さない。`git diff-tree --cc` combined diff実測 "
-    "(2026-08-22、T-1479のロジック改修後に親が再検証) でも両fileのpatch本体が非空であることを確認しており、"
-    "新ロジックの下でも引き続き実装面著作として検出される。"
-)
-_T1458_MERGE6_RULING = (
-    "本セッション内でユーザーへ状況を説明し known-violation 登録の続行を承認された (2026-08-22、7回目)"
-)
-_T1458_MERGE6_NOTE = (
-    "受入投入前に local main 側11コミット（T-1479による `KNOWN_PROVENANCE_VIOLATIONS` 判定ロジック改修）を"
-    "取り込んだ7回目の merge commit `b9c07cc22d483a9103dac208a83446872161ffad`。T-1479は `_commit_paths()` の"
-    "merge分岐を pairwise diff の積集合のみで判定する方式から、`git diff-tree --cc` のcombined diff patch本体が"
-    "空かどうかを `_combined_diff_paths()` で判定する方式へ置き換え、実装面 finding が消えると確認できた19件を"
-    "台帳から削除した。これに伴い本 wave の5エントリ (664dfc62 / e86d363a / 0c0f3e71 / dd58c9ca / bf92f327) を"
-    "新ロジックで個別に再検証し、`git diff-tree --cc <sha> -- <path>` の対象pathへのpatch本体が実質空 (bytes=0)"
-    "だった `664dfc62` / `dd58c9ca` は削除し、`e86d363a` / `0c0f3e71` / `bf92f327` はそれぞれ4515 bytes、"
-    "2906+4030 bytes、9196+7766 bytesでpatch本体が非空だったため保持した。"
-    "`tools/check_ai_provenance.py` / `orchestrator/tests/test_check_ai_provenance.py` の競合解決は親の Claude セッションが"
-    "main側 (T-1479整理後) の内容を丸ごとベースに採用し、自waveのエントリを個別に再配置した。merge commit は "
-    "`AI-Agent: product=claude; model=claude-sonnet-5; reasoning=not-exposed; role=integrator` だけで Codex "
-    "`role=author` 行がないため checker が `missing-codex-author` (paths=orchestrator/tests/test_check_ai_provenance.py, "
-    "tools/check_ai_provenance.py) を検出した。親作成 merge のため Codex 著者とは記さない。"
-)
-_T1458_DOCS_REGISTRY_RULING = (
-    "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)"
-)
-_T1458_DOCS_REGISTRY_NOTE = (
-    "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した "
-    "`--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に"
-    "使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` "
-    "条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / "
-    "CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の"
-    "文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit した"
-    "ため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が "
-    "`missing-codex-author` (paths=tools/check_docs.py) を検出した。"
-)
-_T1458_DOCS_REGISTRY_LEDGER_NOTE = (
-    "commit `94815c57976806da56a3f067ade91c0041b2e2d1` は `tools/check_ai_provenance.py` へ "
-    "`_T1458_DOCS_REGISTRY_RULING`/`_T1458_DOCS_REGISTRY_NOTE` 定数と、commit "
-    "`25614f868c1a1b562a68072233fdf55b0be93cd1` に対応する `KnownViolationSpec` エントリ1件を追加した。"
-    "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
-    "`missing-codex-author` として検出された。"
-)
-_T1458_DOCS_REGISTRY_MIRROR_NOTE = (
-    "commit `3a5e5feb5f5c65e5e91752f847c623ce37e9b14d` は "
-    "`orchestrator/tests/test_check_ai_provenance.py` の "
-    "`test_known_violation_ledger_matches_literal_entries` の `expected` タプルへ、commit "
-    "`94815c57976806da56a3f067ade91c0041b2e2d1` の known-violation エントリ（commit SHA、"
-    "`missing-codex-author`、ruling、note、空文字列）の逐語ミラーを追加した。"
-    "manager (claude) が直接 commit したため Codex `role=author` trailer がなく、"
-    "`missing-codex-author` として検出された。"
-)
-KNOWN_PROVENANCE_VIOLATIONS = (
-    KnownViolationSpec(
-        "88f0f9f081f7c76c8ab5fc4a94e2640f70af129b",
-        MISSING_AI_AGENT,
-        _KNOWN_VIOLATION_RULING,
-    ),
-    KnownViolationSpec(
-        "85dacc27054db0bd3db55d73cab4f8ca3b4843e5",
-        MISSING_AI_AGENT,
-        _KNOWN_VIOLATION_RULING,
-    ),
-    KnownViolationSpec(
-        "6e69ca5c2bc2df403e1cda595aeffcba3a97c248",
-        MISSING_AI_AGENT,
-        _KNOWN_VIOLATION_RULING,
-    ),
-    KnownViolationSpec(
-        "16affe169185040b33f8c6cbdd452260bddc4089",
-        MISSING_AI_AGENT,
-        _KNOWN_VIOLATION_RULING,
-    ),
-    KnownViolationSpec(
-        "905c867a7b2342ff250a1bcf28a3ce74abdacc06",
-        MISSING_AI_AGENT,
-        _KNOWN_VIOLATION_RULING,
-    ),
-    KnownViolationSpec(
-        "b0a07672737cf03424ec1790cc25a06e4c85b737",
-        MISSING_CODEX_AUTHOR,
-        _KNOWN_VIOLATION_RULING,
-    ),
-    KnownViolationSpec(
-        "3f2c43d7580b8c26724d90278589862057508965",
-        MISSING_AI_AGENT,
-        "worklog(293) 2026-08-07 /rulings",
-        note=(
-            "trailer は本文に実在するが、AI-Agent 行と Co-Authored-By 行の間の"
-            "空行で trailer block 不成立"
-        ),
-    ),
-    KnownViolationSpec(
-        "f277efd4461d361d5c9aa6db9a7e00b194b76083",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=実装面（test・probe・PBS wrapper・機械設定、insight docs 併記）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "74b501962092373ba2e8bbca1566d0732e0f16c6",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（全 parent 共通の combined path なし）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "7ec088163dee920f0b8e1e9783faa6e36b22b730",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=実装面（test・probe・PBS wrapper・契約、runbook・insight docs 併記）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "1d09940463ccacb0dbb0ab3e69ca0698a960fdf1",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（全 parent 共通の combined path なし）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "f1406c22abece76276b43dde897750a46aae877e",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=実装面（test・probe・shell wrapper）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "a567eb68d85d2ea4db6002c12a0ee59d2a5cd69f",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=変異台帳（mutation-spec.json）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "ff264975a04aa19f36f861ca97efe9dc59c88659",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=変異台帳（mutation-spec.json）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "2c1929533a6f641b513f4f7990fe06e6cdb383b1",
-        MISSING_CODEX_AUTHOR,
-        _T659_PROBE_RULING,
-        note=(
-            "親作成の所在不問 Python probe を含む実装面 commit に Codex role=author が欠落；"
-            "変更 path 種別=実装面（verbatim/probe_split_window.py、.md 逐語移行対象）"
-        ),
-    ),
-    KnownViolationSpec(
-        "9af3e7a0f1c82fb91f310b5c9d197ec4a45f1320",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=変異台帳（mutation-spec.json）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "6fa5bde0d4e685141e3aa7f6de0ebdcda6b148ec",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=変異台帳（mutation-ledger.json）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "2b3d06cbe81b1ae2675c153bdf307d508fc35a20",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=docs（submission receipt）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "30719e517dcee45c014cbf1052c6dc70a8fcf693",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=docs（submission receipt）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "1fa2b75b09b0b0e2e0e27a6f2cbedb058e8eb9f7",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=実装面（test・probe、実測成果物併記）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "622bd786191d40bda388596fa2adbf119ee84c9a",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=実測成果物・docs（追補 A・package・receipt）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "c75fde903384b6eb9e4d45239b66008b7639cbf7",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（combined path は docs/pegasus-runbook.md）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "c55ace29e55bba948d7bdca89f6fc1fb1a5191da",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=docs（worklog fragment）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "edf74c94427686f2b91519ef10e94446d0fe89d5",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（全 parent 共通の combined path なし）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "7e3cc116f2466fb439ec2bddd38f35dab928c942",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（全 parent 共通の combined path なし）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "66769067ee57d78650b208b9a86438ff2f1bf73b",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（全 parent 共通の combined path なし）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "1f884f6f6042cd8b1ce3f16f0bc7db3d97b768aa",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=docs（worklog fragment）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "aaffa644a969f0a58969b2661318bda4c42ac767",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=merge（全 parent 共通の combined path なし）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=docs（worklog fragment）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "797db5def66ef1d318d06c7aa189ea51a66c9312",
-        MALFORMED_AI_AGENT,
-        _T139_MALFORMED_RULING,
-        note=(
-            "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
-            "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
-            "変更 path 種別=docs（worklog fragment）"
-        ),
-        expected_finding_value=_T139_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
-        MISSING_CODEX_AUTHOR,
-        _T316_GITLINK_RULING,
-        note=_T316_GITLINK_NOTE,
-    ),
-    KnownViolationSpec(
-        "a5b7045b129d062c4731acc7667262795abd3f67",
-        MISSING_CODEX_AUTHOR,
-        _T470_MERGE2_RULING,
-        note=_T470_MERGE2_NOTE,
-    ),
-    KnownViolationSpec(
-        "333605d680ec15f3f74b00e9e2746ae317b85dc5",
-        MISSING_CODEX_AUTHOR,
-        "2026-08-07 [T-619] docs/archive/worklog-phase3-0807-299.md entry 299 (/rulings 第5回、D230 統一述語 5点採用)",
-    ),
-    KnownViolationSpec(
-        "311d463f89d1d1708a309b86d5bf63f5b034f89d",
-        MISSING_CODEX_AUTHOR,
-        _T1371_MERGE2_RULING,
-        note=_T1371_MERGE2_NOTE,
-    ),
-    KnownViolationSpec(
-        "5823caf328a5985476cd2f6f7aa0d13daa5b08f6",
-        MISSING_CODEX_AUTHOR,
-        _T567_MERGE2_RULING,
-        note=_T567_MERGE2_NOTE,
-    ),
-    KnownViolationSpec(
-        "09ce607b779272fda5629a350676471a16bea9bb",
-        MISSING_AI_AGENT,
-        "2026-08-21 Claude セッション内でのユーザー直接commit (ユーザー承認: known-violation 登録の続行)",
-        note=(
-            "ユーザーが直接作成した superproject commit による `external/ccbench` の gitlink "
-            "（submodule ポインタ）前進；変更は 511c9538 → ef9328a3 の線形1コミット分の"
-            "ポインタ更新のみ（分岐・衝突なし）で、ef9328a3 はリポジトリ owner 本人が 100% "
-            "書いた C++ の MOCC correctness trace v2 hook（`#if TRACE ... #endif` で完全に囲まれ"
-            "既定 inert）；AI関与なしのため `missing-ai-agent` は正当な既知違反"
-        ),
-    ),
-    KnownViolationSpec(
-        "13101ab3ec09a54e1f30462d1c2b4621b121ba65",
-        MISSING_AI_AGENT,
-        "2026-08-21 Claude セッション内でのユーザー裁定 (T-755への影響確認済み、09ce607bのrevert)",
-        note=(
-            "この revert commit 自体は親の Claude セッションが `git revert --no-edit` を直接実行して機械的に生成したもの；"
-            "`external/ccbench` の gitlink（submodule ポインタ）を `ef9328a3` → `511c9538` に"
-            "戻した1行差分のみで、S8b floor campaign の SHA 不一致を是正し、git revert は既存 commit の"
-            "逆操作のみのため独自のソース著作なし；`--no-edit` により trailer は一切付与されず"
-            "AI-Agent trailer が存在しないため `missing-ai-agent` として登録；T-755 の wave は"
-            "outer gitlink を参照しないため影響なし"
-        ),
-    ),
-    KnownViolationSpec(
-        "8440a14850718e63d73dfc510aa66b853a526424",
-        MISSING_CODEX_AUTHOR,
-        _T1479_MERGE_RULING,
-        note=_T1479_MERGE_NOTE,
-    ),
-    KnownViolationSpec(
-        "d87fd42c0335c1396c1f79557e45357e9bfc163f",
-        MISSING_AI_AGENT,
-        "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
-        note=(
-            "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。"
-            "`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。"
-            "取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、"
-            "ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が"
-            "付与されない"
-        ),
-    ),
-    KnownViolationSpec(
-        "75d57796ea8c6af4f80f32031afc952cfef2903a",
-        MISSING_AI_AGENT,
-        "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
-        note=(
-            "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。"
-            "`git diff-tree --cc 75d57796` は commit header のみで実質空 = 競合解決による新規著作なし。"
-            "取り込んだのは external/ccbench の gitlink revert (13101ab3) と、別セッション"
-            "(t-1458) が既に Codex role=author で書き main land 時に監査済みの provenance"
-            "registry 追加 (89ab8093, fdbb549b) + docs/spool 記録 fragment"
-        ),
-    ),
-    KnownViolationSpec(
-        "216493593dbee40fbdac65207ca328bae5bc9f52",
-        MISSING_AI_AGENT,
-        "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
-        note=(
-            "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。"
-            "`git diff-tree --cc 21649359` は commit header のみで実質空 = 競合解決による新規著作なし。"
-            "main 側 (t-1458 の land 由来) で `tools/check_ai_provenance.py`/`orchestrator/tests/"
-            "test_check_ai_provenance.py` へ独立に追加された known-violation entry と、本 wave が"
-            "同じ file へ追加した known-violation entry が非競合で union された"
-        ),
-    ),
-    KnownViolationSpec(
-        "e39a8d46567a02d231fce52abae5aee759634ff7",
-        MISSING_CODEX_AUTHOR,
-        _T1479_MERGE2_RULING,
-        note=_T1479_MERGE2_NOTE,
-    ),
-    KnownViolationSpec(
-        "3eaf2038ec2ac3e7965c2a1eedcadb1ed1266626",
-        MISSING_CODEX_AUTHOR,
-        _T1476_MERGE3_RULING,
-        note=_T1476_MERGE3_NOTE,
-    ),
-    KnownViolationSpec(
-        "387a1daab0d713cf86f19449e88559686f1eb575",
-        MISSING_CODEX_AUTHOR,
-        _T1479_MERGE3_RULING,
-        note=_T1479_MERGE3_NOTE,
-    ),
-    KnownViolationSpec(
-        "649fe5a060a39de295f90d2002e8f97082729ea6",
-        MALFORMED_AI_AGENT,
-        _T1477_RULING,
-        note=_T1477_NOTE,
-        expected_finding_value=_T1477_MALFORMED_VALUE,
-    ),
-    KnownViolationSpec(
-        "649fe5a060a39de295f90d2002e8f97082729ea6",
-        MISSING_CODEX_AUTHOR,
-        _T1477_RULING,
-        note=_T1477_NOTE,
-    ),
-    KnownViolationSpec(
-        "e86d363a876ab00e7e6b37dfdd94385e5ab03816",
-        MISSING_CODEX_AUTHOR,
-        _T1458_MERGE2_RULING,
-        note=_T1458_MERGE2_NOTE,
-    ),
-    KnownViolationSpec(
-        "0c0f3e71b3208370be8d4e7e20a84a2152afe4b2",
-        MISSING_CODEX_AUTHOR,
-        _T1458_MERGE3_RULING,
-        note=_T1458_MERGE3_NOTE,
-    ),
-    KnownViolationSpec(
-        "bf92f327cadfbe626e37cab73d55abe80d3994dd",
-        MISSING_CODEX_AUTHOR,
-        _T1458_MERGE5_RULING,
-        note=_T1458_MERGE5_NOTE,
-    ),
-    KnownViolationSpec(
-        "b9c07cc22d483a9103dac208a83446872161ffad",
-        MISSING_CODEX_AUTHOR,
-        _T1458_MERGE6_RULING,
-        note=_T1458_MERGE6_NOTE,
-    ),
-    KnownViolationSpec(
-        "25614f868c1a1b562a68072233fdf55b0be93cd1",
-        MISSING_CODEX_AUTHOR,
-        _T1458_DOCS_REGISTRY_RULING,
-        note=_T1458_DOCS_REGISTRY_NOTE,
-    ),
-    KnownViolationSpec(
-        "94815c57976806da56a3f067ade91c0041b2e2d1",
-        MISSING_CODEX_AUTHOR,
-        _T1458_DOCS_REGISTRY_RULING,
-        note=_T1458_DOCS_REGISTRY_LEDGER_NOTE,
-    ),
-    KnownViolationSpec(
-        "3a5e5feb5f5c65e5e91752f847c623ce37e9b14d",
-        MISSING_CODEX_AUTHOR,
-        _T1458_DOCS_REGISTRY_RULING,
-        note=_T1458_DOCS_REGISTRY_MIRROR_NOTE,
-    ),
-)
+_REGULAR_GIT_MODES = frozenset({b"100644", b"100755"})
+
+
+@dataclass(frozen=True)
+class _KnownViolationWorktreeFile:
+    sha: str
+    kind: str
+    digest: str
+    data: bytes
+    executable: bool
+
+
+class _DuplicateKnownViolationJSONKey(ValueError):
+    pass
+
+
+def _known_violation_data_error(detail: str) -> RuntimeError:
+    return RuntimeError(f"{_KNOWN_VIOLATION_DATA_PREFIX} {detail}")
+
+
+def _known_violation_git(
+    repo_root: Path,
+    *args: str,
+    input_bytes: bytes | None = None,
+) -> bytes:
+    try:
+        proc = subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            input=input_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as exc:
+        raise _known_violation_data_error(
+            f"git unavailable: {type(exc).__name__}: {exc}"
+        ) from exc
+    if proc.returncode != 0:
+        detail = (proc.stderr.strip() or proc.stdout.strip()).decode(
+            "utf-8", errors="backslashreplace",
+        )
+        raise _known_violation_data_error(
+            f"git {' '.join(args)} failed (rc={proc.returncode}): {detail}"
+        )
+    if not isinstance(proc.stdout, bytes):
+        raise _known_violation_data_error(
+            f"git {' '.join(args)} returned non-bytes stdout"
+        )
+    return proc.stdout
+
+
+def _resolve_known_violation_head(repo_root: Path) -> str:
+    raw = _known_violation_git(
+        repo_root, "rev-parse", "--verify", "HEAD^{commit}",
+    ).strip()
+    try:
+        head = raw.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise _known_violation_data_error(
+            f"HEAD is not an ASCII object id: {raw!r}"
+        ) from exc
+    if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", head) is None:
+        raise _known_violation_data_error(
+            f"HEAD resolved to invalid object id: {head!r}"
+        )
+    return head
+
+
+def _registry_git_path(raw: bytes, *, source: str) -> str:
+    try:
+        path = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise _known_violation_data_error(
+            f"{source} has non-UTF-8 path: {raw!r}"
+        ) from exc
+    prefix = f"{_KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix()}/"
+    if not path.startswith(prefix):
+        raise _known_violation_data_error(
+            f"{source} has path outside registry directory: {path!r}"
+        )
+    child = path[len(prefix):]
+    if not child or "/" in child:
+        raise _known_violation_data_error(
+            f"{source} has nested path: {path!r}"
+        )
+    return child
+
+
+def _read_known_violation_worktree(
+    directory: Path,
+) -> dict[str, _KnownViolationWorktreeFile]:
+    path_label = _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix()
+    try:
+        directory_lstat = os.lstat(directory)
+    except OSError as exc:
+        raise _known_violation_data_error(
+            f"directory is unavailable: {path_label}: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+    if stat.S_ISLNK(directory_lstat.st_mode):
+        raise _known_violation_data_error(
+            f"directory is symlink: {path_label}"
+        )
+    if not stat.S_ISDIR(directory_lstat.st_mode):
+        raise _known_violation_data_error(
+            f"directory is not a directory: {path_label}"
+        )
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        directory_fd = os.open(directory, directory_flags)
+    except OSError as exc:
+        raise _known_violation_data_error(
+            f"directory cannot be opened safely: {path_label}: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+    members: dict[str, _KnownViolationWorktreeFile] = {}
+    try:
+        opened_directory = os.fstat(directory_fd)
+        if (
+            opened_directory.st_dev != directory_lstat.st_dev
+            or opened_directory.st_ino != directory_lstat.st_ino
+            or not stat.S_ISDIR(opened_directory.st_mode)
+        ):
+            raise _known_violation_data_error(
+                f"directory changed while opening: {path_label}"
+            )
+        try:
+            names = sorted(os.listdir(directory_fd))
+        except OSError as exc:
+            raise _known_violation_data_error(
+                f"directory cannot be listed: {path_label}: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        for name in names:
+            relative_path = (
+                _KNOWN_VIOLATION_RELATIVE_DIRECTORY / name
+            ).as_posix()
+            match = _KNOWN_VIOLATION_FILENAME.fullmatch(name)
+            if match is None:
+                raise _known_violation_data_error(
+                    f"has invalid filename: {relative_path!r}"
+                )
+            try:
+                member_lstat = os.stat(
+                    name, dir_fd=directory_fd, follow_symlinks=False,
+                )
+            except OSError as exc:
+                raise _known_violation_data_error(
+                    f"member is unavailable: {relative_path}: "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
+            if stat.S_ISLNK(member_lstat.st_mode):
+                raise _known_violation_data_error(
+                    f"is symlink: {relative_path}"
+                )
+            if not stat.S_ISREG(member_lstat.st_mode):
+                raise _known_violation_data_error(
+                    f"is not a regular file: {relative_path}"
+                )
+            flags = (
+                os.O_RDONLY
+                | os.O_NOFOLLOW
+                | getattr(os, "O_NONBLOCK", 0)
+            )
+            try:
+                member_fd = os.open(name, flags, dir_fd=directory_fd)
+            except OSError as exc:
+                raise _known_violation_data_error(
+                    f"cannot be opened safely: {relative_path}: "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
+            try:
+                opened_member = os.fstat(member_fd)
+                if (
+                    opened_member.st_dev != member_lstat.st_dev
+                    or opened_member.st_ino != member_lstat.st_ino
+                    or not stat.S_ISREG(opened_member.st_mode)
+                ):
+                    raise _known_violation_data_error(
+                        f"changed while opening: {relative_path}"
+                    )
+                chunks: list[bytes] = []
+                while True:
+                    chunk = os.read(member_fd, 1024 * 1024)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                final_member = os.fstat(member_fd)
+                initial_fingerprint = (
+                    opened_member.st_dev,
+                    opened_member.st_ino,
+                    opened_member.st_size,
+                    opened_member.st_mtime_ns,
+                )
+                final_fingerprint = (
+                    final_member.st_dev,
+                    final_member.st_ino,
+                    final_member.st_size,
+                    final_member.st_mtime_ns,
+                )
+                if initial_fingerprint != final_fingerprint:
+                    raise _known_violation_data_error(
+                        f"changed while reading: {relative_path}"
+                    )
+            except OSError as exc:
+                raise _known_violation_data_error(
+                    f"cannot be read safely: {relative_path}: "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
+            finally:
+                os.close(member_fd)
+            members[name] = _KnownViolationWorktreeFile(
+                sha=match.group("sha"),
+                kind=match.group("kind"),
+                digest=match.group("digest"),
+                data=b"".join(chunks),
+                executable=bool(final_member.st_mode & 0o111),
+            )
+        final_directory = os.fstat(directory_fd)
+        if (
+            final_directory.st_dev != opened_directory.st_dev
+            or final_directory.st_ino != opened_directory.st_ino
+        ):
+            raise _known_violation_data_error(
+                f"directory changed while reading: {path_label}"
+            )
+    finally:
+        os.close(directory_fd)
+    return members
+
+
+def _known_violation_index(repo_root: Path) -> dict[str, bytes]:
+    raw = _known_violation_git(
+        repo_root, "ls-files", "--stage", "-v", "-z", "--",
+        _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix(),
+    )
+    entries: dict[str, bytes] = {}
+    for record in raw.split(b"\0"):
+        if not record:
+            continue
+        if len(record) < 3 or record[1:2] != b" ":
+            raise _known_violation_data_error(
+                f"git ls-files returned unexpected record: {record!r}"
+            )
+        flag = record[:1]
+        metadata, separator, raw_path = record[2:].partition(b"\t")
+        fields = metadata.split()
+        if not separator or len(fields) != 3:
+            raise _known_violation_data_error(
+                f"git ls-files returned unexpected record: {record!r}"
+            )
+        mode, oid, stage = fields
+        name = _registry_git_path(raw_path, source="git index")
+        relative_path = (
+            _KNOWN_VIOLATION_RELATIVE_DIRECTORY / name
+        ).as_posix()
+        if flag != b"H":
+            reason = (
+                "skip-worktree" if flag == b"S"
+                else "assume-unchanged" if flag.islower()
+                else f"unsafe index flag {flag!r}"
+            )
+            raise _known_violation_data_error(
+                f"has {reason}: {relative_path}"
+            )
+        if (
+            mode not in _REGULAR_GIT_MODES
+            or stage != b"0"
+            or re.fullmatch(rb"[0-9a-f]{40}|[0-9a-f]{64}", oid) is None
+        ):
+            raise _known_violation_data_error(
+                f"index entry is not a stage-0 regular file: {relative_path}"
+            )
+        if name in entries:
+            raise _known_violation_data_error(
+                f"git index has duplicate member: {relative_path}"
+            )
+        entries[name] = mode
+    return entries
+
+
+def _known_violation_ignored(repo_root: Path) -> set[str]:
+    raw = _known_violation_git(
+        repo_root,
+        "ls-files", "--others", "--ignored", "--exclude-standard", "-z",
+        "--", _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix(),
+    )
+    return {
+        _registry_git_path(record, source="git ignored set")
+        for record in raw.split(b"\0")
+        if record
+    }
+
+
+def _known_violation_head_entries(
+    repo_root: Path, head: str,
+) -> dict[str, tuple[bytes, bytes]]:
+    raw = _known_violation_git(
+        repo_root,
+        "ls-tree", "-rz", "--full-tree", head, "--",
+        _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix(),
+    )
+    entries: dict[str, tuple[bytes, bytes]] = {}
+    for record in raw.split(b"\0"):
+        if not record:
+            continue
+        metadata, separator, raw_path = record.partition(b"\t")
+        fields = metadata.split()
+        if not separator or len(fields) != 3:
+            raise _known_violation_data_error(
+                f"git ls-tree returned unexpected record: {record!r}"
+            )
+        mode, object_type, oid = fields
+        name = _registry_git_path(raw_path, source="HEAD tree")
+        relative_path = (
+            _KNOWN_VIOLATION_RELATIVE_DIRECTORY / name
+        ).as_posix()
+        if (
+            mode not in _REGULAR_GIT_MODES
+            or object_type != b"blob"
+            or re.fullmatch(rb"[0-9a-f]{40}|[0-9a-f]{64}", oid) is None
+        ):
+            raise _known_violation_data_error(
+                f"HEAD entry is not a regular blob: {relative_path}"
+            )
+        if name in entries:
+            raise _known_violation_data_error(
+                f"HEAD tree has duplicate member: {relative_path}"
+            )
+        entries[name] = (mode, oid)
+    return entries
+
+
+def _known_violation_head_blobs(
+    repo_root: Path, entries: dict[str, tuple[bytes, bytes]],
+) -> dict[str, bytes]:
+    ordered = sorted(entries)
+    if not ordered:
+        return {}
+    request = b"".join(entries[name][1] + b"\n" for name in ordered)
+    raw = _known_violation_git(
+        repo_root, "cat-file", "--batch", input_bytes=request,
+    )
+    offset = 0
+    blobs: dict[str, bytes] = {}
+    for name in ordered:
+        line_end = raw.find(b"\n", offset)
+        if line_end < 0:
+            raise _known_violation_data_error(
+                "git cat-file --batch returned truncated header"
+            )
+        header = raw[offset:line_end]
+        offset = line_end + 1
+        fields = header.split()
+        expected_oid = entries[name][1]
+        if (
+            len(fields) != 3
+            or fields[0] != expected_oid
+            or fields[1] != b"blob"
+            or not fields[2].isascii()
+            or not fields[2].isdigit()
+        ):
+            raise _known_violation_data_error(
+                f"git cat-file --batch returned unexpected header: {header!r}"
+            )
+        size = int(fields[2], 10)
+        end = offset + size
+        if end >= len(raw) or raw[end:end + 1] != b"\n":
+            raise _known_violation_data_error(
+                f"git cat-file --batch returned truncated blob: {name}"
+            )
+        blobs[name] = raw[offset:end]
+        offset = end + 1
+    if offset != len(raw):
+        raise _known_violation_data_error(
+            "git cat-file --batch returned trailing bytes"
+        )
+    return blobs
+
+
+def _decode_known_violation_object(
+    relative_path: str, raw: bytes,
+) -> dict[str, str]:
+    def reject_duplicate(
+        pairs: list[tuple[str, object]],
+    ) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise _DuplicateKnownViolationJSONKey(key)
+            result[key] = value
+        return result
+    try:
+        text = raw.decode("utf-8")
+        obj = json.loads(text, object_pairs_hook=reject_duplicate)
+    except _DuplicateKnownViolationJSONKey as exc:
+        raise _known_violation_data_error(
+            f"has duplicate key: {relative_path}: {exc.args[0]}"
+        ) from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise _known_violation_data_error(
+            f"is not canonical UTF-8 JSON: {relative_path}"
+        ) from exc
+    if not isinstance(obj, dict):
+        raise _known_violation_data_error(
+            f"root is not an object: {relative_path}"
+        )
+    keys = set(obj)
+    expected = set(_KNOWN_VIOLATION_DATA_FIELDS)
+    unknown = sorted(keys - expected)
+    missing = sorted(expected - keys)
+    if unknown:
+        raise _known_violation_data_error(
+            f"has unknown keys: {relative_path}: {unknown!r}"
+        )
+    if missing:
+        raise _known_violation_data_error(
+            f"has missing keys: {relative_path}: {missing!r}"
+        )
+    for field in _KNOWN_VIOLATION_DATA_FIELDS:
+        value = obj[field]
+        if not isinstance(value, str):
+            raise _known_violation_data_error(
+                f"has invalid field type: {relative_path}: "
+                f"field={field} type={type(value).__name__}"
+            )
+    canonical = (
+        json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    if raw != canonical:
+        raise _known_violation_data_error(
+            f"is not canonical UTF-8 JSON: {relative_path}"
+        )
+    return {field: obj[field] for field in _KNOWN_VIOLATION_DATA_FIELDS}
+
+
+def _append_known_violation_spec(
+    spec: KnownViolationSpec,
+    registry: dict[str, list[KnownViolationSpec]],
+) -> None:
+    if not isinstance(spec, KnownViolationSpec):
+        raise RuntimeError(
+            "known provenance violation registry has invalid entry: "
+            f"{spec!r}"
+        )
+    if not isinstance(spec.commit, str):
+        raise RuntimeError(
+            "known provenance violation registry has invalid SHA type: "
+            f"{type(spec.commit).__name__}"
+        )
+    if re.fullmatch(r"[0-9a-f]{40}", spec.commit) is None:
+        raise RuntimeError(
+            "known provenance violation registry has invalid full SHA: "
+            f"{spec.commit!r}"
+        )
+    if not isinstance(spec.expected_finding_kind, str):
+        raise RuntimeError(
+            "known provenance violation registry has invalid finding kind type: "
+            f"{type(spec.expected_finding_kind).__name__}"
+        )
+    if spec.expected_finding_kind not in _LEDGER_FINDING_KINDS:
+        raise RuntimeError(
+            "known provenance violation registry has invalid finding kind: "
+            f"{spec.expected_finding_kind!r}"
+        )
+    if not isinstance(spec.ruling, str) or not spec.ruling.strip():
+        raise RuntimeError(
+            "known provenance violation registry has empty ruling: "
+            f"{spec.commit}"
+        )
+    if not isinstance(spec.note, str):
+        raise RuntimeError(
+            "known provenance violation registry has invalid note type: "
+            f"{type(spec.note).__name__}"
+        )
+    if spec.note != "" and spec.note.splitlines() != [spec.note]:
+        raise RuntimeError(
+            "known provenance violation registry has line break in note: "
+            f"{spec.commit}"
+        )
+    if not isinstance(spec.expected_finding_value, str):
+        raise RuntimeError(
+            "known provenance violation registry has invalid finding value type: "
+            f"{type(spec.expected_finding_value).__name__}"
+        )
+    if spec.expected_finding_kind == MALFORMED_AI_AGENT and not spec.expected_finding_value:
+        raise RuntimeError(
+            "known provenance violation registry has empty required finding value: "
+            f"{spec.commit}"
+        )
+    if spec.expected_finding_kind != MALFORMED_AI_AGENT and spec.expected_finding_value:
+        raise RuntimeError(
+            "known provenance violation registry has unexpected finding value: "
+            f"{spec.commit}"
+        )
+    if spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS and not spec.note.strip():
+        raise RuntimeError(
+            "known provenance violation registry has empty required note: "
+            f"{spec.commit}"
+        )
+    if (
+        spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
+        and _contains_prohibited_registry_character(spec.note)
+    ):
+        raise RuntimeError(
+            "known provenance violation registry has prohibited character in note: "
+            f"{spec.commit}"
+        )
+    if (
+        spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
+        and not _contains_descriptive_note_character(spec.note)
+    ):
+        raise RuntimeError(
+            "known provenance violation registry has non-descriptive required note: "
+            f"{spec.commit}"
+        )
+    if _contains_prohibited_registry_character(spec.expected_finding_value):
+        raise RuntimeError(
+            "known provenance violation registry has prohibited character in "
+            f"finding value: {spec.commit}"
+        )
+    prior_specs = registry.setdefault(spec.commit, [])
+    if any(
+        prior.expected_finding_kind == spec.expected_finding_kind
+        and prior.expected_finding_value == spec.expected_finding_value
+        for prior in prior_specs
+    ):
+        raise RuntimeError(
+            "known provenance violation registry has duplicate SHA/finding: "
+            f"{spec.commit} {spec.expected_finding_kind}"
+        )
+    prior_specs.append(spec)
 
 
 def _contains_prohibited_registry_character(value: str) -> bool:
@@ -898,121 +736,213 @@ def _contains_descriptive_note_character(value: str) -> bool:
     )
 
 
-def _known_violation_registry() -> dict[str, tuple[KnownViolationSpec, ...]]:
-    """固定台帳を history 監査時にだけ検証して full SHA map にする。"""
+def _known_violation_registry(
+    repo_root: Path | None = None,
+) -> dict[str, tuple[KnownViolationSpec, ...]]:
+    """Commit 済み directory を history 監査時だけ検証し、full SHA map にする。
 
-    if not isinstance(KNOWN_PROVENANCE_VIOLATIONS, tuple):
-        raise RuntimeError(
-            "known provenance violation registry has invalid container: "
-            f"{type(KNOWN_PROVENANCE_VIOLATIONS).__name__}"
+    filename の digest 成分は filename 据え置きの本文改変だけを防ぎ、裁定根拠の
+    真正性は保証しない。真正性は check_known_violation_append_only_history()
+    が担う。
+    """
+    if repo_root is None:
+        root = _KNOWN_VIOLATION_REPO_ROOT
+        directory = _KNOWN_VIOLATION_DIRECTORY
+    else:
+        root = Path(repo_root)
+        directory = root / _KNOWN_VIOLATION_RELATIVE_DIRECTORY
+    head = _resolve_known_violation_head(root)
+    worktree = _read_known_violation_worktree(directory)
+    index = _known_violation_index(root)
+    ignored = _known_violation_ignored(root)
+    worktree_names = set(worktree)
+    index_names = set(index)
+    unindexed = worktree_names - index_names
+    ignored_unindexed = sorted(unindexed & ignored)
+    if ignored_unindexed:
+        name = ignored_unindexed[0]
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        raise _known_violation_data_error(f"is ignored: {path}")
+    ordinary_untracked = sorted(unindexed - ignored)
+    if ordinary_untracked:
+        name = ordinary_untracked[0]
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        raise _known_violation_data_error(f"is untracked: {path}")
+    missing_worktree = sorted(index_names - worktree_names)
+    if missing_worktree:
+        name = missing_worktree[0]
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        raise _known_violation_data_error(
+            f"tracked member is missing from worktree: {path}"
+        )
+    head_entries = _known_violation_head_entries(root, head)
+    head_names = set(head_entries)
+    index_only = sorted(index_names - head_names)
+    if index_only:
+        name = index_only[0]
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        raise _known_violation_data_error(
+            f"index-only member does not match HEAD: {path}"
+        )
+    head_only = sorted(head_names - index_names)
+    if head_only:
+        name = head_only[0]
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        raise _known_violation_data_error(
+            f"HEAD member is missing from index: {path}"
+        )
+    for name in sorted(head_names):
+        if index[name] != head_entries[name][0]:
+            path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+            raise _known_violation_data_error(
+                f"index mode does not match HEAD: {path}"
+            )
+    blobs = _known_violation_head_blobs(root, head_entries)
+    for name in sorted(head_names):
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        file = worktree[name]
+        head_mode = head_entries[name][0]
+        if file.executable != (head_mode == b"100755"):
+            raise _known_violation_data_error(
+                f"worktree mode does not match HEAD: {path}"
+            )
+        if file.data != blobs[name]:
+            raise _known_violation_data_error(
+                f"does not match HEAD: {path}"
+            )
+    end_head = _resolve_known_violation_head(root)
+    if end_head != head:
+        raise _known_violation_data_error(
+            f"HEAD changed while loading: start={head}, end={end_head}"
         )
     registry: dict[str, list[KnownViolationSpec]] = {}
-    for spec in KNOWN_PROVENANCE_VIOLATIONS:
-        if not isinstance(spec, KnownViolationSpec):
-            raise RuntimeError(
-                "known provenance violation registry has invalid entry: "
-                f"{spec!r}"
-            )
-        if not isinstance(spec.commit, str):
-            raise RuntimeError(
-                "known provenance violation registry has invalid SHA type: "
-                f"{type(spec.commit).__name__}"
-            )
-        if re.fullmatch(r"[0-9a-f]{40}", spec.commit) is None:
-            raise RuntimeError(
-                "known provenance violation registry has invalid full SHA: "
-                f"{spec.commit!r}"
-            )
-        if not isinstance(spec.expected_finding_kind, str):
-            raise RuntimeError(
-                "known provenance violation registry has invalid finding kind type: "
-                f"{type(spec.expected_finding_kind).__name__}"
-            )
-        if spec.expected_finding_kind not in _LEDGER_FINDING_KINDS:
-            raise RuntimeError(
-                "known provenance violation registry has invalid finding kind: "
-                f"{spec.expected_finding_kind!r}"
-            )
-        if not isinstance(spec.ruling, str) or not spec.ruling.strip():
-            raise RuntimeError(
-                "known provenance violation registry has empty ruling: "
-                f"{spec.commit}"
-            )
-        if not isinstance(spec.note, str):
-            raise RuntimeError(
-                "known provenance violation registry has invalid note type: "
-                f"{type(spec.note).__name__}"
-            )
-        if spec.note != "" and spec.note.splitlines() != [spec.note]:
-            raise RuntimeError(
-                "known provenance violation registry has line break in note: "
-                f"{spec.commit}"
-            )
-        if not isinstance(spec.expected_finding_value, str):
-            raise RuntimeError(
-                "known provenance violation registry has invalid finding value type: "
-                f"{type(spec.expected_finding_value).__name__}"
-            )
+    for name in sorted(worktree):
+        path = (_KNOWN_VIOLATION_RELATIVE_DIRECTORY / name).as_posix()
+        file = worktree[name]
+        obj = _decode_known_violation_object(path, file.data)
+        digest = hashlib.sha256(file.data).hexdigest()
         if (
-            spec.expected_finding_kind == MALFORMED_AI_AGENT
-            and not spec.expected_finding_value
+            file.sha != obj["sha"]
+            or file.kind != obj["kind"]
+            or file.digest != digest
         ):
-            raise RuntimeError(
-                "known provenance violation registry has empty required finding value: "
-                f"{spec.commit}"
+            raise _known_violation_data_error(
+                f"filename/body mismatch: {path}"
             )
-        if (
-            spec.expected_finding_kind != MALFORMED_AI_AGENT
-            and spec.expected_finding_value
-        ):
+        _append_known_violation_spec(
+            KnownViolationSpec(
+                commit=obj["sha"],
+                expected_finding_kind=obj["kind"],
+                ruling=obj["ruling"],
+                note=obj["note"],
+                expected_finding_value=obj["value"],
+            ),
+            registry,
+        )
+    return {commit: tuple(specs) for commit, specs in registry.items()}
+
+
+def _known_violation_append_only_git(
+    repo_root: Path, *args: str,
+) -> bytes:
+    prefix = "known provenance violation append-only history check failed"
+    try:
+        proc = subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as exc:
+        raise RuntimeError(
+            f"{prefix}: git unavailable: {type(exc).__name__}: {exc}"
+        ) from exc
+    if proc.returncode != 0:
+        detail = (proc.stderr.strip() or proc.stdout.strip()).decode(
+            "utf-8", errors="backslashreplace",
+        )
+        raise RuntimeError(
+            f"{prefix}: git {' '.join(args)} failed "
+            f"(rc={proc.returncode}): {detail}"
+        )
+    if not isinstance(proc.stdout, bytes):
+        raise RuntimeError(
+            f"{prefix}: git {' '.join(args)} returned non-bytes stdout"
+        )
+    return proc.stdout
+
+
+def check_known_violation_append_only_history(repo_root: Path) -> None:
+    """着地済み known-violation file の変更・削除・rename を拒否する。
+
+    filename の digest 成分が防ぐのは filename 据え置きの本文改変だけであり、
+    裁定根拠の真正性は保証しない。この append-only 履歴検査が、着地後の blob
+    改変・削除・rename を履歴全体から拒否することで真正性を担う。
+    """
+    root = Path(repo_root)
+    prefix = "known provenance violation append-only history check failed"
+    head = _known_violation_append_only_git(
+        root, "rev-parse", "--verify", "HEAD^{commit}",
+    ).strip()
+    if re.fullmatch(rb"[0-9a-f]{40}|[0-9a-f]{64}", head) is None:
+        raise RuntimeError(f"{prefix}: HEAD cannot be resolved")
+    shallow = _known_violation_append_only_git(
+        root, "rev-parse", "--is-shallow-repository",
+    ).strip()
+    if shallow != b"false":
+        raise RuntimeError(
+            f"{prefix}: authoritative history is unavailable "
+            f"(is-shallow-repository={shallow!r})"
+        )
+    path_history = _known_violation_append_only_git(
+        root, "log", "-1", "--format=%H", "--",
+        _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix(),
+    ).strip()
+    if re.fullmatch(rb"[0-9a-f]{40}|[0-9a-f]{64}", path_history) is None:
+        raise RuntimeError(
+            f"{prefix}: registry path has no authoritative history"
+        )
+    changed = _known_violation_append_only_git(
+        root,
+        "log", "--no-renames", "--diff-filter=MD",
+        "--format=%H", "--name-only", "--",
+        _KNOWN_VIOLATION_RELATIVE_DIRECTORY.as_posix(),
+    )
+    end_head = _known_violation_append_only_git(
+        root, "rev-parse", "--verify", "HEAD^{commit}",
+    ).strip()
+    if end_head != head:
+        raise RuntimeError(
+            f"{prefix}: HEAD changed while checking history: "
+            f"start={head!r}, end={end_head!r}"
+        )
+    if changed == b"":
+        return
+    try:
+        lines = changed.decode("utf-8").splitlines()
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(
+            f"{prefix}: history contains a non-UTF-8 registry path"
+        ) from exc
+    current_commit: str | None = None
+    violations: list[str] = []
+    for line in lines:
+        if not line:
+            continue
+        if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", line):
+            current_commit = line
+            continue
+        if current_commit is None:
             raise RuntimeError(
-                "known provenance violation registry has unexpected finding value: "
-                f"{spec.commit}"
+                f"{prefix}: git log returned path without commit: {line!r}"
             )
-        if (
-            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
-            and not spec.note.strip()
-        ):
-            raise RuntimeError(
-                "known provenance violation registry has empty required note: "
-                f"{spec.commit}"
-            )
-        if (
-            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
-            and _contains_prohibited_registry_character(spec.note)
-        ):
-            raise RuntimeError(
-                "known provenance violation registry has prohibited character in note: "
-                f"{spec.commit}"
-            )
-        if (
-            spec.expected_finding_kind in _NOTE_REQUIRED_FINDING_KINDS
-            and not _contains_descriptive_note_character(spec.note)
-        ):
-            raise RuntimeError(
-                "known provenance violation registry has non-descriptive required note: "
-                f"{spec.commit}"
-            )
-        if _contains_prohibited_registry_character(spec.expected_finding_value):
-            raise RuntimeError(
-                "known provenance violation registry has prohibited character in "
-                f"finding value: {spec.commit}"
-            )
-        prior_specs = registry.setdefault(spec.commit, [])
-        if any(
-            prior.expected_finding_kind == spec.expected_finding_kind
-            and prior.expected_finding_value == spec.expected_finding_value
-            for prior in prior_specs
-        ):
-            raise RuntimeError(
-                "known provenance violation registry has duplicate SHA/finding: "
-                f"{spec.commit} {spec.expected_finding_kind}"
-            )
-        prior_specs.append(spec)
-    return {
-        commit: tuple(specs)
-        for commit, specs in registry.items()
-    }
+        violations.append(f"commit={current_commit} path={line}")
+    if not violations:
+        raise RuntimeError(
+            f"{prefix}: git log returned unparseable non-empty output"
+        )
+    raise RuntimeError(f"{prefix}: " + "; ".join(violations))
 
 
 def _known_violation_line(spec: KnownViolationSpec) -> str:
