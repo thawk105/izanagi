@@ -1,0 +1,183 @@
+{
+ "estimated_run_seconds": 220,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_requested_xdist_collect_only_effective_serial_rejects_stale_registry",
+    "orchestrator/tests/test_pytest_collection_config.py::test_requested_xdist_without_dsession_keeps_local_flaky_completeness_check",
+    "orchestrator/tests/test_pytest_collection_config.py::test_usable_dsession_delegates_flaky_completeness_to_xdist_hook"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "    numprocesses = getattr(getattr(config, \"option\", None), \"numprocesses\", None)\n    if not hasattr(config, \"workerinput\") and numprocesses not in (None, 0, \"0\"):\n",
+     "old": "    dsession = None\n    if not hasattr(config, \"workerinput\"):\n        try:\n            dsession = config.pluginmanager.get_plugin(\"dsession\")\n        except AttributeError:\n            # Small synthetic configs may not provide a plugin manager.  In\n            # that case there is no xdist hook owner to delegate to.\n            pass\n    if dsession is not None:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_requested_xdist_collect_only_effective_serial_rejects_stale_registry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "    if False and _is_complete_flaky_hold_collection(config):\n",
+     "old": "    if _is_complete_flaky_hold_collection(config):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_requested_xdist_collect_only_effective_serial_rejects_stale_registry",
+    "orchestrator/tests/test_pytest_collection_config.py::test_requested_xdist_without_dsession_keeps_local_flaky_completeness_check"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "            dsession = object()\n",
+     "old": "            dsession = config.pluginmanager.get_plugin(\"dsession\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_complete_collection_rejects_a_stale_registered_node",
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_requested_xdist_collect_only_effective_serial_rejects_stale_registry",
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_xdist_collection_hook_rejects_stale_registry_only_after_all_workers_report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "    missing = sorted(set(FLAKY_TEST_HOLDS) - set(seen_ids))\n    if False and missing:\n",
+     "old": "    missing = sorted(set(FLAKY_TEST_HOLDS) - set(seen_ids))\n    if missing:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_xdist_subprocess_focus_collection_does_not_run_stale_check",
+    "orchestrator/tests/test_pytest_collection_config.py::test_conftest_scheduler_attestation_loads_without_xdist",
+    "orchestrator/tests/test_pytest_collection_config.py::test_explicit_sort_swo_target_still_collects_without_runner_ignore",
+    "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer",
+    "orchestrator/tests/test_real_repo_serialization.py::test_sort_swo_oracle_does_not_resolve_during_collection",
+    "orchestrator/tests/test_run_tests_task_run.py::test_live_xdist_controller_writes_one_sidecar_and_one_loadgroup_attestation",
+    "orchestrator/tests/test_run_tests_task_run.py::test_live_xdist_late_outer_wrapper_override_attests_unknown_once",
+    "orchestrator/tests/test_run_tests_task_run.py::test_live_xdist_loadgroup_subclass_override_attests_unknown_once",
+    "orchestrator/tests/test_run_tests_task_run.py::test_live_xdist_sessionfinish_scheduler_swap_keeps_runtestloop_value",
+    "orchestrator/tests/test_run_tests_task_run.py::test_real_pytest_hook_records_aggregate_only_in_tmp_ledger"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m05",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "        target = _normalize_collection_path(args[0])\n        suite_root = _normalize_collection_path(__file__).parent\n    except (OSError, TypeError, ValueError):\n        return False\n    if False and target != suite_root:\n        return False\n",
+     "old": "        target = _normalize_collection_path(args[0])\n        suite_root = _normalize_collection_path(__file__).parent\n    except (OSError, TypeError, ValueError):\n        return False\n    if target != suite_root:\n        return False\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_shard_controller_does_not_recheck_its_selected_xdist_subset"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "    if False and getattr(config, \"_izanagi_acceptance_shard_spec\", None) is not None:\n",
+     "old": "    if getattr(config, \"_izanagi_acceptance_shard_spec\", None) is not None:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_requested_xdist_collect_only_effective_serial_rejects_stale_registry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.m07",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "    missing = sorted(set(FLAKY_TEST_HOLDS) - set(seen_ids))\n    if len(missing) == 1:\n",
+     "old": "    missing = sorted(set(FLAKY_TEST_HOLDS) - set(seen_ids))\n    if missing:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_xdist_collection_hook_rejects_stale_registry_only_after_all_workers_report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.d01",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "        if False and _xdist_flaky_collection_is_complete(node.config):\n",
+     "old": "        if _xdist_flaky_collection_is_complete(node.config):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_xdist_collection_hook_rejects_stale_registry_only_after_all_workers_report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.d02",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "        pass\n",
+     "old": "        workers.add(worker_key)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_shard_controller_does_not_recheck_its_selected_xdist_subset",
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_xdist_collection_hook_rejects_stale_registry_only_after_all_workers_report"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1551.d03",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "new": "    return len(finished) > expected\n",
+     "old": "    return len(finished) >= expected\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
