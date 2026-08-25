@@ -31141,3 +31141,81 @@ JSON の raw 値をそのまま渡し、`float()` 正規化を行わない。
 該当記述を撤回する案を推す。帰属できない certified 結果は成果物として無価値であり、
 表現の自由度は探索の幅であって正しさではないため。現状維持を採る場合は、帰属主張を
 「宣言値が実装に現れること」までに弱めて明記する必要がある。
+
+## D820. 受入全走の直列 pole は費用側だけを下げ、直列性と分割数で解こうとしない (2026-08-25)
+
+**決定:** 受入全走の wall-clock 短縮は、`real-repo` loadgroup の**直列性を緩めず、
+その中の個々の node の費用を下げること**で行う。shard 数の増加と shard 間 balance の是正は、
+現行の worker 数では律速を動かさないため既定の手段にしない。
+
+**実測 (12 session、`/work/1/SFC/tanab/.izanagi-acceptance-shards/*/shard-*/report.json`):**
+- shard-0 の 48 worker のうち 46 本は 119〜121 秒で揃って終わる。wall を決めているのは
+  `real-repo` を 1 本で抱える worker で、12 session すべてで 227〜240 秒。
+- 同じ 12 session で ideal (busy/48) は 97〜153 秒、shard-1 の pole は 71〜96 秒。
+  遅い側と速い側の差は 181 秒ある。
+- したがって pole > ideal が常に成立し、**shard を増やしても割付を直しても
+  max(shard) は pole に張り付いたまま**である。K=3 へ投影した shard busy 平均は
+  84.1 / 42.0 / 73.6 秒で、いずれも pole を大きく下回る。
+
+**理由:**
+- `real-repo` は「単一 pytest runner invocation 内で、親 repo status と共有 ccbench worktree の
+  reader/writer を同じ loadgroup に閉じ込める」正しさ防壁である。速度を理由に分割すれば
+  writer の patch 窓と reader が競合し、規律 2 (正しさゲートを緩める変異を許さない) に反する。
+- 費用側を下げる手段は既に確立している。実 repo の高価な解決を process memo へ畳む型
+  (受領証 memo と ratified freeze memo) は受理集合を変えずに効くことが実証済みで、
+  本決定はその型を pole 内の残りへ適用し続けることを既定にする。
+- 分割数を上げる案は、効かないだけでなく受入受領証の `env_projection` を変えるため
+  受領証 pin に触れる。効果が見込めない変更で pin を動かすのは割に合わない。
+
+**この決定が禁じないこと:**
+- worker 数 (`IZANAGI_TEST_NPROC`) を下げた条件では K=3 が有利になりうる
+  (K=2 の shard-0 平均下限 368.7 秒に対し K=3 は 252.3 秒)。worker 数側の再裁定は別に係属中で、
+  本決定はその結論を先取りしない。
+- K=3 の実走は artifact root の 241 report 中 0 件で**一度も測られていない**。
+  「K=3 は絶対に速くならない」とは主張せず、未測定であることを明示する。
+
+**却下した選択肢:**
+- `real-repo` group を複数へ分割する — 直列性が防壁そのものであり、規律 2 に反する。
+- 遅い node を既定の実行対象から外す — 検出力を失う。D312 が禁じる「閾値を満たすために
+  検査を弱める」に該当する。
+- shard 数を既定で 3 へ上げる — 実測に基づく効果が無く、受領証 pin を動かす副作用だけが残る。
+
+## D821. 同 uid の non-dumpable process が対象内に居るかは観測では決定不能であり、discharge は正の証拠でしか作れない (2026-08-25)
+
+**決定:** `tools/check_worktree_occupancy.py` の same-uid unreadable-cwd blind spot について、
+**「その process の cwd が対象内にあるか」を `/proc` の観測から判定する述語を今後採用しない。**
+この blind spot を撤去拒否へ倒すか否かは、lease・delegated cgroup v2・特権 observer のいずれか
+**正の証拠**を伴う設計とセットでのみ裁定する。checker 単独で fail-closed へ倒す変更は、
+可用性の実測値を裁定へ書いたうえでユーザーが選ぶ。
+
+**理由:**
+- 同 uid の non-dumpable process では `cwd` / `exe` / `root` の 3 つだけが `PermissionError` になり、
+  `cmdline` / `comm` / `status` (Uid, PPid) / `stat` (starttime) は読める。したがって
+  **対象の中に居る process と外に居る process は、可読 field を完全に同一にできる。**
+  「対象内は占有、同じ process が対象外なら撤去可」を同時に満たす述語は存在しない。
+- 観測ベースの discharge 案は 3 つとも実測で反証された。
+  (a) comm 固定 allowlist は F490 が `nqs_shpd` で反証済み。
+  (b) argv と祖先 argv に対象 path が現れないことを根拠にする案は、cwd が worktree 内の
+      実 worker 125 本のうち 78 本 (62.4%) を discharge する。落ちる側は wave manager の
+      `claude bg-spare` 本体、launcher の bash、python3、待ち手の sleep / tail / timeout であり、
+      いずれも `cd` で入るため argv に path を持たない。
+  (c) 「対象 directory の作成より前に起動していれば discharge」する案は、107 本のうち 16 本を
+      discharge し、その正体もやはり wave manager 本体である (manager は worktree を作る前に起動する)。
+  (b)(c) はどちらも「自分が座っている worktree を消してよい」と判定する向きの誤りで、
+  D706 が禁じた「値域を測らずに述語を採用する」の受理側の変種である。
+- fail-closed 単独の運用コストも実測した。blind spot は 6 サンプルすべてで 3 で不変
+  ((sd-pam) / sshd / ssh-agent) であり、`len(blind spot) == 0` はこの login node で到達不能である。
+  現存 77 本の worktree のうち 59 本が rc=0 (撤去可) なので、倒した瞬間に 59 本が撤去不能化し
+  自己撤去は 100% 失敗する。D706 の「満たせない gate は防壁ではなく停止装置であり、
+  運用者に迂回の動機を与える」に該当する。
+- 迂回は正味の安全性低下である。手動 `rm -rf` は occupancy だけでなく branch ancestry・
+  clean tree・fold state・cwd 検査を同時に飛ばす。閉じない穴 1 つより、全部飛ばされる経路が危険である。
+
+**却下した選択肢:**
+- checker 単独で blind spot 非空を `indeterminate` へ倒す — 正しさとしては妥当だが、
+  上記の実測どおり即座に停止装置になる。lease 等の正の証拠と対で入れる。
+- 可読 field からの discharge を精緻化して続ける — (b)(c) の反証が示すとおり、
+  可読 field は「対象内に居るか」と相関しない。精緻化しても向きが受理側へ倒れるだけである。
+- blind spot を無視してよいと結論する — repo の Python コードに `PR_SET_DUMPABLE` 呼出しは 0 件で
+  今日の izanagi 経路では発火しないが、worker executable は外部 path + digest で渡され、
+  setuid bit・file capabilities・実行後 dumpable state は検査されていない。「発火しえない」とは言えない。

@@ -976,6 +976,14 @@
   memory `ruling-lookup-discipline` (同日 /next-tasks が同じ [T-1253] の実例で更新済み) を
   正本とし、新設しない。`DW-S01` への統合は dev-wave docs の byte 予算が 3 層とも満杯のため
   行わず、段 8 の候補としてユーザーへ返す。
+
+- **再発: 2026-08-25** — T-1664 の台帳本文は「再挑戦は lease 前提の設計から始める」と
+  設計方向を明記していたが、親は段 1 brief で lease を scope 外に置いた。本文は開いていたので
+  F31 の「本文へ当たらなかった」とは機構が違うが、**本文にある制約を下流の scope 決定へ
+  継承しなかった**点で閉包は同じである。段 3 の敵対 2 レンズが独立に lease / 特権 observer /
+  cgroup v2 へ収束して初めて露見し、段 4 で scope を裁定し直すことになった。
+  `DW-S01` の「裁定要約が指す decision 本文と archive worklog を開き、食い違いは本文を優先する」は
+  既にこの義務を課しており、新しい節は要らない。適用を怠った側の再発である。
 ### F32. 変異ハーネスの二重走行汚染と、未追跡ファイルに恒真な `git diff` 復元検査 [恒真ゲート] [手順漏れ]
 
 - 事象: [T-076] の変異 matrix で、旧セッションが起動した `mutation_harness.py` が session
@@ -3599,6 +3607,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   2 走の失敗 node 集合は接尾辞を除いて完全一致した。loadgroup 走の label は
   MISMATCH のまま残し、KILLED と読み替えていない。手順の正本は
   D784。
+
+- **再発: 2026-08-25** — 受入直列 pole の費用削減 wave で 3 例目。対象は
+  `test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment` で、
+  T-417 の恒久対応は依然未実施である。今回は台帳の指示どおり runner argv へ
+  `--deselect <素の node id>` を足し、期待集合を同 file 内の**非 real-repo の兄弟 node**
+  (`test_m5_generated_session_rows_require_set_equality` と
+  `test_material_report_certification_scope_is_exact_on_all_return_paths`) へ再照準して
+  一度で通した (baseline PASSED・3/3 KILLED・MISMATCH 0)。
+  **新しい事実は、再照準が本 wave の当の問い「変更した real-repo node が自分の kill 義務を
+  果たすか」を構造的に測れないこと**である。再照準先は変更していない兄弟 node であり、
+  変更した node の検出力は harness の観測範囲の外に落ちる。そこで補償として、親が同じ変異を
+  `DW-O19` の復元規律で一時注入し、対象 node 単体が赤になることを計算ノードで直接実測した
+  (`1 failed`、失敗 assert は当の拒否理由の照合そのもの)。逐語は
+  `output/insights/2026-08-25_acceptance-pole-cost-mutation.md` の §2 に残した。
+  T-417 が入るまで、real-repo node を**変更する** wave はこの補償実測を省いてはならない。
 ### F96. 非 UTF-8 の証跡 blob が land され local main の受入全走が赤のままになった [手順漏れ]
 
 - 事象: [T-287] wave が段 9 直前の受入全走で 1 件の赤を観測した
@@ -12979,6 +13002,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   健全なら attempt 出力を回収して `check_codex_output.py` rc=0 で採用する」。
 - 再発検知: receipt の `outcome` と `evidence_status` を wave 末に集計する。
 
+
+- **再発: 2026-08-25** — 本 wave の codex 子 6 本のうち 1 本 (段 3 の consult sol) が
+  `outcome=not_accepted` / `evidence_status=invalid` で成果物 md を書かなかった。
+  親が検算すると `codex_exit_code=0`、`termination_verified=True`、`validator_rc=0`、
+  `metering_status=complete`、`limit_trigger=None`、output hash 一致、events jsonl 全行妥当で、
+  内容の欠陥ではなかった。F492 の暫定運用どおり attempt 出力を回収し
+  `check_codex_output.py` rc=0 で採用した。本 wave の発生率は 1/6。
 ### F493. 走査型 gate の 1 箇所だけを fail-closed にし、同型の兄弟 3 箇所を残した [恒真ゲート]
 
 - 事象: (2026-08-23、段 6 の敵対レビューが指摘し親が現物で裏取り) 段 4 裁定は
@@ -14526,3 +14556,45 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   残置は `状態: 作業中` のまま永久に残る。**表題の T-ID も使わない** — handoff は fold 前の
   予測番号を書いていることがあり、本 wave の 9 件のうち 1 件は表題の ID が実際には別項へ
   割り当てられていた (採番は fold の瞬間にしか確定しない、D70 決定 5)。
+
+### F563. producer が条件付きで落とす key を consumer が必須にしており、最も綺麗な入力だけが拒否された [恒真ゲート] [テスト代表性]
+
+- 事象: `tools/check_worktree_occupancy.py` の `_report_payload` は
+  `same_uid_cwd_unreachable` が空のとき payload から key ごと落としていた。一方
+  `tools/dev_wave_cleanup.py` の `_assert_unoccupied` は同 key を必須 key に含めていた。
+  その結果、**占有ゼロ・issue ゼロ・blind spot ゼロという最も綺麗な走査だけが**
+  「occupancy payload lacks required fields」で拒否され、rc22 になっていた。
+  blind spot が空の環境では worktree 撤去が構造的に一度も成立しない。
+- 根本原因: producer 側の「診断は在るときだけ出す」という設計と、consumer 側の
+  「schema の全 key を要求する」という設計が、**空集合の扱いで衝突**していた。
+  両者を突き合わせる統合テストが無く、producer 側テストと consumer 側テストが
+  それぞれ自前の fixture で緑になっていた (consumer 側 fixture は当該 key を常にハードコードしていた)。
+  さらに実行環境 (Pegasus login node) では blind spot が常に 3 件で非空だったため、
+  key が必ず出ており欠陥が隠れていた。
+- 恒久対応: `_report_payload` が空 list でも同 key を常時出力する。
+  実 checker の payload を `_assert_unoccupied` まで空の fake proc root で通す統合 node
+  `test_assert_unoccupied_accepts_real_empty_proc_scan_payload` と、
+  consumer の必須 key 契約を拒否理由まで逐語で pin する
+  `test_assert_unoccupied_requires_same_uid_cwd_unreachable_field` を新設した。
+- 再発検知: 変異走行で確認済み。key を落とす変異は 12 node を殺し、そこには既存の
+  end-to-end 撤去 node (`test_landed_attached_worktree_is_removed` の 2 parameter、
+  `test_reentry_states_run_only_remaining_cleanup` の 2 parameter、
+  `test_forward_merged_landing_tip_is_used_for_cleanup` の 2 parameter、
+  `test_real_occupancy_scan_rejects_live_process_cwd`) が含まれる。
+  これらが赤になる事実が、欠陥が実在し環境で隠れていたことの裏づけである。
+
+### F564. 検査の説明文が実装より強い保証を謳い、その差が 2 度の設計失敗を跨いで残っていた [恒真ゲート]
+
+- 事象: `tools/check_worktree_occupancy.py` の module docstring と argparse description は
+  「同じ uid または uid 判定不能の観測不能 process は pid と comm を残る盲点として列挙するため、
+  **worker でありうる process が一つでもあれば削除してはならない**」と書いていた。
+  しかし実装の `status` 判定は blind list を一切見ず、consumer も非空を拒否しない。
+  謳うだけで発火しない保証であり、読み手は「この検査は blind spot を守っている」と誤読する。
+- 根本原因: F490 で述語を 2 度撤回したとき、**述語 (コード) だけを戻して説明文を戻さなかった**。
+  説明文は「守る」と書いたまま、コードは「数えるだけ」に戻っていた。
+  撤回の閉包に公開説明層が入っていなかった。
+- 恒久対応: 説明を実装へ合わせ、「非阻害の診断として列挙するだけであり、非空でも status と rc は
+  変わらず rc0 になりうる」と明記した。docstring と `--help` の両方を同一 commit で直した。
+  今後この blind spot を撤去拒否へ倒すか否かの裁定は D821 に従う。
+- 再発検知: 述語を撤回・変更する裁定では、同じ commit で module docstring と CLI の
+  description を照合する。段 6 の契約レンズがこの型を独立に検出した実績がある。
