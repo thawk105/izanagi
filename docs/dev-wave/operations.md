@@ -158,8 +158,8 @@ cwdがworktreeなら作らず、directory/branch不一致をhandoff・worklogに
 gate成功後の前進でgateを再走しない。取り込みは
 `tools/dev_wave_wait.py acceptance`のpost-claim merge。
 待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
-HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。`DW-C01`どおり
-初期化・再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
+HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
+`DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
 `git submodule update --recursive`で揃える。
 子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
 
