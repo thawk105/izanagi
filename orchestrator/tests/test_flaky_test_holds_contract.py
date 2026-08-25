@@ -1,6 +1,7 @@
 """Executable contract for the evidence-backed flaky-node quarantine."""
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import os
@@ -27,6 +28,10 @@ from tools import mutation_harness as MH
 _HELD_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
     "test_sigterm_handler_stops_child_and_restores_active_mutation"
+)
+_NEW_HELD_NODE = (
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+    "test_control_lock_allows_peer_after_pending_hold_is_durably_released"
 )
 _SIBLING_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
@@ -91,6 +96,31 @@ def _hold_constructor_fields(hold: REG.FlakyTestHold) -> dict[str, object]:
     }
 
 
+def _registry_source_with_rows(
+    source: str,
+    rows: tuple[tuple[str, REG.FlakyTestHold], ...],
+) -> str:
+    """Replace only the registry rows assignment in a test-only module copy."""
+    assignments = [
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name)
+            and target.id == "_FLAKY_TEST_HOLD_ROWS"
+            for target in node.targets
+        )
+    ]
+    assert len(assignments) == 1
+    assignment = assignments[0]
+    assert assignment.end_lineno is not None
+    lines = source.splitlines(keepends=True)
+    lines[assignment.lineno - 1:assignment.end_lineno] = [
+        f"_FLAKY_TEST_HOLD_ROWS = {rows!r}\n"
+    ]
+    return "".join(lines)
+
+
 def _write_registry_injection_plugin(
     tmp_path: Path,
     *,
@@ -128,6 +158,7 @@ _PRODUCTION_CONFTEST = Path({str(production_conftest)!r})
 _MATCHED_HOLD_ROWS = {matched_rows!r}
 _STALE_NODE_IDS = {stale_node_ids!r}
 _REGISTRY_SHA256 = {injected_sha256!r}
+_REINTRODUCED_NODE = {_HELD_NODE!r}
 _MARKER_PREFIX = {_INJECTION_MARKER_PREFIX!r}
 
 
@@ -152,9 +183,11 @@ def pytest_configure(config):
 
     target = next(iter(targets.values()))
     original = target.FLAKY_TEST_HOLDS
-    if original:
-        raise pytest.UsageError("IZANAGI_FLAKY_REGISTRY_INJECTION_EXPECTED_EMPTY")
-    patched = dict(original)
+    if _REINTRODUCED_NODE in original:
+        raise pytest.UsageError(
+            "IZANAGI_FLAKY_REGISTRY_INJECTION_REINTRODUCED_NODE_IS_LIVE"
+        )
+    patched = {{}}
     for node_id, fields in _MATCHED_HOLD_ROWS.items():
         patched[node_id] = FlakyTestHold(
             known_failure_node_ids=frozenset(fields["known_failure_node_ids"]),
@@ -254,15 +287,31 @@ def _expected_flaky_summary_line(
     )
 
 
-def test_initial_registry_is_empty_without_weakening_nonempty_validation() -> None:
-    assert REG._FLAKY_TEST_HOLD_ROWS == ()
-    assert dict(REG.FLAKY_TEST_HOLDS) == {}
-    assert REG.FLAKY_TEST_HOLD_NODE_IDS == frozenset()
+def test_live_registry_excludes_reintroduced_node_and_preserves_main_hold() -> None:
+    assert _HELD_NODE not in dict(REG._FLAKY_TEST_HOLD_ROWS)
+    assert _HELD_NODE not in REG.FLAKY_TEST_HOLDS
+    assert _HELD_NODE not in REG.FLAKY_TEST_HOLD_NODE_IDS
     assert REG.FLAKY_TEST_HOLD_NODE_IDS == frozenset(REG.FLAKY_TEST_HOLDS)
-    assert REG.FLAKY_TEST_HOLDS_SHA256 == _EMPTY_REGISTRY_SHA256
     assert REG.FLAKY_TEST_HOLDS_SHA256 == (
         REG.flaky_test_hold_registry_sha256(REG.FLAKY_TEST_HOLDS)
     )
+
+    new_hold = REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE]
+    assert new_hold.known_failure_node_ids == frozenset({_NEW_HELD_NODE})
+    assert new_hold.same_tree is True
+    assert new_hold.green_collection_condition == "single-node"
+    assert new_hold.green_run_count == 1
+    assert new_hold.red_collection_condition == REG.ACCEPTANCE_COLLECTION
+    assert new_hold.failure_signature
+    assert new_hold.cause
+    assert new_hold.evidence_id == "F480"
+    assert (
+        new_hold.reintroduction_task_id
+        == "{{T:flaky-thread-join-upper-bound}}"
+    )
+
+
+def test_empty_and_nonempty_registries_validate_immutably() -> None:
     assert REG.flaky_test_hold_registry_sha256({}) == _EMPTY_REGISTRY_SHA256
 
     validated_empty = REG.validate_flaky_test_hold_rows(())
@@ -279,18 +328,12 @@ def test_production_export_wiring_derives_nonempty_registry_from_rows(
     tmp_path: Path,
 ) -> None:
     source = Path(REG.__file__).read_text(encoding="utf-8")
-    rows_assignment = "_FLAKY_TEST_HOLD_ROWS = ()"
-    assert source.count(rows_assignment) == 1
-    synthetic_rows = (
-        "_FLAKY_TEST_HOLD_ROWS = (("
-        f"{_HELD_NODE!r}, {_synthetic_valid_hold()!r}"
-        "),)"
-    )
+    synthetic_rows = ((_HELD_NODE, _synthetic_valid_hold()),)
 
     module_path = tmp_path / "orchestrator" / "tests" / "flaky_test_holds.py"
     module_path.parent.mkdir(parents=True)
     module_path.write_text(
-        source.replace(rows_assignment, synthetic_rows),
+        _registry_source_with_rows(source, synthetic_rows),
         encoding="utf-8",
     )
     ledger = tmp_path / "docs" / "failures.md"
@@ -320,19 +363,13 @@ def test_production_export_wiring_rejects_invalid_rows_during_import(
     tmp_path: Path,
 ) -> None:
     source = Path(REG.__file__).read_text(encoding="utf-8")
-    rows_assignment = "_FLAKY_TEST_HOLD_ROWS = ()"
-    assert source.count(rows_assignment) == 1
     invalid = replace(_synthetic_valid_hold(), red_observation="")
-    invalid_rows = (
-        "_FLAKY_TEST_HOLD_ROWS = (("
-        f"{_HELD_NODE!r}, {invalid!r}"
-        "),)"
-    )
+    invalid_rows = ((_HELD_NODE, invalid),)
 
     module_path = tmp_path / "orchestrator" / "tests" / "flaky_test_holds.py"
     module_path.parent.mkdir(parents=True)
     module_path.write_text(
-        source.replace(rows_assignment, invalid_rows),
+        _registry_source_with_rows(source, invalid_rows),
         encoding="utf-8",
     )
     ledger = tmp_path / "docs" / "failures.md"
@@ -356,19 +393,13 @@ def test_registry_module_lazy_loader_drives_collection_skip_and_summary(
 ) -> None:
     registry_root = tmp_path / "registry-root"
     registry_source = Path(REG.__file__).read_text(encoding="utf-8")
-    rows_assignment = "_FLAKY_TEST_HOLD_ROWS = ()"
-    assert registry_source.count(rows_assignment) == 1
-    synthetic_rows = (
-        "_FLAKY_TEST_HOLD_ROWS = (("
-        f"{_HELD_NODE!r}, {_synthetic_valid_hold()!r}"
-        "),)"
-    )
+    synthetic_rows = ((_HELD_NODE, _synthetic_valid_hold()),)
     registry_path = (
         registry_root / "orchestrator" / "tests" / "flaky_test_holds.py"
     )
     registry_path.parent.mkdir(parents=True)
     registry_path.write_text(
-        registry_source.replace(rows_assignment, synthetic_rows),
+        _registry_source_with_rows(registry_source, synthetic_rows),
         encoding="utf-8",
     )
     ledger = registry_root / "docs" / "failures.md"
@@ -692,7 +723,7 @@ def test_mutation_harness_does_not_import_holds_from_another_checkout(
     assert MH._flaky_hold_node_ids_for_policy(tmp_path) == frozenset()
     live = MH._flaky_hold_node_ids_for_policy(_REPO)
     assert isinstance(live, frozenset)
-    assert live == frozenset()
+    assert _HELD_NODE not in live
 
 
 @pytest.mark.parametrize(
@@ -881,6 +912,10 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
         _izanagi_collected_flaky_hold_ids={_HELD_NODE},
         _izanagi_skipped_flaky_hold_ids={_HELD_NODE},
     )
+    empty_holds: dict[str, REG.FlakyTestHold] = {}
+    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", empty_holds)
+    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLD_NODE_IDS", frozenset())
+    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS_SHA256", _EMPTY_REGISTRY_SHA256)
     CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
     summary_lines = [
         line for line in lines if line.startswith("IZANAGI_FLAKY_HOLD_SUMMARY_V1 ")
@@ -891,7 +926,7 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
         "registered_node_count": 0,
         "matched_node_count": 0,
         "skipped_node_count": 0,
-        "registry_sha256": REG.FLAKY_TEST_HOLDS_SHA256,
+        "registry_sha256": _EMPTY_REGISTRY_SHA256,
     }
     assert payload["registry_sha256"] == _EMPTY_REGISTRY_SHA256
     assert not any(
