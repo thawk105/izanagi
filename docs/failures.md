@@ -15905,3 +15905,52 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   明記する。子の環境申告は根拠にせず、親が実際に書けるかを測る。
 - 再発検知: adapter を子へ割り当てた wave で `tools/check_codex_agents.py` が
   `rendered adapter byte parity drift` を返すこと。
+
+### F614. test double の大域差し替えが、無関係な production の subprocess 呼び出しを横取りした [テスト代表性] [計測汚染]
+
+- 事象: 新設 test が `unittest.mock.patch.object(C.subprocess, "run", fake_runner)` で
+  **process 全体の `subprocess.run`** を差し替えた。`C.subprocess` は共有モジュール本体であり、
+  patch は test の対象範囲を越える。結果、campaign 受理検査が内部で呼ぶ
+  `orchestrator/campaign/contract_loader_binding.py` の `git rev-parse --show-toplevel` まで
+  fake CLI の envelope JSON を返し、`contract-loader-root-error: Git top-level 出力が一意でない`
+  で 8 件が赤になった。
+- 根本原因: certified 判定を「`runner is subprocess.run` の同一性」で行う設計にしたため、
+  certified 経路を試すには大域の `subprocess.run` を差し替えるしかない、と実装子が判断した。
+  **狭い seam を用意しないまま同一性検査を課したこと**が原因である。
+- **診断が難しい形をしている:** 赤の文言 (`Git top-level 出力が一意でない`) は git 側の
+  環境異常に見え、login node では同じ関数が正常に解決する。**計算ノード固有の外乱に
+  見えるが、実際は自分の test double が原因である。** 特定は `pytest --showlocals` で
+  `raw_toplevel` の実値を採り、それが fake envelope JSON であることを直接見て確定した。
+- 恒久対応: D945 — certified 経路から注入口を
+  全廃し、注入は test-only 入口へ分離した。共有モジュール (`subprocess` / `shutil`) の
+  属性差し替えを test から 0 箇所にした。
+- 再発検知: 同 wave 内で **2 度発生した** (最初の実装と、その後の検出力補強)。
+  2 度目は親が焦点走を実走して 1 件の赤で捕捉し、当該 test を取り下げた。
+  検査は「変更した test file の焦点走を計算ノードで必ず実走する」ことに依存しており、
+  静的レビュー 3 本はいずれも 1 度目を検出しなかった。
+
+### F615. 同じ worktree へ `git status` を並行させると、全 tracked file が編集中に見えた [計測汚染]
+
+- 事象: 段 1 の編集面重複の実測で、全 worktree を走査する処理を 2 本同時に走らせた
+  (1 本目は親が時間切れで打ち切り、2 本目を背景で起動した)。結果、`worktree-dangling-audit-speed` と
+  `worktree-dev-wave-t1219-carry-same-id` の 2 本が「`.claude/agents/*.md` を含む tracked tree 全体を
+  編集中」と報告した。直後に 1 本ずつ測り直すと**両方とも 0 行 (clean)** で、branch tip も
+  `main` と同一だった。
+- 根本原因: `git status` は index を refresh して書き戻す。同じ worktree に対して 2 プロセスが
+  同時に走ると、一方が書き換え中の index をもう一方が読み、全 tracked file が stat 不一致
+  = 編集中として描画されうる。読み取り専用の観測に見えるが、実際には index を書く操作である。
+- **誤った結論の一歩手前だった:** この出力を信じていれば「`.claude/agents/*.md` は 2 つの wave が
+  所有中」と判定し、本 wave の中心方針 (role file を 1 byte も変えない) を**誤った理由で**
+  採ることになっていた。方針自体は別の根拠 (pin 閉包) で正しかったため実害は出ていない。
+- 恒久対応: 編集面重複の実測は**同じ worktree へ同時に 2 つ以上の `git status` を当てない**。
+  打ち切った走査を再投入するときは、先行プロセスの終了を確認してから起動する
+  (`pgrep -af` で worktree path を含む生存 process を照合する)。
+  dirty と出た worktree は、**採用する前に単独で測り直す**。
+- 再発検知: 全 tree が dirty に見えたら、それ自体を異常の signature として扱い、単独再測を必須にする。
+  branch tip が `main` と同一なのに tracked tree 全体が編集中という組合せは、実体としてはまず
+  起こらない (その wave はまだ何も commit していないのに全 file を触っていることになる)。
+
+- 併記 (同 wave の near miss、別型・台帳項目を起こさない): 親が段 3 の子 prompt へ
+  「負の対照 3 本の docstring が scope 外と書いている」と**現物を数えずに**書き、実際は 2 本だった。
+  敵対レンズが実測で訂正したため下流へ伝播していない。既存の敵対相談段が想定どおり機能した
+  事例であり、契約側の欠落ではないと判定して手順の変更は行わない。
