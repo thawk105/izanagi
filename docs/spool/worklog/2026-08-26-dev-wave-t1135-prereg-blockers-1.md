@@ -88,3 +88,10 @@ title: [T-1135] 8c 正式系列の残 blocker を実測で確定し、C03 の訂
   なく may-call 集合である。到達不能分岐に置いた呼出しや戻り値を捨てた呼出しでも通過する。
   現行の generic 名検査にも同じ穴があり、本 wave で新設したものではない。承認権限を開ける
   前に、must-reach か dataflow のどちらで閉じるかを決める必要がある。
+
+- {{T:t080-output-snapshot-shard-race}} **P2・新規**: 受入全走の shard 経路が同じ作業木から
+  2 request を重ねて投入するため、`output/` の before/after snapshot を assert する検査群が
+  他 shard の書き込みを拾って赤になる。本 wave で
+  `test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary`
+  を `orchestrator/tests/flaky_test_holds.py` へ登録して受入から外したが、これは対症であり
+  原因は受入基盤側にある。hold の解除条件は shard が作業木を共有しなくなること。
