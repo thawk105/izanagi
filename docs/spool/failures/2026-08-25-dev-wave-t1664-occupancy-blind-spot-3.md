@@ -49,3 +49,24 @@ seq: 3
   今後この blind spot を撤去拒否へ倒すか否かの裁定は {{D:occupancy-blind-spot-undecidable}} に従う。
 - 再発検知: 述語を撤回・変更する裁定では、同じ commit で module docstring と CLI の
   description を照合する。段 6 の契約レンズがこの型を独立に検出した実績がある。
+
+## 再発
+
+### F31
+
+- **再発: 2026-08-25** — T-1664 の台帳本文は「再挑戦は lease 前提の設計から始める」と
+  設計方向を明記していたが、親は段 1 brief で lease を scope 外に置いた。本文は開いていたので
+  F31 の「本文へ当たらなかった」とは機構が違うが、**本文にある制約を下流の scope 決定へ
+  継承しなかった**点で閉包は同じである。段 3 の敵対 2 レンズが独立に lease / 特権 observer /
+  cgroup v2 へ収束して初めて露見し、段 4 で scope を裁定し直すことになった。
+  `DW-S01` の「裁定要約が指す decision 本文と archive worklog を開き、食い違いは本文を優先する」は
+  既にこの義務を課しており、新しい節は要らない。適用を怠った側の再発である。
+
+### F492
+
+- **再発: 2026-08-25** — 本 wave の codex 子 6 本のうち 1 本 (段 3 の consult sol) が
+  `outcome=not_accepted` / `evidence_status=invalid` で成果物 md を書かなかった。
+  親が検算すると `codex_exit_code=0`、`termination_verified=True`、`validator_rc=0`、
+  `metering_status=complete`、`limit_trigger=None`、output hash 一致、events jsonl 全行妥当で、
+  内容の欠陥ではなかった。F492 の暫定運用どおり attempt 出力を回収し
+  `check_codex_output.py` rc=0 で採用した。本 wave の発生率は 1/6。
