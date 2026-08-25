@@ -2037,6 +2037,37 @@ def test_known_violation_append_only_history_rejects_side_branch_mutation(
         provenance.check_known_violation_append_only_history(tmp_path)
 
 
+def test_known_violation_append_only_history_rejects_evil_merge_mutation(
+    tmp_path: Path,
+):
+    spec, path = _seed_known_violation_repo(tmp_path)
+    relative = path.relative_to(tmp_path).as_posix()
+    main_branch = _git(tmp_path, "branch", "--show-current")
+    base = _git(tmp_path, "rev-parse", "HEAD")
+    _git(tmp_path, "switch", "-q", "-c", "unrelated-side", base)
+    _commit(tmp_path, {"docs/side.md": "side\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "switch", "-q", main_branch)
+    _commit(tmp_path, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+
+    # 両親は registry を触らず、merge commit 自身だけで ruling を改変する。
+    _git(tmp_path, "merge", "--no-ff", "--no-commit", "unrelated-side")
+    changed = provenance.KnownViolationSpec(
+        spec.commit,
+        spec.expected_finding_kind,
+        "evil merge changed ruling",
+    )
+    path.write_bytes(_known_violation_bytes(changed))
+    merge_commit = _commit_known_violation_state(tmp_path, "evil merge mutation")
+
+    with pytest.raises(RuntimeError) as caught:
+        provenance.check_known_violation_append_only_history(tmp_path)
+    assert str(caught.value) == (
+        "known provenance violation append-only history check failed: "
+        f"commit={merge_commit} path={relative}; "
+        f"commit={merge_commit} path={relative}"
+    )
+
+
 def test_known_violation_append_only_history_rejects_pruned_side_mutation(
     tmp_path: Path,
 ):
@@ -2193,6 +2224,39 @@ def test_known_violation_git_calls_ignore_ambient_repository_overrides(
     assert all(
         provenance._REPO_DISCOVERY_ENV.isdisjoint(env)
         for env in observed_envs
+    )
+
+
+def test_known_violation_loader_rejects_worktree_bytes_that_differ_from_head(
+    tmp_path: Path,
+):
+    spec, path = _seed_known_violation_repo(tmp_path)
+    relative = path.relative_to(tmp_path).as_posix()
+
+    # 同じ repo の positive control の後、index と HEAD を動かさず worktree だけ変える。
+    assert provenance._known_violation_registry(tmp_path) == {
+        spec.commit: (spec,),
+    }
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    head_blob = _git(tmp_path, "rev-parse", f"HEAD:{relative}")
+    index_blob = _git(tmp_path, "rev-parse", f":{relative}")
+    assert index_blob == head_blob
+    changed = provenance.KnownViolationSpec(
+        spec.commit,
+        spec.expected_finding_kind,
+        "worktree-only changed ruling",
+    )
+    path.write_bytes(_known_violation_bytes(changed))
+    assert _git(tmp_path, "rev-parse", "HEAD") == head
+    assert _git(tmp_path, "rev-parse", f"HEAD:{relative}") == head_blob
+    assert _git(tmp_path, "rev-parse", f":{relative}") == index_blob
+    assert _git(tmp_path, "hash-object", relative) != head_blob
+
+    with pytest.raises(RuntimeError) as caught:
+        provenance._known_violation_registry(tmp_path)
+    assert str(caught.value) == (
+        "known provenance violation data does not match HEAD: "
+        f"{relative}"
     )
 
 
