@@ -1680,6 +1680,17 @@
   実ファイル書き込み自体は正しい内容 (NaN/Inf 拒否テスト2件) で完了していたが、正式な採用
   記録がないため、4回目の fix へ「現状確認し、既にあれば重複させない」指示で再投入し
   accepted 記録を得た。同日中に既出の2件 (2026-08-18 型の3回目相当) と同型。
+
+- **再発: 2026-08-26** — 第 4 の型。段 3 敵対相談の 1 レンズが `failure_class=f43_fragment` で
+  不採用 (rc=1、`codex_exit_code=0`、model call 11、454 秒、`output_bytes=6372`)。原因は
+  **親の prompt が `## 総括` を `### 総括` (見出しレベル 3) と書いていた**こと。子は prompt の
+  出力形式どおりに書いており、過去 3 型 (fence 内配置・太字代替・500 bytes 未達) と違って
+  子の逸脱ではなく親の指示の誤りである。出力形式節の下位見出しを `###` で並べると、
+  `## 総括` だけレベルが上がるため転記時にレベルを揃えてしまう。両 prompt を直して再投入し 2/2 で解消。
+  2026-07-28 裁定 (`DW-O01` への prose 追記は見送り、恒久対応はテスト・機械検査優先) を踏襲し、
+  今回も prose 追記はしない — 親検収で拾えており実害は子 1 本の再投入に留まる (near-miss)。
+  併せて実測: 停止時に launcher script の process group へ `kill -TERM` を送っても
+  **codex 本体は孤児として生き残り**、本体 pid を直接 kill するまで走り続けた。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -6863,6 +6874,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   回避できた手段は prompt の縮約だけで、重い command を禁じ調査範囲を絞った版は 6 分で rc=0 に
   なった (因果は未証明)。4 回目の stderr には guard_bash が repo 全体の `rg` と
   checker の import を 4 回拒否した記録が残っていた。
+
+- **再発: 2026-08-26** — 段 2 のプラン子が `codex_exit_code=0` / `validator_rc=0` /
+  出力 16,458 bytes / 51 model call / 893 秒 / 入力 7.69M token で完走したのに
+  `evidence_status=invalid` / `accepted=false` になった。
+  **既知 2 原因を両方とも反証した** — `web_search` イベントは 0 件 (prompt で明示禁止済み)、
+  出力は `is_NFC=True` で結合文字 0 件。親が独立に検証した証跡もすべて正常だった
+  (session_meta 1 / turn_context 1 / model・effort・cwd 一致 / rollout 391 行・events 131 行とも
+  不正 JSON 0・非 UTF-8 0・最長行 153,811 と 55,427 で上限 4MiB 未満・末尾改行あり /
+  token_count 51 件すべて info 正常・非単調 0)。
+  2026-08-25 の再発項が言う「invalid は最終 artifact の性質ではなく tailing 中に立った
+  sticky flag であり、第 3 の原因が存在する」の**独立 2 例目**である。
+  本 wave では同じ prompt のまま `--max-attempts 2` で再投入し、1 回目の attempt で受理された
+  (16 model call / 624 秒 / 入力 1.33M token)。**縮約を要さずに通ったので、
+  2026-08-25 の「回避できた手段は prompt の縮約だけ」も因果ではない可能性が上がった。**
+  read-only 段では launcher 自身の再試行が有効な回避策になる。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -15643,3 +15669,63 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   列挙させる。実装は [T-1763] が持つ。
 - 再発検知: hold を張った状態で解除文言を出させ、`orphan-holds/` だけが存在する場合に
   その path が文言へ現れることを固定する検査を置く。
+
+### F604. parametrize の表示 ID に非 ASCII があると変異登録が構造的に不可能になる [手順漏れ] [道具の射程誤認]
+
+- 事象: 段 6 の変異事前登録で
+  `mutation harness aborted: 期待 node が pytest collection に実在しない` が出た。
+  対象は `test_backlog_guard_carry_candidate_parse_break_is_positive_control[[T-999] 変わらず ( (73) 参照)]`
+  と `test_backlog_guard_carry_target_index_states_are_distinct[missing-missing-索引 key 不在-...]` の 2 件。
+  nodeid は実在し、pytest collection にも出ている。
+- 根本原因: `tools/run_tests.py` は子プロセスの出力を中継するとき非 ASCII を `\uXXXX` へ
+  エスケープする。`tools/mutation_harness.py` の `_collected_nodes()` はその中継出力から
+  collected node を読むため、harness が見る nodeid はエスケープ済み文字列になる。
+  実文字で登録すれば一致せず、エスケープ形で登録すれば中継実装の表現を凍結 artifact へ
+  焼き込むことになる。**parametrize id に日本語を使うと、その test は変異の証拠に使えない。**
+- 恒久対応: 変異で殺す対象にする parametrized test には
+  `pytest.param(..., id="ascii-only-id")` で ASCII 英小文字・数字・ハイフンだけの明示 id を付ける。
+  値・assertion・case 数は変えず表示 id だけを変える。実体は本 wave の
+  `orchestrator/tests/test_check_docs.py` の 3 つの parametrized test
+  (`carry_candidate_parse_break_is_positive_control` / `carry_target_index_states_are_distinct` /
+  `carry_index_failures_count_every_occurrence`) に入れた ASCII id と、
+  memory `mutation-expected-nodes-must-be-ascii`。
+- 再発検知: 段 4 の変異事前登録で `expected_nodes` を確定した直後に
+  `all(n.isascii() for n in expected_nodes)` を確認する。本 wave はこの検査を spec 生成時に置き、
+  非 ASCII 0 件を機械確認してから投入した。
+
+### F605. workspace-write の codex 子に --max-attempts を付けると起動前に即死する [手順漏れ]
+
+- 事象: 段 5 の実装子が 1 度も起動せず rc=2 で終わった。
+  `dev_wave_codex.py: error: --max-attempts > 1 は --sandbox read-only のときだけ許可される`。
+  `.done` には 2 が入り、待ち手は `stage=producer-files rc=70` を返した。
+- 根本原因: 書き込みを伴う子を再試行すると同じ編集を二度なぞることになるため、
+  launcher が argv 段階で拒否する。この制約は `DW-O01` の argv 記述にも起動例にも無く、
+  read-only 段で F217 の flake を launcher に吸わせる目的で `--max-attempts 2` を
+  付ける運用が、そのまま author / fix 段へ持ち込まれた。
+- 恒久対応: read-only の段 (plan / consult / review) にだけ `--max-attempts` を付ける。
+  author / fix は失敗したら新しい job-id と新しい `.done` で親が投げ直す。
+  実体は memory `dev-wave-max-attempts-is-read-only-only` と、
+  本 wave の起動 script の注記行。
+- 再発検知: 起動 script に `--max-attempts` を書く時点で `--sandbox` の値を見る。
+  `workspace-write` なら書かない。
+
+### F606. 段 1 の編集面重複走査が、まだ 1 行も書いていない併走 wave の編集予約を落とした [手順漏れ]
+
+- 事象: [T-1696] の段 1 で、対象文書 `docs/phase3-b4-reflux-ablation-preregistration.md` を触る
+  他 wave を全 local branch の `git diff main...<branch>` と登録済み全 worktree の
+  `git status --porcelain` で走査し、**0 件**と結論して brief に「編集面重複ゼロ」と書いた。
+  段 3 の敵対レンズが repo 外の job directory を調べ、併走 wave `dev-wave-t1697-closed-critic` が
+  **同じ文書の §6 前提条件 3・§7.2・§8・§10 を書き換える brief と plan を既に持つ**ことを見つけた。
+  親が job dir の brief と plan を読んで裏取りし、real と裁定した。near-miss — 気づかずに進めば
+  同一節を両 wave が別方向へ書き換え、後着側が意味衝突を手作業で解く羽目になっていた。
+- 根本原因: 走査面が「branch tip の差分」と「worktree の現在差分」に限られていた。dev-wave は
+  段 1〜4 の間 repo へ 1 行も書かないため、**稼働中でも両方の走査面に現れない期間がある**。
+  その期間の編集予約は repo 外の job directory (brief・plan・prompt) にしか存在しない。
+  「dirt まで見れば足りる」という既存の作法は、書き始めた後の wave しか捕まえない。
+- 恒久対応: 段 1 の重複実測に **repo 外 job directory の走査を含める** — 稼働中 wave の
+  brief・plan・prompt を対象文書 path で grep し、hit した wave の scope 節を読んで
+  編集予約の有無を判定する。落ちた面は「無い」と書かず、走査面を明示して限定した結論を書く
+  (F606 本文の走査手順)。
+  本 wave はこれを受けて scope を D903 の反映だけに限定し、予約が重なる 3 箇所を触らずに残した。
+- 再発検知: 段 3 / 段 6 の敵対レンズへ「親の実測の走査面が落とすもの」を明示的に探させる
+  prompt 節 (本 wave で実際に発火し、この F を生んだ経路そのもの)。
