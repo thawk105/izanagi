@@ -1416,7 +1416,7 @@ def test_start_row_never_claims_admission_consumption(tmp_path: Path) -> None:
     })
 
 
-def _assert_floor_campaign_has_no_attempt_adapter(source: str) -> None:
+def _assert_production_source_has_no_attempt_adapter(source: str) -> None:
     tree = ast.parse(source)
     violations: list[str] = []
     for node in ast.walk(tree):
@@ -1443,22 +1443,26 @@ def _assert_floor_campaign_has_no_attempt_adapter(source: str) -> None:
             violations.append(node.value)
     if violations:
         raise AssertionError(
-            f"floor campaign imports attempt adapter: {sorted(violations)}"
+            f"production source imports attempt adapter: {sorted(violations)}"
         )
 
 
 def test_floor_campaign_does_not_import_adapter_and_guard_has_positive_control(
 ) -> None:
-    campaign_path = Path(__file__).parents[1] / "campaign" / "s8b_floor_campaign.py"
-    source = campaign_path.read_text(encoding="utf-8")
-    _assert_floor_campaign_has_no_attempt_adapter(source)
+    campaign_root = Path(__file__).parents[1] / "campaign"
+    sources = [
+        (campaign_root / name).read_text(encoding="utf-8")
+        for name in ("s8b_floor_campaign.py", "s8b_holdout_admission.py")
+    ]
+    for source in sources:
+        _assert_production_source_has_no_attempt_adapter(source)
 
-    synthetic = "from . import s8b_attempt_registry\n" + source
+    synthetic = "from . import s8b_attempt_registry\n" + sources[0]
     with pytest.raises(
         AssertionError,
-        match="floor campaign imports attempt adapter",
+        match="production source imports attempt adapter",
     ):
-        _assert_floor_campaign_has_no_attempt_adapter(synthetic)
+        _assert_production_source_has_no_attempt_adapter(synthetic)
 
 
 def _assert_adapter_has_no_repetition_derivation(source: str) -> None:

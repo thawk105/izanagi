@@ -19,6 +19,7 @@ from typing import Any
 
 __all__ = (
     "CalibrationObservationCapability",
+    "HoldoutCondition",
     "HoldoutObservationAdmission",
     "HoldoutObservationError",
     "MinimalHoldoutSignature",
@@ -35,25 +36,93 @@ class HoldoutObservationError(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class HoldoutCondition:
+    """Complete immutable condition attached to one ratified holdout."""
+
+    candidate_id: str
+    ycsb_zipf_skew: str
+    ycsb_rratio: str
+    ycsb_rmw: str
+    records: int
+    threads: int
+
+
+@dataclass(frozen=True, slots=True)
 class MinimalHoldoutSignature:
     """Names kept distinct even where the current freeze uses equal strings."""
 
     freeze_holdout_key: str
-    freeze_candidate_id: str
     trial_workload_name: str
-    ycsb_rratio: str
+    condition: HoldoutCondition
+
+    @property
+    def freeze_candidate_id(self) -> str:
+        return self.condition.candidate_id
+
+    @property
+    def ycsb_zipf_skew(self) -> str:
+        return self.condition.ycsb_zipf_skew
+
+    @property
+    def ycsb_rratio(self) -> str:
+        return self.condition.ycsb_rratio
+
+    @property
+    def ycsb_rmw(self) -> str:
+        return self.condition.ycsb_rmw
+
+    @property
+    def records(self) -> int:
+        return self.condition.records
+
+    @property
+    def threads(self) -> int:
+        return self.condition.threads
 
 
 @dataclass(frozen=True, slots=True)
 class HoldoutObservationAdmission:
     """Attempt-bound identity token; field equality never establishes issuance."""
 
-    freeze_holdout_key: str
-    freeze_candidate_id: str
-    trial_workload_name: str
-    ycsb_rratio: str
+    signature: MinimalHoldoutSignature
     attempt_id: str
     permitted_run_once_calls: int
+
+    @property
+    def freeze_holdout_key(self) -> str:
+        return self.signature.freeze_holdout_key
+
+    @property
+    def freeze_candidate_id(self) -> str:
+        return self.signature.freeze_candidate_id
+
+    @property
+    def trial_workload_name(self) -> str:
+        return self.signature.trial_workload_name
+
+    @property
+    def condition(self) -> HoldoutCondition:
+        return self.signature.condition
+
+    @property
+    def ycsb_zipf_skew(self) -> str:
+        return self.condition.ycsb_zipf_skew
+
+    @property
+    def ycsb_rratio(self) -> str:
+        return self.condition.ycsb_rratio
+
+    @property
+    def ycsb_rmw(self) -> str:
+        return self.condition.ycsb_rmw
+
+    @property
+    def records(self) -> int:
+        return self.condition.records
+
+    @property
+    def threads(self) -> int:
+        return self.condition.threads
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,18 +209,52 @@ class _IssuedCalibrationObservationState:
 # This neutral table is deliberately freeze-shaped.  It is not production
 # authority: every issuance also derives the set from the already-verified
 # freeze document supplied by the campaign layer and requires exact equality.
+_NEUTRAL_ZIPF_SKEW = "0" + ".9"
+_NEUTRAL_RMW = "0"
+_NEUTRAL_RECORDS = 1_000_000
+_NEUTRAL_THREADS = 48
+_NEUTRAL_RR80 = "8" + "0"
+_NEUTRAL_RR20 = "2" + "0"
 _NEUTRAL_HOLDOUTS: Mapping[str, Mapping[str, Any]] = {
     "rr80": {
         "candidate_id": "H1",
-        "ycsb": {"ycsb_rratio": "80"},
+        "records": _NEUTRAL_RECORDS,
+        "threads": _NEUTRAL_THREADS,
+        "ycsb": {
+            "ycsb_zipf_skew": _NEUTRAL_ZIPF_SKEW,
+            "ycsb_rratio": _NEUTRAL_RR80,
+            "ycsb_rmw": _NEUTRAL_RMW,
+        },
     },
     "rr20": {
         "candidate_id": "H2",
-        "ycsb": {"ycsb_rratio": "20"},
+        "records": _NEUTRAL_RECORDS,
+        "threads": _NEUTRAL_THREADS,
+        "ycsb": {
+            "ycsb_zipf_skew": _NEUTRAL_ZIPF_SKEW,
+            "ycsb_rratio": _NEUTRAL_RR20,
+            "ycsb_rmw": _NEUTRAL_RMW,
+        },
     },
 }
 
 _INDIRECT_GFLAGS = frozenset({"flagfile", "fromenv", "tryfromenv"})
+_PROTECTED_ARGV_FIELDS = (
+    "ycsb_zipf_skew",
+    "ycsb_rratio",
+    "ycsb_rmw",
+    "ycsb_tuple_num",
+    "thread_num",
+)
+_PROTECTED_YCSB_FIELDS = frozenset({
+    "ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw",
+})
+_FORMAL_RUN_DIRECT_GFLAG_ALLOWLIST = frozenset({
+    # Caller env-contract-bound conversion; it adds no free workload/scale axis.
+    "clocks_per_us",
+    # Caller protocol-bound observation window; it adds no free workload/scale axis.
+    "extime",
+})
 _UINT64_MAX = (1 << 64) - 1
 
 
@@ -189,10 +292,32 @@ def _derive_protected_signatures(
             raise HoldoutObservationError(
                 f"invalid verified freeze holdouts.{freeze_holdout_key}.ycsb"
             )
+        skew = _require_nonempty_string(
+            ycsb.get("ycsb_zipf_skew"),
+            f"holdouts.{freeze_holdout_key}.ycsb.ycsb_zipf_skew",
+        )
         ratio = _require_nonempty_string(
             ycsb.get("ycsb_rratio"),
             f"holdouts.{freeze_holdout_key}.ycsb.ycsb_rratio",
         )
+        rmw = _require_nonempty_string(
+            ycsb.get("ycsb_rmw"),
+            f"holdouts.{freeze_holdout_key}.ycsb.ycsb_rmw",
+        )
+        if set(ycsb) != _PROTECTED_YCSB_FIELDS:
+            raise HoldoutObservationError(
+                f"invalid verified freeze holdouts.{freeze_holdout_key}.ycsb fields"
+            )
+        records = raw_entry.get("records")
+        if type(records) is not int or records <= 0:
+            raise HoldoutObservationError(
+                f"holdouts.{freeze_holdout_key}.records must be a positive exact int"
+            )
+        threads = raw_entry.get("threads")
+        if type(threads) is not int or threads <= 0:
+            raise HoldoutObservationError(
+                f"holdouts.{freeze_holdout_key}.threads must be a positive exact int"
+            )
         if ratio in ratios:
             raise HoldoutObservationError(
                 f"ambiguous verified freeze ycsb_rratio: {ratio}"
@@ -200,9 +325,15 @@ def _derive_protected_signatures(
         ratios.add(ratio)
         signatures.add(MinimalHoldoutSignature(
             freeze_holdout_key=freeze_holdout_key,
-            freeze_candidate_id=freeze_candidate_id,
             trial_workload_name=freeze_holdout_key,
-            ycsb_rratio=ratio,
+            condition=HoldoutCondition(
+                candidate_id=freeze_candidate_id,
+                ycsb_zipf_skew=skew,
+                ycsb_rratio=ratio,
+                ycsb_rmw=rmw,
+                records=records,
+                threads=threads,
+            ),
         ))
     return frozenset(signatures)
 
@@ -257,21 +388,35 @@ def normalized_direct_gflags(gflags: Sequence[str]) -> dict[str, str]:
     """Normalize direct gflags with last-wins semantics.
 
     Both one- and two-dash forms are accepted.  Inputs that can cause gflags
-    to obtain values indirectly are rejected before classification.
+    to obtain values indirectly are rejected before classification.  gflags
+    retries names containing ``-`` after replacing those characters with
+    ``_``; classification must therefore use the same spelling equivalence.
     """
 
+    snapshot = tuple(gflags)
     effective: dict[str, str] = {}
-    for raw in gflags:
+    for index, raw in enumerate(snapshot):
         if type(raw) is not str:
             raise HoldoutObservationError("gflags must contain exact strings only")
         if not raw.startswith("-") or raw == "-":
             continue
         body = raw[2:] if raw.startswith("--") else raw[1:]
-        name, separator, value = body.partition("=")
+        raw_name, separator, value = body.partition("=")
+        name = raw_name.replace("-", "_")
         if name in _INDIRECT_GFLAGS:
             raise HoldoutObservationError(f"indirect gflags input is forbidden: {name}")
         if separator and name:
             effective[name] = value
+        elif name in _PROTECTED_ARGV_FIELDS and index + 1 < len(snapshot):
+            # The occurrence validator rejects this noncanonical form for a
+            # formal run.  Reading its value here is still necessary so a
+            # tokenless hyphen alias cannot evade protected-ratio discovery.
+            next_raw = snapshot[index + 1]
+            if type(next_raw) is not str:
+                raise HoldoutObservationError(
+                    "gflags must contain exact strings only"
+                )
+            effective[name] = next_raw
     ratio = effective.get("ycsb_rratio")
     if ratio is not None:
         if (not ratio or not ratio.isascii() or not ratio.isdecimal()
@@ -291,6 +436,171 @@ def classify_minimal_holdout_signature(
 
     effective = normalized_direct_gflags(gflags)
     return _NEUTRAL_BY_RATIO.get(effective.get("ycsb_rratio"))
+
+
+def _assert_protected_argv_occurrences_are_canonical(
+    gflags: Sequence[str],
+) -> None:
+    """Reject every parser-sensitive spelling of a protected argv field."""
+
+    after_terminator = False
+    protected = frozenset(_PROTECTED_ARGV_FIELDS)
+    for raw in gflags:
+        if raw == "--":
+            after_terminator = True
+            continue
+        if raw.startswith("--"):
+            body = raw[2:]
+            direct = True
+        elif raw.startswith("-") and raw != "-":
+            body = raw[1:]
+            direct = True
+        else:
+            body = raw
+            direct = False
+        raw_name, separator, _value = body.partition("=")
+        name = raw_name.replace("-", "_")
+        field = name if name in protected else None
+        if field is None and name.startswith("no") and name[2:] in protected:
+            field = name[2:]
+            if after_terminator:
+                raise HoldoutObservationError(
+                    f"protected holdout field {field} is forbidden after --"
+                )
+            raise HoldoutObservationError(
+                f"protected holdout field {field} no-prefix alias is forbidden"
+            )
+        if field is None:
+            continue
+        if after_terminator:
+            raise HoldoutObservationError(
+                f"protected holdout field {field} is forbidden after --"
+            )
+        if raw_name != name:
+            raise HoldoutObservationError(
+                f"protected holdout field {field} hyphen alias is forbidden"
+            )
+        if not direct or not separator:
+            raise HoldoutObservationError(
+                f"protected holdout field {field} must use name=value direct gflag form"
+            )
+
+
+def _assert_formal_direct_gflags_are_allowlisted(gflags: Sequence[str]) -> None:
+    """Fail closed on every direct formal-run flag outside the reviewed set."""
+
+    after_terminator = False
+    protected = frozenset(_PROTECTED_ARGV_FIELDS)
+    for raw in gflags:
+        if raw == "--":
+            after_terminator = True
+            continue
+        if after_terminator:
+            continue
+        parsed = _direct_flag_name_value(raw)
+        if parsed is None:
+            continue
+        raw_name, has_value, _value = parsed
+        name = raw_name.replace("-", "_")
+        if name in protected:
+            continue
+        if name not in _FORMAL_RUN_DIRECT_GFLAG_ALLOWLIST:
+            raise HoldoutObservationError(
+                f"direct gflag {name} is not admitted for a protected holdout run"
+            )
+        if raw_name != name or not has_value:
+            raise HoldoutObservationError(
+                f"allowlisted direct gflag {name} must use its canonical "
+                "name=value spelling"
+            )
+
+
+def _assert_each_protected_argv_value_matches(
+    gflags: Sequence[str], expected: HoldoutCondition,
+) -> None:
+    """Require every canonical occurrence, including shadowed ones, to match."""
+
+    expected_values = {
+        "ycsb_zipf_skew": expected.ycsb_zipf_skew,
+        "ycsb_rratio": expected.ycsb_rratio,
+        "ycsb_rmw": expected.ycsb_rmw,
+        "ycsb_tuple_num": str(expected.records),
+        "thread_num": str(expected.threads),
+    }
+    for raw in gflags:
+        parsed = _direct_flag_name_value(raw)
+        if parsed is None:
+            continue
+        name, has_value, value = parsed
+        if has_value and name in expected_values and value != expected_values[name]:
+            raise HoldoutObservationError(
+                f"holdout observation {name} occurrence does not match "
+                "protected signature"
+            )
+
+
+def _is_canonical_uint64(value: str, *, positive: bool) -> bool:
+    if (not value or not value.isascii() or not value.isdecimal()
+            or (len(value) > 1 and value.startswith("0"))):
+        return False
+    number = int(value, 10)
+    return number <= _UINT64_MAX and (not positive or number > 0)
+
+
+def _is_canonical_nonnegative_decimal(value: str) -> bool:
+    integer, separator, fraction = value.partition(".")
+    if (not integer or not integer.isascii() or not integer.isdecimal()
+            or (len(integer) > 1 and integer.startswith("0"))):
+        return False
+    if not separator:
+        return True
+    return bool(
+        fraction
+        and fraction.isascii()
+        and fraction.isdecimal()
+        and not fraction.endswith("0")
+    )
+
+
+def _condition_from_formal_gflags(
+    effective: Mapping[str, str], expected: HoldoutCondition,
+) -> HoldoutCondition:
+    field_specs = (
+        ("ycsb_zipf_skew", "ycsb_zipf_skew", "canonical nonnegative decimal"),
+        ("ycsb_rratio", "ycsb_rratio", "canonical unsigned decimal"),
+        ("ycsb_rmw", "ycsb_rmw", "canonical unsigned decimal"),
+        ("ycsb_tuple_num", "records", "canonical positive decimal"),
+        ("thread_num", "threads", "canonical positive decimal"),
+    )
+    values: dict[str, str] = {}
+    for argv_name, condition_name, shape in field_specs:
+        value = effective.get(argv_name)
+        if value is None:
+            raise HoldoutObservationError(
+                f"holdout observation requires explicit {argv_name}"
+            )
+        if argv_name == "ycsb_zipf_skew":
+            valid = _is_canonical_nonnegative_decimal(value)
+        else:
+            valid = _is_canonical_uint64(
+                value, positive=argv_name in {"ycsb_tuple_num", "thread_num"},
+            )
+        if not valid:
+            raise HoldoutObservationError(f"{argv_name} must be {shape}")
+        expected_value = str(getattr(expected, condition_name))
+        if value != expected_value:
+            raise HoldoutObservationError(
+                f"holdout observation {argv_name} does not match protected signature"
+            )
+        values[condition_name] = value
+    return HoldoutCondition(
+        candidate_id=expected.candidate_id,
+        ycsb_zipf_skew=values["ycsb_zipf_skew"],
+        ycsb_rratio=values["ycsb_rratio"],
+        ycsb_rmw=values["ycsb_rmw"],
+        records=int(values["records"], 10),
+        threads=int(values["threads"], 10),
+    )
 
 
 def _exact_positive_int(value: object, field: str) -> int:
@@ -780,10 +1090,7 @@ def _identity_capability_functions():
                 )
             signature = matches[0]
             token = HoldoutObservationAdmission(
-                freeze_holdout_key=signature.freeze_holdout_key,
-                freeze_candidate_id=signature.freeze_candidate_id,
-                trial_workload_name=signature.trial_workload_name,
-                ycsb_rratio=signature.ycsb_rratio,
+                signature=signature,
                 attempt_id=receipt.attempt_id,
                 permitted_run_once_calls=receipt.permitted_run_once_calls,
             )
@@ -811,7 +1118,7 @@ def _identity_capability_functions():
     def consume_run_once(
         admission: object,
         *,
-        effective_ycsb_rratio: str | None,
+        effective_condition: HoldoutCondition,
     ) -> None:
         with lock:
             state = issued.get(id(admission))
@@ -819,7 +1126,7 @@ def _identity_capability_functions():
                 raise HoldoutObservationError(
                     "holdout observation admission was not issued"
                 )
-            if state.signature.ycsb_rratio != effective_ycsb_rratio:
+            if state.signature.condition != effective_condition:
                 raise HoldoutObservationError(
                     "holdout observation admission does not match the protected signature"
                 )
@@ -861,7 +1168,7 @@ def assert_holdout_observation_admitted(
 
     Tokenless calls use the fixed production table.  An issued token carries
     the exact verified signature used by its private campaign reservation, so
-    the subprocess edge compares the executed ratio with that same signature.
+    the subprocess edge compares the complete executed condition with it.
     Calibration calls return the normalized ``numactl`` and ``extra_env``
     values that were consumed by the capability check, so callers can pass
     those snapshots to the subprocess without rereading caller objects.
@@ -892,8 +1199,17 @@ def assert_holdout_observation_admitted(
                 f"ycsb_rratio={signature.ycsb_rratio}"
             )
         return None
+    assert_issued_holdout_observation(admission)
+    _assert_protected_argv_occurrences_are_canonical(gflags_snapshot)
+    _assert_formal_direct_gflags_are_allowlisted(gflags_snapshot)
+    effective_condition = _condition_from_formal_gflags(
+        effective, admission.condition,
+    )
+    _assert_each_protected_argv_value_matches(
+        gflags_snapshot, admission.condition,
+    )
     _consume_holdout_observation_run_once(
         admission,
-        effective_ycsb_rratio=ratio,
+        effective_condition=effective_condition,
     )
     return None

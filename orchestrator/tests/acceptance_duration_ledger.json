@@ -5878,7 +5878,7 @@
     "orchestrator/tests/test_flaky_test_holds_contract.py::test_evidence_section_must_contain_failure_signature": 0.008,
     "orchestrator/tests/test_flaky_test_holds_contract.py::test_evidence_section_must_name_registered_test_function": 0.009,
     "orchestrator/tests/test_flaky_test_holds_contract.py::test_flaky_summary_is_separate_and_uses_registry_digest": 0.001,
-    "orchestrator/tests/test_flaky_test_holds_contract.py::test_initial_registry_is_one_exact_node_with_reintroduction_anchor": 0.001,
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_registry_is_two_exact_nodes_with_reintroduction_anchors": 0.001,
     "orchestrator/tests/test_flaky_test_holds_contract.py::test_mutation_harness_does_not_import_holds_from_another_checkout": 0.001,
     "orchestrator/tests/test_flaky_test_holds_contract.py::test_mutation_harness_rejects_an_isolated_expected_failure_node": 0.011,
     "orchestrator/tests/test_flaky_test_holds_contract.py::test_real_pytest_subprocess_skips_registered_node_and_runs_same_file_sibling": 40.0,

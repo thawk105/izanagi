@@ -1076,16 +1076,43 @@ def _check_arm_digest_chain(
         cell.get("workload_flags"), gate="arm-digest-chain",
         label=f"cells[{cell_index}].workload_flags",
     )
-    if (
-        workload_flags.get("ycsb_rratio")
-        != registered_holdout.get("ycsb_rratio")
-    ):
-        _fail("arm-digest-chain", "benchmark workload_flags differs")
-    _descriptor, _raw, actual_content_digest = _canonical_descriptor_digest(
+    for field in ("ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw"):
+        if workload_flags.get(field) != registered_holdout.get(field):
+            _fail(
+                "arm-digest-chain",
+                f"benchmark workload_flags.{field} differs from registered holdout",
+            )
+    perf_config_scale = _mapping(
+        cell.get("perf_config_scale"), gate="arm-digest-chain",
+        label=f"cells[{cell_index}].perf_config_scale",
+    )
+    for field in ("records", "threads"):
+        if perf_config_scale.get(field) != registered_holdout.get(field):
+            _fail(
+                "arm-digest-chain",
+                f"benchmark perf_config_scale.{field} differs from registered holdout",
+            )
+    descriptor, _raw, actual_content_digest = _canonical_descriptor_digest(
         cell.get("descriptor"), label=f"cells[{cell_index}].descriptor",
     )
     if actual_content_digest != content_digest:
         _fail("arm-digest-chain", "cell descriptor content digest differs")
+    descriptor_scale = _mapping(
+        descriptor.get("scale"), gate="arm-digest-chain",
+        label=f"cells[{cell_index}].descriptor.scale",
+    )
+    expected_scale_keys = frozenset({"records", "threads"})
+    if (
+        frozenset(perf_config_scale) != expected_scale_keys
+        or frozenset(descriptor_scale) != expected_scale_keys
+    ):
+        _fail("arm-digest-chain", "benchmark cell/descriptor scale keys differ")
+    for field in ("records", "threads"):
+        if perf_config_scale.get(field) != descriptor_scale.get(field):
+            _fail(
+                "arm-digest-chain",
+                f"benchmark perf_config_scale.{field} differs from cell descriptor",
+            )
     producer = _producer_module()
     try:
         entry = producer.resolve_workload_entry(workload)
