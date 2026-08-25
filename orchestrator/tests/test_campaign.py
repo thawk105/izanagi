@@ -5205,6 +5205,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/campaign/p3_s4_loop_sort.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_loop_trigger_gating.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_red.py", "campaign.loop.run_campaign"): 2,
+        ("orchestrator/campaign/paper_story_a1_paired.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/paper_story_a2_certification.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/s6_sort_sweep.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/s8a_trigger_sweep.py", "campaign.loop.run_campaign"): 1,
@@ -5216,7 +5217,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/qualification/t126_driver.py", "campaign.pipeline.evaluate"): 1,
     })
     assert sum(count for (path, target), count in expected_inventory.items()
-               if target == "campaign.loop.run_campaign") == 16
+               if target == "campaign.loop.run_campaign") == 17
     assert sum(count for (path, target), count in expected_inventory.items()
                if target == "campaign.pipeline.evaluate") == 5
 
