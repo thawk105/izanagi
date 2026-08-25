@@ -149,6 +149,8 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/silo_ladder_rung1.py", "<module>._run"): 2,
     ("campaign/sort_swo_oracle.py", "<module>._compile"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compiler_version"): 1,
+    # Compiler -M scan only emits dependencies; -I paths do not run CCBench.
+    ("campaign/sort_swo_oracle.py", "<module>._dependency_manifest_closure"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._run_matrix"): 1,
     # Read-only Git metadata queries use fixed argv and a sanitized environment.
     ("campaign/source_digest.py", "<module>._checkout_gitlink_oid"): 2,

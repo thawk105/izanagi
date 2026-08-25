@@ -400,6 +400,7 @@ def _stub_real_sort_swo_oracle(monkeypatch):
         "/fixture/cxx", "fixture-cxx 1", SWO.COMPILE_FLAGS_SHA256,
         "3" * 64, SWO.TU_TEMPLATE_SHA256,
         "/fixture/dependency", "4" * 64,
+        SWO.DEPENDENCY_MANIFEST_SHA256,
     )
     passed = SWO.SortSwoOracleResult(
         SWO.OracleStatus.PASS, "1" * 64, "2" * 64, receipt=receipt,
