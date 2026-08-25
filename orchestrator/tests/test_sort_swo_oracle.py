@@ -508,6 +508,173 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
             assert injected_timeline == []
 
 
+def test_broker_rejects_final_pipe_identity_held_at_different_worker_fd(
+        tmp_path):
+    worker_path = tmp_path / "fd-identity-worker"
+    worker_path.write_text(
+        f"""#!{sys.executable}
+import os
+import signal
+import stat
+import sys
+
+observation_fd = int(sys.argv[3])
+expected_identity = tuple(int(value) for value in sys.argv[4:7])
+metadata = os.fstat(observation_fd)
+actual_identity = (
+    metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode),
+)
+if actual_identity != expected_identity:
+    os._exit(76)
+os.closerange(0, observation_fd)
+os.closerange(observation_fd + 1, 65536)
+os.kill(os.getpid(), signal.SIGSTOP)
+os.kill(os.getpid(), signal.SIGSTOP)
+os.write(observation_fd, bytes({2 * O._N * O._N}))
+os._exit(0)
+""",
+        encoding="utf-8",
+    )
+    worker_path.chmod(0o700)
+
+    authority, broker_authority = O.socket.socketpair(
+        O.socket.AF_UNIX, O.socket.SOCK_SEQPACKET,
+    )
+    worker_fd_number = 198
+    assert broker_authority.fileno() != worker_fd_number
+    broker_pid = O.os.fork()
+    if broker_pid == 0:
+        authority.close()
+        O.os.setsid()
+        real_pipe = O.os.pipe
+        real_read = O.os.read
+        real_send_control = O._broker_send_control
+        transferred_pipe_fds = []
+
+        def pipe_with_controller_transfer():
+            observation_read, observation_write = real_pipe()
+            O.os.set_blocking(observation_read, False)
+            if observation_write != worker_fd_number:
+                O.os.dup2(observation_write, worker_fd_number)
+                O.os.close(observation_write)
+            transferred_pipe_fds.extend((
+                O.os.dup(observation_read), O.os.dup(worker_fd_number),
+            ))
+            return observation_read, worker_fd_number
+
+        def send_control_with_pipe(authority_socket, payload):
+            if not payload.startswith(b"R:"):
+                real_send_control(authority_socket, payload)
+                return
+            authority_socket.sendmsg(
+                [payload],
+                [(O.socket.SOL_SOCKET, O.socket.SCM_RIGHTS,
+                  O.array("i", transferred_pipe_fds))],
+            )
+            for fd in transferred_pipe_fds:
+                O.os.close(fd)
+            transferred_pipe_fds.clear()
+
+        def nonblocking_observation_read(fd, size):
+            try:
+                return real_read(fd, size)
+            except BlockingIOError:
+                return b""
+
+        O.os.pipe = pipe_with_controller_transfer
+        O.os.read = nonblocking_observation_read
+        O._broker_send_control = send_control_with_pipe
+        status = O._broker_main([
+            str(worker_path), "0", "0", str(broker_authority.fileno()),
+        ])
+        O.os._exit(status)
+
+    broker_authority.close()
+    final_read_fd = None
+    final_write_fd = None
+    worker_pid = None
+    broker_reaped = False
+    received_fds = []
+    try:
+        authority.settimeout(O._RUN_TIMEOUT_S)
+        item_size = O.array("i").itemsize
+        ready, ancillary, flags, _address = authority.recvmsg(
+            4096, O.socket.CMSG_SPACE(2 * item_size),
+        )
+        assert ready.startswith(b"R:")
+        assert not flags & (O.socket.MSG_CTRUNC | O.socket.MSG_TRUNC)
+        for level, kind, data in ancillary:
+            if level == O.socket.SOL_SOCKET and kind == O.socket.SCM_RIGHTS:
+                values = O.array("i")
+                values.frombytes(data[:len(data) - len(data) % item_size])
+                received_fds.extend(values)
+        assert len(received_fds) == 2
+        final_read_fd, final_write_fd = received_fds
+        received_fds.clear()
+
+        ready_payload = O.json.loads(ready[2:].decode("ascii"))
+        assert set(ready_payload) == {"fd_identities", "pid"}
+        worker_pid = int(ready_payload["pid"])
+        before = tuple(
+            tuple(int(field) for field in identity)
+            for identity in ready_payload["fd_identities"]
+        )
+        final_identity = O._broker_fd_identity(final_write_fd)
+        assert before == (final_identity,)
+        worker_metadata = O.os.stat(f"/proc/{worker_pid}/fd/{worker_fd_number}")
+        assert (
+            worker_metadata.st_dev,
+            worker_metadata.st_ino,
+            stat.S_IFMT(worker_metadata.st_mode),
+        ) == final_identity
+        assert final_write_fd != worker_fd_number
+
+        authority.sendmsg(
+            [b"F"],
+            [(O.socket.SOL_SOCKET, O.socket.SCM_RIGHTS,
+              O.array("i", [final_write_fd]))],
+        )
+        O.os.close(final_write_fd)
+        final_write_fd = None
+        O._broker_send_control(authority, b"A")
+        waited_pid, broker_status = O.os.waitpid(broker_pid, 0)
+        broker_reaped = True
+        assert waited_pid == broker_pid
+        assert O.os.WIFEXITED(broker_status)
+        assert O.os.WEXITSTATUS(broker_status) == 0
+
+        record = O._read_all(final_read_fd, O._RECORD_SIZE)
+        assert len(record) == O._RECORD_SIZE
+        unpacked = O._HEADER.unpack(record[:O._HEADER.size])
+        assert unpacked[5:7] == (
+            O._BROKER_OUTCOME_INFRASTRUCTURE,
+            O._BROKER_DETAIL_FD_BOUNDARY,
+        ), unpacked[5:7]
+    finally:
+        authority.close()
+        for fd in (*received_fds, final_read_fd, final_write_fd):
+            if fd is not None:
+                O.os.close(fd)
+        if not broker_reaped:
+            if worker_pid is not None:
+                try:
+                    O.os.kill(worker_pid, O.signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            try:
+                O.os.killpg(broker_pid, O.signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            try:
+                O.os.kill(broker_pid, O.signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            try:
+                O.os.waitpid(broker_pid, 0)
+            except ChildProcessError:
+                pass
+
+
 def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
         tmp_path_factory):
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
