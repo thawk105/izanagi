@@ -24,11 +24,23 @@
 // EVOLVE-BLOCK-END silo-backoff-magnitude
 ```
 
-**合成枝 (hole)：** `double now_backoff = ...;` のみ。値の表現 (リテラル・計算式・既存 API 呼び出し) は自由。
+**合成枝 (hole)：** `double now_backoff = <数値 literal>;` の**ちょうど 1 文**のみ。
+
+初期化子に書けるのは、`proposal.value` と数値が一致する**接尾辞の付かない C++ 数値 literal 1 個**
+だけである (D836、D901 条項 1)。計算式・関数呼び出し・API 呼び出し・括弧や波括弧で囲んだ形・
+三項演算子・単項符号・後続の文は、いずれも受理文法が拒否する。
+
+> **⚠ 上の骨格コード内のコメント「既存 silo API を呼ぶ straight-line code のみ」は、骨格 patch
+> (`patches/silo-backoff-fixed.patch`) の逐語コピーであり、patch bytes は不可触である。
+> 初期化子に関する限り、この記述は D836 と D901 が上書きした。現行の受理契約は本節の本文である。**
 
 ---
 
-## 2. API Surface (coder が呼んでよい既存関数)
+## 2. API Surface (型情報のみ — 初期化子から呼ぶことはできない)
+
+> **⚠ 本節は D836 により参考情報へ降格した。** hole の初期化子から関数・API を呼ぶことはできない
+> (数値 literal 1 個だけが受理される)。以下は stock 枝が何をしているかを読むための型情報であり、
+> coder に呼び出しを許可するものではない。
 
 ### Backoff class (from include/backoff.hh)
 
@@ -44,12 +56,18 @@ class Backoff {
 };
 ```
 
-### 使用例
+### 使用例 (受理される形)
 
-- 静的値: `double now_backoff = 50.0;`
-- Cicada 適応値の読み: `double now_backoff = Backoff_.load(std::memory_order_acquire);` (stock 枝と同じ)
+- `double now_backoff = 50;`
+- `double now_backoff = 50.0;`
+
+### 受理されない形 (いずれも受理文法が拒否する)
+
+- API 呼び出し: `double now_backoff = Backoff_.load(std::memory_order_acquire);` (stock 枝の中身であり、合成枝には書けない)
 - 計算式: `double now_backoff = std::ceil(50.0 * 1.5);`
-- リテラル以外の式は許可されるが、新しい依存 (ヘッダ・関数) は追加禁止
+- 括弧・波括弧: `double now_backoff = (50.0);` / `double now_backoff = {50.0};`
+- 三項演算子・単項符号・接尾辞付き literal (`50.0f` 等)
+- 後続の文: `double now_backoff = 50; helper();`
 
 ### 禁止事項
 
@@ -145,7 +163,7 @@ coder が「値をどう変えるか」を提案された時の参考指標：
 
 ### 許可 (旧設計)
 - CCBench API surface (Backoff class public interface)
-- 値 (リテラル・計算式)
+- 値 (リテラル・計算式) — **現在は D836 / D901 により、計算式は禁止・数値 literal 1 個のみ。この行は旧設計の記録である**
 
 ### 禁止
 - output/insights/2026-06-22_p2-case-study-* (sweet-spot value や利得情報)

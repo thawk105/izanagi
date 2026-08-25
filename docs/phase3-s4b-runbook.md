@@ -70,8 +70,10 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
   `src/coder-spec.md` は sweet-spot 漏れリスクありゆえ coder に直接渡さない (leakproof 版を使う)。
 - coder は tools=[] ゆえ prompt に無い情報を読めない = 構造的リーク閉。
 - 出力 = `{proposal: {axis, value(1-1000), implementation, justification, confidence}}`。
-  `implementation` は `double now_backoff = <値>;` 形。value と literal は一致させる
-  (不一致は harness の `assert_value_literal_consistent` が AttributionMismatch で弾く、決定7)。
+  `implementation` は `double now_backoff = <数値 literal 1 個>;` の**ちょうど 1 文**。
+  literal は接尾辞を持たず、value と数値が一致すること (D836 / D901 条項 1)。
+  計算式・呼び出し・括弧・三項・後続の文は受理文法が拒否する。値の不一致は harness の
+  `assert_value_literal_consistent` が AttributionMismatch で弾く (決定7)。
 
 ### (c) proposal ファイルを書く
 `<scratch>/prop.json`:
@@ -104,6 +106,11 @@ python3 -m orchestrator.campaign.p3_s4_loop --run-iteration <scratch>/prop.json 
 - `continue` なら `Agent(subagent_type='critic')` に digest (`s4_loop_digest.txt`) を渡し、帰属 +
   次方向を得る。**メインセッションが critic 出力を解釈**し「逆方向を推奨したか」を判定 →
   次 iteration の `prior_critic_reverse` に反映 (harness は critic の自然文を読まない、決定2/7)。
+- **この legacy 手順は B-4 還流 ablation の標本として非適格である。** 同 role は `Bash` を持ち
+  digest の自己生成を明示許可するため、off アームとして数えられない
+  (`docs/phase3-b4-reflux-ablation-preregistration.md` §6 前提条件 3)。B-4 の標本を採る走行は
+  `orchestrator/campaign/p3_b4_closed_critic.py` の閉じた起動形を使う。
+  本節の手順は B-4 以外の段 4b 走行のためのものである。
 - (a) に戻る。
 
 ---
@@ -129,6 +136,8 @@ python3 -m orchestrator.campaign.p3_s4_loop --run-iteration <scratch>/prop.json 
   (final certified finding ではない)。checkpoint = `output/exploration/campaigns/<id>/loop_state.json`。
 - **reflux (還流 on/off) = LLM ablation の対照:** `--reflux off` で critic への赤節を落とす別
   campaign (別 output dir、混ざらない)。on/off を別 campaign で走らせ比較 (段 6 の LLM ablation)。
+  **ただし digest 生成を off にするだけでは B-4 の off アームにならない** — 上記 (e) のとおり
+  legacy の critic spawn は道具を持つ。B-4 として報告する走行は閉じた起動形を要する。
 
 ---
 

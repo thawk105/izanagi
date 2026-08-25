@@ -18,8 +18,10 @@ SOURCE_FILE_SHA256 = {
     "auditor": "e33c65d446bedb5bc1d372f8bcdd1b59968a0a3093ff23f300cb0af0dddebc3e",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
-    "coder": "5aac447ae26f53d3d61dac47c353201d96039231f930a968a36a68951d8f5c34",
-    "coder-v4-autonomous": "4f1b5018a9d3f8077167adf9a8ebbc69ba83a0b8f9cfd9f18a7c6fbabe9fbf13",
+    # Reviewed 2026-08-26: T-1690 fix; backoff hole の suffix-free literal 1個・1文制約を汎用 coder に軸限定で追記。
+    "coder": "5573a39d611ac519b2a5025e73e0e5585a79292ebf20fafdb02985306031a7e0",
+    # Reviewed 2026-08-26: T-1690; suffix-free literal/value一致・1文の producer 契約を追加。
+    "coder-v4-autonomous": "4073ac4223eaca9c353685f116a4dfb53db5b3412011373b717c44e3b25ec10d",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
     "coder-v4-autonomous-sort": "fbabef04095f73b7fc517290afc66d4fb8779144184eaf7c078fc17d50d7ca9a",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
@@ -47,7 +49,8 @@ ROLE_MANIFEST_SHA256 = {
     "axis-proposer": "57d9bd635e99c5eab2e7fb852043446ffe6c0aff1a1fa48ed5b724c4ae041ad1",
     "calibrator": "775d8e9fa963b6f2d895ffcb7be14a7ce487ea82911fd797f4f6bb840d8e9186",
     "coder": "2af1a88e8f8cae73e251d067ba47ea4b1acd5457083111d3dc719914d199e136",
-    "coder-v4-autonomous": "1c1611da8e9d30146155c36dd0c90ad371ec4611076ac39f24f74a8f48322017",
+    # Reviewed 2026-08-26: T-1690; projection に suffix-free literal/value一致・1文制約を追加。
+    "coder-v4-autonomous": "5e277d54ad7314807cd2f8c46574c6223e8a87e2b251eb29bdb53e2d02bb8bdd",
     "coder-v4-autonomous-sort": "0516335248dd542372ba4a420835c2451ea816b2aadc78cacaa1c388bd2252fa",
     # Reviewed 2026-08-04: stage5-agent-review.md and stage6-fix-ruling.md r2-7.
     "coder-v4-autonomous-trigger-gating": "c307d820022585bf9f34ffb3f70b10734c8903b5eb0f450698739aa9413d3a8c",

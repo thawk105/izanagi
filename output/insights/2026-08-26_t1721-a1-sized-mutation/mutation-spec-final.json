@@ -1,0 +1,188 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 5400,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "id": "MUT-T1721-LEN-STATS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_positional_statistics_has_an_independent_exact_length_gate_F8"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if type(values) is not list or len(values) != expected_reps:\n",
+          "new": "        if type(values) is not list or len(values) < expected_reps:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-LEN-ARM",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_collector_requires_exact_workload_policy_reps_M4[balanced-206]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_collector_requires_exact_workload_policy_reps_M4[read-heavy-29]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_collector_requires_exact_workload_policy_reps_M4[write-heavy-73]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_validate_arm_has_an_independent_exact_length_gate_F8"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        and len(raw_tps) == expected_reps\n",
+          "new": "        and len(raw_tps) >= expected_reps\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-ABOVE-FLOOR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_classification_boundaries_are_exact_and_prioritized[-1.0]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_classification_boundaries_are_exact_and_prioritized[1.0]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if abs(mean) - half_width > boundary:\n",
+          "new": "    if abs(mean) > boundary:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-BELOW-FLOOR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_classification_boundaries_are_exact_and_prioritized[-1.0]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_classification_boundaries_are_exact_and_prioritized[1.0]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if abs(mean) + half_width <= boundary:\n",
+          "new": "    if abs(mean) <= boundary:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-VARIANCE-FLAG",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_variance_plan_breach_does_not_override_classification",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_variance_plan_breach_uses_strict_greater_than_boundary_F7"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "            sample_sd > float(workload[\"planned_sigma_tps\"])\n",
+          "new": "            False\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-PUBLISH-GATE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_materialization_rejects_bundle_before_all_workloads_are_terminal"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if result.get(\"all_workloads_terminal\") is not True:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-OVERREJECT-POSITIVE-CONTROL",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_clean_exact_two_arm_three_workload_positive_case",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_exact_registered_workload_reps_are_accepted_and_classified[balanced]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_exact_registered_workload_reps_are_accepted_and_classified[read-heavy]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_exact_registered_workload_reps_are_accepted_and_classified[write-heavy]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_invalid_workload_keeps_independent_terminal_results_M10",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_positional_statistics_has_an_independent_exact_length_gate_F8",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_positive_fixture_does_not_authorize_absent_settled_or_returncodes",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_production_statistics_derive_exact_B_h_interval_and_classification_F4[balanced-expected1]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_production_statistics_derive_exact_B_h_interval_and_classification_F4[read-heavy-expected2]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_production_statistics_derive_exact_B_h_interval_and_classification_F4[write-heavy-expected0]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_production_wal_bytes_positive_fixture",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_raw_wal_rederivation_rejects_self_consistent_stored_reclassification",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_raw_wal_rederivation_rejects_stored_raw_tps_statistics_and_terminal_F2",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_statistics_keep_static_minus_adaptive_positional_sign_M8",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_statistics_use_workload_n_minus_one_and_emit_exact_variance_M9[balanced]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_statistics_use_workload_n_minus_one_and_emit_exact_variance_M9[read-heavy]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_statistics_use_workload_n_minus_one_and_emit_exact_variance_M9[write-heavy]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_trace0_accepts_actual_pegasus_no_perf_nine_token_run_argv_positive",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_trace0_accepts_exact_perf_run_when_observation_requires_perf",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_validate_raw_documents_accepts_matching_complete_positive",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_validate_raw_documents_rejects_claimed_incomplete_with_all_valid_workloads_M25",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_variance_plan_breach_does_not_override_classification",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_variance_plan_breach_uses_strict_greater_than_boundary_F7"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if type(values) is not list or len(values) != expected_reps:\n",
+          "new": "        if type(values) is not list or len(values) != expected_reps + 1:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-POLICY-FROZEN-DESIGN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_policy_semantics_reject_incoherent_workload_design[k-mismatch]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_policy_semantics_reject_incoherent_workload_design[reps-k-mismatch]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if any(workload.get(key) != value for key, value in expected.items()):\n",
+          "new": "        if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1721-POLICY-DF-AND-FROZEN-DESIGN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_policy_semantics_reject_incoherent_workload_design[df-mismatch]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_policy_semantics_reject_incoherent_workload_design[k-mismatch]",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_policy_semantics_reject_incoherent_workload_design[reps-k-mismatch]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if type(df) is not int or df != reps - 1:\n",
+          "new": "        if False:\n"
+        },
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "        if any(workload.get(key) != value for key, value in expected.items()):\n",
+          "new": "        if False:\n"
+        }
+      ]
+    }
+  ]
+}

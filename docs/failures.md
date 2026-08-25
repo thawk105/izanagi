@@ -1406,6 +1406,13 @@
   `| tail` を外して前景で張り直すと `rc=70 producer-timeout` が正しく返った。
   検査 rc だけでなく**待ち手の rc も同じ穴を持つ**。各段で `.done` と
   `check_codex_output.py` を個別に検証していたため偽緑の記録には至っていない (near miss)。
+
+- **再発: 2026-08-26** — `check_ai_provenance.py 2>&1 | tail -2` の形で走らせ、`tail` の rc=0 を
+  緑と読んだ。実際は commit の `AI-Agent` trailer 3 行が形式違反
+  (`model=claude-opus-5[1m]` の角括弧、`scope` に `,` と `/`) で赤だった。既存の恒久対応
+  (検査の rc をパイプに通さず単独で取る) をそのまま守れていなかった。未共有 commit 2 本を
+  作り直して回復した。trailer を書く前に `docs/ai-provenance.md` の許可文字集合
+  (`[a-z0-9][a-z0-9._-]*`) と role の許可値を読む、を運用側の追加規律とする。
 ### F38. 記録後検査の値を埋める amend で、worklog 内の記録 commit hash が dangling になった [ドリフト] [手順漏れ]
 
 - 事象: `DW-S07` の F34 恒久対応 (記録 commit の後に再走) と F36 恒久対応 (実測前に欄を作らない) を
@@ -2625,6 +2632,20 @@
   子が 2 秒以内に pid file を書けなかった。同 node を計算ノードで単独走すると
   1 passed / 7.24 秒 / rc=0。負荷は load average 4.13 (5 分平均 6.31)、
   `run_tests.py` 16 本・codex 34 本が同時稼働。非帰属。
+
+- **再発: 2026-08-26** — 受入全走 attempt 2 (16657 passed / 1 failed / 60 skipped) で
+  `test_sigterm_ignoring_child_is_killed` が 1 件落ちた。assertion 本文は
+  `child.pid was not registered before deadline; stderr=''` で、launcher の子が
+  **2 秒の deadline 内に child.pid を登録しなかった**という時間依存の主張である。
+  同一 tree の単独走は 202 passed / 8.27 秒で再現しない。当該 wave の差分 20 file に
+  `tools/` は 1 つも含まれないため帰属しない。**落ちる node がまた移動した** (attempt 1 は
+  `test_s8b_floor_campaign.py` の `output/` snapshot 系 11 件 +
+  `test_s8b_oracle_driver.py` 1 件で、attempt 2 では全て緑)。
+  `orchestrator/tests/flaky_test_holds.py` への登録は、検証器が
+  「evidence F の本文が test 関数名と failure_signature を逐語で含むこと」を要求するため、
+  本再発が canonical へ fold されるまで**構造的に不可能**である。この 2 段依存
+  (hold は既 land の証拠を要求し、証拠の land は受入 green を要求する) 自体が
+  非帰属 flake で塞がれた wave を land 不能にする経路であり、裁定パッケージへ送る。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -14804,6 +14825,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 波及: orphan hold は request の終端 (`child_rc=0`、scheduler 上で消滅) と
   木の clean / HEAD を確認する recovery 手順を踏む。本件では harness 自身が撤去していた。
 
+
+- **再発: 2026-08-26** — 変異 probe の走行中に、記録 fragment の base digest を現行 main の実体で
+  採るため親が `merge main` を commit した。harness は `run 中に HEAD が変化:
+  expected=70aa7830..., actual=af12562f...` で fail-closed 停止し、6 変異 + baseline が失われた。
+  F558 の恒久対応 (HEAD を動かす操作も禁止) が既にあるにもかかわらず、親が「台帳 digest の取得」を
+  別系統の作業と見なして同時に進めた。**main 取り込みは変異の前に済ませる** — そうすれば
+  base digest も同時に確定するため、順序としても自然である。今回は orphan hold も一時的に張られたが
+  harness 自身が撤去していた。
 ### F559. 防壁の代替として必須化した検査を、本番監査経路へ配線せず test からしか呼んでいなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 逐語 mirror を畳む条件として append-only 履歴検査を必須と裁定し、実装子は
@@ -15827,3 +15856,101 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 未実施。`[T-1775]` として裁定パッケージへ送った。
   実測で有効な運用は、固定 commit の独立 clone を作って `--source-repo` に渡すことである。
 - 再発検知: 同 T が要求する `DW-M05` への 1 行追記。それまでは本エントリを検索する。
+
+### F611. workspace-write の子が編集中の worktree でテストを走らせ、引き裂かれた木を測った [計測汚染]
+
+- 事象: 段 6 の fix 子 (`sandbox=workspace-write`) が稼働している最中に、親が同じ worktree で
+  焦点走を投入した。**148 failed** で戻ったが、直前の同じ file 集合の走行は
+  1,083 passed / rc=0 だった。赤は実装の回帰ではなく、編集途中の木を測ったことによる無効な計測である。
+- 根本原因: 「計測が走っている worktree は読むだけにする」という既存規律を、変異 harness と
+  受入全走にだけ適用していた。実装子・fix 子も同じ worktree の実装 file を書き換え続けるが、
+  その向き (子が編集中に親が測る) を禁止として書いた箇所が無かった。
+- 恒久対応: `docs/dev-wave/mutation.md` の `DW-M05` が「変異中は親の編集と worktree へ書きうる子の
+  起動を止める」を規定しており、本件はその逆向き (子の稼働中に親が測る) にあたる。
+  memory `no-acceptance-run-during-mutation` の本文へ workspace-write の codex 子を明示的に加えた。
+- 再発検知: 焦点走・受入の投入直前に、対象 worktree path で一意化した `pgrep -f` を
+  codex 子の launcher へ打ち、`.done` の存在を確認する。赤が出たときは、直前の同じ集合の
+  緑と件数が桁違いに離れていないかを先に見る。
+
+### F612. 変異 harness の baseline が queue 待ちの既定上限に当たり、緑判定不能で止まった [計測汚染]
+
+- 事象: 変異 probe の baseline 走行が `rc=16` / `artifact_error: receipt scheduler_logs.stdout.path がない`
+  で終わり、harness が `status=PARSE_ERROR` として「baseline が緑でない」と判定して停止した。
+  実測の所要は 903 秒で、dispatch の queue 待ち既定 900 秒とほぼ一致する。混雑した時間帯の
+  infra 失敗であって、変異判定でも実装の赤でもない。
+- 根本原因: `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` の既定 900 秒を、混雑時に広げないまま
+  投入した。同じ日の別 wave が計算ノードを多数使っていた。
+- 恒久対応: `docs/pegasus-runbook.md` の投入前チェックリストが、変異 harness の `rc=16` を
+  infra 失敗と分類し、`timeout_seconds` と同 env の拡大を指示している。本 wave はこれに従い
+  5,400 秒へ広げて走り直した。
+- 再発検知: 変異 attempt 記録の `rc` と `artifact_error` を見る。`rc=16` は変異結果に数えない。
+  所要が queue 待ち上限に張り付いていれば混雑が原因である。
+- 併記: **`--resume` は `rc=16` で終わった baseline を再実行しない。** 記録済みの attempt を
+  そのまま読み直して同じ判定で止まる。走り直すには `--out` と `--attempt-out` と
+  `--scratch-root` を新しい path にした新規走行が要る。
+
+### F613. codex 実装子は `.codex/` 配下を構造的に書けず、子は原因を誤って申告した [権限逸脱] [手順漏れ]
+
+- 事象: 段 5 の実装子へ role adapter 2 件の再描画を割り当てたところ、`apply_patch` と通常書込みの
+  双方が拒否された。子は完了報告で「`.codex/role-adapters/` が Lustre の `ro` mount」と申告したが、
+  親が同じ directory へ `touch` して**書き込み可能**であることを実測した。子の stderr の実体は
+  `patch rejected: writing outside of the project; rejected by user approval settings` で、
+  codex sandbox が `.codex/` を「プロジェクト外」として扱っていた。
+- 根本原因: 凍結境界は「機械設定は実装子が書く」とするが、`.codex/` は codex 自身の設定 directory 名と
+  衝突し、sandbox の書込み許可範囲から構造的に外れる。割り当ての前提が実行環境で成立していなかった。
+- 誘発要因: 子は拒否の文言を読まずに mount の性質へ帰属した。親も「子が書けない」を額面どおり
+  受け取ると、書ける親が書かない理由を誤って引き継ぐ。
+- 恒久対応: role adapter の再描画は親が repository 自身の renderer 出力を byte-exact に書き戻す
+  **生成操作**として行い、逸脱として記録する。子の prompt には「`.codex/` を触らない。親が描画する」と
+  明記する。子の環境申告は根拠にせず、親が実際に書けるかを測る。
+- 再発検知: adapter を子へ割り当てた wave で `tools/check_codex_agents.py` が
+  `rendered adapter byte parity drift` を返すこと。
+
+### F614. test double の大域差し替えが、無関係な production の subprocess 呼び出しを横取りした [テスト代表性] [計測汚染]
+
+- 事象: 新設 test が `unittest.mock.patch.object(C.subprocess, "run", fake_runner)` で
+  **process 全体の `subprocess.run`** を差し替えた。`C.subprocess` は共有モジュール本体であり、
+  patch は test の対象範囲を越える。結果、campaign 受理検査が内部で呼ぶ
+  `orchestrator/campaign/contract_loader_binding.py` の `git rev-parse --show-toplevel` まで
+  fake CLI の envelope JSON を返し、`contract-loader-root-error: Git top-level 出力が一意でない`
+  で 8 件が赤になった。
+- 根本原因: certified 判定を「`runner is subprocess.run` の同一性」で行う設計にしたため、
+  certified 経路を試すには大域の `subprocess.run` を差し替えるしかない、と実装子が判断した。
+  **狭い seam を用意しないまま同一性検査を課したこと**が原因である。
+- **診断が難しい形をしている:** 赤の文言 (`Git top-level 出力が一意でない`) は git 側の
+  環境異常に見え、login node では同じ関数が正常に解決する。**計算ノード固有の外乱に
+  見えるが、実際は自分の test double が原因である。** 特定は `pytest --showlocals` で
+  `raw_toplevel` の実値を採り、それが fake envelope JSON であることを直接見て確定した。
+- 恒久対応: D945 — certified 経路から注入口を
+  全廃し、注入は test-only 入口へ分離した。共有モジュール (`subprocess` / `shutil`) の
+  属性差し替えを test から 0 箇所にした。
+- 再発検知: 同 wave 内で **2 度発生した** (最初の実装と、その後の検出力補強)。
+  2 度目は親が焦点走を実走して 1 件の赤で捕捉し、当該 test を取り下げた。
+  検査は「変更した test file の焦点走を計算ノードで必ず実走する」ことに依存しており、
+  静的レビュー 3 本はいずれも 1 度目を検出しなかった。
+
+### F615. 同じ worktree へ `git status` を並行させると、全 tracked file が編集中に見えた [計測汚染]
+
+- 事象: 段 1 の編集面重複の実測で、全 worktree を走査する処理を 2 本同時に走らせた
+  (1 本目は親が時間切れで打ち切り、2 本目を背景で起動した)。結果、`worktree-dangling-audit-speed` と
+  `worktree-dev-wave-t1219-carry-same-id` の 2 本が「`.claude/agents/*.md` を含む tracked tree 全体を
+  編集中」と報告した。直後に 1 本ずつ測り直すと**両方とも 0 行 (clean)** で、branch tip も
+  `main` と同一だった。
+- 根本原因: `git status` は index を refresh して書き戻す。同じ worktree に対して 2 プロセスが
+  同時に走ると、一方が書き換え中の index をもう一方が読み、全 tracked file が stat 不一致
+  = 編集中として描画されうる。読み取り専用の観測に見えるが、実際には index を書く操作である。
+- **誤った結論の一歩手前だった:** この出力を信じていれば「`.claude/agents/*.md` は 2 つの wave が
+  所有中」と判定し、本 wave の中心方針 (role file を 1 byte も変えない) を**誤った理由で**
+  採ることになっていた。方針自体は別の根拠 (pin 閉包) で正しかったため実害は出ていない。
+- 恒久対応: 編集面重複の実測は**同じ worktree へ同時に 2 つ以上の `git status` を当てない**。
+  打ち切った走査を再投入するときは、先行プロセスの終了を確認してから起動する
+  (`pgrep -af` で worktree path を含む生存 process を照合する)。
+  dirty と出た worktree は、**採用する前に単独で測り直す**。
+- 再発検知: 全 tree が dirty に見えたら、それ自体を異常の signature として扱い、単独再測を必須にする。
+  branch tip が `main` と同一なのに tracked tree 全体が編集中という組合せは、実体としてはまず
+  起こらない (その wave はまだ何も commit していないのに全 file を触っていることになる)。
+
+- 併記 (同 wave の near miss、別型・台帳項目を起こさない): 親が段 3 の子 prompt へ
+  「負の対照 3 本の docstring が scope 外と書いている」と**現物を数えずに**書き、実際は 2 本だった。
+  敵対レンズが実測で訂正したため下流へ伝播していない。既存の敵対相談段が想定どおり機能した
+  事例であり、契約側の欠落ではないと判定して手順の変更は行わない。
