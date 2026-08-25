@@ -1,0 +1,168 @@
+{
+  "arm_order": [
+    "adaptive",
+    "static10"
+  ],
+  "arms": [
+    {
+      "flags": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0
+      },
+      "name": "adaptive",
+      "protocol": "silo"
+    },
+    {
+      "flags": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "WAL": 0
+      },
+      "name": "static10",
+      "protocol": "silo"
+    }
+  ],
+  "authority": {
+    "d510_role": "analogy-only",
+    "formal": false,
+    "promotion_prohibited": true,
+    "result_authority": "exploratory",
+    "statistics_authority": "T-1721 stage-4 sized preregistration"
+  },
+  "execution": {
+    "automatic_retry": false,
+    "bench_max_rounds": 3,
+    "campaign_shape": "one fresh exact-two-arm campaign per workload",
+    "durable_measurement_base": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-paired-20260826-sized/measurement",
+    "materialization": "terminal raw bundle to exclusive-create destination",
+    "materialization_relative_path": "output/insights/2026-08-26_paper-story-a1-sized",
+    "mode": "exploration",
+    "site": "pegasus-compute-only"
+  },
+  "invalid_rules": [
+    "campaign variant set is not exactly the two registered arms",
+    "an arm has anything other than exactly one build attempt",
+    "attempt stages are not exactly build_start, build_done, registered verify_done sequence, bench_done, commit",
+    "final terminal is not commit",
+    "a verify_done is not certified true or its workload tag differs",
+    "bench tps count differs from the registered workload reps or contains a bool, non-finite, or non-positive value",
+    "bench rep_notes is not exactly an empty list",
+    "bench rounds is not exactly integer one",
+    "bench unstable is not exactly false",
+    "bench and commit numeric or verify projections differ",
+    "trace0 source-routed evidence is incomplete or inconsistent"
+  ],
+  "pairing": {
+    "design": "arm-grouped-positional-v1",
+    "execution_order": "all adaptive reps, then all static10 reps",
+    "pair_indices_rule": "each workload pair_indices is [start_inclusive, stop_exclusive)",
+    "time_block_shared": false
+  },
+  "preregistration": {
+    "path": "output/insights/2026-08-26_paper-story-a1-sized-preregistration/README.md",
+    "sha256": "c85279e997c7483060f3282836aa4800f473b95fe5f0fc1807431f06a0817fea"
+  },
+  "rerun": {
+    "allowed_reasons": [
+      "build-failure-before-bench",
+      "verify-failure-before-bench",
+      "competing-tenant-detected-before-bench",
+      "scheduler-or-infrastructure-failure-before-bench"
+    ],
+    "closed_enumeration": true,
+    "performance_output_may_not_authorize_rerun": true
+  },
+  "scale": {
+    "expected_verify_configs": [
+      "legacy"
+    ],
+    "extime_s": 3,
+    "records": 1000000,
+    "threads": 48,
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "0",
+    "ycsb_zipf_skew": "0.9"
+  },
+  "schema_version": "paper-story-a1-paired-policy/v2",
+  "statistics": {
+    "classification_rules": [
+      {
+        "classification": "resolved-above-floor",
+        "predicate": "abs(mean) - h > B",
+        "priority": 1
+      },
+      {
+        "classification": "bounded-below-floor",
+        "predicate": "abs(mean) + h <= B",
+        "priority": 2
+      },
+      {
+        "classification": "unresolved",
+        "predicate": "otherwise",
+        "priority": 3
+      }
+    ],
+    "contrast": "static10-minus-adaptive",
+    "descriptive_interval": {
+      "half_width": "h = k * sample_sd / sqrt(n)",
+      "runtime_quantile_computation": false
+    },
+    "floor": {
+      "boundary": "B = floor_fraction * current_run_adaptive_mean_tps",
+      "floor_fraction": 0.03,
+      "past_run_absolute_tps_prohibited": true
+    },
+    "inference": "preregistered-descriptive-only",
+    "mean": "arithmetic mean of workload-reps signed positional differences",
+    "sample_sd": "sqrt(sum((d-mean)^2)/(n-1))",
+    "sample_variance": "sum((d-mean)^2)/(n-1)",
+    "variance_plan_breach": {
+      "overrides_classification": false,
+      "predicate": "sample_sd > workload.planned_sigma_tps"
+    }
+  },
+  "study_id": "paper-story-a1-20260826-sized-v1",
+  "workloads": [
+    {
+      "df": 71,
+      "k": 1.993943,
+      "name": "write-heavy",
+      "pair_indices": {
+        "start_inclusive": 0,
+        "stop_exclusive": 72
+      },
+      "planned_sigma_tps": 103551.0849,
+      "reps": 72,
+      "ycsb_rratio": "5"
+    },
+    {
+      "df": 204,
+      "k": 1.971661,
+      "name": "balanced",
+      "pair_indices": {
+        "start_inclusive": 0,
+        "stop_exclusive": 205
+      },
+      "planned_sigma_tps": 156906.1857,
+      "reps": 205,
+      "ycsb_rratio": "50"
+    },
+    {
+      "df": 27,
+      "k": 2.051831,
+      "name": "read-heavy",
+      "pair_indices": {
+        "start_inclusive": 0,
+        "stop_exclusive": 28
+      },
+      "planned_sigma_tps": 60384.6868,
+      "reps": 28,
+      "ycsb_rratio": "95"
+    }
+  ]
+}

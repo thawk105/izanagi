@@ -61,11 +61,11 @@ from .reservation import (  # noqa: E402
 )
 
 
-POLICY_PATH = Path(__file__).with_name("paper_story_a1_paired.v1.json")
+POLICY_PATH = Path(__file__).with_name("paper_story_a1_paired.v2.json")
 DECLARED_USE_CLASS = "exploration"
-STUDY_ID = "paper-story-a1-20260824-exploratory-v1"
-RESULT_SCHEMA = "paper-story-a1-paired-result/v2"
-RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v2"
+STUDY_ID = "paper-story-a1-20260826-sized-v1"
+RESULT_SCHEMA = "paper-story-a1-paired-result/v3"
+RECEIPT_SCHEMA = "paper-story-a1-paired-receipt/v3"
 JOB_TERMINAL_SCHEMA = "paper-story-a1-paired-job-terminal/v3"
 SUBMISSION_SCHEMA = "paper-story-a1-paired-submission/v1"
 ACQUISITION_SCHEMA = SUBMISSION_SCHEMA
@@ -76,8 +76,11 @@ WORKLOAD_ORDER = ("write-heavy", "balanced", "read-heavy")
 EXPECTED_VERIFY_CONFIGS = ("legacy",)
 PIPELINE_RELATIVE_PATH = "orchestrator/campaign/pipeline.py"
 DRIVER_RELATIVE_PATH = "orchestrator/campaign/paper_story_a1_paired.py"
-POLICY_RELATIVE_PATH = "orchestrator/campaign/paper_story_a1_paired.v1.json"
+POLICY_RELATIVE_PATH = "orchestrator/campaign/paper_story_a1_paired.v2.json"
 JOB_RELATIVE_PATH = "tools/pegasus/paper_story_a1_paired.sh"
+PREREGISTRATION_RELATIVE_PATH = (
+    "output/insights/2026-08-26_paper-story-a1-sized-preregistration/README.md"
+)
 SOURCE_RELATIVE_PATHS = (
     DRIVER_RELATIVE_PATH,
     POLICY_RELATIVE_PATH,
@@ -85,10 +88,70 @@ SOURCE_RELATIVE_PATHS = (
     JOB_RELATIVE_PATH,
 )
 MATERIALIZATION_RELATIVE_PATH = Path(
-    "output/insights/2026-08-24_paper-story-a1-paired"
+    "output/insights/2026-08-26_paper-story-a1-sized"
 )
 COMPLETION_MARKER = ".complete.json"
-POLICY_SHA256 = "0112d4b351096aeca3bbc036735ba244045f512d9f2fb9566ed6b5bbb2648d44"
+POLICY_SHA256 = "83b9c1a1ca4cce1e6394ce3338b491b14663427259eb3e129560fe5b50b99b5b"
+PREREGISTRATION_SHA256 = (
+    "c85279e997c7483060f3282836aa4800f473b95fe5f0fc1807431f06a0817fea"
+)
+WORKLOAD_DESIGNS = {
+    "write-heavy": {
+        "reps": 72,
+        "df": 71,
+        "k": 1.993943,
+        "planned_sigma_tps": 103551.0849,
+    },
+    "balanced": {
+        "reps": 205,
+        "df": 204,
+        "k": 1.971661,
+        "planned_sigma_tps": 156906.1857,
+    },
+    "read-heavy": {
+        "reps": 28,
+        "df": 27,
+        "k": 2.051831,
+        "planned_sigma_tps": 60384.6868,
+    },
+}
+CLASSIFICATION_RULES = [
+    {
+        "priority": 1,
+        "predicate": "abs(mean) - h > B",
+        "classification": "resolved-above-floor",
+    },
+    {
+        "priority": 2,
+        "predicate": "abs(mean) + h <= B",
+        "classification": "bounded-below-floor",
+    },
+    {
+        "priority": 3,
+        "predicate": "otherwise",
+        "classification": "unresolved",
+    },
+]
+RERUN_REASONS = [
+    "build-failure-before-bench",
+    "verify-failure-before-bench",
+    "competing-tenant-detected-before-bench",
+    "scheduler-or-infrastructure-failure-before-bench",
+]
+PREREGISTERED_LIMITATIONS = (
+    "- **arm を別々の時間帯で測る交絡は反復数では消えない。** 1 arm の block は 205 rep で約 615 秒に\n"
+    "  なり、pilot の 15 秒から 40 倍以上に伸びる。同じ番号の「対」の時間隔もそれだけ開く (luna-8)。\n"
+    "- 位置対応差の SD が表すのは**この 1 走で便宜的に同番号を引いた差の散らばり**であって、\n"
+    "  母平均の不確かさではない (sol-12)。\n"
+    "- したがって出す区間は**事前登録した記述的な区間**であり、公式の信頼区間ではない。因果・母集団・\n"
+    "  再現性・公式有意差は主張しない (sol-14)。\n"
+    "- 計画 sigma は 5 点から作った上側限界であり、正規性・定常性・150 点との同分布性は検査できない。\n"
+    "  3 workload を同時に 95% とも扱えない (Bonferroni では 85%) (sol-4)。\n"
+    "- 観測窓が 40 倍になるため、CV が 5% を越えて `rounds != 1` になる確率は pilot から予測できない\n"
+    "  (sol-18)。\n"
+    "- `rep_notes` 非空は n に対して急速に壊れる。1 rep あたり 0.1% でも balanced 1 workload で\n"
+    "  約 33.5%。これは感度分析であって p の推定ではない (sol-15, sol-17)。\n"
+)
 CONTROLLED_CCBENCH_DEFINES = frozenset({
     "BACK_OFF",
     "BACKOFF_FIXED",
@@ -151,7 +214,7 @@ PBS_EVIDENCE_SCOPE = {
     ),
 }
 MATERIALIZATION_EVIDENCE_SCHEMA = (
-    "paper-story-a1-paired-materialization-evidence/v1"
+    "paper-story-a1-paired-materialization-evidence/v2"
 )
 MATERIALIZATION_PUBLISH_SCHEMA = (
     "paper-story-a1-paired-materialization-publish/v1"
@@ -448,9 +511,140 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def validate_policy(policy: object) -> dict:
+def _workload_plan(
+    policy: Mapping[str, object], workload_name: str,
+) -> Mapping[str, object]:
+    workloads = policy.get("workloads")
+    if type(workloads) is not list:
+        raise PaperStoryError("policy workloads must be a list")
+    matches = [
+        item for item in workloads
+        if type(item) is dict and item.get("name") == workload_name
+    ]
+    if len(matches) != 1:
+        raise PaperStoryError(
+            f"policy must contain exactly one workload plan: {workload_name}"
+        )
+    return matches[0]
+
+
+def _expected_reps(policy: Mapping[str, object], workload_name: str) -> int:
+    reps = _workload_plan(policy, workload_name).get("reps")
+    if type(reps) is not int or reps < 2:
+        raise PaperStoryError(f"workload reps is invalid: {workload_name}")
+    return reps
+
+
+def _pair_indices(policy: Mapping[str, object], workload_name: str) -> range:
+    workload = _workload_plan(policy, workload_name)
+    rule = workload.get("pair_indices")
+    if type(rule) is not dict or set(rule) != {
+        "start_inclusive", "stop_exclusive",
+    }:
+        raise PaperStoryError(f"pair index rule is invalid: {workload_name}")
+    start = rule.get("start_inclusive")
+    stop = rule.get("stop_exclusive")
+    reps = _expected_reps(policy, workload_name)
+    if type(start) is not int or start != 0 or type(stop) is not int or stop != reps:
+        raise PaperStoryError(f"pair index rule differs from reps: {workload_name}")
+    return range(start, stop)
+
+
+def _campaign_scale(
+    policy: Mapping[str, object], workload_name: str,
+) -> dict[str, object]:
+    scale = policy.get("scale")
+    if type(scale) is not dict:
+        raise PaperStoryError("policy scale must be an object")
+    return {**scale, "reps": _expected_reps(policy, workload_name)}
+
+
+def _validate_policy_semantics(policy: object) -> dict:
     if type(policy) is not dict:
         raise PaperStoryError("policy must be an exact JSON object")
+    if policy.get("schema_version") != "paper-story-a1-paired-policy/v2":
+        raise PaperStoryError("policy schema version differs")
+    if policy.get("study_id") != STUDY_ID:
+        raise PaperStoryError("policy study ID differs")
+    if policy.get("arm_order") != list(ARM_ORDER):
+        raise PaperStoryError("policy arm order differs")
+    workloads = policy.get("workloads")
+    if (
+        type(workloads) is not list
+        or [item.get("name") for item in workloads if type(item) is dict]
+        != list(WORKLOAD_ORDER)
+    ):
+        raise PaperStoryError("policy workload order or existence differs")
+    for workload_name, expected in WORKLOAD_DESIGNS.items():
+        workload = _workload_plan(policy, workload_name)
+        reps = workload.get("reps")
+        df = workload.get("df")
+        k = workload.get("k")
+        sigma = workload.get("planned_sigma_tps")
+        if type(reps) is not int or reps < 2:
+            raise PaperStoryError(f"workload reps is invalid: {workload_name}")
+        if type(df) is not int or df != reps - 1:
+            raise PaperStoryError(f"workload df differs from reps: {workload_name}")
+        if (
+            not _finite_number(k)
+            or not _finite_number(sigma)
+            or float(k) <= 0
+            or float(sigma) <= 0
+        ):
+            raise PaperStoryError(f"workload statistical plan is invalid: {workload_name}")
+        if any(workload.get(key) != value for key, value in expected.items()):
+            raise PaperStoryError(
+                f"workload reps, k, or sigma differs from frozen design: {workload_name}"
+            )
+        _pair_indices(policy, workload_name)
+    statistics_policy = policy.get("statistics")
+    if type(statistics_policy) is not dict:
+        raise PaperStoryError("policy statistics must be an object")
+    floor = statistics_policy.get("floor")
+    if (
+        type(floor) is not dict
+        or floor.get("floor_fraction") != 0.030
+        or floor.get("boundary")
+        != "B = floor_fraction * current_run_adaptive_mean_tps"
+        or floor.get("past_run_absolute_tps_prohibited") is not True
+    ):
+        raise PaperStoryError("policy adaptive-relative floor differs")
+    if statistics_policy.get("classification_rules") != CLASSIFICATION_RULES:
+        raise PaperStoryError("policy classification priority differs")
+    variance = statistics_policy.get("variance_plan_breach")
+    if (
+        type(variance) is not dict
+        or variance.get("predicate")
+        != "sample_sd > workload.planned_sigma_tps"
+        or variance.get("overrides_classification") is not False
+    ):
+        raise PaperStoryError("policy variance-plan breach rule differs")
+    rerun = policy.get("rerun")
+    if (
+        type(rerun) is not dict
+        or rerun.get("closed_enumeration") is not True
+        or rerun.get("allowed_reasons") != RERUN_REASONS
+    ):
+        raise PaperStoryError("policy rerun reason enumeration differs")
+    execution = policy.get("execution")
+    if (
+        type(execution) is not dict
+        or execution.get("bench_max_rounds") != 3
+        or execution.get("materialization_relative_path")
+        != MATERIALIZATION_RELATIVE_PATH.as_posix()
+    ):
+        raise PaperStoryError("policy materialization destination differs")
+    preregistration = policy.get("preregistration")
+    if preregistration != {
+        "path": PREREGISTRATION_RELATIVE_PATH,
+        "sha256": PREREGISTRATION_SHA256,
+    }:
+        raise PaperStoryError("policy preregistration binding differs")
+    return policy
+
+
+def validate_policy(policy: object) -> dict:
+    policy = _validate_policy_semantics(policy)
     canonical = _read_json(POLICY_PATH)
     if set(policy) != set(canonical):
         raise PaperStoryError("policy top-level key set differs")
@@ -459,6 +653,9 @@ def validate_policy(policy: object) -> dict:
             raise PaperStoryError(f"policy field differs: {key}")
     if _sha256_file(POLICY_PATH) != POLICY_SHA256:
         raise PaperStoryError("tracked policy bytes differ from the preregistered hash")
+    preregistration = _repo_root() / PREREGISTRATION_RELATIVE_PATH
+    if _sha256_file(preregistration) != PREREGISTRATION_SHA256:
+        raise PaperStoryError("human-readable preregistration bytes differ")
     return policy
 
 
@@ -510,7 +707,7 @@ def campaign_config(
             for arm in policy["arms"]
         ],
         "workload": {"name": workload_name, **flags},
-        "scale": dict(policy["scale"]),
+        "scale": _campaign_scale(policy, workload_name),
         "pairing_design": policy["pairing"]["design"],
         "formal": False,
         "promotion_prohibited": True,
@@ -1102,22 +1299,54 @@ def _source_binding(repo_root: Path, expected_head: str) -> dict:
     return binding
 
 
-def _has_exact_five_points(values: Sequence[object]) -> bool:
-    return len(values) == 5
+def _classify_difference(mean: float, half_width: float, boundary: float) -> str:
+    if not all(_finite_number(value) for value in (mean, half_width, boundary)):
+        raise PaperStoryError("classification input is not finite")
+    if half_width < 0 or boundary < 0:
+        raise PaperStoryError("classification width or boundary is negative")
+    if abs(mean) - half_width > boundary:
+        return "resolved-above-floor"
+    if abs(mean) + half_width <= boundary:
+        return "bounded-below-floor"
+    return "unresolved"
 
 
-def positional_statistics(adaptive: Sequence[object], static10: Sequence[object]) -> dict:
+def positional_statistics(
+    policy: Mapping[str, object],
+    workload_name: str,
+    adaptive: Sequence[object],
+    static10: Sequence[object],
+) -> dict:
+    expected_reps = _expected_reps(policy, workload_name)
     for label, values in (("adaptive", adaptive), ("static10", static10)):
-        if not _has_exact_five_points(values):
-            raise PaperStoryError(f"{label} must contain exactly five points")
+        if type(values) is not list or len(values) != expected_reps:
+            raise PaperStoryError(f"{label} length differs from workload policy reps")
         if any(not _finite_number(value) or value <= 0 for value in values):
             raise PaperStoryError(f"{label} contains a non-positive finite-number violation")
-    differences = [float(static10[i]) - float(adaptive[i]) for i in range(5)]
+    pair_indices = _pair_indices(policy, workload_name)
+    differences = [
+        float(static10[index]) - float(adaptive[index])
+        for index in pair_indices
+    ]
     mean = statistics.fmean(differences)
-    variance = sum((value - mean) ** 2 for value in differences) / 4
+    variance = (
+        sum((value - mean) ** 2 for value in differences)
+        / (expected_reps - 1)
+    )
+    sample_sd = math.sqrt(variance)
+    adaptive_mean = statistics.fmean(float(value) for value in adaptive)
+    workload = _workload_plan(policy, workload_name)
+    floor_fraction = policy["statistics"]["floor"]["floor_fraction"]
+    boundary = float(floor_fraction) * adaptive_mean
+    k = float(workload["k"])
+    half_width = k * sample_sd / math.sqrt(expected_reps)
+    classification = _classify_difference(mean, half_width, boundary)
     return {
         "pairing_design": PAIRING_DESIGN,
         "contrast": "static10-minus-adaptive",
+        "n": expected_reps,
+        "df": expected_reps - 1,
+        "k": k,
         "pairs": [
             {
                 "pair_index": index,
@@ -1125,12 +1354,21 @@ def positional_statistics(adaptive: Sequence[object], static10: Sequence[object]
                 "static10_tps": float(static10[index]),
                 "signed_difference_tps": differences[index],
             }
-            for index in range(5)
+            for index in pair_indices
         ],
         "mean_signed_positional_difference_tps": mean,
-        "sample_sd_positional_difference_tps": math.sqrt(variance),
+        "sample_sd_positional_difference_tps": sample_sd,
         "sample_variance_positional_difference_tps2": variance,
-        "observed_mean_negative": mean < 0,
+        "adaptive_mean_tps": adaptive_mean,
+        "floor_fraction": float(floor_fraction),
+        "floor_boundary_tps": boundary,
+        "descriptive_half_width_tps": half_width,
+        "descriptive_interval_tps": [mean - half_width, mean + half_width],
+        "classification": classification,
+        "planned_sigma_tps": float(workload["planned_sigma_tps"]),
+        "variance_plan_breach": (
+            sample_sd > float(workload["planned_sigma_tps"])
+        ),
     }
 
 
@@ -1544,13 +1782,14 @@ def _validate_arm(
         errors.append("commit-verify-projection-mismatch")
 
     raw_tps = bench.get("tps")
+    expected_reps = _expected_reps(policy, workload_name)
     tps_valid = (
         type(raw_tps) is list
-        and _has_exact_five_points(raw_tps)
+        and len(raw_tps) == expected_reps
         and all(_finite_number(value) and value > 0 for value in raw_tps)
     )
     if not tps_valid:
-        errors.append("tps-not-exact-five-positive-finite-nonbool")
+        errors.append("tps-length-or-value-disagrees-with-workload-policy")
     if bench.get("rep_notes") != []:
         errors.append("rep-notes-not-empty")
     rounds = bench.get("rounds")
@@ -1612,6 +1851,8 @@ def _validate_arm(
         "valid": not errors,
         "errors": sorted(set(errors)),
         "raw_tps": _json_safe(raw_tps),
+        "expected_reps": expected_reps,
+        "observed_reps": len(raw_tps) if type(raw_tps) is list else None,
         "actual_rounds": _json_safe(rounds),
         "unstable": _json_safe(bench.get("unstable")),
         "rep_notes": _json_safe(bench.get("rep_notes")),
@@ -1689,17 +1930,30 @@ def validate_workload_evidence(
     if valid:
         try:
             stats = positional_statistics(
+                policy,
+                workload_name,
                 arm_results["adaptive"]["raw_tps"],
                 arm_results["static10"]["raw_tps"],
             )
         except PaperStoryError as exc:
             errors.append(f"statistics-invalid:{exc}")
             valid = False
+    terminal_result = (
+        {
+            "status": "valid",
+            "classification": stats["classification"],
+        }
+        if valid else {
+            "status": "invalid",
+            "reasons": sorted(set(errors)),
+        }
+    )
     return {
         "workload": workload_name,
         "campaign_id": campaign_id,
         "valid": valid,
         "errors": sorted(set(errors)),
+        "terminal_result": terminal_result,
         "arms": arm_results,
         "statistics": stats if valid else None,
         "wal_evidence": _json_safe(dict(wal_evidence)),
@@ -1816,7 +2070,7 @@ def _validate_campaign_preimage(
         search.get("arm_order") != list(ARM_ORDER),
         search.get("arms") != expected_arms,
         search.get("workload") != expected_workload,
-        search.get("scale") != policy["scale"],
+        search.get("scale") != _campaign_scale(policy, workload_name),
         search.get("measurement_env") != "pegasus",
         search.get("pairing_design") != PAIRING_DESIGN,
         search.get("formal") is not False,
@@ -1936,10 +2190,9 @@ def collect_workload(
     campaign_error: str | None = None,
     expected_campaign_preimage: str | None = None,
     expected_layout_root: str | None = None,
-    preserved_external_errors: Sequence[str] = (),
 ) -> dict:
     wal_path = Path(layout.wal_file)
-    preexisting_errors = list(preserved_external_errors)
+    preexisting_errors: list[str] = []
     if campaign_error is not None:
         preexisting_errors.append(f"campaign-error:{campaign_error}")
     if summary is not None and (
@@ -2071,6 +2324,38 @@ def collect_workload(
     )
 
 
+def _workload_has_terminal_result(item: object) -> bool:
+    if type(item) is not dict:
+        return False
+    terminal = item.get("terminal_result")
+    if type(terminal) is not dict:
+        return False
+    if item.get("valid") is True:
+        statistics_result = item.get("statistics")
+        return (
+            set(terminal) == {"status", "classification"}
+            and terminal.get("status") == "valid"
+            and type(statistics_result) is dict
+            and terminal.get("classification")
+            == statistics_result.get("classification")
+            and terminal.get("classification") in {
+                "resolved-above-floor",
+                "bounded-below-floor",
+                "unresolved",
+            }
+            and item.get("errors") == []
+        )
+    errors = item.get("errors")
+    return (
+        item.get("valid") is False
+        and type(errors) is list
+        and bool(errors)
+        and all(type(error) is str and error for error in errors)
+        and item.get("statistics") is None
+        and terminal == {"status": "invalid", "reasons": errors}
+    )
+
+
 def assemble_result(
     policy: Mapping[str, object],
     *,
@@ -2089,21 +2374,17 @@ def assemble_result(
         if type(item.get("campaign_binding")) is dict else None
         for item in workloads
     ]
-    complete = (
+    all_workloads_terminal = (
         measurement_error is None
         and workload_names == list(WORKLOAD_ORDER)
         and len(set(campaign_ids)) == 3
         and len(wal_paths) == 3
         and None not in wal_paths
         and len(set(wal_paths)) == 3
-        and all(item.get("valid") is True for item in workloads)
+        and all(_workload_has_terminal_result(item) for item in workloads)
     )
-    all_negative = (
-        complete
-        and all(
-            item["statistics"]["observed_mean_negative"] is True
-            for item in workloads
-        )
+    complete = all_workloads_terminal and all(
+        item.get("valid") is True for item in workloads
     )
     return {
         "schema_version": RESULT_SCHEMA,
@@ -2116,21 +2397,19 @@ def assemble_result(
         "source_binding": dict(source_binding),
         "reservation_binding": reservation,
         "pbs_evidence_scope": _json_safe(PBS_EVIDENCE_SCOPE),
+        "workload_reps": {
+            name: _expected_reps(policy, name) for name in WORKLOAD_ORDER
+        },
+        "all_workloads_terminal": all_workloads_terminal,
         "complete": complete,
         "measurement_error": measurement_error,
         "workloads": [_json_safe(dict(item)) for item in workloads],
-        "cross_workload_conclusion": (
-            {
-                "observed_all_workloads_negative": all_negative,
-                "claim_scope": "this one arm-grouped exploratory run only",
-            }
-            if complete else None
-        ),
         "limitations": [
             "Arm-grouped ordinal positions are not shared time blocks.",
-            "No causal effect, population mean, significance, or confidence interval is claimed.",
+            "The preregistered intervals are descriptive, not official confidence intervals.",
+            "No causal effect, population mean, repeatability, or official significance is claimed.",
             "Source-routed trace0 evidence is not an artifact-standalone proof.",
-            "An invalid workload suppresses every cross-workload conclusion.",
+            "No cross-workload conclusion is produced.",
         ],
     }
 
@@ -2235,7 +2514,7 @@ def run_measurement(args) -> int:
                 threads=policy["scale"]["threads"],
                 workload=workload_flags(policy, workload_name),
                 extime=policy["scale"]["extime_s"],
-                reps=policy["scale"]["reps"],
+                reps=_expected_reps(policy, workload_name),
             )
 
             def capability_resolver(evidence, *, workload_name=workload_name):
@@ -2324,6 +2603,7 @@ def run_measurement(args) -> int:
             "path": os.fspath(result_path),
             "sha256": result_sha,
             "complete": result["complete"],
+            "all_workloads_terminal": result["all_workloads_terminal"],
         },
         "calibration_sha256": getattr(loaded_calibration, "sha256", None),
     }
@@ -2426,13 +2706,6 @@ def _revalidate_raw_wals(result: Mapping[str, object], receipt: Mapping[str, obj
                 campaign_binding.get("canonical_preimage")
             ),
             expected_layout_root=campaign_binding.get("layout_root"),
-            preserved_external_errors=[
-                error for error in workload.get("errors", [])
-                if type(error) is str and (
-                    error.startswith("campaign-error:")
-                    or error == "campaign-summary-not-fresh-exact-two"
-                )
-            ],
         )
         if recollected != workload:
             raise PaperStoryError("workload does not revalidate from raw WAL snapshot")
@@ -2460,6 +2733,18 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         raise PaperStoryError("pairing design differs")
     if result.get("pbs_evidence_scope") != _json_safe(PBS_EVIDENCE_SCOPE):
         raise PaperStoryError("PBS evidence scope disclosure differs")
+    if result.get("policy_sha256") != POLICY_SHA256:
+        raise PaperStoryError("raw result policy hash differs from tracked policy")
+    if receipt.get("policy") != {
+        "path": POLICY_RELATIVE_PATH,
+        "sha256": POLICY_SHA256,
+    }:
+        raise PaperStoryError("raw receipt policy binding differs")
+    expected_workload_reps = {
+        name: _expected_reps(policy, name) for name in WORKLOAD_ORDER
+    }
+    if result.get("workload_reps") != expected_workload_reps:
+        raise PaperStoryError("result workload reps differ from policy")
     workloads = result.get("workloads")
     if type(workloads) is not list:
         raise PaperStoryError("result workloads is not a list")
@@ -2470,7 +2755,7 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         if type(item.get("campaign_binding")) is dict else None
         for item in workloads if type(item) is dict
     ]
-    recomputed_complete = (
+    recomputed_all_terminal = (
         result.get("measurement_error") is None
         and names == list(WORKLOAD_ORDER)
         and len(ids) == 3
@@ -2478,31 +2763,36 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
         and len(wal_paths) == 3
         and None not in wal_paths
         and len(set(wal_paths)) == 3
-        and all(item.get("valid") is True for item in workloads)
+        and all(_workload_has_terminal_result(item) for item in workloads)
+    )
+    if result.get("all_workloads_terminal") is not recomputed_all_terminal:
+        raise PaperStoryError(
+            "top-level terminal status does not match workload outcomes"
+        )
+    recomputed_complete = recomputed_all_terminal and all(
+        item.get("valid") is True for item in workloads
     )
     if result.get("complete") is not recomputed_complete:
         raise PaperStoryError("top-level complete does not match workload validity")
-    if recomputed_complete:
-        all_negative = True
-        for item in workloads:
+    if "cross_workload_conclusion" in result:
+        raise PaperStoryError("cross-workload conclusion is prohibited")
+    for item in workloads:
+        if type(item) is not dict:
+            raise PaperStoryError("result workload is not an object")
+        if item.get("valid") is True:
             arms = item.get("arms")
             if type(arms) is not dict or set(arms) != set(ARM_ORDER):
                 raise PaperStoryError("materialized valid workload arm set differs")
             stats = positional_statistics(
+                policy,
+                item.get("workload"),
                 arms["adaptive"].get("raw_tps"),
                 arms["static10"].get("raw_tps"),
             )
             if item.get("statistics") != stats:
-                raise PaperStoryError("stored statistics do not recompute exactly")
-            all_negative = all_negative and stats["observed_mean_negative"]
-        expected_conclusion = {
-            "observed_all_workloads_negative": all_negative,
-            "claim_scope": "this one arm-grouped exploratory run only",
-        }
-        if result.get("cross_workload_conclusion") != expected_conclusion:
-            raise PaperStoryError("cross-workload conclusion differs")
-    elif result.get("cross_workload_conclusion") is not None:
-        raise PaperStoryError("invalid result must have no cross-workload conclusion")
+                raise PaperStoryError(
+                    "stored statistics fail result self-consistency check"
+                )
     if (
         type(terminal.get("driver_rc")) is not int
         or terminal.get("driver_rc") != 0
@@ -2579,21 +2869,35 @@ def validate_raw_documents(result: object, receipt: object, terminal: object, po
 
 def _readme(result: Mapping[str, object]) -> str:
     complete = result["complete"] is True
-    conclusion = result.get("cross_workload_conclusion")
-    all_negative = (
-        conclusion.get("observed_all_workloads_negative")
-        if type(conclusion) is dict else None
-    )
-    negative_text = "yes" if all_negative is True else "no" if complete else "not-assessable"
-    conclusion_text = (
-        "For each workload, the observed mean of its five signed positional "
-        "differences is negative in this one run."
-        if complete and all_negative is True
-        else "The three workloads do not all have a negative observed mean of their "
-        "five signed positional differences in this run."
-        if complete
-        else "No cross-workload conclusion is available because at least one workload is invalid."
-    )
+    all_terminal = result.get("all_workloads_terminal") is True
+    workload_rows = []
+    workloads = result.get("workloads")
+    for item in workloads if type(workloads) is list else []:
+        if type(item) is not dict:
+            continue
+        name = item.get("workload")
+        statistics_result = item.get("statistics")
+        if item.get("valid") is True and type(statistics_result) is dict:
+            interval = statistics_result.get("descriptive_interval_tps")
+            interval_text = (
+                f"[{float(interval[0]):.6f}, {float(interval[1]):.6f}]"
+                if type(interval) is list and len(interval) == 2 else "invalid"
+            )
+            workload_rows.append(
+                f"| {name} | valid | {statistics_result.get('n')} | "
+                f"{float(statistics_result.get('mean_signed_positional_difference_tps')):.6f} | "
+                f"{interval_text} | {float(statistics_result.get('floor_boundary_tps')):.6f} | "
+                f"{statistics_result.get('classification')} | "
+                f"{str(statistics_result.get('variance_plan_breach')).lower()} |"
+            )
+        else:
+            expected = result.get("workload_reps", {}).get(name)
+            reasons = "; ".join(item.get("errors", []))
+            workload_rows.append(
+                f"| {name} | invalid | {expected} | n/a | n/a | n/a | "
+                f"invalid: {reasons} | n/a |"
+            )
+    workload_table = "\n".join(workload_rows)
     materialization_evidence = result.get("materialization_evidence")
     publish_evidence = (
         materialization_evidence.get("publish")
@@ -2629,14 +2933,20 @@ def _readme(result: Mapping[str, object]) -> str:
     return (
         "# Paper-story A-1 exploratory positional comparison\n\n"
         f"Study: `{STUDY_ID}`\n\n"
-        f"Complete: `{'true' if complete else 'false'}`\n\n"
-        f"All-workload observed negative direction: `{negative_text}`\n\n"
-        f"{conclusion_text}\n\n"
+        f"All workloads terminal: `{'true' if all_terminal else 'false'}`\n\n"
+        f"All workloads valid: `{'true' if complete else 'false'}`\n\n"
+        "No cross-workload conclusion is produced. Each row is a terminal "
+        "workload result.\n\n"
+        "| workload | status | reps | mean static10-adaptive tps | descriptive interval tps | B tps | classification | variance_plan_breach |\n"
+        "|---|---:|---:|---:|---:|---:|---|---:|\n"
+        f"{workload_table}\n\n"
         "This result is exploratory, formal=false, and promotion is prohibited. "
-        "The five positions are arm-grouped ordinal matches, not shared time blocks. "
-        "They do not support causal, population, significance, confidence-interval, "
-        "or repeatability claims. Trace0 evidence is source-routed and is not an "
-        "artifact-standalone proof. Invalid input always means no cross-workload conclusion.\n\n"
+        "The registered positions are arm-grouped ordinal matches, not shared time "
+        "blocks. The interval and classification are descriptive outputs of the "
+        "registered rule. Trace0 evidence is source-routed and is not an "
+        "artifact-standalone proof.\n\n"
+        "## この設計が言えないこと\n\n"
+        f"{PREREGISTERED_LIMITATIONS}\n"
         "PBS evidence scope: the job observes PBS_JOBID, PBS_O_HOST, and "
         "PBS_O_WORKDIR. PBS_O_QUEUE is not exported by this NQSV site and is not "
         "claimed as a job observation. NQSV stdout/stderr FD targets are not the "
@@ -2661,6 +2971,12 @@ def _materialized_result(
         **result,
         "materialization_evidence": {
             "schema_version": MATERIALIZATION_EVIDENCE_SCHEMA,
+            "derivation": {
+                "authoritative_input": "raw WAL byte sequence",
+                "workload_rederivation": "recollected from raw WAL before publish",
+                "result_receipt_comparison": "self-consistency check only",
+                "independent_evidence_claimed": False,
+            },
             "scheduler_terminal": dict(completion["scheduler_terminal"]),
             "job_terminal_outcome": {
                 "driver_rc": terminal["driver_rc"],
@@ -2955,6 +3271,10 @@ def _publish_materialization_bundle(
     materialized_receipt: Mapping[str, object],
     result: Mapping[str, object],
 ) -> None:
+    if result.get("all_workloads_terminal") is not True:
+        raise PaperStoryError(
+            "materialization requires terminal outcomes for every workload"
+        )
     staging = destination.parent / f".{destination.name}.staging-{os.getpid()}"
     try:
         staging.mkdir(mode=0o700)
@@ -3075,6 +3395,7 @@ def run_materialize(args) -> int:
         "path": os.fspath(raw_result_path),
         "sha256": _sha256_file(raw_result_path),
         "complete": result["complete"],
+        "all_workloads_terminal": result["all_workloads_terminal"],
     }:
         raise PaperStoryError("raw receipt result binding differs")
     if terminal.get("result_sha256") != _sha256_file(raw_result_path):
