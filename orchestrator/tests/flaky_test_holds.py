@@ -255,6 +255,39 @@ _FLAKY_TEST_HOLD_ROWS = (
             reintroduction_task_id="{{T:t080-output-snapshot-shard-race}}",
         ),
     ),
+    (
+        "orchestrator/tests/test_real_repo_serialization.py::"
+        "test_receipt_memo_real_xdist_order_has_no_worker_payer",
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({
+                "orchestrator/tests/test_real_repo_serialization.py::"
+                "test_receipt_memo_real_xdist_order_has_no_worker_payer",
+            }),
+            same_tree=True,
+            green_observation=(
+                "同一 tree で本 node を含む 4 node の単独走が "
+                "4 passed / 6.91 秒 / rc=0 だった"
+            ),
+            green_collection_condition="single-node",
+            green_run_count=1,
+            red_observation=(
+                "同一 tree の受入全走で 1 回目は 4 failed / 16870 passed / "
+                "61 skipped、2 回目は 1 failed / 16873 passed / 61 skipped"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature=(
+                "観測 trace = ['controller-hook', 'prewarm-controller', "
+                "'worker-hook', 'finish-controller']"
+            ),
+            cause=(
+                "不変条件はすべて成立し、受入全走の高並列下で xdist の"
+                "スケジューリング遅延により worker-hook と controller-hook の"
+                "相対順序だけが反転する (F480 の族)"
+            ),
+            evidence_id="F480",
+            reintroduction_task_id="{{T:flaky-xdist-hook-order}}",
+        ),
+    ),
 )
 
 

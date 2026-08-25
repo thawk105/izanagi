@@ -48,6 +48,23 @@ seq: 3
 
 ## 再発
 
+### F480
+
+- **再発: 2026-08-26** — 受入全走で
+  `orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer`
+  が 2 走続けて赤になった (1 走目 4 failed / 16870 passed、2 走目 1 failed / 16873 passed)。
+  破れたのは hook の相対順序で、観測 trace は
+  `['controller-hook', 'prewarm-controller', 'worker-hook', 'finish-controller']`。
+  **F480 が 2026-08-25 の追記で記録した trace と逐語で一致する。** 不変条件 (各 hook が 1 回ずつ・
+  prewarm は controller・`prewarm-worker` 不在) はすべて成立していた。
+  同一 tree の単独走は本 node を含む 4 node で `4 passed / 6.91 秒 / rc=0` で再現しない。
+  本 wave の差分は `buildcache.py` / `s8b_floor_campaign.py` / `check_docs.py` とその test であり、
+  `test_real_repo_serialization.py` へは触れていない。F480 が定める 3 点判定
+  ((a) 単独走の緑、(b) 差分の到達不能性、(c) 破れた assert が実時間ないしイベント順序の上界)
+  を満たすため、`DW-O18` に従い `orchestrator/tests/flaky_test_holds.py` へ
+  evidence_id=F480 で登録した。**当該テスト自体は変更していない** — 上界と順序 assert の設計は
+  F480 が記すとおり所有者の判断であり本 wave の scope 外である。
+
 ### F24
 
 - **再発: 2026-08-26** — 背景コマンドの偽完了を同一 wave 内で 3 回実測した (段 6 fix 子 1 回、

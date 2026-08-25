@@ -54,6 +54,13 @@ title: [T-1156] oracle 判定後の材料再取得を禁止し、判定と同一
   sandbox の構造的制約で pytest を実走できず、テストはすべて親が計算ノードで走らせた。
 - **背景コマンドの偽完了を 3 回踏んだ。** 待ち手ツールに固有ではなく自前ループでも起きた。
   3 点照合で 3 回とも検出し実害ゼロ。F24 へ再発として追記した。
+- **受入全走は 2 走とも非帰属の赤を出した。** 1 走目は 4 failed / 16870 passed、2 走目は
+  1 failed / 16873 passed。3 件は `assert "runs" in ignored_prefixes` で、`output/runs` 配下に
+  git が無視する file が 1 つも無いと成立しない形だった (親の実測では worktree でも main の
+  checkout でも当該 directory は空)。単独走で 4 件とも緑になったため `DW-O18` に従い受入を
+  1 回だけ再走し、3 件は消えた。残った 1 件は xdist の hook 順序で、**F480 が同じ node と
+  同じ観測 trace を逐語で記録済み**だったため、証拠付きで `flaky_test_holds.py` へ登録した。
+  当該テスト自体は変更していない。
 
 ## 次の一手差分
 
@@ -93,6 +100,11 @@ title: [T-1156] oracle 判定後の材料再取得を禁止し、判定と同一
   oracle 判定後に別 process が prebuild を再入する経路を塞ぐ。D424 は job 一意 `mkdtemp` base で
   排他が構造的に成立する設計を採っており、明示共有 base は別モードである。process 間 lock は
   書込み権威の変更を伴う。
+- {{T:flaky-xdist-hook-order}} **P3・新規**: `test_receipt_memo_real_xdist_order_has_no_worker_payer`
+  を flake 保留から戻す。受入全走の高並列下で `worker-hook` と `controller-hook` の相対順序が
+  反転する (F480 の族)。不変条件は成立しており、破れるのは順序 assert だけである。
+  本 wave は evidence_id=F480 で `flaky_test_holds.py` へ登録しただけで、テストの設計には触れて
+  いない。順序を実際に固定するか assert を性質へ書き換えるかは所有者の判断である。
 - {{T:floor-resume-preban-manifest-policy}} **P3・新規・ユーザー裁定待ち**: resume 経路が
   禁止前の durable manifest を受理し続けてよいかを決める。resume は `build_v2` を呼ばず
   binary/store hash の照合だけで既存 binary を使う。閉じると既存 floor manifest が一括で
