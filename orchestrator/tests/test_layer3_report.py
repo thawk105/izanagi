@@ -1187,6 +1187,23 @@ def test_screening_disabled_rejects_nested_unknown_key():
     assert list(caught.value.absolute_path) == ["screening_disabled"]
 
 
+def test_screening_disabled_rejects_non_stale_baseline_reason():
+    row = layer3_report._view_row(_bench(
+        build_attempt_id="attempt-1",
+        build_admission_receipt_sha256="a" * 64,
+        screening_disabled=_screening_disabled_payload(
+            reason="something-else",
+        ),
+    ))
+
+    with pytest.raises(jsonschema.ValidationError) as caught:
+        jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+    assert caught.value.validator == "const"
+    assert list(caught.value.absolute_path) == [
+        "screening_disabled", "reason",
+    ]
+
+
 @pytest.mark.parametrize(
     "new_fields, expected_validator, expected_absolute_path",
     [

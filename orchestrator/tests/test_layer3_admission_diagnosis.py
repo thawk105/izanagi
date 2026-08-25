@@ -202,6 +202,47 @@ def test_diagnosis_extraction_is_total_and_degrades(cause_kind) -> None:
     assert C.is_exact_layer3_admission_diagnosis(diagnosis) is True
 
 
+def test_diagnosis_degrades_for_non_string_validator() -> None:
+    error = L3.Layer3ReportError("fixture layer3 failure")
+    error.__cause__ = ValidationError(
+        "fixture validation error",
+        validator=123,
+        validator_value="v",
+        path=[],
+        schema_path=[],
+    )
+
+    diagnosis = A._layer3_admission_diagnosis(error)
+
+    assert diagnosis["status"] == "degraded"
+    assert diagnosis["degradation_reason"] == (
+        "validation-error-projection-failed"
+    )
+
+
+def test_diagnosis_degrades_for_non_json_path_component_and_stays_canonical(
+) -> None:
+    for path_component in (object(), {"not": "a path scalar"}):
+        error = L3.Layer3ReportError("fixture layer3 failure")
+        error.__cause__ = ValidationError(
+            "fixture validation error",
+            validator="const",
+            validator_value="v",
+            path=[path_component],
+            schema_path=[],
+        )
+
+        diagnosis = A._layer3_admission_diagnosis(error)
+
+        assert diagnosis["status"] == "degraded"
+        assert diagnosis["degradation_reason"] == (
+            "validation-error-projection-failed"
+        )
+        assert json.loads(
+            A._canonical_json_bytes(diagnosis).decode("utf-8")
+        ) == diagnosis
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
