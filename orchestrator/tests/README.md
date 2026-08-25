@@ -199,12 +199,18 @@ gnuplot / submodule / C++ toolchain 候補が無い環境では、
 別分類であり、下の「条件付き未実走」へ数える。census を作るときに混ぜてはならない。
 
 **実 Silo トレースはこの分類から外れた。** 規律2 の実データ地面は、追跡下の
-`orchestrator/tests/fixtures/g5_silo_real_prefix/` (実 emitter が吐いた bytes の
-commit-stamp prefix) が担い、`test_verifier.test_real_silo_serializable` は
-**どの checkout でも必ず実走する**。追跡外の大規模サンプル `output/runs/silo-sample` は、
+`orchestrator/tests/fixtures/` にある実 emitter 由来の **3 fixture** —
+`g5_silo_real_prefix` (4 thread の stock)、`g6_silo_serial_1thread` (1 thread の stock)、
+`r8_silo_broken_norw` (read-set 再検証を抜いた build) — が担う。
+`test_verifier` の `test_real_silo_serializable` /
+`test_silo_serial_1thread_fixture_contract` / `test_broken_silo_norw_fixture_contract` /
+`test_broken_silo_norw_structured_report_is_exact` / `test_new_real_fixture_bytes_are_exact` は
+**どの checkout でも必ず実走する** (skip も任意入力分岐も持たない)。
+この無条件実走は `test_skip_classification.py` の AST 契約が g5 / g6 / r8 の 3 node について
+機械で固定している。追跡外の大規模サンプル `output/runs/silo-sample` は、
 置いた機体でだけ同じ node の中で追加検証される任意入力であり、不在でも skip しない
-(必須検査は既に完了しているため)。fixture の由来・再生成手順・判定既知の根拠は
-`fixtures/README.md` が正本。
+(必須検査は既に完了しているため)。fixture の由来・再生成手順・判定既知の根拠と、
+**独立に決まる述語と verifier 由来の golden の区別**は `fixtures/README.md` が正本。
 
 - **submodule**: `git submodule update --init external/ccbench` 後に
   source_digest / EVOLVE-BLOCK / S-1 freeze 生成系テストが有効化される。submodule 実ファイル

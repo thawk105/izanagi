@@ -2603,9 +2603,11 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t503_restore_durability_recover.pbs": "unknown",
     "tools/pegasus/probes/t503_restore_durability_verdict.pbs": "unknown",
     "tools/pegasus/run_probe.py": "dispatch-required",
+    "tools/pegasus/run_ss2pl_lock_study.py": "dispatch-required",
     "tools/pegasus/run_t139_a12_stress_check.py": "dispatch-required",
     "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
     "tools/pegasus/smoke_probe.sh": "dispatch-required",
+    "tools/pegasus/ss2pl_lock_study.sh": "dispatch-required",
     "tools/pegasus/submit_certify.sh": "local-ok",
     "tools/pegasus/submit_floor.sh": "local-ok",
     "tools/pegasus/submit_mocc_trace.sh": "local-ok",
@@ -2817,16 +2819,22 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "evidence": "unmeasured probe artifact"
     },
     "tools/pegasus/run_probe.py": {
+      "class": "dispatch-required",
+      "reason": "probe semantics require a compute allocation",
+      "primary_gate": "compute-node environment attestation",
+      "evidence": "static semantic-site classification"
+    },
+    "tools/pegasus/run_ss2pl_lock_study.py": {
         "class": "dispatch-required",
-        "reason": "probe semantics require a compute allocation",
-        "primary_gate": "compute-node environment attestation",
-        "evidence": "static semantic-site classification"
+        "reason": "compute-side CCBench build and SS2PL benchmark driver",
+        "primary_gate": "compute allocation owned by ss2pl_lock_study.sh",
+        "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/run_t139_a12_stress_check.py": {
-        "class": "dispatch-required",
-        "reason": "compute-side T139 A12 stress-check simulation runner",
-        "primary_gate": "compute allocation owned by t139_a12_stress_check.pbs",
-        "evidence": "compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker"
+      "class": "dispatch-required",
+      "reason": "compute-side T139 A12 stress-check simulation runner",
+      "primary_gate": "compute allocation owned by t139_a12_stress_check.pbs",
+      "evidence": "compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker"
     },
     "tools/pegasus/silo_ladder_rung1.sh": {
         "class": "dispatch-required",
@@ -2835,16 +2843,22 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "evidence": "static job-body classification"
     },
     "tools/pegasus/smoke_probe.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS smoke probe job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/ss2pl_lock_study.sh": {
         "class": "dispatch-required",
-        "reason": "PBS smoke probe job body",
+        "reason": "PBS SS2PL lock study job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },
     "tools/pegasus/submit_certify.sh": {
-        "class": "local-ok",
-        "reason": "login-side PBS certification submitter",
-        "primary_gate": "qsub submission; compute work stays in job body",
-        "evidence": "legacy-admitted (未実測)"
+      "class": "local-ok",
+      "reason": "login-side PBS certification submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "legacy-admitted (未実測)"
     },
     "tools/pegasus/submit_floor.sh": {
         "class": "local-ok",
@@ -3800,6 +3814,24 @@ def test_bash_login_pbs_shebang_entries_remain_unknown_and_denied():
         assert GB._PEGASUS_ADMISSION_REGISTRY[path]["class"] == "unknown"
         ok, _ = GB.decide(f"bash {path}", site="PEGASUS_LOGIN")
         assert not ok, f"unknown の PBS job body が login で通った: {path}"
+
+
+def test_bash_study_entries_require_compute_dispatch():
+    commands = {
+        "tools/pegasus/paper_story_a2_certification.sh":
+            "bash tools/pegasus/paper_story_a2_certification.sh",
+        "tools/pegasus/run_ss2pl_lock_study.py":
+            "python3 tools/pegasus/run_ss2pl_lock_study.py",
+        "tools/pegasus/ss2pl_lock_study.sh":
+            "bash tools/pegasus/ss2pl_lock_study.sh",
+    }
+    for path, command in commands.items():
+        assert GB._PEGASUS_ADMISSION_REGISTRY[path]["class"] == \
+            "dispatch-required"
+        for site in ("PEGASUS_LOGIN", "PEGASUS_SUSPECT"):
+            ok, why = GB.decide(command, site=site)
+            assert not ok, \
+                f"{site} で study compute entry が通った: {path} ({why})"
 
 
 def test_bash_sanctioned_pegasus_paths_are_derived_from_registry():

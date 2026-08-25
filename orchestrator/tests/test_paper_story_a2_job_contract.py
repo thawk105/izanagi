@@ -1,7 +1,9 @@
 import hashlib
 import json
 import os
+import shlex
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -37,12 +39,33 @@ def _assert_static_job_contract(source):
         "dependency-stage": "cp -a \"$dependency_source\"/. \"$dependency_prefix\"/",
         "fresh-raw": "if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]",
         "preflight": "compute-preflight",
+        "interpreter-candidates": (
+            "for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do"),
+        "interpreter-version": "sys.version_info >= (3, 10)",
+        "interpreter-import": (
+            "import orchestrator.campaign.paper_story_a2_certification"),
+        "interpreter-fail-closed": "resolve_python || exit 2",
+        "interpreter-path": 'export PATH="$(dirname "$selected"):$PATH"',
+        "scratch-sanitize": 'pbs_jobid_path_component=${PBS_JOBID//:/_}',
+        "scratch-path": 'scratch=$scratch_base/${pbs_jobid_path_component}',
     }
     missing = [label for label, fragment in required.items() if fragment not in source]
     if missing:
         raise AssertionError("job contract missing: " + ",".join(missing))
     if "q" + "sub" in source:
         raise AssertionError("compute job body must not submit another job")
+    if "scratch=$scratch_base/${PBS_JOBID}" in source:
+        raise AssertionError("PBS_JOBID must not be a literal scratch path element")
+    if source.count('"$PY" - "') != 2:
+        raise AssertionError("both inline Python launches must use the selected path")
+    driver_launch = (
+        '"$PY" -B -m orchestrator.campaign.paper_story_a2_certification')
+    if source.count(driver_launch) != 4:
+        raise AssertionError("all four driver launches must use the selected path")
+    resolver_call = source.index("resolve_python || exit 2")
+    first_python_use = source.index('"$PY" - "')
+    if resolver_call >= first_python_use:
+        raise AssertionError("interpreter resolution must precede Python use")
     rr5 = source.index("--workload rr5")
     rr50 = source.index("--workload rr50")
     if rr5 >= rr50:
@@ -67,6 +90,107 @@ def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
     }
     assert all(f"export {fragment}" in source for fragment in expected)
     assert "IZANAGI_RESERVATION_DEADLINE=" not in source
+    assert 'qstat_jobid=${PBS_JOBID#0:}' in source
+    assert '"$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN"' in source
+
+
+def _resolver_snippet(source):
+    start = source.index("resolve_python() {")
+    call = "resolve_python || exit 2"
+    end = source.index(call, start) + len(call)
+    return source[start:end]
+
+
+def test_interpreter_resolver_prepends_selected_path_for_child_processes(tmp_path):
+    binary_dir = tmp_path / "bin"
+    binary_dir.mkdir()
+    selected = binary_dir / "python3.10"
+    selected.symlink_to(Path(sys.executable))
+    bare = binary_dir / "python3"
+    bare.symlink_to(selected)
+    source = JOB.read_text(encoding="utf-8")
+    script = (
+        "set -euo pipefail\n"
+        f"repo={shlex.quote(str(REPO))}\n"
+        + _resolver_snippet(source)
+        + "\nprintf '%s\\n' \"$PY\"\n"
+        + "command -v python3\n"
+        + "\"$PY\" -c 'import sys; print(sys.executable)'\n"
+    )
+    environment = dict(os.environ)
+    environment["PATH"] = str(binary_dir) + os.pathsep + environment["PATH"]
+    completed = subprocess.run(
+        ["bash", "-c", script], cwd=REPO, env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    selected_line, bare_line, executable_line = completed.stdout.splitlines()
+    assert Path(selected_line) == selected
+    assert Path(selected_line).samefile(bare_line)
+    assert Path(selected_line).samefile(executable_line)
+
+
+def test_interpreter_resolver_rejects_version_ok_but_a2_unimportable_candidate(
+        tmp_path):
+    wrapper = tmp_path / "python3.10"
+    wrapper.write_text(
+        "#!/bin/bash\n"
+        f"exec {shlex.quote(sys.executable)} -I \"$@\"\n",
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    source = JOB.read_text(encoding="utf-8")
+    snippet = _resolver_snippet(source).replace(
+        "for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do",
+        f"for candidate in {shlex.quote(str(wrapper))}; do",
+        1,
+    )
+    script = (
+        "set -euo pipefail\n"
+        f"repo={shlex.quote(str(REPO))}\n"
+        + snippet
+        + "\nprintf 'unexpected:%s\\n' \"${PY:-bare-python3}\"\n"
+    )
+    completed = subprocess.run(
+        ["bash", "-c", script], cwd=REPO,
+        env=dict(os.environ), capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert (
+        "no Python 3.10+ interpreter can import the A-2 driver"
+        in completed.stderr
+    )
+
+
+def test_interpreter_resolver_call_precedes_first_python_use():
+    source = JOB.read_text(encoding="utf-8")
+    resolver_call = "resolve_python || exit 2"
+    assert source.index(resolver_call) < source.index('"$PY" - "')
+    mutant = source.replace(resolver_call, "", 1) + "\n" + resolver_call + "\n"
+    with pytest.raises(AssertionError, match="resolution must precede"):
+        _assert_static_job_contract(mutant)
+
+
+def test_pbs_jobid_path_sanitization_is_load_bearing():
+    source = JOB.read_text(encoding="utf-8")
+    _assert_static_job_contract(source)
+    mutant = source.replace(
+        'pbs_jobid_path_component=${PBS_JOBID//:/_}',
+        'pbs_jobid_path_component=$PBS_JOBID',
+        1,
+    )
+    with pytest.raises(AssertionError, match="scratch-sanitize"):
+        _assert_static_job_contract(mutant)
+    completed = subprocess.run(
+        ["bash", "-c", (
+            'PBS_JOBID="0:945411.nqsv"; '
+            'pbs_jobid_path_component=${PBS_JOBID//:/_}; '
+            'printf "%s\\n" "$pbs_jobid_path_component"')],
+        capture_output=True, text=True, check=True,
+    )
+    assert completed.stdout == "0_945411.nqsv\n"
+    assert ":" not in completed.stdout
 
 
 @pytest.mark.parametrize("fragment", (
@@ -74,6 +198,9 @@ def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
     "git rev-parse HEAD",
     "git status --porcelain --untracked-files=no",
     "if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]",
+    "sys.version_info >= (3, 10)",
+    "import orchestrator.campaign.paper_story_a2_certification",
+    'export PATH="$(dirname "$selected"):$PATH"',
 ))
 def test_m7_each_expected_head_compute_only_clean_and_fresh_gate_is_load_bearing(
         fragment):

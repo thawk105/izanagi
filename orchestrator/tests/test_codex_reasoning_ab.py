@@ -43,6 +43,16 @@ MUT-4 -> test_git_fsck_completion_order_does_not_reorder_reasons_or_manifests
 MUT-5 -> test_git_fsck_executor_construction_failure_rejects
 MUT-6 -> test_verify_snapshot_reuses_one_filesystem_observation_per_snapshot
 MUT-7 -> test_filesystem_file_set_accepts_readable_static_tree
+
+T-1263 certification-scope mutation nodes:
+MUT-1/MUT-2/MUT-3 ->
+    test_material_report_certification_scope_is_exact_on_all_return_paths
+    (also killed by added assertions in test_verify_replays_complete_fake_codex_experiment)
+MUT-4 -> test_replay_forwards_only_successful_snapshot_evidence_to_adjudication
+MUT-5 -> test_material_packet_source_requires_replayed_snapshot_evidence
+MUT-6 -> test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run
+MUT-7 -> test_verify_replays_complete_fake_codex_experiment
+    (the pre-existing positive-path assertion alone kills this mutation)
 """
 from __future__ import annotations
 
@@ -1421,6 +1431,8 @@ def _full_manifest(
     root: Path,
     benchmark: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    memoize_construction_snapshots: bool = False,
 ) -> tuple[Path, Path]:
     schedule_source, slots = _schedule(root / "schedule-source.json", benchmark)
     run_root = root / "run-root"
@@ -1435,22 +1447,55 @@ def _full_manifest(
     )
     monkeypatch.setenv("GIT_DIR", "/forbidden")
     completions: list[dict[str, Any]] = []
-    for block_id in ("b01", "b02", "b03", "b04", "b05"):
-        slot = next(row for row in slots if row["block_id"] == block_id)
-        result = TOOL.supervise_pair(
-            schedule_path=schedule_source,
-            run_root=run_root,
-            block_id=block_id,
-            attempt=1,
-            snapshot=benchmark[slot["case"]]["snapshot"],
-            prompt=benchmark[slot["case"]]["prompt"],
-            config_source=config,
-            auth_source=auth,
-            codex_binary=codex,
-            bwrap_binary=bwrap,
-            dry_run=True,
-        )
-        completions.extend(result["runs"])
+    with monkeypatch.context() as construction_patch:
+        if memoize_construction_snapshots:
+            original_verify_snapshot = TOOL.verify_snapshot
+            construction_snapshot_cache: dict[
+                tuple[str, str], dict[str, Any]
+            ] = {
+                (
+                    benchmark[case]["snapshot"].resolve().as_posix(),
+                    case,
+                ): copy.deepcopy(benchmark[case]["oracle_value"])
+                for case in ("POS", "NEG")
+            }
+
+            def memoized_construction_verify_snapshot(
+                snapshot: Path,
+                case: str,
+                *,
+                spec: dict[str, Any] | None = None,
+            ) -> dict[str, Any]:
+                if spec is not None:
+                    return original_verify_snapshot(snapshot, case, spec=spec)
+                identity = (snapshot.resolve().as_posix(), case)
+                if identity not in construction_snapshot_cache:
+                    construction_snapshot_cache[identity] = (
+                        original_verify_snapshot(snapshot, case)
+                    )
+                return copy.deepcopy(construction_snapshot_cache[identity])
+
+            construction_patch.setattr(
+                TOOL,
+                "verify_snapshot",
+                memoized_construction_verify_snapshot,
+            )
+        for block_id in ("b01", "b02", "b03", "b04", "b05"):
+            slot = next(row for row in slots if row["block_id"] == block_id)
+            result = TOOL.supervise_pair(
+                schedule_path=schedule_source,
+                run_root=run_root,
+                block_id=block_id,
+                attempt=1,
+                snapshot=benchmark[slot["case"]]["snapshot"],
+                prompt=benchmark[slot["case"]]["prompt"],
+                config_source=config,
+                auth_source=auth,
+                codex_binary=codex,
+                bwrap_binary=bwrap,
+                dry_run=True,
+            )
+            completions.extend(result["runs"])
     attempts: list[dict[str, Any]] = []
     for completion in completions:
         launch_path = Path(completion["launch_receipt"])
@@ -7485,13 +7530,130 @@ def test_agent_sandbox_binds_exclude_attempt_receipt_directory(
         assert Path(row["launch_receipt"]).parent == Path(launch["run_dir"])
 
 
+def test_material_report_certification_scope_is_exact_on_all_return_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = {
+        "certification_subject": "material-report",
+        "certified_entrypoints": ["verify", "aggregate"],
+        "certified_report_fields": ["valid"],
+        "uncertified_artifact_universe": (
+            "adjudication_intermediate_artifacts"
+        ),
+        "uncertified_artifact_kinds": [
+            "packet",
+            "packet_state",
+            "verdict_log",
+            "verdict_freeze",
+            "revealed_map",
+        ],
+        "material_packet_requirement": (
+            "mapped_final_run_snapshot_evidence_replayed"
+        ),
+        "closed_world": True,
+    }
+    manifest = _canonical(tmp_path / "manifest.json", {})
+
+    missing_sessions, missing_rc = TOOL.verify_manifest(manifest)
+    assert missing_rc == TOOL.RC_AGGREGATE
+    assert missing_sessions["certification_scope"] == expected
+
+    with monkeypatch.context() as aggregate_path:
+        aggregate_path.setattr(
+            TOOL,
+            "_replay_manifest",
+            lambda *args, **kwargs: ([], [], {}, []),
+        )
+        aggregated, aggregated_rc = TOOL.verify_manifest(
+            manifest, tmp_path / "sessions"
+        )
+    assert aggregated_rc == 0
+    assert aggregated["valid"] is True
+    assert aggregated["certification_scope"] == expected
+
+    def fail_replay(*args: Any, **kwargs: Any) -> None:
+        raise TOOL.ValidationError("validation-path", TOOL.RC_AGGREGATE)
+
+    with monkeypatch.context() as validation_path:
+        validation_path.setattr(TOOL, "_replay_manifest", fail_replay)
+        validation_failed, validation_rc = TOOL.verify_manifest(
+            manifest, tmp_path / "sessions"
+        )
+    assert validation_rc == TOOL.RC_AGGREGATE
+    assert validation_failed["certification_scope"] == expected
+
+    direct = TOOL._aggregate_verified(manifest, [], [], {}, [])
+    assert direct["valid"] is True
+    assert "certification_scope" not in direct
+    assert missing_sessions["certification_scope"] is not aggregated[
+        "certification_scope"
+    ]
+    assert aggregated["certification_scope"] is not validation_failed[
+        "certification_scope"
+    ]
+    missing_sessions["certification_scope"]["certified_entrypoints"].append(
+        "mutated"
+    )
+    fresh, _ = TOOL.verify_manifest(manifest)
+    assert fresh["certification_scope"] == expected
+
+
+def test_certification_scope_closes_adjudication_descriptor_universe() -> None:
+    module = ast.parse(_TOOL_PATH.read_text(encoding="utf-8"), _TOOL_PATH.name)
+    functions = [
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_load_adjudication"
+    ]
+    assert len(functions) == 1
+    artifact_calls = [
+        node
+        for node in ast.walk(functions[0])
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_artifact_path"
+    ]
+    descriptor_keys: set[str] = set()
+    malformed_calls: list[int] = []
+    for call in artifact_calls:
+        descriptor = call.args[1] if len(call.args) >= 2 else None
+        if not (
+            isinstance(descriptor, ast.Call)
+            and isinstance(descriptor.func, ast.Attribute)
+            and isinstance(descriptor.func.value, ast.Name)
+            and descriptor.func.value.id == "manifest"
+            and descriptor.func.attr == "get"
+            and len(descriptor.args) == 1
+            and isinstance(descriptor.args[0], ast.Constant)
+            and isinstance(descriptor.args[0].value, str)
+        ):
+            malformed_calls.append(call.lineno)
+            continue
+        descriptor_keys.add(descriptor.args[0].value)
+
+    assert artifact_calls
+    assert malformed_calls == []
+    scope = TOOL._certification_scope()
+    assert scope["uncertified_artifact_universe"] == (
+        "adjudication_intermediate_artifacts"
+    )
+    declared_descriptor_kinds = set(scope["uncertified_artifact_kinds"]) - {
+        "packet"
+    }
+    assert descriptor_keys == declared_descriptor_kinds
+
+
 def test_verify_replays_complete_fake_codex_experiment(
     tmp_path: Path,
     benchmark_snapshots: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     manifest, run_root = _full_manifest(
-        tmp_path, benchmark_snapshots, monkeypatch
+        tmp_path,
+        benchmark_snapshots,
+        monkeypatch,
+        memoize_construction_snapshots=True,
     )
     result, rc = TOOL.verify_manifest(manifest, run_root)
     assert rc == 0
@@ -7508,6 +7670,25 @@ def test_verify_replays_complete_fake_codex_experiment(
         "rate": 1.0,
         "disagreement_policy": "conservative-miss",
     }
+    assert result["certification_scope"] == {
+        "certification_subject": "material-report",
+        "certified_entrypoints": ["verify", "aggregate"],
+        "certified_report_fields": ["valid"],
+        "uncertified_artifact_universe": (
+            "adjudication_intermediate_artifacts"
+        ),
+        "uncertified_artifact_kinds": [
+            "packet",
+            "packet_state",
+            "verdict_log",
+            "verdict_freeze",
+            "revealed_map",
+        ],
+        "material_packet_requirement": (
+            "mapped_final_run_snapshot_evidence_replayed"
+        ),
+        "closed_world": True,
+    }
     assert result["decision"]["row"] == "POS_PRIMARY"
     first_rollout = next(run_root.rglob("rollout-*.jsonl"))
     first_meta = first_rollout.read_text(encoding="utf-8").splitlines()[0]
@@ -7519,6 +7700,236 @@ def test_verify_replays_complete_fake_codex_experiment(
     assert "generated session row set mismatch" in "\n".join(
         tampered["failure_reasons"]
     )
+
+
+def test_replay_forwards_only_successful_snapshot_evidence_to_adjudication(
+    tmp_path: Path,
+    benchmark_snapshots: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path, run_root = _full_manifest(
+        tmp_path,
+        benchmark_snapshots,
+        monkeypatch,
+        memoize_construction_snapshots=True,
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    schedule = json.loads((run_root / "schedule.json").read_text(encoding="utf-8"))
+    case_by_slot = {
+        row["slot_id"]: row["case"] for row in schedule["slots"]
+    }
+    expected_verified = {
+        row["run_id"]
+        for row in manifest["attempts"]
+        if case_by_slot[row["slot_id"]] == "POS"
+    }
+    expected_mismatched = {
+        row["run_id"]
+        for row in manifest["attempts"]
+        if case_by_slot[row["slot_id"]] == "NEG"
+    }
+    verified_attempts = [
+        row
+        for row in manifest["attempts"]
+        if row["run_id"] in expected_verified
+    ]
+    for row in verified_attempts[1:]:
+        row["snapshot_oracle"] = copy.deepcopy(
+            verified_attempts[0]["snapshot_oracle"]
+        )
+    mismatched_attempts = [
+        row
+        for row in manifest["attempts"]
+        if row["run_id"] in expected_mismatched
+    ]
+    first_mismatch, second_mismatch = mismatched_attempts[:2]
+    second_mismatch["snapshot_oracle"] = copy.deepcopy(
+        first_mismatch["snapshot_oracle"]
+    )
+    assert second_mismatch["snapshot_oracle"] == first_mismatch[
+        "snapshot_oracle"
+    ]
+    _canonical(manifest_path, manifest)
+    shared_oracle_path = Path(first_mismatch["snapshot_oracle"]["path"])
+    if not shared_oracle_path.is_absolute():
+        shared_oracle_path = manifest_path.parent / shared_oracle_path
+    shared_oracle_path = shared_oracle_path.resolve()
+    captured: set[str] = set()
+    active_oracle_path: Path | None = None
+    shared_mismatch_replay_calls = 0
+    original_verify_snapshot = TOOL.verify_snapshot
+    original_load_adjudication = TOOL._load_adjudication
+    original_artifact_path = TOOL._artifact_path
+
+    def track_artifact_path(
+        manifest_path: Path,
+        descriptor: Any,
+        label: str,
+        *,
+        root: Path | None = None,
+    ) -> Path:
+        nonlocal active_oracle_path
+        path = original_artifact_path(
+            manifest_path, descriptor, label, root=root
+        )
+        if label.endswith(":snapshot_oracle"):
+            active_oracle_path = path.resolve()
+        return path
+
+    def selective_verify_snapshot(snapshot: Path, case: str) -> dict[str, Any]:
+        nonlocal shared_mismatch_replay_calls
+        replay = original_verify_snapshot(snapshot, case)
+        if active_oracle_path == shared_oracle_path:
+            shared_mismatch_replay_calls += 1
+        if case == "NEG":
+            return {**replay, "forced_canonical_mismatch": True}
+        return replay
+
+    def capture_snapshot_evidence(
+        manifest_path: Path,
+        manifest: dict[str, Any],
+        slots: list[dict[str, Any]],
+        final_attempts: dict[str, dict[str, Any]],
+        *,
+        snapshot_verified_run_ids: set[str],
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
+    ) -> tuple[dict[str, dict[str, Any]], list[str]]:
+        captured.update(snapshot_verified_run_ids)
+        return original_load_adjudication(
+            manifest_path,
+            manifest,
+            slots,
+            final_attempts,
+            snapshot_verified_run_ids=snapshot_verified_run_ids,
+            task_manifest=task_manifest,
+        )
+
+    monkeypatch.setattr(TOOL, "_artifact_path", track_artifact_path)
+    monkeypatch.setattr(TOOL, "verify_snapshot", selective_verify_snapshot)
+    monkeypatch.setattr(
+        TOOL, "_load_adjudication", capture_snapshot_evidence
+    )
+    _, _, _, reasons = TOOL._replay_manifest(manifest_path, run_root)
+
+    assert captured == expected_verified
+    assert shared_mismatch_replay_calls == 2
+    for run_id in expected_mismatched:
+        assert f"{run_id}: snapshot oracle replay mismatch" in reasons
+    for run_id in expected_verified:
+        assert f"{run_id}: snapshot oracle replay mismatch" not in reasons
+
+
+def test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run(
+    tmp_path: Path,
+    benchmark_snapshots: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path, run_root = _full_manifest(
+        tmp_path,
+        benchmark_snapshots,
+        monkeypatch,
+        memoize_construction_snapshots=True,
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    schedule = json.loads((run_root / "schedule.json").read_text(encoding="utf-8"))
+    case_by_slot = {
+        row["slot_id"]: row["case"] for row in schedule["slots"]
+    }
+    shared_case = schedule["slots"][0]["case"]
+    shared_attempts = [
+        row
+        for row in manifest["attempts"]
+        if case_by_slot[row["slot_id"]] == shared_case
+    ]
+    first, second = shared_attempts[:2]
+    shared_oracles_by_case: dict[str, dict[str, Any]] = {}
+    for row in manifest["attempts"]:
+        case = case_by_slot[row["slot_id"]]
+        if case not in shared_oracles_by_case:
+            shared_oracles_by_case[case] = copy.deepcopy(
+                row["snapshot_oracle"]
+            )
+        row["snapshot_oracle"] = copy.deepcopy(
+            shared_oracles_by_case[case]
+        )
+    assert second["snapshot_oracle"] == first["snapshot_oracle"]
+    _canonical(manifest_path, manifest)
+    shared_oracle_path = Path(first["snapshot_oracle"]["path"])
+    if not shared_oracle_path.is_absolute():
+        shared_oracle_path = manifest_path.parent / shared_oracle_path
+    shared_oracle_path = shared_oracle_path.resolve()
+    active_oracle_path: Path | None = None
+    shared_replay_calls = 0
+    original_artifact_path = TOOL._artifact_path
+    original_verify_snapshot = TOOL.verify_snapshot
+
+    def track_artifact_path(
+        manifest_path: Path,
+        descriptor: Any,
+        label: str,
+        *,
+        root: Path | None = None,
+    ) -> Path:
+        nonlocal active_oracle_path
+        path = original_artifact_path(
+            manifest_path, descriptor, label, root=root
+        )
+        if label.endswith(":snapshot_oracle"):
+            active_oracle_path = path.resolve()
+        return path
+
+    def count_verify_snapshot(snapshot: Path, case: str) -> dict[str, Any]:
+        nonlocal shared_replay_calls
+        if active_oracle_path == shared_oracle_path:
+            shared_replay_calls += 1
+        return original_verify_snapshot(snapshot, case)
+
+    monkeypatch.setattr(TOOL, "_artifact_path", track_artifact_path)
+    monkeypatch.setattr(TOOL, "verify_snapshot", count_verify_snapshot)
+
+    accepted, accepted_rc = TOOL.verify_manifest(manifest_path, run_root)
+    assert accepted_rc == 0
+    assert accepted["valid"] is True
+    assert shared_replay_calls == 1
+    accepted_reasons = set(accepted.get("failure_reasons", []))
+
+    after_path = Path(second["snapshot_after"]["path"])
+    if not after_path.is_absolute():
+        after_path = tmp_path / after_path
+    after_value = json.loads(after_path.read_text(encoding="utf-8"))
+    after_value["forced_post_mismatch"] = True
+    _canonical(after_path, after_value)
+    second["snapshot_after"] = _descriptor(after_path, tmp_path)
+    _canonical(manifest_path, manifest)
+
+    shared_replay_calls = 0
+    rejected, rejected_rc = TOOL.verify_manifest(manifest_path, run_root)
+    expected_reason = (
+        f"{second['run_id']}: pre/post snapshot oracle mismatch"
+    )
+    assert rejected_rc == TOOL.RC_AGGREGATE
+    assert rejected["valid"] is False
+    assert rejected["failure_reasons"].count(expected_reason) == 1
+    assert shared_replay_calls == 1
+    revealed_path = Path(manifest["revealed_map"]["path"])
+    if not revealed_path.is_absolute():
+        revealed_path = manifest_path.parent / revealed_path
+    revealed = json.loads(revealed_path.read_text(encoding="utf-8"))
+    packet_id = next(
+        row["packet_id"]
+        for row in revealed["mapping"]
+        if row["run_id"] == second["run_id"]
+    )
+    membership_reason = (
+        f"{packet_id}: material packet source run lacks replayed "
+        f"snapshot evidence: {second['run_id']}"
+    )
+    # This one tamper adds exactly two reasons: the binding failure and its
+    # deliberately redundant material-packet membership failure.
+    assert set(rejected["failure_reasons"]) - accepted_reasons == {
+        expected_reason,
+        membership_reason,
+    }
 
 
 def test_supervisor_cli_removed_caller_attestation_command() -> None:
@@ -11230,6 +11641,51 @@ def _verdict_packet_swap_restore_fixture(
     )
 
 
+def test_material_packet_source_requires_replayed_snapshot_evidence(
+    tmp_path: Path,
+) -> None:
+    (
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        _,
+        _,
+    ) = _verdict_packet_swap_restore_fixture(tmp_path)
+    revealed_path = Path(manifest["revealed_map"]["path"])
+    if not revealed_path.is_absolute():
+        revealed_path = tmp_path / revealed_path
+    mapping = json.loads(revealed_path.read_text(encoding="utf-8"))[
+        "mapping"
+    ]
+    target = mapping[0]
+    all_run_ids = {
+        str(attempt["run_id"]) for attempt in final_attempts.values()
+    }
+    expected_reason = (
+        f"{target['packet_id']}: material packet source run lacks replayed "
+        f"snapshot evidence: {target['run_id']}"
+    )
+
+    _, complete_reasons = TOOL._load_adjudication(
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        snapshot_verified_run_ids=all_run_ids,
+    )
+    assert expected_reason not in complete_reasons
+
+    _, missing_reasons = TOOL._load_adjudication(
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        snapshot_verified_run_ids=all_run_ids - {target["run_id"]},
+    )
+    assert missing_reasons.count(expected_reason) == 1
+
+
 def test_m6_verdict_packet_swap_restore_digest_layers_are_redundant(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -11242,9 +11698,16 @@ def test_m6_verdict_packet_swap_restore_digest_layers_are_redundant(
         verdict_log,
         verdict_freeze,
     ) = _verdict_packet_swap_restore_fixture(tmp_path)
+    snapshot_verified_run_ids = {
+        str(attempt["run_id"]) for attempt in final_attempts.values()
+    }
 
     joined, reasons = TOOL._load_adjudication(
-        manifest_path, manifest, slots, final_attempts
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        snapshot_verified_run_ids=snapshot_verified_run_ids,
     )
     assert joined["s01"]["r1_detected"] is False
     assert joined["s02"]["r1_detected"] is True
@@ -11280,7 +11743,11 @@ def test_m6_verdict_packet_swap_restore_digest_layers_are_redundant(
             TOOL, "_json_lines", without_read_digest_check
         )
         _, read_disabled_reasons = TOOL._load_adjudication(
-            manifest_path, manifest, slots, final_attempts
+            manifest_path,
+            manifest,
+            slots,
+            final_attempts,
+            snapshot_verified_run_ids=snapshot_verified_run_ids,
         )
     assert not any(
         "verdict read-time packet/output sha mismatch" in reason
@@ -11309,7 +11776,11 @@ def test_m6_verdict_packet_swap_restore_digest_layers_are_redundant(
             TOOL, "_load_json_object", without_freeze_digest_check
         )
         bypassed_join, bypassed_reasons = TOOL._load_adjudication(
-            manifest_path, manifest, slots, final_attempts
+            manifest_path,
+            manifest,
+            slots,
+            final_attempts,
+            snapshot_verified_run_ids=snapshot_verified_run_ids,
         )
     assert bypassed_reasons == []
     assert bypassed_join["s01"]["r1_detected"] is False
@@ -11414,7 +11885,13 @@ def test_reader_disagreement_is_conservative(tmp_path: Path) -> None:
     }
     manifest_path = _canonical(tmp_path / "manifest.json", manifest)
     joined, reasons = TOOL._load_adjudication(
-        manifest_path, manifest, slots, final_attempts
+        manifest_path,
+        manifest,
+        slots,
+        final_attempts,
+        snapshot_verified_run_ids={
+            str(attempt["run_id"]) for attempt in final_attempts.values()
+        },
     )
     assert joined["s01"]["r1_detected"] is False
     assert joined["s01"]["reader_agreement"] is False

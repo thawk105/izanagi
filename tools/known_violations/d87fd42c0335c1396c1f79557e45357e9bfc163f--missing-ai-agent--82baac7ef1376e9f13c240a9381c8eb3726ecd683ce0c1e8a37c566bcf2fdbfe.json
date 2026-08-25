@@ -1,0 +1,7 @@
+{
+  "sha": "d87fd42c0335c1396c1f79557e45357e9bfc163f",
+  "kind": "missing-ai-agent",
+  "value": "",
+  "ruling": "2026-08-21 [T-755] wave内でのlocal main取り込みmerge (ユーザー承認: known-violation登録の続行)",
+  "note": "親 (Claude session) が `git merge --no-edit main` で作成した local main 取り込み。`git diff-tree --cc d87fd42c` は commit header のみで実質空 = 競合解決による新規著作なし。取り込んだのは external/ccbench の gitlink pointer 変更 (511c9538→ef9328a3、ユーザー直接commit 09ce607b) 1 file のみ。--no-edit の自動生成 message には trailer が付与されない"
+}

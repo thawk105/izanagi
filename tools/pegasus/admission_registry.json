@@ -199,6 +199,12 @@
       "primary_gate": "compute-node environment attestation",
       "evidence": "static semantic-site classification"
     },
+    "tools/pegasus/run_ss2pl_lock_study.py": {
+      "class": "dispatch-required",
+      "reason": "compute-side CCBench build and SS2PL benchmark driver",
+      "primary_gate": "compute allocation owned by ss2pl_lock_study.sh",
+      "evidence": "static compute-side call-site classification"
+    },
     "tools/pegasus/run_t139_a12_stress_check.py": {
       "class": "dispatch-required",
       "reason": "compute-side T139 A12 stress-check simulation runner",
@@ -214,6 +220,12 @@
     "tools/pegasus/smoke_probe.sh": {
       "class": "dispatch-required",
       "reason": "PBS smoke probe job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/ss2pl_lock_study.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS SS2PL lock study job body",
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },

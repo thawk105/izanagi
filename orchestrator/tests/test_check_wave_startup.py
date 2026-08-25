@@ -18,6 +18,15 @@ CWS = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = CWS
 _SPEC.loader.exec_module(CWS)
 
+_BEHIND_GUIDANCE = (
+    "HEAD does not contain local main (1 commit behind): "
+    "session 開始時は local main を取り込み、clean tree にしてから "
+    "--mode resume を再実行する; session 開始 gate が成功した後の受入前は "
+    "gate を再実行せず tools/dev_wave_wait.py acceptance の "
+    "post-claim merge に任せる; "
+    "待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）"
+)
+
 
 def _git(repo: Path, *args: str) -> str:
     env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
@@ -742,7 +751,7 @@ def test_default_mode_remains_fresh_despite_resume_environment_and_config(
         pytest.param(0, "+0", "", "ASCII 整数でない", id="signed"),
         pytest.param(0, "０", "", "ASCII 整数でない", id="full-width"),
         pytest.param(0, "0 0", "", "ASCII 整数でない", id="multiple-tokens"),
-        pytest.param(0, "00", "", "HEAD does not contain local main", id="leading-zero"),
+        pytest.param(0, "00", "", "ASCII 整数でない", id="leading-zero"),
     ],
 )
 def test_head_contains_main_fails_closed_for_invalid_rev_list(
@@ -916,7 +925,68 @@ def test_resume_rejects_head_behind_local_main(
     assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "1"
     assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 1
-    assert "HEAD does not contain local main (1 commit behind)" in capsys.readouterr().err
+    assert capsys.readouterr().err == f"NG: {_BEHIND_GUIDANCE}\n"
+
+
+def test_resume_behind_guidance_names_acceptance_postclaim_merge(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(_CHECKER),
+            "--repo",
+            str(repo),
+            "--mode",
+            "resume",
+        ],
+        cwd=repo,
+        text=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 1
+    assert completed.stderr == f"NG: {_BEHIND_GUIDANCE}\n"
+    assert (
+        "待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）"
+        in completed.stderr
+    )
+
+
+def test_resume_behind_with_dirty_tree_keeps_single_failure_rc(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    (repo / "untracked.txt").write_text("dirty\n", encoding="utf-8")
+    assert _run(repo, "--mode", "resume") == 1
+    diagnostics = capsys.readouterr().err.splitlines()
+    assert diagnostics == [
+        f"NG: {_BEHIND_GUIDANCE}",
+        "NG: working tree is not clean: 変更を commit または退避してから再実行する",
+    ]
+
+
+def test_resume_malformed_behind_count_is_rejected_without_acceptance_guidance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(CWS, "_check_no_grafts", lambda repo: [])
+    monkeypatch.setattr(
+        CWS,
+        "_git",
+        lambda repo, *args: CWS.GitResult(0, "00", ""),
+    )
+    failures = CWS._check_head_contains_main(tmp_path)
+    assert failures == [
+        "HEAD/local main containment: rev-list の出力が canonical な非負の "
+        "ASCII 整数でない (00): git repository を確認する"
+    ]
+    assert all("tools/dev_wave_wait.py acceptance" not in item for item in failures)
+    assert all("post-claim merge" not in item for item in failures)
 
 
 def test_resume_rejects_diverged_head(

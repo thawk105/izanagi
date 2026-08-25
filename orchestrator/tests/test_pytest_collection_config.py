@@ -50,7 +50,13 @@ _GOOD_TEST = "def test_ok():\n    assert True\n"
 _SORT_SWO_TEST = _REPO / "orchestrator" / "tests" / "test_sort_swo_oracle.py"
 _CLEANUP_TEST = _REPO / "orchestrator" / "tests" / "test_dev_wave_cleanup.py"
 _CLEANUP_IGNORE = f"--ignore={_CLEANUP_TEST}"
-_CANONICAL_CLEANUP_EXCLUSION = CONTRACT.SANCTIONED_EXCLUSIONS[0]
+_CANONICAL_CLEANUP_EXCLUSION = CONTRACT.Exclusion(
+    path=_CLEANUP_TEST,
+    reason="消滅pid型occupancy issueを3 scan連続観測しcleanup testsがrc22になる",
+    release_condition="dev-wave-cleanup-occupancy-churn taskがlandし、明示file走が全緑",
+    ruling="2026-08-24 user direct known-red registration",
+    set_version="dev-wave-cleanup-occupancy-churn-v1",
+)
 _CANONICAL_CLEANUP_EXCLUSIONS = (_CANONICAL_CLEANUP_EXCLUSION,)
 
 
@@ -79,6 +85,8 @@ class _StateChangingPath:
 def _set_exclusion_table(monkeypatch, *, active: bool):
     entries = _CANONICAL_CLEANUP_EXCLUSIONS if active else ()
     monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", entries)
+    monkeypatch.setattr(CONTRACT, "SANCTIONED_EXCLUSIONS", entries)
+    assert CONF._SELECTION_CONTRACT is CONTRACT
     return entries
 
 
@@ -119,7 +127,12 @@ def _read_ini(path: Path) -> configparser.ConfigParser:
 def _child_env() -> dict[str, str]:
     """親の選択オプションを子 pytest へ持ち込まない (計測でなく判定を汚すため)。"""
     env = dict(os.environ)
-    for name in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTEST_DEBUG"):
+    for name in (
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_DEBUG",
+        RT._RUNNER_EXCLUSION_ENV,
+    ):
         env.pop(name, None)
     env["NO_COLOR"] = "1"
     return env
@@ -332,14 +345,79 @@ def test_runner_default_target_survives_ini(monkeypatch: pytest.MonkeyPatch):
 
 def test_permanent_exclusion_table_is_exact_and_target_remains_a_file():
     entries = RT._PERMANENT_FULL_SUITE_EXCLUSIONS
-    assert entries == (_CANONICAL_CLEANUP_EXCLUSION,)
+    assert entries == ()
     assert CONTRACT.SANCTIONED_EXCLUSIONS == entries
-    assert len(entries) == 1
-    assert CONTRACT.normalize_path(entries[0].path) == _CLEANUP_TEST
     assert CONTRACT.SANCTIONED_CLEANUP_TEST_PATH == _CLEANUP_TEST
     assert _CLEANUP_TEST.is_file()
     assert not _CLEANUP_TEST.is_symlink()
     assert CONTRACT.is_sanctioned_exclusion_set(entries)
+
+
+def test_cleanup_collection_positive_control_with_empty_production_exclusions(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    entries = RT._PERMANENT_FULL_SUITE_EXCLUSIONS
+    assert entries == ()
+    assert CONTRACT.SANCTIONED_EXCLUSIONS == entries
+    monkeypatch.setenv(
+        RT._RUNNER_EXCLUSION_ENV,
+        CONTRACT.serialize_payload(_CANONICAL_CLEANUP_EXCLUSIONS),
+    )
+    assert RT._RUNNER_EXCLUSION_ENV not in _child_env()
+
+    collect_args = [
+        "--collect-only", "-q", "--color=no", "-p", "no:cacheprovider",
+        "-k", "test_real_occupancy_scan_rejects_live_process_cwd",
+    ]
+    production_command = RT._build_pytest_command(
+        collect_args,
+        use_xdist=False,
+        default_nproc=1,
+        has_target=False,
+        default_target=RT._DEFAULT_TARGET,
+        exclusions=entries,
+    )
+    production = subprocess.run(
+        production_command,
+        cwd=_REPO,
+        env={**_child_env(), "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    known_node = (
+        "test_dev_wave_cleanup.py::"
+        "test_real_occupancy_scan_rejects_live_process_cwd"
+    )
+    assert production.returncode == 0, production.stdout + production.stderr
+    assert known_node in production.stdout
+
+    excluded_command = RT._build_pytest_command(
+        collect_args,
+        use_xdist=False,
+        default_nproc=1,
+        has_target=False,
+        default_target=RT._DEFAULT_TARGET,
+        exclusions=_CANONICAL_CLEANUP_EXCLUSIONS,
+    )
+    excluded = subprocess.run(
+        excluded_command,
+        cwd=_REPO,
+        env={**_child_env(), "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert excluded.returncode == pytest.ExitCode.NO_TESTS_COLLECTED, (
+        excluded.stdout + excluded.stderr
+    )
+    assert known_node not in excluded.stdout
+    assert _CLEANUP_IGNORE in excluded_command
+
+    captured = _patch_main_command_capture(monkeypatch)
+    assert RT.main(["-q"], site=RT.site_policy.OTHER) == 0
+    assert _CLEANUP_IGNORE not in captured["command"]
+    assert captured["runner_exclusion_env"] is None
 
 
 def test_permanent_exclusion_table_has_no_other_verifier_or_oracle_tests():
@@ -352,7 +430,7 @@ def test_permanent_exclusion_table_has_no_other_verifier_or_oracle_tests():
         and any(word in path.stem.lower() for word in ("verifier", "oracle"))
     }
     assert test_paths.isdisjoint(forbidden_siblings)
-    assert test_paths == {CONTRACT.normalize_path(_CLEANUP_TEST)}
+    assert test_paths == set()
 
 
 def test_permanent_exclusion_metadata_and_version_are_exact():
@@ -495,6 +573,44 @@ def test_duplicate_default_roots_cannot_bypass_completeness_with_receipt(
     assert CONF._SELECTION_RECEIPT_PREFIX not in capsys.readouterr().err
 
 
+def test_requested_xdist_without_dsession_keeps_local_flaky_completeness_check():
+    config = SimpleNamespace(
+        option=SimpleNamespace(numprocesses=2),
+        args=(str(_HERE),),
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(get_plugin=lambda _name: None),
+    )
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+    del config.pluginmanager
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+
+def test_usable_dsession_delegates_flaky_completeness_to_xdist_hook():
+    dsession = SimpleNamespace(sched=SimpleNamespace(numnodes=1))
+    config = SimpleNamespace(
+        args=(str(_HERE),),
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: dsession if name == "dsession" else None,
+        ),
+    )
+    assert CONF._is_complete_flaky_hold_collection(config) is False
+
+
+def test_xdist_worker_keeps_local_flaky_completeness_check():
+    dsession = object()
+    config = SimpleNamespace(
+        workerinput={},
+        args=(str(_HERE),),
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: dsession if name == "dsession" else None,
+        ),
+    )
+    assert CONF._is_complete_flaky_hold_collection(config) is True
+
+
 @pytest.mark.parametrize(
     "args",
     [
@@ -554,7 +670,6 @@ def test_runner_rejects_contract_metadata_drift(
 def test_empty_exclusion_table_restores_the_prechange_default_command(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    _set_exclusion_table(monkeypatch, active=False)
     captured = _patch_main_command_capture(monkeypatch)
     assert RT._PERMANENT_FULL_SUITE_EXCLUSIONS == ()
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 0
@@ -688,7 +803,7 @@ def test_main_deep_canonicalizes_state_changing_path_before_command_and_env(
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 0
     assert changing_path.calls == 1
     assert isinstance(canonical["entries"], tuple)
-    assert canonical["entries"][0] is _CANONICAL_CLEANUP_EXCLUSION
+    assert canonical["entries"][0] is CONTRACT._CANONICAL_EXCLUSION
     assert canonical["entries"][0] is not supplied
     assert _CLEANUP_IGNORE in captured["command"]
     assert f"--ignore={foreign}" not in captured["command"]
@@ -711,13 +826,14 @@ def test_main_mutable_table_cannot_drift_after_snapshot_validation(
     def validate_then_mutate(snapshot):
         validated["snapshot"] = snapshot
         result = real_validate(snapshot)
+        validated["canonical"] = result
         table[:] = [foreign]
         return result
 
     real_build = RT._build_pytest_command
 
     def build_from_validated_snapshot(*args, **kwargs):
-        assert kwargs["exclusions"] is validated["snapshot"]
+        assert kwargs["exclusions"] is validated["canonical"]
         return real_build(*args, **kwargs)
 
     monkeypatch.setattr(RT, "_PERMANENT_FULL_SUITE_EXCLUSIONS", table)
@@ -729,6 +845,10 @@ def test_main_mutable_table_cannot_drift_after_snapshot_validation(
 
     assert RT.main(["-q"], site=RT.site_policy.OTHER) == 0
     assert isinstance(validated["snapshot"], tuple)
+    assert isinstance(validated["canonical"], tuple)
+    assert validated["canonical"] is not validated["snapshot"]
+    assert validated["canonical"][0] is CONTRACT._CANONICAL_EXCLUSION
+    assert validated["canonical"][0] is not validated["snapshot"][0]
     assert table == [foreign]
     assert _CLEANUP_IGNORE in captured["command"]
     assert f"--ignore={foreign.path}" not in captured["command"]
@@ -834,7 +954,7 @@ def test_receipt_deep_canonicalizes_state_changing_path(
     lines = capsys.readouterr().err.splitlines()
     assert changing_path.calls == 1
     assert isinstance(canonical["entries"], tuple)
-    assert canonical["entries"][0] is _CANONICAL_CLEANUP_EXCLUSION
+    assert canonical["entries"][0] is CONTRACT._CANONICAL_EXCLUSION
     assert canonical["entries"][0] is not supplied
     assert len(lines) == 1
     assert lines[0].startswith(CONF._SELECTION_RECEIPT_PREFIX)
@@ -843,9 +963,23 @@ def test_receipt_deep_canonicalizes_state_changing_path(
     assert payload["path"] == str(_CLEANUP_TEST)
 
 
-@pytest.mark.parametrize("mismatch", ["payload", "token"])
+@pytest.mark.parametrize(
+    ("mismatch", "expected_message"),
+    (
+        (
+            "payload",
+            "runner exclusion payload が共有 selection contract と一致しません",
+        ),
+        (
+            "token",
+            "runner exclusion token が共有 selection contract と一致しません",
+        ),
+    ),
+)
 def test_conftest_rejects_present_runner_env_drift(
-    monkeypatch: pytest.MonkeyPatch, mismatch: str,
+    monkeypatch: pytest.MonkeyPatch,
+    mismatch: str,
+    expected_message: str,
 ):
     entries = _set_exclusion_table(monkeypatch, active=True)
     config = _growth_hold_config(_CLEANUP_IGNORE)
@@ -856,7 +990,17 @@ def test_conftest_rejects_present_runner_env_drift(
             monkeypatch.setenv(CONF._RUNNER_EXCLUSION_ENV, json.dumps(payload))
         else:
             config.invocation_params.args = ("--ignore=/not-sanctioned.py",)
-        with pytest.raises(pytest.UsageError, match="runner exclusion"):
+        with pytest.raises(pytest.UsageError, match=expected_message):
+            CONF.pytest_configure(config)
+
+
+def test_conftest_rejects_runner_token_when_production_contract_is_empty():
+    assert CONTRACT.SANCTIONED_EXCLUSIONS == ()
+    assert RT._PERMANENT_FULL_SUITE_EXCLUSIONS == ()
+    config = _growth_hold_config(_CLEANUP_IGNORE)
+
+    with RT._runner_exclusion_environment(_CANONICAL_CLEANUP_EXCLUSIONS):
+        with pytest.raises(pytest.UsageError, match="canonical exactly-one"):
             CONF.pytest_configure(config)
 
 

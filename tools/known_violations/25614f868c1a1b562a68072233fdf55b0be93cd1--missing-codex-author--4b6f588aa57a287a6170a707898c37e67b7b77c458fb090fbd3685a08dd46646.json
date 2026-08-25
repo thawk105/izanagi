@@ -1,0 +1,7 @@
+{
+  "sha": "25614f868c1a1b562a68072233fdf55b0be93cd1",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "本セッション内でユーザーへ状況を説明し known-violation 登録の承認を得た (2026-08-23)",
+  "note": "D662 (受入 lease claim 待ちの廃止) 対応で `tools/dev_wave_wait.py` へ実装した `--lease-optional` (commit 0c89ec77、Codex role=author) を今後の全 wave が自動的に使うよう、`docs/dev-wave/operations.md` の DW-O27 追加・`.claude/commands/dev-wave.md` 条件18への追記・`tools/check_docs.py` の dispatch 契約 (REQUIRED_REFERENCE_SECTIONS / CONDITION_DISPATCH_CONTRACT[\"18\"]) 登録を commit 25614f86 で行った。3箇所とも既存の文字列集合へのリテラル追加のみでロジック変更はないが、manager (claude) が直接 commit したため `tools/check_docs.py` への変更に Codex `role=author` trailer がなく、checker が `missing-codex-author` (paths=tools/check_docs.py) を検出した。"
+}

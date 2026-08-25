@@ -8690,6 +8690,7 @@ def _load_adjudication(
     slots: Sequence[Mapping[str, Any]],
     final_attempts: Mapping[str, Mapping[str, Any]],
     *,
+    snapshot_verified_run_ids: set[str],
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[dict[str, dict[str, Any]], list[str]]:
     reasons: list[str] = []
@@ -8810,6 +8811,11 @@ def _load_adjudication(
     }
     for packet_id, mapping_row in mapping.items():
         run_id = mapping_row.get("run_id")
+        if run_id not in snapshot_verified_run_ids:
+            reasons.append(
+                f"{packet_id}: material packet source run lacks replayed "
+                f"snapshot evidence: {run_id}"
+            )
         packet = packets.get(packet_id, {})
         reader_rows = verdict_by_packet.get(packet_id, {})
         parent_verdict = reader_rows.get("parent", {})
@@ -9873,7 +9879,8 @@ def _replay_manifest(
     expected_sessions: list[tuple[str, int, str, str, str]] = []
     envelope_starts: list[datetime] = []
     envelope_ends: list[datetime] = []
-    snapshot_cache: set[str] = set()
+    snapshot_cache: set[tuple[str, str, str]] = set()
+    snapshot_verified_run_ids: set[str] = set()
     for row in attempts_raw:
         if not isinstance(row, dict):
             reasons.append("attempt row is not an object")
@@ -9986,6 +9993,7 @@ def _replay_manifest(
             launch = _load_json_object(launch_path)
             oracle = _load_json_object(oracle_path)
             oracle_after = _load_json_object(oracle_after_path)
+            snapshot_replay_bindings_passed = True
             for field, expected_value in (
                 ("run_id", run_id),
                 ("slot_id", slot_id),
@@ -10013,6 +10021,7 @@ def _replay_manifest(
                 or launch_oracle.get("sha256") != slot.get("snapshot_manifest_sha256")
             ):
                 reasons.append(f"{run_id}: scheduled snapshot manifest sha mismatch")
+                snapshot_replay_bindings_passed = False
             if oracle.get("submodule_manifest_sha256") != slot.get(
                 "submodule_manifest_sha256"
             ):
@@ -10020,13 +10029,29 @@ def _replay_manifest(
                     f"{run_id}: scheduled submodule initialization or "
                     "gitlink state mismatch"
                 )
-            if oracle_path.as_posix() not in snapshot_cache:
+                snapshot_replay_bindings_passed = False
+            snapshot_oracle_descriptor = row.get("snapshot_oracle")
+            snapshot_identity = (
+                oracle_path.resolve().as_posix(),
+                str(snapshot_oracle_descriptor["sha256"]),
+                str(slot["case"]),
+            )
+            snapshot_replay_verified = snapshot_identity in snapshot_cache
+            if not snapshot_replay_verified:
                 replay_oracle = verify_snapshot(Path(oracle["snapshot"]), str(slot["case"]))
                 if _canonical_bytes(replay_oracle) != oracle_path.read_bytes():
                     reasons.append(f"{run_id}: snapshot oracle replay mismatch")
-                if oracle_after != oracle or oracle_after_path.read_bytes() != oracle_path.read_bytes():
-                    reasons.append(f"{run_id}: pre/post snapshot oracle mismatch")
-                snapshot_cache.add(oracle_path.as_posix())
+                else:
+                    snapshot_cache.add(snapshot_identity)
+                    snapshot_replay_verified = True
+            if (
+                oracle_after != oracle
+                or oracle_after_path.read_bytes() != oracle_path.read_bytes()
+            ):
+                reasons.append(f"{run_id}: pre/post snapshot oracle mismatch")
+                snapshot_replay_bindings_passed = False
+            if snapshot_replay_verified and snapshot_replay_bindings_passed:
+                snapshot_verified_run_ids.add(run_id)
             replay_receipt, _ = collect_run(
                 run_id=run_id,
                 case=str(slot["case"]),
@@ -10163,6 +10188,7 @@ def _replay_manifest(
         manifest,
         slots,
         final_attempts,
+        snapshot_verified_run_ids=snapshot_verified_run_ids,
         task_manifest=task_manifest,
     )
     reasons.extend(adjudication_reasons)
@@ -10199,6 +10225,28 @@ def _replay_manifest(
     return slots, attempts, verdicts, reasons
 
 
+def _certification_scope() -> dict[str, Any]:
+    return {
+        "certification_subject": "material-report",
+        "certified_entrypoints": ["verify", "aggregate"],
+        "certified_report_fields": ["valid"],
+        "uncertified_artifact_universe": (
+            "adjudication_intermediate_artifacts"
+        ),
+        "uncertified_artifact_kinds": [
+            "packet",
+            "packet_state",
+            "verdict_log",
+            "verdict_freeze",
+            "revealed_map",
+        ],
+        "material_packet_requirement": (
+            "mapped_final_run_snapshot_evidence_replayed"
+        ),
+        "closed_world": True,
+    }
+
+
 def verify_manifest(
     manifest_path: Path,
     sessions_root: Path | None = None,
@@ -10210,6 +10258,7 @@ def verify_manifest(
             "schema_version": SCHEMA_VERSION,
             "valid": False,
             "failure_reasons": ["sessions-root is required"],
+            "certification_scope": _certification_scope(),
         }, RC_AGGREGATE
     try:
         slots, attempts, verdicts, reasons = _replay_manifest(
@@ -10231,6 +10280,7 @@ def verify_manifest(
             "valid": False,
             "failure_reasons": list(exc.reasons),
         }
+    output["certification_scope"] = _certification_scope()
     return output, 0 if output.get("valid") else RC_AGGREGATE
 
 

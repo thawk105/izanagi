@@ -411,6 +411,8 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
     "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+    "test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
     "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
     "test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
@@ -1264,11 +1266,15 @@ def _is_un_narrowed_flaky_hold_collection(config) -> bool:
 
 def _is_complete_flaky_hold_collection(config) -> bool:
     """Return whether this process owns a complete, un-narrowed collection."""
-    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
-    if (
-        not hasattr(config, "workerinput")
-        and numprocesses not in (None, 0, "0")
-    ):
+    dsession = None
+    if not hasattr(config, "workerinput"):
+        try:
+            dsession = config.pluginmanager.get_plugin("dsession")
+        except AttributeError:
+            # Small synthetic configs may not provide a plugin manager.  In
+            # that case there is no xdist hook owner to delegate to.
+            pass
+    if dsession is not None:
         # The xdist controller receives worker collections through the
         # xdist-specific hook below, not through its local item list.
         return False

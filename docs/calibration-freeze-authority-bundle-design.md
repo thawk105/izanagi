@@ -714,25 +714,33 @@ cutoff は受理集合を発効の瞬間に変える。**変える対象と時�
 
 **そして、陽性条件は fixture を名指ししなければ判定にならない。** 「正常な入力」「正常な campaign」
 と書くだけでは、任意の 1 ケースを通して完了と主張できる。**したがって本書は各段の完了判定を
-exact に書かない。書けないからである。** 段 0 で次を確定してから、実装 wave が判定式を書く。
+exact に書かない。書けないからである。** 段 0 は閉じた manifest と繰越集合を固定し、実装 wave は
+自段へ繰り越された未了義務を解消してから判定式を書く。
 
-- 各段の**陽性 fixture の実体** (path・内容・期待値)。
-- 各段の**陰性 fixture の実体** (固定の負例一覧と、期待する拒否理由)。
-- 拒否理由の oracle (診断文字列ではなく、受理集合または fail-closed 挙動の変化で判定する)。
+- executable な行は、各段の**陽性 fixture の実体** (path・内容・期待値) と**陰性 fixture の実体**
+  (固定の負例一覧と、期待する拒否理由) を持つ。
+- pending な行は、fixture ID・未実行理由・予定 entrypoint を manifest/case に残し、対象後続段へ
+  未了義務として繰り越す。繰越先で陽性・陰性の実体と拒否 oracle を完成させる。
+- 拒否理由の oracle は診断文字列ではなく、受理集合または fail-closed 挙動の変化で判定する。
 
 **この fixture 閉包が対象とする段は、段 1〜4 と段 6〜8 である (§8/§10 矛盾の裁定 = 段 5 を除外)。**
 段 5 の判定式は封印 S と副作用境界 B に依存し、両者は先送り確定 (§8) だから段 0 では書けない。
 §8-2 の「適用される裁定項目だけを要求する」と同型に、**先送り確定項目に依存する段を段 0 の
-完了判定から外す**。除外は段 5 に限り、他の段へ広げない。
+完了判定から外す**。これとは別に、D778 が段 1 以降 owner の fixture assignment を段 0 blocker
+から外したため、§10.2 の三者一致を満たす gate と pending fixture だけを対象後続段へ繰り越す。
+これは fixture 義務の免除でも、対象段を「該当なし」にする規則でもない。
 
 > **この段集合は宣言であって、段と fixture の実体対応からの導出ではない。** 現行の fixture は
 > §7.2 / §11 の row に対応しており、段を表す field を持たない。導出可能にすること自体が
 > fixture assignment gate (§10.2 の `required_gates`、owner = 段の fixture を作る後続 wave) の
 > 仕事である。**「段 5 を除外した」と gate ID が名乗ることは、除外の証拠ではない。**
-> 段 0 wave の敵対レビューがこの自己申告性を指摘した。宣言と gate ID の drift だけは機械束縛する。
+> 段 0 wave の敵対レビューがこの自己申告性を指摘した。現 wave では canonical な row→段 mapping を
+> 新設せず、manifest の `owned_fixture_ids`、contract module の独立 literal、§10.2 の逐語列が
+> exact に一致するときだけ繰越を成立させる。fixture ごとの対象段割付は後続裁定候補である。
 
 **fixture を置くだけでは完了判定にならない。** 段 6 再レビューが「fixture ファイルだけ置き、
-検査を一度も呼ばずに完了と主張する」構成を作った。よって段 0 は次まで固定する。
+検査を一度も呼ばずに完了と主張する」構成を作った。よって executable な fixture は段 0 または
+担当後続段で次まで固定し、pending は未了義務として残す。
 
 - fixture の**閉じた manifest** (件数と hash を pin し、未登録の実体を拒否する)。
   **hash pin は manifest 自身の入力から再計算してはならない** — 実 file 集合・manifest の literal・
@@ -745,8 +753,9 @@ exact に書かない。書けないからである。** 段 0 で次を確定�
 - **実行できていない行は `pending` と明示する。** 対象 entrypoint がまだ存在しない行だけでなく、
   **entrypoint は存在するが実行可能な入力をまだ構築していない行**も `pending` である。
   fixture 内で理由と entrypoint 名を伴って `pending` とし、manifest がその件数を数える。
-  `pending` を実装済みの体裁で隠さない。**どちらの `pending` も段 0 未完了の理由になる**ため、
-  この区別が保証を緩めることはない。
+  `pending` を実装済みの体裁で隠さない。§10.2 の三者一致で繰り越されない `pending` は段 0 blocker
+  であり、繰り越された `pending` も `require_stage0_fixture_obligations_discharged()` が拒否する
+  未了義務である。この区別は fixture 自身の完了条件を緩めない。
 - **`unresolved` は不変条件 fixture の代用にできない。** 裁定待ちを表す `unresolved` は
   §8.1 の裁定 profile の側にだけ書き、§7.2 / §11 の行に対する fixture の代わりにしない。
   代用を許すと、最重要の不変条件を fixture 無しのまま完了と算出できる (段 0 wave の
@@ -754,20 +763,20 @@ exact に書かない。書けないからである。** 段 0 で次を確定�
 
 > **「未定義」と書かれた段は、完了と宣言できない。** 未定義のまま次段へ進むことも、
 > 未定義の段を「該当なし」として飛ばすこともしない。定義は段 0 の裁定が与える。
-> **唯一の例外は段 5 であり、それはユーザー裁定による段 0 完了判定からの除外である** —
-> 段 5 自身が完了と宣言できるようになるわけではない。例外を他の段へ拡張しない。
+> 段 5 の policy 依存定義を段 0 から外す裁定も、fixture assignment を対象後続段へ繰り越す
+> D778 も、その段自身を完了扱いにしない。後者は §10.2 の三者一致を満たす exact 集合だけに限る。
 
 | 段 | 内容 | 完了判定の状態 |
 |---|---|---|
-| 0 | 択一の裁定、語彙・schema・fixture の確定 | **§12 の全問 + 既存の未裁定 (下記) に裁定がつき、本節冒頭が定めた段集合 (段 1〜4・6〜8) の陽性・陰性 fixture が実体として固定される。** これが後続全段の前提である。判定は §10.2 の機械算出だけを正本とする |
-| 1 | 現状を指す休眠束と resolver の導入 | 段 0 で固定した fixture に対し、導入前後で受理集合と拒否集合が一致する |
+| 0 | 択一の裁定、語彙・schema・fixture の確定 | **§12 の全問 + 既存の未裁定 (下記) に裁定がつき、閉じた manifest、executable fixture、§10.2 の exact 繰越集合が固定される。** 段 0 の完了は繰越義務を免除しない。判定は §10.2 の機械算出だけを正本とする |
+| 1 | 現状を指す休眠束と resolver の導入 | fixture ごとの target stage 割付後、自段へ繰り越された fixture を executable にし、導入前後で受理集合と拒否集合が一致する |
 | 2 | 環境候補の表現と (E-1)/(E-2) の実装 | 正しい未参照候補を足しても active 束は不変。参照済み record の破損は拒否。**かつ候補が current と別の型として解決される** (§7.2-2) |
 | 3 | consumer の束経由への移行 (挙動保存) | §9 の閉包に対し、束外の固定 path 参照・下位 family resolver の直接呼び出し・独立した HEAD 取得が残っていれば落ちる。**かつ §7.2-3 の識別変異が落ちる**。挙動保存は §9.1 の遡及不拒否を含む |
 | 4 | その世代で交代する成分の commit 列 (E / G_f / A_f のうち該当分) と Q / A の構成 | これらを追加しても active 束は不変。A の余分な file・merge・trailer 不正・digest 不一致・**Q の対象集合と成分一覧の不一致**・承認前世代の直接参照・非承認組合せ・**parent が exact でない列**が落ちる。**かつ正当な A が X の候補としてちょうど受理される** |
 | 5 | 裁定に応じた policy 実装 | **未定義。** 封印・保証境界・副作用境界の裁定がないと、期待する受理・拒否の集合を一意に書けない。裁定に依らず言えるのは「適用される裁定項目が未解決の束は発効を拒否」「全観測に束の識別子が残る」まで |
-| 6 | 発効 X | **段 5 の後にしか置けない。** **構造部分 (段 0 で固定):** (i) X は `active/<raw sha256>.json` に置く top-level exact 5 key (`schema_version` / `authority_bundle_generation` / `parent_active_pointer_raw_sha256` / `bundle_digest` / `approval_raw_sha256`) の record で、file 名の stem は X の raw bytes の sha256 と一致する。 (ii) `parent_active_pointer_raw_sha256` は genesis のときだけ `null`、それ以外は**その時点の live tip X** の raw sha256 と一致する (祖先の非 tip X を parent にした列を拒否する)。 (iii) `authority_bundle_generation` は A の同 field と一致し、非 genesis では parent X の値より真に大きい (§5.1 の世代単調増加)。 (iv) `bundle_digest` は A の `bundle_digest` と一致し、§7.3 の再計算値と一致する。 (v) `approval_raw_sha256` は A の raw bytes の sha256 と `approvals/<raw sha256>.json` の file 名 stem の双方に一致し、参照先 A は下位 family 検証器と §5.1 の topology 検査を通った承認済み A に限る。 以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。 **本行が固定するのは predicate であって実行ではない** — 実 entrypoint と fixture の対応付けは `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番であり、それが `pending` である限り段 0 は完了しない。 **policy 依存部分:** 段 5 の S / B 裁定後まで `CFAB-STAGE6-POLICY-PREDICATE` (owner = `user`, status = `unresolved`) として残し、段 6 の完了には構造部分と policy 依存部分の双方を要求する。段 5 の除外は段 6 へ及ばない |
-| 7 | 発効後の受入と再検査 | 旧固定 path の履歴不変条件が引き続き成立し、新 path にも別 bytes の歴史が無い。**かつ段 0 で固定した陽性 campaign fixture が通る** |
-| 8 | 次世代への継承の先行検証 | 段 0 が定義した (§10.2)。現行は世代 2 以上を先に拒否するため、その拒否が先に発火して全変異が「緑」に見える (本 wave 時点の実測)。判定は**先行拒否を外した隔離環境で、実 entrypoint を呼んで**行う |
+| 6 | 発効 X | **段 5 の後にしか置けない。** **構造部分 (段 0 で固定):** (i) X は `active/<raw sha256>.json` に置く top-level exact 5 key (`schema_version` / `authority_bundle_generation` / `parent_active_pointer_raw_sha256` / `bundle_digest` / `approval_raw_sha256`) の record で、file 名の stem は X の raw bytes の sha256 と一致する。 (ii) `parent_active_pointer_raw_sha256` は genesis のときだけ `null`、それ以外は**その時点の live tip X** の raw sha256 と一致する (祖先の非 tip X を parent にした列を拒否する)。 (iii) `authority_bundle_generation` は A の同 field と一致し、非 genesis では parent X の値より真に大きい (§5.1 の世代単調増加)。 (iv) `bundle_digest` は A の `bundle_digest` と一致し、§7.3 の再計算値と一致する。 (v) `approval_raw_sha256` は A の raw bytes の sha256 と `approvals/<raw sha256>.json` の file 名 stem の双方に一致し、参照先 A は下位 family 検証器と §5.1 の topology 検査を通った承認済み A に限る。 以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。 **本行が固定するのは predicate であって実行ではない** — 実 entrypoint と fixture の対応付けは `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番である。その owner が `stage1-and-later` であり、対応する fixture が `owned_fixture_ids` に宣言されている間、gate と当該 pending fixture は段 0 blocker へ数えず、対象後続段へ繰り越す。fixture assignment 自身の完了条件は緩めない。将来の段 6 実装は、X 候補提出前に `require_stage0_fixture_obligations_discharged()` を呼び、同述語が緑であることを要求しなければならない。現時点では段 6 の候補入口とこの production caller は未実装である。 **policy 依存部分:** 段 5 の S / B 裁定後まで `CFAB-STAGE6-POLICY-PREDICATE` (owner = `user`, status = `unresolved`) として残し、段 6 の完了には構造部分と policy 依存部分の双方を要求する。段 5 の除外は段 6 へ及ばない |
+| 7 | 発効後の受入と再検査 | fixture ごとの target stage 割付後、旧固定 path の履歴不変条件が引き続き成立し、新 path にも別 bytes の歴史が無い。**かつ自段で executable にした陽性 campaign fixture が通る** |
+| 8 | 次世代への継承の先行検証 | fixture ごとの target stage 割付後、自段の繰越 fixture を executable にする。現行は世代 2 以上を先に拒否するため、その拒否が先に発火して全変異が「緑」に見える (本 wave 時点の実測)。判定は**先行拒否を外した隔離環境で、実 entrypoint を呼んで**行う |
 
 ### 10.1 段 0 が閉じねばならない既存の未裁定
 
@@ -792,21 +801,50 @@ exact に書かない。書けないからである。** 段 0 で次を確定�
 
 ### 10.2 段 0 の完了 status と、段 8 の完了判定
 
-**段 0 の status は機械的に算出する。** 次のいずれかが残る間、status は `incomplete` である。
+**段 0 の status は機械的に算出する。** raw inventory は変えず、D778 が後続段へ繰り越す
+fixture assignment だけを段 0 blocker の射影から外す。除外対象は次の三者が exact に一致し、
+各 case の `binding_state == "pending"` が成立するときだけ確定する。1 つでも欠ければ fail-closed とする。
 
-- §8.1 の裁定 profile に applicable な `unresolved` が残っている。
-- fixture manifest に `pending` が残っている。
-- manifest の `required_gates` に `unresolved` / `pending` / `nonconforming` の entry が残っている
-  (§10.1 の他者手番 gate と、段の fixture assignment gate を含む)。
+1. manifest の fixture assignment gate (owner = `stage1-and-later`) の `owned_fixture_ids`。
+2. contract module の独立 literal `_EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS`。
+3. 本節が次に逐語で宣言する fixture ID 列。
 
-**`incomplete` を成功結果として返さない。** 完了を要求する検査 node は、`pending` と
-applicable な `unresolved` の件数がともに 0 で、blocking な gate が 0 件で、status が
-`complete` であることを要求する。
+deferred fixture ID = `approved-freeze-reference`。
+deferred fixture ID = `bundle-identity-propagation`。
+deferred fixture ID = `candidate-type-preservation`。
+deferred fixture ID = `floor-seal-consistency`。
+deferred fixture ID = `post-cutoff-bundle-identity`。
 
-> **本節の第 1 条件は、先送り確定の `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` も数える。**
+集合式の正本は次である。`blocking_gates` は status が `unresolved` / `pending` / `nonconforming`
+である raw gate 集合、`raw_pending` は pending fixture ID の raw 集合である。
+
+```
+excluded_gates   = blocking_gates ∩ {owner == stage1-and-later かつ owned_fixture_ids を持つ}
+excluded_pending = pending_fixture_ids ∩ excluded_gates.owned_fixture_ids
+effective_pending = raw_pending − excluded_pending
+effective_gates   = blocking_gates − excluded_gates
+incomplete ⇔ applicable_unresolved > 0 or effective_pending > 0 or effective_gates ≠ ∅
+```
+
+`validate_repository()` は `raw_pending_count` / `excluded_stage0_pending_count` /
+`stage0_blocking_pending_count` と `raw_blocking_gate_count` / `excluded_stage0_gate_count` /
+`stage0_blocking_gate_count` を別々に返す。既存 `pending_count` は raw inventory の意味を維持する。
+ID 集合では、既存 `deferred_fixture_ids` は gate が blocking の間に段 0 から現在除外される集合の
+意味を維持し、`unresolved_deferred_fixture_ids` は gate 状態と独立に
+`_EXPECTED_STAGE0_DEFERRED_FIXTURE_IDS ∩ raw_pending_fixture_ids` を返す。
+**`incomplete` を成功結果として返さない。** `require_stage0_complete()` は effective な pending と gate、
+applicable な unresolved、status を同じ summary から要求し、manifest を再射影しない。
+
+**段 0 の完了は、繰り越した fixture 義務を免除しない。**
+`require_stage0_fixture_obligations_discharged()` は raw pending が 0 かつ fixture assignment gate が
+blocking でないことを別述語として要求する。`require_stage0_complete()` はこの述語を呼ばない。
+将来の段 6 実装は X 候補提出前に、前者ではなくこの義務解消述語を呼び、緑であることを
+要求しなければならない。現時点では段 6 の候補入口も、この production caller も未実装である。
+
+> **applicable unresolved 軸は、先送り確定の `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` も数える。**
 > 両者は applicable であり `unresolved` だから、**先送りを維持する限り段 0 は `complete` に
-> 到達しない。** §8/§10 矛盾の裁定 (段 5 の除外) は fixture 側の要求を外すだけで、この条件には
-> 触れていない。**R2 = (b) の裁定により、段 0 の完了は S と B の裁定後まで待つ。**
+> 到達しない。** §8/§10 矛盾の裁定 (段 5 の除外) と D778 の fixture assignment 繰越は、
+> この条件に触れない。**R2 = (b) の裁定により、段 0 の完了は S と B の裁定後まで待つ。**
 > applicability を先送り確定項目へ広げて算入から外す案 (R2 (a)) は、「決めなくても完了できる」
 > 経路を作り、§8-2 が発効 X に課した「適用される項目は解決していること」を段 0 側で空洞化するため
 > 不採用である。したがって現在の `incomplete` は欠陥ではなく、**意図した正直な表示**である。
@@ -907,16 +945,23 @@ row ID = `CFAB-11.2-01`。
 2026-08-12 の裁定 (worklog 451、選択肢 (a)) で閉じた。4 件は §12.1 へ移し、規則本文はそれぞれ
 §7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) / §7.5 (R4) へ畳み込んだ。**残るユーザー裁定は 0 件である。**
 
-**段 0 が完了しない理由は 3 つの軸に分かれる。** §10.2 の機械算出はこれらを別々に数える。
+**段 0 が完了しない理由は 3 つの軸に分かれる。** §10.2 の機械算出は raw・excluded・effective を
+混同せず、次の語彙で別々に数える。
 
-| 軸 | 現在値 | 内訳 |
+| 指標 | 現在値 | 内訳 |
 |---|---|---|
-| fixture manifest の `pending` | 5 | 実行可能な入力をまだ構築していない行 (段 1 以降の手番) |
+| `raw_pending_count` | 5 | 実行可能な入力をまだ構築していない行 (段 1 以降の手番) |
+| `excluded_stage0_pending_count` | 5 | §10.2 の exact 5 fixture ID。段 0 から対象後続段へ繰り越す未了義務 |
+| `stage0_blocking_pending_count` | 0 | raw 5 件から繰越 5 件を引いた段 0 blocker |
 | applicable な `unresolved` 裁定 | 2 | §12.2 の先送り確定 `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` (R2 = (b) により段 0 の完了はこの 2 件の裁定を待つ) |
-| blocking な `required_gates` | 4 | `CFAB-STAGE6-POLICY-PREDICATE` / `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` / `FREEZE-AX-TOPOLOGY` / `FREEZE-CONFORMANCE-LITERAL` |
+| `raw_blocking_gate_count` | 4 | `CFAB-STAGE6-POLICY-PREDICATE` / `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` / `FREEZE-AX-TOPOLOGY` / `FREEZE-CONFORMANCE-LITERAL` |
+| `excluded_stage0_gate_count` | 1 | `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT`。status は `pending` のまま |
+| `stage0_blocking_gate_count` | 3 | `CFAB-STAGE6-POLICY-PREDICATE` / `FREEZE-AX-TOPOLOGY` / `FREEZE-CONFORMANCE-LITERAL` |
 
-**この 3 軸は互いに素ではあるが、同じ項目を数えない。** S と B は 2 本目にだけ現れ、
-blocking gate には現れない。3 本のどれか 1 つを解消しても段 0 は閉じない。
+**raw blocking gate は 4 件のままであり、「4 件が 3 件になった」のではない。** S と B は applicable
+unresolved 軸にだけ現れる。段 0 の effective pending が 0 でも繰越 5 件は未了であり、段 6 X の
+候補提出を実装する将来の段 6 caller は `require_stage0_fixture_obligations_discharged()` を呼び、
+再び全件を要求しなければならない。現時点では候補入口とこの production caller は未実装である。
 
 ### 12.4 他者の手番の gate (ユーザー裁定ではない)
 

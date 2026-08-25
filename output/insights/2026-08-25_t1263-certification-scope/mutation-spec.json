@@ -1,0 +1,141 @@
+{
+  "estimated_run_seconds": 300,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_material_report_certification_scope_is_exact_on_all_return_paths",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        \"certified_report_fields\": [\"valid\", \"packet\"],\n",
+          "old": "        \"certified_report_fields\": [\"valid\"],\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_material_report_certification_scope_is_exact_on_all_return_paths",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        \"uncertified_artifact_kinds\": [\n            \"packet_state\",\n",
+          "old": "        \"uncertified_artifact_kinds\": [\n            \"packet\",\n            \"packet_state\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_material_report_certification_scope_is_exact_on_all_return_paths",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        \"material_packet_requirement\": \"packet_self_certified\",\n",
+          "old": "        \"material_packet_requirement\": (\n            \"mapped_final_run_snapshot_evidence_replayed\"\n        ),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        snapshot_verified_run_ids={\n            str(attempt.get(\"run_id\")) for attempt in final_attempts.values()\n        },\n",
+          "old": "        snapshot_verified_run_ids=snapshot_verified_run_ids,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_material_packet_source_requires_replayed_snapshot_evidence",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "",
+          "old": "        if run_id not in snapshot_verified_run_ids:\n            reasons.append(\n                f\"{packet_id}: material packet source run lacks replayed \"\n                f\"snapshot evidence: {run_id}\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "            snapshot_replay_verified = snapshot_identity in snapshot_cache\n            if not snapshot_replay_verified:\n                replay_oracle = verify_snapshot(Path(oracle[\"snapshot\"]), str(slot[\"case\"]))\n                if _canonical_bytes(replay_oracle) != oracle_path.read_bytes():\n                    reasons.append(f\"{run_id}: snapshot oracle replay mismatch\")\n                else:\n                    snapshot_cache.add(snapshot_identity)\n                    snapshot_replay_verified = True\n                if (\n                    oracle_after != oracle\n                    or oracle_after_path.read_bytes()\n                    != oracle_path.read_bytes()\n                ):\n                    reasons.append(f\"{run_id}: pre/post snapshot oracle mismatch\")\n                    snapshot_replay_bindings_passed = False\n",
+          "old": "            snapshot_replay_verified = snapshot_identity in snapshot_cache\n            if not snapshot_replay_verified:\n                replay_oracle = verify_snapshot(Path(oracle[\"snapshot\"]), str(slot[\"case\"]))\n                if _canonical_bytes(replay_oracle) != oracle_path.read_bytes():\n                    reasons.append(f\"{run_id}: snapshot oracle replay mismatch\")\n                else:\n                    snapshot_cache.add(snapshot_identity)\n                    snapshot_replay_verified = True\n            if (\n                oracle_after != oracle\n                or oracle_after_path.read_bytes() != oracle_path.read_bytes()\n            ):\n                reasons.append(f\"{run_id}: pre/post snapshot oracle mismatch\")\n                snapshot_replay_bindings_passed = False\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M7",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "            if False:\n                snapshot_verified_run_ids.add(run_id)\n",
+          "old": "            if snapshot_replay_verified and snapshot_replay_bindings_passed:\n                snapshot_verified_run_ids.add(run_id)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M8",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "            snapshot_identity = (\n                oracle_path.as_posix(),\n                \"\",\n                \"\",\n            )\n",
+          "old": "            snapshot_identity = (\n                oracle_path.resolve().as_posix(),\n                str(snapshot_oracle_descriptor[\"sha256\"]),\n                str(slot[\"case\"]),\n            )\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

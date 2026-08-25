@@ -68,5 +68,34 @@
       "parse_failure",
       "process_competition"
     ]
+  },
+  "ss2pl_lock_study": {
+    "project": "SFC",
+    "queue": "gen_S",
+    "nodes": 1,
+    "walltime": "03:00:00",
+    "walltime_s": 10800,
+    "walltime_formula": "dependency-build<=300+build-and-inert-witness<=2100+mode-run(sweep<=7200|controls<=6000|replication<=4200)+collection<=300+finalize=600; each sum is strictly below 10800",
+    "dependency_build_cap_s": 300,
+    "build_and_witness_cap_s": 2100,
+    "mode_run_cap_s": {
+      "sweep": 7200,
+      "controls": 6000,
+      "replication": 4200
+    },
+    "collection_cap_s": 300,
+    "finalize_reserve_s": 600,
+    "max_block_retries": 2,
+    "solo_load1_threshold": 48.0,
+    "clocks_per_us": 2100,
+    "dependency_pins": {
+      "gflags": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+      "glog": "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
+    },
+    "run_budget_basis": {
+      "sweep": "14 thread points x 5 arms x 5 blocks x about 12 seconds = about 4200 seconds (about 70 minutes); 3000 seconds cover block retries and process overhead",
+      "controls": "E1 about 2160 seconds + E2 about 300 seconds + E3 about 900 seconds; 2640 seconds cover block retries and process overhead",
+      "replication": "14 thread points x 5 arms x 3 blocks x about 12 seconds = about 2520 seconds; 1680 seconds cover block retries and process overhead"
+    }
   }
 }
