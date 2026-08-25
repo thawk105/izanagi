@@ -1982,8 +1982,23 @@ def test_design_stage6_execution_boundary_tail_drift_is_rejected(
     fixture_root, design_doc = _synthetic_repository(tmp_path)
     text = design_doc.read_text(encoding="utf-8")
     target = contract._EXPECTED_STAGE6_EXECUTION_BOUNDARY
-    assert "将来の段 6 実装は、X 候補提出前に" in target
-    assert "production caller は未実装である" in target
+    assert (
+        "`orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py` の "
+        "`require_stage6_candidate_submission_ready()`"
+    ) in target
+    assert (
+        "同 adapter が `require_stage0_fixture_obligations_discharged()` を呼ぶ"
+    ) in target
+    assert (
+        "段 6 の operational caller は義務解消述語を直接呼ばず、"
+        "この adapter を呼ぶ"
+    ) in target
+    assert "直接呼ぶと adapter の policy 終端を迂回する" in target
+    assert "production adapter 1 件・operational caller 0 件" in target
+    assert (
+        "段 6 の候補入口・構造述語 5 条件・policy 実装はいずれも未実装"
+    ) in target
+    assert "候補提出も完了も発効も成立していない" in target
     replacement = target.replace(
         "段 0 blocker へ数えず、対象後続段へ繰り越す。",
         "段 0 blocker へ数えず、義務を免除する。",

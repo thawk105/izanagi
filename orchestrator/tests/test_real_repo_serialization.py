@@ -62,6 +62,8 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_campaign.py::test_evolve_block_markers_structure_and_inert",
     "test_hooks.py::test_real_submodule_payload_edit",
     "test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control",
+    # caller inventory が実 working tree の Python と設計・前提条件正本を列挙・読取する reader。
+    "test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
     "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
     "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
     "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
