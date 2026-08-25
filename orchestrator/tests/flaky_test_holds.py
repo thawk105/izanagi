@@ -227,6 +227,33 @@ _FLAKY_TEST_HOLD_ROWS = (
             reintroduction_task_id="{{T:flaky-sigterm-sync-point}}",
         ),
     ),
+    (
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+        "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({
+                "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+                "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
+            }),
+            same_tree=True,
+            green_observation=(
+                "同一 tree の単独 node 実走が 1 passed / 13.56 秒で再現しなかった"
+            ),
+            green_collection_condition="single-node",
+            green_run_count=1,
+            red_observation=(
+                "同一 tree の受入全走で 1 failed / 16384 passed / 60 skipped"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature="assert not first.is_alive() and not second.is_alive()",
+            cause=(
+                "受入全走の高並列下で thread の join が実時間上界を超える "
+                "(F480 の族)"
+            ),
+            evidence_id="F480",
+            reintroduction_task_id="{{T:flaky-thread-join-upper-bound}}",
+        ),
+    ),
 )
 
 
