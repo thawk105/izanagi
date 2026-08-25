@@ -3957,6 +3957,62 @@ def test_bash_login_sanctioned_entries_are_exact():
 
 
 @pytest.mark.parametrize(
+    "inner_argv",
+    (
+        "pytest -q",
+    ),
+    ids=("pytest",),
+)
+def test_bash_login_allows_exact_generic_compute_gateway(inner_argv):
+    """現行 hook が exact compute gateway の pytest 実行形を許可する。"""
+    command = (
+        "python3 tools/pegasus/dispatch_compute.py --task generic -- "
+        + inner_argv
+    )
+    ok, why = GB.decide(command, site="PEGASUS_LOGIN")
+    assert ok, f"exact generic compute gateway が拒否された: {command!r} ({why})"
+
+
+@pytest.mark.parametrize(
+    "command",
+    (
+        "python3 tools/pegasus/exec_calibrate.py argv.json",
+        "python3 -m pytest -q",
+    ),
+    ids=(
+        "direct-trampoline",
+        "direct-python-m-pytest",
+    ),
+)
+def test_bash_login_rejects_nonexact_generic_gateway_boundaries(command):
+    """generic の例外を exact top-level compute gateway の外へ貸さない。"""
+    ok, _ = GB.decide(command, site="PEGASUS_LOGIN")
+    assert not ok, f"generic gateway の境界外が login で通った: {command!r}"
+
+
+def test_bash_login_pins_current_unbounded_gateway_behavior_not_desirability():
+    """望ましい仕様の主張ではなく、現行の境界なし gateway 挙動を pin する。"""
+    allowed_commands = (
+        "python3 tools/pegasus/dispatch_compute.py "
+        "--task generic -- pytest -q",
+        "python3 tools/pegasus/dispatch_compute.py "
+        "--task unknown -- pytest -q",
+        "python3 tools/pegasus/dispatch_compute.py "
+        "--task any-arbitrary-name -- cmake --build build -j 48",
+    )
+    for command in allowed_commands:
+        ok, why = GB.decide(command, _REPO, site="PEGASUS_LOGIN")
+        assert ok, f"現行で許可される gateway argv が拒否された: {command!r} ({why})"
+
+    rejected_command = (
+        "python3 tools/pegasus/dispatch_compute.py "
+        "--task generic -- python3.10 -m pytest -q"
+    )
+    ok, _ = GB.decide(rejected_command, _REPO, site="PEGASUS_LOGIN")
+    assert not ok, "現行の interpreter residual 拒否が消えた"
+
+
+@pytest.mark.parametrize(
     "command",
     [command for _, command in _PROVENANCE_NONSANCTIONED_SPELLINGS],
     ids=[name for name, _ in _PROVENANCE_NONSANCTIONED_SPELLINGS],

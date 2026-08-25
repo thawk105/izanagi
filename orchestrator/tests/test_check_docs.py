@@ -2563,6 +2563,71 @@ def test_dispatch_inventory_rejects_tasks_alias_subscript_write():
     )
 
 
+def test_dispatch_inventory_rejects_tasks_container_unpack_alias():
+    """container unpack 経由の TASKS alias 書込み変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\n(alias,) = (TASKS,)\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_in_assignment_rhs_subtree():
+    """RHS subtree に埋めた TASKS alias 書込み変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\nalias = {"registry": (TASKS,)}["registry"][0]\n'
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_list_comp():
+    """ListComp の iterator から取り出した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = [value for value in (TASKS,)][0]\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_set_comp():
+    """SetComp の element closure に保持した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nfactory = next(iter({(lambda: TASKS) for _ in (0,)}))\n"
+        "alias = factory()\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_dict_comp():
+    """DictComp の value に保持した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = {key: value for key, value in ((0, TASKS),)}[0]\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_generator_exp():
+    """GeneratorExp の iterator から取り出した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = next(value for value in (TASKS,))\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_function_default_capture():
+    """function default に捕捉した TASKS の後続変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\ndef add_extra(alias=TASKS):\n"
+        '    alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n'
+        "add_extra()\n",
+        "TASKS の function default capture",
+    )
+
+
 def test_dispatch_inventory_rejects_dict_update_through_tasks_alias():
     """``dict.update(alias, ...)`` による TASKS alias 変更変異を殺す。"""
     _assert_tasks_source_mutation_rejected(
@@ -2587,6 +2652,21 @@ def test_dispatch_inventory_accepts_real_dispatcher_tasks_reads():
     source = (check_docs.REPO / "tools/pegasus/dispatch_compute.py").read_text()
     findings: list[str] = []
     assert check_docs._dispatch_inventory_from_source(source, findings) == {
+        "tests": "tools/run_tests.py",
+        "provenance": "tools/check_ai_provenance.py",
+        "mutation": "tools/mutation_worktree.py",
+        "generic": "<argv>",
+    }
+    assert findings == []
+
+
+def test_dispatch_inventory_accepts_literal_tasks_definition():
+    """正規の literal TASKS 定義を過剰拒否する変異を殺す。"""
+    findings: list[str] = []
+    assert check_docs._dispatch_inventory_from_source(
+        _SYNTHETIC_DISPATCH_SOURCE,
+        findings,
+    ) == {
         "tests": "tools/run_tests.py",
         "provenance": "tools/check_ai_provenance.py",
     }

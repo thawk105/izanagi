@@ -3339,6 +3339,89 @@ def _dispatch_inventory_from_source(
     assert definition is not None
     definition_end = getattr(definition, "end_lineno", definition.lineno)
     definition_end_col = getattr(definition, "end_col_offset", 0)
+
+    def preserves_tasks_alias(node: ast.AST | None) -> bool:
+        """式の値が TASKS 本体を保持し得る場合だけ True にする。"""
+
+        if node is None:
+            return False
+        if isinstance(node, ast.Name):
+            return node.id == "TASKS" and isinstance(node.ctx, ast.Load)
+        if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+            return any(preserves_tasks_alias(element) for element in node.elts)
+        if isinstance(node, ast.Dict):
+            return any(
+                preserves_tasks_alias(element)
+                for element in (*node.keys, *node.values)
+            )
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+            return (
+                preserves_tasks_alias(node.elt)
+                or any(
+                    preserves_tasks_alias(generator.iter)
+                    or any(
+                        preserves_tasks_alias(condition)
+                        for condition in generator.ifs
+                    )
+                    for generator in node.generators
+                )
+            )
+        if isinstance(node, ast.DictComp):
+            return (
+                preserves_tasks_alias(node.key)
+                or preserves_tasks_alias(node.value)
+                or any(
+                    preserves_tasks_alias(generator.iter)
+                    or any(
+                        preserves_tasks_alias(condition)
+                        for condition in generator.ifs
+                    )
+                    for generator in node.generators
+                )
+            )
+        if isinstance(node, ast.Starred):
+            return preserves_tasks_alias(node.value)
+        if isinstance(node, ast.NamedExpr):
+            return preserves_tasks_alias(node.value)
+        if isinstance(node, ast.BoolOp):
+            return any(preserves_tasks_alias(value) for value in node.values)
+        if isinstance(node, ast.IfExp):
+            return (
+                preserves_tasks_alias(node.body)
+                or preserves_tasks_alias(node.orelse)
+            )
+        if isinstance(node, ast.Subscript):
+            # TASKS[key] は task spec の読み取りであって mapping alias ではない。
+            # container[TASKS を含む位置] は本体を再び取り出し得るので拒否する。
+            return (
+                not isinstance(node.value, ast.Name)
+                and preserves_tasks_alias(node.value)
+            )
+        if isinstance(node, ast.Lambda):
+            return preserves_tasks_alias(node.body)
+        if isinstance(node, ast.Call):
+            # tuple(TASKS) は既存の task 名 snapshot。TASKS 本体を保持しない。
+            if (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "tuple"
+                and len(node.args) == 1
+                and isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "TASKS"
+                and not node.keywords
+            ):
+                return False
+            return any(
+                preserves_tasks_alias(argument)
+                for argument in (
+                    *node.args,
+                    *(keyword.value for keyword in node.keywords),
+                )
+            ) or (
+                isinstance(node.func, ast.Attribute)
+                and preserves_tasks_alias(node.func.value)
+            )
+        return False
+
     writes: list[str] = []
     for node in ast.walk(tree):
         node_start = (
@@ -3355,11 +3438,24 @@ def _dispatch_inventory_from_source(
             writes.append(f"line {node.lineno}: TASKS への束縛/削除")
         elif (
             isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
-            and isinstance(node.value, ast.Name)
-            and node.value.id == "TASKS"
-            and isinstance(node.value.ctx, ast.Load)
+            and preserves_tasks_alias(node.value)
         ):
             writes.append(f"line {node.lineno}: TASKS の alias 束縛")
+        elif (
+            isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+            )
+            and any(
+                preserves_tasks_alias(default)
+                for default in (
+                    *node.args.defaults,
+                    *(default for default in node.args.kw_defaults
+                      if default is not None),
+                )
+            )
+        ):
+            writes.append(f"line {node.lineno}: TASKS の function default capture")
         elif (
             isinstance(node, ast.Call)
             and not (
@@ -3367,9 +3463,7 @@ def _dispatch_inventory_from_source(
                 and node.func.id == "tuple"
             )
             and any(
-                isinstance(argument, ast.Name)
-                and argument.id == "TASKS"
-                and isinstance(argument.ctx, ast.Load)
+                preserves_tasks_alias(argument)
                 for argument in (
                     *node.args,
                     *(keyword.value for keyword in node.keywords),

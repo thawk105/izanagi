@@ -23,6 +23,7 @@ assert _SPEC is not None and _SPEC.loader is not None
 MH = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = MH
 _SPEC.loader.exec_module(MH)
+_REAL_CURRENT_SITE = MH.site_policy.current_site
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -228,6 +229,11 @@ def pytest_sessionfinish(session, exitstatus):
     _git(root, "commit", "-qm", "fixture")
     monkeypatch.setenv("IZANAGI_MUTATION_TEST_CALLS", str(root.parent / "calls.txt"))
     monkeypatch.setenv("IZANAGI_MUTATION_TEST_MODE", "normal")
+    monkeypatch.setattr(
+        MH.site_policy,
+        "current_site",
+        lambda *, require_evidence=False: MH.site_policy.OTHER,
+    )
     return root
 
 
@@ -323,6 +329,109 @@ def _single_spec(path: Path) -> None:
 
 def _calls(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+@pytest.mark.parametrize(
+    "site", [MH.site_policy.PEGASUS_LOGIN, MH.site_policy.PEGASUS_SUSPECT]
+)
+def test_local_site_gate_rejects_before_lock_and_collection(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    observed: list[bool] = []
+
+    def current_site(*, require_evidence: bool = False) -> str:
+        observed.append(require_evidence)
+        return site
+
+    def unexpected(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("site gate より後の lock/collection へ到達した")
+
+    monkeypatch.setattr(MH.site_policy, "current_site", current_site)
+    monkeypatch.setattr(MH, "_lock_for", unexpected)
+    monkeypatch.setattr(MH, "_collect_expected_nodes", unexpected)
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+    assert observed == [True]
+    assert not MH._lock_path_for(repo.resolve()).exists()
+    assert not calls.exists()
+
+
+def test_local_site_gate_requires_evidence_for_nqsv_unreadable_login_hostname(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    assert (
+        MH.site_policy.classify_site("pegasus02", {}, has_nqsv=False)
+        == MH.site_policy.OTHER
+    )
+    monkeypatch.setattr(MH.site_policy, "current_site", _REAL_CURRENT_SITE)
+    monkeypatch.setattr(MH.site_policy.socket, "gethostname", lambda: "pegasus02")
+    monkeypatch.setattr(MH.site_policy, "_has_nqsv", lambda: False)
+    monkeypatch.setattr(
+        MH,
+        "_lock_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("require_evidence=True なら lock へ到達しない")
+        ),
+    )
+
+    assert MH.main(_argv(repo, spec, out, calls, mode)) == 2
+    assert not calls.exists()
+
+
+@pytest.mark.parametrize(
+    "site", [MH.site_policy.OTHER, MH.site_policy.PEGASUS_COMPUTE]
+)
+def test_local_site_gate_preserves_other_and_compute(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    observed: list[bool] = []
+
+    def current_site(*, require_evidence: bool = False) -> str:
+        observed.append(require_evidence)
+        return site
+
+    monkeypatch.setattr(MH.site_policy, "current_site", current_site)
+    argv = _argv(repo, spec, out, calls, mode)
+    argv.insert(argv.index("--"), "--plan-only")
+
+    assert MH.main(argv) == 0
+    assert observed == [True]
+    assert not calls.exists()
+
+
+def test_dispatch_mode_does_not_consult_local_site_gate(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    document = json.loads(spec.read_text(encoding="utf-8"))
+    document["schema"] = "izanagi-dev-wave-mutation-spec/v999"
+    spec.write_text(json.dumps(document) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        MH.site_policy,
+        "current_site",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("dispatch mode で local site gate を呼んだ")
+        ),
+    )
+    argv = _argv(repo, spec, out, calls, mode)
+    argv[argv.index("--runner-mode") + 1] = "dispatch"
+
+    with pytest.raises(MH.HarnessError, match="未知の spec schema"):
+        MH.main(argv)
+    assert not calls.exists()
 
 
 def _pid_is_alive(pid: int) -> bool:
