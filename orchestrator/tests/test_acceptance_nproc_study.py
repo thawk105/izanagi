@@ -26,6 +26,17 @@ _JUNIT = b"""<?xml version="1.0" encoding="utf-8"?>
   <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
 </testsuite>
 """
+_JUNIT_REVERSED = b"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite tests="2" failures="0" errors="0" skipped="0">
+  <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
+  <testcase classname="suite.test_fast" name="test_a" time="0.5" />
+</testsuite>
+"""
+_JUNIT_ONE_TEST = b"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite tests="1" failures="0" errors="0" skipped="0">
+  <testcase classname="suite.test_fast" name="test_a" time="0.5" />
+</testsuite>
+"""
 
 
 def _cleanup(*, residual: list[int] | None = None) -> dict[str, object]:
@@ -55,10 +66,14 @@ def _isolation(host: str) -> dict[str, object]:
 
 
 class FakeExecutor:
-    def __init__(self, root: Path, host: str, *, dirty_after_measurement: bool = False):
+    def __init__(
+        self, root: Path, host: str, *, dirty_after_measurement: bool = False,
+        junit_by_nproc: dict[str, bytes] | None = None,
+    ):
         self.root = root
         self.host = host
         self.dirty_after_measurement = dirty_after_measurement
+        self.junit_by_nproc = {} if junit_by_nproc is None else dict(junit_by_nproc)
         self.measurement_seen = False
         self.requests: list[study.ExecRequest] = []
 
@@ -93,7 +108,8 @@ class FakeExecutor:
             )
             session = Path(session_token.split("=", 1)[1])
             shard = int(shard_token.split("=", 1)[1])
-            (session / f"shard-{shard}" / "junit.xml").write_bytes(_JUNIT)
+            junit = self.junit_by_nproc.get(request.env["IZANAGI_TEST_NPROC"], _JUNIT)
+            (session / f"shard-{shard}" / "junit.xml").write_bytes(junit)
             return study.ExecResult(
                 returncode=0,
                 stdout=b"measurement stdout",
@@ -165,6 +181,21 @@ def _failed_schema_fixture(tmp_path: Path) -> dict[str, object]:
     receipt["failure"] = {"message": "fixture", "stage": "unit", "type": "ContractError"}
     receipt["completed_epoch_s"] = 1
     return receipt
+
+
+def _manifest_runs(
+    schedule: tuple[study.ScheduleBlock, ...],
+) -> list[dict[str, object]]:
+    runs: list[dict[str, object]] = []
+    for expected in study._expected_run_manifest(schedule):
+        runs.append({
+            **expected,
+            "session_root": (
+                f"/sessions/block-{expected['global_block_index']}"
+                f"-arm-{expected['arm']}"
+            ),
+        })
+    return runs
 
 
 def _poison_process_creation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -242,6 +273,51 @@ def test_smoke_has_one_measured_block_and_no_warmup() -> None:
     assert schedule[0].analysis_block_index == 0
 
 
+def test_run_manifest_rejects_warmup_measurement_swap_with_same_analysis_count() -> None:
+    schedule = study.build_schedule("full", "seed-a")
+    runs = _manifest_runs(schedule)
+    study.validate_run_manifest(runs, schedule)
+    for run in runs[:6]:
+        run["analysis_block_index"] = 0
+        run["analysis_included"] = True
+    for run in runs[6:12]:
+        run["analysis_block_index"] = None
+        run["analysis_included"] = False
+    assert sum(run["analysis_included"] is True for run in runs) == 36
+    with pytest.raises(study.ContractError, match="run manifest differs from schedule"):
+        study.validate_run_manifest(runs, schedule)
+
+
+def test_run_manifest_rejects_fixed_arm_order_behind_balanced_schedule() -> None:
+    schedule = study.build_schedule("full", "seed-a")
+    block = next(
+        block for block in schedule
+        if block.phase == "measurement" and block.arm_order != study.ARMS
+    )
+    runs = _manifest_runs(schedule)
+    start = block.global_block_index * len(study.ARMS) * study.SHARD_COUNT
+    for order_index, arm in enumerate(study.ARMS):
+        for shard_index in range(study.SHARD_COUNT):
+            run = runs[start + order_index * study.SHARD_COUNT + shard_index]
+            run["arm"] = arm
+            run["session_root"] = f"/sessions/fixed-arm-{arm}"
+    with pytest.raises(study.ContractError, match="field arm"):
+        study.validate_run_manifest(runs, schedule)
+
+
+def test_run_manifest_rejects_cross_block_shard_label_and_split_session() -> None:
+    schedule = study.build_schedule("full", "seed-a")
+    cross_block = _manifest_runs(schedule)
+    cross_block[1]["global_block_index"] = 1
+    with pytest.raises(study.ContractError, match="field global_block_index"):
+        study.validate_run_manifest(cross_block, schedule)
+
+    split_session = _manifest_runs(schedule)
+    split_session[1]["session_root"] = "/sessions/different-arm-pair"
+    with pytest.raises(study.ContractError, match="different session_root"):
+        study.validate_run_manifest(split_session, schedule)
+
+
 def test_budget_strictly_rejects_equality() -> None:
     with pytest.raises(study.ContractError, match="strictly"):
         study.validate_budget(
@@ -280,6 +356,16 @@ def test_junit_diagnostics_record_serial_work_and_real_repo_chain() -> None:
     assert result["serial_work_sum_s"] == pytest.approx(0.75)
     assert result["real_repo_exclusive_chain_s"] == pytest.approx(0.25)
     assert result["real_repo_test_count"] == 1
+
+
+def test_junit_identity_set_digest_is_order_independent() -> None:
+    original = study.analyze_junit(_JUNIT)
+    reversed_order = study.analyze_junit(_JUNIT_REVERSED)
+    assert original["nodeids_sha256"] != reversed_order["nodeids_sha256"]
+    assert (
+        original["testcase_identity_set_sha256"]
+        == reversed_order["testcase_identity_set_sha256"]
+    )
 
 
 def test_continuous_isolation_detects_middle_only_same_uid_consumer() -> None:
@@ -422,6 +508,33 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         assert not any(key.startswith(("CCACHE_", "SCCACHE_")) for key in request.env)
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
 
+    different_set = copy.deepcopy(receipt)
+    different_set["runs"][2]["junit"]["testcase_identity_set_sha256"] = study._sha256(
+        b"different-testcase-set"
+    )
+    with pytest.raises(study.ContractError, match="JUnit testcase identity set differs"):
+        study.validate_receipt(
+            different_set, expected_mode="smoke", require_complete=True
+        )
+
+    wrong_manifest = copy.deepcopy(receipt)
+    wrong_manifest["runs"][0]["order_index"] = 2
+    with pytest.raises(study.ContractError, match="run manifest differs from schedule"):
+        study.validate_receipt(
+            wrong_manifest, expected_mode="smoke", require_complete=True
+        )
+
+    split_session = copy.deepcopy(receipt)
+    split_root = str(config.scratch_root / "different-session")
+    split_session["runs"][1]["session_root"] = split_root
+    split_session["runs"][1]["argv"][2] = (
+        f"--izanagi-acceptance-shard-session={split_root}"
+    )
+    with pytest.raises(study.ContractError, match="different session_root"):
+        study.validate_receipt(
+            split_session, expected_mode="smoke", require_complete=True
+        )
+
 
 def test_postrun_dirt_overrides_a_green_child(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _poison_process_creation(monkeypatch)
@@ -438,6 +551,26 @@ def test_postrun_dirt_overrides_a_green_child(tmp_path: Path, monkeypatch: pytes
     assert receipt["status"] == "failed"
     assert receipt["failure"]["type"] == "PostrunDirt"
     assert receipt["failure"]["stage"].endswith("shard-0")
+
+
+def test_arm_specific_deselection_prevents_complete_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode999"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:125.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, junit_by_nproc={"32": _JUNIT_ONE_TEST})
+    rc, receipt = study.run_study(config, executor)
+    assert rc == 1
+    assert receipt["status"] == "failed"
+    assert receipt["invariant_checks"]["junit_identity_sets_match_by_shard"] is False
+    assert receipt["failure"]["type"] == "ContractError"
+    assert "JUnit testcase identity set differs" in receipt["failure"]["message"]
 
 
 def test_static_contract_has_signal_traps_exact_registry_and_no_red_checker() -> None:

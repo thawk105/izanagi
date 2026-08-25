@@ -259,7 +259,7 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
     cases = list(root.iter("testcase"))
     if not cases:
         raise ContractError("JUnit contains no testcase")
-    identities: list[str] = []
+    identities: list[tuple[str, str, str]] = []
     serial_work = 0.0
     real_repo_chain = 0.0
     real_repo_count = 0
@@ -268,11 +268,12 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
         classname = case.attrib.get("classname", "")
         name = case.attrib.get("name", "")
         file_name = case.attrib.get("file", "")
-        identity = "::".join((classname, name, file_name))
+        identity = (classname, name, file_name)
+        identity_label = "::".join(identity)
         if not classname and not name:
             raise ContractError(f"JUnit testcase {index} lacks identity")
         identities.append(identity)
-        duration = _parse_duration(case.attrib.get("time"), identity)
+        duration = _parse_duration(case.attrib.get("time"), identity_label)
         serial_work += duration
         failures += sum(1 for _ in case.findall("failure"))
         errors += sum(1 for _ in case.findall("error"))
@@ -292,11 +293,16 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
     return {
         "error_count": errors,
         "failure_count": failures,
-        "nodeids_sha256": _sha256("\n".join(identities).encode("utf-8")),
+        "nodeids_sha256": _sha256(
+            "\n".join("::".join(identity) for identity in identities).encode("utf-8")
+        ),
         "real_repo_exclusive_chain_s": real_repo_chain,
         "real_repo_test_count": real_repo_count,
         "serial_work_sum_s": serial_work,
         "skipped_count": skipped,
+        "testcase_identity_set_sha256": _sha256(
+            _canonical_json_bytes(sorted(identities))
+        ),
         "test_count": len(cases),
     }
 
@@ -961,6 +967,78 @@ def _schedule_document(blocks: Sequence[ScheduleBlock], *, seed: str) -> list[di
     } for block in blocks]
 
 
+def _expected_run_manifest(
+    blocks: Sequence[ScheduleBlock],
+) -> tuple[dict[str, Any], ...]:
+    """Expand the block schedule into the exact fixed order of shard runs."""
+    manifest: list[dict[str, Any]] = []
+    for block in blocks:
+        for order_index, arm in enumerate(block.arm_order):
+            for shard_index in range(SHARD_COUNT):
+                manifest.append({
+                    "analysis_block_index": block.analysis_block_index,
+                    "analysis_included": block.phase == "measurement",
+                    "arm": arm,
+                    "global_block_index": block.global_block_index,
+                    "global_run_index": len(manifest),
+                    "order_index": order_index,
+                    "phase": block.phase,
+                    "shard_index": shard_index,
+                })
+    return tuple(manifest)
+
+
+def validate_run_manifest(
+    runs: Sequence[Mapping[str, Any]], blocks: Sequence[ScheduleBlock],
+) -> None:
+    """Bind every recorded run and shard-pair session to the seeded schedule."""
+    expected = _expected_run_manifest(blocks)
+    if len(runs) != len(expected):
+        raise ContractError(
+            f"run manifest length differs from schedule: {len(runs)} != {len(expected)}"
+        )
+    for index, (run, expected_run) in enumerate(zip(runs, expected)):
+        for field, expected_value in expected_run.items():
+            observed = run.get(field)
+            if type(observed) is not type(expected_value) or observed != expected_value:
+                raise ContractError(
+                    f"run manifest differs from schedule at run {index} field {field}: "
+                    f"{observed!r} != {expected_value!r}"
+                )
+    for pair_start in range(0, len(runs), SHARD_COUNT):
+        pair = runs[pair_start:pair_start + SHARD_COUNT]
+        session_roots = [run.get("session_root") for run in pair]
+        if (
+            any(type(value) is not str or not value for value in session_roots)
+            or len(set(session_roots)) != 1
+        ):
+            raise ContractError(
+                f"same-arm shard pair has different session_root at run {pair_start}"
+            )
+
+
+def validate_junit_identity_sets(runs: Sequence[Mapping[str, Any]]) -> None:
+    """Require each shard index to execute one exact testcase set in every arm/block."""
+    expected_by_shard: dict[int, str] = {}
+    for index, run in enumerate(runs):
+        shard_index = run.get("shard_index")
+        if type(shard_index) is not int or shard_index not in range(SHARD_COUNT):
+            raise ContractError(f"run {index} has an invalid shard index")
+        junit = run.get("junit")
+        if not isinstance(junit, Mapping):
+            raise ContractError(f"run {index} has no JUnit diagnostics")
+        digest = junit.get("testcase_identity_set_sha256")
+        if not isinstance(digest, str) or _HASH_RE.fullmatch(digest) is None:
+            raise ContractError(f"run {index} testcase identity set digest is invalid")
+        expected_digest = expected_by_shard.setdefault(shard_index, digest)
+        if digest != expected_digest:
+            raise ContractError(
+                f"JUnit testcase identity set differs for shard {shard_index} at run {index}"
+            )
+    if set(expected_by_shard) != set(range(SHARD_COUNT)):
+        raise ContractError("JUnit testcase identity sets do not cover every shard")
+
+
 def _derive_analysis(runs: Sequence[Mapping[str, Any]], *, mode: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     measured = [run for run in runs if run["analysis_included"]]
     expected_runs = (FULL_MEASUREMENT_BLOCKS if mode == "full" else 1) * len(ARMS) * SHARD_COUNT
@@ -1067,7 +1145,9 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "canonical_unchanged": False,
             "host_match": False,
             "isolation_valid_and_undisturbed": False,
+            "junit_identity_sets_match_by_shard": False,
             "remaining_budget_all_stages": False,
+            "run_manifest_matches_schedule": False,
             "submodules_materialized": False,
         },
         "mode": config.mode,
@@ -1302,6 +1382,8 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
             expected_total = (7 if config.mode == "full" else 1) * len(ARMS) * SHARD_COUNT
             if global_run_index != expected_total:
                 raise ContractError("global run count differs from the fixed design")
+            validate_run_manifest(receipt["runs"], schedule)
+            validate_junit_identity_sets(receipt["runs"])
             outcomes, contrasts = _derive_analysis(receipt["runs"], mode=config.mode)
             receipt["arm_outcomes"] = outcomes
             receipt["contrasts"] = contrasts
@@ -1333,7 +1415,9 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                 "canonical_unchanged": True,
                 "host_match": True,
                 "isolation_valid_and_undisturbed": True,
+                "junit_identity_sets_match_by_shard": True,
                 "remaining_budget_all_stages": True,
+                "run_manifest_matches_schedule": True,
                 "submodules_materialized": True,
             }
             receipt["status"] = "complete"
@@ -1483,7 +1567,8 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     invariant_keys = {
         "all_junit_valid", "all_process_groups_reaped", "all_run_fingerprints_match",
         "budget_strict", "canonical_unchanged", "host_match",
-        "isolation_valid_and_undisturbed", "remaining_budget_all_stages",
+        "isolation_valid_and_undisturbed", "junit_identity_sets_match_by_shard",
+        "remaining_budget_all_stages", "run_manifest_matches_schedule",
         "submodules_materialized",
     }
     invariants = _expect_keys(root["invariant_checks"], invariant_keys,
@@ -1493,9 +1578,8 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     }
     for index, block in enumerate(root["schedule"]):
         _expect_keys(block, schedule_keys, f"receipt.schedule[{index}]")
-    expected_schedule = _schedule_document(
-        build_schedule(expected_mode, str(root["seed"])), seed=str(root["seed"])
-    )
+    expected_blocks = build_schedule(expected_mode, str(root["seed"]))
+    expected_schedule = _schedule_document(expected_blocks, seed=str(root["seed"]))
     if root["schedule"] != expected_schedule:
         raise ContractError("receipt schedule differs from the seeded fixed algorithm")
     run_keys = {
@@ -1507,11 +1591,17 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     }
     junit_keys = {
         "error_count", "failure_count", "nodeids_sha256", "real_repo_exclusive_chain_s",
-        "real_repo_test_count", "serial_work_sum_s", "skipped_count", "test_count",
+        "real_repo_test_count", "serial_work_sum_s", "skipped_count",
+        "testcase_identity_set_sha256", "test_count",
     }
     for index, run in enumerate(root["runs"]):
         _expect_keys(run, run_keys, f"receipt.runs[{index}]")
         _expect_keys(run["junit"], junit_keys, f"receipt.runs[{index}].junit")
+        for digest_field in ("nodeids_sha256", "testcase_identity_set_sha256"):
+            if _HASH_RE.fullmatch(str(run["junit"][digest_field])) is None:
+                raise ContractError(
+                    f"receipt.runs[{index}].junit.{digest_field} is not sha256"
+                )
         _validate_isolation(run["isolation"], f"receipt.runs[{index}].isolation")
         validate_process_cleanup(run["process_cleanup"])
         validate_measurement_argv(
@@ -1539,13 +1629,13 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     if require_complete or root["status"] == "complete":
         if root["status"] != "complete" or root["failure"] is not None:
             raise ContractError("completed receipt was required")
-        if set(invariants.values()) != {True}:
+        if any(value is not True for value in invariants.values()):
             raise ContractError("completed receipt has a false invariant")
         expected_runs = (42 if expected_mode == "full" else 6)
         if len(root["runs"]) != expected_runs:
             raise ContractError("completed receipt has the wrong total run count")
-        if [run["global_run_index"] for run in root["runs"]] != list(range(expected_runs)):
-            raise ContractError("completed receipt global run indexes are not contiguous")
+        validate_run_manifest(root["runs"], expected_blocks)
+        validate_junit_identity_sets(root["runs"])
         measured = [run for run in root["runs"] if run["analysis_included"]]
         if len(measured) != (36 if expected_mode == "full" else 6):
             raise ContractError("warm-up leaked into or measurement escaped the analysis set")
