@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
+from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 import glob
 import hashlib
 import importlib.util
@@ -495,12 +496,25 @@ def _find_rollout(
     target_session_id: str,
     *,
     pinned_label: str | None = None,
+    pinned_sha256: str | None = None,
 ) -> Path:
-    eligible = (
-        pinned_label is not None
-        and SESSION_IDS.get(pinned_label) == target_session_id
-        and pinned_label in ROLLOUT_SHA256
-    )
+    if pinned_sha256 is not None:
+        expected_sha256 = pinned_sha256
+        eligible = (
+            pinned_label is not None
+            and isinstance(target_session_id, str)
+            and bool(target_session_id)
+            and isinstance(expected_sha256, str)
+            and re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is not None
+        )
+    else:
+        expected_sha256 = ROLLOUT_SHA256.get(pinned_label or "")
+        eligible = (
+            pinned_label is not None
+            and SESSION_IDS.get(pinned_label) == target_session_id
+            and isinstance(expected_sha256, str)
+            and re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is not None
+        )
     if eligible:
         candidate: Path | None = None
         try:
@@ -523,8 +537,12 @@ def _find_rollout(
             try:
                 resolved = candidate.resolve()
                 assert pinned_label is not None
-                _verify_rollout_sha(resolved, pinned_label)
-            except Exception:
+                _verify_rollout_sha(
+                    resolved,
+                    pinned_label,
+                    expected_sha256=expected_sha256,
+                )
+            except (OSError, ValidationError):
                 pass
             else:
                 return resolved
@@ -541,8 +559,17 @@ def _find_rollout(
     return matches[0]
 
 
-def _verify_rollout_sha(path: Path, label: str) -> None:
-    expected = ROLLOUT_SHA256[label]
+def _verify_rollout_sha(
+    path: Path,
+    label: str,
+    *,
+    expected_sha256: str | None = None,
+) -> None:
+    expected = (
+        expected_sha256
+        if expected_sha256 is not None
+        else ROLLOUT_SHA256[label]
+    )
     actual = _sha256(path.read_bytes())
     if actual != expected:
         raise ValidationError(
@@ -822,18 +849,27 @@ def derive_independent_golden(
     sessions_root: Path,
     *,
     verify_source_sha: bool = True,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, bytes]:
+    _validate_task_manifest(task_manifest)
+    shared = task_manifest["shared_provenance"]
+    auxiliary = shared["auxiliary_sessions"]
     paths = {
         label: _find_rollout(
             sessions_root,
-            SESSION_IDS[label],
+            auxiliary[label]["session_id"],
             pinned_label=label,
+            pinned_sha256=auxiliary[label]["rollout_sha256"],
         )
         for label in ("author", "fix1", "fix2")
     }
     if verify_source_sha:
         for label, path in paths.items():
-            _verify_rollout_sha(path, label)
+            _verify_rollout_sha(
+                path,
+                label,
+                expected_sha256=auxiliary[label]["rollout_sha256"],
+            )
     fix2_patches = _extract_apply_patches(paths["fix2"])
     if len(fix2_patches) != 1:
         raise ValidationError(
@@ -864,9 +900,13 @@ def derive_independent_golden(
     return _compare_golden_routes(route_a, route_b)
 
 
-def _snapshot_spec(case: str) -> dict[str, Any]:
+def _snapshot_spec(
+    case: str,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> dict[str, Any]:
     try:
-        task = _manifest_task(case=case)
+        task = _manifest_task(case=case, manifest=task_manifest)
     except ValidationError as exc:
         raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     legacy_case = task["legacy_case"]
@@ -2554,7 +2594,11 @@ def _validate_task_manifest(
     """Validate the v3 manifest envelope without validating live artifacts."""
     if not isinstance(manifest, Mapping):
         raise ValidationError("task manifest is not an object", RC_ROUTING)
-    if manifest.get("schema_version") != TASK_MANIFEST_SCHEMA_VERSION:
+    schema_version = manifest.get("schema_version")
+    if (
+        type(schema_version) is not int
+        or schema_version != TASK_MANIFEST_SCHEMA_VERSION
+    ):
         raise ValidationError("task manifest schema_version must be 3", RC_ROUTING)
     if manifest.get("manifest_kind") != "t181-task-manifest":
         raise ValidationError("task manifest kind mismatch", RC_ROUTING)
@@ -2627,6 +2671,83 @@ def _validate_task_manifest(
 
 
 validate_task_manifest = _validate_task_manifest
+
+
+def _load_task_manifest(path: Path) -> dict[str, Any]:
+    """Load one strict UTF-8 JSON task-manifest envelope."""
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ValidationError(
+            f"cannot read task manifest {path}: {exc}", RC_ROUTING
+        ) from exc
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValidationError(
+            f"task manifest is not strict UTF-8: {exc}", RC_ROUTING
+        ) from exc
+
+    def object_from_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON number: {value}")
+
+    try:
+        value = json.loads(
+            text,
+            object_pairs_hook=object_from_pairs,
+            parse_constant=reject_constant,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValidationError(
+            f"task manifest JSON is invalid: {exc}", RC_ROUTING
+        ) from exc
+    if not isinstance(value, dict):
+        raise ValidationError("task manifest is not an object", RC_ROUTING)
+    _validate_task_manifest(value)
+    return value
+
+
+def _task_manifest_sha256(
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> str:
+    _validate_task_manifest(task_manifest)
+    try:
+        canonical = _canonical_bytes(task_manifest)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(
+            f"task manifest is not canonical JSON: {exc}", RC_ROUTING
+        ) from exc
+    return _sha256(canonical)
+
+
+def _require_task_manifest_sha256(
+    artifact: Mapping[str, Any],
+    task_manifest: Mapping[str, Any],
+    label: str,
+    *,
+    rc: int,
+) -> str:
+    expected = _task_manifest_sha256(task_manifest)
+    actual = artifact.get("task_manifest_sha256")
+    if actual is None:
+        raise ValidationError(
+            f"{label} task_manifest_sha256 mismatch: artifact predates "
+            "task-manifest digest binding and must be regenerated",
+            rc,
+        )
+    if actual != expected:
+        raise ValidationError(
+            f"{label} task_manifest_sha256 mismatch", rc
+        )
+    return expected
 
 
 def _validate_cache_condition(normalized: dict[str, Any], schema_version: int) -> None:
@@ -2925,10 +3046,14 @@ _known_finding_ids_for_manifest = known_finding_ids_for_manifest
 
 
 def _prepare_snapshot_case(
-    repo: Path, sessions_root: Path, case: str
+    repo: Path,
+    sessions_root: Path,
+    case: str,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, bytes]:
     try:
-        task = _manifest_task(case=case)
+        task = _manifest_task(case=case, manifest=task_manifest)
     except ValidationError as exc:
         raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     if not isinstance(task.get("snapshot"), Mapping) or not isinstance(
@@ -2936,7 +3061,9 @@ def _prepare_snapshot_case(
     ):
         raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
     return (
-        derive_independent_golden(repo, sessions_root)
+        derive_independent_golden(
+            repo, sessions_root, task_manifest=task_manifest
+        )
         if task["oracle_kind"] == "positive"
         else {}
     )
@@ -2976,9 +3103,11 @@ def _finish_snapshot_case(
     snapshot: Path,
     case: str,
     golden: Mapping[str, bytes],
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     try:
-        task = _manifest_task(case=case)
+        task = _manifest_task(case=case, manifest=task_manifest)
     except ValidationError as exc:
         raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     legacy_case = task["legacy_case"]
@@ -2993,7 +3122,9 @@ def _finish_snapshot_case(
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(_git(repo, "show", f"{ARTIFACT_COMMIT}:{relative}"))
         target.chmod(0o644)
-    return verify_snapshot(snapshot, legacy_case)
+    return verify_snapshot(
+        snapshot, legacy_case, task_manifest=task_manifest
+    )
 
 
 def _derive_snapshot_from_base(
@@ -3005,6 +3136,7 @@ def _derive_snapshot_from_base(
     *,
     prepared_golden: Mapping[str, bytes] | None = None,
     prepared_destination: tuple[Path, Path] | None = None,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     if prepared_destination is None:
         repo, snapshot = _resolve_snapshot_destination(repo, snapshot)
@@ -3017,11 +3149,13 @@ def _derive_snapshot_from_base(
             )
         repo, snapshot = prepared_repo, prepared_snapshot
     try:
-        _manifest_task(case=case)
+        _manifest_task(case=case, manifest=task_manifest)
     except ValidationError as exc:
         raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     golden = (
-        _prepare_snapshot_case(repo, sessions_root, case)
+        _prepare_snapshot_case(
+            repo, sessions_root, case, task_manifest=task_manifest
+        )
         if prepared_golden is None
         else prepared_golden
     )
@@ -3039,7 +3173,13 @@ def _derive_snapshot_from_base(
         copy_function=shutil.copy2,
     )
     _preflight_snapshot_relocation(snapshot)
-    return _finish_snapshot_case(repo, snapshot, case, golden)
+    return _finish_snapshot_case(
+        repo,
+        snapshot,
+        case,
+        golden,
+        task_manifest=task_manifest,
+    )
 
 
 def build_snapshot(
@@ -3047,11 +3187,21 @@ def build_snapshot(
     snapshot: Path,
     sessions_root: Path,
     case: str,
+    *,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     repo, snapshot = _resolve_snapshot_destination(repo, snapshot)
-    golden = _prepare_snapshot_case(repo, sessions_root, case)
+    golden = _prepare_snapshot_case(
+        repo, sessions_root, case, task_manifest=task_manifest
+    )
     _build_snapshot_base(repo, snapshot)
-    return _finish_snapshot_case(repo, snapshot, case, golden)
+    return _finish_snapshot_case(
+        repo,
+        snapshot,
+        case,
+        golden,
+        task_manifest=task_manifest,
+    )
 
 
 def _parse_numstat(raw: bytes) -> list[list[Any]]:
@@ -3095,10 +3245,13 @@ def verify_snapshot(
     case: str,
     *,
     spec: Mapping[str, Any] | None = None,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     snapshot = snapshot.resolve()
     filesystem_observation = _SnapshotFilesystemFiles(snapshot)
-    expected = dict(spec or _snapshot_spec(case))
+    expected = dict(
+        spec or _snapshot_spec(case, task_manifest=task_manifest)
+    )
     reasons: list[str] = []
     inventory: tuple[list[Path], list[dict[str, str]]] | None = None
     preflight_cache: dict[Path, tuple[str, ...]] = {}
@@ -3222,6 +3375,7 @@ def verify_snapshot(
         raise ValidationError(reasons, RC_SNAPSHOT)
     oracle = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": _task_manifest_sha256(task_manifest),
         "case": case,
         "snapshot": os.fspath(snapshot),
         "head": head,
@@ -3300,21 +3454,46 @@ def render_prompt(
     new_root: Path,
     *,
     verify_source: bool = True,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+    snapshot_oracle: Mapping[str, Any] | None = None,
 ) -> tuple[bytes, dict[str, Any]]:
     try:
-        task = _manifest_task(case=case)
+        task = _manifest_task(case=case, manifest=task_manifest)
     except ValidationError as exc:
         raise ValidationError(exc.reasons, RC_SNAPSHOT) from exc
     legacy_case = task["legacy_case"]
+    task_manifest_sha256 = _task_manifest_sha256(task_manifest)
+    if snapshot_oracle is None:
+        if task_manifest_sha256 != _task_manifest_sha256(TASK_MANIFEST):
+            raise ValidationError(
+                "external task manifest prompt requires a snapshot oracle binding",
+                RC_SNAPSHOT,
+            )
+    else:
+        _require_task_manifest_sha256(
+            snapshot_oracle,
+            task_manifest,
+            "prompt snapshot oracle",
+            rc=RC_SNAPSHOT,
+        )
+        if snapshot_oracle.get("case") != legacy_case:
+            raise ValidationError(
+                "prompt snapshot oracle case mismatch", RC_SNAPSHOT
+            )
     provenance = task["provenance"]
     pin = provenance["prompt_source"]
     rollout = _find_rollout(
         sessions_root,
         provenance["session_id"],
         pinned_label=legacy_case,
+        pinned_sha256=provenance["rollout_sha256"],
     )
     if verify_source:
-        _verify_rollout_sha(rollout, legacy_case)
+        _verify_rollout_sha(
+            rollout,
+            legacy_case,
+            expected_sha256=provenance["rollout_sha256"],
+        )
     message = extract_user_message(rollout)
     source = message.encode("utf-8")
     reasons: list[str] = []
@@ -3359,6 +3538,7 @@ def render_prompt(
     data = rendered.encode("utf-8")
     receipt = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "case": legacy_case,
         "source_session_id": provenance["session_id"],
         "source_rollout_sha256": _sha256(rollout.read_bytes()),
@@ -3369,6 +3549,10 @@ def render_prompt(
         "absolute_paths": sorted(rooted_paths),
         "untracked_paths": sorted(requested_untracked),
     }
+    if snapshot_oracle is not None:
+        receipt["snapshot_manifest_sha256"] = _sha256(
+            _canonical_bytes(snapshot_oracle)
+        )
     return data, receipt
 
 
@@ -6938,6 +7122,7 @@ def _supervise_one(
     codex_binary: Path,
     bwrap_binary: Path,
     dry_run: bool,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     slot_id = str(slot["slot_id"])
     case = str(slot["case"])
@@ -6969,7 +7154,10 @@ def _supervise_one(
     )
     event_state = _regular_file_state(events, "events.jsonl")
     done_state = _regular_file_state(done, ".done")
-    oracle_before = verify_snapshot(snapshot, case)
+    task_manifest_sha256 = _task_manifest_sha256(task_manifest)
+    oracle_before = verify_snapshot(
+        snapshot, case, task_manifest=task_manifest
+    )
     oracle_before_path = attempt_dir / "snapshot-before.json"
     _write_frozen_json(oracle_before_path, oracle_before)
 
@@ -7046,6 +7234,7 @@ def _supervise_one(
         )
         launch = {
             "schema_version": SCHEMA_VERSION,
+            "task_manifest_sha256": task_manifest_sha256,
             "run_id": run_id,
             "slot_id": slot_id,
             "attempt": attempt,
@@ -7129,7 +7318,9 @@ def _supervise_one(
     )
     post_oracle_reasons: list[str] = []
     try:
-        oracle_after = verify_snapshot(snapshot, case)
+        oracle_after = verify_snapshot(
+            snapshot, case, task_manifest=task_manifest
+        )
     except ValidationError as exc:
         post_oracle_reasons.extend(exc.reasons)
         oracle_after = {
@@ -7147,6 +7338,7 @@ def _supervise_one(
     )
     completion = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "phase": "completed",
         "run_id": run_id,
         "slot_id": slot_id,
@@ -7193,6 +7385,7 @@ def supervise_pair(
     dry_run: bool = False,
     max_gap_ms: int = MAX_SCHEDULE_GAP_MS,
     max_inter_block_gap_ms: int = MAX_INTER_BLOCK_GAP_MS,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     if isinstance(attempt, bool) or not isinstance(attempt, int) or not 1 <= attempt <= 3:
         raise ValidationError("attempt must be in 1..3", RC_ROUTING)
@@ -7224,7 +7417,16 @@ def supervise_pair(
         frozen_schedule.write_bytes(source_schedule_bytes)
     schedule_sha = _sha256(frozen_schedule.read_bytes())
     schedule = _load_json_object(frozen_schedule)
-    slots, schedule_reasons = _validate_schedule(schedule)
+    task_manifest_sha256 = _task_manifest_sha256(task_manifest)
+    _require_task_manifest_sha256(
+        schedule,
+        task_manifest,
+        "schedule",
+        rc=RC_ROUTING,
+    )
+    slots, schedule_reasons = _validate_schedule(
+        schedule, task_manifest=task_manifest
+    )
     if schedule_reasons:
         raise ValidationError(schedule_reasons, RC_ROUTING)
     block_slots = [row for row in slots if row.get("block_id") == block_id]
@@ -7233,7 +7435,11 @@ def supervise_pair(
     block_slots.sort(key=lambda row: int(row["block_order"]))
     if len({row["case"] for row in block_slots}) != 1:
         raise ValidationError("supervisor block case mismatch", RC_ROUTING)
-    oracle_probe = verify_snapshot(snapshot, str(block_slots[0]["case"]))
+    oracle_probe = verify_snapshot(
+        snapshot,
+        str(block_slots[0]["case"]),
+        task_manifest=task_manifest,
+    )
     _assert_submodule_manifest_sha256(
         oracle_probe["submodules"],
         block_slots[0].get("submodule_manifest_sha256"),
@@ -7294,6 +7500,7 @@ def supervise_pair(
             ledger_path,
             {
                 "schema_version": SCHEMA_VERSION,
+                "task_manifest_sha256": task_manifest_sha256,
                 "phase": "reserved",
                 "slot_id": slot["slot_id"],
                 "block_id": block_id,
@@ -7320,6 +7527,7 @@ def supervise_pair(
                 codex_binary=codex_binary,
                 bwrap_binary=bwrap_binary,
                 dry_run=dry_run,
+                task_manifest=task_manifest,
             )
         except Exception as exc:
             failed_at_ns = time.monotonic_ns()
@@ -7330,6 +7538,7 @@ def supervise_pair(
             }
             row = {
                 "schema_version": SCHEMA_VERSION,
+                "task_manifest_sha256": task_manifest_sha256,
                 "phase": "completed",
                 "run_id": run_id,
                 "slot_id": slot["slot_id"],
@@ -7373,6 +7582,7 @@ def supervise_pair(
                 mate_run_id = uuid.uuid4().hex
                 mate_row = {
                     "schema_version": SCHEMA_VERSION,
+                    "task_manifest_sha256": task_manifest_sha256,
                     "phase": "completed",
                     "run_id": mate_run_id,
                     "slot_id": mate["slot_id"],
@@ -7457,6 +7667,7 @@ def supervise_pair(
         raise ValidationError(failures, RC_RECEIPT)
     return {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "run_root": os.fspath(run_root),
         "attempt_ledger": os.fspath(ledger_path),
         "block_id": block_id,
@@ -7803,9 +8014,13 @@ def collect_run(
     snapshot: Path,
     launch_receipt: Path,
     expected_requested_model: str,
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[dict[str, Any], int]:
     reasons: list[str] = []
     launch = _load_json_object(launch_receipt)
+    task_manifest_sha256 = _task_manifest_sha256(task_manifest)
+    if launch.get("task_manifest_sha256") != task_manifest_sha256:
+        reasons.append("launch receipt task_manifest_sha256 mismatch")
     for field, expected_value in (
         ("run_id", run_id),
         ("case", case),
@@ -8205,6 +8420,7 @@ def collect_run(
             primary_rc = RC_RECEIPT
     receipt = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "run_id": run_id,
         "case": case,
         "arm": requested_effort,
@@ -8542,6 +8758,21 @@ def _load_json_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def _load_json_object_with_sha256(path: Path) -> tuple[dict[str, Any], str]:
+    try:
+        data = path.read_bytes()
+        value = json.loads(data)
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValidationError(
+            f"cannot read JSON object {path}: {exc}", RC_AGGREGATE
+        ) from exc
+    if not isinstance(value, dict):
+        raise ValidationError(
+            f"JSON artifact is not an object: {path}", RC_AGGREGATE
+        )
+    return value, _sha256(data)
+
+
 def _resolve_artifact(manifest_path: Path, value: Any) -> Path:
     if not isinstance(value, str) or not value:
         raise ValidationError("manifest artifact path missing", RC_AGGREGATE)
@@ -8653,7 +8884,9 @@ def _read_frozen_repo_file(relative_path: str, label: str) -> bytes:
     return data
 
 
-def _validate_frozen_price_snapshot_record(record: Any) -> str:
+def _validate_frozen_price_snapshot_record(
+    record: Any,
+) -> tuple[str, dict[str, Any]]:
     if not isinstance(record, dict):
         raise ValidationError("price_snapshot must be an object", RC_ROUTING)
     if set(record) != {"path", "sha256"}:
@@ -8704,29 +8937,46 @@ def _validate_frozen_price_snapshot_record(record: Any) -> str:
         raise ValidationError(
             "frozen price excerpt byte length mismatch", RC_ROUTING
         )
-    return FROZEN_PRICE_VERSION
+    return FROZEN_PRICE_VERSION, validated
 
 
-def _schedule_expected_price_version(schedule: Mapping[str, Any]) -> str | None:
+def _schedule_expected_price_version(
+    schedule: Mapping[str, Any],
+) -> tuple[str | None, dict[str, Any] | None]:
     slots = schedule.get("slots")
     if not isinstance(slots, list):
-        return None
+        return None, None
     non_null_versions = [
         row.get("price_version")
         for row in slots
         if isinstance(row, Mapping) and row.get("price_version") is not None
     ]
     if not non_null_versions:
-        return None
+        return None, None
     schema_version = schedule.get("schema_version")
     if (
         type(schema_version) is not int
         or schema_version != SCHEDULE_SCHEMA_VERSION
     ):
-        return None
+        return None, None
     if any(value != FROZEN_PRICE_VERSION for value in non_null_versions):
-        return None
+        return None, None
     return _validate_frozen_price_snapshot_record(schedule.get("price_snapshot"))
+
+
+class _ValidatedScheduleSlots(list[dict[str, Any]]):
+    """Validated schedule rows plus the exact trees observed while validating."""
+
+    def __init__(
+        self,
+        rows: Iterable[dict[str, Any]] = (),
+        *,
+        price_snapshot: Mapping[str, Any] | None = None,
+    ) -> None:
+        super().__init__(rows)
+        self.price_snapshot = price_snapshot
+        self.has_material_schedule_descriptor: bool | None = None
+        self.material_manifest_sha256: str | None = None
 
 
 def _validated_slots_price_version(
@@ -8857,7 +9107,7 @@ def _validate_schedule(
     # a v2 compatibility view without changing the caller's source mapping.
     source_schedule = _legacy_schedule_view(schedule)
     try:
-        expected_price_version = _schedule_expected_price_version(
+        expected_price_version, price_snapshot = _schedule_expected_price_version(
             source_schedule
         )
         normalized_schedule = normalize_schedule(
@@ -8871,7 +9121,7 @@ def _validate_schedule(
     if not isinstance(slots_value, list):
         return [], ["schedule.slots is not an array"]
 
-    slots: list[dict[str, Any]] = []
+    slots = _ValidatedScheduleSlots(price_snapshot=price_snapshot)
     counts: dict[tuple[str, str], int] = {}
     seen: set[str] = set()
     blocks: dict[str, list[dict[str, Any]]] = {}
@@ -9013,6 +9263,14 @@ def _load_adjudication(
         revealed = _load_json_object(map_path)
     except ValidationError as exc:
         return {}, list(exc.reasons)
+    expected_task_manifest_sha256 = _task_manifest_sha256(task_manifest)
+    for label, artifact in (
+        ("packet state", packet_state),
+        ("verdict freeze", freeze),
+        ("revealed mapping", revealed),
+    ):
+        if artifact.get("task_manifest_sha256") != expected_task_manifest_sha256:
+            reasons.append(f"{label} task_manifest_sha256 mismatch")
     verdict_rows, verdict_issues = _json_lines(verdict_log_path)
     reasons.extend(verdict_issues)
     if (
@@ -9285,6 +9543,344 @@ _AXIS_FIELDS = (
     "price_version",
 )
 
+_COST_TOKEN_FIELDS = (
+    "input_tokens",
+    "cached_input_tokens",
+    "output_tokens",
+    "reasoning_output_tokens",
+)
+_COST_QUANTUM = Decimal("0.00000001")
+_COST_DENOMINATOR = Decimal(1_000_000)
+
+
+def _load_frozen_price_snapshot_for_cost() -> dict[str, Any]:
+    """Read, pin, and validate the cost snapshot from one byte observation."""
+    try:
+        snapshot_bytes = _read_frozen_repo_file(
+            FROZEN_PRICE_SNAPSHOT_PATH, "frozen price snapshot for cost"
+        )
+    except ValidationError as exc:
+        raise ValidationError(exc.reasons, RC_AGGREGATE) from exc
+    if _sha256(snapshot_bytes) != FROZEN_PRICE_SNAPSHOT_SHA256:
+        raise ValidationError(
+            "frozen price snapshot bytes sha256 mismatch for cost",
+            RC_AGGREGATE,
+        )
+    try:
+        snapshot_value = json.loads(snapshot_bytes)
+        validated = PRICE_SNAPSHOT.validate_price_snapshot(snapshot_value)
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        PRICE_SNAPSHOT.PriceSnapshotError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise ValidationError(
+            f"frozen price snapshot cost validation failed: {exc}",
+            RC_AGGREGATE,
+        ) from exc
+    if validated.get("price_table_version") != FROZEN_PRICE_VERSION:
+        raise ValidationError(
+            "frozen price version mismatch for cost", RC_AGGREGATE
+        )
+    return validated
+
+
+def _format_cost_amount(amount: Decimal) -> str:
+    with localcontext() as context:
+        context.prec = 64
+        rounded = amount.quantize(_COST_QUANTUM, rounding=ROUND_HALF_EVEN)
+    return format(rounded, ".8f")
+
+
+def _not_launched_accounting_reason(attempt: Mapping[str, Any]) -> str | None:
+    nonzero_or_malformed = [
+        field
+        for field in _COST_TOKEN_FIELDS
+        if type(attempt.get(field)) is not int or attempt.get(field) != 0
+    ]
+    if nonzero_or_malformed:
+        return (
+            "not-launched token fields must be exact integer zeroes: "
+            + ", ".join(nonzero_or_malformed)
+        )
+    if type(attempt.get("model_calls")) is not int or attempt.get("model_calls") != 0:
+        return "not-launched model_calls must be exact integer zero"
+    return None
+
+
+def _cost_token_availability(
+    attempt: Mapping[str, Any],
+) -> tuple[str, str | None]:
+    prelaunch_failure = attempt.get("prelaunch_failure") is not None
+    paired_not_launched = (
+        attempt.get("failure_class") == "pair-invalidated"
+        and attempt.get("individual_failure_class") is None
+        and attempt.get("treatment_started") is False
+    )
+    if prelaunch_failure or paired_not_launched:
+        malformed_reason = _not_launched_accounting_reason(attempt)
+        if malformed_reason is not None:
+            raise ValidationError(malformed_reason, RC_AGGREGATE)
+        return (
+            "not-incurred",
+            "attempt failed before launch"
+            if prelaunch_failure
+            else "paired attempt was not launched",
+        )
+    failure_reasons = attempt.get("failure_reasons")
+    if isinstance(failure_reasons, list) and any(
+        str(reason).startswith("replay failed:") for reason in failure_reasons
+    ):
+        return "unavailable", "receipt replay failed"
+
+    values: list[int] = []
+    for field in _COST_TOKEN_FIELDS:
+        value = attempt.get(field)
+        if type(value) is not int:
+            raise ValidationError(
+                f"normalized cost {field} is missing or not an exact integer",
+                RC_AGGREGATE,
+            )
+        if value < 0:
+            raise ValidationError(
+                f"normalized cost {field} is negative", RC_AGGREGATE
+            )
+        values.append(value)
+    if not any(values):
+        # Prelaunch rows are populated with exact integer zeroes.  With no
+        # independent observation marker, four zeroes cannot prove observed
+        # zero usage and must not enter a cost denominator.
+        return "unavailable", "all token fields are zero without observation evidence"
+    return "observed", None
+
+
+def _normalized_cost_metadata(
+    *,
+    requested_model: str,
+    price_version: str,
+    price_snapshot: Mapping[str, Any],
+) -> tuple[dict[str, Any], Mapping[str, Any]]:
+    if not isinstance(price_version, str) or price_version != FROZEN_PRICE_VERSION:
+        raise ValidationError(
+            "normalized cost price_version does not match the frozen version",
+            RC_AGGREGATE,
+        )
+    if price_snapshot.get("price_table_version") != price_version:
+        raise ValidationError(
+            "normalized cost snapshot/version mismatch", RC_AGGREGATE
+        )
+    sku_mapping = price_snapshot.get("sku_mapping")
+    if not isinstance(sku_mapping, Mapping) or requested_model not in sku_mapping:
+        raise ValidationError(
+            f"normalized cost requested model has no frozen SKU: {requested_model}",
+            RC_AGGREGATE,
+        )
+    sku = sku_mapping[requested_model]
+    if not isinstance(sku, Mapping):
+        raise ValidationError(
+            "normalized cost frozen SKU is malformed", RC_AGGREGATE
+        )
+    prices = sku.get("prices")
+    if not isinstance(prices, Mapping):
+        raise ValidationError(
+            "normalized cost frozen price table is missing", RC_AGGREGATE
+        )
+    unknown = price_snapshot.get("unknown_token_categories")
+    if not isinstance(unknown, list):
+        raise ValidationError(
+            "normalized cost unaccounted category list is missing",
+            RC_AGGREGATE,
+        )
+    metadata = {
+        "currency": price_snapshot.get("currency"),
+        "price_unit": price_snapshot.get("price_unit"),
+        "unit_prices": {str(key): str(value) for key, value in prices.items()},
+        "price_version": price_version,
+        "unaccounted_token_categories": list(unknown),
+        "coverage_status": "partial",
+        "certification_status": "not-certified",
+        "reasoning_output_tokens_accounting": price_snapshot.get(
+            "reasoning_output_tokens_accounting"
+        ),
+    }
+    return metadata, sku
+
+
+def _normalized_cost_for_attempt(
+    attempt: Mapping[str, Any],
+    *,
+    requested_model: str,
+    price_version: str,
+    price_snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    metadata, sku = _normalized_cost_metadata(
+        requested_model=requested_model,
+        price_version=price_version,
+        price_snapshot=price_snapshot,
+    )
+    availability, failure_reason = _cost_token_availability(attempt)
+    if availability != "observed":
+        return {
+            "status": availability,
+            "token_availability": availability,
+            **metadata,
+            "failure_reason": failure_reason,
+        }
+
+    tokens = {field: int(attempt[field]) for field in _COST_TOKEN_FIELDS}
+    if tokens["cached_input_tokens"] > tokens["input_tokens"]:
+        raise ValidationError(
+            "normalized cost cached_input_tokens exceeds input_tokens",
+            RC_AGGREGATE,
+        )
+    if tokens["reasoning_output_tokens"] > tokens["output_tokens"]:
+        raise ValidationError(
+            "normalized cost reasoning_output_tokens exceeds output_tokens",
+            RC_AGGREGATE,
+        )
+
+    mapping = sku.get("receipt_token_mapping")
+    prices = sku.get("prices")
+    if not isinstance(mapping, Mapping) or not isinstance(prices, Mapping):
+        raise ValidationError(
+            "normalized cost frozen SKU accounting is missing", RC_AGGREGATE
+        )
+    components: dict[str, Any] = {}
+    total = Decimal(0)
+    with localcontext() as context:
+        context.prec = 64
+        for category, raw_rule in mapping.items():
+            assert isinstance(category, str)
+            assert isinstance(raw_rule, Mapping)
+            operation = raw_rule.get("operation")
+            fields = raw_rule.get("receipt_fields")
+            # PRICE_SNAPSHOT.validate_price_snapshot is the upstream authority
+            # for the closed operation/field grammar, exclusion of reasoning
+            # tokens from mappings, and finite positive decimal price strings.
+            if operation is None:
+                assert fields == []
+                continue
+            if operation == "identity":
+                assert isinstance(fields, list) and len(fields) == 1
+                component_tokens = tokens[fields[0]]
+            elif operation == "input_tokens-minus-cached_input_tokens":
+                assert isinstance(fields, list) and len(fields) == 2
+                component_tokens = tokens[fields[0]] - tokens[fields[1]]
+            else:  # unreachable after the upstream snapshot validator
+                raise AssertionError("validated receipt mapping operation")
+            unit_price = str(prices[category])
+            amount = Decimal(component_tokens) * Decimal(unit_price) / (
+                _COST_DENOMINATOR
+            )
+            total += amount
+            components[category] = {
+                "tokens": component_tokens,
+                "unit_price": unit_price,
+                "amount": _format_cost_amount(amount),
+            }
+    return {
+        "status": "partial",
+        "token_availability": "observed",
+        **metadata,
+        "accounted_amount": _format_cost_amount(total),
+        "components": components,
+        "rounding": {
+            "decimal_places": 8,
+            "mode": "ROUND_HALF_EVEN",
+        },
+    }
+
+
+def _aggregate_normalized_costs(
+    attempts: Sequence[Mapping[str, Any]],
+    slot_dimensions: Mapping[str, Mapping[str, Any]],
+    reasons: list[str],
+    *,
+    price_version: str,
+    price_snapshot: Mapping[str, Any],
+) -> tuple[list[dict[str, Any] | None], list[dict[str, Any]]]:
+    per_attempt: list[dict[str, Any] | None] = []
+    axes: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for attempt in attempts:
+        run_id = str(attempt.get("run_id"))
+        dimensions = slot_dimensions.get(str(attempt.get("slot_id")))
+        if dimensions is None:
+            per_attempt.append(None)
+            continue
+        try:
+            cost = _normalized_cost_for_attempt(
+                attempt,
+                requested_model=str(dimensions["requested_model"]),
+                price_version=price_version,
+                price_snapshot=price_snapshot,
+            )
+        except ValidationError as exc:
+            metadata, _ = _normalized_cost_metadata(
+                requested_model=str(dimensions["requested_model"]),
+                price_version=price_version,
+                price_snapshot=price_snapshot,
+            )
+            detail = "; ".join(exc.reasons)
+            cost = {
+                "status": "unavailable",
+                "token_availability": "unavailable",
+                **metadata,
+                "failure_reason": detail,
+            }
+            reasons.extend(
+                f"{run_id}: normalized cost unavailable: {reason}"
+                for reason in exc.reasons
+            )
+        per_attempt.append(cost)
+        key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
+            dimensions["arm"],
+        )
+        axis = axes.get(key)
+        if axis is None:
+            axis = {
+                **{
+                    field: key[index]
+                    for index, field in enumerate(_AXIS_FIELDS)
+                },
+                "arm": key[-1],
+                "accounted_amount": "0.00000000",
+                "attempt_count": 0,
+                "unavailable_count": 0,
+                "not_incurred_count": 0,
+                "scheduled_attempt_count": 0,
+                "currency": cost["currency"],
+                "price_unit": cost["price_unit"],
+                "unit_prices": dict(cost["unit_prices"]),
+                "price_version": cost["price_version"],
+                "unaccounted_token_categories": list(
+                    cost["unaccounted_token_categories"]
+                ),
+                "coverage_status": "partial",
+                "certification_status": "not-certified",
+                "reasoning_output_tokens_accounting": cost[
+                    "reasoning_output_tokens_accounting"
+                ],
+            }
+            axes[key] = axis
+        axis["scheduled_attempt_count"] += 1
+        availability = cost.get("token_availability")
+        if availability == "unavailable":
+            axis["unavailable_count"] += 1
+            continue
+        if availability == "not-incurred":
+            axis["not_incurred_count"] += 1
+            continue
+        if availability != "observed":
+            raise AssertionError("normalized cost token availability")
+        axis["accounted_amount"] = _format_cost_amount(
+            Decimal(axis["accounted_amount"])
+            + Decimal(str(cost["accounted_amount"]))
+        )
+        axis["attempt_count"] += 1
+    return per_attempt, list(axes.values())
+
 
 def _slot_dimension_map(
     slots: Sequence[Mapping[str, Any]],
@@ -9487,6 +10083,9 @@ def _aggregate_verified(
     reasons: list[str],
     *,
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
+    has_schedule_descriptor: bool | None = None,
+    validated_price_snapshot: Mapping[str, Any] | None = None,
+    material_manifest_sha256: str | None = None,
 ) -> dict[str, Any]:
     grouped: dict[str, list[Mapping[str, Any]]] = {
         str(slot["slot_id"]): [] for slot in slots
@@ -9503,6 +10102,38 @@ def _aggregate_verified(
             reasons,
             task_manifest=task_manifest,
         )
+    normalized_costs: list[dict[str, Any] | None] | None = None
+    normalized_cost_axis_ledger: list[dict[str, Any]] | None = None
+    aggregate_price_version = _validated_slots_price_version(slots, reasons)
+    if has_schedule_descriptor is None:
+        has_schedule_descriptor = getattr(
+            slots, "has_material_schedule_descriptor", False
+        )
+    if validated_price_snapshot is None:
+        validated_price_snapshot = getattr(slots, "price_snapshot", None)
+    if material_manifest_sha256 is None:
+        material_manifest_sha256 = getattr(
+            slots, "material_manifest_sha256", None
+        )
+    if (
+        aggregate_price_version == FROZEN_PRICE_VERSION
+        and has_schedule_descriptor
+    ):
+        if validated_price_snapshot is None:
+            reasons.append(
+                "bound schedule validated price snapshot tree is unavailable"
+            )
+        else:
+            (
+                normalized_costs,
+                normalized_cost_axis_ledger,
+            ) = _aggregate_normalized_costs(
+                attempts,
+                slot_dimensions,
+                reasons,
+                price_version=aggregate_price_version,
+                price_snapshot=validated_price_snapshot,
+            )
     token_usage_observations = _aggregate_token_usage_observations(
         attempts,
         reasons,
@@ -9750,7 +10381,7 @@ def _aggregate_verified(
         decision = {"by_axis": list(conditions.values())}
 
     resources = []
-    for attempt in attempts:
+    for attempt_index, attempt in enumerate(attempts):
         dimensions = _attempt_slot_dimensions(
             attempt,
             slot_dimensions,
@@ -9787,6 +10418,10 @@ def _aggregate_verified(
             )
             resource["case"] = dimensions["case"]
             resource["arm"] = dimensions["arm"]
+        if normalized_costs is not None:
+            normalized_cost = normalized_costs[attempt_index]
+            if normalized_cost is not None:
+                resource["normalized_cost"] = normalized_cost
         resources.append(resource)
 
     agreement_by_axis: list[dict[str, Any]] = []
@@ -9864,9 +10499,13 @@ def _aggregate_verified(
             ),
             "disagreement_policy": "conservative-miss",
         }
-    return {
+    result = {
         "schema_version": SCHEMA_VERSION,
-        "manifest_sha256": _sha256(manifest_path.read_bytes()),
+        "manifest_sha256": (
+            material_manifest_sha256
+            if material_manifest_sha256 is not None
+            else _sha256(manifest_path.read_bytes())
+        ),
         "valid": not reasons,
         "failure_reasons": sorted(set(reasons)),
         "experiment_complete": experiment_complete,
@@ -9888,6 +10527,9 @@ def _aggregate_verified(
         "reader_agreement_axis_ledger": agreement_by_axis,
         "decision": decision_output,
     }
+    if normalized_cost_axis_ledger is not None:
+        result["normalized_cost_axis_ledger"] = normalized_cost_axis_ledger
+    return result
 
 
 def _validate_supervisor_ledger(
@@ -9979,6 +10621,11 @@ def _validate_supervisor_ledger(
             if row.get("launch_receipt") is not None:
                 reasons.append(
                     f"{row.get('run_id')}: prelaunch completion has launch receipt"
+                )
+            accounting_reason = _not_launched_accounting_reason(row)
+            if accounting_reason is not None:
+                reasons.append(
+                    f"{row.get('run_id')}: {accounting_reason}"
                 )
             continue
         launch_path = Path(str(row.get("launch_receipt"))).resolve()
@@ -10095,13 +10742,31 @@ def _replay_manifest(
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]], list[str]]:
     manifest_path = manifest_path.resolve()
-    manifest = _load_json_object(manifest_path)
+    manifest, material_manifest_sha256 = _load_json_object_with_sha256(
+        manifest_path
+    )
     reasons: list[str] = []
+    task_manifest_sha256 = _task_manifest_sha256(task_manifest)
+    _require_task_manifest_sha256(
+        manifest,
+        task_manifest,
+        "material manifest",
+        rc=RC_AGGREGATE,
+    )
     schedule_path = _artifact_path(manifest_path, manifest.get("schedule"), "schedule")
     schedule = _load_json_object(schedule_path)
+    _require_task_manifest_sha256(
+        schedule,
+        task_manifest,
+        "schedule",
+        rc=RC_AGGREGATE,
+    )
     slots, schedule_reasons = _validate_schedule(
         schedule, task_manifest=task_manifest
     )
+    if isinstance(slots, _ValidatedScheduleSlots):
+        slots.has_material_schedule_descriptor = manifest.get("schedule") is not None
+        slots.material_manifest_sha256 = material_manifest_sha256
     reasons.extend(schedule_reasons)
     schedule_sha = _sha256(schedule_path.read_bytes())
     if manifest.get("schedule_sha256") != schedule_sha:
@@ -10140,6 +10805,12 @@ def _replay_manifest(
         )
         ledger_rows, ledger_issues = _json_lines(ledger_path)
         reasons.extend(ledger_issues)
+        if any(
+            row.get("phase") in {"reserved", "completed"}
+            and row.get("task_manifest_sha256") != task_manifest_sha256
+            for row in ledger_rows
+        ):
+            reasons.append("attempt ledger task_manifest_sha256 mismatch")
         if manifest.get("max_schedule_gap_ms") != MAX_SCHEDULE_GAP_MS:
             reasons.append("manifest intra-block schedule gap bound mismatch")
         if (
@@ -10342,7 +11013,11 @@ def _replay_manifest(
             )
             snapshot_replay_verified = snapshot_identity in snapshot_cache
             if not snapshot_replay_verified:
-                replay_oracle = verify_snapshot(Path(oracle["snapshot"]), str(slot["case"]))
+                replay_oracle = verify_snapshot(
+                    Path(oracle["snapshot"]),
+                    str(slot["case"]),
+                    task_manifest=task_manifest,
+                )
                 if _canonical_bytes(replay_oracle) != oracle_path.read_bytes():
                     reasons.append(f"{run_id}: snapshot oracle replay mismatch")
                 else:
@@ -10368,6 +11043,7 @@ def _replay_manifest(
                 snapshot=Path(oracle["snapshot"]),
                 launch_receipt=launch_path,
                 expected_requested_model=slot.get("requested_model", MODEL),
+                task_manifest=task_manifest,
             )
             if _canonical_bytes(replay_receipt) != receipt_path.read_bytes():
                 reasons.append(f"{run_id}: receipt canonical replay mismatch")
@@ -10560,6 +11236,7 @@ def verify_manifest(
     if sessions_root is None:
         return {
             "schema_version": SCHEMA_VERSION,
+            "task_manifest_sha256": _task_manifest_sha256(task_manifest),
             "valid": False,
             "failure_reasons": ["sessions-root is required"],
             "certification_scope": _certification_scope(),
@@ -10581,9 +11258,13 @@ def verify_manifest(
     except ValidationError as exc:
         output = {
             "schema_version": SCHEMA_VERSION,
+            "task_manifest_sha256": _task_manifest_sha256(task_manifest),
             "valid": False,
             "failure_reasons": list(exc.reasons),
         }
+    output.setdefault(
+        "task_manifest_sha256", _task_manifest_sha256(task_manifest)
+    )
     output["certification_scope"] = _certification_scope()
     return output, 0 if output.get("valid") else RC_AGGREGATE
 
@@ -10608,7 +11289,14 @@ def make_packets(
     *,
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
+    task_manifest_sha256 = _task_manifest_sha256(task_manifest)
     manifest = _load_json_object(manifest_path)
+    _require_task_manifest_sha256(
+        manifest,
+        task_manifest,
+        "packet source manifest",
+        rc=RC_AGGREGATE,
+    )
     attempts = manifest.get("attempts")
     if not isinstance(attempts, list):
         raise ValidationError("manifest.attempts is not an array", RC_AGGREGATE)
@@ -10630,6 +11318,12 @@ def make_packets(
                 manifest_path.resolve(), schedule_descriptor, "schedule"
             )
             schedule = _load_json_object(schedule_path)
+        _require_task_manifest_sha256(
+            schedule,
+            task_manifest,
+            "schedule",
+            rc=RC_AGGREGATE,
+        )
         schedule = _legacy_schedule_view(schedule)
         schedule_slots, schedule_reasons = _validate_schedule(
             schedule, task_manifest=task_manifest
@@ -10726,6 +11420,7 @@ def make_packets(
     secrets.SystemRandom().shuffle(rows)
     state = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "mask_strength": "same-owner-advisory",
         "packets": rows,
     }
@@ -10737,6 +11432,7 @@ def make_packets(
         private_path,
         {
             "schema_version": SCHEMA_VERSION,
+            "task_manifest_sha256": task_manifest_sha256,
             "mask_strength": "same-owner-advisory",
             "mapping": private_rows,
         },
@@ -10745,6 +11441,7 @@ def make_packets(
     private_path.chmod(0o600)
     return {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "mask_strength": "same-owner-advisory",
         "packet_state": os.fspath(state_path.resolve()),
         "packet_state_sha256": _sha256(state_path.read_bytes()),
@@ -10787,6 +11484,12 @@ def _validate_verdict_row(
     require_packet_digest: bool = True,
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> None:
+    _require_task_manifest_sha256(
+        row,
+        task_manifest,
+        "verdict row",
+        rc=RC_AGGREGATE,
+    )
     if row.get("packet_id") not in packet_ids:
         raise ValidationError("verdict packet_id is unknown", RC_AGGREGATE)
     if require_packet_digest and (
@@ -10835,6 +11538,12 @@ def append_verdicts(
     The task is intentionally unknown at append time, before mapping reveal.
     """
     state = _load_json_object(packet_state_path)
+    task_manifest_sha256 = _require_task_manifest_sha256(
+        state,
+        task_manifest,
+        "packet state",
+        rc=RC_AGGREGATE,
+    )
     verdicts = _load_json_object(verdict_input_path)
     packet_rows = state.get("packets")
     verdict_rows = verdicts.get("verdicts")
@@ -10847,6 +11556,12 @@ def append_verdicts(
     existing, issues = _json_lines(verdict_log_path) if verdict_log_path.exists() else ([], [])
     if issues:
         raise ValidationError(issues, RC_AGGREGATE)
+    for row in existing:
+        _validate_verdict_row(
+            row,
+            packet_ids,
+            task_manifest=task_manifest,
+        )
     if any(row.get("reader") == reader for row in existing):
         raise ValidationError("reader verdicts are already appended", RC_AGGREGATE)
     seen: set[str] = set()
@@ -10862,6 +11577,7 @@ def append_verdicts(
         _validate_verdict_row(
             {
                 **row,
+                "task_manifest_sha256": task_manifest_sha256,
                 "packet_sha256_at_read": packet_digests[packet_id],
             },
             packet_ids,
@@ -10876,11 +11592,13 @@ def append_verdicts(
             {
                 **row,
                 "reader": reader,
+                "task_manifest_sha256": task_manifest_sha256,
                 "packet_sha256_at_read": packet_digests[packet_id],
             },
         )
     return {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "reader": reader,
         "appended": len(verdict_rows),
         "verdict_log_sha256": _sha256(verdict_log_path.read_bytes()),
@@ -10895,6 +11613,12 @@ def freeze_verdicts(
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, Any]:
     state = _load_json_object(packet_state_path)
+    task_manifest_sha256 = _require_task_manifest_sha256(
+        state,
+        task_manifest,
+        "packet state",
+        rc=RC_AGGREGATE,
+    )
     packet_rows = state.get("packets")
     if not isinstance(packet_rows, list):
         raise ValidationError("packet rows missing", RC_AGGREGATE)
@@ -10931,6 +11655,7 @@ def freeze_verdicts(
         raise ValidationError("both reader verdict sets are required", RC_AGGREGATE)
     freeze = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "packet_state_sha256": _sha256(packet_state_path.read_bytes()),
         "verdict_log_sha256": _sha256(verdict_log_path.read_bytes()),
         "packet_sha256_at_freeze": packet_digests,
@@ -10980,6 +11705,18 @@ def reveal_mapping(
 ) -> dict[str, Any]:
     state = _load_json_object(packet_state_path)
     freeze = _load_json_object(verdict_freeze_path)
+    task_manifest_sha256 = _require_task_manifest_sha256(
+        state,
+        task_manifest,
+        "packet state",
+        rc=RC_AGGREGATE,
+    )
+    _require_task_manifest_sha256(
+        freeze,
+        task_manifest,
+        "verdict freeze",
+        rc=RC_AGGREGATE,
+    )
     if (
         freeze.get("packet_state_sha256") != _sha256(packet_state_path.read_bytes())
         or freeze.get("verdict_log_sha256") != _sha256(verdict_log_path.read_bytes())
@@ -11025,6 +11762,12 @@ def reveal_mapping(
         )
     private_path = _custodian_mapping_path(custodian_root.resolve())
     private = _load_json_object(private_path)
+    _require_task_manifest_sha256(
+        private,
+        task_manifest,
+        "private packet mapping",
+        rc=RC_AGGREGATE,
+    )
     private_rows = private.get("mapping")
     if not isinstance(private_rows, list):
         raise ValidationError("private packet mapping missing", RC_AGGREGATE)
@@ -11064,6 +11807,7 @@ def reveal_mapping(
             )
     mapping = {
         "schema_version": SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
         "mask_strength": "same-owner-advisory",
         "verdict_freeze_sha256": _sha256(verdict_freeze_path.read_bytes()),
         "mapping": [
@@ -11090,9 +11834,20 @@ def _sessions_default() -> Path:
     )
 
 
-def _add_benchmark_task_selector(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--case", choices=("POS", "NEG"))
+def _add_benchmark_task_selector(
+    parser: argparse.ArgumentParser,
+    *,
+    external_aliases: bool = False,
+) -> None:
+    if external_aliases:
+        parser.add_argument("--case")
+    else:
+        parser.add_argument("--case", choices=("POS", "NEG"))
     parser.add_argument("--benchmark-task-id")
+
+
+def _add_task_manifest_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--task-manifest", type=Path)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -11103,7 +11858,8 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--repo", type=Path, default=_ROOT)
     build.add_argument("--snapshot", type=Path, required=True)
     build.add_argument("--sessions-root", type=Path, default=_sessions_default())
-    _add_benchmark_task_selector(build)
+    _add_benchmark_task_selector(build, external_aliases=True)
+    _add_task_manifest_option(build)
 
     snapshot = sub.add_parser("verify-snapshot")
     snapshot.add_argument("--snapshot", type=Path, required=True)
@@ -11111,9 +11867,11 @@ def _parser() -> argparse.ArgumentParser:
 
     prompt = sub.add_parser("render-prompt")
     prompt.add_argument("--sessions-root", type=Path, default=_sessions_default())
-    _add_benchmark_task_selector(prompt)
+    _add_benchmark_task_selector(prompt, external_aliases=True)
     prompt.add_argument("--new-root", type=Path, required=True)
     prompt.add_argument("--output", type=Path)
+    prompt.add_argument("--snapshot-oracle", type=Path)
+    _add_task_manifest_option(prompt)
 
     stage2_freeze = sub.add_parser("freeze-stage2-plan-replayer")
     stage2_freeze.add_argument("--plan-input", type=Path, required=True)
@@ -11136,7 +11894,7 @@ def _parser() -> argparse.ArgumentParser:
 
     collect = sub.add_parser("collect-run")
     collect.add_argument("--run-id", required=True)
-    _add_benchmark_task_selector(collect)
+    _add_benchmark_task_selector(collect, external_aliases=True)
     collect.add_argument("--requested-effort", choices=("max", "high"), required=True)
     collect.add_argument("--events", type=Path, required=True)
     collect.add_argument("--done", type=Path, required=True)
@@ -11148,6 +11906,7 @@ def _parser() -> argparse.ArgumentParser:
     collect.add_argument(
         "--expected-model", dest="expected_requested_model", default=MODEL
     )
+    _add_task_manifest_option(collect)
 
     supervisor = sub.add_parser("supervise-pair")
     supervisor.add_argument("--schedule", type=Path, required=True)
@@ -11161,6 +11920,7 @@ def _parser() -> argparse.ArgumentParser:
     supervisor.add_argument("--codex-bin", type=Path, required=True)
     supervisor.add_argument("--bwrap-bin", type=Path, default=Path("/usr/bin/bwrap"))
     supervisor.add_argument("--dry-run", action="store_true")
+    _add_task_manifest_option(supervisor)
 
     stage2_replay = sub.add_parser("replay-stage2-plan")
     stage2_replay.add_argument("--contract", type=Path, required=True)
@@ -11224,15 +11984,18 @@ def _parser() -> argparse.ArgumentParser:
     aggregate = sub.add_parser("aggregate")
     aggregate.add_argument("--manifest", type=Path, required=True)
     aggregate.add_argument("--sessions-root", type=Path, required=True)
+    _add_task_manifest_option(aggregate)
 
     verify = sub.add_parser("verify")
     verify.add_argument("--manifest", type=Path, required=True)
     verify.add_argument("--sessions-root", type=Path, required=True)
+    _add_task_manifest_option(verify)
 
     packets = sub.add_parser("make-packets")
     packets.add_argument("--manifest", type=Path, required=True)
     packets.add_argument("--packet-dir", type=Path, required=True)
     packets.add_argument("--custodian-root", type=Path, required=True)
+    _add_task_manifest_option(packets)
 
     append = sub.add_parser("append-verdicts")
     append.add_argument("--packet-state", type=Path, required=True)
@@ -11241,11 +12004,13 @@ def _parser() -> argparse.ArgumentParser:
         "--reader", choices=("parent", "second-reader"), required=True
     )
     append.add_argument("--input", type=Path, required=True)
+    _add_task_manifest_option(append)
 
     freeze = sub.add_parser("freeze-verdicts")
     freeze.add_argument("--packet-state", type=Path, required=True)
     freeze.add_argument("--verdict-log", type=Path, required=True)
     freeze.add_argument("--output", type=Path, required=True)
+    _add_task_manifest_option(freeze)
 
     reveal = sub.add_parser("reveal-mapping")
     reveal.add_argument("--packet-state", type=Path, required=True)
@@ -11253,12 +12018,18 @@ def _parser() -> argparse.ArgumentParser:
     reveal.add_argument("--verdict-log", type=Path, required=True)
     reveal.add_argument("--verdict-freeze", type=Path, required=True)
     reveal.add_argument("--output", type=Path, required=True)
+    _add_task_manifest_option(reveal)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        task_manifest = (
+            _load_task_manifest(args.task_manifest)
+            if getattr(args, "task_manifest", None) is not None
+            else TASK_MANIFEST
+        )
         benchmark_task_id: str | None = None
         if args.command in {
             "build-snapshot",
@@ -11269,18 +12040,35 @@ def main(argv: Sequence[str] | None = None) -> int:
             benchmark_task_id = resolve_benchmark_task_id(
                 args.benchmark_task_id,
                 case=args.case,
+                manifest=task_manifest,
             )
         if args.command == "build-snapshot":
             result = build_snapshot(
-                args.repo, args.snapshot, args.sessions_root, benchmark_task_id
+                args.repo,
+                args.snapshot,
+                args.sessions_root,
+                benchmark_task_id,
+                task_manifest=task_manifest,
             )
             rc = 0
         elif args.command == "verify-snapshot":
-            result = verify_snapshot(args.snapshot, benchmark_task_id)
+            result = verify_snapshot(
+                args.snapshot,
+                benchmark_task_id,
+            )
             rc = 0
         elif args.command == "render-prompt":
+            snapshot_oracle = (
+                _load_json_object(args.snapshot_oracle)
+                if args.snapshot_oracle is not None
+                else None
+            )
             data, result = render_prompt(
-                args.sessions_root, benchmark_task_id, args.new_root
+                args.sessions_root,
+                benchmark_task_id,
+                args.new_root,
+                task_manifest=task_manifest,
+                snapshot_oracle=snapshot_oracle,
             )
             if args.output:
                 if args.output.exists():
@@ -11320,6 +12108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 snapshot=args.snapshot,
                 launch_receipt=args.launch_receipt,
                 expected_requested_model=args.expected_requested_model,
+                task_manifest=task_manifest,
             )
         elif args.command == "supervise-pair":
             result = supervise_pair(
@@ -11334,6 +12123,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 codex_binary=args.codex_bin,
                 bwrap_binary=args.bwrap_bin,
                 dry_run=args.dry_run,
+                task_manifest=task_manifest,
             )
             rc = 0
         elif args.command == "replay-stage2-plan":
@@ -11386,15 +12176,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             result, rc = score_run(args.output, args.run_id)
         elif args.command == "aggregate":
             result, rc = aggregate_manifest(
-                args.manifest, sessions_root=args.sessions_root
+                args.manifest,
+                sessions_root=args.sessions_root,
+                task_manifest=task_manifest,
             )
         elif args.command == "verify":
             result, rc = verify_manifest(
-                args.manifest, sessions_root=args.sessions_root
+                args.manifest,
+                sessions_root=args.sessions_root,
+                task_manifest=task_manifest,
             )
         elif args.command == "make-packets":
             result = make_packets(
-                args.manifest, args.packet_dir, args.custodian_root
+                args.manifest,
+                args.packet_dir,
+                args.custodian_root,
+                task_manifest=task_manifest,
             )
             rc = 0
         elif args.command == "append-verdicts":
@@ -11403,11 +12200,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.verdict_log,
                 args.reader,
                 args.input,
+                task_manifest=task_manifest,
             )
             rc = 0
         elif args.command == "freeze-verdicts":
             result = freeze_verdicts(
-                args.packet_state, args.verdict_log, args.output
+                args.packet_state,
+                args.verdict_log,
+                args.output,
+                task_manifest=task_manifest,
             )
             rc = 0
         elif args.command == "reveal-mapping":
@@ -11417,6 +12218,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.verdict_log,
                 args.verdict_freeze,
                 args.output,
+                task_manifest=task_manifest,
             )
             rc = 0
         else:
