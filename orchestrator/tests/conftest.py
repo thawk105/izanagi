@@ -411,6 +411,7 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
     "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
     "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
     "test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
@@ -1627,7 +1628,13 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             matched_ids = set(getattr(
                 session.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()
             )) & set(FLAKY_TEST_HOLDS)
-        if terminal is not None and matched_ids:
+        if terminal is not None and (
+            matched_ids
+            or (
+                not FLAKY_TEST_HOLDS
+                and getattr(session.config, "invocation_params", None) is not None
+            )
+        ):
             skipped_ids = set(getattr(
                 session.config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, ()
             )) & set(FLAKY_TEST_HOLDS)

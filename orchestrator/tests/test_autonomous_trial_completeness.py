@@ -455,7 +455,7 @@ def _role_event(
         event.update({
             "error_type": "FixtureInvalid",
             "error": "fixture invalid",
-            "error_artifacts": {},
+            "error_artifacts": {"failure_phase": "pre-raw-write"},
         })
     elif status == "skipped":
         for key in ("raw_response_path", "raw_response_sha256", "parsed", "provenance"):
@@ -2019,6 +2019,266 @@ def test_p3_role_invalid_partial_passes(tmp_path) -> None:
     _verify(run, report)
 
 
+def _replace_role_invalid_error_artifacts(
+    events: list[dict], report: dict, error_artifacts: dict,
+) -> None:
+    events[1]["error_artifacts"] = copy.deepcopy(error_artifacts)
+    report["cells"][0]["generations"][0]["roles"]["planner"][
+        "error_artifacts"
+    ] = copy.deepcopy(error_artifacts)
+
+
+def test_invalid_role_event_requires_failure_phase(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    _replace_role_invalid_error_artifacts(events, report, {})
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"failure_phase is invalid$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_invalid_role_event_rejects_unknown_failure_phase(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    _replace_role_invalid_error_artifacts(
+        events, report, {"failure_phase": "fixture-unknown"},
+    )
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"failure_phase is invalid$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_post_raw_failure_requires_raw_response_pointer(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    _replace_role_invalid_error_artifacts(
+        events, report, {"failure_phase": "role-schema"},
+    )
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts "
+            r"raw response pointer is required$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_existing_raw_rejects_pre_raw_failure_phase(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_bytes(b"fixture invalid raw response")
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"failure_phase contradicts an existing raw response$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_sha256_mismatch(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_path.write_bytes(b"fixture invalid raw response")
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": "0" * 64,
+    })
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts "
+            r"raw response bytes differ from sha256$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_symlink(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    target = run / "raw" / "target.txt"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"fixture invalid raw response")
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.symlink_to(target)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+    })
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"raw_response_path traverses a symlink$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_unrelated_file(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / "unrelated.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_bytes = b"fixture invalid raw response"
+    raw_path.write_bytes(raw_bytes)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    })
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"raw_response_path differs from the invocation raw path$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_cwd_relative_path(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_bytes = b"fixture invalid raw response"
+    raw_path.write_bytes(raw_bytes)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(Path("raw") / raw_path.name),
+        "raw_response_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    })
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"raw_response_path differs from the invocation raw path$",
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_parent_symlink(tmp_path) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_bytes = b"fixture invalid raw response"
+    (outside / raw_path.name).write_bytes(raw_bytes)
+    (run / "raw").symlink_to(outside, target_is_directory=True)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    })
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"raw_response_path traverses a symlink$",
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_directory_after_binding(
+    tmp_path, monkeypatch,
+) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_bytes = b"fixture invalid raw response"
+    raw_path.write_bytes(raw_bytes)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    })
+    _persist(run, events, report)
+    original = C._bound_regular_bytes
+
+    def swap_to_directory_after_binding(value, *, run_root, gate, label):
+        result = original(value, run_root=run_root, gate=gate, label=label)
+        Path(value).unlink()
+        Path(value).mkdir()
+        return result
+
+    monkeypatch.setattr(C, "_bound_regular_bytes", swap_to_directory_after_binding)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[role-event-shape\] journal role attempt\.error_artifacts\."
+            r"raw_response_path is not a regular file$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_invalid_raw_response_pointer_rejects_swap_after_binding(
+    tmp_path, monkeypatch,
+) -> None:
+    run, events, report = _role_invalid_trial(tmp_path)
+    raw_path = run / "raw" / f"raw_{events[1]['invocation_id']}.txt"
+    raw_path.parent.mkdir(parents=True)
+    raw_bytes = b"fixture invalid raw response"
+    raw_path.write_bytes(raw_bytes)
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(raw_bytes)
+    _replace_role_invalid_error_artifacts(events, report, {
+        "failure_phase": "role-schema",
+        "raw_response_path": str(raw_path),
+        "raw_response_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    })
+    _persist(run, events, report)
+    original = C._bound_regular_bytes
+
+    def swap_after_binding(value, *, run_root, gate, label):
+        result = original(value, run_root=run_root, gate=gate, label=label)
+        Path(value).unlink()
+        Path(value).symlink_to(outside)
+        return result
+
+    monkeypatch.setattr(C, "_bound_regular_bytes", swap_after_binding)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"cannot be read from a no-follow file descriptor$",
+    ):
+        _verify(run, report)
+
+
+def test_role_failure_phase_enums_match_producer() -> None:
+    assert C._ROLE_FAILURE_PHASES == A.FAILURE_PHASES
+    assert (
+        C._ROLE_FAILURE_PHASES_AFTER_RAW_WRITE
+        == A.FAILURE_PHASES_AFTER_RAW_WRITE
+    )
+
+
+def test_pre_raw_failure_allows_missing_raw_response_pointer(tmp_path) -> None:
+    run, _events, report = _role_invalid_trial(tmp_path)
+    _verify(run, report)
+
+
+def test_valid_role_event_passes_failure_phase_gate(tmp_path) -> None:
+    run, _events, report = _complete_trial(tmp_path)
+    _verify(run, report)
+
+
 def test_p4_provider_init_error_with_empty_cells_passes(tmp_path) -> None:
     run, _events, report = _provider_init_trial(tmp_path)
     _verify(run, report)
@@ -3242,7 +3502,9 @@ def test_m9_logical_id_diagnostic_pin_has_no_coverage_failure() -> None:
         C.AutonomousTrialCompletenessError,
         match=r"\[logical-id\] journal has a duplicate logical role attempt ID$",
     ):
-        C._require_unique_attempts([first, duplicate], side="journal")
+        C._require_unique_attempts(
+            [first, duplicate], side="journal", run_root=Path("/fixture"),
+        )
 
 
 def _test_wal_ref(record: dict) -> str:

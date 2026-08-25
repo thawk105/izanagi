@@ -953,6 +953,17 @@ def test_parse_coder_rejects_invalid_wire_corpus(bad_wire) -> None:
         }))
 
 
+@pytest.mark.parametrize("raw", ["[]", '{"value":1,"value":2}'])
+def test_parse_raw_object_classifies_json_shape_failures(raw) -> None:
+    with pytest.raises(A.RoleResponseJsonShapeError):
+        A._parse_raw_object(raw, role="planner")
+
+
+def test_parse_raw_object_classifies_json_syntax_failure() -> None:
+    with pytest.raises(A.RoleResponseJsonSyntaxError):
+        A._parse_raw_object('{"proposal":', role="planner")
+
+
 def test_fixture_provider_emits_only_wire() -> None:
     provider = A.FixtureRoleProvider("coder")
     for generation, expected in ((1, "11111"), (2, "10000")):
@@ -1961,6 +1972,18 @@ class _InvalidPlanner:
         )
 
 
+class _InvalidProvenancePlanner(A.FixtureRoleProvider):
+    def __init__(self) -> None:
+        super().__init__("planner")
+
+    def invoke(self, *, invocation_id, payload):
+        response = super().invoke(invocation_id=invocation_id, payload=payload)
+        return dataclasses.replace(
+            response,
+            provenance={**response.provenance, "transport_receipt": {}},
+        )
+
+
 class _UnknownKeyPlanner:
     def __init__(self, unknown_key: str) -> None:
         self.unknown_key = unknown_key
@@ -2032,17 +2055,129 @@ def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) ->
     cell = report["cells"][0]
     assert cell["stop_reason"] == "role-invalid"
     assert len(cell["generations"]) == 1
-    assert cell["generations"][0]["roles"]["planner"]["attempt"] == 1
-    assert cell["generations"][0]["roles"]["planner"]["retry"] is False
-    assert cell["generations"][0]["roles"]["planner"]["status"] == "invalid"
-    assert cell["generations"][0]["roles"]["planner"][
-        "role_query_ordinal"
-    ] == 1
+    event = cell["generations"][0]["roles"]["planner"]
+    assert event["attempt"] == 1
+    assert event["retry"] is False
+    assert event["status"] == "invalid"
+    assert event["role_query_ordinal"] == 1
+    error_artifacts = event["error_artifacts"]
+    assert error_artifacts["failure_phase"] == "role-schema"
+    assert error_artifacts["child_id"] == event["invocation_id"]
+    raw_path = Path(error_artifacts["raw_response_path"])
+    assert raw_path.is_file()
+    assert error_artifacts["raw_response_sha256"] == hashlib.sha256(
+        raw_path.read_bytes()
+    ).hexdigest()
     assert report["honest_accounting"] == {
         "role_query_count": 1,
         "bench_wall_seconds": 0.0,
     }
     assert planner.calls == 1
+
+
+def test_unexpected_parser_exception_has_distinct_failure_phase(
+    tmp_path, monkeypatch,
+) -> None:
+    def raise_recursion(_raw):
+        raise RecursionError("fixture parser recursion")
+
+    monkeypatch.setitem(A.PARSERS, "planner", raise_recursion)
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="unexpected-parser-error",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    event = report["cells"][0]["generations"][0]["roles"]["planner"]
+    assert event["status"] == "invalid"
+    assert event["error_type"] == "RecursionError"
+    assert event["error_artifacts"]["failure_phase"] == "parser-error"
+    assert Path(event["error_artifacts"]["raw_response_path"]).is_file()
+
+
+def test_pre_raw_failure_records_session_id_without_raw_pointer(tmp_path) -> None:
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["planner"] = _InvalidProvenancePlanner()
+    report = A.run_trial(
+        trial_id="invalid-provenance",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    event = report["cells"][0]["generations"][0]["roles"]["planner"]
+    assert event["status"] == "invalid"
+    error_artifacts = event["error_artifacts"]
+    assert error_artifacts == {
+        "failure_phase": "pre-raw-write",
+        "child_id": f"fixture-{event['invocation_id']}",
+    }
+
+
+def test_raw_write_failure_omits_incomplete_raw_pointer(
+    tmp_path, monkeypatch,
+) -> None:
+    def fail_after_path_binding(path, data):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        raise PredictionRunnerError("fixture raw write failure")
+
+    monkeypatch.setattr(A, "_write_bytes_bound", fail_after_path_binding)
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / "run"
+    with pytest.raises(
+        completeness.AutonomousTrialCompletenessError,
+        match=r"failure_phase contradicts an existing raw response$",
+    ):
+        A.run_trial(
+            trial_id="raw-write-failure",
+            workloads=["ycsb-a"],
+            generations=1,
+            provider_kind="fixture",
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            providers=providers,
+            drive=_fake_drive,
+            preview=_fake_preview,
+            allow_unregistered_exploratory=True,
+        )
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    event = next(item for item in events if item["event"] == "role-attempt")
+    assert event["status"] == "invalid"
+    assert event["error_artifacts"] == {
+        "failure_phase": "raw-write",
+        "child_id": f"fixture-{event['invocation_id']}",
+    }
+    assert not (run_root / "report.json").exists()
 
 
 class _MalformedAuditorBase(A.FixtureRoleProvider):
@@ -2093,6 +2228,11 @@ class _AuditorMissingDelimiter(_MalformedAuditorBase):
         return malformed
 
 
+class _AuditorTopLevelArray(_MalformedAuditorBase):
+    def malformed_raw(self, raw_response, payload):
+        return '["auditor-top-level-array-sentinel"]'
+
+
 def _assert_malformed_auditor_common(report, run_root, provider):
     assert report["status"] == "partial"
     cell = report["cells"][0]
@@ -2102,7 +2242,6 @@ def _assert_malformed_auditor_common(report, run_root, provider):
     assert generation["outcome"] == "auditor-invalid"
     event = generation["roles"]["auditor"]
     assert event["status"] == "invalid"
-    assert event["error_type"] == "AutonomousTrialError"
     assert event["attempt"] == 1
     assert event["retry"] is False
     assert event["role_query_ordinal"] == 3
@@ -2120,6 +2259,14 @@ def _assert_malformed_auditor_common(report, run_root, provider):
         ensure_ascii=False,
         sort_keys=True,
     )
+    error_artifacts = event["error_artifacts"]
+    assert error_artifacts["child_id"] == f"fixture-{event['invocation_id']}"
+    raw_path = Path(error_artifacts["raw_response_path"])
+    assert raw_path.read_text(encoding="utf-8") == provider.last_raw_response
+    assert error_artifacts["raw_response_sha256"] == hashlib.sha256(
+        raw_path.read_bytes()
+    ).hexdigest()
+    assert "provenance" not in error_artifacts
     return event
 
 
@@ -2157,6 +2304,8 @@ def test_auditor_descriptor_binding_extra_key_is_single_attempt_and_stops_cell(
         "descriptor_binding"
     ]
     assert "response object keys 不一致" in event["error"]
+    assert event["error_type"] == "AutonomousTrialError"
+    assert event["error_artifacts"]["failure_phase"] == "role-schema"
 
 
 def test_auditor_json_fence_is_single_attempt_and_stops_cell(
@@ -2189,7 +2338,8 @@ def test_auditor_json_fence_is_single_attempt_and_stops_cell(
     assert auditor.last_raw_response.startswith("```json\n")
     assert auditor.last_raw_response.endswith("\n```")
     assert "JSON object を読めない" in event["error"]
-    assert event["error_type"] == "AutonomousTrialError"
+    assert event["error_type"] == "RoleResponseJsonSyntaxError"
+    assert event["error_artifacts"]["failure_phase"] == "json-syntax"
 
 
 def test_auditor_missing_json_delimiter_is_single_attempt_and_stops_cell(
@@ -2222,7 +2372,37 @@ def test_auditor_missing_json_delimiter_is_single_attempt_and_stops_cell(
     assert ',"nits":' not in auditor.last_raw_response
     assert '"nits":' in auditor.last_raw_response
     assert "JSON object を読めない" in event["error"]
-    assert event["error_type"] == "AutonomousTrialError"
+    assert event["error_type"] == "RoleResponseJsonSyntaxError"
+    assert event["error_artifacts"]["failure_phase"] == "json-syntax"
+
+
+def test_auditor_top_level_array_is_classified_as_json_shape(
+    tmp_path,
+) -> None:
+    auditor = _AuditorTopLevelArray()
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["auditor"] = auditor
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="auditor-top-level-array",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    event = _assert_malformed_auditor_common(report, run_root, auditor)
+    assert event["error_type"] == "RoleResponseJsonShapeError"
+    assert event["error_artifacts"]["failure_phase"] == "json-shape"
 
 
 def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) -> None:

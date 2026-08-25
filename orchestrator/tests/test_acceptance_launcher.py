@@ -80,6 +80,147 @@ def _successful_blob_runner(source: bytes, canonical_path: Path, log_file: Path)
     return 0
 
 
+def _unreachable(*_args, **_kwargs):
+    raise AssertionError("unreachable callback was called")
+
+
+def test_matching_main_and_tip_runner_blobs_execute_tested_main_source():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        main_source = bytes(bytearray(_SOURCE))
+        tip_source = bytes(bytearray(_SOURCE))
+        refreshed_main_source = bytes(bytearray(_SOURCE))
+        assert main_source is not tip_source
+        sources = iter((main_source, tip_source, refreshed_main_source))
+        revisions = []
+        executed_sources = []
+        outcomes = []
+        completion_calls = []
+
+        def read_blob(_repo, revision):
+            revisions.append(revision)
+            return next(sources)
+
+        def run_blob(source, canonical_path, log_file):
+            executed_sources.append(source)
+            assert canonical_path.is_absolute()
+            log_file.write_bytes(b"runner output\n")
+            return 0
+
+        def read_completion():
+            completion_calls.append(True)
+            return _completion()
+
+        launcher._launch(
+            config,
+            ("python3", "tools/run_tests.py"),
+            blob_reader=read_blob,
+            blob_runner=run_blob,
+            outcome_writer=outcomes.append,
+            completion_reader=read_completion,
+        )
+
+        assert revisions == [_SHA1_A, _SHA1_B, _SHA1_A]
+        assert len(executed_sources) == 1
+        assert executed_sources[0] is main_source
+        assert len(outcomes) == 1
+        assert completion_calls == [True]
+        assert config.receipt_file.read_bytes()
+
+
+def test_main_tip_runner_blob_mismatch_is_rejected_before_execution():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        revisions = []
+
+        def read_blob(_repo, revision):
+            revisions.append(revision)
+            return _SOURCE if revision == _SHA1_A else _SOURCE + b"# tip\n"
+
+        try:
+            launcher._launch(
+                config,
+                ("python3", "tools/run_tests.py"),
+                blob_reader=read_blob,
+                blob_runner=_unreachable,
+                outcome_writer=_unreachable,
+                completion_reader=_unreachable,
+            )
+        except launcher.LauncherFailure as exc:
+            assert str(exc) == "tested-main and tested-tip runner blobs differ"
+        else:
+            raise AssertionError("runner blob divergence was accepted")
+
+        assert revisions == [_SHA1_A, _SHA1_B]
+        assert config.receipt_file.read_bytes() == b""
+
+
+def test_missing_tested_main_runner_is_rejected_before_execution():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        revisions = []
+
+        def read_blob(_repo, revision):
+            revisions.append(revision)
+            if revision == _SHA1_A:
+                raise launcher.LauncherFailure("missing tested-main runner")
+            return _SOURCE
+
+        try:
+            launcher._launch(
+                config,
+                ("python3", "tools/run_tests.py"),
+                blob_reader=read_blob,
+                blob_runner=_unreachable,
+                outcome_writer=_unreachable,
+                completion_reader=_unreachable,
+            )
+        except launcher.LauncherFailure as exc:
+            assert str(exc) == "missing tested-main runner"
+        else:
+            raise AssertionError("missing tested-main runner was accepted")
+
+        assert revisions == [_SHA1_A]
+        assert config.receipt_file.read_bytes() == b""
+
+
+def test_missing_tested_tip_runner_is_rejected_before_execution():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        revisions = []
+
+        def read_blob(_repo, revision):
+            revisions.append(revision)
+            if revision == _SHA1_B:
+                raise launcher.LauncherFailure("missing tested-tip runner")
+            return _SOURCE
+
+        try:
+            launcher._launch(
+                config,
+                ("python3", "tools/run_tests.py"),
+                blob_reader=read_blob,
+                blob_runner=_unreachable,
+                outcome_writer=_unreachable,
+                completion_reader=_unreachable,
+            )
+        except launcher.LauncherFailure as exc:
+            assert str(exc) == "missing tested-tip runner"
+        else:
+            raise AssertionError("missing tested-tip runner was accepted")
+
+        assert revisions == [_SHA1_A, _SHA1_B]
+        assert config.receipt_file.read_bytes() == b""
+
+
 def test_m3_runner_digest_mismatch_is_rejected():
     with tempfile.TemporaryDirectory() as raw_root:
         root = Path(raw_root).resolve()
@@ -95,20 +236,27 @@ def test_m3_runner_digest_mismatch_is_rejected():
         )
         assert config.receipt_file.read_bytes()
         config.receipt_file.write_bytes(b"")
-        sources = iter((_SOURCE, _SOURCE + b"# drift\n"))
+        sources = iter((_SOURCE, _SOURCE, _SOURCE + b"# drift\n"))
+        revisions = []
+
+        def read_blob(_repo, revision):
+            revisions.append(revision)
+            return next(sources)
+
         try:
             launcher._launch(
                 config,
                 ("python3", "tools/run_tests.py"),
-                blob_reader=lambda _repo, _tip: next(sources),
+                blob_reader=read_blob,
                 blob_runner=_successful_blob_runner,
                 outcome_writer=lambda _value: None,
                 completion_reader=_completion,
             )
         except launcher.LauncherFailure as exc:
-            assert "tested-tip blob" in str(exc)
+            assert "tested-main blob" in str(exc)
         else:
             raise AssertionError("runner digest mismatch was accepted")
+        assert revisions == [_SHA1_A, _SHA1_B, _SHA1_A]
         assert config.receipt_file.read_bytes() == b""
 
 
