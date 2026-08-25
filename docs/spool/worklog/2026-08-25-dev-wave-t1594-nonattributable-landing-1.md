@@ -76,6 +76,14 @@ title: [T-1594] 非帰属の受入赤が出た wave の着地手順を正本化�
 - 設計判断は {{D:non-attributable-landing-boundary}} と {{D:dw-o18-o26-split}}、
   失敗は {{F:synthetic-fixture-reference-closure}} に記録した。
 
+- **変異の再走は baseline PASSED・4/4 KILLED・負の対照 1/1 SURVIVED・MISMATCH 0 で全件期待一致した。**
+  P1 は是正した期待集合 7 node が的中した。
+- **段 8 の自己改善は 1 件が予算で止まった。** 「予算に張り付いた対象への変異登録では変異後 bytes も
+  層に数える」という恒久対応を `DW-M01` (L1) と `DW-M04` (L1.5) の双方へ統合しようとしたが、
+  **L1 は 214 bytes、L1.5 は 213 bytes 超過**した。`docs/skill-self-improvement.md` は予算のための
+  安全義務削除を禁じ、収まらなければ変更を止めて裁定へ返すと定めるので、正本統合は行わず
+  failures 台帳の記載のまま {{T:mutation-byte-layer-doc}} として裁定へ送る。
+
 ## 次の一手差分
 
 ### 完了
@@ -108,3 +116,8 @@ title: [T-1594] 非帰属の受入赤が出た wave の着地手順を正本化�
 - {{T:flaky-hold-cause-semantics}} **P3・ユーザー裁定待ち**: `FlakyTestHold` の `cause` は非空しか
   検査されず、帰属 verdict・判断者・tested tip を束縛する field が無い。自分の差分が原因でも
   「資源競合」と書けば schema 上は通る。手順側の原因理解義務を機械強制と report してはならない。
+- {{T:mutation-byte-layer-doc}} **P3・ユーザー裁定待ち**: 「予算に張り付いた対象への変異登録では
+  変異後 bytes も赤理由の層に数える」を `DW-M01` / `DW-M04` へ統合しようとしたが、
+  L1 が 214 bytes、L1.5 が 213 bytes 超過して収まらなかった (親が実測)。予算値の変更は
+  自己改善の対象外で独立審査を要するため、正本統合は行わず failures 台帳の記載に留めた。
+  同型は本 wave だけで 2 回発火している (変異 M3 と P7)。
