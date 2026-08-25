@@ -779,7 +779,7 @@ def _read_proc_snapshot() -> dict[str, Any]:
             command = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(
                 "utf-8", "replace"
             ).strip()[:512]
-        except FileNotFoundError:
+        except (FileNotFoundError, ProcessLookupError):
             continue
         except (OSError, ValueError, IndexError) as exc:
             errors.append(f"{entry.name}:{type(exc).__name__}")

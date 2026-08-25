@@ -931,6 +931,112 @@ def test_proc_snapshot_records_ppid_cwd_and_exe_for_the_reader_itself() -> None:
     assert Path(row["exe"]).is_absolute()
 
 
+def _proc_snapshot_with_process_read_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    error_type: type[OSError],
+) -> tuple[dict[str, object], int, int]:
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    surviving_pid = 41001
+    failing_pid = 41002
+    for pid, starttime in ((surviving_pid, 101), (failing_pid, 102)):
+        entry = proc_root / str(pid)
+        entry.mkdir()
+        stat_tail = [
+            "S", "1", "100", "0", "0", "0", "0", "0", "0", "0", "0",
+            "3", "4", "0", "0", "0", "0", "1", "0", str(starttime),
+        ]
+        (entry / "stat").write_text(
+            f"{pid} (unit-process) {' '.join(stat_tail)}\n", encoding="utf-8"
+        )
+        (entry / "cmdline").write_bytes(b"unit-process\0--work\0")
+
+    real_path = study.Path
+    monkeypatch.setattr(
+        study,
+        "Path",
+        lambda value: proc_root if value == "/proc" else real_path(value),
+    )
+    failing_stat = proc_root / str(failing_pid) / "stat"
+    real_read_text = Path.read_text
+
+    def read_text_with_failure(
+        path: Path, *args: object, **kwargs: object,
+    ) -> str:
+        if path == failing_stat:
+            raise error_type()
+        return real_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text_with_failure)
+    return study._read_proc_snapshot(), surviving_pid, failing_pid
+
+
+def _summarize_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
+    host = "unit-host"
+    samples = [
+        {"hostname": host, "monotonic_s": 0.0, **snapshot},
+        {"hostname": host, "monotonic_s": 1.0, **snapshot},
+    ]
+    return study.summarize_isolation_samples(
+        samples, own_uid=os.getuid(), exempt_pgroups=set(), expected_host=host,
+    )
+
+
+def test_proc_snapshot_skips_process_lookup_race_without_losing_other_processes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot, surviving_pid, _failing_pid = _proc_snapshot_with_process_read_failure(
+        tmp_path, monkeypatch, error_type=ProcessLookupError,
+    )
+    processes = snapshot["processes"]
+    assert isinstance(processes, dict)
+    assert processes
+    assert {pid for pid, _starttime in processes} == {surviving_pid}
+    assert snapshot["read_errors"] == []
+
+    result = _summarize_snapshot(snapshot)
+    assert result["valid"] is True
+
+
+def test_proc_snapshot_permission_error_remains_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot, surviving_pid, failing_pid = _proc_snapshot_with_process_read_failure(
+        tmp_path, monkeypatch, error_type=PermissionError,
+    )
+    processes = snapshot["processes"]
+    assert isinstance(processes, dict)
+    assert processes
+    assert {pid for pid, _starttime in processes} == {surviving_pid}
+    assert snapshot["read_errors"] == [f"{failing_pid}:PermissionError"]
+
+    result = _summarize_snapshot(snapshot)
+    assert result["valid"] is False
+
+
+def test_proc_snapshot_unreadable_proc_root_remains_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class UnreadableProc:
+        def iterdir(self) -> list[Path]:
+            raise PermissionError
+
+    real_path = study.Path
+    monkeypatch.setattr(
+        study,
+        "Path",
+        lambda value: UnreadableProc() if value == "/proc" else real_path(value),
+    )
+    snapshot = study._read_proc_snapshot()
+    assert snapshot["processes"] == {}
+    assert snapshot["read_errors"] == ["proc:PermissionError"]
+
+    result = _summarize_snapshot(snapshot)
+    assert result["valid"] is False
+
+
 def _owned_workload_shape_samples() -> tuple[list[dict[str, object]], tuple[Path, Path]]:
     scratch_root = Path("/scr/unit-acceptance-job")
     tmp_root = Path("/tmp/izn-unit000000/run-000")
