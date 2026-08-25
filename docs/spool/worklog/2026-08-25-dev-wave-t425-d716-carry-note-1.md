@@ -41,6 +41,15 @@ title: [T-425] 較正の登録可否を D716 に合わせて現況へ改めた (
   `orchestrator/campaign/env_contract_activations/`) を触る branch は 0 件、main checkout の
   未 commit 差分も 0 件。
 - 実装差分ゼロのため変異 matrix は `DW-S04` の免除に当たる。子エージェントは起動していない。
+- **受入全走 attempt 1 は 12 failed / 16132 passed / 60 skipped で赤、receipt 未発行。** 既知の
+  F136 型 (受入 shard が同じ作業木から 2 request を重ねて投入し、一方の task-run 記録が他方の
+  `output/` snapshot 区間へ入る) で、junit の差分は `first extra item: ('dir', 'task-runs/reports')`。
+  帰属は 3 点で否定した — 差分は `docs/spool/` の新規 file だけ、単独再走は 3 passed / 16.49 秒、
+  junit 差分は実装でなく `output/` の dir 増加と mtime を指す。**12 件目だけは
+  `test_s8b_oracle_driver.py` の別 helper `_t080_output_snapshot()` 由来で、F136 の既存
+  再発検知条件 (helper 名で判定) では本件型と判定できない。** この差分を F136 の再発として記録した。
+- 受入 attempt 1 の赤を受けて段 8 の候補 (F428 再発) を同じ tip へ載せ直し、attempt 2 を投入した。
+  attempt 1 の時点で段 8 編集を終えていなかったのは親の順序ミスである。
 
 ## 次の一手差分
 
