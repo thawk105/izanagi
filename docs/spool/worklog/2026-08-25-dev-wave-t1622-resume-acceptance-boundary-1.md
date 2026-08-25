@@ -62,6 +62,25 @@ title: [T-1622] 起動 gate と受入 post-claim merge の境界を正本・chec
   が既に禁じているので、記録先は failures の再発だけでよい。
 - **背景 job の待ち手が producer 生存中に完了通知を返す事象を 5 回観測した** (F24 の再発 near-miss)。
   実害はゼロ。`.done` の実在を判定に使う既存の恒久対応がそのまま効いた。
+- **受入 1 走目が赤 3 件で、うち 1 件は親の回帰だった。** `DW-O20` には
+  `orchestrator/tests/test_check_docs.py::test_dw_o20_points_to_dw_c01_and_drops_legacy_submodule_command`
+  が `` `DW-C01`に従い初期化して `` という**連続部分文字列**を要求する逐語 pin があり、
+  byte 予算のための圧縮でこの語を別表現へ変えていた。語を戻した後も**改行が逐語一致を割っていて**
+  赤が続いた。テストの期待値は変えず、正本の文面を pin へ合わせ改行位置を byte 中立で動かして
+  閉じた (998 bytes)。焦点走に `test_check_docs.py` を入れていなかったのが漏れである。
+  `DW-O27` は「`check_docs.py` の dispatch 契約へ**新節を登録する**際は test fixture との整合を
+  同じ commit で確認する」と書くが、**既存節の本文を書き換える場合**も同じ危険がある。
+- **残る 2 件の赤は非帰属で、しかも連鎖していた。**
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` が高負荷下で rc=1 期待に対し
+  rc=2 を返し、その失敗が `output/runs/pytest-launcher-failures/...` へ artifact を書いた。
+  `output/` 全体を snapshot 比較する `test_s8b_floor_campaign.py` の
+  `test_pilot_resume_rejects_launch_certificate_contamination` がその余分 entry を検出して落ちた。
+  差分本文に `('dir', 'runs/pytest-launcher-failures/0-946734.nqsv--bnode009')` が出ている。
+  署名の見た目でなく assertion 本文まで読んで帰属を決めた。2 走目は赤 0 で緑になった。
+- **受入の走行中に tracked file を書きかけた。** 待ち手が `merge --no-ff --no-commit` と `commit` の
+  間にいる窓で記録 fragment を編集し、気づいて `git checkout --` で即座に戻した。編集は
+  working tree だけで index には入っておらず merge commit の内容は汚染されていない。
+  **受入投入後は完了まで tree へ書かない。**
 - 子は 6 単位とも pytest 実走不能 (`qstat -Q` preflight rc=1、sandbox の構造的制約)。
   **本 wave のテスト結果はすべて親の実測**である。
 - **ユーザー裁定へ返す件**: 呼び出し時点の誤適用を checker が自動で止めるには、session 開始 gate の
