@@ -981,6 +981,12 @@ PY
 
 def test_job_body_contains_all_m12_gates_and_no_submitter() -> None:
     source = JOB.read_text(encoding="utf-8")
+    assert source.count(
+        'EXPECTED_STUDY_ID="paper-story-a1-20260826-sized-v1"'
+    ) == 1
+    assert source.count(
+        'POLICY_RELATIVE="orchestrator/campaign/paper_story_a1_paired.v2.json"'
+    ) == 1
     required = (
         '[[ -n "${PBS_JOBID:-}" ]]',
         '[[ -n "${PBS_O_HOST:-}" ]]',
@@ -1553,6 +1559,11 @@ def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> N
     ]
     assert len(set(ids)) == 3
     assert len(paired.genomes(policy)) == 2
+    expected_reps = {
+        "write-heavy": 72,
+        "balanced": 205,
+        "read-heavy": 28,
+    }
     for workload in paired.WORKLOAD_ORDER:
         cfg = ident.bind_admission_policy(
             paired.campaign_config(policy, workload), context.policy
@@ -1566,7 +1577,7 @@ def test_exact_two_arm_three_workload_campaign_ids_are_distinct_and_bound() -> N
             "ycsb_rmw": "0",
             "ycsb_max_ope": "10",
             "extime_s": 3,
-            "reps": 5,
+            "reps": expected_reps[workload],
             "expected_verify_configs": ["legacy"],
         }
         assert cfg.search_config["build_admission"] == json.loads(

@@ -16,6 +16,8 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from orchestrator.campaign import backoff_hole_grammar
+
 
 POLICY_VERSION = "izanagi.codex-role-policy/v1"
 OPAQUE_STRING_POLICY = "trusted-projection-producer-responsibility"
@@ -485,6 +487,30 @@ def validate_output_semantics(role: Any, projected_input: Any, result: Any) -> N
             if (isinstance(value, bool) or not isinstance(value, (int, float))
                     or not math.isfinite(value) or not 1 <= value <= 1000):
                 raise RolePolicyError("result.proposal.valueは1..1000の有限数")
+            # 現行の実働 gate ではなく dormant role adapter の parity 検査。
+            # production の強制点は p3_s4_loop と quarantine の consumer 側にある。
+            implementation = proposal.get("implementation")
+            decision = backoff_hole_grammar.validate_backoff_implementation(
+                implementation
+            )
+            if not decision.accepted:
+                raise RolePolicyError(
+                    "coder-v4-autonomous implementationは固定backoff文法に不適合"
+                )
+            try:
+                assigned, assigned_value, _literal_values = (
+                    backoff_hole_grammar.attribution_numeric_literals(
+                        implementation
+                    )
+                )
+            except Exception:
+                raise RolePolicyError(
+                    "coder-v4-autonomous implementationとvalueの数値一致を確認できない"
+                ) from None
+            if not assigned or assigned_value != value:
+                raise RolePolicyError(
+                    "coder-v4-autonomous implementationとvalueの数値一致を確認できない"
+                )
         elif spec.name == "coder-v4-autonomous-trigger-gating":
             expected = {"axis", "wire", "justification", "confidence"}
             if set(proposal) != expected:

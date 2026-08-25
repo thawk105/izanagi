@@ -1445,7 +1445,9 @@ def render_rejections(rejections: List[Rejection],
             if dq.rule_id:
                 L.append(f"  grammar_rule_id={dq.rule_id}")
             L.append("  読み方: backoff hole の Tier 1 宣言・straight-line・資源契約に不適合。"
-                     "rule ID が示す固定規則を満たす形へ修正する。")
+                     "初期化子を接尾辞なしの strict C++ numeric literal 1 個とする"
+                     "ちょうど 1 文へ修正し、"
+                     "rule ID が示す固定規則を満たす。")
         elif (dq.subtype or "") == "sort-swo-oracle":
             # Candidate stdout/stderr is never rendered or interpreted.  This
             # branch consumes the trusted Python matrix check restored from WAL.

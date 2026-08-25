@@ -774,7 +774,7 @@ exact に書かない。書けないからである。** 段 0 は閉じた mani
 | 3 | consumer の束経由への移行 (挙動保存) | §9 の閉包に対し、束外の固定 path 参照・下位 family resolver の直接呼び出し・独立した HEAD 取得が残っていれば落ちる。**かつ §7.2-3 の識別変異が落ちる**。挙動保存は §9.1 の遡及不拒否を含む |
 | 4 | その世代で交代する成分の commit 列 (E / G_f / A_f のうち該当分) と Q / A の構成 | これらを追加しても active 束は不変。A の余分な file・merge・trailer 不正・digest 不一致・**Q の対象集合と成分一覧の不一致**・承認前世代の直接参照・非承認組合せ・**parent が exact でない列**が落ちる。**かつ正当な A が X の候補としてちょうど受理される** |
 | 5 | 裁定に応じた policy 実装 | **未定義。** 封印・保証境界・副作用境界の裁定がないと、期待する受理・拒否の集合を一意に書けない。裁定に依らず言えるのは「適用される裁定項目が未解決の束は発効を拒否」「全観測に束の識別子が残る」まで |
-| 6 | 発効 X | **段 5 の後にしか置けない。** **構造部分 (段 0 で固定):** (i) X は `active/<raw sha256>.json` に置く top-level exact 5 key (`schema_version` / `authority_bundle_generation` / `parent_active_pointer_raw_sha256` / `bundle_digest` / `approval_raw_sha256`) の record で、file 名の stem は X の raw bytes の sha256 と一致する。 (ii) `parent_active_pointer_raw_sha256` は genesis のときだけ `null`、それ以外は**その時点の live tip X** の raw sha256 と一致する (祖先の非 tip X を parent にした列を拒否する)。 (iii) `authority_bundle_generation` は A の同 field と一致し、非 genesis では parent X の値より真に大きい (§5.1 の世代単調増加)。 (iv) `bundle_digest` は A の `bundle_digest` と一致し、§7.3 の再計算値と一致する。 (v) `approval_raw_sha256` は A の raw bytes の sha256 と `approvals/<raw sha256>.json` の file 名 stem の双方に一致し、参照先 A は下位 family 検証器と §5.1 の topology 検査を通った承認済み A に限る。 以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。 **本行が固定するのは predicate であって実行ではない** — 実 entrypoint と fixture の対応付けは `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番である。その owner が `stage1-and-later` であり、対応する fixture が `owned_fixture_ids` に宣言されている間、gate と当該 pending fixture は段 0 blocker へ数えず、対象後続段へ繰り越す。fixture assignment 自身の完了条件は緩めない。将来の段 6 実装は、X 候補提出前に `require_stage0_fixture_obligations_discharged()` を呼び、同述語が緑であることを要求しなければならない。現時点では段 6 の候補入口とこの production caller は未実装である。 **policy 依存部分:** 段 5 の S / B 裁定後まで `CFAB-STAGE6-POLICY-PREDICATE` (owner = `user`, status = `unresolved`) として残し、段 6 の完了には構造部分と policy 依存部分の双方を要求する。段 5 の除外は段 6 へ及ばない |
+| 6 | 発効 X | **段 5 の後にしか置けない。** **構造部分 (段 0 で固定):** (i) X は `active/<raw sha256>.json` に置く top-level exact 5 key (`schema_version` / `authority_bundle_generation` / `parent_active_pointer_raw_sha256` / `bundle_digest` / `approval_raw_sha256`) の record で、file 名の stem は X の raw bytes の sha256 と一致する。 (ii) `parent_active_pointer_raw_sha256` は genesis のときだけ `null`、それ以外は**その時点の live tip X** の raw sha256 と一致する (祖先の非 tip X を parent にした列を拒否する)。 (iii) `authority_bundle_generation` は A の同 field と一致し、非 genesis では parent X の値より真に大きい (§5.1 の世代単調増加)。 (iv) `bundle_digest` は A の `bundle_digest` と一致し、§7.3 の再計算値と一致する。 (v) `approval_raw_sha256` は A の raw bytes の sha256 と `approvals/<raw sha256>.json` の file 名 stem の双方に一致し、参照先 A は下位 family 検証器と §5.1 の topology 検査を通った承認済み A に限る。 以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。 **本行が固定するのは predicate であって実行ではない** — 実 entrypoint と fixture の対応付けは `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番である。その owner が `stage1-and-later` であり、対応する fixture が `owned_fixture_ids` に宣言されている間、gate と当該 pending fixture は段 0 blocker へ数えず、対象後続段へ繰り越す。fixture assignment 自身の完了条件は緩めない。段 6 の X 候補提出前には、繰越義務の解消を要求する。この要求は `orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py` の `require_stage6_candidate_submission_ready()` が担い、同 adapter が `require_stage0_fixture_obligations_discharged()` を呼ぶ。段 6 の operational caller は義務解消述語を直接呼ばず、この adapter を呼ぶ。直接呼ぶと adapter の policy 終端を迂回する。production adapter 1 件・operational caller 0 件である。段 6 の候補入口・構造述語 5 条件・policy 実装はいずれも未実装であり、候補提出も完了も発効も成立していない。 **policy 依存部分:** 段 5 の S / B 裁定後まで `CFAB-STAGE6-POLICY-PREDICATE` (owner = `user`, status = `unresolved`) として残し、段 6 の完了には構造部分と policy 依存部分の双方を要求する。段 5 の除外は段 6 へ及ばない |
 | 7 | 発効後の受入と再検査 | fixture ごとの target stage 割付後、旧固定 path の履歴不変条件が引き続き成立し、新 path にも別 bytes の歴史が無い。**かつ自段で executable にした陽性 campaign fixture が通る** |
 | 8 | 次世代への継承の先行検証 | fixture ごとの target stage 割付後、自段の繰越 fixture を executable にする。現行は世代 2 以上を先に拒否するため、その拒否が先に発火して全変異が「緑」に見える (本 wave 時点の実測)。判定は**先行拒否を外した隔離環境で、実 entrypoint を呼んで**行う |
 
@@ -838,8 +838,13 @@ applicable な unresolved、status を同じ summary から要求し、manifest 
 **段 0 の完了は、繰り越した fixture 義務を免除しない。**
 `require_stage0_fixture_obligations_discharged()` は raw pending が 0 かつ fixture assignment gate が
 blocking でないことを別述語として要求する。`require_stage0_complete()` はこの述語を呼ばない。
-将来の段 6 実装は X 候補提出前に、前者ではなくこの義務解消述語を呼び、緑であることを
-要求しなければならない。現時点では段 6 の候補入口も、この production caller も未実装である。
+段 6 の X 候補提出前には、前者ではなくこの義務解消述語の解消を要求する。
+この要求は `orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py` の
+`require_stage6_candidate_submission_ready()` が担い、同 adapter が義務解消述語を呼ぶ。
+段 6 の operational caller は義務解消述語を直接呼ばず、この adapter を呼ぶ。
+直接呼ぶと adapter の policy 終端を迂回する。
+production adapter 1 件・operational caller 0 件である。
+adapter が在ることは繰越義務の解消を意味しない。
 
 > **applicable unresolved 軸は、先送り確定の `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` も数える。**
 > 両者は applicable であり `unresolved` だから、**先送りを維持する限り段 0 は `complete` に
@@ -960,8 +965,13 @@ row ID = `CFAB-11.2-01`。
 
 **raw blocking gate は 4 件のままであり、「4 件が 3 件になった」のではない。** S と B は applicable
 unresolved 軸にだけ現れる。段 0 の effective pending が 0 でも繰越 5 件は未了であり、段 6 X の
-候補提出を実装する将来の段 6 caller は `require_stage0_fixture_obligations_discharged()` を呼び、
-再び全件を要求しなければならない。現時点では候補入口とこの production caller は未実装である。
+候補提出を実装する段 6 caller は
+`orchestrator/campaign/calibration_freeze_stage6_candidate_gate.py` の
+`require_stage6_candidate_submission_ready()` を呼び、同 adapter が
+`require_stage0_fixture_obligations_discharged()` を通じて再び全件を要求する。
+段 6 の operational caller は義務解消述語を直接呼ばず、この adapter を呼ぶ。
+直接呼ぶと adapter の policy 終端を迂回する。
+production adapter 1 件・operational caller 0 件であり、候補入口そのものは未実装である。
 
 ### 12.4 他者の手番の gate (ユーザー裁定ではない)
 
