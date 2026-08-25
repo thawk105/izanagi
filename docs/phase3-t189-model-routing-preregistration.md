@@ -153,37 +153,60 @@ T-181 (`tools/codex_reasoning_ab.py`) の次の契約を再利用する。
 T-181 と同じく、実走中に装置や判定器を変更しない。T-181 で発生した F176 型の採点器修正を実走後に
 行うことも禁止する。
 
-### 5.2 model 軸への変更点 (実装は本 wave の scope 外)
+### 5.2 model 軸への変更点と到達度
 
-段3 運用レンズが、以下の申し送りを file:line 実測で検証し、当初案が変更閉包になっていない
-(定数・receipt schema・manifest replay・adjudication・CLI・score 層を含む横断的 refactor である)
-ことを指摘した (段3所見 B1)。**「軽微な拡張」ではなく装置全層に及ぶ変更として申し送る。**
+段3 運用レンズが、当初案が変更閉包になっていない (定数・receipt schema・manifest replay・
+adjudication・CLI・score 層を含む横断的 refactor である) ことを file:line 実測で指摘した
+(段3所見 B1)。**「軽微な拡張」ではなく装置全層に及ぶ変更である。**
 
-| 箇所 | 必要な変更 |
-|---|---|
-| `tools/codex_reasoning_ab.py:49` | `MODEL = "gpt-5.6-sol"` の単一 hard-code を routing authority にしない。`requested_model` を schedule slot から渡す |
-| `tools/codex_reasoning_ab.py:161-170` | `EXPECTED_SCHEDULE`/`KNOWN_FINDINGS` の固定集合を、task catalog から生成する可変集合に変更する |
-| `tools/codex_reasoning_ab.py:2511-2525` | `_normalized_exec_argv` に model slug の一意性・許可集合検査を追加する。model は treatment identity なので effort のように消去しない |
-| `tools/codex_reasoning_ab.py:2544-2590` | `_launch_identity_value` に `requested_model` を含め、sol/luna の treatment identity を別物として固定する |
-| `tools/codex_reasoning_ab.py:2627-2641` | `_codex_exec_argv` の引数へ `requested_model` を追加し、現在 `MODEL` を使っている `-m` 生成箇所 (`:2634-2635`) を `-m <requested_model>` に変更する。`model_reasoning_effort=max` は別引数として維持する |
-| `tools/codex_reasoning_ab.py:2742-2994` | `_supervise_one` が slot の `requested_model` を読み、launch receipt (`:2864-2925`)、actual argv、completion receipt (`:2964-2984`、現状 model を含まない) に記録する |
-| `tools/codex_reasoning_ab.py:2997-3268` | `supervise_pair` (現状 `:2997-3062` で単一 snapshot/prompt しか受けない) が同一 task の sol/luna block を検証し、model 順序を schedule に従って交互化する |
-| `tools/codex_reasoning_ab.py:3301-3590` | launch receipt 検査を requested model 対応にし、実際の argv の `-m`、receipt、turn context の一致を fail-closed で検査する |
-| `tools/codex_reasoning_ab.py:3606-3761` | `collect_run` の `expected_model=MODEL` 既定値を廃止し、slot 由来の `expected_requested_model` を検査する。served model と呼ばない |
-| `tools/codex_reasoning_ab.py:4012-4090` | task-specific な入力処理層 (POS/NEG 固定処理の周辺) を task manifest 経由に拡張する |
-| `tools/codex_reasoning_ab.py:4419-4490` | `_validate_schedule` (`:4427-4449`) の固定された `POS/NEG` × `max/high` 検査を、task、cache condition、`requested_model`、`price_version` の paired schema へ拡張する |
-| `tools/codex_reasoning_ab.py:4493-4709` | adjudication 層を task-specific oracle (§5.3) に対応させる |
-| `tools/codex_reasoning_ab.py:4849-4970`, `5232-5597` | `aggregate`/`verify`・manifest replay を task、stage、requested model、cache condition ごとに集計できるようにする。10 slot、`max/high` の hard-code を残さない |
-| `tools/codex_reasoning_ab.py:5631-5792` | `make_packets` の10 slot固定を廃止し、task 数を manifest から取得する。public packet に model、stage、task_id、price version を出さない |
-| `tools/codex_reasoning_ab.py:5793-6031` | `append-verdicts`、`freeze-verdicts`、`reveal-mapping`、mapping 出力層は T-181 と同じ順序で再利用し、oracle finding ID と cache/price の欠測も verdict/manifest に束縛する |
+**この表は 2026-08-25 に実測へ張り替えた。** 旧版は `tools/codex_reasoning_ab.py` の
+行番号だけで箇所を指していたが、同ファイルが 11000 行超へ拡大した結果、**15 行すべてが
+実在しない位置を指す状態になっていた** (旧表の `:49` は当時の `MODEL` 定義、現在は
+schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数名・定数名を第一の目印とし、
+行番号は補助**として括弧に入れる。行番号が合わないときは名前で引くこと。
 
-現在の T-181 実装は reasoning 軸専用であり、`MODEL` の置換だけでは T-189 の held-out task 実験に
-ならない。実装担当は本表を「変更閉包」の出発点として扱い、依存関係を実装前に再確認すること。
+到達度の語彙は次の 4 つを使い分ける。
+
+- **実装済み** — 機構が存在し、内部 API と CLI の双方から到達できる。
+- **内部 API のみ** — 機構は存在するが、CLI からは呼べない。
+- **CLI 未接続** — 実験を CLI から実走するための入口が無い。
+- **acceptance 未束縛** — 機構はあるが、意味的な受理条件が `unbound` で登録されている (D767)。
+
+| 箇所 (名前 / 補助行番号) | 当初の申し送り | 到達度 (2026-08-25 実測) |
+|---|---|---|
+| `MODEL` (`:94`)、`MODEL_ALLOWLIST` (`:3459`) | 単一 hard-code を routing authority にしない | **実装済み**。`requested_model` を schedule slot から受け、allowlist で検査する |
+| `TASK_MANIFEST` (`:264`)、`EXPECTED_SCHEDULE` (`:330`)、`KNOWN_FINDINGS` (`:336`) | 固定集合を task catalog 由来の可変集合へ | **CLI 未接続**。schema v3 の task manifest 層は存在するが、既定値は T-181 の POS/NEG 固定のままで、CLI に task-manifest 入力が無い |
+| `_normalized_exec_argv` (`:3494`) | model slug の一意性・許可集合検査 | **実装済み** |
+| `_launch_identity_value` (`:3547`) | treatment identity へ `requested_model` を含める | **実装済み** |
+| `_codex_exec_argv` (`:3702`) | `-m <requested_model>` を渡す | **実装済み**。effort は別引数として維持 |
+| `_supervise_one` (`:6926`) | slot の model を receipt と argv へ記録 | **実装済み** |
+| `supervise_pair` (`:7181`) | 同一 task の sol/luna block を検証 | **内部 API のみ**。外部 task manifest を受け取らず既定値で検査する |
+| `_verify_launch_receipt` (`:7485`) | argv の `-m`・receipt・turn context の一致を fail-closed で検査 | **実装済み** |
+| `collect_run` (`:7793`) | `expected_model=MODEL` 既定値を廃し slot 由来を検査 | **実装済み**。served model とは呼ばない |
+| task-specific 入力処理層 | POS/NEG 固定処理を task manifest 経由へ | **CLI 未接続**。上の task manifest 行と同じ理由 |
+| `validate_nullable_dimensions` (`:2698`)、`_slot_dimensions` (`:8744`)、`_validate_schedule` (`:8833`) | POS/NEG × max/high の固定検査を task・cache・model・price の paired schema へ | **実装済み**。task・stage・`requested_model` の検査に加え、**price version の凍結束縛は 2026-08-25 に接続した** (§10)。`cache_condition` は §9 の実測により非 null を拒否したままである |
+| `_load_adjudication` (`:8969`) | adjudication 層を task-specific oracle へ対応 | **未実装**。§8 の oracle ledger が未作成のため着手条件を満たさない |
+| `_aggregate_verified` (`:9463`)、`_replay_manifest` (`:10072`) | task・stage・model・cache 別の集計 | **実装済み**。price version も集計軸に入る。ただし**費用の正規化計算は未実装**であり、version の束縛と cost 計算は別物である |
+| `make_packets` (`:10585`) | 10 slot 固定を廃し、public packet に model・stage・task_id・price version を出さない | **実装済み**。非 null price が実在する schedule では、凍結 version の文字列が本文にあれば packet 公開前に fail-closed で止める。なお **schedule descriptor を持たない legacy 互換経路が残っており、この経路は price 束縛も一様性検査も通らない (uncertified)** |
+| `append_verdicts` (`:10806`)、`freeze_verdicts` (`:10871`)、`reveal_mapping` (`:10953`) | T-181 と同じ順序で再利用し、oracle finding ID と cache/price の欠測も束縛 | **acceptance 未束縛**。順序の再利用は成立しているが、oracle finding ID の束縛は §8 待ちである |
+
+実装担当は本表を「変更閉包」の出発点として扱い、依存関係を実装前に再確認すること。
+**表の到達度は price component の wiring を除いて 2026-08-25 時点のものであり、
+「全機能が完了した」という主張ではない。**
 
 ### 5.3 装置以外に必要な仕組み (段4裁定 B2/B7 反映、実装は本 wave の scope 外)
 
-以下は**要求仕様であり、いずれも未実装**である。実装は本 wave の scope 外 (D87)。次に必要な
-仕組みを列挙する。
+以下は要求仕様である。**2026-08-25 に到達度を実測へ張り替えた。** 旧版は「いずれも未実装」と
+一括で書いていたが、その後に一部の機構が着地したため実態と食い違っていた。
+一括の到達度表現をやめ、機構ごとに次の 3 語で書き分ける。
+
+- **機構は着地** — 実装が存在する。
+- **task 固有契約は未登録** — 機構はあるが、この実験に固有の入力・oracle が登録されていない。
+- **acceptance 未束縛** — 意味的な受理条件が `unbound` として登録されている (D767)。
+  これは欠落ではなく、受理を定義する oracle が無いという事実の正直な登録である。
+  その帰結として当該 stage の fix gate と overall は `inconclusive` になる (本節末の規定どおり)。
+
+次に必要な仕組みを列挙する。
 
 - **stage2-plan-replayer / stage5-author-replayer**: 段3運用レンズが「固定 downstream による
   fix-loop replayer」が一行で済まされ実装範囲が皆無だと指摘した (段3所見 B2)。少なくとも次を
@@ -199,6 +222,13 @@ T-181 と同じく、実走中に装置や判定器を変更しない。T-181 �
   - **stage2・stage5 いずれも、replayer 契約 (上記項目) が実験開始前に登録されていない場合、
     その stage の fix gate (§12) と overall 判定は `inconclusive` とする。** これが無い限り、
     fix 巡回数と downstream 影響は測定不能として扱う。
+  - **到達度 (2026-08-25 実測):** stage2 は driver が、stage5 は契約と validator が
+    **機構は着地**している。両 stage とも **acceptance 未束縛** で、receipt は
+    `task_acceptance_status` を exact に `unbound`、`fix_gate_eligible` と
+    `routing_evidence_eligible` を false に固定している (D767)。stage5 には CLI の実行 verb が
+    まだ無い。したがって上の規定どおり **fix gate と overall は `inconclusive` のまま**である。
+    意味的な受理条件そのものは [T-1638] が持つ。
+    **この状態を「replayer 完了」とも「replayer 未着手」とも呼ばない。**
 - **task-specific oracle manifest**: T-181 装置は `KNOWN_FINDINGS` を固定集合として前提にしており
   (`:167-170`)、verdict validator もその集合以外の `equivalent_to` を拒否する (`:5753-5790`、
   段3所見 B7)。task ごとの oracle finding ID、positive/negative control、reader agreement、
@@ -363,23 +393,37 @@ schedule row の提案 schema は次のとおりである。
 
 ```json
 {
-  "slot_id": "opaque-slot-001",
-  "block_id": "b001",
-  "block_order": 1,
-  "stage": 2,
-  "task_id": "T-xxx",
-  "task_type": "bug-fix",
-  "oracle_kind": "positive",
-  "requested_model": "gpt-5.6-sol",
-  "arm": "max",
-  "cache_condition": "cold",
-  "prompt_sha256": "<64 hex>",
-  "snapshot_manifest_sha256": "<64 hex>",
-  "oracle_sha256": "<64 hex>",
-  "price_version": "<frozen version>",
-  "price_snapshot_sha256": "<64 hex>"
+  "schema_version": 3,
+  "price_snapshot": {
+    "path": "output/t189-routing-preregistration/price-snapshot-v1.json",
+    "sha256": "<64 hex>"
+  },
+  "slots": [
+    {
+      "slot_id": "opaque-slot-001",
+      "block_id": "b001",
+      "block_order": 1,
+      "stage": 2,
+      "task_id": "T-xxx",
+      "task_type": "bug-fix",
+      "oracle_kind": "positive",
+      "requested_model": "gpt-5.6-sol",
+      "arm": "max",
+      "cache_condition": null,
+      "prompt_sha256": "<64 hex>",
+      "snapshot_manifest_sha256": "<64 hex>",
+      "oracle_sha256": "<64 hex>",
+      "price_version": "<frozen version>"
+    }
+  ]
 }
 ```
+
+**価格の authority は schedule 直下の `price_snapshot` record 1 つだけである** (§10)。
+slot ごとに `price_snapshot_sha256` のような別の価格 authority を置いてはならない。
+全 slot の `price_version` は、この record が束縛した version と一致しなければならない。
+`schema_version` は `int` の 3 でなければならず、`3.0` は価格束縛を得られない。
+`cache_condition` は §9 により `null` である。
 
 `arm` は既存装置との互換性のため reasoning effort を表し、model を表さない。`sol`/`luna` という
 lane 名を model authority として再利用しない。
@@ -574,11 +618,37 @@ version が記録されていないと指摘した (段3所見 B6)。実走前�
   API の従量課金経路を通らない。本 snapshot の単価は、token 数を arm 間で比較可能な費用へ
   正規化するための公表単価であって、支払額の記録ではない。
 
-**現時点でこの snapshot を読む実験装置は無い。** `tools/codex_reasoning_ab.py` は
-`price_version` の非 null を 2 箇所 (`validate_nullable_dimensions` と schedule dimension 側) で
-拒否する。この拒否を緩めるのは装置側の担当項目であり、本文書は
-**「取得・検証済み、装置未接続 (captured and validated, apparatus-unbound)」**と記録する。
-「price lock 完了」とは書かない。
+**2026-08-25 に、この snapshot を読む経路を装置へ接続した ([T-1434])。**
+`tools/codex_reasoning_ab.py` は次をすべて fail-closed で検査したときに限り、schedule slot の
+非 null `price_version` を受理する。**受理される形はちょうど 1 つである。**
+
+1. `schema_version` が **`int` 型の 3** であること (値が等しいだけの `3.0` は受理しない)。
+2. schedule 直下の `price_snapshot` が `{"path", "sha256"}` **ちょうど**の object で、
+   コード側に固定した path と SHA-256 に完全一致すること。
+3. その path の実 bytes を読み、SHA-256 が固定値と一致すること。
+4. 読んだ bytes を `tools/t189_price_snapshot.py` の `validate_price_snapshot` が受理し、
+   `price_table_version` が固定値と一致すること。
+5. snapshot が指す抜粋 (repo 内) の path・SHA-256・byte 長が固定値と一致すること。
+   実 bytes まで読んで照合する。
+6. **schedule の全 slot の `price_version` が一様である**こと。集合は `{null}` か
+   `{固定 version}` のどちらかだけを許し、混在を拒否する (本節の下の規定を機械化したもの)。
+
+いずれかが不一致・読取不能・改変中なら schedule を無効化する。
+`cache_condition` は §9 の実測 (制御不能) により、**非 null を従来どおりすべて拒否する。**
+
+**これは price component の配線 (apparatus wiring) が完了したという意味だけを持つ。**
+次の限定を必ず併記する。
+
+- **「price lock 完了」ではない。** §13 の登録世代 lock 手続きは D674 により
+  power simulation の段で停止しており、全体としては未完了である。
+- **費用の正規化計算は未実装である。** version を束縛したことと、SKU 単価を使って
+  cost を計算することは別である。集計は price version を軸として持つが、
+  正規化 cost の値は生成しない。
+- **原表そのものの真正性は認証していない。** repo 外に保存した取得時の生データは
+  gate の必須入力にしていない。装置が証明できるのは
+  「review 済みのローカル snapshot と抜粋を用いたこと」までである。
+- schedule descriptor を持たない legacy 互換の packet 生成経路は、この束縛も一様性検査も
+  通らない。同経路の出力は uncertified として扱う。
 
 schedule の全 slot は同じ `price_version` を参照する。**上記項目が欠落する場合、schedule を
 無効化する (fail-closed)。** 価格改定が実験開始前に発生した場合は、実験を開始せず価格 snapshot
@@ -819,11 +889,14 @@ schedule) で lock する。
 - oracle ledger
 - apparatus pin
 - cache protocol (制御可能性の実測結果。制御不能なら resource gate を `not-applicable` 固定)
-- price snapshot (**取得・検証済み、装置未接続**:
+- price snapshot (**取得・検証済み、装置へ接続済み**:
   `output/t189-routing-preregistration/price-snapshot-v1.json`。
-  §10 の全 field が実値で埋まっているが、`tools/codex_reasoning_ab.py` が
-  `price_version` の非 null を 2 箇所で拒否するため schedule へは束縛できない。
-  この状態を「price lock 完了」と呼ばない)
+  §10 の全 field が実値で埋まり、2026-08-25 に `tools/codex_reasoning_ab.py` が
+  schedule へ束縛する経路を接続した ([T-1434])。固定 path・artifact bytes の SHA-256・
+  検証済み version・repo 内抜粋の SHA-256 と byte 長・全 slot の一様性を fail-closed で検査する。
+  **これは price component の配線完了だけを意味し、「price lock 完了」ではない。**
+  この lock 手続き自体が本節冒頭のとおり power simulation の段で停止している。
+  **費用の正規化計算も未実装である**)
 - margin 値 (§11.3、§11.4 power simulation を経て確定。**D674 が (1) を落としたため未確定のまま**)
 - custodian 実現方式 (**D674 により独立 custodian の実現方式は見送り**。
   したがって same-owner-advisory で確定し、§12.1 に従い結果は `apparatus_diagnostic` に留まる)
@@ -873,6 +946,12 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
   解消されない限り、盲検性・cache 分離の一部は T-181/T-182 と同水準の限界を引き継ぐ。
 - T-181 装置の model 軸拡張は横断的 refactor に相当し (§5.2)、段2/段5 downstream replayer・
   task-specific oracle schema (§5.3) を含め、実装コストは当初想定より大きい。
+  **2026-08-25 時点では一部が着地している** — model 軸の配線と price version の束縛は完了し、
+  両 replayer は機構が着地して acceptance 未束縛である。残余は task manifest の CLI 接続、
+  adjudication の oracle 対応、費用の正規化計算である。到達度の正本は §5.2 と §5.3。
+- **価格については、version の provenance を装置へ束縛したにすぎない。**
+  公表単価から比較可能な費用を計算する処理は実装しておらず、
+  台帳に price version が載ることと cost 系の指標が使えることは別である。
 - 本文書は文書設計だけを行い、実験走行、`qsub`、production の model routing 変更は行わない。
 
 ## 総括
@@ -893,7 +972,7 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
 | 独立 oracle | §8 | 設計は満たす |
 | block randomization | §6.3 | 設計は満たす |
 | cache 条件の分離 | §9、§12.2 | 設計は満たすが、現行装置は制御手段を持たない場合 resource 指標を `not-applicable` とする (blocker)。**2026-08-21 実測で制御不能と確定**、resource は `not-applicable` のまま (§9 追記) |
-| 価格 version | §10 | 設計は満たす。**2026-08-23 に実データを取得・検証済み** (`price-snapshot-v1.json`)。ただし装置が `price_version` の非 null を 2 箇所で拒否するため**装置未接続**であり、「price lock 完了」ではない |
+| 価格 version | §10 | 設計は満たす。**2026-08-23 に実データを取得・検証済み** (`price-snapshot-v1.json`)、**2026-08-25 に装置へ接続済み** ([T-1434]。固定 path・bytes SHA-256・検証済み version・repo 内抜粋・全 slot 一様性を fail-closed で検査)。**ただしこれは price component の配線完了だけを意味する。** 「price lock 完了」ではなく (§13 の lock 手続きは power simulation の段で停止)、**費用の正規化計算は未実装**であり、原表そのものの真正性は認証していない |
 | 事前登録済み非劣性 margin | §11、判定表 §12 | 候補値と lock 手続き (`N_positive_min`/`N_negative_min`/`power_threshold=0.80`) を明記。現実的標本数では confirmatory な検出力が不足する可能性が高く、その場合は `inconclusive` に確定的に固定する |
 
 主指標は task-cluster paired 差による finding coverage (§3 の式)、副指標は log 尺度の
@@ -910,15 +989,28 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
 - (2) 独立 custodian の実現方式確定 — **D674 により見送り。** same-owner-advisory で確定し、
   結果は `apparatus_diagnostic` に留まる (§12.1)。
 - (3) provider cache 制御可能性の実測 — **2026-08-21 実測済み・不成立で確定** (§9)。
-- (4) T-181 装置の横断的 refactor (§5.2) — 既存の担当項目が持つ。**未了。**
-  `price_version` の非 null 拒否 2 箇所の解消もここに属する。
+- (4) T-181 装置の横断的 refactor (§5.2) — **部分的に着地。残余あり。**
+  到達度は §5.2 の表が正本である (2026-08-25 実測へ張り替え済み)。
+  `price_version` の非 null 拒否 2 箇所の解消は **2026-08-25 に完了した** ([T-1434]、§10)。
+  model 軸の配線 (allowlist、argv、launch identity、receipt 検査、`collect_run`) も着地済み。
+  **残余は次の 3 つである。** (a) task manifest が既定値のままで CLI 入力口が無い、
+  (b) adjudication 層の task-specific oracle 対応 (§8 待ち)、
+  (c) 費用の正規化計算。
 - (5) stage2/stage5 downstream replayer の実装 (§5.3、両 stage とも downstream model/effort
-  pin を含む) — 既存の担当項目が持つ。**未了。** これが揃うまで
-  `t189_stage_boundary` と `replay_artifact_sufficiency` は `not-established` のままである。
+  pin を含む) — **機構は着地、acceptance 未束縛。** 到達度は §5.3 の追記が正本である。
+  stage2 は driver が、stage5 は契約と validator が着地した。両 stage とも receipt は
+  `task_acceptance_status` を `unbound` に固定する (D767)。これは欠落ではなく、
+  受理を定義する oracle が無いという事実の登録である。
+  その帰結として当該 stage の fix gate と overall は `inconclusive` のままであり、
+  `t189_stage_boundary` と `replay_artifact_sufficiency` も `not-established` のままである。
+  意味的な受理条件は [T-1638] が持つ。
+  **この状態を「完了」とも「未着手」とも呼ばない。**
 - (6) task catalog の実データ作成 (§6.1/§6.2) — **2026-08-23 に事前選別の候補台帳を実データで
   作成した。独立分類者2名の確保は D674 により見送り、公開基準による自前分類へ置き換えた。**
   ただし oracle 件数と stage 境界が未確立のため、**実走可能な catalog としては未完了**である。
-- (7) price snapshot の実データ取得 (§10) — **2026-08-23 に取得・検証済み。装置未接続。**
+- (7) price snapshot の実データ取得 (§10) — **2026-08-23 に取得・検証済み、
+  2026-08-25 に装置へ接続済み** ([T-1434])。**price component の配線完了だけを意味し、
+  「price lock 完了」ではない。費用の正規化計算は未実装。**
 
 このほか §8 の独立 oracle ledger は依然として未作成であり、(6) が実走可能になる前提である。
 本文書はこれらの前提条件を明示することで、将来の実装 wave が着手可能な状態を作ることを目的とする。
