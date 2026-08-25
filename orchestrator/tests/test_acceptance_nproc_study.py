@@ -183,11 +183,41 @@ def _poison_process_creation(monkeypatch: pytest.MonkeyPatch) -> None:
         if hasattr(os, name):
             monkeypatch.setattr(os, name, poison)
     monkeypatch.setattr(multiprocessing, "Process", poison)
-    monkeypatch.setattr(multiprocessing.context.BaseContext, "Process", poison)
+    context_types = {
+        value
+        for value in vars(multiprocessing.context).values()
+        if (
+            isinstance(value, type)
+            and issubclass(value, multiprocessing.context.BaseContext)
+            and "Process" in vars(value)
+        )
+    }
+    for context_type in context_types:
+        monkeypatch.setattr(context_type, "Process", poison)
     monkeypatch.setattr(concurrent.futures, "ProcessPoolExecutor", poison)
     monkeypatch.setattr(pty, "fork", poison)
     monkeypatch.setattr(asyncio, "create_subprocess_exec", poison)
     monkeypatch.setattr(asyncio, "create_subprocess_shell", poison)
+
+
+def test_process_creation_tripwire_fires_on_every_multiprocessing_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    process_factories = [
+        multiprocessing.Process,
+        multiprocessing.context._default_context.Process,
+        *(
+            multiprocessing.get_context(method).Process
+            for method in multiprocessing.get_all_start_methods()
+        ),
+    ]
+    for process_factory in process_factories:
+        with pytest.raises(
+            AssertionError,
+            match="real process creation escaped the injected fake executor",
+        ):
+            process_factory()
 
 
 def test_full_schedule_uses_each_permutation_once_and_excludes_warmup() -> None:
