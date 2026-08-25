@@ -65,6 +65,9 @@ RUN_ARGV_JSON=""
 COMMIT_COUNT=""
 RUN_ELAPSED_NS=""
 CHECKER_RC="not-run"
+CHECKER_PY=""
+VERIFIER_PY=""
+CHECKER_REPORT_SHA=""
 VERIFIER_RC="not-run"
 RUN_RC="not-run"
 TRACE_MODE=$IZANAGI_MOCC_TRACE_MODE
@@ -722,6 +725,7 @@ PY
       "TRACE=0 workload skipped because preprocess identity checker failed closed"
     exit "$CHECKER_RC"
   fi
+  CHECKER_REPORT_SHA=$(sha256sum "$ATTEMPT_DIR/trace0-preprocess-identity.json" | awk '{print $1}')
 else
   build_mode 1
 fi
@@ -1023,9 +1027,13 @@ python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$ATTEMPT_RECEIPT" \
   "$BASE_OID" "$NEW_OID" "$BUILD_DIR" "$BINARY" "$BINARY_SHA" "$RUN_DIR" \
   "$TRACE_DIR" "$RUN_ARGV_JSON" "$COMMIT_COUNT" "$RUN_ELAPSED_NS" \
   "$CHECKER_RC" "$VERIFIER_RC" "$RUN_RC" "$qstat_final_rc" \
-  "$qstat_accounting_rc" "$WORKLOAD_JSON" "$CMAKE_TARGET" <<'PY'
+  "$qstat_accounting_rc" "$WORKLOAD_JSON" "$CMAKE_TARGET" \
+  "$ATTEMPT_DIR/trace0-preprocess-identity.json" "$BUILD_SOURCE" \
+  "$CHECKER_PY" "$VERIFIER_PY" "$CHECKER_REPORT_SHA" <<'PY' || {
+import hashlib
 import json
 import os
+import stat
 import sys
 import time
 
@@ -1035,7 +1043,114 @@ import time
     build_dir, binary, binary_sha, run_dir, trace_dir, run_argv_path,
     commit_count, elapsed_ns, checker_rc, verifier_rc, run_rc,
     qstat_final_rc, qstat_accounting_rc, workload_json, cmake_target,
+    checker_report_path, build_source, checker_py, verifier_py,
+    checker_report_sha,
 ) = sys.argv[1:]
+
+
+def reject(message):
+    raise ValueError(message)
+
+
+def is_resolved_absolute_file(path):
+    return (
+        isinstance(path, str)
+        and bool(path)
+        and os.path.isabs(path)
+        and os.path.realpath(path) == path
+        and os.path.isfile(path)
+    )
+
+
+trace_mode_i = int(trace_mode)
+attempt_dir = os.path.dirname(os.path.abspath(output))
+expected_report_path = os.path.join(attempt_dir, "trace0-preprocess-identity.json")
+if os.path.abspath(checker_report_path) != expected_report_path:
+    reject("checker report path is outside the attempt directory")
+
+if trace_mode_i == 0:
+    if checker_rc != "0":
+        reject("TRACE=0 checker rc is not zero")
+    if not is_resolved_absolute_file(checker_py):
+        reject("TRACE=0 checker interpreter is not a resolved absolute file")
+    if verifier_py:
+        reject("TRACE=0 unexpectedly selected a verifier interpreter")
+    if os.path.islink(checker_report_path):
+        reject("checker report must not be a symlink")
+    try:
+        report_stat = os.stat(checker_report_path)
+    except OSError as exc:
+        raise ValueError("checker report is unavailable") from exc
+    if not stat.S_ISREG(report_stat.st_mode):
+        reject("checker report is not a regular file")
+    try:
+        with open(checker_report_path, "rb") as handle:
+            report_bytes = handle.read()
+        report = json.loads(report_bytes.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("checker report is not strict UTF-8 JSON") from exc
+    if not isinstance(report, dict):
+        reject("checker report top level is not an object")
+    report_sha = hashlib.sha256(report_bytes).hexdigest()
+    if report_sha != checker_report_sha:
+        reject("checker report changed after the checker completed")
+    schema = report.get("schema")
+    if (
+        not isinstance(schema, str)
+        or not schema.strip()
+        or not schema.startswith("izanagi-trace0-preprocess-identity/")
+    ):
+        reject("checker report schema is outside the accepted family")
+    guarantee = report.get("guarantee")
+    if not isinstance(guarantee, str) or not guarantee.strip():
+        reject("checker report guarantee is not a nonempty string")
+    if report.get("result") != "pass":
+        reject("checker report result is not pass")
+    if report.get("old_oid") != base_oid:
+        reject("checker report old oid does not match the invocation")
+    if report.get("new_oid") != new_oid:
+        reject("checker report new oid does not match the invocation")
+    report_repo = report.get("repo")
+    if not isinstance(report_repo, str) or os.path.realpath(report_repo) != os.path.realpath(build_source):
+        reject("checker report repo does not match the invocation")
+    compiler = report.get("compiler")
+    if not isinstance(compiler, dict):
+        reject("checker report compiler is not an object")
+    compiler_path = compiler.get("path")
+    if not isinstance(compiler_path, str) or os.path.realpath(compiler_path) != os.path.realpath(cxx_path):
+        reject("checker report compiler does not match the invocation")
+    if report.get("expected_paths") != ["cc/mocc/transaction.cc"]:
+        reject("checker report expected paths do not match the invocation")
+    report_binding = {
+        "path": "trace0-preprocess-identity.json",
+        "sha256": report_sha,
+        "schema": schema,
+        "guarantee": guarantee,
+    }
+    checker_interpreter_path = checker_py
+    verifier_interpreter_path = None
+elif trace_mode_i == 1:
+    if checker_rc != "not-run":
+        reject("TRACE=1 checker rc is not not-run")
+    if checker_py:
+        reject("TRACE=1 unexpectedly selected a checker interpreter")
+    if os.path.lexists(checker_report_path):
+        reject("TRACE=1 checker report must be absent")
+    if not is_resolved_absolute_file(verifier_py):
+        reject("TRACE=1 verifier interpreter is not a resolved absolute file")
+    if checker_report_sha:
+        reject("TRACE=1 checker report sha must be empty")
+    report_binding = {
+        "path": None,
+        "sha256": None,
+        "schema": None,
+        "guarantee": None,
+    }
+    checker_interpreter_path = None
+    verifier_interpreter_path = verifier_py
+else:
+    reject("trace mode is not zero or one")
+
 with open(submit_receipt_path, encoding="utf-8") as handle:
     submit_receipt = json.load(handle)
 with open(topology_path, encoding="utf-8") as handle:
@@ -1052,7 +1167,7 @@ mocc_trace["workload_note"] = (
     "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
 )
 payload = {
-    "schema_version": "mocc-trace-pilot-receipt/v1",
+    "schema_version": "mocc-trace-pilot-receipt/v2",
     "status": "completed",
     "pilot": True,
     "eligible_for_refreeze": False,
@@ -1081,6 +1196,8 @@ payload = {
             "path": cxx_path,
             "version": open(os.path.join(os.path.dirname(output), "compiler-used.version"), encoding="utf-8").read().strip(),
         },
+        "trace0_preprocess_identity_checker_interpreter_path": checker_interpreter_path,
+        "verifier_interpreter_path": verifier_interpreter_path,
     },
     "source": {
         "outer_repo_commit": outer_commit,
@@ -1090,6 +1207,7 @@ payload = {
         "outer_gitlink_advanced": False,
     },
     "mocc_trace": mocc_trace,
+    "trace0_preprocess_identity_report": report_binding,
     "build": {
         "cmake_target": cmake_target,
         "trace_mode": int(trace_mode),
@@ -1120,28 +1238,68 @@ payload = {
         "workload_rc": run_rc,
     },
 }
-with open(output, "x", encoding="utf-8") as handle:
-    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
-    handle.write("\n")
+receipt_bytes = (
+    json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+).encode("utf-8")
+receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+with open(output, "xb") as handle:
+    handle.write(receipt_bytes)
+receipt_sha_path = os.path.join(attempt_dir, "mocc-trace-pilot-receipt.sha256")
+with open(receipt_sha_path, "x", encoding="ascii") as handle:
+    handle.write(receipt_sha + "\n")
 PY
+  write_failure 2 trace0_preprocess_identity_report_binding \
+    "preprocess identity report binding failed"
+  exit 2
+}
 
 RECEIPT_SHA=$(sha256sum "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" | awk '{print $1}')
 python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$RECEIPT_SHA" \
-  "$BINARY_SHA" "$CURRENT_SCRIPT_SHA" <<'PY'
+  "$BINARY_SHA" "$CURRENT_SCRIPT_SHA" \
+  "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" \
+  "$ATTEMPT_DIR/mocc-trace-pilot-receipt.sha256" <<'PY' || {
+import hashlib
 import json
+import os
+import stat
 import sys
 import time
 
-path, job_id, receipt_sha, binary_sha, script_sha = sys.argv[1:]
+path, job_id, receipt_sha, binary_sha, script_sha, receipt_path, receipt_sha_path = sys.argv[1:]
+if os.path.islink(receipt_path) or os.path.islink(receipt_sha_path):
+    raise ValueError("receipt and receipt sha sidecar must not be symlinks")
+for candidate in (receipt_path, receipt_sha_path):
+    try:
+        candidate_stat = os.stat(candidate, follow_symlinks=False)
+    except OSError as exc:
+        raise ValueError("receipt binding input is unavailable") from exc
+    if not stat.S_ISREG(candidate_stat.st_mode):
+        raise ValueError("receipt binding input is not a regular file")
+with open(receipt_path, "rb") as handle:
+    receipt_bytes = handle.read()
+actual_receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+with open(receipt_sha_path, encoding="ascii") as handle:
+    writer_receipt_sha = handle.read().strip()
+if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:
+    raise ValueError("receipt sha does not match writer sidecar and shell digest")
+receipt = json.loads(receipt_bytes.decode("utf-8"))
+report_binding = receipt.get("trace0_preprocess_identity_report")
+if not isinstance(report_binding, dict) or set(report_binding) != {
+    "path", "sha256", "schema", "guarantee",
+}:
+    raise ValueError("receipt report binding must contain exactly four fields")
+if any(value is not None and not isinstance(value, str) for value in report_binding.values()):
+    raise ValueError("receipt report binding fields must be scalar strings or null")
 with open(path, "x", encoding="utf-8") as handle:
     json.dump(
         {
-            "schema_version": "mocc-trace-pilot-job-result/v1",
+            "schema_version": "mocc-trace-pilot-job-result/v2",
             "pbs_jobid": job_id,
             "receipt_sha256": receipt_sha,
             "binary_sha256": binary_sha,
             "job_script_sha256": script_sha,
             "completed_epoch": int(time.time()),
+            "trace0_preprocess_identity_report": dict(report_binding),
         },
         handle,
         sort_keys=True,
@@ -1149,6 +1307,10 @@ with open(path, "x", encoding="utf-8") as handle:
     )
     handle.write("\n")
 PY
+  write_failure 2 job_result_report_binding \
+    "job result report binding failed"
+  exit 2
+}
 
 git -C "$CCBENCH_BASE" worktree remove --force "$BUILD_SOURCE" \
   >"$ATTEMPT_DIR/worktree-remove.stdout" \
