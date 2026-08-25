@@ -193,7 +193,7 @@ _COMMON_PAYLOAD_KEYS = frozenset({
     "generation", "workload_descriptor", "descriptor_binding",
     "attempt_policy", "stop_policy",
 })
-S8C_CROSS_BINDING_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v1"
+S8C_CROSS_BINDING_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v2"
 S8C_CROSS_BINDING_FIELDS = (
     "input_payload_sha256",
     "raw_response_path",
@@ -207,6 +207,7 @@ S8C_CROSS_BINDING_FIELDS = (
     "artifact_refs",
     "source_refs",
     "admission_decision",
+    "proposal_build_source_bindings",
 )
 
 
@@ -3288,9 +3289,12 @@ def _cross_binding_role_events(
 
 def _cross_binding_proposals(
     report: Mapping[str, Any], *, run_root: Path,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[dict[str, Any]]]:
+    from . import reflux_ir
+
     paths: list[str] = []
     digests: list[str] = []
+    rows: list[dict[str, Any]] = []
     for cell_index, raw_cell in enumerate(
         _list(report.get("cells"), gate="cross-binding-proposal", label="report.cells")
     ):
@@ -3314,7 +3318,7 @@ def _cross_binding_proposals(
             )
             path_value = proposal.get("path")
             expected = proposal.get("sha256")
-            resolved, _raw = read_and_verify_bytes(
+            resolved, raw = read_and_verify_bytes(
                 path_value,
                 root=run_root,
                 expected_sha256=expected,
@@ -3324,22 +3328,221 @@ def _cross_binding_proposals(
             proposal_root = (run_root / "proposals").resolve(strict=True)
             if resolved.parent != proposal_root:
                 _fail("cross-binding-proposal", "proposal path is outside run_root/proposals")
-            paths.append(_cross_binding_relative_path(
+            relative = _cross_binding_relative_path(
                 resolved, run_root, label="proposal path",
-            ))
+            )
+            value = _decode_canonical_object(
+                raw, gate="cross-binding-proposal", label=relative,
+            )
+            coder = _mapping(
+                value.get("coder"), gate="cross-binding-proposal",
+                label=f"{relative}.coder",
+            )
+            planner = _mapping(
+                value.get("planner"), gate="cross-binding-proposal",
+                label=f"{relative}.planner",
+            )
+            if set(coder) != {"axis", "wire", "justification", "confidence"}:
+                _fail(
+                    "cross-binding-proposal",
+                    f"trial={report.get('trial_id')!r} value={sorted(coder)} "
+                    f"path={relative}.coder exact keys differ",
+                )
+            axis_owners = {"planner": planner, "coder": coder}
+            axis_owners.update({
+                name: item
+                for name, item in value.items()
+                if name not in axis_owners
+                if isinstance(item, Mapping) and "axis" in item
+            })
+            if not {"planner", "coder"}.issubset(axis_owners):
+                _fail(
+                    "cross-binding-axis",
+                    f"trial={report.get('trial_id')!r} value={sorted(axis_owners)!r} "
+                    f"path={relative} planner/coder axis declarations are required",
+                )
+            for owner, item in axis_owners.items():
+                if item.get("axis") != "silo-backoff-trigger-gating":
+                    _fail(
+                        "cross-binding-axis",
+                        f"trial={report.get('trial_id')!r} value={item.get('axis')!r} "
+                        f"path={relative}.{owner}.axis expected "
+                        "'silo-backoff-trigger-gating'",
+                    )
+            try:
+                ir = reflux_ir.parse_wire(coder.get("wire"))
+                assignment = reflux_ir.emit_predicate(ir)
+                predicate_sha256 = trigger_gate_binding.expected_predicate_sha256(
+                    ir.mask
+                )
+            except reflux_ir.RefluxIRError as exc:
+                raise AutonomousTrialCompletenessError(
+                    f"[cross-binding-predicate] trial={report.get('trial_id')!r} "
+                    f"value={coder.get('wire')!r} path={relative}.coder.wire "
+                    "is not an exact trigger wire"
+                ) from exc
+            if assignment == "true" or assignment == "izanagi_gate_pass = true;":
+                _fail(
+                    "cross-binding-predicate",
+                    f"trial={report.get('trial_id')!r} value={assignment!r} "
+                    f"path={relative}.coder.wire emitted a skeleton predicate",
+                )
+            generation_number = generation.get("generation")
+            if type(generation_number) is not int or generation_number < 1:
+                _fail(
+                    "cross-binding-proposal",
+                    f"trial={report.get('trial_id')!r} value={generation_number!r} "
+                    f"path=cells[{cell_index}].generations[{generation_index}].generation "
+                    "is invalid",
+                )
+            paths.append(relative)
             digests.append(expected)
+            rows.append({
+                "cell_index": cell_index,
+                "generation_index": generation_index,
+                "generation": generation_number,
+                "proposal_path": relative,
+                "proposal_sha256": expected,
+                "wire": coder["wire"],
+                "mask": ir.mask,
+                "predicate_assignment": assignment,
+                "predicate_sha256": predicate_sha256,
+                "harness": generation.get("harness"),
+            })
     if not paths:
         _fail("cross-binding-proposal", "build report has no proposal bytes")
-    return paths, digests
+    return paths, digests, rows
+
+
+def _cross_binding_provenance_rows(
+    *, report: Mapping[str, Any], run_root: Path, campaign_root: Path,
+    verified_bytes: Mapping[str, bytes],
+) -> list[dict[str, Any]]:
+    relative = "reports/p3_s8a_trigger_loop_provenance.json"
+    raw = verified_bytes.get(relative)
+    if raw is None:
+        _fail(
+            "cross-binding-attempt",
+            f"trial={report.get('trial_id')!r} value=None "
+            f"path={campaign_root / relative} provenance bytes are required",
+        )
+    provenance = _mapping(
+        _decode_json(raw, label=relative), gate="cross-binding-attempt",
+        label=relative,
+    )
+    entries = _mapping(
+        provenance.get("entries"), gate="cross-binding-attempt",
+        label=f"{relative}.entries",
+    )
+    rows: list[dict[str, Any]] = []
+    for key, raw_entry in entries.items():
+        entry = _mapping(
+            raw_entry, gate="cross-binding-attempt",
+            label=f"{relative}.entries[{key!r}]",
+        )
+        proposal_value = entry.get("proposal_path")
+        if type(proposal_value) is not str or not proposal_value:
+            _fail(
+                "cross-binding-attempt",
+                f"trial={report.get('trial_id')!r} value={proposal_value!r} "
+                f"path={relative}.entries[{key!r}].proposal_path is required",
+            )
+        proposal_path = Path(proposal_value)
+        if not proposal_path.is_absolute():
+            proposal_path = run_root / proposal_path
+        try:
+            proposal_relative = proposal_path.resolve(strict=True).relative_to(
+                run_root.resolve(strict=True)
+            ).as_posix()
+        except (OSError, ValueError) as exc:
+            raise AutonomousTrialCompletenessError(
+                f"[cross-binding-attempt] trial={report.get('trial_id')!r} "
+                f"value={proposal_value!r} "
+                f"path={relative}.entries[{key!r}].proposal_path is outside run_root"
+            ) from exc
+        rows.append({
+            "entry_key": str(key),
+            "proposal_path": proposal_relative,
+            "variant": entry.get("variant"),
+            "build_attempt_id": entry.get("build_attempt_id"),
+            "trigger_gate_binding_commitment": entry.get(
+                "trigger_gate_binding_commitment"
+            ),
+            "outcome": entry.get("outcome"),
+        })
+    return rows
+
+
+def _cross_binding_preimage_assignment_count(
+    *, report: Mapping[str, Any], preimage: bytes, expected_assignment: str,
+    path: str,
+) -> int:
+    from . import source_digest
+
+    segments = preimage.split(b"\0")
+    expected_segments = len(source_digest.EVOLVE_BLOCK_SOURCES)
+    if len(segments) != expected_segments:
+        _fail(
+            "cross-binding-source-association",
+            f"trial={report.get('trial_id')!r} value={len(segments)!r} path={path} "
+            f"preimage segment count differs from {expected_segments}",
+        )
+    try:
+        source_index = source_digest.EVOLVE_BLOCK_SOURCES.index(
+            "cc/silo/transaction.cc"
+        )
+    except ValueError as exc:  # pragma: no cover - checked by source registry tests
+        raise AutonomousTrialCompletenessError(
+            "[cross-binding-source-association] cc/silo/transaction.cc is absent "
+            "from the source digest registry"
+        ) from exc
+    expected = expected_assignment.encode("utf-8")
+    marker = b"izanagi_gate_pass"
+    contexts = segments[source_index].split(b"\x02")
+    expected_context_count = len(source_digest.CONTEXT_MACROS) + 1
+    expected_lines = Counter((
+        b"bool izanagi_gate_pass = true;",
+        expected,
+        b"if (izanagi_gate_pass) {",
+    ))
+    observed_lines = [
+        [line.strip() for line in context.splitlines() if marker in line]
+        for context in contexts
+    ]
+    unexpected_source_markers = {
+        index: [line.strip() for line in segment.splitlines() if marker in line]
+        for index, segment in enumerate(segments)
+        if index != source_index and marker in segment
+    }
+    if (
+        len(contexts) != expected_context_count
+        or unexpected_source_markers
+        or any(Counter(lines) != expected_lines for lines in observed_lines)
+    ):
+        _fail(
+            "cross-binding-source-association",
+            f"trial={report.get('trial_id')!r} "
+            f"value={{'context_count': {len(contexts)!r}, "
+            f"'gate_lines': {observed_lines!r}, "
+            f"'other_source_gate_lines': {unexpected_source_markers!r}}} "
+            f"path={path} gate-line multisets do not exactly bind the proposal",
+        )
+    return sum(lines.count(expected) for lines in observed_lines)
 
 
 def _cross_binding_supervisor_records(
     report: Mapping[str, Any], *, bench_records: Sequence[Mapping[str, Any]],
+    aborted_variants: set[str],
 ) -> None:
-    by_variant: dict[str, list[Mapping[str, Any]]] = {}
+    by_attempt: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
     for record in bench_records:
-        by_variant.setdefault(str(record.get("variant")), []).append(record)
-    seen: set[str] = set()
+        payload = _mapping(
+            record.get("payload"), gate="cross-binding-bench",
+            label="WAL bench_done.payload",
+        )
+        key = (str(record.get("variant")), str(payload.get("build_attempt_id")))
+        by_attempt.setdefault(key, []).append(record)
+    seen: set[tuple[str, str]] = set()
     for raw_cell in _list(
         report.get("cells"), gate="cross-binding-bench", label="report.cells",
     ):
@@ -3360,20 +3563,29 @@ def _cross_binding_supervisor_records(
                 continue
             if type(variant) is not str or not variant:
                 _fail("cross-binding-bench", "harness.variant is invalid")
-            if variant in seen:
-                _fail("cross-binding-bench", "harness variants are not unique")
-            seen.add(variant)
-            matches = by_variant.get(variant, [])
-            if len(matches) != 1:
-                _fail("cross-binding-bench", "harness variant does not bind one bench record")
-            bench = matches[0]
             harness_records = _mapping(
                 harness.get("records"), gate="cross-binding-bench",
                 label="generation.harness.records",
             )
-            if dict(harness_records.get("bench_done", {})) != dict(
-                bench.get("payload", {})
-            ):
+            raw_harness_bench = harness_records.get("bench_done")
+            if raw_harness_bench is None:
+                if variant not in aborted_variants:
+                    _fail(
+                        "cross-binding-bench",
+                        "unbenched harness variant is not a verified aborted attempt",
+                    )
+                continue
+            harness_bench = _mapping(
+                raw_harness_bench, gate="cross-binding-bench",
+                label="generation.harness.records.bench_done",
+            )
+            key = (variant, str(harness_bench.get("build_attempt_id")))
+            matches = by_attempt.get(key, [])
+            if len(matches) != 1 or key in seen:
+                _fail("cross-binding-bench", "harness attempt does not bind one bench record")
+            seen.add(key)
+            bench = matches[0]
+            if dict(harness_bench) != dict(bench.get("payload", {})):
                 _fail("cross-binding-bench", "harness bench_done payload differs from WAL")
             bench_payload = _mapping(
                 bench.get("payload"), gate="cross-binding-bench",
@@ -3394,8 +3606,397 @@ def _cross_binding_supervisor_records(
                 _fail("cross-binding-bench", "WAL bench_wall_s is invalid")
             if generation.get("bench_wall_seconds") != expected_wall:
                 _fail("cross-binding-bench", "generation bench_wall_seconds differs from WAL")
-    if seen != set(by_variant):
+    if seen != set(by_attempt):
         _fail("cross-binding-bench", "a WAL bench record has no supervisor harness")
+
+
+def _cross_binding_source_bindings(
+    *, report: Mapping[str, Any], run_root: Path, campaign_root: Path,
+    campaign_id: str, cell_index: int,
+    proposal_rows: Sequence[Mapping[str, Any]],
+    verified_bytes: Mapping[str, bytes], records: list[wal.WalRecord],
+    lock_raw: bytes,
+) -> dict[str, Any]:
+    from . import source_digest
+
+    trial_id = report.get("trial_id")
+    try:
+        decoded_lock = campaign_lock.decode_campaign_lock_bytes(lock_raw)
+    except campaign_lock.CampaignLockCodecError as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[cross-binding-axis] trial={trial_id!r} value='undecodable' "
+            f"path={campaign_root / 'campaign.lock'} cannot be decoded"
+        ) from exc
+    search_config = decoded_lock.identity.get("search_config")
+    axis = search_config.get("axis") if isinstance(search_config, Mapping) else None
+    if axis != "silo-backoff-trigger-gating":
+        _fail(
+            "cross-binding-axis",
+            f"trial={trial_id!r} value={axis!r} "
+            f"path={campaign_root / 'campaign.lock'} search_config.axis differs",
+        )
+    try:
+        bindings_by_attempt = wal.validate_trigger_bindings(
+            records, campaign_lock=decoded_lock, require_build_start=True,
+        )
+    except wal.AttemptTopologyError as exc:
+        raise AutonomousTrialCompletenessError(
+            f"[cross-binding-attempt] trial={trial_id!r} value={str(exc)!r} "
+            f"path={campaign_root / 'runs/wal.jsonl'} trigger topology is invalid"
+        ) from exc
+
+    starts_by_attempt: dict[str, wal.WalRecord] = {}
+    benches_by_attempt: dict[str, list[wal.WalRecord]] = {}
+    raw_source_bearing_attempts: list[str] = []
+    for record in records:
+        attempt_id = record.payload.get("build_attempt_id")
+        if record.stage == trigger_gate_binding.WAL_RECORD_STAGE:
+            try:
+                raw_binding = trigger_gate_binding.validate_record(
+                    record.payload.get("trigger_gate_binding"),
+                    require_source=False,
+                )
+            except trigger_gate_binding.TriggerGateBindingError as exc:
+                raise AutonomousTrialCompletenessError(
+                    f"[cross-binding-attempt] trial={trial_id!r} "
+                    f"value={attempt_id!r} "
+                    f"path={campaign_root / 'runs/wal.jsonl'} "
+                    "contains an invalid raw trigger binding"
+                ) from exc
+            if raw_binding.source is not None:
+                if type(attempt_id) is not str or not attempt_id:
+                    _fail(
+                        "cross-binding-attempt",
+                        f"trial={trial_id!r} value={attempt_id!r} "
+                        f"path={campaign_root / 'runs/wal.jsonl'} "
+                        "source-bearing trigger attempt id is invalid",
+                    )
+                raw_source_bearing_attempts.append(attempt_id)
+        if record.stage == "build_start" and isinstance(attempt_id, str):
+            starts_by_attempt[attempt_id] = record
+        elif record.stage == "bench_done" and isinstance(attempt_id, str):
+            benches_by_attempt.setdefault(attempt_id, []).append(record)
+    validated_source_bearing_attempts = [
+        attempt_id for attempt_id, binding in bindings_by_attempt.items()
+        if binding.source is not None
+    ]
+    if Counter(raw_source_bearing_attempts) != Counter(
+        validated_source_bearing_attempts
+    ):
+        _fail(
+            "cross-binding-attempt",
+            f"trial={trial_id!r} "
+            f"value={{'raw_source_bearing': {raw_source_bearing_attempts!r}, "
+            f"'validated_starts': {validated_source_bearing_attempts!r}}} "
+            f"path={campaign_root / 'runs/wal.jsonl'} "
+            "source-bearing trigger attempts are not fully classified",
+        )
+
+    cell_proposals = [
+        dict(row) for row in proposal_rows if row.get("cell_index") == cell_index
+    ]
+    if not cell_proposals:
+        _fail(
+            "cross-binding-proposal",
+            f"trial={trial_id!r} value=0 path=report.cells[{cell_index}].generations "
+            "contains no proposal bytes",
+        )
+    by_proposal_path = {
+        row["proposal_path"]: row for row in cell_proposals
+    }
+    if len(by_proposal_path) != len(cell_proposals):
+        _fail(
+            "cross-binding-proposal",
+            f"trial={trial_id!r} value='duplicate' "
+            f"path=report.cells[{cell_index}].generations proposal paths repeat",
+        )
+
+    provenance_rows = _cross_binding_provenance_rows(
+        report=report, run_root=run_root, campaign_root=campaign_root,
+        verified_bytes=verified_bytes,
+    )
+    proposal_path_counts = Counter(row["proposal_path"] for row in cell_proposals)
+    provenance_path_counts = Counter(row["proposal_path"] for row in provenance_rows)
+    if provenance_path_counts != proposal_path_counts:
+        _fail(
+            "cross-binding-attempt",
+            f"trial={trial_id!r} "
+            f"value={{'proposal': {dict(proposal_path_counts)!r}, "
+            f"'provenance': {dict(provenance_path_counts)!r}}} "
+            f"path={campaign_root / 'reports/p3_s8a_trigger_loop_provenance.json'} "
+            "does not bind every proposal exactly once",
+        )
+    provenance_by_path = {
+        row["proposal_path"]: row for row in provenance_rows
+    }
+
+    source_artifacts: dict[str, tuple[str, bytes]] = {}
+    for path, raw in verified_bytes.items():
+        if not path.startswith(f"{source_digest.SOURCE_BINDING_DIRECTORY}/"):
+            continue
+        relative = Path(path)
+        if (
+            len(relative.parts) != 2
+            or not relative.name.endswith(".preimage")
+        ):
+            _fail(
+                "cross-binding-source-artifact",
+                f"trial={trial_id!r} value={path!r} "
+                f"path={campaign_root / path} is not a canonical source preimage path",
+            )
+        proposal_sha256 = relative.name.removesuffix(".preimage")
+        try:
+            expected_path = source_digest.source_preimage_artifact_relative_path(
+                proposal_sha256
+            )
+        except ValueError as exc:
+            raise AutonomousTrialCompletenessError(
+                f"[cross-binding-source-artifact] trial={trial_id!r} "
+                f"value={proposal_sha256!r} path={campaign_root / path} is invalid"
+            ) from exc
+        if expected_path != path or proposal_sha256 in source_artifacts:
+            _fail(
+                "cross-binding-source-artifact",
+                f"trial={trial_id!r} value={path!r} path={campaign_root / path} "
+                "is duplicated or non-canonical",
+            )
+        source_artifacts[proposal_sha256] = (path, raw)
+
+    proposal_digests = {row["proposal_sha256"] for row in cell_proposals}
+    extra_artifacts = set(source_artifacts) - proposal_digests
+    if extra_artifacts:
+        extra = sorted(extra_artifacts)
+        _fail(
+            "cross-binding-source-artifact",
+            f"trial={trial_id!r} value={extra!r} "
+            f"path={campaign_root / source_digest.SOURCE_BINDING_DIRECTORY} "
+            "contains source preimages with no proposal",
+        )
+
+    provenance_attempts: list[str] = []
+    for row in provenance_rows:
+        attempt_id = row["build_attempt_id"]
+        variant = row["variant"]
+        if attempt_id is None and variant is None:
+            continue
+        if type(attempt_id) is not str or not attempt_id:
+            _fail(
+                "cross-binding-attempt",
+                f"trial={trial_id!r} value={attempt_id!r} "
+                f"path=provenance.entries[{row['entry_key']!r}].build_attempt_id "
+                "is invalid",
+            )
+        if type(variant) is not str or not variant:
+            _fail(
+                "cross-binding-attempt",
+                f"trial={trial_id!r} value={variant!r} "
+                f"path=provenance.entries[{row['entry_key']!r}].variant is invalid",
+            )
+        provenance_attempts.append(attempt_id)
+    if Counter(provenance_attempts) != Counter(bindings_by_attempt.keys()):
+        _fail(
+            "cross-binding-attempt",
+            f"trial={trial_id!r} "
+            f"value={{'provenance': {provenance_attempts!r}, "
+            f"'wal': {sorted(bindings_by_attempt)!r}}} "
+            f"path={campaign_root / 'runs/wal.jsonl'} "
+            "proposal provenance and trigger attempts are not bijective",
+        )
+
+    receipt_rows: list[dict[str, Any]] = []
+    built_and_benched = 0
+    for proposal in sorted(
+        cell_proposals,
+        key=lambda row: (row["generation"], row["proposal_path"]),
+    ):
+        provenance = provenance_by_path[proposal["proposal_path"]]
+        attempt_id = provenance["build_attempt_id"]
+        artifact = source_artifacts.get(proposal["proposal_sha256"])
+        artifact_path = artifact[0] if artifact is not None else None
+        preimage_sha256 = None
+        assignment_count = None
+
+        source_status = "not-attempted"
+        execution_status = "not-started"
+        variant = provenance["variant"]
+        if attempt_id is not None:
+            binding = bindings_by_attempt[attempt_id]
+            start = starts_by_attempt.get(attempt_id)
+            if start is None:
+                _fail(
+                    "cross-binding-attempt",
+                    f"trial={trial_id!r} value={attempt_id!r} "
+                    f"path={campaign_root / 'runs/wal.jsonl'} has no build_start",
+                )
+            expected_commitment = trigger_gate_binding.commitment(binding)
+            if (
+                provenance["trigger_gate_binding_commitment"]
+                != expected_commitment
+                or provenance["variant"] != start.variant
+            ):
+                _fail(
+                    "cross-binding-attempt",
+                    f"trial={trial_id!r} "
+                    f"value={{'attempt': {attempt_id!r}, 'variant': {variant!r}}} "
+                    f"path=provenance.entries[{provenance['entry_key']!r}] "
+                    "differs from the verified WAL binding",
+                )
+            if binding.predicate_sha256 != proposal["predicate_sha256"]:
+                _fail(
+                    "cross-binding-predicate",
+                    f"trial={trial_id!r} "
+                    f"value={{'proposal': {proposal['predicate_sha256']!r}, "
+                    f"'wal': {binding.predicate_sha256!r}}} "
+                    f"path={proposal['proposal_path']} predicate digest differs",
+                )
+            if binding.mask != proposal["mask"]:
+                _fail(
+                    "cross-binding-predicate",
+                    f"trial={trial_id!r} "
+                    f"value={{'proposal': {proposal['mask']!r}, "
+                    f"'wal': {binding.mask!r}}} path={proposal['proposal_path']} "
+                    "predicate mask differs",
+                )
+            if binding.source is None:
+                source_status = "pre-source-abort"
+                execution_status = "aborted"
+                if artifact is not None:
+                    _fail(
+                        "cross-binding-source-artifact",
+                        f"trial={trial_id!r} value={artifact_path!r} "
+                        f"path={campaign_root / artifact_path} pre-source abort "
+                        "must not claim a source preimage",
+                    )
+                if benches_by_attempt.get(attempt_id):
+                    _fail(
+                        "cross-binding-build",
+                        f"trial={trial_id!r} value={attempt_id!r} "
+                        f"path={campaign_root / 'runs/wal.jsonl'} "
+                        "has a bench without source binding",
+                    )
+            else:
+                if artifact is None:
+                    _fail(
+                        "cross-binding-source-artifact",
+                        f"trial={trial_id!r} value={proposal['proposal_sha256']!r} "
+                        f"path={campaign_root / source_digest.source_preimage_artifact_relative_path(proposal['proposal_sha256'])} "
+                        "is required for a source-bearing trigger attempt",
+                    )
+                preimage_sha256 = hashlib.sha256(artifact[1]).hexdigest()
+                assignment_count = _cross_binding_preimage_assignment_count(
+                    report=report, preimage=artifact[1],
+                    expected_assignment=proposal["predicate_assignment"],
+                    path=str(campaign_root / artifact_path),
+                )
+                source = binding.source
+                source_status = "consumer-bound"
+                if preimage_sha256 != source.source_bytes_sha256:
+                    _fail(
+                        "cross-binding-source-digest",
+                        f"trial={trial_id!r} "
+                        f"value={{'preimage': {preimage_sha256!r}, "
+                        f"'source_bytes_sha256': {source.source_bytes_sha256!r}}} "
+                        f"path={campaign_root / artifact_path} E2 digest equality differs",
+                    )
+                if (
+                    preimage_sha256 != source.src_token
+                    or source.src_token != start.payload.get("src_token")
+                ):
+                    _fail(
+                        "cross-binding-source-identity",
+                        f"trial={trial_id!r} "
+                        f"value={{'preimage': {preimage_sha256!r}, "
+                        f"'src_token': {source.src_token!r}, "
+                        f"'build_start.src_token': {start.payload.get('src_token')!r}}} "
+                        f"path={campaign_root / artifact_path} E3 identity equality differs",
+                    )
+                benches = benches_by_attempt.get(attempt_id, [])
+                if len(benches) > 1:
+                    _fail(
+                        "cross-binding-build",
+                        f"trial={trial_id!r} value={len(benches)!r} "
+                        f"path={campaign_root / 'runs/wal.jsonl'} attempt={attempt_id!r} "
+                        "has multiple bench records",
+                    )
+                if benches:
+                    harness = _mapping(
+                        proposal["harness"], gate="cross-binding-build",
+                        label=f"generation {proposal['generation']}.harness",
+                    )
+                    harness_records = _mapping(
+                        harness.get("records"), gate="cross-binding-build",
+                        label=f"generation {proposal['generation']}.harness.records",
+                    )
+                    harness_bench = _mapping(
+                        harness_records.get("bench_done"), gate="cross-binding-build",
+                        label=f"generation {proposal['generation']}.harness.records.bench_done",
+                    )
+                    if (
+                        harness.get("variant") != start.variant
+                        or harness_bench.get("build_attempt_id") != attempt_id
+                    ):
+                        _fail(
+                            "cross-binding-build",
+                            f"trial={trial_id!r} value={attempt_id!r} "
+                            f"path=report.cells[{cell_index}].generations[{proposal['generation_index']}].harness "
+                            "does not bind the built-and-benched attempt",
+                        )
+                    execution_status = "built-and-benched"
+                    built_and_benched += 1
+                else:
+                    execution_status = "aborted"
+
+        receipt_rows.append({
+            "campaign_id": campaign_id,
+            "generation": proposal["generation"],
+            "proposal_path": proposal["proposal_path"],
+            "proposal_sha256": proposal["proposal_sha256"],
+            "wire": proposal["wire"],
+            "mask": proposal["mask"],
+            "predicate_sha256": proposal["predicate_sha256"],
+            "source_preimage_path": artifact_path,
+            "source_preimage_sha256": preimage_sha256,
+            "predicate_assignment_count": assignment_count,
+            "variant": variant,
+            "build_attempt_id": attempt_id,
+            "attempt_outcome": provenance["outcome"],
+            "source_binding_status": source_status,
+            "build_execution_status": execution_status,
+        })
+
+    if built_and_benched < 1:
+        _fail(
+            "cross-binding-build-population",
+            f"trial={trial_id!r} value={built_and_benched!r} "
+            f"path=report.cells[{cell_index}].generations materialized build cell "
+            "requires at least one built-and-benched proposal",
+        )
+    classified_artifacts = {
+        row["source_preimage_path"]
+        for row in receipt_rows if row["source_preimage_path"] is not None
+    }
+    expected_artifacts = {path for path, _raw in source_artifacts.values()}
+    if classified_artifacts != expected_artifacts:
+        _fail(
+            "cross-binding-source-artifact",
+            f"trial={trial_id!r} "
+            f"value={{'classified': {sorted(classified_artifacts)!r}, "
+            f"'expected': {sorted(expected_artifacts)!r}}} "
+            f"path={campaign_root / source_digest.SOURCE_BINDING_DIRECTORY} "
+            "source preimage classification is incomplete",
+        )
+    return {
+        "predicate_rederivation_proof_kind": "consumer-rederived",
+        "source_preimage_digest_proof_kind": "consumer-rederived",
+        "predicate_source_association_proof_kind": (
+            "consumer-rederived-textual-materialization"
+        ),
+        "attempt_topology_proof_kind": "producer-self-consistency",
+        "build_execution_proof_kind": "producer-execution-contract",
+        "built_and_benched_count": built_and_benched,
+        "classified_source_preimage_artifact_count": len(source_artifacts),
+        "rows": receipt_rows,
+    }
 
 
 def _cross_binding_no_build_receipt(
@@ -3495,6 +4096,14 @@ def verify_s8c_cross_binding(
     materialized_roots = [root for root in campaign_roots if root is not None]
     if not materialized_roots:
         return _cross_binding_failure_receipt(report, events)
+    driver = report.get("generation_driver")
+    if driver != _STANDARD_GENERATION_DRIVER:
+        _fail(
+            "cross-binding-driver",
+            f"trial={report.get('trial_id')!r} value={driver!r} "
+            "path=report.generation_driver materialized build cells require "
+            f"the standard driver {_STANDARD_GENERATION_DRIVER!r}",
+        )
     derived_output_root = materialized_roots[0].parent.parent
     if any(root.parent.parent != derived_output_root for root in materialized_roots):
         _fail("cross-binding", "build cells do not share one output root")
@@ -3567,7 +4176,7 @@ def verify_s8c_cross_binding(
             "provider_envelope_sha256",
         )
     }
-    proposal_paths, proposal_digests = _cross_binding_proposals(
+    proposal_paths, proposal_digests, proposal_rows = _cross_binding_proposals(
         report, run_root=run_root,
     )
     build_records: list[dict[str, Any]] = []
@@ -3575,6 +4184,7 @@ def verify_s8c_cross_binding(
     artifact_bindings: list[dict[str, Any]] = []
     source_bindings: list[dict[str, Any]] = []
     admission_bindings: list[dict[str, Any]] = []
+    proposal_source_bindings: list[dict[str, Any]] = []
 
     for index, (cell, campaign_root) in enumerate(
         zip(normalized_cells, campaign_roots, strict=True)
@@ -3598,13 +4208,12 @@ def verify_s8c_cross_binding(
                 cell.get("admission_decision")
             ):
                 _fail("cross-binding", "build cell has no persisted layer3 report")
-            admission_bindings.append({
-                "campaign_id": campaign_id,
-                "cell": dict(cell.get("admission_decision", {})),
-                "layer3": None,
-                "independent": None,
-            })
-            continue
+            _fail(
+                "cross-binding-build-population",
+                f"trial={report.get('trial_id')!r} value=0 "
+                f"path={persisted_path} materialized build cell has no "
+                "built-and-benched proposal",
+            )
         _cross_binding_regular_path(
             persisted_path, label=f"cells[{index}] layer3 report",
         )
@@ -3678,6 +4287,18 @@ def verify_s8c_cross_binding(
         if not records:
             _fail("cross-binding-wal", "campaign WAL is empty")
         raw_records = [_cross_binding_wal_dict(record) for record in records]
+        proposal_source_binding = _cross_binding_source_bindings(
+            report=report,
+            run_root=run_root,
+            campaign_root=campaign_root,
+            campaign_id=campaign_id,
+            cell_index=index,
+            proposal_rows=proposal_rows,
+            verified_bytes=verified_artifact_bytes,
+            records=records,
+            lock_raw=_lock_raw,
+        )
+        proposal_source_bindings.append(proposal_source_binding)
         build_stages = frozenset({
             "build_start",
             "build_done",
@@ -3749,6 +4370,12 @@ def verify_s8c_cross_binding(
             _fail("cross-binding-source", "layer3 source_refs differ from WAL/loop-state refs")
         _cross_binding_supervisor_records(
             {"cells": [cell]}, bench_records=bench_side,
+            aborted_variants={
+                row["variant"]
+                for row in proposal_source_binding["rows"]
+                if row["build_execution_status"] == "aborted"
+                and isinstance(row["variant"], str)
+            },
         )
         build_records.append({
             "campaign_id": campaign_id,
@@ -3782,6 +4409,7 @@ def verify_s8c_cross_binding(
         "artifact_refs": artifact_bindings,
         "source_refs": source_bindings,
         "admission_decision": admission_bindings,
+        "proposal_build_source_bindings": proposal_source_bindings,
     }
     if set(bindings) != set(S8C_CROSS_BINDING_FIELDS):
         _fail("cross-binding", "cross-binding field set is incomplete")

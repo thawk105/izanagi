@@ -21,7 +21,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import autonomous_trial_completeness as C  # noqa: E402
-from orchestrator.campaign import env_contract, ident                # noqa: E402
+from orchestrator.campaign import env_contract, ident, reflux_ir, source_digest  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
 from orchestrator.campaign import layer3_report as L3                 # noqa: E402
 from orchestrator.campaign import pipeline as P                       # noqa: E402
@@ -31,6 +31,7 @@ from orchestrator.campaign import s8c_arm_inputs                      # noqa: E4
 from orchestrator.campaign import trigger_gate_binding as TGB         # noqa: E402
 from orchestrator.campaign.build_admission import (                  # noqa: E402
     GeneratorId,
+    attest_generator_output,
     build_run_context,
     derive_build_admission,
 )
@@ -3259,10 +3260,39 @@ def _file_ref(path: Path, root: Path) -> dict:
     }
 
 
+def _cross_binding_source_preimage(
+    assignment: str, *, extra_gate_line: str | None = None,
+) -> bytes:
+    contexts = []
+    for index in range(len(source_digest.CONTEXT_MACROS) + 1):
+        lines = [
+            f"[ctx:{index}]".encode("ascii"),
+            b"bool izanagi_gate_pass = true;",
+            assignment.encode("utf-8"),
+            b"if (izanagi_gate_pass) {",
+        ]
+        if extra_gate_line is not None:
+            lines.append(extra_gate_line.encode("utf-8"))
+        contexts.append(b"\n".join(lines))
+    segments = [
+        f"fixture-source-{index}".encode("ascii")
+        for index, _path in enumerate(source_digest.EVOLVE_BLOCK_SOURCES)
+    ]
+    source_index = source_digest.EVOLVE_BLOCK_SOURCES.index(
+        "cc/silo/transaction.cc"
+    )
+    segments[source_index] = b"\x02".join(contexts)
+    return b"\0".join(segments)
+
+
 def _layer3_campaign(
     tmp_path: Path, *, trial_id: str = "fixture-completeness",
     workload: str = "ycsb-a", output_root: Path | None = None,
     include_trigger_binding: bool = True, include_bench_wall_s: bool = True,
+    include_bench_done: bool = True,
+    proposal_path: Path | None = None,
+    source_preimage_bytes: bytes | None = None,
+    source_src_token: str | None = None,
 ):
     output_root = output_root or tmp_path / "output"
     metadata = _golden_cell_metadata(output_root, workload, trial_id=trial_id)
@@ -3331,19 +3361,38 @@ def _layer3_campaign(
     )
     genome_value = Genome("fixture", {})
     genome = genome_value.canonical()
-    variant = P.variant_id(genome_value)
+    source_bytes_sha256 = (
+        hashlib.sha256(source_preimage_bytes).hexdigest()
+        if source_preimage_bytes is not None else "a" * 64
+    )
+    src_token = "stock"
+    if source_preimage_bytes is not None:
+        src_token = source_src_token or source_bytes_sha256
+    variant = P.variant_id(genome_value, src_token)
     evidence = SourceEvidence(
         schema_version="source-evidence/v1",
         source_root=str(tmp_path.resolve()),
         ccbench_commit=CURRENT_PIN,
         genome_sha256=hashlib.sha256(genome.encode()).hexdigest(),
-        src_token="stock",
-        source_bytes_sha256="a" * 64,
+        src_token=src_token,
+        source_bytes_sha256=source_bytes_sha256,
         tracked_clean=True,
         tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
         tracked_paths=(),
     )
-    receipt = derive_build_admission(context, evidence).as_wal_receipt()
+    generator_receipt = None
+    if source_preimage_bytes is not None:
+        generator_receipt = attest_generator_output(
+            context,
+            evidence,
+            generator_input_sha256=(
+                hashlib.sha256(proposal_path.read_bytes()).hexdigest()
+                if proposal_path is not None else "d" * 64
+            ),
+        )
+    receipt = derive_build_admission(
+        context, evidence, generator_receipt=generator_receipt,
+    ).as_wal_receipt()
     attempt_id = "attempt-1"
     binding = TGB.TriggerGateBinding(
         mask=0,
@@ -3364,7 +3413,7 @@ def _layer3_campaign(
         "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
             "build_attempt_id": attempt_id,
             "genome": genome,
-            "src_token": "stock",
+            "src_token": src_token,
             "build_admission": receipt,
             "build_admission_receipt_sha256": receipt["receipt_sha256"],
         },
@@ -3382,47 +3431,67 @@ def _layer3_campaign(
         records = []
     bench_payload = {
         "tps": [1.0], "median_tps": 1.0, "cv": 0.0, "rounds": 1,
+        "build_attempt_id": attempt_id,
     }
     if include_bench_wall_s:
         bench_payload["bench_wall_s"] = 0.0
     bench_payload["leading_indicators"] = {}
-    records.extend([
-        build_start,
-        {
-            "ts": 2.0, "stage": "build_done", "variant": variant,
-            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": dict(terminal),
-        },
-        {
-            "ts": 3.0, "stage": "bench_done", "variant": variant,
-            "env_tag": _T530_LAYER3_CONTRACT.env_tag,
-            "payload": bench_payload,
-        },
-        {
-            "ts": 4.0, "stage": "commit", "variant": variant,
-            "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
-                **terminal,
-                "contract_sha256": _T530_CONTRACT_SHA256,
+    records.append(build_start)
+    if include_bench_done:
+        records.extend([
+            {
+                "ts": 2.0, "stage": "build_done", "variant": variant,
+                "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": dict(terminal),
             },
-        },
-    ])
+            {
+                "ts": 3.0, "stage": "bench_done", "variant": variant,
+                "env_tag": _T530_LAYER3_CONTRACT.env_tag,
+                "payload": bench_payload,
+            },
+            {
+                "ts": 4.0, "stage": "commit", "variant": variant,
+                "env_tag": _T530_LAYER3_CONTRACT.env_tag, "payload": {
+                    **terminal,
+                    "contract_sha256": _T530_CONTRACT_SHA256,
+                },
+            },
+        ])
+    else:
+        records.append({
+            "ts": 2.0, "stage": "abort", "variant": variant,
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag,
+            "payload": {**terminal, "reason": "build-error"},
+        })
     wal_path = campaign / "runs" / "wal.jsonl"
     wal_path.write_text(
         "".join(json.dumps(record) + "\n" for record in records),
         encoding="utf-8",
     )
     if include_trigger_binding:
+        provenance_entry = {
+            "variant": variant,
+            "build_attempt_id": attempt_id,
+            "trigger_gate_binding_commitment": binding_commitment,
+            "outcome": "certified" if include_bench_done else "aborted",
+        }
+        if proposal_path is not None:
+            provenance_entry["proposal_path"] = str(proposal_path)
         (campaign / "reports" / "p3_s8a_trigger_loop_provenance.json").write_text(
             json.dumps({
                 "entries": {
-                    "fixture": {
-                        "variant": variant,
-                        "build_attempt_id": attempt_id,
-                        "trigger_gate_binding_commitment": binding_commitment,
-                    },
+                    "fixture": provenance_entry,
                 },
             }),
             encoding="utf-8",
         )
+    if proposal_path is not None and source_preimage_bytes is not None:
+        proposal_sha256 = hashlib.sha256(proposal_path.read_bytes()).hexdigest()
+        relative = source_digest.source_preimage_artifact_relative_path(
+            proposal_sha256
+        )
+        artifact_path = campaign / relative
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        artifact_path.write_bytes(source_preimage_bytes)
     persisted = L3.build_report(
         campaign, generated_from_head="a" * 40, output_root=output_root,
     )
@@ -3443,10 +3512,12 @@ def _layer3_campaign(
 
 def _cross_binding_fixture(
     tmp_path: Path, *, include_bench_wall_s: bool = True,
+    include_bench_done: bool = True, proposal_wire: str = "00000",
+    preimage_wire: str | None = None,
+    preimage_assignment: str | None = None,
+    extra_gate_line: str | None = None,
+    source_src_token: str | None = None,
 ):
-    output_root, campaign, persisted_path, persisted, cell = _layer3_campaign(
-        tmp_path, include_bench_wall_s=include_bench_wall_s,
-    )
     run_root = tmp_path / "cross-binding-run"
     (run_root / "raw").mkdir(parents=True)
     (run_root / "provider").mkdir()
@@ -3458,7 +3529,36 @@ def _cross_binding_fixture(
     raw_path.write_bytes(b"fixture raw response\n")
     payload_path.write_bytes(b"fixture provider payload\n")
     envelope_path.write_bytes(b"fixture provider envelope\n")
-    proposal_path.write_bytes(b"{\"proposal\":true}")
+    proposal_value = {
+        "planner": {
+            "axis": "silo-backoff-trigger-gating", "direction": "increase",
+            "magnitude": "small", "justification": "fixture", "uncertainty": "low",
+        },
+        "coder": {
+            "axis": "silo-backoff-trigger-gating", "wire": proposal_wire,
+            "justification": "fixture", "confidence": "high",
+        },
+        "auditor": {
+            "verdict": "allow", "diff_digest": "a" * 64,
+            "violations": [], "nits": [], "proposed_tests": [], "uncertainty": "low",
+        },
+        "prior_critic_reverse": False,
+        "descriptor_sha256": "b" * 64,
+        "arm_binding_digest_sha256": "c" * 64,
+    }
+    proposal_path.write_bytes(C._canonical_bytes(proposal_value))
+    assignment = preimage_assignment or reflux_ir.emit_predicate(
+        reflux_ir.parse_wire(preimage_wire or proposal_wire)
+    )
+    source_preimage = _cross_binding_source_preimage(
+        assignment, extra_gate_line=extra_gate_line,
+    )
+    output_root, campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path, include_bench_wall_s=include_bench_wall_s,
+        include_bench_done=include_bench_done,
+        proposal_path=proposal_path, source_preimage_bytes=source_preimage,
+        source_src_token=source_src_token,
+    )
 
     def digest(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -3481,26 +3581,29 @@ def _cross_binding_fixture(
         json.loads(line)
         for line in (campaign / "runs" / "wal.jsonl").read_text().splitlines()
     ]
-    bench = next(row for row in wal_lines if row["stage"] == "bench_done")
+    bench = next(
+        (row for row in wal_lines if row["stage"] == "bench_done"), None,
+    )
     proposal = {
         "path": str(proposal_path.relative_to(run_root)),
         "sha256": digest(proposal_path),
         "digest": "b" * 64,
     }
     cell = copy.deepcopy(cell)
-    bench_payload = copy.deepcopy(bench["payload"])
+    bench_payload = copy.deepcopy(bench["payload"]) if bench is not None else {}
     cell["generations"] = [{
         "generation": 1,
         "proposal": proposal,
         "harness": {
-            "variant": bench["variant"],
-            "records": {"bench_done": bench_payload},
+            "variant": bench["variant"] if bench is not None else None,
+            "records": ({"bench_done": bench_payload} if bench is not None else {}),
         },
         "bench_wall_seconds": bench_payload.get("bench_wall_s", 0.0),
     }]
     report = {
         "trial_id": "fixture-completeness",
         "do_build": True,
+        "generation_driver": dict(C._STANDARD_GENERATION_DRIVER),
         "cells": [cell],
     }
     return {
@@ -3519,6 +3622,117 @@ def _write_cross_binding_layer3(path: Path, value: dict) -> None:
         json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _refresh_cross_binding_layer3(fixture: dict) -> None:
+    fixture["persisted_path"].unlink()
+    persisted = L3.build_report(
+        fixture["campaign"], generated_from_head="a" * 40,
+        output_root=fixture["output_root"],
+    )
+    _write_cross_binding_layer3(fixture["persisted_path"], persisted)
+    fixture["persisted"] = persisted
+    fixture["report"]["cells"][0]["admission_decision"] = copy.deepcopy(
+        persisted["admission_decision"]
+    )
+
+
+def _rewrite_cross_binding_proposal(
+    fixture: dict, mutate,
+) -> tuple[str, str]:
+    record = fixture["report"]["cells"][0]["generations"][0]["proposal"]
+    path = fixture["run_root"] / record["path"]
+    old_sha256 = record["sha256"]
+    value = json.loads(path.read_bytes())
+    mutate(value)
+    path.write_bytes(C._canonical_bytes(value))
+    new_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    record["sha256"] = new_sha256
+    return old_sha256, new_sha256
+
+
+def _add_cross_binding_abort_attempt(fixture: dict) -> None:
+    proposal_one = fixture["run_root"] / "proposals/proposal.json"
+    proposal_value = json.loads(proposal_one.read_bytes())
+    proposal_value["coder"]["wire"] = "10000"
+    proposal_two = fixture["run_root"] / "proposals/proposal-abort.json"
+    proposal_two.write_bytes(C._canonical_bytes(proposal_value))
+    proposal_sha256 = hashlib.sha256(proposal_two.read_bytes()).hexdigest()
+    genome_value = Genome("fixture", {})
+    genome = genome_value.canonical()
+    variant = "diffq-" + hashlib.sha256(
+        (genome + "|impl=fixture-abort").encode("utf-8")
+    ).hexdigest()[:12]
+    attempt_id = "attempt-abort"
+    binding = TGB.TriggerGateBinding(
+        mask=1,
+        predicate_sha256=TGB.expected_predicate_sha256(1),
+        nonce="2" * 64,
+        source=None,
+    )
+    binding_commitment = TGB.commitment(binding)
+    wal_path = fixture["campaign"] / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_bytes().splitlines()]
+    records.extend([
+        {
+            "ts": 5.0, "stage": TGB.WAL_RECORD_STAGE, "variant": variant,
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag,
+            "payload": {
+                "build_attempt_id": attempt_id,
+                "trigger_gate_binding": TGB.to_record(binding),
+            },
+        },
+        {
+            "ts": 6.0, "stage": "build_start", "variant": variant,
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag,
+            "payload": {
+                "build_attempt_id": attempt_id,
+                "genome": genome,
+                "src_token": "",
+                "trigger_gate_binding_commitment": binding_commitment,
+            },
+        },
+        {
+            "ts": 7.0, "stage": "abort", "variant": variant,
+            "env_tag": _T530_LAYER3_CONTRACT.env_tag,
+            "payload": {
+                "build_attempt_id": attempt_id,
+                "genome": genome,
+                "reason": "diff-quarantine",
+            },
+        },
+    ])
+    wal_path.write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    provenance_path = (
+        fixture["campaign"] / "reports/p3_s8a_trigger_loop_provenance.json"
+    )
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["entries"]["2"] = {
+        "proposal_path": str(proposal_two),
+        "variant": variant,
+        "build_attempt_id": attempt_id,
+        "trigger_gate_binding_commitment": binding_commitment,
+        "outcome": "rejected",
+    }
+    provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+    fixture["report"]["cells"][0]["generations"].append({
+        "generation": 2,
+        "proposal": {
+            "path": proposal_two.relative_to(fixture["run_root"]).as_posix(),
+            "sha256": proposal_sha256,
+            "digest": "b" * 64,
+        },
+        "harness": {
+            "outcome": "rejected",
+            "variant": variant,
+            "records": {},
+        },
+        "bench_wall_seconds": 0.0,
+    })
+    _refresh_cross_binding_layer3(fixture)
 
 
 def test_read_and_verify_bytes_rejects_changed_bytes(tmp_path: Path) -> None:
@@ -3560,7 +3774,224 @@ def test_verify_s8c_cross_binding_positive_binds_all_fields(tmp_path: Path) -> N
     assert receipt["mode"] == "build"
     assert set(receipt["bindings"]) == set(C.S8C_CROSS_BINDING_FIELDS)
     assert receipt["unbound_fields"] == []
+    source_binding = receipt["bindings"]["proposal_build_source_bindings"][0]
+    assert source_binding["predicate_rederivation_proof_kind"] == "consumer-rederived"
+    assert source_binding["source_preimage_digest_proof_kind"] == "consumer-rederived"
+    assert source_binding["predicate_source_association_proof_kind"] == (
+        "consumer-rederived-textual-materialization"
+    )
+    assert source_binding["attempt_topology_proof_kind"] == "producer-self-consistency"
+    assert source_binding["build_execution_proof_kind"] == "producer-execution-contract"
+    assert source_binding["built_and_benched_count"] == 1
+    assert source_binding["classified_source_preimage_artifact_count"] == 1
+    assert source_binding["rows"][0]["predicate_assignment_count"] == 2
+    assert source_binding["rows"][0]["build_execution_status"] == "built-and-benched"
     assert len(receipt["receipt_sha256"]) == 64
+
+
+def test_t1749_m01_rejects_proposal_side_predicate_mutation(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    old_sha256, new_sha256 = _rewrite_cross_binding_proposal(
+        fixture, lambda value: value["coder"].__setitem__("wire", "10000"),
+    )
+    old_artifact = fixture["campaign"] / (
+        source_digest.source_preimage_artifact_relative_path(old_sha256)
+    )
+    new_artifact = fixture["campaign"] / (
+        source_digest.source_preimage_artifact_relative_path(new_sha256)
+    )
+    assignment = reflux_ir.emit_predicate(reflux_ir.parse_wire("10000"))
+    new_artifact.write_bytes(_cross_binding_source_preimage(assignment))
+    old_artifact.unlink()
+    _refresh_cross_binding_layer3(fixture)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-predicate\] trial='fixture-completeness' "
+               r"value=.* path=proposals/proposal.json predicate digest differs$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m02_rejects_wal_side_predicate_mutation(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    wal_path = fixture["campaign"] / "runs/wal.jsonl"
+    records = [json.loads(line) for line in wal_path.read_bytes().splitlines()]
+    trigger = next(record for record in records if record["stage"] == TGB.WAL_RECORD_STAGE)
+    source = trigger["payload"]["trigger_gate_binding"]["source"]
+    changed = TGB.TriggerGateBinding(
+        mask=1,
+        predicate_sha256=TGB.expected_predicate_sha256(1),
+        nonce=trigger["payload"]["trigger_gate_binding"]["nonce"],
+        source=TGB.SourceBinding(
+            src_token=source["src_token"],
+            source_bytes_sha256=source["source_bytes_sha256"],
+        ),
+    )
+    commitment = TGB.commitment(changed)
+    trigger["payload"]["trigger_gate_binding"] = TGB.to_record(changed)
+    next(record for record in records if record["stage"] == "build_start")[
+        "payload"
+    ]["trigger_gate_binding_commitment"] = commitment
+    wal_path.write_text(
+        "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8",
+    )
+    provenance_path = (
+        fixture["campaign"] / "reports/p3_s8a_trigger_loop_provenance.json"
+    )
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["entries"]["fixture"][
+        "trigger_gate_binding_commitment"
+    ] = commitment
+    provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+    _refresh_cross_binding_layer3(fixture)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-predicate\] trial='fixture-completeness' "
+               r"value=.* path=proposals/proposal.json predicate digest differs$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m03_rejects_source_preimage_digest_mutation(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    artifact = next((fixture["campaign"] / "source-bindings").glob("*.preimage"))
+    artifact.write_bytes(artifact.read_bytes() + b"-digest-mutation")
+    _refresh_cross_binding_layer3(fixture)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-source-digest\] trial='fixture-completeness' "
+               r"value=.* path=.*\.preimage E2 digest equality differs$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_e3_rejects_source_identity_only_mutation(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path, source_src_token="f" * 64)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-source-identity\] trial='fixture-completeness' "
+               r"value=.* path=.*\.preimage E3 identity equality differs$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m04_rejects_exact_predicate_source_mismatch(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path, preimage_wire="10000")
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-source-association\] trial='fixture-completeness' "
+               r"value=.* path=.*\.preimage gate-line multisets do not exactly "
+               r"bind the proposal$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m04_rejects_duplicate_gate_line(tmp_path: Path) -> None:
+    assignment = reflux_ir.emit_predicate(reflux_ir.parse_wire("00000"))
+    fixture = _cross_binding_fixture(
+        tmp_path, extra_gate_line=assignment,
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-source-association\].*"
+               r"gate-line multisets do not exactly bind the proposal$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_unmaterialized_skeleton_predicate_is_always_rejected(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(
+        tmp_path, preimage_assignment="izanagi_gate_pass = true;",
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-source-association\].*"
+               r"gate-line multisets do not exactly bind the proposal$"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+@pytest.mark.parametrize("owner", ("planner", "coder"))
+def test_t1749_m05_rejects_non_trigger_axis_instead_of_skipping(
+    tmp_path: Path, owner: str,
+) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    _rewrite_cross_binding_proposal(
+        fixture,
+        lambda value: value[owner].__setitem__("axis", "silo-backoff-fixed"),
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-axis\] trial='fixture-completeness' "
+               rf"value='silo-backoff-fixed' path=proposals/proposal.json\.{owner}\.axis"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m06_rejects_caller_injected_driver(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    fixture["report"]["generation_driver"] = dict(C._INJECTED_GENERATION_DRIVER)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-driver\] trial='fixture-completeness' value=.* "
+               r"path=report\.generation_driver materialized build cells require"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m07_rejects_abort_only_materialized_cell(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path, include_bench_done=False)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(r"\[cross-binding-build-population\] trial='fixture-completeness' "
+               r"value=0 path=report\.cells\[0\]\.generations materialized build cell"),
+    ):
+        C.verify_s8c_cross_binding(
+            report=fixture["report"], events=fixture["events"],
+            run_root=fixture["run_root"], output_root=fixture["output_root"],
+        )
+
+
+def test_t1749_m08_accepts_success_with_coexisting_abort_attempt(tmp_path: Path) -> None:
+    fixture = _cross_binding_fixture(tmp_path)
+    _add_cross_binding_abort_attempt(fixture)
+    receipt = C.verify_s8c_cross_binding(
+        report=fixture["report"], events=fixture["events"],
+        run_root=fixture["run_root"], output_root=fixture["output_root"],
+    )
+    source_binding = receipt["bindings"]["proposal_build_source_bindings"][0]
+    assert source_binding["built_and_benched_count"] == 1
+    assert source_binding["classified_source_preimage_artifact_count"] == 1
+    assert [row["build_execution_status"] for row in source_binding["rows"]] == [
+        "built-and-benched", "aborted",
+    ]
 
 
 def test_verify_s8c_cross_binding_projects_from_verified_wal_bytes(
@@ -3623,6 +4054,7 @@ def test_verify_s8c_cross_binding_rejects_each_reference_mutation(
     report = fixture["report"]
     events = fixture["events"]
     persisted = fixture["persisted"]
+    expected_error = None
     if mutation == "input_payload_sha256":
         events[0]["input_payload_sha256"] = "c" * 64
     elif mutation == "raw_response_path":
@@ -3662,9 +4094,20 @@ def test_verify_s8c_cross_binding_rejects_each_reference_mutation(
         _write_cross_binding_layer3(fixture["persisted_path"], persisted)
     elif mutation == "admission_decision":
         report["cells"][0]["admission_decision"]["classification"] = "mutated"
+    elif mutation == "proposal_build_source_bindings":
+        target_ref = next(
+            ref for ref in persisted["artifact_refs"]
+            if ref["path"].startswith("source-bindings/")
+        )
+        target = fixture["campaign"] / target_ref["path"]
+        target.write_bytes(target.read_bytes() + b"mutation")
+        _refresh_cross_binding_layer3(fixture)
+        expected_error = r"\[cross-binding-source-digest\]"
     else:
         raise AssertionError(mutation)
-    with pytest.raises(C.AutonomousTrialCompletenessError):
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError, match=expected_error,
+    ):
         C.verify_s8c_cross_binding(
             report=report, events=events,
             run_root=fixture["run_root"], output_root=fixture["output_root"],

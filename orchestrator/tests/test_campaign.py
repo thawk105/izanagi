@@ -10792,6 +10792,49 @@ _T816_GOLDEN_CK0 = {
 }
 
 
+def test_source_digest_preimage_join_has_pre_refactor_golden_digests():
+    """T-1749: extraction must preserve the old NUL/order/UTF-8 digest exactly."""
+    golden = (
+        (("alpha", "beta carrot", ""),
+         "915b28ce3367127f137e980ca567a3113a63f37b9609add39a8290cbd682b354"),
+        (("x",),
+         "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"),
+        ((),
+         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+        (("e-acute", "nihongo"),
+         "5d7bf1b0f4579c0244a0d9bca6cf4a5aa800d5f63e1a183963aa944c529ebac7"),
+        ((chr(233), chr(26085)),
+         "f40dc8347e446af4a45697131fbc865dfef051dce15b903de7253da24b9a84cd"),
+        ((chr(101) + chr(769),),
+         "bf12767b0f2a56b2190075bae8169f656e3ce8d6357d4aff184bc6c7ea48f9f6"),
+    )
+    for parts, expected in golden:
+        assert source_digest._digest(parts) == expected
+
+
+def test_source_digest_compute_hashes_the_exported_preimage_bytes():
+    preimage = b"T-1749 canonical source preimage fixture"
+    expected = hashlib.sha256(preimage).hexdigest()
+    original = source_digest.canonical_source_preimage_bytes
+    source_digest.canonical_source_preimage_bytes = (
+        lambda *_args, **_kwargs: preimage
+    )
+    try:
+        assert source_digest.compute(Genome("silo", {})) == expected
+    finally:
+        source_digest.canonical_source_preimage_bytes = original
+
+
+def test_source_preimage_artifact_path_is_proposal_content_addressed():
+    proposal_sha256 = hashlib.sha256(b"proposal bytes").hexdigest()
+    assert source_digest.source_preimage_artifact_relative_path(
+        proposal_sha256
+    ) == f"source-bindings/{proposal_sha256}.preimage"
+    for invalid in ("", "A" * 64, "0" * 63, "../" + "0" * 64):
+        with pytest.raises(ValueError, match="exact lowercase SHA-256"):
+            source_digest.source_preimage_artifact_relative_path(invalid)
+
+
 def _ccbench_head_or_skip():
     """submodule HEAD を返す。未 init なら None (テストをスキップ)。"""
     sub = buildcache._ccbench_dir()

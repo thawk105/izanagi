@@ -2426,6 +2426,95 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     ]
 
 
+def test_source_preimage_writer_is_idempotent_and_rejects_different_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    proposal = tmp_path / "proposal.json"
+    proposal.write_bytes(b'{"proposal":"fixture"}')
+    emitted = {"bytes": b"first-preimage"}
+    monkeypatch.setattr(
+        T.buildcache, "compilers_for_current_site", lambda: ("gcc", "g++-13"),
+    )
+    monkeypatch.setattr(
+        T.source_digest,
+        "canonical_source_preimage_bytes",
+        lambda *_args, **_kwargs: emitted["bytes"],
+    )
+    kwargs = {
+        "layout": layout,
+        "proposal_path": str(proposal),
+        "genome": Genome("silo", {}),
+        "sub": str(tmp_path),
+    }
+    first = T._write_source_preimage_artifact(**kwargs)
+    second = T._write_source_preimage_artifact(**kwargs)
+    assert first == second
+    artifact = Path(layout.root) / first
+    assert artifact.read_bytes() == b"first-preimage"
+
+    emitted["bytes"] = b"different-preimage"
+    with pytest.raises(
+        RuntimeError,
+        match=(r"source preimage artifact differs on idempotent reuse: "
+               r"proposal_sha256=[0-9a-f]{64} path=.*\.preimage "
+               r"expected_sha256=[0-9a-f]{64} actual_sha256=[0-9a-f]{64}$"),
+    ):
+        T._write_source_preimage_artifact(**kwargs)
+    assert artifact.read_bytes() == b"first-preimage"
+
+
+def test_materialized_source_preimage_is_written_before_run_campaign(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    order: list[str] = []
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+
+    @contextlib.contextmanager
+    def materialized_scope():
+        order.append("materialize-enter")
+        try:
+            yield
+        finally:
+            order.append("materialize-exit")
+
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_args, **_kwargs: materialized_scope(),
+    )
+    monkeypatch.setattr(T, "_quarantine_and_audit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(T.ident, "ensure_resumable_attempts", lambda *_args, **_kwargs: None)
+    def write_source_preimage(**_kwargs):
+        assert order == ["materialize-enter"]
+        order.append("source-preimage")
+        return "source-bindings/x.preimage"
+
+    monkeypatch.setattr(T, "_write_source_preimage_artifact", write_source_preimage)
+
+    def run_campaign(*_args, **_kwargs):
+        assert order == ["materialize-enter", "source-preimage"]
+        order.append("run-campaign")
+        return SimpleNamespace(execution_receipt=None, results=[], skipped=0)
+
+    monkeypatch.setattr(T, "run_campaign", run_campaign)
+    contract = env_contract.GENERATIONS["linux-baremetal"][0].contract
+    T._run_one_iteration_resolved(
+        T.default_cfg(), T.default_perf(), _planner(),
+        T.CoderProposalTriggerGating(axis=T.MARKER_ID, wire="00000"),
+        AuditorVerdict(verdict="pass", diff_digest="a" * 64),
+        L.LoopState(start_wall=time.time()), str(tmp_path), True,
+        layout, contract, site_policy.OTHER,
+        proposal_path=str(tmp_path / "proposal.json"),
+        build_context=_CODER_CONTEXT,
+        require_source_preimage_artifact=True,
+    )
+    assert order == [
+        "materialize-enter", "source-preimage", "run-campaign", "materialize-exit",
+    ]
+
+
 @pytest.mark.usefixtures("ratified_enforcement_source")
 def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monkeypatch):
     """同じ variant の build 前 reject も attempt ごとに provenance へ転記する。"""

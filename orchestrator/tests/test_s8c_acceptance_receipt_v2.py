@@ -169,7 +169,22 @@ def _trial(value: dict, holdout: str, arm: str) -> dict:
     )
 
 
-def _upgrade_to_v3(value: dict) -> None:
+def _cross_binding_aggregate_for_schema(value: dict, schema_version: str) -> str:
+    leaves = [
+        {
+            "trial_id": row["trial_id"],
+            "receipt_sha256": row["cross_binding_receipt_sha256"],
+        }
+        for row in value["trials"]
+    ]
+    payload = {
+        "schema_version": schema_version,
+        "trials": sorted(leaves, key=lambda leaf: leaf["trial_id"]),
+    }
+    return hashlib.sha256(_canonical(payload)).hexdigest()
+
+
+def _upgrade_to_current(value: dict) -> None:
     value["schema_version"] = receipt.SCHEMA_VERSION
     for index, row in enumerate(value["trials"]):
         row["cross_binding_receipt_sha256"] = hashlib.sha256(
@@ -421,8 +436,8 @@ def test_v2_never_routes_through_v1_mandatory_reason_set(
 
 def test_v3_requires_cross_binding_receipt_sha256(tmp_path: Path) -> None:
     repo, path, value = _fixture(tmp_path)
-    _upgrade_to_v3(value)
-    _rewrite_receipt(repo, path, value, "receipt v3")
+    _upgrade_to_current(value)
+    _rewrite_receipt(repo, path, value, "receipt v4")
     verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
     assert verified.receipt.schema_version == receipt.SCHEMA_VERSION
     assert verified.receipt.cross_binding_receipt_sha256 == value[
@@ -430,7 +445,7 @@ def test_v3_requires_cross_binding_receipt_sha256(tmp_path: Path) -> None:
     ]
 
     value.pop("cross_binding_receipt_sha256")
-    _rewrite_receipt(repo, path, value, "receipt v3 missing aggregate")
+    _rewrite_receipt(repo, path, value, "receipt v4 missing aggregate")
     with pytest.raises(
         receipt.AcceptanceReceiptError,
         match=r"\[receipt-schema\] receipt key set differs: ",
@@ -440,7 +455,12 @@ def test_v3_requires_cross_binding_receipt_sha256(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "schema_version",
-    [receipt.LEGACY_SCHEMA_VERSION, receipt.PREVIOUS_SCHEMA_VERSION, receipt.SCHEMA_VERSION],
+    [
+        receipt.LEGACY_SCHEMA_VERSION,
+        receipt.PREVIOUS_SCHEMA_VERSION,
+        receipt.CROSS_BINDING_V1_SCHEMA_VERSION,
+        receipt.SCHEMA_VERSION,
+    ],
 )
 def test_missing_schema_version_is_acceptance_receipt_error(
     tmp_path: Path, schema_version: str,
@@ -457,16 +477,44 @@ def test_missing_schema_version_is_acceptance_receipt_error(
 
 def test_v3_aggregate_is_recomputed_from_trial_leaves(tmp_path: Path) -> None:
     repo, path, value = _fixture(tmp_path)
-    _upgrade_to_v3(value)
-    _rewrite_receipt(repo, path, value, "receipt v3 aggregate")
+    _upgrade_to_current(value)
+    _rewrite_receipt(repo, path, value, "receipt v4 aggregate")
     value["cross_binding_receipt_sha256"] = "f" * 64
-    _rewrite_receipt(repo, path, value, "receipt v3 forged aggregate")
+    _rewrite_receipt(repo, path, value, "receipt v4 forged aggregate")
     with pytest.raises(
         receipt.AcceptanceReceiptError,
         match=(
             r"\[receipt-cross-binding\] top-level cross-binding aggregate "
             r"differs from trial leaves$"
         ),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_v3_remains_bound_to_cross_binding_v1_domain(tmp_path: Path) -> None:
+    repo, path, value = _fixture(tmp_path)
+    value["schema_version"] = receipt.CROSS_BINDING_V1_SCHEMA_VERSION
+    for index, row in enumerate(value["trials"]):
+        row["cross_binding_receipt_sha256"] = hashlib.sha256(
+            f"legacy-cross-binding-leaf-{index}".encode("ascii")
+        ).hexdigest()
+    legacy_aggregate = _cross_binding_aggregate_for_schema(
+        value, receipt.LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    )
+    current_aggregate = _cross_binding_aggregate_for_schema(
+        value, receipt.CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    )
+    assert legacy_aggregate != current_aggregate
+    value["cross_binding_receipt_sha256"] = legacy_aggregate
+    _rewrite_receipt(repo, path, value, "legacy receipt v3 domain")
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    assert verified.receipt.schema_version == receipt.CROSS_BINDING_V1_SCHEMA_VERSION
+
+    value["cross_binding_receipt_sha256"] = current_aggregate
+    _rewrite_receipt(repo, path, value, "legacy receipt v3 with v2 domain")
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=r"\[receipt-cross-binding\] top-level cross-binding aggregate differs",
     ):
         receipt.verify_acceptance_receipt(path, repository_root=repo)
 

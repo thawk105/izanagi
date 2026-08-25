@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -52,7 +53,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, execution_guard, ident, site_policy, wal  # noqa: E402
+from . import (buildcache, env_contract, execution_guard, ident, site_policy,  # noqa: E402
+               source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
@@ -257,6 +259,92 @@ def _write_provenance(layout: CampaignLayout, prov: Dict) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(prov, f, ensure_ascii=False, indent=1)
     os.replace(tmp, path)
+
+
+def _write_source_preimage_artifact(
+    *, layout: CampaignLayout, proposal_path: str, genome: Genome, sub: str,
+) -> str:
+    """Persist the materialized source digest preimage with idempotent reuse."""
+    if type(proposal_path) is not str or not proposal_path:
+        raise RuntimeError(
+            "source preimage artifact requires a non-empty proposal path"
+        )
+    proposal = Path(proposal_path)
+    try:
+        proposal_raw = proposal.read_bytes()
+    except OSError as exc:
+        raise RuntimeError(
+            f"source preimage proposal cannot be read: path={proposal} error={exc}"
+        ) from exc
+    proposal_sha256 = hashlib.sha256(proposal_raw).hexdigest()
+    try:
+        _, resolved_cxx = buildcache.compilers_for_current_site()
+        evidence_cxx = (
+            buildcache.DEFAULT_CXX
+            if resolved_cxx == buildcache.DEFAULT_CXX
+            else resolved_cxx
+        )
+        preimage = source_digest.canonical_source_preimage_bytes(
+            genome, sub, evidence_cxx,
+        )
+        relative = source_digest.source_preimage_artifact_relative_path(
+            proposal_sha256
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise RuntimeError(
+            "source preimage cannot be derived: "
+            f"proposal_sha256={proposal_sha256} path={proposal} error={exc}"
+        ) from exc
+
+    destination = Path(layout.root) / relative
+    directory = destination.parent
+    directory.mkdir(parents=True, exist_ok=True)
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError(
+            f"source preimage directory is not a real directory: path={directory}"
+        )
+
+    def reuse_existing() -> str:
+        if destination.is_symlink() or not destination.is_file():
+            raise RuntimeError(
+                "source preimage artifact is not a regular non-symlink file: "
+                f"path={destination}"
+            )
+        existing = destination.read_bytes()
+        if existing != preimage:
+            raise RuntimeError(
+                "source preimage artifact differs on idempotent reuse: "
+                f"proposal_sha256={proposal_sha256} path={destination} "
+                f"expected_sha256={hashlib.sha256(preimage).hexdigest()} "
+                f"actual_sha256={hashlib.sha256(existing).hexdigest()}"
+            )
+        return relative
+
+    if os.path.lexists(destination):
+        return reuse_existing()
+
+    temporary = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{time.time_ns()}.tmp"
+    )
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            stream.write(preimage)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, destination)
+        except FileExistsError:
+            return reuse_existing()
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+    return relative
 
 
 def parse_extra_source(spec: str) -> Dict[str, str]:
@@ -598,8 +686,10 @@ def _run_one_iteration_resolved(
         auditor: AuditorVerdict, state: L.LoopState, sub: str, do_build: bool,
         layout: CampaignLayout, contract: env_contract.ExecutionEnvironmentContract,
         resolved_site: str, log=print, cache_root: str = "",
+        proposal_path: str = "",
         dependency_prefix: str = "",
         build_context: Optional[BuildRunContext] = None,
+        require_source_preimage_artifact: bool = False,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
     from .patchharness import applied
@@ -632,6 +722,10 @@ def _run_one_iteration_resolved(
                     "outcome": "dry-pass", "variant": None,
                     "trigger_gate_binding_commitment": commitment(binding),
                 }, campaign_cfg, layout,
+            )
+        if require_source_preimage_artifact:
+            _write_source_preimage_artifact(
+                layout=layout, proposal_path=proposal_path, genome=genome, sub=sub,
             )
         campaign_options = {}
         if resolved_site == site_policy.PEGASUS_COMPUTE:
@@ -720,6 +814,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     return _run_one_iteration_resolved(
         campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
         layout, contract, resolved_site, log=log, cache_root=cache_root,
+        proposal_path="",
         dependency_prefix=dependency_prefix,
         build_context=build_context,
     )
@@ -770,6 +865,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     extra_sources: Sequence[Dict[str, str]] = (), *,
                     dependency_prefix: str = "",
                     build_context: Optional[BuildRunContext] = None,
+                    _require_source_preimage_artifact: bool = False,
                     _resolved_site: Optional[str] = None,
                     _contract: Optional[
                         env_contract.ExecutionEnvironmentContract
@@ -838,8 +934,10 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     out = _run_one_iteration_resolved(
         campaign_cfg, perf, planner, coder, auditor, state, sub, do_build,
         layout, contract, resolved_site, log=log, cache_root=cache_root,
+        proposal_path=proposal_path,
         dependency_prefix=dependency_prefix,
         build_context=build_context,
+        require_source_preimage_artifact=_require_source_preimage_artifact,
     )
     provenance_entry = {
         "proposal_path": proposal_path,

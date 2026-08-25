@@ -152,6 +152,7 @@ DEFAULT_MAX_WALL_S = 3600
 PROVIDER_KINDS = frozenset(("fixture", "claude-headless"))
 _DRIVE_NOT_PROVIDED: Any = object()
 _PREVIEW_NOT_PROVIDED: Any = object()
+_STANDARD_DRIVE_ITERATION = trigger.drive_iteration
 DRIVER_STOP_REASONS = frozenset((
     "continue",
     "converged",
@@ -2036,6 +2037,8 @@ def _drive_s8c_generation(
             "_resolved_site": resolved_site,
             "_contract": contract,
         })
+        if drive is _STANDARD_DRIVE_ITERATION:
+            drive_kwargs["_require_source_preimage_artifact"] = do_build
     if do_build:
         drive_kwargs["build_context"] = build_context
     outcome = dict(drive(

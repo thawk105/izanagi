@@ -22,8 +22,12 @@ from typing import Any
 
 LEGACY_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v1"
 PREVIOUS_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v2"
-SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v3"
-CROSS_BINDING_RECEIPT_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v1"
+CROSS_BINDING_V1_SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v3"
+SCHEMA_VERSION = "p3-8c-trial-acceptance-receipt/v4"
+LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION = (
+    "p3-8c-cross-binding-receipt/v1"
+)
+CROSS_BINDING_RECEIPT_SCHEMA_VERSION = "p3-8c-cross-binding-receipt/v2"
 DEFAULT_RECEIPT_DIR = PurePosixPath("output/s8c-trial-registry/receipts")
 LEGACY_MANDATORY_NON_CERTIFYING_REASONS = frozenset({
     "c02-arm-binding-unproven",
@@ -58,7 +62,8 @@ _V2_TOP_LEVEL_KEYS = frozenset(_BASE_TOP_LEVEL_KEYS)
 _V3_TOP_LEVEL_KEYS = _BASE_TOP_LEVEL_KEYS | {
     "cross_binding_receipt_sha256",
 }
-_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
+_V4_TOP_LEVEL_KEYS = _V3_TOP_LEVEL_KEYS
+_TOP_LEVEL_KEYS = _V4_TOP_LEVEL_KEYS
 _V1_TRIAL_KEYS = frozenset({
     "trial_id",
     "arm",
@@ -77,6 +82,8 @@ _V3_TRIAL_KEYS = _V2_TRIAL_KEYS | {"cross_binding_receipt_sha256"}
 _V3_TRIAL_KEYS_WITH_ORIGIN = (
     _V3_TRIAL_KEYS | {"origin_terminal_projection"}
 )
+_V4_TRIAL_KEYS = _V3_TRIAL_KEYS
+_V4_TRIAL_KEYS_WITH_ORIGIN = _V3_TRIAL_KEYS_WITH_ORIGIN
 _ARM_EXECUTION_KEYS = frozenset({
     "input_schema_version",
     "content_digest_sha256",
@@ -176,10 +183,15 @@ def _canonical_bytes(value: Any) -> bytes:
         ) from exc
 
 
-def cross_binding_aggregate_sha256(
-    trials: Sequence[Mapping[str, Any]],
+def _cross_binding_aggregate_sha256_for_schema(
+    trials: Sequence[Mapping[str, Any]], *, cross_binding_schema_version: str,
 ) -> str:
-    """Hash the sorted per-trial cross-binding leaves for receipt v3."""
+    """Hash sorted leaves under one explicit cross-binding schema domain."""
+    if cross_binding_schema_version not in {
+        LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+        CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    }:
+        _fail("receipt-cross-binding", "unsupported cross-binding schema domain")
     leaves: list[dict[str, str]] = []
     for index, trial in enumerate(trials):
         if not isinstance(trial, Mapping):
@@ -197,10 +209,20 @@ def cross_binding_aggregate_sha256(
     if len({leaf["trial_id"] for leaf in leaves}) != len(leaves):
         _fail("receipt-cross-binding", "cross-binding leaves reuse a trial_id")
     payload = {
-        "schema_version": CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+        "schema_version": cross_binding_schema_version,
         "trials": sorted(leaves, key=lambda leaf: leaf["trial_id"]),
     }
     return hashlib.sha256(_canonical_bytes(payload)).hexdigest()
+
+
+def cross_binding_aggregate_sha256(
+    trials: Sequence[Mapping[str, Any]],
+) -> str:
+    """Hash cross-binding v2 leaves for newly issued outer receipt v4 bytes."""
+    return _cross_binding_aggregate_sha256_for_schema(
+        trials,
+        cross_binding_schema_version=CROSS_BINDING_RECEIPT_SCHEMA_VERSION,
+    )
 
 
 def _reject_constant(value: str) -> None:
@@ -346,13 +368,15 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
         _fail("receipt-schema", "receipt.schema_version is missing")
     schema_version = value["schema_version"]
     if schema_version not in {
-        LEGACY_SCHEMA_VERSION, PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION,
+        LEGACY_SCHEMA_VERSION, PREVIOUS_SCHEMA_VERSION,
+        CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
     }:
         _fail("receipt-schema", "unsupported schema_version")
     expected_top_keys = {
         LEGACY_SCHEMA_VERSION: _V1_TOP_LEVEL_KEYS,
         PREVIOUS_SCHEMA_VERSION: _V2_TOP_LEVEL_KEYS,
-        SCHEMA_VERSION: _V3_TOP_LEVEL_KEYS,
+        CROSS_BINDING_V1_SCHEMA_VERSION: _V3_TOP_LEVEL_KEYS,
+        SCHEMA_VERSION: _V4_TOP_LEVEL_KEYS,
     }[schema_version]
     _exact_keys(value, expected_top_keys, "receipt")
 
@@ -383,7 +407,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
     )
     cross_binding_digest = (
         None
-        if schema_version != SCHEMA_VERSION
+        if schema_version not in {
+            CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+        }
         else _require_sha256(
             value["cross_binding_receipt_sha256"],
             "cross_binding_receipt_sha256",
@@ -412,11 +438,17 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             if schema_version == LEGACY_SCHEMA_VERSION
             else (
                 (
+                    _V4_TRIAL_KEYS_WITH_ORIGIN
+                    if "origin_terminal_projection" in raw
+                    else _V4_TRIAL_KEYS
+                )
+                if schema_version == SCHEMA_VERSION
+                else (
                     _V3_TRIAL_KEYS_WITH_ORIGIN
                     if "origin_terminal_projection" in raw
                     else _V3_TRIAL_KEYS
                 )
-                if schema_version == SCHEMA_VERSION
+                if schema_version == CROSS_BINDING_V1_SCHEMA_VERSION
                 else (
                     _V2_TRIAL_KEYS_WITH_ORIGIN
                     if "origin_terminal_projection" in raw
@@ -472,7 +504,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             ),
             cross_binding_receipt_sha256=(
                 None
-                if schema_version != SCHEMA_VERSION
+                if schema_version not in {
+                    CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+                }
                 else _require_sha256(
                     raw["cross_binding_receipt_sha256"],
                     f"trials[{index}].cross_binding_receipt_sha256",
@@ -500,7 +534,9 @@ def parse_acceptance_receipt_bytes(data: bytes) -> AcceptanceReceipt:
             "receipt-measurement-head-coherence",
             "trials do not share one measurement_head",
         )
-    if schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}:
+    if schema_version in {
+        PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+    }:
         expected_cells = {
             (holdout, arm)
             for holdout in ("H1", "H2")
@@ -970,14 +1006,20 @@ def verify_acceptance_receipt(
             trial.attempt_journal_sha256,
             "attempt journal",
         )
-        if receipt.schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}:
+        if receipt.schema_version in {
+            PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION,
+            SCHEMA_VERSION,
+        }:
             descriptor_proofs.append(_verify_v2_trial_arm_execution(
                 trial,
                 report_bytes=report_bytes,
                 journal_bytes=journal_bytes,
             ))
     if (
-        receipt.schema_version in {PREVIOUS_SCHEMA_VERSION, SCHEMA_VERSION}
+        receipt.schema_version in {
+            PREVIOUS_SCHEMA_VERSION, CROSS_BINDING_V1_SCHEMA_VERSION,
+            SCHEMA_VERSION,
+        }
         and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes
         and not _arm_execution_authorizes_reason_drop(descriptor_proofs)
     ):
@@ -985,14 +1027,21 @@ def verify_acceptance_receipt(
             "receipt-mandatory-reasons",
             "c02-arm-binding-unproven was dropped without descriptor proof",
         )
-    if receipt.schema_version == SCHEMA_VERSION:
-        aggregate = cross_binding_aggregate_sha256([
+    if receipt.schema_version in {
+        CROSS_BINDING_V1_SCHEMA_VERSION, SCHEMA_VERSION,
+    }:
+        cross_binding_schema_version = (
+            LEGACY_CROSS_BINDING_RECEIPT_SCHEMA_VERSION
+            if receipt.schema_version == CROSS_BINDING_V1_SCHEMA_VERSION
+            else CROSS_BINDING_RECEIPT_SCHEMA_VERSION
+        )
+        aggregate = _cross_binding_aggregate_sha256_for_schema([
             {
                 "trial_id": trial.trial_id,
                 "receipt_sha256": trial.cross_binding_receipt_sha256,
             }
             for trial in receipt.trials
-        ])
+        ], cross_binding_schema_version=cross_binding_schema_version)
         if receipt.cross_binding_receipt_sha256 != aggregate:
             _fail(
                 "receipt-cross-binding",
