@@ -13,6 +13,7 @@ import sys
 import pytest
 
 from orchestrator.campaign import sort_swo_oracle as O
+from orchestrator.tests import sort_swo_masstree_fixture as masstree_fixture
 from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle_environment_memo
 
 
@@ -94,23 +95,6 @@ _COMPILED_ORACLE_ARTIFACTS = None
 _COMPILED_ORACLE_ARTIFACTS_FACTORY = None
 
 
-def _skip_if_real_cpp_e2e_masstree_is_unavailable():
-    oracle_environment = _get_oracle_environment()
-    if type(oracle_environment) is O.OracleEnvironment:
-        dependency_root = oracle_environment.dependency_root
-        has_config = (dependency_root / "config.h").is_file()
-        has_archive = (dependency_root / "libjson.a").is_file()
-        has_object = any(
-            candidate.is_file() for candidate in dependency_root.glob("*.o")
-        )
-        if has_config and has_archive and has_object:
-            return
-    pytest.skip(
-        "masstree 依存が未構築のため実 C++ E2E を skip する "
-        "(config.h はあるが libjson.a / *.o が無い)。修理は別タスクで扱う。"
-    )
-
-
 def _get_compiled_oracle_artifacts(tmp_path_factory):
     """Exactly two real compiles: one positive TU and one multiplexed negative TU."""
     global _COMPILED_ORACLE_ARTIFACTS, _COMPILED_ORACLE_ARTIFACTS_FACTORY
@@ -141,9 +125,16 @@ def _get_compiled_oracle_artifacts(tmp_path_factory):
         assert finding is None
         artifacts[name] = executable
     artifacts["compile_count"] = compile_count
+    artifacts["environment"] = oracle_environment
     _COMPILED_ORACLE_ARTIFACTS_FACTORY = tmp_path_factory
     _COMPILED_ORACLE_ARTIFACTS = artifacts
     return artifacts
+
+
+def _copy_masstree_fixture(tmp_path: Path) -> Path:
+    destination = tmp_path / "sort-swo-masstree"
+    shutil.copytree(masstree_fixture.FIXTURE_ROOT, destination)
+    return destination
 
 
 def _matrix(n: int, true_pairs: set[tuple[int, int]]) -> list[bool]:
@@ -176,14 +167,12 @@ def test_matrix_checker_accepts_strict_weak_order():
 
 def test_cpp_e2e_clean_generic_lambda_positive(tmp_path_factory):
     """P1: the existing const-auto-ref, omitted-return-type fixture passes."""
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
 
 
 def test_cpp_e2e_stable_cross_allocation_pointer_positive(tmp_path_factory):
     """P2: std::less compares pointers from separate allocations stably and passes."""
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=0,
@@ -192,7 +181,6 @@ def test_cpp_e2e_stable_cross_allocation_pointer_positive(tmp_path_factory):
 
 def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     pointer_matrix, pointer_finding = O._run_matrix(
         compiled_oracle_artifacts["negative"], 0, 0, test_mode=0,
@@ -230,7 +218,6 @@ def test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning(
 )
 def test_cpp_e2e_reports_each_axiom_and_exact_indices(
         tmp_path_factory, mode, axiom, pairs):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=mode,
@@ -244,7 +231,6 @@ def test_cpp_e2e_reports_each_axiom_and_exact_indices(
 
 def test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=5,
@@ -258,7 +244,6 @@ def test_cpp_e2e_high_storage_only_negative_kills_corpus_narrowing(
 
 def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=6,
@@ -271,7 +256,6 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
 
 def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
         tmp_path_factory):
-    _skip_if_real_cpp_e2e_masstree_is_unavailable()
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     finding = O._evaluate_executable(
         compiled_oracle_artifacts["negative"], test_mode=7,
@@ -288,6 +272,231 @@ def test_cpp_e2e_rejects_same_process_call_count_dependence_with_witness(
 def test_real_compile_budget_is_fixed_positive_and_negative_only(tmp_path_factory):
     compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
     assert compiled_oracle_artifacts["compile_count"] == 2
+
+
+def test_cpp_e2e_canonical_fixture_trusted_control_compiles_and_runs(
+        tmp_path_factory):
+    verified = masstree_fixture.verify_sort_swo_masstree_fixture()
+    assert type(verified) is masstree_fixture.VerifiedFixture
+    assert verified.root == masstree_fixture.FIXTURE_ROOT.resolve()
+    assert verified.manifest_sha256 == (
+        "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+    )
+    assert len(verified.files) == 101
+    assert {"AUTHORS", "LICENSE", "PIN", "config.h"} <= {
+        path for path, _digest in verified.files
+    }
+    assert (verified.root / "PIN").read_text(encoding="ascii") == (
+        masstree_fixture.PIN + "\n"
+    )
+    assert not any(
+        Path(path).suffix in {".a", ".o"} for path, _digest in verified.files
+    )
+
+    compiled_oracle_artifacts = _get_compiled_oracle_artifacts(tmp_path_factory)
+    environment = compiled_oracle_artifacts["environment"]
+    assert type(environment) is O.OracleEnvironment
+    assert environment.dependency_root == masstree_fixture.FIXTURE_ROOT.resolve()
+    assert O._evaluate_executable(compiled_oracle_artifacts["positive"]) is None
+
+
+def test_masstree_manifest_rejects_header_removed_from_manifest(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    manifest = fixture / masstree_fixture.MANIFEST_NAME
+    target_suffix = "  btree_leaflink.hh"
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    assert sum(line.endswith(target_suffix) for line in lines) == 1
+    manifest.write_text(
+        "\n".join(line for line in lines if not line.endswith(target_suffix))
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-file-set-mismatch",
+            unregistered_files=("btree_leaflink.hh",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_unregistered_fixture_file(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    (fixture / "unregistered.fixture").write_bytes(b"unregistered\n")
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-file-set-mismatch",
+            unregistered_files=("unregistered.fixture",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_missing_fixture_file(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    (fixture / "btree_leaflink.hh").unlink()
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-file-set-mismatch",
+            missing_files=("btree_leaflink.hh",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_one_byte_change(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    authors = fixture / "AUTHORS"
+    changed = bytearray(authors.read_bytes())
+    changed[0] ^= 1
+    authors.write_bytes(changed)
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-sha256-mismatch",
+            hash_mismatches=(masstree_fixture.FixtureHashMismatch(
+                "AUTHORS",
+                "a79b96cd3f5e1734cc772598f4005302b296e349ae03d504305dbf9ffe00be9e",
+                "bdee444412ea1acce2afbdf1cb221c398fe0a58bd52baa2e564334041ea2e721",
+            ),),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_symlink_outside_fixture(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    outside = tmp_path / "outside.fixture"
+    outside.write_bytes(b"outside\n")
+    (fixture / "outside-link").symlink_to(outside)
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-symlink-present", paths=("outside-link",),
+        )
+    )
+
+
+def test_masstree_manifest_rejects_parent_reference(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    manifest = fixture / masstree_fixture.MANIFEST_NAME
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    assert lines[1].endswith("  AUTHORS")
+    lines[1] = lines[1].replace("  AUTHORS", "  ../outside.fixture")
+    manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert masstree_fixture.verify_sort_swo_masstree_fixture(fixture) == (
+        masstree_fixture.FixtureVerificationFailure(
+            "fixture-manifest-invalid",
+        )
+    )
+
+
+def test_resolver_config_h_missing_is_exact_failure_not_skip(tmp_path):
+    fixture = _copy_masstree_fixture(tmp_path)
+    (fixture / "config.h").unlink()
+
+    resolution = O.resolve_oracle_environment(
+        _CCBENCH,
+        compiler=sys.executable,
+        dependency_root=fixture,
+    )
+    assert resolution == O.OracleEnvironmentResolutionFailure(
+        "oracle-environment-dependency-unresolved",
+        (O.OracleEnvironmentCandidate(
+            "argument:compiler", Path(sys.executable), "selected",
+        ),),
+        (O.OracleEnvironmentCandidate(
+            "argument:dependency-root", fixture, "config-h-missing",
+        ),),
+    )
+
+
+def test_resolver_dedicated_environment_root_is_selected(monkeypatch, tmp_path):
+    dependency = tmp_path / "environment-masstree"
+    dependency.mkdir()
+    (dependency / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.setenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", str(dependency))
+
+    resolution = O.resolve_oracle_environment(
+        tmp_path / "checkout",
+        compiler=sys.executable,
+    )
+    assert resolution == O.OracleEnvironment(
+        Path(sys.executable).resolve(),
+        (tmp_path / "checkout").resolve(),
+        dependency.resolve(),
+    )
+
+
+def test_resolver_without_explicit_root_rejects_ccbench_build_residue(
+        monkeypatch, tmp_path):
+    ccbench = tmp_path / "checkout"
+    residue = ccbench / "build" / "_deps" / "masstree-src"
+    residue.mkdir(parents=True)
+    (residue / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.delenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", raising=False)
+
+    resolution = O.resolve_oracle_environment(
+        ccbench,
+        compiler=sys.executable,
+    )
+    assert resolution == O.OracleEnvironmentResolutionFailure(
+        "oracle-environment-dependency-unresolved",
+        (O.OracleEnvironmentCandidate(
+            "argument:compiler", Path(sys.executable), "selected",
+        ),),
+        (O.OracleEnvironmentCandidate(
+            "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
+            None,
+            "not-configured",
+        ),),
+    )
+
+
+def test_resolver_without_explicit_root_rejects_synthetic_ancestor_cache(
+        monkeypatch, tmp_path):
+    ccbench = tmp_path / "izanagi" / "external" / "ccbench"
+    ccbench.mkdir(parents=True)
+    synthetic = tmp_path / "izanagi-thirdparty-cache" / "masstree"
+    synthetic.mkdir(parents=True)
+    (synthetic / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.delenv("IZANAGI_SORT_SWO_MASSTREE_ROOT", raising=False)
+
+    resolution = O.resolve_oracle_environment(
+        ccbench,
+        compiler=sys.executable,
+    )
+    assert resolution == O.OracleEnvironmentResolutionFailure(
+        "oracle-environment-dependency-unresolved",
+        (O.OracleEnvironmentCandidate(
+            "argument:compiler", Path(sys.executable), "selected",
+        ),),
+        (O.OracleEnvironmentCandidate(
+            "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
+            None,
+            "not-configured",
+        ),),
+    )
+
+
+def test_oracle_environment_memo_explicitly_binds_canonical_fixture(monkeypatch):
+    """The sole production resolver call cannot drift back to ambient lookup."""
+    calls = []
+    sentinel = object()
+
+    def resolve(*args, **kwargs):
+        calls.append((args, kwargs))
+        return sentinel
+
+    monkeypatch.setattr(oracle_environment_memo, "_PRODUCTION_RESOLVE", resolve)
+    assert oracle_environment_memo._resolve_now() is sentinel
+    assert calls == [(
+        (oracle_environment_memo.CCBENCH,),
+        {"dependency_root": oracle_environment_memo.MASSTREE_FIXTURE},
+    )]
+    assert oracle_environment_memo.MASSTREE_FIXTURE == (
+        Path(__file__).resolve().parent / "fixtures" / "sort_swo_masstree"
+    )
 
 
 def test_real_patchharness_checkout_and_resolver_use_explicit_binding(tmp_path):
@@ -1347,6 +1556,8 @@ def test_no_optional_or_none_pass_api_and_no_unbounded_fixture_enumeration():
     assert "/work/" not in resolver_source
     assert "IZANAGI_SORT_SWO_CXX" in resolver_source
     assert "IZANAGI_SORT_SWO_MASSTREE_ROOT" in resolver_source
+    assert "ccbench-build-dependency" not in resolver_source
+    assert "ancestor-cache:" not in resolver_source
 
 
 def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, tmp_path):

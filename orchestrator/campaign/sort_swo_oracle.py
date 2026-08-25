@@ -1135,18 +1135,6 @@ def resolve_oracle_environment(
             os.environ.get("IZANAGI_SORT_SWO_MASSTREE_ROOT"),
             "not-configured",
         ))
-        dependency_inputs.append((
-            "ccbench-build-dependency",
-            ccbench / "build" / "_deps" / "masstree-src",
-            "not-configured",
-        ))
-        # portable fallback は固定祖先数に閉じ、機体固有 literal を持たない。
-        for index, ancestor in enumerate(tuple(ccbench.parents)[:8]):
-            dependency_inputs.append((
-                f"ancestor-cache:{index}",
-                ancestor.parent / f"{ancestor.name}-thirdparty-cache" / "masstree",
-                "not-configured",
-            ))
 
     compiler_records: list[OracleEnvironmentCandidate] = []
     compiler_path: Optional[Path] = None

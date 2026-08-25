@@ -440,6 +440,7 @@ REAL_REPO_SERIAL_NODES = frozenset({
 # barrier from the shared-worktree serial group above.
 ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
     "test_sort_swo_oracle.py::test_cpp_e2e_clean_generic_lambda_positive",
+    "test_sort_swo_oracle.py::test_cpp_e2e_canonical_fixture_trusted_control_compiles_and_runs",
     "test_sort_swo_oracle.py::test_cpp_e2e_stable_cross_allocation_pointer_positive",
     "test_sort_swo_oracle.py::test_real_ctor_pointer_topology_and_triplicate_have_expected_matrix_meaning",
     "test_sort_swo_oracle.py::test_cpp_e2e_reports_each_axiom_and_exact_indices",
