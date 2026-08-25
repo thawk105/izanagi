@@ -33,6 +33,7 @@ _NEW_HELD_NODE = (
     "orchestrator/tests/test_pegasus_dispatch_compute.py::"
     "test_control_lock_allows_peer_after_pending_hold_is_durably_released"
 )
+_HELD_FILE = _HELD_NODE.split("::", 1)[0]
 _SIBLING_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
     "test_cumulative_replacement_uses_the_result_of_the_previous_anchor"
@@ -904,6 +905,19 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
         def write_line(self, line: str) -> None:
             lines.append(line)
 
+    synthetic_holds = {
+        _HELD_NODE: _synthetic_valid_hold(),
+        _NEW_HELD_NODE: REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE],
+    }
+    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", synthetic_holds)
+    monkeypatch.setattr(
+        CONF, "FLAKY_TEST_HOLD_NODE_IDS", frozenset(synthetic_holds),
+    )
+    monkeypatch.setattr(
+        CONF,
+        "FLAKY_TEST_HOLDS_SHA256",
+        REG.flaky_test_hold_registry_sha256(synthetic_holds),
+    )
     config = SimpleNamespace(
         invocation_params=SimpleNamespace(args=()),
         pluginmanager=SimpleNamespace(
@@ -912,10 +926,46 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
         _izanagi_collected_flaky_hold_ids={_HELD_NODE},
         _izanagi_skipped_flaky_hold_ids={_HELD_NODE},
     )
+    CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
+    summary_lines = [
+        line for line in lines if line.startswith("IZANAGI_FLAKY_HOLD_SUMMARY_V1 ")
+    ]
+    assert len(summary_lines) == 1
+    payload = json.loads(summary_lines[0].split(" ", 1)[1])
+    assert payload == {
+        "registered_node_count": 2,
+        "matched_node_count": 1,
+        "skipped_node_count": 1,
+        "registry_sha256": (
+            "9a31d0948e6d17e491b3dc06101563d73719cf04643eb454c3339be92c91a089"
+        ),
+    }
+    assert not any(
+        line.startswith("IZANAGI_GROWTH_HOLD_SUMMARY_V1 ") for line in lines
+    )
+
+
+def test_empty_synthetic_flaky_summary_has_literal_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lines: list[str] = []
+
+    class Terminal:
+        def write_line(self, line: str) -> None:
+            lines.append(line)
+
     empty_holds: dict[str, REG.FlakyTestHold] = {}
     monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", empty_holds)
     monkeypatch.setattr(CONF, "FLAKY_TEST_HOLD_NODE_IDS", frozenset())
     monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS_SHA256", _EMPTY_REGISTRY_SHA256)
+    config = SimpleNamespace(
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: Terminal() if name == "terminalreporter" else None
+        ),
+        _izanagi_collected_flaky_hold_ids={_HELD_NODE},
+        _izanagi_skipped_flaky_hold_ids={_HELD_NODE},
+    )
     CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
     summary_lines = [
         line for line in lines if line.startswith("IZANAGI_FLAKY_HOLD_SUMMARY_V1 ")
@@ -926,35 +976,50 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
         "registered_node_count": 0,
         "matched_node_count": 0,
         "skipped_node_count": 0,
-        "registry_sha256": _EMPTY_REGISTRY_SHA256,
+        "registry_sha256": (
+            "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        ),
     }
-    assert payload["registry_sha256"] == _EMPTY_REGISTRY_SHA256
-    assert not any(
-        line.startswith("IZANAGI_GROWTH_HOLD_SUMMARY_V1 ") for line in lines
-    )
 
-    synthetic_holds = {_HELD_NODE: _synthetic_valid_hold()}
-    synthetic_sha256 = REG.flaky_test_hold_registry_sha256(synthetic_holds)
-    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", synthetic_holds)
-    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLD_NODE_IDS", frozenset(synthetic_holds))
-    monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS_SHA256", synthetic_sha256)
-    lines.clear()
+
+def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
+    lines: list[str] = []
+
+    class Terminal:
+        def write_line(self, line: str) -> None:
+            lines.append(line)
+
+    config = SimpleNamespace(
+        invocation_params=SimpleNamespace(args=()),
+        pluginmanager=SimpleNamespace(
+            get_plugin=lambda name: Terminal() if name == "terminalreporter" else None
+        ),
+        _izanagi_collected_flaky_hold_ids={_NEW_HELD_NODE},
+        _izanagi_skipped_flaky_hold_ids={_NEW_HELD_NODE},
+    )
 
     CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
-    expected_nonempty_line = (
-        "IZANAGI_FLAKY_HOLD_SUMMARY_V1 "
-        + json.dumps(
-            {
-                "registered_node_count": 1,
-                "matched_node_count": 1,
-                "skipped_node_count": 1,
-                "registry_sha256": synthetic_sha256,
-            },
-            ensure_ascii=True,
-            separators=(",", ":"),
-        )
-    )
-    assert lines == [expected_nonempty_line]
+    summary_lines = [
+        line for line in lines if line.startswith("IZANAGI_FLAKY_HOLD_SUMMARY_V1 ")
+    ]
+    assert len(summary_lines) == 1
+    payload = json.loads(summary_lines[0].split(" ", 1)[1])
+    expected_payload = {
+        "registered_node_count": len(REG.FLAKY_TEST_HOLDS),
+        "matched_node_count": 1,
+        "skipped_node_count": 1,
+        "registry_sha256": REG.flaky_test_hold_registry_sha256(
+            REG.FLAKY_TEST_HOLDS
+        ),
+    }
+    assert set(payload) == set(expected_payload)
+    assert {key: type(payload[key]) for key in payload} == {
+        "registered_node_count": int,
+        "matched_node_count": int,
+        "skipped_node_count": int,
+        "registry_sha256": str,
+    }
+    assert payload == expected_payload
 
 
 def _run() -> int:
