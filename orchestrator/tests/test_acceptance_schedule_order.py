@@ -9,7 +9,7 @@ import site
 import subprocess
 import sys
 import textwrap
-from collections import Counter
+from collections import Counter, OrderedDict
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1128,6 +1128,351 @@ def test_g9_identity_guard_survives_python_optimized_mode():
     with pytest.raises(pytest.UsageError, match="reorder 後"):
         CONF._replace_acceptance_items(
             _SabotagedList([first, second]), [second, first],
+        )
+
+
+# G10/G11: T-1563 compares only the complete collection order and the global
+# work-unit dequeue order.  Worker assignment, prefetch timing, and completion
+# order are deliberately absent from these observations because they are
+# mediators of worker count, not invariants.
+_NPROC_ARMS = (16, 32, 48)
+_NPROC_INITIAL_INDEX_ORDER = tuple(range(20, 40)) + tuple(range(20))
+_NPROC_EXPECTED_NODEIDS = tuple(
+    "orchestrator/tests/test_t1563_nproc_order.py::"
+    f"test_case_{index:02d}@unit-{index:02d}"
+    for index in range(40)
+)
+_NPROC_EXPECTED_SCOPES = tuple(
+    f"unit-{index:02d}" for index in range(40)
+)
+_NPROC_DURATION_LEDGER = {
+    "orchestrator/tests/test_t1563_nproc_order.py::"
+    f"test_case_{index:02d}": float(40 - index)
+    for index in range(39)
+}
+# Give units 10 and 11 the same cost.  Their canonical order is therefore the
+# stable original-index tie-break, which both positive controls can perturb.
+_NPROC_DURATION_LEDGER[
+    "orchestrator/tests/test_t1563_nproc_order.py::test_case_11"
+] = 30.0
+# Unit 39 is deliberately unknown.  The production 96-unit window ties it with
+# the lowest known unit (38), after which their stable input order puts 38 first.
+# A numprocesses * 2 window mutation instead moves it after unit 31 at n=16.
+
+
+def _nproc_initial_items() -> tuple[_Item, ...]:
+    items = []
+    for index in _NPROC_INITIAL_INDEX_ORDER:
+        item = _item(
+            "orchestrator/tests/test_t1563_nproc_order.py::"
+            f"test_case_{index:02d}@unit-{index:02d}"
+        )
+        # The production wrapper's pre-yield hold handling consumes the pytest
+        # item name.  These synthetic nodeids intentionally match no hold.
+        item.name = f"test_case_{index:02d}"
+        items.append(item)
+    return tuple(items)
+
+
+def _run_collection_wrapper_arm(
+    numprocesses: int,
+    initial_items: tuple[_Item, ...],
+    duration_ledger: dict[str, float],
+):
+    items = list(initial_items)
+    before_nodeids = tuple(item.nodeid for item in items)
+    before_identities = Counter(id(item) for item in items)
+    config = _OptionConfig(
+        numprocesses=numprocesses,
+        dist="loadgroup",
+        loadscopereorder=True,
+    )
+    setattr(
+        config,
+        CONF._ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR,
+        duration_ledger,
+    )
+
+    wrapper = CONF.pytest_collection_modifyitems(config, items)
+    assert next(wrapper) is None
+    with pytest.raises(StopIteration):
+        next(wrapper)
+
+    return {
+        "before_nodeids": before_nodeids,
+        "after_nodeids": tuple(item.nodeid for item in items),
+        "before_identities": before_identities,
+        "after_identities": Counter(id(item) for item in items),
+        "ledger_identity": id(duration_ledger),
+        "loadgroup": config.getvalue("loadgroup"),
+    }
+
+
+def _assert_collection_wrapper_arm_contract(observation) -> None:
+    before = observation["before_nodeids"]
+    after = observation["after_nodeids"]
+    assert len(before) >= 4
+    assert all(before)
+    assert len(set(before)) == len(before)
+    assert observation["after_identities"] == observation["before_identities"]
+    assert after == _NPROC_EXPECTED_NODEIDS
+    assert after != before
+
+
+def _assert_arm_tuples_equal(observations, key: str, label: str) -> None:
+    canonical = observations[_NPROC_ARMS[0]][key]
+    for numprocesses in _NPROC_ARMS[1:]:
+        assert observations[numprocesses][key] == canonical, (
+            f"{label} changed at numprocesses={numprocesses}"
+        )
+
+
+def test_g10_collection_wrapper_order_is_worker_count_independent():
+    initial_items = _nproc_initial_items()
+    duration_ledger = dict(_NPROC_DURATION_LEDGER)
+    observations = {
+        numprocesses: _run_collection_wrapper_arm(
+            numprocesses, initial_items, duration_ledger,
+        )
+        for numprocesses in _NPROC_ARMS
+    }
+
+    for observation in observations.values():
+        _assert_collection_wrapper_arm_contract(observation)
+    assert all(
+        observation["before_identities"]
+        == observations[_NPROC_ARMS[0]]["before_identities"]
+        for observation in observations.values()
+    )
+    assert {
+        observation["ledger_identity"] for observation in observations.values()
+    } == {id(duration_ledger)}
+    assert {
+        observation["loadgroup"] for observation in observations.values()
+    } == {True}
+    _assert_arm_tuples_equal(
+        observations, "after_nodeids", "complete collection nodeid tuple",
+    )
+
+
+def test_g10_collection_wrapper_worker_dependent_tie_break_control_fails(
+    monkeypatch,
+):
+    initial_items = _nproc_initial_items()
+    duration_ledger = dict(_NPROC_DURATION_LEDGER)
+    production_reorder = CONF._reorder_acceptance_items_by_duration
+    active_numprocesses = {"value": None}
+
+    # The wrapper has no callable-injection parameter: it directly resolves
+    # this module helper post-yield.  Patch that production-resolved callable,
+    # while keeping the item objects and ledger identical across all arms.
+    def worker_dependent_tie_break(items, durations):
+        changed = production_reorder(items, durations)
+        if active_numprocesses["value"] == 32:
+            first = next(
+                index for index, item in enumerate(items)
+                if item.nodeid.endswith("test_case_10@unit-10")
+            )
+            second = next(
+                index for index, item in enumerate(items)
+                if item.nodeid.endswith("test_case_11@unit-11")
+            )
+            items[first], items[second] = items[second], items[first]
+        return changed
+
+    monkeypatch.setattr(
+        CONF,
+        "_reorder_acceptance_items_by_duration",
+        worker_dependent_tie_break,
+    )
+    observations = {}
+    for numprocesses in _NPROC_ARMS:
+        active_numprocesses["value"] = numprocesses
+        observations[numprocesses] = _run_collection_wrapper_arm(
+            numprocesses, initial_items, duration_ledger,
+        )
+
+    assert all(
+        observation["before_identities"]
+        == observations[_NPROC_ARMS[0]]["before_identities"]
+        for observation in observations.values()
+    )
+    assert {
+        observation["ledger_identity"] for observation in observations.values()
+    } == {id(duration_ledger)}
+    assert {
+        observation["loadgroup"] for observation in observations.values()
+    } == {True}
+    with pytest.raises(
+        AssertionError, match="complete collection nodeid tuple changed",
+    ):
+        _assert_arm_tuples_equal(
+            observations, "after_nodeids", "complete collection nodeid tuple",
+        )
+
+
+class _SchedulerConfig:
+    def __init__(self, numprocesses: int) -> None:
+        self.option = SimpleNamespace(loadscopereorder=True)
+        self._tx = tuple("popen" for _index in range(numprocesses))
+
+    def getvalue(self, name: str):
+        if name != "tx":
+            raise ValueError(name)
+        return self._tx
+
+
+class _FakeSchedulerNode:
+    def __init__(self, index: int) -> None:
+        self.gateway = SimpleNamespace(id=f"gw{index}")
+        self.shutting_down = False
+
+    def send_runtest_some(self, _indexes) -> None:
+        # Assignment is intentionally not recorded: it is outside the claim.
+        pass
+
+    def shutdown(self) -> None:
+        self.shutting_down = True
+
+
+class _TracingWorkQueue(OrderedDict):
+    def __init__(self) -> None:
+        super().__init__()
+        self.dequeue_trace = []
+
+    def popitem(self, last=True):
+        scope, work_unit = super().popitem(last=last)
+        self.dequeue_trace.append(scope)
+        return scope, work_unit
+
+
+class _WorkerDependentTieBreakQueue(_TracingWorkQueue):
+    def __init__(self, numprocesses: int) -> None:
+        super().__init__()
+        self.numprocesses = numprocesses
+        self.injected = False
+
+    def popitem(self, last=True):
+        # All synthetic units have one item, so they are tied under the
+        # installed scheduler's loadscopereorder key.  Move only the 32-worker
+        # arm's second tied unit ahead of its first.
+        if (
+            self.numprocesses == 32
+            and not self.injected
+            and last is False
+            and len(self) >= 2
+        ):
+            scope = tuple(self)[1]
+            work_unit = self.pop(scope)
+            self.dequeue_trace.append(scope)
+            self.injected = True
+            return scope, work_unit
+        return super().popitem(last=last)
+
+
+def _run_scheduler_arm(
+    numprocesses: int,
+    initial_items: tuple[_Item, ...],
+    duration_ledger: dict[str, float],
+    queue_factory,
+):
+    wrapper_observation = _run_collection_wrapper_arm(
+        numprocesses, initial_items, duration_ledger,
+    )
+    collection = wrapper_observation["after_nodeids"]
+    config = _SchedulerConfig(numprocesses)
+    scheduler = LoadGroupScheduling(config)
+    queue = queue_factory(numprocesses)
+    scheduler.workqueue = queue
+    nodes = tuple(_FakeSchedulerNode(index) for index in range(numprocesses))
+    for node in nodes:
+        scheduler.add_node(node)
+        scheduler.add_node_collection(node, collection)
+
+    scheduler.schedule()
+    # schedule() already exercises the scheduler's own _reschedule() pass.
+    # This explicit pass drains the remaining eight units in the 16-worker arm.
+    for node in tuple(scheduler.nodes):
+        scheduler._reschedule(node)
+    assert not scheduler.workqueue
+    return {
+        "collection": collection,
+        "dequeue_trace": tuple(queue.dequeue_trace),
+        "before_identities": wrapper_observation["before_identities"],
+        "ledger_identity": wrapper_observation["ledger_identity"],
+        "loadgroup": wrapper_observation["loadgroup"],
+        "loadscopereorder": config.option.loadscopereorder,
+    }
+
+
+def test_g11_loadgroup_global_dequeue_order_is_worker_count_independent():
+    initial_items = _nproc_initial_items()
+    duration_ledger = dict(_NPROC_DURATION_LEDGER)
+    observations = {
+        numprocesses: _run_scheduler_arm(
+            numprocesses,
+            initial_items,
+            duration_ledger,
+            lambda _numprocesses: _TracingWorkQueue(),
+        )
+        for numprocesses in _NPROC_ARMS
+    }
+
+    for observation in observations.values():
+        assert observation["collection"] == _NPROC_EXPECTED_NODEIDS
+        assert observation["dequeue_trace"] == _NPROC_EXPECTED_SCOPES
+    assert all(
+        observation["before_identities"]
+        == observations[_NPROC_ARMS[0]]["before_identities"]
+        for observation in observations.values()
+    )
+    assert {
+        observation["ledger_identity"] for observation in observations.values()
+    } == {id(duration_ledger)}
+    assert {
+        observation["loadgroup"] for observation in observations.values()
+    } == {True}
+    assert {
+        observation["loadscopereorder"] for observation in observations.values()
+    } == {True}
+    _assert_arm_tuples_equal(
+        observations, "dequeue_trace", "global dequeue trace",
+    )
+
+
+def test_g11_loadgroup_worker_dependent_tie_break_control_fails():
+    initial_items = _nproc_initial_items()
+    duration_ledger = dict(_NPROC_DURATION_LEDGER)
+    observations = {
+        numprocesses: _run_scheduler_arm(
+            numprocesses,
+            initial_items,
+            duration_ledger,
+            _WorkerDependentTieBreakQueue,
+        )
+        for numprocesses in _NPROC_ARMS
+    }
+
+    assert all(
+        observation["before_identities"]
+        == observations[_NPROC_ARMS[0]]["before_identities"]
+        for observation in observations.values()
+    )
+    assert {
+        observation["ledger_identity"] for observation in observations.values()
+    } == {id(duration_ledger)}
+    assert {
+        observation["loadgroup"] for observation in observations.values()
+    } == {True}
+    assert {
+        observation["loadscopereorder"] for observation in observations.values()
+    } == {True}
+    _assert_arm_tuples_equal(
+        observations, "collection", "scheduler input collection",
+    )
+    with pytest.raises(AssertionError, match="global dequeue trace changed"):
+        _assert_arm_tuples_equal(
+            observations, "dequeue_trace", "global dequeue trace",
         )
 
 

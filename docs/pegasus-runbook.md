@@ -462,6 +462,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | path | class | evidence |
 |---|---|---|
 | `tools/claude_session_ledger.py` | `unknown` | `compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB` |
+| `tools/pegasus/acceptance_nproc_study.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
@@ -494,6 +495,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/probes/t503_restore_durability_probe.py` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t503_restore_durability_recover.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t503_restore_durability_verdict.pbs` | `unknown` | `unmeasured probe artifact` |
+| `tools/pegasus/run_acceptance_nproc_study.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/run_probe.py` | `dispatch-required` | `static semantic-site classification` |
 | `tools/pegasus/run_ss2pl_lock_study.py` | `dispatch-required` | `static compute-side call-site classification` |
 | `tools/pegasus/silo_ladder_rung1.sh` | `dispatch-required` | `static job-body classification` |
