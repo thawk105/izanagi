@@ -57,3 +57,13 @@ seq: 3
   **新しい情報は解除側にある** — 要約 marker を消しても request 別の耐久記録が残る限り
   hold は解けず、解除文言はその path を名指ししない
   ({{F:orphan-hold-message-names-only-summary-path}})。
+
+### F57
+
+- **再発: 2026-08-26** — [T-1675] wave (docs のみ、実装差分 3 fragment) の受入全走 1 走目で
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` が 1 件だけ落ちた
+  (16558 passed / 60 skipped)。**assertion は wall-clock 系ではなく pid 登録期限**
+  (`child.pid was not registered before deadline`、stderr は空、test 所要 5.845 秒) で、
+  子が 2 秒以内に pid file を書けなかった。同 node を計算ノードで単独走すると
+  1 passed / 7.24 秒 / rc=0。負荷は load average 4.13 (5 分平均 6.31)、
+  `run_tests.py` 16 本・codex 34 本が同時稼働。非帰属。
