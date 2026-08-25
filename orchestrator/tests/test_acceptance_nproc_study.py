@@ -210,6 +210,9 @@ class FakeExecutor:
             stdout = f"{session}\n".encode()
         elif request.purpose.startswith("measurement:"):
             self.measurement_seen = True
+            tmp_tree = Path(request.env["TMPDIR"])
+            assert tmp_tree.is_dir()
+            (tmp_tree / "fake-pytest-temp").write_bytes(b"measured temporary data")
             session_token = next(
                 token for token in request.argv
                 if token.startswith("--izanagi-acceptance-shard-session=")
@@ -692,6 +695,65 @@ def test_run_environment_requires_driver_pythonuserbase(
         )
 
 
+def test_run_environment_exact_task_projection_and_only_tmp_uses_short_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _config(tmp_path)
+    base = {
+        "IZANAGI_TASK_RUN_ID": "base-id",
+        "IZANAGI_TASK_RUNS_ROOT": "/base/root",
+        "IZANAGI_TASK_RUN_SIDECAR": "/base/sidecar",
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "1",
+        "BASE_ONLY_SENTINEL": "keep",
+    }
+    task_run_keys = {
+        "IZANAGI_TASK_RUN_ID",
+        "IZANAGI_TASK_RUNS_ROOT",
+        "IZANAGI_TASK_RUN_SIDECAR",
+        "IZANAGI_TASK_RUN_AUTO_RECORD",
+    }
+    assert task_run_keys <= set(base)
+    assert base["BASE_ONLY_SENTINEL"] == "keep"
+    monkeypatch.setenv("AMBIENT_ONLY_SENTINEL", "reject")
+    assert os.environ["AMBIENT_ONLY_SENTINEL"] == "reject"
+    monkeypatch.setattr(study, "_base_env", lambda: dict(base))
+
+    env = study._run_environment(
+        config, global_run_index=7, arm=32,
+        root=config.scratch_root / "run-environments",
+    )
+    try:
+        projection_keys = (
+            "AMBIENT_ONLY_SENTINEL",
+            "BASE_ONLY_SENTINEL",
+            "IZANAGI_TASK_RUN_AUTO_RECORD",
+            "IZANAGI_TASK_RUN_ID",
+            "IZANAGI_TASK_RUNS_ROOT",
+            "IZANAGI_TASK_RUN_SIDECAR",
+        )
+        assert {key: env.get(key) for key in projection_keys} == {
+            "AMBIENT_ONLY_SENTINEL": None,
+            "BASE_ONLY_SENTINEL": "keep",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            "IZANAGI_TASK_RUN_ID": None,
+            "IZANAGI_TASK_RUNS_ROOT": None,
+            "IZANAGI_TASK_RUN_SIDECAR": None,
+        }
+        tmp_tree = Path(env["TMPDIR"])
+        assert tmp_tree.name == "run-007"
+        assert tmp_tree.parent.parent == Path("/tmp")
+        assert re.fullmatch(r"izn-[0-9a-f]{12}", tmp_tree.parent.name)
+        for key in (
+            "HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
+            "XDG_STATE_HOME",
+        ):
+            assert Path(env[key]).is_relative_to(config.scratch_root)
+    finally:
+        study._remove_tmp_tree(
+            Path(env["TMPDIR"]), global_run_index=7, purpose="measurement"
+        )
+
+
 def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
     tmp_path: Path,
 ) -> None:
@@ -703,11 +765,20 @@ def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
     second = study._run_environment(
         config, global_run_index=1, arm=48, root=root
     )
-    assert first["HOME"] != second["HOME"]
-    assert first["PYTHONUSERBASE"] == second["PYTHONUSERBASE"]
-    assert first["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
-    assert first[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
-    assert second[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+    try:
+        assert first["HOME"] != second["HOME"]
+        assert first["TMPDIR"] != second["TMPDIR"]
+        assert first["PYTHONUSERBASE"] == second["PYTHONUSERBASE"]
+        assert first["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
+        assert first[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+        assert second[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+    finally:
+        study._remove_tmp_tree(
+            Path(first["TMPDIR"]), global_run_index=0, purpose="measurement"
+        )
+        study._remove_tmp_tree(
+            Path(second["TMPDIR"]), global_run_index=1, purpose="measurement"
+        )
 
 
 def test_process_cleanup_rejects_residual_group_member() -> None:
@@ -771,6 +842,55 @@ def test_receipt_schema_rejects_changed_excluded_estimand_value(
     )
 
 
+def test_receipt_pins_three_known_nonequivalences_and_estimand_scope(
+    tmp_path: Path,
+) -> None:
+    valid = _failed_schema_fixture(tmp_path)
+    expected_nonequivalences = [
+        {
+            "id": "home-xdg-cold-isolated",
+            "statement": (
+                "HOME and XDG roots are cold-isolated per run; production uses "
+                "real HOME and ambient XDG"
+            ),
+        },
+        {
+            "id": "clone-on-scratch-filesystem",
+            "statement": (
+                "the study clone is on /scr; production reads the canonical "
+                "repository on /work"
+            ),
+        },
+        {
+            "id": "serial-shards-on-one-node",
+            "statement": (
+                "shards run serially as 0 then 1 on one node without "
+                "counterbalancing; production submits parallel PBS jobs"
+            ),
+        },
+    ]
+    assert valid["design"]["known_nonequivalences"] == expected_nonequivalences
+    assert valid["design"]["internal_comparison_scope"] == (
+        "The known nonequivalences do not invalidate the within-study paired "
+        "comparison that changes only worker count."
+    )
+    assert valid["design"]["absolute_wall_extrapolation"] == (
+        "The study does not justify extrapolation to production absolute wall time."
+    )
+    study.validate_receipt(valid, expected_mode="smoke", require_complete=False)
+
+    for removed_index in range(3):
+        changed = copy.deepcopy(valid)
+        changed["design"]["known_nonequivalences"].pop(removed_index)
+        with pytest.raises(
+            study.ContractError,
+            match="known nonequivalences differ from the fixed design",
+        ):
+            study.validate_receipt(
+                changed, expected_mode="smoke", require_complete=False
+            )
+
+
 def test_job_failure_schema_is_closed() -> None:
     receipt = {
         "message": "failed",
@@ -791,6 +911,7 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _poison_process_creation(monkeypatch)
+    monkeypatch.setattr(study, "_tmp_free_bytes", lambda _path: 1 << 50)
     config = _config(tmp_path)
     host = "bnode999"
     monkeypatch.setattr(study.socket, "gethostname", lambda: host)
@@ -864,6 +985,7 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     assert import_request.env[study.THIRDPARTY_CACHE_ENV] == os.environ[
         study.THIRDPARTY_CACHE_ENV
     ]
+    assert not Path(import_request.env["TMPDIR"]).exists()
     assert len({request.env["HOME"] for request in measurement_requests}) == 6
     assert {
         request.env["PYTHONUSERBASE"] for request in measurement_requests
@@ -875,7 +997,38 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
             study.THIRDPARTY_CACHE_ENV
         ]
         assert request.env["HOME"].startswith(str(config.scratch_root))
+        assert Path(request.env["TMPDIR"]).parent.parent == Path("/tmp")
+        assert not Path(request.env["TMPDIR"]).exists()
+        assert {
+            key: request.env.get(key)
+            for key in (
+                "IZANAGI_TASK_RUN_AUTO_RECORD",
+                "IZANAGI_TASK_RUN_ID",
+                "IZANAGI_TASK_RUNS_ROOT",
+                "IZANAGI_TASK_RUN_SIDECAR",
+            )
+        } == {
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            "IZANAGI_TASK_RUN_ID": None,
+            "IZANAGI_TASK_RUNS_ROOT": None,
+            "IZANAGI_TASK_RUN_SIDECAR": None,
+        }
         assert not any(key.startswith(("CCACHE_", "SCCACHE_")) for key in request.env)
+    cleanups = receipt["cleanup"]["tmp_tree_cleanups"]
+    assert [row["global_run_index"] for row in cleanups] == [-1, 0, 1, 2, 3, 4, 5]
+    assert [row["purpose"] for row in cleanups] == [
+        "setup-import-probe", "measurement", "measurement", "measurement",
+        "measurement", "measurement", "measurement",
+    ]
+    assert all(row["removed"] is True for row in cleanups)
+    assert all(row["usage_bytes_before_cleanup"] > 0 for row in cleanups)
+    capacity_checks = receipt["cleanup"]["tmp_capacity_checks"]
+    assert receipt["cleanup"]["tmp_capacity_rule"] == (
+        "observed maximum times observed max/min safety factor plus observed "
+        "mean reserve"
+    )
+    assert [row["global_run_index"] for row in capacity_checks] == [1, 2, 3, 4, 5]
+    assert all(row["passed"] is True for row in capacity_checks)
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
     for run in receipt["runs"]:
         shard_stage = (
@@ -922,6 +1075,70 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         study.validate_receipt(
             split_session, expected_mode="smoke", require_complete=True
         )
+
+
+def test_tmp_capacity_gate_rejects_before_next_run_and_keeps_first_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode999"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:123.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    monkeypatch.setattr(study, "_tmp_free_bytes", lambda _path: 0)
+    executor = FakeExecutor(tmp_path, host)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["status"] == "failed"
+    assert receipt["failure"]["type"] == "ContractError"
+    assert receipt["failure"]["message"].startswith(
+        "insufficient /tmp capacity for the next run: free=0 required="
+    )
+    measurements = [
+        request for request in executor.requests
+        if request.purpose.startswith("measurement:")
+    ]
+    assert len(measurements) == 1
+    assert not Path(measurements[0].env["TMPDIR"]).exists()
+    measured_usage = receipt["cleanup"]["tmp_tree_cleanups"][1][
+        "usage_bytes_before_cleanup"
+    ]
+    assert receipt["cleanup"]["tmp_tree_cleanups"] == [
+        {
+            "global_run_index": -1,
+            "purpose": "setup-import-probe",
+            "removed": True,
+            "usage_bytes_before_cleanup": receipt["cleanup"]["tmp_tree_cleanups"][0][
+                "usage_bytes_before_cleanup"
+            ],
+        },
+        {
+            "global_run_index": 0,
+            "purpose": "measurement",
+            "removed": True,
+            "usage_bytes_before_cleanup": measured_usage,
+        },
+    ]
+    assert receipt["cleanup"]["tmp_capacity_checks"] == [
+        {
+            "free_bytes": 0,
+            "global_run_index": 1,
+            "observed_max_bytes": measured_usage,
+            "observed_mean_reserve_bytes": measured_usage,
+            "observed_min_bytes": measured_usage,
+            "observed_run_count": 1,
+            "passed": False,
+            "required_bytes": measured_usage + measured_usage,
+            "safety_factor_denominator_bytes": measured_usage,
+            "safety_factor_numerator_bytes": measured_usage,
+            "scaled_observed_max_bytes": measured_usage,
+        }
+    ]
 
 
 def test_setup_import_probe_failure_stops_before_measurement(

@@ -300,6 +300,94 @@ def test_previous_peak_estimate_dispatch_records_once(monkeypatch, tmp_path):
     assert records[0]["duration_s"] == 2.0
 
 
+def test_task_run_child_environment_uses_only_supplied_base_and_exact_projection(
+    monkeypatch,
+):
+    base = {
+        "IZANAGI_TASK_RUN_ID": "base-id",
+        "IZANAGI_TASK_RUNS_ROOT": "/base/root",
+        "IZANAGI_TASK_RUN_SIDECAR": "/base/sidecar",
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "1",
+        "BASE_ONLY_SENTINEL": "keep",
+    }
+    expected_base = dict(base)
+    task_run_keys = {
+        "IZANAGI_TASK_RUN_ID",
+        "IZANAGI_TASK_RUNS_ROOT",
+        "IZANAGI_TASK_RUN_SIDECAR",
+        "IZANAGI_TASK_RUN_AUTO_RECORD",
+    }
+    assert task_run_keys <= set(base)
+    assert base["BASE_ONLY_SENTINEL"] == "keep"
+    monkeypatch.setenv("AMBIENT_ONLY_SENTINEL", "reject")
+    assert os.environ["AMBIENT_ONLY_SENTINEL"] == "reject"
+
+    child = RT.task_run_child_environment(base)
+
+    assert child == {
+        "BASE_ONLY_SENTINEL": "keep",
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+    }
+    assert base == expected_base
+    assert "AMBIENT_ONLY_SENTINEL" not in child
+
+
+def test_dispatch_and_record_uses_argument_base_and_session_sidecar_exactly(
+    monkeypatch, tmp_path,
+):
+    base = {
+        "IZANAGI_TASK_RUN_ID": "base-id",
+        "IZANAGI_TASK_RUNS_ROOT": "/base/root",
+        "IZANAGI_TASK_RUN_SIDECAR": "/base/sidecar",
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "1",
+        "BASE_ONLY_SENTINEL": "keep",
+    }
+    expected_base = dict(base)
+    task_run_keys = {
+        "IZANAGI_TASK_RUN_ID",
+        "IZANAGI_TASK_RUNS_ROOT",
+        "IZANAGI_TASK_RUN_SIDECAR",
+        "IZANAGI_TASK_RUN_AUTO_RECORD",
+    }
+    assert task_run_keys <= set(base)
+    assert base["BASE_ONLY_SENTINEL"] == "keep"
+    monkeypatch.setenv("AMBIENT_ONLY_SENTINEL", "reject")
+    assert os.environ["AMBIENT_ONLY_SENTINEL"] == "reject"
+    sidecar = tmp_path / "session-sidecar.json"
+    session = RT._RecordingSession(task_run_id="manual-id")
+    session.set_manual_sidecar(sidecar)
+    monkeypatch.setattr(session, "record", mock.Mock())
+    monkeypatch.setattr(session, "finish", mock.Mock())
+    times = iter((10.0, 11.0))
+    monkeypatch.setattr(RT.time, "monotonic", lambda: next(times))
+    captured = {}
+
+    class StartedResult:
+        child_started = True
+
+        def __int__(self):
+            return 0
+
+    def dispatch(args, *, environ):
+        captured["args"] = list(args)
+        captured["environ"] = dict(environ)
+        return StartedResult()
+
+    assert RT._dispatch_and_record(
+        dispatch, ["fixture.py"], environ=base, recording_session=session,
+    ) == 0
+    assert captured == {
+        "args": ["fixture.py"],
+        "environ": {
+            "BASE_ONLY_SENTINEL": "keep",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            "IZANAGI_TASK_RUN_SIDECAR": str(sidecar),
+        },
+    }
+    assert base == expected_base
+    assert "AMBIENT_ONLY_SENTINEL" not in captured["environ"]
+
+
 def test_m7_parent_dispatch_environment_isolated_redundant_gate(monkeypatch):
     """M7 親 pop 単独変異の期待赤 node。
 

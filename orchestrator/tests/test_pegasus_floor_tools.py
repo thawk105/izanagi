@@ -284,6 +284,18 @@ def _checkpoint_records(path: Path) -> tuple[list[dict[str, object]], bool]:
     return [json.loads(line) for line in complete.splitlines()], incomplete
 
 
+def _mkdir_shim_text(*, scratch: Path, marker: Path) -> str:
+    return (
+        "#!/bin/bash\n"
+        f"if [[ \"${{!#}}\" == {shlex.quote(str(scratch))} ]]; then\n"
+        f"    : > {shlex.quote(str(marker))}\n"
+        "    exit 1\n"
+        "fi\n"
+        "if [[ \"${IZANAGI_MKDIR_SHIM_PROBE_ONLY:-}\" == 1 ]]; then exit 0; fi\n"
+        "exec /bin/mkdir \"$@\"\n"
+    )
+
+
 def _run_floor_admission_fixture(
     tmp_path: Path, *, preflight_rc: int
 ) -> tuple[
@@ -307,16 +319,12 @@ def _run_floor_admission_fixture(
     bin_dir.mkdir()
     mkdir_marker = tmp_path / "mkdir-invoked"
     driver_marker = tmp_path / "driver-invoked"
+    job_id = "floor-preflight:" + hashlib.sha256(
+        str(tmp_path).encode("utf-8")
+    ).hexdigest()[:12]
+    scratch = Path("/scr") / job_id.replace(":", "_")
     (bin_dir / "mkdir").write_text(
-        "#!/bin/bash\n"
-        "case \"${!#}\" in\n"
-        "  /scr/*)\n"
-        f"    : > {shlex.quote(str(mkdir_marker))}\n"
-        "    exit 1\n"
-        "    ;;\n"
-        "esac\n"
-        "exec /bin/mkdir \"$@\"\n",
-        encoding="utf-8",
+        _mkdir_shim_text(scratch=scratch, marker=mkdir_marker), encoding="utf-8"
     )
     (bin_dir / "mkdir").chmod(0o755)
     real_python = str(Path(sys.executable).resolve(strict=True))
@@ -329,10 +337,6 @@ def _run_floor_admission_fixture(
         encoding="utf-8",
     )
     (bin_dir / "python3").chmod(0o755)
-    job_id = "floor-preflight-" + hashlib.sha256(
-        str(tmp_path).encode("utf-8")
-    ).hexdigest()[:12]
-    scratch = Path("/scr") / job_id
     evidence_root = tmp_path / "job-evidence"
     checkpoint = (
         evidence_root / "pegasus" / job_id / nonce / "checkpoint.jsonl"
@@ -368,6 +372,34 @@ def _run_floor_admission_fixture(
         output_before,
         scratch_before,
     )
+
+
+def test_floor_mkdir_shim_matches_only_normalized_exact_scratch(
+    tmp_path: Path,
+) -> None:
+    shim = tmp_path / "mkdir"
+    marker = tmp_path / "marker"
+    raw_job_id = "fixture:123.nqsv"
+    scratch = Path("/scr") / raw_job_id.replace(":", "_")
+    shim.write_text(
+        _mkdir_shim_text(scratch=scratch, marker=marker), encoding="utf-8"
+    )
+    shim.chmod(0o755)
+    env = {**os.environ, "IZANAGI_MKDIR_SHIM_PROBE_ONLY": "1"}
+
+    exact = subprocess.run(
+        [str(shim), "-p", str(scratch)], env=env, check=False
+    )
+    assert exact.returncode == 1
+    assert marker.is_file()
+    marker.unlink()
+
+    pytest_tmp_like_path = Path("/scr") / "pytest-of-fixture" / tmp_path.name
+    unrelated = subprocess.run(
+        [str(shim), "-p", str(pytest_tmp_like_path)], env=env, check=False
+    )
+    assert unrelated.returncode == 0
+    assert not marker.exists()
 
 
 def _sentinel_bin(tmp_path: Path, *, failures: dict[str, int] | None = None) -> tuple[Path, Path]:

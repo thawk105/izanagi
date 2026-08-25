@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import shutil
 import socket
 import stat
 import subprocess
@@ -22,6 +23,13 @@ import threading
 import time
 from typing import Any, Callable, Iterable, Mapping, Sequence
 import xml.etree.ElementTree as ET
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from tools import run_tests as production_runner  # noqa: E402
 
 
 SCHEMA_VERSION = "izanagi-acceptance-nproc-study/v1"
@@ -58,6 +66,43 @@ _CACHE_ENV_NAMES = {
     "PYTHONPYCACHEPREFIX",
 }
 THIRDPARTY_CACHE_ENV = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
+TMP_CAPACITY_RULE = (
+    "observed maximum times observed max/min safety factor plus observed mean reserve"
+)
+KNOWN_NONEQUIVALENCES = (
+    {
+        "id": "home-xdg-cold-isolated",
+        "statement": (
+            "HOME and XDG roots are cold-isolated per run; production uses "
+            "real HOME and ambient XDG"
+        ),
+    },
+    {
+        "id": "clone-on-scratch-filesystem",
+        "statement": (
+            "the study clone is on /scr; production reads the canonical "
+            "repository on /work"
+        ),
+    },
+    {
+        "id": "serial-shards-on-one-node",
+        "statement": (
+            "shards run serially as 0 then 1 on one node without "
+            "counterbalancing; production submits parallel PBS jobs"
+        ),
+    },
+)
+INTERNAL_COMPARISON_SCOPE = (
+    "The known nonequivalences do not invalidate the within-study paired comparison "
+    "that changes only worker count."
+)
+ABSOLUTE_WALL_EXTRAPOLATION = (
+    "The study does not justify extrapolation to production absolute wall time."
+)
+_TMP_JOB_PREFIX = "izn-"
+_TMP_JOB_TOKEN_HEX_LENGTH = 12
+_TMP_RUN_TOKEN_RE = re.compile(r"^run-(?:[0-9]{3}|pre)$")
+_STAT_BLOCK_BYTES = 512
 
 
 class ContractError(RuntimeError):
@@ -773,6 +818,115 @@ def _base_env() -> dict[str, str]:
     return env
 
 
+def _tmp_job_root(config: StudyConfig) -> Path:
+    token_source = "|".join((os.environ.get("PBS_JOBID", ""), str(config.output)))
+    token = hashlib.sha256(token_source.encode("utf-8")).hexdigest()[
+        :_TMP_JOB_TOKEN_HEX_LENGTH
+    ]
+    return Path("/tmp") / f"{_TMP_JOB_PREFIX}{token}"
+
+
+def _tmp_run_token(global_run_index: int) -> str:
+    if global_run_index == -1:
+        return "run-pre"
+    if not 0 <= global_run_index <= 999:
+        raise ContractError("global run index does not fit the fixed TMP token")
+    return f"run-{global_run_index:03d}"
+
+
+def _prepare_tmp_tree(config: StudyConfig, *, global_run_index: int) -> Path:
+    job_root = _tmp_job_root(config)
+    job_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    root_stat = job_root.lstat()
+    if (
+        stat.S_ISLNK(root_stat.st_mode)
+        or not stat.S_ISDIR(root_stat.st_mode)
+        or root_stat.st_uid != os.getuid()
+        or stat.S_IMODE(root_stat.st_mode) != 0o700
+    ):
+        raise ContractError("TMP job root is not a private owned directory")
+    run_token = _tmp_run_token(global_run_index)
+    if _TMP_RUN_TOKEN_RE.fullmatch(run_token) is None:
+        raise ContractError("TMP run token is not fixed-shape")
+    run_tmp = job_root / run_token
+    run_tmp.mkdir(mode=0o700, exist_ok=False)
+    return run_tmp
+
+
+def _tmp_tree_usage_bytes(root: Path) -> int:
+    """Measure allocated-or-apparent bytes without following links."""
+
+    total = 0
+    pending = [root]
+    while pending:
+        path = pending.pop()
+        path_stat = path.stat(follow_symlinks=False)
+        total += max(path_stat.st_size, path_stat.st_blocks * _STAT_BLOCK_BYTES)
+        if stat.S_ISDIR(path_stat.st_mode):
+            with os.scandir(path) as entries:
+                pending.extend(Path(entry.path) for entry in entries)
+    return total
+
+
+def _remove_tmp_tree(
+    path: Path, *, global_run_index: int, purpose: str,
+) -> dict[str, Any]:
+    if path.is_symlink() or not path.is_dir():
+        raise ContractError("refusing to clean an unsafe TMP tree")
+    usage_bytes = _tmp_tree_usage_bytes(path)
+    shutil.rmtree(path)
+    if path.exists() or path.is_symlink():
+        raise ContractError("per-run TMP tree still exists after cleanup")
+    return {
+        "global_run_index": global_run_index,
+        "purpose": purpose,
+        "removed": True,
+        "usage_bytes_before_cleanup": usage_bytes,
+    }
+
+
+def _tmp_free_bytes(path: Path) -> int:
+    return int(shutil.disk_usage(path).free)
+
+
+def _tmp_capacity_check(
+    observed_usage_bytes: Sequence[int], *, free_bytes: int,
+    global_run_index: int,
+) -> dict[str, Any]:
+    if not observed_usage_bytes or any(
+        type(value) is not int or value <= 0 for value in observed_usage_bytes
+    ):
+        raise ContractError("TMP capacity requires positive in-job usage observations")
+    observed_max = max(observed_usage_bytes)
+    observed_min = min(observed_usage_bytes)
+    observed_mean_reserve = sum(observed_usage_bytes) // len(observed_usage_bytes)
+    scaled_observed_max = -(
+        -(observed_max * observed_max) // observed_min
+    )
+    required = scaled_observed_max + observed_mean_reserve
+    return {
+        "free_bytes": free_bytes,
+        "global_run_index": global_run_index,
+        "observed_max_bytes": observed_max,
+        "observed_mean_reserve_bytes": observed_mean_reserve,
+        "observed_min_bytes": observed_min,
+        "observed_run_count": len(observed_usage_bytes),
+        "passed": free_bytes >= required,
+        "required_bytes": required,
+        "safety_factor_denominator_bytes": observed_min,
+        "safety_factor_numerator_bytes": observed_max,
+        "scaled_observed_max_bytes": scaled_observed_max,
+    }
+
+
+def _require_tmp_capacity(check: Mapping[str, Any]) -> None:
+    if check.get("passed") is not True:
+        raise ContractError(
+            "insufficient /tmp capacity for the next run: "
+            f"free={check.get('free_bytes')} required={check.get('required_bytes')}"
+        )
+
+
 def _execute_checked(executor: Executor, request: ExecRequest) -> ExecResult:
     result = executor(request)
     validate_process_cleanup(result.process_cleanup)
@@ -1277,7 +1431,7 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     python_user_base = os.environ.get("PYTHONUSERBASE", "")
     if not python_user_base or not Path(python_user_base).is_absolute():
         raise ContractError("driver PYTHONUSERBASE must be a nonempty absolute path")
-    env = _base_env()
+    env = production_runner.task_run_child_environment(_base_env())
     for key in ("HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME",
                 "XDG_DATA_HOME", "XDG_STATE_HOME", "PYTEST_ADDOPTS",
                 "PYTEST_PLUGINS", "IZANAGI_ACCEPTANCE_SHARDS"):
@@ -1293,7 +1447,6 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     run_root = root / run_name
     paths = {
         "HOME": run_root / "home",
-        "TMPDIR": run_root / "tmp",
         "XDG_CACHE_HOME": run_root / "xdg-cache",
         "XDG_CONFIG_HOME": run_root / "xdg-config",
         "XDG_DATA_HOME": run_root / "xdg-data",
@@ -1301,6 +1454,9 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     }
     for path in paths.values():
         path.mkdir(mode=0o700, parents=True, exist_ok=False)
+    paths["TMPDIR"] = _prepare_tmp_tree(
+        config, global_run_index=global_run_index
+    )
     env.update({key: str(value) for key, value in paths.items()})
     env["IZANAGI_TEST_NPROC"] = str(arm)
     env[THIRDPARTY_CACHE_ENV] = str(_thirdparty_cache_root())
@@ -1310,24 +1466,32 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
 
 
 def _validate_measurement_imports(
-    executor: Executor, config: StudyConfig, clone: Path, root: Path, *, timeout_s: float,
+    executor: Executor, config: StudyConfig, clone: Path, root: Path, *,
+    timeout_s: float,
+    tmp_cleanups: list[dict[str, Any]],
 ) -> None:
     env = _run_environment(
         config, global_run_index=-1, arm=ARMS[0], root=root
     )
     try:
-        _execute_checked(executor, ExecRequest(
-            purpose="validate-measurement-imports",
-            argv=(config.python_command, "-c", "import pytest, xdist"),
-            cwd=clone,
-            env=env,
-            timeout_s=timeout_s,
+        try:
+            _execute_checked(executor, ExecRequest(
+                purpose="validate-measurement-imports",
+                argv=(config.python_command, "-c", "import pytest, xdist"),
+                cwd=clone,
+                env=env,
+                timeout_s=timeout_s,
+            ))
+        except ContractError as exc:
+            raise ContractError(
+                "measurement interpreter cannot import pytest and xdist in isolated run env: "
+                f"{exc}"
+            ) from exc
+    finally:
+        tmp_cleanups.append(_remove_tmp_tree(
+            Path(env["TMPDIR"]), global_run_index=-1,
+            purpose="setup-import-probe",
         ))
-    except ContractError as exc:
-        raise ContractError(
-            "measurement interpreter cannot import pytest and xdist in isolated run env: "
-            f"{exc}"
-        ) from exc
 
 
 def _schedule_document(blocks: Sequence[ScheduleBlock], *, seed: str) -> list[dict[str, Any]]:
@@ -1498,13 +1662,19 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "canonical_fingerprint_before_sha256": "",
             "canonical_unchanged": False,
             "scratch_clone_preserved_until_job_end": True,
+            "tmp_capacity_checks": [],
+            "tmp_capacity_rule": TMP_CAPACITY_RULE,
+            "tmp_tree_cleanups": [],
         },
         "completed_epoch_s": 0,
         "contrasts": [],
         "design": {
+            "absolute_wall_extrapolation": ABSOLUTE_WALL_EXTRAPOLATION,
             "arm_outcome": "max(shard_0_wall_s, shard_1_wall_s)",
             "arm_timeout_scope": "session creation + two shard runs + before/after fingerprints",
             "arms": list(ARMS),
+            "internal_comparison_scope": INTERNAL_COMPARISON_SCOPE,
+            "known_nonequivalences": [dict(item) for item in KNOWN_NONEQUIVALENCES],
             "measurement_blocks": FULL_MEASUREMENT_BLOCKS if config.mode == "full" else 1,
             "paired_difference": "outcome(N) - outcome(48), within analysis block",
             "per_shard_postrun_reserve_s": PER_SHARD_POSTRUN_RESERVE_S,
@@ -1536,6 +1706,7 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "all_junit_valid": False,
             "all_process_groups_reaped": False,
             "all_run_fingerprints_match": False,
+            "all_tmp_trees_removed": False,
             "budget_strict": True,
             "canonical_unchanged": False,
             "host_match": False,
@@ -1615,6 +1786,7 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
     remaining_caps = [
         int(config.arm_timeout_s[arm]) for block in schedule for arm in block.arm_order
     ]
+    observed_tmp_usage_bytes: list[int] = []
     try:
         with _signal_contract():
             current_stage = "initial-qstat"
@@ -1654,7 +1826,9 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
             receipt["invariant_checks"]["submodules_materialized"] = True
             current_stage = "setup-import-check"
             _validate_measurement_imports(
-                executor, config, clone, env_root, timeout_s=_remaining(setup_deadline)
+                executor, config, clone, env_root,
+                timeout_s=_remaining(setup_deadline),
+                tmp_cleanups=receipt["cleanup"]["tmp_tree_cleanups"],
             )
             global_run_index = 0
             flat_arm_index = 0
@@ -1687,6 +1861,16 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                             stage=current_stage,
                             remaining_arm_timeout_s=arm_remaining,
                         )
+                        if observed_tmp_usage_bytes:
+                            capacity_check = _tmp_capacity_check(
+                                observed_tmp_usage_bytes,
+                                free_bytes=_tmp_free_bytes(_tmp_job_root(config)),
+                                global_run_index=global_run_index,
+                            )
+                            receipt["cleanup"]["tmp_capacity_checks"].append(
+                                capacity_check
+                            )
+                            _require_tmp_capacity(capacity_check)
                         before = collect_fingerprint(
                             executor, clone,
                             label=f"run-{global_run_index}-before",
@@ -1719,68 +1903,84 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                         result: ExecResult | None = None
                         child_error: BaseException | None = None
                         try:
-                            result = executor(ExecRequest(
-                                purpose=f"measurement:{global_run_index}", argv=tuple(argv),
-                                cwd=clone, env=child_env, timeout_s=child_timeout_s,
-                                stdout_path=stdout_path, stderr_path=stderr_path,
-                                sample_isolation=True, expected_host=hostname,
-                            ))
-                            validate_process_cleanup(result.process_cleanup)
-                        except BaseException as exc:
-                            child_error = exc
-                        postrun_deadline = time.monotonic() + min(
-                            _remaining(arm_deadline),
-                            float(PER_SHARD_POSTRUN_RESERVE_S),
-                        )
-                        after = collect_fingerprint(
-                            executor, clone,
-                            label=f"run-{global_run_index}-after",
-                            timeout_s=_remaining(postrun_deadline),
-                        )
-                        if after["digest_sha256"] != before["digest_sha256"]:
-                            raise PostrunDirt(
-                                f"run {global_run_index} changed superproject/submodule fingerprint"
-                            ) from child_error
-                        if child_error is not None:
-                            raise child_error
-                        assert result is not None
-                        junit_path = session / f"shard-{shard_index}" / "junit.xml"
-                        if not junit_path.is_file() or junit_path.is_symlink():
-                            raise ContractError(
-                                f"run {global_run_index} JUnit is missing or unsafe: "
-                                f"child_returncode={result.returncode}"
+                            try:
+                                result = executor(ExecRequest(
+                                    purpose=f"measurement:{global_run_index}",
+                                    argv=tuple(argv), cwd=clone, env=child_env,
+                                    timeout_s=child_timeout_s,
+                                    stdout_path=stdout_path, stderr_path=stderr_path,
+                                    sample_isolation=True, expected_host=hostname,
+                                ))
+                                validate_process_cleanup(result.process_cleanup)
+                            except BaseException as exc:
+                                child_error = exc
+                            postrun_deadline = time.monotonic() + min(
+                                _remaining(arm_deadline),
+                                float(PER_SHARD_POSTRUN_RESERVE_S),
                             )
-                        junit = analyze_junit(junit_path.read_bytes())
-                        run_record = {
-                            "analysis_block_index": block.analysis_block_index,
-                            "analysis_included": block.phase == "measurement",
-                            "arm": arm,
-                            "argv": argv,
-                            "child_returncode": result.returncode,
-                            "child_timeout_s": child_timeout_s,
-                            "elapsed_end_s": time.monotonic() - started,
-                            "elapsed_start_s": run_started - started,
-                            "env_nproc": str(arm),
-                            "fingerprint_after_sha256": after["digest_sha256"],
-                            "fingerprint_before_sha256": before["digest_sha256"],
-                            "global_block_index": block.global_block_index,
-                            "global_run_index": global_run_index,
-                            "host": hostname,
-                            "isolation": dict(result.isolation),
-                            "junit": junit,
-                            "order_index": order_index,
-                            "phase": block.phase,
-                            "process_cleanup": dict(result.process_cleanup),
-                            "session_root": str(session),
-                            "shard_index": shard_index,
-                            "stderr_sha256": result.stderr_sha256,
-                            "stdout_sha256": result.stdout_sha256,
-                            "timed_out": result.timed_out,
-                            "wall_minus_chain_s": (
-                                result.duration_s - junit["real_repo_exclusive_chain_s"]
-                            ),
-                            "wall_s": result.duration_s,
-                        }
+                            after = collect_fingerprint(
+                                executor, clone,
+                                label=f"run-{global_run_index}-after",
+                                timeout_s=_remaining(postrun_deadline),
+                            )
+                            if after["digest_sha256"] != before["digest_sha256"]:
+                                raise PostrunDirt(
+                                    f"run {global_run_index} changed "
+                                    "superproject/submodule fingerprint"
+                                ) from child_error
+                            if child_error is not None:
+                                raise child_error
+                            assert result is not None
+                            junit_path = session / f"shard-{shard_index}" / "junit.xml"
+                            if not junit_path.is_file() or junit_path.is_symlink():
+                                raise ContractError(
+                                    f"run {global_run_index} JUnit is missing or unsafe: "
+                                    f"child_returncode={result.returncode}"
+                                )
+                            junit = analyze_junit(junit_path.read_bytes())
+                            run_record = {
+                                "analysis_block_index": block.analysis_block_index,
+                                "analysis_included": block.phase == "measurement",
+                                "arm": arm,
+                                "argv": argv,
+                                "child_returncode": result.returncode,
+                                "child_timeout_s": child_timeout_s,
+                                "elapsed_end_s": time.monotonic() - started,
+                                "elapsed_start_s": run_started - started,
+                                "env_nproc": str(arm),
+                                "fingerprint_after_sha256": after["digest_sha256"],
+                                "fingerprint_before_sha256": before["digest_sha256"],
+                                "global_block_index": block.global_block_index,
+                                "global_run_index": global_run_index,
+                                "host": hostname,
+                                "isolation": dict(result.isolation),
+                                "junit": junit,
+                                "order_index": order_index,
+                                "phase": block.phase,
+                                "process_cleanup": dict(result.process_cleanup),
+                                "session_root": str(session),
+                                "shard_index": shard_index,
+                                "stderr_sha256": result.stderr_sha256,
+                                "stdout_sha256": result.stdout_sha256,
+                                "timed_out": result.timed_out,
+                                "wall_minus_chain_s": (
+                                    result.duration_s
+                                    - junit["real_repo_exclusive_chain_s"]
+                                ),
+                                "wall_s": result.duration_s,
+                            }
+                        finally:
+                            tmp_cleanup = _remove_tmp_tree(
+                                Path(child_env["TMPDIR"]),
+                                global_run_index=global_run_index,
+                                purpose="measurement",
+                            )
+                            receipt["cleanup"]["tmp_tree_cleanups"].append(
+                                tmp_cleanup
+                            )
+                            observed_tmp_usage_bytes.append(
+                                int(tmp_cleanup["usage_bytes_before_cleanup"])
+                            )
                         receipt["runs"].append(run_record)
                         if (
                             result.timed_out or result.returncode != 0
@@ -1830,6 +2030,7 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                 "all_junit_valid": True,
                 "all_process_groups_reaped": True,
                 "all_run_fingerprints_match": True,
+                "all_tmp_trees_removed": True,
                 "budget_strict": True,
                 "canonical_unchanged": True,
                 "host_match": True,
@@ -1998,19 +2199,30 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         raise ContractError("receipt schedule algorithm mismatch")
     if root["excluded_estimands"] != [dict(item) for item in EXCLUDED_ESTIMANDS]:
         raise ContractError("receipt excluded_estimands differs from the fixed exclusion")
-    _expect_keys(
+    design = _expect_keys(
         root["design"],
-        {"arm_outcome", "arms", "measurement_blocks", "paired_difference", "primary_contrast",
-         "arm_timeout_scope", "per_shard_postrun_reserve_s", "real_repo_chain_rule",
+        {"absolute_wall_extrapolation", "arm_outcome", "arms", "measurement_blocks",
+         "paired_difference", "primary_contrast", "arm_timeout_scope",
+         "internal_comparison_scope", "known_nonequivalences",
+         "per_shard_postrun_reserve_s", "real_repo_chain_rule",
          "secondary_contrast", "shard_count", "warmup_blocks"},
         "receipt.design",
     )
-    _expect_keys(root["design"]["primary_contrast"], {"arm", "reference_arm"},
+    _expect_keys(design["primary_contrast"], {"arm", "reference_arm"},
                  "receipt.design.primary_contrast")
-    _expect_keys(root["design"]["secondary_contrast"], {"arm", "reference_arm"},
+    _expect_keys(design["secondary_contrast"], {"arm", "reference_arm"},
                  "receipt.design.secondary_contrast")
-    if root["design"]["primary_contrast"] != {"arm": 32, "reference_arm": 48}:
+    if design["primary_contrast"] != {"arm": 32, "reference_arm": 48}:
         raise ContractError("primary contrast must be 32 versus 48")
+    if design["known_nonequivalences"] != [
+        dict(item) for item in KNOWN_NONEQUIVALENCES
+    ]:
+        raise ContractError("receipt known nonequivalences differ from the fixed design")
+    if (
+        design["internal_comparison_scope"] != INTERNAL_COMPARISON_SCOPE
+        or design["absolute_wall_extrapolation"] != ABSOLUTE_WALL_EXTRAPOLATION
+    ):
+        raise ContractError("receipt estimand scope differs from the fixed design")
     budget = _expect_keys(
         root["budget"],
         {"arm_timeout_s", "budget_checks", "finalize_reserve_s", "margin_s", "planned_total_s",
@@ -2038,17 +2250,68 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     for field in ("canonical_submodules", "scratch_submodules"):
         for index, row in enumerate(inputs[field]):
             _expect_keys(row, submodule_keys, f"receipt.inputs.{field}[{index}]")
-    _expect_keys(
+    cleanup = _expect_keys(
         root["cleanup"],
         {"canonical_fingerprint_after_sha256", "canonical_fingerprint_before_sha256",
-         "canonical_unchanged", "scratch_clone_preserved_until_job_end"},
+         "canonical_unchanged", "scratch_clone_preserved_until_job_end",
+         "tmp_capacity_checks", "tmp_capacity_rule", "tmp_tree_cleanups"},
         "receipt.cleanup",
     )
+    if cleanup["tmp_capacity_rule"] != TMP_CAPACITY_RULE:
+        raise ContractError("receipt TMP capacity rule differs from the fixed rule")
+    tmp_cleanup_keys = {
+        "global_run_index", "purpose", "removed", "usage_bytes_before_cleanup",
+    }
+    for index, row in enumerate(cleanup["tmp_tree_cleanups"]):
+        item = _expect_keys(
+            row, tmp_cleanup_keys, f"receipt.cleanup.tmp_tree_cleanups[{index}]"
+        )
+        if (
+            type(item["global_run_index"]) is not int
+            or item["purpose"] not in {"setup-import-probe", "measurement"}
+            or item["removed"] is not True
+            or type(item["usage_bytes_before_cleanup"]) is not int
+            or item["usage_bytes_before_cleanup"] <= 0
+        ):
+            raise ContractError("receipt TMP cleanup observation is invalid")
+    tmp_capacity_keys = {
+        "free_bytes", "global_run_index", "observed_max_bytes",
+        "observed_mean_reserve_bytes", "observed_min_bytes",
+        "observed_run_count", "passed", "required_bytes",
+        "safety_factor_denominator_bytes", "safety_factor_numerator_bytes",
+        "scaled_observed_max_bytes",
+    }
+    for index, row in enumerate(cleanup["tmp_capacity_checks"]):
+        item = _expect_keys(
+            row, tmp_capacity_keys,
+            f"receipt.cleanup.tmp_capacity_checks[{index}]",
+        )
+        integer_fields = tmp_capacity_keys - {"passed"}
+        if (
+            any(type(item[field]) is not int or item[field] < 0 for field in integer_fields)
+            or type(item["passed"]) is not bool
+            or item["global_run_index"] <= 0
+            or item["observed_max_bytes"] <= 0
+            or item["observed_mean_reserve_bytes"] <= 0
+            or item["observed_min_bytes"] <= 0
+            or item["observed_run_count"] <= 0
+            or item["required_bytes"]
+            != item["scaled_observed_max_bytes"]
+            + item["observed_mean_reserve_bytes"]
+            or item["safety_factor_denominator_bytes"] != item["observed_min_bytes"]
+            or item["safety_factor_numerator_bytes"] != item["observed_max_bytes"]
+            or item["scaled_observed_max_bytes"]
+            != -(
+                -(item["observed_max_bytes"] * item["observed_max_bytes"])
+                // item["observed_min_bytes"]
+            )
+        ):
+            raise ContractError("receipt TMP capacity observation is invalid")
     _expect_keys(root["occasion"], {"allocation_hosts", "host_match", "hostname", "pbs_jobid"},
                  "receipt.occasion")
     invariant_keys = {
         "all_junit_valid", "all_process_groups_reaped", "all_run_fingerprints_match",
-        "budget_strict", "canonical_unchanged", "host_match",
+        "all_tmp_trees_removed", "budget_strict", "canonical_unchanged", "host_match",
         "isolation_valid_and_undisturbed", "junit_identity_sets_match_by_shard",
         "remaining_budget_all_stages", "run_manifest_matches_schedule",
         "submodules_materialized",
@@ -2116,6 +2379,60 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         expected_runs = (42 if expected_mode == "full" else 6)
         if len(root["runs"]) != expected_runs:
             raise ContractError("completed receipt has the wrong total run count")
+        tmp_cleanups = cleanup["tmp_tree_cleanups"]
+        capacity_checks = cleanup["tmp_capacity_checks"]
+        if (
+            len(tmp_cleanups) != expected_runs + 1
+            or len(capacity_checks) != expected_runs - 1
+        ):
+            raise ContractError("completed receipt has incomplete TMP cleanup/capacity evidence")
+        if dict(tmp_cleanups[0]) != {
+            "global_run_index": -1,
+            "purpose": "setup-import-probe",
+            "removed": True,
+            "usage_bytes_before_cleanup": tmp_cleanups[0]["usage_bytes_before_cleanup"],
+        }:
+            raise ContractError("completed receipt has invalid import-probe TMP cleanup evidence")
+        observed_tmp_usage: list[int] = []
+        for run_index, run in enumerate(root["runs"]):
+            cleanup_row = tmp_cleanups[run_index + 1]
+            expected_cleanup = {
+                "global_run_index": run_index,
+                "purpose": "measurement",
+                "removed": True,
+                "usage_bytes_before_cleanup": cleanup_row["usage_bytes_before_cleanup"],
+            }
+            if dict(cleanup_row) != expected_cleanup:
+                raise ContractError("completed receipt TMP cleanup order differs from runs")
+            if run_index:
+                capacity_row = capacity_checks[run_index - 1]
+                observed_max = max(observed_tmp_usage)
+                observed_min = min(observed_tmp_usage)
+                observed_mean = sum(observed_tmp_usage) // len(observed_tmp_usage)
+                scaled_observed_max = -(
+                    -(observed_max * observed_max) // observed_min
+                )
+                required = scaled_observed_max + observed_mean
+                expected_capacity = {
+                    "free_bytes": capacity_row["free_bytes"],
+                    "global_run_index": run_index,
+                    "observed_max_bytes": observed_max,
+                    "observed_mean_reserve_bytes": observed_mean,
+                    "observed_min_bytes": observed_min,
+                    "observed_run_count": run_index,
+                    "passed": capacity_row["passed"],
+                    "required_bytes": required,
+                    "safety_factor_denominator_bytes": observed_min,
+                    "safety_factor_numerator_bytes": observed_max,
+                    "scaled_observed_max_bytes": scaled_observed_max,
+                }
+                if dict(capacity_row) != expected_capacity:
+                    raise ContractError(
+                        "completed receipt TMP capacity evidence differs from observations"
+                    )
+            observed_tmp_usage.append(
+                int(cleanup_row["usage_bytes_before_cleanup"])
+            )
         validate_run_manifest(root["runs"], expected_blocks)
         validate_junit_identity_sets(root["runs"])
         measured = [run for run in root["runs"] if run["analysis_included"]]
