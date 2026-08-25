@@ -67,25 +67,26 @@ def _verifier_run(trace_dir: str, expected_commits: int) -> dict:
     except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
         raise RuntimeError(f"cannot parse verifier output rc={proc.returncode}: {proc.stdout[:300]}") from exc
 
-def _dry_run(out: Path, pin: str) -> dict:
+def _dry_run(out: Path, pin: str, cc: str, cxx: str) -> dict:
     genomes = [{"id": name, "defines": defines, "run_argv": _run_argv("<trace-enabled-ycsb_silo.exe>")} for name, defines in GENOMES]
     verifier = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier", "<trace-dir>", "--json", "--quiet", "--expected-commits", "<commits>"]
-    return {"mode": "dry-run", "env_tag": ENV_TAG, "ccbench_commit": pin, "output": str(out), "output_exists": out.exists(), "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "numactl": NUMA, "workload_argv": WORKLOAD_ARGV, "genomes": genomes, "verifier_argv": verifier}
+    return {"mode": "dry-run", "env_tag": ENV_TAG, "ccbench_commit": pin, "cc": cc, "cxx": cxx, "output": str(out), "output_exists": out.exists(), "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "numactl": NUMA, "workload_argv": WORKLOAD_ARGV, "genomes": genomes, "verifier_argv": verifier}
 
 def main() -> int:
     parser = argparse.ArgumentParser(); parser.add_argument("--out", default=str(DEFAULT_OUT)); parser.add_argument("--dry-run", action="store_true"); args = parser.parse_args()
     out = Path(args.out); out = out if out.is_absolute() else ROOT / out
     submodule = ROOT / "external" / "ccbench"; pin = _current_pin(submodule)
-    if args.dry_run: print(json.dumps(_dry_run(out, pin), indent=2, ensure_ascii=False)); return 0
+    cc, cxx = buildcache.compilers_for_current_site()
+    if args.dry_run: print(json.dumps(_dry_run(out, pin, cc, cxx), indent=2, ensure_ascii=False)); return 0
     if out.exists(): raise FileExistsError(f"refusing to overwrite existing output: {out}")
     site = site_policy.current_site()
     if site_policy.refuses_heavy_work(site): raise RuntimeError(site_policy.heavy_work_refusal(site, "rr5 cost measurement"))
     _assert_single_tenant(); free_gb = _assert_free_disk(tempfile.gettempdir()); assert_pinned_clean(str(submodule), pin)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    payload = {"schema_version": "a2-perf-verify-cost/v1", "env_tag": ENV_TAG, "ccbench_commit": pin, "clocks_per_us": CLOCKS_PER_US, "workload_argv": WORKLOAD_ARGV, "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "free_disk_gb_at_start": free_gb, "genomes": []}
+    payload = {"schema_version": "a2-perf-verify-cost/v1", "env_tag": ENV_TAG, "ccbench_commit": pin, "cc": cc, "cxx": cxx, "clocks_per_us": CLOCKS_PER_US, "workload_argv": WORKLOAD_ARGV, "timeouts_seconds": {"run": RUN_TIMEOUT_S, "verifier": VERIFIER_TIMEOUT_S}, "minimum_free_disk_gb": MIN_FREE_DISK_GB, "free_disk_gb_at_start": free_gb, "genomes": []}
     for name, defines in GENOMES:
-        genome = Genome("silo", defines); evidence = source_digest.resolve_evidence(genome, pin); admission = derive_build_admission(build_context, evidence)
-        build = buildcache.build(genome, ccbench_commit=pin, trace=True, admission=admission, build_context=build_context, source_evidence=evidence)
+        genome = Genome("silo", defines); evidence = source_digest.resolve_evidence(genome, pin, cxx=cxx); admission = derive_build_admission(build_context, evidence)
+        build = buildcache.build(genome, ccbench_commit=pin, trace=True, cc=cc, cxx=cxx, admission=admission, build_context=build_context, source_evidence=evidence)
         run, trace_dir = _run_once(build.binary)
         try: verifier = _verifier_run(trace_dir, run["commits"])
         finally: shutil.rmtree(trace_dir, ignore_errors=True)
