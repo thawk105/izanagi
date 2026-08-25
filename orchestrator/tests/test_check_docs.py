@@ -2146,12 +2146,12 @@ def test_backlog_guard_preservation_rule_still_rejects_implicit_drop():
 def test_raised_rulings_budget_still_rejects_new_limit():
     """N22: rulings の引上げ後予算を 1 byte 超える入力で gate 生存を固定する。"""
 
-    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_000
+    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_623
 
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_001)
-        _assert_violation(root, ".claude/commands/rulings.md", "予算 5000 bytes")
+        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_624)
+        _assert_violation(root, ".claude/commands/rulings.md", "予算 5623 bytes")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
