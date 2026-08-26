@@ -241,7 +241,9 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
         claim_path.parent.mkdir(parents=True, exist_ok=True)
         claim_path.write_text(json.dumps({
             "campaign_identity": campaign_id,
-            "protocol_digest": "a" * 64,
+            "protocol_digest": hashlib.sha256(
+                ident.canonical_preimage(cfg).encode("utf-8")
+            ).hexdigest(),
             "job_id": (
                 "945411.nqsv" if workload_id == "rr5" else "945412.nqsv"),
             "host": "bnode001",
@@ -871,11 +873,30 @@ def test_submission_visibility_uses_the_full_real_qstat_fixture(tmp_path):
         "55bc7a633cd903bfa592ab71c4f347b6a50cce7ca295acb068de50b390ef830d"
     )
     fixture = fixture_bytes.decode("utf-8")
-    submission["jobs"][0]["qstat_visibility"]["stdout"] = fixture
-    assert submission["jobs"][0]["qstat_visibility"]["stdout"] == fixture
     assert len(fixture.splitlines()) == 94
     assert "Current State           = Staging" in fixture
     assert "Request State = RUN" not in fixture
+    historical_stdout = (
+        "/work/1/SFC/tanab/izanagi-measurements/"
+        "dev-wave-paper-story-a2-cert-20260824/t1647-20260825/"
+        "scheduler/job.stdout")
+    historical_stderr = historical_stdout.removesuffix("job.stdout") + "job.stderr"
+    for workload_id, request_id in (
+            ("rr5", "945411.nqsv"), ("rr50", "945412.nqsv")):
+        expected = fixture.replace("945411.nqsv", request_id)
+        expected = expected.replace(
+            historical_stdout,
+            f"/synthetic/attempt/jobs/{workload_id}/scheduler/job.stdout")
+        expected = expected.replace(
+            historical_stderr,
+            f"/synthetic/attempt/jobs/{workload_id}/scheduler/job.stderr")
+        fanout_fixture = QSTAT_FANOUT_VISIBILITY_FIXTURES[
+            workload_id].read_text(encoding="utf-8")
+        assert fanout_fixture == expected
+        assert len(fanout_fixture.splitlines()) == 94
+        assert submission["jobs"][
+            0 if workload_id == "rr5" else 1]["qstat_visibility"]["stdout"] \
+            == fanout_fixture
     assert A2.SUBMISSION_SCHEMA == "paper-story-a2-submission-receipt/v4"
     assert A2._SUBMISSION_VISIBLE_STATES == frozenset({"QUE", "RUN"})
     _assert_real_submission_visibility_is_accepted(
@@ -890,7 +911,7 @@ def test_submission_visibility_rejects_another_request_block(tmp_path):
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
     mutant["jobs"][0]["qstat_visibility"]["stdout"] = (
-        "Request ID: 999999.nqsv\nCurrent State = Running\n"
+        "Request ID: 999999.nqsv\n"
         + mutant["jobs"][0]["qstat_visibility"]["stdout"])
     with pytest.raises(A2.CertificationError, match="request ID count is not one"):
         A2._validate_submission_receipt(
@@ -1075,12 +1096,11 @@ def test_m11_materializer_stages_marker_before_single_noreplace_rename(
     acquisition, _ = _write_receipt_bundle(policy, root)
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
-    report = {
-        "schema_version": A2.CERTIFICATION_SCHEMA,
-        "attempt_id": root.name,
-        "protocol_sha256": policy.protocol_sha256,
-        "status": "reject",
-    }
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root)
+    report["source_commit"] = evidence["source_commit"]
     repo = tmp_path / "repo"
     repo.mkdir()
     original = A2._rename_noreplace
@@ -1105,6 +1125,14 @@ def test_m11_materializer_stages_marker_before_single_noreplace_rename(
     materialized = json.loads(
         (destination / "certification.json").read_text(encoding="utf-8"))
     assert base64.b64decode(materialized["policy_bytes_base64"]) == policy.raw_bytes
+
+    v2_report = copy.deepcopy(report)
+    v2_report["schema_version"] = "paper-story-a2-certification-result/v2"
+    v2_repo = tmp_path / "v2-repo"
+    v2_repo.mkdir()
+    with pytest.raises(A2.CertificationError, match="identity differ"):
+        A2.materialize(policy, v2_report, evidence, repo_root=v2_repo)
+    assert not (v2_repo / policy.tracked_destination).exists()
 
 
 def test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base(tmp_path):
@@ -1287,22 +1315,46 @@ def test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes(tmp_path
     assert A2.finalize_raw_manifest(
         policy, direct_root, CURRENT_PIN).is_file()
 
-    completion, _ = A2._read_json(root / "receipts" / "completion.json")
-    submission, _ = A2._read_json(root / "receipts" / "submission.json")
+    polluted_root = A2.preregister_attempt(
+        policy, "attempt-job-local-raw-extra", CURRENT_PIN)
+    _write_receipt_bundle(policy, polluted_root, claim_manifest=False)
+    (polluted_root / "jobs" / "rr5" / "raw" / "decoy.json").write_text(
+        "{}\n", encoding="utf-8")
+    with pytest.raises(A2.CertificationError, match="inventory is not closed"):
+        A2.finalize_raw_manifest(policy, polluted_root, CURRENT_PIN)
+
+    consumer_root = A2.preregister_attempt(
+        policy, "attempt-consumer-raw-extra", CURRENT_PIN)
+    consumer_acquisition, _ = _write_receipt_bundle(policy, consumer_root)
+    (consumer_root / "jobs" / "rr50" / "raw" / "decoy.json").write_text(
+        "{}\n", encoding="utf-8")
+    consumer_evidence = A2.validate_acquisition_bundle(
+        policy, consumer_acquisition, current_pin=CURRENT_PIN)
+    assert consumer_evidence["raw_manifest_valid"] is False
+    assert "inventory is not closed" in consumer_evidence["raw_manifest_reason"]
+
+    manifest_root = A2.preregister_attempt(
+        policy, "attempt-manifest-inventory", CURRENT_PIN)
+    _, manifest_submission = _write_receipt_bundle(policy, manifest_root)
+    completion, _ = A2._read_json(
+        manifest_root / "receipts" / "completion.json")
     submission_binding = A2._validate_submission_receipt(
-        policy, submission, root.name, root, CURRENT_PIN)
+        policy, manifest_submission, manifest_root.name, manifest_root,
+        CURRENT_PIN)
     completion_binding = A2._validate_completion_receipt(
-        policy, completion, root.name, root, CURRENT_PIN, submission_binding)
+        policy, completion, manifest_root.name, manifest_root, CURRENT_PIN,
+        submission_binding)
     manifest_path = Path(completion["raw_result_manifest"])
     manifest, _ = A2._read_json(manifest_path)
     manifest["files"]["jobs/rr5/raw/extra.json"] = "0" * 64
-    mutant_path = root / "raw-manifest-mutant.json"
+    mutant_path = manifest_root / "raw-manifest-mutant.json"
     A2.write_json_x(mutant_path, manifest)
     with pytest.raises(A2.CertificationError, match="inventory"):
         A2._load_raw_manifest_bundle(
             policy, mutant_path,
             hashlib.sha256(mutant_path.read_bytes()).hexdigest(),
-            attempt_id=root.name, attempt_root=root, current_pin=CURRENT_PIN,
+            attempt_id=manifest_root.name, attempt_root=manifest_root,
+            current_pin=CURRENT_PIN,
             job_bindings=completion_binding["jobs"],
         )
 
@@ -1313,14 +1365,31 @@ def test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes(tmp_path
         evidence["reservation_results"]["rr5"]["environment"])
     A2._validate_claim_reservation_binding(
         claim, campaign_id=raw["campaign_evidence"]["campaign_id"],
-        request_id="945411.nqsv", reservation_binding=binding)
+        request_id="945411.nqsv", reservation_binding=binding,
+        expected_protocol_digest=claim["protocol_digest"])
+    mutant_claim = dict(claim)
+    mutant_claim["protocol_digest"] = "0" * 64
+    with pytest.raises(A2.CertificationError, match="protocol digest"):
+        A2._campaign_observation(
+            policy, policy.cell(raw["cell_id"]),
+            str(Path(raw["campaign_evidence"]["lock_path"]).parent),
+            root.name, CURRENT_PIN,
+            claim_bytes=A2._canonical_json(mutant_claim))
+    with pytest.raises(A2.CertificationError, match="protocol digest"):
+        A2._validate_claim_reservation_binding(
+            mutant_claim,
+            campaign_id=raw["campaign_evidence"]["campaign_id"],
+            request_id="945411.nqsv", reservation_binding=binding,
+            expected_protocol_digest=claim["protocol_digest"])
+
     mutant_claim = dict(claim)
     mutant_claim["job_id"] = "another-request.nqsv"
     with pytest.raises(A2.CertificationError, match="submission or reservation"):
         A2._validate_claim_reservation_binding(
             mutant_claim,
             campaign_id=raw["campaign_evidence"]["campaign_id"],
-            request_id="945411.nqsv", reservation_binding=binding)
+            request_id="945411.nqsv", reservation_binding=binding,
+            expected_protocol_digest=claim["protocol_digest"])
 
     failed_root = A2.preregister_attempt(
         policy, "attempt-one-driver-failed", CURRENT_PIN)
@@ -1364,12 +1433,67 @@ def test_cli_has_no_policy_injection_surface():
         A2._parser().parse_args(["--policy", "/tmp/alternate.json", "preregister"])
 
 
-def test_official_run_observes_and_passes_current_toolchain_manifest():
+def test_official_run_observes_and_passes_current_toolchain_manifest(
+        tmp_path, monkeypatch):
     source = inspect.getsource(A2.run_workload)
     observed = "buildcache.observed_toolchain_manifest("
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
     assert observed in source and passed in source
     assert source.index(observed) < source.index("summary = run_campaign(")
+
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "actual-run-workload-producer", CURRENT_PIN)
+    job_root = A2.workload_job_root(policy, attempt, "rr5")
+    raw_root = job_root / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    calls = {}
+
+    def git_run(command, **kwargs):
+        if command[:3] == ["git", "rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(command, 0, CURRENT_PIN + "\n", "")
+        if command[:3] == ["git", "status", "--porcelain"]:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(command)
+
+    def producer(cfg, genomes, *args, output_root, **kwargs):
+        cfg = ident.bind_admission_policy(
+            cfg, kwargs["build_context"].policy)
+        layout = loop.campaign_layout(
+            str(ident.campaign_id(cfg)), output_root).ensure()
+        calls["output_root"] = Path(output_root)
+        calls["layout_root"] = Path(layout.root)
+        return A2.SimpleNamespace(
+            results=[A2.SimpleNamespace() for _ in genomes],
+            skipped=0, layout_root=layout.root)
+
+    def raw_producer(_policy, cell, *, layout_root, **kwargs):
+        assert Path(layout_root) == calls["layout_root"]
+        return {"cell_id": cell.cell_id, "terminal": "commit"}
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    monkeypatch.setattr(loop, "run_campaign", producer)
+    monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
+    monkeypatch.setattr(
+        buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
+    monkeypatch.setattr(
+        buildcache, "observed_toolchain_manifest",
+        lambda *_args, **_kwargs: {"fixture": "toolchain"})
+    monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
+
+    A2.run_workload(
+        policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
+        current_pin=CURRENT_PIN, dependency_prefix=dependency,
+        ccbench_dir=ccbench, log=lambda *_args: None)
+    assert calls["output_root"] == job_root
+    assert calls["layout_root"].parent == job_root / "campaigns"
+    assert not (job_root / "campaigns" / "campaigns").exists()
+    assert {path.name for path in raw_root.iterdir()} == {
+        "rr5-stock.json", "rr5-fixed10.json"}
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():
@@ -1427,6 +1551,7 @@ def test_synthetic_pbs_free_preregister_through_analyze_positive(tmp_path):
     report = A2.collect_results(
         policy, A2.load_raw_results(policy, root), attempt_id=root.name,
         current_pin=CURRENT_PIN, request_ids=evidence["request_ids"])
+    report["source_commit"] = evidence["source_commit"]
     repo = tmp_path / "repo"
     repo.mkdir()
     destination = A2.materialize(policy, report, evidence, repo_root=repo)

@@ -87,6 +87,13 @@ def test_job_body_is_compute_only_sequential_and_never_submits():
     assert submitter.index("submission-precheck") < submitter.index("check_quota")
     assert submitter.index("submission-precheck") < submitter.index(
         "ratified-qsub -- qsub")
+    finish_start = submitter.index('if [[ "$MODE" == finish-group ]]')
+    finish_exit = submitter.index("  exit 0", finish_start)
+    for submit_only_gate in (
+            "for command_name in git qsub", "check_quota >/dev/null",
+            "QUEUE_STATE=$(qstat -Q)",
+            'git status --porcelain --untracked-files=no'):
+        assert finish_exit < submitter.index(submit_only_gate)
     precheck = inspect.getsource(A2.submission_ratification_precheck)
     assert precheck.index("capture_contract_loader_binding()") < precheck.index(
         "verify_ratified_contract_loader_binding(binding)")
@@ -312,8 +319,16 @@ def test_compute_preflight_rejects_each_m7_boundary(tmp_path, monkeypatch, mutat
     dependency = tmp_path / ("deps-" + mutation)
     dependency.mkdir()
     repo = REPO
+    race_target = attempt / "jobs" / "rr5" / "raw"
     if mutation == "stale-raw":
-        (attempt / "jobs" / "rr5" / "raw").mkdir()
+        original_mkdir = Path.mkdir
+
+        def racing_mkdir(path, *args, **kwargs):
+            if path == race_target:
+                original_mkdir(path, mode=0o700)
+            return original_mkdir(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "mkdir", racing_mkdir)
 
     def run(command, **kwargs):
         if command[:3] == ["git", "rev-parse", "HEAD"]:
@@ -325,13 +340,16 @@ def test_compute_preflight_rejects_each_m7_boundary(tmp_path, monkeypatch, mutat
 
     monkeypatch.setattr(A2.subprocess, "run", run)
     environment = _reservation_environment(repo)
-    with pytest.raises(A2.CertificationError):
+    with pytest.raises(A2.CertificationError) as error:
         A2.compute_preflight(
             policy, workload_id="rr5", attempt_root=attempt,
             raw_root=attempt / "jobs" / "rr5" / "raw",
             expected_head="head-1", repo_root=repo,
             dependency_prefix=dependency, environ=environment,
             hostname="pegasus01" if mutation == "login-host" else "bnode001")
+    if mutation == "stale-raw":
+        assert isinstance(error.value.__cause__, FileExistsError)
+        assert race_target.is_dir()
 
 
 def test_compute_preflight_requires_real_pbs_and_reservation_bindings(

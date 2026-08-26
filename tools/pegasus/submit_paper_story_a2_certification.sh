@@ -62,29 +62,8 @@ if [[ ! "$host" =~ ^pegasus0[0-9]+([.].*)?$ ]]; then
   echo "A-2 submitter is login-side only" >&2
   exit 2
 fi
-for command_name in git qstat qsub check_quota sha256sum realpath; do
-  command -v -- "$command_name" >/dev/null 2>&1 || {
-    echo "required submission command is unavailable: $command_name" >&2
-    exit 2
-  }
-done
-check_quota >/dev/null
-QUEUE_STATE=$(qstat -Q)
-printf '%s\n' "$QUEUE_STATE" | "$PYTHON_BIN" -I -B -c '
-import re, sys
-text = sys.stdin.read()
-raise SystemExit(0 if "gen_S" in text
-                 and re.search(r"(?i)\b(ENA|ENABLE(?:D)?)\b", text)
-                 and re.search(r"(?i)\b(ACT|ACTIVE)\b", text) else 1)
-' || {
-  echo "gen_S is not ENA/ACT" >&2
-  exit 2
-}
-
-SOURCE_COMMIT=$(git rev-parse HEAD)
-[[ -n "$SOURCE_COMMIT" ]] || { echo "repository HEAD is unavailable" >&2; exit 2; }
-[[ -z "$(git status --porcelain --untracked-files=no)" ]] || {
-  echo "repository tracked worktree is not clean" >&2
+command -v -- qstat >/dev/null 2>&1 || {
+  echo "required completion command is unavailable: qstat" >&2
   exit 2
 }
 
@@ -110,6 +89,32 @@ PY
     --current-pin "${FINISH_VALUES[1]}"
   exit 0
 fi
+
+for command_name in git qsub check_quota sha256sum realpath; do
+  command -v -- "$command_name" >/dev/null 2>&1 || {
+    echo "required submission command is unavailable: $command_name" >&2
+    exit 2
+  }
+done
+check_quota >/dev/null
+QUEUE_STATE=$(qstat -Q)
+printf '%s\n' "$QUEUE_STATE" | "$PYTHON_BIN" -I -B -c '
+import re, sys
+text = sys.stdin.read()
+raise SystemExit(0 if "gen_S" in text
+                 and re.search(r"(?i)\b(ENA|ENABLE(?:D)?)\b", text)
+                 and re.search(r"(?i)\b(ACT|ACTIVE)\b", text) else 1)
+' || {
+  echo "gen_S is not ENA/ACT" >&2
+  exit 2
+}
+
+SOURCE_COMMIT=$(git rev-parse HEAD)
+[[ -n "$SOURCE_COMMIT" ]] || { echo "repository HEAD is unavailable" >&2; exit 2; }
+[[ -z "$(git status --porcelain --untracked-files=no)" ]] || {
+  echo "repository tracked worktree is not clean" >&2
+  exit 2
+}
 
 [[ -n "$CCBENCH_ROOT" && -n "$DEPENDENCY_PREFIX_SOURCE" ]] || {
   usage

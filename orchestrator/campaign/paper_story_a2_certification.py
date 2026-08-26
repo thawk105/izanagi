@@ -640,8 +640,7 @@ def raw_result_claim_path(policy: Policy, workload_id: str,
     from . import env_contract
     from .layout import env_scope_dir
 
-    output_root = workload_job_root(
-        policy, attempt_root, workload_id) / "campaigns"
+    output_root = workload_job_root(policy, attempt_root, workload_id)
     contract = env_contract.lookup("pegasus")
     return (Path(env_scope_dir(contract.env_tag, str(output_root)))
             / "claims" / f"{campaign_id}.claim")
@@ -784,6 +783,11 @@ def _normalize_request_id(value: object) -> str:
 def _validate_group_coordinates(policy: Policy,
                                 bindings: Sequence[Mapping[str, Any]]) -> None:
     expected_workloads = workload_ids(policy)
+    # The production receipt validators have already enforced workload order and
+    # canonical per-workload log paths before constructing these bindings.  Keep
+    # those two checks here as redundant defence for direct/helper callers, not
+    # as independent production barriers.  Request-ID distinctness remains an
+    # independent cross-job barrier at this layer.
     if [binding.get("workload") for binding in bindings] != list(expected_workloads):
         raise CertificationError("group workload order differs from policy")
     request_ids = [
@@ -2100,6 +2104,36 @@ def _event_payload(records: Sequence[object], stage: str,
     return matches[0] if matches else None
 
 
+def _campaign_config_binding(
+        policy: Policy, workload_id: str, attempt_id: str, current_pin: str,
+        observed_preimage: object) -> tuple[str, str]:
+    """Reconstruct the bound campaign identity and its full protocol digest."""
+    from . import ident
+    from .model import CampaignConfig
+
+    expected = campaign_preimage(policy, workload_id, attempt_id, current_pin)
+    if (type(observed_preimage) is not dict
+            or set(observed_preimage)
+            != set(expected) | {ident.ADMISSION_POLICY_SEARCH_KEY}
+            or any(observed_preimage.get(key) != value
+                   for key, value in expected.items())):
+        raise CertificationError("campaign preimage and protocol differ")
+    cfg = CampaignConfig(
+        spec_slug=f"paper-story-a2-{workload_id}",
+        search_tag=f"{policy.study}-{workload_id}",
+        spec_content=_canonical_json(expected).decode("ascii"),
+        ccbench_commit=current_pin,
+        search_config=dict(observed_preimage),
+        trial=attempt_id,
+    )
+    return (
+        str(ident.campaign_id(cfg)),
+        hashlib.sha256(
+            ident.canonical_preimage(cfg).encode("utf-8")
+        ).hexdigest(),
+    )
+
+
 def _campaign_observation(
         policy: Policy, cell: CellSpec, layout_root: str, attempt_id: str,
         current_pin: str, *, lock_bytes: Optional[bytes] = None,
@@ -2109,7 +2143,6 @@ def _campaign_observation(
     from . import campaign_lock as campaign_lock_codec
     from . import ident
     from .layout import CampaignLayout
-    from .model import CampaignConfig
 
     layout_path = _lexical_absolute_path(layout_root, "campaign layout root")
     expected_campaign_parent = workload_job_root(
@@ -2141,15 +2174,9 @@ def _campaign_observation(
             or identity.get("search_tag") != expected_search_tag
             or identity.get("trial") != attempt_id):
         raise CertificationError("campaign lock identity does not match A-2 protocol")
-    reconstructed_cfg = CampaignConfig(
-        spec_slug=f"paper-story-a2-{cell.workload_id}",
-        search_tag=expected_search_tag,
-        spec_content=identity["spec_content"],
-        ccbench_commit=current_pin,
-        search_config=dict(observed),
-        trial=attempt_id,
-    )
-    if str(ident.campaign_id(reconstructed_cfg)) != layout_path.name:
+    campaign_id, expected_protocol_digest = _campaign_config_binding(
+        policy, cell.workload_id, attempt_id, current_pin, observed)
+    if campaign_id != layout_path.name:
         raise CertificationError("campaign layout name differs from lock identity")
     claim_path = raw_result_claim_path(
         policy, cell.workload_id, policy.durable_base / attempt_id,
@@ -2158,6 +2185,10 @@ def _campaign_observation(
         str(claim_path), policy.durable_base / attempt_id, "campaign claim")
     observed_claim_bytes = (
         claim_path.read_bytes() if claim_bytes is None else claim_bytes)
+    claim = _decode_campaign_claim(observed_claim_bytes, "campaign claim")
+    if claim["protocol_digest"] != expected_protocol_digest:
+        raise CertificationError(
+            "campaign claim protocol digest differs from campaign config")
     evidence = {
         "campaign_id": layout_path.name,
         "lock_path": str(lock_path),
@@ -2479,9 +2510,11 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     )
     contract = env_contract.lookup("pegasus")
     authorization = env_contract.authorize("pegasus")
-    output_root = job_root / "campaigns"
+    output_root = job_root
     cache_root = job_root / "cache"
     if (output_root.is_symlink() or not output_root.is_dir()
+            or (job_root / "campaigns").is_symlink()
+            or not (job_root / "campaigns").is_dir()
             or cache_root.is_symlink() or not cache_root.is_dir()):
         raise CertificationError("workload campaign or cache root is unavailable")
     resolved_output = resolve_campaign_output_root("official", str(output_root))
@@ -2554,7 +2587,10 @@ def _decode_campaign_claim(raw: bytes, label: str) -> dict[str, Any]:
 
 def _validate_claim_reservation_binding(
         claim: Mapping[str, Any], *, campaign_id: str, request_id: str,
-        reservation_binding: object) -> None:
+        reservation_binding: object, expected_protocol_digest: str) -> None:
+    if claim.get("protocol_digest") != expected_protocol_digest:
+        raise CertificationError(
+            "campaign claim protocol digest differs from campaign config")
     if (_normalize_request_id(claim.get("job_id")) != request_id
             or _normalize_request_id(getattr(reservation_binding, "job_id", None))
             != request_id
@@ -2566,20 +2602,44 @@ def _validate_claim_reservation_binding(
 
 
 def load_raw_results(policy: Policy, attempt_root: Path) -> list[dict[str, Any]]:
-    """Open only the four policy-derived raw paths; never enumerate a parent."""
+    """Open the exact cells after closing each job-local raw namespace."""
     results: list[dict[str, Any]] = []
-    for cell in policy.cells:
-        path = (workload_job_root(policy, attempt_root, cell.workload_id)
-                / "raw" / f"{cell.cell_id}.json")
-        results.append(_read_json(path)[0])
+    for workload_id in workload_ids(policy):
+        raw_root = workload_job_root(policy, attempt_root, workload_id) / "raw"
+        expected_names = {
+            f"{cell.cell_id}.json" for cell in policy.cells
+            if cell.workload_id == workload_id
+        }
+        if raw_root.is_symlink() or not raw_root.is_dir():
+            raise CertificationError(
+                "job-local raw directory inventory is not closed")
+        try:
+            entries = list(os.scandir(raw_root))
+        except OSError as exc:
+            raise CertificationError(
+                "job-local raw directory cannot be inspected") from exc
+        if ({entry.name for entry in entries} != expected_names
+                or any(entry.is_symlink()
+                       or not entry.is_file(follow_symlinks=False)
+                       for entry in entries)):
+            raise CertificationError(
+                "job-local raw directory inventory is not closed")
+        for cell in policy.cells:
+            if cell.workload_id == workload_id:
+                results.append(_read_json(raw_root / f"{cell.cell_id}.json")[0])
+    by_cell = {str(raw.get("cell_id")): raw for raw in results}
+    if set(by_cell) != {cell.cell_id for cell in policy.cells}:
+        raise CertificationError("job-local raw cell inventory is not exact")
+    results = [by_cell[cell.cell_id] for cell in policy.cells]
     return results
 
 
 def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
                           current_pin: str) -> Path:
     attempt_id, root = validate_attempt_root(policy, attempt_root)
-    # Loading opens only the four policy-derived paths.  The manifest freezes
-    # those bytes and both canonical campaign lock/WAL/claim triples.
+    # Loading closes each independently owned job-local raw directory, without
+    # enumerating the shared jobs/ parent, then opens the four policy paths.
+    # The manifest freezes those bytes and both lock/WAL/claim triples.
     raw_results = load_raw_results(policy, root)
     files = {
         f"jobs/{cell.workload_id}/raw/{cell.cell_id}.json": _sha256_file(
@@ -2611,6 +2671,17 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
                 or evidences[0] != evidences[1]):
             raise CertificationError("raw campaign evidence is incomplete or split")
         evidence = evidences[0]
+        config_bindings = {
+            _campaign_config_binding(
+                policy, workload_id, attempt_id, current_pin,
+                raw.get("campaign_preimage"))
+            for raw in workload_raw
+        }
+        if len(config_bindings) != 1:
+            raise CertificationError("raw campaign config binding is split")
+        expected_campaign_id, expected_protocol_digest = config_bindings.pop()
+        if expected_campaign_id != evidence["campaign_id"]:
+            raise CertificationError("raw campaign config identity differs")
         for kind in ("lock", "wal", "claim"):
             path = _canonical_child(
                 evidence[f"{kind}_path"], root, f"campaign {kind}")
@@ -2638,7 +2709,8 @@ def finalize_raw_manifest(policy: Policy, attempt_root: Path | str,
         _validate_claim_reservation_binding(
             claim, campaign_id=evidence["campaign_id"],
             request_id=submission_job["request_id"],
-            reservation_binding=binding)
+            reservation_binding=binding,
+            expected_protocol_digest=expected_protocol_digest)
         claims[workload_id] = {
             "campaign_id": evidence["campaign_id"],
             "claim_path": claim_path.relative_to(root).as_posix(),
@@ -2670,6 +2742,9 @@ def _load_raw_manifest_bundle(
         attempt_id: str, attempt_root: Path, current_pin: str,
         job_bindings: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
+    # This scans only independently owned jobs/<workload>/raw directories; the
+    # shared jobs/ parent remains unenumerated.
+    live_raw_results = load_raw_results(policy, attempt_root)
     manifest, manifest_bytes = _read_json(manifest_path)
     if _sha256_bytes(manifest_bytes) != manifest_sha256:
         raise CertificationError("completion raw manifest hash mismatch")
@@ -2734,6 +2809,9 @@ def _load_raw_manifest_bundle(
                 raise CertificationError("campaign evidence is not manifest-bound")
             campaign_members.add(member)
         raw_results.append(value)
+    if [raw.get("cell_id") for raw in live_raw_results] != [
+            raw.get("cell_id") for raw in raw_results]:
+        raise CertificationError("live and frozen raw cell order differs")
     if campaign_members != set(files) - raw_names:
         raise CertificationError(
             "campaign lock/WAL/claim manifest members are not exact")
@@ -2766,6 +2844,21 @@ def _load_raw_manifest_bundle(
             raise CertificationError("embedded campaign claim differs from frozen bytes")
         binding = binding_by_workload[workload_id]
         reservation_binding = binding["reservation_binding"]
+        workload_raw = [
+            raw for raw in raw_results
+            if policy.cell(raw["cell_id"]).workload_id == workload_id
+        ]
+        config_bindings = {
+            _campaign_config_binding(
+                policy, workload_id, attempt_id, current_pin,
+                raw.get("campaign_preimage"))
+            for raw in workload_raw
+        }
+        if len(workload_raw) != 2 or len(config_bindings) != 1:
+            raise CertificationError("manifest campaign config binding is split")
+        expected_campaign_id, expected_protocol_digest = config_bindings.pop()
+        if expected_campaign_id != claim_entry["campaign_id"]:
+            raise CertificationError("manifest campaign config identity differs")
         reservation_relative = claim_entry["reservation_result"]
         expected_reservation = (
             workload_job_root(policy, attempt_root, workload_id)
@@ -2782,7 +2875,8 @@ def _load_raw_manifest_bundle(
         _validate_claim_reservation_binding(
             claim, campaign_id=claim_entry["campaign_id"],
             request_id=binding["request_id"],
-            reservation_binding=reservation_binding)
+            reservation_binding=reservation_binding,
+            expected_protocol_digest=expected_protocol_digest)
         workload_evidence = [
             raw["campaign_evidence"] for raw in raw_results
             if policy.cell(raw["cell_id"]).workload_id == workload_id
@@ -2822,15 +2916,91 @@ def _rename_noreplace(source: Path, destination: Path) -> None:
         raise OSError(error_number, os.strerror(error_number), str(destination))
 
 
+_CERTIFICATION_RESULT_COMMON_KEYS = {
+    "schema_version", "study", "protocol_schema", "protocol_sha256",
+    "policy_sha256", "policy_bytes_base64", "attempt_id", "request_ids",
+    "current_pin", "source_commit", "cells", "effects", "status",
+    "a4_noise_floor_status", "legacy_role",
+    "smallest_observed_sufficient_in_this_two_point_protocol",
+    "global_minimality_established", "compile_out_evidence_scope",
+    "independent_observation_limits",
+}
+_CERTIFICATION_RESULT_STATUSES = {
+    "observed-positive", "reject", "indeterminate", "performance-indeterminate",
+}
+
+
+def _validate_certification_result(
+        policy: Policy, report: Mapping[str, Any],
+        evidence: Mapping[str, Any]) -> None:
+    """Validate the two exact v3 result shapes before creating a stage."""
+    analysis_keys = _CERTIFICATION_RESULT_COMMON_KEYS | {"historical_context"}
+    indeterminate_keys = _CERTIFICATION_RESULT_COMMON_KEYS | {"reason"}
+    if type(report) is not dict or frozenset(report) not in {
+            frozenset(analysis_keys), frozenset(indeterminate_keys)}:
+        raise CertificationError(
+            "certification result is missing required or has extra fields")
+    acquisition = evidence.get("acquisition")
+    expected_policy_bytes = base64.b64encode(policy.raw_bytes).decode("ascii")
+    if (type(acquisition) is not dict
+            or report["schema_version"] != CERTIFICATION_SCHEMA
+            or report["study"] != policy.study
+            or report["protocol_schema"] != POLICY_SCHEMA
+            or report["protocol_sha256"] != policy.protocol_sha256
+            or report["policy_sha256"] != policy.bytes_sha256
+            or report["policy_bytes_base64"] != expected_policy_bytes
+            or report["attempt_id"] != evidence.get("attempt_id")
+            or report["current_pin"] != acquisition.get("current_pin")
+            or report["source_commit"] != evidence.get("source_commit")
+            or acquisition.get("protocol_sha256") != policy.protocol_sha256):
+        raise CertificationError(
+            "certification result and terminal evidence identity differ")
+    request_ids = report["request_ids"]
+    expected_workloads = workload_ids(policy)
+    if (type(request_ids) is not dict
+            or list(request_ids) != list(expected_workloads)
+            or request_ids != evidence.get("request_ids")):
+        raise CertificationError(
+            "certification result request IDs differ from policy or evidence")
+    normalized_request_ids = [
+        _normalize_request_id(request_ids[workload_id])
+        for workload_id in expected_workloads
+    ]
+    if (normalized_request_ids != list(request_ids.values())
+            or len(set(normalized_request_ids)) != len(normalized_request_ids)):
+        raise CertificationError(
+            "certification result request IDs are not canonical and distinct")
+    if (type(report["cells"]) is not list
+            or type(report["effects"]) is not dict
+            or type(report["status"]) is not str
+            or report["status"] not in _CERTIFICATION_RESULT_STATUSES
+            or report["a4_noise_floor_status"] != "open"
+            or report["legacy_role"] != "historically inherited companion"
+            or report[
+                "smallest_observed_sufficient_in_this_two_point_protocol"] is not None
+            or report["global_minimality_established"] is not False
+            or report["compile_out_evidence_scope"] != COMPILE_OUT_SCOPE
+            or type(report["independent_observation_limits"]) is not dict):
+        raise CertificationError("certification result required fields are malformed")
+    if "historical_context" in report:
+        historical = report["historical_context"]
+        if (type(historical) is not dict
+                or set(historical) != {"ccbench_commit", "comparison_input"}
+                or historical["ccbench_commit"]
+                != policy.document["historical_reference"]["ccbench_commit"]
+                or historical["comparison_input"] is not False):
+            raise CertificationError(
+                "certification result historical context is malformed")
+    elif (report["status"] != "indeterminate"
+          or type(report["reason"]) is not str or not report["reason"]
+          or report["cells"] != [] or report["effects"] != {}):
+        raise CertificationError(
+            "indeterminate certification result fields are malformed")
+
+
 def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str, Any],
                 *, repo_root: Path | str) -> Path:
-    if (report.get("attempt_id") != evidence.get("attempt_id")
-            or (report.get("request_ids") is not None
-                and report.get("request_ids") != evidence.get("request_ids"))
-            or report.get("protocol_sha256") != policy.protocol_sha256
-            or evidence.get("acquisition", {}).get("protocol_sha256")
-            != policy.protocol_sha256):
-        raise CertificationError("materializer report and terminal evidence differ")
+    _validate_certification_result(policy, report, evidence)
     root = Path(repo_root).resolve(strict=True)
     destination = (root / policy.tracked_destination).resolve()
     expected = root.joinpath(*policy.tracked_destination.parts)
@@ -2843,8 +3013,6 @@ def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str
     published = False
     try:
         encoded_policy = base64.b64encode(policy.raw_bytes).decode("ascii")
-        if report.get("policy_bytes_base64", encoded_policy) != encoded_policy:
-            raise CertificationError("report policy bytes differ from canonical policy")
         certification_bytes = _canonical_json({
             **report,
             "policy_sha256": policy.bytes_sha256,
@@ -2958,7 +3126,10 @@ def compute_preflight(policy: Policy, *, workload_id: str,
     dependency = Path(dependency_prefix).resolve(strict=True)
     if dependency.is_symlink() or not dependency.is_dir():
         raise CertificationError("dependency staging prefix is unavailable")
-    requested_raw.mkdir(mode=0o700, exist_ok=False)
+    try:
+        requested_raw.mkdir(mode=0o700, exist_ok=False)
+    except FileExistsError as exc:
+        raise CertificationError("raw root lost the create-only race") from exc
     _fsync_dir(job_root)
     return requested_raw
 
