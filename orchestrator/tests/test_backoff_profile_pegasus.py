@@ -601,7 +601,8 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
 
     checked_binaries = []
 
-    def fake_symbol_check(binary):
+    def fake_symbol_check(built_point):
+        binary = built_point.result.binary
         events.append(("symbol-check", binary))
         checked_binaries.append(binary)
 
@@ -620,7 +621,9 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
     monkeypatch.setattr(
         subject, "_assert_distinct_backoff_binary_hashes", fake_hash_check,
     )
-    monkeypatch.setattr(subject, "_assert_backoff_symbol_present", fake_symbol_check)
+    monkeypatch.setattr(
+        subject, "_assert_profile_point_backoff_symbol", fake_symbol_check,
+    )
     monkeypatch.setattr(subject, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(subject, "_profile_run", fake_run)
 
@@ -784,6 +787,31 @@ def test_fx12b_synthetic_elf_without_backoff_symbol_fails(tmp_path):
     assert "ackoff 候補=0 件" in message
 
 
+def test_symbol_gate_allows_none_point_without_backoff_symbol(tmp_path):
+    binary = tmp_path / "none-without-symbol"
+    _write_synthetic_elf(binary, ["_ZN3foo3barEv"])
+    point = subject._BuiltProfilePoint(
+        None,
+        subject._genome(None),
+        SimpleNamespace(binary=str(binary), bin_sha256="1" * 64),
+    )
+
+    subject._assert_profile_point_backoff_symbol(point)
+
+
+def test_symbol_gate_requires_backoff_symbol_at_enabled_point(tmp_path):
+    binary = tmp_path / "enabled-without-symbol"
+    _write_synthetic_elf(binary, ["_ZN3foo3barEv"])
+    point = subject._BuiltProfilePoint(
+        2,
+        subject._genome(2),
+        SimpleNamespace(binary=str(binary), bin_sha256="2" * 64),
+    )
+
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない"):
+        subject._assert_profile_point_backoff_symbol(point)
+
+
 def test_fx12b_similar_symbols_do_not_satisfy_binary_gate(tmp_path):
     binary = tmp_path / "similar-symbols"
     similar = [
@@ -791,10 +819,15 @@ def test_fx12b_similar_symbols_do_not_satisfy_binary_gate(tmp_path):
         "_ZN7Backoff14backoff_helperEv",
     ]
     _write_synthetic_elf(binary, similar)
+    point = subject._BuiltProfilePoint(
+        2,
+        subject._genome(2),
+        SimpleNamespace(binary=str(binary), bin_sha256="3" * 64),
+    )
 
     assert all(not subject._is_backoff_function_symbol(name) for name in similar)
     with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない") as exc_info:
-        subject._assert_backoff_symbol_present(str(binary))
+        subject._assert_profile_point_backoff_symbol(point)
 
     message = str(exc_info.value)
     assert similar[0] in message

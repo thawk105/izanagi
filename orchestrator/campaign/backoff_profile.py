@@ -660,6 +660,13 @@ def _assert_backoff_symbol_present(binary: str) -> None:
     raise RuntimeError("\n".join(details))
 
 
+def _assert_profile_point_backoff_symbol(built_point: _BuiltProfilePoint) -> None:
+    """backoff 有効点だけ、独立した backoff 関数 symbol を要求する。"""
+    if built_point.backoff_us is None:
+        return
+    _assert_backoff_symbol_present(built_point.result.binary)
+
+
 def _flags(workload, clocks_per_us=CLK):
     flags = [
         f"-thread_num={THREADS}",
@@ -895,7 +902,7 @@ def profile_point(backoff_us, workload, log=print, *, runtime=None):
         prebuilt = _PREBUILT_PROFILE_POINTS.get()
         if prebuilt is None:
             built_point = _build_profile_point_in_patch(backoff_us, runtime)
-            _assert_backoff_symbol_present(built_point.result.binary)
+            _assert_profile_point_backoff_symbol(built_point)
         else:
             try:
                 built_point = prebuilt[backoff_us]
@@ -929,7 +936,7 @@ def profile_workload(tag, workload, log=print, *, runtime=None):
         ]
         _assert_distinct_backoff_binary_hashes(built_points)
         for built_point in built_points:
-            _assert_backoff_symbol_present(built_point.result.binary)
+            _assert_profile_point_backoff_symbol(built_point)
         token = _PREBUILT_PROFILE_POINTS.set({
             point.backoff_us: point for point in built_points
         })
