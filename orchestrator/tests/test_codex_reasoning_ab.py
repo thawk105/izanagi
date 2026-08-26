@@ -3235,8 +3235,10 @@ def test_m10_filesystem_file_set_boundary_matrix_matches_rglob_reference(
     tmp_path: Path,
 ) -> None:
     """静止した木で non-directory と symlink の受理集合を旧実装へ束縛する。"""
-    snapshot = tmp_path / "snapshot"
-    snapshot.mkdir()
+    snapshot = (
+        tmp_path / ("a" * 32) / ("b" * 32) / ("c" * 32) / "snapshot"
+    )
+    snapshot.mkdir(parents=True)
     (snapshot / "regular.txt").write_text("regular\n", encoding="utf-8")
     directory = snapshot / "directory"
     directory.mkdir()
@@ -3258,11 +3260,15 @@ def test_m10_filesystem_file_set_boundary_matrix_matches_rglob_reference(
     )
 
     unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    previous_cwd = Path.cwd()
     try:
-        unix_socket.bind(os.fspath(snapshot / "socket"))
+        assert len(os.fsencode(snapshot / "socket")) >= 108
+        os.chdir(snapshot)
+        unix_socket.bind("socket")
         reference = _rglob_filesystem_file_set_reference(snapshot)
         actual = TOOL._filesystem_file_set(snapshot)
     finally:
+        os.chdir(previous_cwd)
         unix_socket.close()
 
     expected = {

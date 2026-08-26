@@ -135,6 +135,8 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Sanitized read-only Git identity/status probes for staged dependencies;
     # neither command names nor executes CCBench.
     ("campaign/s8b_floor_campaign.py", "<module>._verify_pristine_floor_dependency_sources"): 2,
+    # Fixed pgrep competition probe; argv cannot name or execute CCBench.
+    ("campaign/s8b_floor_attempt_launcher.py", "<module>._owned_post_probe"): 1,
     ("campaign/s8b_holdout_admission.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git_bytes"): 1,

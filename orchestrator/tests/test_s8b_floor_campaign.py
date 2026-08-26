@@ -10639,6 +10639,17 @@ def _write_verified_campaign_recovery_registry(
         "failure_reason": "node_failure",
         "collected_at": "2026-08-25T00:00:01+00:00",
     }
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(
+        authority
+    )
+    receipt_path = (
+        s8b_floor_campaign._holdout_admission
+        ._scheduler_accounting_receipt_claim_path(shared, receipt)
+    )
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_bytes(
+        attempt_registry_core.canonical_json_bytes(receipt) + b"\n"
+    )
     rows = attempt_registry_core.record_attempt_recovery(
         rows, profile=profile, freeze_id=binding.freeze_sha256,
         slot_id=slot_id, binding=binding,
@@ -10652,7 +10663,6 @@ def _write_verified_campaign_recovery_registry(
     relative = s8b_attempt_profile.S8B_REGISTRY_LAYOUT.registry_path.as_posix().format(
         freeze_sha256=binding.freeze_sha256,
     )
-    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
     path = shared.joinpath(*Path(relative).parts)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"".join(

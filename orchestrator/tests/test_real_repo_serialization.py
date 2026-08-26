@@ -3760,6 +3760,8 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
                 import os
                 from pathlib import Path
 
+                import pytest
+
                 EVENTS = Path({str(events)!r})
 
                 def record(value):
@@ -3780,9 +3782,11 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
                     from orchestrator.tests import conftest as suite_conftest
                     suite_conftest._receipt_memo_module = lambda: FakeMemo
 
+                @pytest.hookimpl(hookwrapper=True, tryfirst=True)
                 def pytest_collection_finish(session):
                     if hasattr(session.config, "workerinput"):
                         record("worker-hook")
+                    yield
 
                 def pytest_xdist_node_collection_finished(node, ids):
                     record("controller-hook")

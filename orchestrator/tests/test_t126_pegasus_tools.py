@@ -3888,6 +3888,82 @@ def test_submit_rejects_symlink_component_hidden_drift_and_skip_worktree(
     assert not calls_skip.exists()
 
 
+def test_submit_index_flag_gate_is_pipefail_safe_and_clean_repo_proceeds(
+        tmp_path):
+    submit_source = (
+        _ROOT / "tools/pegasus/submit_t126_qualification.sh"
+    ).read_text(encoding="utf-8")
+    expected_gate = (
+        "index_flags_rc=0\n"
+        "INDEX_FLAGS=$(git -C \"$REPO_ROOT\" ls-files -v) "
+        "|| index_flags_rc=$?\n"
+        "if [[ \"$index_flags_rc\" -ne 0 ]]; then\n"
+        "  exit \"$index_flags_rc\"\n"
+        "fi\n"
+        "if grep -Eq '^[a-zS]' <<<\"$INDEX_FLAGS\"; then\n"
+    )
+    assert submit_source.count(expected_gate) == 1
+    assert "ls-files -v | grep -Eq '^[a-zS]'" not in submit_source
+
+    flagged_repo, flagged_bin, flagged_calls = _submit_fixture(
+        tmp_path / "flagged")
+    _install_scheduler_stubs(flagged_bin, flagged_calls)
+    relative = "orchestrator/qualification/submission.py"
+    clean_rows = _git(flagged_repo, "ls-files", "-v").splitlines()
+    assert clean_rows
+    assert not any(re.match(r"^[a-zS]", row) for row in clean_rows)
+    _git(flagged_repo, "update-index", "--assume-unchanged", relative)
+    flagged_rows = _git(flagged_repo, "ls-files", "-v").splitlines()
+    assert flagged_rows
+    assert any(re.match(r"^[a-zS]", row) for row in flagged_rows)
+
+    flagged = _run_submit(flagged_repo, flagged_bin)
+
+    assert flagged.returncode == 2
+    assert flagged.stdout == ""
+    assert flagged.stderr == (
+        "assume-unchanged/skip-worktree source is forbidden\n")
+    assert "hidden dirty execution input" not in flagged.stderr
+    assert not flagged_calls.exists()
+
+    clean_repo, clean_bin, clean_calls = _submit_fixture(tmp_path / "clean")
+    _install_scheduler_stubs(clean_bin, clean_calls)
+    clean_rows = _git(clean_repo, "ls-files", "-v").splitlines()
+    assert clean_rows
+    assert not any(re.match(r"^[a-zS]", row) for row in clean_rows)
+
+    accepted = _run_submit(clean_repo, clean_bin)
+
+    assert accepted.returncode == 0, accepted.stderr
+    assert "assume-unchanged/skip-worktree" not in accepted.stderr
+    assert clean_calls.read_text(encoding="utf-8").splitlines().count(
+        "qsub") == 1
+
+
+def test_submit_index_flag_git_failure_is_not_no_match(tmp_path):
+    repo, fake_bin, calls = _submit_fixture(tmp_path)
+    _install_scheduler_stubs(fake_bin, calls)
+    real_git = shutil.which("git")
+    assert real_git is not None
+    git_wrapper = fake_bin / "git"
+    git_wrapper.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = -C ] && [ \"$3\" = ls-files ] "
+        "&& [ \"$4\" = -v ]; then\n"
+        "  printf '%s\\n' 'injected ls-files failure' >&2\n"
+        "  exit 73\n"
+        "fi\n"
+        f"exec {shlex.quote(real_git)} \"$@\"\n",
+        encoding="utf-8")
+    git_wrapper.chmod(0o755)
+
+    failed = _run_submit(repo, fake_bin)
+
+    assert failed.returncode == 73
+    assert failed.stdout == ""
+    assert failed.stderr == "injected ls-files failure\n"
+    assert not calls.exists()
+
 
 def test_submit_unsupported_policy_perf_uses_canonical_degraded_toolchain(
         tmp_path):
