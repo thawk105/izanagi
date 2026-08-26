@@ -19,9 +19,9 @@ bootstrap_fail() {
 [[ "${IZANAGI_B10_NONCE:-}" =~ ^[0-9a-f]{32}$ ]] || bootstrap_fail "submission nonce missing"
 [[ "${IZANAGI_B10_SOURCE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "source commit missing"
 [[ "${IZANAGI_B10_PREREG_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || bootstrap_fail "prereg commit missing"
-[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf)$ ]] || bootstrap_fail "phase missing"
-if [[ "$IZANAGI_B10_PHASE" == build ]]; then
-  [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build phase has workload"
+[[ "${IZANAGI_B10_PHASE:-}" =~ ^(build|verify|perf|probe)$ ]] || bootstrap_fail "phase missing"
+if [[ "$IZANAGI_B10_PHASE" == build || "$IZANAGI_B10_PHASE" == probe ]]; then
+  [[ -z "${IZANAGI_B10_WORKLOAD:-}" ]] || bootstrap_fail "build/probe phase has workload"
 else
   [[ "${IZANAGI_B10_WORKLOAD:-}" =~ ^(write-heavy|balanced|read-heavy)$ ]] \
     || bootstrap_fail "verify/perf workload missing"
@@ -275,8 +275,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-CURRENT_STAGE=dependencies
-readarray -t DEPENDENCY_VALUES < <("$PY" -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<'PY'
+if [[ "$IZANAGI_B10_PHASE" != probe ]]; then
+  CURRENT_STAGE=dependencies
+  readarray -t DEPENDENCY_VALUES < <("$PY" -I -B - "$REPO_ROOT/tools/pegasus/policy.json" <<'PY'
 import json
 import re
 import sys
@@ -291,35 +292,36 @@ for prefix in ("gflags", "glog"):
     print(path)
     print(head)
 PY
-)
-[[ ${#DEPENDENCY_VALUES[@]} -eq 4 ]] || { write_failure 2 dependencies "dependency policy invalid"; exit 2; }
-GFLAGS_SOURCE=${DEPENDENCY_VALUES[0]}
-GFLAGS_HEAD=${DEPENDENCY_VALUES[1]}
-GLOG_SOURCE=${DEPENDENCY_VALUES[2]}
-GLOG_HEAD=${DEPENDENCY_VALUES[3]}
-[[ "$(git -C "$GFLAGS_SOURCE" rev-parse HEAD)" == "$GFLAGS_HEAD" \
-    && -z "$(git -C "$GFLAGS_SOURCE" status --porcelain --untracked-files=all)" ]] \
-  || { write_failure 2 dependencies "gflags source is not pinned-clean"; exit 2; }
-[[ "$(git -C "$GLOG_SOURCE" rev-parse HEAD)" == "$GLOG_HEAD" \
-    && -z "$(git -C "$GLOG_SOURCE" status --porcelain --untracked-files=all)" ]] \
-  || { write_failure 2 dependencies "glog source is not pinned-clean"; exit 2; }
+  )
+  [[ ${#DEPENDENCY_VALUES[@]} -eq 4 ]] || { write_failure 2 dependencies "dependency policy invalid"; exit 2; }
+  GFLAGS_SOURCE=${DEPENDENCY_VALUES[0]}
+  GFLAGS_HEAD=${DEPENDENCY_VALUES[1]}
+  GLOG_SOURCE=${DEPENDENCY_VALUES[2]}
+  GLOG_HEAD=${DEPENDENCY_VALUES[3]}
+  [[ "$(git -C "$GFLAGS_SOURCE" rev-parse HEAD)" == "$GFLAGS_HEAD" \
+      && -z "$(git -C "$GFLAGS_SOURCE" status --porcelain --untracked-files=all)" ]] \
+    || { write_failure 2 dependencies "gflags source is not pinned-clean"; exit 2; }
+  [[ "$(git -C "$GLOG_SOURCE" rev-parse HEAD)" == "$GLOG_HEAD" \
+      && -z "$(git -C "$GLOG_SOURCE" status --porcelain --untracked-files=all)" ]] \
+    || { write_failure 2 dependencies "glog source is not pinned-clean"; exit 2; }
 
-GFLAGS_INSTALL="$TMPDIR/gflags-install"
-GLOG_INSTALL="$TMPDIR/glog-install"
-cmake -S "$GFLAGS_SOURCE" -B "$TMPDIR/gflags-build" \
-  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF \
-  -DCMAKE_INSTALL_PREFIX="$GFLAGS_INSTALL"
-cmake --build "$TMPDIR/gflags-build" -j 48
-cmake --install "$TMPDIR/gflags-build"
-cmake -S "$GLOG_SOURCE" -B "$TMPDIR/glog-build" \
-  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF \
-  -DWITH_UNWIND=OFF -DCMAKE_PREFIX_PATH="$GFLAGS_INSTALL" \
-  -DCMAKE_INSTALL_PREFIX="$GLOG_INSTALL"
-cmake --build "$TMPDIR/glog-build" -j 48
-cmake --install "$TMPDIR/glog-build"
-export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"
+  GFLAGS_INSTALL="$TMPDIR/gflags-install"
+  GLOG_INSTALL="$TMPDIR/glog-install"
+  cmake -S "$GFLAGS_SOURCE" -B "$TMPDIR/gflags-build" \
+    -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF \
+    -DCMAKE_INSTALL_PREFIX="$GFLAGS_INSTALL"
+  cmake --build "$TMPDIR/gflags-build" -j 48
+  cmake --install "$TMPDIR/gflags-build"
+  cmake -S "$GLOG_SOURCE" -B "$TMPDIR/glog-build" \
+    -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF \
+    -DWITH_UNWIND=OFF -DCMAKE_PREFIX_PATH="$GFLAGS_INSTALL" \
+    -DCMAKE_INSTALL_PREFIX="$GLOG_INSTALL"
+  cmake --build "$TMPDIR/glog-build" -j 48
+  cmake --install "$TMPDIR/glog-build"
+  export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"
+fi
 
 mkdir -p "$REPO_ROOT/output/env/pegasus/claims"
 driver_argv=(

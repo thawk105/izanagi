@@ -7,7 +7,7 @@ unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
 usage() {
   cat >&2 <<'EOF'
 usage: submit_b10_backoff_shape.sh --prereg-commit COMMIT
-       --phase {build|verify|perf} [--workload {write-heavy|balanced|read-heavy}]
+       --phase {build|verify|perf|probe} [--workload {write-heavy|balanced|read-heavy}]
        [--dry-run] [--durable-root PATH]
 EOF
 }
@@ -58,12 +58,12 @@ done
   echo "--prereg-commit must be a full lowercase commit ID" >&2
   exit 2
 }
-[[ "$PHASE" =~ ^(build|verify|perf)$ ]] || {
-  echo "--phase must be build, verify, or perf" >&2
+[[ "$PHASE" =~ ^(build|verify|perf|probe)$ ]] || {
+  echo "--phase must be build, verify, perf, or probe" >&2
   exit 2
 }
-if [[ "$PHASE" == build ]]; then
-  [[ -z "$WORKLOAD" ]] || { echo "build phase must not select a workload" >&2; exit 2; }
+if [[ "$PHASE" == build || "$PHASE" == probe ]]; then
+  [[ -z "$WORKLOAD" ]] || { echo "build/probe phase must not select a workload" >&2; exit 2; }
 else
   [[ "$WORKLOAD" =~ ^(write-heavy|balanced|read-heavy)$ ]] || {
     echo "verify/perf phase requires one registered workload" >&2

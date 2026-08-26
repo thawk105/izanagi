@@ -108,10 +108,28 @@ def _complete_records(*, underexposed=None, unstable=None, uncertified=None):
     return rows
 
 
+def _physical_residual_values(
+    *, clocks_per_us: int = 2100, deviation_pct: float = 0.5,
+) -> list[dict[str, object]]:
+    rows = []
+    for mean_us in B.MEANS_US:
+        for shape, _code in B.SHAPES:
+            commanded = mean_us * clocks_per_us
+            realized = commanded * (1.0 + deviation_pct / 100.0)
+            rows.append({
+                "shape": shape,
+                "mean_us": mean_us,
+                "realized_mean_cycles": realized,
+                "commanded_mean_cycles": commanded,
+                "deviation_pct": 100.0 * (realized - commanded) / commanded,
+            })
+    return rows
+
+
 def _spec_dict() -> dict[str, object]:
     patch_sha = _sha(_patch_bytes())
     return {
-        "schema_version": "izanagi-b10-backoff-shape-preregistration/v2",
+        "schema_version": "izanagi-b10-backoff-shape-preregistration/v3",
         "artifacts": {
             "patch_sha256": patch_sha,
             "formula_sha256": B.FORMULA_SHA256,
@@ -198,13 +216,9 @@ def _spec_dict() -> dict[str, object]:
             ],
         },
         "physical_residual": {
-            "expression_eval_p99_cycles": 12,
-            "claimed_upper_pct": 0.5714285714285714,
-            "formula": (
-                "100*expression_eval_p99_cycles/"
-                "(minimum_instruction_us*clocks_per_us)"
-            ),
-            "maximum_upper_pct_exclusive": 1.0,
+            "measurement": "realized-backoff-loop-cycles",
+            "maximum_absolute_deviation_pct_exclusive": 1.0,
+            "values": _physical_residual_values(),
         },
         "external_floor_reference_widths": {
             "terminology": "external-floor-derived-reference-width",
@@ -249,6 +263,70 @@ def _binding() -> B.PreregistrationBinding:
         "a" * 40, "b" * 40, spec.spec_sha256, _sha(_patch_bytes()),
         B.FORMULA_SHA256, "f" * 40, "e" * 64,
     )
+
+
+def _probe_result() -> dict[str, object]:
+    clocks_per_us = 2100
+    calls = B.PROBE_CALLS_PER_CELL
+    cells = []
+    for mean_us in B.MEANS_US:
+        for shape, _code in B.SHAPES:
+            commanded = mean_us * clocks_per_us
+            shape_extra = {
+                "constant": 20.0,
+                "symmetric-modulo": 24.0,
+                "binary": 22.0,
+            }[shape]
+            realized = commanded + shape_extra
+            cells.append({
+                "shape": shape,
+                "mean_us": mean_us,
+                "encoded": B.encode(shape, mean_us),
+                "calls": calls,
+                "realized_mean_cycles": realized,
+                "realized_median_cycles": float(commanded + 20),
+                "realized_p50_cycles": float(commanded + 20),
+                "realized_p99_cycles": commanded + 80,
+                "realized_min_cycles": commanded + 1,
+                "commanded_mean_cycles": commanded,
+                "deviation_cycles": shape_extra,
+                "absolute_deviation_cycles": shape_extra,
+                "deviation_pct": 100.0 * shape_extra / commanded,
+            })
+    return {
+        "schema_version": B.PROBE_SCHEMA,
+        "source_commit": "a" * 40,
+        "patch_sha256": _sha(_patch_bytes()),
+        "formula_sha256": B.FORMULA_SHA256,
+        "clocks_per_us": clocks_per_us,
+        "host": {"hostname": "compute-1", "fqdn": "compute-1", "machine": "x86_64"},
+        "measured_at_utc": "2026-08-26T00:00:00Z",
+        "calls_per_cell": calls,
+        "compile": {
+            "build_system": "cmake",
+            "cmake_path": "/usr/bin/cmake",
+            "cmake_version": "cmake version fixture",
+            "build_type": "Release",
+            "cxx_standard": 20,
+            "cxx_extensions": False,
+            "compiler_path": "/usr/bin/g++",
+            "compiler_version": "g++ fixture",
+            "required_flags": [
+                "-O3", "-DNDEBUG", "-Wall", "-Wextra", "-Werror", "-std=c++20",
+            ],
+            "compile_options_path": "cmake/CompileOptions.cmake",
+            "compile_options_sha256": "b" * 64,
+            "compile_commands_sha256": "c" * 64,
+        },
+        "cells": cells,
+        "shape_differences_from_constant": B._shape_differences(cells),
+        "submission": {
+            "request_id": "request-1",
+            "nonce": "d" * 32,
+            "receipt_path": "/durable/submit-receipt.json",
+            "receipt_sha256": "e" * 64,
+        },
+    }
 
 
 def _mock_prereg_git(monkeypatch, root: Path, *, status="", blob=None, ancestor_rc=0):
@@ -482,8 +560,8 @@ def test_preregistration_matching_commit_blob_patch_and_formula_are_accepted(
     assert prereg.binding.patch_sha256 == _sha(_patch_bytes())
     assert prereg.binding.formula_sha256 == B.FORMULA_SHA256
     assert prereg.minimum_abort_calls == 10
-    assert prereg.expression_eval_p99_cycles == 12
-    assert prereg.physical_residual_upper_pct == pytest.approx(0.5714285714285714)
+    assert prereg.maximum_absolute_deviation_pct_exclusive == 1.0
+    assert len(prereg.spec.physical_residual_values) == 18
     assert prereg.equivalence_margin_pct == 3.0
 
 
@@ -632,14 +710,31 @@ def test_p06_full_machine_spec_and_runtime_residual_are_accepted():
     assert spec.missing_family_action == "indeterminate"
     assert spec.reference_width_power_guarantee is False
     assert dict((row[0], row[1]) for row in spec.reference_widths)["read-heavy"] == 0.22
-    assert B.validate_runtime_physical_residual(spec, 2100) == pytest.approx(
-        spec.physical_residual_upper_pct,
+    assert len(spec.physical_residual_values) == 18
+    assert B.validate_runtime_physical_residual(spec, 2100) == pytest.approx(0.5)
+
+
+def test_physical_residual_table_is_required_and_placeholders_are_rejected():
+    mutated = copy.deepcopy(_spec_dict())
+    del mutated["physical_residual"]["values"]
+    _expect_code("prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)))
+    placeholder = copy.deepcopy(_spec_dict())
+    placeholder["physical_residual"]["values"][0]["realized_mean_cycles"] = (
+        "FILL_FROM_PROBE_RESULT"
+    )
+    _expect_code(
+        "prereg-spec", lambda: B.parse_preregistration(_prereg_doc(placeholder)),
     )
 
 
-def test_claimed_physical_residual_must_match_runtime_cycle_recomputation():
+def test_m18_disabling_realized_deviation_upper_bound_is_red_for_one_reason():
     mutated = copy.deepcopy(_spec_dict())
-    mutated["physical_residual"]["claimed_upper_pct"] = 0.5
+    row = mutated["physical_residual"]["values"][0]
+    commanded = row["commanded_mean_cycles"]
+    row["realized_mean_cycles"] = commanded * 1.02
+    row["deviation_pct"] = 100.0 * (
+        row["realized_mean_cycles"] - commanded
+    ) / commanded
     spec = B.parse_preregistration(_prereg_doc(mutated))
     _expect_code(
         "physical-residual",
@@ -656,6 +751,64 @@ def test_canonical_preregistration_path_cannot_be_overridden_from_cli():
             "--preregistration", "docs/another.md",
         ])
     assert caught.value.code == 2
+
+
+def test_run_phase_closed_set_is_build_verify_perf_probe():
+    assert set(B.RUN_PHASES) == {"build", "verify", "perf", "probe"}
+
+
+def test_probe_phase_fails_closed_at_login_site_before_any_work(monkeypatch):
+    called = []
+
+    def reject_site(_label):
+        raise B.PreflightError("site", "login node")
+
+    monkeypatch.setattr(B.pipeline, "_require_measurement_site", reject_site)
+    monkeypatch.setattr(
+        B.p2_2, "resolve_site_runtime",
+        lambda: called.append("resolved"),
+    )
+    _expect_code(
+        "site",
+        lambda: B.run_probe(
+            prereg_commit="a" * 40,
+            submission_receipt="/not/read/on/login.json",
+        ),
+    )
+    assert called == []
+
+
+def test_probe_phase_does_not_start_performance_campaign(tmp_path: Path, monkeypatch):
+    probe_path = tmp_path / "probe-result.json"
+    monkeypatch.setattr(B, "run_probe", lambda **_kwargs: probe_path)
+    monkeypatch.setattr(
+        B, "run_campaign",
+        lambda *_args, **_kwargs: pytest.fail("probe started performance campaign"),
+    )
+    assert B.run_formal(
+        phase="probe", workload=None, prereg_commit="a" * 40,
+        submission_receipt="/fixture/submit-receipt.json",
+    ) == (probe_path, None, True)
+
+
+def test_probe_harness_copies_reviewed_chkclkspan_and_wait_loop_verbatim():
+    source = B._render_probe_harness(B.EXPECTED_HOLE_LINE)
+    assert source.count(B.EXPECTED_HOLE_LINE) == 1
+    assert source.count(B.EXPECTED_CHK_CLK_SPAN) == 1
+    assert source.count(B.EXPECTED_WAIT_LOOP) == 1
+
+
+def test_probe_output_schema_and_create_only(tmp_path: Path):
+    result = _probe_result()
+    assert B._validate_probe_result(result)["schema_version"] == B.PROBE_SCHEMA
+    path = tmp_path / "probe-result.json"
+    B._write_probe_result_create_only(path, result)
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    assert B._validate_probe_result(loaded)["calls_per_cell"] == 100_000
+    assert len(loaded["cells"]) == 18
+    assert len(loaded["shape_differences_from_constant"]) == 12
+    with pytest.raises(FileExistsError):
+        B._write_probe_result_create_only(path, result)
 
 
 def test_block_records_are_hash_verified_and_create_only(tmp_path: Path):
@@ -714,6 +867,11 @@ def test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip(tmp_p
         capture_output=True, text=True,
     )
     assert patched.returncode == 0, patched.stdout + patched.stderr
+    hole_line, compile_options_sha256 = B._extract_applied_probe_contract(applied)
+    assert hole_line == B.EXPECTED_HOLE_LINE
+    assert compile_options_sha256 == _sha(
+        (applied / "cmake/CompileOptions.cmake").read_bytes(),
+    )
     cache = {}
 
     def compute_at(genome, directory, cxx):
@@ -1019,6 +1177,8 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     assert "IZANAGI_RESERVATION_JOB_ID" in job_text
     assert '--phase "$IZANAGI_B10_PHASE"' in job_text
     assert "b10_backoff_shape_sweep" in job_text
+    assert "build|verify|perf|probe" in submit_text + job_text
+    assert '[[ "$IZANAGI_B10_PHASE" != probe ]]' in job_text
 
 
 def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
@@ -1064,7 +1224,7 @@ def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
     completed = subprocess.run(
         [
             str(submit), "--dry-run", "--durable-root", str(durable),
-            "--prereg-commit", "a" * 40, "--phase", "build",
+            "--prereg-commit", "a" * 40, "--phase", "probe",
         ],
         cwd=repo, env=env, capture_output=True, text=True,
     )
@@ -1075,7 +1235,8 @@ def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
     assert len(receipts) == 1
     receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
     assert receipt["dry_run"] is True
-    assert receipt["phase"] == "build"
+    assert receipt["phase"] == "probe"
+    assert receipt["workload"] is None
 
 
 def test_plain_runner_executes_this_file_instead_of_false_green():
