@@ -603,9 +603,9 @@ DEV_WAVE_SELF_ROUTING_SECTION_LITERAL = """## routing
 """
 DEV_WAVE_DW_O18_SECTION_LITERAL = """## DW-O18 — テスト cwd と非帰属赤の着地
 
-cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走は`from tests import`確立後に限り、未確立赤も偽赤。
 
-受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
+赤返却時が判定主体の境界。待ち手は帰属判定しない。人・AIが判定し根拠をworklogへ残す。assertion本文・差分実体で判定し署名一致は禁止。非帰属赤の着地5分超禁止、悩まない(D690)。自分起因は直す。N走完全一致はflakeでなく非帰属の証拠でもない。差分非到達は単独再走、非再現なら同一tipの受入再走1回だけ。再赤/決定赤はmain既存Fを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本=同file)。F不在は登録せず裁定へ送り、判定不能・原因未理解も除外せず停止。停止条件外は治すかhold登録後だけ投げ直しwaveを止めない。受理は`child-green`だけ、赤の受領証は禁止。
 
 """
 DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 provenance 関門
