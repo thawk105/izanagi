@@ -34,7 +34,7 @@ _GATEWAY = Counter({("calibrator/runner.py", "<module>.run_once"): 1})
 # visible without misclassifying them as additional raw process launch sites.
 _BOUNDED_RUN_ONCE_CLIENTS = Counter({
     ("campaign/b10_backoff_shape_sweep.py", "<module>.measure_performance_cell"): 1,
-    ("campaign/backoff_overthrottle.py", "<module>.measure"): 1,
+    ("campaign/backoff_overthrottle.py", "<module>._run_rep"): 1,
 })
 
 _DIRECT_SAFE_ALLOWLIST = Counter({
