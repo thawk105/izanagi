@@ -894,4 +894,4 @@ def test_self_running_harness_invokes_repository_runner(
 
 
 if __name__ == "__main__":
-    raise SystemExit(_self_test())
+    raise SystemExit(pytest.main([__file__]))
