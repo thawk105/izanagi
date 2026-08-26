@@ -18,8 +18,11 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest.mock
+
+import pytest
 
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
@@ -295,6 +298,83 @@ def _invoke_pair():
         raise
 
 
+@contextlib.contextmanager
+def _certified_pair_fixture(*, reverse_recommended: bool = False):
+    """Build certified-shaped receipts while keeping injection test-local."""
+    parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-certified-live-"))
+    on_cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    off_cfg = L.default_cfg(reflux=False, b4_reflux_ablation=True)
+    on_id = str(ident.campaign_id(on_cfg))
+    off_id = str(ident.campaign_id(off_cfg))
+    layouts = {
+        on_id: _make_admitted_fixture(
+            parent / "campaign-on", on_cfg, source_tag="certified-live-on"
+        ),
+        off_id: _make_admitted_fixture(
+            parent / "campaign-off", off_cfg, source_tag="certified-live-off"
+        ),
+    }
+    for layout in layouts.values():
+        state = L.load_loop_state(layout)
+        assert state is not None
+        state.start_wall = time.time()
+        L.save_loop_state(layout, state)
+    decision = {
+        **_DECISION_OBJECT,
+        "reverse_recommended": reverse_recommended,
+    }
+    runner, calls = _fake_runner_factory(envelope_updates={
+        "result": json.dumps(decision, separators=(",", ":")),
+    })
+    home = parent / "home"
+    home.mkdir()
+
+    def layout_for(campaign_id):
+        return layouts[campaign_id]
+
+    with unittest.mock.patch.object(
+        C, "exploration_campaign_layout", side_effect=layout_for,
+    ):
+        on_binding, off_binding, root, tracker, closure_sha256 = (
+            C._prepare_b4_closed_critic_pair(
+                on_cfg=on_cfg,
+                off_cfg=off_cfg,
+                artifact_root=parent / "artifacts",
+            )
+        )
+        on_controller = C.B4ClosedCriticController(
+            _seal=C._PAIR_SEAL,
+            binding=on_binding,
+            artifact_root=root / "on",
+            repository_root=C.REPOSITORY_ROOT,
+            evidence_class="certified",
+            executable=sys.executable,
+            runner=runner,
+            environ={"HOME": str(home)},
+            tracker=tracker,
+            controller_id="certified-live-on-controller",
+            initial_projection_sha256=closure_sha256,
+        )
+        off_controller = C.B4ClosedCriticController(
+            _seal=C._PAIR_SEAL,
+            binding=off_binding,
+            artifact_root=root / "off",
+            repository_root=C.REPOSITORY_ROOT,
+            evidence_class="certified",
+            executable=sys.executable,
+            runner=runner,
+            environ={"HOME": str(home)},
+            tracker=tracker,
+            controller_id="certified-live-off-controller",
+            initial_projection_sha256=closure_sha256,
+        )
+        pair = C._seal_b4_closed_critic_pair(on_controller, off_controller)
+        try:
+            yield pair, on_cfg, layouts[on_id], calls
+        finally:
+            pair.close()
+
+
 def _capture_certified_pair_construction(parent: Path):
     constructions = []
 
@@ -541,6 +621,11 @@ def test_p2_successful_test_only_invocation_records_snapshot_and_returns_data_on
         assert receipt.digest_sha256 == hashlib.sha256(
             sent_payload["projected_digest"].encode("utf-8")
         ).hexdigest()
+        assert receipt.schema_version == C.B4_CLOSED_CRITIC_RECEIPT_SCHEMA
+        assert receipt.decision_sha256 == hashlib.sha256(
+            C._canonical_json_bytes(_DECISION_OBJECT)
+        ).hexdigest()
+        assert receipt.decision_reverse_recommended is False
         assert receipt.evidence_payload_sha256 == hashlib.sha256(
             sent_payload_bytes
         ).hexdigest()
@@ -1030,6 +1115,10 @@ def test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests()
             assert receipt.digest_sha256 == hashlib.sha256(
                 expected_digest.encode("utf-8")
             ).hexdigest()
+            assert receipt.decision_sha256 == hashlib.sha256(
+                C._canonical_json_bytes(_DECISION_OBJECT)
+            ).hexdigest()
+            assert receipt.decision_reverse_recommended is False
             assert receipt.evidence_payload_sha256 == hashlib.sha256(
                 sent_payload_bytes
             ).hexdigest()
@@ -1457,6 +1546,280 @@ def test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc():
     cli_output = json.loads(stdout.getvalue())
     assert cli_output["on_terminal_receipt"] == "/tmp/on-terminal.json"
     assert cli_output["off_terminal_receipt"] == "/tmp/off-terminal.json"
+
+
+def test_receipt_v3_binds_decision_without_copying_natural_language():
+    with _certified_pair_fixture(reverse_recommended=True) as (
+        pair, _cfg, _layout, _calls,
+    ):
+        invocation = pair.on.invoke(invocation_id="receipt-v3-decision")
+        receipt = invocation.receipt
+        expected = {**_DECISION_OBJECT, "reverse_recommended": True}
+        assert receipt.schema_version == C.B4_CLOSED_CRITIC_RECEIPT_SCHEMA
+        assert receipt.decision_sha256 == hashlib.sha256(
+            C._canonical_json_bytes(expected)
+        ).hexdigest()
+        assert receipt.decision_reverse_recommended is True
+        terminal_bytes = invocation.terminal_receipt_path.read_bytes()
+        terminal = json.loads(terminal_bytes)
+        assert set(terminal) == C._SUCCESS_TERMINAL_KEYS
+        for natural_field in ("attribution", "recommend", "avoid", "uncertainty"):
+            assert natural_field not in terminal
+            assert expected[natural_field].encode("utf-8") not in terminal_bytes
+
+        terminal["decision_sha256"] = "0" * 64
+        invocation.terminal_receipt_path.write_bytes(
+            C._canonical_json_bytes(terminal)
+        )
+        _raises(
+            C.B4ReceiptError,
+            lambda: C._read_verified_terminal_receipt(
+                invocation.terminal_receipt_path
+            ),
+            contains="decision hash",
+        )
+        terminal = json.loads(terminal_bytes)
+        terminal["decision_reverse_recommended"] = False
+        invocation.terminal_receipt_path.write_bytes(
+            C._canonical_json_bytes(terminal)
+        )
+        _raises(
+            C.B4ReceiptError,
+            lambda: C._read_verified_terminal_receipt(
+                invocation.terminal_receipt_path
+            ),
+            contains="decision reverse bit",
+        )
+        terminal = json.loads(terminal_bytes)
+        terminal.pop("decision_sha256")
+        invocation.terminal_receipt_path.write_bytes(
+            C._canonical_json_bytes(terminal)
+        )
+        _raises(
+            C.B4ReceiptError,
+            lambda: C._read_verified_terminal_receipt(
+                invocation.terminal_receipt_path
+            ),
+            contains="keys do not match exact schema",
+        )
+
+
+def test_public_b4_receipt_gate_accepts_live_certified_bound_receipt():
+    signature = inspect.signature(C.require_b4_closed_critic_receipt)
+    assert tuple(signature.parameters) == (
+        "terminal_receipt_path", "cfg", "layout",
+    )
+    assert "runner" not in signature.parameters
+    assert "executable" not in signature.parameters
+    with _certified_pair_fixture() as (pair, cfg, layout, _calls):
+        invocation = pair.on.invoke(invocation_id="public-live-positive")
+        receipt = C.require_b4_closed_critic_receipt(
+            invocation.terminal_receipt_path,
+            cfg=cfg,
+            layout=layout,
+        )
+        assert receipt == invocation.receipt
+        terminal_sha256 = hashlib.sha256(
+            invocation.terminal_receipt_path.read_bytes()
+        ).hexdigest()
+        proposal_path = invocation.terminal_receipt_path.parent / "proposal.json"
+        proposal_path.write_text(json.dumps({
+            "planner": {
+                "axis": L.MARKER_ID,
+                "direction": "increase",
+                "magnitude": "small",
+            },
+            "coder": {
+                "axis": L.MARKER_ID,
+                "value": 20.0,
+                "implementation": "double now_backoff = 20.0;",
+            },
+            L.B4_PROPOSAL_RECEIPT_SHA256_KEY: terminal_sha256,
+        }), encoding="utf-8")
+        planner, coder, prior = L.load_proposal_file(
+            str(proposal_path),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=terminal_sha256,
+        )
+        synthesis_calls = []
+
+        def fake_synthesis(
+            _cfg, _perf, planner, _coder, state, *_args, **_kwargs,
+        ):
+            synthesis_calls.append(state.iteration)
+            L.project_whiteboard(state, planner, "fail")
+            return {"outcome": "dry-pass", "variant": None}
+
+        with unittest.mock.patch.object(
+            L, "exploration_campaign_layout", return_value=layout,
+        ), unittest.mock.patch.object(
+            L.ident, "ensure_resumable_attempts", return_value=None,
+        ), unittest.mock.patch.object(
+            L, "run_one_iteration", side_effect=fake_synthesis,
+        ):
+            outcome = L.drive_iteration(
+                cfg,
+                L.default_perf(),
+                planner,
+                coder,
+                prior,
+                sub="unused-by-positive-control",
+                do_build=True,
+                layout=layout,
+                build_context=build_run_context(
+                    generator_id=GeneratorId.BACKOFF_SWEEP
+                ),
+                b4_closed_critic_receipt=invocation.terminal_receipt_path,
+                b4_proposal_receipt_sha256=terminal_sha256,
+            )
+        assert outcome["ran"] is True
+        assert synthesis_calls == [2]
+
+
+def test_public_b4_receipt_gate_rejects_real_test_only_evidence():
+    with _pair_fixture() as (pair, layouts, _calls):
+        invocation = pair.on.invoke(invocation_id="public-test-only")
+        cfg = L.default_cfg(reflux=True)
+        layout = layouts[str(ident.campaign_id(cfg))]
+        _raises(
+            C.B4ReceiptError,
+            lambda: C.require_b4_closed_critic_receipt(
+                invocation.terminal_receipt_path,
+                cfg=cfg,
+                layout=layout,
+            ),
+            contains="must be certified",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value", "message"),
+    (
+        ("schema_version", "not-v3", "schema_version"),
+        ("status", "failure", "status"),
+        ("campaign_id", "different-campaign", "campaign_id"),
+        ("arm", "off", "arm differs"),
+        ("iteration", 2, "iteration"),
+        ("digest_sha256", "0" * 64, "regenerated live digest"),
+        ("admitted_view_sha256", "1" * 64, "live WAL bytes"),
+        ("loop_state_sha256", "2" * 64, "live checkpoint bytes"),
+    ),
+    ids=(
+        "schema-version",
+        "status",
+        "campaign-id-m3",
+        "arm-m4",
+        "iteration-m5",
+        "digest-m6",
+        "wal-m7",
+        "loop-state-m8",
+    ),
+)
+def test_public_b4_receipt_gate_rejects_one_live_binding_mismatch(
+    field_name, value, message,
+):
+    with _certified_pair_fixture() as (pair, cfg, layout, _calls):
+        invocation = pair.on.invoke(
+            invocation_id=f"public-live-negative-{field_name}"
+        )
+        verified = C._read_verified_terminal_receipt(
+            invocation.terminal_receipt_path
+        )
+        assert verified.evidence_class == "certified"
+        mismatched = replace(verified, **{field_name: value})
+        with unittest.mock.patch.object(
+            C,
+            "_read_verified_terminal_receipt",
+            return_value=mismatched,
+        ):
+            _raises(
+                C.B4ReceiptError,
+                lambda: C.require_b4_closed_critic_receipt(
+                    invocation.terminal_receipt_path,
+                    cfg=cfg,
+                    layout=layout,
+                ),
+                contains=message,
+            )
+
+
+def test_public_b4_receipt_gate_rejects_nonauthoritative_layout():
+    with _certified_pair_fixture() as (pair, cfg, layout, _calls):
+        invocation = pair.on.invoke(invocation_id="public-layout-negative")
+        assert C._read_verified_terminal_receipt(
+            invocation.terminal_receipt_path
+        ).evidence_class == "certified"
+        live_view = require_admitted_campaign(
+            layout.root,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
+        wrong = SimpleNamespace(
+            root=tempfile.mkdtemp(prefix="izanagi-b4-wrong-layout-"),
+            wal_file=layout.wal_file,
+        )
+        with unittest.mock.patch.object(
+            C, "loop_state_path", return_value=L.loop_state_path(layout),
+        ), unittest.mock.patch.object(
+            C, "require_admitted_campaign", return_value=live_view,
+        ):
+            _raises(
+                C.B4ReceiptError,
+                lambda: C.require_b4_closed_critic_receipt(
+                    invocation.terminal_receipt_path,
+                    cfg=cfg,
+                    layout=wrong,
+                ),
+                contains="not the authoritative",
+            )
+
+
+def test_closed_critic_cli_constructs_only_fixed_marked_base_configs():
+    captured = {}
+
+    class FakeController:
+        def __init__(self, arm):
+            self.arm = arm
+
+        def invoke(self, *, invocation_id):
+            return SimpleNamespace(
+                terminal_receipt_path=Path(
+                    f"/tmp/{self.arm}-{invocation_id}-terminal.json"
+                )
+            )
+
+    class FakePair:
+        on = FakeController("on")
+        off = FakeController("off")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _tb):
+            return None
+
+    def factory(**kwargs):
+        captured.update(kwargs)
+        return FakePair()
+
+    with unittest.mock.patch.object(
+        C,
+        "assert_b4_arm_pair",
+        return_value=C.B4ArmPairComparison(False, False, True),
+    ), contextlib.redirect_stdout(io.StringIO()):
+        assert C.main([
+            "--driver", "base",
+            "--artifact-root", "/tmp/b4-fixed-driver",
+            "--on-invocation-id", "on-id",
+            "--off-invocation-id", "off-id",
+        ], pair_factory=factory) == 0
+    assert captured["on_cfg"].search_config[L.B4_PROTOCOL_KEY] == (
+        L.B4_PROTOCOL_VALUE
+    )
+    assert captured["off_cfg"].search_config[L.B4_PROTOCOL_KEY] == (
+        L.B4_PROTOCOL_VALUE
+    )
+    assert captured["on_cfg"].search_config["reflux"] == "on"
+    assert captured["off_cfg"].search_config["reflux"] == "off"
 
     def failed_factory(**_kwargs):
         raise C.B4ReceiptError("fixture factory failure")

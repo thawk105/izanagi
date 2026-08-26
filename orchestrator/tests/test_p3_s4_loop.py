@@ -23,6 +23,7 @@ import sys
 import tempfile
 import textwrap
 import time
+from types import SimpleNamespace
 import unittest.mock
 
 import pytest
@@ -32,7 +33,11 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
-from orchestrator.campaign import ident, p3_s4_loop as L                        # noqa: E402
+from orchestrator.campaign import (                                            # noqa: E402
+    ident,
+    p3_b4_closed_critic as B4_CLOSED,
+    p3_s4_loop as L,
+)
 from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
@@ -2404,6 +2409,389 @@ def test_sanctioned_cli_stdout_omits_red_detail_fields(
         for field, sentinel in sentinels.items()
     )
     assert all(sentinel not in stdout for sentinel in sentinels.values())
+
+
+_B4_PRIOR_ABSENT = object()
+
+
+def _b4_proposal_document(
+    receipt_sha256=None,
+    *,
+    prior_marker=_B4_PRIOR_ABSENT,
+):
+    document = {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": 20.0,
+            "implementation": "double now_backoff = 20.0;",
+        },
+    }
+    if receipt_sha256 is not None:
+        document[L.B4_PROPOSAL_RECEIPT_SHA256_KEY] = receipt_sha256
+    if prior_marker is not _B4_PRIOR_ABSENT:
+        document["prior_critic_reverse"] = prior_marker
+    return document
+
+
+def _b4_fake_receipt(cfg, *, reverse_recommended=True):
+    return SimpleNamespace(
+        campaign_id=str(ident.campaign_id(cfg)),
+        arm=cfg.search_config["reflux"],
+        iteration=1,
+        pair_id="b4-pair-test",
+        decision_sha256="d" * 64,
+        decision_reverse_recommended=reverse_recommended,
+    )
+
+
+def _file_tree_bytes(root):
+    root = Path(root)
+    return {
+        str(path.relative_to(root)): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _seed_b4_continuation(layout):
+    state = L.LoopState(iteration=1, start_wall=time.time())
+    state.whiteboard.append(L.WhiteboardEntry(
+        iteration=1,
+        direction="increase",
+        magnitude="small",
+        result="rejected",
+        delta_pct=None,
+    ))
+    L.save_loop_state(layout, state)
+
+
+def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
+    ordinary = L.default_cfg(reflux=True)
+    explicit_false = L.default_cfg(
+        reflux=True,
+        b4_reflux_ablation=False,
+    )
+    marked = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    assert ordinary == explicit_false
+    assert L.B4_PROTOCOL_KEY not in ordinary.search_config
+    assert L.b4_reflux_ablation_mode(ordinary) is False
+    assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
+    assert L.b4_reflux_ablation_mode(marked) is True
+    assert ident.canonical_preimage(ordinary) != ident.canonical_preimage(marked)
+    assert ident.campaign_id(ordinary) != ident.campaign_id(marked)
+
+    for invalid in (None, "", "p3-b4-closed-critic-receipt/v3", "unknown"):
+        bad = replace(
+            ordinary,
+            search_config={**ordinary.search_config, L.B4_PROTOCOL_KEY: invalid},
+        )
+        with pytest.raises(L.B4ProtocolError, match="unrecognized value"):
+            L.b4_reflux_ablation_mode(bad)
+
+
+def test_b4_proposal_accepts_exact_terminal_receipt_hash(tmp_path):
+    receipt_sha256 = "a" * 64
+    positive = tmp_path / "positive.json"
+    positive.write_text(json.dumps(
+        _b4_proposal_document(receipt_sha256)
+    ), encoding="utf-8")
+    _planner, _coder, prior = L.load_proposal_file(
+        str(positive),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    assert prior is None
+
+
+def test_b4_proposal_rejects_terminal_receipt_hash_mismatch_m9(tmp_path):
+    receipt_sha256 = "a" * 64
+    mismatch = tmp_path / "mismatch.json"
+    mismatch.write_text(json.dumps(
+        _b4_proposal_document("b" * 64)
+    ), encoding="utf-8")
+    with pytest.raises(L.B4ProtocolError, match="differs from terminal"):
+        L.load_proposal_file(
+            str(mismatch),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_b4_proposal_rejects_self_reported_prior_reverse_m10(tmp_path):
+    receipt_sha256 = "a" * 64
+    self_report = tmp_path / "self-report.json"
+    self_report.write_text(json.dumps(
+        _b4_proposal_document(receipt_sha256, prior_marker=False)
+    ), encoding="utf-8")
+    with pytest.raises(L.B4ProtocolError, match="must not self-report"):
+        L.load_proposal_file(
+            str(self_report),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_b4_bound_decision_reaches_synthesis_and_writes_exact_consumption(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"certified":"receipt"}')
+    receipt_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    proposal_path = tmp_path / "proposal.json"
+    proposal_path.write_text(json.dumps(
+        _b4_proposal_document(receipt_sha256)
+    ), encoding="utf-8")
+    planner, coder, prior = L.load_proposal_file(
+        str(proposal_path),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    receipt = _b4_fake_receipt(cfg, reverse_recommended=True)
+    observed_reverse = []
+
+    def fake_run(_cfg, _perf, planner, _coder, state, *_args, **_kwargs):
+        observed_reverse.append(state.reverse_recommendations)
+        L.project_whiteboard(state, planner, "fail")
+        return {"outcome": "dry-pass", "variant": None}
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(
+        B4_CLOSED,
+        "require_b4_closed_critic_receipt",
+        lambda *_a, **_k: receipt,
+    )
+    out = L.drive_iteration(
+        cfg,
+        L.default_perf(),
+        planner,
+        coder,
+        prior,
+        sub="unused-by-fake-synthesis",
+        do_build=True,
+        layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        b4_closed_critic_receipt=receipt_path,
+        b4_proposal_receipt_sha256=receipt_sha256,
+    )
+    assert out["ran"] is True
+    assert observed_reverse == [1]
+    records = list(Path(layout.root).glob("b4_closed_critic_consumption_*.json"))
+    assert len(records) == 1
+    assert json.loads(records[0].read_bytes()) == {
+        "terminal_receipt_sha256": receipt_sha256,
+        "campaign_id": receipt.campaign_id,
+        "arm": receipt.arm,
+        "iteration": receipt.iteration,
+        "pair_id": receipt.pair_id,
+        "decision_sha256": receipt.decision_sha256,
+    }
+
+
+def test_b4_same_terminal_receipt_hash_is_consumed_at_most_once(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=False, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"receipt":"same"}')
+    receipt_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    receipt = _b4_fake_receipt(cfg, reverse_recommended=False)
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+
+    def fake_run(_cfg, _perf, planner, _coder, state, *_args, **_kwargs):
+        L.project_whiteboard(state, planner, "fail")
+        return {"outcome": "dry-pass", "variant": None}
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(
+        B4_CLOSED,
+        "require_b4_closed_critic_receipt",
+        lambda *_a, **_k: receipt,
+    )
+    kwargs = dict(
+        cfg=cfg,
+        perf=L.default_perf(),
+        planner=planner,
+        coder=coder,
+        prior_critic_reverse=None,
+        sub="unused",
+        do_build=True,
+        layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        b4_closed_critic_receipt=receipt_path,
+        b4_proposal_receipt_sha256=receipt_sha256,
+    )
+    assert L.drive_iteration(**kwargs)["ran"] is True
+    checkpoint_before = Path(L.loop_state_path(layout)).read_bytes()
+    with pytest.raises(L.B4ProtocolError, match="already consumed"):
+        L.drive_iteration(**kwargs)
+    assert Path(L.loop_state_path(layout)).read_bytes() == checkpoint_before
+
+
+def test_b4_bootstrap_rejects_receipt_but_allows_none_to_reach_synthesis(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    receipt_path = tmp_path / "unexpected-terminal.json"
+    receipt_path.write_bytes(b"unexpected")
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    run_spy = unittest.mock.Mock(
+        return_value={"outcome": "dry-pass", "variant": None}
+    )
+    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    common = dict(
+        cfg=cfg,
+        perf=L.default_perf(),
+        planner=planner,
+        coder=coder,
+        prior_critic_reverse=None,
+        sub="unused",
+        do_build=True,
+        layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+    )
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="bootstrap rejects"):
+        L.drive_iteration(
+            **common,
+            b4_closed_critic_receipt=receipt_path,
+        )
+    assert _file_tree_bytes(layout.root) == before
+    assert run_spy.call_count == 0
+    assert L.drive_iteration(**common)["ran"] is True
+    assert run_spy.call_count == 1
+
+
+def test_b4_no_build_stops_before_artifact_change_m12(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="forbids --no-build"):
+        L.drive_iteration(
+            cfg,
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            sub="unused",
+            do_build=False,
+            layout=layout,
+        )
+    assert _file_tree_bytes(layout.root) == before
+
+
+def test_b4_fixture_main_rejects_run_one_iteration_bypass_m13(monkeypatch):
+    from orchestrator.campaign import patchharness
+
+    run_spy = unittest.mock.Mock()
+    pinned_spy = unittest.mock.Mock()
+    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
+    with pytest.raises(L.B4ProtocolError, match="fixture run_one_iteration"):
+        L.main(["--b4-reflux-ablation"])
+    assert run_spy.call_count == 0
+    assert pinned_spy.call_count == 0
+
+
+def test_b4_cli_receipt_is_run_iteration_only_and_marker_bound(tmp_path):
+    receipt = tmp_path / "terminal.json"
+    with pytest.raises(L.B4ProtocolError, match="requires --run-iteration"):
+        L.main(["--b4-closed-critic-receipt", str(receipt)])
+    with pytest.raises(L.B4ProtocolError, match="requires --b4-reflux-ablation"):
+        L.main([
+            "--run-iteration", str(tmp_path / "proposal.json"),
+            "--b4-closed-critic-receipt", str(receipt),
+        ])
+
+
+def test_b4_receipt_gate_precedes_fold_iteration_and_artifact_mutation(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"receipt":"rejected"}')
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    fold_spy = unittest.mock.Mock(wraps=L._fold_critic_reverse)
+    monkeypatch.setattr(L, "_fold_critic_reverse", fold_spy)
+    monkeypatch.setattr(
+        B4_CLOSED,
+        "require_b4_closed_critic_receipt",
+        unittest.mock.Mock(side_effect=B4_CLOSED.B4ReceiptError("gate sentinel")),
+    )
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(B4_CLOSED.B4ReceiptError, match="gate sentinel"):
+        L.drive_iteration(
+            cfg,
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            sub="unused",
+            do_build=True,
+            layout=layout,
+            build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+            b4_closed_critic_receipt=receipt_path,
+            b4_proposal_receipt_sha256=hashlib.sha256(
+                receipt_path.read_bytes()
+            ).hexdigest(),
+        )
+    assert fold_spy.call_count == 0
+    assert L.load_loop_state(layout).iteration == 1
+    assert _file_tree_bytes(layout.root) == before
+
+
+def test_marker_absent_keeps_legacy_proposal_and_receipt_contract(tmp_path):
+    ordinary = L.default_cfg(reflux=False)
+    assert L.B4_PROTOCOL_KEY not in ordinary.search_config
+    proposal = tmp_path / "legacy-proposal.json"
+    proposal.write_text(json.dumps(
+        _b4_proposal_document(prior_marker=True)
+    ), encoding="utf-8")
+    _planner, _coder, prior = L.load_proposal_file(str(proposal))
+    assert prior is True
+    with pytest.raises(L.B4ProtocolError, match="requires the exact protocol"):
+        L.require_b4_iteration_authorization(
+            ordinary,
+            CampaignLayout(root=str(tmp_path / "ordinary")),
+            L.LoopState(),
+            do_build=True,
+            terminal_receipt_path=tmp_path / "receipt.json",
+        )
 
 
 def _log_projection_start(lay, source_tag, attempt, *, stock=False):
