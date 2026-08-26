@@ -161,7 +161,7 @@ def _snapshot_current_commit(
     root = _init_repo(tmp_path, "current-snapshot")
     evaluated_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
     evaluated_results = tuple(
-        M.get_registry().evaluate_all("HEAD", repo_root=_ROOT)
+        M.get_registry().evaluate_all(evaluated_head, repo_root=_ROOT)
     )
     paths = {
         reference.path
@@ -170,12 +170,14 @@ def _snapshot_current_commit(
     }
     paths.add(core.EVIDENCE_CONTRACT_PATH)
     tracked = set(
-        _git(_ROOT, "ls-tree", "-r", "--name-only", "HEAD").decode().splitlines()
+        _git(_ROOT, "ls-tree", "-r", "--name-only", evaluated_head).decode().splitlines()
     )
     assert paths - tracked <= {core.EVIDENCE_CONTRACT_PATH}
     present = sorted(paths & tracked)
     if present:
-        archive = _git(_ROOT, "archive", "--format=tar", "HEAD", "--", *present)
+        archive = _git(
+            _ROOT, "archive", "--format=tar", evaluated_head, "--", *present
+        )
         with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
             for member in bundle.getmembers():
                 if not member.isfile():
