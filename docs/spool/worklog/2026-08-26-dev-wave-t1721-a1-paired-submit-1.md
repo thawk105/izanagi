@@ -12,6 +12,7 @@ title: [T-1721] A-1 対測定の投入は 2 つの独立した理由で成立し
 - 依頼は「A-1 対測定を `formal=false` の探索値として投入する。裁定は確定済みで装置と事前登録は
   凍結済み、投入だけが残る。ただし着手時に『正式 certification ではないので批准 (D905) の gate は
   適用されない』という前提を probe で確認し、通らないなら理由を構造化して報告する」。
+  裁定は本 wave 中に main へ着地し D968 になった。内容は着手時の要約と同じで、新事実は無い。
   **probe の結果、前提は 2 つの独立した理由で偽だった。qsub は 1 度も投げていない。**
 - **理由 1 — 批准 gate は A-1 に適用される。** 論文上の `formal=false` とは無関係である。
   A-1 は各 arm の受理に verifier の `certified=True` を要求し、pipeline は certification 成功時だけ
@@ -103,7 +104,7 @@ title: [T-1721] A-1 対測定の投入は 2 つの独立した理由で成立し
   加えて親側の投入器が実装されていない。択は (a) D905 の執行主体設計が着地するのを待つ、
   (b) certified consumer へ絶対に昇格できない非 certification 成果物型を別 wave で設計する、
   (c) 投入器の実装だけを先に別 wave で行う。
-  base: 759ed7b272db7b80b0ef093a85613730e8bab64b79f6d49f04e227fe7f96ba4e
+  base: de03bc4d5ad55aad2a4055327fc1ab1d1955745dc34245ed34ef4d71ab28e09b
 
 ### 新規
 
