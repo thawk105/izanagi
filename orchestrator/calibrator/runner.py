@@ -13,7 +13,9 @@ control, calibrator.md / orchestrator-design.md)。
 """
 from __future__ import annotations
 
+import contextvars
 import hashlib
+import io
 import os
 import re
 import select
@@ -21,8 +23,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
-from typing import Callable, Dict, List, Optional, Sequence
+import weakref
+from typing import Callable, Dict, List, NamedTuple, Optional, Sequence
 
 from orchestrator.holdout_observation import (
     CalibrationObservationCapability,
@@ -45,6 +49,163 @@ def _maxrss_kb(metrics: Dict[str, str]):
 
 # 飽和シグナルに要る最小イベント + IPC 確認用。
 PERF_EVENTS = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+
+
+class MeasurementLaunchFailure(NamedTuple):
+    """Sanitized pre-open fact that no completed child result was obtained."""
+
+    exception_type: str
+    errno: Optional[int]
+    message: str
+
+
+class CapturedMeasurement:
+    """Raw measurement output sealed behind an observable one-shot open.
+
+    The token deliberately has no instance dictionary and carries no stdout,
+    stderr, or temporary perf path. Those values live in the module-private
+    vault until :meth:`open` atomically removes and consumes its payload.
+    ``launch_failures`` is the sole pre-open result surface: it contains only
+    sanitized facts about an ``OSError`` raised without a completed child.
+    """
+
+    __slots__ = ("__launch_failures", "__opened", "__weakref__", "__lock")
+
+    def __init__(
+            self,
+            launch_failures: Sequence[MeasurementLaunchFailure] = (),
+    ) -> None:
+        self.__launch_failures = tuple(launch_failures)
+        self.__opened = False
+        self.__lock = threading.Lock()
+
+    @property
+    def opened(self) -> bool:
+        """Whether the one permitted open attempt has begun."""
+        return self.__opened
+
+    @property
+    def launch_failures(self) -> tuple[MeasurementLaunchFailure, ...]:
+        """Child-launch failures available without opening captured output."""
+        return self.__launch_failures
+
+    def open(self):
+        """Decode, parse, and derive the captured result exactly once."""
+        with self.__lock:
+            if self.__opened:
+                raise RuntimeError("captured measurement output was already opened")
+            with _CAPTURED_OUTPUTS_LOCK:
+                payload = _CAPTURED_OUTPUTS.pop(self, None)
+            if payload is None:
+                raise RuntimeError("captured measurement output is unavailable")
+            self.__opened = True
+        return payload.open()
+
+
+class _CapturedOutputPayload:
+    """Vault value whose cleanup also runs when an unopened token is dropped."""
+
+    def __init__(self, opener: Callable[[], object],
+                 cleanup: Optional[Callable[[], None]] = None) -> None:
+        self._opener = opener
+        self._cleanup = cleanup
+
+    def open(self):
+        try:
+            return self._opener()
+        finally:
+            self.close()
+
+    def close(self) -> None:
+        cleanup, self._cleanup = self._cleanup, None
+        self._opener = lambda: None
+        if cleanup is not None:
+            cleanup()
+
+    def __del__(self) -> None:
+        self.close()
+
+
+_CAPTURED_OUTPUTS: weakref.WeakKeyDictionary[
+    CapturedMeasurement, _CapturedOutputPayload
+] = weakref.WeakKeyDictionary()
+_CAPTURED_FLOW_CONTROL: weakref.WeakKeyDictionary[
+    CapturedMeasurement, tuple[Optional[int], bool]
+] = weakref.WeakKeyDictionary()
+_CAPTURED_OUTPUTS_LOCK = threading.Lock()
+_DEFER_RUN_OUTPUT = contextvars.ContextVar(
+    "izanagi_defer_calibrator_run_output", default=False,
+)
+
+
+def _seal_captured_output(
+        opener: Callable[[], object], *,
+        cleanup: Optional[Callable[[], None]] = None,
+        launch_failures: Sequence[
+            MeasurementLaunchFailure
+        ] = (),
+        flow_control: tuple[Optional[int], bool] | None = None,
+) -> CapturedMeasurement:
+    token = CapturedMeasurement(launch_failures)
+    with _CAPTURED_OUTPUTS_LOCK:
+        _CAPTURED_OUTPUTS[token] = _CapturedOutputPayload(opener, cleanup)
+        if flow_control is not None:
+            _CAPTURED_FLOW_CONTROL[token] = flow_control
+    return token
+
+
+def _captured_flow_control(
+        token: CapturedMeasurement,
+) -> tuple[Optional[int], bool] | None:
+    """Return private spawn flow control without exposing it on the token."""
+    with _CAPTURED_OUTPUTS_LOCK:
+        return _CAPTURED_FLOW_CONTROL.get(token)
+
+
+def _decode_captured_output(raw):
+    """Apply ``text=True``'s locale decode and universal-newline semantics late."""
+    if not isinstance(raw, bytes):
+        # Existing injected subprocess seams return text even when the real
+        # invocation requests bytes. Preserve that long-standing test/API seam.
+        return raw
+    with io.TextIOWrapper(io.BytesIO(raw), errors="strict", newline=None) as stream:
+        return stream.read()
+
+
+def _open_deferred_perf_bytes(raw: bytes) -> str:
+    """Open sealed perf bytes only after classification, outside all rep runs."""
+    with tempfile.TemporaryDirectory(prefix="izanagi_perf_open_") as tmp:
+        path = os.path.join(tmp, "perf.csv")
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        try:
+            offset = 0
+            while offset < len(raw):
+                offset += os.write(descriptor, raw[offset:])
+        finally:
+            os.close(descriptor)
+        with open(path) as stream:
+            return stream.read()
+
+
+def _read_perf_bytes_for_deferred_cleanup(path: str) -> Optional[bytes]:
+    """Seal raw perf bytes without decoding them, then permit tmp cleanup."""
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0))
+    except FileNotFoundError:
+        return None
+    try:
+        chunks = []
+        while True:
+            chunk = os.read(descriptor, 65536)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+    finally:
+        os.close(descriptor)
 
 
 def _perf_raw_values(text: str) -> Dict[str, Optional[int]]:
@@ -398,6 +559,15 @@ def repro_command(binary: str, gflags: Sequence[str],
     return " ".join(parts)
 
 
+def _point_repro_command(
+        binary: str, gflags: Sequence[str],
+        numactl: Optional[Sequence[str]], use_perf: bool) -> str:
+    """Keep the shared point builders on one reviewed ``use_perf`` call site."""
+    return repro_command(
+        binary, gflags, numactl, use_perf=use_perf,
+    )
+
+
 def _calibration_binary_sha256(binary: str) -> str:
     """Hash the executable bytes at the spawn boundary, never a caller claim."""
     digest = hashlib.sha256()
@@ -432,9 +602,10 @@ def run_once(binary: str, gflags: Sequence[str],
     extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
     等) を perf run にも対称に設定するための差し込み口。親環境と extra_env は
     FLAGS_ 接頭辞だけを除いた閉じた環境へ統合する。
-    rep_returncodes を指定した場合は subprocess 完了直後、出力や strict rc の検査より
-    前に return code を追記する。perf_raw_sink は parser の集約値とは独立した 4 event
-    の証跡を受け取る。戻り値の 3-tuple は変えない。"""
+    rep_returncodes を指定した場合、公開経路は従来どおり subprocess 完了直後、
+    deferred 経路は output open 時に、いずれも strict rc 検査より前へ追記する。
+    perf_raw_sink は parser の集約値とは独立した 4 event の証跡を受け取る。公開 API の
+    戻り値の 3-tuple と例外契約は変えない。"""
     gflags_snapshot = tuple(gflags)
     execution_numactl = numactl
     execution_extra_env = extra_env
@@ -464,6 +635,7 @@ def run_once(binary: str, gflags: Sequence[str],
         )
     # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")
+    capture_transferred = False
     try:
         perf_out = os.path.join(tmp, "perf.csv")
         cmd = _build_cmd(
@@ -480,39 +652,406 @@ def run_once(binary: str, gflags: Sequence[str],
             env.update(execution_extra_env)
         env = {key: value for key, value in env.items()
                if not key.startswith("FLAGS_")}
+        defer_output = bool(_DEFER_RUN_OUTPUT.get())
         t0 = time.monotonic()
-        proc = subprocess_runner(cmd, capture_output=True, text=True,
-                                 timeout=timeout_s, cwd=tmp, env=env)
-        if rep_returncodes is not None:
+        proc = None
+        deferred_error = None
+        launch_failures: tuple[MeasurementLaunchFailure, ...] = ()
+        try:
+            # This exact call remains the sole reviewed CCBench spawn site.
+            # Bytes are intentionally retained without decoding until token.open().
+            proc = subprocess_runner(cmd, capture_output=True, text=not defer_output,
+                                     timeout=timeout_s, cwd=tmp, env=env)
+        except subprocess.TimeoutExpired as exc:
+            if not defer_output:
+                raise
+            # A timeout may carry partial stdout/stderr and is therefore output-derived.
+            deferred_error = exc
+        except OSError as exc:
+            if not defer_output:
+                raise
+            # No CompletedProcess exists: this is the only pre-open failure class.
+            deferred_error = exc
+            launch_failures = (MeasurementLaunchFailure(
+                exception_type=type(exc).__name__,
+                errno=getattr(exc, "errno", None),
+                message=str(exc),
+            ),)
+            # Do not let the pre-open summary expose this frame's perf path.
+            exc.__traceback__ = None
+        if (
+                not defer_output
+                and proc is not None
+                and rep_returncodes is not None
+        ):
             rep_returncodes.append(proc.returncode)
         wall = time.monotonic() - t0
-        if strict_returncode and proc.returncode != 0:
-            raise RuntimeError(
-                f"ccbench failed. rc={proc.returncode} stderr={(proc.stderr or '')[:400]}")
-        metrics = parse_bench_stdout(proc.stdout)
-        perf_text = ""
-        if os.path.exists(perf_out):
-            with open(perf_out) as f:
-                perf_text = f.read()
-        raw_values = (_perf_raw_values(perf_text) if use_perf
-                      else {event: None for event in PERF_EVENTS})
-        if perf_raw_sink is not None:
-            perf_raw_sink.clear()
-            perf_raw_sink.update(raw_values)
-        try:
-            counters = parse_perf_stat(perf_text)
-        except OverflowError:
-            # parser 本体は凍結面。inf 等は証跡側で欠損に正規化し、集約 counter も
-            # fail-closed に全欠損とする。
-            counters = PerfCounters()
-        if not metrics:
-            # bench が何も出さなかった = 異常 (stderr を添えて上げる)
-            raise RuntimeError(
-                f"ccbench produced no metrics. rc={proc.returncode} "
-                f"stderr={proc.stderr[:400]}")
-        return metrics, counters, wall
+
+        deferred_perf_bytes: bytes | None = None
+        if defer_output:
+            if proc is not None:
+                deferred_perf_bytes = _read_perf_bytes_for_deferred_cleanup(
+                    perf_out
+                )
+            shutil.rmtree(tmp, ignore_errors=True)
+
+        def open_run_output():
+            if deferred_error is not None:
+                raise deferred_error
+            assert proc is not None
+            stdout = _decode_captured_output(proc.stdout)
+            stderr = _decode_captured_output(proc.stderr)
+            if defer_output and rep_returncodes is not None:
+                rep_returncodes.append(proc.returncode)
+            if strict_returncode and proc.returncode != 0:
+                raise RuntimeError(
+                    f"ccbench failed. rc={proc.returncode} "
+                    f"stderr={(stderr or '')[:400]}")
+            metrics = parse_bench_stdout(stdout)
+            if deferred_perf_bytes is not None:
+                perf_text = _open_deferred_perf_bytes(deferred_perf_bytes)
+            elif os.path.exists(perf_out):
+                with open(perf_out) as f:
+                    perf_text = f.read()
+            else:
+                perf_text = ""
+            raw_values = (_perf_raw_values(perf_text) if use_perf
+                          else {event: None for event in PERF_EVENTS})
+            if perf_raw_sink is not None:
+                perf_raw_sink.clear()
+                perf_raw_sink.update(raw_values)
+            try:
+                counters = parse_perf_stat(perf_text)
+            except OverflowError:
+                # parser 本体は凍結面。inf 等は証跡側で欠損に正規化し、集約 counter も
+                # fail-closed に全欠損とする。
+                counters = PerfCounters()
+            if not metrics:
+                # bench が何も出さなかった = 異常 (stderr を添えて上げる)
+                raise RuntimeError(
+                    f"ccbench produced no metrics. rc={proc.returncode} "
+                    f"stderr={stderr[:400]}")
+            return metrics, counters, wall
+
+        captured = _seal_captured_output(
+            open_run_output,
+            cleanup=(
+                None if defer_output
+                else lambda: shutil.rmtree(tmp, ignore_errors=True)
+            ),
+            launch_failures=launch_failures,
+            flow_control=(
+                proc.returncode if proc is not None else None,
+                isinstance(deferred_error, subprocess.TimeoutExpired),
+            ) if defer_output else None,
+        )
+        capture_transferred = True
+        if defer_output:
+            return captured
+        return captured.open()
     finally:
-        shutil.rmtree(tmp, ignore_errors=True)
+        if not capture_transferred:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+def capture_run_once(binary: str, gflags: Sequence[str],
+                     numactl: Optional[Sequence[str]] = None,
+                     timeout_s: float = 120.0,
+                     extra_env: Optional[Dict[str, str]] = None,
+                     strict_returncode: bool = False,
+                     subprocess_runner: Callable[..., object] = subprocess.run,
+                     rep_returncodes: Optional[List[int]] = None,
+                     perf_raw_sink: Optional[
+                         Dict[str, Optional[int]]
+                     ] = None, *,
+                     use_perf: bool = True,
+                     holdout_observation_admission: Optional[
+                         HoldoutObservationAdmission
+                     ] = None,
+                     calibration_observation_capability: Optional[
+                         CalibrationObservationCapability
+                     ] = None,
+                     calibration_observation_phase: Optional[
+                         str
+                     ] = None) -> CapturedMeasurement:
+    """Capture one run without decoding, parsing, deriving, or updating sinks.
+
+    Raw perf bytes are copied into the opaque vault before the per-rep tmp is
+    removed; no counter or performance quantity is derived at that point.
+    """
+    marker = _DEFER_RUN_OUTPUT.set(True)
+    try:
+        result = run_once(
+            binary, gflags, numactl=numactl, timeout_s=timeout_s,
+            extra_env=extra_env, strict_returncode=strict_returncode,
+            subprocess_runner=subprocess_runner,
+            rep_returncodes=rep_returncodes, perf_raw_sink=perf_raw_sink,
+            use_perf=use_perf,
+            holdout_observation_admission=holdout_observation_admission,
+            calibration_observation_capability=calibration_observation_capability,
+            calibration_observation_phase=calibration_observation_phase,
+        )
+    finally:
+        _DEFER_RUN_OUTPUT.reset(marker)
+    if isinstance(result, CapturedMeasurement):
+        return result
+    # Preserve the established monkeypatch seam: injected run_once functions
+    # may still return the historical parsed 3-tuple.
+    return _seal_captured_output(lambda: result)
+
+
+def capture_measure_point(
+        binary: str, records: int, threads: int,
+        clocks_per_us: int, extime: int = 3, reps: int = 5,
+        workload: Optional[Dict[str, str]] = None,
+        numactl: Optional[Sequence[str]] = None,
+        settle_first: bool = False,
+        extra_env: Optional[Dict[str, str]] = None,
+        timeout_s: float = 120.0,
+        require_all_reps: bool = False,
+        require_complete_metrics: bool = False,
+        subprocess_runner: Callable[..., object] = subprocess.run,
+        rep_returncodes: Optional[List[int]] = None,
+        rep_observations: Optional[List[Dict[str, object]]] = None, *,
+        use_perf: bool = True,
+        holdout_observation_admission: Optional[
+            HoldoutObservationAdmission
+        ] = None,
+        calibration_observation_capability: Optional[
+            CalibrationObservationCapability
+        ] = None,
+        calibration_observation_phase: Optional[str] = None,
+) -> CapturedMeasurement:
+    """Run all reps and return their bytes as one sealed, one-shot token.
+
+    The subprocesses use the historical argv/environment/cwd/timeout path.
+    Raw perf bytes are sealed and the rep tmp is removed before the next spawn.
+    stdout/stderr decode, perf text open, parsers, metric derivation, and
+    caller-owned sink updates all begin only inside ``token.open()``.
+    """
+    if settle_first:
+        settle()
+
+    base_flags = [
+        f"-thread_num={threads}",
+        f"-ycsb_tuple_num={records}",
+        f"-extime={extime}",
+        f"-clocks_per_us={clocks_per_us}",
+    ]
+    for key, value in (workload or {}).items():
+        base_flags.append(f"-{key}={value}")
+    run_cmd = _point_repro_command(
+        binary, base_flags, numactl, use_perf,
+    )
+
+    captured_reps = []
+    launch_failures: List[MeasurementLaunchFailure] = []
+    for _i in range(reps):
+        local_returncodes: Optional[List[int]] = (
+            [] if rep_observations is not None else None
+        )
+        perf_raw: Dict[str, Optional[int]] = {
+            event: None for event in PERF_EVENTS
+        }
+        capture_exception = None
+        try:
+            run_kwargs = {
+                "numactl": numactl, "extra_env": extra_env,
+                "timeout_s": timeout_s,
+            }
+            # Keep the historical default kwarg shape, while honoring an
+            # explicit runner on the deferred capture surface.
+            if (require_all_reps or require_complete_metrics
+                    or rep_observations is not None):
+                run_kwargs["strict_returncode"] = require_all_reps
+                run_kwargs["subprocess_runner"] = subprocess_runner
+            elif subprocess_runner is not subprocess.run:
+                run_kwargs["subprocess_runner"] = subprocess_runner
+            if rep_observations is not None:
+                run_kwargs["rep_returncodes"] = local_returncodes
+                run_kwargs["perf_raw_sink"] = perf_raw
+            elif rep_returncodes is not None:
+                run_kwargs["rep_returncodes"] = rep_returncodes
+            if not use_perf:
+                run_kwargs["use_perf"] = False
+            if holdout_observation_admission is not None:
+                run_kwargs["holdout_observation_admission"] = (
+                    holdout_observation_admission
+                )
+            if calibration_observation_capability is not None:
+                run_kwargs["calibration_observation_capability"] = (
+                    calibration_observation_capability
+                )
+                run_kwargs["calibration_observation_phase"] = (
+                    calibration_observation_phase
+                )
+            marker = _DEFER_RUN_OUTPUT.set(True)
+            try:
+                result = run_once(binary, base_flags, **run_kwargs)
+            finally:
+                _DEFER_RUN_OUTPUT.reset(marker)
+            captured = (
+                result if isinstance(result, CapturedMeasurement)
+                else _seal_captured_output(lambda result=result: result)
+            )
+        except Exception as exc:
+            capture_exception = exc
+
+            def raise_captured(error=exc):
+                raise error
+            captured = _seal_captured_output(raise_captured)
+        launch_failures.extend(captured.launch_failures)
+        captured_reps.append((captured, local_returncodes, perf_raw))
+        flow_control = _captured_flow_control(captured)
+        if captured.launch_failures and (
+                rep_observations is None or require_all_reps):
+            break
+        if (
+                require_all_reps
+                and flow_control is not None
+                and (
+                    flow_control[1]
+                    or (
+                        flow_control[0] is not None
+                        and flow_control[0] != 0
+                    )
+                )
+        ):
+            # A return code may preserve historical spawn flow control, but is
+            # deliberately absent from CapturedMeasurement's public surface.
+            break
+        if capture_exception is not None:
+            if isinstance(
+                    capture_exception,
+                    (RuntimeError, subprocess.TimeoutExpired),
+            ):
+                if require_all_reps:
+                    break
+            elif rep_observations is None or require_all_reps:
+                break
+
+    def open_measurement_point():
+        pt = ScalePoint(
+            records=records, threads=threads,
+            run_cmd=run_cmd,
+        )
+        if rep_observations is not None:
+            rep_observations[:] = [
+                {
+                    "rep_index": index,
+                    "returncode": None,
+                    "counter_status": "unknown",
+                    "missing_perf_events": (
+                        list(PERF_EVENTS) if use_perf else []
+                    ),
+                    "perf_raw": {event: None for event in PERF_EVENTS},
+                    "throughput": None,
+                }
+                for index in range(reps)
+            ]
+        rep_results = []
+        n_exec_fail = 0
+        for index, (captured, local_returncodes, perf_raw) in enumerate(
+                captured_reps):
+            tps = None
+            try:
+                metrics, counters, wall = captured.open()
+            except (RuntimeError, subprocess.TimeoutExpired) as exc:
+                if require_all_reps:
+                    raise RuntimeError(
+                        f"rep{index}/{reps} fatal at records={records} "
+                        f"threads={threads}: {type(exc).__name__}: "
+                        f"{str(exc)[:200]}") from exc
+                n_exec_fail += 1
+                pt.notes.append(
+                    f"rep{index} failed: {type(exc).__name__}: {str(exc)[:200]}"
+                )
+                continue
+            except Exception as exc:
+                if rep_observations is None:
+                    raise
+                if require_all_reps:
+                    raise RuntimeError(
+                        f"rep{index}/{reps} fatal at records={records} "
+                        f"threads={threads}: {type(exc).__name__}: "
+                        f"{str(exc)[:200]}") from exc
+                n_exec_fail += 1
+                pt.notes.append(
+                    f"rep{index} failed: {type(exc).__name__}: {str(exc)[:200]}"
+                )
+                continue
+            finally:
+                if rep_observations is not None:
+                    if rep_returncodes is not None and local_returncodes:
+                        rep_returncodes.extend(local_returncodes)
+                    missing, status = _counter_observation(
+                        perf_raw, use_perf=use_perf,
+                    )
+                    rep_observations[index] = {
+                        "rep_index": index,
+                        "returncode": (
+                            local_returncodes[0]
+                            if local_returncodes
+                            and len(local_returncodes) == 1
+                            and type(local_returncodes[0]) is int else None
+                        ),
+                        "counter_status": status,
+                        "missing_perf_events": missing,
+                        "perf_raw": dict(perf_raw),
+                        "throughput": tps,
+                    }
+            tps = throughput_tps(metrics)
+            if rep_observations is not None:
+                rep_observations[index]["throughput"] = tps
+            maxrss = _maxrss_kb(metrics)
+            if require_complete_metrics:
+                missing = []
+                if tps is None:
+                    missing.append("throughput")
+                for name in (
+                        "llc_load_misses", "llc_loads",
+                        "instructions", "cycles"):
+                    if getattr(counters, name) is None:
+                        missing.append(name)
+                if maxrss is None:
+                    missing.append("maxrss")
+                if missing:
+                    raise RuntimeError(
+                        f"rep{index}/{reps} missing required metrics "
+                        f"at records={records}: " + ",".join(missing))
+            if tps is not None:
+                pt.throughputs.append(tps)
+            rep_results.append((
+                tps, counters, wall, maxrss,
+                parse_abort_rate(metrics), parse_latency_ns(metrics),
+            ))
+        if n_exec_fail:
+            pt.notes.append(f"{n_exec_fail}/{reps} reps failed to execute")
+        if not rep_results:
+            raise RuntimeError(
+                f"all {reps} reps failed at records={records} threads={threads}: "
+                + " | ".join(pt.notes))
+
+        valid = [result for result in rep_results if result[0] is not None]
+        rep = None
+        if valid:
+            throughputs = sorted(result[0] for result in valid)
+            median = throughputs[len(throughputs) // 2]
+            rep = min(valid, key=lambda result: abs(result[0] - median))
+        elif rep_results:
+            rep = rep_results[-1]
+        if rep is not None:
+            (pt.counters, pt.walltime_s, pt.maxrss_kb,
+             pt.abort_rate, pt.latency_ns) = rep[1], rep[2], rep[3], rep[4], rep[5]
+        if rep_observations is not None:
+            pt.rep_observations = [
+                dict(observation) for observation in rep_observations
+            ]
+        return pt
+
+    return _seal_captured_output(
+        open_measurement_point, launch_failures=launch_failures,
+    )
 
 
 def measure_point(binary: str, records: int, threads: int,
@@ -535,18 +1074,12 @@ def measure_point(binary: str, records: int, threads: int,
                       CalibrationObservationCapability
                   ] = None,
                   calibration_observation_phase: Optional[str] = None) -> ScalePoint:
-    """1 測定点を reps 回反復して ScalePoint を組む。
+    """1 measurement point with the historical per-rep observable order.
 
-    throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
-    代表として中央 throughput の rep のものを採る (miss 率は run 間で安定)。
-
-    settle_first は既定 False。admission control の静定待ちは campaign 冒頭で
-    1 回行えば足り、点ごとに待つと load EMA の残像で無駄に時間を食う (settle の
-    docstring 参照)。冒頭の 1 回は呼び手 (calibrate) が担う。
-
-    rep_returncodes / rep_observations 未指定時は run_once へ新しい kwarg を送らず、既存
-    monkeypatch seam を保つ。rep_observations 指定時は reps 件を先に確保し、例外・timeout
-    でも logical index の record を必ず残す。
+    Each rep is spawned, decoded, parsed, and cleaned before the next rep is
+    started.  The deferred floor-only API is intentionally separate so this
+    public compatibility surface retains its value, exception, sink, cleanup,
+    and fail-fast behavior.
     """
     if settle_first:
         settle()
@@ -557,41 +1090,49 @@ def measure_point(binary: str, records: int, threads: int,
         f"-extime={extime}",
         f"-clocks_per_us={clocks_per_us}",
     ]
-    for k, v in (workload or {}).items():
-        base_flags.append(f"-{k}={v}")
+    for key, value in (workload or {}).items():
+        base_flags.append(f"-{key}={value}")
 
-    pt = ScalePoint(
-        records=records, threads=threads,
-        run_cmd=repro_command(binary, base_flags, numactl, use_perf=use_perf),
+    point = ScalePoint(
+        records=records,
+        threads=threads,
+        run_cmd=_point_repro_command(
+            binary, base_flags, numactl, use_perf,
+        ),
     )
     if rep_observations is not None:
         rep_observations[:] = [
             {
-                "rep_index": i,
+                "rep_index": index,
                 "returncode": None,
                 "counter_status": "unknown",
-                "missing_perf_events": list(PERF_EVENTS) if use_perf else [],
+                "missing_perf_events": (
+                    list(PERF_EVENTS) if use_perf else []
+                ),
                 "perf_raw": {event: None for event in PERF_EVENTS},
                 "throughput": None,
             }
-            for i in range(reps)
+            for index in range(reps)
         ]
-    rep_results = []   # (tps, counters, wall, maxrss_kb, abort_rate, latency_ns)
+    rep_results = []
     n_exec_fail = 0
-    for i in range(reps):
-        # 規律3: 1 rep の run_once 失敗 (RuntimeError=metrics 空 / TimeoutExpired) で測定点
-        # 全体を捨てず、握り潰さず notes に構造化記録して残り rep で median を取る
-        # (reps>=2 の冗長性を活かす)。except: pass にはしない (沈黙させない)。
-        local_returncodes: Optional[List[int]] = [] if rep_observations is not None else None
-        perf_raw: Dict[str, Optional[int]] = {event: None for event in PERF_EVENTS}
-        tps = None
+    for index in range(reps):
+        local_returncodes: Optional[List[int]] = (
+            [] if rep_observations is not None else None
+        )
+        perf_raw: Dict[str, Optional[int]] = {
+            event: None for event in PERF_EVENTS
+        }
+        throughput = None
         try:
             run_kwargs = {
-                "numactl": numactl, "extra_env": extra_env,
+                "numactl": numactl,
+                "extra_env": extra_env,
                 "timeout_s": timeout_s,
             }
-            # 非 certify の既存 monkeypatch seam/signature を変えない。
-            if require_all_reps or require_complete_metrics or rep_observations is not None:
+            # Preserve the historical monkeypatch seam and kwarg shape.
+            if (require_all_reps or require_complete_metrics
+                    or rep_observations is not None):
                 run_kwargs["strict_returncode"] = require_all_reps
                 run_kwargs["subprocess_runner"] = subprocess_runner
             if rep_observations is not None:
@@ -612,86 +1153,113 @@ def measure_point(binary: str, records: int, threads: int,
                 run_kwargs["calibration_observation_phase"] = (
                     calibration_observation_phase
                 )
-            metrics, counters, wall = run_once(binary, base_flags, **run_kwargs)
-        except (RuntimeError, subprocess.TimeoutExpired) as e:
+            metrics, counters, wall = run_once(
+                binary, base_flags, **run_kwargs,
+            )
+        except (RuntimeError, subprocess.TimeoutExpired) as exc:
             if require_all_reps:
                 raise RuntimeError(
-                    f"rep{i}/{reps} fatal at records={records} threads={threads}: "
-                    f"{type(e).__name__}: {str(e)[:200]}") from e
+                    f"rep{index}/{reps} fatal at records={records} "
+                    f"threads={threads}: {type(exc).__name__}: "
+                    f"{str(exc)[:200]}"
+                ) from exc
             n_exec_fail += 1
-            pt.notes.append(f"rep{i} failed: {type(e).__name__}: {str(e)[:200]}")
+            point.notes.append(
+                f"rep{index} failed: {type(exc).__name__}: {str(exc)[:200]}"
+            )
             continue
-        except Exception as e:
-            # 証跡 opt-in の floor 経路だけは未知の通常例外も logical rep の
-            # unknown record として保存する。既存 caller の例外契約は変えない。
+        except Exception as exc:
             if rep_observations is None:
                 raise
             if require_all_reps:
                 raise RuntimeError(
-                    f"rep{i}/{reps} fatal at records={records} threads={threads}: "
-                    f"{type(e).__name__}: {str(e)[:200]}") from e
+                    f"rep{index}/{reps} fatal at records={records} "
+                    f"threads={threads}: {type(exc).__name__}: "
+                    f"{str(exc)[:200]}"
+                ) from exc
             n_exec_fail += 1
-            pt.notes.append(f"rep{i} failed: {type(e).__name__}: {str(e)[:200]}")
+            point.notes.append(
+                f"rep{index} failed: {type(exc).__name__}: {str(exc)[:200]}"
+            )
             continue
         finally:
             if rep_observations is not None:
                 if rep_returncodes is not None and local_returncodes:
                     rep_returncodes.extend(local_returncodes)
-                missing, status = _counter_observation(perf_raw, use_perf=use_perf)
-                rep_observations[i] = {
-                    "rep_index": i,
-                    "returncode": (local_returncodes[0]
-                                   if local_returncodes and len(local_returncodes) == 1
-                                   and type(local_returncodes[0]) is int else None),
+                missing, status = _counter_observation(
+                    perf_raw, use_perf=use_perf,
+                )
+                rep_observations[index] = {
+                    "rep_index": index,
+                    "returncode": (
+                        local_returncodes[0]
+                        if local_returncodes
+                        and len(local_returncodes) == 1
+                        and type(local_returncodes[0]) is int else None
+                    ),
                     "counter_status": status,
                     "missing_perf_events": missing,
                     "perf_raw": dict(perf_raw),
-                    "throughput": tps,
+                    "throughput": throughput,
                 }
-        tps = throughput_tps(metrics)
+        throughput = throughput_tps(metrics)
         if rep_observations is not None:
-            rep_observations[i]["throughput"] = tps
+            rep_observations[index]["throughput"] = throughput
         maxrss = _maxrss_kb(metrics)
         if require_complete_metrics:
             missing = []
-            if tps is None:
+            if throughput is None:
                 missing.append("throughput")
-            for name in ("llc_load_misses", "llc_loads", "instructions", "cycles"):
+            for name in (
+                    "llc_load_misses", "llc_loads",
+                    "instructions", "cycles"):
                 if getattr(counters, name) is None:
                     missing.append(name)
             if maxrss is None:
                 missing.append("maxrss")
             if missing:
                 raise RuntimeError(
-                    f"rep{i}/{reps} missing required metrics at records={records}: "
-                    + ",".join(missing))
-        if tps is not None:
-            pt.throughputs.append(tps)
-        rep_results.append((tps, counters, wall, maxrss,
-                            parse_abort_rate(metrics), parse_latency_ns(metrics)))
+                    f"rep{index}/{reps} missing required metrics "
+                    f"at records={records}: " + ",".join(missing)
+                )
+        if throughput is not None:
+            point.throughputs.append(throughput)
+        rep_results.append((
+            throughput,
+            counters,
+            wall,
+            maxrss,
+            parse_abort_rate(metrics),
+            parse_latency_ns(metrics),
+        ))
     if n_exec_fail:
-        pt.notes.append(f"{n_exec_fail}/{reps} reps failed to execute")
+        point.notes.append(f"{n_exec_fail}/{reps} reps failed to execute")
     if not rep_results:
-        # 全 rep が run_once 例外 = この測定点は本当に測れない。一部でも成功すれば上で
-        # rep_results に積まれ median が取れる。全滅時のみ原因を集約して fail-closed
-        # (規律3: 沈黙させず原因を添えて上げる)。
         raise RuntimeError(
             f"all {reps} reps failed at records={records} threads={threads}: "
-            + " | ".join(pt.notes))
+            + " | ".join(point.notes)
+        )
 
-    # 代表値 = throughput が中央値に最も近い rep のもの。leading indicator (abort/
-    # latency/cache) もこの代表 rep のものに揃える (同一 run の整合した断面にする)。
-    valid = [r for r in rep_results if r[0] is not None]
-    rep = None
+    valid = [result for result in rep_results if result[0] is not None]
+    representative = None
     if valid:
-        ts = sorted(r[0] for r in valid)
-        med = ts[len(ts) // 2]
-        rep = min(valid, key=lambda r: abs(r[0] - med))
+        throughputs = sorted(result[0] for result in valid)
+        median = throughputs[len(throughputs) // 2]
+        representative = min(
+            valid, key=lambda result: abs(result[0] - median),
+        )
     elif rep_results:
-        rep = rep_results[-1]
-    if rep is not None:
-        (pt.counters, pt.walltime_s, pt.maxrss_kb,
-         pt.abort_rate, pt.latency_ns) = rep[1], rep[2], rep[3], rep[4], rep[5]
+        representative = rep_results[-1]
+    if representative is not None:
+        (
+            point.counters,
+            point.walltime_s,
+            point.maxrss_kb,
+            point.abort_rate,
+            point.latency_ns,
+        ) = representative[1:]
     if rep_observations is not None:
-        pt.rep_observations = [dict(observation) for observation in rep_observations]
-    return pt
+        point.rep_observations = [
+            dict(observation) for observation in rep_observations
+        ]
+    return point

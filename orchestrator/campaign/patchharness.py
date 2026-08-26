@@ -46,9 +46,9 @@ _PYTEST_NODE = contextvars.ContextVar("patchharness_pytest_node", default=None)
 
 
 @contextlib.contextmanager
-def _pytest_node_context(node_id: str, real_repo_serial: bool):
-    """pytest conftest だけが test protocol 全区間へ設定する process-local 印。"""
-    token = _PYTEST_NODE.set((node_id, real_repo_serial))
+def _pytest_node_context(node_id: str, real_repo_access):
+    """pytest conftest だけが protocol 全区間へ設定する access vector。"""
+    token = _PYTEST_NODE.set((node_id, real_repo_access))
     try:
         yield
     finally:
@@ -321,11 +321,11 @@ def _guard_real_shared_checkout(base: str) -> None:
     default_path, default_inode = _git_repository_identity(_default_ccbench_dir())
     if candidate_path != default_path and candidate_inode != default_inode:
         return
-    node_id, real_repo_serial = current
-    if not real_repo_serial:
+    node_id, real_repo_access = current
+    if getattr(real_repo_access, "ccbench", None) != "write":
         raise RuntimeError(
             "patchharness: pytest node が実共有 submodule を checkout しようとした: "
-            f"{node_id}; REAL_REPO_SERIAL_NODES へ追加せよ"
+            f"{node_id}; REAL_REPO_ACCESS_BY_NODE で ccbench=write と分類せよ"
         )
 
 

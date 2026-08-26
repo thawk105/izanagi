@@ -260,8 +260,9 @@ skip でなく return で打ち切る (その旨コメントを付ける)。
 **外部依存物の不在ではない。** patch は repo 内にあり、現行 pin に対して `git apply --check` が
 rc=0 で当たる。適用は `orchestrator/campaign/patchharness.py` の `applied()`
 (pinned-clean assert + tree lock + apply + finally revert + clean assert) が行い、campaign
-本番経路が実際に使っている機構である。4 node は `conftest.py` の `REAL_REPO_SERIAL_NODES` へ
-登録済みで xdist の `real-repo` group で直列化されるため、並列との衝突も無い。
+本番経路が実際に使っている機構である。4 node は `conftest.py` の
+`REAL_REPO_ACCESS_BY_NODE` へ reader として登録され、`real-repo` marker で shard 閉包を保ち、
+実行時は親 working tree / 共有 ccbench 別の protocol-level RW lock で writer と排他する。
 
 **それでも受入 suite では窓を開けない (ユーザー裁定、[T-790])。** 開けても実効回収は
 4 node 中 2 node に留まる。回収 2 node と引き換えに、受入全走という共有の関門へ実 submodule の
@@ -286,7 +287,7 @@ conditional skipを維持し、窓が開けば available compiler で実走す�
 node ごとに開くか) で変わるので、確定値をここへ書かない。時間費用は小さい — 単発直列配置での
 window 開閉込みの差分は約 0.5 秒、隔離 checkout 側は `git worktree add --detach` の
 0.07 秒/サイクルである。ただしどちらも xdist 受入全走の予測ではない。
-`REAL_REPO_SERIAL_NODES` へ登録済みであることは「追加ペナルティ 0」を意味しない。
+`REAL_REPO_ACCESS_BY_NODE` へ登録済みであることは「追加ペナルティ 0」を意味しない。
 
 **律速は pinned compiler の在庫ではない (2026-08-23 実測)。** pinned でない g++-12 を渡すと、
 `fixed_variant_distinct` が主張する 5 つの関係 (`-1` は stock へ正規化 / 値違いは別 id =

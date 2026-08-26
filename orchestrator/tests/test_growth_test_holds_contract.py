@@ -357,6 +357,7 @@ def test_collection_hook_attaches_skip_metadata_and_prints_early_summary(monkeyp
 
 
 def test_collection_hook_opt_in_keeps_real_repo_serialization_without_skip(monkeypatch):
+    """Historical name: opt-in keeps shard closure and runtime-lock metadata."""
     monkeypatch.setenv(RUN_GROWTH_HELD_TESTS_ENV, RUN_GROWTH_HELD_TESTS_TOKEN)
     item = _Item(_HELD_SERIAL_NODE)
 

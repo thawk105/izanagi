@@ -26,9 +26,10 @@ receipt 解決 ([T-057]) と同じく **commit を積むほど遅くなる**構�
   同じファイルでも `orchestrator.campaign.s8b_ratified_freeze` は別 module object で、
   そちらを patch すると memo が 1 度も発火しない静かな空振りになる ([T-057] で実測した罠)。
   この空振りは `test_s8b_binding_driftguards.py` の positive control が殺す。
-- xdist の session 跨ぎ cache は**持たない**。opt-in する node は全て real-repo loadgroup
-  = 単一 worker = 単一 process に居るので process memo で足りる (receipt memo が
-  session cache を要したのは consumer が 50〜75 node・多 worker に散っていたため)。
+- xdist の session 跨ぎ cache は**持たない**。opt-in する 4 node だけは shard marker に加えて
+  最終 ``@real-repo`` suffix も保持し、単一 worker = 単一 process に居るので process memo で
+  足りる。それ以外の real-repo resource node は suffix を外して worker 間へ分散する。
+  receipt memo が session cache を要したのは consumer が 50〜75 node・多 worker に散るため。
 - **正規注入 seam を使えないことの確認 (D78 / DW-O14)**: `gate_check` には
   `ratified=` / `ratified_error=` 引数があるが、`ratified_error` を渡す枝は
   `_make_gate_decision` で早期 return し `_gate_check_core` の floor/budget/manifest

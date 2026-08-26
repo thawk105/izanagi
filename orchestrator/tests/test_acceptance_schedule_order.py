@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import json
 import math
 import os
@@ -716,43 +717,131 @@ def test_g5_real_ledger_covers_at_least_90_percent_of_real_collection(
     )
 
 
-# G6: reuse the independent literal and live collection audit, then compare the
-# complete real-repo projection across a production reorder.
+# G6: marker closure remains common while runtime scheduler scopes are split.
 def test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order():
+    """Historical name: only the four process-memo nodes remain one work unit."""
     from orchestrator.tests import test_real_repo_serialization as real_gate
 
     report = real_gate._collect_xdist_group_report(real_gate.HERE, cwd=real_gate.ROOT)
     real_gate._assert_xdist_group_contract(
         report, real_gate._XDIST_GROUP_NAMES_GOLDEN,
     )
-    real_gate._assert_real_repo_collection_order(report)
-    assert set(CONF.REAL_REPO_SERIAL_NODES) == set(
-        real_gate._REAL_REPO_SERIAL_NODES_GOLDEN
+    real_gate._assert_real_repo_suffix_contract(report)
+    order_item = _item(
+        "orchestrator/tests/test_collection_order_probe.py::test_probe"
+    )
+    order_item.name = "test_probe"
+    order_item.originalname = "test_probe"
+    order_config = _OptionConfig(dist="loadgroup", loadscopereorder=True)
+    order_config.args = [order_item.nodeid.split("::", 1)[0]]
+    order_ledger = {CONF._acceptance_ledger_nodeid(order_item): 1.0}
+    setattr(
+        order_config,
+        CONF._ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR,
+        order_ledger,
+    )
+    order_trace = []
+    production_strip = CONF._strip_real_repo_loadgroup_suffix
+    production_reorder = CONF._reorder_acceptance_items_by_duration
+
+    def traced_strip(item):
+        order_trace.append(("strip", item.nodeid))
+        return production_strip(item)
+
+    def traced_reorder(collection, durations):
+        order_trace.append(("reorder", tuple(item.nodeid for item in collection)))
+        return production_reorder(collection, durations)
+
+    with pytest.MonkeyPatch.context() as patcher:
+        patcher.setattr(CONF, "_strip_real_repo_loadgroup_suffix", traced_strip)
+        patcher.setattr(
+            CONF, "_reorder_acceptance_items_by_duration", traced_reorder,
+        )
+        wrapper = CONF.pytest_collection_modifyitems(order_config, [order_item])
+        assert next(wrapper) is None
+        with pytest.raises(StopIteration):
+            next(wrapper)
+    assert order_trace == [
+        ("strip", order_item.nodeid),
+        ("reorder", (order_item.nodeid,)),
+    ], "real-repo suffix strip must execute before D746 duration reorder"
+    assert set(CONF.REAL_REPO_CLASSIFIED_NODES) == set(
+        real_gate._REAL_REPO_CLASSIFIED_NODES_GOLDEN
     )
 
     items = []
     canonical_by_identity = {}
     for entry in report:
         nodeid = entry["nodeid"]
-        if entry["marks"]:
-            nodeid = f"{nodeid}@{entry['marks'][0]['args'][0]}"
-        item = _item(nodeid)
+        markers = tuple(
+            SimpleNamespace(
+                name="xdist_group",
+                args=tuple(mark["args"]),
+                kwargs=dict(mark["kwargs"]),
+            )
+            for mark in entry["marks"]
+        )
+        item = _item(nodeid, markers=markers)
         items.append(item)
         canonical_by_identity[id(item)] = entry["canonical_node"]
-    before = [
-        canonical_by_identity[id(item)] for item in items
-        if CONF._acceptance_loadgroup_scope(item.nodeid) == "real-repo"
+    resource_items = [
+        item for item in items
+        if canonical_by_identity[id(item)] in CONF.REAL_REPO_RESOURCE_NODES
     ]
-    assert len(before) >= 4
+    assert len(resource_items) >= len(CONF.REAL_REPO_RESOURCE_NODES)
+    assert all(
+        [mark.args for mark in item.iter_markers(name="xdist_group")]
+        == [("real-repo",)]
+        for item in resource_items
+    )
+    memo_items = [
+        item for item in resource_items
+        if canonical_by_identity[id(item)] in CONF.REAL_REPO_PROCESS_MEMO_NODES
+    ]
+    assert {canonical_by_identity[id(item)] for item in memo_items} == set(
+        CONF.REAL_REPO_PROCESS_MEMO_NODES
+    )
+    assert all(
+        CONF._acceptance_loadgroup_scope(item.nodeid) != "real-repo"
+        for item in resource_items
+    ), "plain collection must not synthesize xdist loadgroup scopes"
+
+    ledger_writer_node = (
+        "test_sort_swo_oracle.py::"
+        "test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+    )
+    ledger_writer_item = next(
+        item for item in resource_items
+        if canonical_by_identity[id(item)] == ledger_writer_node
+    )
+    actual_ledger = CONF._load_acceptance_duration_ledger(LEDGER)
+    writer_base_key = CONF._acceptance_ledger_nodeid(ledger_writer_item)
+    assert writer_base_key not in actual_ledger
+    assert actual_ledger[f"{writer_base_key}@real-repo"] == 0.19
+    assert CONF._acceptance_duration_for_item(
+        ledger_writer_item, actual_ledger,
+    ) == 0.19
+    known_slow_item = _item(
+        "orchestrator/tests/test_acceptance_schedule_order.py::"
+        "test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order"
+    )
+    compatibility_order = [ledger_writer_item, known_slow_item]
+    assert CONF._reorder_acceptance_items_by_duration(
+        compatibility_order, actual_ledger,
+    )
+    assert compatibility_order == [known_slow_item, ledger_writer_item], (
+        "suffixed real ledger key was treated as unknown cost"
+    )
+
+    before_identities = Counter(id(item) for item in items)
     ledger = _durations(items, (1 for _item_value in items))
     assert CONF._reorder_acceptance_items_by_duration(items, ledger)
-    positions = [
-        index for index, item in enumerate(items)
-        if CONF._acceptance_loadgroup_scope(item.nodeid) == "real-repo"
-    ]
-    after = [canonical_by_identity[id(items[index])] for index in positions]
-    assert after == before
-    assert positions == list(range(positions[0], positions[0] + len(positions)))
+    assert Counter(id(item) for item in items) == before_identities
+    assert all(
+        [mark.args for mark in item.iter_markers(name="xdist_group")]
+        == [("real-repo",)]
+        for item in resource_items
+    )
 
 
 class _OptionConfig:
@@ -1380,25 +1469,9 @@ def _nproc_scheduler_fixture():
     singleton_a = synthetic_items("singleton-a", 1)
     singleton_b = synthetic_items("singleton-b", 1)
 
-    serial_nodes = set(CONF.REAL_REPO_SERIAL_NODES)
-    priority_nodes = tuple(
-        node for node in CONF.REAL_REPO_EXECUTION_PRIORITY
-        if node in serial_nodes
-    )
-    assert len(priority_nodes) >= 2
-    real_marker = SimpleNamespace(
-        name="xdist_group", args=("real-repo",), kwargs={},
-    )
-    real_priority = []
-    for node in priority_nodes[:2]:
-        item = _item(
-            f"orchestrator/tests/{node}@real-repo",
-            markers=(real_marker,),
-        )
-        item.name = node.split("::", 1)[1]
-        real_priority.append(item)
-    real_priority = tuple(real_priority)
-    real_initial = tuple(reversed(real_priority))
+    # Scheduler invariance uses a synthetic group.  Production real-repo nodes
+    # are deliberately no longer subject to a dedicated priority pass.
+    real_initial = tuple(reversed(synthetic_items("real-repo", 2)))
 
     # The wrapper sees large first, but the duration ledger intentionally puts
     # medium first.  That insertion order makes min(unit_size, numprocesses)
@@ -1418,7 +1491,7 @@ def _nproc_scheduler_fixture():
         (large, 4.0),
         (pair_a, 50.5),
         (pair_b, 50.0),
-        (real_priority, 40.0),
+        (real_initial, 40.0),
         (singleton_a, 30.0),
         (singleton_b, 30.0),
     ):
@@ -1441,7 +1514,7 @@ def _nproc_scheduler_fixture():
         *large,
         *pair_a,
         *pair_b,
-        *real_priority,
+        *real_initial,
         *singleton_b,
         *singleton_a,
     )
@@ -1472,7 +1545,7 @@ def _assert_nproc_scheduler_fixture_contract(fixture) -> None:
     assert scope_counts["pair-a"] == scope_counts["pair-b"] == 2
     assert scope_counts["medium"] == 17
     assert scope_counts["large"] == 33
-    assert fixture["pre_finish_nodeids"] != fixture["final_nodeids"]
+    assert fixture["pre_finish_nodeids"] == fixture["final_nodeids"]
 
 
 def _run_scheduler_arm(
@@ -1490,8 +1563,7 @@ def _run_scheduler_arm(
         dist="loadgroup",
         loadscopereorder=True,
     )
-    # The production hook always prioritizes first.  workerinput suppresses
-    # unrelated controller-only receipt prewarming after that ordering step.
+    # workerinput suppresses unrelated controller-only receipt prewarming.
     finish_config.workerinput = {}
     CONF.pytest_collection_finish(SimpleNamespace(
         items=final_items,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -125,6 +126,12 @@ def _unoccupied_payload(path: Path) -> dict[str, object]:
     }
 
 
+def _indeterminate_payload(path: Path, issues: object) -> dict[str, object]:
+    payload = _unoccupied_payload(path)
+    payload.update({"status": "indeterminate", "issues": issues})
+    return payload
+
+
 def _stub_unoccupied(monkeypatch) -> None:
     monkeypatch.setattr(
         cleanup,
@@ -191,6 +198,7 @@ def _prepare_state(repo: Repo, state: str) -> None:
 @pytest.mark.parametrize("locked", (False, True), ids=("unlocked", "locked"))
 def test_landed_attached_worktree_is_removed(tmp_path, monkeypatch, capsys, locked):
     repo = _make_repo(tmp_path, monkeypatch, locked=locked)
+    _stub_unoccupied(monkeypatch)
     _assert_success_output(
         _run(repo, capsys),
         "removed",
@@ -211,6 +219,7 @@ def test_forward_merged_landing_tip_is_used_for_cleanup(
     pass_optional_tip,
 ):
     repo = _make_repo(tmp_path, monkeypatch, landed=False)
+    _stub_unoccupied(monkeypatch)
     tested_tip = repo.tip
     (repo.main / "main-after.txt").write_text("main advance\n", encoding="utf-8")
     _git(repo.main, "add", "main-after.txt")
@@ -242,6 +251,7 @@ def test_optional_landing_tip_must_match_derived_wave_head(
 @pytest.mark.parametrize("state", ("a", "b", "c", "d", "e"))
 def test_reentry_states_run_only_remaining_cleanup(tmp_path, monkeypatch, capsys, state):
     repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
     _prepare_state(repo, state)
     calls: list[tuple[str, ...]] = []
     original = cleanup._git
@@ -532,7 +542,7 @@ def test_rejects_occupancy_payload_failures_without_mutation(
 
     monkeypatch.setattr(cleanup, "_occupancy_payload", occupancy_result)
     _assert_rejected_preserving(repo, capsys, expected_rc=expected)
-    assert calls == 1
+    assert calls == (3 if signal == "mixed-issues" else 1)
 
 
 def test_retries_disappeared_pid_issue_then_removes(
@@ -571,6 +581,68 @@ def test_retries_disappeared_pid_issue_then_removes(
     _assert_removed(repo)
 
 
+def test_retries_transient_nonmissing_issue_then_removes(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    transient = _indeterminate_payload(
+        repo.wave,
+        [{"error": "os-error", "pid": 2345, "source": "stat"}],
+    )
+    calls = 0
+
+    def occupancy_sequence(path):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return cleanup.occupancy.INDETERMINATE_RC, transient
+        return cleanup.occupancy.UNOCCUPIED_RC, _unoccupied_payload(path)
+
+    monkeypatch.setattr(cleanup, "_occupancy_payload", occupancy_sequence)
+
+    result = _run(repo, capsys)
+
+    _assert_success_output(
+        result,
+        "removed",
+        occupancy_phases=("preflight", "recheck"),
+    )
+    assert calls == 3
+    diagnostic_lines = result[2].splitlines()
+    assert "phase=preflight " in diagnostic_lines[0]
+    assert "retry_count=1" in diagnostic_lines[0]
+    assert "phase=recheck " in diagnostic_lines[1]
+    assert "retry_count=0" in diagnostic_lines[1]
+    _assert_removed(repo)
+
+
+def test_three_nonmissing_issue_scans_remain_indeterminate(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    persistent = _indeterminate_payload(
+        repo.wave,
+        [{"error": "pid-reused", "pid": 3456, "source": "stat"}],
+    )
+    calls = 0
+
+    def always_indeterminate(path):
+        nonlocal calls
+        calls += 1
+        return cleanup.occupancy.INDETERMINATE_RC, persistent
+
+    monkeypatch.setattr(cleanup, "_occupancy_payload", always_indeterminate)
+    before = _snapshot(repo)
+
+    rc, stdout, stderr = _run(repo, capsys)
+
+    assert (rc, stdout) == (22, "")
+    assert calls == 3
+    assert "status=rejected phase=occupancy" in stderr
+    assert "attempts=3 retry_count=2" in stderr
+    _assert_preserved(repo, before)
+
+
 def test_three_disappeared_pid_issue_scans_remain_indeterminate(
     tmp_path, monkeypatch, capsys,
 ):
@@ -582,12 +654,19 @@ def test_three_disappeared_pid_issue_scans_remain_indeterminate(
     })
     calls = 0
 
-    def always_transient(path):
+    def always_has_issue(path):
         nonlocal calls
         calls += 1
-        return cleanup.occupancy.INDETERMINATE_RC, transient
+        rc = (
+            cleanup.occupancy.INDETERMINATE_RC
+            if calls < cleanup._OCCUPANCY_MAX_SCANS
+            else cleanup.occupancy.UNOCCUPIED_RC
+        )
+        if calls == cleanup._OCCUPANCY_MAX_SCANS:
+            transient["status"] = "unoccupied"
+        return rc, transient
 
-    monkeypatch.setattr(cleanup, "_occupancy_payload", always_transient)
+    monkeypatch.setattr(cleanup, "_occupancy_payload", always_has_issue)
     before = _snapshot(repo)
 
     rc, stdout, stderr = _run(repo, capsys)
@@ -596,6 +675,149 @@ def test_three_disappeared_pid_issue_scans_remain_indeterminate(
     assert calls == 3
     assert "status=rejected phase=occupancy" in stderr
     assert "attempts=3 retry_count=2" in stderr
+    _assert_preserved(repo, before)
+
+
+def test_indeterminate_issue_summary_is_json_and_includes_fields(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    issue = {"error": "os/error;]", "source": "cwd;]", "pid": 4567}
+    payload = _indeterminate_payload(repo.wave, [issue])
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.INDETERMINATE_RC, payload),
+    )
+    before = _snapshot(repo)
+
+    rc, stdout, stderr = _run(repo, capsys)
+
+    assert (rc, stdout) == (22, "")
+    assert "issues_total=1" in stderr
+    encoded_items = stderr.partition(" issues=")[2].partition(" issues_omitted=")[0]
+    assert json.loads(encoded_items) == [{
+        "error": "os/error;]",
+        "source": "cwd;]",
+        "pid": "4567",
+    }]
+    assert "issues_omitted=0" in stderr
+    assert stderr.count("\n") == 1
+    assert len(stderr.encode("utf-8")) < 600
+    _assert_preserved(repo, before)
+
+
+def test_indeterminate_issue_summary_limits_items_and_reports_omitted(
+    tmp_path, monkeypatch, capsys,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    issues = [
+        {"error": "os-error", "source": "cwd", "pid": pid}
+        for pid in (5101, 5102, 5103, 5104)
+    ]
+    payload = _indeterminate_payload(repo.wave, issues)
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.INDETERMINATE_RC, payload),
+    )
+
+    rc, stdout, stderr = _run(repo, capsys)
+
+    assert (rc, stdout) == (22, "")
+    assert "issues_total=4" in stderr
+    encoded_items = stderr.partition(" issues=")[2].partition(" issues_omitted=")[0]
+    summarized = json.loads(encoded_items)
+    assert [item["pid"] for item in summarized] == ["5101", "5102", "5103"]
+    assert "5104" not in stderr
+    assert "issues_omitted=1" in stderr
+    assert stderr.count("\n") == 1
+    assert len(stderr.encode("utf-8")) < 600
+
+
+def test_indeterminate_issue_summary_limits_each_field_to_24_utf8_bytes(
+    tmp_path, monkeypatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    payload = _indeterminate_payload(
+        target,
+        [{"error": "界" * 20, "source": "s" * 40, "pid": "9" * 40}],
+    )
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.INDETERMINATE_RC, payload),
+    )
+
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup._assert_unoccupied(target)
+
+    encoded_items = caught.value.reason.partition(" issues=")[2].partition(
+        " issues_omitted=",
+    )[0]
+    item = json.loads(encoded_items)[0]
+    assert item == {"error": "界" * 8, "source": "s" * 24, "pid": "9" * 24}
+    assert all(len(value.encode("utf-8")) <= 24 for value in item.values())
+
+
+def test_indeterminate_issue_summary_falls_back_to_readable_counts(
+    tmp_path, monkeypatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    issues = [
+        {"error": "\x01" * 24, "source": "\x01" * 24, "pid": "\x01" * 24}
+        for _ in range(3)
+    ]
+    payload = _indeterminate_payload(target, issues)
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.INDETERMINATE_RC, payload),
+    )
+
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup._assert_unoccupied(target)
+
+    reason = caught.value.reason
+    summary = reason[reason.index("issues_total="):]
+    assert summary == "issues_total=3 issues=[] issues_omitted=3"
+    assert len(summary.encode("utf-8")) <= cleanup._OCCUPANCY_ISSUE_SUMMARY_BYTES
+    assert len(reason.encode("utf-8")) <= 500
+    assert cleanup._sanitize(reason) == reason
+
+
+@pytest.mark.parametrize(
+    "issues",
+    (
+        "not-a-list",
+        ["not-a-dict"],
+        [{"error": "os-error"}],
+        [{"error": 1, "source": [], "pid": {}}],
+    ),
+    ids=("not-list", "not-dict", "missing-fields", "nonstr-fields"),
+)
+def test_malformed_indeterminate_issues_still_return_rc22(
+    tmp_path, monkeypatch, capsys, issues,
+):
+    repo = _make_repo(tmp_path, monkeypatch, locked=True)
+    payload = _indeterminate_payload(repo.wave, issues)
+    monkeypatch.setattr(
+        cleanup,
+        "_occupancy_payload",
+        lambda path: (cleanup.occupancy.INDETERMINATE_RC, payload),
+    )
+
+    before = _snapshot(repo)
+    rc, stdout, stderr = _run(repo, capsys)
+
+    assert (rc, stdout) == (22, "")
+    assert "status=rejected phase=occupancy" in stderr
+    assert "issues_total=1" in stderr
+    assert "unspecified" in stderr
+    assert stderr.count("\n") == 1
+    assert len(stderr.encode("utf-8")) < 600
     _assert_preserved(repo, before)
 
 

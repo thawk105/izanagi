@@ -27,11 +27,15 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
   ``test_real_repo_serialization.py`` の回帰ガードが検査して赤にする
 - 素の python3 実行 (二重 runner) は元から conftest を経由しない
 """
+import contextlib
+import errno
+import fcntl
 import hashlib
 import json
 import math
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -40,7 +44,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType, SimpleNamespace
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 import pytest
 
@@ -332,10 +336,9 @@ def _declare_default_test_site(request, monkeypatch):
         monkeypatch.setattr(module, "_has_nqsv", lambda: False)
 
 
-# 単一 pytest runner invocation 内で、親 repo status と共有 ccbench worktree の
-# reader/writer を同じ xdist loadgroup に閉じ込める正本。値は
+# 親 working tree (P) と共有 ccbench (S) に触る node の分類正本。値は
 # ``test_file.py::test_function``（parametrize suffix なし）で固定する。
-REAL_REPO_SERIAL_NODES = frozenset({
+_REAL_REPO_NODE_INVENTORY = frozenset({
     # 親 working tree の tracked + untracked snapshot。
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     # 上記 snapshot テストの結線監査 meta-テスト。実 ROOT で builder を実走し repo tree
@@ -437,6 +440,166 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
 
+
+@dataclass(frozen=True)
+class RealRepoAccess:
+    """One node's access to the parent tree and shared ccbench repository."""
+
+    parent: str | None
+    ccbench: str | None
+
+
+_REAL_REPO_PARENT_ONLY_NODES = frozenset({
+    "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+    "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+    "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+    "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+    "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+    "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
+    "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+    "test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
+    "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
+})
+_REAL_REPO_CCBENCH_ONLY_NODES = frozenset({
+    "test_campaign.py::test_source_digest_parse_options_defaults",
+    "test_campaign.py::test_source_digest_stock_roundtrip",
+    "test_campaign.py::test_source_digest_fixed_variant_distinct",
+    "test_campaign.py::test_source_digest_failsclosed_on_missing_define",
+    "test_campaign.py::test_source_digest_semantic_comment_vs_behavior",
+    "test_hooks.py::test_real_submodule_payload_edit",
+    "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+})
+_REAL_REPO_LOCAL_ONLY_NODES = frozenset({
+    "test_s8b_oracle_driver.py::test_tampered_freeze_fails_source_verification",
+    "test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
+})
+_REAL_REPO_CCBENCH_WRITER_NODES_LITERAL = frozenset({
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+    "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+    "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+})
+_REAL_REPO_BOTH_READER_NODES = frozenset({
+    "test_campaign.py::test_evolve_block_markers_structure_and_inert",
+    "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
+    "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
+    "test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure",
+    "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
+    "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
+    "test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected",
+    "test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
+    "test_codex_reasoning_ab.py::test_m3_focus_artifact_directions",
+    "test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing",
+    "test_codex_reasoning_ab.py::test_m3_snapshot_mode_change",
+    "test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required",
+    "test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
+    "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
+    "test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected",
+    "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+    "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive",
+    "test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested",
+    "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+    "test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
+    "test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
+    "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
+    "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper",
+    "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
+    "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
+    "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+    "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy",
+    "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics",
+    "test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule",
+    "test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze",
+    "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict",
+    "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control",
+    "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+    "test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible",
+    "test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper",
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper",
+    "test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper",
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+    "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+    "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+    "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control",
+})
+
+
+def _build_real_repo_access_map() -> Mapping[str, RealRepoAccess]:
+    ccbench_reader_nodes = (
+        _REAL_REPO_CCBENCH_ONLY_NODES
+        - _REAL_REPO_CCBENCH_WRITER_NODES_LITERAL
+    )
+    both_writer_nodes = (
+        _REAL_REPO_CCBENCH_WRITER_NODES_LITERAL
+        - _REAL_REPO_CCBENCH_ONLY_NODES
+    )
+    ccbench_writer_nodes = (
+        _REAL_REPO_CCBENCH_WRITER_NODES_LITERAL
+        & _REAL_REPO_CCBENCH_ONLY_NODES
+    )
+    access_groups = (
+        (_REAL_REPO_PARENT_ONLY_NODES, RealRepoAccess("read", None)),
+        (ccbench_reader_nodes, RealRepoAccess(None, "read")),
+        (_REAL_REPO_BOTH_READER_NODES, RealRepoAccess("read", "read")),
+        (both_writer_nodes, RealRepoAccess("read", "write")),
+        (ccbench_writer_nodes, RealRepoAccess(None, "write")),
+    )
+    classified_groups = tuple(nodes for nodes, _access in access_groups) + (
+        _REAL_REPO_LOCAL_ONLY_NODES,
+    )
+    for index, left in enumerate(classified_groups):
+        for right in classified_groups[index + 1:]:
+            overlap = left & right
+            if overlap:
+                raise RuntimeError(
+                    f"real-repo access partitions overlap: {sorted(overlap)!r}"
+                )
+    union = frozenset().union(*classified_groups)
+    if union != _REAL_REPO_NODE_INVENTORY:
+        raise RuntimeError(
+            "real-repo access partitions do not match inventory: "
+            f"missing={sorted(_REAL_REPO_NODE_INVENTORY - union)!r} "
+            f"extra={sorted(union - _REAL_REPO_NODE_INVENTORY)!r}"
+        )
+    classified: dict[str, RealRepoAccess] = {}
+    for nodes, access in access_groups:
+        for node_id in nodes:
+            classified[node_id] = access
+    expected = _REAL_REPO_NODE_INVENTORY - _REAL_REPO_LOCAL_ONLY_NODES
+    if set(classified) != set(expected):
+        raise RuntimeError("real-repo access map is incomplete")
+    return MappingProxyType(classified)
+
+
+REAL_REPO_ACCESS_BY_NODE = _build_real_repo_access_map()
+REAL_REPO_CLASSIFIED_NODES = _REAL_REPO_NODE_INVENTORY
+REAL_REPO_LOCAL_ONLY_NODES = _REAL_REPO_LOCAL_ONLY_NODES
+REAL_REPO_RESOURCE_NODES = frozenset(REAL_REPO_ACCESS_BY_NODE)
+REAL_REPO_CCBENCH_WRITER_NODES = frozenset(
+    node_id
+    for node_id, access in REAL_REPO_ACCESS_BY_NODE.items()
+    if access.ccbench == "write"
+)
+REAL_REPO_PROCESS_MEMO_NODES = frozenset({
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+})
+if not REAL_REPO_PROCESS_MEMO_NODES <= REAL_REPO_RESOURCE_NODES:
+    raise RuntimeError("real-repo process memo nodes must be resource nodes")
+
 # The sort-SWO environment is resolved once at collection time and consumed by
 # these nodes through sort_swo_oracle_receipt_memo.  This registry deliberately
 # does not carry the real-repo marker: its lifecycle is a separate correctness
@@ -468,14 +631,6 @@ ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
     "test_sort_swo_oracle.py::test_trusted_positive_preflight_compile_failure_is_unavailable",
     "test_sort_swo_oracle.py::test_public_api_propagates_exact_evaluator_axiom_finding",
 })
-
-# real-repo worker の先頭で独立 CLI 解決を開始し、旧 lazy payer node の優先順を保つ。
-# receipt cache の correctness barrier は test scheduling 前の prewarm hook が担う。
-# この 2 node 以外は collection 時点の相対順を維持する。
-REAL_REPO_EXECUTION_PRIORITY = (
-    "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
-    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
-)
 
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
 # loadgroup suffix は除いた ``file::function`` 形で固定する。33 関数 / 36 node。
@@ -568,7 +723,13 @@ def _isolate_official_output_root_env(monkeypatch):
 
 def _real_repo_node_id(item) -> str:
     """Collected item を正本の ``module::function`` 形へ正規化する。"""
+    nodeid = getattr(item, "nodeid", None)
+    if isinstance(nodeid, str):
+        registered = _receipt_memo_node_id_from_nodeid(nodeid)
+        if registered in REAL_REPO_CLASSIFIED_NODES:
+            return registered
     function = getattr(item, "originalname", None) or item.name.split("[", 1)[0]
+    function = function.removesuffix("@real-repo")
     return f"{os.path.basename(str(item.path))}::{function}"
 
 
@@ -748,7 +909,7 @@ _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
 _FLAKY_HOLD_MATCHED_IDS_ATTR = "_izanagi_collected_flaky_hold_ids"
 _FLAKY_HOLD_SKIPPED_IDS_ATTR = "_izanagi_skipped_flaky_hold_ids"
 _FLAKY_HOLD_COLLECTION_WORKERS_ATTR = "_izanagi_flaky_hold_collection_workers"
-_REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
+_REAL_REPO_ACCESS_ATTR = "_izanagi_real_repo_access"
 _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT = Path(__file__).resolve().parents[2]
 _ACCEPTANCE_DURATION_LEDGER_PATH = (
     _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
@@ -778,6 +939,155 @@ _SELECTION_RECEIPT_PREFIX = (
 _EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 _FLAKY_HOLD_SUMMARY_PREFIX = "IZANAGI_FLAKY_HOLD_SUMMARY_V1 "
+
+_REAL_REPO_LOCK_DIRECTORY = Path("/tmp")
+# 245 s = the 5-minute acceptance ceiling minus the observed longest resource
+# cohort (11.80 s setup + 43.22 s call = 55.02 s), rounded to one second.
+_REAL_REPO_LOCK_TIMEOUT_S = 245.0
+_REAL_REPO_LOCK_RETRY_INTERVAL_S = 0.05
+_REAL_REPO_LOCK_RESOURCES = ("parent", "ccbench")
+
+
+def _real_repo_lock_path(resource: str, *, repo_root: Path | str | None = None) -> Path:
+    """Return one deterministic lock path for this repo realpath.
+
+    The guarantee is limited to sessions that see the same host and filesystem;
+    it does not claim coordination across hosts or different filesystem views.
+    """
+    if resource not in _REAL_REPO_LOCK_RESOURCES:
+        raise ValueError(f"unknown real-repo lock resource: {resource!r}")
+    root = os.path.realpath(
+        os.fspath(
+            _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
+            if repo_root is None
+            else repo_root
+        )
+    )
+    digest = hashlib.sha256(os.fsencode(root)).hexdigest()
+    return _REAL_REPO_LOCK_DIRECTORY / (
+        f"izanagi-real-repo-{digest}-{resource}.lock"
+    )
+
+
+def _real_repo_lock_holder_info(fd: int) -> str:
+    """Return bounded kernel holder details for a timed-out flock."""
+    try:
+        lock_stat = os.fstat(fd)
+        raw_lines = Path("/proc/locks").read_text(
+            encoding="ascii", errors="replace"
+        ).splitlines()
+    except OSError as exc:
+        return f"unavailable:{type(exc).__name__}:{getattr(exc, 'errno', None)}"
+    holders = []
+    for line in raw_lines:
+        fields = line.split()
+        if len(fields) < 6 or fields[1] != "FLOCK":
+            continue
+        try:
+            device, inode_text = fields[5].rsplit(":", 1)
+            major_text, minor_text = device.split(":", 1)
+            matches = (
+                int(major_text, 16) == os.major(lock_stat.st_dev)
+                and int(minor_text, 16) == os.minor(lock_stat.st_dev)
+                and int(inode_text) == lock_stat.st_ino
+            )
+        except (ValueError, IndexError):
+            continue
+        if matches:
+            holders.append(f"pid={fields[4]},mode={fields[3]}")
+            if len(holders) >= 16:
+                holders.append("more")
+                break
+    return ",".join(holders) if holders else "kernel-holder-unavailable"
+
+
+def _open_real_repo_lock(path: Path) -> int:
+    flags = os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    try:
+        lock_stat = os.fstat(fd)
+        if not stat.S_ISREG(lock_stat.st_mode):
+            raise RuntimeError(f"real-repo lock is not a regular file: {path}")
+        if lock_stat.st_uid != os.getuid():
+            raise RuntimeError(
+                f"real-repo lock owner mismatch: {path} uid={lock_stat.st_uid}"
+            )
+        if stat.S_IMODE(lock_stat.st_mode) & 0o077:
+            raise RuntimeError(
+                f"real-repo lock permissions are too broad: {path} "
+                f"mode={stat.S_IMODE(lock_stat.st_mode):04o}"
+            )
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+@contextlib.contextmanager
+def _real_repo_file_lock(
+    resource: str,
+    access_mode: str,
+    *,
+    timeout_s: float | None = None,
+    retry_interval_s: float | None = None,
+):
+    """Acquire one SH/EX flock with a finite nonblocking deadline."""
+    operations = {"read": fcntl.LOCK_SH, "write": fcntl.LOCK_EX}
+    try:
+        operation = operations[access_mode]
+    except KeyError as exc:
+        raise ValueError(f"invalid real-repo access mode: {access_mode!r}") from exc
+    timeout = _REAL_REPO_LOCK_TIMEOUT_S if timeout_s is None else timeout_s
+    retry = (
+        _REAL_REPO_LOCK_RETRY_INTERVAL_S
+        if retry_interval_s is None
+        else retry_interval_s
+    )
+    if timeout < 0 or retry <= 0:
+        raise ValueError("real-repo lock timeout/retry interval must be bounded")
+    path = _real_repo_lock_path(resource)
+    fd = _open_real_repo_lock(path)
+    acquired = False
+    try:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(fd, operation | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except OSError as exc:
+                if exc.errno not in {errno.EACCES, errno.EAGAIN}:
+                    raise
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    holders = _real_repo_lock_holder_info(fd)
+                    raise RuntimeError(
+                        "real-repo lock deadline exceeded; fails-closed: "
+                        f"resource={resource} mode={access_mode} "
+                        f"timeout_s={timeout:g} path={path} holders={holders}"
+                    ) from exc
+                time.sleep(min(retry, remaining))
+        yield
+    finally:
+        if acquired:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
+@contextlib.contextmanager
+def _real_repo_locks(access: RealRepoAccess | None):
+    """Acquire P then S for one node and release them in reverse order."""
+    if access is None:
+        yield
+        return
+    with contextlib.ExitStack() as stack:
+        for resource, mode in (
+            ("parent", access.parent),
+            ("ccbench", access.ccbench),
+        ):
+            if mode is not None:
+                stack.enter_context(_real_repo_file_lock(resource, mode))
+        yield
 
 
 def _validate_acceptance_duration_ledger_document(document) -> dict[str, float]:
@@ -929,6 +1239,29 @@ def _acceptance_ledger_nodeid(item) -> str | None:
         return None
 
 
+def _acceptance_duration_for_item(item, durations) -> float | None:
+    """Resolve canonical and historical xdist-suffixed ledger keys."""
+    base_nodeid = _acceptance_ledger_nodeid(item)
+    if base_nodeid is None:
+        return None
+    duration = durations.get(base_nodeid)
+    if duration is not None:
+        return duration
+    try:
+        group_names = tuple(
+            mark.args[0]
+            for mark in item.iter_markers(name="xdist_group")
+            if len(mark.args) == 1 and isinstance(mark.args[0], str)
+        )
+    except (AttributeError, TypeError):
+        group_names = ()
+    for group_name in group_names:
+        duration = durations.get(f"{base_nodeid}@{group_name}")
+        if duration is not None:
+            return duration
+    return None
+
+
 def _replace_acceptance_items(items, reordered) -> None:
     """Replace only a verified identity multiset; this remains active under -O."""
     before_count = len(items)
@@ -971,7 +1304,7 @@ def _reorder_acceptance_items_by_duration(items, durations) -> bool:
         cost = 0.0
         known = True
         for item in unit["items"]:
-            duration = durations.get(_acceptance_ledger_nodeid(item))
+            duration = _acceptance_duration_for_item(item, durations)
             if duration is None:
                 known = False
                 break
@@ -1296,6 +1629,57 @@ def _check_flaky_hold_collection_complete(config, seen_ids) -> None:
         )
 
 
+def _validate_real_repo_shard_state(config) -> None:
+    """Require shard closure to observe every resource marker before stripping."""
+    if getattr(config, "_izanagi_acceptance_shard_spec", None) is None:
+        return
+    state = getattr(config, "_izanagi_acceptance_shard_state", None)
+    if not isinstance(state, dict):
+        raise pytest.UsageError(
+            "acceptance shard state が real-repo suffix strip 前に確定していない"
+        )
+    records = state.get("records")
+    if not isinstance(records, list):
+        raise pytest.UsageError("acceptance shard records が real-repo 検査に使えない")
+    observed: dict[str, set[object]] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            raise pytest.UsageError("acceptance shard record の shape が不正")
+        node_id = _receipt_memo_node_id_from_nodeid(str(record.get("nodeid", "")))
+        if node_id in REAL_REPO_RESOURCE_NODES:
+            observed.setdefault(node_id, set()).add(record.get("group"))
+    missing = sorted(REAL_REPO_RESOURCE_NODES - set(observed))
+    wrong = {
+        node_id: sorted(repr(group) for group in groups)
+        for node_id, groups in observed.items()
+        if groups != {"real-repo"}
+    }
+    if missing or wrong:
+        raise pytest.UsageError(
+            "acceptance shard が real-repo marker 閉包を確定できない: "
+            f"missing={missing!r} wrong={wrong!r}"
+        )
+
+
+def _strip_real_repo_loadgroup_suffix(item) -> bool:
+    """Strip xdist's suffix except from exact process-memo work units."""
+    node_id = _real_repo_node_id(item)
+    if node_id not in REAL_REPO_RESOURCE_NODES:
+        return False
+    current = str(getattr(item, "nodeid", ""))
+    suffix = "@real-repo"
+    if node_id in REAL_REPO_PROCESS_MEMO_NODES:
+        return False
+    if not current.endswith(suffix):
+        return False
+    stripped = current[:-len(suffix)]
+    if hasattr(item, "_nodeid"):
+        item._nodeid = stripped
+    else:
+        item.nodeid = stripped
+    return True
+
+
 def _xdist_flaky_collection_is_complete(config) -> bool:
     """Check whether all xdist workers have reported their collections."""
     if getattr(config, "_izanagi_acceptance_shard_spec", None) is not None:
@@ -1318,7 +1702,7 @@ def _xdist_flaky_collection_is_complete(config) -> bool:
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_collection_modifyitems(config, items):
-    """Attach serial/hold metadata before selection hooks can narrow items."""
+    """Attach shard markers, then split real-repo runtime work units."""
     _ensure_flaky_test_holds_loaded()
     opted_in = _growth_holds_opted_in()
     seen_hold_ids: set[str] = set()
@@ -1326,8 +1710,10 @@ def pytest_collection_modifyitems(config, items):
     source_paths: dict[str, set[str]] = {}
     for item in items:
         node_id = _real_repo_node_id(item)
-        if node_id in REAL_REPO_SERIAL_NODES:
-            setattr(item, _REAL_REPO_SERIAL_NODE_ATTR, node_id)
+        access = REAL_REPO_ACCESS_BY_NODE.get(node_id)
+        if access is not None:
+            setattr(item, _REAL_REPO_ACCESS_ATTR, access)
+        if node_id in REAL_REPO_RESOURCE_NODES:
             # xdist は複数 group 名を結合するため、二個目は足さない。
             if not list(item.iter_markers(name="xdist_group")):
                 item.add_marker(pytest.mark.xdist_group("real-repo"))
@@ -1385,6 +1771,9 @@ def pytest_collection_modifyitems(config, items):
     if _is_complete_flaky_hold_collection(config):
         _check_flaky_hold_collection_complete(config, seen_flaky_hold_ids)
     yield
+    _validate_real_repo_shard_state(config)
+    for item in items:
+        _strip_real_repo_loadgroup_suffix(item)
     if _acceptance_reordering_enabled(config):
         durations = getattr(
             config, _ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, None,
@@ -1398,39 +1787,27 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_runtest_protocol(item, nextitem):
-    """setup から teardown まで、正本由来の実資源アクセス印を伝播する。"""
+    """Hold P/S locks and the access stamp across setup/call/teardown."""
     from orchestrator.campaign import patchharness
 
     node_id = _real_repo_node_id(item)
-    stamped = getattr(item, _REAL_REPO_SERIAL_NODE_ATTR, None) == node_id
-    with patchharness._pytest_node_context(node_id, stamped):
-        return (yield)
-
-
-def _prioritize_real_repo_items(items) -> None:
-    """collection 確定後の real-repo slots へ優先順を適用する。"""
-    priority = {
-        node: index for index, node in enumerate(REAL_REPO_EXECUTION_PRIORITY)
-    }
-    serial_positions = [
-        index for index, item in enumerate(items)
-        if _real_repo_node_id(item) in REAL_REPO_SERIAL_NODES
-    ]
-    serial_items = [items[index] for index in serial_positions]
-    serial_items.sort(
-        key=lambda item: priority.get(
-            _real_repo_node_id(item), len(REAL_REPO_EXECUTION_PRIORITY),
-        ),
-    )
-    for index, item in zip(serial_positions, serial_items):
-        items[index] = item
+    expected_access = REAL_REPO_ACCESS_BY_NODE.get(node_id)
+    stamped_access = getattr(item, _REAL_REPO_ACCESS_ATTR, None)
+    if expected_access is not None and stamped_access != expected_access:
+        raise pytest.UsageError(
+            "real-repo resource access stamp mismatch; fails-closed: "
+            f"node={node_id} expected={expected_access!r} "
+            f"stamped={stamped_access!r}"
+        )
+    access = expected_access
+    with _real_repo_locks(access):
+        with patchharness._pytest_node_context(node_id, access):
+            return (yield)
 
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_finish(session) -> None:
-    """cacheprovider の後で順序を固定し、任意の task-run stats を収集する。"""
-    # collection_finish は --ff / --nf の post-yield より後に来るため、最終順を固定できる。
-    _prioritize_real_repo_items(session.items)
+    """Prewarm process memos and collect optional task-run stats."""
     # xdist worker もこの hook を通る。内側 helper guard と意図的に冗長な
     # defense-in-depth で、実解決を controller hook だけに限定する。
     if not hasattr(session.config, "workerinput"):
