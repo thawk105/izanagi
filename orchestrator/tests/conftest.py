@@ -38,6 +38,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from collections import Counter
@@ -348,6 +349,16 @@ _REAL_REPO_NODE_INVENTORY = frozenset({
     "test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
     # foreign module の import-time temp 境界と実 output の不変を検査する reader。
     "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+    # suite 全体を subprocess collect する meta-test。inner collect は node protocol を
+    # 発火しないため、外側 node が親 common-dir reader lock を所有する。
+    "test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+    "test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+    "test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+
+    # T810 live-authority は親 common-dir の linked-worktree registry を読む。
+    "test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
 
     # 実資源依存の reader。現行 test は applied() を nullcontext へ差し替えるが、
     # over-approximation として実 repo 直列群に残置する。
@@ -472,6 +483,12 @@ _REAL_REPO_PARENT_ONLY_NODES = frozenset({
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
     "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+    "test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+    "test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+    "test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+    "test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
@@ -853,10 +870,11 @@ def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
         raise pytest.UsageError("receipt memo prewarm に pytest session ID が無い")
     memo_module = _receipt_memo_module()
     try:
-        memo_module.prewarm_real_repo_receipt(
-            run_id=run_id,
-            session_id=session_id,
-        )
+        with _real_repo_locks(RealRepoAccess("read", None)):
+            memo_module.prewarm_real_repo_receipt(
+                run_id=run_id,
+                session_id=session_id,
+            )
     except BaseException:
         # 入れ子 pytest.main() の内側 prewarm が失敗しても外側 snapshot を戻す。
         memo_module.finish_real_repo_receipt_session(session_id=session_id)
@@ -910,10 +928,11 @@ def _prewarm_oracle_environment_memo(config, nodeids, *, run_id: str | None) -> 
         )
     memo_module = _oracle_environment_memo_module()
     try:
-        memo_module.prewarm_oracle_environment(
-            run_id=run_id,
-            session_id=session_id,
-        )
+        with _real_repo_locks(RealRepoAccess("read", None)):
+            memo_module.prewarm_oracle_environment(
+                run_id=run_id,
+                session_id=session_id,
+            )
     except BaseException:
         memo_module.finish_oracle_environment_session(session_id=session_id)
         raise
@@ -984,24 +1003,141 @@ _REAL_REPO_LOCK_DIRECTORY = Path("/tmp")
 _REAL_REPO_LOCK_TIMEOUT_S = 245.0
 _REAL_REPO_LOCK_RETRY_INTERVAL_S = 0.05
 _REAL_REPO_LOCK_RESOURCES = ("parent", "ccbench")
+_REAL_REPO_LOCK_MODE_RANK = {"read": 0, "write": 1}
 
 
-def _real_repo_lock_path(resource: str, *, repo_root: Path | str | None = None) -> Path:
-    """Return one deterministic lock path for this repo realpath.
+@dataclass
+class _RealRepoProcessLockState:
+    """One process-owned fd and the live requests that determine its mode."""
+
+    fd: int
+    holders: Counter[tuple[int, str]]
+    mode: str | None
+
+
+_REAL_REPO_PROCESS_LOCK_CONDITION = threading.Condition(threading.RLock())
+_REAL_REPO_PROCESS_LOCKS: dict[tuple[str, Path], _RealRepoProcessLockState] = {}
+_REAL_REPO_PROCESS_LOCK_PID = os.getpid()
+
+
+def _real_repo_git_environment() -> dict[str, str]:
+    """Return a closed, read-only Git environment for lock identity probes."""
+    env = {
+        key: os.environ[key]
+        for key in _RATIFICATION_GIT_ENV_ALLOWLIST
+        if key in os.environ
+    }
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
+    return env
+
+
+def _real_repo_worktree_root(repo_root: Path | str | None = None) -> Path:
+    return Path(os.path.realpath(os.fspath(
+        _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
+        if repo_root is None
+        else repo_root
+    )))
+
+
+def _real_repo_resource_root(
+    resource: str, *, repo_root: Path | str | None = None,
+) -> Path:
+    if resource not in _REAL_REPO_LOCK_RESOURCES:
+        raise ValueError(f"unknown real-repo lock resource: {resource!r}")
+    worktree_root = _real_repo_worktree_root(repo_root)
+    return (
+        worktree_root
+        if resource == "parent"
+        else worktree_root / "external" / "ccbench"
+    )
+
+
+def _real_repo_common_dir(
+    resource: str, *, repo_root: Path | str | None = None,
+) -> Path:
+    """Resolve one resource's Git common-dir without ambient Git authority."""
+    root = _real_repo_resource_root(resource, repo_root=repo_root)
+    executable = shutil.which("git")
+    if executable is None:
+        raise RuntimeError("real-repo common-dir resolver requires git")
+    try:
+        completed = subprocess.run(
+            [
+                executable,
+                "-C",
+                os.fspath(root),
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-common-dir",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            env=_real_repo_git_environment(),
+            timeout=30.0,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(
+            "real-repo common-dir resolution failed closed: "
+            f"resource={resource} error={type(exc).__name__}"
+        ) from exc
+    lines = completed.stdout.splitlines()
+    if completed.returncode != 0 or len(lines) != 1 or not lines[0]:
+        raise RuntimeError(
+            "real-repo common-dir resolution failed closed: "
+            f"resource={resource} rc={completed.returncode} lines={len(lines)}"
+        )
+    common_dir = Path(lines[0])
+    if not common_dir.is_absolute():
+        raise RuntimeError(
+            "real-repo common-dir is not absolute: "
+            f"resource={resource} path={common_dir}"
+        )
+    try:
+        resolved = common_dir.resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError(
+            "real-repo common-dir cannot be resolved strictly: "
+            f"resource={resource} path={common_dir}"
+        ) from exc
+    if not resolved.is_dir():
+        raise RuntimeError(
+            "real-repo common-dir is not a directory: "
+            f"resource={resource} path={resolved}"
+        )
+    return resolved
+
+
+def _real_repo_legacy_lock_path(
+    resource: str, *, repo_root: Path | str | None = None,
+) -> Path:
+    """Return the pre-common-dir worktree-root key during migration."""
+    if resource not in _REAL_REPO_LOCK_RESOURCES:
+        raise ValueError(f"unknown real-repo lock resource: {resource!r}")
+    digest = hashlib.sha256(
+        os.fsencode(_real_repo_worktree_root(repo_root))
+    ).hexdigest()
+    return _REAL_REPO_LOCK_DIRECTORY / (
+        f"izanagi-real-repo-{digest}-{resource}.lock"
+    )
+
+
+def _real_repo_lock_path(
+    resource: str, *, repo_root: Path | str | None = None,
+) -> Path:
+    """Return the Git-common-dir key shared by sibling worktrees.
 
     The guarantee is limited to sessions that see the same host and filesystem;
     it does not claim coordination across hosts or different filesystem views.
     """
-    if resource not in _REAL_REPO_LOCK_RESOURCES:
-        raise ValueError(f"unknown real-repo lock resource: {resource!r}")
-    root = os.path.realpath(
-        os.fspath(
-            _ACCEPTANCE_DURATION_LEDGER_REPO_ROOT
-            if repo_root is None
-            else repo_root
-        )
-    )
-    digest = hashlib.sha256(os.fsencode(root)).hexdigest()
+    common_dir = _real_repo_common_dir(resource, repo_root=repo_root)
+    digest = hashlib.sha256(os.fsencode(common_dir)).hexdigest()
     return _REAL_REPO_LOCK_DIRECTORY / (
         f"izanagi-real-repo-{digest}-{resource}.lock"
     )
@@ -1061,6 +1197,178 @@ def _open_real_repo_lock(path: Path) -> int:
         raise
 
 
+def _real_repo_strongest_lock_mode(
+    holders: Counter[tuple[int, str]],
+) -> str | None:
+    live_modes = {
+        mode for (_owner, mode), count in holders.items() if count > 0
+    }
+    return (
+        max(live_modes, key=_REAL_REPO_LOCK_MODE_RANK.__getitem__)
+        if live_modes
+        else None
+    )
+
+
+def _real_repo_flock_until(
+    resource: str,
+    access_mode: str,
+    path: Path,
+    fd: int,
+    *,
+    deadline: float,
+    retry_interval_s: float,
+) -> None:
+    """Set one process-owned fd to a mode using bounded nonblocking retries."""
+    operations = {"read": fcntl.LOCK_SH, "write": fcntl.LOCK_EX}
+    try:
+        operation = operations[access_mode]
+    except KeyError as exc:
+        raise ValueError(f"invalid real-repo access mode: {access_mode!r}") from exc
+    while True:
+        try:
+            fcntl.flock(fd, operation | fcntl.LOCK_NB)
+            return
+        except OSError as exc:
+            if exc.errno not in {errno.EACCES, errno.EAGAIN}:
+                raise
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                holders = _real_repo_lock_holder_info(fd)
+                raise RuntimeError(
+                    "real-repo lock deadline exceeded; fails-closed: "
+                    f"resource={resource} mode={access_mode} "
+                    f"path={path} holders={holders}"
+                ) from exc
+            time.sleep(min(retry_interval_s, remaining))
+
+
+def _reset_real_repo_process_locks_after_fork() -> None:
+    """Drop inherited manager fds before the child creates process-local state."""
+    global _REAL_REPO_PROCESS_LOCK_PID
+    pid = os.getpid()
+    if pid == _REAL_REPO_PROCESS_LOCK_PID:
+        return
+    for state in _REAL_REPO_PROCESS_LOCKS.values():
+        os.close(state.fd)
+    _REAL_REPO_PROCESS_LOCKS.clear()
+    _REAL_REPO_PROCESS_LOCK_PID = pid
+
+
+def _real_repo_same_process_request_is_compatible(
+    state: _RealRepoProcessLockState,
+    owner: int,
+    access_mode: str,
+) -> bool:
+    """Keep concurrent threads compatible while permitting same-thread upgrade."""
+    other_modes = {
+        mode
+        for (holder, mode), count in state.holders.items()
+        if holder != owner and count > 0
+    }
+    if not other_modes:
+        return True
+    return access_mode == "read" and "write" not in other_modes
+
+
+@contextlib.contextmanager
+def _real_repo_lock_path_context(
+    resource: str,
+    access_mode: str,
+    path: Path,
+    *,
+    deadline: float,
+    retry_interval_s: float,
+):
+    """Acquire one key through its process-local fd and mode-refcount manager."""
+    if access_mode not in _REAL_REPO_LOCK_MODE_RANK:
+        raise ValueError(f"invalid real-repo access mode: {access_mode!r}")
+    key = (resource, Path(path))
+    owner = threading.get_ident()
+    holder = (owner, access_mode)
+    state = None
+    condition = _REAL_REPO_PROCESS_LOCK_CONDITION
+    with condition:
+        _reset_real_repo_process_locks_after_fork()
+        while True:
+            state = _REAL_REPO_PROCESS_LOCKS.get(key)
+            if state is None or _real_repo_same_process_request_is_compatible(
+                    state, owner, access_mode):
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError(
+                    "real-repo lock deadline exceeded; fails-closed: "
+                    f"resource={resource} mode={access_mode} path={path} "
+                    "holders=same-process-incompatible-thread"
+                )
+            condition.wait(timeout=min(retry_interval_s, remaining))
+
+        created = state is None
+        if created:
+            state = _RealRepoProcessLockState(
+                fd=_open_real_repo_lock(path), holders=Counter(), mode=None,
+            )
+            _REAL_REPO_PROCESS_LOCKS[key] = state
+        assert state is not None
+        requested = state.holders.copy()
+        requested[holder] += 1
+        target_mode = _real_repo_strongest_lock_mode(requested)
+        assert target_mode is not None
+        try:
+            if target_mode != state.mode:
+                _real_repo_flock_until(
+                    resource,
+                    target_mode,
+                    path,
+                    state.fd,
+                    deadline=deadline,
+                    retry_interval_s=retry_interval_s,
+                )
+        except BaseException:
+            if created:
+                del _REAL_REPO_PROCESS_LOCKS[key]
+                os.close(state.fd)
+                condition.notify_all()
+            raise
+        state.holders = requested
+        state.mode = target_mode
+
+    try:
+        yield
+    finally:
+        with condition:
+            current = _REAL_REPO_PROCESS_LOCKS.get(key)
+            if current is not state or state.holders[holder] <= 0:
+                raise RuntimeError(
+                    "real-repo process lock manager state mismatch; fails-closed: "
+                    f"resource={resource} mode={access_mode} path={path}"
+                )
+            state.holders[holder] -= 1
+            if state.holders[holder] == 0:
+                del state.holders[holder]
+            target_mode = _real_repo_strongest_lock_mode(state.holders)
+            if target_mode is None:
+                try:
+                    fcntl.flock(state.fd, fcntl.LOCK_UN)
+                finally:
+                    os.close(state.fd)
+                    del _REAL_REPO_PROCESS_LOCKS[key]
+                    condition.notify_all()
+            else:
+                if target_mode != state.mode:
+                    _real_repo_flock_until(
+                        resource,
+                        target_mode,
+                        path,
+                        state.fd,
+                        deadline=time.monotonic() + _REAL_REPO_LOCK_TIMEOUT_S,
+                        retry_interval_s=retry_interval_s,
+                    )
+                state.mode = target_mode
+                condition.notify_all()
+
+
 @contextlib.contextmanager
 def _real_repo_file_lock(
     resource: str,
@@ -1069,12 +1377,7 @@ def _real_repo_file_lock(
     timeout_s: float | None = None,
     retry_interval_s: float | None = None,
 ):
-    """Acquire one SH/EX flock with a finite nonblocking deadline."""
-    operations = {"read": fcntl.LOCK_SH, "write": fcntl.LOCK_EX}
-    try:
-        operation = operations[access_mode]
-    except KeyError as exc:
-        raise ValueError(f"invalid real-repo access mode: {access_mode!r}") from exc
+    """Acquire legacy before resolving and acquiring the common-dir key."""
     timeout = _REAL_REPO_LOCK_TIMEOUT_S if timeout_s is None else timeout_s
     retry = (
         _REAL_REPO_LOCK_RETRY_INTERVAL_S
@@ -1083,33 +1386,29 @@ def _real_repo_file_lock(
     )
     if timeout < 0 or retry <= 0:
         raise ValueError("real-repo lock timeout/retry interval must be bounded")
-    path = _real_repo_lock_path(resource)
-    fd = _open_real_repo_lock(path)
-    acquired = False
-    try:
-        deadline = time.monotonic() + timeout
-        while True:
-            try:
-                fcntl.flock(fd, operation | fcntl.LOCK_NB)
-                acquired = True
-                break
-            except OSError as exc:
-                if exc.errno not in {errno.EACCES, errno.EAGAIN}:
-                    raise
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    holders = _real_repo_lock_holder_info(fd)
-                    raise RuntimeError(
-                        "real-repo lock deadline exceeded; fails-closed: "
-                        f"resource={resource} mode={access_mode} "
-                        f"timeout_s={timeout:g} path={path} holders={holders}"
-                    ) from exc
-                time.sleep(min(retry, remaining))
-        yield
-    finally:
-        if acquired:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        os.close(fd)
+    deadline = time.monotonic() + timeout
+    legacy = _real_repo_legacy_lock_path(resource)
+    with _real_repo_lock_path_context(
+        resource,
+        access_mode,
+        legacy,
+        deadline=deadline,
+        retry_interval_s=retry,
+    ):
+        common = _real_repo_lock_path(resource)
+        if legacy == common:
+            raise RuntimeError(
+                "real-repo legacy/common lock namespaces unexpectedly coincide: "
+                f"resource={resource} path={legacy}"
+            )
+        with _real_repo_lock_path_context(
+            resource,
+            access_mode,
+            common,
+            deadline=deadline,
+            retry_interval_s=retry,
+        ):
+            yield
 
 
 @contextlib.contextmanager
@@ -1126,6 +1425,22 @@ def _real_repo_locks(access: RealRepoAccess | None):
             if mode is not None:
                 stack.enter_context(_real_repo_file_lock(resource, mode))
         yield
+
+
+@contextlib.contextmanager
+def _real_repo_fixture_lock_context(
+    parent: str | None,
+    ccbench: str | None,
+):
+    """Expose fixture-owned access without exposing lock implementation details."""
+    with _real_repo_locks(RealRepoAccess(parent, ccbench)):
+        yield
+
+
+@pytest.fixture(scope="session")
+def real_repo_fixture_lock():
+    """Return the process-managed context factory for real-repo fixtures."""
+    return _real_repo_fixture_lock_context
 
 
 def _validate_acceptance_duration_ledger_document(document) -> dict[str, float]:
