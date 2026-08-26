@@ -545,12 +545,25 @@ def _template_patch_path(root: str) -> str:
     return os.path.join(root, "patches", TEMPLATE_PATCH)
 
 
-def default_cfg(reflux: bool = True) -> CampaignConfig:
+def default_cfg(
+    reflux: bool = True,
+    *,
+    b4_reflux_ablation: bool = False,
+) -> CampaignConfig:
     """段 8a trigger-gating 自律ループの campaign 設定。
 
     spec_slug/search_tag/trial は本軸固有 (sort からの流用禁止 — campaign 出力の軸別
     分離、regression SF3 裁定)。verify は legacy+S2 (D43 必須修正の型を踏襲 — S2 の
     hot key 競合が abort 要因を実際に踏む構成でないと gate 述語の評価土台が崩れる)。"""
+    search_config = {
+        "scale": "silo", "axis": MARKER_ID,
+        "reflux": "on" if reflux else "off",
+        "trigger_gate_binding_schema": TRIGGER_GATE_BINDING_SCHEMA,
+        "records": 100_000, "threads": 4,
+        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2,
+    }
+    if b4_reflux_ablation:
+        search_config[L.B4_PROTOCOL_KEY] = L.B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s8a-trigger-loop", search_tag="s8a-trigger-autonomous",
         spec_content=("P3 段 8a E 段: silo-backoff-trigger-gating (abort 要因別 backoff "
@@ -560,11 +573,7 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                       "build/verify(legacy+S2)/bench に進む。E 段へ流す偵察由来情報は"
                       "軸の生死二値のみ (D48 条件 7)"),
         ccbench_commit=PIN,
-        search_config={"scale": "silo", "axis": MARKER_ID,
-                       "reflux": "on" if reflux else "off",
-                       "trigger_gate_binding_schema": TRIGGER_GATE_BINDING_SCHEMA,
-                       "records": 100_000, "threads": 4,
-                       SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
+        search_config=search_config,
         trial="p3-s8a-trigger-loop")
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     return ident.bind_admission_policy(cfg, context.policy)
@@ -822,8 +831,13 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
 
 # ==== 駆動口 (実 planner/coder/auditor proposal を受けて 1 iteration を継続) ======
 
-def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTriggerGating,
-                                           AuditorVerdict, Optional[bool]]:
+def load_proposal_file(
+    path: str,
+    *,
+    b4_reflux_ablation: bool = False,
+    b4_closed_critic_receipt_sha256: str | None = None,
+) -> Tuple[L.PlannerProposal, CoderProposalTriggerGating,
+           AuditorVerdict, Optional[bool]]:
     """メインセッションが spawn した planner/coder/auditor の構造化出力を JSON から読む。
 
     schema は sort 版と同型 (coder に value フィールドが無い点も同じ)::
@@ -836,8 +850,33 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
     トップレベルキーは `d[...]` で読む (欠落 = KeyError で fails-closed)。"""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
+    schema_document = d
+    if b4_reflux_ablation:
+        if "prior_critic_reverse" in d:
+            raise L.B4ProtocolError(
+                "B-4 proposal must not self-report prior_critic_reverse"
+            )
+        has_receipt_binding = L.B4_PROPOSAL_RECEIPT_SHA256_KEY in d
+        if b4_closed_critic_receipt_sha256 is None:
+            if has_receipt_binding:
+                raise L.B4ProtocolError(
+                    "B-4 bootstrap proposal must not claim a critic receipt"
+                )
+        else:
+            claimed = d.get(L.B4_PROPOSAL_RECEIPT_SHA256_KEY)
+            if (
+                type(claimed) is not str
+                or claimed != b4_closed_critic_receipt_sha256
+            ):
+                raise L.B4ProtocolError(
+                    "B-4 proposal receipt hash differs from terminal receipt bytes"
+                )
+        schema_document = dict(d)
+        schema_document.pop(L.B4_PROPOSAL_RECEIPT_SHA256_KEY, None)
+    elif b4_closed_critic_receipt_sha256 is not None:
+        raise L.B4ProtocolError("proposal receipt binding requires B-4 mode")
     assert_closed_proposal_schema(
-        d, require_auditor=True, require_coder_value=False,
+        schema_document, require_auditor=True, require_coder_value=False,
         coder_contract=CODER_CONTRACT_TRIGGER_WIRE,
     )
     p, c, a = d["planner"], d["coder"], d["auditor"]
@@ -848,7 +887,7 @@ def load_proposal_file(path: str) -> Tuple[L.PlannerProposal, CoderProposalTrigg
         axis=c["axis"], wire=c["wire"],
         justification=c.get("justification", ""), confidence=c.get("confidence", "medium"))
     auditor = parse_auditor_dict(a)   # verdict 未知・digest 空/非文字列 → AuditorGateFailure
-    prior = d.get("prior_critic_reverse")
+    prior = None if b4_reflux_ablation else d.get("prior_critic_reverse")
     if prior is not None and not isinstance(prior, bool):
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
@@ -865,6 +904,8 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     extra_sources: Sequence[Dict[str, str]] = (), *,
                     dependency_prefix: str = "",
                     build_context: Optional[BuildRunContext] = None,
+                    b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
+                    b4_proposal_receipt_sha256: str | None = None,
                     _require_source_preimage_artifact: bool = False,
                     _resolved_site: Optional[str] = None,
                     _contract: Optional[
@@ -911,14 +952,50 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             campaign_cfg, layout, require_authoritative_root=do_build,
         )
     _assert_resume_allowed(contract, layout)
+    b4_mode = L.b4_reflux_ablation_mode(campaign_cfg)
+    if b4_mode:
+        state = L.load_loop_state(layout)
+        if state is None:
+            state = L.LoopState(start_wall=time.time())
+        authorization = L.require_b4_iteration_authorization(
+            campaign_cfg,
+            layout,
+            state,
+            do_build=do_build,
+            terminal_receipt_path=b4_closed_critic_receipt,
+        )
+        assert authorization is not None
+        if prior_critic_reverse is not None:
+            raise L.B4ProtocolError(
+                "B-4 driver rejects self-reported prior_critic_reverse"
+            )
+        if authorization.terminal_receipt_sha256 != b4_proposal_receipt_sha256:
+            raise L.B4ProtocolError(
+                "B-4 proposal is not bound to the verified terminal receipt"
+            )
+        if authorization.receipt is not None:
+            prior_critic_reverse = (
+                authorization.receipt.decision_reverse_recommended
+            )
+        L.consume_b4_iteration_authorization(authorization, layout=layout)
+    else:
+        if (
+            b4_closed_critic_receipt is not None
+            or b4_proposal_receipt_sha256 is not None
+        ):
+            raise L.B4ProtocolError(
+                "B-4 receipt inputs require the exact protocol marker"
+            )
+        state = None
     layout.ensure()
     ident.ensure_resumable_attempts(
         campaign_cfg, layout, admission_policy=build_context.policy,
     )
     _write_provenance_header(layout, extra_sources=extra_sources)
-    state = L.load_loop_state(layout)
     if state is None:
-        state = L.LoopState(start_wall=time.time())
+        state = L.load_loop_state(layout)
+        if state is None:
+            state = L.LoopState(start_wall=time.time())
     L._fold_critic_reverse(state, prior_critic_reverse)
 
     pre = L.check_stop(state)
@@ -1011,6 +1088,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
+    ap.add_argument("--b4-reflux-ablation", action="store_true",
+                    help="exact B-4 protocol marker を campaign identity に焼く")
+    ap.add_argument("--b4-closed-critic-receipt", type=Path, metavar="PATH",
+                    help="B-4 continuation の certified terminal receipt")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="実 planner/coder/auditor proposal (JSON) を受けて checkpoint 継続で "
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
@@ -1025,6 +1106,21 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="worktree 隔離 (既定 ON — PIN が backoff driver と異なるため共有 tree "
                          "衝突を避ける) を無効化 (デバッグ用)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+
+    if a.b4_closed_critic_receipt is not None and not a.run_iteration:
+        raise L.B4ProtocolError(
+            "--b4-closed-critic-receipt requires --run-iteration"
+        )
+    if a.b4_closed_critic_receipt is not None and not a.b4_reflux_ablation:
+        raise L.B4ProtocolError(
+            "--b4-closed-critic-receipt requires --b4-reflux-ablation"
+        )
+    if a.b4_reflux_ablation and a.no_build:
+        raise L.B4ProtocolError("B-4 protocol forbids --no-build")
+    if a.b4_reflux_ablation and not a.run_iteration:
+        raise L.B4ProtocolError(
+            "B-4 protocol forbids the fixture run_one_iteration route"
+        )
 
     extra_sources = [parse_extra_source(s) for s in a.extra_source]
 
@@ -1050,7 +1146,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         _assert_single_tenant()
     patchharness.assert_pinned_clean(fixed_sub, PIN)
 
-    cfg = default_cfg(reflux=(a.reflux == "on"))
+    cfg = default_cfg(
+        reflux=(a.reflux == "on"),
+        b4_reflux_ablation=a.b4_reflux_ablation,
+    )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     perf = default_perf()
 
@@ -1063,7 +1162,19 @@ def main(argv: Optional[List[str]] = None) -> int:
         cache_root = ""
 
     if a.run_iteration:
-        planner, coder, auditor, prior_rev = load_proposal_file(a.run_iteration)
+        proposal_receipt_sha256 = None
+        if (
+            a.b4_reflux_ablation
+            and a.b4_closed_critic_receipt is not None
+        ):
+            proposal_receipt_sha256 = L.b4_terminal_receipt_sha256(
+                a.b4_closed_critic_receipt
+            )
+        planner, coder, auditor, prior_rev = load_proposal_file(
+            a.run_iteration,
+            b4_reflux_ablation=a.b4_reflux_ablation,
+            b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+        )
         print(f"=== 段8a trigger-gating iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
               f"isolate_worktree={isolate}) ===")
@@ -1072,7 +1183,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   do_build=not a.no_build, cache_root=cache_root,
                                   proposal_path=os.path.abspath(a.run_iteration),
                                   extra_sources=extra_sources,
-                                  build_context=build_context)
+                                  build_context=build_context,
+                                  b4_closed_critic_receipt=(
+                                      a.b4_closed_critic_receipt
+                                  ),
+                                  b4_proposal_receipt_sha256=(
+                                      proposal_receipt_sha256
+                                  ))
         expected_layout = exploration_campaign_layout(out["campaign_id"])
         layout = CampaignLayout(out["layout_root"])
         if layout.root != expected_layout.root:
