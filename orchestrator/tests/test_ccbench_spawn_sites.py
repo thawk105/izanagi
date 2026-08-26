@@ -34,7 +34,7 @@ _GATEWAY = Counter({("calibrator/runner.py", "<module>.run_once"): 1})
 # visible without misclassifying them as additional raw process launch sites.
 _BOUNDED_RUN_ONCE_CLIENTS = Counter({
     ("campaign/b10_backoff_shape_sweep.py", "<module>.measure_performance_cell"): 1,
-    ("campaign/backoff_overthrottle.py", "<module>.measure"): 1,
+    ("campaign/backoff_overthrottle.py", "<module>._run_rep"): 1,
 })
 
 _DIRECT_SAFE_ALLOWLIST = Counter({
@@ -99,6 +99,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/enforcement_source_ratification.py", "<module>._git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     ("campaign/layer3_report.py", "<module>._git_head"): 1,
+    # Fixed OpenSSL Ed25519 signature verification for an external pin;
+    # its argv cannot name or execute CCBench.
+    ("campaign/mocc_trace_pair_anchor.py", "<module>._verify_ed25519_signature"): 1,
     ("campaign/patchharness.py", "<module>._git"): 1,
     ("campaign/patchharness.py", "<module>._git_repository_identity"): 1,
     # Read-only Git HEAD/status/blob probes bind the A-1 measurement source.
@@ -518,6 +521,29 @@ def test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes(
     assert _process_launch_sites(
         (tmp_path / "campaign",), orchestrator_root=tmp_path,
     ) == Counter({("campaign/nested/driver.py", "<module>.launch"): 3})
+
+
+def test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible():
+    sources = {
+        "campaign/mocc_trace_pair_anchor.py": (
+            "import subprocess\n"
+            "def _verify_ed25519_signature():\n"
+            "    subprocess.run([\"openssl\", \"pkeyutl\"])\n"
+        ),
+        "campaign/unreviewed.py": (
+            "import subprocess\n"
+            "def launch():\n"
+            "    subprocess.run([\"unexpected\"])\n"
+        ),
+    }
+    observed: Counter[tuple[str, str]] = Counter()
+    for relative_path, source in sources.items():
+        visitor = _ProcessLaunchVisitor(relative_path)
+        visitor.visit(ast.parse(source))
+        observed.update(visitor.sites)
+    assert observed - _EXPLICIT_NON_CCBENCH_PROCESS_SITES == Counter({
+        ("campaign/unreviewed.py", "<module>.launch"): 1,
+    })
 
 
 def test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios():
