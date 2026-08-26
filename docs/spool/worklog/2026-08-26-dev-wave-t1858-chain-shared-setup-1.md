@@ -68,8 +68,20 @@ title: 受入の排他鎖 2 本を共有化で 42% / 36% 短縮し、鎖はも�
   という時間依存の主張で、単独走は 1 passed / 7.15 秒で再現しない。本 wave の差分 (s8c 事前登録の
   test 2 file) はこの経路へ到達しない。F57 の既記録と同一の node・同一の assertion 本文である。
   `DW-O18` が規定する再赤の是正 (flaky hold への登録) は、**経路の file が並行 wave の所有下**で
-  実行できなかった。詳細と恒久対応の候補は {{F:flaky-hold-remediation-blocked-by-ownership}}。
-  **実装・記録・変異はすべて完了しており、残るのは受入 green と land だけである。**
+  実行できなかった。**書き込まずに所有者へ相談したのが正解だった** — 同じ node を別 wave
+  (`worktree-dev-wave-t1848-env-coincidence`) が hold ではなく修理で既に閉じており、
+  hold を登録していたら着地の瞬間に陳腐化する台帳項目を作っていた。修理は 2 秒の絶対期限を
+  除去して判定を launcher 終了後へ移すもので、上限は 1 つも広げていない。
+  詳細と恒久対応は {{F:flaky-hold-remediation-blocked-by-ownership}}。
+  **実装・記録・変異はすべて完了しており、残るのは当該修理の land 後に受入をもう一度取ることだけである。**
+- **land を塞ぐもう 1 つの欠陥は本 wave の外で修理・着地した。** 並行 wave の警告で気づいた。
+  `docs/worklog.md` が rotation 閾値に近く、fold が作る archive 名
+  `worklog-phase3-0826-1001.md` が `check_docs.py` の分類器に日付範囲と誤読され、
+  entry 1001 が全域番号 universe から消えて carry が宙吊りになる欠陥である
+  (射程 1001-1031 / 1101-1130 / 1201-1231)。親は分類器を直接叩いて再現を確認し、
+  着手していないことを伝えて譲った。main `4c88c3d0` で修理が着地し、
+  同じ検査で 1001・1031・1101・1201 がすべて numbered になること、
+  日付範囲名 `0801-0802` が unnumbered のままであることを実測で確かめた。
 
 ## 次の一手差分
 
