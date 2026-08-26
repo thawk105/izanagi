@@ -168,6 +168,22 @@ inert 軸」を「coder が #if 枝の中身を合成する編集面」へ昇格
 - 使い方: genome に `BACKOFF_FIXED` フラグを足すと `-DCCBENCH_BACKOFF_FIXED=<us>` が渡る。
   driver = `orchestrator/campaign/backoff_sweep.py` (BACK_OFF=1 + 量 sweep を高 abort workload で計測)。
 
+#### hole の式は v2 (B-10 の待ち方符号化) になっている
+
+2026-08-26 の B-10 (待ち方 / 待ち量の直交切り分け) で、合成枝 (hole) の 1 行を待機の*形*も
+選べる固定式へ更新した。骨格・マーカー・stock 枝・待機ループは 1 byte も変えていない。
+
+- `-1` = 従来どおり stock の適応 backoff (inert)。
+- `0`〜`999` = 従来と**数値的に同一**の一定待ち μ マイクロ秒。
+- `1000+μ` = μ/2 から 3μ/2 の対称 modulo。`2000+μ` = μ/2 か 3μ/2 を確率半々。
+  どちらも指示値の平均は厳密に μ で、乱数は同じ撹拌器と `backoff()` 入口の `rdtscp` 値だけを使う。
+- `3000` 以上は C++ では一定へ落ちるが、B-10 driver が grid 外として起動前に拒否する。
+
+**同じ 0〜999 でも、preprocess 後のソース・`src_token`・variant 識別子は v1 と v2 で変わる。**
+既存の凍結成果物・WAL は変更していないが、旧 consumer を再走して**旧 campaign へ resume してはならない**
+(同じ campaign に別 ID が積まれる)。逐語と検査の正本は
+`orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` と実行時 preflight。
+
 ### BACKOFF_NOINLINE — perf 帰属用の診断計器 (P2-4)
 
 backoff ケーススタディ [P0] の機序純度を解くため、backoff() の `_mm_pause`+`rdtscp` busy-wait スピンを
