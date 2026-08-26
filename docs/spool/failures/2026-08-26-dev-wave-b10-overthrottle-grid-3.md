@@ -29,6 +29,7 @@ seq: 3
   **その条件が偽になる入力が候補集合に存在しうるか**を変異で確かめる。
   変異が SURVIVED したとき、まず等価変異を疑い、等価なら実効 gate へ再照準する
   (`docs/dev-wave/mutation.md` の `DW-M01` / `DW-M02`)。
+  memory `predicate-may-be-implied-by-its-own-candidate-set` に手順を置いた。
 
 ### {{F:uncommitted-registry-blocks-children}}. 実装子が裁定どおり登録簿を変えた直後から codex 子が全部起動不能になった [手順漏れ]
 
@@ -42,10 +43,11 @@ seq: 3
   registry と contract loader 閉包の file は**実装子が裁定に従って変更することが期待されている**
   ため型が違う。「変更してはいけない file」ではなく「変更したら段 6 の前に commit が要る file」である。
   この順序制約はどの手順書にも書かれていなかった。
-- 恒久対応: `docs/dev-wave/workers.md` の段 6 契約へ、
-  「HEAD blob 束縛のある file を段 5 で変更した wave は、段 6 の子を起動する前に親の統合 commit を行う」
-  を統合する。束縛される file の一覧は `tools/check_codex_hooks.py` と
+- 恒久対応: memory `head-blob-bound-files-need-commit-before-stage6` —
+  段 5 が HEAD blob 束縛のある file を変えたら、段 6 の子を起動する前に親が統合 commit する。
+  束縛される file の一覧は `tools/check_codex_hooks.py` と
   `orchestrator/campaign/campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS` が正本である。
+  `docs/dev-wave/` は byte 予算が満杯で追記できなかった (予算緩和は裁定へ回した)。
 - 再発検知: 起動前検査の rc=2 本文に file 名が出るので、それを未 commit 差分と照合する。
   起動に失敗した子の receipt は残るため、**原因を直して同じ job-id で投げ直すと
   「既存の完全な receipt は上書きできない」で再び落ちる** — `--job-id` を変えて投げ直す。
@@ -58,8 +60,9 @@ seq: 3
 - 根本原因: 焦点走の consumer を「変更した production module 名で `orchestrator/tests/` を grep」で
   引いた。この inventory test は module 名を書かず、**production file を内容で走査して**
   対象集合を作るため、名前検索では hit しない。
-- 恒久対応: `docs/dev-wave/operations.md` の焦点走 consumer 拡張へ、
-  「新規 production file を足す走では、production を内容で走査する inventory test も焦点に含める」を統合する。
+- 恒久対応: memory `content-scanning-inventory-tests-evade-name-grep` —
+  新規 production file を足す走では、production を内容で走査する inventory test も焦点に含める。
+  `docs/dev-wave/` は byte 予算が満杯で追記できなかった (予算緩和は裁定へ回した)。
 - 再発検知: 新規 production file を足したら、`orchestrator/tests/` のうち
   production ディレクトリを走査する test (glob / `rglob` / ディレクトリ列挙を行うもの) を
   機械的に列挙して焦点へ入れる。
