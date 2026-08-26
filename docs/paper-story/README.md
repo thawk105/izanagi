@@ -72,6 +72,25 @@ fail-closed した。** MoCC 実装の性質か izanagi の trace hook の取り
 誤 label と後継図、§8 の A-1・A-2 の進捗 — は、いずれも 2026-08-26 版が本文へ取り込んだので
 ここから外した。
 
+**§8 の C-4 (体系的な先行研究調査) — 未完のままだが、内訳が動いた (2026-08-26)。**
+2026-08-26 版は C-4 を「変化なし」と書いた。**「未完である」は変わらない。**
+変わったのは、`docs/related-work/claim-survey/2026-08-26-inventory.md` の軸 1 分類 pilot が
+`要裁定` に残した 4 件のうち 1 件が、一次資料の精読で解けたことである。
+`2604.09318` (CIR+CVN) は **`部分接地` / 極性 `方法論的祖先`** であり、軸 1 の主題ではない —
+対象はスレッドの同期構造でトランザクションの並行性制御ではなく、直列化可能性も性能も扱わない。
+**この 1 件で C-4 は閉じない。** 残る `要裁定` は 3 件あり、そもそも pilot の母集合は
+`literature-map/` の閉じた 29 件で、`docs/related-work/README.md` 7.7.4 が求める
+索引・検索式・cutoff の事前登録は未着手だからである。軸 1 の成熟度は `RW1` のまま動かない。
+
+**あわせて、§3 の 1 (対象の空白) について確定したことがある。書き換えは要らない。**
+現行の文は「アクション空間自体をコードで拡張する既存例は本調査では未発見」であり、
+CIR+CVN はこれを覆さない。ただし **2 つの限定を落とすと反例になる** —
+(1) 対象がトランザクションの並行性制御であること、(2) 空間の「拡張」であって固定語彙の中の
+「生成」ではないこと。CIR+CVN は LLM に同期処理のコードを書かせるが、書ける操作は形式系が
+定めた閉じた集合である。**執筆時にこの 2 語を落とした短縮形を作らないこと。**
+一次資料: `docs/related-work/claim-survey/2026-08-26-cir-cvn-adjudication.md`、
+`docs/related-work/notes/note_cir_cvn_bridging_llm_semantic_understand.md`。
+
 **恒久の erratum は別の場所にある。**
 `figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
 書いてあるが、その値は無 backoff）と後継図 `figures/fig2b_backoff_sweep_3workload` への

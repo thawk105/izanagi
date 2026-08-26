@@ -15,6 +15,15 @@
 > `Modeling Concurrency Control as a Learnable Function` へ改題され NeurCC へ改名されたため、
 > `CCaaLF` や `NeurCC` の語では本マップから引けない。名前でなく arXiv ID で引くこと。
 
+> **同じ型の 2 例目 (2026-08-26 に一次資料で判明):** 柱5 の `2604.09318` (CIR+CVN) の要約は
+> 「並行制御構造を合成」と書いている。この日本語はトランザクションの並行性制御 (concurrency
+> control) とも、並行プログラムの同期構造 (concurrency structure) とも読めるが、
+> **原文は後者であり、トランザクションの語は本文に 1 つも現れない。**
+> 分類 pilot はこの要約から包含条件を決められず `要裁定` に残し、一次資料を読んで初めて解けた。
+> **要約の日本語で論文の対象を決めないこと。** 詳細は
+> `../claim-survey/2026-08-26-cir-cvn-adjudication.md` と
+> `../notes/note_cir_cvn_bridging_llm_semantic_understand.md`。
+
 ## 中身
 
 - `izanagi_literature_map.md` — 6柱・29本の文献マップ (日本語要約・関連度スコア・空白域分析)
