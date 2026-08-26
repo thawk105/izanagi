@@ -27,6 +27,7 @@ import os
 import re
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -98,6 +99,9 @@ _CCBENCH_DIR = _REPO_ROOT / "external/ccbench"
 _BACKOFF_PATCH_ACTIVE = contextvars.ContextVar(
     "backoff_profile_patch_active", default=False,
 )
+_PREBUILT_PROFILE_POINTS = contextvars.ContextVar(
+    "backoff_profile_prebuilt_points", default=None,
+)
 
 
 @dataclass(frozen=True)
@@ -122,6 +126,15 @@ class _ProfileRuntime:
     dependency_prefix: str = ""
     build_cache_root: str = ""
     dependency_build_log: str = ""
+
+
+@dataclass(frozen=True)
+class _BuiltProfilePoint:
+    """計測開始前に確定させた 1 点の build 実体。"""
+
+    backoff_us: int | None
+    genome: Genome
+    result: buildcache.BuildResult
 
 
 def _policy_path() -> Path:
@@ -343,48 +356,193 @@ def _applied_backoff_patch():
             _BACKOFF_PATCH_ACTIVE.reset(token)
 
 
-def _find_cmake_cache(binary: str) -> Path:
-    """build binary から最寄りの CMakeCache.txt を解決する。"""
-    for directory in Path(binary).resolve().parents:
-        candidate = directory / "CMakeCache.txt"
-        if candidate.is_file():
-            return candidate
-    raise RuntimeError(
-        f"backoff build の CMakeCache.txt を見つけられない: {binary}"
-    )
+def _point_label(backoff_us) -> str:
+    return "none" if backoff_us is None else f"{backoff_us}us"
 
 
-def _assert_build_accepted_backoff_defines(binary: str, backoff_us) -> None:
-    """生成 cache が要求した backoff define を型つきで受理したことを検査する。"""
-    cache = _find_cmake_cache(binary)
-    try:
-        lines = cache.read_text(encoding="utf-8", errors="strict").splitlines()
-    except (OSError, UnicodeError) as exc:
-        raise RuntimeError(f"backoff build cache を読めない: {cache}: {exc}") from exc
-    entries = {}
-    for line in lines:
-        if not line or line.startswith(("#", "//")) or "=" not in line:
-            continue
-        key_and_type, value = line.split("=", 1)
-        if ":" not in key_and_type:
-            continue
-        key, cache_type = key_and_type.split(":", 1)
-        entries[key] = (cache_type, value)
-
-    expected = {
-        "CCBENCH_BACKOFF_FIXED": str(-1 if backoff_us is None else backoff_us),
-        "CCBENCH_BACKOFF_NOINLINE": "1",
-    }
-    rejected = {
-        key: {"expected": ("STRING", value), "actual": entries.get(key)}
-        for key, value in expected.items()
-        if entries.get(key) != ("STRING", value)
-    }
-    if rejected:
+def _assert_distinct_backoff_binary_hashes(
+    built_points: list[_BuiltProfilePoint],
+) -> None:
+    """全7点の BuildResult が相異なる binary hash を持つことを検査する。"""
+    expected = [None, *BACKOFF_US]
+    observed = [point.backoff_us for point in built_points]
+    if observed != expected:
         raise RuntimeError(
-            "backoff build が要求 define を受理していない: "
-            f"cache={cache}, entries={rejected}"
+            f"backoff build grid が凍結7点と不一致: {observed!r} != {expected!r}"
         )
+
+    by_hash: dict[str, list[int | None]] = {}
+    for point in built_points:
+        digest = point.result.bin_sha256
+        if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise RuntimeError(
+                "backoff build の binary hash が sha256 でない: "
+                f"point={_point_label(point.backoff_us)} hash={digest!r}"
+            )
+        by_hash.setdefault(digest, []).append(point.backoff_us)
+
+    collisions = [
+        f"sha256={digest} points=[{', '.join(map(_point_label, points))}]"
+        for digest, points in by_hash.items()
+        if len(points) > 1
+    ]
+    if collisions:
+        raise RuntimeError(
+            "backoff build の binary hash が点間で衝突: " + "; ".join(collisions)
+        )
+
+
+def _elf_slice(raw: bytes, offset: int, size: int, label: str) -> bytes:
+    end = offset + size
+    if offset < 0 or size < 0 or end < offset or end > len(raw):
+        raise RuntimeError(
+            f"ELF {label} が file 範囲外: offset={offset} size={size}"
+        )
+    return raw[offset:end]
+
+
+def _elf_string(table: bytes, offset: int, label: str) -> bytes:
+    if offset < 0 or offset >= len(table):
+        raise RuntimeError(f"ELF {label} の文字列 offset が範囲外: {offset}")
+    end = table.find(b"\0", offset)
+    if end < 0:
+        raise RuntimeError(f"ELF {label} の文字列が NUL 終端されていない")
+    return table[offset:end]
+
+
+def _itanium_nested_name_components(symbol: str) -> tuple[str, ...] | None:
+    """単純な Itanium nested-name の length-prefixed component を返す。"""
+    if not symbol.startswith("_ZN"):
+        return None
+    cursor = 3
+    while cursor < len(symbol) and symbol[cursor] in "KVRrO":
+        cursor += 1
+    components = []
+    while cursor < len(symbol) and symbol[cursor] != "E":
+        length_start = cursor
+        while cursor < len(symbol) and symbol[cursor].isdigit():
+            cursor += 1
+        if length_start == cursor:
+            return None
+        length = int(symbol[length_start:cursor])
+        if length <= 0 or cursor + length > len(symbol):
+            return None
+        components.append(symbol[cursor:cursor + length])
+        cursor += length
+    if cursor >= len(symbol) or symbol[cursor] != "E" or cursor + 1 >= len(symbol):
+        return None
+    return tuple(components)
+
+
+def _is_backoff_function_symbol(symbol: str) -> bool:
+    components = _itanium_nested_name_components(symbol)
+    return components is not None and components[-2:] == ("Backoff", "backoff")
+
+
+def _assert_backoff_symbol_present(binary: str) -> None:
+    """ELF .symtab/.strtab を直接読み、定義済み Backoff::backoff を要求する。"""
+    path = Path(binary)
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise RuntimeError(f"backoff binary を読めない: {path}: {exc}") from exc
+    if len(raw) < 16 or raw[:4] != b"\x7fELF":
+        raise RuntimeError(f"backoff binary が ELF でない: {path}")
+
+    elf_class = raw[4]
+    data_encoding = raw[5]
+    if data_encoding == 1:
+        byte_order = "<"
+    elif data_encoding == 2:
+        byte_order = ">"
+    else:
+        raise RuntimeError(f"ELF data encoding が未対応: {data_encoding}")
+    if elf_class == 1:
+        header_format = byte_order + "HHIIIIIHHHHHH"
+        section_format = byte_order + "IIIIIIIIII"
+        symbol_format = byte_order + "IIIBBH"
+    elif elf_class == 2:
+        header_format = byte_order + "HHIQQQIHHHHHH"
+        section_format = byte_order + "IIQQQQIIQQ"
+        symbol_format = byte_order + "IBBHQQ"
+    else:
+        raise RuntimeError(f"ELF class が未対応: {elf_class}")
+
+    header_size = struct.calcsize(header_format)
+    _elf_slice(raw, 16, header_size, "header")
+    header = struct.unpack_from(header_format, raw, 16)
+    section_offset = header[5]
+    section_entry_size = header[10]
+    section_count = header[11]
+    section_names_index = header[12]
+    required_section_size = struct.calcsize(section_format)
+    if section_count == 0 or section_names_index == 0xffff:
+        raise RuntimeError("ELF extended section numbering は未対応")
+    if section_entry_size < required_section_size:
+        raise RuntimeError(
+            "ELF section header size が不足: "
+            f"{section_entry_size} < {required_section_size}"
+        )
+    if section_names_index >= section_count:
+        raise RuntimeError("ELF section-name table index が範囲外")
+
+    sections = []
+    for index in range(section_count):
+        offset = section_offset + index * section_entry_size
+        _elf_slice(raw, offset, required_section_size, f"section header {index}")
+        sections.append(struct.unpack_from(section_format, raw, offset))
+
+    names_section = sections[section_names_index]
+    section_names_data = _elf_slice(
+        raw, names_section[4], names_section[5], "section-name table",
+    )
+    section_names = []
+    for index, section in enumerate(sections):
+        name_bytes = _elf_string(
+            section_names_data, section[0], f"section {index} name",
+        )
+        try:
+            section_names.append(name_bytes.decode("ascii"))
+        except UnicodeDecodeError as exc:
+            raise RuntimeError(f"ELF section {index} name が ASCII でない") from exc
+
+    symtab_indexes = [
+        index for index, (name, section) in enumerate(zip(section_names, sections))
+        if name == ".symtab" and section[1] == 2
+    ]
+    if not symtab_indexes:
+        raise RuntimeError(f"backoff binary に ELF .symtab がない: {path}")
+
+    required_symbol_size = struct.calcsize(symbol_format)
+    for symtab_index in symtab_indexes:
+        symtab = sections[symtab_index]
+        string_index = symtab[6]
+        if string_index >= section_count or section_names[string_index] != ".strtab":
+            raise RuntimeError("ELF .symtab が .strtab を参照していない")
+        strings_section = sections[string_index]
+        strings = _elf_slice(
+            raw, strings_section[4], strings_section[5], "symbol string table",
+        )
+        entry_size = symtab[9]
+        if entry_size < required_symbol_size or symtab[5] % entry_size:
+            raise RuntimeError("ELF .symtab entry size が不正")
+        symbols = _elf_slice(raw, symtab[4], symtab[5], "symbol table")
+        for offset in range(0, len(symbols), entry_size):
+            entry = struct.unpack_from(symbol_format, symbols, offset)
+            if elf_class == 1:
+                name_offset, symbol_info, section_index = entry[0], entry[3], entry[5]
+            else:
+                name_offset, symbol_info, section_index = entry[0], entry[1], entry[3]
+            if section_index == 0 or symbol_info & 0x0f != 2:
+                continue
+            name_bytes = _elf_string(strings, name_offset, "symbol name")
+            try:
+                symbol = name_bytes.decode("ascii")
+            except UnicodeDecodeError:
+                continue
+            if _is_backoff_function_symbol(symbol):
+                return
+    raise RuntimeError(f"backoff binary に Backoff::backoff symbol がない: {path}")
 
 
 def _flags(workload, clocks_per_us=CLK):
@@ -521,8 +679,8 @@ def _derive_rep(run):
     }
 
 
-def _profile_point_in_patch(backoff_us, workload_snapshot, log, runtime):
-    """適用済み patch scope 内で 1 backoff 量を build/profile する。"""
+def _build_profile_point_in_patch(backoff_us, runtime) -> _BuiltProfilePoint:
+    """適用済み patch scope 内で 1 backoff 量を build する。"""
     genome = _genome(backoff_us)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_PROFILE)
     evidence = source_digest.resolve_evidence(
@@ -548,14 +706,23 @@ def _profile_point_in_patch(backoff_us, workload_snapshot, log, runtime):
         build_context=build_context,
         source_evidence=evidence,
     )
-    _assert_build_accepted_backoff_defines(built.binary, backoff_us)
+    return _BuiltProfilePoint(backoff_us, genome, built)
+
+
+def _measure_built_profile_point(
+    built_point, workload_snapshot, log, runtime,
+):
+    """全 build gate 通過後の 1 点を profile する。"""
+    backoff_us = built_point.backoff_us
+    genome = built_point.genome
+    binary = built_point.result.binary
     _assert_single_tenant()
     runs = []
     for _ in range(REPS):
         tmp = tempfile.mkdtemp(prefix="izanagi_prof_")
         try:
             runs.append(
-                _profile_run(built.binary, workload_snapshot, tmp, runtime, backoff_us)
+                _profile_run(binary, workload_snapshot, tmp, runtime, backoff_us)
             )
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -610,8 +777,19 @@ def profile_point(backoff_us, workload, log=print, *, runtime=None):
     if runtime is None:
         runtime = _default_runtime()
     with _applied_backoff_patch():
-        return _profile_point_in_patch(
-            backoff_us, workload_snapshot, log, runtime,
+        prebuilt = _PREBUILT_PROFILE_POINTS.get()
+        if prebuilt is None:
+            built_point = _build_profile_point_in_patch(backoff_us, runtime)
+            _assert_backoff_symbol_present(built_point.result.binary)
+        else:
+            try:
+                built_point = prebuilt[backoff_us]
+            except KeyError as exc:
+                raise RuntimeError(
+                    f"prebuilt backoff point がない: {_point_label(backoff_us)}"
+                ) from exc
+        return _measure_built_profile_point(
+            built_point, workload_snapshot, log, runtime,
         )
 
 
@@ -624,10 +802,31 @@ def profile_workload(tag, workload, log=print, *, runtime=None):
         f"  {'pt':>6} {'tps':>14} {'abort':>7} {'spin_cyc':>9} "
         f"{'tot_ipc':>8} {'use_ipc':>8} {'K_useful':>12}"
     )
+    workload_snapshot = dict(workload)
+    assert_holdout_observation_admitted(
+        gflags=tuple(_flags(workload_snapshot, effective.clocks_per_us)),
+        admission=None,
+    )
+    amounts = [None, *BACKOFF_US]
     with _applied_backoff_patch():
-        rows = [profile_point(None, workload, log, runtime=effective)]
-        for amount in BACKOFF_US:
-            rows.append(profile_point(amount, workload, log, runtime=effective))
+        built_points = [
+            _build_profile_point_in_patch(amount, effective) for amount in amounts
+        ]
+        _assert_distinct_backoff_binary_hashes(built_points)
+        for built_point in built_points:
+            _assert_backoff_symbol_present(built_point.result.binary)
+        token = _PREBUILT_PROFILE_POINTS.set({
+            point.backoff_us: point for point in built_points
+        })
+        try:
+            rows = [
+                profile_point(
+                    amount, workload_snapshot, log, runtime=effective,
+                )
+                for amount in amounts
+            ]
+        finally:
+            _PREBUILT_PROFILE_POINTS.reset(token)
     return rows
 
 

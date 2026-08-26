@@ -1,10 +1,12 @@
 """Pegasus balanced backoff profile の裁定 R1-R15 を固定する焦点テスト。"""
 from __future__ import annotations
 
+import ast
 import contextlib
 import inspect
 import json
 import os
+import struct
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -110,7 +112,12 @@ def _install_profile_point_spies(monkeypatch, runs=None) -> dict:
         observed["build_commit"] = ccbench_commit
         observed["trace"] = trace
         observed["build_kwargs"] = kwargs
-        return SimpleNamespace(binary="/tmp/fake-ccbench")
+        build_number = observed.get("build_number", 0) + 1
+        observed["build_number"] = build_number
+        return SimpleNamespace(
+            binary=f"/tmp/fake-ccbench-{build_number}",
+            bin_sha256=f"{build_number:064x}",
+        )
 
     def fake_run(binary, workload, tmp, runtime, backoff_us):
         observed.setdefault("run_runtimes", []).append(runtime)
@@ -127,9 +134,7 @@ def _install_profile_point_spies(monkeypatch, runs=None) -> dict:
         "applied",
         lambda *args: contextlib.nullcontext(),
     )
-    monkeypatch.setattr(
-        subject, "_assert_build_accepted_backoff_defines", lambda *args: None,
-    )
+    monkeypatch.setattr(subject, "_assert_backoff_symbol_present", lambda *args: None)
     monkeypatch.setattr(subject, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(subject, "_profile_run", fake_run)
     return observed
@@ -518,12 +523,28 @@ def test_m11_profile_point_drives_trace_disabled_build(monkeypatch):
 def test_m12_profile_workload_drives_the_frozen_seven_point_grid(monkeypatch):
     calls: list[tuple[object, object]] = []
     runtime = _runtime()
+    build_count = 0
 
     def fake_point(amount, workload, log=print, *, runtime=None):
         calls.append((amount, runtime))
         return {"backoff_us": 0 if amount is None else amount}
 
+    def fake_build(amount, got_runtime):
+        nonlocal build_count
+        build_count += 1
+        return subject._BuiltProfilePoint(
+            amount,
+            subject._genome(amount),
+            SimpleNamespace(
+                binary=f"/tmp/fake-ccbench-{build_count}",
+                bin_sha256=f"{build_count:064x}",
+            ),
+        )
+
     monkeypatch.setattr(subject, "profile_point", fake_point)
+    monkeypatch.setattr(subject, "assert_holdout_observation_admitted", lambda **kwargs: None)
+    monkeypatch.setattr(subject, "_build_profile_point_in_patch", fake_build)
+    monkeypatch.setattr(subject, "_assert_backoff_symbol_present", lambda binary: None)
     monkeypatch.setattr(
         subject.patchharness,
         "applied",
@@ -563,14 +584,26 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
         return object()
 
     def fake_build(*args, **kwargs):
+        build_number = sum(event[0] == "build" for event in events) + 1
         events.append(("build", args[0].canonical()))
-        return SimpleNamespace(binary="/tmp/fake-ccbench")
+        return SimpleNamespace(
+            binary=f"/tmp/fake-ccbench-{build_number}",
+            bin_sha256=f"{build_number:064x}",
+        )
 
-    checked_points = []
+    real_hash_check = subject._assert_distinct_backoff_binary_hashes
 
-    def fake_check(binary, backoff_us):
-        events.append(("define-check", backoff_us))
-        checked_points.append(backoff_us)
+    def fake_hash_check(built_points):
+        events.append(("hash-check", tuple(
+            point.backoff_us for point in built_points
+        )))
+        real_hash_check(built_points)
+
+    checked_binaries = []
+
+    def fake_symbol_check(binary):
+        events.append(("symbol-check", binary))
+        checked_binaries.append(binary)
 
     def fake_run(binary, workload, tmp, got_runtime, backoff_us):
         events.append(("measure", backoff_us))
@@ -584,7 +617,10 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
         subject, "derive_build_admission", lambda *args, **kwargs: object(),
     )
     monkeypatch.setattr(subject.buildcache, "build", fake_build)
-    monkeypatch.setattr(subject, "_assert_build_accepted_backoff_defines", fake_check)
+    monkeypatch.setattr(
+        subject, "_assert_distinct_backoff_binary_hashes", fake_hash_check,
+    )
+    monkeypatch.setattr(subject, "_assert_backoff_symbol_present", fake_symbol_check)
     monkeypatch.setattr(subject, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(subject, "_profile_run", fake_run)
 
@@ -601,67 +637,169 @@ def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
         str(REPO_ROOT / "external/ccbench"),
     )
     assert events[-1] == ("exit",)
-    point_phases = [
+    build_phases = [
         phase
         for _amount in (None, 2, 5, 10, 25, 50, 100)
-        for phase in (
-            "resolve", "build", "define-check", "measure", "measure", "measure",
+        for phase in ("resolve", "build")
+    ]
+    gate_phases = ["hash-check", *("symbol-check" for _ in range(7))]
+    measure_phases = ["measure" for _ in range(7 * 3)]
+    assert [event[0] for event in events[1:-1]] == [
+        *build_phases, *gate_phases, *measure_phases,
+    ]
+    assert events[15] == (
+        "hash-check", (None, 2, 5, 10, 25, 50, 100),
+    )
+    assert checked_binaries == [f"/tmp/fake-ccbench-{index}" for index in range(1, 8)]
+
+
+def _built_points(digests) -> list[subject._BuiltProfilePoint]:
+    return [
+        subject._BuiltProfilePoint(
+            amount,
+            subject._genome(amount),
+            SimpleNamespace(binary=f"/binary/{index}", bin_sha256=digest),
+        )
+        for index, (amount, digest) in enumerate(
+            zip([None, *subject.BACKOFF_US], digests, strict=True)
         )
     ]
-    assert [event[0] for event in events[1:-1]] == point_phases
-    assert checked_points == [None, 2, 5, 10, 25, 50, 100]
 
 
-def test_fx12_build_cache_must_show_accepted_typed_defines(tmp_path):
-    binary = tmp_path / "build/cc/silo/ycsb_silo.exe"
-    binary.parent.mkdir(parents=True)
-    binary.write_bytes(b"binary")
-    cache = tmp_path / "build/CMakeCache.txt"
+def _write_synthetic_elf(path: Path, symbols: list[str]) -> None:
+    section_names = b"\0.shstrtab\0.strtab\0.symtab\0"
+    string_table = bytearray(b"\0")
+    symbol_entries = [bytes(24)]
+    for symbol in symbols:
+        name_offset = len(string_table)
+        string_table.extend(symbol.encode("ascii") + b"\0")
+        symbol_entries.append(struct.pack(
+            "<IBBHQQ", name_offset, 0x12, 0, 1, 0, 1,
+        ))
+    symbols_data = b"".join(symbol_entries)
 
-    cache.write_text(
-        "CCBENCH_BACKOFF_FIXED:UNINITIALIZED=2\n"
-        "CCBENCH_BACKOFF_NOINLINE:UNINITIALIZED=1\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(RuntimeError, match="要求 define を受理していない"):
-        subject._assert_build_accepted_backoff_defines(str(binary), 2)
-
-    cache.write_text(
-        "CCBENCH_BACKOFF_FIXED:STRING=2\n"
-        "CCBENCH_BACKOFF_NOINLINE:UNINITIALIZED=1\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(RuntimeError, match="要求 define を受理していない"):
-        subject._assert_build_accepted_backoff_defines(str(binary), 2)
-
-    cache.write_text(
-        "CCBENCH_BACKOFF_FIXED:STRING=2\n"
-        "CCBENCH_BACKOFF_NOINLINE:STRING=1\n",
-        encoding="utf-8",
-    )
-    subject._assert_build_accepted_backoff_defines(str(binary), 2)
-
-
-def test_fx12_none_point_requires_fixed_minus_one_and_noinline(tmp_path):
-    binary = tmp_path / "build/cc/silo/ycsb_silo.exe"
-    binary.parent.mkdir(parents=True)
-    binary.write_bytes(b"binary")
-    cache = tmp_path / "build/CMakeCache.txt"
-    cache.write_text(
-        "CCBENCH_BACKOFF_FIXED:STRING=0\n"
-        "CCBENCH_BACKOFF_NOINLINE:STRING=1\n",
-        encoding="utf-8",
+    section_names_offset = 64
+    string_table_offset = section_names_offset + len(section_names)
+    symbols_offset = string_table_offset + len(string_table)
+    section_headers_offset = (symbols_offset + len(symbols_data) + 7) & ~7
+    header = struct.pack(
+        "<16sHHIQQQIHHHHHH",
+        b"\x7fELF" + bytes((2, 1, 1)) + bytes(9),
+        2,
+        62,
+        1,
+        0,
+        0,
+        section_headers_offset,
+        0,
+        64,
+        0,
+        0,
+        64,
+        4,
+        1,
     )
 
-    with pytest.raises(RuntimeError, match="要求 define を受理していない"):
-        subject._assert_build_accepted_backoff_defines(str(binary), None)
+    def section_header(
+        name, section_type, offset, size, *, link=0, info=0, align=1, entry_size=0,
+    ):
+        return struct.pack(
+            "<IIQQQQIIQQ",
+            name, section_type, 0, 0, offset, size, link, info, align, entry_size,
+        )
 
-    cache.write_text(
-        "CCBENCH_BACKOFF_FIXED:STRING=-1\n"
-        "CCBENCH_BACKOFF_NOINLINE:STRING=1\n",
-        encoding="utf-8",
+    section_headers = b"".join((
+        bytes(64),
+        section_header(
+            section_names.index(b".shstrtab"), 3,
+            section_names_offset, len(section_names),
+        ),
+        section_header(
+            section_names.index(b".strtab"), 3,
+            string_table_offset, len(string_table),
+        ),
+        section_header(
+            section_names.index(b".symtab"), 2,
+            symbols_offset, len(symbols_data), link=2, info=1,
+            align=8, entry_size=24,
+        ),
+    ))
+    padding = bytes(section_headers_offset - symbols_offset - len(symbols_data))
+    path.write_bytes(
+        header + section_names + bytes(string_table) + symbols_data
+        + padding + section_headers
     )
-    subject._assert_build_accepted_backoff_defines(str(binary), None)
+
+
+def test_fx12a_seven_distinct_buildresult_binary_hashes_pass():
+    subject._assert_distinct_backoff_binary_hashes(
+        _built_points(f"{index:064x}" for index in range(1, 8)),
+    )
+
+
+def test_fx12a_duplicate_binary_hash_names_colliding_points():
+    digests = [f"{index:064x}" for index in range(1, 8)]
+    digests[4] = digests[1]
+
+    with pytest.raises(RuntimeError, match=r"2us.*25us"):
+        subject._assert_distinct_backoff_binary_hashes(_built_points(digests))
+
+
+def test_fx12b_synthetic_elf_with_backoff_symbol_passes(tmp_path):
+    binary = tmp_path / "with-symbol"
+    _write_synthetic_elf(binary, [
+        "_ZN10NotBackoff7backoffEv",
+        "_ZN3foo7Backoff7backoffEv.isra.0",
+    ])
+
+    subject._assert_backoff_symbol_present(str(binary))
+
+
+def test_fx12b_synthetic_elf_without_backoff_symbol_fails(tmp_path):
+    binary = tmp_path / "without-symbol"
+    _write_synthetic_elf(binary, ["_ZN3foo3barEv"])
+
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない"):
+        subject._assert_backoff_symbol_present(str(binary))
+
+
+def test_fx12b_similar_symbols_do_not_satisfy_binary_gate(tmp_path):
+    binary = tmp_path / "similar-symbols"
+    similar = [
+        "_ZN10NotBackoff7backoffEv",
+        "_ZN7Backoff14backoff_helperEv",
+    ]
+    _write_synthetic_elf(binary, similar)
+
+    assert all(not subject._is_backoff_function_symbol(name) for name in similar)
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない"):
+        subject._assert_backoff_symbol_present(str(binary))
+
+
+def test_fx12c_cmake_staging_cache_probe_is_gone():
+    production = Path(subject.__file__).read_text(encoding="utf-8")
+
+    assert "CMakeCache.txt" not in production
+
+
+def test_fx12_does_not_add_process_launch_sites():
+    tree = ast.parse(Path(subject.__file__).read_text(encoding="utf-8"))
+    counts = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        count = sum(
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Attribute)
+            and isinstance(candidate.func.value, ast.Name)
+            and candidate.func.value.id == "subprocess"
+            and candidate.func.attr == "run"
+            for candidate in ast.walk(node)
+        )
+        if count:
+            counts[node.name] = count
+
+    assert counts == {"_profile_run": 2}
 
 
 def test_m13_resolver_policy_path_is_independent_of_cwd(monkeypatch, tmp_path):
