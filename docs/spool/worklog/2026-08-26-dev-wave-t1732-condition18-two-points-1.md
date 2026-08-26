@@ -54,9 +54,20 @@ scope 外 2 件。焦点再レビューは残る must-fix ゼロで閉じた。
 並行 dispatch で orphan hold を踏んだ ({{F:probe-run-serialization-parent-side}})。
 hold は先行走行の自然終了で撤去され、`qdel` はしていない。
 
-**エージェント工数。** codex 子 9 本 (plan 1 / consult 2 / author 1 / review 3 / fix 2)、
+**段 8 で回帰を出し、逐語 pin の閉包が 4 層あることを実測した。** `DW-O26` の 1 行を改める
+自己改善で、docs 本文と production の exact literal を揃えたところ焦点走が 326 failed になった。
+残っていたのは (3) 合成 repo を書く元の写しと、(4) 節の byte 数を独立した数値で固定する pin である。
+(3) は旧文のままだと合成 repo を使う全テストに違反が 1 件ずつ増え、(4) は数値だけなので逐語検索で
+見つからない。**親が編集を始める前に閉包を数えなかったことが原因**で、実装子は pytest を実走できない
+ため実 repo の検査 (期待どおり 1 件) しか見えず、親の焦点走が唯一の検出点だった。
+なお (4) の検査は「production 定数と合成 fixture の共謀的な縮小を独立 literal で拒否する」もので、
+狙いどおり働いた結果の赤である。
+
+**エージェント工数。** codex 子 12 本 (plan 1 / consult 2 / author 1 / review 3 / fix 5)、
 すべて model=gpt-5.6-sol・effort=xhigh・rc=0。段 5 実装子は 1064 秒・57 model call。
 **子は sandbox の制約で pytest を一度も実走できず**、実測はすべて親が行った (受領証と報告に明記)。
+親の argv 誤り 1 件 (review 段で `--reasoning` を指定して rc=2、子は未起動) は
+`DW-C01` に既記載の制約であり、文書の欠落ではなく適用漏れだった。
 
 ## 次の一手差分
 
