@@ -56,6 +56,12 @@ title: 受入分割の時間不均衡を測り、duration 重み割付を実装�
   落ちた。本 wave の差分は docs のみで、cleanup の占有検査へ到達しえない。同 file を単独走した
   ところ 94 passed で非再現だったので、DW-O18 に従い受入を 1 回だけ再走した。
   占有検査が全走の負荷下で不定になる型は既知である。
+- **受入全走は 2 走とも同じ理由で赤になり、land せずに停止した。** 2 走目は
+  `test_reentry_states_run_only_remaining_cleanup[b]` で、本文は 1 走目と逐語一致の
+  `phase=occupancy reason=occupancy result is indeterminate or inconsistent` (rc=22) だった。
+  **落ちる node が走ごとに動く**ため node 単位の hold では塞がらない。F489 の再発として
+  台帳へ記録した。除外の再投入・class 単位の hold・占有検査の作り替えはいずれも受理集合を
+  変える判断なので、ユーザー裁定へ返して停止した。本 wave の成果は branch 上にある。
 - **codex 子の工数**: plan 902.8 秒 / 22 model call、sol 830.4 秒 / 17 call、
   luna 458.2 秒 / 18 call。3 本とも accepted、失敗ゼロ。
 - 一次資料は `dev-wave-jobs/dev-wave-t1814-shard-time-balance/` の `arm-*.log`・`arm-*.meta`・
