@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import base64
 import hashlib
 import importlib.util
 import json
@@ -1086,6 +1087,7 @@ def test_mocc_trace_checker_interpreter_gate_fails_closed_with_skip_artifacts(
             "write_failure() {",
             '  printf \'rc=%s\\nstage=%s\\nmessage=%s\\n\' "$1" "$2" "$3" >"$FAILURE_PATH"',
             "}",
+            "verify_post_judgment_source_state() { return 0; }",
             "",
         ]
     )
@@ -1312,6 +1314,213 @@ def test_mocc_trace_verifier_interpreter_gate_fails_closed_and_records_rejection
     assert (attempt_dir / "verifier.rc").read_text(encoding="utf-8") == "2\n"
 
 
+def _mocc_trace_judgment_source_fragment() -> str:
+    source = PILOT.read_text(encoding="utf-8")
+    start_marker = "capture_judgment_source_state() {"
+    end_marker = "\n\ncleanup_worktree() {"
+    assert source.count(start_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    end = source.index(end_marker, start)
+    fragment = source[start:end]
+    assert fragment.count("--porcelain=v1") == 2
+    assert fragment.count('with open(output, "xb") as handle:') == 1
+    assert fragment.count("initialize_judgment_source_state() {") == 1
+    assert fragment.count("verify_post_judgment_source_state() {") == 1
+    return fragment
+
+
+def _make_judgment_git_stub(
+    bin_dir: Path,
+    tmp_path: Path,
+    case: str,
+    initial_head: str,
+) -> None:
+    changed_head = "b" * 40
+    rev_count = tmp_path / "rev-count"
+    status_count = tmp_path / "status-count"
+    _make_executable(
+        bin_dir / "git",
+        f"""
+        #!/bin/bash
+        set -eu
+        if [[ "$1" == "-C" ]]; then
+          shift 2
+        fi
+        case "$1" in
+          rev-parse)
+            count=0
+            [[ ! -f {shlex.quote(str(rev_count))} ]] || count=$(<{shlex.quote(str(rev_count))})
+            count=$((count + 1))
+            printf '%s\n' "$count" >{shlex.quote(str(rev_count))}
+            if [[ "$count" -eq 2 && {shlex.quote(case)} == head_changed ]]; then
+              printf '%s\n' {shlex.quote(changed_head)}
+            else
+              printf '%s\n' {shlex.quote(initial_head)}
+            fi
+            ;;
+          status)
+            count=0
+            [[ ! -f {shlex.quote(str(status_count))} ]] || count=$(<{shlex.quote(str(status_count))})
+            count=$((count + 1))
+            printf '%s\n' "$count" >{shlex.quote(str(status_count))}
+            printf '%s\n' "$@" >{shlex.quote(str(tmp_path / 'status-argv-'))}"$count"
+            if [[ "$count" -eq 2 && {shlex.quote(case)} == dirty_after ]]; then
+              printf ' M orchestrator/campaign/source.py\\0'
+            elif [[ "$count" -eq 2 && {shlex.quote(case)} == capture_error ]]; then
+              exit 31
+            fi
+            ;;
+          *)
+            exit 97
+            ;;
+        esac
+        """,
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        pytest.param("head_changed", id="head_changed"),
+        pytest.param("dirty_after", id="dirty_after"),
+        pytest.param("capture_error", id="capture_error"),
+        pytest.param("unchanged_clean", id="unchanged_clean"),
+    ),
+)
+def test_mocc_trace_post_judgment_source_gate(tmp_path: Path, case: str) -> None:
+    initial_head = "a" * 40
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _make_judgment_git_stub(bin_dir, tmp_path, case, initial_head)
+    failure_path = attempt_dir / "failure.txt"
+    completed_paths = (
+        attempt_dir / "mocc-trace-pilot-receipt.json",
+        attempt_dir / "mocc-trace-pilot-receipt.sha256",
+        attempt_dir / "job-result.json",
+    )
+    prefix = "\n".join(
+        (
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(tmp_path / 'repo'))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
+            f"FAILURE_PATH={shlex.quote(str(failure_path))}",
+            'CURRENT_COMMIT=""',
+            'JUDGMENT_PRE_CAPTURE=""',
+            'JUDGMENT_PRE_SHA=""',
+            'JUDGMENT_POST_CAPTURE=""',
+            'JUDGMENT_POST_SHA=""',
+            "failure_written=0",
+            "write_failure() {",
+            "  if [[ \"$failure_written\" -eq 0 ]]; then",
+            "    failure_written=1",
+            "    printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" >\"$FAILURE_PATH\"",
+            "  fi",
+            "}",
+            "",
+        )
+    )
+    suffix = "\n".join(
+        (
+            "",
+            "if ! initialize_judgment_source_state; then exit 2; fi",
+            "if ! verify_post_judgment_source_state; then exit 2; fi",
+            *(f": >{shlex.quote(str(path))}" for path in completed_paths),
+            "",
+        )
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    result = subprocess.run(
+        [
+            "/bin/bash",
+            "-c",
+            prefix + _mocc_trace_judgment_source_fragment() + suffix,
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    pre = _load_json(attempt_dir / "judgment-source-pre.json")
+    post = _load_json(attempt_dir / "judgment-source-post.json")
+    assert pre["capture_phase"] == "pre_judgment"
+    assert post["capture_phase"] == "post_judgment"
+    assert pre["pathspec"] == post["pathspec"] == [".", ":(exclude)output"]
+    expected_status_argv = [
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--",
+        ".",
+        ":(exclude)output",
+    ]
+    assert (tmp_path / "status-argv-1").read_text(
+        encoding="utf-8"
+    ).splitlines() == expected_status_argv
+    assert (tmp_path / "status-argv-2").read_text(
+        encoding="utf-8"
+    ).splitlines() == expected_status_argv
+    assert base64.b64decode(pre["status_bytes_base64"], validate=True) == b""
+    if case == "unchanged_clean":
+        assert result.returncode == 0, result.stderr
+        assert post["capture_ok"] is True
+        assert post["head"] == initial_head
+        assert post["clean"] is True
+        assert all(path.is_file() for path in completed_paths)
+        assert not failure_path.exists()
+    else:
+        assert result.returncode == 2, result.stderr
+        assert not any(path.exists() for path in completed_paths)
+        failure = failure_path.read_text(encoding="utf-8")
+        assert "|post_judgment_source|" in failure
+        if case == "head_changed":
+            assert post["capture_ok"] is True
+            assert post["head"] == "b" * 40
+            assert post["clean"] is True
+        elif case == "dirty_after":
+            assert post["capture_ok"] is True
+            assert post["clean"] is False
+            assert base64.b64decode(
+                post["status_bytes_base64"], validate=True
+            ).endswith(b"\0")
+        else:
+            assert post["capture_ok"] is False
+            assert post["clean"] is False
+            assert post["command_rc"]["status"] == 31
+
+
+def test_mocc_trace_post_gate_precedes_mode_verdict_exit() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    assert source.count("if ! verify_post_judgment_source_state; then") == 2
+    trace0_rc = source.index(
+        'printf \'%s\\n\' "$CHECKER_RC" >"$ATTEMPT_DIR/trace0-preprocess-identity.rc"'
+    )
+    trace0_post = source.index(
+        "if ! verify_post_judgment_source_state; then", trace0_rc
+    )
+    trace0_skip = source.index(
+        'python3 - "$ATTEMPT_DIR/trace0-execution.json"', trace0_rc
+    )
+    trace0_exit = source.index('if [[ "$CHECKER_RC" -ne 0 ]]; then', trace0_post)
+    verifier_rc = source.index(
+        'printf \'%s\\n\' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"'
+    )
+    verifier_post = source.index(
+        "if ! verify_post_judgment_source_state; then", verifier_rc
+    )
+    verifier_exit = source.index(
+        'if [[ "$VERIFIER_RC" -ne 0 ]]; then', verifier_post
+    )
+    assert trace0_rc < trace0_skip < trace0_post < trace0_exit
+    assert verifier_rc < verifier_post < verifier_exit
+
+
 def _mocc_trace_finalization_fragment() -> str:
     source = PILOT.read_text(encoding="utf-8")
     start_marker = (
@@ -1451,6 +1660,31 @@ PY_TAMPER_SIDECAR
 """
 
 
+def _receipt_schema_tamper_and_rebind_fragment() -> str:
+    return """
+python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" \
+  "$ATTEMPT_DIR/mocc-trace-pilot-receipt.sha256" <<'PY_TAMPER_SCHEMA'
+import hashlib
+import json
+import sys
+
+receipt_path, sidecar_path = sys.argv[1:]
+with open(receipt_path, encoding="utf-8") as handle:
+    payload = json.load(handle)
+payload["schema_version"] = "mocc-trace-pilot-receipt/v3"
+receipt_bytes = (
+    json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+).encode("utf-8")
+with open(receipt_path, "wb") as handle:
+    handle.write(receipt_bytes)
+with open(sidecar_path, "w", encoding="ascii") as handle:
+    handle.write(hashlib.sha256(receipt_bytes).hexdigest() + "\\n")
+PY_TAMPER_SCHEMA
+RECEIPT_WRITER_SHA=$(sha256sum \
+  "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" | awk '{print $1}')
+"""
+
+
 def _run_mocc_trace_finalization(
     tmp_path: Path,
     *,
@@ -1465,6 +1699,7 @@ def _run_mocc_trace_finalization(
     tamper_receipt_and_sidecar_after_write: bool = False,
     tamper_sidecar_after_write: bool = False,
     tamper_receipt_after_shell_hash: bool = False,
+    tamper_schema_and_rebind_after_write: bool = False,
     swap_report_to_symlink_before_open: bool = False,
     current_script_sha: str = "fixture-script-sha",
 ) -> tuple[subprocess.CompletedProcess[str], Path, bytes]:
@@ -1525,6 +1760,54 @@ def _run_mocc_trace_finalization(
     (attempt_dir / "compiler-used.version").write_text(
         "fixture compiler version\n", encoding="utf-8"
     )
+    current_commit = "a" * 40
+    judgment_capture_paths: dict[str, Path] = {}
+    judgment_capture_shas: dict[str, str] = {}
+    for short_phase, capture_phase in (
+        ("pre", "pre_judgment"),
+        ("post", "post_judgment"),
+    ):
+        capture_path = attempt_dir / f"judgment-source-{short_phase}.json"
+        capture_bytes = (
+            json.dumps(
+                {
+                    "schema_version": "mocc-trace-judgment-source-capture/v1",
+                    "capture_phase": capture_phase,
+                    "capture_ok": True,
+                    "head": current_commit,
+                    "clean": True,
+                    "pathspec": [".", ":(exclude)output"],
+                    "status_format": (
+                        "git status --porcelain=v1 -z --untracked-files=all"
+                    ),
+                    "status_bytes_base64": "",
+                    "command_rc": {"head": 0, "status": 0},
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            )
+            + "\n"
+        ).encode("utf-8")
+        capture_path.write_bytes(capture_bytes)
+        judgment_capture_paths[short_phase] = capture_path
+        judgment_capture_shas[short_phase] = hashlib.sha256(
+            capture_bytes
+        ).hexdigest()
+    commit_count_bytes = (
+        json.dumps(
+            {
+                "schema_version": "mocc-commit-counter-witness/v1",
+                "count": 7,
+                "matched_line": "commit_counts_: 7",
+                "source": "CCBench stdout commit_counts_ witness",
+            },
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+    (attempt_dir / "commit-count.json").write_bytes(commit_count_bytes)
     evidence_name = "throughput.json" if trace_mode == 0 else "verifier.json"
     evidence_bytes = (f'{{"fixture_mode":{trace_mode}}}\n').encode("utf-8")
     (attempt_dir / evidence_name).write_bytes(evidence_bytes)
@@ -1548,7 +1831,7 @@ def _run_mocc_trace_finalization(
     variables = {
         "ATTEMPT_DIR": str(attempt_dir),
         "ATTEMPT_RECEIPT": str(submit_receipt_path),
-        "CURRENT_COMMIT": "fixture-outer-commit",
+        "CURRENT_COMMIT": current_commit,
         "CURRENT_SCRIPT_SHA": current_script_sha,
         "PBS_JOBID": "fixture-job",
         "HOSTNAME_SHORT": "fixture-host",
@@ -1581,6 +1864,10 @@ def _run_mocc_trace_finalization(
         "CHECKER_TOOL_SHA": tool_sha if trace_mode == 0 else "",
         "VERIFIER_TOOL_PATH": verifier_tool_path,
         "VERIFIER_TOOL_SHA": tool_sha if trace_mode == 1 else "",
+        "JUDGMENT_PRE_CAPTURE": str(judgment_capture_paths["pre"]),
+        "JUDGMENT_PRE_SHA": judgment_capture_shas["pre"],
+        "JUDGMENT_POST_CAPTURE": str(judgment_capture_paths["post"]),
+        "JUDGMENT_POST_SHA": judgment_capture_shas["post"],
         "CCBENCH_BASE": str(tmp_path / "ccbench-base"),
         "FAILURE_PATH": str(failure_path),
     }
@@ -1617,15 +1904,20 @@ def _run_mocc_trace_finalization(
             tamper_receipt_after_write,
             tamper_receipt_and_sidecar_after_write,
             tamper_sidecar_after_write,
+            tamper_schema_and_rebind_after_write,
         )
     )
     assert prehash_tamper_count <= 1
     if prehash_tamper_count:
         tamper = (
-            _receipt_sidecar_tamper_fragment()
-            if tamper_sidecar_after_write
-            else _receipt_tamper_fragment(
-                update_sidecar=tamper_receipt_and_sidecar_after_write
+            _receipt_schema_tamper_and_rebind_fragment()
+            if tamper_schema_and_rebind_after_write
+            else (
+                _receipt_sidecar_tamper_fragment()
+                if tamper_sidecar_after_write
+                else _receipt_tamper_fragment(
+                    update_sidecar=tamper_receipt_and_sidecar_after_write
+                )
             )
         )
         receipt_sha_marker = "\nRECEIPT_SHA="
@@ -1658,6 +1950,312 @@ def _load_json(path: Path) -> dict[str, object]:
     value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def _mocc_trace_artifact_manifest_fragment(*, write_manifest: bool) -> str:
+    source = PILOT.read_text(encoding="utf-8")
+    start_marker = "write_artifact_classification_manifest() {"
+    call_marker = "\nwrite_artifact_classification_manifest\n"
+    end_marker = "\ncapture_judgment_source_state() {"
+    assert source.count(start_marker) == 1
+    assert source.count(call_marker) == 1
+    assert source.count(end_marker) == 1
+    start = source.index(start_marker)
+    call = source.index(call_marker, start)
+    end = source.index(end_marker, call)
+    assert start < call < end
+    return source[start:end] if write_manifest else source[start:call]
+
+
+def _run_mocc_trace_artifact_manifest_fragment(
+    attempt_dir: Path,
+    trace_mode: int,
+    *,
+    write_manifest: bool,
+    validate_manifest: bool,
+) -> subprocess.CompletedProcess[str]:
+    fragment = _mocc_trace_artifact_manifest_fragment(
+        write_manifest=write_manifest
+    )
+    suffix = (
+        "\nvalidate_artifact_classification_manifest\n"
+        if validate_manifest
+        else ""
+    )
+    return subprocess.run(
+        [
+            "/bin/bash",
+            "-c",
+            "\n".join(
+                (
+                    "set -Eeuo pipefail",
+                    f"ATTEMPT_DIR={shlex.quote(str(attempt_dir))}",
+                    f"TRACE_MODE={trace_mode}",
+                    fragment,
+                    suffix,
+                )
+            ),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _artifact_manifest_entries(
+    manifest: dict[str, object],
+) -> dict[tuple[str, str], dict[str, object]]:
+    artifacts = manifest["artifacts"]
+    assert isinstance(artifacts, list)
+    entries: dict[tuple[str, str], dict[str, object]] = {}
+    for value in artifacts:
+        assert isinstance(value, dict)
+        scope = value.get("scope")
+        path_pattern = value.get("path_pattern")
+        assert isinstance(scope, str)
+        assert isinstance(path_pattern, str)
+        identity = (scope, path_pattern)
+        assert identity not in entries
+        entries[identity] = value
+    return entries
+
+
+def _pilot_durable_output_path_patterns() -> set[tuple[str, str]]:
+    source = PILOT.read_text(encoding="utf-8")
+    root_prefix = {
+        "ATTEMPT_DIR": "",
+        "RUN_DIR": "run/",
+        "TRACE_DIR": "run/trace/",
+    }
+    patterns: set[tuple[str, str]] = set()
+    for match in re.finditer(
+        r'"\$(ATTEMPT_DIR|RUN_DIR|TRACE_DIR)/([^"\n]+)"', source
+    ):
+        root_name, relative = match.groups()
+        relative = re.sub(
+            r"\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*", "*", relative
+        )
+        relative = re.sub(r"[*]+", "*", relative)
+        normalized = root_prefix[root_name] + relative
+        if normalized not in {"run", "run/trace"}:
+            patterns.add(("attempt_dir", normalized))
+
+    trace_globs = re.findall(r'trace_dir\.glob\("([^"\n]+)"\)', source)
+    assert trace_globs == ["trace_*.log"]
+    patterns.add(("attempt_dir", f"run/trace/{trace_globs[0]}"))
+
+    submission_outputs = re.findall(
+        r'os\.path\.join\(submission_dir, "(pbs-job\.(?:stdout|stderr))"\)',
+        source,
+    )
+    assert set(submission_outputs) == {"pbs-job.stdout", "pbs-job.stderr"}
+    patterns.update(("submission_dir", value) for value in submission_outputs)
+    return patterns
+
+
+@pytest.mark.parametrize(
+    "trace_mode",
+    (
+        pytest.param(0, id="trace0"),
+        pytest.param(1, id="trace1"),
+    ),
+)
+def test_mocc_trace_artifact_manifest_schema_and_create_only(
+    tmp_path: Path, trace_mode: int
+) -> None:
+    attempt_dir = tmp_path / f"attempt-{trace_mode}"
+    attempt_dir.mkdir()
+    result = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        trace_mode,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    assert result.returncode == 0, result.stderr
+    path = attempt_dir / "artifact-classification-manifest.json"
+    original_bytes = path.read_bytes()
+    manifest = _load_json(path)
+    assert manifest["schema_version"] == (
+        "mocc-trace-artifact-classification-manifest/v1"
+    )
+    assert manifest["trace_mode"] == trace_mode
+    assert set(manifest["classification_enum"]) == {
+        "correctness_evidence",
+        "performance_evidence",
+        "operational_diagnostic",
+    }
+    entries = _artifact_manifest_entries(manifest)
+    assert entries
+    for entry in entries.values():
+        assert entry["classification"] in manifest["classification_enum"]
+        assert entry["trace1_performance_use_forbidden"] is (trace_mode == 1)
+        reason = entry["reason"]
+        assert isinstance(reason, str) and reason
+        assert "\n" not in reason and "\r" not in reason
+        if trace_mode == 1 and entry["classification"] == "performance_evidence":
+            assert entry["trace1_performance_use_forbidden"] is True
+
+    second = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        trace_mode,
+        write_manifest=True,
+        validate_manifest=False,
+    )
+    assert second.returncode != 0
+    assert path.read_bytes() == original_bytes
+
+
+def test_mocc_trace_artifact_manifest_covers_job_output_path_set(
+    tmp_path: Path,
+) -> None:
+    manifest_patterns: set[tuple[str, str]] = set()
+    for trace_mode in (0, 1):
+        attempt_dir = tmp_path / f"attempt-{trace_mode}"
+        attempt_dir.mkdir()
+        result = _run_mocc_trace_artifact_manifest_fragment(
+            attempt_dir,
+            trace_mode,
+            write_manifest=True,
+            validate_manifest=True,
+        )
+        assert result.returncode == 0, result.stderr
+        manifest_patterns.update(
+            _artifact_manifest_entries(
+                _load_json(attempt_dir / "artifact-classification-manifest.json")
+            )
+        )
+    assert manifest_patterns == _pilot_durable_output_path_patterns()
+
+
+def test_mocc_trace_artifact_manifest_names_performance_derivation_routes(
+    tmp_path: Path,
+) -> None:
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    result = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        1,
+        write_manifest=True,
+        validate_manifest=True,
+    )
+    assert result.returncode == 0, result.stderr
+    entries = _artifact_manifest_entries(
+        _load_json(attempt_dir / "artifact-classification-manifest.json")
+    )
+    reasons = {
+        path_pattern: entry["reason"]
+        for (scope, path_pattern), entry in entries.items()
+        if scope == "attempt_dir"
+    }
+    assert "commit-count witness" in reasons["run/workload.stdout"]
+    assert "derive throughput" in reasons["run/workload.elapsed_ns"]
+    assert "derive throughput" in reasons["commit-count.json"]
+    assert "timing or transaction-count" in reasons["run/trace/trace_*.log"]
+    assert "stats.txns" in reasons["verifier.json"]
+
+
+def test_mocc_trace_artifact_manifest_trace0_allows_same_performance_files(
+    tmp_path: Path,
+) -> None:
+    manifests = {}
+    for trace_mode in (0, 1):
+        attempt_dir = tmp_path / f"attempt-{trace_mode}"
+        attempt_dir.mkdir()
+        result = _run_mocc_trace_artifact_manifest_fragment(
+            attempt_dir,
+            trace_mode,
+            write_manifest=True,
+            validate_manifest=True,
+        )
+        assert result.returncode == 0, result.stderr
+        manifests[trace_mode] = _artifact_manifest_entries(
+            _load_json(attempt_dir / "artifact-classification-manifest.json")
+        )
+
+    shared_performance_paths = {
+        ("attempt_dir", "run/workload.stdout"),
+        ("attempt_dir", "run/workload.elapsed_ns"),
+        ("attempt_dir", "commit-count.json"),
+    }
+    for identity in shared_performance_paths:
+        trace0_entry = manifests[0][identity]
+        trace1_entry = manifests[1][identity]
+        assert trace0_entry["classification"] == "performance_evidence"
+        assert trace1_entry["classification"] == "performance_evidence"
+        assert trace0_entry["trace1_performance_use_forbidden"] is False
+        assert trace1_entry["trace1_performance_use_forbidden"] is True
+
+
+def test_mocc_trace_artifact_manifest_rejects_non_derivable_claim(
+    tmp_path: Path,
+) -> None:
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    written = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        1,
+        write_manifest=True,
+        validate_manifest=False,
+    )
+    assert written.returncode == 0, written.stderr
+    path = attempt_dir / "artifact-classification-manifest.json"
+    manifest = _load_json(path)
+    artifacts = manifest["artifacts"]
+    assert isinstance(artifacts, list) and artifacts
+    assert isinstance(artifacts[0], dict)
+    artifacts[0]["reason"] = "Performance values are not derivable from this file."
+    path.write_text(
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    rejected = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        1,
+        write_manifest=False,
+        validate_manifest=True,
+    )
+    assert rejected.returncode != 0
+    assert "manifest overstates performance redaction" in rejected.stderr
+
+
+def test_mocc_trace_artifact_manifest_rejects_unclassified_real_file(
+    tmp_path: Path,
+) -> None:
+    attempt_dir = tmp_path / "attempt"
+    attempt_dir.mkdir()
+    written = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        0,
+        write_manifest=True,
+        validate_manifest=False,
+    )
+    assert written.returncode == 0, written.stderr
+    unexpected = attempt_dir / "new-unclassified-output.bin"
+    unexpected.write_bytes(b"fixture\n")
+    rejected = _run_mocc_trace_artifact_manifest_fragment(
+        attempt_dir,
+        0,
+        write_manifest=False,
+        validate_manifest=True,
+    )
+    assert rejected.returncode != 0
+    assert unexpected.name in rejected.stderr
+
+
+def test_mocc_trace_artifact_manifest_validation_follows_final_output() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    job_result = source.index('python3 - "$ATTEMPT_DIR/job-result.json"')
+    worktree_remove = source.index(
+        'git -C "$CCBENCH_BASE" worktree remove --force "$BUILD_SOURCE"',
+        job_result,
+    )
+    validation = source.index(
+        "if ! validate_artifact_classification_manifest; then",
+        worktree_remove,
+    )
+    final_exit = source.index("\nexit 0", validation)
+    assert job_result < worktree_remove < validation < final_exit
 
 
 def _assert_receipt_binding_rejected(
@@ -2038,15 +2636,135 @@ def test_mocc_trace_binding_m15_trace1_fields_are_null(tmp_path: Path) -> None:
     assert receipt["trace0_preprocess_identity_report"] == expected
 
 
-def test_mocc_trace_binding_uses_v3_pilot_and_v2_job_result_schemas(
+def test_mocc_trace_binding_uses_v4_pilot_and_v2_job_result_schemas(
     tmp_path: Path,
 ) -> None:
     result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
     assert result.returncode == 0, result.stderr
     receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
     job_result = _load_json(attempt_dir / "job-result.json")
-    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v3"
+    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v4"
     assert job_result["schema_version"] == "mocc-trace-pilot-job-result/v2"
+
+
+def test_mocc_trace_job_result_rejects_rebound_non_v4_receipt(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, tamper_schema_and_rebind_after_write=True
+    )
+    assert result.returncode == 2, result.stderr
+    receipt_path = attempt_dir / "mocc-trace-pilot-receipt.json"
+    sidecar_path = attempt_dir / "mocc-trace-pilot-receipt.sha256"
+    receipt = _load_json(receipt_path)
+    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v3"
+    assert sidecar_path.read_text(encoding="ascii").strip() == hashlib.sha256(
+        receipt_path.read_bytes()
+    ).hexdigest()
+    assert not (attempt_dir / "job-result.json").exists()
+    failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
+    assert failure == "2|job_result_report_binding|job result report binding failed\n"
+
+
+def test_mocc_trace_job_result_accepts_exact_v4_receipt(tmp_path: Path) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
+    assert result.returncode == 0, result.stderr
+    receipt_path = attempt_dir / "mocc-trace-pilot-receipt.json"
+    receipt = _load_json(receipt_path)
+    job_result = _load_json(attempt_dir / "job-result.json")
+    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v4"
+    assert job_result["receipt_sha256"] == hashlib.sha256(
+        receipt_path.read_bytes()
+    ).hexdigest()
+    assert not (attempt_dir / "fragment-failure.txt").exists()
+
+
+def _nested_key_paths(
+    value: object,
+    key: str,
+    path: tuple[str, ...] = (),
+) -> list[tuple[str, ...]]:
+    matches: list[tuple[str, ...]] = []
+    if isinstance(value, dict):
+        for child_key, child_value in value.items():
+            child_path = (*path, str(child_key))
+            if child_key == key:
+                matches.append(child_path)
+            matches.extend(_nested_key_paths(child_value, key, child_path))
+    elif isinstance(value, list):
+        for index, child_value in enumerate(value):
+            matches.extend(
+                _nested_key_paths(child_value, key, (*path, str(index)))
+            )
+    return matches
+
+
+def test_mocc_trace_receipt_trace1_recursively_omits_performance_fields(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, trace_mode=1, report_mode="missing"
+    )
+    assert result.returncode == 0, result.stderr
+    receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
+    for key in ("completed_txns", "elapsed_ns", "elapsed_s"):
+        assert _nested_key_paths(receipt, key) == []
+
+
+def test_mocc_trace_receipt_trace0_retains_performance_fields(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
+    assert result.returncode == 0, result.stderr
+    receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
+    workload = receipt["workload"]
+    assert isinstance(workload, dict)
+    for key in ("completed_txns", "elapsed_ns", "elapsed_s"):
+        assert key in workload
+        assert _nested_key_paths(receipt, key) != []
+
+
+def test_mocc_trace_receipt_binds_commit_count_witness(tmp_path: Path) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, trace_mode=1, report_mode="missing"
+    )
+    assert result.returncode == 0, result.stderr
+    receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
+    artifacts = receipt["artifacts"]
+    assert isinstance(artifacts, dict)
+    assert artifacts["commit_count_json"] == "commit-count.json"
+    assert artifacts["commit_count_sha256"] == hashlib.sha256(
+        (attempt_dir / "commit-count.json").read_bytes()
+    ).hexdigest()
+
+
+def test_mocc_trace_receipt_binds_endpoint_consistency_with_residual_windows(
+    tmp_path: Path,
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
+    assert result.returncode == 0, result.stderr
+    source = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")["source"]
+    assert isinstance(source, dict)
+    state = source["judgment_source_state"]
+    assert isinstance(state, dict)
+    assert state["guarantee_name"] == "pre/post endpoint consistency"
+    assert state["head_unchanged"] is True
+    assert state["pre"]["head"] == state["post"]["head"]
+    assert state["pre"]["clean"] is True
+    assert state["post"]["clean"] is True
+    for phase, name in (
+        ("pre", "judgment-source-pre.json"),
+        ("post", "judgment-source-post.json"),
+    ):
+        binding = state[phase]
+        assert binding["capture_path"] == name
+        assert binding["capture_sha256"] == hashlib.sha256(
+            (attempt_dir / name).read_bytes()
+        ).hexdigest()
+    assert state["residual_windows"] == [
+        "temporary source changes between captures can be missed",
+        "source changes after the post_judgment capture can be missed",
+    ]
 
 
 def test_mocc_trace_binding_m17_records_verifier_interpreter(tmp_path: Path) -> None:
