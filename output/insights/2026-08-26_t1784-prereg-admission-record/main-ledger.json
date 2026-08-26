@@ -1,0 +1,1042 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/c14e17b1c1574720f308be5b866420dc/izdw-c14e17b1c1.o949131",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/c14e17b1c1574720f308be5b866420dc/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................                  [100%]\n55 passed in 9.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "100a56bdbfc23f048448b4d3297b3f01b04deea708b8874dda4a0078a3f63d30"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+    "duration_s": 32.153,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "79f48a4da48ec70151bee69698d9fddab68099c01a406abeb3edddf50afc8612",
+    "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+    "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+    "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+    "status": "PASSED",
+    "test_output_sha256": "100a56bdbfc23f048448b4d3297b3f01b04deea708b8874dda4a0078a3f63d30",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+  },
+  "date": "2026-08-26T04:07:54.484084+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/76a476c76167cf926858e9b9a2fc6963/izdw-76a476c761.o949132",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/76a476c76167cf926858e9b9a2fc6963/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............F.......................................                  [100%]\n=================================== FAILURES ===================================\n__ test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes():\n        value = _record_value(\n            content_commit=\"a\" * 40,\n            content_sha256=\"b\" * 64,\n        )\n        parsed = A._parse_canonical_record(_canonical(value))\n        assert parsed.expected_claude_model_snapshot == _MODEL\n    \n        variants = []\n        unknown = dict(value)\n        unknown[\"unknown\"] = None\n        variants.append(_canonical(unknown))\n        missing = dict(value)\n        missing.pop(\"schema_version\")\n        variants.append(_canonical(missing))\n        boolean = dict(value)\n        boolean[\"schema_version\"] = True\n        variants.append(_canonical(boolean))\n        variants.append(_canonical(value) + b\"\\n\")\n        variants.append(b\"\\xef\\xbb\\xbf\" + _canonical(value))\n        canonical_text = _canonical(value).decode(\"utf-8\")\n        duplicate = canonical_text.replace(\n            '\"schema_version\":\"p3-b4-prerun-admission/v1\"',\n            '\"schema_version\":\"p3-b4-prerun-admission/v1\",'\n            '\"schema_version\":\"p3-b4-prerun-admission/v1\"',\n        ).encode(\"utf-8\")\n        variants.append(duplicate)\n        for raw in variants:\n>           _raises(A._RecordSchemaFailure, lambda raw=raw: A._parse_canonical_record(raw))\n\norchestrator/tests/test_p3_b4_admission_record.py:224: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record._RecordSchemaFailure'>\ncallable_ = <function test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes.<locals>.<lambda> at 0x149a6dd2f9a0>\nexact = None\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected _RecordSchemaFailure\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes\n1 failed, 54 passed in 8.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=2114 retained_bytes=2114 omitted_bytes=0 rendered_excerpt_bytes=2227 sha256=d9058a3ab5defa8cedd76e183632d259c0b1020e544068a706fbc965560e00e2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes():\n>         value = _record_value(\n>             content_commit=\"a\" * 40,\n>             content_sha256=\"b\" * 64,\n>         )\n>         parsed = A._parse_canonical_record(_canonical(value))\n>         assert parsed.expected_claude_model_snapshot == _MODEL\n>     \n>         variants = []\n>         unknown = dict(value)\n>         unknown[\"unknown\"] = None\n>         variants.append(_canonical(unknown))\n>         missing = dict(value)\n>         missing.pop(\"schema_version\")\n>         variants.append(_canonical(missing))\n>         boolean = dict(value)\n>         boolean[\"schema_version\"] = True\n>         variants.append(_canonical(boolean))\n>         variants.append(_canonical(value) + b\"\\x5cn\")\n>         variants.append(b\"\\x5cxef\\x5cxbb\\x5cxbf\" + _canonical(value))\n>         canonical_text = _canonical(value).decode(\"utf-8\")\n>         duplicate = canonical_text.replace(\n>             '\"schema_version\":\"p3-b4-prerun-admission/v1\"',\n>             '\"schema_version\":\"p3-b4-prerun-admission/v1\",'\n>             '\"schema_version\":\"p3-b4-prerun-admission/v1\"',\n>         ).encode(\"utf-8\")\n>         variants.append(duplicate)\n>         for raw in variants:\n> >           _raises(A._RecordSchemaFailure, lambda raw=raw: A._parse_canonical_record(raw))\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:224: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record._RecordSchemaFailure'>\n> callable_ = <function test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes.<locals>.<lambda> at 0x149a6dd2f9a0>\n> exact = None\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected _RecordSchemaFailure\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2114 retained_bytes=2114 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2979 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ad1f3cc9c603ecc454dbfd9f88fb71e19a404c57a0a3d20425c2315fc7dbac34"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 57.604,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "fda02edda5715c2852070fb6cea02d7e76e52d4c427a56ff7ea00e128a6aae9d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b31d7383e427664c7f1115dd862088b45f2a0fde8b22094197ff7f9bf9933026",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "    if False:\n        raise _RecordSchemaFailure(\"record bytes are not canonical\")\n",
+          "old": "    if raw != canonical or type(value) is not dict:\n        raise _RecordSchemaFailure(\"record bytes are not canonical\")\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "ad1f3cc9c603ecc454dbfd9f88fb71e19a404c57a0a3d20425c2315fc7dbac34",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/a7eae5ea55fce3181aa5f9f1fda69bf4/izdw-a7eae5ea55.o949134",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/a7eae5ea55fce3181aa5f9f1fda69bf4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F....................................                  [100%]\n=================================== FAILURES ===================================\n_ test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head _\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\nadmission_record_path = PosixPath('/tmp/izanagi-b4-admission-git-51wn1clx/admission.json')\nrepository_root = PosixPath('/tmp/izanagi-b4-admission-git-51wn1clx')\n\n    def verify_b4_admission_record(\n        admission_record_path: str | os.PathLike[str],\n        *,\n        repository_root: str | os.PathLike[str],\n    ) -> VerifiedB4AdmissionRecord:\n        \"\"\"Return immutable declarations after exact worktree and Git validation.\"\"\"\n        try:\n            root = Path(repository_root).resolve(strict=True)\n        except (TypeError, OSError) as exc:\n            raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n        record_path, relative_record_path = _repository_relative_regular_file(\n            root,\n            admission_record_path,\n        )\n        try:\n            record_bytes = record_path.read_bytes()\n        except OSError as exc:\n            raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n    \n        try:\n            _assert_git_repository_layout(root)\n            head = _git_call(root, \"rev-parse\", \"HEAD^{commit}\").strip().decode(\"ascii\")\n            if _SHA1_RE.fullmatch(head) is None:\n                raise _GitVerificationFailure(\"HEAD is not one SHA-1 commit\")\n            committed_record_bytes = _tree_blob(\n                root,\n                head,\n                relative_record_path.as_posix(),\n            )\n        except (_GitVerificationFailure, UnicodeError) as exc:\n            raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD) from exc\n        if False:\n            raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n    \n        try:\n>           declared = _parse_canonical_record(record_bytes)\n\norchestrator/campaign/p3_b4_admission_record.py:662: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nraw = b'{\"closed_critic_expectations\":{\"expected_claude_model_snapshot\":\"claude-opus-5\",\"expected_closed_critic_projection_c...\"repository_path\":\"docs/phase3-b4-reflux-ablation-preregistration.md\"},\"schema_version\":\"p3-b4-prerun-admission/v1\"}\\n'\n\n    def _parse_canonical_record(raw: bytes) -> _DeclaredAdmissionRecord:\n        try:\n            value = json.loads(raw, object_pairs_hook=_unique_object)\n            canonical = _canonical_json_bytes(value)\n        except (\n            UnicodeError,\n            json.JSONDecodeError,\n            TypeError,\n            ValueError,\n            _RecordSchemaFailure,\n        ) as exc:\n            raise _RecordSchemaFailure(\"record is not canonical JSON\") from exc\n        if raw != canonical or type(value) is not dict:\n>           raise _RecordSchemaFailure(\"record bytes are not canonical\")\nE           orchestrator.campaign.p3_b4_admission_record._RecordSchemaFailure: record bytes are not canonical\n\norchestrator/campaign/p3_b4_admission_record.py:184: _RecordSchemaFailure\n\nThe above exception was the direct cause of the following exception:\n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head.<locals>.<lambda> at 0x14f11a0e39a0>\nexact = '[admission-record] record is not committed at execution HEAD'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n>           callable_()\n\norchestrator/tests/test_p3_b4_admission_record.py:46: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_admission_record.py:547: in <lambda>\n    lambda: A.verify_b4_admission_record(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nadmission_record_path = PosixPath('/tmp/izanagi-b4-admission-git-51wn1clx/admission.json')\nrepository_root = PosixPath('/tmp/izanagi-b4-admission-git-51wn1clx')\n\n    def verify_b4_admission_record(\n        admission_record_path: str | os.PathLike[str],\n        *,\n        repository_root: str | os.PathLike[str],\n    ) -> VerifiedB4AdmissionRecord:\n        \"\"\"Return immutable declarations after exact worktree and Git validation.\"\"\"\n        try:\n            root = Path(repository_root).resolve(strict=True)\n        except (TypeError, OSError) as exc:\n            raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n        record_path, relative_record_path = _repository_relative_regular_file(\n            root,\n            admission_record_path,\n        )\n        try:\n            record_bytes = record_path.read_bytes()\n        except OSError as exc:\n            raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n    \n        try:\n            _assert_git_repository_layout(root)\n            head = _git_call(root, \"rev-parse\", \"HEAD^{commit}\").strip().decode(\"ascii\")\n            if _SHA1_RE.fullmatch(head) is None:\n                raise _GitVerificationFailure(\"HEAD is not one SHA-1 commit\")\n            committed_record_bytes = _tree_blob(\n                root,\n                head,\n                relative_record_path.as_posix(),\n            )\n        except (_GitVerificationFailure, UnicodeError) as exc:\n            raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD) from exc\n        if False:\n            raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n    \n        try:\n            declared = _parse_canonical_record(record_bytes)\n        except _RecordSchemaFailure as exc:\n>           raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\nE           orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError: [admission-record] record is unavailable\n\norchestrator/campaign/p3_b4_admission_record.py:664: B4AdmissionRecordError\n\nDuring handling of the above exception, another exception occurred:\n\n    def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head():\n        fixture = _committed_fixture()\n        _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                fixture.repository / \"missing.json\",\n                repository_root=fixture.repository,\n            ),\n            exact=\"[admission-record] record is unavailable\",\n        )\n    \n        untracked = fixture.repository / \"untracked.json\"\n        untracked.write_bytes(fixture.record_path.read_bytes())\n        _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                untracked,\n                repository_root=fixture.repository,\n            ),\n            exact=\"[admission-record] record is not committed at execution HEAD\",\n        )\n    \n        original = fixture.record_path.read_bytes()\n        fixture.record_path.write_bytes(original + b\"\\n\")\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                fixture.record_path,\n                repository_root=fixture.repository,\n            ),\n            exact=\"[admission-record] record is not committed at execution HEAD\",\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:545: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head.<locals>.<lambda> at 0x14f11a0e39a0>\nexact = '[admission-record] record is not committed at execution HEAD'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n>               assert str(exc) == exact\nE               AssertionError: assert '[admission-r...s unavailable' == '[admission-r...xecution HEAD'\nE                 \nE                 - [admission-record] record is not committed at execution HEAD\nE                 + [admission-record] record is unavailable\n\norchestrator/tests/test_p3_b4_admission_record.py:49: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head\n1 failed, 54 passed in 8.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=7972 retained_bytes=3910 omitted_bytes=4062 rendered_excerpt_bytes=4096 sha256=84ce4305bb82ead917b0d4ebe6b4d20a05df83002b21410a6392d418c7028b66\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> ations after exact worktree and Git validation.\"\"\"\n>         try:\n>             root = Path(repository_root).resolve(strict=True)\n>         except (TypeError, OSError) as exc:\n>             raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n>         record_path, relative_record_path = _repository_relative_regular_file(\n>             root,\n>             admission_record_path,\n>         )\n>         try:\n>             record_bytes = record_path.read_bytes()\n>         except OSError as exc:\n>             raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n>     \n>         try:\n>             _assert_git_repository_layout(root)\n>             head = _git_call(root, \"rev-parse\", \"HEAD^{commit}\").strip().decode(\"ascii\")\n>             if _SHA1_RE.fullmatch(head) is None:\n>                 raise _GitVerificationFailure(\"HEAD is not one SHA-1 commit\")\n>             committed_record_bytes = _tree_blob(\n>                 root,\n>                 head,\n>                 relative_record_path.as_posix(),\n>             )\n>         except (_GitVerificationFailure, UnicodeError) as exc:\n>             raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD) from exc\n>         if False:\n>             raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n>     \n>         try:\n>             declared = _parse_canonical_record(record_bytes)\n>         except _RecordSchemaFailure as exc:\n> >           raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n> E           orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError: [admission-record] record is unavailable\n> \n> orchestrator/campaign/p3_b4_admission_record.py:664: B4AdmissionRecordError\n> \n> During handling of the above exception, another exception occurred:\n> \n>     def test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head():\n>         fixture = _committed_fixture()\n>         _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 fixture.repository / \"missing.json\",\n>                 repository_root=fixture.repository,\n>             ),\n>             exact=\"[admission-record] record is unavailable\",\n>         )\n>     \n>         untracked = fixture.repository / \"untracked.json\"\n>         untracked.write_bytes(fixture.record_path.read_bytes())\n>         _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 untracked,\n>                 repository_root=fixture.repository,\n>             ),\n>             exact=\"[admission-record] record is not committed at execution HEAD\",\n>         )\n>     \n>         original = fixture.record_path.read_bytes()\n>         fixture.record_path.write_bytes(original + b\"\\x5cn\")\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 fixture.record_path,\n>                 repository_root=fixture.repository,\n>             ),\n>             exact=\"[admission-record] record is not committed at execution HEAD\",\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:545: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head.<locals>.<lambda> at 0x14f11a0e39a0>\n> exact = '[admission-record] record is not committed at execution HEAD'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n> >               assert str(exc) == exact\n> E               AssertionError: assert '[admission-r...s unavailable' == '[admission-r...xecution HEAD'\n> E                 \n> E                 - [admission-record] record is not committed at execution HEAD\n> E                 + [admission-record] record is unavailable\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:49: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=7972 retained_bytes=3910 omitted_bytes=4062 budget_bytes=49152 rendered_bytes=4857 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0172d469717c1bc454509709b01ee393657fe679d28ed164a89923fd30a68536"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.097,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "b8391a896d3f052fc7b726be9ceed635b53161b009257f6ca9d96ea23a16665a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d4ee01e7d72674bb068b6382d611b5328675fe657254c1c7d96b3e9358b445bc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "    if False:\n        raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n",
+          "old": "    if committed_record_bytes != record_bytes:\n        raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "0172d469717c1bc454509709b01ee393657fe679d28ed164a89923fd30a68536",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/1b260d010199ffe2c52e7d6c66c87a8c/izdw-1b260d0101.o949137",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/1b260d010199ffe2c52e7d6c66c87a8c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F...................................                  [100%]\n=================================== FAILURES ===================================\n___ test_document_binding_rejects_nonancestor_hash_and_head_blob_differences ___\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():\n        nonancestor = _committed_fixture()\n        document_tree = _git(\n            nonancestor.repository,\n            \"rev-parse\",\n            f\"{nonancestor.content_commit}^{{tree}}\",\n        ).decode().strip()\n        isolated_commit = _git(\n            nonancestor.repository,\n            \"commit-tree\",\n            document_tree,\n            input_bytes=b\"isolated document\\n\",\n        ).decode().strip()\n        value = _record_value(\n            content_commit=isolated_commit,\n            content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),\n        )\n        nonancestor.record_path.write_bytes(_canonical(value))\n        _git(nonancestor.repository, \"add\", \"admission.json\")\n        _git(nonancestor.repository, \"commit\", \"-m\", \"nonancestor record\")\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                nonancestor.record_path,\n                repository_root=nonancestor.repository,\n            ),\n            exact=(\n                \"[admission-preregistration] document binding is not verifiable\"\n            ),\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:588: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_document_binding_rejects_nonancestor_hash_and_head_blob_differences.<locals>.<lambda> at 0x14d8e71979a0>\nexact = '[admission-preregistration] document binding is not verifiable'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\n1 failed, 54 passed in 8.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=2118 retained_bytes=2118 omitted_bytes=0 rendered_excerpt_bytes=2224 sha256=49a52f371bfd89f842e2205b90dbae990fd66eeca964e5d9da360417ea3d019b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():\n>         nonancestor = _committed_fixture()\n>         document_tree = _git(\n>             nonancestor.repository,\n>             \"rev-parse\",\n>             f\"{nonancestor.content_commit}^{{tree}}\",\n>         ).decode().strip()\n>         isolated_commit = _git(\n>             nonancestor.repository,\n>             \"commit-tree\",\n>             document_tree,\n>             input_bytes=b\"isolated document\\x5cn\",\n>         ).decode().strip()\n>         value = _record_value(\n>             content_commit=isolated_commit,\n>             content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),\n>         )\n>         nonancestor.record_path.write_bytes(_canonical(value))\n>         _git(nonancestor.repository, \"add\", \"admission.json\")\n>         _git(nonancestor.repository, \"commit\", \"-m\", \"nonancestor record\")\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 nonancestor.record_path,\n>                 repository_root=nonancestor.repository,\n>             ),\n>             exact=(\n>                 \"[admission-preregistration] document binding is not verifiable\"\n>             ),\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:588: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_document_binding_rejects_nonancestor_hash_and_head_blob_differences.<locals>.<lambda> at 0x14d8e71979a0>\n> exact = '[admission-preregistration] document binding is not verifiable'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2118 retained_bytes=2118 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2975 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "251f9335aa3db6bfe09235f721f39a59c4e987fbc0d38336e3a3d61fe69ccf4d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.085,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "5c315d27b19669066f603035e02fd0c47324b7645557c54326a3ffa0f88e8a0f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "83810fc96c081442be421267d3348806184a940384a0816885f38ac7d93524d9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "        pass\n",
+          "old": "        _git_call(\n            root,\n            \"merge-base\",\n            \"--is-ancestor\",\n            declared.preregistration_content_commit,\n            head,\n        )\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "251f9335aa3db6bfe09235f721f39a59c4e987fbc0d38336e3a3d61fe69ccf4d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/b1bb4eca4ef3d331432c340201aa8403/izdw-b1bb4eca4e.o949162",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/b1bb4eca4ef3d331432c340201aa8403/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F...................................                  [100%]\n=================================== FAILURES ===================================\n___ test_document_binding_rejects_nonancestor_hash_and_head_blob_differences ___\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():\n        nonancestor = _committed_fixture()\n        document_tree = _git(\n            nonancestor.repository,\n            \"rev-parse\",\n            f\"{nonancestor.content_commit}^{{tree}}\",\n        ).decode().strip()\n        isolated_commit = _git(\n            nonancestor.repository,\n            \"commit-tree\",\n            document_tree,\n            input_bytes=b\"isolated document\\n\",\n        ).decode().strip()\n        value = _record_value(\n            content_commit=isolated_commit,\n            content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),\n        )\n        nonancestor.record_path.write_bytes(_canonical(value))\n        _git(nonancestor.repository, \"add\", \"admission.json\")\n        _git(nonancestor.repository, \"commit\", \"-m\", \"nonancestor record\")\n        _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                nonancestor.record_path,\n                repository_root=nonancestor.repository,\n            ),\n            exact=(\n                \"[admission-preregistration] document binding is not verifiable\"\n            ),\n        )\n    \n        bad_hash = _committed_fixture()\n        value = dict(bad_hash.record_value)\n        value[\"preregistration_binding\"] = dict(value[\"preregistration_binding\"])\n        value[\"preregistration_binding\"][\"content_sha256\"] = \"f\" * 64\n        bad_hash.record_path.write_bytes(_canonical(value))\n        _git(bad_hash.repository, \"add\", \"admission.json\")\n        _git(bad_hash.repository, \"commit\", \"-m\", \"bad hash\")\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                bad_hash.record_path,\n                repository_root=bad_hash.repository,\n            ),\n            exact=(\n                \"[admission-preregistration] document binding is not verifiable\"\n            ),\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:606: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_document_binding_rejects_nonancestor_hash_and_head_blob_differences.<locals>.<lambda> at 0x1512e3d279a0>\nexact = '[admission-preregistration] document binding is not verifiable'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\n1 failed, 54 passed in 8.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=2877 retained_bytes=2877 omitted_bytes=0 rendered_excerpt_bytes=3019 sha256=c84bfda356be3935ff5985ccc980c9ce6327541681283672a740319efa3b7e94\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():\n>         nonancestor = _committed_fixture()\n>         document_tree = _git(\n>             nonancestor.repository,\n>             \"rev-parse\",\n>             f\"{nonancestor.content_commit}^{{tree}}\",\n>         ).decode().strip()\n>         isolated_commit = _git(\n>             nonancestor.repository,\n>             \"commit-tree\",\n>             document_tree,\n>             input_bytes=b\"isolated document\\x5cn\",\n>         ).decode().strip()\n>         value = _record_value(\n>             content_commit=isolated_commit,\n>             content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),\n>         )\n>         nonancestor.record_path.write_bytes(_canonical(value))\n>         _git(nonancestor.repository, \"add\", \"admission.json\")\n>         _git(nonancestor.repository, \"commit\", \"-m\", \"nonancestor record\")\n>         _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 nonancestor.record_path,\n>                 repository_root=nonancestor.repository,\n>             ),\n>             exact=(\n>                 \"[admission-preregistration] document binding is not verifiable\"\n>             ),\n>         )\n>     \n>         bad_hash = _committed_fixture()\n>         value = dict(bad_hash.record_value)\n>         value[\"preregistration_binding\"] = dict(value[\"preregistration_binding\"])\n>         value[\"preregistration_binding\"][\"content_sha256\"] = \"f\" * 64\n>         bad_hash.record_path.write_bytes(_canonical(value))\n>         _git(bad_hash.repository, \"add\", \"admission.json\")\n>         _git(bad_hash.repository, \"commit\", \"-m\", \"bad hash\")\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 bad_hash.record_path,\n>                 repository_root=bad_hash.repository,\n>             ),\n>             exact=(\n>                 \"[admission-preregistration] document binding is not verifiable\"\n>             ),\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:606: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_document_binding_rejects_nonancestor_hash_and_head_blob_differences.<locals>.<lambda> at 0x1512e3d279a0>\n> exact = '[admission-preregistration] document binding is not verifiable'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2877 retained_bytes=2877 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3770 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "65e9200936899ae6163821048f89b86ea655d5f7db0ea3cfd748ca2bc45bca74"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.523,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "0c8ba4009410184310dbaee81777209a9b6e647aca195a636fb1488d655657fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e4e26ad8613fdca5f82b9cb2a99e6a0342353c4942876640fa2234efae77d92c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "        if False:\n            raise _GitVerificationFailure(\"declared document hash differs\")\n",
+          "old": "        if _sha256(document_blob) != declared.preregistration_content_sha256:\n            raise _GitVerificationFailure(\"declared document hash differs\")\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "65e9200936899ae6163821048f89b86ea655d5f7db0ea3cfd748ca2bc45bca74",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/cc36b0546efdf7526c0d6637661f307b/izdw-cc36b0546e.o949227",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/cc36b0546efdf7526c0d6637661f307b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................F.................................                  [100%]\n=================================== FAILURES ===================================\n___ test_document_binding_rejects_nonancestor_hash_and_head_blob_differences ___\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():\n        nonancestor = _committed_fixture()\n        document_tree = _git(\n            nonancestor.repository,\n            \"rev-parse\",\n            f\"{nonancestor.content_commit}^{{tree}}\",\n        ).decode().strip()\n        isolated_commit = _git(\n            nonancestor.repository,\n            \"commit-tree\",\n            document_tree,\n            input_bytes=b\"isolated document\\n\",\n        ).decode().strip()\n        value = _record_value(\n            content_commit=isolated_commit,\n            content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),\n        )\n        nonancestor.record_path.write_bytes(_canonical(value))\n        _git(nonancestor.repository, \"add\", \"admission.json\")\n        _git(nonancestor.repository, \"commit\", \"-m\", \"nonancestor record\")\n        _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                nonancestor.record_path,\n                repository_root=nonancestor.repository,\n            ),\n            exact=(\n                \"[admission-preregistration] document binding is not verifiable\"\n            ),\n        )\n    \n        bad_hash = _committed_fixture()\n        value = dict(bad_hash.record_value)\n        value[\"preregistration_binding\"] = dict(value[\"preregistration_binding\"])\n        value[\"preregistration_binding\"][\"content_sha256\"] = \"f\" * 64\n        bad_hash.record_path.write_bytes(_canonical(value))\n        _git(bad_hash.repository, \"add\", \"admission.json\")\n        _git(bad_hash.repository, \"commit\", \"-m\", \"bad hash\")\n        _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                bad_hash.record_path,\n                repository_root=bad_hash.repository,\n            ),\n            exact=(\n                \"[admission-preregistration] document binding is not verifiable\"\n            ),\n        )\n    \n        stale = _committed_fixture()\n        stale.document_path.write_bytes(stale.document_bytes + b\"\\nnew HEAD text\\n\")\n        _git(stale.repository, \"add\", _PREREGISTRATION_REPOSITORY_PATH)\n        _git(stale.repository, \"commit\", \"-m\", \"new document\")\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.verify_b4_admission_record(\n                stale.record_path,\n                repository_root=stale.repository,\n            ),\n            exact=(\n                \"[admission-preregistration] document binding is not verifiable\"\n            ),\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:621: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_document_binding_rejects_nonancestor_hash_and_head_blob_differences.<locals>.<lambda> at 0x154f821db9a0>\nexact = '[admission-preregistration] document binding is not verifiable'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\n1 failed, 54 passed in 8.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=3470 retained_bytes=3470 omitted_bytes=0 rendered_excerpt_bytes=3648 sha256=a712c644c9ef0a99edcd22591fa24ebec883d98ab0a7c490fad20c9eebf1149e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_document_binding_rejects_nonancestor_hash_and_head_blob_differences():\n>         nonancestor = _committed_fixture()\n>         document_tree = _git(\n>             nonancestor.repository,\n>             \"rev-parse\",\n>             f\"{nonancestor.content_commit}^{{tree}}\",\n>         ).decode().strip()\n>         isolated_commit = _git(\n>             nonancestor.repository,\n>             \"commit-tree\",\n>             document_tree,\n>             input_bytes=b\"isolated document\\x5cn\",\n>         ).decode().strip()\n>         value = _record_value(\n>             content_commit=isolated_commit,\n>             content_sha256=hashlib.sha256(nonancestor.document_bytes).hexdigest(),\n>         )\n>         nonancestor.record_path.write_bytes(_canonical(value))\n>         _git(nonancestor.repository, \"add\", \"admission.json\")\n>         _git(nonancestor.repository, \"commit\", \"-m\", \"nonancestor record\")\n>         _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 nonancestor.record_path,\n>                 repository_root=nonancestor.repository,\n>             ),\n>             exact=(\n>                 \"[admission-preregistration] document binding is not verifiable\"\n>             ),\n>         )\n>     \n>         bad_hash = _committed_fixture()\n>         value = dict(bad_hash.record_value)\n>         value[\"preregistration_binding\"] = dict(value[\"preregistration_binding\"])\n>         value[\"preregistration_binding\"][\"content_sha256\"] = \"f\" * 64\n>         bad_hash.record_path.write_bytes(_canonical(value))\n>         _git(bad_hash.repository, \"add\", \"admission.json\")\n>         _git(bad_hash.repository, \"commit\", \"-m\", \"bad hash\")\n>         _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 bad_hash.record_path,\n>                 repository_root=bad_hash.repository,\n>             ),\n>             exact=(\n>                 \"[admission-preregistration] document binding is not verifiable\"\n>             ),\n>         )\n>     \n>         stale = _committed_fixture()\n>         stale.document_path.write_bytes(stale.document_bytes + b\"\\x5cnnew HEAD text\\x5cn\")\n>         _git(stale.repository, \"add\", _PREREGISTRATION_REPOSITORY_PATH)\n>         _git(stale.repository, \"commit\", \"-m\", \"new document\")\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.verify_b4_admission_record(\n>                 stale.record_path,\n>                 repository_root=stale.repository,\n>             ),\n>             exact=(\n>                 \"[admission-preregistration] document binding is not verifiable\"\n>             ),\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:621: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_document_binding_rejects_nonancestor_hash_and_head_blob_differences.<locals>.<lambda> at 0x154f821db9a0>\n> exact = '[admission-preregistration] document binding is not verifiable'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3470 retained_bytes=3470 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4399 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "61f28a7de143cf4156dba6fe2c6b93d3d398f95e876988b3afbefed6fff7dcfd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.106,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "7d4e54f9770c8e80b102936917b5ce36ba6822241a29cdd931618838ca960663",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a035f3cd841cdfcea1f91e1505ca9dd4543d64aca4bbc5c59373b1eb65b5561b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "        if False:\n            raise _GitVerificationFailure(\"HEAD document differs from declared blob\")\n",
+          "old": "        if head_document_blob != document_blob:\n            raise _GitVerificationFailure(\"HEAD document differs from declared blob\")\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "61f28a7de143cf4156dba6fe2c6b93d3d398f95e876988b3afbefed6fff7dcfd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/5fd165cae8ea64c27e9b490c7728bfa8/izdw-5fd165cae8.o949237",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/5fd165cae8ea64c27e9b490c7728bfa8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............FF......................................                  [100%]\n=================================== FAILURES ===================================\n_ test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values():\n        document = _section5_document()\n        A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n            document,\n            expected_claude_model_snapshot=_MODEL,\n            expected_effective_critic_prompt_sha256=_PROMPT,\n            expected_closed_critic_projection_closure_sha256=_PROJECTION,\n        )\n    \n        for label, value in (\n            (_SECTION5_LABELS[0], \"\"),\n            (_SECTION5_LABELS[1], \"TBD after calibration\"),\n            (_SECTION5_LABELS[2], \"x\"),\n            (_SECTION5_LABELS[3], \"N/A\"),\n            (_SECTION5_LABELS[4], \"status: TBD\"),\n        ):\n            rejected = _section5_document(value_overrides={label: value})\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda rejected=rejected: (\n                    A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                        rejected,\n                        expected_claude_model_snapshot=_MODEL,\n                        expected_effective_critic_prompt_sha256=_PROMPT,\n                        expected_closed_critic_projection_closure_sha256=_PROJECTION,\n                    )\n                ),\n                exact=_SECTION5_ERROR,\n            )\n\norchestrator/tests/test_p3_b4_admission_record.py:244: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values.<locals>.<lambda> at 0x146eb11f39a0>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n____ test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character ____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character():\n        document = _section5_document()\n        fenced = b\"```markdown\\n\" + document.replace(\n            b\"\\n\\nfixture\", b\"\\n```\\n\\nfixture\"\n        )\n        for rejected in (\n            fenced,\n            _section5_document(\n                value_overrides={_SECTION5_LABELS[0]: \"ＴＢＤ\"}\n            ),\n            _section5_document(\n                value_overrides={_SECTION5_LABELS[0]: \"T\\u200bBD\"}\n            ),\n        ):\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda rejected=rejected: (\n                    A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                        rejected,\n                        expected_claude_model_snapshot=_MODEL,\n                        expected_effective_critic_prompt_sha256=_PROMPT,\n                        expected_closed_critic_projection_closure_sha256=_PROJECTION,\n                    )\n                ),\n                exact=_SECTION5_ERROR,\n            )\n\norchestrator/tests/test_p3_b4_admission_record.py:463: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character.<locals>.<lambda> at 0x1462986ef9a0>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character\n2 failed, 53 passed in 8.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=2376 retained_bytes=2376 omitted_bytes=0 rendered_excerpt_bytes=2477 sha256=436cf1fe46a6cae49036b04a83b65de2160ee5a8641711d0b0c5a936e44f7d89\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values():\n>         document = _section5_document()\n>         A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>             document,\n>             expected_claude_model_snapshot=_MODEL,\n>             expected_effective_critic_prompt_sha256=_PROMPT,\n>             expected_closed_critic_projection_closure_sha256=_PROJECTION,\n>         )\n>     \n>         for label, value in (\n>             (_SECTION5_LABELS[0], \"\"),\n>             (_SECTION5_LABELS[1], \"TBD after calibration\"),\n>             (_SECTION5_LABELS[2], \"x\"),\n>             (_SECTION5_LABELS[3], \"N/A\"),\n>             (_SECTION5_LABELS[4], \"status: TBD\"),\n>         ):\n>             rejected = _section5_document(value_overrides={label: value})\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda rejected=rejected: (\n>                     A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                         rejected,\n>                         expected_claude_model_snapshot=_MODEL,\n>                         expected_effective_critic_prompt_sha256=_PROMPT,\n>                         expected_closed_critic_projection_closure_sha256=_PROJECTION,\n>                     )\n>                 ),\n>                 exact=_SECTION5_ERROR,\n>             )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:244: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values.<locals>.<lambda> at 0x146eb11f39a0>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=2090 retained_bytes=2090 omitted_bytes=0 rendered_excerpt_bytes=2215 sha256=a37d47ed31ea44678985de38140d45822131e43a73647b58f87603bb4b1326d3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character():\n>         document = _section5_document()\n>         fenced = b\"```markdown\\x5cn\" + document.replace(\n>             b\"\\x5cn\\x5cnfixture\", b\"\\x5cn```\\x5cn\\x5cnfixture\"\n>         )\n>         for rejected in (\n>             fenced,\n>             _section5_document(\n>                 value_overrides={_SECTION5_LABELS[0]: \"\\uff34\\uff22\\uff24\"}\n>             ),\n>             _section5_document(\n>                 value_overrides={_SECTION5_LABELS[0]: \"T\\x5cu200bBD\"}\n>             ),\n>         ):\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda rejected=rejected: (\n>                     A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                         rejected,\n>                         expected_claude_model_snapshot=_MODEL,\n>                         expected_effective_critic_prompt_sha256=_PROMPT,\n>                         expected_closed_critic_projection_closure_sha256=_PROJECTION,\n>                     )\n>                 ),\n>                 exact=_SECTION5_ERROR,\n>             )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:463: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character.<locals>.<lambda> at 0x1462986ef9a0>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4466 retained_bytes=4466 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5915 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d990d2e341415ddd6992cdeb8a2019733225577e46f1c31cdfcde0e6370a403a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.096,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "2d3b95a3f48cce29b5e27e7a17fc125139ef48a2102b3e0f492c2c03c42fbd8b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a69be66ee4df7f5d197a558d50d16eb6e80d4acc677c8766e5295882df0cf67c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "        if False:\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n",
+          "old": "        if (\n            not value\n            or _RESERVED_SENTINEL_RE.search(value) is not None\n            or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES\n        ):\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "d990d2e341415ddd6992cdeb8a2019733225577e46f1c31cdfcde0e6370a403a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/46122959925b841ac78ce9380719f7fb/izdw-4612295992.o949238",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/46122959925b841ac78ce9380719f7fb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F.....................................                  [100%]\n=================================== FAILURES ===================================\n_ test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values _\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values():\n        document = _section5_document()\n        A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n            document,\n            expected_claude_model_snapshot=_MODEL,\n            expected_effective_critic_prompt_sha256=_PROMPT,\n            expected_closed_critic_projection_closure_sha256=_PROJECTION,\n        )\n    \n        for label, value in (\n            (_SECTION5_LABELS[0], \"\"),\n            (_SECTION5_LABELS[1], \"TBD after calibration\"),\n            (_SECTION5_LABELS[2], \"x\"),\n            (_SECTION5_LABELS[3], \"N/A\"),\n            (_SECTION5_LABELS[4], \"status: TBD\"),\n        ):\n            rejected = _section5_document(value_overrides={label: value})\n            _raises(\n                A.B4AdmissionRecordError,\n                lambda rejected=rejected: (\n                    A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                        rejected,\n                        expected_claude_model_snapshot=_MODEL,\n                        expected_effective_critic_prompt_sha256=_PROMPT,\n                        expected_closed_critic_projection_closure_sha256=_PROJECTION,\n                    )\n                ),\n                exact=_SECTION5_ERROR,\n            )\n    \n        duplicate_row = document.replace(\n            f\"|{_SECTION5_LABELS[1]}|fixture-value-2|\".encode(\"utf-8\"),\n            f\"|{_SECTION5_LABELS[0]}|fixture-value-2|\".encode(\"utf-8\"),\n        )\n        _raises(\n            A.B4AdmissionRecordError,\n            lambda: (\n                A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                    duplicate_row,\n                    expected_claude_model_snapshot=_MODEL,\n                    expected_effective_critic_prompt_sha256=_PROMPT,\n                    expected_closed_critic_projection_closure_sha256=_PROJECTION,\n                )\n            ),\n            exact=_SECTION5_ERROR,\n        )\n    \n        for field, expected, actual_document in (\n            (\n                \"expected_claude_model_snapshot\",\n                _MODEL,\n                _section5_document(model=\"claude-opus-other\"),\n            ),\n            (\n                \"expected_effective_critic_prompt_sha256\",\n                _PROMPT,\n                _section5_document(prompt=\"3\" * 64),\n            ),\n            (\n                \"expected_closed_critic_projection_closure_sha256\",\n                _PROJECTION,\n                _section5_document(projection=\"4\" * 64),\n            ),\n        ):\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda actual_document=actual_document, field=field, expected=expected: (\n                    A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                        actual_document,\n                        expected_claude_model_snapshot=(\n                            expected if field == \"expected_claude_model_snapshot\" else _MODEL\n                        ),\n                        expected_effective_critic_prompt_sha256=(\n                            expected\n                            if field == \"expected_effective_critic_prompt_sha256\"\n                            else _PROMPT\n                        ),\n                        expected_closed_critic_projection_closure_sha256=(\n                            expected\n                            if field\n                            == \"expected_closed_critic_projection_closure_sha256\"\n                            else _PROJECTION\n                        ),\n                    )\n                ),\n                exact=f\"[admission-mismatch] {field}\",\n            )\n\norchestrator/tests/test_p3_b4_admission_record.py:291: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values.<locals>.<lambda> at 0x14a4a2bbb9a0>\nexact = '[admission-mismatch] expected_effective_critic_prompt_sha256'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values\n1 failed, 54 passed in 8.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values\" nodeid_bytes=133 nodeid_omitted_bytes=0 source_bytes=4690 retained_bytes=3915 omitted_bytes=775 rendered_excerpt_bytes=4096 sha256=0d816803b8055fe9c219acd07b8d590686954fabd43a7415a50618d758c77276\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>    rejected = _section5_document(value_overrides={label: value})\n>             _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda rejected=rejected: (\n>                     A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                         rejected,\n>                         expected_claude_model_snapshot=_MODEL,\n>                         expected_effective_critic_prompt_sha256=_PROMPT,\n>                         expected_closed_critic_projection_closure_sha256=_PROJECTION,\n>                     )\n>                 ),\n>                 exact=_SECTION5_ERROR,\n>             )\n>     \n>         duplicate_row = document.replace(\n>             f\"|{_SECTION5_LABELS[1]}|fixture-value-2|\".encode(\"utf-8\"),\n>             f\"|{_SECTION5_LABELS[0]}|fixture-value-2|\".encode(\"utf-8\"),\n>         )\n>         _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: (\n>                 A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                     duplicate_row,\n>                     expected_claude_model_snapshot=_MODEL,\n>                     expected_effective_critic_prompt_sha256=_PROMPT,\n>                     expected_closed_critic_projection_closure_sha256=_PROJECTION,\n>                 )\n>             ),\n>             exact=_SECTION5_ERROR,\n>         )\n>     \n>         for field, expected, actual_document in (\n>             (\n>                 \"expected_claude_model_snapshot\",\n>                 _MODEL,\n>                 _section5_document(model=\"claude-opus-other\"),\n>             ),\n>             (\n>                 \"expected_effective_critic_prompt_sha256\",\n>                 _PROMPT,\n>                 _section5_document(prompt=\"3\" * 64),\n>             ),\n>             (\n>                 \"expected_closed_critic_projection_closure_sha256\",\n>                 _PROJECTION,\n>                 _section5_document(projection=\"4\" * 64),\n>             ),\n>         ):\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda actual_document=actual_document, field=field, expected=expected: (\n>                     A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                         actual_document,\n>                         expected_claude_model_snapshot=(\n>                             expected if field == \"expected_claude_model_snapshot\" else _MODEL\n>                         ),\n>                         expected_effective_critic_prompt_sha256=(\n>                             expected\n>                             if field == \"expected_effective_critic_prompt_sha256\"\n>                             else _PROMPT\n>                         ),\n>                         expected_closed_critic_projection_closure_sha256=(\n>                             expected\n>                             if field\n>                             == \"expected_closed_critic_projection_closure_sha256\"\n>                             else _PROJECTION\n>                         ),\n>                     )\n>                 ),\n>                 exact=f\"[admission-mismatch] {field}\",\n>             )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:291: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values.<locals>.<lambda> at 0x14a4a2bbb9a0>\n> exact = '[admission-mismatch] expected_effective_critic_prompt_sha256'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4690 retained_bytes=3915 omitted_bytes=775 budget_bytes=49152 rendered_bytes=4861 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2f676a9e62ff884e0c6c8db601a372651045c89ba0cdb913b55615773559476b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 37.205,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+      ],
+      "hang_risk": false,
+      "id": "M07",
+      "injection_diff_sha256": "82e55cb1dacbc438daf08dadfe4c721a5ed2af7e9013f176387df0af830ec308",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8faa264b69902e7ccd9b530a49cf74af0c75106f00903ca4bcde0019c5dc165b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "",
+          "old": "    assert_admission_expectation(\n        \"expected_effective_critic_prompt_sha256\",\n        expected=expected_effective_critic_prompt_sha256,\n        actual=match.group(\"prompt\"),\n    )\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "2f676a9e62ff884e0c6c8db601a372651045c89ba0cdb913b55615773559476b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/f32e3ac78ab334ad438795303b08a6ee/izdw-f32e3ac78a.o949239",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/f32e3ac78ab334ad438795303b08a6ee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................F...............................                  [100%]\n=================================== FAILURES ===================================\n_____ test_certified_admission_rejects_projection_and_prompt_before_query ______\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_admission_rejects_projection_and_prompt_before_query():\n        projection_admission = _committed_admission_fixture(\n            expected_projection=\"0\" * 64,\n        )\n        provider_events = []\n        real_provider = C.ClaudeProjectedRoleProvider\n    \n        class CountingProvider(real_provider):\n            def __init__(self, **kwargs):\n                provider_events.append(\"created\")\n                super().__init__(**kwargs)\n    \n            def invoke(self, **kwargs):\n                provider_events.append(\"query\")\n                return super().invoke(**kwargs)\n    \n        with _certified_environment(projection_admission) as (\n            parent,\n            on_cfg,\n            off_cfg,\n            _layouts,\n            home,\n        ), unittest.mock.patch.object(\n            C,\n            \"ClaudeProjectedRoleProvider\",\n            CountingProvider,\n        ):\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda: C.create_b4_closed_critic_pair(\n                    on_cfg=on_cfg,\n                    off_cfg=off_cfg,\n                    artifact_root=parent / \"projection-artifacts\",\n                    admission_record_path=projection_admission.record_path,\n                    repository_root=projection_admission.repository,\n                    environ={\"HOME\": str(home)},\n                ),\n                contains=(\n                    \"[admission-mismatch] \"\n                    \"expected_closed_critic_projection_closure_sha256\"\n                ),\n            )\n\norchestrator/tests/test_p3_b4_closed_critic.py:1002: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_certified_admission_rejects_projection_and_prompt_before_query.<locals>.<lambda> at 0x149fbe3a9f30>\ncontains = '[admission-mismatch] expected_closed_critic_projection_closure_sha256'\n\n    def _raises(error_type, callable_, *, contains: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if contains is not None:\n                assert contains in str(exc), str(exc)\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_closed_critic.py:102: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query\n1 failed, 54 passed in 8.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2487 retained_bytes=2487 omitted_bytes=0 rendered_excerpt_bytes=2614 sha256=f713232e966a24bb6503bc3d3e74ad1d7f1ced772a5e90ee777eb6d6cd91996f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_admission_rejects_projection_and_prompt_before_query():\n>         projection_admission = _committed_admission_fixture(\n>             expected_projection=\"0\" * 64,\n>         )\n>         provider_events = []\n>         real_provider = C.ClaudeProjectedRoleProvider\n>     \n>         class CountingProvider(real_provider):\n>             def __init__(self, **kwargs):\n>                 provider_events.append(\"created\")\n>                 super().__init__(**kwargs)\n>     \n>             def invoke(self, **kwargs):\n>                 provider_events.append(\"query\")\n>                 return super().invoke(**kwargs)\n>     \n>         with _certified_environment(projection_admission) as (\n>             parent,\n>             on_cfg,\n>             off_cfg,\n>             _layouts,\n>             home,\n>         ), unittest.mock.patch.object(\n>             C,\n>             \"ClaudeProjectedRoleProvider\",\n>             CountingProvider,\n>         ):\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda: C.create_b4_closed_critic_pair(\n>                     on_cfg=on_cfg,\n>                     off_cfg=off_cfg,\n>                     artifact_root=parent / \"projection-artifacts\",\n>                     admission_record_path=projection_admission.record_path,\n>                     repository_root=projection_admission.repository,\n>                     environ={\"HOME\": str(home)},\n>                 ),\n>                 contains=(\n>                     \"[admission-mismatch] \"\n>                     \"expected_closed_critic_projection_closure_sha256\"\n>                 ),\n>             )\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:1002: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_certified_admission_rejects_projection_and_prompt_before_query.<locals>.<lambda> at 0x149fbe3a9f30>\n> contains = '[admission-mismatch] expected_closed_critic_projection_closure_sha256'\n> \n>     def _raises(error_type, callable_, *, contains: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if contains is not None:\n>                 assert contains in str(exc), str(exc)\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:102: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2487 retained_bytes=2487 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3357 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1a4904662c8125415b36ba9a3ac46b430e8ec01a39ae968718f2d0bac9f47801"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.067,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+      ],
+      "hang_risk": false,
+      "id": "M08",
+      "injection_diff_sha256": "9b3ca9486ac7d70838504ea971b72807da7d84ad2ba531cfc48d4d531e0c2e09",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "091bdae844cedcff7bdd26b56cfa2d158123b6e731c5ed29f1bd16075d4f813d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "    if False:\n        pass\n",
+          "old": "    if verified_admission is not None:\n        assert_admission_expectation(\n            \"expected_closed_critic_projection_closure_sha256\",\n            expected=(\n                verified_admission\n                .expected_closed_critic_projection_closure_sha256\n            ),\n            actual=closure_sha256,\n        )\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "1a4904662c8125415b36ba9a3ac46b430e8ec01a39ae968718f2d0bac9f47801",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/fad27d26de9b526da7e90d7337941e89/izdw-fad27d26de.o949240",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/fad27d26de9b526da7e90d7337941e89/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F......................                  [100%]\n=================================== FAILURES ===================================\n_____ test_certified_admission_rejects_projection_and_prompt_before_query ______\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_admission_rejects_projection_and_prompt_before_query():\n        projection_admission = _committed_admission_fixture(\n            expected_projection=\"0\" * 64,\n        )\n        provider_events = []\n        real_provider = C.ClaudeProjectedRoleProvider\n    \n        class CountingProvider(real_provider):\n            def __init__(self, **kwargs):\n                provider_events.append(\"created\")\n                super().__init__(**kwargs)\n    \n            def invoke(self, **kwargs):\n                provider_events.append(\"query\")\n                return super().invoke(**kwargs)\n    \n        with _certified_environment(projection_admission) as (\n            parent,\n            on_cfg,\n            off_cfg,\n            _layouts,\n            home,\n        ), unittest.mock.patch.object(\n            C,\n            \"ClaudeProjectedRoleProvider\",\n            CountingProvider,\n        ):\n            _raises(\n                A.B4AdmissionRecordError,\n                lambda: C.create_b4_closed_critic_pair(\n                    on_cfg=on_cfg,\n                    off_cfg=off_cfg,\n                    artifact_root=parent / \"projection-artifacts\",\n                    admission_record_path=projection_admission.record_path,\n                    repository_root=projection_admission.repository,\n                    environ={\"HOME\": str(home)},\n                ),\n                contains=(\n                    \"[admission-mismatch] \"\n                    \"expected_closed_critic_projection_closure_sha256\"\n                ),\n            )\n        assert provider_events == []\n    \n        prompt_admission = _committed_admission_fixture(\n            expected_prompt=\"f\" * 64,\n        )\n        provider_events.clear()\n        with _certified_environment(prompt_admission) as (\n            parent,\n            on_cfg,\n            off_cfg,\n            _layouts,\n            home,\n        ), unittest.mock.patch.object(\n            C,\n            \"ClaudeProjectedRoleProvider\",\n            CountingProvider,\n        ):\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda: C.create_b4_closed_critic_pair(\n                    on_cfg=on_cfg,\n                    off_cfg=off_cfg,\n                    artifact_root=parent / \"prompt-artifacts\",\n                    admission_record_path=prompt_admission.record_path,\n                    repository_root=prompt_admission.repository,\n                    environ={\"HOME\": str(home)},\n                ),\n                contains=(\n                    \"[admission-mismatch] \"\n                    \"expected_effective_critic_prompt_sha256\"\n                ),\n            )\n\norchestrator/tests/test_p3_b4_closed_critic.py:1034: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_certified_admission_rejects_projection_and_prompt_before_query.<locals>.<lambda> at 0x14bdac5ba290>\ncontains = '[admission-mismatch] expected_effective_critic_prompt_sha256'\n\n    def _raises(error_type, callable_, *, contains: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if contains is not None:\n                assert contains in str(exc), str(exc)\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_closed_critic.py:102: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query\n1 failed, 54 passed in 8.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=3580 retained_bytes=3580 omitted_bytes=0 rendered_excerpt_bytes=3771 sha256=baa1858d8548ff5848d5910509d1c949e0744cbf58bb7907fae8459398572335\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_admission_rejects_projection_and_prompt_before_query():\n>         projection_admission = _committed_admission_fixture(\n>             expected_projection=\"0\" * 64,\n>         )\n>         provider_events = []\n>         real_provider = C.ClaudeProjectedRoleProvider\n>     \n>         class CountingProvider(real_provider):\n>             def __init__(self, **kwargs):\n>                 provider_events.append(\"created\")\n>                 super().__init__(**kwargs)\n>     \n>             def invoke(self, **kwargs):\n>                 provider_events.append(\"query\")\n>                 return super().invoke(**kwargs)\n>     \n>         with _certified_environment(projection_admission) as (\n>             parent,\n>             on_cfg,\n>             off_cfg,\n>             _layouts,\n>             home,\n>         ), unittest.mock.patch.object(\n>             C,\n>             \"ClaudeProjectedRoleProvider\",\n>             CountingProvider,\n>         ):\n>             _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda: C.create_b4_closed_critic_pair(\n>                     on_cfg=on_cfg,\n>                     off_cfg=off_cfg,\n>                     artifact_root=parent / \"projection-artifacts\",\n>                     admission_record_path=projection_admission.record_path,\n>                     repository_root=projection_admission.repository,\n>                     environ={\"HOME\": str(home)},\n>                 ),\n>                 contains=(\n>                     \"[admission-mismatch] \"\n>                     \"expected_closed_critic_projection_closure_sha256\"\n>                 ),\n>             )\n>         assert provider_events == []\n>     \n>         prompt_admission = _committed_admission_fixture(\n>             expected_prompt=\"f\" * 64,\n>         )\n>         provider_events.clear()\n>         with _certified_environment(prompt_admission) as (\n>             parent,\n>             on_cfg,\n>             off_cfg,\n>             _layouts,\n>             home,\n>         ), unittest.mock.patch.object(\n>             C,\n>             \"ClaudeProjectedRoleProvider\",\n>             CountingProvider,\n>         ):\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda: C.create_b4_closed_critic_pair(\n>                     on_cfg=on_cfg,\n>                     off_cfg=off_cfg,\n>                     artifact_root=parent / \"prompt-artifacts\",\n>                     admission_record_path=prompt_admission.record_path,\n>                     repository_root=prompt_admission.repository,\n>                     environ={\"HOME\": str(home)},\n>                 ),\n>                 contains=(\n>                     \"[admission-mismatch] \"\n>                     \"expected_effective_critic_prompt_sha256\"\n>                 ),\n>             )\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:1034: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_certified_admission_rejects_projection_and_prompt_before_query.<locals>.<lambda> at 0x14bdac5ba290>\n> contains = '[admission-mismatch] expected_effective_critic_prompt_sha256'\n> \n>     def _raises(error_type, callable_, *, contains: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if contains is not None:\n>                 assert contains in str(exc), str(exc)\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:102: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3580 retained_bytes=3580 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4514 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "53da2407cf635c7584addd6fdafb14fc6d810da5ea61e9de7e003b4623a9e81b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.07,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+      ],
+      "hang_risk": false,
+      "id": "M09",
+      "injection_diff_sha256": "115b7276ab9d88c256193c03ff050055e41956b592726841e9e424b24fab9c8c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "112f50d167c8beeccf6b7a11335a0f0157e7267509e307997e65b331b01e4d8c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "            if False:\n                pass\n",
+          "old": "            if self.__verified_admission is not None:\n                assert_admission_expectation(\n                    \"expected_effective_critic_prompt_sha256\",\n                    expected=(\n                        self.__verified_admission\n                        .expected_effective_critic_prompt_sha256\n                    ),\n                    actual=self.__provider.effective_prompt_sha256,\n                )\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "53da2407cf635c7584addd6fdafb14fc6d810da5ea61e9de7e003b4623a9e81b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/a4a45b4afed7ce7a30f0ed2ae0e9dd27/izdw-a4a45b4afe.o949241",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/a4a45b4afed7ce7a30f0ed2ae0e9dd27/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F....................                  [100%]\n=================================== FAILURES ===================================\n_ test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal _\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal():\n        admission = _committed_admission_fixture(\n            expected_model=\"claude-opus-other\",\n        )\n        runner, calls = _fake_runner_factory()\n        with _certified_environment(admission) as (\n            parent,\n            on_cfg,\n            off_cfg,\n            _layouts,\n            home,\n        ):\n            with C.create_b4_closed_critic_pair(\n                on_cfg=on_cfg,\n                off_cfg=off_cfg,\n                artifact_root=parent / \"model-artifacts\",\n                admission_record_path=admission.record_path,\n                repository_root=admission.repository,\n                environ={\"HOME\": str(home)},\n            ) as pair:\n                pair.on._B4ClosedCriticController__provider._runner = runner\n>               error = _raises(\n                    A.B4AdmissionRecordError,\n                    lambda: pair.on.invoke(invocation_id=\"model-mismatch\"),\n                    contains=\"[admission-mismatch] expected_claude_model_snapshot\",\n                )\n\norchestrator/tests/test_p3_b4_closed_critic.py:1073: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal.<locals>.<lambda> at 0x14aee6a62050>\ncontains = '[admission-mismatch] expected_claude_model_snapshot'\n\n    def _raises(error_type, callable_, *, contains: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if contains is not None:\n                assert contains in str(exc), str(exc)\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_closed_critic.py:102: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal\n1 failed, 54 passed in 8.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=2025 retained_bytes=2025 omitted_bytes=0 rendered_excerpt_bytes=2120 sha256=2e1c25595c80b4c169ba7cc039492288373f699220073010ea06c382ae800155\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal():\n>         admission = _committed_admission_fixture(\n>             expected_model=\"claude-opus-other\",\n>         )\n>         runner, calls = _fake_runner_factory()\n>         with _certified_environment(admission) as (\n>             parent,\n>             on_cfg,\n>             off_cfg,\n>             _layouts,\n>             home,\n>         ):\n>             with C.create_b4_closed_critic_pair(\n>                 on_cfg=on_cfg,\n>                 off_cfg=off_cfg,\n>                 artifact_root=parent / \"model-artifacts\",\n>                 admission_record_path=admission.record_path,\n>                 repository_root=admission.repository,\n>                 environ={\"HOME\": str(home)},\n>             ) as pair:\n>                 pair.on._B4ClosedCriticController__provider._runner = runner\n> >               error = _raises(\n>                     A.B4AdmissionRecordError,\n>                     lambda: pair.on.invoke(invocation_id=\"model-mismatch\"),\n>                     contains=\"[admission-mismatch] expected_claude_model_snapshot\",\n>                 )\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:1073: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal.<locals>.<lambda> at 0x14aee6a62050>\n> contains = '[admission-mismatch] expected_claude_model_snapshot'\n> \n>     def _raises(error_type, callable_, *, contains: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if contains is not None:\n>                 assert contains in str(exc), str(exc)\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:102: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2025 retained_bytes=2025 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2876 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6a63ed2734aab61596a504582ef097f266dd17c5e1b0151b81665030ade77c65"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.12,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal"
+      ],
+      "hang_risk": false,
+      "id": "M10",
+      "injection_diff_sha256": "6871d2b2188f967d13022e03062bdf6aac28a837e052e07c7e11d8129e59a105",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "77c7665dcc8b7d77d8fb49c38335607accb73dabe54d774ec2362f517c485c35",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "            if False:\n                pass\n",
+          "old": "            if self.__verified_admission is not None:\n                assert_admission_expectation(\n                    \"expected_claude_model_snapshot\",\n                    expected=(\n                        self.__verified_admission.expected_claude_model_snapshot\n                    ),\n                    actual=response.provenance[\"model\"],\n                )\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "6a63ed2734aab61596a504582ef097f266dd17c5e1b0151b81665030ade77c65",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/217154c6c50b212425ddf310f718f7af/izdw-217154c6c5.o949242",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/217154c6c50b212425ddf310f718f7af/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................                  [100%]\n55 passed in 8.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "f4035f1797edbb598999776f0a22d35e8af9676badf65c28c7b105a6c48444a3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.021,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M11",
+      "injection_diff_sha256": "d18190eb9ea5f632d35f2cf8522eb24d96632f30be401bddb7bc8c29d3562253",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "1aea860677273790d58c1ceb4c8d2f2f42684ae6206a97e4e449be6c1395b73b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+          "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "SURVIVED",
+      "test_output_sha256": "f4035f1797edbb598999776f0a22d35e8af9676badf65c28c7b105a6c48444a3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/a960f14560bedf44d63ed21f499d00f7/izdw-a960f14560.o949243",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/a960f14560bedf44d63ed21f499d00f7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F..F.................................                  [100%]\n=================================== FAILURES ===================================\n____ test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run _____\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():\n        parent = Path(tempfile.mkdtemp(prefix=\"izanagi-b4-certified-runner-\"))\n        admission = _committed_admission_fixture()\n        signature = inspect.signature(C.create_b4_closed_critic_pair)\n        assert \"runner\" not in signature.parameters\n>       assert (\n            signature.parameters[\"admission_record_path\"].default\n            is inspect.Parameter.empty\n        )\nE       assert None is <class 'inspect._empty'>\nE        +  where None = <Parameter \"admission_record_path: 'Path | None' = None\">.default\nE        +  and   <class 'inspect._empty'> = <class 'inspect.Parameter'>.empty\nE        +    where <class 'inspect.Parameter'> = inspect.Parameter\n\norchestrator/tests/test_p3_b4_closed_critic.py:751: AssertionError\n_ test_admission_keyword_and_binding_failures_precede_executable_artifact_provider _\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\nrepository_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record')\nrecord_path = None\n\n    def _repository_relative_regular_file(\n        repository_root: Path,\n        record_path: str | os.PathLike[str],\n    ) -> tuple[Path, Path]:\n        try:\n>           supplied = Path(record_path)\n\norchestrator/campaign/p3_b4_admission_record.py:395: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/pathlib.py:960: in __new__\n    self = cls._from_parts(args)\n/usr/lib/python3.10/pathlib.py:594: in _from_parts\n    drv, root, parts = self._parse_args(args)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncls = <class 'pathlib.PosixPath'>, args = (None,)\n\n    @classmethod\n    def _parse_args(cls, args):\n        # This is useful when you don't want to create an instance, just\n        # canonicalize some constructor arguments.\n        parts = []\n        for a in args:\n            if isinstance(a, PurePath):\n                parts += a._parts\n            else:\n>               a = os.fspath(a)\nE               TypeError: expected str, bytes or os.PathLike object, not NoneType\n\n/usr/lib/python3.10/pathlib.py:578: TypeError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_admission_keyword_and_binding_failures_precede_executable_artifact_provider():\n        parent = Path(tempfile.mkdtemp(prefix=\"izanagi-b4-admission-order-\"))\n        missing_root = parent / \"missing-keyword\"\n>       error = _raises(\n            TypeError,\n            lambda: C.create_b4_closed_critic_pair(\n                on_cfg=L.default_cfg(reflux=True),\n                off_cfg=L.default_cfg(reflux=False),\n                artifact_root=missing_root,\n            ),\n        )\n\norchestrator/tests/test_p3_b4_closed_critic.py:786: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_closed_critic.py:97: in _raises\n    callable_()\norchestrator/tests/test_p3_b4_closed_critic.py:788: in <lambda>\n    lambda: C.create_b4_closed_critic_pair(\norchestrator/campaign/p3_b4_closed_critic.py:1128: in create_b4_closed_critic_pair\n    verified_admission = verify_b4_admission_record(\norchestrator/campaign/p3_b4_admission_record.py:637: in verify_b4_admission_record\n    record_path, relative_record_path = _repository_relative_regular_file(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepository_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record')\nrecord_path = None\n\n    def _repository_relative_regular_file(\n        repository_root: Path,\n        record_path: str | os.PathLike[str],\n    ) -> tuple[Path, Path]:\n        try:\n            supplied = Path(record_path)\n        except TypeError as exc:\n>           raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\nE           orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError: [admission-record] record is unavailable\n\norchestrator/campaign/p3_b4_admission_record.py:397: B4AdmissionRecordError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider\n2 failed, 53 passed in 11.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=3197 retained_bytes=3197 omitted_bytes=0 rendered_excerpt_bytes=3350 sha256=865336eb436a5685a287c6e6cc6166678a7ea3f7cdc568dd3266c3dfed647f83\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> repository_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record')\n> record_path = None\n> \n>     def _repository_relative_regular_file(\n>         repository_root: Path,\n>         record_path: str | os.PathLike[str],\n>     ) -> tuple[Path, Path]:\n>         try:\n> >           supplied = Path(record_path)\n> \n> orchestrator/campaign/p3_b4_admission_record.py:395: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/pathlib.py:960: in __new__\n>     self = cls._from_parts(args)\n> /usr/lib/python3.10/pathlib.py:594: in _from_parts\n>     drv, root, parts = self._parse_args(args)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> cls = <class 'pathlib.PosixPath'>, args = (None,)\n> \n>     @classmethod\n>     def _parse_args(cls, args):\n>         # This is useful when you don't want to create an instance, just\n>         # canonicalize some constructor arguments.\n>         parts = []\n>         for a in args:\n>             if isinstance(a, PurePath):\n>                 parts += a._parts\n>             else:\n> >               a = os.fspath(a)\n> E               TypeError: expected str, bytes or os.PathLike object, not NoneType\n> \n> /usr/lib/python3.10/pathlib.py:578: TypeError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_admission_keyword_and_binding_failures_precede_executable_artifact_provider():\n>         parent = Path(tempfile.mkdtemp(prefix=\"izanagi-b4-admission-order-\"))\n>         missing_root = parent / \"missing-keyword\"\n> >       error = _raises(\n>             TypeError,\n>             lambda: C.create_b4_closed_critic_pair(\n>                 on_cfg=L.default_cfg(reflux=True),\n>                 off_cfg=L.default_cfg(reflux=False),\n>                 artifact_root=missing_root,\n>             ),\n>         )\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:786: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_closed_critic.py:97: in _raises\n>     callable_()\n> orchestrator/tests/test_p3_b4_closed_critic.py:788: in <lambda>\n>     lambda: C.create_b4_closed_critic_pair(\n> orchestrator/campaign/p3_b4_closed_critic.py:1128: in create_b4_closed_critic_pair\n>     verified_admission = verify_b4_admission_record(\n> orchestrator/campaign/p3_b4_admission_record.py:637: in verify_b4_admission_record\n>     record_path, relative_record_path = _repository_relative_regular_file(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repository_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record')\n> record_path = None\n> \n>     def _repository_relative_regular_file(\n>         repository_root: Path,\n>         record_path: str | os.PathLike[str],\n>     ) -> tuple[Path, Path]:\n>         try:\n>             supplied = Path(record_path)\n>         except TypeError as exc:\n> >           raise B4AdmissionRecordError(_RECORD_UNAVAILABLE) from exc\n> E           orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError: [admission-record] record is unavailable\n> \n> orchestrator/campaign/p3_b4_admission_record.py:397: B4AdmissionRecordError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=866 retained_bytes=866 omitted_bytes=0 rendered_excerpt_bytes=901 sha256=b861d3155d04a67e00dfb7eaf40663a642667a62448f3403ecf6a0389979f02c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():\n>         parent = Path(tempfile.mkdtemp(prefix=\"izanagi-b4-certified-runner-\"))\n>         admission = _committed_admission_fixture()\n>         signature = inspect.signature(C.create_b4_closed_critic_pair)\n>         assert \"runner\" not in signature.parameters\n> >       assert (\n>             signature.parameters[\"admission_record_path\"].default\n>             is inspect.Parameter.empty\n>         )\n> E       assert None is <class 'inspect._empty'>\n> E        +  where None = <Parameter \"admission_record_path: 'Path | None' = None\">.default\n> E        +  and   <class 'inspect._empty'> = <class 'inspect.Parameter'>.empty\n> E        +    where <class 'inspect.Parameter'> = inspect.Parameter\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:751: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4063 retained_bytes=4063 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5462 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "24527edd4dac5da74d0ed6b41198fab14f9511faea1ac08390bb88d2aa755910"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.116,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider"
+      ],
+      "hang_risk": false,
+      "id": "M12",
+      "injection_diff_sha256": "8a53f30c4bdb2da0d99659981dc6328765ba69f77f0e1538eade976e5d69c542",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3a6fef9eb9f7e46f86a2c6b0e13aa51017b36310cb8862185db23dbfe10ac3d9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "    admission_record_path: Path | None = None,\n    repository_root: Path | None = None,\n",
+          "old": "    admission_record_path: Path,\n    repository_root: Path | None = None,\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "24527edd4dac5da74d0ed6b41198fab14f9511faea1ac08390bb88d2aa755910",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/b97913924bafc01db3cd0c0949e28f01/izdw-b97913924b.o949244",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/b97913924bafc01db3cd0c0949e28f01/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F....................................                  [100%]\n=================================== FAILURES ===================================\n_ test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist __\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist():\n        fixture = _committed_fixture()\n        forged = _init_repository()\n        with unittest.mock.patch.dict(\n            os.environ,\n            {\n                \"GIT_DIR\": str(forged / \".git\"),\n                \"GIT_OBJECT_DIRECTORY\": str(forged / \".git\" / \"objects\"),\n                \"GIT_ALTERNATE_OBJECT_DIRECTORIES\": str(\n                    forged / \".git\" / \"objects\"\n                ),\n                \"GIT_CONFIG_PARAMETERS\": \"'core.repositoryformatversion=99'\",\n                \"GIT_CONFIG_GLOBAL\": str(forged / \"global-config\"),\n                \"GIT_CONFIG_SYSTEM\": str(forged / \"system-config\"),\n                \"PATH\": str(forged),\n                \"LD_PRELOAD\": str(forged / \"interpose.so\"),\n                \"LD_LIBRARY_PATH\": str(forged / \"libraries\"),\n                \"HOME\": str(forged / \"home\"),\n                \"XDG_CONFIG_HOME\": str(forged / \"xdg\"),\n                \"LANG\": \"forged_LOCALE\",\n                \"LC_ALL\": \"forged_LOCALE\",\n            },\n        ):\n            verified = A.verify_b4_admission_record(\n                fixture.record_path,\n                repository_root=fixture.repository,\n            )\n>           assert A._git_environment() == {\n                \"GIT_ATTR_NOSYSTEM\": \"1\",\n                \"GIT_CONFIG_GLOBAL\": \"/dev/null\",\n                \"GIT_CONFIG_NOSYSTEM\": \"1\",\n                \"GIT_CONFIG_SYSTEM\": \"/dev/null\",\n                \"GIT_NO_REPLACE_OBJECTS\": \"1\",\n            }\nE           assert {'SHELL': '/b...E_M': '', ...} == {'GIT_ATTR_NO...ev/null', ...}\nE             \nE             Omitting 1 identical items, use -vv to show\nE             Left contains 75 more items:\nE             {'BASH_FUNC_ml%%': '() {  module ml \"$@\"\\n}',\nE              'BASH_FUNC_module%%': '() {  eval `/usr/bin/tclsh8.6 '\nE                                    '/usr/lib/x86_64-linux-gnu/modulecmd.tcl bash \"$@\"`;\\n'\nE                                    ' _mlstatus=$?;\\n'...\nE             \nE             ...Full output truncated (82 lines hidden), use '-vv' to show\n\norchestrator/tests/test_p3_b4_admission_record.py:504: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist\n1 failed, 54 passed in 8.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=2209 retained_bytes=2209 omitted_bytes=0 rendered_excerpt_bytes=2315 sha256=fa090d931caa35cd140bffab214fb73f4d9ced3040fdd3428562be27288afe2b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist():\n>         fixture = _committed_fixture()\n>         forged = _init_repository()\n>         with unittest.mock.patch.dict(\n>             os.environ,\n>             {\n>                 \"GIT_DIR\": str(forged / \".git\"),\n>                 \"GIT_OBJECT_DIRECTORY\": str(forged / \".git\" / \"objects\"),\n>                 \"GIT_ALTERNATE_OBJECT_DIRECTORIES\": str(\n>                     forged / \".git\" / \"objects\"\n>                 ),\n>                 \"GIT_CONFIG_PARAMETERS\": \"'core.repositoryformatversion=99'\",\n>                 \"GIT_CONFIG_GLOBAL\": str(forged / \"global-config\"),\n>                 \"GIT_CONFIG_SYSTEM\": str(forged / \"system-config\"),\n>                 \"PATH\": str(forged),\n>                 \"LD_PRELOAD\": str(forged / \"interpose.so\"),\n>                 \"LD_LIBRARY_PATH\": str(forged / \"libraries\"),\n>                 \"HOME\": str(forged / \"home\"),\n>                 \"XDG_CONFIG_HOME\": str(forged / \"xdg\"),\n>                 \"LANG\": \"forged_LOCALE\",\n>                 \"LC_ALL\": \"forged_LOCALE\",\n>             },\n>         ):\n>             verified = A.verify_b4_admission_record(\n>                 fixture.record_path,\n>                 repository_root=fixture.repository,\n>             )\n> >           assert A._git_environment() == {\n>                 \"GIT_ATTR_NOSYSTEM\": \"1\",\n>                 \"GIT_CONFIG_GLOBAL\": \"/dev/null\",\n>                 \"GIT_CONFIG_NOSYSTEM\": \"1\",\n>                 \"GIT_CONFIG_SYSTEM\": \"/dev/null\",\n>                 \"GIT_NO_REPLACE_OBJECTS\": \"1\",\n>             }\n> E           assert {'SHELL': '/b...E_M': '', ...} == {'GIT_ATTR_NO...ev/null', ...}\n> E             \n> E             Omitting 1 identical items, use -vv to show\n> E             Left contains 75 more items:\n> E             {'BASH_FUNC_ml%%': '() {  module ml \"$@\"\\x5cn}',\n> E              'BASH_FUNC_module%%': '() {  eval `/usr/bin/tclsh8.6 '\n> E                                    '/usr/lib/x86_64-linux-gnu/modulecmd.tcl bash \"$@\"`;\\x5cn'\n> E                                    ' _mlstatus=$?;\\x5cn'...\n> E             \n> E             ...Full output truncated (82 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:504: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2209 retained_bytes=2209 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3069 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bae45b956b1eac8783b80802c2b2a99c653c096cbf55790146b8ec1af40ec9ca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 37.259,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist"
+      ],
+      "hang_risk": false,
+      "id": "M13",
+      "injection_diff_sha256": "ef08e68514ee6b9fb71544ed4909eda6947de09581fe2cacaf928be36580aa3d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "affcdeb219301c19be93a0cf999711c1f1961dcf1bb4e7e9d0d35e817e4eb677",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "def _git_environment() -> dict[str, str]:\n    env = {\n        key: value\n        for key, value in os.environ.items()\n        if not key.startswith(\"GIT_\")\n    }\n    env[\"GIT_NO_REPLACE_OBJECTS\"] = \"1\"\n    return env\n",
+          "old": "def _git_environment() -> dict[str, str]:\n    return {\n        \"GIT_ATTR_NOSYSTEM\": \"1\",\n        \"GIT_CONFIG_GLOBAL\": \"/dev/null\",\n        \"GIT_CONFIG_NOSYSTEM\": \"1\",\n        \"GIT_CONFIG_SYSTEM\": \"/dev/null\",\n        \"GIT_NO_REPLACE_OBJECTS\": \"1\",\n    }\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "bae45b956b1eac8783b80802c2b2a99c653c096cbf55790146b8ec1af40ec9ca",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/f02b8db974b11e976a5f3826f641f8bc/izdw-f02b8db974.o949245",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/f02b8db974b11e976a5f3826f641f8bc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................F...F..........                  [100%]\n=================================== FAILURES ===================================\n_ test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it _\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it():\n        context, pair, _layouts, _calls, on, off = _invoke_pair()\n        try:\n            C.assert_b4_arm_pair(\n                on.terminal_receipt_path,\n                off.terminal_receipt_path,\n            )\n>           _raises(\n                C.B4ReceiptError,\n                lambda: C.assert_b4_certified_arm_pair(\n                    pair,\n                    on.terminal_receipt_path,\n                    off.terminal_receipt_path,\n                    admission_record_path=Path(\"missing-admission.json\"),\n                ),\n                contains=\"live production factory pair\",\n            )\n\norchestrator/tests/test_p3_b4_closed_critic.py:1543: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_closed_critic.py:97: in _raises\n    callable_()\norchestrator/tests/test_p3_b4_closed_critic.py:1545: in <lambda>\n    lambda: C.assert_b4_certified_arm_pair(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npair = <orchestrator.campaign.p3_b4_closed_critic.B4ClosedCriticPair object at 0x1545d3797fa0>\non_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-d918y0xp/artifacts/on/receipt_b4-on-1_terminal.json')\noff_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-d918y0xp/artifacts/off/receipt_b4-off-1_terminal.json')\nadmission_record_path = PosixPath('missing-admission.json')\n\n    def assert_b4_certified_arm_pair(\n        pair: B4ClosedCriticPair,\n        on_terminal_receipt_path: str | os.PathLike[str],\n        off_terminal_receipt_path: str | os.PathLike[str],\n        *,\n        admission_record_path: str | os.PathLike[str],\n    ) -> B4ArmPairComparison:\n        \"\"\"Bind certified receipt bytes to one live production pair and record.\"\"\"\n        if type(pair) is not B4ClosedCriticPair:\n            raise B4ReceiptError(\n                \"certified pair requires the exact live production pair type\"\n            )\n        certification = pair._require_production_certification()\n        expected_on_path = pair.on._successful_terminal_path()\n        expected_off_path = pair.off._successful_terminal_path()\n        try:\n            supplied_on_path = Path(on_terminal_receipt_path).resolve(strict=True)\n            supplied_off_path = Path(off_terminal_receipt_path).resolve(strict=True)\n        except (TypeError, OSError) as exc:\n            raise B4ReceiptError(\n                \"certified pair terminal paths are unavailable\"\n            ) from exc\n        if (\n            expected_on_path is None\n            or expected_off_path is None\n            or supplied_on_path != expected_on_path\n            or supplied_off_path != expected_off_path\n        ):\n            raise B4ReceiptError(\n                \"certified pair terminal paths differ from the live pair\"\n            )\n    \n        verified = verify_b4_admission_record(\n            admission_record_path,\n>           repository_root=certification.repository_root,\n        )\nE       AttributeError: 'NoneType' object has no attribute 'repository_root'\n\norchestrator/campaign/p3_b4_closed_critic.py:1678: AttributeError\n__ test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses __\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses():\n        signature = inspect.signature(C.create_b4_closed_critic_pair_for_test)\n        assert {\"runner\", \"executable\"} <= set(signature.parameters)\n        assert \"evidence_class\" not in signature.parameters\n        rejected_parent = Path(tempfile.mkdtemp(prefix=\"izanagi-b4-test-class-\"))\n        rejected_root = rejected_parent / \"rejected\"\n        injected_runner, _calls = _fake_runner_factory()\n        error = _raises(\n            TypeError,\n            lambda: C.create_b4_closed_critic_pair_for_test(\n                on_cfg=L.default_cfg(reflux=True),\n                off_cfg=L.default_cfg(reflux=False),\n                artifact_root=rejected_root,\n                executable=sys.executable,\n                runner=injected_runner,\n                evidence_class=\"certified\",\n            ),\n        )\n        assert \"unexpected keyword argument 'evidence_class'\" in str(error)\n        assert not rejected_root.exists()\n    \n        test_context, test_pair, _layouts, _calls, test_on, test_off = _invoke_pair()\n        try:\n            assert test_on.receipt.evidence_class == \"test-only\"\n            assert test_off.receipt.evidence_class == \"test-only\"\n            C.assert_b4_arm_pair(\n                test_on.terminal_receipt_path,\n                test_off.terminal_receipt_path,\n            )\n            promoted_on = replace(test_on.receipt, evidence_class=\"certified\")\n            promoted_off = replace(test_off.receipt, evidence_class=\"certified\")\n            _raises(\n                C.B4ReceiptError,\n                lambda: C.assert_b4_arm_pair(promoted_on, promoted_off),\n                contains=\"terminal receipt file paths\",\n            )\n            promoted_on_terminal = json.loads(\n                test_on.terminal_receipt_path.read_bytes()\n            )\n            promoted_on_terminal[\"evidence_class\"] = \"certified\"\n            test_on.terminal_receipt_path.write_bytes(\n                C._canonical_json_bytes(promoted_on_terminal)\n            )\n            _raises(\n                C.B4ReceiptError,\n                lambda: C.assert_b4_arm_pair(\n                    test_on.terminal_receipt_path,\n                    test_off.terminal_receipt_path,\n                ),\n                contains=\"start and terminal receipt differ: evidence_class\",\n            )\n    \n            promoted_on_start = json.loads(test_on.start_receipt_path.read_bytes())\n            promoted_on_start[\"evidence_class\"] = \"certified\"\n            promoted_on_start_bytes = C._canonical_json_bytes(promoted_on_start)\n            test_on.start_receipt_path.write_bytes(promoted_on_start_bytes)\n            promoted_on_terminal[\"start_receipt_sha256\"] = hashlib.sha256(\n                promoted_on_start_bytes\n            ).hexdigest()\n            test_on.terminal_receipt_path.write_bytes(\n                C._canonical_json_bytes(promoted_on_terminal)\n            )\n            _raises(\n                C.B4ReceiptError,\n                lambda: C.assert_b4_arm_pair(\n                    test_on.terminal_receipt_path,\n                    test_off.terminal_receipt_path,\n                ),\n                contains=\"different evidence_class\",\n            )\n    \n            promoted_off_start = json.loads(\n                test_off.start_receipt_path.read_bytes()\n            )\n            promoted_off_start[\"evidence_class\"] = \"certified\"\n            promoted_off_start_bytes = C._canonical_json_bytes(promoted_off_start)\n            test_off.start_receipt_path.write_bytes(promoted_off_start_bytes)\n            promoted_off_terminal = json.loads(\n                test_off.terminal_receipt_path.read_bytes()\n            )\n            promoted_off_terminal[\"evidence_class\"] = \"certified\"\n            promoted_off_terminal[\"start_receipt_sha256\"] = hashlib.sha256(\n                promoted_off_start_bytes\n            ).hexdigest()\n            test_off.terminal_receipt_path.write_bytes(\n                C._canonical_json_bytes(promoted_off_terminal)\n            )\n            C.assert_b4_arm_pair(\n                test_on.terminal_receipt_path,\n                test_off.terminal_receipt_path,\n            )\n>           _raises(\n                C.B4ReceiptError,\n                lambda: C.assert_b4_certified_arm_pair(\n                    test_pair,\n                    test_on.terminal_receipt_path,\n                    test_off.terminal_receipt_path,\n                    admission_record_path=Path(\"missing-admission.json\"),\n                ),\n                contains=\"live production factory pair\",\n            )\n\norchestrator/tests/test_p3_b4_closed_critic.py:1841: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_closed_critic.py:97: in _raises\n    callable_()\norchestrator/tests/test_p3_b4_closed_critic.py:1843: in <lambda>\n    lambda: C.assert_b4_certified_arm_pair(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npair = <orchestrator.campaign.p3_b4_closed_critic.B4ClosedCriticPair object at 0x14f628b65ab0>\non_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-n1nk2xu_/artifacts/on/receipt_b4-on-1_terminal.json')\noff_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-n1nk2xu_/artifacts/off/receipt_b4-off-1_terminal.json')\nadmission_record_path = PosixPath('missing-admission.json')\n\n    def assert_b4_certified_arm_pair(\n        pair: B4ClosedCriticPair,\n        on_terminal_receipt_path: str | os.PathLike[str],\n        off_terminal_receipt_path: str | os.PathLike[str],\n        *,\n        admission_record_path: str | os.PathLike[str],\n    ) -> B4ArmPairComparison:\n        \"\"\"Bind certified receipt bytes to one live production pair and record.\"\"\"\n        if type(pair) is not B4ClosedCriticPair:\n            raise B4ReceiptError(\n                \"certified pair requires the exact live production pair type\"\n            )\n        certification = pair._require_production_certification()\n        expected_on_path = pair.on._successful_terminal_path()\n        expected_off_path = pair.off._successful_terminal_path()\n        try:\n            supplied_on_path = Path(on_terminal_receipt_path).resolve(strict=True)\n            supplied_off_path = Path(off_terminal_receipt_path).resolve(strict=True)\n        except (TypeError, OSError) as exc:\n            raise B4ReceiptError(\n                \"certified pair terminal paths are unavailable\"\n            ) from exc\n        if (\n            expected_on_path is None\n            or expected_off_path is None\n            or supplied_on_path != expected_on_path\n            or supplied_off_path != expected_off_path\n        ):\n            raise B4ReceiptError(\n                \"certified pair terminal paths differ from the live pair\"\n            )\n    \n        verified = verify_b4_admission_record(\n            admission_record_path,\n>           repository_root=certification.repository_root,\n        )\nE       AttributeError: 'NoneType' object has no attribute 'repository_root'\n\norchestrator/campaign/p3_b4_closed_critic.py:1678: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it\nFAILED orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses\n2 failed, 53 passed in 10.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=7161 retained_bytes=3923 omitted_bytes=3238 rendered_excerpt_bytes=4096 sha256=a25d29537fe9ff3783b0517ed4bb9e8aa070d38ffe8df9884bad843a320b6ec2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>           contains=\"different evidence_class\",\n>             )\n>     \n>             promoted_off_start = json.loads(\n>                 test_off.start_receipt_path.read_bytes()\n>             )\n>             promoted_off_start[\"evidence_class\"] = \"certified\"\n>             promoted_off_start_bytes = C._canonical_json_bytes(promoted_off_start)\n>             test_off.start_receipt_path.write_bytes(promoted_off_start_bytes)\n>             promoted_off_terminal = json.loads(\n>                 test_off.terminal_receipt_path.read_bytes()\n>             )\n>             promoted_off_terminal[\"evidence_class\"] = \"certified\"\n>             promoted_off_terminal[\"start_receipt_sha256\"] = hashlib.sha256(\n>                 promoted_off_start_bytes\n>             ).hexdigest()\n>             test_off.terminal_receipt_path.write_bytes(\n>                 C._canonical_json_bytes(promoted_off_terminal)\n>             )\n>             C.assert_b4_arm_pair(\n>                 test_on.terminal_receipt_path,\n>                 test_off.terminal_receipt_path,\n>             )\n> >           _raises(\n>                 C.B4ReceiptError,\n>                 lambda: C.assert_b4_certified_arm_pair(\n>                     test_pair,\n>                     test_on.terminal_receipt_path,\n>                     test_off.terminal_receipt_path,\n>                     admission_record_path=Path(\"missing-admission.json\"),\n>                 ),\n>                 contains=\"live production factory pair\",\n>             )\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:1841: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_closed_critic.py:97: in _raises\n>     callable_()\n> orchestrator/tests/test_p3_b4_closed_critic.py:1843: in <lambda>\n>     lambda: C.assert_b4_certified_arm_pair(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pair = <orchestrator.campaign.p3_b4_closed_critic.B4ClosedCriticPair object at 0x14f628b65ab0>\n> on_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-n1nk2xu_/artifacts/on/receipt_b4-on-1_terminal.json')\n> off_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-n1nk2xu_/artifacts/off/receipt_b4-off-1_terminal.json')\n> admission_record_path = PosixPath('missing-admission.json')\n> \n>     def assert_b4_certified_arm_pair(\n>         pair: B4ClosedCriticPair,\n>         on_terminal_receipt_path: str | os.PathLike[str],\n>         off_terminal_receipt_path: str | os.PathLike[str],\n>         *,\n>         admission_record_path: str | os.PathLike[str],\n>     ) -> B4ArmPairComparison:\n>         \"\"\"Bind certified receipt bytes to one live production pair and record.\"\"\"\n>         if type(pair) is not B4ClosedCriticPair:\n>             raise B4ReceiptError(\n>                 \"certified pair requires the exact live production pair type\"\n>             )\n>         certification = pair._require_production_certification()\n>         expected_on_path = pair.on._successful_terminal_path()\n>         expected_off_path = pair.off._successful_terminal_path()\n>         try:\n>             supplied_on_path = Path(on_terminal_receipt_path).resolve(strict=True)\n>             supplied_off_path = Path(off_terminal_receipt_path).resolve(strict=True)\n>         except (TypeError, OSError) as exc:\n>             raise B4ReceiptError(\n>                 \"certified pair terminal paths are unavailable\"\n>             ) from exc\n>         if (\n>             expected_on_path is None\n>             or expected_off_path is None\n>             or supplied_on_path != expected_on_path\n>             or supplied_off_path != expected_off_path\n>         ):\n>             raise B4ReceiptError(\n>                 \"certified pair terminal paths differ from the live pair\"\n>             )\n>     \n>         verified = verify_b4_admission_record(\n>             admission_record_path,\n> >           repository_root=certification.repository_root,\n>         )\n> E       AttributeError: 'NoneType' object has no attribute 'repository_root'\n> \n> orchestrator/campaign/p3_b4_closed_critic.py:1678: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it\" nodeid_bytes=124 nodeid_omitted_bytes=0 source_bytes=3243 retained_bytes=3243 omitted_bytes=0 rendered_excerpt_bytes=3388 sha256=dfe0af29889ff6dc3479b0f64a046f1cb7ff692e10b73168d30214eb2179ed1c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it():\n>         context, pair, _layouts, _calls, on, off = _invoke_pair()\n>         try:\n>             C.assert_b4_arm_pair(\n>                 on.terminal_receipt_path,\n>                 off.terminal_receipt_path,\n>             )\n> >           _raises(\n>                 C.B4ReceiptError,\n>                 lambda: C.assert_b4_certified_arm_pair(\n>                     pair,\n>                     on.terminal_receipt_path,\n>                     off.terminal_receipt_path,\n>                     admission_record_path=Path(\"missing-admission.json\"),\n>                 ),\n>                 contains=\"live production factory pair\",\n>             )\n> \n> orchestrator/tests/test_p3_b4_closed_critic.py:1543: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_closed_critic.py:97: in _raises\n>     callable_()\n> orchestrator/tests/test_p3_b4_closed_critic.py:1545: in <lambda>\n>     lambda: C.assert_b4_certified_arm_pair(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pair = <orchestrator.campaign.p3_b4_closed_critic.B4ClosedCriticPair object at 0x1545d3797fa0>\n> on_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-d918y0xp/artifacts/on/receipt_b4-on-1_terminal.json')\n> off_terminal_receipt_path = PosixPath('/tmp/izanagi-b4-pair-d918y0xp/artifacts/off/receipt_b4-off-1_terminal.json')\n> admission_record_path = PosixPath('missing-admission.json')\n> \n>     def assert_b4_certified_arm_pair(\n>         pair: B4ClosedCriticPair,\n>         on_terminal_receipt_path: str | os.PathLike[str],\n>         off_terminal_receipt_path: str | os.PathLike[str],\n>         *,\n>         admission_record_path: str | os.PathLike[str],\n>     ) -> B4ArmPairComparison:\n>         \"\"\"Bind certified receipt bytes to one live production pair and record.\"\"\"\n>         if type(pair) is not B4ClosedCriticPair:\n>             raise B4ReceiptError(\n>                 \"certified pair requires the exact live production pair type\"\n>             )\n>         certification = pair._require_production_certification()\n>         expected_on_path = pair.on._successful_terminal_path()\n>         expected_off_path = pair.off._successful_terminal_path()\n>         try:\n>             supplied_on_path = Path(on_terminal_receipt_path).resolve(strict=True)\n>             supplied_off_path = Path(off_terminal_receipt_path).resolve(strict=True)\n>         except (TypeError, OSError) as exc:\n>             raise B4ReceiptError(\n>                 \"certified pair terminal paths are unavailable\"\n>             ) from exc\n>         if (\n>             expected_on_path is None\n>             or expected_off_path is None\n>             or supplied_on_path != expected_on_path\n>             or supplied_off_path != expected_off_path\n>         ):\n>             raise B4ReceiptError(\n>                 \"certified pair terminal paths differ from the live pair\"\n>             )\n>     \n>         verified = verify_b4_admission_record(\n>             admission_record_path,\n> >           repository_root=certification.repository_root,\n>         )\n> E       AttributeError: 'NoneType' object has no attribute 'repository_root'\n> \n> orchestrator/campaign/p3_b4_closed_critic.py:1678: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=10404 retained_bytes=7166 omitted_bytes=3238 budget_bytes=49152 rendered_bytes=8706 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5f0d898244593c9cfc1f85c9bef727551ad0a85dcdc61a8604e37389d3640ea9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6635942c5f6185089d7e3c601df4c8092666a78980e70843d4bbaa0acfdb1c64",
+      "duration_s": 32.028,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses"
+      ],
+      "hang_risk": false,
+      "id": "M14",
+      "injection_diff_sha256": "b80457f1222c599f673c2f2c95f181a1822b9f417a4f6bf999b5a3017bc5bfbe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3a85d002a601c8832398a093f4004db1d0f47a0d08eb2fd59e454cbc9a4fff2e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "        return self.__production_certification\n",
+          "old": "        if (\n            self.__certification_seal is not _PRODUCTION_PAIR_SEAL\n            or self.__production_certification is None\n        ):\n            raise B4ReceiptError(\n                \"certified pair requires a live production factory pair\"\n            )\n        return self.__production_certification\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+          "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+          "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+        }
+      ],
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "KILLED",
+      "test_output_sha256": "5f0d898244593c9cfc1f85c9bef727551ad0a85dcdc61a8604e37389d3640ea9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/95765263f72c7cd33607588b53727e1a/izdw-95765263f7.o949130",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/output/pegasus-dispatch/95765263f72c7cd33607588b53727e1a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_ordinary_words_with_na_and_unregistered_source_values_pass\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_commonmark_fence_openers_and_marker_lengths\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_html_commented_region_but_accepts_comment_outside\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_known_over_rejection_for_literal_comment_openers\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character\norchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist\norchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head\norchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\norchestrator/tests/test_p3_b4_admission_record.py::test_record_path_rejects_symlink_components_and_git_control_paths\norchestrator/tests/test_p3_b4_closed_critic.py::test_p1_policy_admitted_synthetic_wal_digests_pass_payload_identity_gate\norchestrator/tests/test_p3_b4_closed_critic.py::test_m1_campaign_id_gate_accepts_real_digest_and_rejects_only_literal_injection\norchestrator/tests/test_p3_b4_closed_critic.py::test_m2_repository_root_gate_accepts_real_digest_and_rejects_only_literal_injection\norchestrator/tests/test_p3_b4_closed_critic.py::test_m3_campaign_path_gate_accepts_real_digest_and_rejects_only_literal_injection\norchestrator/tests/test_p3_b4_closed_critic.py::test_m4_module_root_control_accepts_exact_root_and_rejects_decoy_before_factory\norchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run\norchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider\norchestrator/tests/test_p3_b4_closed_critic.py::test_repository_checked_record_with_nonempty_cells_and_three_matching_expectations_yields_certified_pair_using_fake_runner\norchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query\norchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal\norchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_arm_derivation_control_rejects_swapped_factory_slots\norchestrator/tests/test_p3_b4_closed_critic.py::test_p2_successful_test_only_invocation_records_snapshot_and_returns_data_only\norchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_session_after_byte_recheck\norchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_provider_identity\norchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_payload_exact_key_control_rejects_harmless_extra_key\norchestrator/tests/test_p3_b4_closed_critic.py::test_m10_p3_response_parser_accepts_exact_five_fields_and_rejects_extra_key\norchestrator/tests/test_p3_b4_closed_critic.py::test_r10_response_field_types_have_exact_one_field_positive_negative_pairs\norchestrator/tests/test_p3_b4_closed_critic.py::test_r10_payload_field_values_have_exact_one_field_positive_negative_pairs\norchestrator/tests/test_p3_b4_closed_critic.py::test_r9_json_decode_accepts_literal_escape_explanation_and_rejects_json_alias\norchestrator/tests/test_p3_b4_closed_critic.py::test_r9_quoted_space_path_accepts_policy_digest_and_rejects_normalized_alias\norchestrator/tests/test_p3_b4_closed_critic.py::test_m12_normalized_view_accepts_real_digest_and_rejects_parent_alias\norchestrator/tests/test_p3_b4_closed_critic.py::test_m13_success_receipt_separates_claims_and_binds_raw_envelope_payload_argv\norchestrator/tests/test_p3_b4_closed_critic.py::test_m14_success_and_failure_both_create_start_and_exclusive_terminal_receipts\norchestrator/tests/test_p3_b4_closed_critic.py::test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources\norchestrator/tests/test_p3_b4_closed_critic.py::test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch\norchestrator/tests/test_p3_b4_closed_critic.py::test_p4_test_only_pair_reports_precursor_differences_without_rejecting_them\norchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it\norchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_status_and_payload_byte_tamper\norchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_raw_envelope_byte_tamper\norchestrator/tests/test_p3_b4_closed_critic.py::test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests\norchestrator/tests/test_p3_b4_closed_critic.py::test_m17_pair_id_accepts_one_factory_and_rejects_mixed_factories_only\norchestrator/tests/test_p3_b4_closed_critic.py::test_m18_certified_factory_has_no_executable_seam_and_resolves_fixed_claude\norchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses\norchestrator/tests/test_p3_b4_closed_critic.py::test_a3_shared_tracker_accepts_unique_sessions_and_rejects_cross_arm_reuse\norchestrator/tests/test_p3_b4_closed_critic.py::test_a7_receipt_names_exact_literal_guarantee_and_indirect_non_guarantees\norchestrator/tests/test_p3_b4_closed_critic.py::test_a8_parser_returns_reverse_boolean_as_data_without_state_or_proposal_fold\norchestrator/tests/test_p3_b4_closed_critic.py::test_a9_invocation_id_single_use_and_timeout_have_positive_terminal_controls\norchestrator/tests/test_p3_b4_closed_critic.py::test_r11_terminal_slot_precedes_query_and_start_failure_gets_terminal_record\norchestrator/tests/test_p3_b4_closed_critic.py::test_a13_fake_envelope_positive_control_and_combined_tool_surface_negative\norchestrator/tests/test_p3_b4_closed_critic.py::test_r4_num_turns_gate_has_one_field_positive_negative_pair\norchestrator/tests/test_p3_b4_closed_critic.py::test_r4_permission_denials_gate_has_one_field_positive_negative_pair\norchestrator/tests/test_p3_b4_closed_critic.py::test_r4_server_tool_use_gate_has_one_field_positive_negative_pair\norchestrator/tests/test_p3_b4_closed_critic.py::test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc\n\n55 tests collected in 0.74s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "b6c7c07013ac7cbe5b0615a716452dda8c6b314bcafedd5d1b6aa95b4ab2fd72"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_ordinary_words_with_na_and_unregistered_source_values_pass",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_commonmark_fence_openers_and_marker_lengths",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_html_commented_region_but_accepts_comment_outside",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_known_over_rejection_for_literal_comment_openers",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_record_path_rejects_symlink_components_and_git_control_paths",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p1_policy_admitted_synthetic_wal_digests_pass_payload_identity_gate",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m1_campaign_id_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m2_repository_root_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m3_campaign_path_gate_accepts_real_digest_and_rejects_only_literal_injection",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m4_module_root_control_accepts_exact_root_and_rejects_decoy_before_factory",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_repository_checked_record_with_nonempty_cells_and_three_matching_expectations_yields_certified_pair_using_fake_runner",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_arm_derivation_control_rejects_swapped_factory_slots",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p2_successful_test_only_invocation_records_snapshot_and_returns_data_only",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_session_after_byte_recheck",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_pair_control_rejects_reused_provider_identity",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_unregistered_payload_exact_key_control_rejects_harmless_extra_key",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m10_p3_response_parser_accepts_exact_five_fields_and_rejects_extra_key",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r10_response_field_types_have_exact_one_field_positive_negative_pairs",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r10_payload_field_values_have_exact_one_field_positive_negative_pairs",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_json_decode_accepts_literal_escape_explanation_and_rejects_json_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r9_quoted_space_path_accepts_policy_digest_and_rejects_normalized_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m12_normalized_view_accepts_real_digest_and_rejects_parent_alias",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m13_success_receipt_separates_claims_and_binds_raw_envelope_payload_argv",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m14_success_and_failure_both_create_start_and_exclusive_terminal_receipts",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_p4_test_only_pair_reports_precursor_differences_without_rejecting_them",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_status_and_payload_byte_tamper",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r1_terminal_pair_revalidation_rejects_raw_envelope_byte_tamper",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m16_sent_on_off_payload_bytes_match_independent_admitted_view_digests",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m17_pair_id_accepts_one_factory_and_rejects_mixed_factories_only",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m18_certified_factory_has_no_executable_seam_and_resolves_fixed_claude",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a3_shared_tracker_accepts_unique_sessions_and_rejects_cross_arm_reuse",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a7_receipt_names_exact_literal_guarantee_and_indirect_non_guarantees",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a8_parser_returns_reverse_boolean_as_data_without_state_or_proposal_fold",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a9_invocation_id_single_use_and_timeout_have_positive_terminal_controls",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r11_terminal_slot_precedes_query_and_start_failure_gets_terminal_record",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_a13_fake_envelope_positive_control_and_combined_tool_surface_negative",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_num_turns_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_permission_denials_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r4_server_tool_use_gate_has_one_field_positive_negative_pair",
+        "orchestrator/tests/test_p3_b4_closed_critic.py::test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc"
+      ],
+      "duration_s": 31.986,
+      "rc": 0,
+      "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+      "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+      "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+      "status": "PASSED",
+      "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fda02edda5715c2852070fb6cea02d7e76e52d4c427a56ff7ea00e128a6aae9d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "    if False:\n        raise _RecordSchemaFailure(\"record bytes are not canonical\")\n",
+            "old": "    if raw != canonical or type(value) is not dict:\n        raise _RecordSchemaFailure(\"record bytes are not canonical\")\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b8391a896d3f052fc7b726be9ceed635b53161b009257f6ca9d96ea23a16665a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "    if False:\n        raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n",
+            "old": "    if committed_record_bytes != record_bytes:\n        raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c315d27b19669066f603035e02fd0c47324b7645557c54326a3ffa0f88e8a0f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "        pass\n",
+            "old": "        _git_call(\n            root,\n            \"merge-base\",\n            \"--is-ancestor\",\n            declared.preregistration_content_commit,\n            head,\n        )\n"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0c8ba4009410184310dbaee81777209a9b6e647aca195a636fb1488d655657fe",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "        if False:\n            raise _GitVerificationFailure(\"declared document hash differs\")\n",
+            "old": "        if _sha256(document_blob) != declared.preregistration_content_sha256:\n            raise _GitVerificationFailure(\"declared document hash differs\")\n"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7d4e54f9770c8e80b102936917b5ce36ba6822241a29cdd931618838ca960663",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "        if False:\n            raise _GitVerificationFailure(\"HEAD document differs from declared blob\")\n",
+            "old": "        if head_document_blob != document_blob:\n            raise _GitVerificationFailure(\"HEAD document differs from declared blob\")\n"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character",
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2d3b95a3f48cce29b5e27e7a17fc125139ef48a2102b3e0f492c2c03c42fbd8b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "        if False:\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n",
+            "old": "        if (\n            not value\n            or _RESERVED_SENTINEL_RE.search(value) is not None\n            or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES\n        ):\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n"
+          }
+        ]
+      },
+      "M07": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "82e55cb1dacbc438daf08dadfe4c721a5ed2af7e9013f176387df0af830ec308",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "",
+            "old": "    assert_admission_expectation(\n        \"expected_effective_critic_prompt_sha256\",\n        expected=expected_effective_critic_prompt_sha256,\n        actual=match.group(\"prompt\"),\n    )\n"
+          }
+        ]
+      },
+      "M08": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9b3ca9486ac7d70838504ea971b72807da7d84ad2ba531cfc48d4d531e0c2e09",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "    if False:\n        pass\n",
+            "old": "    if verified_admission is not None:\n        assert_admission_expectation(\n            \"expected_closed_critic_projection_closure_sha256\",\n            expected=(\n                verified_admission\n                .expected_closed_critic_projection_closure_sha256\n            ),\n            actual=closure_sha256,\n        )\n"
+          }
+        ]
+      },
+      "M09": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "115b7276ab9d88c256193c03ff050055e41956b592726841e9e424b24fab9c8c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "            if False:\n                pass\n",
+            "old": "            if self.__verified_admission is not None:\n                assert_admission_expectation(\n                    \"expected_effective_critic_prompt_sha256\",\n                    expected=(\n                        self.__verified_admission\n                        .expected_effective_critic_prompt_sha256\n                    ),\n                    actual=self.__provider.effective_prompt_sha256,\n                )\n"
+          }
+        ]
+      },
+      "M10": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6871d2b2188f967d13022e03062bdf6aac28a837e052e07c7e11d8129e59a105",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "            if False:\n                pass\n",
+            "old": "            if self.__verified_admission is not None:\n                assert_admission_expectation(\n                    \"expected_claude_model_snapshot\",\n                    expected=(\n                        self.__verified_admission.expected_claude_model_snapshot\n                    ),\n                    actual=response.provenance[\"model\"],\n                )\n"
+          }
+        ]
+      },
+      "M11": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "d18190eb9ea5f632d35f2cf8522eb24d96632f30be401bddb7bc8c29d3562253",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+            "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+          }
+        ]
+      },
+      "M12": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider",
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8a53f30c4bdb2da0d99659981dc6328765ba69f77f0e1538eade976e5d69c542",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "    admission_record_path: Path | None = None,\n    repository_root: Path | None = None,\n",
+            "old": "    admission_record_path: Path,\n    repository_root: Path | None = None,\n"
+          }
+        ]
+      },
+      "M13": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ef08e68514ee6b9fb71544ed4909eda6947de09581fe2cacaf928be36580aa3d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "def _git_environment() -> dict[str, str]:\n    env = {\n        key: value\n        for key, value in os.environ.items()\n        if not key.startswith(\"GIT_\")\n    }\n    env[\"GIT_NO_REPLACE_OBJECTS\"] = \"1\"\n    return env\n",
+            "old": "def _git_environment() -> dict[str, str]:\n    return {\n        \"GIT_ATTR_NOSYSTEM\": \"1\",\n        \"GIT_CONFIG_GLOBAL\": \"/dev/null\",\n        \"GIT_CONFIG_NOSYSTEM\": \"1\",\n        \"GIT_CONFIG_SYSTEM\": \"/dev/null\",\n        \"GIT_NO_REPLACE_OBJECTS\": \"1\",\n    }\n"
+          }
+        ]
+      },
+      "M14": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+          "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b80457f1222c599f673c2f2c95f181a1822b9f417a4f6bf999b5a3017bc5bfbe",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "        return self.__production_certification\n",
+            "old": "        if (\n            self.__certification_seal is not _PRODUCTION_PAIR_SEAL\n            or self.__production_certification is None\n        ):\n            raise B4ReceiptError(\n                \"certified pair requires a live production factory pair\"\n            )\n        return self.__production_certification\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+            "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+            "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "79f48a4da48ec70151bee69698d9fddab68099c01a406abeb3edddf50afc8612",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_admission_record.py",
+      "orchestrator/tests/test_p3_b4_closed_critic.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "73ad7abdd80bd606781541404fc64acb1a12dbd3",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_admission_record.py",
+      "orchestrator/tests/test_p3_b4_closed_critic.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "dispatch_head_blob_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4e1f46bd93d48bf3ea3ad2c631908bd29bc1d17c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b583df313341a2994182b280c1e25b4519d86921c07583ec800c5edc9074d73a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bc4757dc51fff09258643ef50ec408cc84097f99ecb8e33979e858a164782d53",
+  "summary": {
+    "KILLED": 13,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1784-prereg-admission-record/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "c3fde15500099de4cdbc0565b981df1359b599bd96f66d62d7e59ca12e3b3d4d",
+  "updated_at": "2026-08-26T04:17:05.102540+00:00"
+}
