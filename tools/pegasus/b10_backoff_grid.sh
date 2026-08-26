@@ -7,13 +7,16 @@
 set -Eeuo pipefail
 umask 077
 
-# 31/24 scaling: 11700 + 3900 + 300 + 300 = 16200 seconds.
-# A five-hour reservation therefore retains the preregistered 1800-second reserve.
+# 31/24 scaling plus dependency build:
+# 180 + 11700 + 3900 + 300 + 300 = 16380 seconds.
+# A five-hour reservation therefore retains the preregistered 1620-second reserve.
+DEPENDENCY_BUILD_CAP_S=180
 SWEEP_CAP_S=11700
 AA_CAP_S=3900
 REPORT_CAP_S=300
 FINALIZE_CAP_S=300
 EXPECTED_WALLTIME_S=18000
+EXPECTED_RESERVE_S=1620
 EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
 BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080
 CURRENT_STAGE=bootstrap
@@ -164,6 +167,7 @@ case "$WORKLOAD" in
   *) fail 2 "workload must be write-heavy, balanced, or read-heavy" ;;
 esac
 
+export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
 for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
   resolved=$(command -v -- "$candidate" 2>/dev/null || true)
   [[ -n "$resolved" && -x "$resolved" ]] || continue
@@ -174,19 +178,27 @@ for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
 done
 [[ -n "$PY" ]] || fail 2 "Python 3.10 is required"
 
-export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
 export http_proxy="$BUILD_NETWORK_PROXY_URL"
 export https_proxy="$BUILD_NETWORK_PROXY_URL"
 # This gate runs in the PBS payload on the allocated compute node.
 for command_name in \
-  git cmake cc c++ make timeout qstat sha256sum hostname mkdir realpath tr date; do
+  git cmake cc c++ make ar ranlib as ld numactl timeout qstat sha256sum \
+  hostname mkdir realpath tr date env; do
   command -v -- "$command_name" >/dev/null 2>&1 || \
     fail 2 "required command is unavailable: $command_name"
 done
 
 unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS LD_PRELOAD LD_LIBRARY_PATH
 unset CPATH CPLUS_INCLUDE_PATH LIBRARY_PATH COMPILER_PATH GCC_EXEC_PREFIX
-unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE PYTHONPATH PYTHONHOME PYTHONSTARTUP MAKEFLAGS
+unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE
+unset CMAKE_PROJECT_INCLUDE CMAKE_PROJECT_INCLUDE_BEFORE
+unset CMAKE_PROJECT_TOP_LEVEL_INCLUDES CMAKE_C_COMPILER_LAUNCHER
+unset CMAKE_CXX_COMPILER_LAUNCHER PYTHONPATH PYTHONHOME PYTHONSTARTUP MAKEFLAGS
+while IFS='=' read -r env_name _; do
+  case "$env_name" in
+    GIT_*|CCACHE_*|SCCACHE_*|DISTCC_*|ICECC_*) unset "$env_name" ;;
+  esac
+done < <(env)
 
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
 OUTPUT_ROOT=${B10_OUTPUT_ROOT:-}
@@ -355,6 +367,78 @@ with open(destination, "x", encoding="utf-8") as handle:
     handle.flush()
     os.fsync(handle.fileno())
 PY
+
+# Build registered dependency sources in fresh job scratch. Only the two install
+# prefixes cross the boundary into the campaign drivers.
+CURRENT_STAGE=dependency_policy_contract
+POLICY="$REPO_ROOT/tools/pegasus/policy.json"
+readarray -t dependency_policy_values < <("$PY" -I -B - "$POLICY" <<'PY'
+import json, sys
+policy = json.load(open(sys.argv[1], encoding="utf-8"))
+for key in (
+    "gflags_source_path", "gflags_expected_head",
+    "glog_source_path", "glog_expected_head",
+):
+    print(policy[key])
+PY
+)
+[[ ${#dependency_policy_values[@]} -eq 4 ]] || \
+  fail 2 "dependency policy values are unavailable"
+GFLAGS_SOURCE=${dependency_policy_values[0]}
+GFLAGS_EXPECTED_HEAD=${dependency_policy_values[1]}
+GLOG_SOURCE=${dependency_policy_values[2]}
+GLOG_EXPECTED_HEAD=${dependency_policy_values[3]}
+[[ "$GFLAGS_SOURCE" == /* && "$GLOG_SOURCE" == /* \
+  && "$GFLAGS_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ \
+  && "$GLOG_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || \
+  fail 2 "dependency policy values are invalid"
+
+DEPENDENCY_EVIDENCE="$OUTPUT_ROOT/env/dependencies"
+mkdir -m 0700 "$DEPENDENCY_EVIDENCE"
+for dep in gflags glog; do
+  if [[ "$dep" == gflags ]]; then
+    dep_source=$GFLAGS_SOURCE
+    dep_expected=$GFLAGS_EXPECTED_HEAD
+  else
+    dep_source=$GLOG_SOURCE
+    dep_expected=$GLOG_EXPECTED_HEAD
+  fi
+  [[ -d "$dep_source" && ! -L "$dep_source" ]] || \
+    fail 2 "$dep source is not a real directory"
+  dep_head=$(git -C "$dep_source" rev-parse --verify HEAD)
+  printf '%s\n' "$dep_head" >"$DEPENDENCY_EVIDENCE/$dep-source-head.txt"
+  git -C "$dep_source" status --porcelain --untracked-files=all \
+    >"$DEPENDENCY_EVIDENCE/$dep-source-status.txt"
+  if [[ "$dep_head" != "$dep_expected" \
+      || -s "$DEPENDENCY_EVIDENCE/$dep-source-status.txt" ]]; then
+    fail 2 "$dep source is not pinned-clean"
+  fi
+done
+
+GFLAGS_INSTALL="$TMPDIR/gflags-install"
+GLOG_INSTALL="$TMPDIR/glog-install"
+DEPENDENCY_DEADLINE=$((SECONDS + DEPENDENCY_BUILD_CAP_S))
+dependency_run() {
+  local remaining=$((DEPENDENCY_DEADLINE - SECONDS))
+  [[ "$remaining" -gt 0 ]] || \
+    fail 124 "dependency group deadline exhausted"
+  timeout "$remaining" "$@"
+}
+CURRENT_STAGE=dependency_build
+dependency_run cmake -S "$GFLAGS_SOURCE" -B "$TMPDIR/gflags-build" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF \
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL"
+dependency_run cmake --build "$TMPDIR/gflags-build" -j 48
+dependency_run cmake --install "$TMPDIR/gflags-build"
+dependency_run cmake -S "$GLOG_SOURCE" -B "$TMPDIR/glog-build" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF \
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL" \
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL"
+dependency_run cmake --build "$TMPDIR/glog-build" -j 48
+dependency_run cmake --install "$TMPDIR/glog-build"
+export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"
 
 ENV_TAG=$("$PY" -I -B - "$REPO_ROOT" <<'PY'
 import sys

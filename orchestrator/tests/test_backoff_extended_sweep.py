@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 from contextlib import contextmanager
@@ -28,6 +29,16 @@ from orchestrator.campaign import (
     site_policy,
 )
 from orchestrator.calibrator import perf_preflight
+
+
+def _shell_integer_assignments(
+        script: str, names: tuple[str, ...]) -> dict[str, int]:
+    assignments = {}
+    for name in names:
+        matches = re.findall(rf"(?m)^{re.escape(name)}=([0-9]+)$", script)
+        assert len(matches) == 1
+        assignments[name] = int(matches[0])
+    return assignments
 
 
 def _stub_patch_and_prebuild(monkeypatch, events=None):
@@ -362,12 +373,15 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert "#PBS -A SFC" in job
     assert "#PBS -b 1" in job
     assert "#PBS -l elapstim_req=05:00:00" in job
-    assert "SWEEP_CAP_S=11700" in job
-    assert "AA_CAP_S=3900" in job
-    assert "REPORT_CAP_S=300" in job
-    assert "FINALIZE_CAP_S=300" in job
-    assert "EXPECTED_WALLTIME_S=18000" in job
-    assert "11700 + 3900 + 300 + 300 = 16200" in job
+    budget = _shell_integer_assignments(job, (
+        "SWEEP_CAP_S", "AA_CAP_S", "REPORT_CAP_S", "FINALIZE_CAP_S",
+        "EXPECTED_WALLTIME_S",
+    ))
+    assert budget["SWEEP_CAP_S"] == 11700
+    assert budget["AA_CAP_S"] == 3900
+    assert budget["REPORT_CAP_S"] == 300
+    assert budget["FINALIZE_CAP_S"] == 300
+    assert budget["EXPECTED_WALLTIME_S"] == 18000
     assert (
         "EXPECTED_FREEZE_TREES_SHA256="
         "c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3"
@@ -395,8 +409,9 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert "gnuplot" not in required_commands
     assert "gnuplot" not in job
     assert required_commands == [
-        "git", "cmake", "cc", "c++", "make", "timeout", "qstat", "sha256sum",
-        "hostname", "mkdir", "realpath", "tr", "date",
+        "git", "cmake", "cc", "c++", "make", "ar", "ranlib", "as", "ld",
+        "numactl", "timeout", "qstat", "sha256sum", "hostname", "mkdir",
+        "realpath", "tr", "date", "env",
     ]
     report_call = job.split(
         '"$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py"', 1,
@@ -410,6 +425,61 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert 'export https_proxy="$BUILD_NETWORK_PROXY_URL"' in job
     assert '"external_fetch_via_proxy": True' in job
     assert '"dependency_revisions": "sha-pinned"' in job
+
+
+def test_b10_job_builds_pinned_dependencies_in_job_scratch():
+    root = Path(__file__).resolve().parents[2]
+    job = (root / "tools/pegasus/b10_backoff_grid.sh").read_text(encoding="utf-8")
+    policy = json.loads(
+        (root / "tools/pegasus/policy.json").read_text(encoding="utf-8")
+    )
+    budget = _shell_integer_assignments(job, ("DEPENDENCY_BUILD_CAP_S",))
+
+    for key in (
+        "gflags_source_path", "gflags_expected_head",
+        "glog_source_path", "glog_expected_head",
+    ):
+        assert key in policy
+        assert f'"{key}"' in job
+    assert budget["DEPENDENCY_BUILD_CAP_S"] == (
+        policy["silo_ladder_rung1"]["dependency_build_cap_s"]
+    )
+    assert 'CURRENT_STAGE=dependency_policy_contract' in job
+    assert 'CURRENT_STAGE=dependency_build' in job
+    assert '"$OUTPUT_ROOT" "$rc" "$CURRENT_STAGE" "$line"' in job
+    assert 'dep_head=$(git -C "$dep_source" rev-parse --verify HEAD)' in job
+    assert 'git -C "$dep_source" status --porcelain --untracked-files=all' in job
+    assert '[[ "$dep_head" != "$dep_expected"' in job
+    assert 'fail 2 "$dep source is not pinned-clean"' in job
+    assert 'DEPENDENCY_DEADLINE=$((SECONDS + DEPENDENCY_BUILD_CAP_S))' in job
+    assert 'GFLAGS_INSTALL="$TMPDIR/gflags-install"' in job
+    assert 'GLOG_INSTALL="$TMPDIR/glog-install"' in job
+    assert "-DREGISTER_INSTALL_PREFIX=OFF" in job
+    assert "-DWITH_GTEST=OFF -DBUILD_TESTING=OFF" in job
+    assert "-DWITH_UNWIND=OFF" in job
+    assert '"-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL"' in job
+    assert 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"' in job
+
+
+def test_b10_job_time_budget_matches_walltime():
+    root = Path(__file__).resolve().parents[2]
+    job = (root / "tools/pegasus/b10_backoff_grid.sh").read_text(encoding="utf-8")
+    cap_names = (
+        "DEPENDENCY_BUILD_CAP_S", "SWEEP_CAP_S", "AA_CAP_S",
+        "REPORT_CAP_S", "FINALIZE_CAP_S",
+    )
+    budget = _shell_integer_assignments(
+        job, (*cap_names, "EXPECTED_RESERVE_S", "EXPECTED_WALLTIME_S"),
+    )
+    cap_total = sum(budget[name] for name in cap_names)
+    reserve = budget["EXPECTED_RESERVE_S"]
+    walltime = budget["EXPECTED_WALLTIME_S"]
+
+    assert cap_total + reserve == walltime
+    assert reserve > 0
+    formula = " + ".join(str(budget[name]) for name in cap_names)
+    assert f"# {formula} = {cap_total} seconds." in job
+    assert f"retains the preregistered {reserve}-second reserve." in job
 
 
 def test_b10_job_script_identity_uses_three_sha256_values_not_path_equality():
