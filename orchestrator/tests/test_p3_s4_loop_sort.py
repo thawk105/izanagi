@@ -11,11 +11,15 @@ build/verify/bench を伴わない機械部分のみ。実 LLM proposal は fixt
 from __future__ import annotations
 
 import json
+import hashlib
+import inspect
 import os
 import sys
 import tempfile
 import time
 from unittest import mock
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +28,7 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import ident, p3_s4_loop as L                         # noqa: E402
+from orchestrator.campaign import p3_b4_closed_critic as B4_CLOSED                # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as S                           # noqa: E402
 from orchestrator.campaign import wal                                            # noqa: E402
 from orchestrator.campaign.artifact_admission import (                          # noqa: E402
@@ -31,6 +36,7 @@ from orchestrator.campaign.artifact_admission import (                          
     require_admitted_campaign,
 )
 from orchestrator.campaign.diff_quarantine import DiffRejectSubtype              # noqa: E402
+from orchestrator.campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout                          # noqa: E402
 from orchestrator.campaign.model import Genome                                   # noqa: E402
 from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
@@ -806,6 +812,249 @@ def test_drive_iteration_checkpoint_survives_across_calls():
     assert out2["iteration"] == 2 and out2["outcome"] == "rejected"
     st = L.load_loop_state(lay)
     assert len(st.whiteboard) == 2 and st.iteration == 2
+
+
+# ==== B-4 mandatory continuation wiring ======================================
+
+def _file_tree_bytes(root: str) -> dict[str, bytes]:
+    base = Path(root)
+    return {
+        str(path.relative_to(base)): path.read_bytes()
+        for path in sorted(base.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _seed_b4_continuation(layout: CampaignLayout) -> None:
+    state = L.LoopState(iteration=1, start_wall=time.time())
+    state.whiteboard.append(L.WhiteboardEntry(
+        iteration=1,
+        direction="increase",
+        magnitude="small",
+        result="rejected",
+        delta_pct=None,
+    ))
+    L.save_loop_state(layout, state)
+
+
+def _b4_sort_receipt(cfg, *, reverse_recommended: bool) -> SimpleNamespace:
+    return SimpleNamespace(
+        schema_version=B4_CLOSED.B4_CLOSED_CRITIC_RECEIPT_SCHEMA,
+        status="success",
+        evidence_class="certified",
+        campaign_id=str(ident.campaign_id(cfg)),
+        arm=cfg.search_config["reflux"],
+        iteration=1,
+        pair_id="b4-sort-pair",
+        decision_sha256="d" * 64,
+        decision_reverse_recommended=reverse_recommended,
+    )
+
+
+def test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged(
+        tmp_path, monkeypatch):
+    ordinary = S.default_cfg(reflux=True)
+    explicit_false = S.default_cfg(
+        reflux=True, b4_reflux_ablation=False,
+    )
+    marked = S.default_cfg(reflux=True, b4_reflux_ablation=True)
+    assert inspect.signature(S.default_cfg).parameters[
+        "b4_reflux_ablation"
+    ].kind is inspect.Parameter.KEYWORD_ONLY
+    assert ordinary == explicit_false
+    assert L.B4_PROTOCOL_KEY not in ordinary.search_config
+    assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
+    assert str(ident.campaign_id(ordinary)) == (
+        "p3-s5-sort-loop-s5-sort-autonomous-081dd46f"
+    )
+    assert ident.campaign_id(marked) != ident.campaign_id(ordinary)
+
+    document = {
+        **_base_proposal(),
+        "auditor": {"verdict": "pass", "diff_digest": "a" * 64},
+        "prior_critic_reverse": False,
+    }
+    planner, coder, auditor, prior = S.load_proposal_file(
+        _write_json(document, "ordinary-contract.json")
+    )
+    assert prior is False
+
+    layout = CampaignLayout(root=str(tmp_path / "ordinary-campaign")).ensure()
+    monkeypatch.setattr(S.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        S,
+        "run_one_iteration",
+        lambda *_a, **_k: {"outcome": "dry-pass", "variant": None},
+    )
+    monkeypatch.setattr(S, "require_admitted_campaign", lambda *_a, **_k: object())
+    monkeypatch.setattr(
+        L, "make_critic_identity_projection", lambda _view: object(),
+    )
+    digest_spy = mock.Mock(return_value="ordinary-sort-digest")
+    monkeypatch.setattr(L, "make_critic_digest", digest_spy)
+    out = S.drive_iteration(
+        ordinary, S.default_perf(), planner, coder, auditor, prior,
+        sub="unused", do_build=False, layout=layout,
+    )
+    assert out["ran"] is True
+    assert digest_spy.call_count == 1
+    assert (Path(layout.root) / "s5_sort_loop_digest.txt").read_text(
+        encoding="utf-8"
+    ) == "ordinary-sort-digest"
+
+
+def test_b4_sort_certified_receipt_advances_through_shared_gate(
+        tmp_path, monkeypatch):
+    cfg = S.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "marked-campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"evidence_class":"certified"}')
+    receipt_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    proposal = {
+        **_base_proposal(),
+        "auditor": {"verdict": "pass", "diff_digest": "a" * 64},
+        L.B4_PROPOSAL_RECEIPT_SHA256_KEY: receipt_sha256,
+    }
+    planner, coder, auditor, prior = S.load_proposal_file(
+        _write_json(proposal, "b4-sort-positive.json"),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    receipt = _b4_sort_receipt(cfg, reverse_recommended=True)
+    gate_calls = []
+
+    def certified_gate(path, *, cfg, layout):
+        gate_calls.append((Path(path), str(ident.campaign_id(cfg)), layout.root))
+        assert str(ident.campaign_id(cfg)) == receipt.campaign_id
+        return receipt
+
+    observed_reverse = []
+
+    def run_spy(_cfg, _perf, planner, _coder, _auditor, state, *_a, **_k):
+        observed_reverse.append(state.reverse_recommendations)
+        L.project_whiteboard(state, planner, "fail")
+        return {"outcome": "rejected", "variant": None}
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(B4_CLOSED, "require_b4_closed_critic_receipt", certified_gate)
+    monkeypatch.setattr(S.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(S, "run_one_iteration", run_spy)
+    monkeypatch.setattr(S, "require_admitted_campaign", lambda *_a, **_k: object())
+    monkeypatch.setattr(
+        L, "make_critic_identity_projection", lambda _view: object(),
+    )
+    monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "b4-sort-digest")
+    out = S.drive_iteration(
+        cfg, S.default_perf(), planner, coder, auditor, prior,
+        sub="unused", do_build=True, layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        b4_closed_critic_receipt=receipt_path,
+        b4_proposal_receipt_sha256=receipt_sha256,
+    )
+    assert out["ran"] is True and out["iteration"] == 2
+    assert gate_calls == [(receipt_path, receipt.campaign_id, layout.root)]
+    assert observed_reverse == [1]
+    records = list(Path(layout.root).glob("b4_closed_critic_consumption_*.json"))
+    assert len(records) == 1
+
+
+def test_b4_sort_proposal_rejects_unbound_hash_and_self_reported_reverse():
+    receipt_sha256 = "a" * 64
+    mismatch = {
+        **_base_proposal(),
+        "auditor": {"verdict": "pass", "diff_digest": "a" * 64},
+        L.B4_PROPOSAL_RECEIPT_SHA256_KEY: "b" * 64,
+    }
+    with pytest.raises(L.B4ProtocolError, match="differs from terminal"):
+        S.load_proposal_file(
+            _write_json(mismatch, "b4-sort-mismatch.json"),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+    self_reported = {
+        **mismatch,
+        L.B4_PROPOSAL_RECEIPT_SHA256_KEY: receipt_sha256,
+        "prior_critic_reverse": False,
+    }
+    with pytest.raises(L.B4ProtocolError, match="must not self-report"):
+        S.load_proposal_file(
+            _write_json(self_reported, "b4-sort-self-report.json"),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_b4_sort_shared_gate_precedes_fold_candidate_and_artifact_change_m16(
+        tmp_path, monkeypatch):
+    cfg = S.default_cfg(reflux=False, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "gate-first")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b"certified-shaped-but-rejected")
+    fold_spy = mock.Mock()
+    candidate_spy = mock.Mock()
+    monkeypatch.setattr(
+        L,
+        "require_b4_iteration_authorization",
+        mock.Mock(side_effect=L.B4ProtocolError("sort gate sentinel")),
+    )
+    monkeypatch.setattr(L, "_fold_critic_reverse", fold_spy)
+    monkeypatch.setattr(S, "run_one_iteration", candidate_spy)
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="sort gate sentinel"):
+        S.drive_iteration(
+            cfg, S.default_perf(), _planner(),
+            S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL),
+            S.AuditorVerdict("pass", "a" * 64), None,
+            sub="unused", do_build=True, layout=layout,
+            build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+            b4_closed_critic_receipt=receipt_path,
+            b4_proposal_receipt_sha256=hashlib.sha256(
+                receipt_path.read_bytes()
+            ).hexdigest(),
+        )
+    assert fold_spy.call_count == 0
+    assert candidate_spy.call_count == 0
+    assert _file_tree_bytes(layout.root) == before
+
+
+def test_b4_sort_no_build_and_fixture_routes_are_write_free(tmp_path, monkeypatch):
+    cfg = S.default_cfg(b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "no-build")).ensure()
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="forbids --no-build"):
+        S.drive_iteration(
+            cfg, S.default_perf(), _planner(),
+            S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL),
+            S.AuditorVerdict("pass", "a" * 64), None,
+            sub="unused", do_build=False, layout=layout,
+        )
+    assert _file_tree_bytes(layout.root) == before
+
+    from orchestrator.campaign import patchharness
+    pinned_spy = mock.Mock()
+    candidate_spy = mock.Mock()
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
+    monkeypatch.setattr(S, "run_one_iteration", candidate_spy)
+    with pytest.raises(L.B4ProtocolError, match="forbids --no-build"):
+        S.main(["--b4-reflux-ablation", "--no-build"])
+    with pytest.raises(L.B4ProtocolError, match="fixture run_one_iteration"):
+        S.main(["--b4-reflux-ablation"])
+    assert pinned_spy.call_count == 0
+    assert candidate_spy.call_count == 0
+
+
+def test_b4_sort_cli_receipt_is_continuation_only(tmp_path):
+    receipt = tmp_path / "terminal.json"
+    with pytest.raises(L.B4ProtocolError, match="requires --run-iteration"):
+        S.main(["--b4-closed-critic-receipt", str(receipt)])
+    with pytest.raises(L.B4ProtocolError, match="requires --b4-reflux-ablation"):
+        S.main([
+            "--run-iteration", str(tmp_path / "proposal.json"),
+            "--b4-closed-critic-receipt", str(receipt),
+        ])
 
 
 if __name__ == "__main__":

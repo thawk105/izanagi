@@ -510,6 +510,7 @@ def test_cpp_e2e_rejects_corpus_mutation_with_dedicated_reason(
 
 def test_broker_rejects_final_pipe_identity_held_at_different_worker_fd(
         tmp_path):
+    """Removing the parent reservation or child dup2 makes the fd inequality guard fail."""
     worker_path = tmp_path / "fd-identity-worker"
     worker_path.write_text(
         f"""#!{sys.executable}
@@ -540,7 +541,8 @@ os._exit(0)
     authority, broker_authority = O.socket.socketpair(
         O.socket.AF_UNIX, O.socket.SOCK_SEQPACKET,
     )
-    worker_fd_number = 198
+    worker_fd_number = O.os.open(O.os.devnull, O.os.O_RDONLY)
+    reserved_identity = O._broker_fd_identity(worker_fd_number)
     assert broker_authority.fileno() != worker_fd_number
     broker_pid = O.os.fork()
     if broker_pid == 0:
@@ -554,9 +556,8 @@ os._exit(0)
         def pipe_with_controller_transfer():
             observation_read, observation_write = real_pipe()
             O.os.set_blocking(observation_read, False)
-            if observation_write != worker_fd_number:
-                O.os.dup2(observation_write, worker_fd_number)
-                O.os.close(observation_write)
+            O.os.dup2(observation_write, worker_fd_number)
+            O.os.close(observation_write)
             transferred_pipe_fds.extend((
                 O.os.dup(observation_read), O.os.dup(worker_fd_number),
             ))
@@ -627,6 +628,7 @@ os._exit(0)
             worker_metadata.st_ino,
             stat.S_IFMT(worker_metadata.st_mode),
         ) == final_identity
+        assert O._broker_fd_identity(worker_fd_number) == reserved_identity
         assert final_write_fd != worker_fd_number
 
         authority.sendmsg(
@@ -652,6 +654,7 @@ os._exit(0)
         ), unpacked[5:7]
     finally:
         authority.close()
+        O.os.close(worker_fd_number)
         for fd in (*received_fds, final_read_fd, final_write_fd):
             if fd is not None:
                 O.os.close(fd)
