@@ -166,6 +166,30 @@ qstat -f <JOBID>
 qdel <JOBID>
 ```
 
+#### `qstat` の読み方で踏みやすい罠 (2026-08-26 実測、[T-1852])
+
+- **`qstat` は存在しない request に対しても終了コード 0 を返す。** `-f` / `-J -f` / `-T` の
+  いずれも rc=0 で、本文だけが `does not exist` と述べる。
+  **存在判定を rc で書くと常に「在る」になる。** 本文で判定する。
+- **投入直後、job record が作られる前の窓では `qstat -J -f` が `does not exist` を返す。**
+  同じ時刻に `qstat -f` は request を `Current State = Queued` で返している。
+  「まだ始まっていない」と「もう消えた」を `-J -f` だけでは区別できない。
+  request 単位の `qstat -f` を併せて見る。
+- **終了した request は約 5〜6 秒で `qstat` から消える。** 終了 status
+  (`Exit Code`) と `State Transition Reason` が見えるのはこの窓の中だけで、
+  終了後に取りに行く履歴照会 command はこの scheduler に無い。
+  終端の記録が要る処理は、job の終了時刻に張り付いて観測する。
+- **`Exit Code` は事由ではなく `wait(2)` status の 16 進表記である。**
+  実行時間超過も実行中の `qdel` も同じ `9` を返す。値・意味の対応表と未観測の範囲は
+  `output/insights/2026-08-26_t1852-nqsv-exit-code-mapping/RESULT.md`。
+- 警告値付きの経過時間制限は**引用符を qsub の argv まで届ける**必要がある。shell から呼ぶなら
+  `-l 'elapstim_req="HH:MM:SS,HH:MM:SS"'` と外側を single quote で括る
+  (`-l elapstim_req="..."` は shell が引用符を外すため `Invalid syntax following -l flag.`
+  で rc=1 になり投入されない)。job script の directive に書くなら
+  `#PBS -l elapstim_req="HH:MM:SS,HH:MM:SS"`。
+  失敗と成功の逐語は上記 insight の
+  `evidence/qstat-qsub-behaviour-verbatim.md`。
+
 ## 4. モジュールとビルド
 
 利用可能なソフトウェアとバージョンは実行時に確認する。
@@ -1190,9 +1214,21 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
 ```
 
+**spec には `schema` と時間 3 field が要る** (2026-08-26 実測)。`schema`
+(`izanagi-dev-wave-mutation-spec/v1`)、`estimated_run_seconds`、`timeout_seconds`、
+`hang_timeout_seconds` のどれかを欠くと `spec の field 集合が不正: missing=[...]` で
+**変異を 1 件も走らせずに起動前へ中止する**。上の起動例は argv だけを示しており、
+spec 側の必須 field は含まない。
+
 **`--attempt-out` は `--wrapper-attempt` と同時指定でなければならない** (2026-08-26 実測)。
 片方だけを渡すと `mutation harness aborted: --attempt-out と --wrapper-attempt は同時指定が必要`
 で起動前に落ちる。attempt 記録を取るなら両方渡す。
+
+**spec の `category` は `negative` / `positive` / `both-layers` の 3 値だけである** (2026-08-26 実測)。
+`DW-M01` が要求する「承認外の過剰拒否を検出する正例」は `positive` で登録する。
+`positive-control` のような値を書くと `category が未知` で起動 1 分以内に中止し、台帳も作られない。
+このとき待ち手は成果物不在のまま待ち続けて `rc=70` (timeout) を返すので、
+**外からは「まだ走っている」ように見える。** producer の生死を `ps` で確かめる。
 
 **`expected_nodes` の nodeid は ASCII だけにする。** `tools/run_tests.py` は子の出力を中継する
 とき非 ASCII を `\uXXXX` へエスケープするため、parametrize の表示 ID に日本語を含む nodeid は

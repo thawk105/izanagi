@@ -40,9 +40,26 @@ fi
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
 TOOLS="$REPO_ROOT/tools/pegasus"
 POLICY="$TOOLS/mocc_trace_v1_policy.json"
-ATTEMPTS_ROOT="$REPO_ROOT/output/env/pegasus/mocc-trace/attempts"
+ATTEMPTS_ROOT=${IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT:-"$REPO_ROOT/output/env/pegasus/mocc-trace/attempts"}
 JOB_STAGING_ROOT="$REPO_ROOT/output/env/pegasus/mocc-trace/job-staging"
+case "$ATTEMPTS_ROOT" in
+  *:*|*,*|*$'\n'*)
+    echo "unsafe Mocc trace attempts root" >&2
+    exit 2
+    ;;
+esac
 mkdir -p "$ATTEMPTS_ROOT" "$JOB_STAGING_ROOT"
+if [[ -L "$ATTEMPTS_ROOT" || ! -d "$ATTEMPTS_ROOT" ]]; then
+  echo "Mocc trace attempts root is not a real directory" >&2
+  exit 2
+fi
+ATTEMPTS_ROOT=$(cd "$ATTEMPTS_ROOT" && pwd -P)
+case "$ATTEMPTS_ROOT" in
+  *:*|*,*|*$'\n'*)
+    echo "unsafe normalized Mocc trace attempts root" >&2
+    exit 2
+    ;;
+esac
 ATTEMPT_DIR="$JOB_STAGING_ROOT/$PBS_JOBID"
 if ! mkdir "$ATTEMPT_DIR"; then
   echo "attempt already exists (create-only): $ATTEMPT_DIR" >&2
@@ -66,7 +83,11 @@ COMMIT_COUNT=""
 RUN_ELAPSED_NS=""
 CHECKER_RC="not-run"
 CHECKER_PY=""
+CHECKER_TOOL_PATH=""
+CHECKER_TOOL_SHA=""
 VERIFIER_PY=""
+VERIFIER_TOOL_PATH=""
+VERIFIER_TOOL_SHA=""
 CHECKER_REPORT_SHA=""
 VERIFIER_RC="not-run"
 RUN_RC="not-run"
@@ -229,13 +250,14 @@ fi
 CURRENT_SCRIPT_SHA=$(sha256sum "$TOOLS/mocc_trace_pilot.sh" | awk '{print $1}')
 python3 - "$ATTEMPT_RECEIPT" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" "$PBS_JOBID" \
   "$PROJECT" "$QUEUE" "$NODES" "$REQUESTED_S" "$BASE_OID" "$NEW_OID" \
-  "$TRACE_MODE" "$WORKLOAD_JSON" <<'PY'
+  "$TRACE_MODE" "$WORKLOAD_JSON" "$ATTEMPTS_ROOT" "$SUBMISSION_DIR" <<'PY'
 import json
+import os
 import sys
 
 (
     path, commit, script_sha, job_id, project, queue, nodes, requested_s,
-    base_oid, new_oid, trace_mode, workload_json
+    base_oid, new_oid, trace_mode, workload_json, attempts_root, submission_dir
 ) = sys.argv[1:]
 with open(path, encoding="utf-8") as handle:
     receipt = json.load(handle)
@@ -247,6 +269,7 @@ def normalized(value):
     return value[2:] if value.startswith("0:") else value
 
 checks = {
+    "schema": receipt.get("schema_version") == "pegasus-submit-receipt/v2",
     "dry_run": receipt.get("dry_run") is False,
     "source_commit": receipt.get("source_commit") == commit,
     "job_script_sha256": receipt.get("job_script_sha256") == script_sha,
@@ -260,6 +283,32 @@ checks = {
     "trace_mode": mocc.get("trace_mode") == int(trace_mode),
     "workload": mocc.get("workload") == json.loads(workload_json),
 }
+
+
+def option_value(argv, option):
+    if not isinstance(argv, list) or argv.count(option) != 1:
+        return None
+    index = argv.index(option)
+    if index + 1 >= len(argv) or not isinstance(argv[index + 1], str):
+        return None
+    return argv[index + 1]
+
+
+argv = qsub.get("argv")
+export_spec = option_value(argv, "-v")
+checks.update(
+    {
+        "attempts_root_export": (
+            isinstance(export_spec, str)
+            and f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root}"
+            in export_spec.split(",")
+        ),
+        "pbs_stdout": option_value(argv, "-o")
+        == os.path.join(submission_dir, "pbs-job.stdout"),
+        "pbs_stderr": option_value(argv, "-e")
+        == os.path.join(submission_dir, "pbs-job.stderr"),
+    }
+)
 if not all(checks.values()):
     raise SystemExit("submit binding mismatch: " + repr(checks))
 PY
@@ -559,8 +608,10 @@ if [[ -z "$CACHE_ROOT" ]]; then
   write_failure 2 third_party "$THIRD_PARTY_CACHE_ENV is missing"
   exit 2
 fi
+THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"
 timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
-  --cache-root "$CACHE_ROOT" >"$ATTEMPT_DIR/third-party-hydrate.json" \
+  --cache-root "$CACHE_ROOT" --staging-root "$THIRD_PARTY_STAGING_ROOT" \
+  >"$ATTEMPT_DIR/third-party-hydrate.json" \
   2>"$ATTEMPT_DIR/third-party-hydrate.stderr"
 THIRD_PARTY_SOURCE_ROOT=$(python3 - "$ATTEMPT_DIR/third-party-hydrate.json" <<'PY'
 import json
@@ -666,6 +717,13 @@ if [[ "$TRACE_MODE" -eq 0 ]]; then
   # D297 checker is deliberately a hard gate.  Its nonzero result means that
   # TRACE=0 execution is skipped; no fallback or relaxed branch is permitted.
   build_mode 0
+  CHECKER_TOOL_PATH=$(realpath -e -- "$REPO_ROOT/tools/check_trace0_preprocess_identity.py")
+  if [[ ! -f "$CHECKER_TOOL_PATH" || -L "$CHECKER_TOOL_PATH" ]]; then
+    write_failure 2 trace0_preprocess_identity \
+      "TRACE=0 identity checker implementation is not a real file"
+    exit 2
+  fi
+  CHECKER_TOOL_SHA=$(sha256sum "$CHECKER_TOOL_PATH" | awk '{print $1}')
   CHECKER_PY=""
   checker_py_rejected=""
   for py_name in python3 python3.10 python3.11 python3.12; do
@@ -947,6 +1005,12 @@ with open(sys.argv[2], "x", encoding="utf-8") as handle:
     )
     handle.write("\n")
 PY
+  VERIFIER_TOOL_PATH=$(realpath -e -- "$REPO_ROOT/orchestrator/verifier/__main__.py")
+  if [[ ! -f "$VERIFIER_TOOL_PATH" || -L "$VERIFIER_TOOL_PATH" ]]; then
+    write_failure 2 verifier "verifier implementation is not a real file"
+    exit 2
+  fi
+  VERIFIER_TOOL_SHA=$(sha256sum "$VERIFIER_TOOL_PATH" | awk '{print $1}')
   VERIFIER_PY=""
   verifier_py_rejected=""
   for py_name in python3 python3.10 python3.11 python3.12; do
@@ -1040,7 +1104,9 @@ RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$AT
   "$CHECKER_RC" "$VERIFIER_RC" "$RUN_RC" "$qstat_final_rc" \
   "$qstat_accounting_rc" "$WORKLOAD_JSON" "$CMAKE_TARGET" \
   "$ATTEMPT_DIR/trace0-preprocess-identity.json" "$BUILD_SOURCE" \
-  "$CHECKER_PY" "$VERIFIER_PY" "$CHECKER_REPORT_SHA" <<'PY'
+  "$CHECKER_PY" "$VERIFIER_PY" "$CHECKER_REPORT_SHA" \
+  "$CHECKER_TOOL_PATH" "$CHECKER_TOOL_SHA" \
+  "$VERIFIER_TOOL_PATH" "$VERIFIER_TOOL_SHA" <<'PY'
 import hashlib
 import json
 import os
@@ -1055,7 +1121,8 @@ import time
     commit_count, elapsed_ns, checker_rc, verifier_rc, run_rc,
     qstat_final_rc, qstat_accounting_rc, workload_json, cmake_target,
     checker_report_path, build_source, checker_py, verifier_py,
-    checker_report_sha,
+    checker_report_sha, checker_tool_path, checker_tool_sha,
+    verifier_tool_path, verifier_tool_sha,
 ) = sys.argv[1:]
 
 
@@ -1100,6 +1167,32 @@ def strict_path_identity(path, expected_type, label):
     else:
         reject("unsupported strict path identity type")
     return identity_stat.st_dev, identity_stat.st_ino
+
+
+def read_regular_bytes(path, label):
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise ValueError(f"{label} is unavailable") from exc
+    try:
+        identity_stat = os.fstat(fd)
+        if not stat.S_ISREG(identity_stat.st_mode):
+            reject(f"{label} is not a regular file")
+        with os.fdopen(fd, "rb") as handle:
+            fd = None
+            return handle.read()
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def bound_tool(path, expected_sha, label):
+    if not is_resolved_absolute_file(path):
+        reject(f"{label} path is not a resolved absolute file")
+    actual_sha = hashlib.sha256(read_regular_bytes(path, label)).hexdigest()
+    if actual_sha != expected_sha:
+        reject(f"{label} changed after execution")
+    return {"path": path, "sha256": actual_sha}
 
 if trace_mode_i == 0:
     if checker_rc != "0":
@@ -1177,6 +1270,19 @@ if trace_mode_i == 0:
     }
     checker_interpreter_path = checker_py
     verifier_interpreter_path = None
+    correctness_tools = {
+        "trace0_preprocess_identity_checker": bound_tool(
+            checker_tool_path, checker_tool_sha, "TRACE=0 identity checker"
+        ),
+        "verifier": None,
+    }
+    throughput_sha = hashlib.sha256(
+        read_regular_bytes(
+            os.path.join(attempt_dir, "throughput.json"),
+            "TRACE=0 throughput evidence",
+        )
+    ).hexdigest()
+    verifier_sha = None
 elif trace_mode_i == 1:
     if checker_rc != "not-run":
         reject("TRACE=1 checker rc is not not-run")
@@ -1196,6 +1302,19 @@ elif trace_mode_i == 1:
     }
     checker_interpreter_path = None
     verifier_interpreter_path = verifier_py
+    correctness_tools = {
+        "trace0_preprocess_identity_checker": None,
+        "verifier": bound_tool(
+            verifier_tool_path, verifier_tool_sha, "TRACE=1 verifier"
+        ),
+    }
+    verifier_sha = hashlib.sha256(
+        read_regular_bytes(
+            os.path.join(attempt_dir, "verifier.json"),
+            "TRACE=1 verifier evidence",
+        )
+    ).hexdigest()
+    throughput_sha = None
 else:
     reject("trace mode is not zero or one")
 
@@ -1215,7 +1334,7 @@ mocc_trace["workload_note"] = (
     "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
 )
 payload = {
-    "schema_version": "mocc-trace-pilot-receipt/v2",
+    "schema_version": "mocc-trace-pilot-receipt/v3",
     "status": "completed",
     "pilot": True,
     "eligible_for_refreeze": False,
@@ -1256,6 +1375,7 @@ payload = {
     },
     "mocc_trace": mocc_trace,
     "trace0_preprocess_identity_report": report_binding,
+    "correctness_tools": correctness_tools,
     "build": {
         "cmake_target": cmake_target,
         "trace_mode": int(trace_mode),
@@ -1279,7 +1399,9 @@ payload = {
         "submit_receipt": "submit-receipt.json",
         "receipt_sha256_sidecar": "mocc-trace-pilot-receipt.sha256",
         "verifier_json": "verifier.json" if int(trace_mode) == 1 else None,
+        "verifier_sha256": verifier_sha,
         "throughput_json": "throughput.json" if int(trace_mode) == 0 else None,
+        "throughput_sha256": throughput_sha,
     },
     "gates": {
         "trace0_preprocess_identity_rc": checker_rc,
