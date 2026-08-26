@@ -726,3 +726,12 @@ def test_pair_rejects_symlink_input_and_duplicate_json_key(tmp_path: Path) -> No
     receipt_path = bundle[0]["receipt_path"]
     receipt_path.write_text('{"schema_version":"a","schema_version":"b"}\n')
     _assert_rejected(tmp_path / "duplicate", bundle)
+
+
+def _run() -> int:
+    """pytest fixtures/parametrize を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
