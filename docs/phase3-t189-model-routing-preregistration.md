@@ -183,15 +183,15 @@ schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数�
 
 | 箇所 (名前 / 補助行番号) | 当初の申し送り | 到達度 (2026-08-27 実測) |
 |---|---|---|
-| `MODEL` (`:95`)、`MODEL_ALLOWLIST` (`:3643`) | 単一 hard-code を routing authority にしない | **実装済み**。`requested_model` を schedule slot から受け、allowlist で検査する |
-| `TASK_MANIFEST` (`:265`)、`EXPECTED_SCHEDULE` (`:331`)、`KNOWN_FINDINGS` (`:337`) | 固定集合を task catalog 由来の可変集合へ | **部分実装**。schema v3 の外部 task manifest を 10 verb の `--task-manifest` から読み込み、v3 schedule 経路では task/arm の cardinality と task 別 known finding 集合を manifest 由来で検査する。**閉じていない面**: schema v2 および `schema_version` 欠落の schedule は互換経路として `LEGACY_EXPECTED_SCHEDULE` 固定のままである |
+| `MODEL` (`:95`)、`MODEL_ALLOWLIST` (`:3643`) | 単一 hard-code を routing authority にしない | **部分実装**。`requested_model` が schedule slot に明示された経路では、allowlist 検査・argv・receipt への伝播が成立する。**閉じていない面**: slot が同 field を省略すると `MODEL` へ既定化され (`_slot_dimensions`)、`_codex_exec_argv` の旧 4 引数形も `MODEL` を使う。schedule はまだ唯一の routing authority ではない |
+| `TASK_MANIFEST` (`:265`)、`EXPECTED_SCHEDULE` (`:331`)、`KNOWN_FINDINGS` (`:337`) | 固定集合を task catalog 由来の可変集合へ | **部分実装**。schema v3 の外部 task manifest を 10 verb の `--task-manifest` から読み込み、v3 schedule 経路では task identity と task 別 known finding 集合を manifest 由来で検査する。**閉じていない面**: v3 の task/arm 期待件数は manifest に独立登録されておらず、検査対象の schedule 自身から数え直して作るため、独立した cardinality との照合になっていない。また schema v2 および `schema_version` 欠落の schedule は互換経路として `LEGACY_EXPECTED_SCHEDULE` 固定のままである |
 | `_normalized_exec_argv` (`:3678`) | model slug の一意性・許可集合検査 | **実装済み** |
 | `_launch_identity_value` (`:3731`) | treatment identity へ `requested_model` を含める | **実装済み** |
 | `_codex_exec_argv` (`:3886`) | `-m <requested_model>` を渡す | **実装済み**。effort は別引数として維持 |
 | `_supervise_one` (`:7110`) | slot の model を receipt と argv へ記録 | **実装済み** |
-| `supervise_pair` (`:7373`) | 同一 task の sol/luna block を検証 | **実装済み**。`supervise-pair` は `--task-manifest` を受け、schedule の canonical digest を exact 検査し、attempt ledger・launch/completion・返却値を同じ digest へ束縛する |
+| `supervise_pair` (`:7373`) | 同一 task の sol/luna block を検証 | **部分実装**。`supervise-pair` は `--task-manifest` を受け、schedule の bytes を run root へ exact 固定してその SHA-256 を launch receipt へ残し、別に schedule 内の `task_manifest_sha256` を canonical digest と exact 比較して、その digest を attempt ledger・launch/completion・返却値へ伝播する (**この 2 つは別の digest である**)。block 検査は同一 task・stage・cache・price の 2 行が連続し、`(arm, requested_model)` の組が 2 つ異なることを要求する。**閉じていない面**: model 集合を sol/luna 各 1 回へ固定しておらず、同じ model の 2 行でも arm が異なれば受理する |
 | `_verify_launch_receipt` (`:7696`) | argv の `-m`・receipt・turn context の一致を fail-closed で検査 | **実装済み** |
-| `collect_run` (`:8004`) | `expected_model=MODEL` 既定値を廃し slot 由来を検査 | **実装済み**。served model とは呼ばない |
+| `collect_run` (`:8004`) | `expected_model=MODEL` 既定値を廃し slot 由来を検査 | **部分実装**。内部 API と material replay は期待 model を必須引数として受け取り検査する。served model とは呼ばない。**閉じていない面**: standalone の `collect-run` verb は `--expected-model` の既定値が `MODEL` のままで、未指定時は schedule 由来にならない |
 | task-specific 入力処理層 | POS/NEG 固定処理を task manifest 経由へ | **部分実装**。`render-prompt` は外部 manifest から task を選び、source session・rollout・prompt-source pin を入力決定に使い、prompt が参照する untracked artifact 集合を task の `snapshot.artifact_names` と照合する。**閉じていない面**: `new_root` と snapshot oracle は CLI 引数であって manifest が決めるものではなく、standalone `verify-snapshot` は `--task-manifest` を持たない |
 | `validate_nullable_dimensions` (`:2819`)、`_slot_dimensions` (`:8998`)、`_validate_schedule` (`:9097`) | POS/NEG × max/high の固定検査を task・cache・model・price の paired schema へ | **実装済み**。task・stage・`requested_model` の検査に加え、**price version の凍結束縛は 2026-08-25 に接続した** (§10)。`cache_condition` は §9 の実測により非 null を拒否したままである |
 | `_load_adjudication` (`:9238`) | adjudication 層を task-specific oracle へ対応 | **未実装**。§8 の oracle ledger が未作成のため着手条件を満たさない |
@@ -261,9 +261,11 @@ schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数�
   作成済み (§6.1、§6.2)。ただし oracle 件数と stage 境界が未確立のため、held-out として
   採用する契約は **task 固有契約は未登録**である。
 - task ごとの snapshot、prompt、oracle manifest の hash 固定 — snapshot と prompt については
-  **機構は着地**。外部 manifest を使う prompt は同じ digest を持つ snapshot oracle を要求し、
-  prompt receipt にも digest を残す。独立 oracle manifest とその固有 hash 契約は
-  **task 固有契約は未登録**である。
+  **機構は着地**。組込みの `TASK_MANIFEST` と**異なる** canonical digest を持つ manifest を使う
+  prompt は、同じ task manifest digest を持つ snapshot oracle を要求する (同一内容の外部 manifest
+  なら snapshot oracle 無しでも通る — 発火条件は外部 file を指定したことではなく digest の相違である)。
+  prompt receipt には task manifest digest を常に、snapshot oracle があればその digest も残す。
+  独立 oracle manifest とその固有 hash 契約は **task 固有契約は未登録**である。
 - 独立 oracle ledger の作成・凍結 — **未作成・未凍結。** §8 のまま着手条件を満たさない。
 - cache context の cold/warm 管理と cache usage の記録 — provider 側の制御は 2026-08-21 の実測で
   不成立と確定した (§9)。装置は非 null の `cache_condition` を拒否し、resource 指標は
@@ -1008,11 +1010,15 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
   解消されない限り、盲検性・cache 分離の一部は T-181/T-182 と同水準の限界を引き継ぐ。
 - T-181 装置の model 軸拡張は横断的 refactor に相当し (§5.2)、段2/段5 downstream replayer・
   task-specific oracle schema (§5.3) を含め、実装コストは当初想定より大きい。
-  **2026-08-27 時点では一部が着地している** — model 軸の配線と price version の束縛は完了し、
+  **2026-08-27 時点では一部が着地している** — price version の束縛は完了し、
   task manifest は 10 verb の CLI へ接続され、部分正規化費用の計算器も接続した。
-  両 replayer は機構が着地して acceptance 未束縛である。残余は adjudication の oracle 対応
-  (§8 待ち)、schema v2 互換経路と standalone `verify-snapshot` の未接続、
-  キャッシュ書込数量を保存する receipt 項目である。到達度の正本は §5.2 と §5.3。
+  両 replayer は機構が着地して acceptance 未束縛である。
+  **model 軸の配線は「完了」ではない** — schedule が `requested_model` を省略すると `MODEL` へ
+  既定化され、`collect-run` verb の `--expected-model` も既定値が `MODEL` のままである。
+  残余は adjudication の oracle 対応 (§8 待ち)、model 既定化の 2 経路、
+  schema v2 互換経路・v3 cardinality の自己導出・standalone `verify-snapshot` の未接続、
+  sol/luna 各 1 回を固定しない block 検査、キャッシュ書込数量を保存する receipt 項目である。
+  到達度の正本は §5.2 と §5.3。
 - **価格については、version の provenance を束縛したうえで、部分正規化費用まで計算する。**
   ただし被覆は partial であり、費用は記述統計に留めて certified な判定を動かさない (D932)。
   台帳に price version が載ることと、完全な cost 系の指標が使えることは別である。
@@ -1056,13 +1062,16 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
 - (4) T-181 装置の横断的 refactor (§5.2) — **部分的に着地。残余あり。**
   到達度は §5.2 の表が正本である (2026-08-27 実測へ張り替え済み)。
   `price_version` の非 null 拒否 2 箇所の解消は **2026-08-25 に完了した** ([T-1434]、§10)。
-  model 軸の配線 (allowlist、argv、launch identity、receipt 検査、`collect_run`) も着地済み。
+  model 軸の配線 (allowlist、argv、launch identity、receipt 検査) は、`requested_model` が
+  schedule に明示された経路で着地している。
   **2026-08-25 に、外部 task manifest の CLI 入力口 (10 verb) と部分正規化費用の計算器も
-  接続した** ([T-1434])。**残余は次の 3 つである。**
-  (a) schema v2 / `schema_version` 欠落の schedule 互換経路と standalone `verify-snapshot` が
-  外部 manifest に未接続であること、
+  接続した** ([T-1434])。**残余は次の 4 つである。**
+  (a) 外部 task manifest の未接続面 — schema v2 / `schema_version` 欠落の schedule 互換経路、
+  v3 の task/arm 期待件数が schedule 自身から導出されること、standalone `verify-snapshot`、
   (b) adjudication 層の task-specific oracle 対応 (§8 待ち)、
-  (c) キャッシュ書込数量を保存する receipt 項目 (これが無い限り費用の被覆は partial に留まる)。
+  (c) キャッシュ書込数量を保存する receipt 項目 (これが無い限り費用の被覆は partial に留まる)、
+  (d) model 既定化の 2 経路 (`_slot_dimensions` の slot 省略時と `collect-run` verb の
+  `--expected-model`) と、sol/luna 各 1 回を固定しない block 検査。
 - (5) stage2/stage5 downstream replayer の実装 (§5.3、両 stage とも downstream model/effort
   pin を含む) — **機構は着地、acceptance 未束縛。** 到達度は §5.3 の追記が正本である。
   stage2 は driver が、stage5 は契約と validator が着地した。両 stage とも receipt は

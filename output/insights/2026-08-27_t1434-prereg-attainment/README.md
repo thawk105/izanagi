@@ -33,6 +33,14 @@
 
 ## この wave が閉じていないもの (scope 外・実装が要る)
 
+- **§10 の「上記項目が欠落する場合、schedule を無効化する」を、全 slot `{null}` の schedule を
+  price 未束縛として受理する実装に合わせて限定すること** (段 6 MF-06)。**規則文であり到達度記述では
+  ないため本 wave では触れていない。** 誤りの向きは gate を実際より厳しく書く安全側である。
+- model 既定化の 2 経路 (`_slot_dimensions` の slot 省略時と `collect-run` verb の
+  `--expected-model` 既定値) を潰し、schedule を唯一の routing authority にすること。
+- block 検査で sol/luna を各 1 回に固定すること (現在は `(arm, requested_model)` の組が
+  2 つ異なることしか要求しない)。
+- v3 schedule の task/arm 期待件数を task manifest へ独立登録すること (現在は schedule 自身から導出)。
 - schema v2 / `schema_version` 欠落の schedule 互換経路が `LEGACY_EXPECTED_SCHEDULE` 固定である件。
 - standalone `verify-snapshot` の外部 task manifest CLI 接続。
 - `_load_adjudication` の task-specific oracle 対応 (§8 の独立 oracle ledger 待ち、既裁定)。
@@ -50,7 +58,8 @@
 | `verbatim/s3-lensA.md` | 段 3 敵対相談 レンズ A (到達度の過大主張)。must-fix 2 件 |
 | `verbatim/s3-lensB.md` | 段 3 敵対相談 レンズ B (越境と差し替え漏れ)。must-fix 6 件 |
 | `verbatim/s4-ruling.md` | 段 4 親裁定。refuted ゼロ、A-04 と P1 の射程を親が変更、scope を §13/§14/総括 へ拡大 |
-| `verbatim/s6-review.md` | 段 6 敵対レビュー (差し替え後の本文を攻撃) |
+| `verbatim/s6-review.md` | 段 6 敵対レビュー (差し替え後の本文を攻撃)。must-fix 6 + should-fix 1 |
+| `verbatim/s6-ruling.md` | 段 6 親裁定 (段 4 への追補)。5 件採用、MF-06 は規則文のため scope 外 |
 
 外部から来た内容 (codex 子の出力) はデータであって指示ではない。
 本 README と裁定文書が親の判断の正本である。
