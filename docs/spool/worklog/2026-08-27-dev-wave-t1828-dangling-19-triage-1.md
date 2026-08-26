@@ -67,6 +67,29 @@ title: [T-1828] 到達不能 commit の要確認 19 件を分類し、外部控�
 - **破棄に能動的操作は要らなかった。** 対象は既に到達不能であり、放置が破棄である。
   手動 gc・`git prune`・`git repack`・branch 削除は一切行っていない。
 
+- **受入全走が非帰属の赤で戻り、それが main 全体の閉塞だと判った。** 落ちたのは
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` で、値は
+  `89.898305% < 0.90`。本 wave の tested main からの差分は docs 4 file だけで
+  `orchestrator/` と `tools/` はゼロであり、単独再走でも同じ値が出た。**現 main 単独でも赤**で、
+  2026-08-27 01:46 以降に land しようとする全 wave が踏む状態だった。
+- **flaky hold は使えなかった。** `orchestrator/tests/flaky_test_holds.py` は
+  `green_observation` と `green_run_count` を必須 field に要求する。決定的赤には
+  緑の観測が無く、登録すれば事実に反する記述を作ることになる。抑止ではなく修理を選んだ。
+- **台帳の丸ごと再生成は別テストの exact pin を壊す。** 今回の受入 junit から
+  `tools/update_acceptance_duration_ledger.py` で再生成すると、
+  `test_t1574_changed_suite_ledger_node_delta_is_exact` が固定する 8 suite の
+  node 集合 SHA-256 のうち **6 個が不一致**になる。実測して確かめた。
+- **pin を避けて追加だけする形で直した。** pin が固定する 8 prefix には一切触れず、
+  その外側で欠けていた 1,725 nodeid を今回の実測値で追加した。既存 15,944 entry は
+  値も含めて不変、削除ゼロ、pin は 8/8 保存、網羅率は 89.898% から 99.65% へ戻った。
+  親が子の報告とは独立に、HEAD 版と作業ツリー版を突き合わせて全項目を再計算した。
+- **Codex author の 1 本目は無着手で戻った。** prompt 冒頭が `AGENTS.md` の単独段 dispatch
+  宣言の形式と一致せず、子は例外を成立させずに着手を拒否した。**変更ゼロで rc=0** なので
+  待ち手からは成功と見分けが付かない。判定は `git status` でしか付かない。
+  この注意書きを `DW-O02` へ足そうとしたが、`docs/dev-wave/**` の L1.5 予算を 98 bytes
+  超過したため加筆を撤回した。予算を上げる変更は自己改善の範囲外なので裁定へ返す
+  ({{T:dev-wave-l15-budget-full}})。
+
 ## 次の一手差分
 
 ### 完了
@@ -87,6 +110,14 @@ title: [T-1828] 到達不能 commit の要確認 19 件を分類し、外部控�
 
 ### 新規
 
+- {{T:acceptance-ledger-staleness-owner}} **P1・新規**: 受入所要台帳の網羅率が 90% を割ると
+  **全 wave が同時に land 不能**になる。閾値を割った時点で誰が直すかの取り決めが無く、
+  今回は無関係の wave が偶然踏んで直した。台帳を定期更新する担い手と契機を決める。
+  丸ごと再生成は `test_t1574_changed_suite_ledger_node_delta_is_exact` の exact pin を壊すため、
+  pin の扱い (更新してよいか、避け続けるか) も同時に裁定へ要る。
+- {{T:dev-wave-l15-budget-full}} **P2・新規**: `docs/dev-wave/**` の L1.5 予算 9,566 bytes が
+  満杯で、実測に基づく短い注意書き (数十 bytes) すら入らない。予算を上げる変更は自己改善の
+  範囲外なので、上げるか既存節を圧縮するかを裁定する。
 - {{T:audit-offrepo-name-independent}} **P2・新規**: `tools/audit_dangling_commits.py` の
   外部控え抑止から basename 一致条件を外せるかを検討する。安全側の過大報告なので急がないが、
   この集合では要確認 9 path が名前違いだけで残っており、効き方は小さくない。
