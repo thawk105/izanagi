@@ -270,3 +270,12 @@ pin の可否と独立に、次の 1 件は是正を推奨する。
 2. 案 C を選ぶ場合、**C-1 の `CONTEXT_MACROS` 組合せ文脈への再設計**を認めるか。
    認めない場合の代替は「上流 `cc/ss2pl/CMakeLists.txt` を literal option へ戻す PR を出す」。
 3. **`.gitmodules` の branch 宣言の是正**を、この裁定と切り離して先に進めてよいか。
+4. **`docs/dev-wave/operations.md` の `DW-O09` の byte 予算 (1 節 1000 byte) を上げてよいか。**
+   本 wave は閉包の検索軸を 2 つ落とした (§6 の 7 桁 pin と §2 の D297 gate)。恒久対応は
+   `DW-O09` へ書くのが筋だが、同節は **997/1000 byte** で余地が 3 byte しかなく、
+   既存の安全義務を削らずには入らない。自己改善契約は
+   「予算のために安全義務を削除・弱化してはならない」「予算値を上げる変更は
+   通常の自己改善に含めず、理由付きの独立審査対象にする」と定めるため、
+   本 wave では編集せず memory `pin-closure-search-two-missing-axes` に置いた。
+   択一は (i) 予算を上げて `DW-O09` へ入れる、(ii) memory のまま運用する、
+   (iii) `DW-O09` を 2 節に割る、のいずれか。
