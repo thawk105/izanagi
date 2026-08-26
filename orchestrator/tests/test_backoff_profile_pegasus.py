@@ -708,6 +708,8 @@ def test_reproduction_body_freezes_dependencies_cache_and_walltime():
     assert "JOB_TOKEN=${JOB_TOKEN//[^A-Za-z0-9._-]/_}" in active
     assert "DISPATCH_WALLTIME=05:00:00" in active
     assert "WALLTIME_SECONDS=18000" in active
+    assert "FETCH_PROXY=http://10.120.96.1:8080" in active
+    assert source.count("http://10.120.96.1:8080") == 1
     assert "DEPENDENCY_BUILD_BUDGET_SECONDS=540" in active
     assert "CCBENCH_BUILD_BUDGET_SECONDS=$((7 * 900))" in active
     assert "RECORD_BUDGET_SECONDS=$((7 * 3 * 180))" in active
@@ -718,9 +720,16 @@ def test_reproduction_body_freezes_dependencies_cache_and_walltime():
     assert "gflags_expected_head" in source
     assert "glog_expected_head" in source
     assert "export CMAKE_PREFIX_PATH=" in source
+    assert 'export http_proxy="$FETCH_PROXY"' in active
+    assert 'export https_proxy="$FETCH_PROXY"' in active
     assert "export IZANAGI_BACKOFF_PROFILE_CACHE_ROOT=" in source
     assert "export TMPDIR" in active
     assert "dependency-provenance.json" in source
+    assert '"build_time_network_fetch": True' in source
+    assert '"build_time_network_fetch_integrity": (' in source
+    assert "fixes masstree content by a SHA pin" in source
+    assert '"fetch_proxy": sys.argv[20]' in source
+    assert '"$TOTAL_BUDGET_SECONDS" "$FETCH_PROXY" <<\'PY\'' in active
     assert "backoff_profile.py balanced" in source
     assert 'test "$TOTAL_BUDGET_SECONDS" -lt "$WALLTIME_SECONDS"' in active
     assert 'DEPENDENCY_BUILD_LOG="$DEPENDENCY_LOG_PARENT/.$JOB_TOKEN.staging"' in active
@@ -748,6 +757,8 @@ def test_reproduction_body_freezes_dependencies_cache_and_walltime():
     second_build = active.index('timeout 120 cmake -S "$GLOG_SOURCE" -B "$GLOG_BUILD" \\')
     last_dependency_step = active.index('timeout 120 cmake --install "$GLOG_BUILD" \\')
     prefix_export = active.index('export CMAKE_PREFIX_PATH="$DEPENDENCY_PREFIX"')
+    http_proxy_export = active.index('export http_proxy="$FETCH_PROXY"')
+    https_proxy_export = active.index('export https_proxy="$FETCH_PROXY"')
     source_log_export = active.index(
         'export IZANAGI_BACKOFF_PROFILE_DEPENDENCY_LOG="$DEPENDENCY_BUILD_LOG"'
     )
@@ -757,7 +768,8 @@ def test_reproduction_body_freezes_dependencies_cache_and_walltime():
     profile = active.index('python3.10 orchestrator/campaign/backoff_profile.py balanced \\')
     publish = active.index('mv -T "$DEPENDENCY_BUILD_LOG" "$DEPENDENCY_PUBLISH_LOG"')
     assert (
-        first_build < second_build < last_dependency_step < prefix_export < source_log_export
+        first_build < second_build < last_dependency_step < prefix_export
+        < http_proxy_export < https_proxy_export < source_log_export
         < final_log_export < profile < publish
     )
 

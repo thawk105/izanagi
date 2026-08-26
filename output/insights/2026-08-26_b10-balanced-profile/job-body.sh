@@ -11,6 +11,9 @@ REPO_ROOT=$(pwd -P)
 POLICY_PATH="$REPO_ROOT/tools/pegasus/policy.json"
 DISPATCH_WALLTIME=05:00:00
 WALLTIME_SECONDS=18000
+# ccbench CMake FetchContent fetches masstree at build time through this proxy.
+# The fetched source content is fixed by the SHA pin in the Pegasus policy.
+FETCH_PROXY=http://10.120.96.1:8080
 DEPENDENCY_BUILD_BUDGET_SECONDS=540
 CCBENCH_BUILD_BUDGET_SECONDS=$((7 * 900))
 RECORD_BUDGET_SECONDS=$((7 * 3 * 180))
@@ -143,11 +146,16 @@ python3 - "$DEPENDENCY_BUILD_LOG/dependency-provenance.json" \
   "$DEPENDENCY_BUILD_BUDGET_SECONDS" "$CCBENCH_BUILD_BUDGET_SECONDS" \
   "$RECORD_BUDGET_SECONDS" "$REPORT_BUDGET_SECONDS" \
   "$INNER_BUDGET_SECONDS" "$SHUTDOWN_MARGIN_SECONDS" \
-  "$TOTAL_BUDGET_SECONDS" <<'PY'
+  "$TOTAL_BUDGET_SECONDS" "$FETCH_PROXY" <<'PY'
 import json
 import sys
 
 document = {
+    "build_time_network_fetch": True,
+    "build_time_network_fetch_integrity": (
+        "ccbench CMake FetchContent fixes masstree content by a SHA pin"
+    ),
+    "fetch_proxy": sys.argv[20],
     "gflags_source": sys.argv[2],
     "gflags_pin": sys.argv[3],
     "gflags_expected_pin": sys.argv[4],
@@ -181,6 +189,8 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
 PY
 
 export CMAKE_PREFIX_PATH="$DEPENDENCY_PREFIX"
+export http_proxy="$FETCH_PROXY"
+export https_proxy="$FETCH_PROXY"
 export IZANAGI_BACKOFF_PROFILE_CACHE_ROOT="$CCBENCH_CACHE_ROOT"
 export IZANAGI_BACKOFF_PROFILE_DEPENDENCY_LOG="$DEPENDENCY_BUILD_LOG"
 export IZANAGI_BACKOFF_PROFILE_DEPENDENCY_PUBLISH_LOG="$DEPENDENCY_PUBLISH_LOG"
