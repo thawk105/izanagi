@@ -71,7 +71,52 @@ F641 が挙げた 4 型のうち、P1 が確実に拾うのは待ち上限の型
 | O | 順序 | 保証されていない実行順序・出力順序に一致を要求している |
 | I | 識別子 | OS や runtime が再利用する整数・名前 (fd 番号、pid、inode、一時 path) の一致を要求している |
 | A | 周囲状態 | テストが所有しない process や host 全体の可変状態を一致・閾値比較している |
+| F | 決定的な床 | 待つ対象が production 側の実 sleep / poll 間隔で下から押さえられており、上限との余裕がその床で決まっている。負荷は引き金にすぎない。H と誤分類しやすい |
 | D | 確定的 | 実時計・実並行・OS 割当が関与しないか、比較関係が操作によって強制されている |
+
+### F の判定を H より先に置く
+
+**上限の妥当性を論じる前に、待つ対象に決定的な床が無いかを確かめる。**
+床がある site では上限は問題ではないので、「実負荷の artifact が無いから上限を変えない」と
+裁定しても何も直らない。分類し直しが要る。
+
+判定は次の 3 段で行う。**判定を担うのは段 1 と段 3 であり、段 2 は並べ替えにすぎない。**
+
+1. その site が呼ぶ production 側の関数に、sleep / clock / poll 間隔の注入 seam があるか。
+2. (安価だが不完全な優先順位付け) 同じ file 内で、多数派と違う呼び方をしている site を grep で出す。
+   **file 内の全 site が seam を素通ししていれば多数派が存在せず 0 件を返す。**
+   0 件を「F は無い」の根拠にしてはいけない。
+3. seam があるのに、この site はそれを渡しているか。渡していなければ F である。
+
+**F の処置は 3 段に分ける。**
+
+- **呼び手 (テスト) に既存の seam を渡させて床を消す。** これはテスト側だけの変更である。
+  seam が無い場合だけ production の変更を検討する。**後者は production 挙動を変える判断なので、
+  裁定の重さが違う。**
+- **watchdog の上限は残す。** 用途を「hang 回収であって合否の latency 予算ではない」と明記する。
+  床が消えると上限と実所要の比が桁で開くので、上限を残しても負荷依存にはならない。
+  F の処置は「上限を消す」ではなく **「上限を判定から降ろす」** である。
+- **降格が回帰しないことを守る control を足す。** 注入した sleeper の呼出しと偽 clock の進みを
+  観測する。**この control で実時間を測ってはいけない。** 測れば、消したはずの負荷依存が戻る。
+
+最後の段を落とすと、`sleep=` を外して床が戻っても watchdog の内側なので
+**性質の assertion は全部通ってしまう。** 修理が黙って蒸発する。
+
+このクラスと手続きは、並行 wave `dev-wave-flaky-holds-20260826` の実測に基づく。
+同 wave は「並列負荷で落ちるフレーク」に見えた 2 件を計装し、`-n 32` / `-n 48` で
+10.015 / 10.014 / 10.015 秒 (ばらつき 1 ミリ秒) を観測した。正体は production 側の
+`DEFAULT_POLL_INTERVAL_S = 5.0` の実 sleep 2 回による決定的な床で、`join(10)` の余裕は
+15 ミリ秒だった。production は 1 byte も変えず、テスト側が既に存在した seam を
+渡していなかっただけである。同 wave は降格を守る control を最初は忘れ、
+焦点再レビューの指摘で変異 3 件 (`sleep=` 削除 / `clock=` 削除 / latch 側の `clock=` 削除) を
+足して守った。
+
+一次資料は同 wave の branch `worktree-dev-wave-flaky-holds-20260826` 上の
+`output/insights/2026-08-26_flaky-holds-removal/` と、job dir
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-flaky-holds-20260826/` にある。
+**同 wave は本台帳の記録時点で land していないため、新規の F / D 番号と worklog entry 番号は
+確定していない。番号ではなく path で引くこと。** land 後に番号へ差し替えるのが安全である。
+既存番号の F480 (族分類の訂正の追記先) と F24 (待ち手の偽完了) だけは安定して引ける。
 
 `assert not event.wait(0.1)` は T ではなく C である。遅い環境では赤にならず、
 むしろ排他の回帰を見逃す方向へ働くからである。
@@ -147,6 +192,11 @@ schema は `izanagi-env-coincidence-inventory/v1`。各行は file、行番号�
 
 本 wave は H に該当する候補について**実負荷の artifact を 1 件も持っていない**。
 したがって予算変更は D249 が却下した「根拠なき拡大」に当たる。
+
+**ただしこの裁定は、その site が H であることを前提にしている。**
+決定的な床を持つ site (クラス F) では上限そのものが問題ではないので、
+「上限を変えない」と裁定しても何も直らない。**H と裁定する前に F の判定を通すこと。**
+手続きは「分類」節の「F の判定を H より先に置く」に従う。
 
 H の上限拡大が受理集合を実際に広げることは、具体的な回帰で確認した。
 
@@ -232,6 +282,21 @@ mock が渡された値で例外を送出する検査などは、環境が変わ
 (3 走すべて 0 件になる確率は約 61%)。**3 走の緑から率が下がったとは言えない。**
 
 所要は 343 秒から 428 秒へ単調に伸びた。原因は未特定である。
+
+### 変異 matrix
+
+是正が本物かを、production 側へ変異を注入して確かめた。baseline PASSED、
+**3/3 KILLED、SURVIVED 0、MISMATCH 0、TIMEOUT 0**。期待 node は完全集合で一致した。
+
+| id | 注入した回帰 | 捕まえた検査 |
+|---|---|---|
+| M01 | attempt registry の共有ロックを取り除く | `test_trial_registry.py::test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt` |
+| M02 | manifest ロックを排他から共有へ落とす | `test_codex_worker_launch.py::test_manifest_lock_covers_load_replace_critical_section` |
+| M03 | fd の close を最初の失敗で中断する | `test_buildcache_v2.py::test_close_fds_best_effort_closes_all_and_reraises_first_error`, `::test_copied_binary_close_error_does_not_leak_later_fds` |
+
+**erratum:** M02 は初回 probe で SURVIVED だった。等価変異ではなく照準の誤りで、
+テストが撃っているのは manifest ロックなのに receipt ロックを変異させていた。
+実効 gate へ再照準して本走した。初回結果は本欄に残す。
 
 なお、42 走すべての緑を要求したときの到達確率は「0.1% 未満」ではなく約 0.1% である
 (5/33 で 0.1007%、15% で 0.108%)。これは独立同分布を仮定した推定であって観測値ではない。
