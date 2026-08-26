@@ -190,3 +190,28 @@ SHA-256 だけである。pair receipt の sidecar 名は出力ファイル名�
 - `probe-949555/` — DW-G01 生死確認の TRACE=1 (outer は wave base、対には入れていない)。
 - `probe-949585/` — 同 TRACE=0。
 - `probe-949578-failed/` — 共有 hydrate 汚染で落ちた run と、汚染された `thirdparty-src`。
+
+## 変異 matrix
+
+事前登録した 19 変異を、記録 commit `6131b309` を固定 HEAD として本走した
+(spec: `output/insights/2026-08-26_mocc-trace-pair-mutation-spec-final.json`、
+sha256 `b199da0791dbce2a47cc83a7063427d0619d3d76ae4e3ccce7607ed59287d971`)。
+
+**baseline PASSED・19/19 KILLED・SURVIVED 0・MISMATCH 0**、期待 node は 19 件すべて完全集合で一致した。
+
+内訳は negative 17 件と positive control 2 件である。positive control は
+`DW-M01` の「受理集合を縮小する wave では、承認外の過剰拒否を検出する正例も登録する」に当たる。
+
+- 本数条件を `>= 2` から `>= 3` へ強めて過剰拒否させる変異。正例を含む 5 node を落とす。
+- 同一 mode の binary SHA 一致を必須へ戻す変異。**本 wave の対がまさにその形なので、
+  これを入れると accepted が reject へ倒れる。**
+
+**probe 走を先に回している。** `DW-M07` は「KILLED 期待で期待 node が空の spec は起動前に中止する」
+と定めるので、全件 SURVIVED 期待の probe を先に回して観測 node を集めた。
+probe の結果は 19 件すべて MISMATCH (= 実際には全件が失敗 node を出した) で、
+その node 集合をそのまま本走の期待にした。
+
+**段 6 のレビュー 2 レンズが、変異が生存する箇所を先回りで 3 件特定していた。** M09 の負例が
+複数述語を同時に壊していて二重防壁になっていた件、TRACE=0 側の証拠 SHA 検査に負例が無かった件、
+hydrate の検査が mock 境界で止まっていて実 `_hydrate` を観測していなかった件である。
+いずれも本走前に fix したので、本走では生存しなかった。
