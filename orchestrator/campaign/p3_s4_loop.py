@@ -1251,10 +1251,8 @@ def require_b4_iteration_authorization(
 
 def consume_b4_iteration_authorization(
     authorization: B4IterationAuthorization,
-    *,
-    layout: CampaignLayout,
 ) -> Path | None:
-    """Create the at-most-once receipt consumption record before synthesis."""
+    """Atomically publish the at-most-once record in the rebuilt live layout."""
     if authorization.receipt is None:
         return None
     receipt = authorization.receipt
@@ -1271,26 +1269,81 @@ def consume_b4_iteration_authorization(
     }
     from .s8b_prediction_runner import _canonical_json_bytes
     record_bytes = _canonical_json_bytes(record)
-    record_path = Path(layout.root) / (
+    authoritative_layout = exploration_campaign_layout(receipt.campaign_id)
+    record_root = Path(authoritative_layout.root)
+    record_path = record_root / (
         f"b4_closed_critic_consumption_{receipt_sha256}.json"
     )
+    temp_path = record_root / (
+        f".{record_path.name}.tmp-{os.getpid()}-{os.urandom(16).hex()}"
+    )
+    published = False
+    complete = False
+    try:
+        _write_b4_consumption_temp(temp_path, record_bytes)
+        try:
+            os.link(temp_path, record_path, follow_symlinks=False)
+            published = True
+        except FileExistsError as exc:
+            raise B4ProtocolError(
+                "B-4 terminal receipt was already consumed"
+            ) from exc
+        except OSError as exc:
+            raise B4ProtocolError(
+                "B-4 receipt consumption record publish failed"
+            ) from exc
+        _fsync_b4_consumption_directory(record_root)
+        temp_path.unlink()
+        _fsync_b4_consumption_directory(record_root)
+        complete = True
+    except B4ProtocolError:
+        raise
+    except OSError as exc:
+        raise B4ProtocolError(
+            "B-4 receipt consumption record write failed"
+        ) from exc
+    finally:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        if published and not complete:
+            try:
+                record_path.unlink(missing_ok=True)
+                _fsync_b4_consumption_directory(record_root)
+            except OSError:
+                pass
+    return record_path
+
+
+def _write_b4_consumption_temp(path: Path, data: bytes) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    try:
-        fd = os.open(record_path, flags, 0o600)
-    except FileExistsError as exc:
-        raise B4ProtocolError("B-4 terminal receipt was already consumed") from exc
-    except OSError as exc:
-        raise B4ProtocolError("B-4 receipt consumption record create failed") from exc
+    fd = os.open(path, flags, 0o600)
     try:
         with os.fdopen(fd, "wb") as stream:
-            stream.write(record_bytes)
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-    except OSError as exc:
-        raise B4ProtocolError("B-4 receipt consumption record write failed") from exc
-    return record_path
+    except BaseException:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
+def _fsync_b4_consumption_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
 
 def _fold_critic_reverse(state: LoopState, prior_critic_reverse: Optional[bool]) -> None:
     """前 iteration の critic feedback (逆方向推奨だったか) を reverse_recommendations に畳む。
@@ -1420,7 +1473,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
             prior_critic_reverse = (
                 authorization.receipt.decision_reverse_recommended
             )
-        consume_b4_iteration_authorization(authorization, layout=layout)
+        consume_b4_iteration_authorization(authorization)
     else:
         if (
             b4_closed_critic_receipt is not None

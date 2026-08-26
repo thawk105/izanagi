@@ -30,6 +30,10 @@ sys.path.insert(0, str(_ORCH.parent))
 
 from orchestrator.campaign import ident, p3_b4_closed_critic as C  # noqa: E402
 from orchestrator.campaign import p3_s4_loop as L, source_digest, wal  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
+    p3_s4_loop_trigger_gating as TRIGGER_LOOP,
+    site_policy,
+)
 from orchestrator.campaign.artifact_admission import (  # noqa: E402
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -977,6 +981,22 @@ emit Markdown or extra keys.
     assert C.projection_sha256() == expected
 
 
+def test_driver_specific_projection_closure_pins_only_selected_consumer():
+    entries = {
+        kind: set(C.projection_closure_manifest(kind)["entries"])
+        for kind in ("base", "sort", "trigger")
+    }
+    sort_path = "orchestrator/campaign/p3_s4_loop_sort.py"
+    trigger_path = "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+    assert sort_path not in entries["base"]
+    assert trigger_path not in entries["base"]
+    assert sort_path in entries["sort"]
+    assert trigger_path not in entries["sort"]
+    assert trigger_path in entries["trigger"]
+    assert sort_path not in entries["trigger"]
+    assert len({C.projection_sha256(kind) for kind in entries}) == 3
+
+
 def test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch():
     with _pair_fixture() as (pair, _layouts, _calls):
         invocation = pair.on.invoke(invocation_id="snapshot-positive")
@@ -1619,6 +1639,7 @@ def test_public_b4_receipt_gate_accepts_live_certified_bound_receipt():
             layout=layout,
         )
         assert receipt == invocation.receipt
+        assert receipt.driver_kind == "base"
         terminal_sha256 = hashlib.sha256(
             invocation.terminal_receipt_path.read_bytes()
         ).hexdigest()
@@ -1697,6 +1718,7 @@ def test_public_b4_receipt_gate_rejects_real_test_only_evidence():
     (
         ("schema_version", "not-v3", "schema_version"),
         ("status", "failure", "status"),
+        ("driver_kind", "sort", "driver_kind"),
         ("campaign_id", "different-campaign", "campaign_id"),
         ("arm", "off", "arm differs"),
         ("iteration", 2, "iteration"),
@@ -1707,6 +1729,7 @@ def test_public_b4_receipt_gate_rejects_real_test_only_evidence():
     ids=(
         "schema-version",
         "status",
+        "different-driver-receipt",
         "campaign-id-m3",
         "arm-m4",
         "iteration-m5",
@@ -1743,34 +1766,155 @@ def test_public_b4_receipt_gate_rejects_one_live_binding_mismatch(
             )
 
 
-def test_public_b4_receipt_gate_rejects_nonauthoritative_layout():
+def test_public_b4_receipt_gate_rejects_nonexact_layout_type_m15():
     with _certified_pair_fixture() as (pair, cfg, layout, _calls):
         invocation = pair.on.invoke(invocation_id="public-layout-negative")
         assert C._read_verified_terminal_receipt(
             invocation.terminal_receipt_path
         ).evidence_class == "certified"
-        live_view = require_admitted_campaign(
-            layout.root,
-            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
-        )
         wrong = SimpleNamespace(
-            root=tempfile.mkdtemp(prefix="izanagi-b4-wrong-layout-"),
+            root=layout.root,
             wal_file=layout.wal_file,
         )
-        with unittest.mock.patch.object(
-            C, "loop_state_path", return_value=L.loop_state_path(layout),
-        ), unittest.mock.patch.object(
-            C, "require_admitted_campaign", return_value=live_view,
-        ):
-            _raises(
-                C.B4ReceiptError,
-                lambda: C.require_b4_closed_critic_receipt(
-                    invocation.terminal_receipt_path,
-                    cfg=cfg,
-                    layout=wrong,
-                ),
-                contains="not the authoritative",
+        _raises(
+            C.B4ReceiptError,
+            lambda: C.require_b4_closed_critic_receipt(
+                invocation.terminal_receipt_path,
+                cfg=cfg,
+                layout=wrong,
+            ),
+            contains="exact CampaignLayout",
+        )
+
+
+def test_public_b4_receipt_gate_rejects_exact_nonauthoritative_layout():
+    with _certified_pair_fixture() as (pair, cfg, _layout, _calls):
+        invocation = pair.on.invoke(invocation_id="public-wrong-root-negative")
+        wrong = CampaignLayout(
+            root=tempfile.mkdtemp(prefix="izanagi-b4-wrong-layout-")
+        )
+        _raises(
+            C.B4ReceiptError,
+            lambda: C.require_b4_closed_critic_receipt(
+                invocation.terminal_receipt_path,
+                cfg=cfg,
+                layout=wrong,
+            ),
+            contains="not the authoritative",
+        )
+
+
+def test_public_b4_receipt_gate_requires_exact_protocol_marker():
+    with _certified_pair_fixture() as (pair, _cfg, layout, _calls):
+        invocation = pair.on.invoke(invocation_id="public-marker-negative")
+        unmarked = L.default_cfg(reflux=True)
+        _raises(
+            C.B4ReceiptError,
+            lambda: C.require_b4_closed_critic_receipt(
+                invocation.terminal_receipt_path,
+                cfg=unmarked,
+                layout=layout,
+            ),
+            contains="exact B-4 protocol marker",
+        )
+
+
+@pytest.mark.parametrize(
+    ("driver", "expected_ids"),
+    (
+        (
+            "base",
+            (
+                "p3-s4-loop-s4-autonomous-ad0444da",
+                "p3-s4-loop-s4-autonomous-8700ee8e",
+            ),
+        ),
+        (
+            "sort",
+            (
+                "p3-s5-sort-loop-s5-sort-autonomous-2c241821",
+                "p3-s5-sort-loop-s5-sort-autonomous-df423528",
+            ),
+        ),
+        (
+            "trigger",
+            (
+                "p3-s8a-trigger-loop-s8a-trigger-autonomous-2adb6cf7",
+                "p3-s8a-trigger-loop-s8a-trigger-autonomous-6328b84a",
+            ),
+        ),
+    ),
+)
+def test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers(
+    driver, expected_ids,
+):
+    captured = {}
+
+    class FakeController:
+        def invoke(self, *, invocation_id):
+            return SimpleNamespace(
+                terminal_receipt_path=Path(f"/tmp/{invocation_id}.json")
             )
+
+    class FakePair:
+        on = FakeController()
+        off = FakeController()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _exc_type, _exc, _tb):
+            return None
+
+    def pair_factory(**kwargs):
+        captured.update(kwargs)
+        return FakePair()
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(unittest.mock.patch.object(
+            C,
+            "assert_b4_arm_pair",
+            return_value=C.B4ArmPairComparison(False, False, True),
+        ))
+        if driver == "trigger":
+            stack.enter_context(unittest.mock.patch.object(
+                TRIGGER_LOOP,
+                "_current_site",
+                return_value=site_policy.OTHER,
+            ))
+        stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+        assert C.main([
+            "--driver", driver,
+            "--artifact-root", f"/tmp/b4-fixed-{driver}",
+            "--on-invocation-id", f"{driver}-on",
+            "--off-invocation-id", f"{driver}-off",
+        ], pair_factory=pair_factory) == 0
+
+    assert tuple(C.B4_DRIVER_CONFIG_FACTORIES) == ("base", "sort", "trigger")
+    assert set(captured) == {"on_cfg", "off_cfg", "artifact_root"}
+    configs = (captured["on_cfg"], captured["off_cfg"])
+    assert tuple(str(ident.campaign_id(cfg)) for cfg in configs) == expected_ids
+    assert tuple(cfg.search_config["reflux"] for cfg in configs) == ("on", "off")
+    assert all(
+        cfg.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
+        for cfg in configs
+    )
+    assert all(C._driver_kind_from_cfg(cfg) == driver for cfg in configs)
+
+    if driver == "trigger":
+        contract = TRIGGER_LOOP._admit_env_contract(site_policy.OTHER)
+        expected = tuple(
+            TRIGGER_LOOP._campaign_cfg_for_site(
+                TRIGGER_LOOP.default_cfg(
+                    reflux=reflux,
+                    b4_reflux_ablation=True,
+                ),
+                site_policy.OTHER,
+                _contract=contract,
+            )
+            for reflux in (True, False)
+        )
+        assert configs == expected
 
 
 def test_closed_critic_cli_constructs_only_fixed_marked_base_configs():

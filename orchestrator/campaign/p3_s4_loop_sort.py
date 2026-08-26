@@ -466,7 +466,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
             prior_critic_reverse = (
                 authorization.receipt.decision_reverse_recommended
             )
-        L.consume_b4_iteration_authorization(authorization, layout=layout)
+        L.consume_b4_iteration_authorization(authorization)
     else:
         if (
             b4_closed_critic_receipt is not None

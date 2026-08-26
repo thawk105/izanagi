@@ -11,6 +11,7 @@ pytest でも 素の `python3 orchestrator/tests/test_p3_s4_loop.py` でも走�
 from __future__ import annotations
 
 import ast
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from decimal import Decimal
 import hashlib
@@ -22,6 +23,7 @@ import re
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 from types import SimpleNamespace
 import unittest.mock
@@ -2478,6 +2480,12 @@ def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
     )
     marked = L.default_cfg(reflux=True, b4_reflux_ablation=True)
     assert ordinary == explicit_false
+    assert str(ident.campaign_id(ordinary)) == (
+        "p3-s4-loop-s4-autonomous-2cd75697"
+    )
+    assert str(ident.campaign_id(L.default_cfg(reflux=False))) == (
+        "p3-s4-loop-s4-autonomous-9f43a5b8"
+    )
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert L.b4_reflux_ablation_mode(ordinary) is False
     assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
@@ -2644,6 +2652,72 @@ def test_b4_same_terminal_receipt_hash_is_consumed_at_most_once(
     assert Path(L.loop_state_path(layout)).read_bytes() == checkpoint_before
 
 
+def test_b4_consumption_publish_allows_only_one_concurrent_writer(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "concurrent-campaign")).ensure()
+    receipt = _b4_fake_receipt(cfg)
+    receipt_sha256 = "a" * 64
+    authorization = L.B4IterationAuthorization(
+        receipt=receipt,
+        terminal_receipt_sha256=receipt_sha256,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    original_write = L._write_b4_consumption_temp
+    both_temps_ready = threading.Barrier(2)
+
+    def aligned_write(path, data):
+        original_write(path, data)
+        both_temps_ready.wait()
+
+    monkeypatch.setattr(L, "_write_b4_consumption_temp", aligned_write)
+
+    def consume_once():
+        try:
+            return ("published", L.consume_b4_iteration_authorization(
+                authorization
+            ))
+        except L.B4ProtocolError as exc:
+            return ("rejected", str(exc))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _index: consume_once(), range(2)))
+    assert [status for status, _value in results].count("published") == 1
+    assert [status for status, _value in results].count("rejected") == 1
+    assert any("already consumed" in str(value) for _status, value in results)
+    assert len(list(Path(layout.root).glob(
+        "b4_closed_critic_consumption_*.json"
+    ))) == 1
+    assert not list(Path(layout.root).glob(".*.tmp-*"))
+
+
+def test_b4_consumption_write_failure_leaves_no_poisoned_record(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=False, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "write-failure-campaign")).ensure()
+    authorization = L.B4IterationAuthorization(
+        receipt=_b4_fake_receipt(cfg),
+        terminal_receipt_sha256="b" * 64,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+
+    def fail_after_partial_write(path, data):
+        path.write_bytes(data[:7])
+        raise OSError("injected consumption write failure")
+
+    monkeypatch.setattr(
+        L, "_write_b4_consumption_temp", fail_after_partial_write,
+    )
+    with pytest.raises(L.B4ProtocolError, match="record write failed"):
+        L.consume_b4_iteration_authorization(authorization)
+    assert not list(Path(layout.root).glob(
+        "b4_closed_critic_consumption_*.json"
+    ))
+    assert not list(Path(layout.root).glob(".*.tmp-*"))
+
+
 def test_b4_bootstrap_rejects_receipt_but_allows_none_to_reach_synthesis(
     tmp_path, monkeypatch,
 ):
@@ -2710,16 +2784,24 @@ def test_b4_no_build_stops_before_artifact_change_m12(
 
 
 def test_b4_fixture_main_rejects_run_one_iteration_bypass_m13(monkeypatch):
-    from orchestrator.campaign import patchharness
+    from orchestrator.campaign import p2_2, patchharness
 
-    run_spy = unittest.mock.Mock()
+    run_spy = unittest.mock.Mock(
+        side_effect=AssertionError("fixture reached build boundary")
+    )
     pinned_spy = unittest.mock.Mock()
+    single_tenant_spy = unittest.mock.Mock()
     monkeypatch.setattr(L, "run_one_iteration", run_spy)
     monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", single_tenant_spy)
     with pytest.raises(L.B4ProtocolError, match="fixture run_one_iteration"):
-        L.main(["--b4-reflux-ablation"])
+        L.main([
+            "--b4-reflux-ablation",
+            "--allow-coder-derived-build",
+        ])
     assert run_spy.call_count == 0
     assert pinned_spy.call_count == 0
+    assert single_tenant_spy.call_count == 0
 
 
 def test_b4_cli_receipt_is_run_iteration_only_and_marker_bound(tmp_path):
