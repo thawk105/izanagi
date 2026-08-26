@@ -83,18 +83,6 @@ _TRIGGERS = frozenset({
     "unspecified",
 })
 
-
-def task_run_child_environment(base: Mapping[str, str]) -> dict[str, str]:
-    """Return a copy of *base* with parent-owned task-run state removed."""
-
-    child_env = dict(base)
-    child_env.pop(_TASK_RUN_ID_ENV, None)
-    child_env.pop(_TASK_RUNS_ROOT_ENV, None)
-    child_env.pop(_TASK_RUN_SIDECAR_ENV, None)
-    child_env[_TASK_RUN_AUTO_RECORD_ENV] = "0"
-    return child_env
-
-
 # Only this closed table is known not to narrow test selection.  Any positional
 # argument, selector, malformed option, or unknown option is conservatively
 # targeted.
@@ -1304,7 +1292,11 @@ def _dispatch_environment(
 ) -> dict[str, str]:
     """計算ノード子へ渡す環境から親だけが所有する台帳状態を除く。"""
 
-    child_env = task_run_child_environment(os.environ)
+    child_env = os.environ.copy()
+    child_env.pop(_TASK_RUN_ID_ENV, None)
+    child_env.pop(_TASK_RUN_SIDECAR_ENV, None)
+    child_env.pop(_TASK_RUNS_ROOT_ENV, None)
+    child_env[_TASK_RUN_AUTO_RECORD_ENV] = "0"
     if recording_session is not None:
         sidecar = recording_session.sidecar_path
         if sidecar is not None:
@@ -1603,9 +1595,14 @@ def _dispatch_and_record(
     # This is the dispatch-route receipt boundary.  Automatic bootstrap is
     # intentionally deferred until the dispatcher has returned a strict
     # positive child-start receipt.
-    environ = task_run_child_environment(environ)
+    environ = dict(environ)
+    environ[_TASK_RUN_AUTO_RECORD_ENV] = "0"
+    environ.pop(_TASK_RUN_ID_ENV, None)
+    environ.pop(_TASK_RUNS_ROOT_ENV, None)
     if session.sidecar_path is not None:
         environ[_TASK_RUN_SIDECAR_ENV] = str(session.sidecar_path)
+    else:
+        environ.pop(_TASK_RUN_SIDECAR_ENV, None)
     dispatch_result = _invoke_dispatch(dispatch_fn, args, environ=environ)
     rc = dispatch_result.rc
     if started is not None:

@@ -1828,7 +1828,11 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     python_user_base = os.environ.get("PYTHONUSERBASE", "")
     if not python_user_base or not Path(python_user_base).is_absolute():
         raise ContractError("driver PYTHONUSERBASE must be a nonempty absolute path")
-    env = production_runner.task_run_child_environment(_base_env())
+    env = _base_env()
+    env.pop(production_runner._TASK_RUN_ID_ENV, None)
+    env.pop(production_runner._TASK_RUNS_ROOT_ENV, None)
+    env.pop(production_runner._TASK_RUN_SIDECAR_ENV, None)
+    env[production_runner._TASK_RUN_AUTO_RECORD_ENV] = "0"
     for key in ("HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME",
                 "XDG_DATA_HOME", "XDG_STATE_HOME", "PYTEST_ADDOPTS",
                 "PYTEST_PLUGINS", "IZANAGI_ACCEPTANCE_SHARDS"):

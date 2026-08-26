@@ -1481,39 +1481,84 @@ def test_run_environment_exact_task_projection_and_only_tmp_uses_short_root(
         )
 
 
-def test_mh5_driver_calls_production_task_run_helper_once(
+def test_mh5_production_and_measurement_task_run_projection_match_exactly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Drifted production names reject a driver-owned literal projection."""
+
     config = _config(tmp_path)
     base = {
+        "DRIFTED_TASK_RUN_ID": "base-id",
+        "DRIFTED_TASK_RUNS_ROOT": "/base/root",
+        "DRIFTED_TASK_RUN_SIDECAR": "/base/sidecar",
+        "DRIFTED_TASK_RUN_AUTO_RECORD": "1",
         "BASE_ONLY_SENTINEL": "keep",
-        "IZANAGI_TASK_RUN_ID": "remove",
     }
-    calls: list[object] = []
-
-    def helper_spy(supplied: object) -> dict[str, str]:
-        calls.append(supplied)
-        assert supplied == base
-        return {
-            "BASE_ONLY_SENTINEL": "keep",
-            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
-        }
-
+    expected_base = dict(base)
+    monkeypatch.setenv("AMBIENT_ONLY_SENTINEL", "reject")
+    monkeypatch.setenv("PYTHONUSERBASE", str(tmp_path / "python-user-base"))
     monkeypatch.setattr(study, "_base_env", lambda: dict(base))
     monkeypatch.setattr(
-        study.production_runner, "task_run_child_environment", helper_spy
+        study.production_runner, "_TASK_RUN_ID_ENV", "DRIFTED_TASK_RUN_ID"
     )
-    env = study._run_environment(
+    monkeypatch.setattr(
+        study.production_runner, "_TASK_RUNS_ROOT_ENV", "DRIFTED_TASK_RUNS_ROOT"
+    )
+    monkeypatch.setattr(
+        study.production_runner,
+        "_TASK_RUN_SIDECAR_ENV",
+        "DRIFTED_TASK_RUN_SIDECAR",
+    )
+    monkeypatch.setattr(
+        study.production_runner,
+        "_TASK_RUN_AUTO_RECORD_ENV",
+        "DRIFTED_TASK_RUN_AUTO_RECORD",
+    )
+
+    with monkeypatch.context() as production_context:
+        production_context.setattr(
+            study.production_runner.os, "environ", dict(base)
+        )
+        production_env = study.production_runner._dispatch_environment()
+    measurement_env = study._run_environment(
         config, global_run_index=8, arm=48,
         root=config.scratch_root / "run-environments",
     )
     try:
-        assert calls == [base]
-        assert env["BASE_ONLY_SENTINEL"] == "keep"
-        assert env["IZANAGI_TASK_RUN_AUTO_RECORD"] == "0"
+        projection_keys = (
+            "AMBIENT_ONLY_SENTINEL",
+            "BASE_ONLY_SENTINEL",
+            "DRIFTED_TASK_RUN_AUTO_RECORD",
+            "DRIFTED_TASK_RUN_ID",
+            "DRIFTED_TASK_RUNS_ROOT",
+            "DRIFTED_TASK_RUN_SIDECAR",
+        )
+        expected_projection = {
+            "AMBIENT_ONLY_SENTINEL": None,
+            "BASE_ONLY_SENTINEL": "keep",
+            "DRIFTED_TASK_RUN_AUTO_RECORD": "0",
+            "DRIFTED_TASK_RUN_ID": None,
+            "DRIFTED_TASK_RUNS_ROOT": None,
+            "DRIFTED_TASK_RUN_SIDECAR": None,
+        }
+        assert len(projection_keys) == 6
+        assert set(projection_keys) == set(expected_projection)
+        production_projection = {
+            key: production_env.get(key) for key in projection_keys
+        }
+        measurement_projection = {
+            key: measurement_env.get(key) for key in projection_keys
+        }
+        assert production_projection == expected_projection
+        assert measurement_projection == expected_projection
+        assert production_projection == measurement_projection
+        assert base == expected_base
+        assert os.environ["AMBIENT_ONLY_SENTINEL"] == "reject"
     finally:
         study._remove_tmp_tree(
-            Path(env["TMPDIR"]), global_run_index=8, purpose="measurement"
+            Path(measurement_env["TMPDIR"]),
+            global_run_index=8,
+            purpose="measurement",
         )
 
 
