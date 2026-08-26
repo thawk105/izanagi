@@ -97,6 +97,16 @@ title: 受入全走の shard 数を受入経路で 3 にし pytest wall を 43.6
 - {{T:acceptance-fixed-cost}} **P2・新規**: 受入の残差 (wall − 最遅 worker) を削る。
   K=2 で 73.53 秒、K=3 で 59.22 秒。K を上げても縮まないため、K=3 到達後は wall の 36.8% を
   占める。内訳 (collection、worker 起動、prewarm、finalization) を分けて測るところから。
+- {{T:dev-wave-docs-budget-full}} **P2・新規・ユーザー裁定待ち**: dev-wave reference の byte 予算に
+  余白がゼロで、実測した手順の穴を 1 行も書けない。本 wave は 4 件を候補にしたが、
+  L1.5 の footprint が 9566 byte 予算に対し 9705 byte になり、2 行の追記すら通らなかった。
+  候補は (i) 引用する計測値がその機構を変えた commit より前でないか機構名の `git log -S` で
+  確かめる (本 wave の主目標が 7 時間前に land 済みだった)、(ii) 受入の実行器と launcher は
+  tested main の blob 束縛で変更した wave は受入を通せない (D838)、(iii) 変異 harness は
+  untracked file も拒否し spec/out を checkout 内に置けない、(iv) `dev_wave_codex.py` の
+  path 引数は絶対 path 必須で `--dry-run` も job-id directory を作る。
+  **予算値の変更は自己改善の範囲外**と契約が定めるので裁定へ送る。
+
 - {{T:real-repo-closure-not-closed}} **P1・新規**: `real-repo` 排他閉包の残る穴を閉じる。
   段 3 の 2 レンズが file:line で示した 3 点 — 無 lock の linked-worktree registry reader
   (前 wave で実際に偽赤を起こした)、登録外 session fixture 2 本による実親 repo object 書込み、
