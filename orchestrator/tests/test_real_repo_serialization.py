@@ -1135,6 +1135,47 @@ def _assert_real_repo_suffix_contract(report: list[dict]) -> None:
         )
 
 
+def _assert_real_repo_suffix_strip_mutation_killer(suite_conftest) -> None:
+    """Exercise suffix stripping with nodeids already materialized by xdist."""
+
+    class SuffixedItem:
+        def __init__(self, canonical_node: str) -> None:
+            filename, function = canonical_node.split("::", 1)
+            self._nodeid = f"orchestrator/tests/{canonical_node}@real-repo"
+            self.path = HERE / filename
+            self.name = f"{function}@real-repo"
+            self.originalname = function
+
+        @property
+        def nodeid(self) -> str:
+            return self._nodeid
+
+    split_node = "test_campaign.py::test_source_digest_parse_options_defaults"
+    split_item = SuffixedItem(split_node)
+    assert suite_conftest._strip_real_repo_loadgroup_suffix(split_item) is True
+    assert split_item.nodeid == f"orchestrator/tests/{split_node}"
+
+    memo_node = (
+        "test_s8b_oracle_driver.py::"
+        "test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing"
+    )
+    memo_item = SuffixedItem(memo_node)
+    assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False
+    assert memo_item.nodeid == f"orchestrator/tests/{memo_node}@real-repo"
+
+    local_only_node = (
+        "test_s8b_oracle_driver.py::"
+        "test_tampered_freeze_fails_source_verification"
+    )
+    local_only_item = SuffixedItem(local_only_node)
+    assert (
+        suite_conftest._strip_real_repo_loadgroup_suffix(local_only_item) is False
+    )
+    assert local_only_item.nodeid == (
+        f"orchestrator/tests/{local_only_node}@real-repo"
+    )
+
+
 def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     """全 group marker と real-repo node 集合を独立 golden で監査する。"""
     _require_pytest()
@@ -1183,6 +1224,7 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(
         _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN
     )
+    _assert_real_repo_suffix_strip_mutation_killer(suite_conftest)
     _assert_fixture_closure_complete(report, resource_golden)
 
     # 系統 1 / 3 の各 fan-out から 1 node を落とすと、正本 seed の閉包検査が赤になる。
