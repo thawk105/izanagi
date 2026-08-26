@@ -8,12 +8,13 @@ generators, incomplete metadata, make variables, response files, symlinked
 metadata, and ambiguous target directories are rejected rather than treated as
 an empty or partial manifest.
 
-The persisted body contains only snapshot-relative paths and content hashes;
-neither the source root nor the build root is part of the canonical body.  A
-manifest proves only which dependency paths the compiler reported and that
-their current bytes match the snapshot entries.  It does not prove dynamic
-predicate reachability and it does not test that any particular declared
-source appears in the dependency set.
+Snapshot inputs are persisted as root-independent relative paths.  Inputs
+outside the snapshot are persisted as normalized absolute paths with content
+hashes; they are not required to be snapshot members.  Descriptor-bound S8b
+collection also carries an independently captured pre-build EVOLVE-BLOCK
+source entry and requires its post-build snapshot bytes to match.  That check
+does not depend on the source merely appearing in the target dependency list.
+The manifest does not prove dynamic predicate reachability.
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ from typing import Any, Mapping
 
 MANIFEST_SCHEMA = "s8b-compiler-input/v1"
 _METADATA_SCHEMA = "cmake-unix-makefiles-cxx-depfile/v1"
+_EXTERNAL_INPUT_POLICY = "snapshot-and-external-hashes/v1"
 _LOWER_HEX = frozenset("0123456789abcdef")
 _TARGET_RE = re.compile(r"[A-Za-z0-9_.+-]+\Z")
 _FLAGS_KEYS = ("CXX_DEFINES", "CXX_INCLUDES", "CXX_FLAGS")
@@ -422,6 +424,62 @@ def _snapshot_entry(
     return relative.as_posix(), current
 
 
+def _external_entry(raw_path: str, *, snapshot_root: Path) -> tuple[str, Path]:
+    path = Path(raw_path)
+    if not path.is_absolute():
+        raise CompilerInputError("external compiler input path is not absolute")
+    normalized = Path(os.path.normpath(os.path.abspath(path)))
+    if normalized.as_posix() != raw_path:
+        raise CompilerInputError("external compiler input path is not normalized")
+    try:
+        resolved = normalized.resolve(strict=True)
+        info = resolved.lstat()
+    except FileNotFoundError as exc:
+        raise CompilerInputError("external compiler input is unavailable") from exc
+    except OSError as exc:
+        raise CompilerInputError(
+            "external compiler input cannot be inspected"
+        ) from exc
+    try:
+        resolved.relative_to(snapshot_root)
+    except ValueError:
+        pass
+    else:
+        return _snapshot_entry(
+            resolved.as_posix(), build_root=snapshot_root,
+            snapshot_root=snapshot_root,
+        )
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise CompilerInputError(
+            "external compiler input is not a non-symlink regular file"
+        )
+    return resolved.as_posix(), resolved
+
+
+def _compiler_input_entry(
+        raw_path: str, *, build_root: Path, snapshot_root: Path,
+        allow_external_inputs: bool,
+) -> tuple[str, Path]:
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = build_root / path
+    normalized = Path(os.path.normpath(os.path.abspath(path)))
+    try:
+        normalized.relative_to(snapshot_root)
+    except ValueError:
+        if not allow_external_inputs:
+            raise CompilerInputError(
+                "compiler input is outside the source snapshot"
+            )
+        return _external_entry(
+            normalized.as_posix(), snapshot_root=snapshot_root,
+        )
+    return _snapshot_entry(
+        normalized.as_posix(), build_root=build_root,
+        snapshot_root=snapshot_root,
+    )
+
+
 def _file_sha256(path: Path) -> str:
     descriptor = -1
     flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
@@ -457,10 +515,72 @@ def _file_sha256(path: Path) -> str:
             os.close(descriptor)
 
 
+def _normalized_hashed_entries(
+        value: object, *, label: str, allow_absolute: bool,
+) -> list[dict[str, str]]:
+    if type(value) is not list or not value:
+        raise CompilerInputError(f"{label} is empty")
+    normalized: list[dict[str, str]] = []
+    previous = ""
+    for entry in value:
+        if type(entry) is not dict or set(entry) != {"path", "sha256"}:
+            raise CompilerInputError(f"{label} entry field set is invalid")
+        path = entry["path"]
+        digest = entry["sha256"]
+        if type(path) is not str or not path or "\0" in path:
+            raise CompilerInputError(f"{label} path is invalid")
+        pure = PurePosixPath(path)
+        if pure.is_absolute():
+            if (
+                not allow_absolute
+                or pure.as_posix() != path
+                or os.path.normpath(path) != path
+            ):
+                raise CompilerInputError(
+                    f"{label} path is not normalized POSIX"
+                )
+        elif pure.as_posix() != path or any(
+                part in {"", ".", ".."} for part in pure.parts):
+            raise CompilerInputError(
+                f"{label} path is not normalized relative POSIX"
+            )
+        if path <= previous:
+            raise CompilerInputError(f"{label} entries are not unique and sorted")
+        if not _is_sha256(digest):
+            raise CompilerInputError(f"{label} bytes hash is invalid")
+        normalized.append({"path": path, "sha256": digest})
+        previous = path
+    return normalized
+
+
+def _normalized_expected_evolve_sources(
+        value: Mapping[str, str] | None,
+) -> list[dict[str, str]] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or not value:
+        raise CompilerInputError(
+            "expected EVOLVE-BLOCK source entries are invalid"
+        )
+    raw = [
+        {"path": path, "sha256": value[path]}
+        for path in sorted(value)
+    ]
+    return _normalized_hashed_entries(
+        raw, label="EVOLVE-BLOCK source", allow_absolute=False,
+    )
+
+
 def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, Any]:
-    if type(manifest) is not dict or set(manifest) != {
+    base_keys = {
         "schema_version", "metadata_schema", "target", "depfile_count", "inputs",
-    }:
+    }
+    descriptor_keys = base_keys | {"input_policy"}
+    if type(manifest) is not dict or set(manifest) not in (
+        base_keys,
+        descriptor_keys,
+        descriptor_keys | {"evolve_block_sources"},
+    ):
         raise CompilerInputError("compiler input manifest field set is invalid")
     if manifest["schema_version"] != MANIFEST_SCHEMA:
         raise CompilerInputError("compiler input manifest schema is invalid")
@@ -471,42 +591,36 @@ def _normalized_manifest(manifest: object, *, target: str | None) -> dict[str, A
         raise CompilerInputError("compiler input manifest target is inconsistent")
     if type(manifest["depfile_count"]) is not int or manifest["depfile_count"] <= 0:
         raise CompilerInputError("compiler input depfile count is invalid")
-    raw_inputs = manifest["inputs"]
-    if type(raw_inputs) is not list or not raw_inputs:
-        raise CompilerInputError("compiler input manifest is empty")
-    inputs: list[dict[str, str]] = []
-    previous = ""
-    for entry in raw_inputs:
-        if type(entry) is not dict or set(entry) != {"path", "sha256"}:
-            raise CompilerInputError("compiler input entry field set is invalid")
-        relative = entry["path"]
-        digest = entry["sha256"]
-        if type(relative) is not str or not relative or "\0" in relative:
-            raise CompilerInputError("compiler input relative path is invalid")
-        pure = PurePosixPath(relative)
-        if pure.is_absolute() or pure.as_posix() != relative or any(
-                part in {"", ".", ".."} for part in pure.parts):
-            raise CompilerInputError("compiler input path is not normalized relative POSIX")
-        if relative <= previous:
-            raise CompilerInputError("compiler input entries are not unique and sorted")
-        if not _is_sha256(digest):
-            raise CompilerInputError("compiler input bytes hash is invalid")
-        inputs.append({"path": relative, "sha256": digest})
-        previous = relative
-    return {
+    input_policy = manifest.get("input_policy")
+    if input_policy is not None and input_policy != _EXTERNAL_INPUT_POLICY:
+        raise CompilerInputError("compiler input policy is invalid")
+    inputs = _normalized_hashed_entries(
+        manifest["inputs"], label="compiler input",
+        allow_absolute=input_policy == _EXTERNAL_INPUT_POLICY,
+    )
+    normalized = {
         "schema_version": MANIFEST_SCHEMA,
         "metadata_schema": _METADATA_SCHEMA,
         "target": selected_target,
         "depfile_count": manifest["depfile_count"],
         "inputs": inputs,
     }
+    if input_policy is not None:
+        normalized["input_policy"] = input_policy
+    if "evolve_block_sources" in manifest:
+        normalized["evolve_block_sources"] = _normalized_hashed_entries(
+            manifest["evolve_block_sources"],
+            label="EVOLVE-BLOCK source", allow_absolute=False,
+        )
+    return normalized
 
 
 def validate_compiler_input_manifest(
     manifest: object, expected_sha256: object, *,
     snapshot_root: os.PathLike[str] | str, target: str | None = None,
+    expected_evolve_block_sources: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Validate canonical structure and every recorded snapshot-entry hash."""
+    """Validate all input bytes and any independent EVOLVE-BLOCK source proof."""
     normalized = _normalized_manifest(manifest, target=target)
     if not _is_sha256(expected_sha256):
         raise CompilerInputError("compiler input manifest sha256 is invalid")
@@ -516,22 +630,52 @@ def validate_compiler_input_manifest(
         snapshot_root, label="source snapshot", allow_symlink_root=True,
     )
     for entry in normalized["inputs"]:
+        recorded, path = _compiler_input_entry(
+            entry["path"], build_root=snapshot, snapshot_root=snapshot,
+            allow_external_inputs=True,
+        )
+        if recorded != entry["path"]:
+            raise CompilerInputError("compiler input path changed during validation")
+        if _file_sha256(path) != entry["sha256"]:
+            if Path(entry["path"]).is_absolute():
+                raise CompilerInputError(
+                    "external compiler input bytes differ from the manifest"
+                )
+            raise CompilerInputError(
+                "compiler input bytes differ from the snapshot entry"
+            )
+    expected_sources = _normalized_expected_evolve_sources(
+        expected_evolve_block_sources,
+    )
+    recorded_sources = normalized.get("evolve_block_sources")
+    if expected_sources is not None and recorded_sources != expected_sources:
+        raise CompilerInputError(
+            "EVOLVE-BLOCK source proof differs from the admitted snapshot entry"
+        )
+    for entry in recorded_sources or ():
         relative, path = _snapshot_entry(
             entry["path"], build_root=snapshot, snapshot_root=snapshot,
         )
-        if relative != entry["path"]:
-            raise CompilerInputError("compiler input path changed during validation")
-        if _file_sha256(path) != entry["sha256"]:
-            raise CompilerInputError("compiler input bytes differ from the snapshot entry")
+        if relative != entry["path"] or _file_sha256(path) != entry["sha256"]:
+            raise CompilerInputError(
+                "EVOLVE-BLOCK source bytes differ from the admitted snapshot entry"
+            )
     return normalized
 
 
 def collect_compiler_input_manifest(
     build_dir: os.PathLike[str] | str,
     snapshot_root: os.PathLike[str] | str,
-    *, target: str,
+    *, target: str, allow_external_inputs: bool = False,
+    expected_evolve_block_sources: Mapping[str, str] | None = None,
 ) -> CompilerInputManifest:
-    """Collect and validate one strict root-independent compiler-input manifest."""
+    """Collect one strict manifest, optionally admitting hashed external inputs."""
+    if type(allow_external_inputs) is not bool:
+        raise TypeError("allow_external_inputs must be exact bool")
+    if expected_evolve_block_sources is not None and not allow_external_inputs:
+        raise CompilerInputError(
+            "EVOLVE-BLOCK source proof requires descriptor input policy"
+        )
     build = _directory(build_dir, label="CMake build directory")
     snapshot = _directory(
         snapshot_root, label="source snapshot", allow_symlink_root=True,
@@ -558,9 +702,10 @@ def collect_compiler_input_manifest(
             build, target_dir, depfile,
         )
         for raw_input in raw_inputs:
-            relative, path = _snapshot_entry(
+            relative, path = _compiler_input_entry(
                 raw_input, build_root=compiler_working_directory,
                 snapshot_root=snapshot,
+                allow_external_inputs=allow_external_inputs,
             )
             digest = _file_sha256(path)
             previous = entries.setdefault(relative, digest)
@@ -576,8 +721,16 @@ def collect_compiler_input_manifest(
             for relative in sorted(entries)
         ],
     }
+    if allow_external_inputs:
+        manifest["input_policy"] = _EXTERNAL_INPUT_POLICY
+    expected_sources = _normalized_expected_evolve_sources(
+        expected_evolve_block_sources,
+    )
+    if expected_sources is not None:
+        manifest["evolve_block_sources"] = expected_sources
     digest = manifest_sha256(manifest)
     normalized = validate_compiler_input_manifest(
         manifest, digest, snapshot_root=snapshot, target=selected_target,
+        expected_evolve_block_sources=expected_evolve_block_sources,
     )
     return CompilerInputManifest(normalized, digest)

@@ -2433,6 +2433,35 @@ def test_v2_identity_optional_snapshot_preserves_legacy_digest_and_separates_pro
     assert first[1] != second[1]
 
 
+def test_descriptor_compiler_input_policy_has_distinct_v2_identity():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {
+            "requested": role,
+            "realpath": f"/tool/{role}",
+            "version_first_line": "v1",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    common = dict(
+        source_snapshot_sha256="1" * 64,
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+    )
+    legacy_snapshot = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **common,
+    )
+    descriptor_snapshot = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        compiler_input_policy="snapshot-and-external-hashes/v1", **common,
+    )
+
+    assert descriptor_snapshot[0]["compiler_input_policy"] == (
+        "snapshot-and-external-hashes/v1"
+    )
+    assert descriptor_snapshot[1] != legacy_snapshot[1]
+
+
 def test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manifest(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)

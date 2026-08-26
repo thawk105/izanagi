@@ -121,6 +121,81 @@ def test_external_compiler_input_is_rejected(tmp_path):
         )
 
 
+def test_descriptor_policy_hashes_external_input_without_snapshot_membership(
+        tmp_path):
+    snapshot = tmp_path / "snapshot"
+    evolve_source = snapshot / "include" / "predicate.hh"
+    evolve_source.parent.mkdir(parents=True)
+    evolve_source.write_bytes(b"bool predicate = true;\n")
+    outside = tmp_path / "system" / "header.hh"
+    outside.parent.mkdir()
+    outside.write_bytes(b"#define SYSTEM_VALUE 9\n")
+    build = tmp_path / "build"
+    _write_build_shape(build, snapshot, input_path=outside)
+    expected_sources = {
+        "include/predicate.hh": hashlib.sha256(
+            evolve_source.read_bytes()
+        ).hexdigest(),
+    }
+
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        expected_evolve_block_sources=expected_sources,
+    )
+
+    assert collected.manifest["input_policy"] == (
+        "snapshot-and-external-hashes/v1"
+    )
+    assert collected.manifest["inputs"] == [{
+        "path": str(outside.resolve()),
+        "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
+    }]
+    assert collected.manifest["evolve_block_sources"] == [{
+        "path": "include/predicate.hh",
+        "sha256": expected_sources["include/predicate.hh"],
+    }]
+    assert "include/predicate.hh" not in {
+        entry["path"] for entry in collected.manifest["inputs"]
+    }
+
+
+def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    outside = tmp_path / "outside.hh"
+    outside.write_bytes(b"outside-v1\n")
+    build = tmp_path / "build"
+    _write_build_shape(build, snapshot, input_path=outside)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+    )
+    outside.write_bytes(b"outside-v2\n")
+
+    with pytest.raises(compiler_input.CompilerInputError, match="external.*bytes"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot, target=TARGET,
+        )
+
+
+def test_evolve_block_source_requires_prebuild_snapshot_bytes(tmp_path):
+    snapshot, build = _fixture(tmp_path)
+    source = snapshot / "include" / "predicate.hh"
+    source.write_bytes(b"predicate-v1\n")
+    expected_sources = {
+        "include/predicate.hh": hashlib.sha256(source.read_bytes()).hexdigest(),
+    }
+    source.write_bytes(b"predicate-v2\n")
+
+    with pytest.raises(
+            compiler_input.CompilerInputError,
+            match="EVOLVE-BLOCK source bytes differ"):
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET, allow_external_inputs=True,
+            expected_evolve_block_sources=expected_sources,
+        )
+
+
 def test_missing_depfile_for_linked_object_is_rejected(tmp_path):
     snapshot, build = _fixture(tmp_path)
     target_dir = build / "cc" / "silo" / "CMakeFiles" / f"{TARGET}.dir"

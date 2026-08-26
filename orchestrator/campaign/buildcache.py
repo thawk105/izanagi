@@ -12,6 +12,7 @@ wrapper の実体だけを束縛すると背後の実 compiler 差替えを見�
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -1291,6 +1292,7 @@ def _v2_identity(
         fetchcontent_transport_mode: Optional[str] = None,
         fetchcontent_population_policy: Optional[str] = None,
         fetchcontent_dependency_manifest_sha256: Optional[object] = None,
+        compiler_input_policy: Optional[str] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     if (source_snapshot_sha256 is not None
@@ -1311,6 +1313,14 @@ def _v2_identity(
     }
     if source_snapshot_sha256 is not None:
         preimage["source_snapshot_sha256"] = source_snapshot_sha256
+    if compiler_input_policy is not None:
+        if compiler_input_policy != "snapshot-and-external-hashes/v1":
+            raise BuildCacheError("compiler input policy が不正")
+        if source_snapshot_sha256 is None:
+            raise BuildCacheError(
+                "compiler input policy は source snapshot と同時指定必須"
+            )
+        preimage["compiler_input_policy"] = compiler_input_policy
     receipt = _validate_fetchcontent_dependency_receipt(
         fetchcontent_dependency_receipt,
     )
@@ -1372,6 +1382,55 @@ def _assert_source_snapshot_sha256(
         raise BuildCacheError(
             "source snapshot tree digest が build request と不一致"
         )
+
+
+def _collect_compiler_inputs(
+        build_dir: str, snapshot_root: str, *, target: str,
+        allow_external_inputs: bool,
+        expected_evolve_block_sources: Optional[Mapping[str, str]],
+) -> s8b_compiler_input.CompilerInputManifest:
+    """Call the production collector with the descriptor-bound policy.
+
+    Older unit fakes expose only the legacy ``target`` keyword.  They remain a
+    test seam when no EVOLVE-BLOCK source proof is expected; a real descriptor
+    source can never silently lose its independent bytes check.
+    """
+    collector = s8b_compiler_input.collect_compiler_input_manifest
+    kwargs: Dict[str, Any] = {"target": target}
+    try:
+        parameters = inspect.signature(collector).parameters
+    except (TypeError, ValueError):
+        parameters = {}
+    supports_policy = (
+        (
+            "allow_external_inputs" in parameters
+            and "expected_evolve_block_sources" in parameters
+        )
+        or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        )
+    )
+    if supports_policy:
+        kwargs.update({
+            "allow_external_inputs": allow_external_inputs,
+            "expected_evolve_block_sources": expected_evolve_block_sources,
+        })
+    elif expected_evolve_block_sources:
+        raise BuildCacheError(
+            "compiler input collector does not expose EVOLVE-BLOCK bytes proof"
+        )
+    result = collector(build_dir, snapshot_root, **kwargs)
+    if allow_external_inputs and not supports_policy:
+        if type(result) is not s8b_compiler_input.CompilerInputManifest:
+            return result
+        manifest = dict(result.manifest)
+        manifest["input_policy"] = "snapshot-and-external-hashes/v1"
+        return s8b_compiler_input.CompilerInputManifest(
+            manifest=manifest,
+            manifest_sha256=s8b_compiler_input.manifest_sha256(manifest),
+        )
+    return result
 
 
 def _fsync_dir(path: str) -> None:
@@ -1526,6 +1585,7 @@ def _validate_v2_entry(
         build_context: BuildRunContext, source_evidence: SourceEvidence,
         source_snapshot_root: Optional[str] = None,
         compiler_target: Optional[str] = None,
+        expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         complete_toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         complete_toolchain_manifest_sha256: Optional[str] = None,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
@@ -1628,8 +1688,16 @@ def _validate_v2_entry(
                         manifest["compiler_input_manifest_sha256"],
                         snapshot_root=source_snapshot_root,
                         target=compiler_target,
+                        expected_evolve_block_sources=(
+                            expected_evolve_block_sources
+                        ),
                     )
                 )
+                if compiler_input_manifest.get("input_policy") != preimage.get(
+                        "compiler_input_policy"):
+                    raise s8b_compiler_input.CompilerInputError(
+                        "compiler input policy differs from cache preimage"
+                    )
             except s8b_compiler_input.CompilerInputError as exc:
                 raise BuildCacheError(
                     f"v2 compiler input manifest 検証失敗: {manifest_path}: {exc}"
@@ -2078,6 +2146,8 @@ def _build_v2_impl(
         genome: Genome, *, admission: BuildAdmission,
         build_context: BuildRunContext, source_evidence: SourceEvidence,
         source_snapshot_sha256: Optional[str] = None,
+        allow_external_compiler_inputs: bool = False,
+        expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
@@ -2123,6 +2193,13 @@ def _build_v2_impl(
     する。hit 側でも同じ validator を通す。未指定時は共有 API の従来 caller のため、
     preimage と completion に field を足さず、manifest の採取・照合も行わない。
 
+    Declaration descriptor 経路は compiler-input policy を preimage に固定する。
+    snapshot 内 input は snapshot entry bytes と一致必須、snapshot 外 input は
+    absolute path と bytes hash を記録して snapshot 在籍を要求しない。選択された
+    EVOLVE-BLOCK source がある configuration では、build 前に捕えた snapshot entry
+    hash を build 後の source bytes と比較する。target dependency list への在籍だけを
+    保証にはしない。
+
     この条件分岐は S8b の検査を外せる knob ではない。S8b 境界の receipt 発行器が
     compiler-input manifest を無条件に要求するため、snapshot 無しの binary には receipt
     を発行できない。共有 build 器が証拠を渡された場合に全検査する「条件付き検査」と、
@@ -2163,6 +2240,16 @@ def _build_v2_impl(
         raise BuildCacheError(
             "source_snapshot_sha256 は None または exact lowercase SHA-256"
         )
+    if type(allow_external_compiler_inputs) is not bool:
+        raise TypeError("allow_external_compiler_inputs は exact bool が必要")
+    if allow_external_compiler_inputs and source_snapshot_sha256 is None:
+        raise BuildCacheError(
+            "external compiler input policy は source snapshot と同時指定必須"
+        )
+    if expected_evolve_block_sources is not None:
+        if not isinstance(expected_evolve_block_sources, Mapping):
+            raise TypeError("expected_evolve_block_sources は Mapping が必要")
+        expected_evolve_block_sources = dict(expected_evolve_block_sources)
     if type(trace) is not bool:
         raise TypeError(f"trace は bool でなければならない: {trace!r}")
     if declared_use_class == "official" and expected_toolchain_manifest is None:
@@ -2325,6 +2412,10 @@ def _build_v2_impl(
             post_oracle_binding["dependency_manifest_sha256"]
             if post_oracle_binding is not None else None
         ),
+        compiler_input_policy=(
+            "snapshot-and-external-hashes/v1"
+            if allow_external_compiler_inputs else None
+        ),
     )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
@@ -2359,6 +2450,7 @@ def _build_v2_impl(
                     f"ycsb_{genome.protocol}.exe"
                     if source_snapshot_sha256 is not None else None
                 ),
+                expected_evolve_block_sources=expected_evolve_block_sources,
                 complete_toolchain_manifest=complete_toolchain_manifest,
                 complete_toolchain_manifest_sha256=complete_toolchain_manifest_sha256,
                 parent_fd=parent_fd, bdir_name=bdir_name,
@@ -2482,11 +2574,13 @@ def _build_v2_impl(
                 # .o.d は staging 破棄後に失われる。build 成功と同じ lifetime 内で
                 # strict metadata を採り、snapshot bytes へ束縛する。
                 try:
-                    compiler_inputs = (
-                        s8b_compiler_input.collect_compiler_input_manifest(
-                            staging, sub,
-                            target=f"ycsb_{genome.protocol}.exe",
-                        )
+                    compiler_inputs = _collect_compiler_inputs(
+                        staging, sub,
+                        target=f"ycsb_{genome.protocol}.exe",
+                        allow_external_inputs=allow_external_compiler_inputs,
+                        expected_evolve_block_sources=(
+                            expected_evolve_block_sources
+                        ),
                     )
                     if type(compiler_inputs) is not (
                             s8b_compiler_input.CompilerInputManifest):
@@ -2499,8 +2593,17 @@ def _build_v2_impl(
                             compiler_inputs.manifest_sha256,
                             snapshot_root=sub,
                             target=f"ycsb_{genome.protocol}.exe",
+                            expected_evolve_block_sources=(
+                                expected_evolve_block_sources
+                            ),
                         )
                     )
+                    if compiler_input_manifest.get(
+                            "input_policy") != preimage.get(
+                                "compiler_input_policy"):
+                        raise s8b_compiler_input.CompilerInputError(
+                            "compiler input policy differs from cache preimage"
+                        )
                 except s8b_compiler_input.CompilerInputError as exc:
                     raise BuildCacheError(
                         f"v2 compiler input manifest 採取失敗: {exc}"
@@ -2789,6 +2892,11 @@ def build_v2(
             result = _build_v2_impl(
                 genome,
                 source_snapshot_sha256=admitted.source_snapshot_sha256,
+                allow_external_compiler_inputs=True,
+                expected_evolve_block_sources=(
+                    dict(admitted.evolve_block_sources)
+                    if admitted.evolve_block_sources else None
+                ),
                 **common,
             )
             return replace(

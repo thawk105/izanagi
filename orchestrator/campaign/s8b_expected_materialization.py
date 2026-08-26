@@ -7,6 +7,17 @@ Only an exact digest match admits the caller's materialized worktree.  The
 admitted worktree is then made non-writable and becomes the snapshot from which
 later source evidence is derived.
 
+The production replay authority is the repository's own ``external/ccbench``
+checkout, not Git metadata reachable through the candidate snapshot.  Git
+replacement objects are disabled while the disposable reference is created.
+
+Protection also removes write bits from the snapshot's parent directory and
+checks the snapshot root's device/inode identity before and after the consumer
+body.  That closes pathname replacement by an ordinary writer which honors the
+protected modes.  It is not a sandbox boundary: the directory owner can restore
+write permission, and a privileged actor can rename entries despite these mode
+bits.  Those actors remain outside the guarantee made here.
+
 This mechanism does not prove that the materializer itself is correct.  The
 reference materialization passes through the same implementation, so a planted
 behavior in that implementation can be reproduced on both sides.  It closes
@@ -118,6 +129,9 @@ class SnapshotPermissionState:
     root: str
     modes: tuple[tuple[str, int], ...]
     tree_digest: str
+    parent: str = ""
+    root_fd: int = -1
+    parent_fd: int = -1
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +141,7 @@ class AdmittedBuildSnapshot:
     source_snapshot_sha256: str
     expected_materialization_sha256: str
     source_evidence: source_digest.SourceEvidence
+    evolve_block_sources: tuple[tuple[str, str], ...] = ()
 
 
 def _is_sha256(value: object) -> bool:
@@ -150,6 +165,52 @@ def _root_path(root: os.PathLike[str] | str) -> Path:
             "snapshot root is not a directory (reason=root-type count=1)"
         )
     return path
+
+
+def _root_identity(root: Path) -> tuple[int, int]:
+    """Return one non-symlink directory identity for the named snapshot root."""
+    try:
+        info = root.lstat()
+    except OSError as exc:
+        raise ExpectedMaterializationError(
+            "snapshot root identity is unavailable "
+            "(reason=root-identity-lstat count=1)"
+        ) from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise ExpectedMaterializationError(
+            "snapshot root identity is not a directory "
+            "(reason=root-identity-type count=1)"
+        )
+    return info.st_dev, info.st_ino
+
+
+def _assert_root_identity(root: Path, expected: tuple[int, int], *, stage: str) -> None:
+    if _root_identity(root) != expected:
+        raise ExpectedMaterializationError(
+            "snapshot root identity changed "
+            f"(reason=root-identity-{stage} count=1)"
+        )
+
+
+def _repository_ccbench_authority() -> Path:
+    """Return the repository-owned Git authority used by production replay."""
+    return Path(__file__).resolve().parents[2] / "external" / "ccbench"
+
+
+@contextlib.contextmanager
+def _git_replacements_disabled() -> Iterator[None]:
+    """Set Git's process environment switch and restore its exact prior state."""
+    key = "GIT_NO_REPLACE_OBJECTS"
+    missing = object()
+    previous: object = os.environ.get(key, missing)
+    os.environ[key] = "1"
+    try:
+        yield
+    finally:
+        if previous is missing:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = str(previous)
 
 
 def _relative_bytes(relative: str) -> bytes:
@@ -271,6 +332,60 @@ def _declared_source_path(root: Path, source_rel: str) -> Path:
     return path
 
 
+def _regular_file_sha256(path: Path) -> str:
+    """Hash one held regular-file inode and reject an in-read bytes race."""
+    descriptor = -1
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(
+        os, "O_NOFOLLOW", 0,
+    )
+    try:
+        entry = path.lstat()
+        descriptor = os.open(path, flags)
+        before = os.fstat(descriptor)
+        if (
+            stat.S_ISLNK(entry.st_mode)
+            or not stat.S_ISREG(entry.st_mode)
+            or not stat.S_ISREG(before.st_mode)
+            or (entry.st_dev, entry.st_ino) != (before.st_dev, before.st_ino)
+        ):
+            raise ExpectedMaterializationError(
+                "EVOLVE-BLOCK source type is invalid "
+                "(reason=evolve-source-type count=1)"
+            )
+        digest = hashlib.sha256()
+        total = 0
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        stable = (
+            before.st_dev, before.st_ino, before.st_size,
+            before.st_mtime_ns, before.st_ctime_ns,
+        ) == (
+            after.st_dev, after.st_ino, after.st_size,
+            after.st_mtime_ns, after.st_ctime_ns,
+        )
+        if total != before.st_size or not stable:
+            raise ExpectedMaterializationError(
+                "EVOLVE-BLOCK source changed while hashing "
+                "(reason=evolve-source-race count=1)"
+            )
+        return digest.hexdigest()
+    except ExpectedMaterializationError:
+        raise
+    except OSError as exc:
+        raise ExpectedMaterializationError(
+            "EVOLVE-BLOCK source bytes cannot be read "
+            "(reason=evolve-source-read count=1)"
+        ) from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
 def snapshot_tree_digest(root: os.PathLike[str] | str) -> str:
     """Hash every tree entry except names in the explicit exclusion set.
 
@@ -366,16 +481,56 @@ def _all_permission_nodes(root: Path) -> list[tuple[Path, int]]:
     return nodes
 
 
-def restore_snapshot_permissions(state: SnapshotPermissionState) -> None:
-    """Restore modes before the disposable worktree is reverted and removed."""
-    if type(state) is not SnapshotPermissionState:
-        raise TypeError("state must be exact SnapshotPermissionState")
+def _restore_permission_modes(
+        modes: tuple[tuple[str, int], ...], *, root: Path, parent: Path,
+        root_fd: int, parent_fd: int,
+) -> int:
+    """Restore through held directory fds so root pathname replacement is harmless."""
     failures = 0
-    for raw_path, mode in sorted(state.modes, key=lambda item: item[0].count(os.sep)):
+    # Keep the parent directory protected until every descendant mode is back.
+    for raw_path, mode in sorted(
+            modes, key=lambda item: item[0].count(os.sep), reverse=True):
         try:
-            os.chmod(raw_path, mode, follow_symlinks=False)
+            if root_fd >= 0 and raw_path == os.fspath(root):
+                os.fchmod(root_fd, mode)
+            elif parent_fd >= 0 and raw_path == os.fspath(parent):
+                os.fchmod(parent_fd, mode)
+            elif root_fd >= 0:
+                relative = Path(raw_path).relative_to(root)
+                os.chmod(
+                    relative.as_posix(), mode, dir_fd=root_fd,
+                    follow_symlinks=False,
+                )
+            else:
+                os.chmod(raw_path, mode, follow_symlinks=False)
+        except (OSError, ValueError):
+            failures += 1
+    return failures
+
+
+def _close_permission_anchors(*fds: int) -> int:
+    failures = 0
+    for descriptor in fds:
+        if descriptor < 0:
+            continue
+        try:
+            os.close(descriptor)
         except OSError:
             failures += 1
+    return failures
+
+
+def restore_snapshot_permissions(state: SnapshotPermissionState) -> None:
+    """Restore original modes through held fds, then release both anchors."""
+    if type(state) is not SnapshotPermissionState:
+        raise TypeError("state must be exact SnapshotPermissionState")
+    root = Path(state.root)
+    parent = Path(state.parent) if state.parent else root.parent
+    failures = _restore_permission_modes(
+        state.modes, root=root, parent=parent,
+        root_fd=state.root_fd, parent_fd=state.parent_fd,
+    )
+    failures += _close_permission_anchors(state.root_fd, state.parent_fd)
     if failures:
         raise ExpectedMaterializationError(
             "snapshot permissions could not be restored "
@@ -386,11 +541,37 @@ def restore_snapshot_permissions(state: SnapshotPermissionState) -> None:
 def make_snapshot_non_writable(
         snapshot_root: os.PathLike[str] | str,
 ) -> SnapshotPermissionState:
-    """Remove write bits throughout a snapshot and prove its tree digest is unchanged."""
+    """Protect the snapshot and its parent, preserving modes for exact rollback."""
     root = _root_path(snapshot_root)
-    before = snapshot_tree_digest(root)
-    nodes = _all_permission_nodes(root)
-    modes = tuple((os.fspath(path), mode) for path, mode in nodes)
+    parent = _root_path(root.parent)
+    root_fd = parent_fd = -1
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(
+        os, "O_DIRECTORY", 0,
+    ) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        parent_fd = os.open(parent, flags)
+        root_fd = os.open(root, flags)
+        if (
+            _root_identity(parent)
+            != (os.fstat(parent_fd).st_dev, os.fstat(parent_fd).st_ino)
+            or _root_identity(root)
+            != (os.fstat(root_fd).st_dev, os.fstat(root_fd).st_ino)
+        ):
+            raise ExpectedMaterializationError(
+                "snapshot permission anchor identity changed "
+                "(reason=permission-anchor-race count=1)"
+            )
+    except Exception:
+        _close_permission_anchors(root_fd, parent_fd)
+        raise
+    try:
+        before = snapshot_tree_digest(root)
+        nodes = _all_permission_nodes(root)
+        nodes.append((parent, stat.S_IMODE(parent.lstat().st_mode)))
+        modes = tuple((os.fspath(path), mode) for path, mode in nodes)
+    except Exception:
+        _close_permission_anchors(root_fd, parent_fd)
+        raise
     changed: list[tuple[str, int]] = []
     try:
         for raw_path, mode in sorted(modes, key=lambda item: item[0].count(os.sep),
@@ -413,12 +594,11 @@ def make_snapshot_non_writable(
                 "(reason=readonly-digest-mismatch count=1)"
             )
     except Exception:
-        failures = 0
-        for raw_path, mode in sorted(changed, key=lambda item: item[0].count(os.sep)):
-            try:
-                os.chmod(raw_path, mode, follow_symlinks=False)
-            except OSError:
-                failures += 1
+        failures = _restore_permission_modes(
+            tuple(changed), root=root, parent=parent,
+            root_fd=root_fd, parent_fd=parent_fd,
+        )
+        failures += _close_permission_anchors(root_fd, parent_fd)
         if failures:
             raise ExpectedMaterializationError(
                 "snapshot protection failed and modes could not be restored "
@@ -427,6 +607,7 @@ def make_snapshot_non_writable(
         raise
     return SnapshotPermissionState(
         root=os.fspath(root), modes=modes, tree_digest=before,
+        parent=os.fspath(parent), root_fd=root_fd, parent_fd=parent_fd,
     )
 
 
@@ -484,8 +665,9 @@ def produce_expected_materialization_sha256(
             "reference declaration path is invalid (reason=path-type count=1)"
         ) from exc
 
-    with patchharness.checkout(ccbench_commit, base_dir=base) as reference_root:
-        with contextlib.ExitStack() as stack:
+    with _git_replacements_disabled():
+        checkout = patchharness.checkout(ccbench_commit, base_dir=base)
+        with checkout as reference_root, contextlib.ExitStack() as stack:
             if patch is not None:
                 stack.enter_context(patchharness.applied(
                     patch, ccbench_commit, ccbench_dir=reference_root,
@@ -557,6 +739,7 @@ def _declaration_recipe(
     implementation: Optional[str] = None
     marker_id: Optional[str] = None
     source_rel: Optional[str] = None
+    evolve_block_source_rel: Optional[str] = None
     quarantine_fn: Optional[Callable] = None
 
     if configuration in {"system_gate", "ident_all"}:
@@ -573,6 +756,7 @@ def _declaration_recipe(
         implementation = trigger_gate_binding.canonicalize_predicate(raw)
         marker_id = gate_axis.MARKER_ID
         source_rel = gate_axis.SOURCE_REL
+        evolve_block_source_rel = source_rel
         template_patch = root / "patches" / gate_axis.TEMPLATE_PATCH
         quarantine_fn = loop_axis.quarantine
     elif configuration == "sort_best":
@@ -584,10 +768,12 @@ def _declaration_recipe(
         implementation = raw
         marker_id = sort_axis.MARKER_ID
         source_rel = sort_axis.SOURCE_REL
+        evolve_block_source_rel = source_rel
         template_patch = root / sort_axis.TEMPLATE_PATCH
         quarantine_fn = loop_axis.quarantine
     elif configuration == "backoff_fixed_best":
         template_patch = root / loop_axis.TEMPLATE_PATCH
+        evolve_block_source_rel = loop_axis.SOURCE_REL
     elif configuration not in {"p2_2_flag_opt", "stock", "stock_common"}:
         raise ExpectedMaterializationError(
             "reference declaration is invalid (reason=configuration-set count=1)"
@@ -599,6 +785,7 @@ def _declaration_recipe(
         "marker_id": marker_id,
         "source_rel": source_rel,
         "quarantine_fn": quarantine_fn,
+        "evolve_block_source_rel": evolve_block_source_rel,
     }
 
 
@@ -669,19 +856,26 @@ def admitted_build_snapshot(
     only at the build boundary.  There are no injected callables or bypass
     switches: declaration replay, exact comparison, protection, and evidence
     rederivation always run in this order.  The snapshot remains non-writable
-    until the caller leaves the context after consuming the build result.
+    until the caller leaves the context after consuming the build result.  Its
+    parent remains non-writable over the same interval, and the named root must
+    retain its original device/inode identity.  This is a discretionary-mode
+    boundary, not protection against the owner restoring permission or a
+    privileged actor replacing the pathname.
     """
+    root = _root_path(snapshot_root)
+    root_identity = _root_identity(root)
     expected_digest = produce_expected_materialization_from_declaration(
         ccbench_commit=ccbench_commit,
         configuration=configuration,
         declaration=declaration,
-        base_dir=snapshot_root,
+        base_dir=_repository_ccbench_authority(),
     )
     actual_digest = assert_expected_materialization(
         snapshot_root, expected_digest,
     )
     permission_state = make_snapshot_non_writable(snapshot_root)
     try:
+        _assert_root_identity(root, root_identity, stage="before-build")
         if permission_state.tree_digest != actual_digest:
             raise ExpectedMaterializationError(
                 "snapshot changed before protection completed "
@@ -709,10 +903,27 @@ def admitted_build_snapshot(
                 "non-writable snapshot src_token differs from prepared result "
                 "(reason=src-token-mismatch count=1)"
             )
+        recipe = _declaration_recipe(
+            configuration=configuration, declaration=declaration,
+        )
+        evolve_block_sources: tuple[tuple[str, str], ...] = ()
+        source_rel = recipe["evolve_block_source_rel"]
+        if source_rel is not None:
+            source_path = _declared_source_path(root, source_rel)
+            source_sha256 = _regular_file_sha256(source_path)
+            evolve_block_sources = ((source_rel, source_sha256),)
         yield AdmittedBuildSnapshot(
             source_snapshot_sha256=actual_digest,
             expected_materialization_sha256=expected_digest,
             source_evidence=evidence,
+            evolve_block_sources=evolve_block_sources,
         )
     finally:
+        identity_error: Optional[ExpectedMaterializationError] = None
+        try:
+            _assert_root_identity(root, root_identity, stage="after-build")
+        except ExpectedMaterializationError as exc:
+            identity_error = exc
         restore_snapshot_permissions(permission_state)
+        if identity_error is not None:
+            raise identity_error

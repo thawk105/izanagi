@@ -6290,12 +6290,15 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
 def test_materializer_registry_covers_all_python_build_launches():
     """Direct CMake は deny registry、buildcache caller は U1/U2 gateway 引数を必須化する。"""
     campaign_root = ROOT / "orchestrator/campaign"
-    direct_cmake: set[str] = set()
+    direct_cmake: set[str] = {
+        "orchestrator/campaign/s8b_expected_materialization.py:"
+        "produce_expected_materialization_sha256",
+    }
     missing_admission: list[str] = []
     seen_gateways: set[str] = set()
     admitted_gateways = {
         "orchestrator/campaign/pipeline.py:evaluate",
-        "orchestrator/campaign/s8b_floor_campaign.py:build_cells",
+        "orchestrator/campaign/s8b_floor_campaign.py:invoke_build",
     }
 
     def static_keyword_names(call, owner) -> set[str]:
@@ -6321,9 +6324,11 @@ def test_materializer_registry_covers_all_python_build_launches():
                 continue
             keys = bindings[0].keys
             if all(
-                    isinstance(key, ast.Constant) and isinstance(key.value, str)
+                    key is None
+                    or (isinstance(key, ast.Constant)
+                        and isinstance(key.value, str))
                     for key in keys):
-                names.update(key.value for key in keys)
+                names.update(key.value for key in keys if key is not None)
         return names
 
     for path in sorted(campaign_root.rglob("*.py")):
@@ -6366,7 +6371,7 @@ def test_materializer_registry_covers_all_python_build_launches():
             )
             is_floor_materializer_call = (
                 qualified == "build_fn"
-                and site == "orchestrator/campaign/s8b_floor_campaign.py:build_cells"
+                and site == "orchestrator/campaign/s8b_floor_campaign.py:invoke_build"
             )
             if not is_buildcache_call and not is_floor_materializer_call:
                 continue

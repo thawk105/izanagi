@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import inspect
 import os
 import shutil
@@ -94,6 +95,7 @@ def test_non_writable_transition_preserves_digest_and_restores_all_modes(tmp_pat
         for path in (root, root / ".git", root / ".hidden-input",
                      root / "src", root / "src" / "main.cc")
     }
+    parent_mode = _mode(root.parent)
     before = E.snapshot_tree_digest(root)
 
     state = E.make_snapshot_non_writable(root)
@@ -103,6 +105,7 @@ def test_non_writable_transition_preserves_digest_and_restores_all_modes(tmp_pat
         for path in (root, root / ".git", root / ".hidden-input",
                      root / "src", root / "src" / "main.cc"):
             assert _mode(path) & 0o222 == 0
+        assert _mode(root.parent) & 0o222 == 0
     finally:
         E.restore_snapshot_permissions(state)
     restored = {
@@ -111,10 +114,12 @@ def test_non_writable_transition_preserves_digest_and_restores_all_modes(tmp_pat
                      root / "src", root / "src" / "main.cc")
     }
     assert restored == original
+    assert _mode(root.parent) == parent_mode
 
 
 def test_reference_producer_uses_a_separate_tree_and_replays_declaration(
         tmp_path, monkeypatch):
+    monkeypatch.delenv("GIT_NO_REPLACE_OBJECTS", raising=False)
     base = tmp_path / "base"
     _write_tree(base)
     actual = tmp_path / "actual"
@@ -128,6 +133,7 @@ def test_reference_producer_uses_a_separate_tree_and_replays_declaration(
 
     @contextlib.contextmanager
     def fake_checkout(pin, *, base_dir):
+        assert os.environ.get("GIT_NO_REPLACE_OBJECTS") == "1"
         reference = tmp_path / f"reference-{len(checkout_calls)}"
         shutil.copytree(base_dir, reference, symlinks=True)
         (reference / ".git").write_text(
@@ -169,6 +175,7 @@ def test_reference_producer_uses_a_separate_tree_and_replays_declaration(
     )
 
     assert len(checkout_calls) == 1
+    assert os.environ.get("GIT_NO_REPLACE_OBJECTS") is None
     assert checkout_calls[0][2] != actual
     assert E.assert_expected_materialization(actual, expected) == expected
     (actual / "src" / "main.cc").write_text("predicate: shadow-gate\n", encoding="utf-8")
@@ -557,9 +564,98 @@ def test_build_snapshot_derives_evidence_from_non_writable_snapshot(
     assert _mode(root / "src" / "main.cc") & 0o200
 
 
+def test_build_snapshot_reference_uses_repository_ccbench_authority(
+        tmp_path, monkeypatch):
+    root = tmp_path / "snapshot"
+    _write_tree(root)
+    expected = E.snapshot_tree_digest(root)
+    captured = {}
+    prepared = S.PreparedCell(
+        Genome("silo", {"BACK_OFF": 1}),
+        _SNAPSHOT_TOKEN, str(root), "/cache",
+    )
+
+    def reference(**kwargs):
+        captured.update(kwargs)
+        return expected
+
+    monkeypatch.setattr(
+        E, "produce_expected_materialization_from_declaration", reference,
+    )
+    monkeypatch.setattr(
+        E.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _snapshot_evidence(root, _SNAPSHOT_TOKEN),
+    )
+    declaration = _stock_freeze()["holdouts"]["H1"]["variant_binding"][
+        "entries"
+    ]["stock_common"]
+
+    with E.admitted_build_snapshot(
+            ccbench_commit="abcdef0123456789",
+            configuration="stock_common", declaration=declaration,
+            snapshot_root=root, genome=prepared.genome,
+            prepared_src_token=prepared.src_token, cxx="site-cxx"):
+        pass
+
+    assert Path(captured["base_dir"]) == E._repository_ccbench_authority()
+
+
+def test_build_snapshot_captures_declared_evolve_source_bytes_before_build(
+        tmp_path, monkeypatch):
+    root = tmp_path / "snapshot"
+    _write_tree(root)
+    evolve_source = root / "include" / "backoff.hh"
+    evolve_source.parent.mkdir()
+    evolve_source.write_bytes(b"// admitted predicate bytes\n")
+    expected = E.snapshot_tree_digest(root)
+    prepared = S.PreparedCell(
+        Genome("silo", {"BACK_OFF": 1, "BACKOFF_FIXED": 2}),
+        _SNAPSHOT_TOKEN, str(root), "/cache",
+    )
+    monkeypatch.setattr(
+        E, "produce_expected_materialization_from_declaration",
+        lambda **_kwargs: expected,
+    )
+    monkeypatch.setattr(
+        E.source_digest, "resolve_evidence",
+        lambda *_args, **_kwargs: _snapshot_evidence(root, _SNAPSHOT_TOKEN),
+    )
+
+    with E.admitted_build_snapshot(
+            ccbench_commit="abcdef0123456789",
+            configuration="backoff_fixed_best",
+            declaration={
+                "backoff_us": 2,
+                "flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 2},
+                "sources": [],
+            },
+            snapshot_root=root, genome=prepared.genome,
+            prepared_src_token=prepared.src_token,
+            cxx="site-cxx",
+    ) as admitted:
+        assert dict(admitted.evolve_block_sources) == {
+            "include/backoff.hh": hashlib.sha256(
+                evolve_source.read_bytes()
+            ).hexdigest(),
+        }
+
+
+def test_snapshot_root_inode_replacement_is_rejected(tmp_path):
+    root = tmp_path / "snapshot"
+    root.mkdir()
+    identity = E._root_identity(root)
+    displaced = tmp_path / "displaced"
+    root.rename(displaced)
+    root.mkdir()
+
+    with pytest.raises(E.ExpectedMaterializationError, match="root-identity-after-build"):
+        E._assert_root_identity(root, identity, stage="after-build")
+
+
 def test_module_docstring_states_the_exact_proof_boundary():
     doc = inspect.getdoc(E) or ""
     assert "does not prove that the materializer itself is correct" in doc
     assert "same implementation" in doc
     assert "tree after materialization differs" in doc
     assert "does not claim dynamic predicate reachability" in doc
+    assert "directory owner can restore" in doc

@@ -1290,6 +1290,13 @@ def run_block(
 
     gate 拒否時は一切書き込まず ``status="refused"`` を返す。
 
+    ``evaluate_fn`` は既存 oracle テスト用 seam であり、その callable が
+    ``pipeline.buildcache.build_v2`` を呼ばない場合、descriptor 関門は通らない。
+    既存 fixture は build 0 回の callable を完了扱いにする契約を持つため、この driver
+    は cell ごとの descriptor 付き build 回数を保証しない。production の既定
+    ``pipeline.evaluate`` が呼ぶ実 build だけを
+    ``_assert_v2_build_contract_for_snapshot`` が descriptor 付きにする。
+
     戻り値 JSON 契約 (CLI が ``_exit_code`` で終了コードへ射影する):
 
     - ``status`` — 次のいずれか (かっこ内は CLI rc):
