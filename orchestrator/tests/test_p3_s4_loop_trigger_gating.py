@@ -20,6 +20,7 @@ import time
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -29,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
+from orchestrator.campaign import p3_b4_closed_critic as B4_CLOSED                # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from orchestrator.campaign import site_policy                                    # noqa: E402
@@ -2624,6 +2626,290 @@ def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     except OSError:
         pass
     assert L.load_loop_state(lay) is None   # checkpoint は前進していない
+
+
+# ==== B-4 mandatory continuation wiring ======================================
+
+def _b4_file_tree_bytes(root: str) -> dict[str, bytes]:
+    base = Path(root)
+    return {
+        str(path.relative_to(base)): path.read_bytes()
+        for path in sorted(base.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _seed_trigger_b4_continuation(layout: CampaignLayout) -> None:
+    state = L.LoopState(iteration=1, start_wall=time.time())
+    state.whiteboard.append(L.WhiteboardEntry(
+        iteration=1,
+        direction="increase",
+        magnitude="small",
+        result="rejected",
+        delta_pct=None,
+    ))
+    L.save_loop_state(layout, state)
+
+
+def _b4_trigger_receipt(cfg, *, reverse_recommended: bool) -> SimpleNamespace:
+    return SimpleNamespace(
+        schema_version=B4_CLOSED.B4_CLOSED_CRITIC_RECEIPT_SCHEMA,
+        status="success",
+        evidence_class="certified",
+        campaign_id=str(ident.campaign_id(cfg)),
+        arm=cfg.search_config["reflux"],
+        iteration=1,
+        pair_id="b4-trigger-pair",
+        decision_sha256="e" * 64,
+        decision_reverse_recommended=reverse_recommended,
+    )
+
+
+def _b4_trigger_proposal(receipt_sha256: str | None = None) -> dict:
+    document = _proposal_document(
+        {"axis": T.MARKER_ID, "wire": _CLEAN_WIRE},
+    )
+    if receipt_sha256 is not None:
+        document[L.B4_PROPOSAL_RECEIPT_SHA256_KEY] = receipt_sha256
+    return document
+
+
+def test_b4_trigger_marker_is_opt_in_and_ordinary_contract_digest_is_unchanged(
+        tmp_path, monkeypatch):
+    ordinary = T.default_cfg(reflux=True)
+    explicit_false = T.default_cfg(
+        reflux=True, b4_reflux_ablation=False,
+    )
+    marked = T.default_cfg(reflux=True, b4_reflux_ablation=True)
+    assert inspect.signature(T.default_cfg).parameters[
+        "b4_reflux_ablation"
+    ].kind is inspect.Parameter.KEYWORD_ONLY
+    assert ordinary == explicit_false
+    assert L.B4_PROTOCOL_KEY not in ordinary.search_config
+    assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
+    assert str(ident.campaign_id(ordinary)) == _T816_OTHER_CAMPAIGN_ID
+    assert ident.campaign_id(marked) != ident.campaign_id(ordinary)
+
+    legacy_document = _b4_trigger_proposal()
+    legacy_document["prior_critic_reverse"] = False
+    planner, coder, auditor, prior = T.load_proposal_file(
+        _write_json(legacy_document, "ordinary-trigger-contract.json")
+    )
+    assert prior is False
+
+    layout = CampaignLayout(root=str(tmp_path / "ordinary-trigger")).ensure()
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(T.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        T,
+        "_run_one_iteration_resolved",
+        lambda *_a, **_k: {"outcome": "rejected", "variant": None},
+    )
+    monkeypatch.setattr(L, "require_admitted_campaign", lambda *_a, **_k: object())
+    monkeypatch.setattr(
+        L, "make_critic_identity_projection", lambda _view: object(),
+    )
+    digest_spy = mock.Mock(return_value="ordinary-trigger-digest")
+    monkeypatch.setattr(L, "make_critic_digest", digest_spy)
+    out = T.drive_iteration(
+        ordinary, T.default_perf(), planner, coder, auditor, prior,
+        sub="unused", do_build=True, layout=layout,
+        build_context=_CODER_CONTEXT,
+    )
+    assert out["ran"] is True and out["critic_digest_generated"] is True
+    assert digest_spy.call_count == 1
+    assert (Path(layout.root) / T.DIGEST_BASENAME).read_text(
+        encoding="utf-8"
+    ) == "ordinary-trigger-digest"
+
+
+def test_b4_trigger_certified_receipt_advances_through_shared_gate(
+        tmp_path, monkeypatch):
+    raw_cfg = T.default_cfg(reflux=False, b4_reflux_ablation=True)
+    site = site_policy.OTHER
+    contract = T._admit_env_contract(site)
+    campaign_cfg = T._campaign_cfg_for_site(
+        raw_cfg, site, _contract=contract,
+    )
+    campaign_cfg = ident.bind_admission_policy(
+        campaign_cfg, _CODER_CONTEXT.policy,
+    )
+    layout = CampaignLayout(root=str(tmp_path / "resolved-trigger")).ensure()
+    _seed_trigger_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"evidence_class":"certified"}')
+    receipt_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    planner, coder, auditor, prior = T.load_proposal_file(
+        _write_json(
+            _b4_trigger_proposal(receipt_sha256),
+            "b4-trigger-positive.json",
+        ),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    receipt = _b4_trigger_receipt(campaign_cfg, reverse_recommended=True)
+    verified_campaign_ids = []
+
+    def certified_gate(path, *, cfg, layout):
+        assert Path(path) == receipt_path
+        verified_campaign_ids.append(str(ident.campaign_id(cfg)))
+        assert str(ident.campaign_id(cfg)) == receipt.campaign_id
+        return receipt
+
+    observed_reverse = []
+
+    def run_spy(_cfg, _perf, planner_value, _coder, _auditor, state,
+                *_args, **_kwargs):
+        observed_reverse.append(state.reverse_recommendations)
+        L.project_whiteboard(state, planner_value, "fail")
+        return {
+            "outcome": "rejected",
+            "variant": None,
+            "campaign_id": receipt.campaign_id,
+            "layout_root": layout.root,
+        }
+
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(B4_CLOSED, "require_b4_closed_critic_receipt", certified_gate)
+    monkeypatch.setattr(T.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(T, "_run_one_iteration_resolved", run_spy)
+    monkeypatch.setattr(L, "require_admitted_campaign", lambda *_a, **_k: object())
+    monkeypatch.setattr(
+        L, "make_critic_identity_projection", lambda _view: object(),
+    )
+    monkeypatch.setattr(L, "make_critic_digest", lambda *_a, **_k: "b4-trigger-digest")
+    out = T.drive_iteration(
+        raw_cfg, T.default_perf(), planner, coder, auditor, prior,
+        sub="unused", do_build=True, layout=layout,
+        build_context=_CODER_CONTEXT,
+        b4_closed_critic_receipt=receipt_path,
+        b4_proposal_receipt_sha256=receipt_sha256,
+        _resolved_site=site,
+        _contract=contract,
+    )
+    assert out["ran"] is True and out["iteration"] == 2
+    assert out["campaign_id"] == receipt.campaign_id
+    assert verified_campaign_ids == [receipt.campaign_id]
+    assert observed_reverse == [1]
+    records = list(Path(layout.root).glob("b4_closed_critic_consumption_*.json"))
+    assert len(records) == 1
+
+
+def test_b4_trigger_proposal_rejects_unbound_hash_and_self_reported_reverse():
+    receipt_sha256 = "a" * 64
+    mismatch = _b4_trigger_proposal("b" * 64)
+    with pytest.raises(L.B4ProtocolError, match="differs from terminal"):
+        T.load_proposal_file(
+            _write_json(mismatch, "b4-trigger-mismatch.json"),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+    self_reported = _b4_trigger_proposal(receipt_sha256)
+    self_reported["prior_critic_reverse"] = False
+    with pytest.raises(L.B4ProtocolError, match="must not self-report"):
+        T.load_proposal_file(
+            _write_json(self_reported, "b4-trigger-self-report.json"),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_b4_trigger_gate_gets_site_resolved_cfg_and_failure_is_write_free_m17(
+        tmp_path, monkeypatch):
+    raw_cfg = T.default_cfg(reflux=True, b4_reflux_ablation=True)
+    site = site_policy.PEGASUS_COMPUTE
+    contract = T._admit_env_contract(site)
+    expected_cfg = T._campaign_cfg_for_site(
+        raw_cfg, site, _contract=contract,
+    )
+    expected_cfg = ident.bind_admission_policy(
+        expected_cfg, _CODER_CONTEXT.policy,
+    )
+    expected_id = str(ident.campaign_id(expected_cfg))
+    assert expected_id != str(ident.campaign_id(raw_cfg))
+    layout = CampaignLayout(root=str(tmp_path / "resolved-gate-failure")).ensure()
+    _seed_trigger_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b"certified-shaped-but-rejected")
+    observed_ids = []
+
+    def rejecting_gate(gate_cfg, _layout, _state, **_kwargs):
+        observed_ids.append(str(ident.campaign_id(gate_cfg)))
+        if observed_ids[-1] != expected_id:
+            raise AssertionError("gate received the pre-site cfg")
+        raise L.B4ProtocolError("trigger gate sentinel")
+
+    fold_spy = mock.Mock()
+    candidate_spy = mock.Mock()
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(T, "_assert_resume_allowed", lambda *_a, **_k: None)
+    monkeypatch.setattr(L, "require_b4_iteration_authorization", rejecting_gate)
+    monkeypatch.setattr(L, "_fold_critic_reverse", fold_spy)
+    monkeypatch.setattr(T, "_run_one_iteration_resolved", candidate_spy)
+    before = _b4_file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="trigger gate sentinel"):
+        T.drive_iteration(
+            raw_cfg, T.default_perf(), _planner(),
+            T.CoderProposalTriggerGating(T.MARKER_ID, _CLEAN_WIRE),
+            AuditorVerdict("pass", "a" * 64), None,
+            sub="unused", do_build=True, layout=layout,
+            build_context=_CODER_CONTEXT,
+            b4_closed_critic_receipt=receipt_path,
+            b4_proposal_receipt_sha256=hashlib.sha256(
+                receipt_path.read_bytes()
+            ).hexdigest(),
+            _resolved_site=site,
+            _contract=contract,
+        )
+    assert observed_ids == [expected_id]
+    assert fold_spy.call_count == 0
+    assert candidate_spy.call_count == 0
+    assert _b4_file_tree_bytes(layout.root) == before
+    assert not os.path.exists(T._provenance_path(layout))
+    assert not os.path.exists(layout.wal_file)
+
+
+def test_b4_trigger_no_build_and_fixture_routes_are_write_free(
+        tmp_path, monkeypatch):
+    cfg = T.default_cfg(b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "no-build-trigger")).ensure()
+    monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    before = _b4_file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="forbids --no-build"):
+        T.drive_iteration(
+            cfg, T.default_perf(), _planner(),
+            T.CoderProposalTriggerGating(T.MARKER_ID, _CLEAN_WIRE),
+            AuditorVerdict("pass", "a" * 64), None,
+            sub="unused", do_build=False, layout=layout,
+        )
+    assert _b4_file_tree_bytes(layout.root) == before
+
+    from orchestrator.campaign import patchharness
+    pinned_spy = mock.Mock()
+    candidate_spy = mock.Mock()
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
+    monkeypatch.setattr(T, "drive_iteration", candidate_spy)
+    with pytest.raises(L.B4ProtocolError, match="forbids --no-build"):
+        T.main(["--b4-reflux-ablation", "--no-build"])
+    with pytest.raises(L.B4ProtocolError, match="fixture run_one_iteration"):
+        T.main(["--b4-reflux-ablation"])
+    assert pinned_spy.call_count == 0
+    assert candidate_spy.call_count == 0
+
+
+def test_b4_trigger_cli_receipt_is_continuation_only(tmp_path):
+    receipt = tmp_path / "terminal.json"
+    with pytest.raises(L.B4ProtocolError, match="requires --run-iteration"):
+        T.main(["--b4-closed-critic-receipt", str(receipt)])
+    with pytest.raises(L.B4ProtocolError, match="requires --b4-reflux-ablation"):
+        T.main([
+            "--run-iteration", str(tmp_path / "proposal.json"),
+            "--b4-closed-critic-receipt", str(receipt),
+        ])
 
 
 if __name__ == "__main__":
