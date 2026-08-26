@@ -229,6 +229,10 @@ _SYNTHETIC_STAGE_5_6_CONDITIONAL_ROWS = (
     "| 段 6 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, "
     "`DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |",
 )
+_SYNTHETIC_CONDITION_18_ROW = (
+    "| 18 | 親のテスト・受入前と赤処理前 | "
+    "`docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`, `DW-O27` |"
+)
 _SYNTHETIC_CONDITION_25_ROW = (
     "| 25 | main を進める land を起動する直前 | "
     "`docs/dev-wave/operations.md`: `DW-O25` |"
@@ -836,8 +840,9 @@ def _write_command_guard_docs(root: str) -> None:
             f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | "
             f"{refs(pairs)} |"
             for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
-            if key not in {"25", "26", "27"}
+            if key not in {"18", "25", "26", "27"}
         ),
+        _SYNTHETIC_CONDITION_18_ROW,
         _SYNTHETIC_CONDITION_25_ROW,
         _SYNTHETIC_CONDITION_26_ROW,
         _SYNTHETIC_CONDITION_27_ROW,
@@ -1309,6 +1314,186 @@ def _run_check(
         capture_output=True, text=True,
         timeout=timeout,
     )
+
+
+# 2026-08-26、Pegasus login node 上で tools/run_tests.py の bounded local
+# cgroup scope を使い、xdist 無効 (-n 0) で対象 node を1回実測した。母集合は正例・
+# 負例アームそれぞれの投入側と赤処理側の4標本で、投入側は0.0961/0.0948秒、
+# 赤処理側は0.0596/0.0599秒、maxは0.0961秒 (node全体は1.32秒)。artifactと
+# processの2.0秒はmaxの約20.8倍、reapの1.0秒は約10.4倍である。
+_CONDITION_CONTEXT_ARTIFACT_TIMEOUT_SECONDS = 2.0
+_CONDITION_CONTEXT_PROCESS_TIMEOUT_SECONDS = 2.0
+_CONDITION_CONTEXT_REAP_TIMEOUT_SECONDS = 1.0
+_CONDITION_CONTEXT_EXIT_MARGIN_SECONDS = 30.0
+_CONDITION_CONTEXT_TEST_LIMIT_SECONDS = 300.0
+_CONDITION_CONTEXT_SUBMISSION_CODE = r"""
+import json
+import os
+from pathlib import Path
+import sys
+
+repo_root, artifact_path = sys.argv[1:]
+sys.path.insert(0, str(Path(repo_root) / "tools"))
+import check_docs
+
+text = (Path(repo_root) / ".claude" / "commands" / "dev-wave.md").read_text(
+    encoding="utf-8"
+)
+resolved = check_docs.resolve_condition_sections(text, "テスト・受入")
+print(json.dumps(
+    {
+        "pid": os.getpid(),
+        "resolved": resolved,
+        "resolved_value_types": {
+            key: type(value).__name__ for key, value in resolved.items()
+        },
+    },
+    ensure_ascii=False,
+), flush=True)
+Path(artifact_path).write_text(
+    json.dumps({"acceptance": "red"}),
+    encoding="utf-8",
+)
+"""
+_CONDITION_CONTEXT_RED_CODE = r"""
+import json
+import os
+from pathlib import Path
+import sys
+
+artifact_path, repo_root = sys.argv[1:]
+artifact = json.loads(Path(artifact_path).read_text(encoding="utf-8"))
+assert artifact == {"acceptance": "red"}
+sys.path.insert(0, str(Path(repo_root) / "tools"))
+import check_docs
+
+text = (Path(repo_root) / ".claude" / "commands" / "dev-wave.md").read_text(
+    encoding="utf-8"
+)
+resolved = check_docs.resolve_condition_sections(text, "赤処理")
+stdin_data = sys.stdin.read()
+print(json.dumps({
+    "pid": os.getpid(),
+    "resolved": resolved,
+    "resolved_value_types": {
+        key: type(value).__name__ for key, value in resolved.items()
+    },
+    "argv": sys.argv[1:],
+    "environment": dict(os.environ),
+    "stdin": stdin_data,
+}, ensure_ascii=False), flush=True)
+"""
+
+
+def _wait_for_context_artifact(path: str, process: subprocess.Popen) -> None:
+    deadline = time.monotonic() + _CONDITION_CONTEXT_ARTIFACT_TIMEOUT_SECONDS
+    while True:
+        if os.path.isfile(path):
+            return
+        if process.poll() is not None:
+            raise AssertionError(
+                f"投入 context が赤 artifact を作らず終了した: rc={process.returncode}"
+            )
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(
+                process.args,
+                _CONDITION_CONTEXT_ARTIFACT_TIMEOUT_SECONDS,
+            )
+        time.sleep(min(0.01, remaining))
+
+
+def _reap_context_process(process: subprocess.Popen) -> None:
+    try:
+        process.communicate(timeout=_CONDITION_CONTEXT_REAP_TIMEOUT_SECONDS)
+        return
+    except subprocess.TimeoutExpired:
+        process.terminate()
+    try:
+        process.communicate(timeout=_CONDITION_CONTEXT_REAP_TIMEOUT_SECONDS)
+        return
+    except subprocess.TimeoutExpired:
+        process.kill()
+    process.communicate(timeout=_CONDITION_CONTEXT_REAP_TIMEOUT_SECONDS)
+
+
+def _run_condition_18_separate_contexts(root: str, artifact_name: str) -> dict:
+    artifact_path = os.path.join(root, artifact_name)
+    assert not os.path.exists(artifact_path)
+    empty_environment: dict[str, str] = {}
+    submission_command = [
+        sys.executable,
+        "-c",
+        _CONDITION_CONTEXT_SUBMISSION_CODE,
+        root,
+        artifact_path,
+    ]
+    red_command = [
+        sys.executable,
+        "-c",
+        _CONDITION_CONTEXT_RED_CODE,
+        artifact_path,
+        root,
+    ]
+    processes: list[subprocess.Popen] = []
+    try:
+        submission_started = time.perf_counter()
+        submission_process = subprocess.Popen(
+            submission_command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=empty_environment,
+        )
+        processes.append(submission_process)
+        _wait_for_context_artifact(artifact_path, submission_process)
+        submission_stdout, submission_stderr = submission_process.communicate(
+            timeout=_CONDITION_CONTEXT_PROCESS_TIMEOUT_SECONDS
+        )
+        submission_elapsed = time.perf_counter() - submission_started
+        assert submission_process.returncode == 0, submission_stderr
+        submission_ended = time.perf_counter()
+        submission_payload = json.loads(submission_stdout)
+        assert submission_payload["pid"] == submission_process.pid
+        assert json.loads(_read(root, artifact_name)) == {"acceptance": "red"}
+
+        red_started = time.perf_counter()
+        red_process = subprocess.Popen(
+            red_command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=empty_environment,
+        )
+        processes.append(red_process)
+        red_stdout, red_stderr = red_process.communicate(
+            timeout=_CONDITION_CONTEXT_PROCESS_TIMEOUT_SECONDS
+        )
+        red_elapsed = time.perf_counter() - red_started
+        assert red_process.returncode == 0, red_stderr
+        red_payload = json.loads(red_stdout)
+        assert red_payload["pid"] == red_process.pid
+        return {
+            "artifact_path": artifact_path,
+            "submission": submission_payload,
+            "red": red_payload,
+            "submission_command": submission_command,
+            "red_command": red_command,
+            "red_environment": empty_environment,
+            "elapsed": {
+                "submission": submission_elapsed,
+                "red": red_elapsed,
+            },
+            "sequence": {
+                "submission_ended": submission_ended,
+                "red_started": red_started,
+            },
+        }
+    finally:
+        for process in reversed(processes):
+            _reap_context_process(process)
 
 
 def _violation_count(res: subprocess.CompletedProcess) -> int:
@@ -2310,7 +2495,7 @@ def test_dev_wave_command_budget_literal_is_exact():
 
     rel = ".claude/commands/dev-wave.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_520, 140)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 9_520
+    assert len(_read(_REPO, rel).encode("utf-8")) == 9_517
 
     root = _build_min_repo()
     try:
@@ -6223,6 +6408,28 @@ def _insert_before_unique_marker(root: str, rel: str, marker: str, addition: str
     _write(root, rel, text.replace(marker, addition + marker, 1))
 
 
+def _set_condition_18_trigger_and_contract(root: str, replacement: str) -> None:
+    """合成入口と合成 checker の条件18 trigger を同じ単点へ変異する。"""
+
+    current = "親のテスト・受入前と赤処理前"
+    _rewrite_matching_lines(
+        root,
+        ".claude/commands/dev-wave.md",
+        lambda line: line.startswith("| 18 |"),
+        lambda line: line.replace(current, replacement, 1),
+    )
+    checker_rel = "tools/check_docs.py"
+    checker_text = _read(root, checker_rel)
+    old_assignment = f'    "18": "{current}",'
+    new_assignment = f'    "18": "{replacement}",'
+    assert checker_text.count(old_assignment) == 1
+    _write(
+        root,
+        checker_rel,
+        checker_text.replace(old_assignment, new_assignment, 1),
+    )
+
+
 def _mutate_command_guard(root: str, case: str) -> None:
     if case == "command_byte_over":
         _pad_to_bytes(
@@ -6547,10 +6754,14 @@ def _mutate_command_guard(root: str, case: str) -> None:
             lambda line: line.startswith("| 18 |"),
             lambda line: line.replace(
                 check_docs.CONDITION_TRIGGER_CONTRACT["18"],
-                "親がテスト・受入を走らせる直前後",
+                "親のテスト・受入と赤処理",
                 1,
             ),
         )
+    elif case == "condition_18_run_point_deleted":
+        _set_condition_18_trigger_and_contract(root, "親の赤処理前")
+    elif case == "condition_18_red_point_deleted":
+        _set_condition_18_trigger_and_contract(root, "親のテスト・受入前")
     elif case == "condition_all_operations_deleted":
         _rewrite_matching_lines(
             root,
@@ -7178,6 +7389,8 @@ _COMMAND_GUARD_CASES = [
     "condition_18_o18_deleted",
     "condition_18_o26_deleted",
     "condition_18_trigger_broadened",
+    "condition_18_run_point_deleted",
+    "condition_18_red_point_deleted",
     "condition_all_operations_deleted",
     "condition_supervisor_deleted",
     "condition_land_operation_deleted",
@@ -7304,6 +7517,12 @@ _COMMAND_GUARD_NEEDLES = {
     "condition_18_o18_deleted": "条件 dispatch '18' が契約と不一致",
     "condition_18_o26_deleted": "条件 dispatch '18' が契約と不一致",
     "condition_18_trigger_broadened": "条件 dispatch '18' が契約と不一致",
+    "condition_18_run_point_deleted": (
+        "条件 dispatch '18' の trigger に テスト・受入前と赤処理前が必要"
+    ),
+    "condition_18_red_point_deleted": (
+        "条件 dispatch '18' の trigger に テスト・受入前と赤処理前が必要"
+    ),
     "condition_all_operations_deleted": "条件 dispatch '01' が契約と不一致",
     "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
     "condition_land_operation_deleted": "条件 dispatch '23' が契約と不一致",
@@ -7441,6 +7660,7 @@ _COMMAND_GUARD_EXPECTED_COUNTS.update({
 })
 _COMMAND_GUARD_EXPECTED_COUNTS.update({
     "condition_18_o26_deleted": 2,
+    "condition_18_trigger_broadened": 2,
     "dispatch_allowlist": 2,
     "codex_startup_wave_pre_form": 2,
     "o26_section_deleted": 2,
@@ -7571,6 +7791,8 @@ def test_command_guard_case_registration_is_complete():
         "condition_18_o18_deleted",
         "condition_18_o26_deleted",
         "condition_18_trigger_broadened",
+        "condition_18_run_point_deleted",
+        "condition_18_red_point_deleted",
         "o26_section_deleted",
         "o26_heading_only",
         "o26_contract_weakened",
@@ -7593,6 +7815,8 @@ def test_command_guard_case_registration_is_complete():
     with open(__file__, encoding="utf-8") as source_file:
         source = source_file.read()
     for test_name in (
+        "test_condition_18_contract_pins_exact_two_points_and_targets",
+        "test_condition_18_resolves_in_separate_red_context",
         "test_condition_25_contract_pins_exact_trigger_and_target",
         "test_condition_26_contract_pins_exact_trigger_and_target",
         "test_condition_27_contract_pins_exact_trigger_and_target",
@@ -7694,6 +7918,117 @@ def test_condition_24_contract_pins_exact_target():
         ("docs/dev-wave/core.md", "DW-C00")
     }
     assert "24" not in _OPERATION_CONDITION_KEYS
+
+
+def test_condition_18_contract_pins_exact_two_points_and_targets():
+    """条件18の契約、独立2点 oracle、手書き row、3参照節を固定する。"""
+
+    assert check_docs.CONDITION_TRIGGER_CONTRACT["18"] == (
+        "親のテスト・受入前と赤処理前"
+    )
+    assert check_docs.CONDITION_18_RUN_POINT_LITERAL == "テスト・受入前"
+    assert check_docs.CONDITION_18_RED_POINT_LITERAL == "赤処理前"
+    assert _SYNTHETIC_CONDITION_18_ROW == (
+        "| 18 | 親のテスト・受入前と赤処理前 | "
+        "`docs/dev-wave/operations.md`: `DW-O18`, `DW-O26`, `DW-O27` |"
+    )
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["18"] == {
+        ("docs/dev-wave/operations.md", "DW-O18"),
+        ("docs/dev-wave/operations.md", "DW-O26"),
+        ("docs/dev-wave/operations.md", "DW-O27"),
+    }
+    assert [
+        key
+        for key, trigger in check_docs.CONDITION_TRIGGER_CONTRACT.items()
+        if "赤処理" in trigger
+    ] == ["18"]
+
+
+def test_condition_18_resolves_in_separate_red_context():
+    """投入終了後の別 process が入口を再読し、赤処理の条件18を解決する。"""
+
+    inner_budget = 2 * (
+        _CONDITION_CONTEXT_ARTIFACT_TIMEOUT_SECONDS
+        + 2 * _CONDITION_CONTEXT_PROCESS_TIMEOUT_SECONDS
+        + 4 * _CONDITION_CONTEXT_REAP_TIMEOUT_SECONDS
+    )
+    assert (
+        inner_budget + _CONDITION_CONTEXT_EXIT_MARGIN_SECONDS
+        < _CONDITION_CONTEXT_TEST_LIMIT_SECONDS
+    )
+    expected_sections = ("DW-O18", "DW-O26", "DW-O27")
+
+    def assert_red_resolution(result: dict) -> None:
+        resolved = result["red"]["resolved"].get("18")
+        assert resolved is not None
+        assert tuple(resolved) == expected_sections
+
+    root = _build_min_repo()
+    try:
+        positive = _run_condition_18_separate_contexts(
+            root, "condition-18-positive-red.json"
+        )
+        assert positive["submission"]["pid"] != positive["red"]["pid"]
+        assert (
+            positive["sequence"]["submission_ended"]
+            <= positive["sequence"]["red_started"]
+        )
+        assert tuple(positive["submission"]["resolved"]["18"]) == expected_sections
+        assert positive["submission"]["resolved_value_types"]["18"] == "tuple"
+        assert positive["red"]["resolved_value_types"]["18"] == "tuple"
+        assert_red_resolution(positive)
+
+        _set_condition_18_trigger_and_contract(root, "親のテスト・受入前")
+        negative = _run_condition_18_separate_contexts(
+            root, "condition-18-negative-red.json"
+        )
+        assert negative["submission"]["pid"] != negative["red"]["pid"]
+        assert (
+            negative["sequence"]["submission_ended"]
+            <= negative["sequence"]["red_started"]
+        )
+        assert tuple(negative["submission"]["resolved"]["18"]) == expected_sections
+        assert negative["submission"]["resolved_value_types"]["18"] == "tuple"
+        assert negative["red"]["resolved"] == {}
+        assert negative["red"]["resolved_value_types"] == {}
+        with pytest.raises(AssertionError):
+            assert_red_resolution(negative)
+
+        for result in (positive, negative):
+            assert result["red"]["stdin"] == ""
+            assert result["red"]["argv"] == [result["artifact_path"], root]
+            assert result["red_command"][3:] == [result["artifact_path"], root]
+            submission_resolution = json.dumps(
+                result["submission"]["resolved"],
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            assert all(
+                submission_resolution not in argument
+                for argument in result["red_command"]
+            )
+            assert submission_resolution not in json.dumps(
+                result["red"]["environment"],
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            assert submission_resolution not in json.dumps(
+                result["red_environment"],
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            assert json.loads(_read(
+                root, os.path.basename(result["artifact_path"])
+            )) == {"acceptance": "red"}
+        print(
+            "CONDITION_18_CONTEXT_TIMINGS "
+            + json.dumps(
+                [positive["elapsed"], negative["elapsed"]],
+                sort_keys=True,
+            )
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_condition_25_contract_pins_exact_trigger_and_target():

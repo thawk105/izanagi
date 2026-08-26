@@ -938,6 +938,8 @@ CONDITION_DISPATCH_CONTRACT.update({
     "26": _pairs(_CORE, "DW-C01"),
     "27": _pairs(_OPERATIONS, "DW-O28"),
 })
+CONDITION_18_RUN_POINT_LITERAL = "テスト・受入前"
+CONDITION_18_RED_POINT_LITERAL = "赤処理前"
 CONDITION_TRIGGER_CONTRACT = {
     "01": "codex subprocess を起動する直前",
     "02": "prompt・log・patch を作る直前",
@@ -955,7 +957,7 @@ CONDITION_TRIGGER_CONTRACT = {
     "15": "fix 後に変異を走らせる直前",
     "16": "fix 後の焦点再レビューを行う直前",
     "17": "commit を作る直前",
-    "18": "親がテスト・受入を走らせる直前",
+    "18": "親のテスト・受入前と赤処理前",
     "19": "tracked file を一時変異する直前",
     "20": "背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前）",
     "21": "無人継続を構成し最初の process を起動する前",
@@ -5036,6 +5038,24 @@ def _dispatch_tables(text: str) -> _DispatchTables | None:
     )
 
 
+def resolve_condition_sections(
+    dev_wave_text: str,
+    situation: str,
+) -> dict[str, tuple[str, ...]]:
+    """入口の条件表だけから、状況に一致する条件番号と参照節を解決する。"""
+
+    dispatch = _dispatch_tables(dev_wave_text)
+    if dispatch is None:
+        return {}
+    return {
+        key: tuple(sorted(
+            section for _, section in dispatch.conditions.get(key, set())
+        ))
+        for key, triggers in dispatch.condition_triggers.items()
+        if any(situation in trigger for trigger in triggers)
+    }
+
+
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], set[str]] | None:
     lines = text.splitlines()
     if not lines or lines[0] != "---":
@@ -6418,6 +6438,18 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                         ".claude/commands/dev-wave.md: diagnostic sensitivity — "
                         f"条件 dispatch {key!r} の条件セルに "
                         f"reference token={sorted(leaked)}"
+                    )
+            condition_18_row_count = dispatch.condition_row_counts.get("18", 0)
+            condition_18_triggers = dispatch.condition_triggers.get("18", set())
+            if condition_18_row_count == 1:
+                condition_18_trigger = next(iter(condition_18_triggers), "")
+                if not (
+                    CONDITION_18_RUN_POINT_LITERAL in condition_18_trigger
+                    and CONDITION_18_RED_POINT_LITERAL in condition_18_trigger
+                ):
+                    findings.append(
+                        ".claude/commands/dev-wave.md: 条件 dispatch '18' の trigger に "
+                        "テスト・受入前と赤処理前が必要"
                     )
             disallowed = sorted(
                 dispatch.paths - NORMATIVE_DISPATCH_ALLOWLIST
