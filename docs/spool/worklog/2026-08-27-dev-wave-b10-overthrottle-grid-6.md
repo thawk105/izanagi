@@ -40,6 +40,9 @@ flag だが、この wave の driver は patch を当てていなかった。**C
 
 ## 次の一手差分
 
-### carry
+### 更新
 
-- [T-1940]
+- [T-1940] **P1**: B-10 拡張格子の実測を 3 workload 投入して回収する。
+  patch 適用と効いたことの正例検査、計算ノードの取得経路も直したので投入の前提が揃った。
+  `tools/pegasus/submit_b10_backoff_grid.sh --output-parent <repo 外の絶対 path>`。
+  base: eead7166bede6fec712c274e243e343a7c8ddae5070af8611378b938e4897227
