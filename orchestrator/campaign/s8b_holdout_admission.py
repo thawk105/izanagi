@@ -40,6 +40,7 @@ from . import s8b_attempt_profile as _attempt_profile
 from . import s8b_floor_contract as _floor_contract
 from . import s8b_oracle_manifest as _oracle_manifest
 from . import s8b_ratified_freeze as _ratified_freeze
+from . import s8b_scheduler_accounting as _scheduler_accounting
 
 __all__ = (
     "CellHoldoutAdmission",
@@ -83,9 +84,24 @@ _ROOT_REL = Path("izanagi") / "s8b-holdout-admission-v1"
 _LOCK_NAME = "ledger.lock"
 _LEDGER_NAME = "ledger.jsonl"
 _ATTEMPT_LEDGER_NAME = "attempt-ledger.jsonl"
-# [T-1668] registers the production scheduler authority pairs here after its
-# collector and durable receipt path exist.  Empty is the deliberate current
-# policy: registry recovery cannot authorize a floor retry today.
+
+
+def _verified_scheduler_accounting_authority_policy_literal() -> str:
+    """Return admission's independent pin after collector-side verification."""
+
+    literal = "79c8098cf89df02c2e4f33d20c001cae30fc01acc79ff0cb56050788dfbefc05"
+    _scheduler_accounting.assert_authority_policy_literal(literal)
+    return literal
+
+
+_SCHEDULER_ACCOUNTING_AUTHORITY_POLICY_SHA256 = (
+    _verified_scheduler_accounting_authority_policy_literal()
+)
+
+# The measured ``qstat -J -f`` Exit Code range is ``(none)`` 263, ``1100`` 4,
+# ``F`` 3, ``9`` 2, and ``A`` 1.  It is not established which value, if any,
+# names ``node_failure`` or ``scheduler_external_interruption``.  Register no
+# authority until an exact value-to-reason correspondence table is established.
 _FLOOR_RECOVERY_AUTHORITIES: frozenset[tuple[str, str]] = frozenset()
 _R33_RECEIPT_SCHEMA = "s8b-n-pilot-reservation/v2"
 _R33_MANIFEST_SCHEMA = "s8b-n-pilot-admission-manifest/v1"
@@ -4322,6 +4338,86 @@ def _floor_registry_recovery_evidence_locked(
     return _FloorRegistryRecoveryEvidence(raw, rows, candidates, slot_identity)
 
 
+def _scheduler_accounting_receipt_claim_path(
+    root: Path, receipt: Mapping[str, object],
+) -> Path:
+    """Derive the collector-owned path for one nested recovery receipt."""
+
+    try:
+        bound_request = _scheduler_accounting.bind_scheduler_request_from_start_event({
+            "event": "start",
+            "scheduler_request_id": receipt.get("scheduler_request_id"),
+            "event_sha256": receipt.get("target_start_event_sha256"),
+        })
+        return _scheduler_accounting.scheduler_accounting_receipt_claim_path(
+            root,
+            bound_request,
+            authority_policy_sha256_literal=(
+                _SCHEDULER_ACCOUNTING_AUTHORITY_POLICY_SHA256
+            ),
+        )
+    except _scheduler_accounting.SchedulerAccountingCollectorError as exc:
+        raise HoldoutAdmissionError(
+            "registry recovery standalone receipt identity is invalid"
+        ) from exc
+
+
+def _assert_matching_scheduler_accounting_receipt(
+    root: Path, receipt: Mapping[str, object],
+) -> None:
+    """Require exact nested bytes at the collector's canonical claim path."""
+
+    expected = _canonical_line(dict(receipt))
+    path = _scheduler_accounting_receipt_claim_path(root, receipt)
+    try:
+        _assert_no_symlink_components(path.parent)
+    except HoldoutAdmissionError as exc:
+        raise HoldoutAdmissionError(
+            "registry recovery standalone receipt path is invalid"
+        ) from exc
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise HoldoutAdmissionError(
+            "registry recovery standalone receipt no-follow is unavailable"
+        )
+    try:
+        descriptor = os.open(
+            path, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | nofollow,
+        )
+    except FileNotFoundError as exc:
+        raise HoldoutAdmissionError(
+            "registry recovery standalone receipt is absent"
+        ) from exc
+    except OSError as exc:
+        raise HoldoutAdmissionError(
+            "registry recovery standalone receipt cannot be opened"
+        ) from exc
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise HoldoutAdmissionError(
+                "registry recovery standalone receipt is not regular"
+            )
+        chunks: list[bytes] = []
+        remaining = len(expected) + 1
+        while remaining:
+            try:
+                chunk = os.read(descriptor, remaining)
+            except OSError as exc:
+                raise HoldoutAdmissionError(
+                    "registry recovery standalone receipt cannot be read"
+                ) from exc
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+    finally:
+        os.close(descriptor)
+    if b"".join(chunks) != expected:
+        raise HoldoutAdmissionError(
+            "registry recovery standalone receipt bytes differ"
+        )
+
+
 def _assert_verified_floor_registry_recovery_locked(
     state: _CellState, *, evidence: _FloorRegistryRecoveryEvidence,
 ) -> None:
@@ -4343,6 +4439,7 @@ def _assert_verified_floor_registry_recovery_locked(
     # cannot select their own trust root.
     if (authority_id, authority_policy_sha256) not in _FLOOR_RECOVERY_AUTHORITIES:
         raise HoldoutAdmissionError("registry recovery authority is not pinned")
+    _assert_matching_scheduler_accounting_receipt(state.root, receipt)
     max_consumptions = genesis.get("max_consumptions_per_budget_key")
     if max_consumptions != len(state.attempt_ids):
         raise HoldoutAdmissionError("registry budget differs from frozen attempts")

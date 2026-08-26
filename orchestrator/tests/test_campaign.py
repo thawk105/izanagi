@@ -12513,13 +12513,13 @@ def test_patchharness_real_shared_checkout_guard_is_pytest_only_and_fails_closed
         "GIT_CEILING_DIRECTORIES",
     ):
         monkeypatch.setenv(name, f"decoy-{name}")
-    with patchharness._pytest_node_context("test_missing.py::test_missing", False):
+    with patchharness._pytest_node_context("test_missing.py::test_missing", None):
         with pytest.raises(RuntimeError) as excinfo:
             with patchharness.checkout("unused-pin", base_dir=real):
                 raise AssertionError("guard が checkout body より先に拒否すべき")
         message = str(excinfo.value)
         assert "test_missing.py::test_missing" in message
-        assert "REAL_REPO_SERIAL_NODES へ追加せよ" in message
+        assert "REAL_REPO_ACCESS_BY_NODE で ccbench=write と分類せよ" in message
         with pytest.raises(RuntimeError):
             with patchharness.checkout(
                     "unused-pin", base_dir=os.path.join(real, "include")):
@@ -12527,7 +12527,12 @@ def test_patchharness_real_shared_checkout_guard_is_pytest_only_and_fails_closed
         patchharness._guard_real_shared_checkout(str(hermetic))
         with pytest.raises(RuntimeError, match="repository identity"):
             patchharness._guard_real_shared_checkout(str(tmp_path / "missing"))
-    with patchharness._pytest_node_context("test_registered.py::test_registered", True):
+    reader = types.SimpleNamespace(parent="read", ccbench="read")
+    with patchharness._pytest_node_context("test_reader.py::test_reader", reader):
+        with pytest.raises(RuntimeError, match="ccbench=write"):
+            patchharness._guard_real_shared_checkout(real)
+    writer = types.SimpleNamespace(parent=None, ccbench="write")
+    with patchharness._pytest_node_context("test_writer.py::test_writer", writer):
         patchharness._guard_real_shared_checkout(real)
 
 

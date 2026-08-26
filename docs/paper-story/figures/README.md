@@ -15,6 +15,7 @@
 | `fig2_backoff_mechanism.png` | tracked に無い | 凍結。**baseline を誤って label している** (下記) |
 | `fig3_arc_status.png` | tracked に無い | 凍結。2026-07-10 版 (Phase 3 段 5 時点) の現況図 |
 | `fig2b_backoff_sweep_3workload.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_backoff.py` | `fig2_` の**後継図**。本 README が再現手順を持つ |
+| `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
 
 ## `fig2_backoff_mechanism.png` の何が誤っていたか
 
@@ -29,9 +30,27 @@
 
 後継図 `fig2b_backoff_sweep_3workload` はこれを次のように直している。
 
+**本 README は「headline 適格」という分類語を使わない** (2026-08-26 に訂正した。理由は下記)。
+後継図のデータは D496 より前の記述的結果であり、この図は論文の利得率の出所でもない
+(下のキャプション正文を参照)。**現行の対測定契約 (D496) を満たすという意味でもない。**
+
+**なぜ分類語をやめたか。** 以前この節は「表中の headline 適格 / 非適格 は D20 の一点、すなわち
+perf record 下で採った tps かどうかだけを指す」と書き、後継図を「headline 適格」に分類していた。
+しかし実測すると、後継図の入力 campaign 3 件の実行 command 24/24 件が
+`numactl --interleave=all perf stat -e LLC-load-misses,LLC-loads,instructions,cycles -- ...` であり、
+**後継図の系列も perf 下の測定である**。D20 の位置づけ節の字義は
+「perf 下 tps は overhead 込みで headline 非使用」であって `perf record` に限定していない。
+D497 は「perf が**無い**ことを性能主張の信頼性の条件にしない」という別方向の決定であり、
+perf 下で採った tps を headline に使ってよいとは定めていない。
+したがって「D20 の意味で headline 適格」という分類は D20 本文に支持されない。
+**本 README の図はいずれも、絶対スループットを論文の headline 値の出所にしない。**
+この訂正で変えたのは本 README の分類語だけであり、**図の PNG / PDF / provenance JSON の bytes、
+各図のキャプション正文、凍結スナップショット (`2026-07-10.md` / `2026-08-23.md` / `2026-08-26.md`)
+は一切変えていない。**
+
 | 論点 | 旧図 | 後継図 |
 |---|---|---|
-| 系列 | profile (perf record 下、headline 非適格) | sweep (headline 適格) |
+| 系列 | profile (`perf record` 下の診断系列) | sweep (`perf stat` 下。絶対 tps は headline 値の出所にしない) |
 | workload | write-heavy 1 件 | write-heavy / balanced / read-heavy の 3 件 |
 | 基準線 | 無 backoff の値に「適応 backoff」の label | **無 backoff 対照 1 本だけ**を、そう名乗って描く |
 | 基準線の不確かさ | 点推定のみ | 95% 信頼区間の帯を付ける |
@@ -129,4 +148,134 @@ positive control と build 失敗) は、上記 insight の該当節にある。
 - それらが着地後もずれないこと → `orchestrator/tests/test_backoff_figure_provenance.py`
 - 図中の label と実際に描いた線の一致 → `orchestrator/tests/test_plot_backoff_ci.py`
 - 利得率の一次資料と条件表 → `output/insights/2026-08-25_paper-story-a3-gain-unification/README.md`
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+---
+
+# `fig4_s1a_9pair_direct_comparison` — S-1a の 9 対 (失敗報告図)
+
+`docs/paper-story/2026-08-26.md` §4 は、縮小主張 S' の 9 対を「描ける (未作図)。失敗報告の図として
+有用」と記していた。本図はそれを作図したものである。**同スナップショットの凍結後に、
+新規計測をせず既存の tracked 成果物だけから描いた。**同スナップショット、S' の確定文言、
+Holm 族 4 の判定表は変更していない。
+
+## 何を示す図か
+
+合成軸 (abort 要因別に backoff の発火可否を切り替える trigger gating 構成) を、既知軸の最良 3 種
+— コンパイル時フラグ最適化・静的 backoff の最良値・書込ロック順の並べ替え — と 3 workload で
+突き合わせた 9 対である。**S-1a の成立条件は 9 対すべてが判定境界 +3% を厳密に超えることであり、
+6 対が超えないため S-1a は不成立である** (family p = 1.0)。
+
+上段が 9 対の相対中央値差、下段が各セルの 8 標本の分布である。境界を超えた 3 対はいずれも
+書込ロック順並べ替えとの比較だが、**この図は「1 軸に勝った」ことを主結果として描いていない** —
+判定境界を超えない側を薄赤で塗り、9 点を同面積で置き、図の上端に不成立を明示している。
+
+## 既存図との関係
+
+| 論点 | 図2b (backoff sweep) | 図4 (本図) |
+|---|---|---|
+| 何の図か | 静的 backoff の sweep (記述) | 縮小主張 S' の登録 9 対 (失敗報告) |
+| 関係 | `fig2_` の後継図 | **どの図の後継でもない独立の新図** |
+| 入力 | backoff sweep campaign 3 件の WAL / dat | S-1 直接比較の凍結 report + campaign 4 件の WAL |
+| 判定の出所 | 判定を持たない記述的な図 | 判定は凍結 report のみ。生成器は再計算しない |
+| perf | `perf stat` 下 | `perf stat` 下 |
+| 絶対 tps の扱い | headline 値の出所にしない | headline 値の出所にしない |
+
+既存の `fig1` / `fig2` / `fig2b` / `fig3` の bytes は本図の追加で一切変わらない。
+
+## 再現
+
+repo root から、**計測機の外**で次の 1 行を実行する (FIGURE_CONVENTIONS §7)。
+
+```
+python3 tools/plotting/plot_s1_9pair.py docs/paper-story/figures/fig4_s1a_9pair_direct_comparison output/reports/s1_direct_comparison/report.json --develop output/campaigns/s1-direct-develop-direct-comparison-d0f495bf --floor output/campaigns/s1-direct-floor-direct-comparison-b82b9229 --block1 output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2 --block2 output/campaigns/s1-direct-block2-direct-comparison-9645b16a
+```
+
+出力は `.png` (ラスタ) / `.pdf` (ベクター、論文投稿はこちら) / `.provenance.json` の 3 つ。
+同じ再現コマンドは provenance JSON の `reproduction.argv` にも記録されている。
+
+### 再現できるのは「値」であって「バイト列」ではない
+
+図2b と同じ制約である。provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、
+PNG は matplotlib の版と font 解決に依存する。**着地したバイト列の同一性は provenance JSON が
+記録した SHA-256 と `orchestrator/tests/test_s1_9pair_figure_provenance.py` が守る** —
+再生成の決定性には依存しない。
+
+## 入力
+
+新規計測は行っていない。5 つとも tracked な既存成果物である。
+
+| 役割 | path | 用途 |
+|---|---|---|
+| 凍結 report | `output/reports/s1_direct_comparison/report.json` | 判定・p 値・certified 標本集合 |
+| develop | `output/campaigns/s1-direct-develop-direct-comparison-d0f495bf` | 認定標本の照合 (性能値なし) |
+| floor | `output/campaigns/s1-direct-floor-direct-comparison-b82b9229` | 判定境界の算出・照合 |
+| block1 | `output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2` | 効果量の標本 (各セル 4) |
+| block2 | `output/campaigns/s1-direct-block2-direct-comparison-9645b16a` | 効果量の標本 (各セル 4) |
+
+**効果量の標本母集合は block1 ∪ block2 (各セル 4+4=8) である。floor campaign の各セル 8 標本は
+効果量には混ぜず、+3% 判定境界の算出と照合にだけ使う。**これは `orchestrator/campaign/s1_report.py`
+の `bind_left_target` と `floor_cmp` が定める生成契約であり、生成器はそれを再計算して report と
+照合する。
+
+develop campaign は `s1-direct-develop-direct-comparison-d0f495bf` が正典である。もう一つの
+`...-7bccdf1a` は 24 start / 15 commit で、report の accepted develop 18 件に対応しない。
+
+### 凍結設計が記録している文脈 (図には描いていない)
+
+`output/s1-freeze/measurement_freeze.json` は次を記録している。図の忠実性に関わるので、
+事実としてここに引用する。
+
+- 各比較定義の注記: `stock_common は併記用の文脈セルであり、検定比較対には含めない。`
+  **本図は `stock_common` を描かない。** 基準線にすると、登録 9 対に含まれない第 10 の比較
+  (合成軸と stock の差) を図が主張することになるためである。同セルの値と、
+  `sort_best` および `system_gate` との比は provenance JSON の `facts.context_cells` に
+  `registered_comparison: false` を付けて記録した。
+- `sort_best` セルの選定履歴 (workload 別)。write-heavy は本走 argmax 規則で固定。
+  balanced は本走 argmax で `sp_dd` を固定したが、再測定 campaign
+  `p3-s6-sort-sweep-balanced-sweep-1b39095e` で floor 超を再現せず D46 の裁定は差なし。
+  read-heavy は sweep 未実施で、D52 §2.1 の事前固定 `sk_ad` を採用し comparator は write-heavy
+  本走 provenance から流用。
+
+### report が参照する freeze と現行 bytes の差
+
+凍結 report の `freeze_ref.sha256` は `5c719c07…` で、現行の
+`output/s1-freeze/measurement_freeze.json` (`203de36b…`) と一致しない。前者は commit
+`b4e5cb621e3f8f93de952e9400d4b8dcd34107e0` 時点の bytes である。差は次の 3 か所だけで、
+**本図が使う意味内容 — 18 セル定義、12 比較定義とその注記、`operating_point`、`workload_flags` —
+は両版で完全に同一である。**
+
+- `/frozen_at_head`
+- `/implementation_hashes/known_axes_freeze/sha256`
+- `/cells/read-heavy:sort_best/variant/sources[0]/sha256`
+
+この事実は provenance JSON の `facts.freeze_proof` に記録した。**旧 bytes の取得を検査の前提には
+していない** — テストが確かめるのは、記録値が report の値および現行 file の hash と一致し、
+両者が異なることまでである。上記 commit を `git show` すれば読者が差分を再導出できる。
+
+## 作図規約への適合
+
+provenance JSON の `facts.figure_conventions_compliance` は `"partial"` を記録している。
+**標本と集約値は WAL からその場で再計算するので §1 を満たすが、判定と p 値は hash で束縛した
+凍結 report を権威として読むので、§1 の「入力は WAL/dat のみ」の字義には合わない。**
+これは意図した設計である — 作図側が判定を作り直すことは絶対規律 2 に触れるため、
+凍結された裁定をそのまま描くことを優先した。規約側にこの限定例外を書き足すかは未裁定である。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` にも同一文字列で記録されており、
+`orchestrator/tests/test_s1_9pair_figure_provenance.py` が両者の一致と、必須要素が独立再計算した
+値と対応することを検査する。
+
+> 図4. 縮小主張 S' の性能次元 (S-1a) — 既知軸最良に対する直接比較 9 対 (失敗報告)。上段は、abort 要因別に backoff の発火可否を切り替える合成軸 (trigger gating) と、既知軸の最良 3 種 — コンパイル時フラグ最適化、静的 backoff の最良値、書込ロック順の並べ替え — との相対中央値差である。各点は 100 × (合成軸側の中央値 − 相手側の中央値) / 相手側の中央値 で、各セル 8 標本から再計算した。灰色の実線は差 0、赤の破線は厳密に超える必要がある判定境界 +3% (between-run floor = 走行間の再現ばらつきの下限) で、薄赤の領域は境界を超えない範囲である。S-1a の成立条件は 9 対すべてが境界を超えることである。コンパイル時フラグ最適化との 3 対は −9.3%〜−55.1%、静的 backoff 最良値との 3 対は −36.0%〜−51.9% で境界を超えず、書込ロック順並べ替えとの 3 対だけが +55.5%〜+98.4% で超えた。9 対中 6 対が満たされず、3 対が満たしたため、S-1a は不成立である (family p = 1.0)。下段は各セルの 8 標本を全数表示したもので、短い横線が中央値、菱形と誤差棒が標本平均と t 分布による 95% 信頼区間である。下段の平均の信頼区間は標本分布の記述用であり、上段の相対中央値差、判定境界、family 判定のいずれにも用いていない。下段の縦軸は workload ごとに独立なので、パネル間で点の高さや区間の幅を直接比べてはならない。各標本の値は同一セッション内 5 反復の中央値であり、M tps は毎秒 100 万トランザクションを表す。unstable と記録された標本は除外しない契約であり、本図の対象 12 セルには 1 件も無かった。測定条件は Silo、48 スレッド、レコード数 1,000,000、Zipf skew 0.9、read-modify-write 無効、実行時間 3 秒、`clocks_per_us` = 1,800 TSC tick/µs、トレース無効、`numactl --interleave=all`、環境タグ `linux-baremetal`、CCBench commit `d706650`。read 比率だけが workload ごとに異なる (write-heavy 5%、balanced 50%、read-heavy 95%)。測定は `perf stat` 下で最終レベルキャッシュの load misses / loads、instructions、cycles を収集しながら行われた記録であり、そのオーバーヘッドを含む。したがって本図の絶対スループットは論文の headline 値の出所ではなく、現行の同一 campaign 内対測定契約 (D496) を満たすとも主張しない。この限定は凍結済みの S-1a 判定を変更しない。生の追記専用ログ (write-ahead log; WAL) は admission を経た `HISTORICAL_RAW` として verifier epoch E0 で再読し、凍結報告が certified accepted evidence として受理した行と一致するものだけを描いた。判定と p 値は凍結報告から読んでおり、本図の生成器はそれを再計算していない。S-1b は既知軸最良との優劣を問う S-1a とは独立の主張であり、その成立は S-1a の不成立を救わない。
+
+## proof chain
+
+- 図に描いた点 → provenance JSON の `facts.comparisons` (9 対の左右セル・中央値・相対差・判定)
+- 図に描いた標本分布 → provenance JSON の `facts.cells` (セルごとの 8 生値・中央値・平均・CI)
+- 判定と p 値 → 凍結 report の `comparisons[*].judgment` と `families.s1a`。生成器は再計算しない
+- 標本の由来 → admission を経た `HISTORICAL_RAW` view の WAL と、report の
+  `hard_gates.certified.accepted_evidence` の全行一致
+- 比較定義の由来 → `output/s1-freeze/measurement_freeze.json` (上記の版差つき)
+- それらが着地後もずれないこと → `orchestrator/tests/test_s1_9pair_figure_provenance.py`
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`

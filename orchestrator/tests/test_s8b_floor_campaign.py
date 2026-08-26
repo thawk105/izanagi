@@ -327,7 +327,9 @@ def _fake_prepare(cell, ccbench_pin, *, cxx):
 
 _FIXTURE_DEPENDENCY_RECEIPT = {
     "masstree_head": "a" * 40,
-    "config_sha256": "b" * 64,
+    "config_sha256": hashlib.sha256(
+        b"fixture-dependency-config"
+    ).hexdigest(),
 }
 _FIXTURE_ARCHIVE_SHA256 = "c" * 64
 _FIXTURE_CAPTURED_POLICY_PINS = (
@@ -437,6 +439,11 @@ def _fixture_dependency_binding(base: Path) -> object:
         ),
         source_st_dev=1,
         source_st_ino=2,
+        oracle_root=base / "canonical-masstree",
+        canonical_lease_root=base / ".sort-swo-dependency-fixture",
+        dependency_manifest_sha256=(
+            "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+        ),
         captured_policy_pins=_FIXTURE_CAPTURED_POLICY_PINS,
     )
 
@@ -447,6 +454,25 @@ def _fixture_floor_build_result(**kwargs) -> SimpleNamespace:
         toolchain_manifest_sha256=_fixture_toolchain_manifest_sha256(),
         **kwargs,
     )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("dependency_manifest_sha256", "0" * 64, "manifest hash"),
+        ("dependency_config_sha256", "0" * 64, "config.h hash"),
+    ],
+)
+def test_post_oracle_binding_requires_receipt_to_match_canonical_and_source(
+        tmp_path, field, value, message):
+    dependency = _fixture_dependency_binding(tmp_path)
+    attempt = copy.deepcopy(fake_sort_swo_pass_attempt())
+    attempt["oracle_receipt"][field] = value
+
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=message):
+        s8b_floor_campaign._post_oracle_dependency_binding(
+            attempt, dependency,
+        )
 
 
 def _durable_policy(out_root: Path):
@@ -2343,7 +2369,7 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     assert len(built) == 1
     assert observed == {
         "cxx": "site-cxx",
-        "oracle_dependency_root": dependency.source_root,
+        "oracle_dependency_root": dependency.oracle_root,
         "oracle_compiler": "/fixture/toolchain/site-cxx",
     }
     oracle_markers = list(marker_root.glob("phase-oracle-*.json"))
@@ -2357,12 +2383,170 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
         )
     )
     assert dependency_attempt["dependency_root"] == str(dependency.source_root)
+    assert dependency_attempt["oracle_dependency_root"] == str(
+        dependency.oracle_root
+    )
+    assert dependency_attempt["dependency_manifest_sha256"] == (
+        dependency.dependency_manifest_sha256
+    )
     assert dependency_attempt["dependency_config_sha256"] == (
         dependency.config_sha256
     )
     assert dependency_attempt["dependency_toolchain_manifest_sha256"] == (
         dependency.expected_toolchain_manifest_sha256
     )
+
+
+def test_real_floor_prepare_material_oracle_and_capability_series_when_configured(
+        tmp_path, monkeypatch):
+    configured = os.environ.get("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT")
+    if not configured:
+        pytest.skip("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT is not configured")
+    configured_source = Path(configured).resolve(strict=True)
+    compiler = shutil.which("g++")
+    c_compiler = shutil.which("gcc")
+    cmake = shutil.which("cmake")
+    if compiler is None or c_compiler is None or cmake is None:
+        pytest.skip("real floor series requires gcc, g++, and cmake")
+
+    def tool_entry(requested: str) -> dict[str, str]:
+        completed = subprocess.run(
+            [requested, "--version"], check=True,
+            capture_output=True, text=True,
+        )
+        version = (completed.stdout + completed.stderr).strip()
+        return {
+            "requested": requested,
+            "realpath": str(Path(requested).resolve(strict=True)),
+            "version_first_line": completed.stdout.splitlines()[0],
+            "version": version,
+        }
+
+    toolchain_manifest = {
+        "cc": tool_entry(c_compiler),
+        "cxx": tool_entry(compiler),
+        "cmake": tool_entry(cmake),
+    }
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "compilers_for_current_site",
+        lambda: (c_compiler, compiler),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_bind_current_toolchain",
+        lambda *_args, **_kwargs: toolchain_manifest,
+    )
+    monkeypatch.setenv("TMPDIR", str(tmp_path.resolve()))
+
+    prebuild_bases = []
+
+    def prebuild_from_configured_root(**kwargs):
+        base = Path(kwargs["fetchcontent_base_dir"])
+        prebuild_bases.append(base)
+        shutil.copytree(configured_source, base / "masstree-src")
+        return SimpleNamespace()
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache,
+        "prepare_masstree_fetchcontent",
+        prebuild_from_configured_root,
+    )
+
+    capability_calls = []
+
+    def exact_build(genome, **kwargs):
+        capability = kwargs["post_oracle_dependency_binding"]
+        assert set(capability) == {
+            "fetchcontent_base_dir", "oracle_dependency_root",
+            "dependency_manifest_sha256", "masstree_head",
+            "config_sha256", "archive_sha256",
+        }
+        source = Path(capability["fetchcontent_base_dir"]) / "masstree-src"
+        assert Path(capability["oracle_dependency_root"]) != source
+        capability_calls.append(dict(capability))
+        binary = Path(kwargs["cache_root"]) / "real-floor" / "ycsb_silo.exe"
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        binary.write_bytes(b"real-floor-series-binary")
+        binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+        expected_manifest = dict(kwargs["expected_toolchain_manifest"])
+        base = Path(capability["fetchcontent_base_dir"])
+        return SimpleNamespace(
+            genome=genome,
+            trace=False,
+            binary=str(binary),
+            bin_sha256=binary_sha256,
+            bin_hash=binary_sha256[:16],
+            build_dir=str(binary.parent),
+            cached=False,
+            configure_cmd="fixture configure",
+            build_cmd="fixture build",
+            configure_argv=(
+                "cmake", f"-DFETCHCONTENT_BASE_DIR={base}",
+                "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+            ),
+            build_argv=("cmake", "--build", str(binary.parent)),
+            cache_root=kwargs["cache_root"],
+            ccbench_root=kwargs["ccbench_dir"],
+            contract_sha256=kwargs["contract"].contract_sha256,
+            toolchain_manifest=expected_manifest,
+            toolchain_manifest_sha256=(
+                s8b_floor_campaign._floor_toolchain_manifest_sha256(
+                    expected_manifest
+                )
+            ),
+            fetchcontent_base_dir=str(base),
+            masstree_source_root_sha256=hashlib.sha256(
+                str(source).encode("utf-8")
+            ).hexdigest(),
+        )
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", exact_build,
+    )
+    freeze = json.loads(
+        (ROOT / "output/s8b-freeze/holdout_freeze.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration="stock_common",
+        )
+        if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    ccbench_pin = subprocess.run(
+        ["git", "-C", str(ROOT / "external/ccbench"), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    built = s8b_floor_campaign.build_cells(
+        freeze,
+        cells,
+        ccbench_pin=ccbench_pin,
+        out_root=tmp_path / "out",
+        prepare_fn=s8b_floor_campaign.prepare_cell,
+        contract=contract,
+        verified_calibration=verified,
+        phase_marker_root=marker_root,
+    )
+
+    assert len(built) == 1
+    assert len(prebuild_bases) == 1
+    assert len(capability_calls) == 1
+    capability = capability_calls[0]
+    assert capability["masstree_head"] == (
+        "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+    )
+    assert capability["dependency_manifest_sha256"] == (
+        sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+    )
+    oracle_root = Path(capability["oracle_dependency_root"])
+    assert oracle_root.name == "canonical"
+    assert not oracle_root.parent.exists()
+    record = next(iter(built.values()))
+    assert record["sort_swo_oracle"]["reason_code"] == "sort-swo-oracle-pass"
 
 
 def test_dependency_bound_sort_best_rejects_nonexact_builder_before_call(
@@ -2388,7 +2572,7 @@ def test_dependency_bound_sort_best_rejects_nonexact_builder_before_call(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
             oracle_compiler, oracle_phase_marker):
         del oracle_compiler
-        assert oracle_dependency_root == dependency.source_root
+        assert oracle_dependency_root == dependency.oracle_root
         oracle_phase_marker()
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
             yield prepared
@@ -2435,7 +2619,26 @@ def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
     marker_root.mkdir()
     fetchcontent_base = tmp_path / "fetchcontent"
     fetchcontent_base.mkdir()
-    dependency = _fixture_dependency_binding(fetchcontent_base)
+    lease = fetchcontent_base / ".sort-swo-dependency-test"
+    canonical_root = lease / "canonical"
+    canonical_root.mkdir(parents=True)
+    dependency = dataclasses.replace(
+        _fixture_dependency_binding(fetchcontent_base),
+        oracle_root=canonical_root,
+        canonical_lease_root=lease,
+    )
+    canonical_material = (
+        s8b_floor_campaign._sort_swo_dependency_material
+        .CanonicalDependencyMaterial(
+            root=canonical_root,
+            lease_root=lease,
+            manifest_sha256=dependency.dependency_manifest_sha256,
+            config_sha256=dependency.config_sha256,
+            files=("PIN", "config.h"),
+            source_root=dependency.source_root,
+            head=dependency.observed_head,
+        )
+    )
     fake_build = _make_fake_build(tmp_path / "bin")
     observed = []
 
@@ -2444,7 +2647,7 @@ def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
             oracle_compiler, oracle_phase_marker):
         del oracle_compiler
-        assert oracle_dependency_root == dependency.source_root
+        assert oracle_dependency_root == dependency.oracle_root
         oracle_phase_marker()
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
             yield prepared
@@ -2454,9 +2657,13 @@ def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
         return fake_build(genome, **kwargs)
 
     monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+
+    def prebuild(_base, *, _material_sink, **_kwargs):
+        _material_sink.append(canonical_material)
+        return dependency
+
     monkeypatch.setattr(
-        s8b_floor_campaign, "_prepare_floor_oracle_dependency",
-        lambda _base, **_kwargs: dependency,
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency", prebuild,
     )
     monkeypatch.setattr(
         s8b_floor_campaign, "_verify_floor_build_dependency",
@@ -2478,9 +2685,11 @@ def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
     )
 
     assert len(built) == 1
+    assert not lease.exists()
     assert len(observed) == 1
     assert observed[0]["post_oracle_dependency_binding"] == {
         "fetchcontent_base_dir": str(fetchcontent_base.resolve()),
+        "oracle_dependency_root": str(dependency.oracle_root),
         "dependency_manifest_sha256": (
             "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
         ),
@@ -2585,7 +2794,7 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
             oracle_compiler, oracle_phase_marker):
-        assert oracle_dependency_root == dependency.source_root
+        assert oracle_dependency_root == dependency.oracle_root
         oracle_phase_marker()
         events.append("oracle")
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
@@ -2659,7 +2868,7 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
             oracle_compiler, oracle_phase_marker):
         if cell["configuration"] == "sort_best":
-            assert oracle_dependency_root == dependency.source_root
+            assert oracle_dependency_root == dependency.oracle_root
             oracle_phase_marker()
             events.append("oracle")
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
@@ -2789,6 +2998,18 @@ def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
         s8b_floor_campaign, "_verify_floor_oracle_dependency_source", verify,
     )
     monkeypatch.setattr(
+        s8b_floor_campaign, "_materialize_floor_oracle_dependency",
+        lambda observed, **_kwargs: (
+            dataclasses.replace(
+                observed,
+                oracle_root=base / "canonical-masstree",
+                canonical_lease_root=base / ".sort-swo-dependency-fixture",
+                dependency_manifest_sha256="8" * 64,
+            ),
+            SimpleNamespace(),
+        ),
+    )
+    monkeypatch.setattr(
         s8b_floor_campaign, "_masstree_policy_pin", lambda _root: "a" * 40,
     )
     observed = s8b_floor_campaign._prepare_floor_oracle_dependency(
@@ -2878,6 +3099,18 @@ def test_floor_dependency_prebuild_captures_shared_policy_pins_once(
     monkeypatch.setattr(
         s8b_floor_campaign, "_verify_floor_oracle_dependency_source", verify,
     )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_materialize_floor_oracle_dependency",
+        lambda observed, **_kwargs: (
+            dataclasses.replace(
+                observed,
+                oracle_root=base / "canonical-masstree",
+                canonical_lease_root=base / ".sort-swo-dependency-fixture",
+                dependency_manifest_sha256="8" * 64,
+            ),
+            SimpleNamespace(),
+        ),
+    )
     binding = s8b_floor_campaign._prepare_floor_oracle_dependency(
         base.resolve(), ccbench_pin="0" * 40,
         expected_toolchain_manifest=_FIXTURE_TOOLCHAIN_MANIFEST,
@@ -2959,6 +3192,11 @@ def test_floor_strict_postflight_rejects_run_local_dependency_replacement(
     )
     before = dataclasses.replace(
         before,
+        oracle_root=base / "canonical-masstree",
+        canonical_lease_root=base / ".sort-swo-dependency-fixture",
+        dependency_manifest_sha256=(
+            "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+        ),
         captured_policy_pins=(
             ("googletest", "c" * 40),
             ("masstree", head),
@@ -3034,6 +3272,7 @@ def test_floor_postflight_staged_source_set_and_expected_hash_are_enforced(
     policy_path.write_bytes(b"fixture payload policy v1\n")
     before = dataclasses.replace(
         _fixture_dependency_binding(base),
+        config_sha256="b" * 64,
         transport_mode="source-dir",
         expected_config_sha256="b" * 64,
         payload_policy_sha256=hashlib.sha256(policy_path.read_bytes()).hexdigest(),
@@ -3365,6 +3604,23 @@ def test_floor_oracle_preflight_diagnostic_rejects_unknown_detail_code():
         )
 
 
+def test_floor_canonical_manifest_diagnostic_records_both_hashes_only():
+    diagnostic = s8b_floor_campaign._FloorOraclePreflightDiagnostic(
+        detail_code="floor-dependency-canonical-manifest-mismatch",
+        origin="floor-dependency-canonical:manifest",
+        outcome="identity-mismatch",
+        generated_manifest_sha256="1" * 64,
+        expected_manifest_sha256="2" * 64,
+    )
+    payload = diagnostic.private_dict()
+    assert payload["generated_manifest_sha256"] == "1" * 64
+    assert payload["expected_manifest_sha256"] == "2" * 64
+    assert set(payload) == {
+        "detail_code", "origin", "outcome", "path",
+        "generated_manifest_sha256", "expected_manifest_sha256",
+    }
+
+
 def _git_fixture_source(path: Path) -> str:
     path.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(path)], check=True)
@@ -3557,6 +3813,11 @@ def test_build_cells_production_postflight_rejects_dependency_drift(
     )
     before = dataclasses.replace(
         before,
+        oracle_root=base / "canonical-masstree",
+        canonical_lease_root=base / ".sort-swo-dependency-fixture",
+        dependency_manifest_sha256=(
+            "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+        ),
         captured_policy_pins=(
             ("googletest", "c" * 40),
             ("masstree", head),
@@ -3569,10 +3830,16 @@ def test_build_cells_production_postflight_rejects_dependency_drift(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
             oracle_compiler, oracle_phase_marker):
         del oracle_compiler
-        assert oracle_dependency_root == before.source_root
+        assert oracle_dependency_root == before.oracle_root
         oracle_phase_marker()
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
-            yield prepared
+            oracle_attempt = copy.deepcopy(prepared.oracle_attempt)
+            oracle_attempt["oracle_receipt"][
+                "dependency_config_sha256"
+            ] = before.config_sha256
+            yield dataclasses.replace(
+                prepared, oracle_attempt=oracle_attempt,
+            )
 
     fake_build = _make_fake_build(tmp_path / "bin")
 
@@ -4683,7 +4950,10 @@ def test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash
         tmp_path):
     staging = tmp_path / "job-staging"
     staging.mkdir()
-    dependency = _fixture_dependency_binding(tmp_path / "cache")
+    dependency = dataclasses.replace(
+        _fixture_dependency_binding(tmp_path / "cache"),
+        config_sha256="b" * 64,
+    )
     marker = s8b_floor_campaign._write_phase_marker(
         staging,
         cell="rr79:sort_best",
@@ -4696,6 +4966,10 @@ def test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash
     assert payload["cell"] == "rr79:sort_best"
     assert payload["phase"] == "oracle"
     assert payload["dependency_root"] == str(dependency.source_root)
+    assert payload["oracle_dependency_root"] == str(dependency.oracle_root)
+    assert payload["dependency_manifest_sha256"] == (
+        dependency.dependency_manifest_sha256
+    )
     assert payload["dependency_config_sha256"] == "b" * 64
     assert payload["dependency_toolchain_manifest_sha256"] == (
         _fixture_toolchain_manifest_sha256()
@@ -10365,6 +10639,17 @@ def _write_verified_campaign_recovery_registry(
         "failure_reason": "node_failure",
         "collected_at": "2026-08-25T00:00:01+00:00",
     }
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(
+        authority
+    )
+    receipt_path = (
+        s8b_floor_campaign._holdout_admission
+        ._scheduler_accounting_receipt_claim_path(shared, receipt)
+    )
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_bytes(
+        attempt_registry_core.canonical_json_bytes(receipt) + b"\n"
+    )
     rows = attempt_registry_core.record_attempt_recovery(
         rows, profile=profile, freeze_id=binding.freeze_sha256,
         slot_id=slot_id, binding=binding,
@@ -10378,7 +10663,6 @@ def _write_verified_campaign_recovery_registry(
     relative = s8b_attempt_profile.S8B_REGISTRY_LAYOUT.registry_path.as_posix().format(
         freeze_sha256=binding.freeze_sha256,
     )
-    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
     path = shared.joinpath(*Path(relative).parts)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"".join(

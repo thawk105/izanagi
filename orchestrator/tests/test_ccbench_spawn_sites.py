@@ -91,6 +91,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Read-only Git HEAD/status probes bind the delegated CCBench source tree;
     # measurement itself remains owned by run_campaign().
     ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 2,
+    # Fixed Git executable and fixed allow-list environment run read-only
+    # repository-binding queries; argv never names or executes CCBench.
+    ("campaign/p3_b4_admission_record.py", "<module>._git_call"): 1,
     ("campaign/queue_state.py", "<module>._run_qstat_bounded"): 1,
     ("campaign/reflux_origin_ledger.py", "<module>._git"): 1,
     ("campaign/reflux_source_closure.py", "<module>._git"): 1,
@@ -132,6 +135,8 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Sanitized read-only Git identity/status probes for staged dependencies;
     # neither command names nor executes CCBench.
     ("campaign/s8b_floor_campaign.py", "<module>._verify_pristine_floor_dependency_sources"): 2,
+    # Fixed pgrep competition probe; argv cannot name or execute CCBench.
+    ("campaign/s8b_floor_attempt_launcher.py", "<module>._owned_post_probe"): 1,
     ("campaign/s8b_holdout_admission.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git_bytes"): 1,
@@ -147,6 +152,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8c_acceptance_receipt.py", "<module>._git"): 1,
     ("campaign/s8c_preregistration.py", "<module>._git"): 1,
     ("campaign/silo_ladder_rung1.py", "<module>._run"): 2,
+    # Sanitized read-only Git root/HEAD and tracked-path queries; neither argv
+    # names nor executes CCBench.
+    ("campaign/sort_swo_dependency_material.py", "<module>._run_git"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compile"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compiler_version"): 1,
     # Compiler -M scan only emits dependencies; -I paths do not run CCBench.

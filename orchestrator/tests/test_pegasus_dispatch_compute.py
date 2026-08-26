@@ -5481,8 +5481,9 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
     second.start()
     assert second_acquire_entered.wait(5)
     release_qsub.set()
-    first.join(10)
-    second.join(10)
+    # 60s is over 4x the measured 13.94s standalone run, but still bounds deadlocks.
+    first.join(60)
+    second.join(60)
 
     assert not first.is_alive() and not second.is_alive()
     assert results == {"first": 0, "second": 0}

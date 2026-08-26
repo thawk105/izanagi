@@ -1450,6 +1450,9 @@ elif mode == "null_info":
     append_token(rollout_path, selected_usage)
 elif mode != "no_token":
     append_token(rollout_path, selected_usage)
+# fsync 済み rollout evidence を親の論理時計へ通知する。
+if invocation == 1 and (ready := os.environ.get("FAKE_EVIDENCE_READY")):
+    Path(ready).write_text("1", encoding="ascii")
 if mode == "final_drain":
     time.sleep(0.15)
     selected_usage = usage(
@@ -3944,6 +3947,8 @@ def test_attempt_preflight_delay_exhausts_wall_clock_before_spawn(
 
 def _install_evidence_origin_logical_clock(
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    first_attempt_evidence_ready: Path | None = None,
 ) -> None:
     clock_ns = time.monotonic_ns()
     polling = False
@@ -3957,7 +3962,14 @@ def _install_evidence_origin_logical_clock(
             spawn_sample_pending = False
             polling = True
         elif polling:
-            clock_ns += 10_000_000
+            # 子が最初の evidence を確定するまでの scheduler 遅延は、test の
+            # grace 用論理時間へ算入しない。retry では既存 marker により進む。
+            first_attempt_evidence_pending = (
+                first_attempt_evidence_ready is not None
+                and not first_attempt_evidence_ready.exists()
+            )
+            if not first_attempt_evidence_pending:
+                clock_ns += 10_000_000
         return clock_ns
 
     def delayed_validator(root: Path) -> list[str]:
@@ -4037,7 +4049,12 @@ def test_evidence_grace_starts_at_spawn_completed_on_retry(
         max_wall="11",
     )
     env["FAKE_SEQUENCE"] = "retry_reject,no_rollout"
-    _install_evidence_origin_logical_clock(monkeypatch)
+    first_attempt_evidence_ready = tmp_path / "first-attempt-evidence-ready"
+    env["FAKE_EVIDENCE_READY"] = os.fspath(first_attempt_evidence_ready)
+    _install_evidence_origin_logical_clock(
+        monkeypatch,
+        first_attempt_evidence_ready=first_attempt_evidence_ready,
+    )
 
     _run_main_in_process(
         command, env, monkeypatch, paths=paths, expected_returncode=1

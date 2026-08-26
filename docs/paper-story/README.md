@@ -25,41 +25,92 @@
 | 2026-07-03 | `2026-07-03.md` | Phase 2 完了・Phase 3 kickoff 進行中 | 否定的結果 + 空間外合成（P2-4/P2-5） |
 | 2026-07-10 | `2026-07-10.md` | Phase 3 段 5 完了（sort 軸 iteration 1 が実 LLM で E2E certified） | 同上（Phase 3 進捗を反映、図つき） |
 | 2026-08-23 | `2026-08-23.md` | 縮小主張 S' が headline 不成立で確定（2026-07-16）した後。8b descriptor・層3 事実層 v2・8c bounded MVP・床値 protocol まで機構は進行、新 protocol による床値の実測は未取得 | 同上（第 3 幕を「機構は深化し性能主張は後退した」として再記述。未取得証拠の一覧を A/B/C の 3 群で付す） |
+| 2026-08-26 | `2026-08-26.md` | A-3（P2-4 利得値）決着・後継図 fig2b 成立・A-1 探索走と反復数事前登録の凍結・A-2 driver とコスト実測・床値 pilot の 12 セル完走・8c 正式系列の閂の再特徴づけ（D930）の後 | 同上（科学的主張は前版から動かず、「あと何が要るか」の地図だけが変わった、として §6 と §8 を全面再導出。§9 の分類に「限定付きで取れた観測」を追加） |
 
-**最新 = `2026-08-23.md`。** 図は `figures/` に、2026-07-10 版の作成時に気づいた示唆は
+**最新 = `2026-08-26.md`。** 図は `figures/` に、2026-07-10 版の作成時に気づいた示唆は
 `notes-2026-07-10.md` に分離。`figures/fig3_arc_status.png` は 2026-07-10 版（Phase 3 段 5 時点）の
-現況図であり、2026-08-23 版の第 3 幕の記述とは一致しない（同版 §0 に明記）。
+現況図であり、2026-08-23 版・2026-08-26 版の第 3 幕の記述とは一致しない（各版 §0 に明記）。
+
+**2026-08-26 版が前版を訂正した箇所は 7 つ。** いずれも同版の該当節に理由がある。凍結物である
+2026-08-23 版は書き換えていない。
+
+1. §8 の A-4 — 「計測到達セルは 0」は、その後の床値 pilot 完走により成り立たなくなった。
+2. §8 の B-3 — 「12 前提条件のいずれも充足証明できない」という閂の説明は D930 で置き換わった。
+3. §9 の 3 文要約 — 第 1 文が P2-5 の「deceptive 構造では有意に有害」を逆に述べており、
+   第 2 文の「stock 超え」が分母（無 backoff 対照）と read-heavy の退行を隠していた。
+4. §4 — 「旧 headline の 4 対照」を「§8 の A-1」へ紐づけていたが、A-1 は P2-4 の同一 campaign 内
+   対測定であって 4 対照ではない。
+5. §1 — Polyjuice と CCaaLF を「policy table を出すだけ」と一括していたが、`related-work/README.md`
+   は CCaaLF（v4 で NeurCC へ改名）を「CC を学習可能関数としてモデル化」と記す。
+6. §6 — 8a・8c・層3 を 1 本の E2E 機構の「内訳」として束ねていたが、三者は成立していても
+   一続きの鎖にはなっていない（8a は n=1・人間承認 gate つき、8c は 1 軸固定で axis-proposer を
+   呼ばない、層3 は別の対象 campaign 群）。
+7. §7 の 8c 項 — 到達点を「build 手前まで運べる」と書いていたが、同じ前版の §2 は既に
+   live pilot の bench 到達を記録しており、版の中で矛盾していた。
 
 ## 最新スナップショット以後に確定したこと（stale 注記）
 
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-- **P2-4 の利得値（§8 の A-3、および第 2 幕 P2-4）は決着済み。** 2026-08-23 版は「未解決」と
-  書いているが、論文採用値は同一 sweep 内の no-backoff control（`BACK_OFF=0`）を分母として
-  write-heavy +38.3% / balanced +11.3% / read-heavy -6.6% に固定された。
-  `backoff_profile_t48_skew0p9_rr5.json` 由来の +38.5% は D20 により headline 非採用の機序診断値である。
-  条件表・再計算・一次資料ポインタは
-  `output/insights/2026-08-25_paper-story-a3-gain-unification/README.md`
-  （先行分は `output/insights/2026-08-24_paper-story-a3-evidence-integration/README.md`）。
-- **`figures/fig2_backoff_mechanism.png` は baseline を誤って label している。** 図中の横破線には
-  `stock adaptive backoff` と書かれているが、その値は無 backoff（`BACK_OFF=0`）である。
-  2026-07-10 版と 2026-08-23 版のキャプションも同じ誤りを持つ。**旧図と旧キャプションは凍結物なので
-  訂正しない。** 詳細は上記 insight。
-  **後継図 `figures/fig2b_backoff_sweep_3workload.png`（ベクター版は同名の `.pdf`）を作った。**
-  headline 適格な sweep 系列を 3 workload 分描き、基準線を無 backoff 対照 1 本に限定し、
-  tracked な生成器 `tools/plotting/plot_backoff.py` で再現できる。再現コマンド・入力・
-  キャプション正文・旧図との対応は `figures/README.md` にある。
-  **論文で P2-4 の図を使うときは後継図を使い、旧図を使わない。**
-- **§8 の A-1・A-2 も 2026-08-23 版の時点から進んだ。** 現況は `docs/worklog.md` と
-  `docs/phase3.md` が正本であり、A/B/C の一覧を最新状態として読まない。
+**§8 の C-1 (クロスプロトコル stock 最良との比較) — mocc の pilot を同一 source の対として
+取り直した (2026-08-26)。** 2026-08-26 版は「mocc は trace-hook (TRACE=1) と性能 (TRACE=0) の
+pilot が各 1 本あるが、どちらも `official_certification=false` の単一観測であり、
+性能と正しさの対でもない」と書いた。**「対でない」は解消した。** 同一 outer commit・
+同一 ccbench source `058d0c4e`・同一 workload で TRACE=1 と TRACE=0 を各 2 本ずつ、
+別ビルド・別 run で取り、機械検査を通した対 (`mocc-trace-pair-receipt/v2`、`status=accepted`、
+`n_per_trace_mode=2`) がある。**「`official_certification=false` の pilot である」は解消していない。**
+全 leg と pair receipt は `official_certification=false` / `eligible_for_refreeze=false` のままで、
+C-1 が将来スコープ (現在の論文の必要条件ではない) であることも変わらない。**この対を headline・
+certified な選択・floor・oracle・fitness の根拠に使わない。** pair receipt の `prohibited_uses` は
+宣言であって強制ではなく、それを読む consumer は存在しない。
+**あわせて、同じ workload の TRACE=1 3 本のうち 1 本が non-serializable (G2 anomaly 1 件) で
+fail-closed した。** MoCC 実装の性質か izanagi の trace hook の取り違えかは確定していない。
+一次資料: `output/insights/2026-08-26_mocc-trace-pair.md`、
+`output/insights/2026-08-26_mocc-trace-pair-receipt.json`。
+前版（2026-08-23 版）に対して積んでいた 3 項目 — P2-4 利得値の決着、旧図 `fig2` の baseline
+誤 label と後継図、§8 の A-1・A-2 の進捗 — は、いずれも 2026-08-26 版が本文へ取り込んだので
+ここから外した。
+
+**恒久の erratum は別の場所にある。**
+`figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
+書いてあるが、その値は無 backoff）と後継図 `figures/fig2b_backoff_sweep_3workload` への
+乗り換え指示は、腐らない入口として `figures/README.md` が持つ。**旧図と、旧図を載せた
+2026-07-10 版・2026-08-23 版のキャプションは凍結物なので訂正しない。**
+**論文で P2-4 の図を使うときは後継図を使い、旧図を使わない。**
+
+次にこの節へ書くのは、`2026-08-26.md` の記述を一次資料が覆したときである。
 
 ## 読み方
 
 - 論文執筆・ポジショニング検討のときに読む。日常セッションのブートには不要（ブートコスト規律 D35）。
 - 各版の §（過大主張チェックリスト）は執筆フェーズで消し込み式に運用してよい唯一の例外。
-- Phase 3 主実験（phase3.md 後続段 6）が成立すれば headline はそちらへ移動する予定 —
+- **旧 Phase 3 主実験（phase3.md 後続段 6）は 2026-07-16 に完了し、縮小主張 S' は不成立で
+  確定した。** 「主実験が成立すれば headline がそちらへ移る」という以前の見通しは、
+  そのままでは使えない（正本 = `output/reports/s_prime_final_report.md`、
+  および最新版の §2 第 3 幕 (a) と §6）。新しい headline 候補が実際に成立したときは、
   その時点で新しい日付のスナップショットを追加する。
+
+## claim-evidence 系列（`claim-evidence/` サブディレクトリ）
+
+**版とは別系列の、執筆者向けの作業表を置く場所。** 版が「その時点で何を語るか」を書くのに対し、
+こちらは「主張 1 件ごとに、何を書けて、何がそれを弱めているか」を並べる。
+版と混ぜないために **filename ではなくディレクトリで分ける。**
+
+| 日付 | ファイル | 内容 |
+|---|---|---|
+| 2026-08-26 | `claim-evidence/2026-08-26.md` | claim-evidence matrix（科学的主張 / 運用・方法論の証拠 / 文献 guardrail の 3 表）、限定レジストリ `L01`〜`L28`、limitations 節の日本語統制稿 |
+
+**この系列の規則。**
+
+- **append-only。書いた後は更新しない。** 版と同じ凍結物である。
+- **新しい日付を足すときは、入力 5 節（最新版の §3 / §6 / §7 / §8 / §9）全体から作り直す。**
+  一項目だけを直した差分改訂を新しい日付として置かない（版と同じ理由 — 更新しなかった項目の
+  stale が「その日付時点でそう主張した」という新しい嘘に変わる）。
+- **「版の履歴」表には登録しない。** これは版ではない。どちらが全面再導出された版かは
+  ディレクトリで判別する。
+- **数値・日付・判定の出所は一次資料だけとする。** 版の記述を数値の出所にしない。
+- 版と同じく `tools/check_docs.py` の `LIVING_DOCS`（現況主張 lint）対象外である。
 
 ## 運用ルール（check_docs.py との関係）
 

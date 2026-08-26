@@ -54,6 +54,12 @@ from .p3_s4_loop import (  # noqa: E402
     make_critic_identity_projection,
     state_from_dict,
 )
+from .p3_b4_admission_record import (  # noqa: E402
+    B4AdmissionRecordError,
+    VerifiedB4AdmissionRecord,
+    assert_admission_expectation,
+    verify_b4_admission_record,
+)
 from .role_session_isolation import CrossRoleSessionTracker  # noqa: E402
 from .s8b_prediction_runner import (  # noqa: E402
     PredictionRunnerError,
@@ -94,6 +100,9 @@ PREDICTION_RUNNER_FILE = (
 ROLE_SESSION_ISOLATION_FILE = (
     REPOSITORY_ROOT / "orchestrator" / "campaign" / "role_session_isolation.py"
 )
+ADMISSION_VALIDATOR_FILE = (
+    REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_b4_admission_record.py"
+)
 MODULE_FILE = Path(__file__).resolve()
 
 MEDIATED_CRITIC_CONTRACT = """
@@ -121,6 +130,29 @@ _QUOTED_PATH_RE = re.compile(
     r"(?P<quote>[\"'])(?P<path>(?:[A-Za-z]:)?[\\/].*?)(?P=quote)"
 )
 _PAIR_SEAL = object()
+_PRODUCTION_PAIR_SEAL = object()
+ADMISSION_SIDECAR_SCHEMA_VERSION = "p3-b4-prerun-admission-sidecar/v1"
+_ADMISSION_ERROR_SIGNATURES = frozenset({
+    "[admission-record] record is unavailable",
+    "[admission-record] record is not committed at execution HEAD",
+    "[admission-preregistration] document binding is not verifiable",
+    (
+        "[admission-preregistration] section 5 fixed table requires nonempty "
+        "source cells and no reserved sentinel; types, meanings, and rendered "
+        "non-emptiness are not checked"
+    ),
+    "[admission-mismatch] expected_claude_model_snapshot",
+    "[admission-mismatch] expected_effective_critic_prompt_sha256",
+    (
+        "[admission-mismatch] "
+        "expected_closed_critic_projection_closure_sha256"
+    ),
+})
+_UNCLASSIFIED_ADMISSION_ERROR_SIGNATURE = "[admission-error] unclassified"
+_UNCLASSIFIED_CLOSED_CRITIC_ERROR_SIGNATURE = (
+    "[closed-critic-error] unclassified"
+)
+_TIMEOUT_ERROR_SIGNATURE = "[closed-critic-error] timeout"
 _IDENTITY_NON_GUARANTEES = (
     "indirect identifiers are not closed: variant labels, src tokens, "
     "genome labels, and WAL-originated free text",
@@ -273,6 +305,15 @@ class _Snapshot:
     whiteboard_entry: WhiteboardEntry
 
 
+@dataclass(frozen=True)
+class _ProductionPairCertification:
+    repository_root: Path
+    pair_id: str
+    verified_admission: VerifiedB4AdmissionRecord
+    admission_sidecar_path: Path
+    admission_sidecar_sha256: str
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -309,6 +350,51 @@ def _write_exclusive_bytes(path: Path, data: bytes) -> str:
     except BaseException:
         raise
     return _sha256(data)
+
+
+def _admission_sidecar_value(
+    verified: VerifiedB4AdmissionRecord,
+) -> dict[str, str]:
+    return {
+        "schema_version": ADMISSION_SIDECAR_SCHEMA_VERSION,
+        "admission_record_repository_path": (
+            verified.admission_record_repository_path
+        ),
+        "admission_record_sha256": verified.admission_record_sha256,
+        "verification_head_commit": verified.admission_record_commit,
+        "preregistration_repository_path": (
+            verified.preregistration_repository_path
+        ),
+        "preregistration_content_commit": (
+            verified.preregistration_content_commit
+        ),
+        "preregistration_content_sha256": (
+            verified.preregistration_content_sha256
+        ),
+        "expected_claude_model_snapshot": (
+            verified.expected_claude_model_snapshot
+        ),
+        "expected_effective_critic_prompt_sha256": (
+            verified.expected_effective_critic_prompt_sha256
+        ),
+        "expected_closed_critic_projection_closure_sha256": (
+            verified.expected_closed_critic_projection_closure_sha256
+        ),
+    }
+
+
+def _closed_error_signature(exc: BaseException) -> str:
+    if isinstance(exc, B4AdmissionRecordError):
+        signature = str(exc)
+        if signature in _ADMISSION_ERROR_SIGNATURES:
+            return signature
+        return _UNCLASSIFIED_ADMISSION_ERROR_SIGNATURE
+    if (
+        isinstance(exc, subprocess.TimeoutExpired)
+        or isinstance(exc.__cause__, subprocess.TimeoutExpired)
+    ):
+        return _TIMEOUT_ERROR_SIGNATURE
+    return _UNCLASSIFIED_CLOSED_CRITIC_ERROR_SIGNATURE
 
 
 def _reserve_terminal_receipt(path: Path) -> int:
@@ -543,6 +629,10 @@ def projection_closure_manifest(
             "orchestrator/campaign/role_session_isolation.py",
             ROLE_SESSION_ISOLATION_FILE,
         ),
+        (
+            "orchestrator/campaign/p3_b4_admission_record.py",
+            ADMISSION_VALIDATOR_FILE,
+        ),
         ("orchestrator/critic/digest.py", DIGEST_FILE),
         (
             "orchestrator/critic/identity_projection.py",
@@ -692,6 +782,7 @@ class B4ClosedCriticController:
         tracker: CrossRoleSessionTracker,
         controller_id: str,
         initial_projection_sha256: str,
+        verified_admission: VerifiedB4AdmissionRecord | None,
     ) -> None:
         if _seal is not _PAIR_SEAL:
             raise B4ArmBindingError("controllers must be made by the sealed pair factory")
@@ -699,9 +790,15 @@ class B4ClosedCriticController:
         self.__evidence_class = evidence_class
         self.__controller_id = controller_id
         self.__initial_projection_sha256 = initial_projection_sha256
+        self.__verified_admission = verified_admission
+        if (evidence_class == "certified") != (verified_admission is not None):
+            raise B4ArmBindingError(
+                "certified controllers require one verified admission record"
+            )
         self.__artifact_root = Path(artifact_root)
         self.__artifact_root.mkdir(parents=True, exist_ok=False)
         self.__invoked = False
+        self.__successful_terminal_receipt_path: Path | None = None
         self.__provider = ClaudeProjectedRoleProvider(
             artifact_root=self.__artifact_root,
             role_file=ROLE_FILE,
@@ -713,6 +810,19 @@ class B4ClosedCriticController:
             environ=environ,
             cross_role_session_tracker=tracker,
         )
+        try:
+            if self.__verified_admission is not None:
+                assert_admission_expectation(
+                    "expected_effective_critic_prompt_sha256",
+                    expected=(
+                        self.__verified_admission
+                        .expected_effective_critic_prompt_sha256
+                    ),
+                    actual=self.__provider.effective_prompt_sha256,
+                )
+        except BaseException:
+            self.__provider.close()
+            raise
         self.__provider_instance_id = f"python-object:{id(self.__provider):x}"
         self.__neutral_root_identity_bytes = _neutral_root_identity_bytes(
             self.__provider
@@ -726,6 +836,9 @@ class B4ClosedCriticController:
 
     def _pair_identity(self) -> tuple[str, str]:
         return self.__provider_instance_id, self.__neutral_root_identity_sha256
+
+    def _successful_terminal_path(self) -> Path | None:
+        return self.__successful_terminal_receipt_path
 
     def invoke(self, *, invocation_id: str) -> B4ClosedCriticInvocation:
         """Invoke once; every started attempt receives one terminal receipt."""
@@ -809,6 +922,14 @@ class B4ClosedCriticController:
                 invocation_id=invocation_id,
                 payload=payload,
             )
+            if self.__verified_admission is not None:
+                assert_admission_expectation(
+                    "expected_claude_model_snapshot",
+                    expected=(
+                        self.__verified_admission.expected_claude_model_snapshot
+                    ),
+                    actual=response.provenance["model"],
+                )
             decision = parse_b4_critic_response(response.raw_response)
             envelope_path = self.__artifact_root / f"envelope_{invocation_id}.json"
             envelope_bytes = _read_bytes(envelope_path, purpose="raw envelope")
@@ -887,6 +1008,9 @@ class B4ClosedCriticController:
             fd = terminal_fd
             terminal_fd = None
             _finish_reserved_json(fd, terminal_path, terminal_value)
+            self.__successful_terminal_receipt_path = terminal_path.resolve(
+                strict=True
+            )
             return B4ClosedCriticInvocation(
                 decision=decision,
                 receipt=receipt,
@@ -917,6 +1041,7 @@ class B4ClosedCriticController:
                 "controller_id": self.__controller_id,
                 "invocation_id": invocation_id,
                 "error_type": type(exc).__name__,
+                "error_signature": _closed_error_signature(exc),
                 "start_receipt_sha256": start_sha256,
                 "finished_at_ns": time.time_ns(),
                 **evidence,
@@ -951,11 +1076,21 @@ class B4ClosedCriticPair:
         _seal: object,
         on: B4ClosedCriticController,
         off: B4ClosedCriticController,
+        _certification_seal: object | None = None,
+        production_certification: _ProductionPairCertification | None = None,
     ) -> None:
         if _seal is not _PAIR_SEAL:
             raise B4ArmBindingError("B-4 pairs must be made by the sealed factory")
+        if (_certification_seal is _PRODUCTION_PAIR_SEAL) != (
+            production_certification is not None
+        ):
+            raise B4ArmBindingError(
+                "production pair certification is not factory sealed"
+            )
         self.on = on
         self.off = off
+        self.__certification_seal = _certification_seal
+        self.__production_certification = production_certification
 
     def close(self) -> None:
         self.on.close()
@@ -967,12 +1102,33 @@ class B4ClosedCriticPair:
     def __exit__(self, _exc_type, _exc, _tb) -> None:
         self.close()
 
+    def _require_production_certification(
+        self,
+    ) -> _ProductionPairCertification:
+        if (
+            self.__certification_seal is not _PRODUCTION_PAIR_SEAL
+            or self.__production_certification is None
+        ):
+            raise B4ReceiptError(
+                "certified pair requires a live production factory pair"
+            )
+        return self.__production_certification
+
+    @property
+    def admission_sidecar_path(self) -> Path:
+        return self._require_production_certification().admission_sidecar_path
+
+    @property
+    def admission_sidecar_sha256(self) -> str:
+        return self._require_production_certification().admission_sidecar_sha256
+
 
 def _prepare_b4_closed_critic_pair(
     *,
     on_cfg: CampaignConfig,
     off_cfg: CampaignConfig,
     artifact_root: Path,
+    verified_admission: VerifiedB4AdmissionRecord | None,
 ) -> tuple[
     _ArmBinding,
     _ArmBinding,
@@ -992,12 +1148,23 @@ def _prepare_b4_closed_critic_pair(
         raise B4ReceiptError("pair artifact root must not already exist") from exc
     tracker = CrossRoleSessionTracker()
     closure_sha256 = projection_sha256(on_binding.driver_kind)
+    if verified_admission is not None:
+        assert_admission_expectation(
+            "expected_closed_critic_projection_closure_sha256",
+            expected=(
+                verified_admission
+                .expected_closed_critic_projection_closure_sha256
+            ),
+            actual=closure_sha256,
+        )
     return on_binding, off_binding, root, tracker, closure_sha256
 
 
 def _seal_b4_closed_critic_pair(
     on_controller: B4ClosedCriticController,
     off_controller: B4ClosedCriticController,
+    *,
+    production_certification: _ProductionPairCertification | None = None,
 ) -> B4ClosedCriticPair:
     if on_controller._pair_identity() == off_controller._pair_identity():
         on_controller.close()
@@ -1007,6 +1174,12 @@ def _seal_b4_closed_critic_pair(
         _seal=_PAIR_SEAL,
         on=on_controller,
         off=off_controller,
+        _certification_seal=(
+            _PRODUCTION_PAIR_SEAL
+            if production_certification is not None
+            else None
+        ),
+        production_certification=production_certification,
     )
 
 
@@ -1015,11 +1188,16 @@ def create_b4_closed_critic_pair(
     on_cfg: CampaignConfig,
     off_cfg: CampaignConfig,
     artifact_root: Path,
+    admission_record_path: Path,
     repository_root: Path | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> B4ClosedCriticPair:
     """Create a certified pair with no runner or executable injection seam."""
     trusted_root = _resolve_repository_root(repository_root)
+    verified_admission = verify_b4_admission_record(
+        admission_record_path,
+        repository_root=trusted_root,
+    )
     resolved = shutil.which("claude")
     if resolved is None:
         raise B4TrustRootError("certified executable name claude is not on PATH")
@@ -1034,7 +1212,20 @@ def create_b4_closed_critic_pair(
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
+            verified_admission=verified_admission,
         )
+    )
+    admission_sidecar_path = root / "admission_record_sidecar.json"
+    admission_sidecar_sha256 = _write_exclusive_json(
+        admission_sidecar_path,
+        _admission_sidecar_value(verified_admission),
+    )
+    production_certification = _ProductionPairCertification(
+        repository_root=trusted_root,
+        pair_id=on_binding.pair_id,
+        verified_admission=verified_admission,
+        admission_sidecar_path=admission_sidecar_path.resolve(strict=True),
+        admission_sidecar_sha256=admission_sidecar_sha256,
     )
     on_controller: B4ClosedCriticController | None = None
     try:
@@ -1050,6 +1241,7 @@ def create_b4_closed_critic_pair(
             tracker=tracker,
             controller_id=f"b4-on-{os.urandom(16).hex()}",
             initial_projection_sha256=closure_sha256,
+            verified_admission=verified_admission,
         )
         off_controller = B4ClosedCriticController(
             _seal=_PAIR_SEAL,
@@ -1063,12 +1255,17 @@ def create_b4_closed_critic_pair(
             tracker=tracker,
             controller_id=f"b4-off-{os.urandom(16).hex()}",
             initial_projection_sha256=closure_sha256,
+            verified_admission=verified_admission,
         )
     except BaseException:
         if on_controller is not None:
             on_controller.close()
         raise
-    return _seal_b4_closed_critic_pair(on_controller, off_controller)
+    return _seal_b4_closed_critic_pair(
+        on_controller,
+        off_controller,
+        production_certification=production_certification,
+    )
 
 
 def create_b4_closed_critic_pair_for_test(
@@ -1088,6 +1285,7 @@ def create_b4_closed_critic_pair_for_test(
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
+            verified_admission=None,
         )
     )
     on_controller: B4ClosedCriticController | None = None
@@ -1104,6 +1302,7 @@ def create_b4_closed_critic_pair_for_test(
             tracker=tracker,
             controller_id=f"b4-on-{os.urandom(16).hex()}",
             initial_projection_sha256=closure_sha256,
+            verified_admission=None,
         )
         off_controller = B4ClosedCriticController(
             _seal=_PAIR_SEAL,
@@ -1117,6 +1316,7 @@ def create_b4_closed_critic_pair_for_test(
             tracker=tracker,
             controller_id=f"b4-off-{os.urandom(16).hex()}",
             initial_projection_sha256=closure_sha256,
+            verified_admission=None,
         )
     except BaseException:
         if on_controller is not None:
@@ -1548,13 +1748,11 @@ def require_b4_closed_critic_receipt(
     return receipt
 
 
-def assert_b4_arm_pair(
-    on_terminal_receipt_path: str | os.PathLike[str],
-    off_terminal_receipt_path: str | os.PathLike[str],
+def _assert_b4_arm_pair_receipts(
+    on: B4ClosedCriticReceipt,
+    off: B4ClosedCriticReceipt,
 ) -> B4ArmPairComparison:
-    """Re-read and structurally validate one same-class terminal pair."""
-    on = _read_verified_terminal_receipt(on_terminal_receipt_path)
-    off = _read_verified_terminal_receipt(off_terminal_receipt_path)
+    """Structurally validate two independently re-read terminal receipts."""
     if (on.arm, off.arm) != ("on", "off"):
         raise B4ReceiptError("pair receipts must be ordered on then off")
     if on.evidence_class != off.evidence_class:
@@ -1597,6 +1795,99 @@ def assert_b4_arm_pair(
         loop_state_sha256_equal=(on.loop_state_sha256 == off.loop_state_sha256),
         iteration_equal=(on.iteration == off.iteration),
     )
+
+
+def assert_b4_arm_pair(
+    on_terminal_receipt_path: str | os.PathLike[str],
+    off_terminal_receipt_path: str | os.PathLike[str],
+) -> B4ArmPairComparison:
+    """Re-read and structurally validate one same-class terminal pair."""
+    on = _read_verified_terminal_receipt(on_terminal_receipt_path)
+    off = _read_verified_terminal_receipt(off_terminal_receipt_path)
+    return _assert_b4_arm_pair_receipts(on, off)
+
+
+def assert_b4_certified_arm_pair(
+    pair: B4ClosedCriticPair,
+    on_terminal_receipt_path: str | os.PathLike[str],
+    off_terminal_receipt_path: str | os.PathLike[str],
+    *,
+    admission_record_path: str | os.PathLike[str],
+) -> B4ArmPairComparison:
+    """Bind certified receipt bytes to one live production pair and record."""
+    if type(pair) is not B4ClosedCriticPair:
+        raise B4ReceiptError(
+            "certified pair requires the exact live production pair type"
+        )
+    certification = pair._require_production_certification()
+    expected_on_path = pair.on._successful_terminal_path()
+    expected_off_path = pair.off._successful_terminal_path()
+    try:
+        supplied_on_path = Path(on_terminal_receipt_path).resolve(strict=True)
+        supplied_off_path = Path(off_terminal_receipt_path).resolve(strict=True)
+    except (TypeError, OSError) as exc:
+        raise B4ReceiptError(
+            "certified pair terminal paths are unavailable"
+        ) from exc
+    if (
+        expected_on_path is None
+        or expected_off_path is None
+        or supplied_on_path != expected_on_path
+        or supplied_off_path != expected_off_path
+    ):
+        raise B4ReceiptError(
+            "certified pair terminal paths differ from the live pair"
+        )
+
+    verified = verify_b4_admission_record(
+        admission_record_path,
+        repository_root=certification.repository_root,
+    )
+    if verified != certification.verified_admission:
+        raise B4ReceiptError(
+            "certified pair admission differs from production factory admission"
+        )
+    expected_sidecar_bytes = _canonical_json_bytes(
+        _admission_sidecar_value(verified)
+    )
+    try:
+        sidecar_bytes = certification.admission_sidecar_path.read_bytes()
+    except OSError as exc:
+        raise B4ReceiptError("certified pair admission sidecar is unavailable") from exc
+    if (
+        sidecar_bytes != expected_sidecar_bytes
+        or _sha256(sidecar_bytes) != certification.admission_sidecar_sha256
+    ):
+        raise B4ReceiptError(
+            "certified pair admission sidecar differs from verified admission"
+        )
+
+    on = _read_verified_terminal_receipt(on_terminal_receipt_path)
+    off = _read_verified_terminal_receipt(off_terminal_receipt_path)
+    comparison = _assert_b4_arm_pair_receipts(on, off)
+    if on.evidence_class != "certified" or off.evidence_class != "certified":
+        raise B4ReceiptError("certified pair requires evidence_class certified")
+    if on.pair_id != certification.pair_id:
+        raise B4ReceiptError("certified receipts differ from live production pair")
+    for receipt in (on, off):
+        assert_admission_expectation(
+            "expected_claude_model_snapshot",
+            expected=verified.expected_claude_model_snapshot,
+            actual=receipt.model_snapshot,
+        )
+        assert_admission_expectation(
+            "expected_effective_critic_prompt_sha256",
+            expected=verified.expected_effective_critic_prompt_sha256,
+            actual=receipt.effective_prompt_sha256,
+        )
+        assert_admission_expectation(
+            "expected_closed_critic_projection_closure_sha256",
+            expected=(
+                verified.expected_closed_critic_projection_closure_sha256
+            ),
+            actual=receipt.projection_sha256,
+        )
+    return comparison
 
 
 def _base_driver_config(
@@ -1660,6 +1951,7 @@ def main(
         default="base",
     )
     parser.add_argument("--artifact-root", required=True, type=Path)
+    parser.add_argument("--admission-record", required=True, type=Path)
     parser.add_argument("--on-invocation-id", required=True)
     parser.add_argument("--off-invocation-id", required=True)
     args = parser.parse_args(argv)
@@ -1670,22 +1962,37 @@ def main(
             on_cfg=config_factory(reflux=True, b4_reflux_ablation=True),
             off_cfg=config_factory(reflux=False, b4_reflux_ablation=True),
             artifact_root=args.artifact_root,
+            admission_record_path=args.admission_record,
         ) as pair:
             on = pair.on.invoke(invocation_id=args.on_invocation_id)
             off = pair.off.invoke(invocation_id=args.off_invocation_id)
-            comparison = assert_b4_arm_pair(
+            comparison = assert_b4_certified_arm_pair(
+                pair,
                 on.terminal_receipt_path,
                 off.terminal_receipt_path,
+                admission_record_path=args.admission_record,
             )
+            admission_sidecar_path = pair.admission_sidecar_path
+            admission_sidecar_sha256 = pair.admission_sidecar_sha256
         print(_canonical_json_bytes({
             "schema_version": "p3-b4-closed-critic-cli/v1",
             "on_terminal_receipt": str(on.terminal_receipt_path),
             "off_terminal_receipt": str(off.terminal_receipt_path),
+            "admission_sidecar": str(admission_sidecar_path),
+            "admission_sidecar_sha256": admission_sidecar_sha256,
             "pair_comparison": asdict(comparison),
         }).decode("utf-8"))
         return 0
-    except (B4ClosedCriticError, PredictionRunnerError) as exc:
-        print(f"B-4 closed critic invocation failed: {type(exc).__name__}", file=sys.stderr)
+    except (
+        B4AdmissionRecordError,
+        B4ClosedCriticError,
+        PredictionRunnerError,
+    ) as exc:
+        print(
+            "B-4 closed critic invocation failed: "
+            f"{type(exc).__name__}: {_closed_error_signature(exc)}",
+            file=sys.stderr,
+        )
         return 1
 
 

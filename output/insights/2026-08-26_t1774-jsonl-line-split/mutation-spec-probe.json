@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-events-parse-jsonl",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/events.py",
+          "old": "    for lineno, line in enumerate(text.split(\"\\n\"), 1):",
+          "new": "    for lineno, line in enumerate(text.splitlines(), 1):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drain-stdout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    state.stdout_pending = pending\n    for raw_line in complete.split(b\"\\n\"):",
+          "new": "    state.stdout_pending = pending\n    for raw_line in complete.splitlines():"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-tail-rollout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    rollout.pending = pending\n    for raw_line in complete.split(b\"\\n\"):",
+          "new": "    rollout.pending = pending\n    for raw_line in complete.splitlines():"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-recorded-summary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "            raw = Path(rollout[\"path\"]).read_bytes()[: rollout[\"bytes\"]]\n            for raw_line in raw.split(b\"\\n\"):",
+          "new": "            raw = Path(rollout[\"path\"]).read_bytes()[: rollout[\"bytes\"]]\n            for raw_line in raw.splitlines():"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-recompute-stdout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    for raw_line in closed.split(b\"\\n\"):",
+          "new": "    for raw_line in closed.splitlines():"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-recompute-rollout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        state.rollouts[rollout.session_id] = rollout\n        for raw_line in raw.split(b\"\\n\"):",
+          "new": "        state.rollouts[rollout.session_id] = rollout\n        for raw_line in raw.splitlines():"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1-blank-skip-removed",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/events.py",
+          "old": "        if not line.strip():\n            continue",
+          "new": "        if False:\n            continue"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -8,7 +8,7 @@ arms; no synthetic string stands in for the digest itself.
 from __future__ import annotations
 
 import contextlib
-from dataclasses import replace
+from dataclasses import dataclass, replace
 import hashlib
 import io
 import inspect
@@ -29,6 +29,8 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))
 
 from orchestrator.campaign import ident, p3_b4_closed_critic as C  # noqa: E402
+from orchestrator.campaign import p3_b4_admission_record as A  # noqa: E402
+from orchestrator.campaign import claude_projected_provider as P  # noqa: E402
 from orchestrator.campaign import p3_s4_loop as L, source_digest, wal  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
     p3_s4_loop_trigger_gating as TRIGGER_LOOP,
@@ -68,6 +70,33 @@ _DECISION_OBJECT = {
     "uncertainty": "fixture uncertainty",
     "reverse_recommended": False,
 }
+_ADMISSION_MODEL = "claude-opus-5"
+_ADMISSION_SCHEMA_VERSION = "p3-b4-prerun-admission/v1"
+_PREREGISTRATION_REPOSITORY_PATH = (
+    "docs/phase3-b4-reflux-ablation-preregistration.md"
+)
+_SECTION5_LABELS = (
+    "対象 driver と軸",
+    "赤 precursor の母集合 (workload・赤形状・初期 proposal)",
+    "アームあたり block 数 n と検定単位",
+    "primary outcome の演算定義 (純関数)",
+    "floor (対象動作点で再実測した between-run floor) の artifact パスと hash",
+    "校正済み `PerfConfig` (records / threads / reps / extime) の artifact パスと hash",
+    "総計測予算 (role query 数・build/verify/bench admission 数・累積 bench 秒) と arm ごとの上限",
+    "env_tag (実測環境)",
+    "model snapshot / prompt hash / projection hash",
+    "実行責任者・開始時刻",
+)
+_EXPECTATION_ROW_LABEL = "model snapshot / prompt hash / projection hash"
+_EXPECTED_MEDIATED_CRITIC_CONTRACT = """
+Runtime capabilities are intentionally lowered to tools=[]: use only the
+projected_digest and result in the JSON object on stdin. Never request or infer
+filesystem data and never weaken correctness. Missing metrics must remain
+uncertainty. Return JSON only, exactly:
+{"attribution":"string","recommend":"string","avoid":"string","uncertainty":"string","reverse_recommended":false}
+reverse_recommended must be a JSON boolean and is returned as data only. Do not
+emit Markdown or extra keys.
+""".strip()
 
 
 def _raises(error_type, callable_, *, contains: str | None = None):
@@ -305,6 +334,7 @@ def _invoke_pair():
 @contextlib.contextmanager
 def _certified_pair_fixture(*, reverse_recommended: bool = False):
     """Build certified-shaped receipts while keeping injection test-local."""
+    admission = _committed_admission_fixture()
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-certified-live-"))
     on_cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
     off_cfg = L.default_cfg(reflux=False, b4_reflux_ablation=True)
@@ -336,51 +366,42 @@ def _certified_pair_fixture(*, reverse_recommended: bool = False):
     def layout_for(campaign_id):
         return layouts[campaign_id]
 
-    with unittest.mock.patch.object(
-        C, "exploration_campaign_layout", side_effect=layout_for,
-    ):
-        on_binding, off_binding, root, tracker, closure_sha256 = (
-            C._prepare_b4_closed_critic_pair(
-                on_cfg=on_cfg,
-                off_cfg=off_cfg,
-                artifact_root=parent / "artifacts",
-            )
-        )
-        on_controller = C.B4ClosedCriticController(
-            _seal=C._PAIR_SEAL,
-            binding=on_binding,
-            artifact_root=root / "on",
-            repository_root=C.REPOSITORY_ROOT,
-            evidence_class="certified",
-            executable=sys.executable,
-            runner=runner,
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(unittest.mock.patch.object(
+            C, "REPOSITORY_ROOT", admission.repository,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            C, "ROLE_FILE", admission.role_file,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            C.shutil, "which", return_value=sys.executable,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            C, "exploration_campaign_layout", side_effect=layout_for,
+        ))
+        pair = C.create_b4_closed_critic_pair(
+            on_cfg=on_cfg,
+            off_cfg=off_cfg,
+            artifact_root=parent / "artifacts",
+            admission_record_path=admission.record_path,
+            repository_root=admission.repository,
             environ={"HOME": str(home)},
-            tracker=tracker,
-            controller_id="certified-live-on-controller",
-            initial_projection_sha256=closure_sha256,
         )
-        off_controller = C.B4ClosedCriticController(
-            _seal=C._PAIR_SEAL,
-            binding=off_binding,
-            artifact_root=root / "off",
-            repository_root=C.REPOSITORY_ROOT,
-            evidence_class="certified",
-            executable=sys.executable,
-            runner=runner,
-            environ={"HOME": str(home)},
-            tracker=tracker,
-            controller_id="certified-live-off-controller",
-            initial_projection_sha256=closure_sha256,
-        )
-        pair = C._seal_b4_closed_critic_pair(on_controller, off_controller)
+        pair.on._B4ClosedCriticController__provider._runner = runner
+        pair.off._B4ClosedCriticController__provider._runner = runner
         try:
             yield pair, on_cfg, layouts[on_id], calls
         finally:
             pair.close()
 
 
-def _capture_certified_pair_construction(parent: Path):
+def _capture_certified_pair_construction(
+    parent: Path,
+    *,
+    driver_kind: C.DriverKind = "base",
+):
     constructions = []
+    admission = _committed_admission_fixture(driver_kind=driver_kind)
 
     class CapturingController:
         def __init__(self, **kwargs):
@@ -394,14 +415,21 @@ def _capture_certified_pair_construction(parent: Path):
             return None
 
     with unittest.mock.patch.object(
+        C, "REPOSITORY_ROOT", admission.repository
+    ), unittest.mock.patch.object(
+        C, "ROLE_FILE", admission.role_file
+    ), unittest.mock.patch.object(
         C.shutil, "which", return_value=sys.executable
     ) as which_mock, unittest.mock.patch.object(
         C, "B4ClosedCriticController", CapturingController
     ):
+        config_factory = C.B4_DRIVER_CONFIG_FACTORIES[driver_kind]
         pair = C.create_b4_closed_critic_pair(
-            on_cfg=L.default_cfg(reflux=True),
-            off_cfg=L.default_cfg(reflux=False),
+            on_cfg=config_factory(reflux=True, b4_reflux_ablation=True),
+            off_cfg=config_factory(reflux=False, b4_reflux_ablation=True),
             artifact_root=parent / "captured",
+            admission_record_path=admission.record_path,
+            repository_root=admission.repository,
             environ={"HOME": str(parent)},
         )
         pair.close()
@@ -425,6 +453,267 @@ def _tree_bytes(root: Path) -> dict[str, bytes]:
         for path in sorted(root.rglob("*"))
         if path.is_file()
     }
+
+
+def _git(repository: Path, *args: str) -> bytes:
+    completed = subprocess.run(
+        [
+            "/usr/bin/git",
+            "-c",
+            "commit.gpgsign=false",
+            "-C",
+            str(repository),
+            *args,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr.decode("utf-8", "replace")
+    return completed.stdout
+
+
+def _effective_prompt_sha256(role_bytes: bytes) -> str:
+    _frontmatter, body = P._parse_frontmatter(
+        role_bytes,
+        expected_name="critic",
+    )
+    effective_prompt = (
+        body.rstrip()
+        + "\n\n---\n\n"
+        + "# T-178 mediated projection contract (this section takes precedence)\n\n"
+        + _EXPECTED_MEDIATED_CRITIC_CONTRACT
+        + "\n"
+    )
+    return hashlib.sha256(effective_prompt.encode("utf-8")).hexdigest()
+
+
+def _independent_projection_sha256(
+    role_file: Path,
+    *,
+    driver_kind: C.DriverKind = "base",
+) -> str:
+    repository_root = _ORCH.parent
+    paths = {
+        "orchestrator/campaign/p3_b4_closed_critic.py": (
+            repository_root / "orchestrator/campaign/p3_b4_closed_critic.py"
+        ),
+        "orchestrator/campaign/claude_projected_provider.py": (
+            repository_root / "orchestrator/campaign/claude_projected_provider.py"
+        ),
+        "orchestrator/campaign/p3_s4_loop.py": (
+            repository_root / "orchestrator/campaign/p3_s4_loop.py"
+        ),
+        "orchestrator/campaign/artifact_admission.py": (
+            repository_root / "orchestrator/campaign/artifact_admission.py"
+        ),
+        "orchestrator/campaign/s8b_prediction_runner.py": (
+            repository_root / "orchestrator/campaign/s8b_prediction_runner.py"
+        ),
+        "orchestrator/campaign/role_session_isolation.py": (
+            repository_root / "orchestrator/campaign/role_session_isolation.py"
+        ),
+        "orchestrator/campaign/p3_b4_admission_record.py": (
+            repository_root / "orchestrator/campaign/p3_b4_admission_record.py"
+        ),
+        "orchestrator/critic/digest.py": (
+            repository_root / "orchestrator/critic/digest.py"
+        ),
+        "orchestrator/critic/identity_projection.py": (
+            repository_root / "orchestrator/critic/identity_projection.py"
+        ),
+        ".claude/agents/critic.md": role_file,
+    }
+    if driver_kind == "sort":
+        paths["orchestrator/campaign/p3_s4_loop_sort.py"] = (
+            repository_root / "orchestrator/campaign/p3_s4_loop_sort.py"
+        )
+    elif driver_kind == "trigger":
+        paths["orchestrator/campaign/p3_s4_loop_trigger_gating.py"] = (
+            repository_root
+            / "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+        )
+    entries = {
+        key: hashlib.sha256(path.read_bytes()).hexdigest()
+        for key, path in paths.items()
+    }
+    entries["mediated-contract:utf-8"] = hashlib.sha256(
+        _EXPECTED_MEDIATED_CRITIC_CONTRACT.encode("utf-8")
+    ).hexdigest()
+    manifest = {
+        "schema_version": "p3-b4-projection-closure/v1",
+        "entries": entries,
+    }
+    canonical = json.dumps(
+        manifest,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+@dataclass(frozen=True)
+class _AdmissionFixture:
+    repository: Path
+    role_file: Path
+    record_path: Path
+    expected_model: str
+    expected_prompt: str
+    expected_projection: str
+
+
+def _committed_admission_fixture(
+    *,
+    expected_model: str = _ADMISSION_MODEL,
+    expected_prompt: str | None = None,
+    expected_projection: str | None = None,
+    driver_kind: C.DriverKind = "base",
+) -> _AdmissionFixture:
+    repository = Path(tempfile.mkdtemp(prefix="izanagi-b4-closed-admission-"))
+    _git(repository, "init")
+    _git(repository, "config", "user.name", "B4 Closed Critic Test")
+    _git(repository, "config", "user.email", "b4-closed@example.invalid")
+    role_file = repository / ".claude" / "agents" / "critic.md"
+    role_file.parent.mkdir(parents=True)
+    role_bytes = C.ROLE_FILE.read_bytes()
+    role_file.write_bytes(role_bytes)
+    prompt = (
+        _effective_prompt_sha256(role_bytes)
+        if expected_prompt is None
+        else expected_prompt
+    )
+    projection = (
+        _independent_projection_sha256(
+            role_file,
+            driver_kind=driver_kind,
+        )
+        if expected_projection is None
+        else expected_projection
+    )
+    values = {
+        label: f"closed-critic-fixture-{index}"
+        for index, label in enumerate(_SECTION5_LABELS, start=1)
+    }
+    values[_EXPECTATION_ROW_LABEL] = (
+        f"expected_claude_model_snapshot={expected_model}; "
+        f"expected_effective_critic_prompt_sha256={prompt}; "
+        "expected_closed_critic_projection_closure_sha256="
+        f"{projection}"
+    )
+    document_lines = [
+        "# Closed critic fixture",
+        "",
+        "## 5. 実走前に数値で埋める欄",
+        "",
+        "|欄|値|",
+        "|---|---|",
+    ]
+    document_lines.extend(
+        f"|{label}|{values[label]}|" for label in _SECTION5_LABELS
+    )
+    document_lines.extend(("", "### 5.1 欄別の解除条件", "", "fixture"))
+    document_bytes = "\n".join(document_lines).encode("utf-8")
+    document_path = repository / _PREREGISTRATION_REPOSITORY_PATH
+    document_path.parent.mkdir(parents=True)
+    document_path.write_bytes(document_bytes)
+    _git(
+        repository,
+        "add",
+        ".claude/agents/critic.md",
+        _PREREGISTRATION_REPOSITORY_PATH,
+    )
+    _git(repository, "commit", "-m", "fixture preregistration")
+    content_commit = _git(repository, "rev-parse", "HEAD").decode().strip()
+    value = {
+        "schema_version": _ADMISSION_SCHEMA_VERSION,
+        "preregistration_binding": {
+            "repository_path": _PREREGISTRATION_REPOSITORY_PATH,
+            "content_commit": content_commit,
+            "content_sha256": hashlib.sha256(document_bytes).hexdigest(),
+        },
+        "closed_critic_expectations": {
+            "expected_claude_model_snapshot": expected_model,
+            "expected_effective_critic_prompt_sha256": prompt,
+            "expected_closed_critic_projection_closure_sha256": projection,
+        },
+    }
+    record_path = repository / "admission.json"
+    record_path.write_bytes(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    )
+    _git(repository, "add", "admission.json")
+    _git(repository, "commit", "-m", "fixture admission")
+    verified = A.verify_b4_admission_record(
+        record_path,
+        repository_root=repository,
+    )
+    assert verified.expected_claude_model_snapshot == expected_model
+    return _AdmissionFixture(
+        repository=repository,
+        role_file=role_file,
+        record_path=record_path,
+        expected_model=expected_model,
+        expected_prompt=prompt,
+        expected_projection=projection,
+    )
+
+
+@contextlib.contextmanager
+def _certified_environment(admission: _AdmissionFixture):
+    parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-certified-pair-"))
+    on_cfg = L.default_cfg(reflux=True)
+    off_cfg = L.default_cfg(reflux=False)
+    on_id = str(ident.campaign_id(on_cfg))
+    off_id = str(ident.campaign_id(off_cfg))
+    layouts = {
+        on_id: _make_admitted_fixture(
+            parent / "campaign-on",
+            on_cfg,
+            source_tag="certified-on",
+        ),
+        off_id: _make_admitted_fixture(
+            parent / "campaign-off",
+            off_cfg,
+            source_tag="certified-off",
+            direction="decrease",
+        ),
+    }
+    home = parent / "home"
+    home.mkdir()
+
+    def layout_for(campaign_id):
+        return layouts[campaign_id]
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(unittest.mock.patch.object(
+            C,
+            "REPOSITORY_ROOT",
+            admission.repository,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            C,
+            "ROLE_FILE",
+            admission.role_file,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            C.shutil,
+            "which",
+            return_value=sys.executable,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            C,
+            "exploration_campaign_layout",
+            side_effect=layout_for,
+        ))
+        yield parent, on_cfg, off_cfg, layouts, home
 
 
 def test_p1_policy_admitted_synthetic_wal_digests_pass_payload_identity_gate():
@@ -549,8 +838,17 @@ def test_m4_module_root_control_accepts_exact_root_and_rejects_decoy_before_fact
 
 def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-certified-runner-"))
+    admission = _committed_admission_fixture()
     signature = inspect.signature(C.create_b4_closed_critic_pair)
     assert "runner" not in signature.parameters
+    assert (
+        signature.parameters["admission_record_path"].default
+        is inspect.Parameter.empty
+    )
+    assert (
+        signature.parameters["admission_record_path"].kind
+        is inspect.Parameter.KEYWORD_ONLY
+    )
     assert not hasattr(C, "_CERTIFIED_RUNNER")
     assert not hasattr(C, "_CERTIFIED_WHICH")
     injected_runner, _calls = _fake_runner_factory()
@@ -561,6 +859,8 @@ def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():
             on_cfg=L.default_cfg(reflux=True),
             off_cfg=L.default_cfg(reflux=False),
             artifact_root=rejected_root,
+            admission_record_path=admission.record_path,
+            repository_root=admission.repository,
             runner=injected_runner,
             environ={"HOME": str(parent)},
         ),
@@ -571,6 +871,327 @@ def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():
     constructions = _capture_certified_pair_construction(parent)
     assert all(item["evidence_class"] == "certified" for item in constructions)
     assert all(item["runner"] is subprocess.run for item in constructions)
+
+
+def test_admission_keyword_and_binding_failures_precede_executable_artifact_provider():
+    parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-admission-order-"))
+    missing_root = parent / "missing-keyword"
+    error = _raises(
+        TypeError,
+        lambda: C.create_b4_closed_critic_pair(
+            on_cfg=L.default_cfg(reflux=True),
+            off_cfg=L.default_cfg(reflux=False),
+            artifact_root=missing_root,
+        ),
+    )
+    assert "missing 1 required keyword-only argument: 'admission_record_path'" in str(
+        error
+    )
+    assert not missing_root.exists()
+
+    for index, message in enumerate((
+        "[admission-record] record is unavailable",
+        "[admission-record] record is not committed at execution HEAD",
+        "[admission-preregistration] document binding is not verifiable",
+    )):
+        artifact_root = parent / f"binding-{index}"
+        with unittest.mock.patch.object(
+            C,
+            "verify_b4_admission_record",
+            side_effect=A.B4AdmissionRecordError(message),
+        ), unittest.mock.patch.object(
+            C.shutil,
+            "which",
+            side_effect=AssertionError("executable lookup must not run"),
+        ), unittest.mock.patch.object(
+            C,
+            "B4ClosedCriticController",
+            side_effect=AssertionError("provider construction must not run"),
+        ):
+            raised = _raises(
+                A.B4AdmissionRecordError,
+                lambda artifact_root=artifact_root: C.create_b4_closed_critic_pair(
+                    on_cfg=L.default_cfg(reflux=True),
+                    off_cfg=L.default_cfg(reflux=False),
+                    artifact_root=artifact_root,
+                    admission_record_path=parent / "record.json",
+                ),
+            )
+        assert str(raised) == message
+        assert not artifact_root.exists()
+
+
+def test_repository_checked_record_with_nonempty_cells_and_three_matching_expectations_yields_certified_pair_using_fake_runner():
+    """Check only three runtime expectations; nine cells have no meaning check."""
+    admission = _committed_admission_fixture()
+    fake_runner, calls = _fake_runner_factory()
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ):
+        sidecar_present_at_query = []
+
+        def runner(argv, **kwargs):
+            sidecar_present_at_query.append(
+                (parent / "artifacts/admission_record_sidecar.json").is_file()
+            )
+            return fake_runner(argv, **kwargs)
+
+        with C.create_b4_closed_critic_pair(
+            on_cfg=on_cfg,
+            off_cfg=off_cfg,
+            artifact_root=parent / "artifacts",
+            admission_record_path=admission.record_path,
+            repository_root=admission.repository,
+            environ={"HOME": str(home)},
+        ) as pair:
+            pair.on._B4ClosedCriticController__provider._runner = runner
+            pair.off._B4ClosedCriticController__provider._runner = runner
+            on = pair.on.invoke(invocation_id="admitted-on")
+            off = pair.off.invoke(invocation_id="admitted-off")
+            comparison = C.assert_b4_certified_arm_pair(
+                pair,
+                on.terminal_receipt_path,
+                off.terminal_receipt_path,
+                admission_record_path=admission.record_path,
+            )
+            sidecar_path = pair.admission_sidecar_path
+            sidecar_sha256 = pair.admission_sidecar_sha256
+            sidecar_bytes = sidecar_path.read_bytes()
+            sidecar_path.write_bytes(sidecar_bytes + b"\n")
+            _raises(
+                C.B4ReceiptError,
+                lambda: C.assert_b4_certified_arm_pair(
+                    pair,
+                    on.terminal_receipt_path,
+                    off.terminal_receipt_path,
+                    admission_record_path=admission.record_path,
+                ),
+                contains="admission sidecar differs",
+            )
+            sidecar_path.write_bytes(sidecar_bytes)
+        assert len(calls) == 2
+        assert sidecar_present_at_query == [True, True]
+        assert on.receipt.schema_version == C.B4_CLOSED_CRITIC_RECEIPT_SCHEMA
+        assert off.receipt.schema_version == C.B4_CLOSED_CRITIC_RECEIPT_SCHEMA
+        assert on.receipt.evidence_class == "certified"
+        assert off.receipt.evidence_class == "certified"
+        assert comparison.iteration_equal
+        exact_keys = {
+            "schema_version",
+            "status",
+            "evidence_class",
+            "pair_id",
+            "arm",
+            "campaign_id",
+            "controller_id",
+            "invocation_id",
+            "session_id",
+            "provider_kind",
+            "driver_kind",
+            "provider_instance_id",
+            "neutral_root_identity_sha256",
+            "model_snapshot",
+            "role_file_sha256",
+            "effective_prompt_sha256",
+            "projection_sha256",
+            "digest_sha256",
+            "admitted_view_sha256",
+            "loop_state_sha256",
+            "iteration",
+            "decision_sha256",
+            "decision_reverse_recommended",
+            "claimed_fresh_context",
+            "claimed_capability_lowering",
+            "claimed_source_declared_tools",
+            "claimed_declared_tools",
+            "claimed_observed_tool_events",
+            "evidence_executable_path",
+            "evidence_executable_sha256",
+            "evidence_payload_sha256",
+            "evidence_raw_envelope_sha256",
+            "evidence_argv_sha256",
+            "evidence_num_turns",
+            "evidence_permission_denials_empty",
+            "evidence_server_tool_use_all_zero",
+            "exact_identity_literals_absent_from_canonical_payload",
+            "identity_non_guarantees",
+            "trust_non_guarantees",
+            "capability_non_guarantees",
+            "snapshot_non_guarantees",
+            "storage_non_guarantees",
+            "start_receipt_sha256",
+            "finished_at_ns"
+        }
+        assert set(json.loads(on.terminal_receipt_path.read_bytes())) == exact_keys
+        assert C._read_verified_terminal_receipt(
+            on.terminal_receipt_path
+        ) == on.receipt
+        record = json.loads(admission.record_path.read_bytes())
+        expected_sidecar = {
+            "schema_version": "p3-b4-prerun-admission-sidecar/v1",
+            "admission_record_repository_path": "admission.json",
+            "admission_record_sha256": hashlib.sha256(
+                admission.record_path.read_bytes()
+            ).hexdigest(),
+            "verification_head_commit": _git(
+                admission.repository, "rev-parse", "HEAD"
+            ).decode().strip(),
+            "preregistration_repository_path": (
+                "docs/phase3-b4-reflux-ablation-preregistration.md"
+            ),
+            "preregistration_content_commit": record[
+                "preregistration_binding"
+            ]["content_commit"],
+            "preregistration_content_sha256": record[
+                "preregistration_binding"
+            ]["content_sha256"],
+            "expected_claude_model_snapshot": admission.expected_model,
+            "expected_effective_critic_prompt_sha256": admission.expected_prompt,
+            "expected_closed_critic_projection_closure_sha256": (
+                admission.expected_projection
+            ),
+        }
+        expected_sidecar_bytes = json.dumps(
+            expected_sidecar,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        assert sidecar_path.read_bytes() == expected_sidecar_bytes
+        assert sidecar_sha256 == hashlib.sha256(
+            expected_sidecar_bytes
+        ).hexdigest()
+
+
+def test_certified_admission_rejects_projection_and_prompt_before_query():
+    projection_admission = _committed_admission_fixture(
+        expected_projection="0" * 64,
+    )
+    provider_events = []
+    real_provider = C.ClaudeProjectedRoleProvider
+
+    class CountingProvider(real_provider):
+        def __init__(self, **kwargs):
+            provider_events.append("created")
+            super().__init__(**kwargs)
+
+        def invoke(self, **kwargs):
+            provider_events.append("query")
+            return super().invoke(**kwargs)
+
+    with _certified_environment(projection_admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ), unittest.mock.patch.object(
+        C,
+        "ClaudeProjectedRoleProvider",
+        CountingProvider,
+    ):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda: C.create_b4_closed_critic_pair(
+                on_cfg=on_cfg,
+                off_cfg=off_cfg,
+                artifact_root=parent / "projection-artifacts",
+                admission_record_path=projection_admission.record_path,
+                repository_root=projection_admission.repository,
+                environ={"HOME": str(home)},
+            ),
+            contains=(
+                "[admission-mismatch] "
+                "expected_closed_critic_projection_closure_sha256"
+            ),
+        )
+    assert provider_events == []
+
+    prompt_admission = _committed_admission_fixture(
+        expected_prompt="f" * 64,
+    )
+    provider_events.clear()
+    with _certified_environment(prompt_admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ), unittest.mock.patch.object(
+        C,
+        "ClaudeProjectedRoleProvider",
+        CountingProvider,
+    ):
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda: C.create_b4_closed_critic_pair(
+                on_cfg=on_cfg,
+                off_cfg=off_cfg,
+                artifact_root=parent / "prompt-artifacts",
+                admission_record_path=prompt_admission.record_path,
+                repository_root=prompt_admission.repository,
+                environ={"HOME": str(home)},
+            ),
+            contains=(
+                "[admission-mismatch] "
+                "expected_effective_critic_prompt_sha256"
+            ),
+        )
+    assert provider_events == ["created"]
+
+
+def test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal():
+    admission = _committed_admission_fixture(
+        expected_model="claude-opus-other",
+    )
+    runner, calls = _fake_runner_factory()
+    with _certified_environment(admission) as (
+        parent,
+        on_cfg,
+        off_cfg,
+        _layouts,
+        home,
+    ):
+        with C.create_b4_closed_critic_pair(
+            on_cfg=on_cfg,
+            off_cfg=off_cfg,
+            artifact_root=parent / "model-artifacts",
+            admission_record_path=admission.record_path,
+            repository_root=admission.repository,
+            environ={"HOME": str(home)},
+        ) as pair:
+            pair.on._B4ClosedCriticController__provider._runner = runner
+            error = _raises(
+                A.B4AdmissionRecordError,
+                lambda: pair.on.invoke(invocation_id="model-mismatch"),
+                contains="[admission-mismatch] expected_claude_model_snapshot",
+            )
+            assert str(error) == (
+                "[admission-mismatch] expected_claude_model_snapshot"
+            )
+            terminal_path = (
+                pair.on._B4ClosedCriticController__artifact_root
+                / "receipt_model-mismatch_terminal.json"
+            )
+            terminal = json.loads(terminal_path.read_bytes())
+            assert terminal["status"] == "failure"
+            assert terminal["error_type"] == "B4AdmissionRecordError"
+            assert terminal["error_signature"] == (
+                "[admission-mismatch] expected_claude_model_snapshot"
+            )
+            assert not any(
+                value.get("status") == "success"
+                for value in (
+                    json.loads(path.read_bytes())
+                    for path in terminal_path.parent.glob("receipt_*_terminal.json")
+                )
+            )
+        assert len(calls) == 1
 
 
 def test_unregistered_arm_derivation_control_rejects_swapped_factory_slots():
@@ -924,6 +1545,9 @@ def test_m14_success_and_failure_both_create_start_and_exclusive_terminal_receip
         assert json.loads(start.read_bytes())["status"] == "started"
         failure = json.loads(terminal.read_bytes())
         assert failure["status"] == "failure"
+        assert failure["error_signature"] == (
+            "[closed-critic-error] unclassified"
+        )
         assert len(failure["evidence_raw_envelope_sha256"]) == 64
 
 
@@ -949,6 +1573,9 @@ def test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources():
         "orchestrator/campaign/role_session_isolation.py": (
             repository_root / "orchestrator/campaign/role_session_isolation.py"
         ),
+        "orchestrator/campaign/p3_b4_admission_record.py": (
+            repository_root / "orchestrator/campaign/p3_b4_admission_record.py"
+        ),
         "orchestrator/critic/digest.py": (
             repository_root / "orchestrator/critic/digest.py"
         ),
@@ -957,15 +1584,7 @@ def test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources():
         ),
         ".claude/agents/critic.md": repository_root / ".claude/agents/critic.md",
     }
-    expected_contract = """
-Runtime capabilities are intentionally lowered to tools=[]: use only the
-projected_digest and result in the JSON object on stdin. Never request or infer
-filesystem data and never weaken correctness. Missing metrics must remain
-uncertainty. Return JSON only, exactly:
-{"attribution":"string","recommend":"string","avoid":"string","uncertainty":"string","reverse_recommended":false}
-reverse_recommended must be a JSON boolean and is returned as data only. Do not
-emit Markdown or extra keys.
-""".strip().encode("utf-8")
+    expected_contract = _EXPECTED_MEDIATED_CRITIC_CONTRACT.encode("utf-8")
     expected_entries = {
         key: hashlib.sha256(path.read_bytes()).hexdigest()
         for key, path in expected_paths.items()
@@ -977,6 +1596,7 @@ emit Markdown or extra keys.
         "schema_version": "p3-b4-projection-closure/v1",
         "entries": expected_entries,
     }
+    assert "admission.json" not in manifest["entries"]
     expected = hashlib.sha256(C._canonical_json_bytes(manifest)).hexdigest()
     assert C.projection_sha256() == expected
 
@@ -995,6 +1615,29 @@ def test_driver_specific_projection_closure_pins_only_selected_consumer():
     assert trigger_path in entries["trigger"]
     assert sort_path not in entries["trigger"]
     assert len({C.projection_sha256(kind) for kind in entries}) == 3
+
+
+@pytest.mark.parametrize("driver_kind", ("base", "sort", "trigger"))
+def test_admission_projection_expectation_selects_the_pair_driver_closure(
+    driver_kind,
+):
+    parent = Path(tempfile.mkdtemp(prefix=f"izanagi-b4-{driver_kind}-admission-"))
+    constructions = _capture_certified_pair_construction(
+        parent,
+        driver_kind=driver_kind,
+    )
+    assert len(constructions) == 2
+    expected = C.projection_sha256(driver_kind)
+    assert all(
+        item["binding"].driver_kind == driver_kind
+        and item["initial_projection_sha256"] == expected
+        and (
+            item["verified_admission"]
+            .expected_closed_critic_projection_closure_sha256
+            == expected
+        )
+        for item in constructions
+    )
 
 
 def test_a4_snapshot_binding_accepts_stable_state_and_rejects_iteration_mismatch():
@@ -1026,6 +1669,27 @@ def test_p4_test_only_pair_reports_precursor_differences_without_rejecting_them(
         assert comparison.iteration_equal
         assert not comparison.admitted_view_sha256_equal
         assert not comparison.loop_state_sha256_equal
+    finally:
+        context.__exit__(None, None, None)
+
+
+def test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it():
+    context, pair, _layouts, _calls, on, off = _invoke_pair()
+    try:
+        C.assert_b4_arm_pair(
+            on.terminal_receipt_path,
+            off.terminal_receipt_path,
+        )
+        _raises(
+            C.B4ReceiptError,
+            lambda: C.assert_b4_certified_arm_pair(
+                pair,
+                on.terminal_receipt_path,
+                off.terminal_receipt_path,
+                admission_record_path=Path("missing-admission.json"),
+            ),
+            contains="live production factory pair",
+        )
     finally:
         context.__exit__(None, None, None)
 
@@ -1200,6 +1864,7 @@ def test_m17_pair_id_accepts_one_factory_and_rejects_mixed_factories_only():
 
 def test_m18_certified_factory_has_no_executable_seam_and_resolves_fixed_claude():
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-certified-executable-"))
+    admission = _committed_admission_fixture()
     signature = inspect.signature(C.create_b4_closed_critic_pair)
     assert "executable" not in signature.parameters
     assert "which" not in signature.parameters
@@ -1211,6 +1876,8 @@ def test_m18_certified_factory_has_no_executable_seam_and_resolves_fixed_claude(
             on_cfg=L.default_cfg(reflux=True),
             off_cfg=L.default_cfg(reflux=False),
             artifact_root=rejected_root,
+            admission_record_path=admission.record_path,
+            repository_root=admission.repository,
             executable=decoy,
             environ={"HOME": str(parent)},
         ),
@@ -1245,7 +1912,7 @@ def test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses()
     assert "unexpected keyword argument 'evidence_class'" in str(error)
     assert not rejected_root.exists()
 
-    test_context, _pair, _layouts, _calls, test_on, test_off = _invoke_pair()
+    test_context, test_pair, _layouts, _calls, test_on, test_off = _invoke_pair()
     try:
         assert test_on.receipt.evidence_class == "test-only"
         assert test_off.receipt.evidence_class == "test-only"
@@ -1260,10 +1927,12 @@ def test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses()
             lambda: C.assert_b4_arm_pair(promoted_on, promoted_off),
             contains="terminal receipt file paths",
         )
-        promoted_terminal = json.loads(test_on.terminal_receipt_path.read_bytes())
-        promoted_terminal["evidence_class"] = "certified"
+        promoted_on_terminal = json.loads(
+            test_on.terminal_receipt_path.read_bytes()
+        )
+        promoted_on_terminal["evidence_class"] = "certified"
         test_on.terminal_receipt_path.write_bytes(
-            C._canonical_json_bytes(promoted_terminal)
+            C._canonical_json_bytes(promoted_on_terminal)
         )
         _raises(
             C.B4ReceiptError,
@@ -1274,16 +1943,15 @@ def test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses()
             contains="start and terminal receipt differ: evidence_class",
         )
 
-        start_path = test_on.start_receipt_path
-        promoted_start = json.loads(start_path.read_bytes())
-        promoted_start["evidence_class"] = "certified"
-        promoted_start_bytes = C._canonical_json_bytes(promoted_start)
-        start_path.write_bytes(promoted_start_bytes)
-        promoted_terminal["start_receipt_sha256"] = hashlib.sha256(
-            promoted_start_bytes
+        promoted_on_start = json.loads(test_on.start_receipt_path.read_bytes())
+        promoted_on_start["evidence_class"] = "certified"
+        promoted_on_start_bytes = C._canonical_json_bytes(promoted_on_start)
+        test_on.start_receipt_path.write_bytes(promoted_on_start_bytes)
+        promoted_on_terminal["start_receipt_sha256"] = hashlib.sha256(
+            promoted_on_start_bytes
         ).hexdigest()
         test_on.terminal_receipt_path.write_bytes(
-            C._canonical_json_bytes(promoted_terminal)
+            C._canonical_json_bytes(promoted_on_terminal)
         )
         _raises(
             C.B4ReceiptError,
@@ -1292,6 +1960,37 @@ def test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses()
                 test_off.terminal_receipt_path,
             ),
             contains="different evidence_class",
+        )
+
+        promoted_off_start = json.loads(
+            test_off.start_receipt_path.read_bytes()
+        )
+        promoted_off_start["evidence_class"] = "certified"
+        promoted_off_start_bytes = C._canonical_json_bytes(promoted_off_start)
+        test_off.start_receipt_path.write_bytes(promoted_off_start_bytes)
+        promoted_off_terminal = json.loads(
+            test_off.terminal_receipt_path.read_bytes()
+        )
+        promoted_off_terminal["evidence_class"] = "certified"
+        promoted_off_terminal["start_receipt_sha256"] = hashlib.sha256(
+            promoted_off_start_bytes
+        ).hexdigest()
+        test_off.terminal_receipt_path.write_bytes(
+            C._canonical_json_bytes(promoted_off_terminal)
+        )
+        C.assert_b4_arm_pair(
+            test_on.terminal_receipt_path,
+            test_off.terminal_receipt_path,
+        )
+        _raises(
+            C.B4ReceiptError,
+            lambda: C.assert_b4_certified_arm_pair(
+                test_pair,
+                test_on.terminal_receipt_path,
+                test_off.terminal_receipt_path,
+                admission_record_path=Path("missing-admission.json"),
+            ),
+            contains="live production factory pair",
         )
     finally:
         test_context.__exit__(None, None, None)
@@ -1381,7 +2080,11 @@ def test_a9_invocation_id_single_use_and_timeout_have_positive_terminal_controls
         terminal = pair.on._B4ClosedCriticController__artifact_root / (
             "receipt_timeout-1_terminal.json"
         )
-        assert json.loads(terminal.read_bytes())["status"] == "timeout"
+        timeout_receipt = json.loads(terminal.read_bytes())
+        assert timeout_receipt["status"] == "timeout"
+        assert timeout_receipt["error_signature"] == (
+            "[closed-critic-error] timeout"
+        )
 
 
 def test_r11_terminal_slot_precedes_query_and_start_failure_gets_terminal_record():
@@ -1477,6 +2180,9 @@ def _assert_single_tool_surface_rejection(
         failure = json.loads(terminal.read_bytes())
         assert failure["status"] == "failure"
         assert failure["error_type"] == "PredictionRunnerError"
+        assert failure["error_signature"] == (
+            "[closed-critic-error] unclassified"
+        )
 
 
 def test_r4_num_turns_gate_has_one_field_positive_negative_pair():
@@ -1525,6 +2231,8 @@ def test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc():
     class FakePair:
         on = FakeController("on")
         off = FakeController("off")
+        admission_sidecar_path = Path("/tmp/admission-record-sidecar.json")
+        admission_sidecar_sha256 = "a" * 64
 
         def __enter__(self):
             events.append(("enter",))
@@ -1534,20 +2242,42 @@ def test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc():
             events.append(("exit",))
 
     def fake_factory(**kwargs):
-        events.append(("factory", kwargs["artifact_root"]))
+        events.append((
+            "factory",
+            kwargs["artifact_root"],
+            kwargs["admission_record_path"],
+        ))
         return FakePair()
 
-    def fake_pair_gate(on_path, off_path):
-        events.append(("pair", on_path, off_path))
+    def fake_pair_gate(
+        pair,
+        on_path,
+        off_path,
+        *,
+        admission_record_path,
+    ):
+        events.append((
+            "pair",
+            pair,
+            on_path,
+            off_path,
+            admission_record_path,
+        ))
         return C.B4ArmPairComparison(True, False, True)
 
     stdout = io.StringIO()
-    with unittest.mock.patch.object(C, "assert_b4_arm_pair", fake_pair_gate):
+    with unittest.mock.patch.object(
+        C,
+        "assert_b4_certified_arm_pair",
+        fake_pair_gate,
+    ):
         with contextlib.redirect_stdout(stdout):
             rc = C.main(
                 [
                     "--artifact-root",
                     "/tmp/b4-cli-artifacts",
+                    "--admission-record",
+                    "/tmp/b4-admission.json",
                     "--on-invocation-id",
                     "cli-on",
                     "--off-invocation-id",
@@ -1556,16 +2286,28 @@ def test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc():
                 pair_factory=fake_factory,
             )
     assert rc == 0
+    assert (
+        "factory",
+        Path("/tmp/b4-cli-artifacts"),
+        Path("/tmp/b4-admission.json"),
+    ) in events
     assert ("invoke", "on", "cli-on") in events
     assert ("invoke", "off", "cli-off") in events
-    assert (
-        "pair",
+    pair_events = [event for event in events if event[0] == "pair"]
+    assert len(pair_events) == 1
+    assert isinstance(pair_events[0][1], FakePair)
+    assert pair_events[0][2:] == (
         Path("/tmp/on-terminal.json"),
         Path("/tmp/off-terminal.json"),
-    ) in events
+        Path("/tmp/b4-admission.json"),
+    )
     cli_output = json.loads(stdout.getvalue())
     assert cli_output["on_terminal_receipt"] == "/tmp/on-terminal.json"
     assert cli_output["off_terminal_receipt"] == "/tmp/off-terminal.json"
+    assert cli_output["admission_sidecar"] == (
+        "/tmp/admission-record-sidecar.json"
+    )
+    assert cli_output["admission_sidecar_sha256"] == "a" * 64
 
 
 def test_receipt_v3_binds_decision_without_copying_natural_language():
@@ -1849,6 +2591,7 @@ def test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers(
     driver, expected_ids,
 ):
     captured = {}
+    admission_paths = []
 
     class FakeController:
         def invoke(self, *, invocation_id):
@@ -1859,6 +2602,8 @@ def test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers(
     class FakePair:
         on = FakeController()
         off = FakeController()
+        admission_sidecar_path = Path("/tmp/b4-driver-admission-sidecar.json")
+        admission_sidecar_sha256 = "a" * 64
 
         def __enter__(self):
             return self
@@ -1867,13 +2612,14 @@ def test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers(
             return None
 
     def pair_factory(**kwargs):
+        admission_paths.append(kwargs.pop("admission_record_path"))
         captured.update(kwargs)
         return FakePair()
 
     with contextlib.ExitStack() as stack:
         stack.enter_context(unittest.mock.patch.object(
             C,
-            "assert_b4_arm_pair",
+            "assert_b4_certified_arm_pair",
             return_value=C.B4ArmPairComparison(False, False, True),
         ))
         if driver == "trigger":
@@ -1886,11 +2632,13 @@ def test_closed_critic_cli_has_fixed_marked_configs_for_all_drivers(
         assert C.main([
             "--driver", driver,
             "--artifact-root", f"/tmp/b4-fixed-{driver}",
+            "--admission-record", f"/tmp/b4-{driver}-admission.json",
             "--on-invocation-id", f"{driver}-on",
             "--off-invocation-id", f"{driver}-off",
         ], pair_factory=pair_factory) == 0
 
     assert tuple(C.B4_DRIVER_CONFIG_FACTORIES) == ("base", "sort", "trigger")
+    assert admission_paths == [Path(f"/tmp/b4-{driver}-admission.json")]
     assert set(captured) == {"on_cfg", "off_cfg", "artifact_root"}
     configs = (captured["on_cfg"], captured["off_cfg"])
     assert tuple(str(ident.campaign_id(cfg)) for cfg in configs) == expected_ids
@@ -1934,6 +2682,8 @@ def test_closed_critic_cli_constructs_only_fixed_marked_base_configs():
     class FakePair:
         on = FakeController("on")
         off = FakeController("off")
+        admission_sidecar_path = Path("/tmp/b4-base-admission-sidecar.json")
+        admission_sidecar_sha256 = "a" * 64
 
         def __enter__(self):
             return self
@@ -1947,12 +2697,13 @@ def test_closed_critic_cli_constructs_only_fixed_marked_base_configs():
 
     with unittest.mock.patch.object(
         C,
-        "assert_b4_arm_pair",
+        "assert_b4_certified_arm_pair",
         return_value=C.B4ArmPairComparison(False, False, True),
     ), contextlib.redirect_stdout(io.StringIO()):
         assert C.main([
             "--driver", "base",
             "--artifact-root", "/tmp/b4-fixed-driver",
+            "--admission-record", "/tmp/b4-base-admission.json",
             "--on-invocation-id", "on-id",
             "--off-invocation-id", "off-id",
         ], pair_factory=factory) == 0
@@ -1974,6 +2725,8 @@ def test_closed_critic_cli_constructs_only_fixed_marked_base_configs():
             [
                 "--artifact-root",
                 "/tmp/b4-cli-failure",
+                "--admission-record",
+                "/tmp/b4-admission.json",
                 "--on-invocation-id",
                 "cli-on",
                 "--off-invocation-id",
@@ -1983,6 +2736,52 @@ def test_closed_critic_cli_constructs_only_fixed_marked_base_configs():
         )
     assert rc == 1
     assert "B4ReceiptError" in stderr.getvalue()
+
+    missing_option_stderr = io.StringIO()
+    with contextlib.redirect_stderr(missing_option_stderr):
+        error = _raises(
+            SystemExit,
+            lambda: C.main(
+                [
+                    "--artifact-root",
+                    "/tmp/b4-cli-missing-admission",
+                    "--on-invocation-id",
+                    "cli-on",
+                    "--off-invocation-id",
+                    "cli-off",
+                ],
+                pair_factory=factory,
+            ),
+        )
+    assert error.code == 2
+    assert "--admission-record" in missing_option_stderr.getvalue()
+
+    def failed_admission_factory(**_kwargs):
+        raise A.B4AdmissionRecordError(
+            "[admission-mismatch] expected_claude_model_snapshot"
+        )
+
+    stderr = io.StringIO()
+    with contextlib.redirect_stderr(stderr):
+        rc = C.main(
+            [
+                "--artifact-root",
+                "/tmp/b4-cli-admission-failure",
+                "--admission-record",
+                "/tmp/missing-admission.json",
+                "--on-invocation-id",
+                "cli-on",
+                "--off-invocation-id",
+                "cli-off",
+            ],
+            pair_factory=failed_admission_factory,
+        )
+    assert rc == 1
+    assert "B4AdmissionRecordError" in stderr.getvalue()
+    assert (
+        "[admission-mismatch] expected_claude_model_snapshot"
+        in stderr.getvalue()
+    )
 
 
 if __name__ == "__main__":

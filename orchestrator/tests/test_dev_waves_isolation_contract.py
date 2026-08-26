@@ -126,19 +126,19 @@ def test_every_node_that_touches_process_external_resources_stays_serialised() -
         )
 
 
-def _real_repo_serial_nodes() -> frozenset[str]:
+def _real_repo_resource_nodes() -> frozenset[str]:
     """conftest の正本を読む。pytest 不在の素の runner では検査を skip する。"""
     try:
-        from orchestrator.tests.conftest import REAL_REPO_SERIAL_NODES
+        from orchestrator.tests.conftest import REAL_REPO_RESOURCE_NODES
     except ImportError as exc:
         if exc.name == "pytest":
             skip(f"pytest 不在のため conftest を import できない ({exc})")
         raise
-    return frozenset(REAL_REPO_SERIAL_NODES)
+    return frozenset(REAL_REPO_RESOURCE_NODES)
 
 
 def test_no_module_wide_group_and_no_overlap_with_the_real_repo_group() -> None:
-    """module 一括 group が復活していないこと、real-repo 正本と重ならないこと。"""
+    """module 一括 group が復活せず、resource allowlist と重ならないこと。"""
     module = _module()
     assert not any(
         isinstance(node, ast.Assign)
@@ -147,11 +147,11 @@ def test_no_module_wide_group_and_no_overlap_with_the_real_repo_group() -> None:
         for node in module.body
     ), "module 全体を 1 group にする pytestmark は [T-132] で外した"
 
-    overlap = {node for node in _real_repo_serial_nodes()
+    overlap = {node for node in _real_repo_resource_nodes()
                if node.startswith("test_dev_waves_integration.py::")}
     assert overlap == set(), (
-        "このファイルの node が real-repo 正本に入ると conftest の自動付与と marker が"
-        f"二重になり排他が壊れる: {sorted(overlap)}"
+        "このファイルの node が real-repo resource allowlist に入ると conftest の shard "
+        f"marker と個別 access vector が二重管理になる: {sorted(overlap)}"
     )
 
 

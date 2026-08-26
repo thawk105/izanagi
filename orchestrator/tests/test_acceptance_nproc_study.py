@@ -5,12 +5,14 @@ import concurrent.futures
 import copy
 from dataclasses import replace
 import json
+import math
 import multiprocessing
 import multiprocessing.context
 import os
 from pathlib import Path
 import pty
 import re
+import shutil
 import subprocess
 import sys
 
@@ -58,6 +60,233 @@ _JUNIT_ONE_TEST = b"""<?xml version="1.0" encoding="utf-8"?>
   <testcase classname="suite.test_fast" name="test_a" time="0.5" />
 </testsuite>
 """
+_JUNIT_SKIPPED = b"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite tests="2" failures="0" errors="0" skipped="1">
+  <testcase classname="suite.test_fast" name="test_a" time="0.5"><skipped /></testcase>
+  <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
+</testsuite>
+"""
+_JUNIT_FAILED = b"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite tests="2" failures="1" errors="0" skipped="0">
+  <testcase classname="suite.test_fast" name="test_a" time="0.5">
+    <failure message="synthetic flake" />
+  </testcase>
+  <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
+</testsuite>
+"""
+_PATH_BASE_START = "# BEGIN acceptance nproc ambient PATH construction"
+_PATH_BASE_END = "# END acceptance nproc ambient PATH construction"
+_PATH_PYTHON_DIR_START = "# BEGIN acceptance nproc Python directory PATH prefix"
+_PATH_PYTHON_DIR_END = "# END acceptance nproc Python directory PATH prefix"
+_SUBMISSION_PYTHON_CANDIDATES = ("python3", "python3.10", "python3.11")
+_FALLBACK_PATH_CONSTRUCTION = """PATH="/usr/bin:/bin"
+  for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
+    [[ -d "$candidate" ]] || continue
+    PATH="${PATH}:$candidate"
+  done"""
+_RESET_PATH_MUTATION = """export PATH="/usr/bin:/bin"
+for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
+  [[ -d "$candidate" ]] || continue
+  PATH="${PATH}:$candidate"
+done
+export PATH"""
+
+
+def _acceptance_shell_text() -> str:
+    repo = Path(__file__).resolve().parents[2]
+    return (repo / "tools/pegasus/acceptance_nproc_study.sh").read_text(
+        encoding="utf-8"
+    )
+
+
+def _marked_shell_block(text: str, start_marker: str, end_marker: str) -> str:
+    assert text.count(start_marker) == 1
+    assert text.count(end_marker) == 1
+    start = text.index(start_marker) + len(start_marker)
+    end = text.index(end_marker, start)
+    return text[start:end].strip()
+
+
+def _evaluated_study_path(
+    text: str,
+    ambient_elements: tuple[str, ...],
+    *,
+    python: Path,
+    synthetic_tmp: Path,
+) -> tuple[str, ...]:
+    assert ambient_elements
+    assert all(ambient_elements)
+    assert python.is_file()
+    assert not python.is_symlink()
+    base_block = _marked_shell_block(text, _PATH_BASE_START, _PATH_BASE_END)
+    python_dir_block = _marked_shell_block(
+        text, _PATH_PYTHON_DIR_START, _PATH_PYTHON_DIR_END
+    )
+    script = "\n".join((
+        "set -eu",
+        base_block,
+        python_dir_block,
+        'printf "%s" "$PATH"',
+    ))
+    completed = subprocess.run(
+        ["/bin/bash", "-c", script],
+        check=True,
+        capture_output=True,
+        env={
+            "PATH": os.pathsep.join(ambient_elements),
+            "PY": str(python),
+            "TMPDIR": str(synthetic_tmp),
+        },
+        text=True,
+    )
+    assert completed.stderr == ""
+    return tuple(completed.stdout.split(os.pathsep))
+
+
+def _submission_python_executable(path_elements: tuple[str, ...]) -> Path | None:
+    assert path_elements
+    assert all(path_elements)
+    assert _SUBMISSION_PYTHON_CANDIDATES == (
+        "python3", "python3.10", "python3.11",
+    )
+    search_path = os.pathsep.join(path_elements)
+    for candidate in _SUBMISSION_PYTHON_CANDIDATES:
+        found = shutil.which(candidate, path=search_path)
+        if found and Path(found).is_file() and not Path(found).is_symlink():
+            return Path(found).resolve(strict=True)
+    return None
+
+
+def _synthetic_python_tree(tmp_path: Path) -> Path:
+    python_dir = tmp_path / "resolved-python" / "bin"
+    python_dir.mkdir(parents=True)
+    python = python_dir / "python3.10"
+    python.write_bytes(b"synthetic Python interpreter\n")
+    python.chmod(0o755)
+    (python_dir / "python3").symlink_to(python.name)
+    assert python.is_file()
+    assert not python.is_symlink()
+    return python
+
+
+def _assert_submission_python_resolution(
+    path_elements: tuple[str, ...], *, expected: Path,
+) -> None:
+    selected = _submission_python_executable(path_elements)
+    assert selected is not None, (
+        "PATH has no regular non-symlink Python candidate matching the selected "
+        "interpreter"
+    )
+    assert selected == expected.resolve(strict=True)
+    python310 = shutil.which("python3.10", path=os.pathsep.join(path_elements))
+    assert python310 is not None
+    resolved_python310 = Path(python310)
+    assert resolved_python310.is_file()
+    assert not resolved_python310.is_symlink()
+    assert resolved_python310.resolve(strict=True) == expected.resolve(strict=True)
+
+
+def _assert_exact_study_path_contract(
+    text: str, *, python: Path, synthetic_tmp: Path,
+) -> tuple[str, ...]:
+    ambient_elements = (
+        str(synthetic_tmp / "ambient-alpha"),
+        str(synthetic_tmp / "ambient-beta"),
+        str(synthetic_tmp / "ambient-gamma"),
+    )
+    assert ambient_elements
+    assert all(ambient_elements)
+    observed = _evaluated_study_path(
+        text,
+        ambient_elements,
+        python=python,
+        synthetic_tmp=synthetic_tmp,
+    )
+    expected = (
+        str(python.parent),
+        *ambient_elements,
+    )
+    assert observed == expected, (
+        f"observed PATH elements {observed!r} differ from exact {expected!r}"
+    )
+    assert observed[0] == expected[0]
+    assert observed[1:] == ambient_elements
+    _assert_submission_python_resolution(observed, expected=python)
+    return observed
+
+
+def test_acceptance_path_prefixes_real_python_dir_and_preserves_ambient_order(
+    tmp_path: Path,
+) -> None:
+    shell_text = _acceptance_shell_text()
+    python = _synthetic_python_tree(tmp_path)
+    base_block = _marked_shell_block(
+        shell_text, _PATH_BASE_START, _PATH_BASE_END
+    )
+    assert _FALLBACK_PATH_CONSTRUCTION in base_block
+    assert 'PY_DIR=${PY%/*}' in shell_text
+    assert 'export PATH="$PY_DIR:$PATH"' in shell_text
+    assert "$TMPDIR/python-shim" not in shell_text
+    assert 'ln -s "$PY"' not in shell_text
+    assert '[[ -n "$PINNED_PYTHON" && -f "$PINNED_PYTHON"' in shell_text
+    assert '[[ "$PINNED_PYTHON" == "$PY" ]]' in shell_text
+    observed = _assert_exact_study_path_contract(
+        shell_text, python=python, synthetic_tmp=tmp_path / "study-tmp"
+    )
+    assert observed
+    assert observed[0] == str(python.parent)
+
+
+def test_acceptance_python_resolution_rejects_symlink_shim_mutation(
+    tmp_path: Path,
+) -> None:
+    shell_text = _acceptance_shell_text()
+    python = _synthetic_python_tree(tmp_path)
+    synthetic_tmp = tmp_path / "study-tmp"
+    shim = synthetic_tmp / "python-shim"
+    shim.mkdir(parents=True)
+    (shim / "python3").symlink_to(python)
+    (shim / "python3.10").symlink_to(python)
+    assert all((shim / name).is_symlink() for name in ("python3", "python3.10"))
+    assert not (shim / "python3.11").exists()
+
+    python_dir_block = _marked_shell_block(
+        shell_text, _PATH_PYTHON_DIR_START, _PATH_PYTHON_DIR_END
+    )
+    symlink_shim_mutation = 'export PATH="$TMPDIR/python-shim:$PATH"'
+    mutated = shell_text.replace(python_dir_block, symlink_shim_mutation, 1)
+    assert mutated != shell_text
+    ambient_elements = tuple(
+        str(tmp_path / name) for name in ("ambient-alpha", "ambient-beta")
+    )
+    assert ambient_elements
+    observed = _evaluated_study_path(
+        mutated,
+        ambient_elements,
+        python=python,
+        synthetic_tmp=synthetic_tmp,
+    )
+    assert observed[0] == str(shim)
+    assert observed[1:] == ambient_elements
+    assert _submission_python_executable(observed) is None
+    with pytest.raises(AssertionError, match="no regular non-symlink Python"):
+        _assert_submission_python_resolution(observed, expected=python)
+
+
+def test_acceptance_path_contract_rejects_reset_mutation(tmp_path: Path) -> None:
+    shell_text = _acceptance_shell_text()
+    python = _synthetic_python_tree(tmp_path)
+    base_block = _marked_shell_block(
+        shell_text, _PATH_BASE_START, _PATH_BASE_END
+    )
+    assert "AMBIENT_PATH=${PATH:-}" in base_block
+    assert shell_text.count(base_block) == 1
+    reset_mutation = shell_text.replace(base_block, _RESET_PATH_MUTATION, 1)
+    assert reset_mutation != shell_text
+    with pytest.raises(AssertionError, match="observed PATH elements"):
+        _assert_exact_study_path_contract(
+            reset_mutation, python=python, synthetic_tmp=tmp_path / "study-tmp"
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -82,9 +311,7 @@ def _cleanup(*, residual: list[int] | None = None) -> dict[str, object]:
 def _isolation(host: str) -> dict[str, object]:
     return {
         "disturbance_candidates": [],
-        "disturbance_rule": (
-            "non-exempt same-uid process CPU delta >=2 ticks over continuous samples"
-        ),
+        "disturbance_rule": study.DISTURBANCE_RULE,
         "disturbed": False,
         "host_end": host,
         "host_match": True,
@@ -106,6 +333,7 @@ class FakeExecutor:
         imports_available: bool = True,
         write_junit: bool = True,
         measurement_returncode: int = 0,
+        measurement_outcomes: list[tuple[int, bytes, float, bool]] | None = None,
         honor_absorbgitdirs: bool = True,
         missing_absorbed_gitdir: str | None = None,
         clone_gitmodules_mode: int | None = None,
@@ -118,6 +346,10 @@ class FakeExecutor:
         self.imports_available = imports_available
         self.write_junit = write_junit
         self.measurement_returncode = measurement_returncode
+        self.measurement_outcomes = (
+            [] if measurement_outcomes is None else list(measurement_outcomes)
+        )
+        self.measurement_call_count = 0
         self.honor_absorbgitdirs = honor_absorbgitdirs
         self.missing_absorbed_gitdir = missing_absorbed_gitdir
         self.clone_gitmodules_mode = clone_gitmodules_mode
@@ -209,7 +441,35 @@ class FakeExecutor:
                 (session / f"shard-{index}").mkdir(parents=True)
             stdout = f"{session}\n".encode()
         elif request.purpose.startswith("measurement:"):
-            self.measurement_seen = True
+            assert request.tmp_capacity is not None
+            tmp_tree = Path(request.env["TMPDIR"])
+            assert tmp_tree.is_dir()
+            start_free = study._sample_tmp_free_bytes(request.tmp_capacity.path)
+            start_sample = {
+                "free_bytes": start_free,
+                "monotonic_s": 0.0,
+                "read_errors": [],
+            }
+            preflight = study.summarize_tmp_capacity_samples(
+                [start_sample], spec=request.tmp_capacity,
+            )
+            if preflight["passed"] is True:
+                self.measurement_seen = True
+                (tmp_tree / "fake-pytest-temp").write_bytes(
+                    b"measured temporary data"
+                )
+            end_free = study._sample_tmp_free_bytes(request.tmp_capacity.path)
+            tmp_capacity = study.summarize_tmp_capacity_samples(
+                [
+                    start_sample,
+                    {
+                        "free_bytes": end_free,
+                        "monotonic_s": 1.0,
+                        "read_errors": [],
+                    },
+                ],
+                spec=request.tmp_capacity,
+            )
             session_token = next(
                 token for token in request.argv
                 if token.startswith("--izanagi-acceptance-shard-session=")
@@ -220,19 +480,34 @@ class FakeExecutor:
             )
             session = Path(session_token.split("=", 1)[1])
             shard = int(shard_token.split("=", 1)[1])
-            junit = self.junit_by_nproc.get(request.env["IZANAGI_TEST_NPROC"], _JUNIT)
-            if self.write_junit:
+            outcome = (
+                self.measurement_outcomes[self.measurement_call_count]
+                if self.measurement_call_count < len(self.measurement_outcomes)
+                else None
+            )
+            self.measurement_call_count += 1
+            if outcome is None:
+                returncode = self.measurement_returncode
+                junit = self.junit_by_nproc.get(
+                    request.env["IZANAGI_TEST_NPROC"], _JUNIT
+                )
+                duration_s = 1.0 + shard / 10
+                timed_out = False
+            else:
+                returncode, junit, duration_s, timed_out = outcome
+            if self.write_junit and tmp_capacity["passed"] is True:
                 (session / f"shard-{shard}" / "junit.xml").write_bytes(junit)
             return study.ExecResult(
-                returncode=self.measurement_returncode,
+                returncode=returncode,
                 stdout=b"measurement stdout",
                 stderr=b"",
-                duration_s=1.0 + shard / 10,
-                timed_out=False,
+                duration_s=duration_s,
+                timed_out=timed_out,
                 stdout_sha256=study._sha256(b"measurement stdout"),
                 stderr_sha256=study._sha256(b""),
                 isolation=_isolation(self.host),
                 process_cleanup=_cleanup(),
+                tmp_capacity=tmp_capacity,
             )
         elif len(request.argv) >= 4 and request.argv[0:2] == ("git", "-C"):
             repo = Path(request.argv[2])
@@ -552,9 +827,97 @@ def test_remaining_budget_strictly_rejects_equality() -> None:
 
 
 def test_arm_timeout_preserves_every_postrun_fingerprint_window() -> None:
-    assert study.allocate_shard_timeout(arm_remaining_s=600.0, remaining_shards=2) == 270.0
+    assert study.allocate_shard_timeout(
+        arm_remaining_s=600.0,
+        remaining_shards=2,
+        mode="smoke",
+        remaining_shard_walls_s=None,
+    ) == 270.0
+    assert study.allocate_shard_timeout(
+        arm_remaining_s=600.0,
+        remaining_shards=2,
+        mode="smoke",
+        remaining_shard_walls_s=None,
+        observed_cleanup_reserve_s=5.0,
+    ) == 265.0
     with pytest.raises(study.ContractError, match="postrun fingerprint"):
-        study.allocate_shard_timeout(arm_remaining_s=60.0, remaining_shards=2)
+        study.allocate_shard_timeout(
+            arm_remaining_s=60.0,
+            remaining_shards=2,
+            mode="smoke",
+            remaining_shard_walls_s=None,
+        )
+
+
+@pytest.mark.parametrize(
+    "smoke_walls_s",
+    ((224.0, 140.0), (232.0, 108.0), (244.0, 116.0)),
+)
+def test_full_shard_weighting_prevents_equal_split_underallocation(
+    smoke_walls_s: tuple[float, float],
+) -> None:
+    cleanup_reserve_s = 20.0
+    arm_timeout_s = (
+        math.ceil(
+            math.fsum(smoke_walls_s)
+            * study.FULL_TIMEOUT_MULTIPLIER_NUMERATOR
+            / study.FULL_TIMEOUT_MULTIPLIER_DENOMINATOR
+        )
+        + study.FULL_TIMEOUT_FIXED_RESERVE_S
+    )
+    available_s = arm_timeout_s - study.SHARD_COUNT * (
+        study.PER_SHARD_POSTRUN_RESERVE_S + cleanup_reserve_s
+    )
+    equal_split_s = available_s / study.SHARD_COUNT
+    weighted_s = study.allocate_shard_timeout(
+        arm_remaining_s=float(arm_timeout_s),
+        remaining_shards=study.SHARD_COUNT,
+        mode="full",
+        remaining_shard_walls_s=smoke_walls_s,
+        observed_cleanup_reserve_s=cleanup_reserve_s,
+    )
+
+    assert equal_split_s < smoke_walls_s[0]
+    assert weighted_s >= smoke_walls_s[0]
+
+
+def test_full_shard_weighting_equalizes_relative_margin() -> None:
+    smoke_walls_s = (12.0, 5.0)
+    cleanup_reserve_s = 7.0
+    arm_remaining_s = 250.0
+    available_s = arm_remaining_s - study.SHARD_COUNT * (
+        study.PER_SHARD_POSTRUN_RESERVE_S + cleanup_reserve_s
+    )
+    first_timeout_s = study.allocate_shard_timeout(
+        arm_remaining_s=arm_remaining_s,
+        remaining_shards=study.SHARD_COUNT,
+        mode="full",
+        remaining_shard_walls_s=smoke_walls_s,
+        observed_cleanup_reserve_s=cleanup_reserve_s,
+    )
+    second_timeout_s = available_s - first_timeout_s
+
+    assert first_timeout_s + second_timeout_s == pytest.approx(available_s)
+    assert first_timeout_s / smoke_walls_s[0] == pytest.approx(
+        second_timeout_s / smoke_walls_s[1]
+    )
+
+
+@pytest.mark.parametrize(
+    "smoke_walls_s",
+    (None, (), (8.0,), (8.0, 0.0), (8.0, -1.0),
+     (8.0, float("nan")), (8.0, float("inf"))),
+)
+def test_full_shard_weighting_rejects_missing_or_invalid_ratio_basis(
+    smoke_walls_s: tuple[float, ...] | None,
+) -> None:
+    with pytest.raises(study.ContractError, match="smoke shard wall"):
+        study.allocate_shard_timeout(
+            arm_remaining_s=200.0,
+            remaining_shards=study.SHARD_COUNT,
+            mode="full",
+            remaining_shard_walls_s=smoke_walls_s,
+        )
 
 
 def test_timeout_basis_rejects_small_smoke_cap_and_full_without_calibration(
@@ -589,10 +952,14 @@ def test_junit_identity_set_digest_is_order_independent() -> None:
 
 def test_junit_identity_sets_require_every_shard_index() -> None:
     digest = study._sha256(b"fixed-testcase-identity-set")
+    skipped_digest = study._sha256(b"fixed-skipped-testcase-identity-set")
     valid = [
         {
             "shard_index": shard_index,
-            "junit": {"testcase_identity_set_sha256": digest},
+            "junit": {
+                "skipped_testcase_identity_set_sha256": skipped_digest,
+                "testcase_identity_set_sha256": digest,
+            },
         }
         for shard_index in range(study.SHARD_COUNT)
     ]
@@ -607,7 +974,7 @@ def test_junit_identity_sets_require_every_shard_index() -> None:
 
 def test_continuous_isolation_detects_middle_only_same_uid_consumer() -> None:
     identity = (9001, 321)
-    process = {"command": "compiler", "pgroup": 700, "ticks": 8, "uid": 42}
+    process = {"command": "compiler", "pgroup": 700, "ticks": 8, "uid": 1001}
     samples = [
         {"hostname": "bnode001", "monotonic_s": 0.0, "processes": {}, "read_errors": []},
         {"hostname": "bnode001", "monotonic_s": 1.0,
@@ -615,7 +982,7 @@ def test_continuous_isolation_detects_middle_only_same_uid_consumer() -> None:
         {"hostname": "bnode001", "monotonic_s": 2.0, "processes": {}, "read_errors": []},
     ]
     result = study.summarize_isolation_samples(
-        samples, own_uid=42, exempt_pgroups={100, 200}, expected_host="bnode001"
+        samples, own_uid=1001, exempt_pgroups={100, 200}, expected_host="bnode001"
     )
     assert result["valid"] is True
     assert result["disturbed"] is True
@@ -660,6 +1027,369 @@ def test_sampler_gap_or_read_failure_is_invalid() -> None:
     assert result["valid"] is False
 
 
+def test_proc_snapshot_records_ppid_cwd_and_exe_for_the_reader_itself() -> None:
+    snapshot = study._read_proc_snapshot()
+    own_rows = [
+        row for (pid, _starttime), row in snapshot["processes"].items()
+        if pid == os.getpid()
+    ]
+    assert own_rows
+    assert len(own_rows) == 1
+    row = own_rows[0]
+    assert row["ppid"] == os.getppid()
+    assert row["cwd"] == str(Path.cwd())
+    assert isinstance(row["exe"], str)
+    assert Path(row["exe"]).is_absolute()
+
+
+def _proc_snapshot_with_process_read_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    error_type: type[OSError],
+) -> tuple[dict[str, object], int, int]:
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    surviving_pid = 41001
+    failing_pid = 41002
+    for pid, starttime in ((surviving_pid, 101), (failing_pid, 102)):
+        entry = proc_root / str(pid)
+        entry.mkdir()
+        stat_tail = [
+            "S", "1", "100", "0", "0", "0", "0", "0", "0", "0", "0",
+            "3", "4", "0", "0", "0", "0", "1", "0", str(starttime),
+        ]
+        (entry / "stat").write_text(
+            f"{pid} (unit-process) {' '.join(stat_tail)}\n", encoding="utf-8"
+        )
+        (entry / "cmdline").write_bytes(b"unit-process\0--work\0")
+
+    real_path = study.Path
+    monkeypatch.setattr(
+        study,
+        "Path",
+        lambda value: proc_root if value == "/proc" else real_path(value),
+    )
+    failing_stat = proc_root / str(failing_pid) / "stat"
+    real_read_text = Path.read_text
+
+    def read_text_with_failure(
+        path: Path, *args: object, **kwargs: object,
+    ) -> str:
+        if path == failing_stat:
+            raise error_type()
+        return real_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text_with_failure)
+    return study._read_proc_snapshot(), surviving_pid, failing_pid
+
+
+def _summarize_snapshot(snapshot: dict[str, object]) -> dict[str, object]:
+    host = "unit-host"
+    samples = [
+        {"hostname": host, "monotonic_s": 0.0, **snapshot},
+        {"hostname": host, "monotonic_s": 1.0, **snapshot},
+    ]
+    return study.summarize_isolation_samples(
+        samples, own_uid=os.getuid(), exempt_pgroups=set(), expected_host=host,
+    )
+
+
+def test_proc_snapshot_skips_process_lookup_race_without_losing_other_processes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot, surviving_pid, _failing_pid = _proc_snapshot_with_process_read_failure(
+        tmp_path, monkeypatch, error_type=ProcessLookupError,
+    )
+    processes = snapshot["processes"]
+    assert isinstance(processes, dict)
+    assert processes
+    assert {pid for pid, _starttime in processes} == {surviving_pid}
+    assert snapshot["read_errors"] == []
+
+    result = _summarize_snapshot(snapshot)
+    assert result["valid"] is True
+
+
+def test_proc_snapshot_permission_error_remains_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot, surviving_pid, failing_pid = _proc_snapshot_with_process_read_failure(
+        tmp_path, monkeypatch, error_type=PermissionError,
+    )
+    processes = snapshot["processes"]
+    assert isinstance(processes, dict)
+    assert processes
+    assert {pid for pid, _starttime in processes} == {surviving_pid}
+    assert snapshot["read_errors"] == [f"{failing_pid}:PermissionError"]
+
+    result = _summarize_snapshot(snapshot)
+    assert result["valid"] is False
+
+
+def test_proc_snapshot_unreadable_proc_root_remains_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class UnreadableProc:
+        def iterdir(self) -> list[Path]:
+            raise PermissionError
+
+    real_path = study.Path
+    monkeypatch.setattr(
+        study,
+        "Path",
+        lambda value: UnreadableProc() if value == "/proc" else real_path(value),
+    )
+    snapshot = study._read_proc_snapshot()
+    assert snapshot["processes"] == {}
+    assert snapshot["read_errors"] == ["proc:PermissionError"]
+
+    result = _summarize_snapshot(snapshot)
+    assert result["valid"] is False
+
+
+def _owned_workload_shape_samples() -> tuple[list[dict[str, object]], tuple[Path, Path]]:
+    scratch_root = Path("/scr/unit-acceptance-job")
+    tmp_root = Path("/tmp/izn-unit000000/run-000")
+    root_identity = (5000, 11)
+    root_process = {
+        "command": f"python3.10 {scratch_root}/tools/run_tests.py",
+        "cwd": str(scratch_root),
+        "exe": "/usr/bin/python3.10",
+        "pgroup": 100,
+        "ppid": 1,
+        "ticks": 10,
+        "uid": 1001,
+    }
+    workload: dict[tuple[int, int], dict[str, object]] = {}
+
+    for offset in range(29):
+        workload[(6000 + offset, 100 + offset)] = {
+            "command": f"python3.10 -m pytest {scratch_root}/tests/test_gate_{offset}.py",
+            "cwd": str(scratch_root),
+            "exe": "/usr/bin/python3.10",
+            "pgroup": 700 + offset,
+            "ppid": root_identity[0],
+            "ticks": 3,
+            "uid": 1001,
+        }
+    for offset in range(22):
+        workload[(6100 + offset, 200 + offset)] = {
+            "command": f"cc1plus {scratch_root}/oracle/source_{offset}.cpp",
+            "cwd": None,
+            "exe": "/usr/libexec/gcc/cc1plus",
+            "pgroup": 800 + offset,
+            "ppid": root_identity[0],
+            "ticks": 3,
+            "uid": 1001,
+        }
+    for offset in range(11):
+        workload[(6200 + offset, 300 + offset)] = {
+            "command": f"git pack-objects {scratch_root}/.git/objects/pack/unit-{offset}",
+            "cwd": str(scratch_root / ".git"),
+            "exe": "/usr/bin/git",
+            "pgroup": 900 + offset,
+            "ppid": 1,
+            "ticks": 3,
+            "uid": 1001,
+        }
+    for offset in range(7):
+        workload[(6300 + offset, 400 + offset)] = {
+            "command": f"python3.10 -m pytest -n 2 {tmp_root}/nested-{offset}",
+            "cwd": str(tmp_root),
+            "exe": "/usr/bin/python3.10",
+            "pgroup": 1000 + offset,
+            "ppid": root_identity[0],
+            "ticks": 3,
+            "uid": 1001,
+        }
+    short_identity = (6999, 999)
+    workload[short_identity] = {
+        "command": "",
+        "cwd": None,
+        "exe": None,
+        "pgroup": 1099,
+        "ppid": root_identity[0],
+        "ticks": 4,
+        "uid": 1001,
+    }
+    assert len(workload) == 70
+
+    middle = {root_identity: {**root_process, "ticks": 20}, **workload}
+    final = {
+        root_identity: {**root_process, "ticks": 30},
+        **{
+            identity: {**row, "ticks": 7}
+            for identity, row in workload.items()
+            if identity != short_identity
+        },
+    }
+    samples: list[dict[str, object]] = [
+        {
+            "hostname": "bnode001", "monotonic_s": 0.0,
+            "processes": {root_identity: root_process}, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 1.0,
+            "processes": middle, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 2.0,
+            "processes": final, "read_errors": [],
+        },
+    ]
+    return samples, (scratch_root, tmp_root)
+
+
+def test_m13_observed_shape_has_70_nonexempt_owned_processes() -> None:
+    samples, job_roots = _owned_workload_shape_samples()
+    result = study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=job_roots,
+    )
+    workload_rows = [row for row in result["processes"] if row["exempt"] is False]
+    assert workload_rows
+    assert len(workload_rows) == 70
+    assert all(row["owned"] is True for row in workload_rows)
+    assert result["disturbance_candidates"] == []
+    assert result["disturbance_rule"] == (
+        "unowned uid>=1000 process CPU delta >=2 ticks; ownership is the union "
+        "of exempt pgroup, sticky (pid,starttime), owned-parent closure, resolved "
+        "job-root cwd/exe, and job-root command prefix"
+    )
+    assert {
+        reason for row in result["processes"] for reason in row["ownership_reasons"]
+    } == {
+        "1:pgroup",
+        "2:sticky-identity",
+        "3:owned-parent",
+        "4:job-root-cwd-or-exe",
+        "5:job-root-command",
+    }
+
+
+def test_m14_owned_parent_is_the_only_gate_for_unreadable_short_process() -> None:
+    samples, job_roots = _owned_workload_shape_samples()
+    result = study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=job_roots,
+    )
+    workload_rows = [row for row in result["processes"] if row["exempt"] is False]
+    short_row = next(row for row in workload_rows if row["command"] == "")
+    other_rows = [row for row in workload_rows if row["command"] != ""]
+    assert other_rows
+    assert all(row["owned"] is True for row in other_rows)
+    assert short_row["created"] is True
+    assert short_row["disappeared"] is True
+    assert short_row["owned"] is True
+    assert short_row["ownership_reasons"] == ["3:owned-parent"]
+
+
+def test_m15_job_paths_are_the_only_gate_for_daemonized_git_processes() -> None:
+    samples, job_roots = _owned_workload_shape_samples()
+    result = study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=job_roots,
+    )
+    workload_rows = [row for row in result["processes"] if row["exempt"] is False]
+    daemon_rows = [row for row in workload_rows if row["command"].startswith("git ")]
+    other_rows = [row for row in workload_rows if not row["command"].startswith("git ")]
+    assert daemon_rows
+    assert other_rows
+    assert all(row["owned"] is True for row in other_rows)
+    assert all(
+        row["ownership_reasons"]
+        == ["2:sticky-identity", "4:job-root-cwd-or-exe", "5:job-root-command"]
+        for row in daemon_rows
+    )
+
+
+def _foreign_and_same_uid_disturbance_result() -> dict[str, object]:
+    scratch_root = Path("/scr/unit-acceptance-job")
+    identities = {
+        "owned": (7000, 1),
+        "system": (7001, 2),
+        "foreign": (7002, 3),
+        "same": (7003, 4),
+    }
+    rows = {
+        identities["owned"]: {
+            "command": "driver", "cwd": str(scratch_root), "exe": None,
+            "pgroup": 100, "ppid": 1, "ticks": 2, "uid": 1001,
+        },
+        identities["system"]: {
+            "command": "daemon", "cwd": "/", "exe": "/usr/bin/daemon",
+            "pgroup": 200, "ppid": 1, "ticks": 2, "uid": 0,
+        },
+        identities["foreign"]: {
+            "command": "foreign", "cwd": "/work/foreign", "exe": "/usr/bin/python",
+            "pgroup": 201, "ppid": 1, "ticks": 2, "uid": 1002,
+        },
+        identities["same"]: {
+            "command": "ambient", "cwd": "/work/ambient", "exe": "/usr/bin/python",
+            "pgroup": 202, "ppid": 1, "ticks": 2, "uid": 1001,
+        },
+    }
+    samples = [
+        {
+            "hostname": "bnode001", "monotonic_s": 0.0,
+            "processes": rows, "read_errors": [],
+        },
+        {
+            "hostname": "bnode001", "monotonic_s": 1.0,
+            "processes": {
+                identity: {**row, "ticks": 8} for identity, row in rows.items()
+            },
+            "read_errors": [],
+        },
+    ]
+    return study.summarize_isolation_samples(
+        samples,
+        own_uid=1001,
+        exempt_pgroups={100},
+        expected_host="bnode001",
+        job_roots=(scratch_root,),
+    )
+
+
+def test_m16_foreign_uid_disturbance_keeps_owned_and_system_positives() -> None:
+    result = _foreign_and_same_uid_disturbance_result()
+    candidates = {
+        row["pid"]: row["uid_relation"] for row in result["disturbance_candidates"]
+    }
+    assert candidates == {7002: "other", 7003: "same"}
+    accepted = {
+        row["pid"]: row for row in result["processes"]
+        if row["pid"] in {7000, 7001}
+    }
+    assert accepted
+    assert accepted[7000]["owned"] is True
+    assert accepted[7001]["uid"] == 0
+
+
+def test_m17_infinite_cpu_threshold_would_lose_both_fixed_negatives() -> None:
+    result = _foreign_and_same_uid_disturbance_result()
+    candidates = [
+        (row["pid"], row["cpu_ticks_delta"])
+        for row in result["disturbance_candidates"]
+    ]
+    assert candidates
+    assert candidates == [(7002, 6), (7003, 6)]
+    accepted_pids = {
+        row["pid"] for row in result["processes"] if row["pid"] in {7000, 7001}
+    }
+    assert accepted_pids == {7000, 7001}
+
+
 def test_internal_shard_argv_rejects_any_extra_n_option(tmp_path: Path) -> None:
     clone = tmp_path / "clone"
     session = tmp_path / "session"
@@ -692,6 +1422,146 @@ def test_run_environment_requires_driver_pythonuserbase(
         )
 
 
+def test_run_environment_exact_task_projection_and_only_tmp_uses_short_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _config(tmp_path)
+    base = {
+        "IZANAGI_TASK_RUN_ID": "base-id",
+        "IZANAGI_TASK_RUNS_ROOT": "/base/root",
+        "IZANAGI_TASK_RUN_SIDECAR": "/base/sidecar",
+        "IZANAGI_TASK_RUN_AUTO_RECORD": "1",
+        "BASE_ONLY_SENTINEL": "keep",
+    }
+    task_run_keys = {
+        "IZANAGI_TASK_RUN_ID",
+        "IZANAGI_TASK_RUNS_ROOT",
+        "IZANAGI_TASK_RUN_SIDECAR",
+        "IZANAGI_TASK_RUN_AUTO_RECORD",
+    }
+    assert task_run_keys <= set(base)
+    assert base["BASE_ONLY_SENTINEL"] == "keep"
+    monkeypatch.setenv("AMBIENT_ONLY_SENTINEL", "reject")
+    assert os.environ["AMBIENT_ONLY_SENTINEL"] == "reject"
+    monkeypatch.setattr(study, "_base_env", lambda: dict(base))
+
+    env = study._run_environment(
+        config, global_run_index=7, arm=32,
+        root=config.scratch_root / "run-environments",
+    )
+    try:
+        projection_keys = (
+            "AMBIENT_ONLY_SENTINEL",
+            "BASE_ONLY_SENTINEL",
+            "IZANAGI_TASK_RUN_AUTO_RECORD",
+            "IZANAGI_TASK_RUN_ID",
+            "IZANAGI_TASK_RUNS_ROOT",
+            "IZANAGI_TASK_RUN_SIDECAR",
+        )
+        assert {key: env.get(key) for key in projection_keys} == {
+            "AMBIENT_ONLY_SENTINEL": None,
+            "BASE_ONLY_SENTINEL": "keep",
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            "IZANAGI_TASK_RUN_ID": None,
+            "IZANAGI_TASK_RUNS_ROOT": None,
+            "IZANAGI_TASK_RUN_SIDECAR": None,
+        }
+        tmp_tree = Path(env["TMPDIR"])
+        assert tmp_tree.name == "run-007"
+        assert tmp_tree.parent.parent == Path("/tmp")
+        assert re.fullmatch(r"izn-[0-9a-f]{12}", tmp_tree.parent.name)
+        for key in (
+            "HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
+            "XDG_STATE_HOME",
+        ):
+            assert Path(env[key]).is_relative_to(config.scratch_root)
+    finally:
+        study._remove_tmp_tree(
+            Path(env["TMPDIR"]), global_run_index=7, purpose="measurement"
+        )
+
+
+def test_mh5_production_and_measurement_task_run_projection_match_exactly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Drifted production names reject a driver-owned literal projection."""
+
+    config = _config(tmp_path)
+    base = {
+        "DRIFTED_TASK_RUN_ID": "base-id",
+        "DRIFTED_TASK_RUNS_ROOT": "/base/root",
+        "DRIFTED_TASK_RUN_SIDECAR": "/base/sidecar",
+        "DRIFTED_TASK_RUN_AUTO_RECORD": "1",
+        "BASE_ONLY_SENTINEL": "keep",
+    }
+    expected_base = dict(base)
+    monkeypatch.setenv("AMBIENT_ONLY_SENTINEL", "reject")
+    monkeypatch.setenv("PYTHONUSERBASE", str(tmp_path / "python-user-base"))
+    monkeypatch.setattr(study, "_base_env", lambda: dict(base))
+    monkeypatch.setattr(
+        study.production_runner, "_TASK_RUN_ID_ENV", "DRIFTED_TASK_RUN_ID"
+    )
+    monkeypatch.setattr(
+        study.production_runner, "_TASK_RUNS_ROOT_ENV", "DRIFTED_TASK_RUNS_ROOT"
+    )
+    monkeypatch.setattr(
+        study.production_runner,
+        "_TASK_RUN_SIDECAR_ENV",
+        "DRIFTED_TASK_RUN_SIDECAR",
+    )
+    monkeypatch.setattr(
+        study.production_runner,
+        "_TASK_RUN_AUTO_RECORD_ENV",
+        "DRIFTED_TASK_RUN_AUTO_RECORD",
+    )
+
+    with monkeypatch.context() as production_context:
+        production_context.setattr(
+            study.production_runner.os, "environ", dict(base)
+        )
+        production_env = study.production_runner._dispatch_environment()
+    measurement_env = study._run_environment(
+        config, global_run_index=8, arm=48,
+        root=config.scratch_root / "run-environments",
+    )
+    try:
+        projection_keys = (
+            "AMBIENT_ONLY_SENTINEL",
+            "BASE_ONLY_SENTINEL",
+            "DRIFTED_TASK_RUN_AUTO_RECORD",
+            "DRIFTED_TASK_RUN_ID",
+            "DRIFTED_TASK_RUNS_ROOT",
+            "DRIFTED_TASK_RUN_SIDECAR",
+        )
+        expected_projection = {
+            "AMBIENT_ONLY_SENTINEL": None,
+            "BASE_ONLY_SENTINEL": "keep",
+            "DRIFTED_TASK_RUN_AUTO_RECORD": "0",
+            "DRIFTED_TASK_RUN_ID": None,
+            "DRIFTED_TASK_RUNS_ROOT": None,
+            "DRIFTED_TASK_RUN_SIDECAR": None,
+        }
+        assert len(projection_keys) == 6
+        assert set(projection_keys) == set(expected_projection)
+        production_projection = {
+            key: production_env.get(key) for key in projection_keys
+        }
+        measurement_projection = {
+            key: measurement_env.get(key) for key in projection_keys
+        }
+        assert production_projection == expected_projection
+        assert measurement_projection == expected_projection
+        assert production_projection == measurement_projection
+        assert base == expected_base
+        assert os.environ["AMBIENT_ONLY_SENTINEL"] == "reject"
+    finally:
+        study._remove_tmp_tree(
+            Path(measurement_env["TMPDIR"]),
+            global_run_index=8,
+            purpose="measurement",
+        )
+
+
 def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
     tmp_path: Path,
 ) -> None:
@@ -703,11 +1573,49 @@ def test_run_environments_isolate_home_and_keep_one_pythonuserbase(
     second = study._run_environment(
         config, global_run_index=1, arm=48, root=root
     )
-    assert first["HOME"] != second["HOME"]
-    assert first["PYTHONUSERBASE"] == second["PYTHONUSERBASE"]
-    assert first["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
-    assert first[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
-    assert second[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+    try:
+        assert first["HOME"] != second["HOME"]
+        assert first["TMPDIR"] != second["TMPDIR"]
+        assert first["PYTHONUSERBASE"] == second["PYTHONUSERBASE"]
+        assert first["PYTHONUSERBASE"] == os.environ["PYTHONUSERBASE"]
+        assert first[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+        assert second[study.THIRDPARTY_CACHE_ENV] == os.environ[study.THIRDPARTY_CACHE_ENV]
+    finally:
+        study._remove_tmp_tree(
+            Path(first["TMPDIR"]), global_run_index=0, purpose="measurement"
+        )
+        study._remove_tmp_tree(
+            Path(second["TMPDIR"]), global_run_index=1, purpose="measurement"
+        )
+
+
+def test_m6_prepare_tmp_tree_has_one_exact_root_gate(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    path = study._prepare_tmp_tree(config, global_run_index=9)
+    assert path.parent.parent == Path("/tmp")
+    study._remove_tmp_tree(path, global_run_index=9, purpose="measurement")
+
+
+def test_m7_remove_tmp_tree_postcondition_is_the_single_noop_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    positive = tmp_path / "positive"
+    positive.mkdir()
+    (positive / "payload").write_bytes(b"positive")
+    positive_evidence = study._remove_tmp_tree(
+        positive, global_run_index=0, purpose="measurement"
+    )
+    assert positive_evidence["removed"] is True
+    assert not positive.exists()
+
+    negative = tmp_path / "negative"
+    negative.mkdir()
+    (negative / "payload").write_bytes(b"negative")
+    monkeypatch.setattr(study.shutil, "rmtree", lambda _path: None)
+    with pytest.raises(study.ContractError, match="still exists after cleanup"):
+        study._remove_tmp_tree(
+            negative, global_run_index=1, purpose="measurement"
+        )
 
 
 def test_process_cleanup_rejects_residual_group_member() -> None:
@@ -724,12 +1632,16 @@ def test_analysis_rejects_warmup_leaking_into_smoke_estimand() -> None:
                     "analysis_block_index": 0,
                     "analysis_included": included,
                     "arm": arm,
+                    "child_returncode": 0,
                     "junit": {
+                        "error_count": 0,
+                        "failure_count": 0,
                         "real_repo_exclusive_chain_s": 0.2,
                         "serial_work_sum_s": 1.0,
                     },
                     "phase": phase,
                     "shard_index": shard,
+                    "timed_out": False,
                     "wall_s": 2.0,
                 })
     outcomes, contrasts = study._derive_analysis(runs, mode="smoke")
@@ -771,6 +1683,94 @@ def test_receipt_schema_rejects_changed_excluded_estimand_value(
     )
 
 
+def test_receipt_pins_three_known_nonequivalences_and_estimand_scope(
+    tmp_path: Path,
+) -> None:
+    """M12-C uses the builder literal; M12-V uses each changed-field rejection."""
+    valid = _failed_schema_fixture(tmp_path)
+    expected_nonequivalences = [
+        {
+            "id": "home-xdg-cold-isolated",
+            "statement": (
+                "HOME and XDG roots are cold-isolated per run; production uses "
+                "real HOME and ambient XDG"
+            ),
+        },
+        {
+            "id": "clone-on-scratch-filesystem",
+            "statement": (
+                "the study clone is on /scr; production reads the canonical "
+                "repository on /work"
+            ),
+        },
+        {
+            "id": "serial-shards-on-one-node",
+            "statement": (
+                "shards run serially as 0 then 1 on one node without "
+                "counterbalancing; production submits parallel PBS jobs"
+            ),
+        },
+    ]
+    assert valid["design"]["known_nonequivalences"] == expected_nonequivalences
+    assert valid["design"]["internal_comparison_scope"] == (
+        "The known nonequivalences do not invalidate the within-study paired "
+        "comparison that changes only worker count."
+    )
+    assert valid["design"]["absolute_wall_extrapolation"] == (
+        "The study does not justify extrapolation to production absolute wall time."
+    )
+    study.validate_receipt(valid, expected_mode="smoke", require_complete=False)
+
+    for removed_index in range(3):
+        changed = copy.deepcopy(valid)
+        changed["design"]["known_nonequivalences"].pop(removed_index)
+        with pytest.raises(
+            study.ContractError,
+            match="known nonequivalences differ from the fixed design",
+        ):
+            study.validate_receipt(
+                changed, expected_mode="smoke", require_complete=False
+            )
+
+    for field in ("internal_comparison_scope", "absolute_wall_extrapolation"):
+        changed = copy.deepcopy(valid)
+        changed["design"][field] = "changed scope"
+        with pytest.raises(study.ContractError, match="estimand scope"):
+            study.validate_receipt(
+                changed, expected_mode="smoke", require_complete=False
+            )
+
+    changed_arm_scope = copy.deepcopy(valid)
+    changed_arm_scope["design"]["arm_timeout_scope"] = "excludes cleanup"
+    with pytest.raises(study.ContractError, match="arm timeout scope"):
+        study.validate_receipt(
+            changed_arm_scope, expected_mode="smoke", require_complete=False
+        )
+
+    changed_capacity_rule = copy.deepcopy(valid)
+    changed_capacity_rule["cleanup"]["tmp_capacity_rule"] = "changed rule"
+    with pytest.raises(study.ContractError, match="TMP capacity rule"):
+        study.validate_receipt(
+            changed_capacity_rule, expected_mode="smoke", require_complete=False
+        )
+
+    changed_peak_rule = copy.deepcopy(valid)
+    changed_peak_rule["cleanup"]["tmp_peak_capacity_rule"] = "changed peak rule"
+    with pytest.raises(study.ContractError, match="TMP peak capacity rule"):
+        study.validate_receipt(
+            changed_peak_rule, expected_mode="smoke", require_complete=False
+        )
+
+
+def test_v3_receipt_rejects_v2_schema_identifier(tmp_path: Path) -> None:
+    valid = _failed_schema_fixture(tmp_path)
+    assert valid["schema_version"] == "izanagi-acceptance-nproc-study/v3"
+    changed = copy.deepcopy(valid)
+    changed["schema_version"] = "izanagi-acceptance-nproc-study/v2"
+    with pytest.raises(study.ContractError, match="schema or mode mismatch"):
+        study.validate_receipt(changed, expected_mode="smoke", require_complete=False)
+
+
 def test_job_failure_schema_is_closed() -> None:
     receipt = {
         "message": "failed",
@@ -791,6 +1791,7 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _poison_process_creation(monkeypatch)
+    monkeypatch.setattr(study, "_tmp_free_bytes", lambda _path: 1 << 50)
     config = _config(tmp_path)
     host = "bnode999"
     monkeypatch.setattr(study.socket, "gethostname", lambda: host)
@@ -864,18 +1865,64 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
     assert import_request.env[study.THIRDPARTY_CACHE_ENV] == os.environ[
         study.THIRDPARTY_CACHE_ENV
     ]
+    assert not Path(import_request.env["TMPDIR"]).exists()
     assert len({request.env["HOME"] for request in measurement_requests}) == 6
     assert {
         request.env["PYTHONUSERBASE"] for request in measurement_requests
     } == {os.environ["PYTHONUSERBASE"]}
     for request in measurement_requests:
         assert "-n" not in request.argv
+        assert request.isolation_job_roots == (
+            config.scratch_root.resolve(),
+            Path(request.env["TMPDIR"]).parent,
+        )
         assert request.env["IZANAGI_TEST_NPROC"] in {"16", "32", "48"}
         assert request.env[study.THIRDPARTY_CACHE_ENV] == os.environ[
             study.THIRDPARTY_CACHE_ENV
         ]
         assert request.env["HOME"].startswith(str(config.scratch_root))
+        assert Path(request.env["TMPDIR"]).parent.parent == Path("/tmp")
+        assert not Path(request.env["TMPDIR"]).exists()
+        assert {
+            key: request.env.get(key)
+            for key in (
+                "IZANAGI_TASK_RUN_AUTO_RECORD",
+                "IZANAGI_TASK_RUN_ID",
+                "IZANAGI_TASK_RUNS_ROOT",
+                "IZANAGI_TASK_RUN_SIDECAR",
+            )
+        } == {
+            "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
+            "IZANAGI_TASK_RUN_ID": None,
+            "IZANAGI_TASK_RUNS_ROOT": None,
+            "IZANAGI_TASK_RUN_SIDECAR": None,
+        }
         assert not any(key.startswith(("CCACHE_", "SCCACHE_")) for key in request.env)
+    cleanups = receipt["cleanup"]["tmp_tree_cleanups"]
+    assert [row["global_run_index"] for row in cleanups] == [-1, 0, 1, 2, 3, 4, 5]
+    assert [row["purpose"] for row in cleanups] == [
+        "setup-import-probe", "measurement", "measurement", "measurement",
+        "measurement", "measurement", "measurement",
+    ]
+    assert all(row["removed"] is True for row in cleanups)
+    assert all(row["usage_bytes_before_cleanup"] > 0 for row in cleanups)
+    capacity_checks = receipt["cleanup"]["tmp_capacity_checks"]
+    assert receipt["cleanup"]["tmp_capacity_rule"] == (
+        "observed maximum times observed max/min safety factor plus observed "
+        "mean reserve"
+    )
+    assert [row["global_run_index"] for row in capacity_checks] == [1, 2, 3, 4, 5]
+    assert all(row["passed"] is True for row in capacity_checks)
+    peak_observations = receipt["cleanup"]["tmp_peak_capacity_observations"]
+    assert peak_observations
+    assert [row["global_run_index"] for row in peak_observations] == [0, 1, 2, 3, 4, 5]
+    assert all(row["sample_count"] == 2 for row in peak_observations)
+    assert all(row["passed"] is True for row in peak_observations)
+    assert all(run["cleanup_wall_s"] >= 0 for run in receipt["runs"])
+    assert all(
+        run["budget_wall_s"] == run["wall_s"] + run["cleanup_wall_s"]
+        for run in receipt["runs"]
+    )
     study.validate_receipt(receipt, expected_mode="smoke", require_complete=True)
     for run in receipt["runs"]:
         shard_stage = (
@@ -922,6 +1969,404 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         study.validate_receipt(
             split_session, expected_mode="smoke", require_complete=True
         )
+
+    inconsistent_capacity = copy.deepcopy(receipt)
+    inconsistent_capacity["cleanup"]["tmp_capacity_checks"][0]["passed"] = False
+    with pytest.raises(study.ContractError, match="TMP capacity observation"):
+        study.validate_receipt(
+            inconsistent_capacity, expected_mode="smoke", require_complete=True
+        )
+
+    failed_capacity = copy.deepcopy(receipt)
+    failed_capacity_row = failed_capacity["cleanup"]["tmp_capacity_checks"][0]
+    failed_capacity_row["free_bytes"] = 0
+    failed_capacity_row["passed"] = False
+    with pytest.raises(study.ContractError, match="failed TMP capacity observation"):
+        study.validate_receipt(
+            failed_capacity, expected_mode="smoke", require_complete=True
+        )
+
+
+def _run_retry_smoke(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcomes: list[tuple[int, bytes, float, bool]],
+) -> tuple[study.StudyConfig, FakeExecutor, int, dict[str, object]]:
+    _poison_process_creation(monkeypatch)
+    monkeypatch.setattr(study, "_tmp_free_bytes", lambda _path: 1 << 50)
+    config = _config(tmp_path)
+    host = "bnode-retry"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:retry.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(
+        tmp_path, host, measurement_outcomes=outcomes,
+    )
+    rc, receipt = study.run_study(config, executor)
+    return config, executor, rc, receipt
+
+
+def test_red_run_is_retried_once_and_only_green_wall_enters_analysis(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+
+    assert rc == 0
+    assert receipt["status"] == "complete"
+    assert executor.measurement_call_count == 7
+    assert receipt["retry_policy"]["retries_started"] == 1
+    assert receipt["retry_policy"]["per_cell_retry_limit"] == study.SHARD_COUNT
+    assert receipt["retry_policy"]["study_retry_limit"] == len(study.ARMS)
+    assert len(receipt["discarded_runs"]) == 1
+    discarded = receipt["discarded_runs"][0]
+    accepted = receipt["runs"][0]
+    assert {
+        "global_block_index": discarded["global_block_index"],
+        "arm": discarded["arm"],
+        "shard_index": discarded["shard_index"],
+        "attempt_number": discarded["attempt_number"],
+        "child_returncode": discarded["child_returncode"],
+        "failure_count": discarded["junit"]["failure_count"],
+        "error_count": discarded["junit"]["error_count"],
+        "failed_nodeids": discarded["junit"]["failed_nodeids"],
+    } == {
+        "global_block_index": 0,
+        "arm": accepted["arm"],
+        "shard_index": 0,
+        "attempt_number": 1,
+        "child_returncode": 1,
+        "failure_count": 1,
+        "error_count": 0,
+        "failed_nodeids": ["suite.test_fast::test_a"],
+    }
+    assert accepted["attempt_number"] == 2
+    assert accepted["wall_s"] == 2.0
+    arm_outcome = next(
+        row for row in receipt["arm_outcomes"]
+        if row["analysis_block_index"] == 0 and row["arm"] == accepted["arm"]
+    )
+    assert arm_outcome["shard_walls_s"] == [2.0, 1.1]
+    assert discarded["wall_s"] == 9.0
+    assert discarded["wall_s"] not in arm_outcome["shard_walls_s"]
+    assert receipt["cleanup"]["tmp_capacity_checks"][0][
+        "global_run_index"
+    ] == 0
+    study.validate_receipt(receipt, expected_mode=config.mode, require_complete=True)
+
+
+def test_complete_receipt_rejects_out_of_range_tmp_capacity_run_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    for invalid_index in (-1, len(receipt["runs"])):
+        changed = copy.deepcopy(receipt)
+        changed["cleanup"]["tmp_capacity_checks"][0][
+            "global_run_index"
+        ] = invalid_index
+        with pytest.raises(study.ContractError, match="TMP capacity observation"):
+            study.validate_receipt(
+                changed, expected_mode=config.mode, require_complete=True
+            )
+
+
+def test_analysis_rejects_a_discarded_red_run_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    assert receipt["discarded_runs"]
+    mixed = copy.deepcopy(receipt["runs"])
+    red = receipt["discarded_runs"][0]
+    mixed[0]["wall_s"] = red["wall_s"]
+    mixed[0]["child_returncode"] = red["child_returncode"]
+    mixed[0]["junit"] = copy.deepcopy(red["junit"])
+    with pytest.raises(study.ContractError, match="non-green run"):
+        study._derive_analysis(mixed, mode="smoke")
+
+
+def test_complete_receipt_rejects_an_unrecorded_discarded_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    missing = copy.deepcopy(receipt)
+    missing["discarded_runs"] = []
+    missing["retry_policy"]["retries_started"] = 0
+    with pytest.raises(study.ContractError, match="not linked"):
+        study.validate_receipt(
+            missing, expected_mode="smoke", require_complete=True
+        )
+
+
+def test_discarded_retry_must_keep_test_and_skip_identity_sets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    changed = copy.deepcopy(receipt)
+    changed["discarded_runs"][0]["junit"][
+        "skipped_testcase_identity_set_sha256"
+    ] = study._sha256(b"different-retry-skip-set")
+    with pytest.raises(study.ContractError, match="skipped testcase identity set"):
+        study.validate_receipt(
+            changed, expected_mode="smoke", require_complete=True
+        )
+
+
+def test_per_cell_retry_limit_stops_before_an_unbounded_attempt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    red_attempts = study.PER_CELL_RETRY_LIMIT + 1
+    assert red_attempts > 1
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 1.0, False)] * red_attempts,
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == red_attempts
+    assert len(receipt["discarded_runs"]) == red_attempts
+    assert receipt["retry_policy"]["retries_started"] == red_attempts - 1
+    assert receipt["failure"]["message"].endswith("exceeded per-cell retry limit")
+
+
+def test_study_retry_limit_stops_across_distinct_cells(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    study_limit = len(study.ARMS)
+    assert study_limit > study.PER_CELL_RETRY_LIMIT
+    outcomes: list[tuple[int, bytes, float, bool]] = []
+    for _index in range(study_limit):
+        outcomes.extend(((1, _JUNIT_FAILED, 1.0, False), (0, _JUNIT, 1.0, False)))
+    outcomes.append((1, _JUNIT_FAILED, 1.0, False))
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path, monkeypatch, outcomes,
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == 2 * study_limit + 1
+    assert receipt["retry_policy"]["retries_started"] == study_limit
+    assert len(receipt["discarded_runs"]) == study_limit + 1
+    assert receipt["failure"]["message"] == "study exceeded total retry limit"
+
+
+def test_timed_out_red_run_is_never_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 1.0, True)],
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == 1
+    assert receipt["retry_policy"]["retries_started"] == 0
+    assert receipt["discarded_runs"] == []
+    assert receipt["runs"]
+    assert receipt["runs"][0]["timed_out"] is True
+    assert receipt["failure"]["message"].endswith("rc=1 timeout=True")
+
+
+def test_retry_does_not_start_when_observed_arm_budget_does_not_fit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    allocations = iter((10.0, 5.0))
+    monkeypatch.setattr(
+        study, "allocate_shard_timeout", lambda **_kwargs: next(allocations)
+    )
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False)],
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == 1
+    assert receipt["retry_policy"]["retries_started"] == 0
+    assert len(receipt["discarded_runs"]) == 1
+    assert receipt["failure"]["message"].startswith(
+        "insufficient arm budget for retry"
+    )
+
+
+def test_tmp_capacity_gate_rejects_before_next_run_and_keeps_first_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode999"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:123.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    monkeypatch.setattr(study, "_tmp_free_bytes", lambda _path: 0)
+    executor = FakeExecutor(tmp_path, host)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["status"] == "failed"
+    assert receipt["failure"]["type"] == "ContractError"
+    assert receipt["failure"]["message"].startswith(
+        "insufficient /tmp capacity for the next run: free=0 required="
+    )
+    measurements = [
+        request for request in executor.requests
+        if request.purpose.startswith("measurement:")
+    ]
+    assert len(measurements) == 1
+    assert not Path(measurements[0].env["TMPDIR"]).exists()
+    measured_usage = receipt["cleanup"]["tmp_tree_cleanups"][1][
+        "usage_bytes_before_cleanup"
+    ]
+    assert receipt["cleanup"]["tmp_tree_cleanups"] == [
+        {
+            "global_run_index": -1,
+            "purpose": "setup-import-probe",
+            "removed": True,
+            "usage_bytes_before_cleanup": receipt["cleanup"]["tmp_tree_cleanups"][0][
+                "usage_bytes_before_cleanup"
+            ],
+        },
+        {
+            "global_run_index": 0,
+            "purpose": "measurement",
+            "removed": True,
+            "usage_bytes_before_cleanup": measured_usage,
+        },
+    ]
+    assert receipt["cleanup"]["tmp_capacity_checks"] == [
+        {
+            "free_bytes": 0,
+            "global_run_index": 1,
+            "observed_max_bytes": measured_usage,
+            "observed_mean_reserve_bytes": measured_usage,
+            "observed_min_bytes": measured_usage,
+            "observed_run_count": 1,
+            "passed": False,
+            "required_bytes": measured_usage + measured_usage,
+            "safety_factor_denominator_bytes": measured_usage,
+            "safety_factor_numerator_bytes": measured_usage,
+            "scaled_observed_max_bytes": measured_usage,
+        }
+    ]
+
+
+def test_c1_first_run_capacity_learns_peak_and_keeps_passing_positive() -> None:
+    spec = study.TmpCapacitySpec(
+        path=Path("/tmp/unit-capacity"),
+        global_run_index=0,
+        prior_observed_max_consumption_bytes=0,
+        receipt_reserve_bytes=100,
+    )
+    positive_samples = [
+        {"free_bytes": 1000, "monotonic_s": 0.0, "read_errors": []},
+        {"free_bytes": 600, "monotonic_s": 1.0, "read_errors": []},
+    ]
+    negative_samples = [
+        {"free_bytes": 1000, "monotonic_s": 0.0, "read_errors": []},
+        {"free_bytes": 400, "monotonic_s": 1.0, "read_errors": []},
+    ]
+    assert positive_samples
+    positive = study.summarize_tmp_capacity_samples(positive_samples, spec=spec)
+    negative = study.summarize_tmp_capacity_samples(negative_samples, spec=spec)
+    assert {
+        key: positive[key]
+        for key in (
+            "free_bytes", "minimum_free_bytes", "observed_consumption_bytes",
+            "passed", "receipt_reserve_bytes", "required_bytes", "sample_count",
+            "start_free_bytes",
+        )
+    } == {
+        "free_bytes": 600,
+        "minimum_free_bytes": 600,
+        "observed_consumption_bytes": 400,
+        "passed": True,
+        "receipt_reserve_bytes": 100,
+        "required_bytes": 400,
+        "sample_count": 2,
+        "start_free_bytes": 1000,
+    }
+    assert {
+        key: negative[key]
+        for key in (
+            "free_bytes", "minimum_free_bytes", "observed_consumption_bytes",
+            "passed", "receipt_reserve_bytes", "required_bytes", "sample_count",
+            "start_free_bytes",
+        )
+    } == {
+        "free_bytes": 400,
+        "minimum_free_bytes": 400,
+        "observed_consumption_bytes": 600,
+        "passed": False,
+        "receipt_reserve_bytes": 100,
+        "required_bytes": 600,
+        "sample_count": 2,
+        "start_free_bytes": 1000,
+    }
+
+
+def test_c1_first_measurement_rejects_its_own_live_capacity_drop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode991"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:134.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    free_samples = iter((1 << 20, 1))
+    monkeypatch.setattr(
+        study, "_sample_tmp_free_bytes", lambda _path: next(free_samples)
+    )
+    executor = FakeExecutor(tmp_path, host)
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert executor.measurement_seen is True
+    assert receipt["runs"] == []
+    assert receipt["cleanup"]["tmp_capacity_checks"] == []
+    observations = receipt["cleanup"]["tmp_peak_capacity_observations"]
+    assert observations
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation["global_run_index"] == 0
+    assert observation["minimum_free_bytes"] == 1
+    assert observation["passed"] is False
+    assert observation["passed"] == (
+        observation["free_bytes"] >= observation["required_bytes"]
+    )
+    assert receipt["failure"]["message"].startswith(
+        "insufficient /tmp capacity during run: free=1 required="
+    )
+    assert study._receipt_reserve_bytes(receipt) == len(
+        study._receipt_json_bytes(receipt)
+    )
 
 
 def test_setup_import_probe_failure_stops_before_measurement(
@@ -1143,11 +2588,31 @@ def test_full_timeout_is_hash_bound_to_complete_smoke_and_fixed_derivation(
     full_nodefile.write_text(host + "\n", encoding="utf-8")
     monkeypatch.setenv("PBS_JOBID", "0:127.nqsv")
     monkeypatch.setenv("PBS_NODEFILE", str(full_nodefile))
+    allocation_calls: list[dict[str, object]] = []
+    real_allocate_shard_timeout = study.allocate_shard_timeout
+
+    def record_allocate_shard_timeout(**kwargs: object) -> float:
+        allocation_calls.append(dict(kwargs))
+        return real_allocate_shard_timeout(**kwargs)
+
+    monkeypatch.setattr(
+        study, "allocate_shard_timeout", record_allocate_shard_timeout
+    )
     full_rc, full_receipt = study.run_study(
         full_config, FakeExecutor(full_root, host)
     )
     assert full_rc == 0
     assert full_receipt["budget"]["timeout_calibration"] == calibration
+    assert allocation_calls
+    assert len(allocation_calls) == len(full_receipt["runs"])
+    for call, run in zip(allocation_calls, full_receipt["runs"]):
+        shard_index = run["shard_index"]
+        expected_walls = calibration["smoke_arm_shard_walls_s"][str(run["arm"])][
+            shard_index:
+        ]
+        assert call["mode"] == "full"
+        assert call["remaining_shards"] == study.SHARD_COUNT - shard_index
+        assert call["remaining_shard_walls_s"] == expected_walls
     study.validate_receipt(full_receipt, expected_mode="full", require_complete=True)
 
     missing_hash = copy.deepcopy(full_receipt)
@@ -1196,6 +2661,28 @@ def test_arm_specific_deselection_prevents_complete_receipt(
     assert receipt["invariant_checks"]["junit_identity_sets_match_by_shard"] is False
     assert receipt["failure"]["type"] == "ContractError"
     assert "JUnit testcase identity set differs" in receipt["failure"]["message"]
+
+
+def test_arm_specific_skip_identity_prevents_complete_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _poison_process_creation(monkeypatch)
+    config = _config(tmp_path)
+    host = "bnode990"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:135.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(tmp_path, host, junit_by_nproc={"32": _JUNIT_SKIPPED})
+
+    rc, receipt = study.run_study(config, executor)
+
+    assert rc == 1
+    assert receipt["status"] == "failed"
+    assert receipt["invariant_checks"]["junit_identity_sets_match_by_shard"] is False
+    assert receipt["failure"]["type"] == "ContractError"
+    assert "JUnit skipped testcase identity set differs" in receipt["failure"]["message"]
 
 
 def test_static_contract_has_signal_traps_exact_registry_and_no_red_checker() -> None:

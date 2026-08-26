@@ -124,6 +124,33 @@ def _resolve_cache_root(value: Path | None, repo_root: Path) -> Path:
     return cache_root
 
 
+def _resolve_staging_root(
+    value: Path | None,
+    repo_root: Path,
+    cache_root: Path,
+    staging_relative: Path,
+) -> Path:
+    if value is None:
+        configured = repo_root / staging_relative
+    else:
+        if not value.is_absolute():
+            raise OperationalError("staging root must be an absolute path")
+        configured = value
+    try:
+        staging_root = configured.resolve(strict=False)
+    except OSError as exc:
+        raise OperationalError(
+            f"staging root cannot be resolved: {configured}: {exc}"
+        ) from exc
+    try:
+        common = Path(os.path.commonpath((str(staging_root), str(cache_root))))
+    except ValueError as exc:
+        raise OperationalError(f"staging/cache root comparison failed: {exc}") from exc
+    if common in (staging_root, cache_root):
+        raise OperationalError("staging root and cache root must not overlap")
+    return staging_root
+
+
 def _git_environment(protocol: str) -> dict[str, str]:
     env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     env.pop("SSH_ASKPASS", None)
@@ -580,9 +607,12 @@ def _hydrate(
     cache_root: Path,
     sources: Sequence[Mapping[str, str]],
     staging_relative: Path,
+    *,
+    staging_root: Path | None = None,
 ) -> list[dict[str, str]]:
     _verify_cache(cache_root, sources)
-    staging_root = repo_root / staging_relative
+    if staging_root is None:
+        staging_root = repo_root / staging_relative
     if _lexists(staging_root):
         _ensure_root(staging_root, create=False, label="hydrate root")
         for item in sources:
@@ -676,6 +706,12 @@ def _parser() -> argparse.ArgumentParser:
             help="policy/CMake を読む repository root",
         )
         command.add_argument("--cache-root", type=Path)
+        if operation == "hydrate":
+            command.add_argument(
+                "--staging-root",
+                type=Path,
+                help="hydrate destination (default: the established repository staging root)",
+            )
     return parser
 
 
@@ -690,10 +726,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         repo_root = _resolve_repo_root(args.repo_root)
         sources, dependencies, staging_relative = _load_policy(repo_root)
         cache_root = _resolve_cache_root(args.cache_root, repo_root)
+        staging_root = None
+        if args.operation == "hydrate":
+            staging_root = _resolve_staging_root(
+                args.staging_root,
+                repo_root,
+                cache_root,
+                staging_relative,
+            )
         if args.operation == "fetch":
             records = _fetch(cache_root, sources)
         elif args.operation == "hydrate":
-            records = _hydrate(repo_root, cache_root, sources, staging_relative)
+            assert staging_root is not None
+            records = _hydrate(
+                repo_root,
+                cache_root,
+                sources,
+                staging_relative,
+                staging_root=staging_root,
+            )
         elif args.operation == "verify":
             records = _verify_cache(cache_root, sources)
         else:
@@ -705,7 +756,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "sources": records,
         }
         if args.operation == "hydrate":
-            payload["source_root"] = str(repo_root / staging_relative)
+            assert staging_root is not None
+            payload["source_root"] = str(staging_root)
         json.dump(payload, sys.stdout, ensure_ascii=False, sort_keys=True)
         sys.stdout.write("\n")
         return 0

@@ -1354,7 +1354,7 @@ def _append_journal_rows(admitted, *rows: dict) -> None:
 
 
 def _write_verified_recovery_registry(
-    admitted, *, trigger_start: dict,
+    admitted, *, trigger_start: dict, write_standalone_receipts: bool = True,
 ) -> Path:
     state = admission._cell_state(admitted)  # noqa: SLF001
     authority_id, authority_policy_sha256 = _TEST_RECOVERY_AUTHORITY
@@ -1426,6 +1426,12 @@ def _write_verified_recovery_registry(
             "failure_reason": "node_failure",
             "collected_at": f"2026-08-25T00:00:{ordinal * 3 + 1:02d}+00:00",
         }
+        if write_standalone_receipts:
+            receipt_path = admission._scheduler_accounting_receipt_claim_path(  # noqa: SLF001
+                state.root, receipt,
+            )
+            receipt_path.parent.mkdir(parents=True, exist_ok=True)
+            receipt_path.write_bytes(canonical_json_line(receipt))
         rows = attempt_registry_core.record_attempt_recovery(
             rows, profile=profile, freeze_id=binding.freeze_sha256,
             slot_id=slot_id, binding=binding,
@@ -1907,6 +1913,85 @@ def test_registry_recovery_authority_is_empty_and_fail_closed(tmp_path):
     assert [row["attempt_id"] for row in attempts] == [attempt_id]
 
 
+def test_scheduler_accounting_authority_policy_literal_is_independently_asserted(
+    monkeypatch,
+):
+    expected = "79c8098cf89df02c2e4f33d20c001cae30fc01acc79ff0cb56050788dfbefc05"
+    source = Path(admission.__file__).read_text(encoding="utf-8")
+    assert "_scheduler_accounting.AUTHORITY_POLICY_SHA256" not in source
+    checker = mock.Mock()
+    monkeypatch.setattr(
+        admission._scheduler_accounting,  # noqa: SLF001
+        "assert_authority_policy_literal",
+        checker,
+    )
+
+    assert (
+        admission._verified_scheduler_accounting_authority_policy_literal()  # noqa: SLF001
+        == expected
+    )
+    checker.assert_called_once_with(expected)
+
+
+def test_registry_recovery_requires_standalone_receipt(tmp_path, monkeypatch):
+    _pin_test_recovery_authority(monkeypatch)
+    _root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(
+        tmp_path,
+    )
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _write_verified_recovery_registry(
+        admitted,
+        trigger_start=planned_start,
+        write_standalone_receipts=False,
+    )
+
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match="registry recovery standalone receipt is absent",
+    ):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+
+
+def test_registry_recovery_requires_identical_standalone_receipt_bytes(
+    tmp_path, monkeypatch,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    _root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(
+        tmp_path,
+    )
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    registry_path = _write_verified_recovery_registry(
+        admitted, trigger_start=planned_start,
+    )
+    _raw, rows = admission._read_floor_registry_candidate_rows(  # noqa: SLF001
+        registry_path,
+    )
+    recovery = next(row for row in rows if row.get("event") == "recovery")
+    receipt = recovery["scheduler_accounting_receipt"]
+    receipt_path = admission._scheduler_accounting_receipt_claim_path(  # noqa: SLF001
+        state.root, receipt,
+    )
+    receipt_path.write_bytes(b"{}\n")
+
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match="registry recovery standalone receipt bytes differ",
+    ):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+
+
 def test_registry_recovery_counts_corrupt_extra_candidate_before_replay(
     tmp_path, monkeypatch,
 ):
@@ -2130,6 +2215,12 @@ def test_unverified_registry_recovery_row_is_rejected(tmp_path, monkeypatch):
     rows = [json.loads(line) for line in registry_path.read_text().splitlines()]
     recovery = next(row for row in rows if row.get("event") == "recovery")
     recovery["scheduler_accounting_receipt"]["authority_id"] = "tampered"
+    receipt_path = admission._scheduler_accounting_receipt_claim_path(  # noqa: SLF001
+        state.root, recovery["scheduler_accounting_receipt"],
+    )
+    receipt_path.write_bytes(canonical_json_line(
+        recovery["scheduler_accounting_receipt"]
+    ))
     registry_path.write_bytes(b"".join(
         attempt_registry_core.canonical_json_bytes(row) + b"\n" for row in rows
     ))
