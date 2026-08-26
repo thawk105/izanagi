@@ -5412,6 +5412,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`DW-S03`) が本件でも機能した。本件はその有効性の 3 度目の実証であり、
   **親の一般化が段 3 で覆るのは 3 wave 連続**である (直前 2 件は worklog (277) と (275) が記録)。
 
+
+- **再発: 2026-08-26** — 段 1 の前提実測で、floor protocol が固定順の完全一致で強制している
+  承認凍結 4 行を、同名 field を持つだけの oracle spec の権威としても引用し、handoff の
+  追測へ「repo 内権威から導出できる」と書いた。実際には oracle spec の validator は
+  重複の無い非空文字列列を任意に受理し、承認経路の positive fixture は別の値を意図的に通している。
+  同じ追測で実行環境タグ・時計数・環境契約 hash・CCBench pin も「導出できる」に分類したが、
+  これらも spec validator は型しか見ておらず、拘束は実走時の driver で初めて起きる。
+  **前回は裁定同士を話題文で同一視した取り違えだったが、今回は同名 field を根拠に
+  別 module の凍結表を権威として移植した**もので、照合を名前で行い実際の述語で行わなかった点は
+  同じである。段 3 の 2 レンズが独立に指摘し、親が承認経路の pin 済み fixture の逐語 bytes で
+  裏を取って確定した。恒久対応は同 wave の決定 (spec の各軸を導出可否でなく拘束層で分類する) と、
+  memory `consumer-exact-predicates-must-all-be-checked` の適用対象を
+  「同名 field を共有する別 module の凍結表」まで広げることである。
 ### F152. 段 1 前提実測の rc を pipe 越しに読み、`tail` の rc を実測値として報告した [恒真ゲート] [手順漏れ]
 
 - 事象: 段 1 の前提実測 probe を `command ... | tail -N` の形で書き、直後の `$?` を実測 rc として
@@ -7001,6 +7014,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 - **再発: 2026-08-26** — 段 2 の plan 子が 6 回連続で不採用になった。
   根本原因は F609 で特定した。以降の調査はそちらを先に読む。
+
+- **再発: 2026-08-26** — 段 2 の plan 子が起動 7 分で web 検索を 2 query 使い、親が events を
+  見て停止した。成果物が全損する前に止めたため receipt での不採用は観測していない。
+  親 prompt に禁止を書き忘れたのが原因で、`DW-C01` の 1 行だけが防壁だった。
+  投げ直しでは禁止に加えて、子が git の挙動を調べに行く動機そのものを消すため、
+  親が実走した測定結果 (`measurements.md`) を必読資料として渡した。
+  **2026-08-11 の再発で見送った reference への配線を再度測ったが、今回も入らない。**
+  `docs/dev-wave/operations.md` の `DW-O02` へ最小の 1 文 (39 bytes) を足すと
+  L1.5 unique footprint が 9,605 bytes となり予算 9,566 bytes を超える。編集は復元した。
+  恒久対応は依然として機械強制されておらず、prompt 生成側の検査を
+  [T-1829] として起票した。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -8970,6 +8994,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   いずれも「編集面 path を key にした検索」を実行していれば段 1 で見つかっていた。
   焦点走 28 file にこの pin test が入っておらず、**受入で初めて出た**。
   fix 後に live な exact pin / golden を 17 面数え上げ、全面一致を確認している。
+
+- **再発: 2026-08-26** — 段 1 brief の不変条件へ「凍結 bytes の pin 閉包を全件列挙した」と書いたが、
+  実行した検索は成果物 path を key にしたものだけで、**検査値そのものを literal で持つ側**を
+  探していなかった。落ちていたのは承認経路の positive fixture が持つ逐語 byte 列と、
+  そこから導かれる spec hash・schedule hash の定数である。段 3 のレンズが指摘し、親が実在確認した。
+  **前回までの 2 例は識別子 key の検索漏れと編集面 path key の検索漏れだったが、今回は
+  どちらの key でも見つからない「検査値の literal snapshot」**であり、pin 閉包の検索方向が
+  3 種類あることが実測された。恒久対応は、段 1 の凍結節で列挙するときに
+  識別子 key・編集面 path key・検査値 literal の 3 方向を別々に回し、
+  1 方向しか回していない列挙を「全件」と書かないことである。
 ### F302. anchored 解析への変異が等価変異で SURVIVED した [変異検査]
 
 - 事象: 変異 matrix の probe 巡で、budget note の anchored 解析を狙った変異 M7 が SURVIVED した。
@@ -13638,6 +13672,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   すなわち **main の現行 closure には批准行が 1 件も無い**。
   D526 により追記経路は AI に閉じており、解除は人間手番である。
   A-1 の land か、main の現行 digest の批准のいずれかが要る。
+
+- **再発: 2026-08-26** — [T-1721] の A-1 sized-v1 を `formal=false` の探索値として投入しようとして
+  同じ壁に当たった。今回は 2 点が従来と異なる。(1) 観測される例外が
+  `enforcement-source-closure-unratified` ではなく、その手前の履歴検査
+  (`ratification history is not a strict prefix extension`、F600) である。digest の比較まで
+  到達しない。(2) 論文上 `formal=false` であることは免除にならない。A-1 は verifier の
+  `certified=True` を各 arm の受理条件とし、pipeline は certification 成功時だけ COMMIT して
+  環境契約 hash を記録するため、D259 の基準では certified 成果物であり gate の定義域に入る。
+  `declared_use_class="exploration"` は layout selector を選ぶだけである。
+  また本エントリが記していた「既存 lock の resume 経路は批准検査を通らない」について、
+  その lock が署名物ではなく公開 encoder と現在の blob map から構成できることを実測で確認した。
+  出力 root を書ける主体には、批准済み lock と形式だけ正しい lock を区別する手段が無い。
+  批准検査の単体テストは計算ノードで 12 passed の緑である (request `948874.nqsv`)。
 ### F499. merge 途中の作業ツリーでは Codex 子を起動できず、子自身に merge させることもできないため「子は競合解決だけ」が字義どおり実行不能だった [ドリフト] [手順不整合]
 
 - 事象: [T-1477] の再開 wave で local main を取り込んだところ AI provenance の known-violation
@@ -16363,3 +16410,99 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   参照先の正本は D560 の未閉鎖残件。
 - 再発検知: 変異 spec に `hang_risk: true` の項が含まれたまま `--runner-mode dispatch` で
   本走を起動したら同型。起動前に spec の `hang_risk` 真値を数えれば機械判定できる。
+
+### F631. 同じ判定を CLI 経由と library 経由で呼ぶと答えが変わる道具を、現在地の一次資料に使った [テスト代表性] [手順漏れ]
+
+- 事象: 8c 事前登録の発効判定 `s8c_preregistration.py` を CLI として起動すると、12 条件
+  すべてが `ERROR / evaluator-exception` になる。同じ引数で package として import して
+  `main()` を呼ぶと本当の内訳 (C03 のみ UNSATISFIED、他は EVIDENCE_UNDEFINED、
+  C05 は `schedule-schema-absent`、C08 は `prereg-binding-proof-undefined`) が出る。
+  親は precheck の最初の実測でこの CLI 出力を採り、「12 条件すべてが評価不能」と読んで
+  ユーザーへ報告した。直後の追加調査で library 経由との食い違いに気づき、訂正した。
+- 根本原因: 判定器を `__main__` として実行すると core module が二重に実体化し、
+  結果正規化の `isinstance` 判定が偽になって `PreregistrationError` が送出される。
+  その例外を `except Exception` が握り潰し、全条件を一律 ERROR へ倒す。
+  検査が通らなかった事実は残るが、**なぜ通らなかったかが消える。**
+  同型の欠陥がもう 1 件あり、`s8c_gate_report.py` はファイルパス直接起動では
+  相対 import で ImportError になる (`python3 -m` 形式なら正しく動く)。
+- なぜテストで捕まらなかったか: CLI の既存テストは imported module の `main()` を呼ぶ。
+  実プロセスとして `__main__` を起動する経路を一度も通らないため、二重実体化が起きない。
+  **テストが通す経路と、人間が打つコマンドが別物だった。**
+- 恒久対応: memory `check-rc-not-through-pipe` と同じ系統の作法として、
+  **道具の出力を現在地の一次資料に使う前に、別の起動形 (library 呼び出し、または別の
+  権威ある入口) で 1 回突き合わせる**。本件では `python3 -m
+  orchestrator.campaign.s8c_gate_report` が正しい内訳を返す独立入口として実在した。
+  コード側の修正は次の一手へ登録した (CLI を実プロセスとして起動する検査の新設を含む)。
+- 再発検知: 同じ判定を返すはずの 2 経路が異なる答えを返さないことを、CLI を subprocess として
+  起動する検査で固定する (未実装。次の一手で追跡)。
+
+### F632. 新規 worktree の初回受入全走は `output/runs` 不在で必ず 3 件赤になる [テスト代表性]
+
+- 事象: 2026-08-26 の受入全走 (docs のみの差分) が
+  `test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes`、
+  `test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes`、
+  `test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes`
+  の 3 件で落ちた。assertion は
+  `assert 'runs' in ('insights/2026-08-05_t471-restore-bound/driver/__pycache__', 'pegasus-dispatch')`。
+  同じ 3 node を走行後に単独再走すると 3 件とも緑になる (5.35 秒)。
+- 根本原因: `orchestrator/tests/output_snapshot_ignores.py` の
+  `git_ignored_output_prefixes()` は `git ls-files -o -i --exclude-standard --directory -- output/`
+  を使う。この列挙は **ignore 規則ではなく実在する untracked ignored path** を返すため、
+  `output/runs/` を一度も作っていない新規 worktree では `runs` が集合に入らない。
+  3 テストはこれを前提 assert として持つ。**その worktree の初回受入全走そのものが
+  `output/runs/` を作る**ため、赤は初回だけ決定的に出て 2 回目以降は消える。
+  本件では worktree 作成が 09:35、受入投入が 10:04、`output/runs/` の作成時刻が 10:08 だった。
+- 恒久対応: 未実施。前提 assert を「ignore 規則の存在」で測る形
+  (`git check-ignore -q output/runs` 等、実在に依存しない判定) へ変えれば構造的に閉じる。
+  現行の実在依存の列挙を前提 assert に使う限り、新規 worktree は必ず 1 回踏む。
+  **この 3 node は非帰属赤として扱ってよいが、「環境要因」ではなく上記の決定的な原因を書く。**
+- 再発検知: 受入全走の赤が上記 3 node **だけ**で、assertion 本文が
+  `assert 'runs' in (...)` の形をしており、かつ `git ls-files -o -i --exclude-standard
+  --directory -- output/` の出力に `output/runs/` が現れるなら本件である。
+  同じ worktree での 2 回目の受入では再現しない。
+
+### F633. 並行 session の worktree 撤去が、生きた登録を読むテストを受入全走の最中に赤にする [テスト代表性]
+
+- 事象: 2026-08-26 の受入全走 (docs のみの差分) が 5 件で落ちた。
+  `test_t810_coordinator.py` の 4 node と
+  `test_dev_wave_land.py::test_fold_gate_real_argv_environment_create_junit_in_gitless_tree`。
+  根の例外はいずれも
+  `T810CoordinatorError: cannot read worktree registration: file is absent` で、
+  消えた path は `.git/worktrees/dev-wave-t1749-arm-source-binding/gitdir` と
+  `.git/worktrees/rulings-20260825-adopt-p2/gitdir` だった。同 5 node を単独再走すると
+  41 passed で緑になる。
+- 根本原因: `tools/pegasus/t810_coordinator.py` の `repository_roots_from_git_identity()` と
+  `tools/dev_wave_land.py` の `_registered_worktree_paths()` は、**共有 repository の生きた
+  worktree 登録**を読む。並行 session が `git worktree` を撤去すると、列挙と
+  `<name>/gitdir` の読み取りの間に対象が消え、`missing_ok=False` の読みが fail-closed で落ちる。
+  受入全走は 17,160 件で数分かかるため、稼働 wave が多い時間帯ほど窓が広い。本件の走行では
+  worktree 登録の顔ぶれが受入投入の前後で 10 件以上入れ替わっていた。
+- 恒久対応: 未実施。列挙と読み取りの間の消滅を「その worktree を対象から外す」形で吸収するか
+  (`missing_ok=True` 相当を撤去に限って許す)、生きた登録でなく走行開始時の snapshot を読む形へ
+  変えれば構造的に閉じる。**どちらも受理集合を変えるため裁定を要する。**
+- 再発検知: 受入全走の赤が `test_t810_coordinator.py` と `test_dev_wave_land.py` に集中し、
+  根の例外が `cannot read worktree registration: file is absent` で、消えた path が
+  自分の wave のものでないなら本件である。単独再走で緑になり、
+  `git worktree list` の顔ぶれが投入前後で変わっていることで裏が取れる。
+
+### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
+
+- 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
+  次 wave はそれを前提に着手した。実際には親側の投入器が存在しなかった。A-1 の job body は
+  自分が submitter でないと明記し、親が直接 qsub して acquisition receipt を create-only で
+  書くことを前提にするが、その親側手順はどこにも実装されていない。tracked file の全数検索で
+  `paper-story-a1-paired-submission/v1` を書く実装は 0 件で、driver も job body も検証側だけである。
+  receipt を組み立てるのは契約テストの fixture だけである。他の dispatch 必須 job body には
+  `tools/pegasus/submit_*.sh` が 6 本あるのに、A-1 に対応するものだけが無い。
+- 根本原因: 前 wave は測定が別の理由 (批准 gate) で塞がれていたため投入器を作らずに凍結した。
+  それ自体は妥当だが、凍結の宣言が「事前登録と検証側の装置が凍結済み」であることを
+  「実行に必要な部品が揃っている」と読める形で要約され、欠けている部品が名指しされなかった。
+  worklog 本文も「装置と事前登録までを作り、計測そのものは投入していない」とだけ書いており、
+  投入器の不在は読み取れない。
+- 恒久対応: `docs/dev-wave/core.md` の `DW-S01` が既に「別 program を起動する成果物では
+  build・環境変数・外部 command と注入 seam の実在を棚卸しする」と定めている。本件はこの棚卸しを
+  段 1 で実行して検出した実例であり、義務は既に存在する。欠けていたのは前 wave 側の
+  「凍結時に未実装の実行部品を名指しする」側で、これは同節の「実測は省かず」と
+  `DW-O12` の「裁定予定でなく実際に実行した手順を書く」で覆われる。新しい義務は足さない。
+- 再発検知: 段 1 の前提実測で、投入・実行を伴う依頼は実行器の tracked file を全数検索で確かめる。
+  検索が 0 件なら「投入だけが残る」という要約を根拠にしない。
