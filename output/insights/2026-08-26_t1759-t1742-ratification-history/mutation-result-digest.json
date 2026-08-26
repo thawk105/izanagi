@@ -1,0 +1,214 @@
+{
+  "baseline": {
+    "duration_s": 27.042,
+    "rc": 0,
+    "status": "PASSED"
+  },
+  "date": "2026-08-26T03:08:01.632047+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.173,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_shallow_repository_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_shallow_repository_is_rejected"
+      ],
+      "id": "MUT-T1759-SHALLOW-GUARD",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.116,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_effective_graft_file_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_effective_graft_file_is_rejected"
+      ],
+      "id": "MUT-T1759-GRAFT-GUARD",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.151,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_non_regular_ledger_entries_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_non_regular_ledger_entries_are_rejected"
+      ],
+      "id": "MUT-T1759-ENTRY-MODE",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.15,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_invalid_middle_history_transition_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_two_independent_ledger_introductions_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_two_independent_ledger_introductions_are_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_invalid_middle_history_transition_is_rejected"
+      ],
+      "id": "MUT-T1742-WHOLE-DAG",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.119,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_omitting_one_parent_row_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_substituting_an_unknown_row_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_with_bearing_and_nonbearing_parents_cannot_replace_rows",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_octopus_merge_omitting_third_parent_row_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_with_bearing_and_nonbearing_parents_cannot_replace_rows",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_substituting_an_unknown_row_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_omitting_one_parent_row_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_octopus_merge_omitting_third_parent_row_is_rejected"
+      ],
+      "id": "MUT-T1742-PARENT-UNION",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.193,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_committed_multirow_addition_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_adding_two_new_rows_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_committed_multirow_addition_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_adding_two_new_rows_is_rejected"
+      ],
+      "id": "MUT-T1742-ROW-BUDGET",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.082,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_committed_ratification_row_reordering_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_committed_ratification_row_reordering_is_rejected"
+      ],
+      "id": "MUT-T1742-SUBSEQUENCE",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 27.155,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_opposite_branch_orders_are_accepted_after_merge"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_opposite_branch_orders_are_accepted_after_merge"
+      ],
+      "id": "MUT-T1742-MERGE-ORDER",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 26.999,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_two_independent_ledger_introductions_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_two_independent_ledger_introductions_are_rejected"
+      ],
+      "id": "MUT-T1759-INTRODUCTION",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "duration_s": 32.139,
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_crlf_ratification_ledger_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_crlf_ratification_ledger_is_rejected"
+      ],
+      "id": "MUT-T1742-LOAD-ROWS",
+      "matches_expectation": true,
+      "rc": 1,
+      "status": "KILLED",
+      "timed_out": false
+    }
+  ],
+  "repo_head": "9c1d49ef4251501ff4984a54254ba903ca0e0cef",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "81a0b3d2c4cf8efb8a1dfdd396cebee4ceaed46fd6b0ed606aa5f6aafbb8d621",
+  "summary": {
+    "KILLED": 10,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 10,
+    "matching": 10,
+    "recorded": 10,
+    "registered": 10
+  }
+}
