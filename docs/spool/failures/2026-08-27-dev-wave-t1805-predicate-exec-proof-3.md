@@ -53,3 +53,30 @@ seq: 3
   テストが実 build を飛ばすとき関門も一緒に飛ぶのが正しい対応関係である。
 - 再発検知: 関門を新設する wave では、段 4 の裁定に関門候補ごとの
   「fake 駆動テスト件数」を書かせる。
+
+### {{F:overlap-scan-counts-main-advance}}. 編集面の重複測定が main 側の前進を編集中と誤認した [手順漏れ]
+
+- 事象: 依頼が「稼働 wave が対象 file を編集中」と告げ、重複測定でも 14 の worktree が
+  `s8b_floor_campaign.py` を触っていると出た。未 commit 差分だけで測り直すと、生きた編集は
+  test 2 file だけで、production file には 1 件も無かった。誤った所有制約のまま進めば、
+  編集できる面を編集できないと誤認して wave が着地不能になるところだった。
+- 根本原因: 重複測定が `git diff --name-only main` を使っており、これは **worktree が main から
+  遅れている分** (main 側が進めた file) も差分として返す。古い worktree ほど多くの file が
+  「編集中」に見える。
+- 恒久対応: 編集面の重複は**未 commit 差分** (`git diff` と `git diff --cached`) で確定する。
+  branch tip との三点比較は所有の判定に使わない。
+- 再発検知: 重複を根拠に所有を分ける裁定では、測り方を根拠と併記する。
+
+### {{F:killed-dispatch-leaves-orphan-hold}}. 走行を kill しても計算ノード job が残り、以後の投入を全部止めた [手順漏れ]
+
+- 事象: 焦点走を `pkill` したところ、投入ラッパーだけが死に計算ノード job が残った。
+  その worktree に orphan hold が作られ、次の焦点走が rc=16 で弾かれた。
+  hold の解除手順は「対象の不在または終端を `qstat` で確認してから手動削除」であり、
+  手動 `qdel` は投入禁止フラグを立てるため使えない。
+  さらに変異 harness でも、前走の container が残っている間は所有を拒否された。
+- 根本原因: 「再投入は新しい path で」という規律は `--out` / `--attempt-out` について
+  明文化されているが、**kill が queue を空にしないこと**と **scratch root も再走ごとに
+  新しくすること**が書かれていなかった。
+- 恒久対応: 走行を止めたら、次の投入前に対象 job の終端を `qstat` で確認する。
+  再走は `.done` / 出力 / scratch root をすべて新 path にする。`qdel` は使わない。
+- 再発検知: 投入が rc=16 で戻ったら、まず orphan hold の有無と `qstat` を見る。
