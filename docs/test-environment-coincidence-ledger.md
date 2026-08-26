@@ -54,6 +54,12 @@ elapsed の上限を assert する箇所は別途 12 件 / 9 file ある (P1 / P
 4. **周囲状態。** `/proc/self/fd` の件数、テストが所有しない directory の内容。
 5. **別名束縛。** `LIMIT = 1; thread.join(LIMIT)`、`**{"timeout": 1}`、
    `getattr(thread, "join")(1)` はいずれも述語の外である。
+6. **テストが自分で持つ実時計の締切。** `deadline = time.monotonic() + N` に続く poll ループは
+   P1 / P2 のどちらでも構造的に見えない。`5d0c898c4` 時点で **29 site** ある。
+   本台帳が引用している `test_dev_wave_wait.py` の `deadline = time.monotonic() + 30` が
+   まさにこの形で、そこでは「30 秒待って waiter が終わらないこと」を assert している。
+   分類でいえば **C (因果の代理観測)** の典型だが、候補一覧には 1 行も入っていない。
+   **母集合は同族の site を少なくとも 29 件取りこぼしている。**
 
 F641 が挙げた 4 型のうち、P1 が確実に拾うのは待ち上限の型だけである。
 
@@ -74,6 +80,29 @@ F641 が挙げた 4 型のうち、P1 が確実に拾うのは待ち上限の型
 | F | 決定的な床 | 待つ対象が production 側の実 sleep / poll 間隔で下から押さえられており、上限との余裕がその床で決まっている。負荷は引き金にすぎない。H と誤分類しやすい |
 | D | 確定的 | 実時計・実並行・OS 割当が関与しないか、比較関係が操作によって強制されている |
 
+### 8 クラスは、判定手続きに次を必須化して初めて排他になる
+
+[T-1901] の全数分類で、**現行の手続きでは同じ行が複数のクラスに一致する**ことが分かった。
+「床あり → F」「wait の戻り値を assert → T」のような手続きだけで判定すると排他にならない。
+排他にするには次を必須化する。
+
+- **F には materiality。** 床が在るだけでは足りない。**上限との余裕がその床で決まっている**
+  ことまで示す。床と上限の比を必ず計算する。
+- **T には production への値伝播。** その数値が production の締切・猶予・poll へ**到達**
+  しなければ T ではない。test-local な `threading.Event` の上限や、mock の `side_effect` 内の
+  同期上限は production へ到達しない。
+- **H には別 assertion の名指し。** 「上限は診断と hang 回収のためだけ」と言うなら、
+  検査対象の性質は別の場所で assert されている。その `file:line` を挙げられなければ H ではない。
+- **D は実際に待っていない場合。** 実時計・実 process・実 thread が関与せず、mock された
+  呼び出しの引数一致を見ているだけなら D。**実 thread や実 process があるなら D ではない。**
+
+`assert ev.wait(N)` のように**戻り値が assert されていることは、要反証の合図であって
+自動的な非 H 条件ではない。** 上限が failure recovery だけを bound する fail-fast guard で、
+性質が別の assertion にあることは実在する
+(`orchestrator/tests/test_codex_worker_launch.py:5918-5932` はコメントに明記がある)。
+逆に**戻り値を捨てていても非 H のことがある。** timeout 後に writer が残りを公開する、
+lock が解放される、thread が先へ進む、といった副作用が期待結果を変えるなら T か C である。
+
 ### F の判定を H より先に置く
 
 **上限の妥当性を論じる前に、待つ対象に決定的な床が無いかを確かめる。**
@@ -86,7 +115,12 @@ F641 が挙げた 4 型のうち、P1 が確実に拾うのは待ち上限の型
 2. (安価だが不完全な優先順位付け) 同じ file 内で、多数派と違う呼び方をしている site を grep で出す。
    **file 内の全 site が seam を素通ししていれば多数派が存在せず 0 件を返す。**
    0 件を「F は無い」の根拠にしてはいけない。
-3. seam があるのに、この site はそれを渡しているか。渡していなければ F である。
+3. seam があるのに、この site はそれを渡しているか。渡していなければ F の候補である。
+4. **その床は上限との余裕を決めているか。** 床と上限の比を計算する。決めていなければ F ではない。
+
+**段 1〜3 だけでは F を過剰に判定する。** D1055 の 2 段手続きは class 定義にある
+materiality 条項を落としているため、定義に入らない site でも発火する。[T-1901] の全数分類で
+実測した ([T-1901] の節を見よ)。段 4 を落としてはならない。
 
 **F の処置は 3 段に分ける。**
 
@@ -155,39 +189,103 @@ fd 件数の一致 assert、0.2 秒の負の待ち、0.1 秒の負の待ちは�
 
 **243 は候補の上限値であって、全部が欠陥ではない。** 処置しない判断の理由を型ごとに記す。
 
-### 候補一覧の所在と、分類がどこまで進んだか
+### 候補一覧の所在 — v1 と v2
 
-行単位の候補一覧は `output/insights/2026-08-26_t1848-env-coincidence-inventory.json` にある。
-schema は `izanagi-env-coincidence-inventory/v1`。各行は file、行番号、種別、上限値、述語 (P1 / P2)、
-本 wave の対象か次 wave 送りか、送りなら所有 wave、暫定 class を持つ。
+行単位の候補一覧は 2 つある。
 
-**分類はまだ全件には届いていない。** 内訳は次のとおりである。
+- `output/insights/2026-08-26_t1848-env-coincidence-inventory.json`
+  (schema `izanagi-env-coincidence-inventory/v1`、base `b0c1a8bd`、260 行)。**歴史記録として残す。**
+- `output/insights/2026-08-27_t1901-env-coincidence-classification.json`
+  (schema `izanagi-env-coincidence-classification/v2`、observed `5d0c898c4`、250 行)。**現行の正本。**
 
-| 区分 | 件数 |
+**走査述語は commit 済みのコードになった。** `tools/scan_env_coincidence.py` が P1 / P2 を AST で
+実装する。**行番号規則は `ast.Call.lineno` (call の開始行) である。** 引数値の `lineno` ではない。
+v1 の base `b0c1a8bd` で走らせると `Call.lineno` 規則は **260/260 を完全再現**し、引数値 `lineno`
+規則は **163/260** しか一致しない。本台帳の数値を生んだ規則は、散文の解釈ではなくこの再現性で
+同定できる。
+
+**候補一覧は commit を跨ぐと陳腐化する。** v1 の `(file, line)` anchor は記録の翌日に 100/260 が
+外れていた。[T-1901] の作業中にも local main が 40 commit 進み、8 anchor が移動した。
+v2 は各行を観測対象の commit と source blob OID で束縛する。**これは将来の expected pin ではない。**
+再走査は走査器を当て直して行う。
+
+### 分類は全数に届いた
+
+`5d0c898c4` 時点の母集合は **250 行 / 66 file** (直下 Python file 303、P1 233、P2 追加 17)。
+全 250 行を分類した。
+
+| class | 件数 |
 |---|---:|
-| 候補 (P2) 全体 | 260 |
-| うち本 wave の対象 | 206 |
-| うち稼働 wave 所有で次 wave 送り | 54 |
-| 暫定 class が付いた行 | 159 |
-| class が付いていない行 | 101 |
+| H | 206 |
+| D | 16 |
+| C | 14 |
+| T | 14 |
+| F | 0 |
+| 判定不能 | 0 |
 
-対象内 206 行の暫定 class は H 145、C 2、T 2、D 1、未分類 56 である。
+前 wave の暫定 class があった 155 行のうち **17 行 (11.0%) を覆した**。暫定 H は 153 行あり、
+**うち 16 行 (10.5%) が非 H へ動いた** (H→C 8、H→T 5、H→D 3)。未分類だった 95 行は
+H 69、D 11、T 9、C 6 に分かれた。
 
-**暫定 class は段 2 プランの群分類を転記したものであり、確定ではない。**
-敵対レビューが H 群から 5 件を抽出監査したところ、**3 件が非 H だった**。
-つまり H の分類手続きには系統的な偏りがある。確認できた誤分類は次の 4 件である。
+**前 wave の抽出監査は H 群 5 件中 3 件 (60%) が非 H だったが、全数では 10.5% だった。**
+系統的な偏りは実在するが、規模は標本からの外挿の 6 分の 1 である。
+**5 件の標本から族全体の誤分類率を外挿してはならない。**
 
-- `test_check_ai_provenance.py:6359` — `wait(1)` の戻り値が直接の期待値なので T
-- `test_run_tests_preflight.py:2049` — 同型
-- `test_dev_waves_receipt.py:220` — 2 秒が partial file を公開する時刻を決めるので C / T
-- `test_env_contract_activation.py:2451` — `release.wait(20)` は lock を保持する因果 fixture なので C
+稼働 wave が所有する 5 行は `observation_only` とした。分類はしたが source は今後変わりうる。
+**[T-1902] はこの 5 行について開いたままである。**
 
-したがって「H だから直さない」という判断は、**個々の site については追試を要する**。
-全件の再監査 (判定基準は「値を変えると期待結果が変わるか」に統一する) は次 wave の作業である。
-本台帳が確定的に主張できるのは、次の 2 つだけである。
+### F は不在だった
 
-1. 候補の母集合と、その走査述語 (再現可能)。
-2. **実負荷の artifact が無い以上、どの上限値も本 wave では変えられない**という政策判断 (D249)。
+**候補 10 行を検分した結果、`5d0c898c4` 時点の母集合に F は 1 件も無い。**
+「見つからなかった」ではなく「調べた上で不在」である。
+
+10 行はいずれも production 側の実 sleep / poll 床を持つ。しかし F の class 定義は
+**「上限との余裕がその床で決まっている」**ことを要求する。床と上限の比は最小でも 100 倍だった。
+
+| site | 上限 | 床 | 比 |
+|---|---:|---:|---:|
+| `_dev_waves_serve_child.py:122` | 120 | 0.01 | 12000x |
+| `test_check_ai_provenance.py:6359` | 1 | 0.005 | 200x |
+| `test_codex_worker_launch.py:1132` | 10 | 0.01 | 1000x |
+| `test_codex_worker_launch.py:1159` | 10 | 0.01 | 1000x |
+| `test_codex_worker_launch.py:1214` | 10 | 0.01 | 1000x |
+| `test_codex_worker_launch.py:2202` | 30 | 0.01 | 3000x |
+| `test_codex_worker_launch.py:2261` | 30 | 0.01 | 3000x |
+| `test_real_repo_serialization.py:1728` | 5 | 0.05 | 100x |
+| `test_run_tests_preflight.py:2049` | 1 | 0.005 | 200x |
+| `test_t126_qualification_driver.py:850` | 10 | 0.05 x 2 | 100x |
+
+D1055 が根拠にした実例は床 10.015 秒に対し上限 10 秒で、**比 1.0015、余裕 15 ミリ秒**だった。
+上表とは桁が違う。
+
+一次分類は D1055 の 2 段手続きを正確に実行した結果この 10 行を F とし、独立した 3 系統の検査
+(床と上限の比の実測、逐行レビュー、class を隠した盲検再分類) がいずれも過剰発火と判定した。
+**手続きへ materiality を足す必要がある。** 完全な機械判定は現状の文言ではできない。
+「余裕を決める」の数値境界が未定義だからである。次までは機械化できる。
+
+```text
+B = site の上限
+L = 期待結果へ至る全 path で必ず通る production sleep の総下限
+candidate = L > 0 かつ seam で L が無効化されていない
+F_R = candidate かつ B / L <= R
+```
+
+条件付き loop は、最低反復回数を静的に証明できない限り `L` に入れない。`R` (または許容 jitter
+`J` を使う `B - L <= J`) は裁定された定数でなければならない。**D1055 の実例 1 件では `R` も `J` も
+決められない。** 現状は candidate と比率までを機械で出し、materiality は未確定として止めるのが
+正しい。
+
+### 前 wave が記録した「確認できた誤分類 4 件」のうち 2 件は、訂正自体が誤りだった
+
+| site | 前 wave の記録 | 全数分類の判定 | 理由 |
+|---|---|---|---|
+| `test_check_ai_provenance.py:6359` | T | **H** | `wait(1)` は mock の `side_effect` 内の test-local `Event` で、`1` は production へ到達しない。T の定義を満たさない。性質は `:6406` の cap OOM 検査が担う |
+| `test_run_tests_preflight.py:2049` | T | **H** | 同型。性質は `:2088` が担う |
+| `test_dev_waves_receipt.py:220` | C / T | **C** | timeout 後に writer が残りを公開するので、値が公開時刻を決める |
+| `test_env_contract_activation.py:2451` | C | **C** | lock を保持する因果 fixture |
+
+前 wave の敵対レビューは H 偏りを直そうとして**逆方向へ振れていた**。
+偏りの是正は、H を疑うことと同じ強さで**非 H の主張も疑う**ことでしか達成できない。
 
 ### H — 待ち上限の値を本 wave では 1 つも変えない
 
