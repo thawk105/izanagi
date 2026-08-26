@@ -173,3 +173,28 @@ fail-closed し、throughput を生成していない。verifier の受理集合
 
 これは第三者 submodule の実装に関する所見でありうる。`CLAUDE.md` の作業の進め方 4 に従い、
 **上流 PR / push の判断は人間に委ねる。** 本 wave では insight として構造化して残すだけとする。
+
+## 変異 matrix
+
+事前登録した 9 変異を、実装 commit `e3cab1693e7a2310ee371ab504429b77b1b356a0` を固定 HEAD として
+本走した (spec: `mutation-final-spec.json`、
+sha256 `f0732d3a9102c7a235433017c5eef18779a8a9826cd852e94525531dcdbac3d2`)。
+
+**baseline PASSED・9/9 KILLED・SURVIVED 0・MISMATCH 0**、期待 node は 9 件すべて完全集合で一致した。
+
+内訳は負例 7 件と正例 2 件である。正例は `DW-M01` の「受理集合を縮小する wave では、
+承認外の過剰拒否を検出する正例も登録する」に当たる。
+
+- **負例:** 分子の 3 述語 (verdict / `total_cycles >= 1` / G2) をそれぞれ緩める 3 件、
+  indeterminate を non-serializable として分母へ入れる 1 件、
+  閉包の 3 検査 (行数・nonce 集合・`source_commit`) をそれぞれ無効化する 3 件。
+- **正例:** integrity が clean であることを分子の条件に足す変異
+  (**事前登録は integrity で run を分子から外さないと定めている**)、
+  non-serializable の分類に completed receipt の実在を要求する変異
+  (**anomaly を出した run には receipt が無いので、これを入れると分子が構造的に消える**)。
+
+**probe を先に回している。** `DW-M07` は「KILLED 期待で期待 node が空の spec は起動前に中止する」と
+定めるので、全件 SURVIVED 期待の probe を先に回して観測 node を集めた。
+probe の結果は 9 件すべて MISMATCH で、**変異ごとに落ちる検査が 1 つずつ異なっていた**
+(単一理由性の実測)。その node 集合をそのまま本走の期待にした。
+probe の結果は `mutation-probe-out.json` に残してある。

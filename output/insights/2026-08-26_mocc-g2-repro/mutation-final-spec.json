@@ -1,0 +1,157 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-G2REPRO-M01-NUM-VERDICT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_each_other_numerator_conjunct_is_required[wrong-verdict]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        and result.get(\"verdict\") == \"non-serializable\"\n",
+          "new": "        and True\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-M02-NUM-CYCLES",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_each_other_numerator_conjunct_is_required[zero-cycles]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        and result[\"total_cycles\"] >= 1\n",
+          "new": "        and result[\"total_cycles\"] >= 0\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-M03-NUM-G2",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_g0_g1c_only_enters_m_but_not_k"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        and any(phenomenon == \"G2\" for phenomenon in phenomena)\n",
+          "new": "        and any(phenomenon is not None for phenomenon in phenomena)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-M04-CLASS-INDETERMINATE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_classification_enum_all_branches[indeterminate]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        if type(rc) is int and rc == 3:\n            return \"indeterminate\"\n",
+          "new": "        if type(rc) is int and rc == 3:\n            return \"non_serializable\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-M05-CLOSURE-ROWCOUNT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_closure_rejects_ledger_row_shortage"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "    if len(rows) != PLANNED_N:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-M06-CLOSURE-NONCESET",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_closure_rejects_nonce_set_mismatch"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "    if ledger_nonces != canonical_nonces:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-M07-CLOSURE-SOURCECOMMIT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_closure_rejects_source_commit_mismatch"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        if source_commit != FROZEN_COMMIT:\n",
+          "new": "        if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-P01-OVERREJECT-INTEGRITY",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_unclean_nonserializable_g2_still_enters_k"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        and any(phenomenon == \"G2\" for phenomenon in phenomena)\n",
+          "new": "        and any(phenomenon == \"G2\" for phenomenon in phenomena)\n        and bool((result.get(\"integrity\") or {}).get(\"clean\"))\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-G2REPRO-P02-OVERREJECT-RECEIPT",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_classification_enum_all_branches[non-serializable]",
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_denominator_accepts_consistent_verdicts_and_exact_schemas",
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_g0_g1c_only_enters_m_but_not_k",
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_multiple_g2_witnesses_count_once_per_run",
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_rc1_g2_without_completed_receipt_enters_m_and_k",
+        "orchestrator/tests/test_mocc_g2_repro_ledger.py::test_unclean_nonserializable_g2_still_enters_k"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_g2_repro_ledger.py",
+          "old": "        if type(rc) is int and rc == 1:\n            return \"non_serializable\"\n",
+          "new": "        if type(rc) is int and rc == 1:\n            return \"non_serializable\" if completed_receipt_present else \"no_verdict\"\n"
+        }
+      ]
+    }
+  ]
+}
