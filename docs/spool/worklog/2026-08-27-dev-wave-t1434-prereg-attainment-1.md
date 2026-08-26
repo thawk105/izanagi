@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1434-prereg-attainment
 seq: 1
-title: [T-1434] 事前登録文書の到達度記述を実装へ揃え、差し替え前から残っていた過大主張 5 件も直した (docs + 受入所要台帳、branch worktree-dev-wave-t1434-prereg-attainment、変異 matrix = baseline PASSED・3/3 KILLED・SURVIVED 0・MISMATCH 0)
+title: [T-1434] 事前登録文書の到達度記述を実装へ揃え、差し替え前から残っていた過大主張 5 件も直した (docs のみ、branch worktree-dev-wave-t1434-prereg-attainment、最終 tree の実装面差分 0 のため変異 matrix は DW-S04 の免除。途中で入れた受入台帳の修理には matrix を回して baseline PASSED・3/3 KILLED を得たが、別 wave 先着により最終 tree には残らない)
 ---
 
 ## 本文
@@ -68,6 +68,17 @@ title: [T-1434] 事前登録文書の到達度記述を実装へ揃え、差し�
   観測 node を集め (`mutation-spec-probe.json`、erratum として保存)、確定版で本走した。
   **baseline PASSED、3/3 KILLED、SURVIVED 0、MISMATCH 0。** 3 変異とも失敗 node は
   `test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order` の 1 件だけだった。
+- **ところが受入の再投入で main 取り込みが競合し、別 wave [T-1828] が同じ赤を同じ向きで直して
+  先に着地していたことが分かった。** 競合は台帳 1 file だけで、先着側を採って main と byte 一致
+  させた。**その結果、本 wave が main へ足す実装面の差分は最終的にゼロへ戻った** —
+  `git diff --stat main...HEAD` は docs と insights の 15 file だけである。
+  したがって最終 tree に対しては DW-S04 の変異免除が改めて成立する。上の matrix は
+  取り消さず、走らせた状態と結果をそのまま記録として残す (spec 2 本も insights に置いた)。
+  取り込み後に `test_acceptance_schedule_order.py` を再走して 79 passed を確認し、
+  `spool_fold --dry-run` も rc=0 で通した。
+- **同じ非帰属赤に 2 つの wave が同時に着手した。** 台帳の被覆率は wave が着地するたびに
+  下がり続けるため、この赤は今後も繰り返し複数 wave を同時に踏む。
+  重複作業を避ける仕組みは本 wave の scope 外だが、事実として記録する。
 - 焦点走 `orchestrator/tests/test_check_docs.py` = 567 passed / 3 skipped (rc=0)。
   `orchestrator/tests/test_acceptance_schedule_order.py` = 79 passed (rc=0)。
   `DW-O02` を編集したので同じ焦点走を編集後にもう一度回し、同じ 567 / 3 で緑を確認した。
