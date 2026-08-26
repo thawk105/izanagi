@@ -4353,25 +4353,17 @@ def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
         stderr=subprocess.PIPE,
     )
     child_pid_path = paths["pid_dir"] / "child.pid"
-    deadline = time.monotonic() + 2
-    while (
-        not child_pid_path.exists()
-        and process.poll() is None
-        and time.monotonic() < deadline
-    ):
-        time.sleep(0.005)
-    child_pid_registered = child_pid_path.exists()
     stdout, stderr = _communicate_launcher(
         process,
         paths=paths,
         expected_returncode=1,
         label="sigterm-ignoring launcher",
     )
+    assert child_pid_path.exists(), (
+        f"child.pid was not registered before launcher exit; stderr={stderr!r}"
+    )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
 
-    assert child_pid_registered, (
-        f"child.pid was not registered before deadline; stderr={stderr!r}"
-    )
     assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["actuals"]["attempt_count"] == 1
     assert receipt["attempts"][0]["limit_trigger"] == "wall_clock_admission_bound_s"
@@ -4381,6 +4373,42 @@ def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
     _assert_pid_gone(child_pid)
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def _uses_post_exit_child_pid_evidence(source: str) -> bool:
+    launcher_exit = source.find("_communicate_launcher(")
+    registration_check = source.find("assert child_pid_path.exists()")
+    diagnostic = source.find("stderr={stderr!r}", registration_check)
+    return (
+        launcher_exit >= 0
+        and registration_check > launcher_exit
+        and diagnostic > registration_check
+        and "deadline" not in source
+        and "time.monotonic" not in source
+    )
+
+
+def test_sigterm_child_pid_registration_regression_detector() -> None:
+    """Do not restore an absolute-time deadline for child.pid registration."""
+    absolute_deadline_old_way = """
+deadline = time.monotonic() + 2
+while not child_pid_path.exists() and time.monotonic() < deadline:
+    time.sleep(0.005)
+child_pid_registered = child_pid_path.exists()
+stdout, stderr = _communicate_launcher(process)
+assert child_pid_registered, f"child.pid was not registered; stderr={stderr!r}"
+"""
+    post_exit_positive = """
+stdout, stderr = _communicate_launcher(process)
+assert child_pid_path.exists(), (
+    f"child.pid was not registered before launcher exit; stderr={stderr!r}"
+)
+"""
+    current = inspect.getsource(test_sigterm_ignoring_child_is_killed)
+
+    assert not _uses_post_exit_child_pid_evidence(absolute_deadline_old_way)
+    assert _uses_post_exit_child_pid_evidence(post_exit_positive)
+    assert _uses_post_exit_child_pid_evidence(current)
 
 
 def test_group_member_count_reports_identity_missing_source() -> None:
