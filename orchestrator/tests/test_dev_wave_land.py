@@ -8947,13 +8947,14 @@ def test_fold_gate_real_argv_environment_create_junit_in_gitless_tree() -> None:
     assert "PYTHONOPTIMIZE" not in child_env
     assert child_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
 
-    counts = LAND._execute_fold_gate(
-        Repository(),
-        Plan(),
-        selection,
-        tip,
-        LAND._fold_gate_budgets(),
-    )
+    with _patched_land_attr("_registered_worktree_paths", lambda _repo: (ROOT,)):
+        counts = LAND._execute_fold_gate(
+            Repository(),
+            Plan(),
+            selection,
+            tip,
+            LAND._fold_gate_budgets(),
+        )
 
     assert counts == LAND._FoldGateJUnitCounts(1, 1, 0, 0, 0)
 
