@@ -89,6 +89,14 @@ fail-closed で正しく止めた。詳細は {{F:parent-dirtied-tree-during-mut
   走査対象に加えるかを決める。加えるなら走査器へ述語を足し、母集合を再定義する。
   加えないなら「述語の限界」に留める理由を書く。現状は台帳へ限界として記録しただけである。
 
+- {{T:wave-midflight-main-recheck}} **P2・新規・ユーザー裁定待ち**: wave 中に local main が
+  進む量は無視できない。本 wave では段 2〜3 の約 40 分で 40 commit 進み、8 anchor が移動した。
+  気づいたのは段 3 の子であって親ではない。入口は着手前と受入直前に main を見るよう定めるが、
+  **段 5 の実装子 dispatch 直前に main を見る機械的な発火点が無い。** 段構成に関わる変更なので
+  実装せず裁定へ返す。案は (a) 段 5 preflight の条件 dispatch へ「main 乖離の再測」を足す、
+  (b) `check_wave_startup.py` に `--mode midflight` を足して段 5 直前に走らせる、
+  (c) 現状どおり親の規律に委ねる。
+
 - {{T:f-materiality-constant}} **P2・新規**: F の materiality 判定に要る定数 `R`
   (または許容 jitter `J`) を裁定する。[T-1901] は candidate と床/上限の比までを機械で出せる
   ことを示したが、境界値は D1055 の実例 1 件では決められない。実例をもう数件集めるか、
