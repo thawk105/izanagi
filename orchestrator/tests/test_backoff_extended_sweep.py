@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import random
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import (
     backoff_extended_sweep as M,
@@ -280,3 +286,11 @@ def test_b10_freeze_tree_bytes_match_the_wave_local_gate():
     assert digest.hexdigest() == (
         "c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3"
     )
+
+
+def _run():
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())

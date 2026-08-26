@@ -3,9 +3,15 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
+import sys
 from types import SimpleNamespace
 
 import pytest
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_extended_sweep as S
 from orchestrator.campaign import backoff_extended_sweep_report as M
@@ -284,3 +290,11 @@ def test_perf_unavailable_and_probe_error_have_distinct_states():
     assert degraded["perf_state"] == "unavailable-degraded"
     assert stopped["status"] == "preflight-error-no-verdict"
     assert stopped["peak"] is None and stopped["onset"] is None
+
+
+def _run():
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())

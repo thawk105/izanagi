@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import inspect
+import os
+import sys
 from contextlib import nullcontext
 
 import pytest
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ORCH = os.path.dirname(_HERE)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_extended_sweep as S
 from orchestrator.campaign import backoff_overthrottle as M
@@ -86,3 +92,11 @@ def test_aa_build_uses_the_job_supplied_cache_root():
     source = inspect.getsource(M.measure)
     assert "cache_root=cache_root" in source
     assert 'os.path.join(buildcache._ccbench_dir(), "build-variants")' not in source
+
+
+def _run():
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
