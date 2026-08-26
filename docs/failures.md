@@ -16363,3 +16363,77 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   参照先の正本は D560 の未閉鎖残件。
 - 再発検知: 変異 spec に `hang_risk: true` の項が含まれたまま `--runner-mode dispatch` で
   本走を起動したら同型。起動前に spec の `hang_risk` 真値を数えれば機械判定できる。
+
+### F631. 同じ判定を CLI 経由と library 経由で呼ぶと答えが変わる道具を、現在地の一次資料に使った [テスト代表性] [手順漏れ]
+
+- 事象: 8c 事前登録の発効判定 `s8c_preregistration.py` を CLI として起動すると、12 条件
+  すべてが `ERROR / evaluator-exception` になる。同じ引数で package として import して
+  `main()` を呼ぶと本当の内訳 (C03 のみ UNSATISFIED、他は EVIDENCE_UNDEFINED、
+  C05 は `schedule-schema-absent`、C08 は `prereg-binding-proof-undefined`) が出る。
+  親は precheck の最初の実測でこの CLI 出力を採り、「12 条件すべてが評価不能」と読んで
+  ユーザーへ報告した。直後の追加調査で library 経由との食い違いに気づき、訂正した。
+- 根本原因: 判定器を `__main__` として実行すると core module が二重に実体化し、
+  結果正規化の `isinstance` 判定が偽になって `PreregistrationError` が送出される。
+  その例外を `except Exception` が握り潰し、全条件を一律 ERROR へ倒す。
+  検査が通らなかった事実は残るが、**なぜ通らなかったかが消える。**
+  同型の欠陥がもう 1 件あり、`s8c_gate_report.py` はファイルパス直接起動では
+  相対 import で ImportError になる (`python3 -m` 形式なら正しく動く)。
+- なぜテストで捕まらなかったか: CLI の既存テストは imported module の `main()` を呼ぶ。
+  実プロセスとして `__main__` を起動する経路を一度も通らないため、二重実体化が起きない。
+  **テストが通す経路と、人間が打つコマンドが別物だった。**
+- 恒久対応: memory `check-rc-not-through-pipe` と同じ系統の作法として、
+  **道具の出力を現在地の一次資料に使う前に、別の起動形 (library 呼び出し、または別の
+  権威ある入口) で 1 回突き合わせる**。本件では `python3 -m
+  orchestrator.campaign.s8c_gate_report` が正しい内訳を返す独立入口として実在した。
+  コード側の修正は次の一手へ登録した (CLI を実プロセスとして起動する検査の新設を含む)。
+- 再発検知: 同じ判定を返すはずの 2 経路が異なる答えを返さないことを、CLI を subprocess として
+  起動する検査で固定する (未実装。次の一手で追跡)。
+
+### F632. 新規 worktree の初回受入全走は `output/runs` 不在で必ず 3 件赤になる [テスト代表性]
+
+- 事象: 2026-08-26 の受入全走 (docs のみの差分) が
+  `test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes`、
+  `test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes`、
+  `test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes`
+  の 3 件で落ちた。assertion は
+  `assert 'runs' in ('insights/2026-08-05_t471-restore-bound/driver/__pycache__', 'pegasus-dispatch')`。
+  同じ 3 node を走行後に単独再走すると 3 件とも緑になる (5.35 秒)。
+- 根本原因: `orchestrator/tests/output_snapshot_ignores.py` の
+  `git_ignored_output_prefixes()` は `git ls-files -o -i --exclude-standard --directory -- output/`
+  を使う。この列挙は **ignore 規則ではなく実在する untracked ignored path** を返すため、
+  `output/runs/` を一度も作っていない新規 worktree では `runs` が集合に入らない。
+  3 テストはこれを前提 assert として持つ。**その worktree の初回受入全走そのものが
+  `output/runs/` を作る**ため、赤は初回だけ決定的に出て 2 回目以降は消える。
+  本件では worktree 作成が 09:35、受入投入が 10:04、`output/runs/` の作成時刻が 10:08 だった。
+- 恒久対応: 未実施。前提 assert を「ignore 規則の存在」で測る形
+  (`git check-ignore -q output/runs` 等、実在に依存しない判定) へ変えれば構造的に閉じる。
+  現行の実在依存の列挙を前提 assert に使う限り、新規 worktree は必ず 1 回踏む。
+  **この 3 node は非帰属赤として扱ってよいが、「環境要因」ではなく上記の決定的な原因を書く。**
+- 再発検知: 受入全走の赤が上記 3 node **だけ**で、assertion 本文が
+  `assert 'runs' in (...)` の形をしており、かつ `git ls-files -o -i --exclude-standard
+  --directory -- output/` の出力に `output/runs/` が現れるなら本件である。
+  同じ worktree での 2 回目の受入では再現しない。
+
+### F633. 並行 session の worktree 撤去が、生きた登録を読むテストを受入全走の最中に赤にする [テスト代表性]
+
+- 事象: 2026-08-26 の受入全走 (docs のみの差分) が 5 件で落ちた。
+  `test_t810_coordinator.py` の 4 node と
+  `test_dev_wave_land.py::test_fold_gate_real_argv_environment_create_junit_in_gitless_tree`。
+  根の例外はいずれも
+  `T810CoordinatorError: cannot read worktree registration: file is absent` で、
+  消えた path は `.git/worktrees/dev-wave-t1749-arm-source-binding/gitdir` と
+  `.git/worktrees/rulings-20260825-adopt-p2/gitdir` だった。同 5 node を単独再走すると
+  41 passed で緑になる。
+- 根本原因: `tools/pegasus/t810_coordinator.py` の `repository_roots_from_git_identity()` と
+  `tools/dev_wave_land.py` の `_registered_worktree_paths()` は、**共有 repository の生きた
+  worktree 登録**を読む。並行 session が `git worktree` を撤去すると、列挙と
+  `<name>/gitdir` の読み取りの間に対象が消え、`missing_ok=False` の読みが fail-closed で落ちる。
+  受入全走は 17,160 件で数分かかるため、稼働 wave が多い時間帯ほど窓が広い。本件の走行では
+  worktree 登録の顔ぶれが受入投入の前後で 10 件以上入れ替わっていた。
+- 恒久対応: 未実施。列挙と読み取りの間の消滅を「その worktree を対象から外す」形で吸収するか
+  (`missing_ok=True` 相当を撤去に限って許す)、生きた登録でなく走行開始時の snapshot を読む形へ
+  変えれば構造的に閉じる。**どちらも受理集合を変えるため裁定を要する。**
+- 再発検知: 受入全走の赤が `test_t810_coordinator.py` と `test_dev_wave_land.py` に集中し、
+  根の例外が `cannot read worktree registration: file is absent` で、消えた path が
+  自分の wave のものでないなら本件である。単独再走で緑になり、
+  `git worktree list` の顔ぶれが投入前後で変わっていることで裏が取れる。
