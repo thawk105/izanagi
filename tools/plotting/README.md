@@ -63,6 +63,28 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
   `abort_ipc` を reps ベースに変える)。
 - backoff 以外の軸 (sort-strategy 等) は genome パースを差し替えれば流用可能。
 
+## S-1a 9 対 (失敗報告図) command example
+
+`plot_s1_9pair.py` は、縮小主張 S' の登録 9 対を凍結 report と admission 済み WAL から描く。
+標本・測定条件・相対中央値差は WAL から再計算し、凍結 report の accepted evidence と全行照合する。
+**judgment と p 値は凍結 report だけを権威とし、WAL 側の gate 再計算は一致検査にしか使わない**
+(作図側が判定を作り直さないため)。
+
+```bash
+python3 tools/plotting/plot_s1_9pair.py \
+    docs/paper-story/figures/fig4_s1a_9pair_direct_comparison \
+    output/reports/s1_direct_comparison/report.json \
+    --develop output/campaigns/s1-direct-develop-direct-comparison-d0f495bf \
+    --floor   output/campaigns/s1-direct-floor-direct-comparison-b82b9229 \
+    --block1  output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2 \
+    --block2  output/campaigns/s1-direct-block2-direct-comparison-9645b16a
+```
+
+出力は `<OUT_PREFIX>.{png,pdf,provenance.json}`。provenance の schema は
+`izanagi-s1-9pair-figure-provenance/v1` で、`reproduction.argv` に上の argv を、
+`caption` にキャプション正文を持つ。図と入力の対応・版差・文脈セルの扱いは
+`docs/paper-story/figures/README.md` の該当節が正本。
+
 ## SS2PL lock study command example
 
 ```bash
