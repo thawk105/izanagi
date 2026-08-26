@@ -50,6 +50,9 @@ title: 受入の実行器 tip 等値要求は単独では外せない — 受入
   次の一手へ起票した。
 - 子は 3 本 (plan 1、敵対相談 2)。すべて `gpt-5.6-sol` / `xhigh` / `accepted`。
   実装子は起動していない。実測はすべて親が行った。
+- **実 repo を読むテストは記録 commit の後に実走した。** 段 4 の規定は記録前なので順序を誤った。
+  結果は緑で判断は変わらない — `test_s8b_repo_scan_invariant.py` と `test_check_docs.py` を
+  計算ノードへ dispatch して 567 passed / 4 skipped / 11.81 秒。
 - 逐語・実測表・選択肢は `output/insights/2026-08-27_runner-tip-equality-dispatch/`。
 
 ## 次の一手差分
