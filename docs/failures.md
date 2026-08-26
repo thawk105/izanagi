@@ -4830,6 +4830,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 採用する子成果物は、投入した prompt の版に固有な内容 (本件では前提実測の判定節)
   で同一性を照合する。`.done` の存在だけを採用条件にしない。
 
+
+- **再発: 2026-08-26** — 上書きしたのが別の子ではなく**監視側の道具**という形で同型が出た。
+  親が `tools/dev_wave_wait.py producer` の `--receipt-file` へ、待つ対象である codex 子の
+  `receipt.json` の絶対 path をそのまま渡した。待ち手は完了時に自分の受領証
+  (`artifact_file` / `done_file` / `pid_source` / `status` を持つ別 schema) を同じ path へ書き、
+  codex の受領証を上書きした。段 2 plan 子の工数 (wall clock・model call・token) は
+  この 1 回で永久に失われ、worklog には欠測として記録するしかなかった。
+  他の 7 子は `--receipt-file` を渡さなかったため無傷である。
+- 追加の根本原因: `--receipt-file` は「待ち手が書く受領証の出力先」であって
+  「照合する既存受領証の入力元」ではない。名前からは後者にも読め、待つ対象の受領証を
+  指したくなる。F128 本文の (2) の「出力 path を再利用しない」は子同士の話として
+  書かれていたが、**異なる道具の間でも同じ規律が要る**。
+- 対処: 待ち手の `--receipt-file` には待ち手が所有する path だけを渡す。渡す必要がなければ
+  省略する (本 wave の他 7 子は省略して問題なかった)。codex の受領証は
+  `<artifact-root>/<wave>/<job-id>/receipt.json` にあり、親はこれを読むだけにする。
+- 再発検知: wave 末に `<artifact-root>/<wave>/*/receipt.json` を全件読み、
+  `stage` field を持たない受領証があれば上書きされている。本 wave はこの検査で気付いた
+  (`KeyError: 'stage'`)。
 ### F129. pin した thread ではなく thread-group leader を検査する設計を裁定した [説明と実装の食い違い]
 
 - 事象: 親が段 1 brief の provisional 裁定 (P4) で「pin が効いたことを `/proc/self/stat` の
@@ -8964,6 +8982,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   L1.5 層の unique footprint が 9772 bytes となり予算 9566 bytes を 206 bytes 超えた。
   自己改善契約は予算のために安全義務を削ることを禁じ、予算値の引き上げを独立審査へ回すため、
   入口・reference への追記は行わず本項を正本とする。
+
+- **再発: 2026-08-26** — 同じ wave で 2 回連続して `rc=125` を踏み、**原因が本文の 2 系統の
+  どちらとも違うことを実測で切り分けた。** 1 回目は変異走行中に親が同じ作業木へ spool fragment を
+  置いた F383 型 (親の作法違反) だったが、2 回目は走行中に repo へ 1 byte も書いていない。
+  変化していたのは**共有 main checkout の untracked 集合**である。観測は
+  `--untracked-files=all` で行われるため、並行 wave が新しい未追跡 path を作るだけで bytes が動く。
+  25 分の間に 24 行 851 bytes から 26 行 919 bytes へ増えていた。local main を進めなくても起きる。
+  対処は本文の supersede が示すとおりで、**対象 commit だけを持つ独立 clone を `--source-repo` へ
+  渡す**と観測点が clone 自身の 1 点に畳まれ、3 回目は `shared_snapshot_matches=true` / rc=0 で
+  完走した (10/10 KILLED)。
+  この機体で clone を用意する具体手順も記録する — submodule の URL が https のためオフラインでは
+  そのままでは初期化できず、clone 内で `git config submodule.<path>.url` をローカルの
+  `.git/modules/...` へ向け、`git -c protocol.file.allow=always submodule update --init --recursive`
+  を使う必要がある (既定では `transport 'file' not allowed` で落ちる)。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -10360,6 +10392,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   統合 commit 後に同じ範囲を再走したところ 1531 passed / 0 failed へ解消し、実装差分由来の
   赤は0件だった。判定手順 (赤の理由行に `contract-loader-drift` があれば commit してから
   再走する) は既載のとおりで機能した。
+
+- **再発: 2026-08-26** — enforcement source closure の member である
+  `orchestrator/campaign/enforcement_source_ratification.py` を編集した状態で
+  fixture consumer 3 file の焦点走を投入し、9 failed + 28 errors を観測した。
+  描画された 21 件の error 理由はすべて `contract-loader-drift` の 1 型だった。
+  統合 commit の後に同じ範囲を再走したところ 896 passed / 3 skipped へ解消し、
+  実装差分由来の赤は 0 件だった。判定手順 (赤の理由行に `contract-loader-drift` があれば
+  commit してから再走する) は既載のとおりで機能した。
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
 - 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
@@ -15836,6 +15876,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   修理は「merge commit を改版と数えない」方向であり、検査を緩める方向にしない。
 - 再発検知: 台帳が byte 不変のまま main を 1 commit 進めて gate を走らせ、
   緑のままであることを確かめる positive control。現状はこれが赤になる。
+- **supersede: 2026-08-26** — 恒久対応を実施した。履歴検査を DAG の追記として定義し直し (D994)、merge commit を台帳の改版と数えなくした。実測では現行 main で検査が通り、受理集合 1 件を読んだうえで終端が `enforcement-source-closure-unratified` に変わった。本エントリが挙げた「台帳が byte 不変のまま main を 1 commit 進めて緑のままであることを確かめる positive control」は負例テストとして実装済みである。ただし修理した module 自身が closure の member であるため closure digest は動き、本エントリが記録した `6d497998...` も現行値ではない。
 
 ### F601. 前方一致の検査が、下流の完全一致要求に対する値の取り違えを素通りさせた [恒真ゲート]
 
@@ -16506,3 +16547,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `DW-O12` の「裁定予定でなく実際に実行した手順を書く」で覆われる。新しい義務は足さない。
 - 再発検知: 段 1 の前提実測で、投入・実行を伴う依頼は実行器の tracked file を全数検索で確かめる。
   検索が 0 件なら「投入だけが残る」という要約を根拠にしない。
+
+### F635. canonical JSONL 検査が `splitlines()` のため CR を畳み、bytes と行の 1 対 1 性が成立していなかった [誤前提]
+
+- 事象: 批准台帳の行検査 `_load_rows` は、各行が canonical JSON の bytes と完全一致することと
+  末尾が改行であることを要求していた。ここから「blob の bytes と行 tuple は 1 対 1 である」と
+  読めるが、実際には成立していなかった。行分割に `raw.splitlines()` を使っており、
+  これは `\n` だけでなく `\r` と `\r\n` でも分割する。canonical 224 byte の blob と、
+  1 行目の行末を CRLF にした 225 byte の blob が、同じ行 tuple を返すことを実測した。
+- 根本原因: canonical 性の検査を「各行の bytes」に対してだけ行い、
+  「行の連結が blob 全体と一致すること」を検査していなかった。分割器が改行の別種を
+  受け入れる限り、行単位の canonical 検査は blob 単位の canonical 性を含意しない。
+- 影響: 単独では受理 digest 集合を変えない (台帳へ書けること自体が hooks の外にある)。
+  しかし本 wave は履歴検査を byte 前置比較から行 list 比較へ移す設計であり、
+  その健全性の根拠にこの 1 対 1 性を置いていた。前提が偽のまま実装していれば、
+  bytes が異なる 2 つの台帳が同じ受理集合を返し、byte 前置比較が拒否していた遷移を
+  行 list 比較が受理する。
+- 恒久対応: `raw.split(b"\n")[:-1]` へ変更し、CR を含む行は canonical 比較で落ちるようにした。
+  D994 の行 list 比較はこの 1 対 1 性に依存する。
+  CR / CRLF を混ぜた台帳を拒否する負例テストと、
+  この分割を `splitlines()` へ戻す変異を事前登録して検出力を固定した。
+- 再発検知: 行単位の canonical 検査で blob 単位の canonical 性を主張する設計では、
+  分割器が受け入れる区切り文字の集合を実測する。「行を連結すると元の bytes に戻るか」を
+  1 例で確かめれば足りる。
