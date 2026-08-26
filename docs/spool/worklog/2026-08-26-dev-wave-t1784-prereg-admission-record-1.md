@@ -35,8 +35,9 @@ title: [T-1784] 事前登録 §5 の 3 期待値を実走前 commit の admissio
   残らない**状態になっていた。親が一次資料で逐語を確認し、sidecar で塞いだ。
 - **§5 の描画位置を判定する関数が 3 巡続けて欠陥を出した** ({{F:markdown-rendered-position-by-line-regex}})。
   過剰拒否 → 過剰拒否 → 過剰受理と方向が振れ、一方向だけを直すと他方が開いた。
-  4 巡目は行わず、残る過剰拒否 (inline code / indented code / backslash escape 内の `<!--` を
-  comment opener と誤認する) を**既知の限界として docstring へ逐語で列挙**して閉じた。
+  4 巡目は行わず、残る過剰拒否 (inline code / indented code / backslash escape の中に書かれた
+  HTML コメント開始記号を、実際のコメント開始と誤認する) を
+  **既知の限界として docstring へ逐語で列挙**して閉じた。
   方向が fail-closed で未登録の実走を通す危険がないこと、同じ状態機械が既に 2 度後退していることが
   理由である。DW-O16 の 3 巡上限に一致する。
 - **過剰拒否は正例テストでしか捕まらない。** 段 4 で受理集合を縮小する wave の必須登録として
@@ -88,6 +89,13 @@ title: [T-1784] 事前登録 §5 の 3 期待値を実走前 commit の admissio
 - {{T:prereg-section5-typed-validation}} **P3・新規**: 事前登録 §5 の残り 9 欄の型検査
   (artifact path の実在、予算が正整数、時刻書式など)。本 wave では併走 wave が欄の書式を
   決めている最中のため入れなかった ({{D:section5-syntactic-scope}})。書式確定後に裁定する。
+- {{T:check-docs-visible-lines-inline-code}} **P2・新規**: `tools/check_docs.py` の
+  `_visible_markdown_lines` が、inline code span の中に書かれた HTML コメント開始記号を
+  実際のコメント開始と扱い、以降を entry 末尾まで不可視にする。その結果
+  `_top_level_ids` が 0 件を返し、次の一手の保存則検査が全 ID を「不在」と報告する。
+  本 wave の land を実際に止めた ({{F:markdown-rendered-position-by-line-regex}} の (4))。
+  **`spool_fold.py --dry-run` は canonical validation を行わないため手前で赤にならない。**
+  検査器側を直すか、dry-run に canonical validation を足すかを裁定する。
 - {{T:s06b-replacement-counts-as-deletion}} **P3・新規・ユーザー裁定待ち**: 段 8 の自己改善で
   `DW-S06-B` へ「より強い検査への置換も削除に数える」を足そうとしたが、
   `docs/dev-wave/**` の L1.5 予算を 62 bytes 超過した (9628 > 9566)。予算満杯の文書を

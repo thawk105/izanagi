@@ -18,6 +18,14 @@ seq: 3
   ``` 記号 + info 文字列に backtick を含む行 ``` を opener と誤認し、**正当な文書を拒否**した。
   (3) その修正で、先頭 BOM があると fence opener の `fullmatch` が外れ、
   **fence の内側にある §5 を受理**した (過剰受理。gate を無効化できる)。
+  **(4) 同じ型が検査器側にもあり、本 wave の land を止めた。** `tools/check_docs.py` の
+  `_visible_markdown_lines` は行単位で HTML コメント状態を追う。worklog fragment の本文に
+  inline code span として HTML コメント開始記号を書いたところ、そこから entry 末尾までが
+  「コメントの中」と判定され、`_top_level_ids` が返す ID が 0 件になった。
+  次の一手の保存則検査が 764 件の違反を出し、`dev_wave_land.py` が
+  `fold failed: generated canonical validation failed` で rc=26 になった。
+  **`spool_fold.py --dry-run` は canonical validation を行わないため、land まで一度も赤にならない。**
+  親は使い捨ての worktree で fold を実走して再現し、原因を特定してから fragment の文面を直した。
 - 根本原因: 「その表は読み手に見えるか」は Markdown の**描画結果**の性質であり、
   行の見た目の性質ではない。行単位の照合で近似すると、近似の誤差が
   過剰拒否と過剰受理の**両方向**に出る。どちらに倒れるかは入力の細部で決まるため、
@@ -27,8 +35,9 @@ seq: 3
   cell は NFKC 正規化してから sentinel を見る。(b) sentinel の一致は
   **Unicode 語境界つき**にして部分一致を禁じる (F181 と同型)。
   (c) 近似で塞ぎきれない範囲は**塞げたことにせず docstring へ逐語で列挙する** —
-  本件では inline code span・indented code block・backslash escape 内の `<!--` を
-  comment opener と誤認する既知の過剰拒否と、HTML comment 以外の raw HTML block を
+  本件では inline code span・indented code block・backslash escape の中に書かれた
+  HTML コメント開始記号を実際のコメント開始と誤認する既知の過剰拒否と、
+  HTML comment 以外の raw HTML block を
   検査しないことを `orchestrator/campaign/p3_b4_admission_record.py` の module docstring と
   関数 docstring に書き、その限界を固定するテストを置いた。
 - 再発検知: 変異 matrix の M06 (sentinel 検査の無効化) と、
