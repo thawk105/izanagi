@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
+import os
+import copy
 import shutil
 import subprocess
 import tarfile
@@ -96,7 +99,8 @@ def _complete_records(*, underexposed=None, unstable=None, uncertified=None):
                         "median_tps": 100.0 if shape == "constant" else 101.0,
                         "abort_count": abort_count,
                         "backoff_call_count": abort_count,
-                        "certified": key != uncertified,
+                        "correctness_certified": key != uncertified,
+                        "official_certification": False,
                         "unstable": key == unstable,
                         "missing": False,
                     }
@@ -104,16 +108,147 @@ def _complete_records(*, underexposed=None, unstable=None, uncertified=None):
     return rows
 
 
-def _prereg_doc() -> bytes:
+def _spec_dict() -> dict[str, object]:
     patch_sha = _sha(_patch_bytes())
+    return {
+        "schema_version": "izanagi-b10-backoff-shape-preregistration/v2",
+        "artifacts": {
+            "patch_sha256": patch_sha,
+            "formula_sha256": B.FORMULA_SHA256,
+        },
+        "grid": {
+            "means_us": list(B.MEANS_US),
+            "shapes": [
+                {"name": "constant", "code": 0, "support": "mu"},
+                {
+                    "name": "symmetric-modulo", "code": 1,
+                    "support": "closed-half-width-mu/2-through-3mu/2",
+                },
+                {"name": "binary", "code": 2, "support": "two-point-mu/2-or-3mu/2"},
+            ],
+            "encoding": "BACKOFF_FIXED=shape_code*1000+mu",
+            "references": [
+                {"name": "none", "back_off": 0, "backoff_fixed": -1},
+                {"name": "adaptive", "back_off": 1, "backoff_fixed": -1},
+                {"name": "zero-loop", "back_off": 1, "backoff_fixed": 0},
+            ],
+        },
+        "blocks": {
+            "count": 3,
+            "ids": list(B.BLOCK_IDS),
+            "run_order": {
+                block: list(B.block_run_order(block)) for block in B.BLOCK_IDS
+            },
+        },
+        "workloads": [
+            {"name": name, **flags} for name, flags in B.WORKLOADS.items()
+        ],
+        "execution": {
+            "threads": 48,
+            "extime_s": 3,
+            "performance_reps": 5,
+            "correctness_reps": 5,
+            "correctness_mode": "legacy+performance",
+            "screening": False,
+        },
+        "analysis": {
+            "alpha": 0.05,
+            "holm_families": [
+                {"workload": workload, "shape": shape}
+                for workload in B.WORKLOADS
+                for shape in ("symmetric-modulo", "binary")
+            ],
+            "permutation": {
+                "method": "exact-sign-flip",
+                "sided": "two-sided",
+                "statistic": "absolute-sum-paired-relative-effect",
+                "enumeration": "all-2^18",
+                "pairs_per_family": 18,
+            },
+            "confidence_interval": {
+                "method": "student-t-paired-block-mean",
+                "confidence_level": 0.95,
+                "degrees_of_freedom": 2,
+                "critical_value": 4.302652729911275,
+            },
+            "missingness": {
+                "conditions": [
+                    "missing", "performance-error", "correctness-not-certified",
+                    "unstable", "underexposed",
+                ],
+                "pair_action": "invalidate-entire-family",
+                "family_action": "indeterminate",
+                "indeterminate_pvalue": 1.0,
+            },
+            "exposure": {
+                "metric": "sum-performance-rep-abort-counts",
+                "minimum_calls_per_cell": 10,
+                "below_minimum_action": "indeterminate",
+            },
+            "equivalence_margin_pct": 3.0,
+            "decision_procedure": [
+                "construct-all-18-within-block-paired-relative-effects",
+                "mark-family-indeterminate-on-any-unusable-pair",
+                "enumerate-two-sided-sign-flip-pvalue-for-each-testable-family",
+                "set-indeterminate-family-pvalue-to-1",
+                "holm-adjust-all-six-families",
+                "different-iff-testable-and-holm-p-less-than-or-equal-alpha",
+                "otherwise-not-detected",
+                "report-all-cell-effects-confidence-intervals-and-equivalence-relations",
+            ],
+        },
+        "physical_residual": {
+            "expression_eval_p99_cycles": 12,
+            "claimed_upper_pct": 0.5714285714285714,
+            "formula": (
+                "100*expression_eval_p99_cycles/"
+                "(minimum_instruction_us*clocks_per_us)"
+            ),
+            "maximum_upper_pct_exclusive": 1.0,
+        },
+        "external_floor_reference_widths": {
+            "terminology": "external-floor-derived-reference-width",
+            "power_guarantee": False,
+            "values": [
+                {
+                    "workload": "write-heavy", "between_run_cv_pct": 0.67,
+                    "reference_width_pct": 1.9, "source_environment": "linux-baremetal",
+                },
+                {
+                    "workload": "balanced", "between_run_cv_pct": 1.07,
+                    "reference_width_pct": 3.0, "source_environment": "linux-baremetal",
+                },
+                {
+                    "workload": "read-heavy", "between_run_cv_pct": 0.22,
+                    "reference_width_pct": 0.62, "source_environment": "pegasus",
+                },
+            ],
+        },
+    }
+
+
+def _prereg_doc(spec: dict[str, object] | None = None) -> bytes:
+    machine = _spec_dict() if spec is None else spec
     return (
-        f"b10_patch_sha256: {patch_sha}\n"
-        f"b10_formula_sha256: {B.FORMULA_SHA256}\n"
-        "b10_minimum_abort_calls: 10\n"
-        "b10_expression_eval_p99_cycles: 12\n"
-        "b10_physical_residual_upper_pct: 0.9\n"
-        "b10_equivalence_margin_pct: 3.0\n"
+        "# fixture\n\n"
+        f"{B._SPEC_BEGIN}\n"
+        "```json\n"
+        + json.dumps(machine, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        + "\n```\n"
+        f"{B._SPEC_END}\n"
     ).encode("utf-8")
+
+
+def _spec() -> B.PreregistrationSpec:
+    return B.parse_preregistration(_prereg_doc())
+
+
+def _binding() -> B.PreregistrationBinding:
+    spec = _spec()
+    return B.PreregistrationBinding(
+        "a" * 40, "b" * 40, spec.spec_sha256, _sha(_patch_bytes()),
+        B.FORMULA_SHA256, "f" * 40, "e" * 64,
+    )
 
 
 def _mock_prereg_git(monkeypatch, root: Path, *, status="", blob=None, ancestor_rc=0):
@@ -133,12 +268,81 @@ def _mock_prereg_git(monkeypatch, root: Path, *, status="", blob=None, ancestor_
             return "b" * 40 + "\n"
         if args[:2] == ("show", "a" * 40 + ":patches/silo-backoff-fixed.patch"):
             return patch
+        if args[:2] == (
+            "show", "f" * 40 + ":orchestrator/campaign/b10_backoff_shape_sweep.py",
+        ):
+            return (root / B.ANALYSIS_REL).read_bytes()
         raise AssertionError(args)
 
     monkeypatch.setattr(B, "_git", fake_git)
     monkeypatch.setattr(
         B.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=ancestor_rc),
     )
+
+
+def _write_prereg_files(root: Path, raw: bytes | None = None) -> None:
+    prereg = _prereg_doc() if raw is None else raw
+    for relative, content in (
+        (B.PREREG_REL, prereg),
+        (B.PATCH_REL, _patch_bytes()),
+        (B.ANALYSIS_REL, Path(B.__file__).read_bytes()),
+    ):
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+
+
+def _compiler() -> str:
+    compiler = next(
+        (path for name in ("g++-13", "g++-12", "g++") if (path := shutil.which(name))),
+        None,
+    )
+    assert compiler is not None, "B10 semantic oracle requires a C++ compiler"
+    return compiler
+
+
+def _compile_expression(tmp_path: Path, line: str, stem: str = "b10_expr") -> Path:
+    source = tmp_path / f"{stem}.cc"
+    binary = tmp_path / stem
+    source.write_text(
+        "#include <cstdint>\n"
+        "#include <cstdlib>\n"
+        "#include <iomanip>\n"
+        "#include <iostream>\n"
+        "using std::uint64_t;\n"
+        "int main(int argc, char** argv) {\n"
+        "  if (argc != 3) return 2;\n"
+        "  const uint64_t BACKOFF_FIXED = std::strtoull(argv[1], nullptr, 10);\n"
+        "  const uint64_t start = std::strtoull(argv[2], nullptr, 10);\n"
+        f"{line}\n"
+        "  std::cout << std::setprecision(17) << now_backoff << '\\n';\n"
+        "  return 0;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    compiled = subprocess.run(
+        [_compiler(), "-std=c++20", "-Wall", "-Wextra", "-Werror", str(source), "-o", str(binary)],
+        capture_output=True, text=True,
+    )
+    assert compiled.returncode == 0, compiled.stdout + compiled.stderr
+    return binary
+
+
+def _cpp_value(binary: Path, encoded: int, start: int) -> Fraction:
+    completed = subprocess.run(
+        [str(binary), str(encoded), str(start)], capture_output=True, text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return Fraction(completed.stdout.strip())
+
+
+def _patch_hole_line(patch: bytes) -> str:
+    rows = [
+        row[1:].decode("utf-8") for row in patch.splitlines()
+        if row.startswith(b"+    double now_backoff =")
+    ]
+    assert len(rows) == 1
+    return rows[0]
 
 
 def test_m01_patch_path_widening_is_rejected_for_one_reason():
@@ -164,11 +368,18 @@ def test_m03_duplicate_marker_is_rejected_for_one_reason(tmp_path: Path):
 
 
 def test_m04_hole_substring_match_is_rejected_for_one_reason(tmp_path: Path):
+    appended = B.EXPECTED_HOLE_LINE.encode("utf-8") + b" /* appended */"
     source = _fixture_source().replace(
         B.EXPECTED_HOLE_LINE.encode("utf-8"),
-        B.EXPECTED_HOLE_LINE.encode("utf-8") + b" /* appended */",
+        appended,
     )
-    _expect_code("hole", lambda: _passing_applied_tree(tmp_path, source=source))
+    _expect_code(
+        "hole",
+        lambda: _passing_applied_tree(
+            tmp_path, source=source,
+            expected_frame_sha256=B._frame_sha256(source, expected_line=appended),
+        ),
+    )
 
 
 def test_m05_wait_loop_mutation_is_rejected_for_one_reason(tmp_path: Path):
@@ -220,7 +431,7 @@ def test_m08_legacy_wal_without_binding_is_rejected_for_one_reason(
     Path(layout.runs_dir).mkdir()
     Path(layout.lock_file).write_text("legacy", encoding="utf-8")
     Path(layout.wal_file).write_text("\n", encoding="utf-8")
-    binding = B.PreregistrationBinding("a" * 40, "b" * 40, "c" * 64, "d" * 64)
+    binding = _binding()
     monkeypatch.setattr(B.wal, "read_lock", lambda _layout: "legacy")
     monkeypatch.setattr(B, "_decode_lock_search_config", lambda _raw: {})
     _expect_code("resume-binding", lambda: B.assert_resumable_binding(layout, binding))
@@ -229,65 +440,50 @@ def test_m08_legacy_wal_without_binding_is_rejected_for_one_reason(
 def test_preregistration_dirty_tree_is_rejected_before_blob_admission(
     tmp_path: Path, monkeypatch,
 ):
-    path = tmp_path / B.PREREG_REL
-    path.parent.mkdir(parents=True)
-    path.write_bytes(_prereg_doc())
-    (tmp_path / B.PATCH_REL).parent.mkdir(parents=True)
-    (tmp_path / B.PATCH_REL).write_bytes(_patch_bytes())
+    _write_prereg_files(tmp_path)
     _mock_prereg_git(monkeypatch, tmp_path, status=" M tracked.py\n")
     _expect_code(
         "dirty",
-        lambda: B.load_preregistration(tmp_path, B.PREREG_REL, "a" * 40),
+        lambda: B.load_preregistration(tmp_path, "a" * 40),
     )
 
 
 def test_preregistration_nonancestor_commit_is_rejected(
     tmp_path: Path, monkeypatch,
 ):
-    path = tmp_path / B.PREREG_REL
-    path.parent.mkdir(parents=True)
-    path.write_bytes(_prereg_doc())
-    (tmp_path / B.PATCH_REL).parent.mkdir(parents=True)
-    (tmp_path / B.PATCH_REL).write_bytes(_patch_bytes())
+    _write_prereg_files(tmp_path)
     _mock_prereg_git(monkeypatch, tmp_path, ancestor_rc=1)
     _expect_code(
         "prereg-ancestor",
-        lambda: B.load_preregistration(tmp_path, B.PREREG_REL, "a" * 40),
+        lambda: B.load_preregistration(tmp_path, "a" * 40),
     )
 
 
 def test_preregistration_blob_mismatch_is_rejected(
     tmp_path: Path, monkeypatch,
 ):
-    path = tmp_path / B.PREREG_REL
-    path.parent.mkdir(parents=True)
-    path.write_bytes(_prereg_doc())
-    (tmp_path / B.PATCH_REL).parent.mkdir(parents=True)
-    (tmp_path / B.PATCH_REL).write_bytes(_patch_bytes())
+    _write_prereg_files(tmp_path)
     _mock_prereg_git(monkeypatch, tmp_path, blob=b"different\n")
     _expect_code(
         "prereg-blob",
-        lambda: B.load_preregistration(tmp_path, B.PREREG_REL, "a" * 40),
+        lambda: B.load_preregistration(tmp_path, "a" * 40),
     )
 
 
 def test_preregistration_matching_commit_blob_patch_and_formula_are_accepted(
     tmp_path: Path, monkeypatch,
 ):
-    path = tmp_path / B.PREREG_REL
-    path.parent.mkdir(parents=True)
-    path.write_bytes(_prereg_doc())
-    (tmp_path / B.PATCH_REL).parent.mkdir(parents=True)
-    (tmp_path / B.PATCH_REL).write_bytes(_patch_bytes())
+    _write_prereg_files(tmp_path)
     _mock_prereg_git(monkeypatch, tmp_path)
-    prereg = B.load_preregistration(tmp_path, B.PREREG_REL, "a" * 40)
+    prereg = B.load_preregistration(tmp_path, "a" * 40)
     assert prereg.binding.prereg_commit == "a" * 40
     assert prereg.binding.prereg_blob_sha == "b" * 40
+    assert prereg.binding.spec_sha256 == prereg.spec.spec_sha256
     assert prereg.binding.patch_sha256 == _sha(_patch_bytes())
     assert prereg.binding.formula_sha256 == B.FORMULA_SHA256
     assert prereg.minimum_abort_calls == 10
     assert prereg.expression_eval_p99_cycles == 12
-    assert prereg.physical_residual_upper_pct == 0.9
+    assert prereg.physical_residual_upper_pct == pytest.approx(0.5714285714285714)
     assert prereg.equivalence_margin_pct == 3.0
 
 
@@ -299,7 +495,7 @@ def test_m09_shape_code_three_is_rejected_instead_of_falling_back():
 
 def test_m10_underexposed_cell_is_indeterminate_not_success_or_failure():
     key = ("read-heavy", "block-1", "binary", 2)
-    result = B.judge(_complete_records(underexposed=key), minimum_abort_calls=10)
+    result = B.judge(_complete_records(underexposed=key), _spec())
     family = next(
         item for item in result["families"]
         if item["workload"] == "read-heavy" and item["shape"] == "binary"
@@ -310,36 +506,166 @@ def test_m10_underexposed_cell_is_indeterminate_not_success_or_failure():
 
 
 def test_m11_raw_p_cannot_bypass_holm_family_correction():
-    raw = {f"family-{index}": (0.02 if index == 0 else 1.0) for index in range(6)}
-    adjusted = B.holm_adjust(raw)
-    assert raw["family-0"] < B.ALPHA
-    assert adjusted["family-0"] == pytest.approx(0.12)
-    assert adjusted["family-0"] > B.ALPHA
+    spec = _spec()
+    rows = _complete_records()
+    target = ("write-heavy", "symmetric-modulo")
+    changed = 0
+    for row in rows:
+        if row["shape"] != "constant":
+            row["median_tps"] = 100.0
+        if (row["workload"], row["shape"]) == target and changed < 7:
+            row["median_tps"] = 120.0
+            changed += 1
+    result = B.judge(rows, spec)
+    family = next(
+        item for item in result["families"]
+        if (item["workload"], item["shape"]) == target
+    )
+    assert family["raw_p"] < spec.alpha
+    assert family["holm_p"] > spec.alpha
+    assert family["outcome"] == "not-detected"
 
 
 def test_m12_sign_flip_test_is_two_sided_not_fixed_one_sided():
     assert B.sign_flip_permutation_pvalue([1.0] * 5) == Fraction(2, 32)
 
 
-def test_m13_half_width_lower_bound_matches_exact_model():
-    for mean_us in B.MEANS_US:
-        encoded = B.encode("symmetric-modulo", mean_us)
-        observed = {
-            B.exact_model(encoded, start)
-            for start in (0, 1, 2, (1 << 63), (1 << 64) - 1)
-        }
-        assert min(observed) >= Fraction(mean_us, 2)
-        assert max(observed) <= Fraction(3 * mean_us, 2)
-        assert Fraction(0) not in observed
+def test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle(
+    tmp_path: Path,
+):
+    mutated_patch = _patch_bytes().replace(
+        b"% 1000ULL) + 1ULL)", b"% 1000ULL) + 2ULL)", 1,
+    )
+    assert mutated_patch != _patch_bytes()
+    binary = _compile_expression(tmp_path, _patch_hole_line(mutated_patch), "m13")
+    mean_us = 2
+    encoded = B.encode("symmetric-modulo", mean_us)
+    inverse = pow(B.MIXER, -1, 1 << 64)
+    violating_low = 2 * mean_us + 1
+    start = (((1 << 63) | violating_low) * inverse) & B._MASK64
+    value = _cpp_value(binary, encoded, start)
+    assert value < Fraction(mean_us, 2)
 
 
-def test_m14_different_random_mixers_are_rejected_for_one_reason():
-    mutated = B.EXPECTED_HOLE_LINE.replace(
+def test_m14_actual_patch_mixer_mutation_reaches_only_cpp_pair_oracle(tmp_path: Path):
+    mutated_line = B.EXPECTED_HOLE_LINE.replace(
         "0x9e3779b97f4a7c15ULL) >> 63) *",
         "0xd1b54a32d192ed03ULL) >> 63) *",
         1,
     )
-    _expect_code("mixer", lambda: B.validate_formula_contract(mutated))
+    mutated_patch = _patch_bytes().replace(
+        B.EXPECTED_HOLE_LINE.encode("utf-8"), mutated_line.encode("utf-8"), 1,
+    )
+    assert mutated_patch != _patch_bytes()
+    binary = _compile_expression(tmp_path, _patch_hole_line(mutated_patch), "m14")
+    inverse = pow(B.MIXER, -1, 1 << 64)
+    encoded = B.encode("binary", 25)
+    failures = []
+    for low in range(1000):
+        starts = (
+            (low * inverse) & B._MASK64,
+            (((1 << 63) | low) * inverse) & B._MASK64,
+        )
+        if sum((_cpp_value(binary, encoded, start) for start in starts), Fraction()) \
+                != Fraction(50):
+            failures.append(low)
+            break
+    assert failures, "different-mixer patch mutation must fail the independent pair oracle"
+
+
+def test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement(
+    tmp_path: Path,
+):
+    binary = tmp_path / "perf.bin"
+    binary.write_bytes(b"certified bytes")
+    built_sha = B.buildcache.full_sha256(binary)
+    certified = B.CertificationAttempt("attempt-1", "0" * 64)
+    _expect_code(
+        "perf-binary-binding",
+        lambda: B.verify_performance_binary(str(binary), built_sha, certified),
+    )
+
+
+def test_m16_omitting_one_registered_analysis_field_is_rejected():
+    mutated = copy.deepcopy(_spec_dict())
+    del mutated["analysis"]["confidence_interval"]
+    _expect_code("prereg-spec", lambda: B.parse_preregistration(_prereg_doc(mutated)))
+
+
+def test_m17_and_p05_matching_bound_wal_is_resumable(tmp_path: Path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path / "campaign"))
+    Path(layout.runs_dir).mkdir(parents=True)
+    Path(layout.lock_file).write_text("bound", encoding="utf-8")
+    Path(layout.wal_file).write_text("record\n", encoding="utf-8")
+    binding = _binding()
+    monkeypatch.setattr(B.wal, "read_lock", lambda _layout: "bound")
+    monkeypatch.setattr(
+        B, "_decode_lock_search_config",
+        lambda _raw: {"preregistration_binding": binding.as_dict()},
+    )
+    record = SimpleNamespace(
+        stage=B.STAGE_BUILD_START,
+        payload={
+            B.B10_BUILD_START_BINDING_KEY: binding.as_dict(),
+            "build_admission": {"input_sha256": binding.binding_sha256},
+        },
+    )
+    monkeypatch.setattr(B.wal, "read_records_checked", lambda _layout: ([record], False))
+    B.assert_resumable_binding(layout, binding)
+
+
+def test_p06_full_machine_spec_and_runtime_residual_are_accepted():
+    spec = _spec()
+    assert spec.means_us == B.MEANS_US
+    assert len(spec.shapes) == 3
+    assert len(spec.block_orders) == 3
+    assert len(spec.workloads) == 3
+    assert spec.performance_reps == spec.correctness_reps == 5
+    assert len(spec.holm_families) == 6
+    assert spec.pairs_per_family == 18
+    assert spec.missing_family_action == "indeterminate"
+    assert spec.reference_width_power_guarantee is False
+    assert dict((row[0], row[1]) for row in spec.reference_widths)["read-heavy"] == 0.22
+    assert B.validate_runtime_physical_residual(spec, 2100) == pytest.approx(
+        spec.physical_residual_upper_pct,
+    )
+
+
+def test_claimed_physical_residual_must_match_runtime_cycle_recomputation():
+    mutated = copy.deepcopy(_spec_dict())
+    mutated["physical_residual"]["claimed_upper_pct"] = 0.5
+    spec = B.parse_preregistration(_prereg_doc(mutated))
+    _expect_code(
+        "physical-residual",
+        lambda: B.validate_runtime_physical_residual(spec, 2100),
+    )
+
+
+def test_canonical_preregistration_path_cannot_be_overridden_from_cli():
+    with pytest.raises(SystemExit) as caught:
+        B.main([
+            "--phase", "build",
+            "--prereg-commit", "a" * 40,
+            "--submission-receipt", "/tmp/not-used",
+            "--preregistration", "docs/another.md",
+        ])
+    assert caught.value.code == 2
+
+
+def test_block_records_are_hash_verified_and_create_only(tmp_path: Path):
+    path = tmp_path / B._block_record_filename("block-1", 0, "none")
+    row = {
+        "block_id": "block-1", "schedule_index": 0, "point": "none",
+    }
+    digest = B._write_block_record_create_only(path, row)
+    loaded = B._load_block_record(path)
+    assert loaded["record_sha256"] == digest
+    with pytest.raises(FileExistsError):
+        B._write_block_record_create_only(path, row)
+    envelope = json.loads(path.read_text(encoding="utf-8"))
+    envelope["record"]["point"] = "adaptive"
+    path.write_text(json.dumps(envelope), encoding="utf-8")
+    _expect_code("measurement-record", lambda: B._load_block_record(path))
 
 
 def test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted(tmp_path: Path):
@@ -485,19 +811,23 @@ def test_block_orders_are_distinct_complete_identity_bearing_permutations():
 
 
 def test_config_uses_calibration_records_and_binds_preregistration():
-    binding = B.PreregistrationBinding("a" * 40, "b" * 40, "c" * 64, B.FORMULA_SHA256)
-    prereg = B.Preregistration(binding, B.PREREG_REL, 123)
+    spec = _spec()
+    binding = _binding()
+    prereg = B.Preregistration(binding, B.PREREG_REL, spec)
     calibration = B.CalibrationSelection(
         path="artifact.json", sha256="e" * 64, schema_version="calibration/v2",
         records=765432, threads=48, env_tag="pegasus", clocks_per_us=2100,
         saturated=False, lower_bound_selected=True, cache_floor_warning=False,
     )
-    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    context = B.build_run_context(generator_id=B.GeneratorId.B10_BACKOFF_SHAPE_SWEEP)
+    assert context.generator_id.value == "b10-backoff-shape-sweep"
+    assert "b10-backoff-shape-sweep" in context.policy.as_preimage()["generator_registry"]
     contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
     cfg = B.config_for("balanced", prereg, calibration, context, contract)
-    perf = B.perf_for("balanced", calibration)
+    perf = B.perf_for("balanced", calibration, spec)
     assert cfg.search_config["records"] == 765432
     assert perf.records == 765432
+    assert B.pipeline.performance_correctness_workload(perf).reps == 5
     assert cfg.search_config["preregistration_binding"] == binding.as_dict()
     assert cfg.search_config[B.SEARCH_CONFIG_VERIFY_KEY] == B.VERIFY_LEGACY_PLUS_PERFORMANCE
     assert "screening" not in cfg.search_config
@@ -531,12 +861,12 @@ def test_rejected_missing_null_or_cache_warning_calibration_fails_before_run(
         verified=SimpleNamespace(schema_version="calibration/v2"),
     )
     monkeypatch.setattr(B.p2_2, "_load_calibration_once", lambda _contract: loaded)
-    _expect_code("calibration", lambda: B.load_calibration(contract))
+    _expect_code("calibration", lambda: B.load_calibration(contract, _spec()))
 
 
 def test_each_generator_receipt_commits_the_exact_preregistration_bundle():
-    binding = B.PreregistrationBinding("a" * 40, "b" * 40, "c" * 64, "d" * 64)
-    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    binding = _binding()
+    context = B.build_run_context(generator_id=B.GeneratorId.B10_BACKOFF_SHAPE_SWEEP)
     evidence = B.source_digest.SourceEvidence(
         schema_version=B.source_digest.SOURCE_EVIDENCE_SCHEMA,
         source_root="/tmp/b10-source-fixture",
@@ -554,7 +884,7 @@ def test_each_generator_receipt_commits_the_exact_preregistration_bundle():
 
 
 def test_each_build_start_carries_all_four_explicit_binding_values(monkeypatch):
-    binding = B.PreregistrationBinding("a" * 40, "b" * 40, "c" * 64, "d" * 64)
+    binding = _binding()
     captured = []
 
     def fake_log(layout, variant, stage, env_tag, payload, *args, **kwargs):
@@ -578,7 +908,7 @@ def test_missing_uncertified_and_unstable_pairs_are_indeterminate():
     )
     for selector in ("unstable", "uncertified"):
         kwargs = {selector: keys[0]}
-        result = B.judge(_complete_records(**kwargs), minimum_abort_calls=10)
+        result = B.judge(_complete_records(**kwargs), _spec())
         family = next(
             row for row in result["families"]
             if row["workload"] == "balanced" and row["shape"] == "binary"
@@ -589,7 +919,7 @@ def test_missing_uncertified_and_unstable_pairs_are_indeterminate():
         row for row in rows
         if (row["workload"], row["block_id"], row["shape"], row["mean_us"]) != keys[1]
     ]
-    result = B.judge(rows, minimum_abort_calls=10)
+    result = B.judge(rows, _spec())
     family = next(
         row for row in result["families"]
         if row["workload"] == "balanced" and row["shape"] == "binary"
@@ -598,7 +928,7 @@ def test_missing_uncertified_and_unstable_pairs_are_indeterminate():
 
 
 def test_cell_effects_cover_all_54_factorial_cells_with_ci():
-    effects = B.cell_effects(_complete_records(), minimum_abort_calls=10)
+    effects = B.cell_effects(_complete_records(), _spec())
     assert len(effects) == 54
     assert all(row["status"] == "estimable" for row in effects)
     assert all(row["ci95_low"] is not None and row["ci95_high"] is not None for row in effects)
@@ -622,46 +952,40 @@ def test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha():
 
 
 def test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model(tmp_path: Path):
-    compiler = next(
-        (path for name in ("g++-13", "g++-12", "g++") if (path := shutil.which(name))),
-        None,
-    )
-    if compiler is None:
-        pytest.skip("C++ compiler unavailable; explicit environment-detected skip")
-    source = tmp_path / "b10_expr.cc"
-    binary = tmp_path / "b10_expr"
-    source.write_text(
-        "#include <cstdint>\n"
-        "#include <cstdlib>\n"
-        "#include <iomanip>\n"
-        "#include <iostream>\n"
-        "using std::uint64_t;\n"
-        "int main(int argc, char** argv) {\n"
-        "  if (argc != 3) return 2;\n"
-        "  const uint64_t BACKOFF_FIXED = std::strtoull(argv[1], nullptr, 10);\n"
-        "  const uint64_t start = std::strtoull(argv[2], nullptr, 10);\n"
-        f"{B.EXPECTED_HOLE_LINE}\n"
-        "  std::cout << std::setprecision(17) << now_backoff << '\\n';\n"
-        "  return 0;\n"
-        "}\n",
-        encoding="utf-8",
-    )
-    compiled = subprocess.run(
-        [compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror", str(source), "-o", str(binary)],
-        capture_output=True, text=True,
-    )
-    assert compiled.returncode == 0, compiled.stdout + compiled.stderr
+    binary = _compile_expression(tmp_path, _patch_hole_line(_patch_bytes()))
     starts = (0, 1, 2, 17, (1 << 63) - 1, 1 << 63, (1 << 64) - 1)
     for shape, _code in B.SHAPES:
         for mean_us in B.MEANS_US:
             encoded = B.encode(shape, mean_us)
             for start in starts:
-                completed = subprocess.run(
-                    [str(binary), str(encoded), str(start)],
-                    capture_output=True, text=True,
+                assert _cpp_value(binary, encoded, start) == B.exact_model(encoded, start)
+
+    # Independent semantic oracle: odd MIXER is a permutation.  Construct y
+    # directly, invert it to start, and pair equal low63 values with opposite
+    # high bits.  This checks the 2*mu sum without mirroring the C++ branches.
+    assert B.MIXER & 1
+    inverse = pow(B.MIXER, -1, 1 << 64)
+    for shape in ("symmetric-modulo", "binary"):
+        for mean_us in B.MEANS_US:
+            encoded = B.encode(shape, mean_us)
+            for residue in range(2 * mean_us + 1):
+                low = residue
+                starts_for_pair = (
+                    (low * inverse) & B._MASK64,
+                    (((1 << 63) | low) * inverse) & B._MASK64,
                 )
-                assert completed.returncode == 0, completed.stderr
-                assert Fraction(completed.stdout.strip()) == B.exact_model(encoded, start)
+                values = [_cpp_value(binary, encoded, start) for start in starts_for_pair]
+                assert sum(values, Fraction()) == Fraction(2 * mean_us)
+                assert all(
+                    Fraction(mean_us, 2) <= value <= Fraction(3 * mean_us, 2)
+                    for value in values
+                )
+
+    # The actual C++ expression, not the Python model, preserves all legacy
+    # constants 0..999 at both uint64 endpoints.
+    for encoded in range(1000):
+        assert _cpp_value(binary, encoded, 0) == Fraction(encoded)
+        assert _cpp_value(binary, encoded, B._MASK64) == Fraction(encoded)
 
 
 def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
@@ -677,9 +1001,75 @@ def test_pegasus_submit_and_job_scripts_are_syntax_valid_and_use_pbs_contract():
     assert "qsub -o" in submit_text and "-v \"$export_spec\"" in submit_text
     assert "dispatch_compute.py" not in submit_text + job_text
     assert "#PBS -q gen_S" in job_text
-    assert "^bnode[0-9]+$" in job_text
+    assert "submit-receipt.json" in submit_text + job_text
+    assert "izanagi-job-evidence/b10-backoff-shape/submissions" in submit_text + job_text
+    assert 'unset PYTHONPATH PYTHONHOME PYTHONSTARTUP' in submit_text
+    assert 'unset PYTHONPATH PYTHONHOME PYTHONSTARTUP' in job_text
+    assert "Elapse Time Limit" in job_text
+    assert "SCHEDULER_ELAPSE_LIMIT_S" in job_text
+    assert "REQUESTED_S=21600" not in job_text
+    assert "write_failure" in job_text
+    assert "on_signal" in job_text
     assert "IZANAGI_RESERVATION_JOB_ID" in job_text
+    assert '--phase "$IZANAGI_B10_PHASE"' in job_text
     assert "b10_backoff_shape_sweep" in job_text
+
+
+def test_sanctioned_dry_run_stages_outside_worktree_and_preserves_clean_surface(
+    tmp_path: Path,
+):
+    repo = tmp_path / "repo"
+    tools = repo / "tools/pegasus"
+    tools.mkdir(parents=True)
+    submit_source = ROOT / "tools/pegasus/submit_b10_backoff_shape.sh"
+    job_source = ROOT / "tools/pegasus/b10_backoff_shape_campaign.sh"
+    submit = tools / submit_source.name
+    job = tools / job_source.name
+    shutil.copy2(submit_source, submit)
+    shutil.copy2(job_source, job)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        "#!/bin/bash\n"
+        "case \"$*\" in\n"
+        "  *\"rev-parse --verify HEAD^{commit}\"*) printf '%s\\n' \"$FAKE_HEAD\" ;;\n"
+        "  *\"rev-parse --path-format=absolute --git-common-dir\"*) printf '%s\\n' \"$FAKE_COMMON\" ;;\n"
+        "  *\"merge-base --is-ancestor\"*) exit 0 ;;\n"
+        "  *\"cat-file -e\"*) exit 0 ;;\n"
+        "  *\"cat-file blob\"*) /bin/cat \"$FAKE_JOB\" ;;\n"
+        "  *\"status --porcelain --untracked-files=all\"*) exit 0 ;;\n"
+        "  *) printf 'unexpected fake git argv: %s\\n' \"$*\" >&2; exit 9 ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    common = tmp_path / "common/.git"
+    common.mkdir(parents=True)
+    durable = tmp_path / "durable"
+    before = {path.relative_to(repo) for path in repo.rglob("*")}
+    env = {
+        **os.environ,
+        "PATH": os.fspath(fake_bin) + os.pathsep + os.environ["PATH"],
+        "FAKE_HEAD": "a" * 40,
+        "FAKE_COMMON": os.fspath(common),
+        "FAKE_JOB": os.fspath(job),
+    }
+    completed = subprocess.run(
+        [
+            str(submit), "--dry-run", "--durable-root", str(durable),
+            "--prereg-commit", "a" * 40, "--phase", "build",
+        ],
+        cwd=repo, env=env, capture_output=True, text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    after = {path.relative_to(repo) for path in repo.rglob("*")}
+    assert after == before
+    receipts = list(durable.glob("*/submit-receipt.json"))
+    assert len(receipts) == 1
+    receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
+    assert receipt["dry_run"] is True
+    assert receipt["phase"] == "build"
 
 
 def test_plain_runner_executes_this_file_instead_of_false_green():

@@ -57,7 +57,12 @@ from .build_admission import (  # noqa: E402
 from .layout import CampaignLayout, campaign_layout  # noqa: E402
 from .lock import bench_lock  # noqa: E402
 from .loop import run_campaign  # noqa: E402
-from .model import CampaignConfig, Genome, STAGE_BUILD_START, STAGE_COMMIT  # noqa: E402
+from .model import (  # noqa: E402
+    CampaignConfig,
+    Genome,
+    STAGE_BUILD_DONE,
+    STAGE_BUILD_START,
+)
 from .pipeline import (  # noqa: E402
     SEARCH_CONFIG_VERIFY_KEY,
     VERIFY_LEGACY_PLUS_PERFORMANCE,
@@ -71,6 +76,7 @@ SPACE_VERSION = "b10-backoff-shape/v2"
 TRIAL = "b10-backoff-shape-v2"
 ENV_TAG = "pegasus"
 PATCH_REL = "patches/silo-backoff-fixed.patch"
+ANALYSIS_REL = "orchestrator/campaign/b10_backoff_shape_sweep.py"
 SOURCE_REL = "include/backoff.hh"
 OPTIONS_REL = "cmake/Options.cmake"
 PREREG_REL = "docs/b10-backoff-shape-preregistration.md"
@@ -84,7 +90,6 @@ BLOCK_IDS = ("block-1", "block-2", "block-3")
 THREADS = 48
 EXTIME = 3
 REPS = 5
-ALPHA = 0.05
 MIXER = 0x9E3779B97F4A7C15
 _MASK64 = (1 << 64) - 1
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
@@ -117,13 +122,14 @@ EXPECTED_BACKOFF_FRAME_SHA256 = "761b75102b65f407b326efe011bb4bc38064e1fa393383e
 _FRAME_SENTINEL = b"<IZANAGI-B10-AUTHORIZED-HOLE>"
 B10_BUILD_START_BINDING_KEY = "b10_preregistration_binding"
 _WAL_BINDING_LOCK = threading.Lock()
-
-_PREREG_FIELD_RE = re.compile(
-    r"^(b10_patch_sha256|b10_formula_sha256|b10_minimum_abort_calls|"
-    r"b10_expression_eval_p99_cycles|b10_physical_residual_upper_pct|"
-    r"b10_equivalence_margin_pct):[ \t]*"
-    r"([^\r\n]+)[ \t]*$",
-    re.MULTILINE,
+_SPEC_BEGIN = "<!-- IZANAGI-B10-SPEC-BEGIN -->"
+_SPEC_END = "<!-- IZANAGI-B10-SPEC-END -->"
+_SPEC_SCHEMA = "izanagi-b10-backoff-shape-preregistration/v2"
+_SPEC_BLOCK_RE = re.compile(
+    re.escape(_SPEC_BEGIN)
+    + r"[ \t]*\r?\n```json[ \t]*\r?\n(.*?)\r?\n```[ \t]*\r?\n"
+    + re.escape(_SPEC_END),
+    re.DOTALL,
 )
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
@@ -142,15 +148,33 @@ class PreflightError(RuntimeError):
 class PreregistrationBinding:
     prereg_commit: str
     prereg_blob_sha: str
+    spec_sha256: str
     patch_sha256: str
     formula_sha256: str
+    analysis_commit: str
+    analysis_code_sha256: str
+
+    def __post_init__(self) -> None:
+        for name in ("prereg_commit", "analysis_commit"):
+            if _COMMIT_RE.fullmatch(getattr(self, name) or "") is None:
+                raise ValueError(f"{name} must be a full lowercase commit ID")
+        if re.fullmatch(r"[0-9a-f]{40,64}", self.prereg_blob_sha or "") is None:
+            raise ValueError("prereg_blob_sha must be a Git object ID")
+        for name in (
+            "spec_sha256", "patch_sha256", "formula_sha256", "analysis_code_sha256",
+        ):
+            if _SHA256_RE.fullmatch(getattr(self, name) or "") is None:
+                raise ValueError(f"{name} must be a full lowercase SHA-256")
 
     def core(self) -> dict[str, str]:
         return {
             "prereg_commit": self.prereg_commit,
             "prereg_blob_sha": self.prereg_blob_sha,
+            "spec_sha256": self.spec_sha256,
             "patch_sha256": self.patch_sha256,
             "formula_sha256": self.formula_sha256,
+            "analysis_commit": self.analysis_commit,
+            "analysis_code_sha256": self.analysis_code_sha256,
         }
 
     @property
@@ -162,13 +186,121 @@ class PreregistrationBinding:
 
 
 @dataclass(frozen=True)
+class PreregistrationSpec:
+    """Deeply immutable interpretation of the canonical machine spec."""
+
+    canonical_json: str
+    spec_sha256: str
+    patch_sha256: str
+    formula_sha256: str
+    means_us: tuple[int, ...]
+    shapes: tuple[tuple[str, int, str], ...]
+    references: tuple[tuple[str, int, int], ...]
+    block_ids: tuple[str, ...]
+    block_orders: tuple[tuple[str, tuple[str, ...]], ...]
+    workloads: tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
+    threads: int
+    extime_s: int
+    performance_reps: int
+    correctness_reps: int
+    correctness_mode: str
+    alpha: float
+    holm_families: tuple[tuple[str, str], ...]
+    permutation_method: str
+    permutation_sided: str
+    permutation_statistic: str
+    permutation_enumeration: str
+    pairs_per_family: int
+    ci_method: str
+    ci_confidence_level: float
+    ci_degrees_of_freedom: int
+    ci_critical_value: float
+    missing_conditions: tuple[str, ...]
+    missing_pair_action: str
+    missing_family_action: str
+    indeterminate_pvalue: float
+    exposure_metric: str
+    minimum_abort_calls: int
+    exposure_below_minimum_action: str
+    equivalence_margin_pct: float
+    decision_procedure: tuple[str, ...]
+    expression_eval_p99_cycles: int
+    physical_residual_upper_pct: float
+    residual_formula: str
+    maximum_residual_upper_pct_exclusive: float
+    reference_width_terminology: str
+    reference_width_power_guarantee: bool
+    reference_widths: tuple[tuple[str, float, float, str], ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return json.loads(self.canonical_json)
+
+    @property
+    def shape_codes(self) -> dict[str, int]:
+        return {name: code for name, code, _support in self.shapes}
+
+    @property
+    def workload_map(self) -> dict[str, dict[str, str]]:
+        return {name: dict(flags) for name, flags in self.workloads}
+
+    @property
+    def block_order_map(self) -> dict[str, tuple[str, ...]]:
+        return dict(self.block_orders)
+
+
+@dataclass(frozen=True)
 class Preregistration:
     binding: PreregistrationBinding
     path: str
-    minimum_abort_calls: int
-    expression_eval_p99_cycles: int = 1
-    physical_residual_upper_pct: float = 0.999
-    equivalence_margin_pct: float = 3.0
+    spec: PreregistrationSpec
+
+    def __post_init__(self) -> None:
+        if self.path != PREREG_REL:
+            raise ValueError("preregistration path must be canonical")
+        if self.binding.spec_sha256 != self.spec.spec_sha256 \
+                or self.binding.patch_sha256 != self.spec.patch_sha256 \
+                or self.binding.formula_sha256 != self.spec.formula_sha256:
+            raise ValueError("preregistration binding/spec mismatch")
+
+    @property
+    def minimum_abort_calls(self) -> int:
+        return self.spec.minimum_abort_calls
+
+    @property
+    def expression_eval_p99_cycles(self) -> int:
+        return self.spec.expression_eval_p99_cycles
+
+    @property
+    def physical_residual_upper_pct(self) -> float:
+        return self.spec.physical_residual_upper_pct
+
+    @property
+    def equivalence_margin_pct(self) -> float:
+        return self.spec.equivalence_margin_pct
+
+
+@dataclass(frozen=True)
+class CertificationAttempt:
+    attempt_id: str
+    perf_bin_sha256: str
+
+
+@dataclass(frozen=True)
+class SubmissionIdentity:
+    receipt_path: str
+    receipt_sha256: str
+    request_id: str
+    nonce: str
+    source_commit: str
+    prereg_commit: str
+    job_script_sha256: str
+    phase: str
+    workload: Optional[str]
+
+    @property
+    def trial(self) -> str:
+        request = re.sub(r"[^A-Za-z0-9._-]", "-", self.request_id)
+        return f"{request}-{self.nonce[:12]}"
 
 
 @dataclass(frozen=True)
@@ -224,6 +356,113 @@ def _git(root: Path, *args: str, binary: bool = False) -> bytes | str:
             "git", f"git {' '.join(args)} が失敗した: {(stderr or '').strip()[-300:]}",
         )
     return result.stdout
+
+
+def _canonical_submission_root(root: Path) -> Path:
+    common_raw = str(
+        _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    ).strip()
+    common = Path(common_raw)
+    if not common.is_absolute():
+        raise PreflightError("submission-receipt", "git common dir が絶対 path でない")
+    durable = common.parent.parent / "izanagi-job-evidence" \
+        / "b10-backoff-shape" / "submissions"
+    try:
+        durable_resolved = durable.resolve(strict=True)
+        root_resolved = root.resolve(strict=True)
+        common_repo = common.parent.resolve(strict=True)
+    except OSError as exc:
+        raise PreflightError("submission-receipt", "durable submission root を解決できない") from exc
+    for repository in (root_resolved, common_repo):
+        try:
+            durable_resolved.relative_to(repository)
+        except ValueError:
+            pass
+        else:
+            raise PreflightError("submission-receipt", "durable root が repository 内にある")
+    return durable_resolved
+
+
+def load_submission_identity(
+    repo_root: str | os.PathLike[str],
+    receipt_path: str | os.PathLike[str],
+    *,
+    prereg_commit: str,
+    phase: str,
+    workload: Optional[str],
+) -> SubmissionIdentity:
+    root = Path(repo_root).resolve()
+    path = Path(receipt_path)
+    try:
+        path = path.resolve(strict=True)
+        durable_root = _canonical_submission_root(root)
+        relative = path.relative_to(durable_root)
+    except (OSError, ValueError) as exc:
+        raise PreflightError(
+            "submission-receipt", "submission receipt が canonical durable root 外にある",
+        ) from exc
+    if path.is_symlink() or not path.is_file() or len(relative.parts) != 2 \
+            or relative.parts[1] != "submit-receipt.json" \
+            or re.fullmatch(r"[0-9a-f]{32}", relative.parts[0]) is None:
+        raise PreflightError("submission-receipt", "submission receipt path shape が不正")
+    try:
+        raw = path.read_bytes()
+        document = _strict_json(raw.decode("utf-8"), label="submission receipt")
+    except (OSError, UnicodeError) as exc:
+        raise PreflightError("submission-receipt", "submission receipt を読めない") from exc
+    document = _exact_object(
+        document,
+        {
+            "schema_version", "source_commit", "prereg_commit", "nonce",
+            "request_id", "dry_run", "submitted_epoch", "job_script_path",
+            "job_script_sha256", "phase", "workload", "request",
+        },
+        "submission receipt",
+    )
+    if document["schema_version"] != "pegasus-b10-submit-receipt/v2" \
+            or document["dry_run"] is not False:
+        raise PreflightError("submission-receipt", "real v2 submission receipt が必要")
+    source_commit = document["source_commit"]
+    nonce = document["nonce"]
+    request_id = document["request_id"]
+    job_script_sha = document["job_script_sha256"]
+    if type(source_commit) is not str or _COMMIT_RE.fullmatch(source_commit) is None \
+            or source_commit != str(_git(root, "rev-parse", "--verify", "HEAD^{commit}")).strip():
+        raise PreflightError("submission-receipt", "receipt source commit が current HEAD と不一致")
+    if document["prereg_commit"] != prereg_commit:
+        raise PreflightError("submission-receipt", "receipt prereg commit が不一致")
+    if type(nonce) is not str or re.fullmatch(r"[0-9a-f]{32}", nonce) is None \
+            or nonce != relative.parts[0]:
+        raise PreflightError("submission-receipt", "receipt nonce が path と不一致")
+    if type(request_id) is not str or not request_id \
+            or re.fullmatch(r"[A-Za-z0-9:._-]+", request_id) is None:
+        raise PreflightError("submission-receipt", "receipt request ID が不正")
+    if document["job_script_path"] != "tools/pegasus/b10_backoff_shape_campaign.sh" \
+            or type(job_script_sha) is not str or _SHA256_RE.fullmatch(job_script_sha) is None:
+        raise PreflightError("submission-receipt", "receipt job script binding が不正")
+    if document["phase"] != phase or document["workload"] != workload:
+        raise PreflightError("submission-receipt", "receipt phase/workload が CLI と不一致")
+    if type(document["submitted_epoch"]) is not int or document["submitted_epoch"] <= 0:
+        raise PreflightError("submission-receipt", "receipt submitted_epoch が不正")
+    request = _exact_object(
+        document["request"], {"project", "queue", "nodes", "elapstim_req_s"},
+        "submission receipt request",
+    )
+    if request != {
+        "project": "SFC", "queue": "gen_S", "nodes": 1, "elapstim_req_s": 21600,
+    }:
+        raise PreflightError("submission-receipt", "receipt request が B10 PBS contract と不一致")
+    return SubmissionIdentity(
+        receipt_path=os.fspath(path),
+        receipt_sha256=_sha256_bytes(raw),
+        request_id=request_id,
+        nonce=nonce,
+        source_commit=source_commit,
+        prereg_commit=prereg_commit,
+        job_script_sha256=job_script_sha,
+        phase=phase,
+        workload=workload,
+    )
 
 
 def encode(shape: str, mean_us: int) -> int:
@@ -487,61 +726,396 @@ def validate_applied_tree(
     }
 
 
-def parse_preregistration(raw: bytes) -> tuple[str, str, int, int, float, float]:
+def _strict_json(raw: str, *, label: str) -> object:
+    def no_duplicates(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    def reject_constant(token):
+        raise ValueError(f"non-finite JSON constant: {token}")
+
+    try:
+        return json.loads(
+            raw, object_pairs_hook=no_duplicates, parse_constant=reject_constant,
+        )
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise PreflightError("prereg-spec", f"{label} が strict JSON でない: {exc}") from exc
+
+
+def _exact_object(value: object, keys: set[str], label: str) -> dict[str, object]:
+    if type(value) is not dict or set(value) != keys:
+        observed = sorted(value) if type(value) is dict else type(value).__name__
+        raise PreflightError(
+            "prereg-spec", f"{label} key set 不一致: {observed!r}",
+        )
+    return value
+
+
+def _positive_int(value: object, label: str) -> int:
+    if type(value) is not int or value <= 0:
+        raise PreflightError("prereg-spec", f"{label} は正の exact integer が必要")
+    return value
+
+
+def _finite_number(value: object, label: str) -> float:
+    if type(value) not in {int, float} or not math.isfinite(float(value)):
+        raise PreflightError("prereg-spec", f"{label} は有限実数が必要")
+    return float(value)
+
+
+def parse_preregistration(raw: bytes) -> PreregistrationSpec:
+    """Parse every registered decision field from one canonical JSON block."""
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise PreflightError("prereg-blob", "事前登録文書が UTF-8 でない") from exc
-    pairs = _PREREG_FIELD_RE.findall(text)
-    values: dict[str, str] = {}
-    for key, raw_value in pairs:
-        value = raw_value.strip().strip("`")
-        if key in values:
-            raise PreflightError("prereg-fields", f"事前登録 field が重複: {key}")
-        values[key] = value
-    expected = {
-        "b10_patch_sha256", "b10_formula_sha256", "b10_minimum_abort_calls",
-        "b10_expression_eval_p99_cycles", "b10_physical_residual_upper_pct",
-        "b10_equivalence_margin_pct",
-    }
-    if set(values) != expected:
-        raise PreflightError(
-            "prereg-fields", f"事前登録 machine fields が不足/余分: {sorted(values)!r}",
-        )
-    patch_sha = values["b10_patch_sha256"]
-    formula_sha = values["b10_formula_sha256"]
-    if _SHA256_RE.fullmatch(patch_sha) is None or _SHA256_RE.fullmatch(formula_sha) is None:
-        raise PreflightError("prereg-fields", "事前登録 SHA-256 field の形式が不正")
-    exposure_text = values["b10_minimum_abort_calls"]
-    if re.fullmatch(r"[1-9][0-9]*", exposure_text) is None:
-        raise PreflightError("prereg-fields", "minimum abort calls は正整数でなければならない")
-    cycle_text = values["b10_expression_eval_p99_cycles"]
-    if re.fullmatch(r"[1-9][0-9]*", cycle_text) is None:
-        raise PreflightError("prereg-fields", "expression p99 cycles は正整数でなければならない")
-    try:
-        residual = float(values["b10_physical_residual_upper_pct"])
-        equivalence = float(values["b10_equivalence_margin_pct"])
-    except ValueError as exc:
-        raise PreflightError("prereg-fields", "residual/equivalence が数値でない") from exc
-    if not math.isfinite(residual) or not 0 < residual < 1.0:
-        raise PreflightError("prereg-fields", "physical residual upper bound は 0% 超 1% 未満が必要")
-    if not math.isfinite(equivalence) or not 0 < equivalence < 100:
-        raise PreflightError("prereg-fields", "equivalence margin は 0% 超 100% 未満が必要")
-    return (
-        patch_sha, formula_sha, int(exposure_text), int(cycle_text),
-        residual, equivalence,
+    matches = _SPEC_BLOCK_RE.findall(text)
+    if len(matches) != 1:
+        raise PreflightError("prereg-spec", "canonical machine spec block が正確に 1 個でない")
+    document = _exact_object(
+        _strict_json(matches[0], label="machine spec"),
+        {
+            "schema_version", "artifacts", "grid", "blocks", "workloads",
+            "execution", "analysis", "physical_residual",
+            "external_floor_reference_widths",
+        },
+        "machine spec",
     )
+    if document["schema_version"] != _SPEC_SCHEMA:
+        raise PreflightError("prereg-spec", "machine spec schema_version 不一致")
+
+    artifacts = _exact_object(
+        document["artifacts"], {"patch_sha256", "formula_sha256"}, "artifacts",
+    )
+    patch_sha = artifacts["patch_sha256"]
+    formula_sha = artifacts["formula_sha256"]
+    if type(patch_sha) is not str or _SHA256_RE.fullmatch(patch_sha) is None:
+        raise PreflightError("prereg-spec", "artifacts.patch_sha256 が不正")
+    if type(formula_sha) is not str or _SHA256_RE.fullmatch(formula_sha) is None:
+        raise PreflightError("prereg-spec", "artifacts.formula_sha256 が不正")
+
+    grid = _exact_object(
+        document["grid"], {"means_us", "shapes", "encoding", "references"}, "grid",
+    )
+    means_raw = grid["means_us"]
+    if type(means_raw) is not list or tuple(means_raw) != MEANS_US:
+        raise PreflightError("prereg-spec", "grid.means_us が裁定済み μ grid と不一致")
+    if grid["encoding"] != "BACKOFF_FIXED=shape_code*1000+mu":
+        raise PreflightError("prereg-spec", "grid.encoding が裁定済み符号化と不一致")
+    shape_rows = grid["shapes"]
+    expected_supports = {
+        "constant": "mu",
+        "symmetric-modulo": "closed-half-width-mu/2-through-3mu/2",
+        "binary": "two-point-mu/2-or-3mu/2",
+    }
+    if type(shape_rows) is not list or len(shape_rows) != len(SHAPES):
+        raise PreflightError("prereg-spec", "grid.shapes 件数不一致")
+    shapes = []
+    for index, value in enumerate(shape_rows):
+        row = _exact_object(value, {"name", "code", "support"}, f"grid.shapes[{index}]")
+        name, code = SHAPES[index]
+        if row != {"name": name, "code": code, "support": expected_supports[name]}:
+            raise PreflightError("prereg-spec", f"grid.shapes[{index}] が閉集合と不一致")
+        shapes.append((name, code, expected_supports[name]))
+    reference_rows = grid["references"]
+    expected_references = (
+        ("none", 0, -1), ("adaptive", 1, -1), ("zero-loop", 1, 0),
+    )
+    if type(reference_rows) is not list or len(reference_rows) != 3:
+        raise PreflightError("prereg-spec", "grid.references 件数不一致")
+    references = []
+    for index, value in enumerate(reference_rows):
+        row = _exact_object(
+            value, {"name", "back_off", "backoff_fixed"},
+            f"grid.references[{index}]",
+        )
+        expected = expected_references[index]
+        observed = (row["name"], row["back_off"], row["backoff_fixed"])
+        if observed != expected:
+            raise PreflightError("prereg-spec", f"grid.references[{index}] が不一致")
+        references.append(expected)
+
+    blocks = _exact_object(document["blocks"], {"count", "ids", "run_order"}, "blocks")
+    if blocks["count"] != 3 or type(blocks["ids"]) is not list \
+            or tuple(blocks["ids"]) != BLOCK_IDS:
+        raise PreflightError("prereg-spec", "blocks count/ids が裁定済み値と不一致")
+    run_order = _exact_object(blocks["run_order"], set(BLOCK_IDS), "blocks.run_order")
+    block_orders = []
+    for block_id in BLOCK_IDS:
+        order = run_order[block_id]
+        expected = block_run_order(block_id)
+        if type(order) is not list or tuple(order) != expected:
+            raise PreflightError("prereg-spec", f"blocks.run_order.{block_id} が不一致")
+        block_orders.append((block_id, expected))
+
+    workload_rows = document["workloads"]
+    if type(workload_rows) is not list or len(workload_rows) != len(WORKLOADS):
+        raise PreflightError("prereg-spec", "workloads 件数不一致")
+    workloads = []
+    workload_keys = {"name", "ycsb_zipf_skew", "ycsb_rratio", "ycsb_rmw", "ycsb_max_ope"}
+    for index, (expected_name, expected_flags) in enumerate(WORKLOADS.items()):
+        row = _exact_object(workload_rows[index], workload_keys, f"workloads[{index}]")
+        if row.get("name") != expected_name or {
+            key: row.get(key) for key in expected_flags
+        } != expected_flags:
+            raise PreflightError("prereg-spec", f"workloads[{index}] が裁定済み動作点と不一致")
+        workloads.append((expected_name, tuple(expected_flags.items())))
+
+    execution = _exact_object(
+        document["execution"],
+        {
+            "threads", "extime_s", "performance_reps", "correctness_reps",
+            "correctness_mode", "screening",
+        },
+        "execution",
+    )
+    expected_execution = {
+        "threads": THREADS, "extime_s": EXTIME, "performance_reps": REPS,
+        "correctness_reps": 5, "correctness_mode": VERIFY_LEGACY_PLUS_PERFORMANCE,
+        "screening": False,
+    }
+    if execution != expected_execution:
+        raise PreflightError("prereg-spec", "execution が裁定済み動作点と不一致")
+
+    analysis = _exact_object(
+        document["analysis"],
+        {
+            "alpha", "holm_families", "permutation", "confidence_interval",
+            "missingness", "exposure", "equivalence_margin_pct",
+            "decision_procedure",
+        },
+        "analysis",
+    )
+    alpha = _finite_number(analysis["alpha"], "analysis.alpha")
+    if alpha != 0.05:
+        raise PreflightError("prereg-spec", "analysis.alpha は 0.05 が必要")
+    family_rows = analysis["holm_families"]
+    expected_families = tuple(
+        (workload, shape)
+        for workload in WORKLOADS
+        for shape in ("symmetric-modulo", "binary")
+    )
+    if type(family_rows) is not list or len(family_rows) != len(expected_families):
+        raise PreflightError("prereg-spec", "analysis.holm_families 件数不一致")
+    families = []
+    for index, expected in enumerate(expected_families):
+        row = _exact_object(
+            family_rows[index], {"workload", "shape"},
+            f"analysis.holm_families[{index}]",
+        )
+        observed = (row["workload"], row["shape"])
+        if observed != expected:
+            raise PreflightError("prereg-spec", "Holm family の順序/閉集合が不一致")
+        families.append(expected)
+    permutation = _exact_object(
+        analysis["permutation"],
+        {"method", "sided", "statistic", "enumeration", "pairs_per_family"},
+        "analysis.permutation",
+    )
+    expected_permutation = {
+        "method": "exact-sign-flip", "sided": "two-sided",
+        "statistic": "absolute-sum-paired-relative-effect",
+        "enumeration": "all-2^18", "pairs_per_family": 18,
+    }
+    if permutation != expected_permutation:
+        raise PreflightError("prereg-spec", "permutation 手続きが裁定済み値と不一致")
+    confidence = _exact_object(
+        analysis["confidence_interval"],
+        {"method", "confidence_level", "degrees_of_freedom", "critical_value"},
+        "analysis.confidence_interval",
+    )
+    if confidence.get("method") != "student-t-paired-block-mean" \
+            or _finite_number(confidence.get("confidence_level"), "confidence level") != 0.95 \
+            or confidence.get("degrees_of_freedom") != 2 \
+            or not math.isclose(
+                _finite_number(confidence.get("critical_value"), "critical value"),
+                4.302652729911275, rel_tol=0.0, abs_tol=1e-15,
+            ):
+        raise PreflightError("prereg-spec", "confidence interval 手続きが不一致")
+    missingness = _exact_object(
+        analysis["missingness"],
+        {"conditions", "pair_action", "family_action", "indeterminate_pvalue"},
+        "analysis.missingness",
+    )
+    expected_missing = (
+        "missing", "performance-error", "correctness-not-certified",
+        "unstable", "underexposed",
+    )
+    if type(missingness["conditions"]) is not list \
+            or tuple(missingness["conditions"]) != expected_missing \
+            or missingness["pair_action"] != "invalidate-entire-family" \
+            or missingness["family_action"] != "indeterminate" \
+            or _finite_number(missingness["indeterminate_pvalue"], "indeterminate p") != 1.0:
+        raise PreflightError("prereg-spec", "missingness 規則が裁定済み値と不一致")
+    exposure = _exact_object(
+        analysis["exposure"], {"metric", "minimum_calls_per_cell", "below_minimum_action"},
+        "analysis.exposure",
+    )
+    minimum_calls = _positive_int(exposure["minimum_calls_per_cell"], "minimum calls")
+    if exposure["metric"] != "sum-performance-rep-abort-counts" \
+            or exposure["below_minimum_action"] != "indeterminate":
+        raise PreflightError("prereg-spec", "exposure 規則が不一致")
+    equivalence = _finite_number(analysis["equivalence_margin_pct"], "equivalence margin")
+    if not 0 < equivalence < 100:
+        raise PreflightError("prereg-spec", "equivalence margin は (0,100) が必要")
+    expected_decision = (
+        "construct-all-18-within-block-paired-relative-effects",
+        "mark-family-indeterminate-on-any-unusable-pair",
+        "enumerate-two-sided-sign-flip-pvalue-for-each-testable-family",
+        "set-indeterminate-family-pvalue-to-1",
+        "holm-adjust-all-six-families",
+        "different-iff-testable-and-holm-p-less-than-or-equal-alpha",
+        "otherwise-not-detected",
+        "report-all-cell-effects-confidence-intervals-and-equivalence-relations",
+    )
+    if type(analysis["decision_procedure"]) is not list \
+            or tuple(analysis["decision_procedure"]) != expected_decision:
+        raise PreflightError("prereg-spec", "decision procedure が不一致")
+
+    residual = _exact_object(
+        document["physical_residual"],
+        {
+            "expression_eval_p99_cycles", "claimed_upper_pct", "formula",
+            "maximum_upper_pct_exclusive",
+        },
+        "physical_residual",
+    )
+    expression_cycles = _positive_int(
+        residual["expression_eval_p99_cycles"], "expression eval p99 cycles",
+    )
+    claimed_residual = _finite_number(residual["claimed_upper_pct"], "claimed residual")
+    residual_formula = "100*expression_eval_p99_cycles/(minimum_instruction_us*clocks_per_us)"
+    maximum_residual = _finite_number(
+        residual["maximum_upper_pct_exclusive"], "maximum residual",
+    )
+    if residual["formula"] != residual_formula or maximum_residual != 1.0 \
+            or not 0 < claimed_residual < maximum_residual:
+        raise PreflightError("prereg-spec", "physical residual 規則/申告値が不正")
+
+    widths = _exact_object(
+        document["external_floor_reference_widths"],
+        {"terminology", "power_guarantee", "values"},
+        "external_floor_reference_widths",
+    )
+    terminology = "external-floor-derived-reference-width"
+    if widths["terminology"] != terminology or widths["power_guarantee"] is not False:
+        raise PreflightError("prereg-spec", "参考幅の語/検出力非保証が不一致")
+    width_rows = widths["values"]
+    if type(width_rows) is not list or len(width_rows) != len(WORKLOADS):
+        raise PreflightError("prereg-spec", "external floor reference widths 件数不一致")
+    reference_widths = []
+    expected_reference_values = {
+        "write-heavy": (0.67, 1.9),
+        "balanced": (1.07, 3.0),
+        "read-heavy": (0.22, 0.62),
+    }
+    for index, workload in enumerate(WORKLOADS):
+        row = _exact_object(
+            width_rows[index],
+            {"workload", "between_run_cv_pct", "reference_width_pct", "source_environment"},
+            f"external_floor_reference_widths.values[{index}]",
+        )
+        cv = _finite_number(row["between_run_cv_pct"], "between-run CV")
+        width = _finite_number(row["reference_width_pct"], "reference width")
+        expected_environment = "pegasus" if workload == "read-heavy" else "linux-baremetal"
+        if row["workload"] != workload or row["source_environment"] != expected_environment \
+                or cv <= 0 or width <= 0:
+            raise PreflightError("prereg-spec", "external floor reference width row が不正")
+        expected_cv, expected_width = expected_reference_values[workload]
+        if not math.isclose(cv, expected_cv, abs_tol=1e-12) \
+                or not math.isclose(width, expected_width, abs_tol=1e-12):
+            raise PreflightError(
+                "prereg-spec", f"{workload} の外部 floor 由来参考幅が裁定値と不一致",
+            )
+        reference_widths.append((workload, cv, width, expected_environment))
+
+    canonical = _canonical_json(document)
+    return PreregistrationSpec(
+        canonical_json=canonical,
+        spec_sha256=_sha256_bytes(canonical.encode("utf-8")),
+        patch_sha256=patch_sha,
+        formula_sha256=formula_sha,
+        means_us=tuple(means_raw),
+        shapes=tuple(shapes),
+        references=tuple(references),
+        block_ids=BLOCK_IDS,
+        block_orders=tuple(block_orders),
+        workloads=tuple(workloads),
+        threads=execution["threads"],
+        extime_s=execution["extime_s"],
+        performance_reps=execution["performance_reps"],
+        correctness_reps=execution["correctness_reps"],
+        correctness_mode=execution["correctness_mode"],
+        alpha=alpha,
+        holm_families=tuple(families),
+        permutation_method=permutation["method"],
+        permutation_sided=permutation["sided"],
+        permutation_statistic=permutation["statistic"],
+        permutation_enumeration=permutation["enumeration"],
+        pairs_per_family=permutation["pairs_per_family"],
+        ci_method=confidence["method"],
+        ci_confidence_level=float(confidence["confidence_level"]),
+        ci_degrees_of_freedom=confidence["degrees_of_freedom"],
+        ci_critical_value=float(confidence["critical_value"]),
+        missing_conditions=expected_missing,
+        missing_pair_action=missingness["pair_action"],
+        missing_family_action=missingness["family_action"],
+        indeterminate_pvalue=float(missingness["indeterminate_pvalue"]),
+        exposure_metric=exposure["metric"],
+        minimum_abort_calls=minimum_calls,
+        exposure_below_minimum_action=exposure["below_minimum_action"],
+        equivalence_margin_pct=equivalence,
+        decision_procedure=expected_decision,
+        expression_eval_p99_cycles=expression_cycles,
+        physical_residual_upper_pct=claimed_residual,
+        residual_formula=residual_formula,
+        maximum_residual_upper_pct_exclusive=maximum_residual,
+        reference_width_terminology=terminology,
+        reference_width_power_guarantee=False,
+        reference_widths=tuple(reference_widths),
+    )
+
+
+def recompute_physical_residual_upper_pct(
+    spec: PreregistrationSpec, clocks_per_us: int,
+) -> float:
+    if type(spec) is not PreregistrationSpec:
+        raise TypeError("spec は exact PreregistrationSpec が必要")
+    if type(clocks_per_us) is not int or clocks_per_us <= 0:
+        raise PreflightError("physical-residual", "clocks_per_us は正整数が必要")
+    minimum_instruction_us = min(spec.means_us) / 2.0
+    return 100.0 * spec.expression_eval_p99_cycles / (
+        minimum_instruction_us * clocks_per_us
+    )
+
+
+def validate_runtime_physical_residual(
+    spec: PreregistrationSpec, clocks_per_us: int,
+) -> float:
+    recomputed = recompute_physical_residual_upper_pct(spec, clocks_per_us)
+    if not math.isclose(
+        recomputed, spec.physical_residual_upper_pct,
+        rel_tol=1e-12, abs_tol=1e-12,
+    ):
+        raise PreflightError(
+            "physical-residual",
+            "式評価 cycle から再計算した物理残差上界が事前登録申告値と不一致",
+        )
+    if recomputed >= spec.maximum_residual_upper_pct_exclusive:
+        raise PreflightError("physical-residual", "物理残差上界が 1% 未満でない")
+    return recomputed
 
 
 def load_preregistration(
     repo_root: str | os.PathLike[str],
-    prereg_path: str | os.PathLike[str],
     prereg_commit: str,
 ) -> Preregistration:
     root = Path(repo_root).resolve()
-    path = Path(prereg_path)
-    if not path.is_absolute():
-        path = root / path
+    path = root / PREREG_REL
     try:
         path = path.resolve(strict=True)
         relative = path.relative_to(root).as_posix()
@@ -549,6 +1123,8 @@ def load_preregistration(
         raise PreflightError("prereg-missing", "事前登録文書が無いか repo 外である") from exc
     if path.is_symlink() or not path.is_file():
         raise PreflightError("prereg-missing", "事前登録文書が regular file でない")
+    if relative != PREREG_REL:
+        raise PreflightError("prereg-path", "事前登録文書は canonical path でなければならない")
     if _COMMIT_RE.fullmatch(prereg_commit or "") is None:
         raise PreflightError("prereg-commit", "prereg_commit は full lowercase commit ID が必要")
     head = str(_git(root, "rev-parse", "--verify", "HEAD^{commit}")).strip()
@@ -569,11 +1145,8 @@ def load_preregistration(
         raise PreflightError("prereg-blob", "事前登録文書 blob を commit から読めない") from exc
     if raw != blob_raw or not re.fullmatch(r"[0-9a-f]{40,64}", blob_sha):
         raise PreflightError("prereg-blob", "事前登録文書 bytes/blob SHA が commit と不一致")
-    (
-        patch_sha, formula_sha, minimum_abort_calls, expression_eval_p99_cycles,
-        physical_residual_upper_pct, equivalence_margin_pct,
-    ) = parse_preregistration(raw)
-    if formula_sha != FORMULA_SHA256:
+    spec = parse_preregistration(raw)
+    if spec.formula_sha256 != FORMULA_SHA256:
         raise PreflightError("formula-sha", "事前登録した式 SHA が EXPECTED_HOLE_LINE と不一致")
     patch_path = root / PATCH_REL
     try:
@@ -583,23 +1156,31 @@ def load_preregistration(
         raise PreflightError("patch-sha", "patch を現在/事前登録 commit から読めない") from exc
     if patch_bytes != committed_patch:
         raise PreflightError("patch-sha", "current patch bytes が prereg_commit blob と不一致")
-    validate_patch_bytes(patch_bytes, patch_sha)
+    validate_patch_bytes(patch_bytes, spec.patch_sha256)
+    analysis_path = root / ANALYSIS_REL
+    try:
+        analysis_bytes = analysis_path.read_bytes()
+        committed_analysis = _git(root, "show", f"{head}:{ANALYSIS_REL}", binary=True)
+    except (OSError, PreflightError) as exc:
+        raise PreflightError("analysis-binding", "解析コードを current HEAD へ束縛できない") from exc
+    if analysis_bytes != committed_analysis:
+        raise PreflightError("analysis-binding", "解析コード bytes が current HEAD blob と不一致")
+    analysis_code_sha256 = _sha256_bytes(analysis_bytes)
     binding = PreregistrationBinding(
         prereg_commit=prereg_commit,
         prereg_blob_sha=blob_sha,
-        patch_sha256=patch_sha,
-        formula_sha256=formula_sha,
+        spec_sha256=spec.spec_sha256,
+        patch_sha256=spec.patch_sha256,
+        formula_sha256=spec.formula_sha256,
+        analysis_commit=head,
+        analysis_code_sha256=analysis_code_sha256,
     )
-    return Preregistration(
-        binding=binding, path=relative, minimum_abort_calls=minimum_abort_calls,
-        expression_eval_p99_cycles=expression_eval_p99_cycles,
-        physical_residual_upper_pct=physical_residual_upper_pct,
-        equivalence_margin_pct=equivalence_margin_pct,
-    )
+    return Preregistration(binding=binding, path=relative, spec=spec)
 
 
 def load_calibration(
     contract: env_contract.ExecutionEnvironmentContract,
+    spec: PreregistrationSpec,
 ) -> tuple[CalibrationSelection, object]:
     loaded = p2_2._load_calibration_once(contract)
     parsed = loaded.parsed
@@ -626,7 +1207,7 @@ def load_calibration(
     cache_warning = saturation.get("cache_floor_warning")
     if type(records) is not int or isinstance(records, bool) or records <= 0:
         raise PreflightError("calibration", "selected records が正整数でない")
-    if threads != THREADS or env_tag != contract.env_tag \
+    if threads != spec.threads or env_tag != contract.env_tag \
             or clocks_per_us != contract.clocks_per_us:
         raise PreflightError("calibration", "calibration と formal 動作点/env contract が不一致")
     if saturated is not True and lower_bound is not True:
@@ -654,37 +1235,42 @@ def config_for(
     build_context: BuildRunContext,
     contract: env_contract.ExecutionEnvironmentContract,
 ) -> CampaignConfig:
-    if workload_tag not in WORKLOADS:
+    spec = prereg.spec
+    workloads = spec.workload_map
+    if workload_tag not in workloads:
         raise ValueError(f"未知 workload: {workload_tag!r}")
     search_config = {
         "scale": "silo-b10-backoff-shape",
         "space_version": SPACE_VERSION,
         "workload": workload_tag,
-        "ycsb": WORKLOADS[workload_tag],
-        "means_us": list(MEANS_US),
-        "shape_codes": dict(SHAPES),
-        "references": [name for name, _genome in reference_genomes()],
-        "blocks": list(BLOCK_IDS),
-        "block_run_order": {block: list(block_run_order(block)) for block in BLOCK_IDS},
+        "ycsb": workloads[workload_tag],
+        "means_us": list(spec.means_us),
+        "shape_codes": {name: code for name, code, _support in spec.shapes},
+        "references": [name for name, _back_off, _fixed in spec.references],
+        "blocks": list(spec.block_ids),
+        "block_run_order": {
+            block: list(order) for block, order in spec.block_orders
+        },
         "records": calibration.records,
-        "threads": THREADS,
-        "extime": EXTIME,
-        "reps": REPS,
+        "threads": spec.threads,
+        "extime": spec.extime_s,
+        "reps": spec.performance_reps,
         "calibration": calibration.as_dict(),
         "preregistration_path": prereg.path,
         "preregistration_binding": prereg.binding.as_dict(),
+        "preregistration_spec": spec.as_dict(),
         "minimum_abort_calls": prereg.minimum_abort_calls,
         "expression_eval_p99_cycles": prereg.expression_eval_p99_cycles,
         "physical_residual_upper_pct": prereg.physical_residual_upper_pct,
         "decision": {
             "version": "paired-sign-flip-holm/v1",
-            "pairs_per_family": 18,
-            "family_size": 6,
-            "alpha": ALPHA,
-            "indeterminate_pvalue": 1.0,
+            "pairs_per_family": spec.pairs_per_family,
+            "family_size": len(spec.holm_families),
+            "alpha": spec.alpha,
+            "indeterminate_pvalue": spec.indeterminate_pvalue,
             "equivalence_margin_pct": prereg.equivalence_margin_pct,
         },
-        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
+        SEARCH_CONFIG_VERIFY_KEY: spec.correctness_mode,
     }
     cfg = CampaignConfig(
         spec_slug=f"b10-backoff-shape-silo-{workload_tag}",
@@ -696,19 +1282,26 @@ def config_for(
         ),
         ccbench_commit=PIN,
         search_config=search_config,
-        trial=TRIAL,
+        trial=f"{TRIAL}-{spec.spec_sha256[:16]}",
     )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     return ident.bind_environment_contract(cfg, contract)
 
 
-def perf_for(workload_tag: str, calibration: CalibrationSelection) -> PerfConfig:
+def perf_for(
+    workload_tag: str,
+    calibration: CalibrationSelection,
+    spec: PreregistrationSpec,
+) -> PerfConfig:
+    workloads = spec.workload_map
+    if workload_tag not in workloads:
+        raise ValueError(f"未知 workload: {workload_tag!r}")
     return PerfConfig(
         records=calibration.records,
-        threads=THREADS,
-        workload=dict(WORKLOADS[workload_tag]),
-        extime=EXTIME,
-        reps=REPS,
+        threads=spec.threads,
+        workload=workloads[workload_tag],
+        extime=spec.extime_s,
+        reps=spec.performance_reps,
     )
 
 
@@ -761,7 +1354,7 @@ def assert_resumable_binding(
 
 @contextlib.contextmanager
 def bind_build_start_wal(binding: PreregistrationBinding):
-    """Add the four explicit preregistration values to every BUILD_START.
+    """Add the complete prereg/spec/analysis binding to every BUILD_START.
 
     The shared pipeline has no caller-owned BUILD_START extension seam.  B10 is
     a registered single-process campaign, so this scoped adapter serializes the
@@ -826,16 +1419,19 @@ def holm_adjust(pvalues: Mapping[object, float]) -> dict[object, float]:
     return adjusted
 
 
-def _record_usable(record: Mapping[str, object], minimum_abort_calls: int) -> bool:
+def _record_usable(
+    record: Mapping[str, object], spec: PreregistrationSpec,
+) -> bool:
     return (
-        record.get("certified") is True
+        record.get("correctness_certified") is True
+        and record.get("official_certification") is False
         and record.get("unstable") is False
         and type(record.get("median_tps")) in {int, float}
         and math.isfinite(float(record["median_tps"]))
         and float(record["median_tps"]) > 0
         and type(record.get("backoff_call_count")) is int
         and not isinstance(record.get("backoff_call_count"), bool)
-        and int(record["backoff_call_count"]) >= minimum_abort_calls
+        and int(record["backoff_call_count"]) >= spec.minimum_abort_calls
         and record.get("missing") is False
     )
 
@@ -845,30 +1441,31 @@ def _paired_effect(shape: Mapping[str, object], constant: Mapping[str, object]) 
 
 
 def cell_effects(
-    records: Sequence[Mapping[str, object]], minimum_abort_calls: int,
-    equivalence_margin_pct: float = 3.0,
+    records: Sequence[Mapping[str, object]], spec: PreregistrationSpec,
 ) -> list[dict[str, object]]:
+    if type(spec) is not PreregistrationSpec:
+        raise TypeError("spec は exact PreregistrationSpec が必要")
+    equivalence_margin_pct = spec.equivalence_margin_pct
     if not math.isfinite(equivalence_margin_pct) or not 0 < equivalence_margin_pct < 100:
         raise ValueError("equivalence_margin_pct must be finite and in (0,100)")
     equivalence_margin = equivalence_margin_pct / 100.0
     indexed = {
         (row.get("workload"), row.get("block_id"), row.get("shape"), row.get("mean_us")): row
         for row in records
-        if row.get("shape") in SHAPE_CODES and row.get("mean_us") in MEANS_US
+        if row.get("shape") in spec.shape_codes and row.get("mean_us") in spec.means_us
     }
     output = []
-    t_critical_df2 = 4.302652729911275
-    for workload in WORKLOADS:
-        for shape, _code in SHAPES:
-            for mean_us in MEANS_US:
+    for workload, _flags in spec.workloads:
+        for shape, _code, _support in spec.shapes:
+            for mean_us in spec.means_us:
                 effects = []
                 usable = True
-                for block_id in BLOCK_IDS:
+                for block_id in spec.block_ids:
                     row = indexed.get((workload, block_id, shape, mean_us))
                     constant = indexed.get((workload, block_id, "constant", mean_us))
                     if row is None or constant is None \
-                            or not _record_usable(row, minimum_abort_calls) \
-                            or not _record_usable(constant, minimum_abort_calls):
+                            or not _record_usable(row, spec) \
+                            or not _record_usable(constant, spec):
                         usable = False
                         break
                     effects.append(0.0 if shape == "constant" else _paired_effect(row, constant))
@@ -879,7 +1476,11 @@ def cell_effects(
                     if shape == "constant":
                         low = high = 0.0
                     else:
-                        half = t_critical_df2 * statistics.stdev(effects) / math.sqrt(3)
+                        half = (
+                            spec.ci_critical_value
+                            * statistics.stdev(effects)
+                            / math.sqrt(len(spec.block_ids))
+                        )
                         low, high = effect - half, effect + half
                     if low >= -equivalence_margin and high <= equivalence_margin:
                         equivalence_relation = "inside-equivalence-range"
@@ -898,42 +1499,43 @@ def cell_effects(
 
 
 def judge(
-    records: Sequence[Mapping[str, object]], minimum_abort_calls: int,
-    equivalence_margin_pct: float = 3.0,
+    records: Sequence[Mapping[str, object]], spec: PreregistrationSpec,
 ) -> dict[str, object]:
-    if type(minimum_abort_calls) is not int or minimum_abort_calls <= 0:
-        raise ValueError("minimum_abort_calls must be a positive exact integer")
+    if type(spec) is not PreregistrationSpec:
+        raise TypeError("spec は exact PreregistrationSpec が必要")
     indexed = {
         (row.get("workload"), row.get("block_id"), row.get("shape"), row.get("mean_us")): row
         for row in records
     }
     raw: dict[tuple[str, str], float] = {}
     family_data: dict[tuple[str, str], dict[str, object]] = {}
-    for workload in WORKLOADS:
-        for shape in ("symmetric-modulo", "binary"):
-            key = (workload, shape)
-            differences = []
-            reasons = []
-            for block_id in BLOCK_IDS:
-                for mean_us in MEANS_US:
-                    row = indexed.get((workload, block_id, shape, mean_us))
-                    constant = indexed.get((workload, block_id, "constant", mean_us))
-                    if row is None or constant is None:
-                        reasons.append(f"missing:{block_id}:mu{mean_us}")
-                    elif not _record_usable(row, minimum_abort_calls) \
-                            or not _record_usable(constant, minimum_abort_calls):
-                        reasons.append(f"unusable-or-underexposed:{block_id}:mu{mean_us}")
-                    else:
-                        differences.append(_paired_effect(row, constant))
-            complete = len(differences) == 18 and not reasons
-            pvalue = sign_flip_permutation_pvalue(differences) if complete else 1.0
-            raw[key] = pvalue
-            family_data[key] = {
-                "workload": workload, "shape": shape,
-                "pairs": len(differences), "differences": differences,
-                "raw_p": pvalue, "reasons": reasons,
-                "status": "testable" if complete else "indeterminate",
-            }
+    for workload, shape in spec.holm_families:
+        key = (workload, shape)
+        differences = []
+        reasons = []
+        for block_id in spec.block_ids:
+            for mean_us in spec.means_us:
+                row = indexed.get((workload, block_id, shape, mean_us))
+                constant = indexed.get((workload, block_id, "constant", mean_us))
+                if row is None or constant is None:
+                    reasons.append(f"missing:{block_id}:mu{mean_us}")
+                elif not _record_usable(row, spec) \
+                        or not _record_usable(constant, spec):
+                    reasons.append(f"unusable-or-underexposed:{block_id}:mu{mean_us}")
+                else:
+                    differences.append(_paired_effect(row, constant))
+        complete = len(differences) == spec.pairs_per_family and not reasons
+        pvalue = (
+            sign_flip_permutation_pvalue(differences)
+            if complete else spec.indeterminate_pvalue
+        )
+        raw[key] = pvalue
+        family_data[key] = {
+            "workload": workload, "shape": shape,
+            "pairs": len(differences), "differences": differences,
+            "raw_p": pvalue, "reasons": reasons,
+            "status": "testable" if complete else "indeterminate",
+        }
     adjusted = holm_adjust(raw)
     families = []
     for key in sorted(family_data):
@@ -941,18 +1543,17 @@ def judge(
         item["holm_p"] = adjusted[key]
         if item["status"] == "indeterminate":
             item["outcome"] = "indeterminate"
-        elif adjusted[key] <= ALPHA:
+        elif adjusted[key] <= spec.alpha:
             item["outcome"] = "different"
         else:
             item["outcome"] = "not-detected"
         families.append(item)
     return {
         "schema_version": "b10-backoff-shape-judgement/v1",
-        "alpha": ALPHA,
+        "alpha": spec.alpha,
+        "spec_sha256": spec.spec_sha256,
         "families": families,
-        "cell_effects": cell_effects(
-            records, minimum_abort_calls, equivalence_margin_pct,
-        ),
+        "cell_effects": cell_effects(records, spec),
     }
 
 
@@ -1028,47 +1629,198 @@ def measure_performance_cell(
     }
 
 
-def _append_jsonl_create_or_append(path: Path, value: Mapping[str, object]) -> None:
+def _write_block_record_create_only(path: Path, value: Mapping[str, object]) -> str:
+    """Publish one hash-enveloped block record exactly once."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    raw = (_canonical_json(value) + "\n").encode("utf-8")
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    if path.parent.is_symlink() or not path.parent.is_dir():
+        raise PreflightError("measurement-record", "block record parent が real directory でない")
+    record = dict(value)
+    record_sha256 = _sha256_json(record)
+    envelope = {
+        "schema_version": "b10-backoff-shape-block-envelope/v1",
+        "record_sha256": record_sha256,
+        "record": record,
+    }
+    raw = (_canonical_json(envelope) + "\n").encode("utf-8")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags, 0o600)
     try:
         written = os.write(descriptor, raw)
         if written != len(raw):
-            raise OSError("short append")
+            raise OSError("short create-only write")
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
+    return record_sha256
 
 
-def _read_jsonl(path: Path) -> list[dict[str, object]]:
-    if not path.exists():
+def _load_block_record(path: Path) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise PreflightError("measurement-record", f"block record が regular file でない: {path}")
+    try:
+        envelope = _strict_json(path.read_text(encoding="utf-8"), label=os.fspath(path))
+    except (OSError, UnicodeError) as exc:
+        raise PreflightError("measurement-record", f"block record を読めない: {path}") from exc
+    envelope = _exact_object(
+        envelope, {"schema_version", "record_sha256", "record"}, "block envelope",
+    )
+    if envelope["schema_version"] != "b10-backoff-shape-block-envelope/v1" \
+            or type(envelope["record"]) is not dict \
+            or type(envelope["record_sha256"]) is not str \
+            or _SHA256_RE.fullmatch(envelope["record_sha256"]) is None \
+            or _sha256_json(envelope["record"]) != envelope["record_sha256"]:
+        raise PreflightError("measurement-record", "block record envelope/hash が不正")
+    return {**envelope["record"], "record_sha256": envelope["record_sha256"]}
+
+
+def _read_block_records(root: Path) -> list[dict[str, object]]:
+    if not root.exists():
         return []
+    if root.is_symlink() or not root.is_dir():
+        raise PreflightError("measurement-record", "block record root が real directory でない")
+    unexpected = [path for path in root.iterdir() if path.suffix != ".json"]
+    if unexpected:
+        raise PreflightError("measurement-record", "block record root に未知 entry がある")
     rows = []
-    for line_number, raw in enumerate(path.read_bytes().splitlines(), start=1):
-        try:
-            value = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise PreflightError("measurement-wal", f"line {line_number} が不正") from exc
-        if type(value) is not dict:
-            raise PreflightError("measurement-wal", f"line {line_number} が object でない")
-        rows.append(value)
+    for path in sorted(root.glob("*.json")):
+        row = _load_block_record(path)
+        schedule_index = row.get("schedule_index")
+        if type(schedule_index) is not int:
+            raise PreflightError("measurement-record", "block record schedule_index が不正")
+        expected_name = _block_record_filename(
+            str(row.get("block_id")), schedule_index,
+            str(row.get("point")),
+        )
+        if path.name != expected_name:
+            raise PreflightError("measurement-record", "block record filename/identity 不一致")
+        rows.append(row)
     return rows
+
+
+def _block_record_filename(block_id: str, schedule_index: int, point: str) -> str:
+    if block_id not in BLOCK_IDS or type(schedule_index) is not int \
+            or schedule_index < 0 or schedule_index >= 21 \
+            or re.fullmatch(r"[a-z0-9-]+", point or "") is None:
+        raise PreflightError("measurement-record", "block record cell identity が不正")
+    return f"{block_id}--{schedule_index:02d}--{point}.json"
+
+
+def _validate_prior_block_records(
+    records: Sequence[Mapping[str, object]],
+    *,
+    workload: str,
+    prereg: Preregistration,
+) -> dict[tuple[str, str], Mapping[str, object]]:
+    indexed = {}
+    expected_order = prereg.spec.block_order_map
+    for row in records:
+        block_id = row.get("block_id")
+        point = row.get("point")
+        index = row.get("schedule_index")
+        request_id = row.get("request_id")
+        nonce = row.get("submission_nonce")
+        expected_trial = None
+        if type(request_id) is str and type(nonce) is str:
+            expected_trial = (
+                re.sub(r"[^A-Za-z0-9._-]", "-", request_id)
+                + f"-{nonce[:12]}"
+            )
+        if row.get("schema_version") != "b10-backoff-shape-block/v2" \
+                or row.get("official_certification") is not False \
+                or row.get("workload") != workload \
+                or row.get("preregistration_binding") != prereg.binding.as_dict() \
+                or row.get("spec_sha256") != prereg.spec.spec_sha256 \
+                or row.get("analysis_commit") != prereg.binding.analysis_commit \
+                or row.get("analysis_code_sha256") != prereg.binding.analysis_code_sha256 \
+                or row.get("source_commit") != prereg.binding.analysis_commit \
+                or type(request_id) is not str or not request_id \
+                or type(nonce) is not str or re.fullmatch(r"[0-9a-f]{32}", nonce) is None \
+                or row.get("trial") != expected_trial \
+                or type(row.get("submission_receipt")) is not str \
+                or type(row.get("submission_receipt_sha256")) is not str \
+                or _SHA256_RE.fullmatch(row["submission_receipt_sha256"]) is None \
+                or type(row.get("job_script_sha256")) is not str \
+                or _SHA256_RE.fullmatch(row["job_script_sha256"]) is None \
+                or block_id not in expected_order \
+                or type(index) is not int \
+                or index < 0 or index >= len(expected_order[block_id]) \
+                or expected_order[block_id][index] != point:
+            raise PreflightError("resume-binding", "既存 block record の束縛/identity が不一致")
+        receipt_path = Path(row["submission_receipt"])
+        try:
+            receipt_bytes = receipt_path.read_bytes()
+        except OSError as exc:
+            raise PreflightError(
+                "measurement-record", "block record の submission receipt を再読できない",
+            ) from exc
+        if receipt_path.is_symlink() or _sha256_bytes(receipt_bytes) \
+                != row["submission_receipt_sha256"]:
+            raise PreflightError(
+                "measurement-record", "block record の submission receipt hash が不一致",
+            )
+        key = (block_id, point)
+        if key in indexed:
+            raise PreflightError("measurement-record", "同一 block cell record が重複")
+        indexed[key] = row
+    return indexed
 
 
 def _certification_attempts(
     layout: CampaignLayout, build_context: BuildRunContext,
-) -> dict[str, str]:
+) -> dict[str, CertificationAttempt]:
     states = wal.replay(layout, admission_policy=build_context.policy)
-    attempts: dict[str, str] = {}
+    records, truncated = wal.read_records_checked(layout)
+    if truncated:
+        raise PreflightError("resume-binding", "certification WAL が未終端")
+    attempts: dict[str, CertificationAttempt] = {}
     for variant, state in states.items():
-        if not state.committed or state.last_terminal is None \
-                or state.last_terminal.stage != STAGE_COMMIT:
+        if not state.committed:
             continue
-        attempt = state.last_terminal.payload.get("build_attempt_id")
-        if type(attempt) is str and attempt:
-            attempts[variant] = attempt
+        attempt = state.committed_attempt_id
+        if type(attempt) is not str or not attempt:
+            raise PreflightError("perf-binary-binding", "COMMIT attempt ID が不正")
+        build_done = [
+            record for record in records
+            if record.variant == variant
+            and record.stage == STAGE_BUILD_DONE
+            and record.payload.get("build_attempt_id") == attempt
+        ]
+        if len(build_done) != 1:
+            raise PreflightError(
+                "perf-binary-binding", "committed attempt の BUILD_DONE が一意でない",
+            )
+        perf_sha = build_done[0].payload.get("perf_bin_sha256")
+        if type(perf_sha) is not str or not buildcache.is_full_sha256(perf_sha):
+            raise PreflightError(
+                "perf-binary-binding", "committed attempt の perf_bin_sha256 が不正",
+            )
+        attempts[variant] = CertificationAttempt(attempt, perf_sha)
     return attempts
+
+
+def verify_performance_binary(
+    binary: str,
+    built_sha256: str,
+    certified: CertificationAttempt,
+) -> str:
+    """Rehash immediately before measurement and bind to certified BUILD_DONE."""
+    if type(certified) is not CertificationAttempt:
+        raise TypeError("certified は exact CertificationAttempt が必要")
+    if not buildcache.is_full_sha256(built_sha256):
+        raise PreflightError("perf-binary-binding", "build result SHA が不正")
+    try:
+        current_sha256 = buildcache.full_sha256(binary)
+    except Exception as exc:
+        raise PreflightError("perf-binary-binding", "performance binary を再 hash できない") from exc
+    if built_sha256 != certified.perf_bin_sha256 \
+            or current_sha256 != certified.perf_bin_sha256:
+        raise PreflightError(
+            "perf-binary-binding",
+            "performance binary SHA が correctness-certified BUILD_DONE と不一致",
+        )
+    return current_sha256
 
 
 def _formula_generator_resolver(
@@ -1079,16 +1831,17 @@ def _formula_generator_resolver(
     )
 
 
-def _perf_binary(
+def _build_binary(
     genome: Genome,
     *,
+    trace: bool,
     sub: str,
     cache_root: str,
     contract: env_contract.ExecutionEnvironmentContract,
     build_context: BuildRunContext,
     binding: PreregistrationBinding,
     toolchain_manifest: Mapping[str, object],
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     cc, cxx = buildcache.toolchain_compilers_from_manifest(toolchain_manifest)
     evidence = source_digest.resolve_evidence(
         genome, PIN, ccbench_dir=sub, cxx=cxx,
@@ -1101,7 +1854,7 @@ def _perf_binary(
     )
     result = buildcache.build_v2(
         genome,
-        trace=False,
+        trace=trace,
         contract=contract,
         ccbench_commit=PIN,
         src_token=evidence.src_token,
@@ -1115,7 +1868,14 @@ def _perf_binary(
         expected_toolchain_manifest=toolchain_manifest,
         declared_use_class="official",
     )
-    return result.binary, variant_id(genome, evidence.src_token)
+    return result.binary, variant_id(genome, evidence.src_token), result.bin_sha256
+
+
+def _perf_binary(
+    genome: Genome,
+    **kwargs,
+) -> tuple[str, str, str]:
+    return _build_binary(genome, trace=False, **kwargs)
 
 
 def _name_metadata(name: str) -> tuple[Optional[str], Optional[int], Optional[int]]:
@@ -1164,12 +1924,12 @@ def _write_reports(
     calibration: CalibrationSelection,
     records: Sequence[Mapping[str, object]],
     applied_evidence: Mapping[str, object],
+    submission: SubmissionIdentity,
 ) -> tuple[Path, Path]:
-    verdict = judge(
-        records, prereg.minimum_abort_calls, prereg.equivalence_margin_pct,
-    )
+    verdict = judge(records, prereg.spec)
     provenance = {
         "schema_version": "b10-backoff-shape-provenance/v1",
+        "official_certification": False,
         "space_version": SPACE_VERSION,
         "pin": PIN,
         "preregistration": {
@@ -1179,25 +1939,49 @@ def _write_reports(
             "expression_eval_p99_cycles": prereg.expression_eval_p99_cycles,
             "physical_residual_upper_pct": prereg.physical_residual_upper_pct,
             "equivalence_margin_pct": prereg.equivalence_margin_pct,
+            "spec": prereg.spec.as_dict(),
         },
+        "submission": dict(vars(submission)),
         "calibration": calibration.as_dict(),
         "formula": EXPECTED_HOLE_LINE,
         "formula_sha256": FORMULA_SHA256,
-        "block_run_order": {block: list(block_run_order(block)) for block in BLOCK_IDS},
+        "block_run_order": {
+            block: list(order) for block, order in prereg.spec.block_orders
+        },
+        "external_floor_reference_widths": {
+            "terminology": prereg.spec.reference_width_terminology,
+            "power_guarantee": prereg.spec.reference_width_power_guarantee,
+            "values": [
+                {
+                    "workload": workload,
+                    "between_run_cv_pct": cv,
+                    "reference_width_pct": width,
+                    "source_environment": source,
+                }
+                for workload, cv, width, source in prereg.spec.reference_widths
+            ],
+        },
         "applied_tree": dict(applied_evidence),
         "records": list(records),
         "judgement": verdict,
     }
-    report_root.mkdir(parents=True, exist_ok=True)
+    report_root.mkdir(parents=True, exist_ok=False)
     json_path = report_root / "b10_backoff_shape_provenance.json"
-    json_path.write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with json_path.open("x", encoding="utf-8") as stream:
+        json.dump(provenance, stream, ensure_ascii=False, indent=2, allow_nan=False)
+        stream.write("\n")
 
     lines = [
         "# B-10 backoff shape report", "",
+        "- official certification: `false`",
         f"- preregistration binding: `{prereg.binding.binding_sha256}`",
+        f"- preregistration spec SHA-256: `{prereg.spec.spec_sha256}`",
+        f"- analysis code: `{prereg.binding.analysis_commit}` / `{prereg.binding.analysis_code_sha256}`",
+        f"- submission request: `{submission.request_id}` (`{submission.receipt_sha256}`)",
         f"- records: `{calibration.records}` (calibration artifact)",
         f"- exposure minimum: `{prereg.minimum_abort_calls}` abort/backoff calls per cell", "",
-        "| workload | block | point | shape | mean us | median tps | CV | abort rate | abort count | backoff calls | calls/s | nominal total wait us | certified | unstable | exposure |",
+        "Formal driver 経路について、登録前に性能を見ていないという限定主張だけを行う。", "",
+        "| workload | block | point | shape | mean us | median tps | CV | abort rate | abort count | backoff calls | calls/s | nominal total wait us | correctness certified | unstable | exposure |",
         "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|",
     ]
     for row in sorted(
@@ -1226,7 +2010,7 @@ def _write_reports(
                 backoff_calls=backoff_calls if backoff_calls is not None else "—",
                 calls=f"{float(row['backoff_calls_per_second']):.2f}" if row.get("backoff_calls_per_second") is not None else "—",
                 wait=row.get("nominal_total_wait_us") if row.get("nominal_total_wait_us") is not None else "—",
-                certified="yes" if row.get("certified") is True else "no",
+                certified="yes" if row.get("correctness_certified") is True else "no",
                 unstable="yes" if row.get("unstable") is True else "no",
                 exposure="met" if exposed else "indeterminate",
             )
@@ -1245,22 +2029,47 @@ def _write_reports(
             f"effect={cell['effect']!r}, CI=[{cell['ci95_low']!r}, {cell['ci95_high']!r}], "
             f"status={cell['status']}, equivalence={cell['equivalence_relation']}"
         )
-    md_path = report_root / f"b10_backoff_shape_report_{TRIAL}.md"
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    lines.extend(["", "## External-floor-derived reference widths", ""])
+    for workload, cv, width, source in prereg.spec.reference_widths:
+        lines.append(
+            f"- {workload}: reference width={width:.4g}% (between-run CV={cv:.4g}%, "
+            f"source={source}); this is not a power guarantee."
+        )
+    lines.extend([
+        "",
+        "Non-significance means only that this registered design did not detect a difference; "
+        "it is not a claim of guaranteed detection power.",
+    ])
+    md_path = report_root / f"b10_backoff_shape_report_{submission.trial}.md"
+    with md_path.open("x", encoding="utf-8") as stream:
+        stream.write("\n".join(lines) + "\n")
     return json_path, md_path
 
 
 def run_formal(
     *,
-    preregistration_path: str = PREREG_REL,
+    phase: str,
+    workload: Optional[str],
     prereg_commit: str,
+    submission_receipt: str | os.PathLike[str],
     log=print,
-) -> tuple[Path, Path, bool]:
-    """Run all workloads and all three blocks in one compute allocation."""
+) -> tuple[Optional[Path], Optional[Path], bool]:
+    """Run one resumable build/verify/perf phase in one compute allocation."""
     from .patchharness import applied, assert_pinned_clean, checkout
 
+    if phase not in {"build", "verify", "perf"}:
+        raise PreflightError("phase", "phase は build/verify/perf の閉集合が必要")
+    if phase == "build":
+        if workload is not None:
+            raise PreflightError("phase", "build phase に workload を指定してはならない")
+    elif workload not in WORKLOADS:
+        raise PreflightError("phase", "verify/perf phase は workload 指定が必要")
     root = _repo_root()
-    prereg = load_preregistration(root, preregistration_path, prereg_commit)
+    prereg = load_preregistration(root, prereg_commit)
+    submission = load_submission_identity(
+        root, submission_receipt,
+        prereg_commit=prereg_commit, phase=phase, workload=workload,
+    )
     patch_path = root / PATCH_REL
     patch_bytes = patch_path.read_bytes()
     validate_patch_bytes(patch_bytes, prereg.binding.patch_sha256)
@@ -1269,7 +2078,8 @@ def run_formal(
     _site, contract, authorization = p2_2.resolve_site_runtime()
     if contract.env_tag != ENV_TAG or contract.attestation_mode != "required":
         raise PreflightError("site", "B10 formal run は registered Pegasus compute contract 専用")
-    calibration, _verified_calibration = load_calibration(contract)
+    calibration, _verified_calibration = load_calibration(contract, prereg.spec)
+    validate_runtime_physical_residual(prereg.spec, calibration.clocks_per_us)
     p2_2._assert_single_tenant()
     ccbench_base = root / "external" / "ccbench"
     assert_pinned_clean(os.fspath(ccbench_base), PIN)
@@ -1285,33 +2095,30 @@ def run_formal(
                 cxx=resolved_cxx,
             )
             cache_root = os.fspath(ccbench_base / "build-variants")
-            all_records: list[dict[str, object]] = []
-            workload_runs = {}
-            for workload_tag in WORKLOADS:
-                context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-                cfg = config_for(workload_tag, prereg, calibration, context, contract)
-                layout = campaign_layout(str(ident.campaign_id(cfg)))
-                assert_resumable_binding(layout, prereg.binding)
-                block_wal = Path(layout.root) / "reports" / "b10_backoff_shape_blocks.jsonl"
-                prior = _read_jsonl(block_wal)
-                if prior:
-                    if any(
-                        row.get("preregistration_binding") != prereg.binding.as_dict()
-                        for row in prior
-                    ):
-                        raise PreflightError(
-                            "resume-binding", "B10 block WAL の束縛が欠落/不一致",
-                        )
-                    raise PreflightError(
-                        "resume-disabled", "Pegasus single-process campaign は resume 不可",
-                    )
-                workload_runs[workload_tag] = (
-                    context, cfg, layout, block_wal, perf_for(workload_tag, calibration),
-                )
-            perf_probe_receipt, use_perf = p2_2_loop_perf_preflight()
-            first_cell = True
-            for workload_tag in WORKLOADS:
-                context, cfg, layout, block_wal, perf = workload_runs[workload_tag]
+            context = build_run_context(
+                generator_id=GeneratorId.B10_BACKOFF_SHAPE_SWEEP,
+            )
+            build_kwargs = {
+                "sub": sub,
+                "cache_root": cache_root,
+                "contract": contract,
+                "build_context": context,
+                "binding": prereg.binding,
+                "toolchain_manifest": toolchain_manifest,
+            }
+
+            if phase == "build":
+                for _name, genome in named_genomes():
+                    _build_binary(genome, trace=True, **build_kwargs)
+                    _build_binary(genome, trace=False, **build_kwargs)
+                return None, None, True
+
+            assert workload is not None
+            cfg = config_for(workload, prereg, calibration, context, contract)
+            layout = campaign_layout(str(ident.campaign_id(cfg)))
+            assert_resumable_binding(layout, prereg.binding)
+            perf = perf_for(workload, calibration, prereg.spec)
+            if phase == "verify":
                 with bind_build_start_wal(prereg.binding):
                     summary = run_campaign(
                         cfg, genomes(), perf, contract.env_tag, contract.clocks_per_us,
@@ -1327,82 +2134,139 @@ def run_formal(
                     )
                 if summary.committed + summary.skipped + summary.aborted != 21:
                     raise RuntimeError(
-                        f"correctness campaign incomplete: workload={workload_tag} "
+                        f"correctness campaign incomplete: workload={workload} "
                         f"committed={summary.committed} skipped={summary.skipped} aborted={summary.aborted}"
                     )
-                attempts = _certification_attempts(layout, context)
-                named = dict(named_genomes())
-                binaries: dict[str, tuple[Optional[str], str, Optional[str]]] = {}
-                for name, genome in named.items():
-                    evidence = source_digest.resolve_evidence(
-                        genome, PIN, ccbench_dir=sub, cxx=resolved_cxx,
+                return None, None, summary.aborted == 0
+
+            if not os.path.lexists(layout.lock_file) or not os.path.lexists(layout.wal_file):
+                raise PreflightError("resume-binding", "perf phase 前に verify WAL/lock が無い")
+            attempts = _certification_attempts(layout, context)
+            named = dict(named_genomes())
+            block_root = Path(layout.runs_dir) / "b10-backoff-shape-blocks"
+            prior = _read_block_records(block_root)
+            completed = _validate_prior_block_records(
+                prior, workload=workload, prereg=prereg,
+            )
+            binaries: dict[
+                str,
+                tuple[
+                    Optional[str], str, Optional[str], Optional[str],
+                    Optional[CertificationAttempt],
+                ],
+            ] = {}
+            for name, genome in named.items():
+                evidence = source_digest.resolve_evidence(
+                    genome, PIN, ccbench_dir=sub, cxx=resolved_cxx,
+                )
+                vid = variant_id(genome, evidence.src_token)
+                certified = attempts.get(vid)
+                if certified is None:
+                    binaries[name] = (
+                        None, vid, None, "correctness-not-certified", None,
                     )
-                    vid = variant_id(genome, evidence.src_token)
-                    if vid not in attempts:
-                        binaries[name] = (None, vid, "correctness-not-certified")
+                    continue
+                try:
+                    binary, built_vid, built_sha = _perf_binary(genome, **build_kwargs)
+                    if built_vid != vid:
+                        raise RuntimeError("performance binary variant identity drift")
+                    binaries[name] = (binary, vid, built_sha, None, certified)
+                except Exception as exc:  # one cell becomes explicit missing evidence
+                    binaries[name] = (
+                        None, vid, None,
+                        f"performance-binary-unavailable:{type(exc).__name__}:{exc}",
+                        certified,
+                    )
+
+            perf_probe_receipt, use_perf = p2_2_loop_perf_preflight()
+            first_cell = not prior
+            for block_id, order in prereg.spec.block_orders:
+                for schedule_index, name in enumerate(order):
+                    if (block_id, name) in completed:
                         continue
-                    try:
-                        binary, built_vid = _perf_binary(
-                            genome, sub=sub, cache_root=cache_root, contract=contract,
-                            build_context=context, binding=prereg.binding,
-                            toolchain_manifest=toolchain_manifest,
-                        )
-                        if built_vid != vid:
-                            raise RuntimeError("performance binary variant identity drift")
-                        binaries[name] = (binary, vid, None)
-                    except Exception as exc:  # one cell becomes explicit missing evidence
-                        binaries[name] = (
-                            None, vid, f"performance-binary-unavailable:{type(exc).__name__}:{exc}",
-                        )
-                for block_id in BLOCK_IDS:
-                    for schedule_index, name in enumerate(block_run_order(block_id)):
-                        binary, vid, unavailable = binaries[name]
-                        if binary is None:
-                            measured = _unavailable_measurement(unavailable or "unavailable")
-                        else:
-                            try:
-                                measured = measure_performance_cell(
-                                    binary, perf,
-                                    clocks_per_us=contract.clocks_per_us,
-                                    numactl=contract.numactl,
-                                    use_perf=use_perf,
-                                    do_settle=first_cell,
-                                )
-                                first_cell = False
-                            except Exception as exc:
-                                measured = _unavailable_measurement(
-                                    f"performance-measurement-failed:{type(exc).__name__}:{exc}",
-                                )
-                        shape, mean_us, encoded = _name_metadata(name)
-                        row = {
-                            "schema_version": "b10-backoff-shape-block/v1",
-                            "workload": workload_tag,
-                            "block_id": block_id,
-                            "schedule_index": schedule_index,
-                            "point": name,
-                            "shape": shape,
-                            "mean_us": mean_us,
-                            "encoded": encoded,
-                            "genome": named[name].canonical(),
-                            "variant_id": vid,
-                            "certification_attempt_id": attempts.get(vid),
-                            "certified": vid in attempts,
-                            "preregistration_binding": prereg.binding.as_dict(),
-                            "perf_preflight_receipt": perf_probe_receipt,
-                            **measured,
-                        }
-                        if name == "none" and row["abort_count"] is not None:
-                            row["backoff_call_count"] = 0
-                            row["backoff_calls_per_second"] = 0.0
-                        row["nominal_total_wait_us"] = (
-                            None if row["backoff_call_count"] is None else
-                            _nominal_wait(int(row["backoff_call_count"]), mean_us)
-                        )
-                        _append_jsonl_create_or_append(block_wal, row)
-                        all_records.append(row)
+                    binary, vid, built_sha, unavailable, certified = binaries[name]
+                    performance_binary_sha256 = None
+                    if binary is None or built_sha is None or certified is None:
+                        measured = _unavailable_measurement(unavailable or "unavailable")
+                    else:
+                        try:
+                            performance_binary_sha256 = verify_performance_binary(
+                                binary, built_sha, certified,
+                            )
+                            measured = measure_performance_cell(
+                                binary, perf,
+                                clocks_per_us=contract.clocks_per_us,
+                                numactl=contract.numactl,
+                                use_perf=use_perf,
+                                do_settle=first_cell,
+                            )
+                            first_cell = False
+                        except Exception as exc:
+                            measured = _unavailable_measurement(
+                                f"performance-measurement-failed:{type(exc).__name__}:{exc}",
+                            )
+                    shape, mean_us, encoded = _name_metadata(name)
+                    row = {
+                        "schema_version": "b10-backoff-shape-block/v2",
+                        "official_certification": False,
+                        "workload": workload,
+                        "block_id": block_id,
+                        "schedule_index": schedule_index,
+                        "point": name,
+                        "shape": shape,
+                        "mean_us": mean_us,
+                        "encoded": encoded,
+                        "genome": named[name].canonical(),
+                        "variant_id": vid,
+                        "correctness_certified": certified is not None,
+                        "build_attempt_id": (
+                            None if certified is None else certified.attempt_id
+                        ),
+                        "performance_binary_sha256": performance_binary_sha256,
+                        "source_commit": submission.source_commit,
+                        "trial": submission.trial,
+                        "submission_receipt": submission.receipt_path,
+                        "submission_receipt_sha256": submission.receipt_sha256,
+                        "request_id": submission.request_id,
+                        "submission_nonce": submission.nonce,
+                        "job_script_sha256": submission.job_script_sha256,
+                        "preregistration_binding": prereg.binding.as_dict(),
+                        "spec_sha256": prereg.spec.spec_sha256,
+                        "analysis_commit": prereg.binding.analysis_commit,
+                        "analysis_code_sha256": prereg.binding.analysis_code_sha256,
+                        "perf_preflight_receipt": perf_probe_receipt,
+                        **measured,
+                    }
+                    if name == "none" and row["abort_count"] is not None:
+                        row["backoff_call_count"] = 0
+                        row["backoff_calls_per_second"] = 0.0
+                    row["nominal_total_wait_us"] = (
+                        None if row["backoff_call_count"] is None else
+                        _nominal_wait(int(row["backoff_call_count"]), mean_us)
+                    )
+                    record_path = block_root / _block_record_filename(
+                        block_id, schedule_index, name,
+                    )
+                    _write_block_record_create_only(record_path, row)
+
+            all_records: list[dict[str, object]] = []
+            for other_workload in prereg.spec.workload_map:
+                other_cfg = config_for(
+                    other_workload, prereg, calibration, context, contract,
+                )
+                other_layout = campaign_layout(str(ident.campaign_id(other_cfg)))
+                other_root = Path(other_layout.runs_dir) / "b10-backoff-shape-blocks"
+                if not other_root.exists():
+                    continue
+                assert_resumable_binding(other_layout, prereg.binding)
+                other_records = _read_block_records(other_root)
+                _validate_prior_block_records(
+                    other_records, workload=other_workload, prereg=prereg,
+                )
+                all_records.extend(other_records)
             report_root = (
                 root / "output" / "env" / ENV_TAG / "b10-backoff-shape"
-                / prereg.binding.binding_sha256[:16] / "reports"
+                / prereg.binding.binding_sha256[:16] / "reports" / submission.trial
             )
             json_path, markdown_path = _write_reports(
                 report_root,
@@ -1410,11 +2274,17 @@ def run_formal(
                 calibration=calibration,
                 records=all_records,
                 applied_evidence=applied_evidence,
+                submission=submission,
             )
+            current_records = [
+                row for row in all_records if row.get("workload") == workload
+            ]
             execution_complete = all(
-                row.get("certified") is True and row.get("missing") is False
-                for row in all_records
-            )
+                row.get("correctness_certified") is True
+                and row.get("performance_binary_sha256") is not None
+                and row.get("missing") is False
+                for row in current_records
+            ) and len(current_records) == len(prereg.spec.block_ids) * 21
             return json_path, markdown_path, execution_complete
 
 
@@ -1427,15 +2297,21 @@ def p2_2_loop_perf_preflight() -> tuple[dict, bool]:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--preregistration", default=PREREG_REL)
+    parser.add_argument("--phase", required=True, choices=("build", "verify", "perf"))
+    parser.add_argument("--workload", choices=tuple(WORKLOADS))
     parser.add_argument("--prereg-commit", required=True)
+    parser.add_argument("--submission-receipt", required=True)
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
     json_path, markdown_path, execution_complete = run_formal(
-        preregistration_path=args.preregistration,
+        phase=args.phase,
+        workload=args.workload,
         prereg_commit=args.prereg_commit,
+        submission_receipt=args.submission_receipt,
     )
-    print(f"provenance: {json_path}")
-    print(f"report: {markdown_path}")
+    if json_path is not None:
+        print(f"provenance: {json_path}")
+    if markdown_path is not None:
+        print(f"report: {markdown_path}")
     return 0 if execution_complete else 1
 
 

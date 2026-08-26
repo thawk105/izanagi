@@ -3409,6 +3409,8 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
     expected_local_evidence = {
         "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
         "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
+        "tools/pegasus/submit_b10_backoff_shape.sh":
+            "static login-side submitter classification",
         "tools/pegasus/submit_certify.sh": "legacy-admitted (未実測)",
         "tools/pegasus/submit_floor.sh": "legacy-admitted (未実測)",
         "tools/pegasus/submit_mocc_trace.sh": "static login-side submitter classification",
