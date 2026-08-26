@@ -7014,6 +7014,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 - **再発: 2026-08-26** — 段 2 の plan 子が 6 回連続で不採用になった。
   根本原因は F609 で特定した。以降の調査はそちらを先に読む。
+
+- **再発: 2026-08-26** — 段 2 の plan 子が起動 7 分で web 検索を 2 query 使い、親が events を
+  見て停止した。成果物が全損する前に止めたため receipt での不採用は観測していない。
+  親 prompt に禁止を書き忘れたのが原因で、`DW-C01` の 1 行だけが防壁だった。
+  投げ直しでは禁止に加えて、子が git の挙動を調べに行く動機そのものを消すため、
+  親が実走した測定結果 (`measurements.md`) を必読資料として渡した。
+  **2026-08-11 の再発で見送った reference への配線を再度測ったが、今回も入らない。**
+  `docs/dev-wave/operations.md` の `DW-O02` へ最小の 1 文 (39 bytes) を足すと
+  L1.5 unique footprint が 9,605 bytes となり予算 9,566 bytes を超える。編集は復元した。
+  恒久対応は依然として機械強制されておらず、prompt 生成側の検査を
+  [T-1829] として起票した。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
