@@ -69,6 +69,19 @@ title: [T-1879] arXiv 2604.09318 (CIR+CVN) の一次資料で軸 1 への接地�
   既存 3 行と同じく未解決のまま置く)。
   登録件数は 3 から 4 になった。焦点走
   (`test_flaky_test_holds_contract.py` + `test_check_docs.py`) は 597 passed / 3 skipped。
+- **受入は 4 走を要した。緑は 4 走目である。** 1 走目と 2 走目は上記の `sigterm` の赤。
+  3 走目は hold が効いて `sigterm` が collection から外れ (skipped が 64 から 65 へ増えた)、
+  代わりに**別の node** `test_campaign_claim.py::test_two_real_processes_racing_acquire_have_exactly_one_winner`
+  が 1 件落ちた (`assert None == 2255171` — 2 プロセスの claim 競走で敗者が勝者の pid を
+  読めず `None` を返した)。同一 tree の単独走は 1 passed / 3.64 秒で非再現。
+  この node には失敗台帳に F 証拠が無いので hold へは登録せず、DW-O18 に従い受入を 1 回だけ再走した。
+  **4 走目は 17390 passed / 65 skipped / rc=0 で緑。** 受領証は
+  `dev-wave-acceptance-receipt/v5`、`verdict=child-green`、
+  `tested_main=b253e0b7`、`tested_tip=fb2f94fd`。
+- **落ちる node が毎走変わるのは F57 が記録している型そのものである。** 4 走で観測した非帰属赤は
+  2 種類・のべ 3 件で、いずれも単独走では再現しない時間依存・資源競合の主張だった。
+  **hold を 1 件足しても全走が緑になる保証は得られず、次の走で別の node が出た。**
+  この機体の負荷下では、受入 1 走あたり 1 件程度の負荷依存フレークが出ると見ておく必要がある。
 - **[T-1675] wave が「登録は構造的に不可能」と書いた閂は、この時点では解けていた。**
   同 wave は F57 への再発記録が canonical へ fold されるまで登録できないと述べ裁定へ送っていたが、
   その再発はすでに fold 済みで、検証器が要求する 3 述語 (F 節の実在、test 関数名の逐語一致、
