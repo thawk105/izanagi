@@ -1,0 +1,1025 @@
+diff --git a/orchestrator/tests/flaky_test_holds.py b/orchestrator/tests/flaky_test_holds.py
+index 80c1abff..5ac1ba21 100644
+--- a/orchestrator/tests/flaky_test_holds.py
++++ b/orchestrator/tests/flaky_test_holds.py
+@@ -197,98 +197,7 @@ def _registry_sha256(registry: Mapping[str, FlakyTestHold]) -> str:
+     return hashlib.sha256(canonical).hexdigest()
+ 
+ 
+-_FLAKY_TEST_HOLD_ROWS = (
+-    (
+-        "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+-        "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
+-        FlakyTestHold(
+-            known_failure_node_ids=frozenset({
+-                "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+-                "test_control_lock_allows_peer_after_pending_hold_is_durably_released",
+-            }),
+-            same_tree=True,
+-            green_observation=(
+-                "同一 tree の単独 node 実走が 1 passed / 13.56 秒で再現しなかった"
+-            ),
+-            green_collection_condition="single-node",
+-            green_run_count=1,
+-            red_observation=(
+-                "同一 tree の受入全走で 1 failed / 16384 passed / 60 skipped"
+-            ),
+-            red_collection_condition=ACCEPTANCE_COLLECTION,
+-            failure_signature="assert not first.is_alive() and not second.is_alive()",
+-            cause=(
+-                "受入全走の高並列下で thread の join が実時間上界を超える "
+-                "(F480 の族)"
+-            ),
+-            evidence_id="F480",
+-            reintroduction_task_id="{{T:flaky-thread-join-upper-bound}}",
+-        ),
+-    ),
+-    (
+-        "orchestrator/tests/test_s8b_oracle_driver.py::"
+-        "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+-        FlakyTestHold(
+-            known_failure_node_ids=frozenset({
+-                "orchestrator/tests/test_s8b_oracle_driver.py::"
+-                "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+-            }),
+-            same_tree=True,
+-            green_observation=(
+-                "親が同一 tree で単独 node を実走し 1 passed / 11.83 秒だった"
+-            ),
+-            green_collection_condition="single-node",
+-            green_run_count=1,
+-            red_observation=(
+-                "同一 tree の受入全走で 1 failed / 16558 passed / 60 skipped"
+-            ),
+-            red_collection_condition=ACCEPTANCE_COLLECTION,
+-            failure_signature=(
+-                "別 helper _t080_output_snapshot() が output/ 自身の mtime 変化"
+-            ),
+-            cause=(
+-                "受入全走の shard 経路が同じ作業木から 2 request を重ねて投入し、"
+-                "片方の output/runs/pytest-launcher-failures の mtime 変化をもう片方の "
+-                "output/ before/after snapshot 検査が拾う (F136 の族)"
+-            ),
+-            evidence_id="F136",
+-            reintroduction_task_id="{{T:t080-output-snapshot-shard-race}}",
+-        ),
+-    ),
+-    (
+-        "orchestrator/tests/test_real_repo_serialization.py::"
+-        "test_receipt_memo_real_xdist_order_has_no_worker_payer",
+-        FlakyTestHold(
+-            known_failure_node_ids=frozenset({
+-                "orchestrator/tests/test_real_repo_serialization.py::"
+-                "test_receipt_memo_real_xdist_order_has_no_worker_payer",
+-            }),
+-            same_tree=True,
+-            green_observation=(
+-                "同一 tree で本 node を含む 4 node の単独走が "
+-                "4 passed / 6.91 秒 / rc=0 だった"
+-            ),
+-            green_collection_condition="single-node",
+-            green_run_count=1,
+-            red_observation=(
+-                "同一 tree の受入全走で 1 回目は 4 failed / 16870 passed / "
+-                "61 skipped、2 回目は 1 failed / 16873 passed / 61 skipped"
+-            ),
+-            red_collection_condition=ACCEPTANCE_COLLECTION,
+-            failure_signature=(
+-                "観測 trace = ['controller-hook', 'prewarm-controller', "
+-                "'worker-hook', 'finish-controller']"
+-            ),
+-            cause=(
+-                "不変条件はすべて成立し、受入全走の高並列下で xdist の"
+-                "スケジューリング遅延により worker-hook と controller-hook の"
+-                "相対順序だけが反転する (F480 の族)"
+-            ),
+-            evidence_id="F480",
+-            reintroduction_task_id="{{T:flaky-xdist-hook-order}}",
+-        ),
+-    ),
+-)
++_FLAKY_TEST_HOLD_ROWS = ()
+ 
+ 
+ FLAKY_TEST_HOLDS = _validate_flaky_test_hold_rows(_FLAKY_TEST_HOLD_ROWS)
+diff --git a/orchestrator/tests/output_snapshot_ignores.py b/orchestrator/tests/output_snapshot_ignores.py
+index 5662e4ac..7750ee5c 100644
+--- a/orchestrator/tests/output_snapshot_ignores.py
++++ b/orchestrator/tests/output_snapshot_ignores.py
+@@ -2,48 +2,286 @@
+ """実 repository の ``output/`` snapshot に共通する Git ignore 規則。"""
+ from __future__ import annotations
+ 
++import os
+ import subprocess
++from dataclasses import dataclass
+ from pathlib import Path
+ 
+ 
+-def git_ignored_output_prefixes(repo_root: Path) -> tuple[str, ...]:
+-    """Git が ignore する ``output/`` 配下の path を相対 prefix で返す。"""
+-    command = (
+-        "git", "ls-files", "-o", "-i", "--exclude-standard", "--directory",
+-        "--", "output/",
++@dataclass(frozen=True)
++class GitIgnoredOutputAncestorDirectories:
++    """Metadata を正規化する directory の規則由来集合。"""
++
++    exact: frozenset[str]
++    subtree_roots: frozenset[str]
++
++    def contains(self, relative: str) -> bool:
++        """``relative`` が exact ancestor または wildcard subtree 内かを返す。"""
++        return relative in self.exact or any(
++            not root
++            or relative == root
++            or relative.startswith(f"{root}/")
++            for root in self.subtree_roots
++        )
++
++
++def _git_failure(command: tuple[str, ...], completed) -> AssertionError:
++    detail = completed.stderr
++    if isinstance(detail, bytes):
++        detail = detail.decode("utf-8", "replace")
++    return AssertionError(
++        f"{' '.join(command)} に失敗: {str(detail).strip() or completed.returncode}"
+     )
++
++
++def _run_git_bytes(
++        repo_root: Path, command: tuple[str, ...],
++        *, accepted_returncodes: frozenset[int] = frozenset({0}),
++) -> subprocess.CompletedProcess:
+     try:
+         completed = subprocess.run(
+             command,
+             cwd=repo_root,
+-            check=True,
++            check=False,
+             stdout=subprocess.PIPE,
+             stderr=subprocess.PIPE,
+-            text=True,
+         )
+-    except (OSError, subprocess.CalledProcessError) as exc:
+-        detail = getattr(exc, "stderr", "")
++    except OSError as exc:
+         raise AssertionError(
+-            "output/ の Git ignore 集合を取得できない: "
+-            f"{str(detail).strip() or str(exc)}"
++            f"{' '.join(command)} を実行できない: {exc}"
+         ) from exc
++    if completed.returncode not in accepted_returncodes:
++        raise _git_failure(command, completed)
++    return completed
++
++
++def _one_git_path(command: tuple[str, ...], completed) -> Path:
++    lines = completed.stdout.splitlines()
++    if len(lines) != 1 or not lines[0]:
++        raise AssertionError(
++            f"{' '.join(command)} が単一 path を返さない: {completed.stdout!r}"
++        )
++    return Path(os.fsdecode(lines[0])).expanduser()
++
++
++def _optional_rule_bytes(path: Path) -> bytes:
++    try:
++        return path.read_bytes()
++    except FileNotFoundError:
++        return b""
++    except OSError as exc:
++        raise AssertionError(f"Git ignore 規則を読めない: {path}: {exc}") from exc
+ 
++
++def _exclude_rule_sources(repo_root: Path) -> tuple[bytes, ...]:
++    info_command = ("git", "rev-parse", "--git-path", "info/exclude")
++    info_result = _run_git_bytes(repo_root, info_command)
++    info_path = _one_git_path(info_command, info_result)
++    if not info_path.is_absolute():
++        info_path = repo_root / info_path
++
++    config_command = ("git", "config", "--get", "core.excludesFile")
++    config_result = _run_git_bytes(
++        repo_root, config_command,
++        accepted_returncodes=frozenset({0, 1}),
++    )
++    sources = [
++        _optional_rule_bytes(repo_root / ".gitignore"),
++        _optional_rule_bytes(info_path),
++    ]
++    if config_result.returncode == 0:
++        config_path = _one_git_path(config_command, config_result)
++        if not config_path.is_absolute():
++            config_path = repo_root / config_path
++        sources.append(_optional_rule_bytes(config_path))
++    elif config_result.stdout:
++        raise AssertionError(
++            "git config --get core.excludesFile が rc=1 で stdout を返した: "
++            f"{config_result.stdout!r}"
++        )
++    return tuple(sources)
++
++
++def _rule_candidates(
++        repo_root: Path,
++) -> tuple[dict[bytes, bool], frozenset[bytes]]:
++    literal_candidates: dict[bytes, bool] = {}
++    wildcard_subtree_roots: set[bytes] = set()
++    for source in _exclude_rule_sources(repo_root):
++        for raw_line in source.splitlines():
++            rule = raw_line.rstrip(b" ")
++            if not rule or rule.startswith((b"#", b"!")):
++                continue
++            if b"\\" in rule or b"**" in rule:
++                continue
++            if rule.startswith(b"/"):
++                rule = rule[1:]
++            wildcard_at = next(
++                (index for index, byte in enumerate(rule) if byte in b"*?["),
++                None,
++            )
++            static = rule if wildcard_at is None else rule[:wildcard_at]
++            if not static.startswith(b"output/"):
++                continue
++            if wildcard_at is None:
++                candidate = rule.rstrip(b"/")
++                if candidate:
++                    literal_candidates[candidate] = (
++                        literal_candidates.get(candidate, False)
++                        or rule.endswith(b"/")
++                    )
++                continue
++
++            relative_static = static.removeprefix(b"output/")
++            if relative_static.endswith(b"/"):
++                subtree_root = relative_static.rstrip(b"/")
++            else:
++                subtree_root = relative_static.rpartition(b"/")[0]
++            wildcard_subtree_roots.add(subtree_root)
++    return literal_candidates, frozenset(wildcard_subtree_roots)
++
++
++def _check_rule_candidates(
++        repo_root: Path, candidates: dict[bytes, bool],
++) -> frozenset[bytes]:
++    if not candidates:
++        return frozenset()
++    query_to_candidate = {
++        candidate + (b"/" if directory_rule else b""): candidate
++        for candidate, directory_rule in candidates.items()
++    }
++    command = ("git", "check-ignore", "--no-index", "--stdin", "-z")
++    try:
++        completed = subprocess.run(
++            command,
++            cwd=repo_root,
++            check=False,
++            input=b"\0".join(sorted(query_to_candidate)) + b"\0",
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++        )
++    except OSError as exc:
++        raise AssertionError(f"git check-ignore を実行できない: {exc}") from exc
++
++    if completed.returncode == 0:
++        if not completed.stdout or not completed.stdout.endswith(b"\0"):
++            raise AssertionError(
++                "git check-ignore が rc=0 で正しい NUL 出力を返さない: "
++                f"{completed.stdout!r}"
++            )
++        fields = completed.stdout[:-1].split(b"\0")
++        matched_queries = frozenset(fields)
++        if b"" in matched_queries or not matched_queries.issubset(query_to_candidate):
++            raise AssertionError(
++                "git check-ignore が入力候補外の path を返した: "
++                f"{sorted(matched_queries - set(query_to_candidate))!r}"
++            )
++    elif completed.returncode == 1:
++        if completed.stdout:
++            raise AssertionError(
++                "git check-ignore が rc=1 で stdout を返した: "
++                f"{completed.stdout!r}"
++            )
++        matched_queries = frozenset()
++    else:
++        raise _git_failure(command, completed)
++    return frozenset(query_to_candidate[query] for query in matched_queries)
++
++
++def _rule_derived_ignored_prefixes(
++        repo_root: Path,
++) -> tuple[frozenset[str], frozenset[str]]:
++    candidates, wildcard_roots = _rule_candidates(repo_root)
++    matched = _check_rule_candidates(repo_root, candidates)
+     prefixes: set[str] = set()
+-    for line in completed.stdout.splitlines():
+-        normalized = line.rstrip("/")
+-        if normalized == "output":
++    for raw_prefix in matched:
++        if raw_prefix == b"output":
++            raise AssertionError(
++                "output/ 全体が Git ignore 対象のため snapshot 検査を実行できない"
++            )
++        if not raw_prefix.startswith(b"output/"):
++            raise AssertionError(
++                "規則由来の output/ 外 path が check-ignore に一致した: "
++                f"{raw_prefix!r}"
++            )
++        prefix = os.fsdecode(raw_prefix.removeprefix(b"output/"))
++        tracked_command = (
++            "git", "ls-files", "--cached", "-z", "--", f"output/{prefix}",
++        )
++        tracked = _run_git_bytes(repo_root, tracked_command)
++        if tracked.stdout:
++            raise AssertionError(
++                "規則由来 ignored prefix 配下に tracked entry がある: "
++                f"output/{prefix}"
++            )
++        prefixes.add(prefix)
++    return frozenset(prefixes), frozenset(os.fsdecode(root) for root in wildcard_roots)
++
++
++def git_ignored_output_prefixes(repo_root: Path) -> tuple[str, ...]:
++    """Git が ignore する ``output/`` 配下の path を相対 prefix で返す。
++
++    非実在の literal 候補は repository root の ``.gitignore``、
++    ``git rev-parse --git-path info/exclude`` の返す file、および
++    ``git config --get core.excludesFile`` の設定 file の規則 bytes だけから作る。
++    wildcard 規則は有限展開できないため、従来どおり実在後に ``git ls-files``
++    側で得られるものだけが prefix になる。
++    """
++    rule_prefixes, _wildcard_roots = _rule_derived_ignored_prefixes(repo_root)
++    command = (
++        "git", "ls-files", "-o", "-i", "--exclude-standard", "--directory",
++        "-z", "--", "output/",
++    )
++    completed = _run_git_bytes(repo_root, command)
++
++    prefixes = set(rule_prefixes)
++    for raw_line in completed.stdout.split(b"\0"):
++        if not raw_line:
++            continue
++        normalized = raw_line.rstrip(b"/")
++        if normalized == b"output":
+             raise AssertionError(
+                 "output/ 全体が Git ignore 対象のため snapshot 検査を実行できない"
+             )
+-        elif normalized.startswith("output/"):
+-            prefixes.add(normalized.removeprefix("output/"))
++        if normalized.startswith(b"output/"):
++            prefixes.add(os.fsdecode(normalized.removeprefix(b"output/")))
+         else:
+             raise AssertionError(
+-                f"git ls-files が output/ 外の path を返した: {line!r}"
++                f"git ls-files が output/ 外の path を返した: {raw_line!r}"
+             )
+     return tuple(sorted(prefixes))
+ 
+ 
++def git_ignored_output_ancestor_directories(
++        repo_root: Path,
++) -> GitIgnoredOutputAncestorDirectories:
++    """規則由来 ignored prefix の祖先 directory 集合を返す。
++
++    ``exact`` は literal prefix の厳密な祖先だけを含み、root ``.`` は常に含む。
++    ``subtree_roots`` は wildcard より前の静的 directory であり、その directory と
++    配下の全 directory を祖先扱いする。どちらも規則 bytes から導き、tree の実在を
++    観測しない。
++    """
++    literal_candidates, raw_wildcard_roots = _rule_candidates(repo_root)
++    matched_literals = _check_rule_candidates(repo_root, literal_candidates)
++    exact = {"."}
++    for raw_candidate in matched_literals:
++        if raw_candidate == b"output":
++            continue
++        prefix = os.fsdecode(raw_candidate.removeprefix(b"output/"))
++        components = prefix.split("/")
++        exact.update(
++            "/".join(components[:end])
++            for end in range(1, len(components))
++        )
++    return GitIgnoredOutputAncestorDirectories(
++        exact=frozenset(exact),
++        subtree_roots=frozenset(
++            os.fsdecode(root) for root in raw_wildcard_roots
++        ),
++    )
++
++
+ def is_git_ignored_output_path(
+         relative: str, ignored_prefixes: tuple[str, ...]) -> bool:
+     """相対 path 自身またはその祖先 directory が ignore 対象かを返す。"""
+diff --git a/orchestrator/tests/test_flaky_test_holds_contract.py b/orchestrator/tests/test_flaky_test_holds_contract.py
+index e1c4ef8c..900d2e84 100644
+--- a/orchestrator/tests/test_flaky_test_holds_contract.py
++++ b/orchestrator/tests/test_flaky_test_holds_contract.py
+@@ -29,10 +29,6 @@ _HELD_NODE = (
+     "orchestrator/tests/test_mutation_harness.py::"
+     "test_sigterm_handler_stops_child_and_restores_active_mutation"
+ )
+-_NEW_HELD_NODE = (
+-    "orchestrator/tests/test_pegasus_dispatch_compute.py::"
+-    "test_control_lock_allows_peer_after_pending_hold_is_durably_released"
+-)
+ _HELD_FILE = _HELD_NODE.split("::", 1)[0]
+ _SIBLING_NODE = (
+     "orchestrator/tests/test_mutation_harness.py::"
+@@ -288,7 +284,9 @@ def _expected_flaky_summary_line(
+     )
+ 
+ 
+-def test_live_registry_excludes_reintroduced_node_and_preserves_main_hold() -> None:
++def test_live_registry_is_empty_and_exports_empty_digest() -> None:
++    assert REG._FLAKY_TEST_HOLD_ROWS == ()
++    assert dict(REG.FLAKY_TEST_HOLDS) == {}
+     assert _HELD_NODE not in dict(REG._FLAKY_TEST_HOLD_ROWS)
+     assert _HELD_NODE not in REG.FLAKY_TEST_HOLDS
+     assert _HELD_NODE not in REG.FLAKY_TEST_HOLD_NODE_IDS
+@@ -296,20 +294,7 @@ def test_live_registry_excludes_reintroduced_node_and_preserves_main_hold() -> N
+     assert REG.FLAKY_TEST_HOLDS_SHA256 == (
+         REG.flaky_test_hold_registry_sha256(REG.FLAKY_TEST_HOLDS)
+     )
+-
+-    new_hold = REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE]
+-    assert new_hold.known_failure_node_ids == frozenset({_NEW_HELD_NODE})
+-    assert new_hold.same_tree is True
+-    assert new_hold.green_collection_condition == "single-node"
+-    assert new_hold.green_run_count == 1
+-    assert new_hold.red_collection_condition == REG.ACCEPTANCE_COLLECTION
+-    assert new_hold.failure_signature
+-    assert new_hold.cause
+-    assert new_hold.evidence_id == "F480"
+-    assert (
+-        new_hold.reintroduction_task_id
+-        == "{{T:flaky-thread-join-upper-bound}}"
+-    )
++    assert REG.FLAKY_TEST_HOLDS_SHA256 == _EMPTY_REGISTRY_SHA256
+ 
+ 
+ def test_empty_and_nonempty_registries_validate_immutably() -> None:
+@@ -908,10 +893,7 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
+         def write_line(self, line: str) -> None:
+             lines.append(line)
+ 
+-    synthetic_holds = {
+-        _HELD_NODE: _synthetic_valid_hold(),
+-        _NEW_HELD_NODE: REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE],
+-    }
++    synthetic_holds = {_HELD_NODE: _synthetic_valid_hold()}
+     monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", synthetic_holds)
+     monkeypatch.setattr(
+         CONF, "FLAKY_TEST_HOLD_NODE_IDS", frozenset(synthetic_holds),
+@@ -936,11 +918,11 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
+     assert len(summary_lines) == 1
+     payload = json.loads(summary_lines[0].split(" ", 1)[1])
+     assert payload == {
+-        "registered_node_count": 2,
++        "registered_node_count": 1,
+         "matched_node_count": 1,
+         "skipped_node_count": 1,
+         "registry_sha256": (
+-            "9a31d0948e6d17e491b3dc06101563d73719cf04643eb454c3339be92c91a089"
++            "eec86ac747160fb628a341d2c6737a30e5578f847f16f7e04340e599bd192623"
+         ),
+     }
+     assert not any(
+@@ -985,7 +967,7 @@ def test_empty_synthetic_flaky_summary_has_literal_contract(
+     }
+ 
+ 
+-def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
++def test_live_empty_flaky_summary_derives_count_and_digest_from_registry() -> None:
+     lines: list[str] = []
+ 
+     class Terminal:
+@@ -997,8 +979,8 @@ def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
+         pluginmanager=SimpleNamespace(
+             get_plugin=lambda name: Terminal() if name == "terminalreporter" else None
+         ),
+-        _izanagi_collected_flaky_hold_ids={_NEW_HELD_NODE},
+-        _izanagi_skipped_flaky_hold_ids={_NEW_HELD_NODE},
++        _izanagi_collected_flaky_hold_ids={_HELD_NODE},
++        _izanagi_skipped_flaky_hold_ids={_HELD_NODE},
+     )
+ 
+     CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
+@@ -1008,12 +990,10 @@ def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
+     assert len(summary_lines) == 1
+     payload = json.loads(summary_lines[0].split(" ", 1)[1])
+     expected_payload = {
+-        "registered_node_count": len(REG.FLAKY_TEST_HOLDS),
+-        "matched_node_count": 1,
+-        "skipped_node_count": 1,
+-        "registry_sha256": REG.flaky_test_hold_registry_sha256(
+-            REG.FLAKY_TEST_HOLDS
+-        ),
++        "registered_node_count": 0,
++        "matched_node_count": 0,
++        "skipped_node_count": 0,
++        "registry_sha256": _EMPTY_REGISTRY_SHA256,
+     }
+     assert set(payload) == set(expected_payload)
+     assert {key: type(payload[key]) for key in payload} == {
+diff --git a/orchestrator/tests/test_pegasus_dispatch_compute.py b/orchestrator/tests/test_pegasus_dispatch_compute.py
+index eb851fac..e1f50265 100644
+--- a/orchestrator/tests/test_pegasus_dispatch_compute.py
++++ b/orchestrator/tests/test_pegasus_dispatch_compute.py
+@@ -5398,6 +5398,7 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
+             artifact_root=artifact,
+             control_root=control,
+             run_command=runner,
++            poll_interval_s=1,
+             nonce=label,
+         )
+ 
+@@ -5411,6 +5412,10 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
+     assert qsub_entered.wait(5)
+     second.start()
+     release_qsub.set()
++    # These bounds are hang-recovery watchdogs, not pass/fail latency budgets.
++    # Parent sample: three compute-node standalone-file runs (not the acceptance
++    # full-suite regime); before injection the deterministic floor was 10.015s.
++    # Stage 6 will measure the injected runtime.
+     first.join(10)
+     second.join(10)
+ 
+@@ -5464,6 +5469,7 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
+             intent_group_id=label,
+             intent_shard_index=0,
+             run_command=runner,
++            poll_interval_s=1,
+             nonce="shard-0",
+         )
+ 
+@@ -5481,7 +5487,10 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
+     second.start()
+     assert second_acquire_entered.wait(5)
+     release_qsub.set()
+-    # 60s is over 4x the measured 13.94s standalone run, but still bounds deadlocks.
++    # These bounds are hang-recovery watchdogs, not pass/fail latency budgets.
++    # Parent sample: three compute-node standalone-file runs (not the acceptance
++    # full-suite regime); before injection the deterministic floor was 10.015s.
++    # Stage 6 will measure the injected runtime.
+     first.join(60)
+     second.join(60)
+ 
+diff --git a/orchestrator/tests/test_real_repo_serialization.py b/orchestrator/tests/test_real_repo_serialization.py
+index 2af0e874..562093bb 100644
+--- a/orchestrator/tests/test_real_repo_serialization.py
++++ b/orchestrator/tests/test_real_repo_serialization.py
+@@ -39,6 +39,7 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
+ from skiputil import Skip, skip  # noqa: E402
+ from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
++    git_ignored_output_ancestor_directories,
+     git_ignored_output_prefixes,
+     is_git_ignored_output_path,
+ )
+@@ -539,8 +540,12 @@ def _run_subprocess(argv, *, cwd, env=None):
+ 
+ 
+ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+-    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
++    """Git-visible entry と非 ignore 祖先での一時作成後削除を捉える。
++
++    規則由来 ignore prefix の祖先 directory だけ size / mtime / ctime を正規化する。
++    """
+     ignored_prefixes = git_ignored_output_prefixes(ROOT)
++    ignored_ancestors = git_ignored_output_ancestor_directories(ROOT)
+     entries = [
+         root,
+         *(
+@@ -550,17 +555,22 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+             )
+         ),
+     ]
+-    return tuple(
+-        (
+-            path.relative_to(root).as_posix() if path != root else ".",
+-            info.st_mode,
+-            info.st_size,
+-            info.st_mtime_ns,
+-            info.st_ctime_ns,
++    snapshot = []
++    for path in sorted(entries):
++        relative = path.relative_to(root).as_posix() if path != root else "."
++        info = path.lstat()
++        normalize = (
++            stat.S_ISDIR(info.st_mode)
++            and ignored_ancestors.contains(relative)
+         )
+-        for path in sorted(entries)
+-        for info in (path.lstat(),)
+-    )
++        snapshot.append((
++            relative,
++            info.st_mode,
++            None if normalize else info.st_size,
++            None if normalize else info.st_mtime_ns,
++            None if normalize else info.st_ctime_ns,
++        ))
++    return tuple(snapshot)
+ 
+ 
+ def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+@@ -587,10 +597,10 @@ def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+ def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+     ignored_prefixes = git_ignored_output_prefixes(ROOT)
+     assert "runs" in ignored_prefixes
++    before = _t080_output_snapshot(tmp_path)
+     ignored_parent = tmp_path / "runs"
+     ignored_parent.mkdir()
+     try:
+-        before = _t080_output_snapshot(tmp_path)
+         control = ignored_parent / "snapshot-ignored-t080"
+         control.mkdir()
+         (control / "nested").mkdir()
+@@ -599,8 +609,34 @@ def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
+         )
+ 
+         assert _t080_output_snapshot(tmp_path) == before
++
++        assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
++        visible_before = _t080_output_snapshot(tmp_path)
++        visible = tmp_path / "runs-visible" / "nested"
++        visible.mkdir(parents=True)
++        (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
++        visible_after = _t080_output_snapshot(tmp_path)
++        assert visible_after != visible_before, (
++            "rule-derived ignore prefix 'runs' must not hide "
++            "Git-visible 'runs-visible'"
++        )
+     finally:
+         shutil.rmtree(ignored_parent, ignore_errors=True)
++        shutil.rmtree(tmp_path / "runs-visible", ignore_errors=True)
++
++
++def test_t080_output_snapshot_observes_git_visible_create_and_delete(tmp_path):
++    ignored_ancestors = git_ignored_output_ancestor_directories(ROOT)
++    parent = tmp_path / "visible-transient-parent"
++    assert not ignored_ancestors.contains(parent.name)
++    parent.mkdir()
++    before = _t080_output_snapshot(tmp_path)
++    transient = parent / "visible-transient"
++    transient.mkdir()
++    (transient / "payload").write_bytes(b"visible transient")
++    shutil.rmtree(transient)
++    after = _t080_output_snapshot(tmp_path)
++    assert after != before, "Git-visible create-and-delete must remain observable"
+ 
+ 
+ def _require_pytest() -> None:
+@@ -3743,6 +3779,93 @@ def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():
+     assert calls == [{"run_id": None, "session_id": "session-test"}]
+ 
+ 
++_RECEIPT_ORDER_WORKER_HOOK_SOURCE = textwrap.dedent(
++    """\
++    @pytest.hookimpl(hookwrapper=True, tryfirst=True)
++    def pytest_collection_finish(session):
++        if hasattr(session.config, "workerinput"):
++            record("worker-hook")
++        yield
++    """
++)
++
++
++def _receipt_order_pluggy_trace(worker_hook_source: str) -> list[str]:
++    """実 xdist probe と同じ worker hook を pluggy の一段で順序実行する。"""
++    import pluggy
++
++    hookspec = pluggy.HookspecMarker("pytest")
++    hookimpl = pluggy.HookimplMarker("pytest")
++
++    class Spec:
++        @hookspec
++        def pytest_collection_finish(self, session):
++            """Minimal collection-finish hook specification."""
++
++    trace: list[str] = []
++    namespace = {
++        "pytest": SimpleNamespace(hookimpl=hookimpl),
++        "record": trace.append,
++    }
++    exec(compile(worker_hook_source, "receipt-order-worker", "exec"), namespace)
++    worker = SimpleNamespace(
++        pytest_collection_finish=namespace["pytest_collection_finish"],
++    )
++
++    class Controller:
++        @hookimpl
++        def pytest_collection_finish(self, session):
++            trace.append("controller-hook")
++
++    manager = pluggy.PluginManager("pytest")
++    manager.add_hookspecs(Spec)
++    manager.register(worker, name="worker")
++    manager.register(Controller(), name="controller")
++    manager.hook.pytest_collection_finish(
++        session=SimpleNamespace(config=SimpleNamespace(workerinput={})),
++    )
++    return trace
++
++
++def test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants():
++    """hookwrapper と yield 前記録のどちらを失っても相対順検査を通さない。"""
++    decorator = "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
++    pre_yield = (
++        '    if hasattr(session.config, "workerinput"):\n'
++        '        record("worker-hook")\n'
++        "    yield\n"
++    )
++    post_yield = (
++        "    yield\n"
++        '    if hasattr(session.config, "workerinput"):\n'
++        '        record("worker-hook")\n'
++    )
++    assert _RECEIPT_ORDER_WORKER_HOOK_SOURCE.count(decorator) == 1
++    assert _RECEIPT_ORDER_WORKER_HOOK_SOURCE.count(pre_yield) == 1
++
++    def assert_worker_first(source: str) -> None:
++        trace = _receipt_order_pluggy_trace(source)
++        assert trace.count("worker-hook") == 1, trace
++        assert trace.count("controller-hook") == 1, trace
++        assert trace.index("worker-hook") < trace.index("controller-hook"), trace
++
++    assert_worker_first(_RECEIPT_ORDER_WORKER_HOOK_SOURCE)
++    mutants = {
++        "decorator removed": _RECEIPT_ORDER_WORKER_HOOK_SOURCE.replace(
++            decorator, "", 1,
++        ),
++        "record moved after yield": _RECEIPT_ORDER_WORKER_HOOK_SOURCE.replace(
++            pre_yield, post_yield, 1,
++        ),
++    }
++    for label, mutant in mutants.items():
++        try:
++            assert_worker_first(mutant)
++        except AssertionError:
++            continue
++        raise AssertionError(f"{label} mutant が worker-first 検査を通過した")
++
++
+ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
+     """実 xdist 順序を worker collection hook から controller hook まで固定する。"""
+     _require_loadgroup_capability()
+@@ -3754,9 +3877,7 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
+             "    pass\n",
+             encoding="utf-8",
+         )
+-        (directory / "receipt_order_plugin.py").write_text(
+-            textwrap.dedent(
+-                f"""
++        plugin_source = f"""
+                 import os
+                 from pathlib import Path
+ 
+@@ -3782,16 +3903,19 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
+                     from orchestrator.tests import conftest as suite_conftest
+                     suite_conftest._receipt_memo_module = lambda: FakeMemo
+ 
+-                @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+-                def pytest_collection_finish(session):
+-                    if hasattr(session.config, "workerinput"):
+-                        record("worker-hook")
+-                    yield
++                __WORKER_HOOK__
+ 
+                 def pytest_xdist_node_collection_finished(node, ids):
+                     record("controller-hook")
+                 """
++        plugin_source = plugin_source.replace(
++            "                __WORKER_HOOK__",
++            textwrap.indent(
++                _RECEIPT_ORDER_WORKER_HOOK_SOURCE.rstrip(), "                ",
+             ),
++        )
++        (directory / "receipt_order_plugin.py").write_text(
++            textwrap.dedent(plugin_source),
+             encoding="utf-8",
+         )
+         env = os.environ.copy()
+diff --git a/orchestrator/tests/test_s8b_floor_campaign.py b/orchestrator/tests/test_s8b_floor_campaign.py
+index e5ec7b16..b8d433ce 100644
+--- a/orchestrator/tests/test_s8b_floor_campaign.py
++++ b/orchestrator/tests/test_s8b_floor_campaign.py
+@@ -1573,10 +1573,10 @@ def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+ def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+     ignored_prefixes = git_ignored_output_prefixes(ROOT)
+     assert "runs" in ignored_prefixes
+-    ignored_parent = tmp_path / "runs"
+-    ignored_parent.mkdir()
+     before = _real_output_snapshot(tmp_path)
+     before_reference = _real_output_snapshot_reference(tmp_path)
++    ignored_parent = tmp_path / "runs"
++    ignored_parent.mkdir()
+     control = ignored_parent / "snapshot-ignored-floor"
+     control.mkdir()
+     (control / "nested").mkdir()
+@@ -1587,6 +1587,17 @@ def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
+     assert _real_output_snapshot(tmp_path) == before
+     assert _real_output_snapshot_reference(tmp_path) == before_reference
+ 
++    assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
++    visible_before = _real_output_snapshot(tmp_path)
++    visible_before_reference = _real_output_snapshot_reference(tmp_path)
++    visible = tmp_path / "runs-visible" / "nested"
++    visible.mkdir(parents=True)
++    (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
++    assert _real_output_snapshot(tmp_path) != visible_before, (
++        "rule-derived ignore prefix 'runs' must not hide Git-visible 'runs-visible'"
++    )
++    assert _real_output_snapshot_reference(tmp_path) != visible_before_reference
++
+ 
+ def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
+     module = sys.modules[__name__]
+diff --git a/orchestrator/tests/test_s8b_oracle_driver.py b/orchestrator/tests/test_s8b_oracle_driver.py
+index eaa895b4..561ef35a 100644
+--- a/orchestrator/tests/test_s8b_oracle_driver.py
++++ b/orchestrator/tests/test_s8b_oracle_driver.py
+@@ -14,6 +14,7 @@ import inspect
+ import json
+ import os
+ import shutil
++import stat
+ import subprocess
+ import sys
+ import tempfile
+@@ -90,6 +91,7 @@ from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E40
+ from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+ from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
+ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
++    git_ignored_output_ancestor_directories,
+     git_ignored_output_prefixes,
+     is_git_ignored_output_path,
+ )
+@@ -556,8 +558,12 @@ _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
+ 
+ 
+ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+-    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
++    """Git-visible entry と非 ignore 祖先での一時作成後削除を捉える。
++
++    規則由来 ignore prefix の祖先 directory だけ size / mtime / ctime を正規化する。
++    """
+     ignored_prefixes = git_ignored_output_prefixes(ROOT)
++    ignored_ancestors = git_ignored_output_ancestor_directories(ROOT)
+     entries = [
+         root,
+         *(
+@@ -567,17 +573,22 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
+             )
+         ),
+     ]
+-    return tuple(
+-        (
+-            path.relative_to(root).as_posix() if path != root else ".",
+-            info.st_mode,
+-            info.st_size,
+-            info.st_mtime_ns,
+-            info.st_ctime_ns,
++    snapshot = []
++    for path in sorted(entries):
++        relative = path.relative_to(root).as_posix() if path != root else "."
++        info = path.lstat()
++        normalize = (
++            stat.S_ISDIR(info.st_mode)
++            and ignored_ancestors.contains(relative)
+         )
+-        for path in sorted(entries)
+-        for info in (path.lstat(),)
+-    )
++        snapshot.append((
++            relative,
++            info.st_mode,
++            None if normalize else info.st_size,
++            None if normalize else info.st_mtime_ns,
++            None if normalize else info.st_ctime_ns,
++        ))
++    return tuple(snapshot)
+ 
+ 
+ def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+@@ -601,9 +612,9 @@ def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+ def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+     ignored_prefixes = git_ignored_output_prefixes(ROOT)
+     assert "runs" in ignored_prefixes
++    before = _t080_output_snapshot(tmp_path)
+     ignored_parent = tmp_path / "runs"
+     ignored_parent.mkdir()
+-    before = _t080_output_snapshot(tmp_path)
+     control = ignored_parent / "snapshot-ignored-t080"
+     control.mkdir()
+     (control / "nested").mkdir()
+@@ -613,15 +624,104 @@ def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
+ 
+     assert _t080_output_snapshot(tmp_path) == before
+ 
++    assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
++    visible_before = _t080_output_snapshot(tmp_path)
++    visible = tmp_path / "runs-visible" / "nested"
++    visible.mkdir(parents=True)
++    (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
++    visible_after = _t080_output_snapshot(tmp_path)
++    assert visible_after != visible_before, (
++        "rule-derived ignore prefix 'runs' must not hide Git-visible 'runs-visible'"
++    )
++
++
++def test_t080_output_snapshot_observes_git_visible_create_and_delete(tmp_path):
++    ignored_ancestors = git_ignored_output_ancestor_directories(ROOT)
++    parent = tmp_path / "visible-transient-parent"
++    assert not ignored_ancestors.contains(parent.name)
++    parent.mkdir()
++    before = _t080_output_snapshot(tmp_path)
++    transient = parent / "visible-transient"
++    transient.mkdir()
++    (transient / "payload").write_bytes(b"visible transient")
++    shutil.rmtree(transient)
++    after = _t080_output_snapshot(tmp_path)
++    assert after != before, "Git-visible create-and-delete must remain observable"
++
++
++def _output_ignore_contract_repo(
++        tmp_path: Path, root_rules: bytes, *, force_tracked: bool = False,
++) -> Path:
++    repo = tmp_path / "output-ignore-repo"
++    repo.mkdir()
++    _run_git(repo, "init", "-q")
++    global_rules = tmp_path / "global-ignore"
++    global_rules.write_bytes(b"output/global-cache/\n")
++    _run_git(repo, "config", "core.excludesFile", str(global_rules))
++    (repo / ".gitignore").write_bytes(root_rules)
++    info_path = Path(_run_git(repo, "rev-parse", "--git-path", "info/exclude"))
++    if not info_path.is_absolute():
++        info_path = repo / info_path
++    info_path.write_bytes(b"output/info-cache/\n")
++    (repo / "output").mkdir()
++    (repo / "output" / "README").write_bytes(b"tracked output sentinel")
++    _run_git(
++        repo, "add", *(('-f',) if force_tracked else ()), "output/README",
++    )
++    return repo
++
++
++def test_git_ignored_output_prefixes_uses_rule_sources_before_paths_exist(tmp_path):
++    repo = _output_ignore_contract_repo(
++        tmp_path,
++        b"""\
++output/runs/
++output/cache/deep/
++output/variants/*/bin/
++output/cancelled/deep/
++!output/cancelled/deep/
++output/**/recursive/
++output/escaped\\ name/
++other*/output/outside/
++""",
++    )
++
++    prefixes_before = git_ignored_output_prefixes(repo)
++    assert prefixes_before == (
++        "cache/deep", "global-cache", "info-cache", "runs",
++    )
++    ancestors_before = git_ignored_output_ancestor_directories(repo)
++    assert ancestors_before.exact == frozenset({".", "cache"})
++    assert ancestors_before.subtree_roots == frozenset({"variants"})
++    assert ancestors_before.contains("variants/branch/deeper")
++    assert not ancestors_before.contains("cache/unrelated")
++    assert not is_git_ignored_output_path("runs-visible", prefixes_before)
++
++    (repo / "output" / "variants" / "v1" / "bin").mkdir(parents=True)
++    assert git_ignored_output_prefixes(repo) == (
++        "cache/deep", "global-cache", "info-cache", "runs", "variants/v1/bin",
++    )
++    assert git_ignored_output_ancestor_directories(repo) == ancestors_before
++
++
++def test_git_ignored_output_prefixes_rejects_tracked_rule_descendant(tmp_path):
++    repo = _output_ignore_contract_repo(tmp_path, b"output/runs/\n")
++    tracked = repo / "output" / "runs" / "tracked.txt"
++    tracked.parent.mkdir()
++    tracked.write_bytes(b"force-added tracked descendant")
++    _run_git(repo, "add", "-f", "output/runs/tracked.txt")
++
++    with pytest.raises(AssertionError, match="tracked entry"):
++        git_ignored_output_prefixes(repo)
++
+ 
+-def test_git_ignored_output_prefixes_rejects_entire_output_ignore(monkeypatch):
+-    completed = subprocess.CompletedProcess(
+-        args=("git", "ls-files"), returncode=0, stdout="output/\n", stderr="",
++def test_git_ignored_output_prefixes_rejects_entire_output_ignore(tmp_path):
++    repo = _output_ignore_contract_repo(
++        tmp_path, b"output/\n", force_tracked=True,
+     )
+-    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: completed)
+ 
+     with pytest.raises(AssertionError, match="output/ 全体が Git ignore 対象"):
+-        git_ignored_output_prefixes(ROOT)
++        git_ignored_output_prefixes(repo)
+ 
+ 
+ def _run_git_bytes(root: Path, *args: str) -> bytes:
