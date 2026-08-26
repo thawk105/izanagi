@@ -634,7 +634,11 @@ def scan_worktree_occupancy(
     )
 
 
-def _report_payload(report: ScanReport) -> dict[str, object]:
+def _report_payload(
+    report: ScanReport,
+    *,
+    retry_count: int = 0,
+) -> dict[str, object]:
     unreachable = {"cwd_permission": report.unreachable.cwd_permission}
     if report.unreachable.zombie:
         unreachable["zombie"] = report.unreachable.zombie
@@ -651,6 +655,8 @@ def _report_payload(report: ScanReport) -> dict[str, object]:
         "unreachable": unreachable,
         "worktree": str(report.worktree),
     }
+    if retry_count:
+        payload["retry_count"] = retry_count
     return payload
 
 
@@ -676,15 +682,23 @@ def main(
     )
     parser.add_argument("worktree", metavar="WORKTREE")
     args = parser.parse_args(argv)
-    report = scan_worktree_occupancy(
-        Path(args.worktree),
-        proc_root=proc_root,
-        self_pid=self_pid,
-        parent_pid=parent_pid,
-    )
+    for retry_count in range(3):
+        report = scan_worktree_occupancy(
+            Path(args.worktree),
+            proc_root=proc_root,
+            self_pid=self_pid,
+            parent_pid=parent_pid,
+        )
+        retryable = (
+            report.status == "indeterminate"
+            and not report.occupants
+            and bool(report.issues)
+        )
+        if not retryable:
+            break
     print(
         json.dumps(
-            _report_payload(report),
+            _report_payload(report, retry_count=retry_count),
             ensure_ascii=False,
             sort_keys=True,
             separators=(",", ":"),

@@ -27,7 +27,9 @@ _REPO = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _PRUNE_LINE_RE = re.compile(r"^Removing worktrees/([^:]+): .+$")
 _OCCUPANCY_MAX_SCANS = 3
-_DISAPPEARED_PID_ISSUE_SOURCES = frozenset({"stat", "cwd", "cmdline"})
+_OCCUPANCY_ISSUE_FIELD_BYTES = 24
+_OCCUPANCY_ISSUE_MAX_ITEMS = 3
+_OCCUPANCY_ISSUE_SUMMARY_BYTES = 380
 
 
 @dataclass(frozen=True)
@@ -434,18 +436,47 @@ def _occupancy_payload(path: Path) -> tuple[int, dict[str, object]]:
     return rc, payload
 
 
-def _is_disappeared_pid_issue(issue: object) -> bool:
-    if not isinstance(issue, dict):
-        return False
-    pid = issue.get("pid")
-    source = issue.get("source")
-    return (
-        type(pid) is int
-        and pid > 0
-        and issue.get("error") == "missing"
-        and isinstance(source, str)
-        and source in _DISAPPEARED_PID_ISSUE_SOURCES
-    )
+def _occupancy_issue_field(issue: object, field: str, *, limit: int) -> str:
+    if type(issue) is not dict:
+        return "unspecified"
+    value = issue.get(field)
+    if type(value) is str:
+        return _sanitize(value, limit=limit)
+    if field == "pid" and type(value) is int and value.bit_length() <= 80:
+        return _sanitize(value, limit=limit)
+    return "unspecified"
+
+
+def _occupancy_issue_summary(issues: object) -> str:
+    if type(issues) is list:
+        issue_items = issues
+        total = len(issues)
+    else:
+        issue_items = [None]
+        total = 1
+    selected = issue_items[:_OCCUPANCY_ISSUE_MAX_ITEMS]
+    omitted = max(total - len(selected), 0)
+
+    def render(field_limit: int) -> str:
+        items = [
+            {
+                "error": _occupancy_issue_field(issue, "error", limit=field_limit),
+                "source": _occupancy_issue_field(issue, "source", limit=field_limit),
+                "pid": _occupancy_issue_field(issue, "pid", limit=field_limit),
+            }
+            for issue in selected
+        ]
+        encoded = json.dumps(items, ensure_ascii=False, separators=(",", ":"))
+        return (
+            f"issues_total={total} issues={encoded} "
+            f"issues_omitted={omitted}"
+        )
+
+    for field_limit in range(_OCCUPANCY_ISSUE_FIELD_BYTES, 11, -1):
+        summary = render(field_limit)
+        if len(summary.encode("utf-8")) <= _OCCUPANCY_ISSUE_SUMMARY_BYTES:
+            return summary
+    return f"issues_total={total} issues=[] issues_omitted={total}"
 
 
 def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
@@ -488,9 +519,7 @@ def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
         retryable = (
             payload.get("status") == "indeterminate"
             and occupants == []
-            and isinstance(issues, list)
             and bool(issues)
-            and all(_is_disappeared_pid_issue(issue) for issue in issues)
         )
         if retryable and attempt < _OCCUPANCY_MAX_SCANS:
             continue
@@ -504,7 +533,8 @@ def _assert_unoccupied(path: Path) -> OccupancyDiagnostics:
         if not valid:
             raise _reject(
                 "occupancy",
-                f"occupancy result is indeterminate or inconsistent; {attempt_diagnostic}",
+                "occupancy result is indeterminate or inconsistent; "
+                f"{attempt_diagnostic} {_occupancy_issue_summary(issues)}",
                 RC_OCCUPANCY_INDETERMINATE,
             )
         if not isinstance(unreachable, dict) or "cwd_permission" not in unreachable:

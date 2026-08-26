@@ -130,13 +130,81 @@ if [[ "$CCBENCH_RESOLVED" != "$NEW_OID" ]]; then
   exit 2
 fi
 
-# Outer source identity is frozen before any submission staging is created.
+# Normalize the effective attempts root before the clean-tree decision so a
+# prior submission under a custom in-repository root remains tool-owned.
+if [[ -z "$ATTEMPTS_ROOT" ]]; then
+  ATTEMPTS_ROOT="$REPO_ROOT/output/env/pegasus/mocc-trace/attempts"
+fi
+case "$ATTEMPTS_ROOT" in
+  *:*|*,*|*$'\n'*)
+    echo "attempts root must not contain a colon, comma, or newline" >&2
+    exit 2
+    ;;
+esac
+mkdir -p "$ATTEMPTS_ROOT"
+ATTEMPTS_ROOT=$(cd "$ATTEMPTS_ROOT" && pwd -P)
+case "$ATTEMPTS_ROOT" in
+  *:*|*,*|*$'\n'*)
+    echo "normalized attempts root must not contain a colon, comma, or newline" >&2
+    exit 2
+    ;;
+esac
+if [[ "$ATTEMPTS_ROOT" == "$REPO_ROOT" ]]; then
+  echo "attempts root must not be the repository root" >&2
+  exit 2
+fi
+
+# Outer source identity is frozen before nonce-specific submission staging is created.
 SOURCE_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD) || exit 2
 if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   echo "cannot resolve a full outer source commit" >&2
   exit 2
 fi
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all)" ]]; then
+if ! python3 - "$REPO_ROOT" "$ATTEMPTS_ROOT" <<'PY'
+import os
+import stat
+import subprocess
+import sys
+
+repo = os.fsencode(sys.argv[1])
+attempts_root = os.fsencode(sys.argv[2])
+completed = subprocess.run(
+    [
+        b"git", b"-C", repo, b"status", b"--porcelain=v1", b"-z",
+        b"--untracked-files=all",
+    ],
+    check=False,
+    capture_output=True,
+)
+if completed.returncode != 0:
+    raise SystemExit(completed.returncode)
+owned_prefixes = [
+    b"output/env/pegasus/mocc-trace/attempts/",
+    b"output/env/pegasus/mocc-trace/job-staging/",
+]
+try:
+    if os.path.commonpath((repo, attempts_root)) == repo:
+        relative_attempts = os.path.relpath(attempts_root, repo)
+        separator = os.fsencode(os.sep)
+        owned_prefixes.append(relative_attempts.rstrip(separator) + separator)
+except ValueError:
+    raise SystemExit(1)
+for record in completed.stdout.split(b"\0"):
+    if not record:
+        continue
+    if len(record) < 4 or record[:3] != b"?? ":
+        raise SystemExit(1)
+    relative = record[3:]
+    if not any(relative.startswith(prefix) for prefix in owned_prefixes):
+        raise SystemExit(1)
+    try:
+        candidate_stat = os.lstat(os.path.join(repo, relative))
+    except OSError:
+        raise SystemExit(1)
+    if not stat.S_ISREG(candidate_stat.st_mode):
+        raise SystemExit(1)
+PY
+then
   echo "working tree is dirty; Mocc trace submission aborted" >&2
   exit 2
 fi
@@ -148,10 +216,11 @@ print(secrets.token_hex(16))
 PY
 )
 
-if [[ -z "$ATTEMPTS_ROOT" ]]; then
-  ATTEMPTS_ROOT="$REPO_ROOT/output/env/pegasus/mocc-trace/attempts"
-fi
 SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/$NONCE"
+if [[ -L "$ATTEMPTS_ROOT/submissions" ]]; then
+  echo "submission staging parent must not be a symlink" >&2
+  exit 2
+fi
 mkdir -p "$ATTEMPTS_ROOT/submissions"
 if ! mkdir "$SUBMISSION_DIR"; then
   echo "submission staging already exists (create-only): $SUBMISSION_DIR" >&2
@@ -192,11 +261,16 @@ case "$THIRD_PARTY_CACHE_VALUE" in
     exit 2
     ;;
 esac
-EXPORT_SPEC="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_MOCC_TRACE_MODE=$TRACE_MODE"
+EXPORT_SPEC="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_MOCC_TRACE_MODE=$TRACE_MODE,IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT=$ATTEMPTS_ROOT"
 if [[ -n "$THIRD_PARTY_CACHE_VALUE" ]]; then
   EXPORT_SPEC+=",$THIRD_PARTY_CACHE_ENV=$THIRD_PARTY_CACHE_VALUE"
 fi
-qsub_cmd=(qsub -v "$EXPORT_SPEC" "$JOB_SCRIPT")
+qsub_cmd=(
+  qsub -v "$EXPORT_SPEC"
+  -o "$SUBMISSION_DIR/pbs-job.stdout"
+  -e "$SUBMISSION_DIR/pbs-job.stderr"
+  "$JOB_SCRIPT"
+)
 
 python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT" "$JOB_SCRIPT_SHA256" \
   "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
@@ -315,7 +389,7 @@ with open(source, encoding="utf-8") as handle:
     pre = json.load(handle)
 request = pre["request"]
 payload = {
-    "schema_version": "pegasus-submit-receipt/v1",
+    "schema_version": "pegasus-submit-receipt/v2",
     "submission_nonce": pre["submission_nonce"],
     "source_commit": pre["source_commit"],
     "job_script_sha256": pre["job_script_sha256"],

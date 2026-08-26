@@ -1,0 +1,919 @@
+{
+  "schema": "izanagi-s1-9pair-figure-provenance/v1",
+  "generated_utc": "2026-08-26T09:26:20.791389Z",
+  "generator": "plot_s1_9pair.py",
+  "generator_source": {
+    "path": "tools/plotting/plot_s1_9pair.py",
+    "sha256": "4a76d59c854cf8021a711cb27ebeb7aad599c4dda448dd9ee6f15c80ab7d772c"
+  },
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison.png",
+      "sha256": "61c6eeb6932252f87ad8e2bc8f828e5e7543658a2aea22c7ff5c7847eaf157b7"
+    },
+    {
+      "path": "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison.pdf",
+      "sha256": "5b33633ab09437aecae0f32a89548fb874581b0fa3ad7c17f7d29fc28bd88433"
+    }
+  ],
+  "inputs": [
+    {
+      "kind": "report",
+      "path": "output/reports/s1_direct_comparison/report.json",
+      "sha256": "491ad38dbabc4a9d57fc7a0ae5a4f5b37f67a5862712e158a9cc34e8552fa725",
+      "generated_at_head": "24202e270782a58343ef016592c1a4ae767ee0ce"
+    },
+    {
+      "kind": "current_measurement_freeze",
+      "path": "output/s1-freeze/measurement_freeze.json",
+      "sha256": "203de36b9749b9021d1b944d26fad4c8ed617a0fdd1438435cb67e90a0efcf7a"
+    },
+    {
+      "role": "develop",
+      "campaign": "s1-direct-develop-direct-comparison-d0f495bf",
+      "dir": "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf",
+      "wal": "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf/runs/wal.jsonl",
+      "wal_sha256": "fb1af21ea7da95cbf5e40dbb8a2da8af41f6c2a44bd18945290eb17f0dfaa7ac",
+      "lock": "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf/campaign.lock",
+      "lock_sha256": "d0f495bf6fc97bb4666471f0258f47c72f65557c8b0a0c530855ebb9a3327f62",
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "admission_decision": {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "classification": "historical-pre-admission-schema",
+        "admission_status": "historical-not-reclassified",
+        "verification_status": "not-evaluated-by-overlay",
+        "campaign_id": "s1-direct-develop-direct-comparison-d0f495bf",
+        "campaign_path": "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf",
+        "campaign_lock_sha256": "d0f495bf6fc97bb4666471f0258f47c72f65557c8b0a0c530855ebb9a3327f62",
+        "wal_sha256": "fb1af21ea7da95cbf5e40dbb8a2da8af41f6c2a44bd18945290eb17f0dfaa7ac",
+        "policy_sha256": null,
+        "attempt_receipt_sha256s": [],
+        "validator": {
+          "identity": "orchestrator.campaign.artifact_admission",
+          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+        },
+        "overlay": {
+          "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
+          "record_key": null
+        }
+      },
+      "kind": "campaign"
+    },
+    {
+      "role": "floor",
+      "campaign": "s1-direct-floor-direct-comparison-b82b9229",
+      "dir": "output/campaigns/s1-direct-floor-direct-comparison-b82b9229",
+      "wal": "output/campaigns/s1-direct-floor-direct-comparison-b82b9229/runs/wal.jsonl",
+      "wal_sha256": "a5542d6cba6b4470a828e96e77f826dcd553ce38fe635a7a4c88141c03d99c38",
+      "lock": "output/campaigns/s1-direct-floor-direct-comparison-b82b9229/campaign.lock",
+      "lock_sha256": "b82b9229331d4ac7371647c63032fc593202c8e24b6ea030a1ad4490b122e432",
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "admission_decision": {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "classification": "historical-pre-admission-schema",
+        "admission_status": "historical-not-reclassified",
+        "verification_status": "not-evaluated-by-overlay",
+        "campaign_id": "s1-direct-floor-direct-comparison-b82b9229",
+        "campaign_path": "output/campaigns/s1-direct-floor-direct-comparison-b82b9229",
+        "campaign_lock_sha256": "b82b9229331d4ac7371647c63032fc593202c8e24b6ea030a1ad4490b122e432",
+        "wal_sha256": "a5542d6cba6b4470a828e96e77f826dcd553ce38fe635a7a4c88141c03d99c38",
+        "policy_sha256": null,
+        "attempt_receipt_sha256s": [],
+        "validator": {
+          "identity": "orchestrator.campaign.artifact_admission",
+          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+        },
+        "overlay": {
+          "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
+          "record_key": null
+        }
+      },
+      "kind": "campaign"
+    },
+    {
+      "role": "block1",
+      "campaign": "s1-direct-block1-direct-comparison-74ff9ba2",
+      "dir": "output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2",
+      "wal": "output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2/runs/wal.jsonl",
+      "wal_sha256": "57726aadb08b1833cd2a8e919c9f766ac83c1cdce551c4bc82ad4fdeb1f2ad20",
+      "lock": "output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2/campaign.lock",
+      "lock_sha256": "74ff9ba28a70e18ece2d87777d95a147b222f5ab8576071b798a7820e492e8a5",
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "admission_decision": {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "classification": "historical-pre-admission-schema",
+        "admission_status": "historical-not-reclassified",
+        "verification_status": "not-evaluated-by-overlay",
+        "campaign_id": "s1-direct-block1-direct-comparison-74ff9ba2",
+        "campaign_path": "output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2",
+        "campaign_lock_sha256": "74ff9ba28a70e18ece2d87777d95a147b222f5ab8576071b798a7820e492e8a5",
+        "wal_sha256": "57726aadb08b1833cd2a8e919c9f766ac83c1cdce551c4bc82ad4fdeb1f2ad20",
+        "policy_sha256": null,
+        "attempt_receipt_sha256s": [],
+        "validator": {
+          "identity": "orchestrator.campaign.artifact_admission",
+          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+        },
+        "overlay": {
+          "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
+          "record_key": null
+        }
+      },
+      "kind": "campaign"
+    },
+    {
+      "role": "block2",
+      "campaign": "s1-direct-block2-direct-comparison-9645b16a",
+      "dir": "output/campaigns/s1-direct-block2-direct-comparison-9645b16a",
+      "wal": "output/campaigns/s1-direct-block2-direct-comparison-9645b16a/runs/wal.jsonl",
+      "wal_sha256": "2194ca8936bb0d6f812e6ad94ffbd1f278ab40386abc5123c36d0ea75c7342bd",
+      "lock": "output/campaigns/s1-direct-block2-direct-comparison-9645b16a/campaign.lock",
+      "lock_sha256": "9645b16a86d769bdb2fa8a7fb7c4c2494ba125d8d1f29fff7de47266a58628a9",
+      "read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      },
+      "admission_decision": {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "classification": "historical-pre-admission-schema",
+        "admission_status": "historical-not-reclassified",
+        "verification_status": "not-evaluated-by-overlay",
+        "campaign_id": "s1-direct-block2-direct-comparison-9645b16a",
+        "campaign_path": "output/campaigns/s1-direct-block2-direct-comparison-9645b16a",
+        "campaign_lock_sha256": "9645b16a86d769bdb2fa8a7fb7c4c2494ba125d8d1f29fff7de47266a58628a9",
+        "wal_sha256": "2194ca8936bb0d6f812e6ad94ffbd1f278ab40386abc5123c36d0ea75c7342bd",
+        "policy_sha256": null,
+        "attempt_receipt_sha256s": [],
+        "validator": {
+          "identity": "orchestrator.campaign.artifact_admission",
+          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+        },
+        "overlay": {
+          "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
+          "record_key": null
+        }
+      },
+      "kind": "campaign"
+    }
+  ],
+  "facts": {
+    "claim": {
+      "claim_id": "S-1a",
+      "judgment": "不成立",
+      "p_family": 1.0,
+      "pair_count": 9,
+      "passed_pair_count": 3,
+      "failed_pair_count": 6,
+      "conjunction_required": true
+    },
+    "measurement_conditions": {
+      "threads": 48,
+      "records": 1000000,
+      "duration_s": 3,
+      "clocks_per_us": 1800,
+      "zipf_skew": 0.9,
+      "read_ratios_percent": {
+        "write-heavy": 5,
+        "balanced": 50,
+        "read-heavy": 95
+      },
+      "read_modify_write": false,
+      "env": "linux-baremetal",
+      "ccbench_commit": "d706650",
+      "CCBENCH_TRACE": 0,
+      "numactl_args": [
+        "--interleave=all"
+      ],
+      "perf": "stat",
+      "perf_events": [
+        "LLC-load-misses",
+        "LLC-loads",
+        "instructions",
+        "cycles"
+      ],
+      "repetitions_per_session": 5,
+      "session_statistic": "median",
+      "samples_per_cell": 8,
+      "unstable_policy": "retain all accepted evidence; do not filter",
+      "unstable_sample_count": 0
+    },
+    "cells": {
+      "write-heavy:system_gate": {
+        "cell_id": "write-heavy:system_gate",
+        "n": 8,
+        "samples_tps": [
+          1692127.0,
+          1677830.0,
+          1679991.0,
+          1684973.0,
+          1702034.0,
+          1687206.0,
+          1703276.0,
+          1697363.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            1692127.0,
+            1677830.0,
+            1679991.0,
+            1684973.0
+          ],
+          "block2": [
+            1702034.0,
+            1687206.0,
+            1703276.0,
+            1697363.0
+          ]
+        },
+        "mean_tps": 1690600.0,
+        "median_tps": 1689666.5,
+        "ci95_mean_low_tps": 1682491.3813841848,
+        "ci95_mean_high_tps": 1698708.6186158152,
+        "ci95_mean_half_tps": 8108.61861581508,
+        "unstable_count": 0
+      },
+      "write-heavy:p2_2_flag_opt": {
+        "cell_id": "write-heavy:p2_2_flag_opt",
+        "n": 8,
+        "samples_tps": [
+          1887156.0,
+          1857967.0,
+          1863724.0,
+          1887159.0,
+          1863955.0,
+          1843671.0,
+          1837027.0,
+          1874214.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            1887156.0,
+            1857967.0,
+            1863724.0,
+            1887159.0
+          ],
+          "block2": [
+            1863955.0,
+            1843671.0,
+            1837027.0,
+            1874214.0
+          ]
+        },
+        "mean_tps": 1864359.125,
+        "median_tps": 1863839.5,
+        "ci95_mean_low_tps": 1849028.5247117279,
+        "ci95_mean_high_tps": 1879689.7252882721,
+        "ci95_mean_half_tps": 15330.600288272033,
+        "unstable_count": 0
+      },
+      "write-heavy:backoff_fixed_best": {
+        "cell_id": "write-heavy:backoff_fixed_best",
+        "n": 8,
+        "samples_tps": [
+          2601215.0,
+          2662293.0,
+          2620848.0,
+          2663058.0,
+          2649716.0,
+          2648970.0,
+          2630387.0,
+          2604995.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            2601215.0,
+            2662293.0,
+            2620848.0,
+            2663058.0
+          ],
+          "block2": [
+            2649716.0,
+            2648970.0,
+            2630387.0,
+            2604995.0
+          ]
+        },
+        "mean_tps": 2635185.25,
+        "median_tps": 2639678.5,
+        "ci95_mean_low_tps": 2614686.953084902,
+        "ci95_mean_high_tps": 2655683.546915098,
+        "ci95_mean_half_tps": 20498.296915098297,
+        "unstable_count": 0
+      },
+      "write-heavy:sort_best": {
+        "cell_id": "write-heavy:sort_best",
+        "n": 8,
+        "samples_tps": [
+          1083370.0,
+          1086952.0,
+          1087718.0,
+          1081278.0,
+          1091937.0,
+          1086209.0,
+          1087266.0,
+          1080687.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            1083370.0,
+            1086952.0,
+            1087718.0,
+            1081278.0
+          ],
+          "block2": [
+            1091937.0,
+            1086209.0,
+            1087266.0,
+            1080687.0
+          ]
+        },
+        "mean_tps": 1085677.125,
+        "median_tps": 1086580.5,
+        "ci95_mean_low_tps": 1082558.7502281722,
+        "ci95_mean_high_tps": 1088795.4997718278,
+        "ci95_mean_half_tps": 3118.374771827901,
+        "unstable_count": 0
+      },
+      "balanced:system_gate": {
+        "cell_id": "balanced:system_gate",
+        "n": 8,
+        "samples_tps": [
+          1706425.0,
+          1707580.0,
+          1701935.0,
+          1702938.0,
+          1694448.0,
+          1715085.0,
+          1707840.0,
+          1704385.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            1706425.0,
+            1707580.0,
+            1701935.0,
+            1702938.0
+          ],
+          "block2": [
+            1694448.0,
+            1715085.0,
+            1707840.0,
+            1704385.0
+          ]
+        },
+        "mean_tps": 1705079.5,
+        "median_tps": 1705405.0,
+        "ci95_mean_low_tps": 1700145.0967148421,
+        "ci95_mean_high_tps": 1710013.9032851579,
+        "ci95_mean_half_tps": 4934.403285157961,
+        "unstable_count": 0
+      },
+      "balanced:p2_2_flag_opt": {
+        "cell_id": "balanced:p2_2_flag_opt",
+        "n": 8,
+        "samples_tps": [
+          2747758.0,
+          2766305.0,
+          2719336.0,
+          2727194.0,
+          2701236.0,
+          2717742.0,
+          2777033.0,
+          2664179.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            2747758.0,
+            2766305.0,
+            2719336.0,
+            2727194.0
+          ],
+          "block2": [
+            2701236.0,
+            2717742.0,
+            2777033.0,
+            2664179.0
+          ]
+        },
+        "mean_tps": 2727597.875,
+        "median_tps": 2723265.0,
+        "ci95_mean_low_tps": 2697233.754636398,
+        "ci95_mean_high_tps": 2757961.995363602,
+        "ci95_mean_half_tps": 30364.120363602113,
+        "unstable_count": 0
+      },
+      "balanced:backoff_fixed_best": {
+        "cell_id": "balanced:backoff_fixed_best",
+        "n": 8,
+        "samples_tps": [
+          3078607.0,
+          3100929.0,
+          3095241.0,
+          3069985.0,
+          3072088.0,
+          3073414.0,
+          3078497.0,
+          3078678.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            3078607.0,
+            3100929.0,
+            3095241.0,
+            3069985.0
+          ],
+          "block2": [
+            3072088.0,
+            3073414.0,
+            3078497.0,
+            3078678.0
+          ]
+        },
+        "mean_tps": 3080929.875,
+        "median_tps": 3078552.0,
+        "ci95_mean_low_tps": 3071578.100037323,
+        "ci95_mean_high_tps": 3090281.649962677,
+        "ci95_mean_half_tps": 9351.77496267694,
+        "unstable_count": 0
+      },
+      "balanced:sort_best": {
+        "cell_id": "balanced:sort_best",
+        "n": 8,
+        "samples_tps": [
+          921873.0,
+          930821.0,
+          924344.0,
+          930405.0,
+          917262.0,
+          933362.0,
+          928265.0,
+          931650.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            921873.0,
+            930821.0,
+            924344.0,
+            930405.0
+          ],
+          "block2": [
+            917262.0,
+            933362.0,
+            928265.0,
+            931650.0
+          ]
+        },
+        "mean_tps": 927247.75,
+        "median_tps": 929335.0,
+        "ci95_mean_low_tps": 922586.1335124655,
+        "ci95_mean_high_tps": 931909.3664875345,
+        "ci95_mean_half_tps": 4661.616487534486,
+        "unstable_count": 0
+      },
+      "read-heavy:system_gate": {
+        "cell_id": "read-heavy:system_gate",
+        "n": 8,
+        "samples_tps": [
+          3802516.0,
+          3805646.0,
+          3800916.0,
+          3811494.0,
+          3804762.0,
+          3791457.0,
+          3797663.0,
+          3824572.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            3802516.0,
+            3805646.0,
+            3800916.0,
+            3811494.0
+          ],
+          "block2": [
+            3804762.0,
+            3791457.0,
+            3797663.0,
+            3824572.0
+          ]
+        },
+        "mean_tps": 3804878.25,
+        "median_tps": 3803639.0,
+        "ci95_mean_low_tps": 3796602.6547349463,
+        "ci95_mean_high_tps": 3813153.8452650537,
+        "ci95_mean_half_tps": 8275.595265053593,
+        "unstable_count": 0
+      },
+      "read-heavy:p2_2_flag_opt": {
+        "cell_id": "read-heavy:p2_2_flag_opt",
+        "n": 8,
+        "samples_tps": [
+          8493333.0,
+          8469808.0,
+          8481531.0,
+          8479225.0,
+          8459748.0,
+          8468043.0,
+          8463981.0,
+          8488202.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            8493333.0,
+            8469808.0,
+            8481531.0,
+            8479225.0
+          ],
+          "block2": [
+            8459748.0,
+            8468043.0,
+            8463981.0,
+            8488202.0
+          ]
+        },
+        "mean_tps": 8475483.875,
+        "median_tps": 8474516.5,
+        "ci95_mean_low_tps": 8465497.815392654,
+        "ci95_mean_high_tps": 8485469.934607346,
+        "ci95_mean_half_tps": 9986.059607345553,
+        "unstable_count": 0
+      },
+      "read-heavy:backoff_fixed_best": {
+        "cell_id": "read-heavy:backoff_fixed_best",
+        "n": 8,
+        "samples_tps": [
+          7907216.0,
+          7906683.0,
+          7897080.0,
+          7913668.0,
+          7914116.0,
+          7903105.0,
+          7898285.0,
+          7905688.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            7907216.0,
+            7906683.0,
+            7897080.0,
+            7913668.0
+          ],
+          "block2": [
+            7914116.0,
+            7903105.0,
+            7898285.0,
+            7905688.0
+          ]
+        },
+        "mean_tps": 7905730.125,
+        "median_tps": 7906185.5,
+        "ci95_mean_low_tps": 7900502.648014118,
+        "ci95_mean_high_tps": 7910957.601985882,
+        "ci95_mean_half_tps": 5227.476985881604,
+        "unstable_count": 0
+      },
+      "read-heavy:sort_best": {
+        "cell_id": "read-heavy:sort_best",
+        "n": 8,
+        "samples_tps": [
+          1918301.0,
+          1912442.0,
+          1895687.0,
+          1923595.0,
+          1931416.0,
+          1915367.0,
+          1905039.0,
+          1921294.0
+        ],
+        "block_samples_tps": {
+          "block1": [
+            1918301.0,
+            1912442.0,
+            1895687.0,
+            1923595.0
+          ],
+          "block2": [
+            1931416.0,
+            1915367.0,
+            1905039.0,
+            1921294.0
+          ]
+        },
+        "mean_tps": 1915392.625,
+        "median_tps": 1916834.0,
+        "ci95_mean_low_tps": 1906062.7052141188,
+        "ci95_mean_high_tps": 1924722.5447858812,
+        "ci95_mean_half_tps": 9329.919785881159,
+        "unstable_count": 0
+      }
+    },
+    "comparisons": [
+      {
+        "comparison_id": "S-1a:write-heavy:p2_2_flag_opt",
+        "workload": "write-heavy",
+        "left_cell": "write-heavy:system_gate",
+        "right_cell": "write-heavy:p2_2_flag_opt",
+        "left_median_tps": 1689666.5,
+        "right_median_tps": 1863839.5,
+        "relative_median_difference": -0.09344849704065183,
+        "relative_median_difference_percent": -9.344849704065183,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": false,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "不成立",
+        "p_perm": 1.0,
+        "p_star": 1.0
+      },
+      {
+        "comparison_id": "S-1a:write-heavy:backoff_fixed_best",
+        "workload": "write-heavy",
+        "left_cell": "write-heavy:system_gate",
+        "right_cell": "write-heavy:backoff_fixed_best",
+        "left_median_tps": 1689666.5,
+        "right_median_tps": 2639678.5,
+        "relative_median_difference": -0.35989685865153653,
+        "relative_median_difference_percent": -35.98968586515365,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": false,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "不成立",
+        "p_perm": 1.0,
+        "p_star": 1.0
+      },
+      {
+        "comparison_id": "S-1a:write-heavy:sort_best",
+        "workload": "write-heavy",
+        "left_cell": "write-heavy:system_gate",
+        "right_cell": "write-heavy:sort_best",
+        "left_median_tps": 1689666.5,
+        "right_median_tps": 1086580.5,
+        "relative_median_difference": 0.5550311274682364,
+        "relative_median_difference_percent": 55.50311274682363,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": true,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "成立",
+        "p_perm": 0.00020408163265306123,
+        "p_star": 0.00020408163265306123
+      },
+      {
+        "comparison_id": "S-1a:balanced:p2_2_flag_opt",
+        "workload": "balanced",
+        "left_cell": "balanced:system_gate",
+        "right_cell": "balanced:p2_2_flag_opt",
+        "left_median_tps": 1705405.0,
+        "right_median_tps": 2723265.0,
+        "relative_median_difference": -0.3737645803842079,
+        "relative_median_difference_percent": -37.37645803842079,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": false,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "不成立",
+        "p_perm": 1.0,
+        "p_star": 1.0
+      },
+      {
+        "comparison_id": "S-1a:balanced:backoff_fixed_best",
+        "workload": "balanced",
+        "left_cell": "balanced:system_gate",
+        "right_cell": "balanced:backoff_fixed_best",
+        "left_median_tps": 1705405.0,
+        "right_median_tps": 3078552.0,
+        "relative_median_difference": -0.4460366432010893,
+        "relative_median_difference_percent": -44.60366432010893,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": false,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "不成立",
+        "p_perm": 1.0,
+        "p_star": 1.0
+      },
+      {
+        "comparison_id": "S-1a:balanced:sort_best",
+        "workload": "balanced",
+        "left_cell": "balanced:system_gate",
+        "right_cell": "balanced:sort_best",
+        "left_median_tps": 1705405.0,
+        "right_median_tps": 929335.0,
+        "relative_median_difference": 0.8350809987786966,
+        "relative_median_difference_percent": 83.50809987786965,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": true,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "成立",
+        "p_perm": 0.00020408163265306123,
+        "p_star": 0.00020408163265306123
+      },
+      {
+        "comparison_id": "S-1a:read-heavy:p2_2_flag_opt",
+        "workload": "read-heavy",
+        "left_cell": "read-heavy:system_gate",
+        "right_cell": "read-heavy:p2_2_flag_opt",
+        "left_median_tps": 3803639.0,
+        "right_median_tps": 8474516.5,
+        "relative_median_difference": -0.5511674323839006,
+        "relative_median_difference_percent": -55.116743238390065,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": false,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "不成立",
+        "p_perm": 1.0,
+        "p_star": 1.0
+      },
+      {
+        "comparison_id": "S-1a:read-heavy:backoff_fixed_best",
+        "workload": "read-heavy",
+        "left_cell": "read-heavy:system_gate",
+        "right_cell": "read-heavy:backoff_fixed_best",
+        "left_median_tps": 3803639.0,
+        "right_median_tps": 7906185.5,
+        "relative_median_difference": -0.518903395322561,
+        "relative_median_difference_percent": -51.8903395322561,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": false,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "不成立",
+        "p_perm": 1.0,
+        "p_star": 1.0
+      },
+      {
+        "comparison_id": "S-1a:read-heavy:sort_best",
+        "workload": "read-heavy",
+        "left_cell": "read-heavy:system_gate",
+        "right_cell": "read-heavy:sort_best",
+        "left_median_tps": 3803639.0,
+        "right_median_tps": 1916834.0,
+        "relative_median_difference": 0.9843340633565556,
+        "relative_median_difference_percent": 98.43340633565556,
+        "floor_cmp": 0.03,
+        "gate1_recomputed_for_consistency": true,
+        "gate2_recomputed_for_consistency": true,
+        "judgment": "成立",
+        "p_perm": 0.00020408163265306123,
+        "p_star": 0.00020408163265306123
+      }
+    ],
+    "context_cells": {
+      "write-heavy": {
+        "cell_id": "write-heavy:stock_common",
+        "registered_comparison": false,
+        "n": 8,
+        "samples_tps": [
+          1049939.0,
+          1060600.0,
+          1040535.0,
+          1062661.0,
+          1046920.0,
+          1053058.0,
+          1056961.0,
+          1045239.0
+        ],
+        "median_tps": 1051498.5,
+        "sort_best_relative_to_stock": 0.03336381364310077,
+        "system_gate_relative_to_stock": 0.6069128962143074,
+        "sort_selection_history": "本走 argmax 規則で固定。remeasure は参考値としてのみ併記し、再選定には使わない。"
+      },
+      "balanced": {
+        "cell_id": "balanced:stock_common",
+        "registered_comparison": false,
+        "n": 8,
+        "samples_tps": [
+          916354.0,
+          917422.0,
+          913774.0,
+          900064.0,
+          917564.0,
+          913442.0,
+          924945.0,
+          924894.0
+        ],
+        "median_tps": 916888.0,
+        "sort_best_relative_to_stock": 0.013575267644466937,
+        "system_gate_relative_to_stock": 0.8599927144863931,
+        "sort_selection_history": "本走 argmax 規則により sp_dd を固定。balanced の sp_dd は remeasure campaign p3-s6-sort-sweep-balanced-sweep-1b39095e で floor 超を再現せず、D46 裁定は差なし。"
+      },
+      "read-heavy": {
+        "cell_id": "read-heavy:stock_common",
+        "registered_comparison": false,
+        "n": 8,
+        "samples_tps": [
+          1925519.0,
+          1902558.0,
+          1901042.0,
+          1906557.0,
+          1900992.0,
+          1918013.0,
+          1908053.0,
+          1901553.0
+        ],
+        "median_tps": 1904557.5,
+        "sort_best_relative_to_stock": 0.006445854220731062,
+        "system_gate_relative_to_stock": 0.997124791454183,
+        "sort_selection_history": "read-heavy は sweep 未実施。D52 §2.1 の事前固定 sk_ad を採用し、comparator は write-heavy 本走 provenance から流用。"
+      }
+    },
+    "freeze_proof": {
+      "report_freeze_ref": {
+        "path": "/home/tanab/github/izanagi/output/s1-freeze/measurement_freeze.json",
+        "sha256": "5c719c076e17f385a781933c081bf02abcd85b9edb01ad8c50a37740c134a191"
+      },
+      "current_freeze_path": "output/s1-freeze/measurement_freeze.json",
+      "current_freeze_sha256": "203de36b9749b9021d1b944d26fad4c8ed617a0fdd1438435cb67e90a0efcf7a",
+      "freeze_ref_matches_current": false,
+      "historical_emission_commit": "b4e5cb621e3f8f93de952e9400d4b8dcd34107e0",
+      "changed_json_pointers": [
+        "/frozen_at_head",
+        "/implementation_hashes/known_axes_freeze/sha256",
+        "/cells/read-heavy:sort_best/variant/sources[0]/sha256"
+      ],
+      "figure_semantics_equal": [
+        "18 cell definitions",
+        "12 comparison definitions and notes",
+        "operating_point",
+        "workload_flags"
+      ]
+    },
+    "plot_contract": {
+      "layout": "2 rows x 3 columns",
+      "workload_order": [
+        "write-heavy",
+        "balanced",
+        "read-heavy"
+      ],
+      "axis_order": [
+        "p2_2_flag_opt",
+        "backoff_fixed_best",
+        "sort_best"
+      ],
+      "order_source": "frozen axis order and ascending read ratio; never effect size",
+      "xlim_percent": [
+        -105.0,
+        105.0
+      ],
+      "zero_line_percent": 0.0,
+      "strict_floor_line_percent": 3.0,
+      "failure_region_percent": [
+        -105.0,
+        3.0
+      ],
+      "equal_marker_area": true,
+      "random_jitter": false,
+      "bottom_y_scales": "independent by workload",
+      "bottom_tick_labels": [
+        "trigger gating",
+        "compile-time flags",
+        "static backoff",
+        "lock ordering"
+      ],
+      "stock_common_drawn": false
+    },
+    "figure_conventions_compliance": {
+      "status": "partial",
+      "reason": "samples and aggregates are recomputed from WAL; frozen judgment and p-values are read from the hash-bound report"
+    }
+  },
+  "reproduction": {
+    "cwd": "repository-root",
+    "argv": [
+      "python3",
+      "tools/plotting/plot_s1_9pair.py",
+      "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison",
+      "output/reports/s1_direct_comparison/report.json",
+      "--develop",
+      "output/campaigns/s1-direct-develop-direct-comparison-d0f495bf",
+      "--floor",
+      "output/campaigns/s1-direct-floor-direct-comparison-b82b9229",
+      "--block1",
+      "output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2",
+      "--block2",
+      "output/campaigns/s1-direct-block2-direct-comparison-9645b16a"
+    ],
+    "command": "python3 tools/plotting/plot_s1_9pair.py docs/paper-story/figures/fig4_s1a_9pair_direct_comparison output/reports/s1_direct_comparison/report.json --develop output/campaigns/s1-direct-develop-direct-comparison-d0f495bf --floor output/campaigns/s1-direct-floor-direct-comparison-b82b9229 --block1 output/campaigns/s1-direct-block1-direct-comparison-74ff9ba2 --block2 output/campaigns/s1-direct-block2-direct-comparison-9645b16a"
+  },
+  "caption": "図4. 縮小主張 S' の性能次元 (S-1a) — 既知軸最良に対する直接比較 9 対 (失敗報告)。上段は、abort 要因別に backoff の発火可否を切り替える合成軸 (trigger gating) と、既知軸の最良 3 種 — コンパイル時フラグ最適化、静的 backoff の最良値、書込ロック順の並べ替え — との相対中央値差である。各点は 100 × (合成軸側の中央値 − 相手側の中央値) / 相手側の中央値 で、各セル 8 標本から再計算した。灰色の実線は差 0、赤の破線は厳密に超える必要がある判定境界 +3% (between-run floor = 走行間の再現ばらつきの下限) で、薄赤の領域は境界を超えない範囲である。S-1a の成立条件は 9 対すべてが境界を超えることである。コンパイル時フラグ最適化との 3 対は −9.3%〜−55.1%、静的 backoff 最良値との 3 対は −36.0%〜−51.9% で境界を超えず、書込ロック順並べ替えとの 3 対だけが +55.5%〜+98.4% で超えた。9 対中 6 対が満たされず、3 対が満たしたため、S-1a は不成立である (family p = 1.0)。下段は各セルの 8 標本を全数表示したもので、短い横線が中央値、菱形と誤差棒が標本平均と t 分布による 95% 信頼区間である。下段の平均の信頼区間は標本分布の記述用であり、上段の相対中央値差、判定境界、family 判定のいずれにも用いていない。下段の縦軸は workload ごとに独立なので、パネル間で点の高さや区間の幅を直接比べてはならない。各標本の値は同一セッション内 5 反復の中央値であり、M tps は毎秒 100 万トランザクションを表す。unstable と記録された標本は除外しない契約であり、本図の対象 12 セルには 1 件も無かった。測定条件は Silo、48 スレッド、レコード数 1,000,000、Zipf skew 0.9、read-modify-write 無効、実行時間 3 秒、`clocks_per_us` = 1,800 TSC tick/µs、トレース無効、`numactl --interleave=all`、環境タグ `linux-baremetal`、CCBench commit `d706650`。read 比率だけが workload ごとに異なる (write-heavy 5%、balanced 50%、read-heavy 95%)。測定は `perf stat` 下で最終レベルキャッシュの load misses / loads、instructions、cycles を収集しながら行われた記録であり、そのオーバーヘッドを含む。したがって本図の絶対スループットは論文の headline 値の出所ではなく、現行の同一 campaign 内対測定契約 (D496) を満たすとも主張しない。この限定は凍結済みの S-1a 判定を変更しない。生の追記専用ログ (write-ahead log; WAL) は admission を経た `HISTORICAL_RAW` として verifier epoch E0 で再読し、凍結報告が certified accepted evidence として受理した行と一致するものだけを描いた。判定と p 値は凍結報告から読んでおり、本図の生成器はそれを再計算していない。S-1b は既知軸最良との優劣を問う S-1a とは独立の主張であり、その成立は S-1a の不成立を救わない。"
+}

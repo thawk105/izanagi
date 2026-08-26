@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,8 @@ SUBMITTER = REPO_ROOT / "tools/pegasus/submit_mocc_trace.sh"
 POLICY = REPO_ROOT / "tools/pegasus/mocc_trace_v1_policy.json"
 PILOT = REPO_ROOT / "tools/pegasus/mocc_trace_pilot.sh"
 CHECKER = REPO_ROOT / "tools/check_trace0_preprocess_identity.py"
+VERIFIER = REPO_ROOT / "orchestrator/verifier/__main__.py"
+FETCH_THIRD_PARTY = REPO_ROOT / "tools/pegasus/fetch_third_party.py"
 NEW_OID = "058d0c4e5f237d88ec1c2ebe0739113d82906e47"
 BASE_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 
@@ -31,7 +34,12 @@ def _make_executable(path: Path, contents: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
-def _fake_git(bin_dir: Path, source_commit: str) -> None:
+def _fake_git(
+    bin_dir: Path, source_commit: str, *, status_path: Path | None = None
+) -> None:
+    status_command = (
+        f"cat {shlex.quote(str(status_path))}" if status_path is not None else ":"
+    )
     _make_executable(
         bin_dir / "git",
         f"""
@@ -53,6 +61,7 @@ def _fake_git(bin_dir: Path, source_commit: str) -> None:
             fi
             ;;
           status)
+            {status_command}
             exit 0
             ;;
         esac
@@ -121,7 +130,7 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
     for document in (pre_submit, receipt):
         assert document["schema_version"] in {
             "pegasus-pre-submit/v1",
-            "pegasus-submit-receipt/v1",
+            "pegasus-submit-receipt/v2",
         }
         assert document["dry_run"] is True
         mocc_trace = document["mocc_trace"]
@@ -145,6 +154,17 @@ def test_mocc_trace_submit_dry_run_contract(tmp_path: Path) -> None:
     assert any(
         "IZANAGI_SUBMISSION_NONCE=" in argument
         for argument in pre_submit["request"]["qsub_argv"]
+    )
+    qsub_argv = pre_submit["request"]["qsub_argv"]
+    export_spec = qsub_argv[qsub_argv.index("-v") + 1]
+    assert f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root.resolve()}" in (
+        export_spec.split(",")
+    )
+    assert qsub_argv[qsub_argv.index("-o") + 1] == str(
+        submission / "pbs-job.stdout"
+    )
+    assert qsub_argv[qsub_argv.index("-e") + 1] == str(
+        submission / "pbs-job.stderr"
     )
     assert receipt["qsub"]["request_id"].startswith("dry-run-")
     assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
@@ -220,9 +240,329 @@ def test_mocc_trace_submit_trace_mode_one_dry_run_contract(tmp_path: Path) -> No
         "IZANAGI_MOCC_TRACE_MODE=1" in argument
         for argument in pre_submit["request"]["qsub_argv"]
     )
+    qsub_argv = pre_submit["request"]["qsub_argv"]
+    export_spec = qsub_argv[qsub_argv.index("-v") + 1]
+    assert f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root.resolve()}" in (
+        export_spec.split(",")
+    )
+    assert qsub_argv[qsub_argv.index("-o") + 1] == str(
+        submission / "pbs-job.stdout"
+    )
+    assert qsub_argv[qsub_argv.index("-e") + 1] == str(
+        submission / "pbs-job.stderr"
+    )
     assert receipt["qsub"]["request_id"].startswith("dry-run-")
     assert receipt["qsub"]["argv"] == pre_submit["request"]["qsub_argv"]
     assert (submission / "qsub.rc").read_text(encoding="utf-8").strip() == "0"
+
+
+@pytest.mark.parametrize(
+    ("case", "status_record", "kind", "expected_rc"),
+    (
+        (
+            "owned-attempt-file",
+            "?? output/env/pegasus/mocc-trace/attempts/old/receipt.json",
+            "file",
+            0,
+        ),
+        (
+            "owned-job-staging-file",
+            "?? output/env/pegasus/mocc-trace/job-staging/old/result.json",
+            "file",
+            0,
+        ),
+        (
+            "owned-symlink",
+            "?? output/env/pegasus/mocc-trace/attempts/old/receipt.json",
+            "symlink",
+            2,
+        ),
+        ("unowned-file", "?? dirty.txt", "file", 2),
+        ("tracked-change", " M tools/pegasus/mocc_trace_pilot.sh", "none", 2),
+    ),
+)
+def test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files(
+    tmp_path: Path,
+    case: str,
+    status_record: str,
+    kind: str,
+    expected_rc: int,
+) -> None:
+    del case
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    relative = status_record[3:] if status_record.startswith("?? ") else ""
+    if relative:
+        candidate = repo_root / relative
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        if kind == "file":
+            candidate.write_text("fixture\n", encoding="utf-8")
+        elif kind == "symlink":
+            target = tmp_path / "symlink-target"
+            target.write_text("fixture\n", encoding="utf-8")
+            candidate.symlink_to(target)
+    status_path = tmp_path / "git-status.bin"
+    status_path.write_bytes(status_record.encode("utf-8") + b"\0")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(
+        bin_dir,
+        "0123456789abcdef0123456789abcdef01234567",
+        status_path=status_path,
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    environment["IZANAGI_PEGASUS_THIRDPARTY_CACHE"] = str(
+        tmp_path / "third-party-cache"
+    )
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(tmp_path / "attempts"),
+            "--job-script",
+            str(PILOT),
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == expected_rc, result.stderr
+
+
+def test_mocc_trace_submit_reuses_custom_in_repo_attempts_root(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    attempts_root = repo_root / "custom-attempts"
+    status_path = tmp_path / "git-status.bin"
+    status_path.write_bytes(b"")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(
+        bin_dir,
+        "0123456789abcdef0123456789abcdef01234567",
+        status_path=status_path,
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+
+    command = [
+        "bash",
+        str(SUBMITTER),
+        "--dry-run",
+        "--repo-root",
+        str(repo_root),
+        "--attempts-root",
+        str(attempts_root),
+        "--job-script",
+        str(PILOT),
+    ]
+    first = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert first.returncode == 0, first.stderr
+    first_submission = next((attempts_root / "submissions").iterdir())
+    relative_receipt = (
+        first_submission / "submit-receipt.json"
+    ).relative_to(repo_root)
+    status_path.write_bytes(f"?? {relative_receipt}".encode("utf-8") + b"\0")
+
+    second = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert second.returncode == 0, second.stderr
+    assert len(list((attempts_root / "submissions").iterdir())) == 2
+
+
+def test_mocc_trace_submit_rejects_colon_in_attempts_root(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(bin_dir, "0123456789abcdef0123456789abcdef01234567")
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    attempts_root = tmp_path / "host:path"
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "must not contain a colon" in result.stderr
+    assert not attempts_root.exists()
+
+
+def test_mocc_trace_submit_routes_pbs_streams_per_nonce(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(bin_dir, "0123456789abcdef0123456789abcdef01234567")
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    attempts_root = tmp_path / "attempts"
+    for _ in range(2):
+        result = subprocess.run(
+            [
+                "bash",
+                str(SUBMITTER),
+                "--dry-run",
+                "--repo-root",
+                str(repo_root),
+                "--attempts-root",
+                str(attempts_root),
+                "--job-script",
+                str(PILOT),
+            ],
+            cwd=REPO_ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+    submissions = sorted((attempts_root / "submissions").iterdir())
+    assert len(submissions) == 2
+    stream_paths: set[str] = set()
+    for submission in submissions:
+        receipt = _load_json(submission / "submit-receipt.json")
+        qsub_argv = receipt["qsub"]["argv"]
+        stdout = qsub_argv[qsub_argv.index("-o") + 1]
+        stderr = qsub_argv[qsub_argv.index("-e") + 1]
+        assert stdout == str(submission / "pbs-job.stdout")
+        assert stderr == str(submission / "pbs-job.stderr")
+        assert stdout != stderr
+        stream_paths.update((stdout, stderr))
+    assert len(stream_paths) == 4
+
+
+def test_mocc_trace_pilot_reads_exported_attempts_root() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    assert (
+        'ATTEMPTS_ROOT=${IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT:-"$REPO_ROOT/output/'
+        'env/pegasus/mocc-trace/attempts"}'
+    ) in source
+    assert '"$WORKLOAD_JSON" "$ATTEMPTS_ROOT" "$SUBMISSION_DIR"' in source
+    assert 'receipt.get("schema_version") == "pegasus-submit-receipt/v2"' in source
+    assert 'f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root}"' in source
+
+
+def _load_fetch_third_party_module() -> object:
+    spec = importlib.util.spec_from_file_location(
+        "fetch_third_party_mocc_contract", FETCH_THIRD_PARTY
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("explicit", (True, False))
+def test_fetch_third_party_hydrate_staging_root_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], explicit: bool
+) -> None:
+    tool = _load_fetch_third_party_module()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    cache = tmp_path / "cache"
+    chosen = tmp_path / "job-private" / "thirdparty-src"
+    observed: dict[str, Path] = {}
+    monkeypatch.setattr(
+        tool,
+        "_load_policy",
+        lambda repo_root: ((), (), Path("legacy/staging")),
+    )
+
+    def fake_hydrate(
+        repo_root: Path,
+        cache_root: Path,
+        sources: object,
+        staging_relative: Path,
+        *,
+        staging_root: Path | None = None,
+    ) -> list[dict[str, str]]:
+        del repo_root, cache_root, sources, staging_relative
+        assert staging_root is not None
+        observed["root"] = staging_root
+        return []
+
+    monkeypatch.setattr(tool, "_hydrate", fake_hydrate)
+    argv = [
+        "hydrate",
+        "--repo-root",
+        str(repo),
+        "--cache-root",
+        str(cache),
+    ]
+    if explicit:
+        argv.extend(("--staging-root", str(chosen)))
+    assert tool.main(argv) == 0
+    output = json.loads(capsys.readouterr().out)
+    expected = chosen.resolve() if explicit else (repo / "legacy/staging").resolve()
+    assert observed["root"] == expected
+    assert output["source_root"] == str(expected)
+
+
+def test_mocc_trace_pilot_uses_job_private_third_party_root() -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    declaration = 'THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"'
+    option = '--staging-root "$THIRD_PARTY_STAGING_ROOT"'
+    assert source.count(declaration) == 1
+    assert source.count(option) == 1
+    hydrate_index = source.index(option)
+    for dependency in ("MASSTREE", "MIMALLOC", "GOOGLETEST"):
+        cmake_option = f"-DFETCHCONTENT_SOURCE_DIR_{dependency}=$THIRD_PARTY_SOURCE_ROOT"
+        assert source.count(cmake_option) == 1
+        assert source.index(cmake_option) > hydrate_index
 
 
 def test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch(
@@ -993,6 +1333,36 @@ def _mocc_trace_finalization_fragment() -> str:
     return fragment
 
 
+def _production_selected_tool_path(variable: str) -> Path:
+    source = PILOT.read_text(encoding="utf-8")
+    assignments = [
+        line.strip()
+        for line in source.splitlines()
+        if line.strip().startswith(f"{variable}=$(realpath -e -- ")
+    ]
+    assert len(assignments) == 1
+    result = subprocess.run(
+        [
+            "/bin/bash",
+            "-c",
+            (
+                "set -Eeuo pipefail\n"
+                "REPO_ROOT=$1\n"
+                f"{assignments[0]}\n"
+                f'printf "%s\\n" "${variable}"\n'
+            ),
+            "mocc-tool-path",
+            str(REPO_ROOT),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return Path(result.stdout.strip())
+
+
 def _mocc_trace_checker_report_sha_fragment() -> str:
     source = PILOT.read_text(encoding="utf-8")
     start_marker = "  checker_report_sha_rc=0"
@@ -1155,6 +1525,9 @@ def _run_mocc_trace_finalization(
     (attempt_dir / "compiler-used.version").write_text(
         "fixture compiler version\n", encoding="utf-8"
     )
+    evidence_name = "throughput.json" if trace_mode == 0 else "verifier.json"
+    evidence_bytes = (f'{{"fixture_mode":{trace_mode}}}\n').encode("utf-8")
+    (attempt_dir / evidence_name).write_bytes(evidence_bytes)
 
     if checker_report_sha is None:
         checker_report_sha = (
@@ -1162,6 +1535,12 @@ def _run_mocc_trace_finalization(
         )
     checker_py = str(interpreter) if trace_mode == 0 else ""
     verifier_py = str(interpreter) if trace_mode == 1 else ""
+    selected_tool_path = _production_selected_tool_path(
+        "CHECKER_TOOL_PATH" if trace_mode == 0 else "VERIFIER_TOOL_PATH"
+    )
+    checker_tool_path = str(selected_tool_path) if trace_mode == 0 else ""
+    verifier_tool_path = str(selected_tool_path) if trace_mode == 1 else ""
+    tool_sha = hashlib.sha256(selected_tool_path.read_bytes()).hexdigest()
     checker_rc = "0" if trace_mode == 0 else "not-run"
     verifier_rc = "not-run" if trace_mode == 0 else "0"
     failure_path = attempt_dir / "fragment-failure.txt"
@@ -1198,6 +1577,10 @@ def _run_mocc_trace_finalization(
         "CHECKER_PY": checker_py,
         "VERIFIER_PY": verifier_py,
         "CHECKER_REPORT_SHA": checker_report_sha,
+        "CHECKER_TOOL_PATH": checker_tool_path,
+        "CHECKER_TOOL_SHA": tool_sha if trace_mode == 0 else "",
+        "VERIFIER_TOOL_PATH": verifier_tool_path,
+        "VERIFIER_TOOL_SHA": tool_sha if trace_mode == 1 else "",
         "CCBENCH_BASE": str(tmp_path / "ccbench-base"),
         "FAILURE_PATH": str(failure_path),
     }
@@ -1655,12 +2038,14 @@ def test_mocc_trace_binding_m15_trace1_fields_are_null(tmp_path: Path) -> None:
     assert receipt["trace0_preprocess_identity_report"] == expected
 
 
-def test_mocc_trace_binding_m16_uses_v2_document_schemas(tmp_path: Path) -> None:
+def test_mocc_trace_binding_uses_v3_pilot_and_v2_job_result_schemas(
+    tmp_path: Path,
+) -> None:
     result, attempt_dir, _ = _run_mocc_trace_finalization(tmp_path)
     assert result.returncode == 0, result.stderr
     receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
     job_result = _load_json(attempt_dir / "job-result.json")
-    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v2"
+    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/v3"
     assert job_result["schema_version"] == "mocc-trace-pilot-job-result/v2"
 
 
@@ -1694,13 +2079,75 @@ def test_mocc_trace_binding_m18_records_checker_interpreter(tmp_path: Path) -> N
     assert os.path.realpath(checker_path) == checker_path
 
 
+@pytest.mark.parametrize(
+    ("trace_mode", "artifact_name", "sha_field"),
+    (
+        (1, "verifier.json", "verifier_sha256"),
+        (0, "throughput.json", "throughput_sha256"),
+    ),
+)
+def test_mocc_trace_receipt_binds_mode_evidence_bytes(
+    tmp_path: Path, trace_mode: int, artifact_name: str, sha_field: str
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, trace_mode=trace_mode, report_mode="missing" if trace_mode == 1 else "file"
+    )
+    assert result.returncode == 0, result.stderr
+    receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
+    artifacts = receipt["artifacts"]
+    assert isinstance(artifacts, dict)
+    assert artifacts[sha_field] == hashlib.sha256(
+        (attempt_dir / artifact_name).read_bytes()
+    ).hexdigest()
+
+
+@pytest.mark.parametrize(
+    ("trace_mode", "tool_key", "other_key"),
+    (
+        (1, "verifier", "trace0_preprocess_identity_checker"),
+        (0, "trace0_preprocess_identity_checker", "verifier"),
+    ),
+)
+def test_mocc_trace_receipt_records_executed_correctness_tool(
+    tmp_path: Path, trace_mode: int, tool_key: str, other_key: str
+) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, trace_mode=trace_mode, report_mode="missing" if trace_mode == 1 else "file"
+    )
+    assert result.returncode == 0, result.stderr
+    tools = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")[
+        "correctness_tools"
+    ]
+    assert isinstance(tools, dict)
+    assert tools[other_key] is None
+    bound = tools[tool_key]
+    assert isinstance(bound, dict)
+    path = Path(bound["path"])
+    expected_path = (VERIFIER if trace_mode == 1 else CHECKER).resolve(strict=True)
+    assert _production_selected_tool_path(
+        "VERIFIER_TOOL_PATH" if trace_mode == 1 else "CHECKER_TOOL_PATH"
+    ) == expected_path
+    assert path == expected_path
+    assert path.is_absolute()
+    assert path.resolve(strict=True) == path
+    assert bound["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def test_mocc_trace_binding_m19_globals_precede_receipt_writer() -> None:
     source = PILOT.read_text(encoding="utf-8")
     receipt_start = source.index(
         'python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json"'
     )
     lines = source.splitlines()
-    for declaration in ('CHECKER_PY=""', 'VERIFIER_PY=""', 'CHECKER_REPORT_SHA=""'):
+    for declaration in (
+        'CHECKER_PY=""',
+        'CHECKER_TOOL_PATH=""',
+        'CHECKER_TOOL_SHA=""',
+        'VERIFIER_PY=""',
+        'VERIFIER_TOOL_PATH=""',
+        'VERIFIER_TOOL_SHA=""',
+        'CHECKER_REPORT_SHA=""',
+    ):
         assert lines.count(declaration) == 1
         assert source.index(declaration) < receipt_start
 
