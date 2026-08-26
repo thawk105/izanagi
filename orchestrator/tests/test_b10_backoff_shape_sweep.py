@@ -547,30 +547,36 @@ def test_m13_actual_patch_half_width_mutation_reaches_only_cpp_bounds_oracle(
     assert value < Fraction(mean_us, 2)
 
 
-def test_m14_actual_patch_mixer_mutation_reaches_only_cpp_pair_oracle(tmp_path: Path):
+def test_m14_different_random_mixers_are_rejected_for_one_reason():
     mutated_line = B.EXPECTED_HOLE_LINE.replace(
         "0x9e3779b97f4a7c15ULL) >> 63) *",
         "0xd1b54a32d192ed03ULL) >> 63) *",
         1,
     )
-    mutated_patch = _patch_bytes().replace(
-        B.EXPECTED_HOLE_LINE.encode("utf-8"), mutated_line.encode("utf-8"), 1,
+    assert mutated_line != B.EXPECTED_HOLE_LINE
+    # Any odd mixer preserves the high-bit-separated pair, so the numeric pair-sum
+    # oracle cannot kill this mutation. M14 targets the formula-structure gate that
+    # enforces one shared mixer across both random shapes.
+    _expect_code("mixer", lambda: B.validate_formula_contract(mutated_line))
+
+
+def test_cpp_pair_average_is_exact_mean_for_an_alternate_odd_mixer(tmp_path: Path):
+    """An alternate odd mixer keeps every constructed pair's average at mu."""
+    mutated_line = B.EXPECTED_HOLE_LINE.replace(
+        "0x9e3779b97f4a7c15ULL) >> 63) *",
+        "0xd1b54a32d192ed03ULL) >> 63) *",
+        1,
     )
-    assert mutated_patch != _patch_bytes()
-    binary = _compile_expression(tmp_path, _patch_hole_line(mutated_patch), "m14")
+    binary = _compile_expression(tmp_path, mutated_line, "alternate_odd_mixer")
     inverse = pow(B.MIXER, -1, 1 << 64)
     encoded = B.encode("binary", 25)
-    failures = []
     for low in range(1000):
         starts = (
             (low * inverse) & B._MASK64,
             (((1 << 63) | low) * inverse) & B._MASK64,
         )
-        if sum((_cpp_value(binary, encoded, start) for start in starts), Fraction()) \
-                != Fraction(50):
-            failures.append(low)
-            break
-    assert failures, "different-mixer patch mutation must fail the independent pair oracle"
+        values = [_cpp_value(binary, encoded, start) for start in starts]
+        assert sum(values, Fraction()) == Fraction(50)
 
 
 def test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement(

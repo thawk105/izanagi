@@ -45,6 +45,7 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/calibrator/perf_preflight.py",
     "orchestrator/calibrator/runner.py",
     "orchestrator/campaign/autonomous_trial_completeness.py",
+    "orchestrator/campaign/b10_backoff_shape_sweep.py",
     "orchestrator/campaign/layer3_report.py",
     "orchestrator/campaign/loop.py",
     # Parses producer-recorded perf-wrapped argv as exploratory trace evidence.
@@ -72,10 +73,12 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/qualification/contract.py",
     "orchestrator/qualification/submission.py",
     "orchestrator/qualification/t126_driver.py",
+    "tools/pegasus/b10_backoff_shape_campaign.sh",
     "tools/pegasus/certify_calibration.sh",
     "tools/pegasus/floor_scoping.sh",
     "tools/pegasus/probes/t293_perf_site_probe.py",
     "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+    "tools/pegasus/submit_b10_backoff_shape.sh",
     "tools/pegasus/t126_qualification.sh",
     "tools/pegasus/t141_region_profile.sh",
 })
