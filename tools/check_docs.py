@@ -619,7 +619,7 @@ DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test �
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
-焦点走の分割投入は直列にする。同一 worktree の並行 dispatch は orphan hold で rc=16 になる。
+同一 worktree からの dispatch は全種を直列にする。並行投入は orphan hold で rc=16 になる。
 変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
 test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
 所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
@@ -938,6 +938,8 @@ CONDITION_DISPATCH_CONTRACT.update({
     "26": _pairs(_CORE, "DW-C01"),
     "27": _pairs(_OPERATIONS, "DW-O28"),
 })
+CONDITION_18_RUN_POINT_LITERAL = "テスト・受入前"
+CONDITION_18_RED_POINT_LITERAL = "赤処理前"
 CONDITION_TRIGGER_CONTRACT = {
     "01": "codex subprocess を起動する直前",
     "02": "prompt・log・patch を作る直前",
@@ -955,7 +957,7 @@ CONDITION_TRIGGER_CONTRACT = {
     "15": "fix 後に変異を走らせる直前",
     "16": "fix 後の焦点再レビューを行う直前",
     "17": "commit を作る直前",
-    "18": "親がテスト・受入を走らせる直前",
+    "18": "親のテスト・受入前と赤処理前",
     "19": "tracked file を一時変異する直前",
     "20": "背景 job + worktree 隔離の wave 開始時（最遅: clean-tree gate を worktree で走らせる直前）",
     "21": "無人継続を構成し最初の process を起動する前",
@@ -2113,10 +2115,10 @@ def _archive_filename_entry_range(path: Path) -> _ArchiveFilenameClaim:
 
     is_mmdd = lambda token: ARCHIVE_MMDD_TOKEN_RE.fullmatch(token) is not None
     is_entry = lambda token: ARCHIVE_ENTRY_TOKEN_RE.fullmatch(token) is not None
-    if len(tail) in {1, 2} and all(is_mmdd(token) for token in tail):
-        return _ArchiveFilenameClaim("unnumbered")
     if len(tail) == 2 and is_mmdd(tail[0]) and is_entry(tail[1]):
         entry_tokens = (tail[1], tail[1])
+    elif len(tail) in {1, 2} and all(is_mmdd(token) for token in tail):
+        return _ArchiveFilenameClaim("unnumbered")
     elif (
         len(tail) == 3
         and is_mmdd(tail[0])
@@ -5036,6 +5038,24 @@ def _dispatch_tables(text: str) -> _DispatchTables | None:
     )
 
 
+def resolve_condition_sections(
+    dev_wave_text: str,
+    situation: str,
+) -> dict[str, tuple[str, ...]]:
+    """入口の条件表だけから、状況に一致する条件番号と参照節を解決する。"""
+
+    dispatch = _dispatch_tables(dev_wave_text)
+    if dispatch is None:
+        return {}
+    return {
+        key: tuple(sorted(
+            section for _, section in dispatch.conditions.get(key, set())
+        ))
+        for key, triggers in dispatch.condition_triggers.items()
+        if any(situation in trigger for trigger in triggers)
+    }
+
+
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], set[str]] | None:
     lines = text.splitlines()
     if not lines or lines[0] != "---":
@@ -6418,6 +6438,18 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                         ".claude/commands/dev-wave.md: diagnostic sensitivity — "
                         f"条件 dispatch {key!r} の条件セルに "
                         f"reference token={sorted(leaked)}"
+                    )
+            condition_18_row_count = dispatch.condition_row_counts.get("18", 0)
+            condition_18_triggers = dispatch.condition_triggers.get("18", set())
+            if condition_18_row_count == 1:
+                condition_18_trigger = next(iter(condition_18_triggers), "")
+                if not (
+                    CONDITION_18_RUN_POINT_LITERAL in condition_18_trigger
+                    and CONDITION_18_RED_POINT_LITERAL in condition_18_trigger
+                ):
+                    findings.append(
+                        ".claude/commands/dev-wave.md: 条件 dispatch '18' の trigger に "
+                        "テスト・受入前と赤処理前が必要"
                     )
             disallowed = sorted(
                 dispatch.paths - NORMATIVE_DISPATCH_ALLOWLIST
