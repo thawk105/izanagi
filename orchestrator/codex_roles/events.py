@@ -313,7 +313,7 @@ def parse_jsonl(raw: bytes | str, *, max_bytes: int = MAX_JSONL_BYTES,
 
     text, _ = _decode_jsonl(raw, max_bytes=max_bytes)
     events: list[Mapping[str, Any]] = []
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, line in enumerate(text.split("\n"), 1):
         if not line.strip():
             continue
         if len(line.encode("utf-8")) > max_line_bytes:

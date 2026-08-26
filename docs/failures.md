@@ -14678,6 +14678,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   再投入が成功した 2 子は初回と同じ結論を返した (F540 の「同じ結論を返さない」は本 wave では
   再現せず、代わりに F577 の型が出た)。
 - **supersede: 2026-08-25** — 3 つ目の型の発火条件を特定した。子が読んだ repo の行に生の U+2028 / U+2029 が含まれると、codex CLI がその byte を JSONL event の `aggregated_output` へそのまま出し、`tools/codex_worker_launch.py` が JSONL を `str.splitlines()` で切る (6 箇所) ため 1 event 行が複数断片に割れて `stdout_invalid` が立つ。JSON はこの 2 文字を文字列内に生で許すが Python の `splitlines()` は改行として扱う、という不一致が原因である。追跡 14,208 file の全数検査で該当は 5 file (`orchestrator/campaign/p3_autonomous_workload_trial.py:2213` の sanitizer 正規表現、`orchestrator/tests/test_p3_autonomous_workload_trial.py:2837`、insight 3 件)。診断手順は events.jsonl の各行を `json.loads` し、割れた行の前後で当該 2 文字を探す。回避は当該行域を「読むな」と prompt へ明記することで、[T-525] では invalid が再発しなかった。恒久対応の候補は JSONL 分割を `split("\n")` へ変えることで、tool の出力契約に触れるため裁定パッケージへ回す。
+- **supersede: 2026-08-26** — 「根本原因: 特定できていない」は F609 が特定し、本 wave が恒久修理した。当時は読み取り時点の pending 系条件が疑われたが、実際は完成した stdout の 1 event が U+2028 / U+2029 で 2 行に割られ、`Unterminated string` になって `stdout_invalid` が立っていた。`_evidence_status()` がどの条件で invalid を返したかを receipt へ記録する改修は、本 wave の scope 外として引き続き裁定パッケージにある。
 ### F541. ログインノードの重い処理防壁が shell 変数の間接で発火しない [権限逸脱]
 
 - 事象: 床値 pilot の停止点を局所再現するため、ログインノードで gflags と glog を
@@ -15993,6 +15994,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 / 段 6 の敵対レンズへ「親の実測の走査面が落とすもの」を明示的に探させる
   prompt 節 (本 wave で実際に発火し、この F を生んだ経路そのもの)。
 
+
+- **再発: 2026-08-26** — 段 1 の編集面重複走査を、変更予定の production file 2 本の path だけで
+  組んだため、1 回目の走査が稼働中 wave の編集中 file を落とした。実際には別 wave が
+  `orchestrator/tests/test_codex_worker_launch.py` を編集しており、その file は本 wave が
+  負例テストを置く自然な置き場だった。「重複ゼロ」と brief に書く直前にテスト file を
+  含む pattern で走査し直して検出したため、偽の結論には至っていない (near miss)。
+  型は F606 と同じ「走査の網が実際の編集予約より狭い」である。
+  走査対象は変更予定の production file だけでなく、**その file を検査する既存テスト file と、
+  新設予定の path** も含めて組む。恒久対応は F606 既存のとおり変わらない。
 ### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
 
 - 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
@@ -16050,6 +16060,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   7 回目の投入で rc=0 になった。
 - 再発検知: 同 T が要求する `text.split("\n")` への変更と、U+2028 / U+2029 を含む
   event 行を受理することの負例テスト。それまでは本エントリを検索して回避策を適用する。
+- **supersede: 2026-08-26** — 「恒久対応: 未実施」を解消した。`parse_jsonl` を含む 6 式を `split("\n")` / `split(b"\n")` へ置き換え、U+0085 / U+2028 / U+2029 を含む event 行を受理する負例テストと、6 式それぞれの変異を単独で kill する CRLF 負例テストを `orchestrator/tests/test_codex_jsonl_line_split.py` に置いた。実測した受理差と却下した代案は D996 が正本である。**同型の未修理箇所が 1 つ残る** — `tools/check_codex_hooks.py` の `_parse_events` が Codex JSON event の str stdout を `splitlines()` で切っており、同じ 3 文字で同じく割れる。D971 が 6 箇所を明示列挙しているため本 wave では触らず、担い手を新しい T として起票した。
 
 ### F610. 変異走行に自分の作業ツリーを渡すと rc=125 で中止する [手順漏れ]
 
