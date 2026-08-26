@@ -150,10 +150,13 @@ on_error() {
 trap on_error ERR
 
 [[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
-  && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" ]] || \
-  fail 2 "PBS_JOBID, PBS_NODEFILE, PBS_O_WORKDIR, and B10_SUBMISSION_NONCE are required"
+  && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" \
+  && -n "${JOB_SCRIPT_SHA256:-}" ]] || \
+  fail 2 "PBS_JOBID, PBS_NODEFILE, PBS_O_WORKDIR, B10_SUBMISSION_NONCE, and JOB_SCRIPT_SHA256 are required"
 [[ "$B10_SUBMISSION_NONCE" =~ ^[0-9a-f]{32}$ ]] || \
   fail 2 "B10_SUBMISSION_NONCE must be 32 lowercase hex characters"
+[[ "$JOB_SCRIPT_SHA256" =~ ^[0-9a-f]{64}$ ]] || \
+  fail 2 "JOB_SCRIPT_SHA256 must be 64 lowercase hex characters"
 
 WORKLOAD=${1:-${B10_WORKLOAD:-}}
 case "$WORKLOAD" in
@@ -300,11 +303,18 @@ entries = [line.strip().split(".")[0] for line in pathlib.Path(nodefile).read_te
 if observed.split(".")[0] not in entries:
     raise SystemExit("PBS_NODEFILE does not contain the observed compute host")
 PY
+CURRENT_COMMIT=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit})
 SCRIPT_PATH=$(realpath -e -- "${BASH_SOURCE[0]}")
-[[ "$SCRIPT_PATH" == "$REPO_ROOT/tools/pegasus/b10_backoff_grid.sh" ]] || \
-  fail 2 "executed B-10 script is not the repository payload"
-SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")
-SCRIPT_SHA256=${SCRIPT_SHA256%% *}
+EXECUTING_SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")
+EXECUTING_SCRIPT_SHA256=${EXECUTING_SCRIPT_SHA256%% *}
+COMMITTED_SCRIPT_SHA256=$(
+  git -C "$REPO_ROOT" cat-file blob \
+    "$CURRENT_COMMIT:tools/pegasus/b10_backoff_grid.sh" | sha256sum
+)
+COMMITTED_SCRIPT_SHA256=${COMMITTED_SCRIPT_SHA256%% *}
+[[ "$EXECUTING_SCRIPT_SHA256" == "$JOB_SCRIPT_SHA256" \
+    && "$COMMITTED_SCRIPT_SHA256" == "$JOB_SCRIPT_SHA256" ]] || \
+  fail 2 "job script SHA binding mismatch"
 BOOT_ID=$(tr -d '\n' </proc/sys/kernel/random/boot_id) || \
   fail 2 "cannot read compute boot id"
 [[ -n "$BOOT_ID" ]] || fail 2 "compute boot id is empty"
@@ -315,7 +325,7 @@ export IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH="$SCHEDULER_STARTED_EPOCH"
 export IZANAGI_RESERVATION_DEADLINE_EPOCH="$DEADLINE_EPOCH"
 export IZANAGI_RESERVATION_HOST="$RESERVATION_HOST"
 export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
-export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"
+export IZANAGI_RESERVATION_SCRIPT_SHA256="$COMMITTED_SCRIPT_SHA256"
 export IZANAGI_RESERVATION_NONCE="$B10_SUBMISSION_NONCE"
 "$PY" -I -B - "$OUTPUT_ROOT/reservation.json" \
   "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" <<'PY'

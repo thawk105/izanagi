@@ -166,7 +166,7 @@ for workload in "${WORKLOADS[@]}"; do
   stderr="$OUTPUT_PARENT/$GROUP_ID-$workload.stderr"
   qsub_rc=0
   job_id=$(qsub \
-    -v "B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,B10_SUBMISSION_NONCE=$SUBMISSION_NONCE" \
+    -v "B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,B10_SUBMISSION_NONCE=$SUBMISSION_NONCE,JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256" \
     -o "$stdout" -e "$stderr" "$JOB_SCRIPT") || qsub_rc=$?
   if [[ "$qsub_rc" -ne 0 ]]; then
     append_submission_event failed "$workload" "$qsub_rc" "qsub_failed"

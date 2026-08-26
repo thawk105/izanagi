@@ -386,7 +386,10 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert "ENABLE(?:D)?" in submit and "ACT|ACTIVE" in submit
     assert '[[ "$HOSTNAME_SHORT" =~ ^bnode[0-9]+([.].*)?$ ]]' in job
     assert 'timeout 30 qstat -f "$QSTAT_JOBID"' in job
-    assert 'export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"' in job
+    assert (
+        'export IZANAGI_RESERVATION_SCRIPT_SHA256="$COMMITTED_SCRIPT_SHA256"'
+        in job
+    )
     required_commands = job.split("for command_name in ", 1)[1].split("; do", 1)[0].split()
     required_commands = [name for name in required_commands if name != "\\"]
     assert "gnuplot" not in required_commands
@@ -407,6 +410,27 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert 'export https_proxy="$BUILD_NETWORK_PROXY_URL"' in job
     assert '"external_fetch_via_proxy": True' in job
     assert '"dependency_revisions": "sha-pinned"' in job
+
+
+def test_b10_job_script_identity_uses_three_sha256_values_not_path_equality():
+    root = Path(__file__).resolve().parents[2]
+    job = (root / "tools/pegasus/b10_backoff_grid.sh").read_text(encoding="utf-8")
+    submit = (root / "tools/pegasus/submit_b10_backoff_grid.sh").read_text(
+        encoding="utf-8",
+    )
+    assert '"$SCRIPT_PATH" == "$REPO_ROOT/tools/pegasus/b10_backoff_grid.sh"' not in job
+    assert 'CURRENT_COMMIT=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit})' in job
+    assert 'EXECUTING_SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")' in job
+    assert (
+        'git -C "$REPO_ROOT" cat-file blob \\\n'
+        '    "$CURRENT_COMMIT:tools/pegasus/b10_backoff_grid.sh" | sha256sum'
+    ) in job
+    assert (
+        '[[ "$EXECUTING_SCRIPT_SHA256" == "$JOB_SCRIPT_SHA256" \\\n'
+        '    && "$COMMITTED_SCRIPT_SHA256" == "$JOB_SCRIPT_SHA256" ]]'
+    ) in job
+    assert '[[ "$JOB_SCRIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]' in job
+    assert 'JOB_SCRIPT_SHA256=$JOB_SCRIPT_SHA256' in submit
 
 
 def test_deferred_report_writes_plot_inputs_and_records_missing_png(
