@@ -29,9 +29,14 @@
 
 後継図 `fig2b_backoff_sweep_3workload` はこれを次のように直している。
 
+**表中の「headline 適格 / 非適格」は D20 の一点だけを指す** — すなわち
+「perf record 下で採った tps は headline に使わない」という利用方針に抵触するかどうかである。
+**現行の対測定契約 (D496) を満たすという意味ではない。** 後継図のデータは D496 より前の
+記述的結果であり、この図は論文の利得率の出所でもない (下のキャプション正文を参照)。
+
 | 論点 | 旧図 | 後継図 |
 |---|---|---|
-| 系列 | profile (perf record 下、headline 非適格) | sweep (headline 適格) |
+| 系列 | profile (perf record 下、D20 により headline 非適格) | sweep (D20 の意味で headline 適格) |
 | workload | write-heavy 1 件 | write-heavy / balanced / read-heavy の 3 件 |
 | 基準線 | 無 backoff の値に「適応 backoff」の label | **無 backoff 対照 1 本だけ**を、そう名乗って描く |
 | 基準線の不確かさ | 点推定のみ | 95% 信頼区間の帯を付ける |
