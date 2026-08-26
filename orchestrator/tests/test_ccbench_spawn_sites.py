@@ -41,6 +41,9 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     # Fixed probe binary argv, required measurement-site admission, and a
     # bounded timeout; the probe harness does not accept YCSB ratio flags.
     ("campaign/b10_backoff_shape_sweep.py", "<module>._measure_probe_binary"): 1,
+    # Current callers pass only read-only Git worktree identity/status queries;
+    # no shell expansion occurs and the argv never names or runs CCBench.
+    ("campaign/backoff_extended_sweep.py", "<module>._git_worktree_output"): 1,
     # Production passes CALIBRATION_FLAGS, whose frozen read ratio is rr95.
     ("campaign/s1_verify_extime_calibration.py", "<module>._run_once"): 1,
     # Production passes the module-level S2_FLAGS, fixed at rr50.
