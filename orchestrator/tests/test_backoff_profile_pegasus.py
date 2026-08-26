@@ -666,15 +666,27 @@ def _built_points(digests) -> list[subject._BuiltProfilePoint]:
     ]
 
 
-def _write_synthetic_elf(path: Path, symbols: list[str]) -> None:
-    section_names = b"\0.shstrtab\0.strtab\0.symtab\0"
+def _write_synthetic_elf(
+    path: Path,
+    symbols: list[str],
+    *,
+    dynamic_only: bool = False,
+    binding: int = 1,
+    broken_section_names: bool = False,
+) -> None:
+    strings_name = ".dynstr" if dynamic_only else ".strtab"
+    symbols_name = ".dynsym" if dynamic_only else ".symtab"
+    symbol_section_type = 11 if dynamic_only else 2
+    section_names = (
+        f"\0.shstrtab\0{strings_name}\0{symbols_name}\0".encode("ascii")
+    )
     string_table = bytearray(b"\0")
     symbol_entries = [bytes(24)]
     for symbol in symbols:
         name_offset = len(string_table)
         string_table.extend(symbol.encode("ascii") + b"\0")
         symbol_entries.append(struct.pack(
-            "<IBBHQQ", name_offset, 0x12, 0, 1, 0, 1,
+            "<IBBHQQ", name_offset, (binding << 4) | 2, 0, 1, 0, 1,
         ))
     symbols_data = b"".join(symbol_entries)
 
@@ -697,7 +709,7 @@ def _write_synthetic_elf(path: Path, symbols: list[str]) -> None:
         0,
         64,
         4,
-        1,
+        9 if broken_section_names else 1,
     )
 
     def section_header(
@@ -715,11 +727,11 @@ def _write_synthetic_elf(path: Path, symbols: list[str]) -> None:
             section_names_offset, len(section_names),
         ),
         section_header(
-            section_names.index(b".strtab"), 3,
+            section_names.index(strings_name.encode("ascii")), 3,
             string_table_offset, len(string_table),
         ),
         section_header(
-            section_names.index(b".symtab"), 2,
+            section_names.index(symbols_name.encode("ascii")), symbol_section_type,
             symbols_offset, len(symbols_data), link=2, info=1,
             align=8, entry_size=24,
         ),
@@ -759,8 +771,17 @@ def test_fx12b_synthetic_elf_without_backoff_symbol_fails(tmp_path):
     binary = tmp_path / "without-symbol"
     _write_synthetic_elf(binary, ["_ZN3foo3barEv"])
 
-    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない"):
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない") as exc_info:
         subject._assert_backoff_symbol_present(str(binary))
+
+    message = str(exc_info.value)
+    assert f"binary size={binary.stat().st_size} bytes" in message
+    assert "ELF class=64" in message
+    assert "endian=little" in message
+    assert "解析できた symbol の総数=1" in message
+    assert "参照した section=.symtab -> .strtab" in message
+    assert ".symtab found=yes; .strtab found=yes" in message
+    assert "ackoff 候補=0 件" in message
 
 
 def test_fx12b_similar_symbols_do_not_satisfy_binary_gate(tmp_path):
@@ -772,8 +793,68 @@ def test_fx12b_similar_symbols_do_not_satisfy_binary_gate(tmp_path):
     _write_synthetic_elf(binary, similar)
 
     assert all(not subject._is_backoff_function_symbol(name) for name in similar)
-    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない"):
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない") as exc_info:
         subject._assert_backoff_symbol_present(str(binary))
+
+    message = str(exc_info.value)
+    assert similar[0] in message
+    assert similar[1] in message
+    assert "ackoff 候補=2 件" in message
+
+
+def test_fx12b_local_binding_backoff_symbol_passes(tmp_path):
+    binary = tmp_path / "local-symbol"
+    _write_synthetic_elf(binary, ["_ZN7Backoff7backoffEm"], binding=0)
+
+    subject._assert_backoff_symbol_present(str(binary))
+
+
+def test_fx12b_dynsym_only_backoff_symbol_passes(tmp_path):
+    binary = tmp_path / "dynamic-symbol"
+    _write_synthetic_elf(
+        binary, ["_ZN7Backoff7backoffEm"], dynamic_only=True,
+    )
+
+    subject._assert_backoff_symbol_present(str(binary))
+
+
+def test_fx12b_dynsym_only_failure_lists_missing_sections(tmp_path):
+    binary = tmp_path / "dynamic-without-symbol"
+    _write_synthetic_elf(binary, ["_ZN3foo3barEv"], dynamic_only=True)
+
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない") as exc_info:
+        subject._assert_backoff_symbol_present(str(binary))
+
+    message = str(exc_info.value)
+    assert "参照した section=.dynsym -> .dynstr" in message
+    assert ".symtab found=no; .strtab found=no" in message
+    assert "section 一覧 (最大 40)=" in message
+    assert ".shstrtab" in message
+    assert ".dynstr" in message
+    assert ".dynsym" in message
+
+
+def test_fx12b_broken_section_name_table_does_not_hide_symbol(tmp_path):
+    binary = tmp_path / "broken-section-names"
+    _write_synthetic_elf(
+        binary, ["_ZN7Backoff7backoffEm"], broken_section_names=True,
+    )
+
+    subject._assert_backoff_symbol_present(str(binary))
+
+
+def test_fx12b_ackoff_diagnostics_are_capped_at_twenty_names(tmp_path):
+    binary = tmp_path / "many-similar-symbols"
+    symbols = [f"plain_ackoff_{index:02d}" for index in range(25)]
+    _write_synthetic_elf(binary, symbols)
+
+    with pytest.raises(RuntimeError, match="Backoff::backoff symbol がない") as exc_info:
+        subject._assert_backoff_symbol_present(str(binary))
+
+    message = str(exc_info.value)
+    assert "ackoff 候補=25 件 (先頭 20 件)" in message
+    assert symbols[19] in message
+    assert symbols[20] not in message
 
 
 def test_fx12c_cmake_staging_cache_probe_is_gone():

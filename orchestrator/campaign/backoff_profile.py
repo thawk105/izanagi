@@ -439,8 +439,19 @@ def _is_backoff_function_symbol(symbol: str) -> bool:
     return components is not None and components[-2:] == ("Backoff", "backoff")
 
 
+def _elf_section_label(index: int, name: str, section_type: int) -> str:
+    if name:
+        return name
+    type_name = {
+        2: "SHT_SYMTAB",
+        3: "SHT_STRTAB",
+        11: "SHT_DYNSYM",
+    }.get(section_type, f"type={section_type}")
+    return f"section[{index}]({type_name})"
+
+
 def _assert_backoff_symbol_present(binary: str) -> None:
-    """ELF .symtab/.strtab を直接読み、定義済み Backoff::backoff を要求する。"""
+    """ELF symbol table を直接読み、定義済み Backoff::backoff を要求する。"""
     path = Path(binary)
     try:
         raw = path.read_bytes()
@@ -453,15 +464,19 @@ def _assert_backoff_symbol_present(binary: str) -> None:
     data_encoding = raw[5]
     if data_encoding == 1:
         byte_order = "<"
+        endian_label = "little"
     elif data_encoding == 2:
         byte_order = ">"
+        endian_label = "big"
     else:
         raise RuntimeError(f"ELF data encoding が未対応: {data_encoding}")
     if elf_class == 1:
+        class_label = "32"
         header_format = byte_order + "HHIIIIIHHHHHH"
         section_format = byte_order + "IIIIIIIIII"
         symbol_format = byte_order + "IIIBBH"
     elif elf_class == 2:
+        class_label = "64"
         header_format = byte_order + "HHIQQQIHHHHHH"
         section_format = byte_order + "IIQQQQIIQQ"
         symbol_format = byte_order + "IBBHQQ"
@@ -476,15 +491,22 @@ def _assert_backoff_symbol_present(binary: str) -> None:
     section_count = header[11]
     section_names_index = header[12]
     required_section_size = struct.calcsize(section_format)
-    if section_count == 0 or section_names_index == 0xffff:
-        raise RuntimeError("ELF extended section numbering は未対応")
     if section_entry_size < required_section_size:
         raise RuntimeError(
             "ELF section header size が不足: "
             f"{section_entry_size} < {required_section_size}"
         )
-    if section_names_index >= section_count:
-        raise RuntimeError("ELF section-name table index が範囲外")
+
+    section_zero = None
+    if section_count == 0 or section_names_index == 0xffff:
+        _elf_slice(raw, section_offset, required_section_size, "section header 0")
+        section_zero = struct.unpack_from(section_format, raw, section_offset)
+    if section_count == 0:
+        section_count = section_zero[5]
+    if section_names_index == 0xffff:
+        section_names_index = section_zero[6]
+    if section_count <= 0:
+        raise RuntimeError("ELF section header がない")
 
     sections = []
     for index in range(section_count):
@@ -492,57 +514,150 @@ def _assert_backoff_symbol_present(binary: str) -> None:
         _elf_slice(raw, offset, required_section_size, f"section header {index}")
         sections.append(struct.unpack_from(section_format, raw, offset))
 
-    names_section = sections[section_names_index]
-    section_names_data = _elf_slice(
-        raw, names_section[4], names_section[5], "section-name table",
-    )
-    section_names = []
-    for index, section in enumerate(sections):
-        name_bytes = _elf_string(
-            section_names_data, section[0], f"section {index} name",
+    section_names = ["" for _ in sections]
+    section_name_errors = []
+    if section_names_index >= section_count:
+        section_name_errors.append(
+            "section-name table index が範囲外: "
+            f"{section_names_index} >= {section_count}"
         )
+    else:
+        names_section = sections[section_names_index]
         try:
-            section_names.append(name_bytes.decode("ascii"))
-        except UnicodeDecodeError as exc:
-            raise RuntimeError(f"ELF section {index} name が ASCII でない") from exc
+            section_names_data = _elf_slice(
+                raw, names_section[4], names_section[5], "section-name table",
+            )
+        except RuntimeError as exc:
+            section_name_errors.append(str(exc))
+        else:
+            for index, section in enumerate(sections):
+                try:
+                    name_bytes = _elf_string(
+                        section_names_data, section[0], f"section {index} name",
+                    )
+                    section_names[index] = name_bytes.decode("ascii")
+                except (RuntimeError, UnicodeDecodeError) as exc:
+                    section_name_errors.append(f"section {index}: {exc}")
 
-    symtab_indexes = [
-        index for index, (name, section) in enumerate(zip(section_names, sections))
-        if name == ".symtab" and section[1] == 2
+    # section 名を判定条件にしない。SHT_SYMTAB と SHT_DYNSYM を sh_link で辿る。
+    symbol_table_indexes = [
+        index for index, section in enumerate(sections)
+        if section[1] in {2, 11}
     ]
-    if not symtab_indexes:
-        raise RuntimeError(f"backoff binary に ELF .symtab がない: {path}")
 
     required_symbol_size = struct.calcsize(symbol_format)
-    for symtab_index in symtab_indexes:
-        symtab = sections[symtab_index]
-        string_index = symtab[6]
-        if string_index >= section_count or section_names[string_index] != ".strtab":
-            raise RuntimeError("ELF .symtab が .strtab を参照していない")
-        strings_section = sections[string_index]
-        strings = _elf_slice(
-            raw, strings_section[4], strings_section[5], "symbol string table",
+    referenced_sections = []
+    parse_errors = []
+    symbol_count = 0
+    ackoff_count = 0
+    ackoff_names = []
+    for symbol_table_index in symbol_table_indexes:
+        symbol_table = sections[symbol_table_index]
+        string_index = symbol_table[6]
+        table_label = _elf_section_label(
+            symbol_table_index,
+            section_names[symbol_table_index],
+            symbol_table[1],
         )
-        entry_size = symtab[9]
-        if entry_size < required_symbol_size or symtab[5] % entry_size:
-            raise RuntimeError("ELF .symtab entry size が不正")
-        symbols = _elf_slice(raw, symtab[4], symtab[5], "symbol table")
+        if string_index >= section_count:
+            referenced_sections.append(f"{table_label} -> <範囲外:{string_index}>")
+            parse_errors.append(
+                f"{table_label} の string table index が範囲外: {string_index}"
+            )
+            continue
+        strings_section = sections[string_index]
+        strings_label = _elf_section_label(
+            string_index, section_names[string_index], strings_section[1],
+        )
+        referenced_sections.append(f"{table_label} -> {strings_label}")
+        if strings_section[1] != 3:
+            parse_errors.append(
+                f"{table_label} の参照先が SHT_STRTAB でない: {strings_label}"
+            )
+            continue
+        try:
+            strings = _elf_slice(
+                raw, strings_section[4], strings_section[5],
+                f"{strings_label} symbol string table",
+            )
+        except RuntimeError as exc:
+            parse_errors.append(str(exc))
+            continue
+        entry_size = symbol_table[9]
+        if (
+            entry_size < required_symbol_size
+            or symbol_table[5] % entry_size
+        ):
+            parse_errors.append(f"{table_label} entry size が不正")
+            continue
+        try:
+            symbols = _elf_slice(
+                raw, symbol_table[4], symbol_table[5], f"{table_label} symbol table",
+            )
+        except RuntimeError as exc:
+            parse_errors.append(str(exc))
+            continue
         for offset in range(0, len(symbols), entry_size):
             entry = struct.unpack_from(symbol_format, symbols, offset)
             if elf_class == 1:
                 name_offset, symbol_info, section_index = entry[0], entry[3], entry[5]
             else:
                 name_offset, symbol_info, section_index = entry[0], entry[1], entry[3]
-            if section_index == 0 or symbol_info & 0x0f != 2:
-                continue
-            name_bytes = _elf_string(strings, name_offset, "symbol name")
             try:
+                name_bytes = _elf_string(strings, name_offset, "symbol name")
                 symbol = name_bytes.decode("ascii")
-            except UnicodeDecodeError:
+            except (RuntimeError, UnicodeDecodeError) as exc:
+                parse_errors.append(f"{table_label} symbol offset {offset}: {exc}")
+                continue
+            if not symbol:
+                continue
+            symbol_count += 1
+            if "ackoff" in symbol.casefold():
+                ackoff_count += 1
+                if len(ackoff_names) < 20:
+                    ackoff_names.append(symbol)
+            if section_index == 0 or symbol_info & 0x0f != 2:
                 continue
             if _is_backoff_function_symbol(symbol):
                 return
-    raise RuntimeError(f"backoff binary に Backoff::backoff symbol がない: {path}")
+
+    symtab_indexes = [
+        index for index, section in enumerate(sections) if section[1] == 2
+    ]
+    symtab_found = bool(symtab_indexes)
+    strtab_found = any(
+        sections[index][6] < section_count
+        and sections[sections[index][6]][1] == 3
+        for index in symtab_indexes
+    )
+    referenced = ", ".join(referenced_sections) if referenced_sections else "0 件"
+    if ackoff_names:
+        ackoff_detail = (
+            f"{ackoff_count} 件"
+            + (" (先頭 20 件)" if ackoff_count > 20 else "")
+            + ": " + ", ".join(ackoff_names)
+        )
+    else:
+        ackoff_detail = "0 件"
+    details = [
+        f"backoff binary に Backoff::backoff symbol がない: {path}",
+        f"binary size={len(raw)} bytes; ELF class={class_label}; endian={endian_label}",
+        f"解析できた symbol の総数={symbol_count}",
+        f"参照した section={referenced}",
+        f".symtab found={'yes' if symtab_found else 'no'}; "
+        f".strtab found={'yes' if strtab_found else 'no'}",
+        f"ackoff 候補={ackoff_detail}",
+    ]
+    if not symtab_found or not strtab_found:
+        listed_names = [name for name in section_names if name][:40]
+        if not listed_names:
+            listed_names = ["<名前を解決できた section は 0 件>"]
+        details.append("section 一覧 (最大 40)=" + ", ".join(listed_names))
+    if section_name_errors:
+        details.append("section 名解決エラー=" + "; ".join(section_name_errors[:20]))
+    if parse_errors:
+        details.append("symbol 解析エラー=" + "; ".join(parse_errors[:20]))
+    raise RuntimeError("\n".join(details))
 
 
 def _flags(workload, clocks_per_us=CLK):
