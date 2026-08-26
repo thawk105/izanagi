@@ -584,6 +584,25 @@
   exit code だけで判定する) で足り、待ち手ツールの差し替えではない。
   本 wave では 3 点照合 (完了マーカー・成果物・producer の生存) が 3 回とも偽完了を検出し、
   実害はゼロであった。
+
+- **再発: 2026-08-26** — `tools/dev_wave_wait.py producer` の待ち手が rc=0 で偽完了する形を
+  **同一 wave で 3 回**観測した (段 6 焦点再レビュー、変異 probe、焦点走の 2 回目)。いずれも
+  `.done` は不在で子は生存しており、恒久対応 (`.done` の実在で判定し、待ち手の rc も通知も信じない)
+  がそのまま効いて実害はゼロだった。**本 wave の追加事実は生存判定の側にある** —
+  道具名だけの `pgrep -f "mutation_worktree.py"` は**並行 wave の子を自分の子と誤認する**。
+  実際に別 wave (`dev-wave-t1858`) の変異走行を自分のものと数え、本走の投入を無用に待った。
+  `DW-M05` が要求する worktree path での一意化は、変異中の生存確認だけでなく
+  **待ち直しのたびの生存判定にも適用する**。
+
+- **再発 (near-miss): 2026-08-26** — 背景 job の完了通知そのものが偽完了を出す形で、
+  同型を 1 wave 中に 3 回実測した。待ち条件は `.done` の実在で正しく書いていた
+  (`until [ -f <done> ]; do sleep N; done`) が、**待ち手 process が条件成立前に exit 0 で
+  完了通知を返した。** 生産者は生存しており `.done` は存在しなかった。
+  焦点走の待ち手で 1 回、変異本走の待ち手で 2 回。
+  `DW-O01` の「通知は先行しうるので通知を判定にしない」がそのまま効き、
+  通知のたびに `.done` の実在を再確認したため実害はゼロだった。
+  本追記は、恒久対応の射程が子 process の log や `-o` ファイルだけでなく、
+  **待ち手自身の完了通知**にも及ぶことを明示するためのものである。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -2656,6 +2675,30 @@
   本再発が canonical へ fold されるまで**構造的に不可能**である。この 2 段依存
   (hold は既 land の証拠を要求し、証拠の land は受入 green を要求する) 自体が
   非帰属 flake で塞がれた wave を land 不能にする経路であり、裁定パッケージへ送る。
+
+- **再発: 2026-08-26** — 本 wave の受入全走 2 回で、いずれも
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` 1 件だけが落ちた
+  (17,390 passed / 1 failed / 64 skipped)。assertion 本文は
+  `child.pid was not registered before deadline; stderr=''` で既往と逐語一致する。
+  同一 tree の単独走は 1 passed / 6.58 秒で再現しない。
+  wave の差分はこの file の import 1 行と別 test 1 つだけで、落ちた test も共有 helper も
+  触れていないため非帰属である。
+  **本再発は hold へ送らず是正した。** この検査は本 wave が是正対象としている族の実例
+  (子 process の応答を小さい絶対期限で待つ型) であり、対象 file が本 wave の所有だからである。
+  2 秒の poll を除去し、判定を launcher 終了後へ移した。証拠となる `child.pid` は終了後も残り、
+  同じテストが後段で実際に読んでいる。診断文言と後続 assertion は 1 つも削っていない。
+  `orchestrator/tests/flaky_test_holds.py` への登録は、同 file を稼働 wave が所有し、
+  かつ同 wave が受入済みの tip で凍結していたため採れなかった。
+  書けば相手に受入全走の再走を強いる。**所有の衝突が hold 経路を塞ぐ形は、
+  非帰属赤の着地手順が想定していない状態である。**
+  ただしこの衝突自体は一時的だった — 所有 wave は registry を空にして撤去する内容なので、
+  land すれば所有も解ける。塞がっていたのは相手が凍結している間だけである。
+  **穴は良い方向に働いた。** hold で隠す道が塞がった結果、族の是正として直すことになり、
+  是正後の受入全走は完全緑になった。構造の穴 (`DW-O18` が registry の所有衝突を想定していない)
+  は残るので、記録として分けて残す。
+  hang を捕まえる上界は消していない。`_communicate_launcher` の
+  `process.communicate(timeout=10)` が元から在り、そのまま残っている。
+  消したのはその内側にあった、より厳しく環境依存な 2 秒の期限だけである。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -17071,3 +17114,79 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`docs/skill-self-improvement.md` は予算値の変更を通常の自己改善から除外している)。
 - 再発検知: 逸脱した時点で全 command が同一文言で拒否されるため、症状は即座かつ明確である。
   検知の問題ではなく復帰手順の周知の問題として扱う。
+
+### F656. 親が校正用の走行を背景投入したまま次の走行を投げ、同一 worktree の並行 dispatch で orphan hold を踏んだ [手順漏れ]
+
+- 事象: 段 6 の timeout 校正のため単一 node の走行 2 本を背景で連鎖投入し、それが計算ノードで
+  実行中に焦点走 (file 全体) を投入した。後発の投入は
+  `IZANAGI_DISPATCH_OUTCOME_V1 {"child_started":false,"kind":"infra","reason":"orphan-hold"}` で
+  子を起動せずに終わり、焦点走の結果が 1 回失われた。
+- 根本原因: `DW-O26` の「焦点走の分割投入は直列にする。同一 worktree の並行 dispatch は
+  orphan hold で rc=16 になる」は**焦点走どうし**の話として読まれやすい。実際には親が校正・計測目的で
+  投げる単発 node の走行も同じ dispatch 経路を使うため、種別が違っても直列化の対象である。
+  親には背景投入した dispatch の在否を投入直前に確かめる習慣が無かった。
+- 恒久対応: `DW-O26` が定める直列化の対象を、焦点走に限らず**同一 worktree からの dispatch 全種**と
+  読む。投入直前に `qstat` と `output/pegasus-dispatch/orphan-hold.json` の不在を親が確認する。
+  機械側の実体は既存の fail-closed 検査 (hold 在中は scheduler command を起動しない) であり、
+  欠けていたのは親側の運用規律である。
+- 再発検知: 後発投入が `reason=orphan-hold` で子を起動せずに戻る。静かに壊れることはない。
+- 波及: 本件の hold は先行走行の自然終了で撤去された。手動削除も `qdel` もしていない
+  (`qdel` は F47 の submission-disabled を武装させる)。
+
+### F657. 環境の偶然への依存を消す是正が、別の環境依存を持ち込んだ [テスト代表性] [恒真ゲート]
+
+- 事象: process 全体の fd 件数比較をやめ、clean な子 process 内で「開始前後の全 fd identity
+  差分」を比べる形へ書き換えた。敵対レビューが 2 点を指摘した。(a) identity が
+  `(fd, st_dev, st_ino, file type, st_rdev)` なので、**同じ fd 番号で同じ file を閉じ直して
+  開くと別の open description でも同一 tuple になり**、件数を保ったままの入れ替え回帰を
+  受理する。(b) 検査が `/proc/self/fd` の可視性を直接要求するため、**procfs が無い・PID
+  名前空間から不可視・アクセス拒否の環境では正しい実装でも 7 node すべてが赤になる。**
+- 根本原因: 「環境の偶然に依存しない形へ書き換える」という目的に対し、
+  **書き換え先が新しい環境の前提を置いていないかを検査していなかった。**
+  是正の正しさを「元の依存が消えたか」だけで見て、「別の依存が生えたか」を見ていない。
+- 恒久対応: identity を `kcmp(KCMP_FILE)` で open description まで識別する形にし、
+  同一 inode・同一 fd 番号の count-preserving swap を負例として追加した。
+  procfs や `kcmp` が使えない環境では**黙って通さず明示して停止する**。
+  分類台帳 `docs/test-environment-coincidence-ledger.md` に、
+  是正が新しい環境依存を持ち込んでいないかを確かめる観点として記録した。
+- 再発検知: count-preserving swap の負例と、能力不足時に停止することの検査。
+  変異 matrix の M03 (fd の close を最初の失敗で中断する) が
+  `test_close_fds_best_effort_closes_all_and_reraises_first_error` と
+  `test_copied_binary_close_error_does_not_leak_later_fds` の 2 件で KILLED になることを確認した。
+
+### F658. 排他の証明が「lock を試みた」までで止まり、scheduler 次第で壊れた実装が通った [恒真ゲート]
+
+- 事象: 「N 秒待って終わらないこと」で排他を代理観測していた検査を、
+  lock-attempt event で同期する形へ置き換えた。敵対レビューが、event は実 `flock` の**直前**に
+  立つため、writer が排他 lock を即時取得し、そこで scheduler が writer を止め、
+  main が critical section を完了した後に writer が再開しても、
+  **期待する trace と期待するエラー文言の両方が成立する**ことを示した。
+  共有 lock を除いた実装が scheduler 次第で受理される。
+- 根本原因: 因果の証明を「呼ぼうとしたことの観測」で代用した。
+  実時間の負の待ちを消したことで代理観測は無くなったが、
+  **証明したい性質 (その時点で lock が保持されている) を直接観測してはいなかった。**
+- 恒久対応: 別の open description からの**非 blocking lock probe** で、
+  その時点で lock が保持されていることを観測する形にした。
+  critical hook の前後関係まで検査し、pre-call race を閉じた。
+- 再発検知: 変異 matrix の M01 (attempt registry の共有ロックを取り除く) と
+  M02 (manifest ロックを排他から共有へ落とす) が、いずれも是正した検査そのもので KILLED になる。
+  M02 は初回 probe で SURVIVED だったが、等価変異ではなく照準の誤り
+  (テストが撃つのは manifest ロックなのに receipt ロックを変異させていた) で、
+  実効 gate へ再照準して KILLED を確認した。
+
+### F659. 真偽値リテラルを数値として数え、母集合と「先行記録との一致」を誤って報告した [誤前提]
+
+- 事象: 待ち上限の候補を AST で数える走査を書き、母集合を 244 件 / 67 file と報告した。
+  さらに「この 244 は失敗台帳が記録した 244 と一致する」と書いた。
+  敵対レンズ 2 本が独立に 243 件 / 66 file と数え直し、食い違いを指摘した。
+- 根本原因: Python では真偽値が整数型に含まれるため、`isinstance(value, (int, float))` が
+  `True` / `False` を通す。走査が真偽値の引数を数値の上限として数えていた。
+  **一致していると書いた「先行記録との一致」は、このバグ由来の偶然だった。**
+  先行記録側の走査述語は記録されていないので、そもそも比較できない。
+- 恒久対応: 走査述語に「真偽値リテラルは数値として数えない」を明記し、
+  base commit の blob に対して数え直した (P1 243 件 / 66 file、P2 260 件 / 66 file)。
+  分類台帳 `docs/test-environment-coincidence-ledger.md` の走査述語節に数え方の細目として
+  残し、行単位の候補一覧
+  `output/insights/2026-08-26_t1848-env-coincidence-inventory.json` を成果物として置いた。
+- 再発検知: 台帳の数値は記載した述語でのみ再現できる、と明記した。
+  走査述語を記録していない先行の数値との一致を、正しさの根拠にしない。
