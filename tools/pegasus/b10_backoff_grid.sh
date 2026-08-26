@@ -7,22 +7,26 @@
 set -Eeuo pipefail
 umask 077
 
-# 31/24 scaling plus dependency build:
-# 180 + 11700 + 3900 + 300 + 300 = 16380 seconds.
-# A five-hour reservation therefore retains the preregistered 1620-second reserve.
+# 31/24 scaling plus detached worktree and dependency build:
+# 120 + 180 + 11700 + 3900 + 300 + 120 + 300 = 16620 seconds.
+# A five-hour reservation therefore retains the preregistered 1380-second reserve.
+WORKTREE_SETUP_CAP_S=120
 DEPENDENCY_BUILD_CAP_S=180
 SWEEP_CAP_S=11700
 AA_CAP_S=3900
 REPORT_CAP_S=300
+WORKTREE_CLEANUP_CAP_S=120
 FINALIZE_CAP_S=300
 EXPECTED_WALLTIME_S=18000
-EXPECTED_RESERVE_S=1620
+EXPECTED_RESERVE_S=1380
 EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
 BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080
 CURRENT_STAGE=bootstrap
 PY=""
 OUTPUT_ROOT=""
 OUTPUT_ROOT_READY=0
+CCBENCH_BASE=""
+CCBENCH_WORKTREE=""
 
 write_failure_receipt() {
   local rc=$1
@@ -151,6 +155,30 @@ on_error() {
   exit "$rc"
 }
 trap on_error ERR
+
+remove_ccbench_worktree() {
+  local cleanup_rc=0
+  [[ -n "$CCBENCH_BASE" && -n "$CCBENCH_WORKTREE" ]] || return 0
+  timeout "$WORKTREE_CLEANUP_CAP_S" \
+    git -C "$CCBENCH_BASE" worktree remove --force "$CCBENCH_WORKTREE" \
+    >>"$OUTPUT_ROOT/env/worktree-remove.stdout" \
+    2>>"$OUTPUT_ROOT/env/worktree-remove.stderr" || cleanup_rc=$?
+  printf '%s\n' "$cleanup_rc" >"$OUTPUT_ROOT/env/worktree-remove.rc" || true
+  [[ "$cleanup_rc" -eq 0 ]] || return "$cleanup_rc"
+  CCBENCH_WORKTREE=""
+}
+
+cleanup_worktree() {
+  local original_rc=$?
+  local cleanup_rc=0
+  trap - EXIT ERR
+  remove_ccbench_worktree || cleanup_rc=$?
+  if [[ "$original_rc" -eq 0 && "$cleanup_rc" -ne 0 ]]; then
+    original_rc=$cleanup_rc
+  fi
+  exit "$original_rc"
+}
+trap cleanup_worktree EXIT
 
 [[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
   && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" \
@@ -316,6 +344,20 @@ if observed.split(".")[0] not in entries:
     raise SystemExit("PBS_NODEFILE does not contain the observed compute host")
 PY
 CURRENT_COMMIT=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit})
+CCBENCH_BASE="$REPO_ROOT/external/ccbench"
+[[ -d "$CCBENCH_BASE" && ! -L "$CCBENCH_BASE" ]] || \
+  fail 2 "CCBench submodule base is not a real directory"
+read -r CCBENCH_GITLINK_MODE CCBENCH_GITLINK_TYPE \
+  CCBENCH_EXPECTED_COMMIT CCBENCH_GITLINK_PATH < <(
+    git -C "$REPO_ROOT" ls-tree "$CURRENT_COMMIT" -- external/ccbench
+  )
+[[ "$CCBENCH_GITLINK_MODE" == 160000 \
+    && "$CCBENCH_GITLINK_TYPE" == commit \
+    && "$CCBENCH_EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ \
+    && "$CCBENCH_GITLINK_PATH" == external/ccbench ]] || \
+  fail 2 "CCBench gitlink binding is invalid"
+git -C "$CCBENCH_BASE" cat-file -e "$CCBENCH_EXPECTED_COMMIT^{commit}" || \
+  fail 2 "CCBench gitlink commit is unavailable from the submodule repository"
 SCRIPT_PATH=$(realpath -e -- "${BASH_SOURCE[0]}")
 EXECUTING_SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")
 EXECUTING_SCRIPT_SHA256=${EXECUTING_SCRIPT_SHA256%% *}
@@ -340,9 +382,10 @@ export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
 export IZANAGI_RESERVATION_SCRIPT_SHA256="$COMMITTED_SCRIPT_SHA256"
 export IZANAGI_RESERVATION_NONCE="$B10_SUBMISSION_NONCE"
 "$PY" -I -B - "$OUTPUT_ROOT/reservation.json" \
-  "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" <<'PY'
+  "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" \
+  "$CURRENT_COMMIT" "$CCBENCH_EXPECTED_COMMIT" <<'PY'
 import hashlib, json, os, pathlib, sys
-destination, stdout_path, stderr_path = sys.argv[1:]
+destination, stdout_path, stderr_path, repo_commit, ccbench_commit = sys.argv[1:]
 keys = (
     "JOB_ID", "REQUESTED_S", "SCHEDULER_STARTED_EPOCH", "DEADLINE_EPOCH",
     "HOST", "BOOT_ID", "SCRIPT_SHA256", "NONCE",
@@ -358,8 +401,64 @@ def evidence(path):
 document = {
     "schema_version": "b10-backoff-grid-reservation/v1",
     "binding": binding,
+    "source_binding": {
+        "repository_commit": repo_commit,
+        "ccbench_gitlink_commit": ccbench_commit,
+    },
     "qstat_stdout": evidence(stdout_path),
     "qstat_stderr": evidence(stderr_path),
+}
+with open(destination, "x", encoding="utf-8") as handle:
+    json.dump(document, handle, sort_keys=True, separators=(",", ":"))
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+PY
+
+# Each job patches and builds an isolated detached CCBench worktree. The base
+# submodule supplies Git objects and worktree administration only; its checkout
+# is never changed by this payload.
+CURRENT_STAGE=ccbench_worktree_setup
+CCBENCH_WORKTREE="$TMPDIR/ccbench-source"
+WORKTREE_SETUP_DEADLINE=$((SECONDS + WORKTREE_SETUP_CAP_S))
+worktree_setup_run() {
+  local remaining=$((WORKTREE_SETUP_DEADLINE - SECONDS))
+  [[ "$remaining" -gt 0 ]] || fail 124 "CCBench worktree setup deadline exhausted"
+  timeout "$remaining" "$@"
+}
+worktree_setup_run git -C "$CCBENCH_BASE" worktree add --detach \
+  "$CCBENCH_WORKTREE" "$CCBENCH_EXPECTED_COMMIT" \
+  >"$OUTPUT_ROOT/env/worktree-add.stdout" \
+  2>"$OUTPUT_ROOT/env/worktree-add.stderr"
+[[ -d "$CCBENCH_WORKTREE" && ! -L "$CCBENCH_WORKTREE" \
+    && -f "$CCBENCH_WORKTREE/.git" && ! -L "$CCBENCH_WORKTREE/.git" ]] || \
+  fail 2 "CCBench detached worktree was not materialized"
+CCBENCH_WORKTREE_TOP=$(
+  worktree_setup_run git -C "$CCBENCH_WORKTREE" rev-parse --show-toplevel
+)
+CCBENCH_WORKTREE_TOP=$(realpath -e -- "$CCBENCH_WORKTREE_TOP")
+CCBENCH_WORKTREE_HEAD=$(
+  worktree_setup_run git -C "$CCBENCH_WORKTREE" rev-parse --verify HEAD^{commit}
+)
+CCBENCH_WORKTREE_STATUS=$(
+  worktree_setup_run git -C "$CCBENCH_WORKTREE" \
+    status --porcelain --untracked-files=no
+)
+[[ "$CCBENCH_WORKTREE_TOP" == "$CCBENCH_WORKTREE" \
+    && "$CCBENCH_WORKTREE_HEAD" == "$CCBENCH_EXPECTED_COMMIT" \
+    && -z "$CCBENCH_WORKTREE_STATUS" ]] || \
+  fail 2 "CCBench detached worktree identity or cleanliness mismatch"
+"$PY" -I -B - "$OUTPUT_ROOT/env/ccbench-worktree.json" \
+  "$CCBENCH_WORKTREE" "$CCBENCH_EXPECTED_COMMIT" "$CCBENCH_WORKTREE_HEAD" <<'PY'
+import json, os, sys
+destination, path, expected, observed = sys.argv[1:]
+document = {
+    "schema_version": "b10-ccbench-worktree/v1",
+    "path": path,
+    "detached": True,
+    "expected_gitlink_commit": expected,
+    "observed_head_commit": observed,
+    "tracked_clean": True,
 }
 with open(destination, "x", encoding="utf-8") as handle:
     json.dump(document, handle, sort_keys=True, separators=(",", ":"))
@@ -472,18 +571,23 @@ CURRENT_STAGE=extended_sweep
 timeout "$SWEEP_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
-  --cache-root "$B10_BUILD_CACHE_ROOT"
+  --cache-root "$B10_BUILD_CACHE_ROOT" \
+  --ccbench-dir "$CCBENCH_WORKTREE"
 
 CURRENT_STAGE=add_analysis
 timeout "$AA_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_overthrottle.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
-  --cache-root "$B10_BUILD_CACHE_ROOT"
+  --cache-root "$B10_BUILD_CACHE_ROOT" \
+  --ccbench-dir "$CCBENCH_WORKTREE"
 
 CURRENT_STAGE=report
 timeout "$REPORT_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot
+
+CURRENT_STAGE=ccbench_worktree_cleanup
+remove_ccbench_worktree
 
 CURRENT_STAGE=finalize
 FREEZE_AFTER=$(freeze_digest)
