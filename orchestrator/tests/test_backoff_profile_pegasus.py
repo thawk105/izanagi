@@ -693,7 +693,19 @@ def test_reproduction_body_freezes_dependencies_cache_and_walltime():
         if line.strip() and not line.lstrip().startswith("#")
     ]
 
-    assert "--walltime 05:00:00" in source
+    submit_example = (
+        "# python3 tools/pegasus/dispatch_compute.py --task generic "
+        "--walltime 05:00:00 \\\n"
+        "#   /bin/bash output/insights/2026-08-26_b10-balanced-profile/"
+        "job-body.sh <JOB_TOKEN>"
+    )
+    assert submit_example in source
+    assert "PBS_JOBID" not in source
+    assert (
+        "JOB_TOKEN=${1:?JOB_TOKEN argument is required for the job-specific build roots}"
+        in active
+    )
+    assert "JOB_TOKEN=${JOB_TOKEN//[^A-Za-z0-9._-]/_}" in active
     assert "DISPATCH_WALLTIME=05:00:00" in active
     assert "WALLTIME_SECONDS=18000" in active
     assert "DEPENDENCY_BUILD_BUDGET_SECONDS=540" in active
@@ -713,6 +725,9 @@ def test_reproduction_body_freezes_dependencies_cache_and_walltime():
     assert 'test "$TOTAL_BUDGET_SECONDS" -lt "$WALLTIME_SECONDS"' in active
     assert 'DEPENDENCY_BUILD_LOG="$DEPENDENCY_LOG_PARENT/.$JOB_TOKEN.staging"' in active
     assert 'DEPENDENCY_PUBLISH_LOG="$DEPENDENCY_LOG_PARENT/$JOB_TOKEN"' in active
+    assert 'test ! -e "$JOB_ROOT"' in active
+    assert 'test ! -e "$DEPENDENCY_BUILD_LOG"' in active
+    assert 'test ! -e "$DEPENDENCY_PUBLISH_LOG"' in active
     assert 'mkdir "$JOB_ROOT"' in active
     assert 'mkdir "$DEPENDENCY_PREFIX" "$CCBENCH_CACHE_ROOT" "$TMPDIR"' in active
     assert 'mkdir "$GFLAGS_BUILD" "$GLOG_BUILD"' in active

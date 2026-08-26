@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Reproduction body only; this file is not a registered execution entrypoint.
-# Submit its bytes as one generic argv body:
-# python3 tools/pegasus/dispatch_compute.py --walltime 05:00:00 --task generic -- \
-#   /bin/bash -c "$(<output/insights/2026-08-26_b10-balanced-profile/job-body.sh)"
+# Submit it with an explicit job token as the first job-body argument:
+# python3 tools/pegasus/dispatch_compute.py --task generic --walltime 05:00:00 \
+#   /bin/bash output/insights/2026-08-26_b10-balanced-profile/job-body.sh <JOB_TOKEN>
 # The generic queue-wait limit remains a separate 900 seconds; it is not walltime.
 
 set -euo pipefail
@@ -25,7 +25,7 @@ INNER_BUDGET_SECONDS=$((
 TOTAL_BUDGET_SECONDS=$((INNER_BUDGET_SECONDS + SHUTDOWN_MARGIN_SECONDS))
 test "$TOTAL_BUDGET_SECONDS" -lt "$WALLTIME_SECONDS"
 
-JOB_TOKEN=${PBS_JOBID:?PBS_JOBID is required for the job-specific build roots}
+JOB_TOKEN=${1:?JOB_TOKEN argument is required for the job-specific build roots}
 JOB_TOKEN=${JOB_TOKEN//[^A-Za-z0-9._-]/_}
 SCRATCH_USER_ROOT="/scr/${USER:?USER is required}"
 JOB_ROOT="$SCRATCH_USER_ROOT/izanagi-b10-balanced-profile-$JOB_TOKEN"
