@@ -32,6 +32,9 @@
 - `ai-provenance.md` — commit ごとの AI 製品・モデル・推論深度・役割を記録する `AI-Agent` trailer 規約
 - `failures.md` — 失敗台帳。起こした問題の型別索引と恒久対応の実体ポインタ (2026-07-13 新設。
   問題発生時は worklog と同時に追記、再発は既存エントリに「再発:」追記)
+- `test-environment-coincidence-ledger.md` — 受入 suite の「環境の偶然を assert する検査」の
+  分類と処置の正本 ([T-1848])。走査述語と母集合、7 クラスの判定手続き、直さないと判定した理由、
+  寄与順が確定できない理由の算術を持つ。発端と機序は `failures.md` の F641
 - `dev-wave/core.md` / `workers.md` / `mutation.md` / `operations.md` — `/dev-wave` 入口から
   段・条件ごとに読む living runbook。親段、worker 権限、変異、条件付き運用の正本
 - `skill-self-improvement.md` — dev-wave / cleanup-branches / rulings 共通の自己改善 gate、
