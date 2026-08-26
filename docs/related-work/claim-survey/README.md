@@ -30,3 +30,4 @@
 | 2026-08-26 | `2026-08-26-correction-5-audit.md` | Polyjuice / CCaaLF→NeurCC の特徴づけについて、paper-story 最新版・`docs/related-work/README.md` 7.1・`docs/related-work/literature-map/` の Markdown と CSV の四者を突き合わせた監査 |
 | 2026-08-26 | `2026-08-26-cir-cvn-adjudication.md` | `2604.09318` (CIR+CVN) の `要裁定` を一次資料で解いた記録。軸 1 への接地判定と、`docs/paper-story/` §3 の 1 が落としてはならない 2 つの限定 |
 | 2026-08-27 | `2026-08-27-axis1-search-preregistration.md` | 軸 1 の 7.7.4 事前登録。索引 3 つの実測、共有の暦境界による cutoff、6 枝 × 3 索引の query catalog、完走述語、停止条件、母集合の外。**登録であって実行ではない** |
+| 2026-08-27 | `2026-08-27-axis1-adjudication-3.md` | 軸 1 分類 pilot に残る `要裁定` 3 件 (`2404.13359` / `2512.18746` / `2605.22721`) を一次資料で解いた記録。A の読み方の明示、件数保存則、`docs/paper-story/` §3 の 1 が落としてはならない 3 つの限定 |
