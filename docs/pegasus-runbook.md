@@ -1192,6 +1192,12 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
 片方だけを渡すと `mutation harness aborted: --attempt-out と --wrapper-attempt は同時指定が必要`
 で起動前に落ちる。attempt 記録を取るなら両方渡す。
 
+**spec の `category` は `negative` / `positive` / `both-layers` の 3 値だけである** (2026-08-26 実測)。
+`DW-M01` が要求する「承認外の過剰拒否を検出する正例」は `positive` で登録する。
+`positive-control` のような値を書くと `category が未知` で起動 1 分以内に中止し、台帳も作られない。
+このとき待ち手は成果物不在のまま待ち続けて `rc=70` (timeout) を返すので、
+**外からは「まだ走っている」ように見える。** producer の生死を `ps` で確かめる。
+
 **`expected_nodes` の nodeid は ASCII だけにする。** `tools/run_tests.py` は子の出力を中継する
 とき非 ASCII を `\uXXXX` へエスケープするため、parametrize の表示 ID に日本語を含む nodeid は
 harness の collection と一致せず `期待 node が pytest collection に実在しない` で必ず落ちる。
