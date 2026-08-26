@@ -1270,7 +1270,7 @@ def _drain_stdout(state: AttemptState) -> None:
         state.stdout_pending = combined
         return
     state.stdout_pending = pending
-    for raw_line in complete.splitlines():
+    for raw_line in complete.split(b"\n"):
         if not raw_line.strip():
             continue
         try:
@@ -1403,7 +1403,7 @@ def _tail_rollout(
         rollout.pending = combined
         return
     rollout.pending = pending
-    for raw_line in complete.splitlines():
+    for raw_line in complete.split(b"\n"):
         if not raw_line.strip():
             continue
         try:
@@ -2332,7 +2332,7 @@ def _recorded_summary(
     for attempt in attempts:
         for rollout in attempt["rollouts"]:
             raw = Path(rollout["path"]).read_bytes()[: rollout["bytes"]]
-            for raw_line in raw.splitlines():
+            for raw_line in raw.split(b"\n"):
                 if not raw_line.strip():
                     continue
                 try:
@@ -4094,7 +4094,7 @@ def _recompute_attempt_metering(
         closed = stdout_raw[: -len(state.stdout_pending)]
     else:
         closed = stdout_raw
-    for raw_line in closed.splitlines():
+    for raw_line in closed.split(b"\n"):
         if not raw_line.strip():
             continue
         try:
@@ -4116,7 +4116,7 @@ def _recompute_attempt_metering(
             offset=len(raw),
         )
         state.rollouts[rollout.session_id] = rollout
-        for raw_line in raw.splitlines():
+        for raw_line in raw.split(b"\n"):
             if not raw_line.strip():
                 continue
             try:

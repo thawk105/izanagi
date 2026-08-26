@@ -22,6 +22,8 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))
 
 from orchestrator.campaign import buildcache  # noqa: E402
+from orchestrator.campaign import sort_swo_dependency_material  # noqa: E402
+from orchestrator.campaign import sort_swo_oracle  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
@@ -356,44 +358,25 @@ def _dependency_receipt(*, config: str = "b") -> dict[str, str]:
     }
 
 
-_FETCHCONTENT_FIXTURE_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 _FETCHCONTENT_FIXTURE_CONFIG_SHA256 = (
     "0026ab15b63efac9fe1189a05bc003de6583256ac00bab9fe54c11b76d60596f"
 )
 _FETCHCONTENT_FIXTURE_ARCHIVE_SHA256 = (
     "b82d14bd3717287c78a2e1351107a49a925192cae59c0f844437eed8a0d6caef"
 )
-_FETCHCONTENT_FIXTURE_MANIFEST_SHA256 = (
-    "b79b3aeff5ad1d77592909104315412fade9995c6002aba8280a638806c6bb3d"
-)
 _FETCHCONTENT_FIXTURE_FILES = {
-    ".git/HEAD": b"ref: refs/heads/main\n",
-    ".git/config": (
-        b"[core]\n"
-        b"\trepositoryformatversion = 0\n"
-        b"\tbare = false\n"
-    ),
-    ".git/refs/heads/main": (
-        b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
-    ),
     "config.h": b"fixture config\n",
     "libkohler_masstree_json.a": b"fixture archive\n",
     "tracked.hh": b"// pinned\n",
 }
-_FETCHCONTENT_FIXTURE_MANIFEST = (
-    b"28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80"
-    b"  .git/HEAD\n"
-    b"850b95ebbbb9dc7827cb07d1099222cebf6e0d98f7294879fbdbb49c1fc6de64"
-    b"  .git/config\n"
-    b"5a84b79716842f146f7533d890cc7308cad7b21abdc29c1852c6b3bb8ad66672"
-    b"  .git/refs/heads/main\n"
-    b"0026ab15b63efac9fe1189a05bc003de6583256ac00bab9fe54c11b76d60596f"
-    b"  config.h\n"
-    b"b82d14bd3717287c78a2e1351107a49a925192cae59c0f844437eed8a0d6caef"
-    b"  libkohler_masstree_json.a\n"
-    b"96cae9b9145c9ebcb684ff5bba86e565523fde756d60d42e39583bbf0293713f"
-    b"  tracked.hh\n"
-)
+
+
+def _canonical_manifest(payloads: dict[str, bytes]) -> bytes:
+    return b"".join(
+        hashlib.sha256(payloads[relative]).hexdigest().encode("ascii")
+        + b"  " + relative.encode("utf-8") + b"\n"
+        for relative in sorted(payloads)
+    )
 
 
 def _write_fetchcontent_dependency(base: Path) -> dict[str, str]:
@@ -403,22 +386,110 @@ def _write_fetchcontent_dependency(base: Path) -> dict[str, str]:
         path = source.joinpath(*relative.split("/"))
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(payload)
-    (source / ".git" / "objects").mkdir()
-    (source / "SHA256SUMS").write_bytes(_FETCHCONTENT_FIXTURE_MANIFEST)
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "config", "user.email", "fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source), "config", "user.name", "Fixture"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source), "add", "--", "tracked.hh"], check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source), "commit", "-qm", "fixture"], check=True,
+    )
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
     return {
-        "masstree_head": _FETCHCONTENT_FIXTURE_HEAD,
+        "masstree_head": head,
         "config_sha256": _FETCHCONTENT_FIXTURE_CONFIG_SHA256,
     }
 
 
 def _post_oracle_binding(base: Path, receipt: dict[str, str]) -> dict[str, str]:
+    source = base / "masstree-src"
+    canonical = base / "oracle-canonical"
+    canonical.mkdir()
+    payloads = {
+        "PIN": f"{receipt['masstree_head']}\n".encode("ascii"),
+        "config.h": (source / "config.h").read_bytes(),
+        "tracked.hh": (source / "tracked.hh").read_bytes(),
+    }
+    for relative, payload in payloads.items():
+        (canonical / relative).write_bytes(payload)
+    manifest = _canonical_manifest(payloads)
+    (canonical / "SHA256SUMS").write_bytes(manifest)
     return {
         "fetchcontent_base_dir": str(base.resolve()),
-        "dependency_manifest_sha256": _FETCHCONTENT_FIXTURE_MANIFEST_SHA256,
+        "oracle_dependency_root": str(canonical.resolve()),
+        "dependency_manifest_sha256": hashlib.sha256(manifest).hexdigest(),
         "masstree_head": receipt["masstree_head"],
         "config_sha256": receipt["config_sha256"],
         "archive_sha256": _FETCHCONTENT_FIXTURE_ARCHIVE_SHA256,
     }
+
+
+def test_synthetic_production_dependency_series_uses_real_git_and_fails_closed(
+        tmp_path):
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    source.mkdir(parents=True)
+    fixture = _HERE / "fixtures" / "sort_swo_masstree"
+    entries = tuple(
+        line.split("  ", 1)[1]
+        for line in (fixture / "SHA256SUMS").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    )
+    tracked = tuple(sorted(set(entries) - {"PIN", "config.h"}))
+    for relative in (*tracked, "config.h"):
+        destination = source.joinpath(*relative.split("/"))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(fixture / relative, destination)
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "add", "--", *tracked], check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "synthetic production-series checkout",
+        ],
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "--verify", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    observed_tracked = subprocess.run(
+        ["git", "-C", str(source), "ls-files", "--cached"],
+        check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    assert head != "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+    assert observed_tracked == list(tracked)
+
+    with pytest.raises(
+            sort_swo_dependency_material.CanonicalDependencyMaterialError
+    ) as caught:
+        sort_swo_dependency_material.materialize_canonical_dependency(
+            source.resolve(), lease_parent=base.resolve(), expected_head=head,
+        )
+    error = caught.value
+    assert error.detail_code == "canonical-manifest-mismatch"
+    assert error.generated_manifest_sha256 is not None
+    assert error.expected_manifest_sha256 == (
+        sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+    )
+    assert error.generated_manifest_sha256 != error.expected_manifest_sha256
+    assert error.generated_manifest_sha256 in str(error)
+    assert error.expected_manifest_sha256 in str(error)
+    assert list(base.glob(".sort-swo-dependency-*")) == []
 
 
 def _write_cmake_cache(build_dir: Path, lines: tuple[str, ...]) -> None:
@@ -734,6 +805,81 @@ def test_v2_fetchcontent_dependency_receipt_requires_exact_head_config_schema():
             buildcache._validate_fetchcontent_dependency_receipt(candidate)
 
 
+def test_v2_post_oracle_rejects_legacy_five_key_capability(tmp_path):
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    binding.pop("oracle_dependency_root")
+
+    with pytest.raises(buildcache.BuildCacheError, match="exact key"):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+        )
+
+
+def test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    first = _build(
+        tmp_path, _contract(1), post_oracle_dependency_binding=binding,
+    )
+    assert first.cached is False
+
+    original_validate = buildcache._validate_v2_entry
+
+    def validate_then_drift(*args, **kwargs):
+        result = original_validate(*args, **kwargs)
+        (base / "masstree-src" / "tracked.hh").write_text(
+            "// cache-hit drift\n", encoding="utf-8",
+        )
+        return result
+
+    monkeypatch.setattr(buildcache, "_validate_v2_entry", validate_then_drift)
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-source-drift"):
+        _build(
+            tmp_path, _contract(1), post_oracle_dependency_binding=binding,
+        )
+
+
+def test_v2_post_oracle_canonical_path_is_not_cache_identity(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base_a = tmp_path / "fetchcontent-a"
+    base_a.mkdir()
+    receipt_a = _write_fetchcontent_dependency(base_a)
+    binding_a = _post_oracle_binding(base_a, receipt_a)
+    first = _build(
+        tmp_path, _contract(1), post_oracle_dependency_binding=binding_a,
+    )
+
+    base_b = tmp_path / "fetchcontent-b"
+    base_b.mkdir()
+    shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    receipt_b = {
+        "masstree_head": receipt_a["masstree_head"],
+        "config_sha256": receipt_a["config_sha256"],
+    }
+    binding_b = _post_oracle_binding(base_b, receipt_b)
+    second = _build(
+        tmp_path, _contract(1), post_oracle_dependency_binding=binding_b,
+    )
+
+    assert first.cached is False
+    assert second.cached is True
+    assert binding_a["oracle_dependency_root"] != (
+        binding_b["oracle_dependency_root"]
+    )
+    assert first.build_dir == second.build_dir
+
+
 def test_v2_post_oracle_flag_is_exact_one_and_generic_base_only_stays_zero(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
@@ -797,14 +943,14 @@ def test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority(
     base.mkdir()
     receipt = _write_fetchcontent_dependency(base)
     binding = _post_oracle_binding(base, receipt)
-    source = base / "masstree-src"
+    canonical = Path(binding["oracle_dependency_root"])
     changed_tracked = b"// changed with self-consistent manifest\n"
-    (source / "tracked.hh").write_bytes(changed_tracked)
-    manifest = source / "SHA256SUMS"
-    manifest.write_bytes(_FETCHCONTENT_FIXTURE_MANIFEST.replace(
-        b"96cae9b9145c9ebcb684ff5bba86e565523fde756d60d42e39583bbf0293713f",
-        b"8a8e74f6fff67402507a53fc5bfdb48bb1694adf1966e7847d8956b589e27047",
-    ))
+    (canonical / "tracked.hh").write_bytes(changed_tracked)
+    payloads = {
+        relative: (canonical / relative).read_bytes()
+        for relative in ("PIN", "config.h", "tracked.hh")
+    }
+    (canonical / "SHA256SUMS").write_bytes(_canonical_manifest(payloads))
     calls = []
     original_run = buildcache._run
 
@@ -813,7 +959,7 @@ def test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority(
         return original_run(*args, **kwargs)
 
     monkeypatch.setattr(buildcache, "_run", record_run)
-    with pytest.raises(buildcache.BuildCacheError, match="oracle receipt"):
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-manifest-mismatch"):
         _build(
             tmp_path, _contract(1),
             post_oracle_dependency_binding=binding,
@@ -840,7 +986,7 @@ def test_v2_post_oracle_manifest_rejects_changed_declared_non_config_file(
     assert hashlib.sha256(
         (source / "config.h").read_bytes()
     ).hexdigest() == receipt["config_sha256"]
-    with pytest.raises(buildcache.BuildCacheError, match="tracked.hh.*SHA256SUMS"):
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-source-drift"):
         _build(
             tmp_path, _contract(1),
             post_oracle_dependency_binding=binding,
@@ -866,7 +1012,7 @@ def test_v2_post_oracle_config_mismatch_refuses_before_configure(
         return original_run(*args, **kwargs)
 
     monkeypatch.setattr(buildcache, "_run", record_run)
-    with pytest.raises(buildcache.BuildCacheError, match="config.h.*SHA256SUMS"):
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-source-drift"):
         _build(
             tmp_path, _contract(1),
             post_oracle_dependency_binding=binding,
