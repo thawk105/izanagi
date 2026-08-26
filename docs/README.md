@@ -22,12 +22,19 @@
 - `phase3-8c-preregistration.md` — 段 8c 正式系列 (H1/H2 × on/off/swapped) の事前登録。
   発効条件・発効の判定手続き (条件充足の機械確認で自動発効、条件契約は hash 世代台帳で凍結)・
   全件報告の機械強制が現在どこまで効くかの正本 (D116、[T-327])
+- `b10-backoff-shape-preregistration.md` — B-10「待ち方 / 待ち量の直交切り分け」の登録追試。
+  平均を μ に固定した半幅 3 形 × 6 平均 × 3 workload × 独立 3 ブロックの grid、
+  判定規則の機械可読 spec (符号反転 exact 検定・Holm・曝露 gate・欠測規則)、
+  待機の物理残差の実測欄、発効条件と束縛の正本
 - `worklog.md` — 日誌。末尾エントリ = 可変状態の正本。書式とローテーションは同ファイル冒頭
 - `spool/README.md` — 3 台帳へ書くための fragment 形式と fold の正本。並行セッションが同じ行末を
   奪い合わないよう、wave は fragment だけを書き、採番と追記は land が lock 内で一度だけ行う
 - `ai-provenance.md` — commit ごとの AI 製品・モデル・推論深度・役割を記録する `AI-Agent` trailer 規約
 - `failures.md` — 失敗台帳。起こした問題の型別索引と恒久対応の実体ポインタ (2026-07-13 新設。
   問題発生時は worklog と同時に追記、再発は既存エントリに「再発:」追記)
+- `test-environment-coincidence-ledger.md` — 受入 suite の「環境の偶然を assert する検査」の
+  分類と処置の正本 ([T-1848])。走査述語と母集合、7 クラスの判定手続き、直さないと判定した理由、
+  寄与順が確定できない理由の算術を持つ。発端と機序は `failures.md` の F641
 - `dev-wave/core.md` / `workers.md` / `mutation.md` / `operations.md` — `/dev-wave` 入口から
   段・条件ごとに読む living runbook。親段、worker 権限、変異、条件付き運用の正本
 - `skill-self-improvement.md` — dev-wave / cleanup-branches / rulings 共通の自己改善 gate、
@@ -46,7 +53,8 @@
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
 - `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類
 - `glossary.md` — 用語集 (用語を grep して該当項目だけ読む)
-- `related-work/` — 関連研究 (README.md が本体 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
+- `related-work/` — 関連研究 (README.md が本体 — 7.7 が主張軸別の調査状態と不在主張の成立条件の規則 +
+  claim-survey/ 主張軸別の凍結棚卸し・監査 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。

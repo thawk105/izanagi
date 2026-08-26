@@ -7285,6 +7285,7 @@ def test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The writer fd must conflict before the receipt-order guard proceeds."""
     repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
     reports = _reports(repo / "reports", manifest, _head(repo), complete=False)
     capability = _effective_capability(manifest, monkeypatch)
@@ -7299,11 +7300,12 @@ def test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt(
         repo, manifest,
     )
     writer_started = threading.Event()
-    writer_lock_attempted = threading.Event()
+    writer_lock_conflict_observed = threading.Event()
     writer_done = threading.Event()
     writer_errors: list[BaseException] = []
     writer_thread_ids: set[int] = set()
     threads: list[threading.Thread] = []
+    causal_trace: list[str] = []
     original_flock = R.fcntl.flock
     original_receipt = R._exclusive_create_acceptance_receipt
 
@@ -7312,7 +7314,17 @@ def test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt(
             threading.get_ident() in writer_thread_ids
             and operation == R.fcntl.LOCK_EX
         ):
-            writer_lock_attempted.set()
+            try:
+                original_flock(fd, operation | R.fcntl.LOCK_NB)
+            except BlockingIOError:
+                pass
+            else:
+                original_flock(fd, R.fcntl.LOCK_UN)
+                raise AssertionError(
+                    "compat writer fd did not conflict with the acceptance reader"
+                )
+            causal_trace.append("writer-lock-attempt")
+            writer_lock_conflict_observed.set()
         original_flock(fd, operation)
 
     def compat_writer() -> None:
@@ -7337,16 +7349,26 @@ def test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt(
         except BaseException as exc:
             writer_errors.append(exc)
         finally:
+            causal_trace.append("writer-done")
             writer_done.set()
 
     def observe_receipt(**kwargs):
+        causal_trace.append("receipt-critical-before")
         thread = threading.Thread(target=compat_writer)
         threads.append(thread)
         thread.start()
-        assert writer_started.wait(2.0)
-        assert writer_lock_attempted.wait(2.0)
-        assert not writer_done.wait(0.1)
+        assert writer_started.wait(2.0), "compat writer thread did not start"
+        assert writer_lock_conflict_observed.wait(2.0), (
+            "compat writer fd did not observe a real conflict with the "
+            "acceptance shared lock"
+        )
+        assert causal_trace == [
+            "receipt-critical-before",
+            "writer-lock-attempt",
+        ]
+        assert not writer_done.is_set()
         result = original_receipt(**kwargs)
+        causal_trace.append("receipt-critical-after")
         assert not writer_done.is_set()
         return result
 
@@ -7366,10 +7388,19 @@ def test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt(
     assert (repo / summary.receipt_path).is_file()
     assert len(threads) == 1
     threads[0].join(timeout=2.0)
+    assert not threads[0].is_alive(), (
+        "compat writer did not finish after acceptance released the shared lock"
+    )
     assert writer_done.is_set()
     assert len(writer_errors) == 1
     assert isinstance(writer_errors[0], R.TrialRegistryError)
     assert "slot was already reserved" in str(writer_errors[0])
+    assert causal_trace == [
+        "receipt-critical-before",
+        "writer-lock-attempt",
+        "receipt-critical-after",
+        "writer-done",
+    ]
 
 
 def test_attempt_registry_accepts_correct_formal_slot_consumption(

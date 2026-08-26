@@ -42,9 +42,11 @@ from .artifact_admission import (  # noqa: E402
     require_admitted_campaign,
 )
 from .claude_projected_provider import ClaudeProjectedRoleProvider  # noqa: E402
-from .layout import exploration_campaign_layout  # noqa: E402
+from .layout import CampaignLayout, exploration_campaign_layout  # noqa: E402
 from .model import CampaignConfig  # noqa: E402
 from .p3_s4_loop import (  # noqa: E402
+    B4_PROTOCOL_KEY,
+    B4_PROTOCOL_VALUE,
     WhiteboardEntry,
     default_cfg,
     loop_state_path,
@@ -67,11 +69,24 @@ from .s8b_prediction_runner import (  # noqa: E402
 
 Arm = Literal["on", "off"]
 EvidenceClass = Literal["certified", "test-only"]
+DriverKind = Literal["base", "sort", "trigger"]
+
+B4_CLOSED_CRITIC_TAG = "p3-b4-closed-critic"
+B4_CLOSED_CRITIC_RECEIPT_SCHEMA = "p3-b4-closed-critic-receipt/v3"
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ROLE_FILE = REPOSITORY_ROOT / ".claude" / "agents" / "critic.md"
 PROVIDER_FILE = REPOSITORY_ROOT / "orchestrator" / "campaign" / "claude_projected_provider.py"
 LOOP_FILE = REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_s4_loop.py"
+SORT_LOOP_FILE = (
+    REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_s4_loop_sort.py"
+)
+TRIGGER_LOOP_FILE = (
+    REPOSITORY_ROOT
+    / "orchestrator"
+    / "campaign"
+    / "p3_s4_loop_trigger_gating.py"
+)
 DIGEST_FILE = REPOSITORY_ROOT / "orchestrator" / "critic" / "digest.py"
 IDENTITY_PROJECTION_FILE = (
     REPOSITORY_ROOT / "orchestrator" / "critic" / "identity_projection.py"
@@ -215,6 +230,7 @@ class B4ClosedCriticReceipt:
     schema_version: str
     status: str
     evidence_class: EvidenceClass
+    driver_kind: DriverKind
     pair_id: str
     arm: Arm
     campaign_id: str
@@ -229,6 +245,8 @@ class B4ClosedCriticReceipt:
     effective_prompt_sha256: str
     projection_sha256: str
     digest_sha256: str
+    decision_sha256: str
+    decision_reverse_recommended: bool
     admitted_view_sha256: str
     loop_state_sha256: str
     iteration: int
@@ -272,6 +290,7 @@ class B4ArmPairComparison:
 @dataclass(frozen=True)
 class _ArmBinding:
     arm: Arm
+    driver_kind: DriverKind
     campaign_id: str
     layout_root: Path
     pair_id: str
@@ -297,6 +316,10 @@ class _ProductionPairCertification:
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _decision_sha256(decision: B4CriticDecision) -> str:
+    return _sha256(_canonical_json_bytes(asdict(decision)))
 
 
 def _read_bytes(path: Path, *, purpose: str) -> bytes:
@@ -584,9 +607,16 @@ def assert_no_campaign_identity(
                 raise B4CampaignDisclosureError(identity_kind, view_name)
 
 
-def projection_closure_manifest() -> dict[str, Any]:
+def projection_closure_manifest(
+    driver_kind: DriverKind = "base",
+) -> dict[str, Any]:
     """Return the canonical closure manifest whose hash identifies projection."""
-    paths = (
+    if (
+        type(driver_kind) is not str
+        or driver_kind not in {"base", "sort", "trigger"}
+    ):
+        raise B4ReceiptError("projection closure driver_kind is invalid")
+    paths = [
         ("orchestrator/campaign/p3_b4_closed_critic.py", MODULE_FILE),
         ("orchestrator/campaign/claude_projected_provider.py", PROVIDER_FILE),
         ("orchestrator/campaign/p3_s4_loop.py", LOOP_FILE),
@@ -609,7 +639,17 @@ def projection_closure_manifest() -> dict[str, Any]:
             IDENTITY_PROJECTION_FILE,
         ),
         (".claude/agents/critic.md", ROLE_FILE),
-    )
+    ]
+    if driver_kind == "sort":
+        paths.append((
+            "orchestrator/campaign/p3_s4_loop_sort.py",
+            SORT_LOOP_FILE,
+        ))
+    elif driver_kind == "trigger":
+        paths.append((
+            "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+            TRIGGER_LOOP_FILE,
+        ))
     entries = {
         relative: _sha256(path.read_bytes())
         for relative, path in paths
@@ -623,8 +663,10 @@ def projection_closure_manifest() -> dict[str, Any]:
     }
 
 
-def projection_sha256() -> str:
-    return _sha256(_canonical_json_bytes(projection_closure_manifest()))
+def projection_sha256(driver_kind: DriverKind = "base") -> str:
+    return _sha256(
+        _canonical_json_bytes(projection_closure_manifest(driver_kind))
+    )
 
 
 def _resolve_repository_root(repository_root: Path | None) -> Path:
@@ -637,6 +679,25 @@ def _resolve_repository_root(repository_root: Path | None) -> Path:
     if supplied != REPOSITORY_ROOT:
         raise B4TrustRootError("repository_root differs from the module-derived root")
     return REPOSITORY_ROOT
+
+
+def _driver_kind_from_cfg(cfg: CampaignConfig) -> DriverKind:
+    if type(cfg) is not CampaignConfig:
+        raise B4ArmBindingError("driver cfg must be the exact CampaignConfig type")
+    identity = (cfg.spec_slug, cfg.search_tag, cfg.trial)
+    kinds: dict[tuple[str, str, str], DriverKind] = {
+        ("p3-s4-loop", "s4-autonomous", "p3-s4-loop"): "base",
+        ("p3-s5-sort-loop", "s5-sort-autonomous", "p3-s5-sort-loop"): "sort",
+        (
+            "p3-s8a-trigger-loop",
+            "s8a-trigger-autonomous",
+            "p3-s8a-trigger-loop",
+        ): "trigger",
+    }
+    try:
+        return kinds[identity]
+    except KeyError as exc:
+        raise B4ArmBindingError("cfg does not select a fixed B-4 driver") from exc
 
 
 def _derive_arm(
@@ -653,6 +714,7 @@ def _derive_arm(
     layout = exploration_campaign_layout(campaign_id)
     return _ArmBinding(
         arm=reflux,
+        driver_kind=_driver_kind_from_cfg(cfg),
         campaign_id=campaign_id,
         layout_root=Path(layout.root).resolve(),
         pair_id=pair_id,
@@ -805,13 +867,15 @@ class B4ClosedCriticController:
                 "started_at_ns": time.time_ns(),
             }
             start_sha256 = _write_exclusive_json(start_path, start_value)
-            current_projection_sha256 = projection_sha256()
+            current_projection_sha256 = projection_sha256(
+                self.__binding.driver_kind
+            )
             if current_projection_sha256 != self.__initial_projection_sha256:
                 raise B4ReceiptError("projection closure changed after pair creation")
             snapshot = _load_stable_snapshot(self.__binding)
             digest = make_critic_digest(
                 snapshot.view,
-                tag="p3-b4-closed-critic",
+                tag=B4_CLOSED_CRITIC_TAG,
                 reflux=(self.__binding.arm == "on"),
                 identity_projection=make_critic_identity_projection(snapshot.view),
             )
@@ -885,9 +949,10 @@ class B4ClosedCriticController:
             if provenance.get("envelope_sha256") != envelope_sha256:
                 raise B4ReceiptError("provider envelope evidence disagrees with raw envelope")
             receipt = B4ClosedCriticReceipt(
-                schema_version="p3-b4-closed-critic-receipt/v2",
+                schema_version=B4_CLOSED_CRITIC_RECEIPT_SCHEMA,
                 status="success",
                 evidence_class=self.__evidence_class,
+                driver_kind=self.__binding.driver_kind,
                 pair_id=self.__binding.pair_id,
                 arm=self.__binding.arm,
                 campaign_id=self.__binding.campaign_id,
@@ -902,6 +967,8 @@ class B4ClosedCriticController:
                 effective_prompt_sha256=provenance["effective_prompt_sha256"],
                 projection_sha256=current_projection_sha256,
                 digest_sha256=_sha256(digest.encode("utf-8")),
+                decision_sha256=_decision_sha256(decision),
+                decision_reverse_recommended=decision.reverse_recommended,
                 admitted_view_sha256=_sha256(snapshot.wal_bytes),
                 loop_state_sha256=_sha256(snapshot.loop_state_bytes),
                 iteration=snapshot.iteration,
@@ -1072,13 +1139,15 @@ def _prepare_b4_closed_critic_pair(
     pair_id = f"b4-pair-{os.urandom(16).hex()}"
     on_binding = _derive_arm(on_cfg, expected_arm="on", pair_id=pair_id)
     off_binding = _derive_arm(off_cfg, expected_arm="off", pair_id=pair_id)
+    if on_binding.driver_kind != off_binding.driver_kind:
+        raise B4ArmBindingError("sealed pair configs select different drivers")
     root = Path(artifact_root)
     try:
         root.mkdir(parents=True, exist_ok=False)
     except FileExistsError as exc:
         raise B4ReceiptError("pair artifact root must not already exist") from exc
     tracker = CrossRoleSessionTracker()
-    closure_sha256 = projection_sha256()
+    closure_sha256 = projection_sha256(on_binding.driver_kind)
     if verified_admission is not None:
         assert_admission_expectation(
             "expected_closed_critic_projection_closure_sha256",
@@ -1332,7 +1401,7 @@ def _read_verified_terminal_receipt(
     if set(terminal) != _SUCCESS_TERMINAL_KEYS:
         raise B4ReceiptError("terminal success receipt keys do not match exact schema")
     if (
-        terminal.get("schema_version") != "p3-b4-closed-critic-receipt/v2"
+        terminal.get("schema_version") != B4_CLOSED_CRITIC_RECEIPT_SCHEMA
         or terminal.get("status") != "success"
     ):
         raise B4ReceiptError("pair validation requires a success terminal receipt")
@@ -1367,6 +1436,11 @@ def _read_verified_terminal_receipt(
         raise B4ReceiptError("terminal receipt path and invocation_id disagree")
     if receipt.arm not in {"on", "off"}:
         raise B4ReceiptError("terminal receipt arm is invalid")
+    if (
+        type(receipt.driver_kind) is not str
+        or receipt.driver_kind not in {"base", "sort", "trigger"}
+    ):
+        raise B4ReceiptError("terminal receipt driver_kind is invalid")
     for field_name in (
         "pair_id",
         "campaign_id",
@@ -1389,6 +1463,7 @@ def _read_verified_terminal_receipt(
         "effective_prompt_sha256",
         "projection_sha256",
         "digest_sha256",
+        "decision_sha256",
         "admitted_view_sha256",
         "loop_state_sha256",
         "evidence_executable_sha256",
@@ -1512,7 +1587,7 @@ def _read_verified_terminal_receipt(
         raise B4ReceiptError("neutral root identity schema is invalid")
     if _sha256(neutral_bytes) != receipt.neutral_root_identity_sha256:
         raise B4ReceiptError("neutral root identity hash does not match its bytes")
-    if projection_sha256() != receipt.projection_sha256:
+    if projection_sha256(receipt.driver_kind) != receipt.projection_sha256:
         raise B4ReceiptError("projection closure hash does not match current bytes")
 
     envelope_path = _artifact_for(
@@ -1546,7 +1621,14 @@ def _read_verified_terminal_receipt(
         raise B4ReceiptError("permission denial evidence differs from raw envelope")
     if all_zero != receipt.evidence_server_tool_use_all_zero:
         raise B4ReceiptError("server tool use evidence differs from raw envelope")
-    parse_b4_critic_response(envelope.get("result"))
+    decision = parse_b4_critic_response(envelope.get("result"))
+    if _decision_sha256(decision) != receipt.decision_sha256:
+        raise B4ReceiptError("decision hash does not match the critic decision bytes")
+    if (
+        type(receipt.decision_reverse_recommended) is not bool
+        or receipt.decision_reverse_recommended is not decision.reverse_recommended
+    ):
+        raise B4ReceiptError("decision reverse bit differs from the critic decision")
     model_usage = envelope.get("modelUsage")
     if not isinstance(model_usage, dict):
         raise B4ReceiptError("raw envelope modelUsage evidence is missing")
@@ -1590,6 +1672,82 @@ def _read_verified_terminal_receipt(
     return receipt
 
 
+def require_b4_closed_critic_receipt(
+    terminal_receipt_path,
+    *,
+    cfg,
+    layout,
+) -> B4ClosedCriticReceipt:
+    """Require one certified receipt bound to the live authoritative precursor."""
+    receipt = _read_verified_terminal_receipt(terminal_receipt_path)
+    if receipt.schema_version != B4_CLOSED_CRITIC_RECEIPT_SCHEMA:
+        raise B4ReceiptError("driver receipt schema_version is not the exact B-4 schema")
+    if receipt.status != "success":
+        raise B4ReceiptError("driver receipt status is not success")
+    if receipt.evidence_class != "certified":
+        raise B4ReceiptError("driver receipt evidence_class must be certified")
+    if type(cfg) is not CampaignConfig:
+        raise B4ReceiptError("driver cfg must be the exact CampaignConfig type")
+    if type(layout) is not CampaignLayout:
+        raise B4ReceiptError("driver layout must be the exact CampaignLayout type")
+    if cfg.search_config.get(B4_PROTOCOL_KEY) != B4_PROTOCOL_VALUE:
+        raise B4ReceiptError("driver cfg lacks the exact B-4 protocol marker")
+    arm = cfg.search_config.get("reflux")
+    if arm not in {"on", "off"}:
+        raise B4ReceiptError("driver cfg reflux arm must be on or off")
+    campaign_id = str(ident.campaign_id(cfg))
+    authoritative_layout = exploration_campaign_layout(campaign_id)
+    if Path(layout.root).resolve() != Path(authoritative_layout.root).resolve():
+        raise B4ReceiptError("driver layout is not the authoritative campaign layout")
+    if receipt.campaign_id != campaign_id:
+        raise B4ReceiptError("driver receipt campaign_id differs from live cfg")
+    try:
+        live_driver_kind = _driver_kind_from_cfg(cfg)
+    except B4ArmBindingError as exc:
+        raise B4ReceiptError("live cfg does not select a fixed B-4 driver") from exc
+    if receipt.driver_kind != live_driver_kind:
+        raise B4ReceiptError("driver receipt driver_kind differs from live cfg")
+    if receipt.arm != arm:
+        raise B4ReceiptError("driver receipt arm differs from live cfg")
+
+    wal_path = Path(authoritative_layout.wal_file)
+    state_path = Path(loop_state_path(authoritative_layout))
+    wal_before = _read_bytes(wal_path, purpose="live admitted WAL prefix")
+    state_before = _read_bytes(state_path, purpose="live loop state")
+    try:
+        state = state_from_dict(json.loads(state_before))
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise B4ReceiptError("live loop state is not an admissible checkpoint") from exc
+    if (
+        not state.whiteboard
+        or state.iteration != receipt.iteration
+        or state.whiteboard[-1].iteration != receipt.iteration
+    ):
+        raise B4ReceiptError("driver receipt iteration differs from live loop state")
+    if _sha256(wal_before) != receipt.admitted_view_sha256:
+        raise B4ReceiptError("driver receipt admitted view differs from live WAL bytes")
+    if _sha256(state_before) != receipt.loop_state_sha256:
+        raise B4ReceiptError("driver receipt loop state differs from live checkpoint bytes")
+
+    view = require_admitted_campaign(
+        authoritative_layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    digest = make_critic_digest(
+        view,
+        tag=B4_CLOSED_CRITIC_TAG,
+        reflux=(arm == "on"),
+        identity_projection=make_critic_identity_projection(view),
+    )
+    wal_after = _read_bytes(wal_path, purpose="live admitted WAL prefix")
+    state_after = _read_bytes(state_path, purpose="live loop state")
+    if wal_after != wal_before or state_after != state_before:
+        raise B4ReceiptError("live campaign snapshot changed during driver validation")
+    if _sha256(digest.encode("utf-8")) != receipt.digest_sha256:
+        raise B4ReceiptError("driver receipt digest differs from regenerated live digest")
+    return receipt
+
+
 def _assert_b4_arm_pair_receipts(
     on: B4ClosedCriticReceipt,
     off: B4ClosedCriticReceipt,
@@ -1602,6 +1760,7 @@ def _assert_b4_arm_pair_receipts(
     if on.pair_id != off.pair_id:
         raise B4ReceiptError("pair receipts have different pair_id commitments")
     common_fields = (
+        "driver_kind",
         "provider_kind",
         "model_snapshot",
         "role_file_sha256",
@@ -1731,23 +1890,77 @@ def assert_b4_certified_arm_pair(
     return comparison
 
 
+def _base_driver_config(
+    *, reflux: bool, b4_reflux_ablation: bool,
+) -> CampaignConfig:
+    return default_cfg(
+        reflux=reflux,
+        b4_reflux_ablation=b4_reflux_ablation,
+    )
+
+
+def _sort_driver_config(
+    *, reflux: bool, b4_reflux_ablation: bool,
+) -> CampaignConfig:
+    from . import p3_s4_loop_sort
+
+    return p3_s4_loop_sort.default_cfg(
+        reflux=reflux,
+        b4_reflux_ablation=b4_reflux_ablation,
+    )
+
+
+def _trigger_driver_config(
+    *, reflux: bool, b4_reflux_ablation: bool,
+) -> CampaignConfig:
+    from . import p3_s4_loop_trigger_gating
+
+    cfg = p3_s4_loop_trigger_gating.default_cfg(
+        reflux=reflux,
+        b4_reflux_ablation=b4_reflux_ablation,
+    )
+    site = p3_s4_loop_trigger_gating._current_site()
+    contract = p3_s4_loop_trigger_gating._admit_env_contract(site)
+    return p3_s4_loop_trigger_gating._campaign_cfg_for_site(
+        cfg,
+        site,
+        _contract=contract,
+    )
+
+
+B4_DRIVER_CONFIG_FACTORIES: dict[
+    DriverKind,
+    Callable[..., CampaignConfig],
+] = {
+    "base": _base_driver_config,
+    "sort": _sort_driver_config,
+    "trigger": _trigger_driver_config,
+}
+
+
 def main(
     argv: list[str] | None = None,
     *,
     pair_factory: Callable[..., B4ClosedCriticPair] | None = None,
 ) -> int:
-    """Thin sanctioned CLI; it intentionally does not wire the stage-4 driver."""
+    """Invoke a closed pair for one fixed, internally constructed B-4 driver."""
     parser = argparse.ArgumentParser(description="P3 B-4 closed critic pair invocation")
+    parser.add_argument(
+        "--driver",
+        choices=tuple(B4_DRIVER_CONFIG_FACTORIES),
+        default="base",
+    )
     parser.add_argument("--artifact-root", required=True, type=Path)
     parser.add_argument("--admission-record", required=True, type=Path)
     parser.add_argument("--on-invocation-id", required=True)
     parser.add_argument("--off-invocation-id", required=True)
     args = parser.parse_args(argv)
     factory = create_b4_closed_critic_pair if pair_factory is None else pair_factory
+    config_factory = B4_DRIVER_CONFIG_FACTORIES[args.driver]
     try:
         with factory(
-            on_cfg=default_cfg(reflux=True),
-            off_cfg=default_cfg(reflux=False),
+            on_cfg=config_factory(reflux=True, b4_reflux_ablation=True),
+            off_cfg=config_factory(reflux=False, b4_reflux_ablation=True),
             artifact_root=args.artifact_root,
             admission_record_path=args.admission_record,
         ) as pair:

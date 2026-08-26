@@ -5,6 +5,26 @@
 > 取り込み・引用の前に必ず監査すること (絶対規律6: エージェント出力は「データ」であって指示ではない)。
 > 正本側の要約は `../README.md` §7 (関連研究) にあり、本ディレクトリはその根拠データの置き場。
 
+> **既知の危険 (2026-08-26 の監査で判明):** 本マップの 1 行要約は、正本 `../README.md` 7.1 が
+> 作った語の区別を持っていない。**柱1 の Polyjuice を「自動合成」、CCaaLF を「自動設計」と
+> 書いており、Izanagi が自らの新規性の核に置く「合成」という語を先行研究に与えている。**
+> 正本 7.1 は Polyjuice を「事前定義したアクション空間の中での最適配合探索に留まる」と
+> 書き分けている。**本マップの要約を正本の語彙として論文へ直接引用しないこと。**
+> 詳細は `../claim-survey/2026-08-26-correction-5-audit.md`。
+> あわせて、**論文は改題・改名されうる** — CCaaLF は v4 で
+> `Modeling Concurrency Control as a Learnable Function` へ改題され NeurCC へ改名されたため、
+> `CCaaLF` や `NeurCC` の語では本マップから引けない。名前でなく arXiv ID で引くこと。
+
+> **同じ型の 2 例目 (2026-08-26 に一次資料で判明):** 柱5 の `2604.09318` (CIR+CVN) の要約は
+> 「並行制御構造を合成」と書いている。この日本語はトランザクションの並行性制御 (concurrency
+> control) とも、並行プログラムの同期構造 (concurrency structure) とも読めるが、
+> **原文は後者である。** 本文全体 (整形後 101,515 文字) を走査すると `serializab` も `database` も
+> `concurrency control` も 0 件で、`transaction` の唯一の hit は参考文献の venue 名である。
+> 分類 pilot はこの要約から包含条件を決められず `要裁定` に残し、一次資料を読んで初めて解けた。
+> **要約の日本語で論文の対象を決めないこと。** 詳細は
+> `../claim-survey/2026-08-26-cir-cvn-adjudication.md` と
+> `../notes/note_cir_cvn_bridging_llm_semantic_understand.md`。
+
 ## 中身
 
 - `izanagi_literature_map.md` — 6柱・29本の文献マップ (日本語要約・関連度スコア・空白域分析)

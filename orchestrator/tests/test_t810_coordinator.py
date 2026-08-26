@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from copy import deepcopy
 import hashlib
 import json
@@ -42,6 +43,66 @@ LIMITATIONS = [
     "repository_absence_not_proven_from_node",
     "shared_mount_repository_reachability_not_eliminated",
 ]
+_LIVE_AUTHORITY_NODES = frozenset({
+    "test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+    "test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+    "test_prepare_group_accepts_external_root_with_anchor_union",
+})
+# These nodes intentionally call the authority scanner with a GitIdentity whose
+# complete common-dir/worktree registration graph they construct under tmp_path.
+# Keeping this ledger separate from the live allowlist distinguishes direct tests
+# of the scanner from callers that must use the patched hermetic authority seam.
+_HERMETIC_DIRECT_AUTHORITY_NODES = frozenset({
+    "test_git_common_dir_rejects_missing_registration_file",
+    "test_git_common_dir_rejects_symlink_registration_file",
+    "test_git_common_dir_rejects_non_regular_registration_file",
+    "test_git_common_dir_rejects_registration_changed_during_read",
+    "test_git_common_dir_derives_main_and_sibling_worktree_roots",
+    "test_git_common_dir_preserves_missing_registered_worktree_claim",
+})
+
+
+def _registration_identity(tmp_path: Path) -> tuple[GitIdentity, Path]:
+    main = tmp_path / "registration-case" / "main"
+    common = main / ".git"
+    admin = common / "worktrees" / "subject"
+    admin.mkdir(parents=True)
+    return GitIdentity(str(main), str(common), str(common)), admin
+
+
+@pytest.fixture
+def hermetic_git_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> GitIdentity:
+    main = tmp_path / "authority" / "main"
+    common = main / ".git"
+    linked = tmp_path / "authority" / "linked"
+    admin = common / "worktrees" / "linked"
+    admin.mkdir(parents=True)
+    linked.mkdir(parents=True)
+    linked_gitdir = linked / ".git"
+    linked_gitdir.write_text("gitdir: fixture\n", encoding="utf-8")
+    (admin / "gitdir").write_text(str(linked_gitdir) + "\n", encoding="utf-8")
+    identity = GitIdentity(
+        str(main.resolve(strict=True)),
+        str(common.resolve(strict=True)),
+        str(common.resolve(strict=True)),
+    )
+    assert C.repository_roots_from_git_identity(identity) == frozenset({
+        main.resolve(strict=True), linked.resolve(strict=True),
+    })
+    monkeypatch.setattr(C, "resolve_git_identity", lambda _source: identity)
+    return identity
+
+
+def _with_live_authority_retry(operation):
+    for attempt in range(3):
+        try:
+            return operation()
+        except C.T810CoordinatorError as exc:
+            if "worktree registration" not in str(exc) or attempt == 2:
+                raise
+    raise AssertionError("unreachable live-authority retry state")
 
 
 def _preregistration():
@@ -192,18 +253,20 @@ def _config(tmp_path: Path, *, ordinal: int = 1) -> dict:
     }
     _write(guard_path, guard)
     _write(budget_path, budget)
-    repo = Path(__file__).resolve().parents[2]
+    identity = C.resolve_git_identity(Path(C.__file__).resolve().parents[2])
     return {
         "launch_intent": intent, "admission_policy_path": str(policy_path),
         "guard_receipt_path": str(guard_path), "budget_receipt_path": str(budget_path),
         "release_nonce": "fixture-release-nonce",
         "manifest_created_at": "2026-08-12T00:00:01Z",
         "validator_kwargs": {
-            "repo_root": str(repo), "approved_git_identity": {
-                "repo_realpath": str(repo), "git_dir_realpath": str(repo / ".git"),
-                "common_dir_realpath": str(repo / ".git"),
+            "repo_root": identity.repo_realpath, "approved_git_identity": {
+                "repo_realpath": identity.repo_realpath,
+                "git_dir_realpath": identity.git_dir_realpath,
+                "common_dir_realpath": identity.common_dir_realpath,
             },
-            "approved_git_identity_sha256": H, "writable_root": str(tmp_path / "writable"),
+            "approved_git_identity_sha256": git_identity_digest(identity),
+            "writable_root": str(tmp_path / "writable"),
             "manifest_path": str(tmp_path / "frozen-manifest.json"),
             "manifest_root": str(tmp_path), "expected_manifest_sha256": H,
             "executable": str(binary), "expected_executable_sha256": binary_sha256,
@@ -486,7 +549,9 @@ def _publish_fixture_phase(prepared, phase: str, release_sha: str) -> None:
         (Path(prepared.launch_intent["output_root"]) / "estimate.json").write_text(
             "{}\n", encoding="utf-8",
         )
-def test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified(tmp_path: Path) -> None:
+def test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, config, prepared, _, scheduler = _prepared(tmp_path)
     assert prepared.intent_path.is_file()
     assert prepared.manifest_path.is_file()
@@ -515,7 +580,9 @@ def test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified(tmp_path
     Path(denied["guard_receipt_path"]).unlink()
     with pytest.raises(C.T810CoordinatorError, match="not fully ratified"):
         C.prepare_group(denied, prereg, _token(denied, prereg), repository_roots={Path("/repository")})
-def test_cli_and_effect_entries_deny_missing_or_wrong_witness(tmp_path: Path) -> None:
+def test_cli_and_effect_entries_deny_missing_or_wrong_witness(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     assert C.main(["--config", "absent", "--approval-receipt", "absent"]) == 2
     prereg = _preregistration()
     config = _config(tmp_path)
@@ -532,7 +599,10 @@ def test_cli_and_effect_entries_deny_missing_or_wrong_witness(tmp_path: Path) ->
      ("argv", "submission_argv_mismatch"), ("quiet", "quiet_gate_failed"),
      ("repo_positive", "preflight_failed")],
 )
-def test_ready_barrier_recomputes_raw_evidence(tmp_path: Path, mutation: str, reason: str) -> None:
+def test_ready_barrier_recomputes_raw_evidence(
+    tmp_path: Path, mutation: str, reason: str,
+    hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     events = _ready_events(prepared)
     if mutation == "duplicate_host":
@@ -551,7 +621,9 @@ def test_ready_barrier_recomputes_raw_evidence(tmp_path: Path, mutation: str, re
     assert reason in decision.reason_codes
 
 
-def test_canonical_wrapper_preflight_passes_ready_barrier(tmp_path: Path) -> None:
+def test_canonical_wrapper_preflight_passes_ready_barrier(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     events = _ready_events(prepared)
     assert all(event["payload"]["repo_absence"] == {
@@ -562,7 +634,9 @@ def test_canonical_wrapper_preflight_passes_ready_barrier(tmp_path: Path) -> Non
     } for event in events)
     decision = C.evaluate_ready_barrier(prepared, events, elapsed_seconds=1199)
     assert decision.status == "release" and decision.reason_codes == ()
-def test_submission_must_be_complete_before_barrier_and_timeout_boundary(tmp_path: Path) -> None:
+def test_submission_must_be_complete_before_barrier_and_timeout_boundary(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg = _preregistration()
     config = _config(tmp_path)
     prepared = C.prepare_group(config, prereg, _token(config, prereg), repository_roots={Path("/repository")})
@@ -573,7 +647,9 @@ def test_submission_must_be_complete_before_barrier_and_timeout_boundary(tmp_pat
     assert C.evaluate_ready_barrier(prepared, [], elapsed_seconds=1199.999).status == "waiting"
     timed_out = C.evaluate_ready_barrier(prepared, [], elapsed_seconds=1200)
     assert timed_out.status == "cancel" and timed_out.reason_codes == ("ready_timeout",)
-def test_release_commitment_cancel_recheck_and_create_only(tmp_path: Path) -> None:
+def test_release_commitment_cancel_recheck_and_create_only(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, config, prepared, _, _ = _prepared(tmp_path)
     witness = prepared.authorization
     _, release_sha = C.publish_release(
@@ -597,6 +673,7 @@ def test_release_commitment_cancel_recheck_and_create_only(tmp_path: Path) -> No
 )
 def test_start_spread_boundary_uses_only_coordinator_receipt_times(
     tmp_path: Path, latency: int, accepted: bool,
+    hermetic_git_identity: GitIdentity,
 ) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     release_sha = _release_sha(prepared)
@@ -609,7 +686,9 @@ def test_start_spread_boundary_uses_only_coordinator_receipt_times(
     assert decision.accepted is accepted
     assert decision.spread_ns == latency
     assert decision.latency_ns_by_slot["slot-12"] == latency
-def test_ack_marker_mismatch_duplicate_unknown_and_missing_are_rejected(tmp_path: Path) -> None:
+def test_ack_marker_mismatch_duplicate_unknown_and_missing_are_rejected(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     release_sha = _release_sha(prepared)
     events = _ack_events(prepared, release_sha)
@@ -625,7 +704,9 @@ def test_ack_marker_mismatch_duplicate_unknown_and_missing_are_rejected(tmp_path
     assert {"release_marker_mismatch", "ack_duplicate", "ack_unknown_slot", "ack_missing"} <= set(decision.reason_codes)
 
 
-def test_start_ack_recomputes_pre_measurement_process_scan(tmp_path: Path) -> None:
+def test_start_ack_recomputes_pre_measurement_process_scan(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     release_sha = _release_sha(prepared)
     events = _ack_events(prepared, release_sha)
@@ -647,7 +728,10 @@ def test_start_ack_recomputes_pre_measurement_process_scan(tmp_path: Path) -> No
     ("drop_count", "state"),
     [(0, "valid"), (1, "terminal_reduced"), (2, "incomplete_after_start")],
 )
-def test_completion_state_rows_and_exact_n_receipts(tmp_path: Path, drop_count: int, state: str) -> None:
+def test_completion_state_rows_and_exact_n_receipts(
+    tmp_path: Path, drop_count: int, state: str,
+    hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, _, prepared, _, _ = _prepared(tmp_path)
     dropped = {f"slot-{S.NODE_COUNT - index - 1:02d}" for index in range(drop_count)}
     receipts = _completion_receipts(prepared, prereg, dropped=dropped)
@@ -657,7 +741,9 @@ def test_completion_state_rows_and_exact_n_receipts(tmp_path: Path, drop_count: 
     )
     assert terminal["state"] == state
     assert terminal["retry_allowed"] is False
-def test_completion_rejects_orphan_unknown_duplicate_and_receiptless_submission(tmp_path: Path) -> None:
+def test_completion_rejects_orphan_unknown_duplicate_and_receiptless_submission(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, _, prepared, _, _ = _prepared(tmp_path)
     receipts = _completion_receipts(prepared, prereg)
     del receipts["slot-12"]
@@ -667,7 +753,9 @@ def test_completion_rejects_orphan_unknown_duplicate_and_receiptless_submission(
             prepared, receipts, release_event_sha256=H, start_spread_ns=1,
             pre_validator_receipt_sha256=H, post_validator_receipt_sha256=H,
         )
-def test_frozen_boundary_reason_table_and_retry_rows_are_all_used() -> None:
+def test_frozen_boundary_reason_table_and_retry_rows_are_all_used(
+    hermetic_git_identity: GitIdentity,
+) -> None:
     expected_rows = {
         ("pre_release", "ready_timeout"): "pre_release_invalid",
         ("pre_release", "hostname_count_mismatch"): "pre_release_invalid",
@@ -690,7 +778,9 @@ def test_frozen_boundary_reason_table_and_retry_rows_are_all_used() -> None:
         assert S.retry_allowed(state, 2) is False
 
 
-def test_node_receipt_hash_chain_and_actual_bytes_digest_are_enforced(tmp_path: Path) -> None:
+def test_node_receipt_hash_chain_and_actual_bytes_digest_are_enforced(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, _, prepared, _, _ = _prepared(tmp_path)
     receipts = _completion_receipts(prepared, prereg)
     receipt = receipts["slot-00"]
@@ -704,7 +794,9 @@ def test_node_receipt_hash_chain_and_actual_bytes_digest_are_enforced(tmp_path: 
         C._read_node_receipt(prepared, request)
 
 
-def test_terminal_state_two_precedes_twelve_completion_reduction(tmp_path: Path) -> None:
+def test_terminal_state_two_precedes_twelve_completion_reduction(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, _, prepared, _, _ = _prepared(tmp_path)
     receipts = _completion_receipts(prepared, prereg)
     dropped = receipts["slot-12"]
@@ -730,7 +822,9 @@ def test_terminal_state_two_precedes_twelve_completion_reduction(tmp_path: Path)
     assert result["reason_codes"] == ["dependency_manifest_mismatch"]
 
 
-def test_config_decoder_is_exact_and_restores_path_and_git_identity(tmp_path: Path) -> None:
+def test_config_decoder_is_exact_and_restores_path_and_git_identity(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     config = _config(tmp_path)
     decoded = C.decode_config(config)
     assert isinstance(decoded["admission_policy_path"], Path)
@@ -745,7 +839,9 @@ def test_config_decoder_is_exact_and_restores_path_and_git_identity(tmp_path: Pa
         C.decode_config(missing)
 
 
-def test_wait_for_node_files_uses_injected_clock_and_sleep(tmp_path: Path) -> None:
+def test_wait_for_node_files_uses_injected_clock_and_sleep(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     now = [0]
     calls = []
@@ -760,7 +856,9 @@ def test_wait_for_node_files_uses_injected_clock_and_sleep(tmp_path: Path) -> No
     assert calls
 
 
-def test_subprocess_and_publication_effects_reject_raw_dict_token(tmp_path: Path) -> None:
+def test_subprocess_and_publication_effects_reject_raw_dict_token(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg = _preregistration()
     config = _config(tmp_path)
     with pytest.raises(C.T810CoordinatorError, match="AuthorizationToken"):
@@ -777,7 +875,9 @@ def test_subprocess_and_publication_effects_reject_raw_dict_token(tmp_path: Path
         )
 
 
-def test_arbitrary_qsub_is_rejected_before_scheduler_effect(tmp_path: Path) -> None:
+def test_arbitrary_qsub_is_rejected_before_scheduler_effect(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg = _preregistration()
     config = _config(tmp_path)
     slot = config["launch_intent"]["slots"][0]
@@ -797,7 +897,9 @@ def test_arbitrary_qsub_is_rejected_before_scheduler_effect(tmp_path: Path) -> N
         )
 
 
-def test_modified_pbs_script_is_rejected_at_scheduler_effect(tmp_path: Path) -> None:
+def test_modified_pbs_script_is_rejected_at_scheduler_effect(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     slot = prepared.launch_intent["slots"][0]
     Path(slot["script_path"]).write_text("#!/bin/sh\nexec /bin/false\n", encoding="utf-8")
@@ -810,6 +912,7 @@ def test_modified_pbs_script_is_rejected_at_scheduler_effect(tmp_path: Path) -> 
 
 def test_scheduler_adapter_rejects_wrapper_changed_after_prepare(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    hermetic_git_identity: GitIdentity,
 ) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     slot = prepared.launch_intent["slots"][0]
@@ -825,7 +928,7 @@ def test_scheduler_adapter_rejects_wrapper_changed_after_prepare(
 
 
 def test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change(
-    tmp_path: Path,
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
 ) -> None:
     prereg = _preregistration()
     accepted = _config(tmp_path / "accepted")
@@ -870,9 +973,11 @@ def test_prepare_group_rejects_forged_git_identity_before_any_mkdir(
 
     monkeypatch.setattr(Path, "mkdir", forbidden_mkdir)
     with pytest.raises(C.T810CoordinatorError, match="work_root is not repository-external"):
-        C.prepare_group(
-            config, prereg, _token(config, prereg),
-            repository_roots={tmp_path / "forged-caller-repository"},
+        _with_live_authority_retry(
+            lambda: C.prepare_group(
+                config, prereg, _token(config, prereg),
+                repository_roots={tmp_path / "forged-caller-repository"},
+            ),
         )
 
 
@@ -905,9 +1010,11 @@ def test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_m
 
     monkeypatch.setattr(Path, "mkdir", forbidden_mkdir)
     with pytest.raises(C.T810CoordinatorError, match="work_root is not repository-external"):
-        C.prepare_group(
-            config, prereg, _token(config, prereg),
-            repository_roots={foreign_repository},
+        _with_live_authority_retry(
+            lambda: C.prepare_group(
+                config, prereg, _token(config, prereg),
+                repository_roots={foreign_repository},
+            ),
         )
 
 
@@ -916,9 +1023,11 @@ def test_prepare_group_accepts_external_root_with_anchor_union(tmp_path: Path) -
     config = _config(tmp_path / "accepted")
     caller_repository = tmp_path / "unrelated-caller-repository"
     caller_repository.mkdir()
-    prepared = C.prepare_group(
-        config, prereg, _token(config, prereg),
-        repository_roots={caller_repository},
+    prepared = _with_live_authority_retry(
+        lambda: C.prepare_group(
+            config, prereg, _token(config, prereg),
+            repository_roots={caller_repository},
+        ),
     )
     assert prepared.work_root == (tmp_path / "accepted/work").resolve()
     assert Path(C.__file__).resolve().parents[2] in prepared.repository_roots
@@ -929,6 +1038,7 @@ def test_prepare_group_accepts_external_root_with_anchor_union(tmp_path: Path) -
 
 def test_declared_identity_rejects_file_swapped_during_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    hermetic_git_identity: GitIdentity,
 ) -> None:
     target = tmp_path / "identity-target"
     original = b"before-read"
@@ -958,7 +1068,9 @@ def test_declared_identity_rejects_file_swapped_during_read(
     assert changed
 
 
-def test_generated_script_executes_staged_wrapper_cli(tmp_path: Path) -> None:
+def test_generated_script_executes_staged_wrapper_cli(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     slot = prepared.launch_intent["slots"][0]
     command = Path(slot["script_path"]).read_text(encoding="utf-8").splitlines()[-1]
@@ -1003,6 +1115,7 @@ def test_generated_script_executes_staged_wrapper_cli(tmp_path: Path) -> None:
 
 def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    hermetic_git_identity: GitIdentity,
 ) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
     slot = prepared.launch_intent["slots"][0]
@@ -1026,7 +1139,9 @@ def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(
         )
 
 
-def test_terminal_reduced_checks_preserved_dropped_slot_presence(tmp_path: Path) -> None:
+def test_terminal_reduced_checks_preserved_dropped_slot_presence(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg, _, prepared, _, _ = _prepared(tmp_path)
     receipts = _completion_receipts(prepared, prereg, dropped={"slot-12"})
     (prepared.output_root / "slot-12" / "measurements.jsonl").unlink()
@@ -1038,7 +1153,9 @@ def test_terminal_reduced_checks_preserved_dropped_slot_presence(tmp_path: Path)
     assert terminal["reason_codes"] == ["presence_matrix_mismatch"]
 
 
-def test_guard_and_budget_receipts_are_typed_and_digest_bound(tmp_path: Path) -> None:
+def test_guard_and_budget_receipts_are_typed_and_digest_bound(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     prereg = _preregistration()
     guard_config = _config(tmp_path / "guard")
     guard_path = Path(guard_config["guard_receipt_path"])
@@ -1062,7 +1179,86 @@ def test_guard_and_budget_receipts_are_typed_and_digest_bound(tmp_path: Path) ->
         )
 
 
-def test_git_common_dir_derives_main_and_sibling_worktree_roots(tmp_path: Path) -> None:
+def test_git_common_dir_rejects_missing_registration_file(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
+    identity, _admin = _registration_identity(tmp_path)
+
+    with pytest.raises(
+        C.T810CoordinatorError,
+        match=r"^cannot read worktree registration: file is absent$",
+    ):
+        C.repository_roots_from_git_identity(identity)
+
+
+def test_git_common_dir_rejects_symlink_registration_file(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
+    identity, admin = _registration_identity(tmp_path)
+    target = tmp_path / "registration-target"
+    target.write_text("unused\n", encoding="utf-8")
+    (admin / "gitdir").symlink_to(target)
+
+    with pytest.raises(
+        C.T810CoordinatorError,
+        match=r"^git common-dir contains an invalid worktree registration$",
+    ):
+        C.repository_roots_from_git_identity(identity)
+
+
+def test_git_common_dir_rejects_non_regular_registration_file(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
+    identity, admin = _registration_identity(tmp_path)
+    (admin / "gitdir").mkdir()
+
+    with pytest.raises(
+        C.T810CoordinatorError,
+        match=r"^worktree registration is not a regular file$",
+    ):
+        C.repository_roots_from_git_identity(identity)
+
+
+def test_git_common_dir_rejects_registration_changed_during_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    hermetic_git_identity: GitIdentity,
+) -> None:
+    identity, admin = _registration_identity(tmp_path)
+    gitdir = admin / "gitdir"
+    original = (str(tmp_path / "linked-a" / ".git") + "\n").encode()
+    replacement = (str(tmp_path / "linked-b" / ".git") + "\n").encode()
+    assert len(original) == len(replacement)
+    gitdir.write_bytes(original)
+    real_read = C.os.read
+    changed = False
+
+    def swapping_registration_read(fd: int, count: int) -> bytes:
+        # Replace the same-size registration synchronously after its first read;
+        # the forced mtime delta makes the following fstat comparison deterministic.
+        nonlocal changed
+        chunk = real_read(fd, count)
+        if chunk and not changed:
+            changed = True
+            before = gitdir.stat()
+            gitdir.write_bytes(replacement)
+            os.utime(
+                gitdir,
+                ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000),
+            )
+        return chunk
+
+    monkeypatch.setattr(C.os, "read", swapping_registration_read)
+    with pytest.raises(
+        C.T810CoordinatorError,
+        match=r"^worktree registration changed while reading$",
+    ):
+        C.repository_roots_from_git_identity(identity)
+    assert changed
+
+
+def test_git_common_dir_derives_main_and_sibling_worktree_roots(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
     main = tmp_path / "main"
     common = main / ".git"
     sibling = tmp_path / "sibling"
@@ -1082,7 +1278,7 @@ def test_git_common_dir_derives_main_and_sibling_worktree_roots(tmp_path: Path) 
 
 
 def test_git_common_dir_preserves_missing_registered_worktree_claim(
-    tmp_path: Path,
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
 ) -> None:
     main = tmp_path / "main"
     common = main / ".git"
@@ -1102,7 +1298,7 @@ def test_git_common_dir_preserves_missing_registered_worktree_claim(
 
 
 def test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg(
-    tmp_path: Path,
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
 ) -> None:
     prereg = _preregistration()
     config = _config(tmp_path)
@@ -1156,6 +1352,100 @@ def test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg
     acks_recorded = [event for event in events if event["event"] == "start_ack_received"]
     assert len(acks_recorded) == S.NODE_COUNT
     assert max(event["details"]["latency_ns"] for event in acks_recorded) == S.START_SPREAD_MAX_NS
+
+
+def test_all_test_nodes_pin_repository_authority(
+    hermetic_git_identity: GitIdentity,
+) -> None:
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    test_functions = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name.startswith("test_")
+    ]
+    assert len(test_functions) == len({node.name for node in test_functions})
+    tests = {node.name: node for node in test_functions}
+    def frozenset_literal(name: str) -> frozenset[str]:
+        assignments = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == name
+                for target in node.targets
+            )
+        ]
+        assert len(assignments) == 1
+        literal = assignments[0].value
+        assert (
+            isinstance(literal, ast.Call)
+            and isinstance(literal.func, ast.Name)
+            and literal.func.id == "frozenset"
+            and len(literal.args) == 1
+            and not literal.keywords
+            and isinstance(literal.args[0], ast.Set)
+        )
+        items = literal.args[0].elts
+        assert all(
+            isinstance(item, ast.Constant) and isinstance(item.value, str)
+            for item in items
+        )
+        return frozenset(item.value for item in items)
+
+    assert isinstance(_LIVE_AUTHORITY_NODES, frozenset)
+    assert frozenset_literal("_LIVE_AUTHORITY_NODES") == _LIVE_AUTHORITY_NODES
+    assert isinstance(_HERMETIC_DIRECT_AUTHORITY_NODES, frozenset)
+    assert (
+        frozenset_literal("_HERMETIC_DIRECT_AUTHORITY_NODES")
+        == _HERMETIC_DIRECT_AUTHORITY_NODES
+    )
+
+    hermetic_nodes = set()
+    live_retry_nodes = set()
+    direct_authority_nodes = set()
+    for name, node in tests.items():
+        parameters = {
+            argument.arg
+            for argument in (
+                *node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs,
+            )
+        }
+        if "hermetic_git_identity" in parameters:
+            hermetic_nodes.add(name)
+        if any(
+            isinstance(item, ast.Call)
+            and isinstance(item.func, ast.Name)
+            and item.func.id == "_with_live_authority_retry"
+            for item in ast.walk(node)
+        ):
+            live_retry_nodes.add(name)
+        if any(
+            isinstance(item, ast.Call)
+            and (
+                isinstance(item.func, ast.Name)
+                and item.func.id in {
+                    "resolve_git_identity", "repository_roots_from_git_identity",
+                }
+                or isinstance(item.func, ast.Attribute)
+                and isinstance(item.func.value, ast.Name)
+                and item.func.value.id == "C"
+                and item.func.attr in {
+                    "resolve_git_identity", "repository_roots_from_git_identity",
+                }
+            )
+            for item in ast.walk(node)
+        ):
+            direct_authority_nodes.add(name)
+
+    assert live_retry_nodes == _LIVE_AUTHORITY_NODES
+    assert not hermetic_nodes.intersection(_LIVE_AUTHORITY_NODES)
+    assert set(tests) == hermetic_nodes.union(_LIVE_AUTHORITY_NODES)
+    assert (
+        direct_authority_nodes - _LIVE_AUTHORITY_NODES
+        == _HERMETIC_DIRECT_AUTHORITY_NODES
+    )
+    assert _HERMETIC_DIRECT_AUTHORITY_NODES <= hermetic_nodes
 
 
 if __name__ == "__main__":

@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_n3_production_strict_floor_rejects_exact_boundary",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m01.strict-gate",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    return clean_relative > clean_floor",
+          "new": "    return clean_relative >= clean_floor"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_n10_production_stops_judgment_gate_disagreement_and_marker_uses_report",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m02.judgment-authority",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    expected = \"成立\" if gate1 and gate2 else \"不成立\"",
+          "new": "    expected = judgment"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p6_production_ignores_unknown_build_fields_as_data"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m03.trust-boundary",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    command = payload.get(\"perf_configure_cmd\")",
+          "new": "    command = \" \".join(v for v in payload.values() if type(v) is str)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p7_production_load_campaign_pins_admission_calls_and_receipts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m04.admission-purpose",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "        directory, purpose=CampaignReadPurpose.HISTORICAL_RAW)",
+          "new": "        directory, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_n12_collects_all_artist_and_legend_text",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m05.internal-labels",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    \"system_gate\": \"trigger gating\",",
+          "new": "    \"system_gate\": \"system_gate\","
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_n11_spy_pins_artist_values_and_bbox_before_save",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m06.floor-line-shift",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "            \"strict_floor_line_percent\": 3.0,",
+          "new": "            \"strict_floor_line_percent\": 4.0,"
+        },
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    axis.axvline(3.0, color=failed_color, linewidth=1.0, linestyle=\"--\", zorder=1,",
+          "new": "    axis.axvline(4.0, color=failed_color, linewidth=1.0, linestyle=\"--\", zorder=1,"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_n4_production_collection_retains_unstable_eighth_sample",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m07.unstable-filter",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "            grouped[role].setdefault(row[\"cell_id\"], []).append(dict(row))",
+          "new": "            if row.get(\"unstable\"):\n                continue\n            grouped[role].setdefault(row[\"cell_id\"], []).append(dict(row))"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "s1fig.m08.evidence-order",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    return sorted((dict(row) for row in rows), key=lambda row: row[\"schedule_index\"])",
+          "new": "    return [dict(row) for row in rows]"
+        }
+      ]
+    }
+  ]
+}
