@@ -53,7 +53,21 @@
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-**2026-08-26 版の着地時点では、ここに書く項目が無い。**
+**§8 の C-1 (クロスプロトコル stock 最良との比較) — mocc の pilot を同一 source の対として
+取り直した (2026-08-26)。** 2026-08-26 版は「mocc は trace-hook (TRACE=1) と性能 (TRACE=0) の
+pilot が各 1 本あるが、どちらも `official_certification=false` の単一観測であり、
+性能と正しさの対でもない」と書いた。**「対でない」は解消した。** 同一 outer commit・
+同一 ccbench source `058d0c4e`・同一 workload で TRACE=1 と TRACE=0 を各 2 本ずつ、
+別ビルド・別 run で取り、機械検査を通した対 (`mocc-trace-pair-receipt/v2`、`status=accepted`、
+`n_per_trace_mode=2`) がある。**「`official_certification=false` の pilot である」は解消していない。**
+全 leg と pair receipt は `official_certification=false` / `eligible_for_refreeze=false` のままで、
+C-1 が将来スコープ (現在の論文の必要条件ではない) であることも変わらない。**この対を headline・
+certified な選択・floor・oracle・fitness の根拠に使わない。** pair receipt の `prohibited_uses` は
+宣言であって強制ではなく、それを読む consumer は存在しない。
+**あわせて、同じ workload の TRACE=1 3 本のうち 1 本が non-serializable (G2 anomaly 1 件) で
+fail-closed した。** MoCC 実装の性質か izanagi の trace hook の取り違えかは確定していない。
+一次資料: `output/insights/2026-08-26_mocc-trace-pair.md`、
+`output/insights/2026-08-26_mocc-trace-pair-receipt.json`。
 前版（2026-08-23 版）に対して積んでいた 3 項目 — P2-4 利得値の決着、旧図 `fig2` の baseline
 誤 label と後継図、§8 の A-1・A-2 の進捗 — は、いずれも 2026-08-26 版が本文へ取り込んだので
 ここから外した。

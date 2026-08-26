@@ -260,6 +260,35 @@ def test_m02_hydrate_fresh_clone_excludes_ignored_cache_artifact(
     assert (git_fixture.cache / "masstree" / "poison.a").is_file()
 
 
+def test_m14_real_hydrate_uses_explicit_staging_root(
+    git_fixture: GitFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    tool = _load_tool()
+    _prepare_cache(tool, git_fixture, monkeypatch)
+    staging_root = git_fixture.repo.parent / "job-private" / "thirdparty-src"
+
+    rc = tool.main(
+        [
+            "hydrate",
+            "--repo-root",
+            str(git_fixture.repo),
+            "--cache-root",
+            str(git_fixture.cache),
+            "--staging-root",
+            str(staging_root),
+        ]
+    )
+    captured = capsys.readouterr()
+    assert rc == 0, captured.err
+    payload = json.loads(captured.out)
+    resolved_root = staging_root.resolve(strict=True)
+    assert payload["source_root"] == str(resolved_root)
+    assert payload["sources"] == _expected_source_records(git_fixture, resolved_root)
+    assert not (git_fixture.repo / STAGING_RELATIVE).exists()
+
+
 def test_m03_shallow_cache_is_rejected(
     git_fixture: GitFixture,
     monkeypatch: pytest.MonkeyPatch,
