@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 from collections import Counter
 from importlib import metadata
@@ -45,7 +46,7 @@ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
 
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
 # import / 導出すると、正本の node 増減が付与側と期待側へ同時伝播して恒真化する。
-_REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
+_REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     # snapshot テストの結線監査 meta-テスト (本ファイル)。実 ROOT で builder を実走し
     # repo tree snapshot を取るため writer の patch 窓と同じ競合面 (D63 列挙漏れの補完)。
@@ -129,6 +130,66 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
+
+_REAL_REPO_PARENT_ONLY_NODES_GOLDEN = frozenset({
+    "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+    "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+    "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+    "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
+    "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
+    "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
+    "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+    "test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
+    "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
+})
+_REAL_REPO_CCBENCH_ONLY_NODES_GOLDEN = frozenset({
+    "test_campaign.py::test_source_digest_parse_options_defaults",
+    "test_campaign.py::test_source_digest_stock_roundtrip",
+    "test_campaign.py::test_source_digest_fixed_variant_distinct",
+    "test_campaign.py::test_source_digest_failsclosed_on_missing_define",
+    "test_campaign.py::test_source_digest_semantic_comment_vs_behavior",
+    "test_hooks.py::test_real_submodule_payload_edit",
+    "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+})
+_REAL_REPO_LOCAL_ONLY_NODES_GOLDEN = frozenset({
+    "test_s8b_oracle_driver.py::test_tampered_freeze_fails_source_verification",
+    "test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
+})
+_REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN = frozenset({
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+    "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+    "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+})
+_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN = frozenset({
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+    "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+})
+
+
+def _real_repo_access_golden() -> dict[str, tuple[str | None, str | None]]:
+    result = {}
+    for node_id in _REAL_REPO_CLASSIFIED_NODES_GOLDEN:
+        if node_id in _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN:
+            continue
+        parent = (
+            None
+            if node_id in _REAL_REPO_CCBENCH_ONLY_NODES_GOLDEN
+            else "read"
+        )
+        ccbench = (
+            None
+            if node_id in _REAL_REPO_PARENT_ONLY_NODES_GOLDEN
+            else (
+                "write"
+                if node_id in _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN
+                else "read"
+            )
+        )
+        result[node_id] = (parent, ccbench)
+    return result
 
 # suite で許す xdist group 名の独立 oracle。conftest や marker 定数から導出しない。
 _XDIST_GROUP_NAMES_GOLDEN = frozenset({
@@ -620,12 +681,17 @@ def _collect_xdist_group_report(
                             "nodeid": item.nodeid,
                             "canonical_node": node,
                             "fixture_closure": shared_fixture_closure(item),
-                            "real_repo_stamps": (
-                                [["real_repo_serial_node", getattr(
-                                    item, "_izanagi_real_repo_serial_node",
-                                )]]
-                                if hasattr(item, "_izanagi_real_repo_serial_node")
-                                else []
+                            "real_repo_access": (
+                                {
+                                    "parent": getattr(
+                                        item, "_izanagi_real_repo_access"
+                                    ).parent,
+                                    "ccbench": getattr(
+                                        item, "_izanagi_real_repo_access"
+                                    ).ccbench,
+                                }
+                                if hasattr(item, "_izanagi_real_repo_access")
+                                else None
                             ),
                             "marks": [
                                 {"args": list(mark.args),
@@ -993,7 +1059,7 @@ def _assert_fixture_closure_complete(
         if consumers[fixture] - set(canonical_nodes)
     }
     assert not missing, (
-        "REAL_REPO_SERIAL_NODES が共有 fixture consumer について閉じていない: "
+        "REAL_REPO_CLASSIFIED_NODES が共有 fixture consumer について閉じていない: "
         f"missing={missing!r}"
     )
 
@@ -1049,54 +1115,24 @@ def _assert_no_direct_xdist_group_decorators(
         f"canonical node の関数定義が source にない: {missing_functions}"
     )
     assert not handwritten, (
-        "REAL_REPO_SERIAL_NODES の xdist_group は hook 由来でなければならず、"
+        "REAL_REPO_RESOURCE_NODES の xdist_group は hook 由来でなければならず、"
         f"手書き decorator を許さない: {handwritten}"
     )
 
 
-def _assert_real_repo_collection_order(report: list[dict]) -> None:
-    """実 collection の先頭 literal と writer/barrier 関係を検査する。"""
-    expected_priority = (
-        "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
-        "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
-    )
-    suite_conftest = _load_suite_conftest()
-    assert tuple(suite_conftest.REAL_REPO_EXECUTION_PRIORITY) == expected_priority, (
-        "conftest の real-repo priority が独立 literal と不一致"
-    )
-    real_repo_order = [
-        entry["canonical_node"]
-        for entry in report
-        if entry["marks"] == [{"args": ["real-repo"], "kwargs": {}}]
-    ]
-    priority_positions = {
-        node: [
-            index for index, actual in enumerate(real_repo_order)
-            if actual == node
-        ]
-        for node in expected_priority
-    }
-    assert all(priority_positions.values()), (
-        "collection 後の real-repo priority node が欠落した: "
-        f"positions={priority_positions!r}"
-    )
-    assert max(priority_positions[expected_priority[0]]) < min(
-        priority_positions[expected_priority[1]]
-    ), (
-        "全 CLI instance が全 legacy priority instance より前でなければならない: "
-        f"positions={priority_positions!r}"
-    )
-    writers = (
-        "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
-        "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
-        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
-        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
-    )
-    barrier_index = real_repo_order.index(expected_priority[1])
-    assert all(real_repo_order.index(writer) > barrier_index for writer in writers), (
-        "実 submodule writer が CLI / legacy priority より前にある: "
-        f"order={real_repo_order!r}"
-    )
+def _assert_real_repo_suffix_contract(report: list[dict]) -> None:
+    """Marker objects survive while only four process-memo suffixes remain."""
+    exact_mark = [{"args": ["real-repo"], "kwargs": {}}]
+    for entry in report:
+        canonical = entry["canonical_node"]
+        if canonical not in _REAL_REPO_CLASSIFIED_NODES_GOLDEN:
+            continue
+        is_resource = canonical not in _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN
+        assert (entry["marks"] == exact_mark) is is_resource
+        has_suffix = entry["nodeid"].endswith("@real-repo")
+        assert has_suffix is (canonical in _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN), (
+            f"real-repo runtime suffix contract mismatch: {entry!r}"
+        )
 
 
 def test_real_repo_group_collection_exactly_matches_canonical_nodes():
@@ -1123,14 +1159,31 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         f"actual={len(s8c_predicate_snapshot_entries)} expected=3"
     )
 
-    golden = set(_REAL_REPO_SERIAL_NODES_GOLDEN)
-    configured = set(_load_suite_conftest().REAL_REPO_SERIAL_NODES)
-    assert configured == golden, (
-        "conftest.REAL_REPO_SERIAL_NODES が独立 golden と不一致: "
-        f"missing={sorted(golden - configured)} "
-        f"extra={sorted(configured - golden)}"
+    suite_conftest = _load_suite_conftest()
+    golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)
+    golden_access = _real_repo_access_golden()
+    resource_golden = set(golden_access)
+    configured_access = {
+        node_id: (access.parent, access.ccbench)
+        for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()
+    }
+    assert configured_access == golden_access, (
+        "conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: "
+        f"missing={sorted(resource_golden - set(configured_access))} "
+        f"extra={sorted(set(configured_access) - resource_golden)}"
     )
-    _assert_fixture_closure_complete(report, golden)
+    assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden
+    assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden
+    assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(
+        _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN
+    )
+    assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(
+        _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN
+    )
+    assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(
+        _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN
+    )
+    _assert_fixture_closure_complete(report, resource_golden)
 
     # 系統 1 / 3 の各 fan-out から 1 node を落とすと、正本 seed の閉包検査が赤になる。
     for removed in (
@@ -1138,7 +1191,7 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
     ):
         try:
-            _assert_fixture_closure_complete(report, golden - {removed})
+            _assert_fixture_closure_complete(report, resource_golden - {removed})
         except AssertionError as exc:
             assert removed in str(exc), (
                 f"欠落 control が意図した node を報告しなかった: {exc}"
@@ -1200,21 +1253,30 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         nodeid = entry["nodeid"]
         canonical = entry["canonical_node"]
         marks = entry["marks"]
-        stamps = entry["real_repo_stamps"]
+        access = entry["real_repo_access"]
         collected_counts[canonical] += 1
         group_name = marks[0]["args"][0] if marks else None
-        if canonical in golden:
-            assert stamps == [["real_repo_serial_node", canonical]], (
-                f"{nodeid} の runtime guard 印が正本由来の 1 個でない: {stamps!r}"
+        if canonical in resource_golden:
+            expected_parent, expected_ccbench = golden_access[canonical]
+            assert access == {
+                "parent": expected_parent,
+                "ccbench": expected_ccbench,
+            }, (
+                f"{nodeid} の runtime access vector が正本と不一致: {access!r}"
             )
             assert marks == exact_mark, (
-                f"{nodeid} の xdist_group は real-repo 1 個だけでなければならない: "
+                f"{nodeid} の shard marker は real-repo 1 個でなければならない: "
                 f"{marks!r}"
             )
             marked_counts[canonical] += 1
+        elif canonical in _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN:
+            assert access is None
+            assert marks == [], (
+                f"local-only node に real-repo marker がある: {nodeid} {marks!r}"
+            )
         else:
-            assert stamps == [], (
-                f"golden 外 instance {nodeid} に runtime guard 印がある: {stamps!r}"
+            assert access is None, (
+                f"golden 外 instance {nodeid} に access vector がある: {access!r}"
             )
             assert group_name != "real-repo", (
                 f"golden 外 instance {nodeid} に real-repo marker がある: "
@@ -1225,12 +1287,15 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         assert collected_counts[canonical] > 0, (
             f"golden node が収集されなかった: {canonical}"
         )
-        assert collected_counts[canonical] == marked_counts[canonical], (
-            f"{canonical} の collected/marked instance 数が不一致: "
-            f"collected={collected_counts[canonical]} "
-            f"marked={marked_counts[canonical]}"
+        expected_marked = (
+            collected_counts[canonical] if canonical in resource_golden else 0
         )
-    _assert_real_repo_collection_order(report)
+        assert marked_counts[canonical] == expected_marked, (
+            f"{canonical} の marker instance 数が不一致: "
+            f"collected={collected_counts[canonical]} "
+            f"marked={marked_counts[canonical]} expected={expected_marked}"
+        )
+    _assert_real_repo_suffix_contract(report)
 
 
 def test_shard_assignment_preserves_live_xdist_group_components_and_split_control():
@@ -1249,6 +1314,45 @@ def test_shard_assignment_preserves_live_xdist_group_components_and_split_contro
     records = tuple(sorted(records))
     assignment = acceptance_shards.allocate(records, 3)
     assert acceptance_shards.assignment_closure_gate(records, assignment.selected)
+
+    suite_conftest = _load_suite_conftest()
+    state_records = [
+        {
+            "nodeid": entry["nodeid"].removesuffix("@real-repo"),
+            "file": entry["nodeid"].partition("::")[0],
+            "group": entry["marks"][0]["args"][0] if entry["marks"] else None,
+        }
+        for entry in report
+    ]
+    valid_config = SimpleNamespace(
+        _izanagi_acceptance_shard_spec=object(),
+        _izanagi_acceptance_shard_state={"records": state_records},
+    )
+    suite_conftest._validate_real_repo_shard_state(valid_config)
+    try:
+        suite_conftest._validate_real_repo_shard_state(SimpleNamespace(
+            _izanagi_acceptance_shard_spec=object(),
+        ))
+    except suite_conftest.pytest.UsageError as exc:
+        assert "state" in str(exc)
+    else:
+        raise AssertionError("missing shard state was accepted")
+    corrupted = json.loads(json.dumps(state_records))
+    target = next(
+        record for record in corrupted
+        if suite_conftest._receipt_memo_node_id_from_nodeid(record["nodeid"])
+        in suite_conftest.REAL_REPO_RESOURCE_NODES
+    )
+    target["group"] = None
+    try:
+        suite_conftest._validate_real_repo_shard_state(SimpleNamespace(
+            _izanagi_acceptance_shard_spec=object(),
+            _izanagi_acceptance_shard_state={"records": corrupted},
+        ))
+    except suite_conftest.pytest.UsageError as exc:
+        assert "marker 閉包" in str(exc)
+    else:
+        raise AssertionError("corrupted real-repo marker record was accepted")
 
     real_repo_nodes = [
         record.nodeid for record in records if record.group == "real-repo"
@@ -1393,7 +1497,7 @@ def test_xdist_group_name_set_audit_rejects_isolated_negative_controls():
 
 def test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator():
     """canonical node の real-repo marker は conftest hook だけが付与する。"""
-    configured = set(_load_suite_conftest().REAL_REPO_SERIAL_NODES)
+    configured = set(_load_suite_conftest().REAL_REPO_RESOURCE_NODES)
     filenames = {canonical.partition("::")[0] for canonical in configured}
     sources = {
         filename: (HERE / filename).read_text(encoding="utf-8")
@@ -1424,50 +1528,279 @@ def test_handwritten_xdist_group_decorator_control_is_rejected():
         raise AssertionError("手書き xdist_group decorator の合成負例が監査を通過した")
 
 
-def test_real_repo_priority_order_is_literal_and_writers_follow_barrier():
-    """通常・ff・nf の hook chain 後にも priority と barrier 順を保つ。"""
-    _require_pytest()
-    report = _collect_xdist_group_report(HERE, cwd=ROOT)
-    _assert_real_repo_collection_order(report)
-    nodeids = {
-        entry["canonical_node"]: entry["nodeid"] for entry in report
-    }
-    cli = "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused"
-    barrier = (
-        "test_s8b_binding_driftguards.py::"
-        "test_run_block_broken_binding_manifest_refuses_and_writes_nothing"
-    )
-    controls = (
-        (("--ff",), (nodeids[barrier],), ()),
-        (("--nf",), (), (nodeids[cli],)),
-    )
-    for collection_options, lastfailed_nodeids, cached_nodeids in controls:
-        report = _collect_xdist_group_report(
-            HERE, cwd=ROOT, collection_options=collection_options,
-            lastfailed_nodeids=lastfailed_nodeids,
-            cached_nodeids=cached_nodeids,
-        )
-        _assert_real_repo_collection_order(report)
+def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
+        tmp_path, monkeypatch):
+    """Historical name: RW overlap, exclusion, deadlines, and P→S are pinned."""
+    suite_conftest = _load_suite_conftest()
+    monkeypatch.setattr(suite_conftest, "_REAL_REPO_LOCK_DIRECTORY", tmp_path)
 
-    # priority node が parameterize されても、raw 先頭 2 item ではなく
-    # canonical node ごとの全 instance 境界で受理する。
-    exact_mark = [{"args": ["real-repo"], "kwargs": {}}]
-    writers = (
-        "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
-        "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
-        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
-        "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
+    repo_link = tmp_path / "repo-link"
+    repo_link.symlink_to(ROOT, target_is_directory=True)
+    for resource in ("parent", "ccbench"):
+        direct = suite_conftest._real_repo_lock_path(resource, repo_root=ROOT)
+        linked = suite_conftest._real_repo_lock_path(resource, repo_root=repo_link)
+        assert direct.name == linked.name
+        assert "session" not in direct.name
+    path_probe = textwrap.dedent(
+        """
+        from orchestrator.tests import conftest
+        print(conftest._real_repo_lock_path("parent"))
+        print(conftest._real_repo_lock_path("ccbench"))
+        """
     )
-    canonical_nodes = (cli, cli, barrier, barrier, *writers)
-    report = [
-        {
-            "nodeid": f"{canonical}[case-{index}]",
-            "canonical_node": canonical,
-            "marks": exact_mark,
-        }
-        for index, canonical in enumerate(canonical_nodes)
+    probe_cwds = (tmp_path / "session-a", tmp_path / "session-b")
+    for probe_cwd in probe_cwds:
+        probe_cwd.mkdir()
+    probe_outputs = []
+    for index, probe_cwd in enumerate(probe_cwds):
+        pythonpath = os.pathsep.join(
+            part for part in (str(ROOT), os.environ.get("PYTHONPATH", ""))
+            if part
+        )
+        probe_outputs.append(_run_subprocess(
+            [sys.executable, "-c", path_probe],
+            cwd=probe_cwd,
+            env={
+                **os.environ,
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "PYTHONPATH": pythonpath,
+                "PYTEST_XDIST_TESTRUNUID": f"independent-session-{index}",
+            },
+        ).stdout.splitlines())
+    assert probe_outputs[0] == probe_outputs[1]
+    assert len(probe_outputs[0]) == 2
+
+    readers_entered = []
+    readers_guard = threading.Lock()
+    both_readers = threading.Event()
+    release_readers = threading.Event()
+    writer_attempting = threading.Event()
+    writer_entered = threading.Event()
+    failures = []
+
+    def reader() -> None:
+        try:
+            with suite_conftest._real_repo_locks(
+                    suite_conftest.RealRepoAccess("read", "read")):
+                with readers_guard:
+                    readers_entered.append(threading.get_ident())
+                    if len(readers_entered) == 2:
+                        both_readers.set()
+                assert release_readers.wait(5)
+        except BaseException as exc:  # surface thread failures in the parent test
+            failures.append(exc)
+
+    def writer() -> None:
+        try:
+            writer_attempting.set()
+            with suite_conftest._real_repo_locks(
+                    suite_conftest.RealRepoAccess("write", "write")):
+                writer_entered.set()
+        except BaseException as exc:
+            failures.append(exc)
+
+    reader_threads = [threading.Thread(target=reader) for _ in range(2)]
+    for thread in reader_threads:
+        thread.start()
+    assert both_readers.wait(5), "two LOCK_SH holders did not overlap"
+    writer_thread = threading.Thread(target=writer)
+    writer_thread.start()
+    assert writer_attempting.wait(5)
+    time.sleep(0.05)
+    assert not writer_entered.is_set(), "LOCK_EX overlapped active LOCK_SH holders"
+    release_readers.set()
+    for thread in (*reader_threads, writer_thread):
+        thread.join(5)
+        assert not thread.is_alive()
+    assert not failures
+    assert writer_entered.is_set()
+
+    # Forty-eight staggered SH cohorts keep S continuously occupied for 147
+    # simulated seconds.  The production deadline must allow the writer to
+    # acquire after the last cohort instead of retaining the old 120 s cutoff.
+    cohort_windows = tuple(
+        (float(index * 3), float(index * 3 + 6))
+        for index in range(48)
+    )
+    assert all(
+        right[0] <= left[1]
+        for left, right in zip(cohort_windows, cohort_windows[1:])
+    )
+    simulated_clock = {"now": 0.0}
+    writer_acquired_at = []
+
+    def simulated_monotonic():
+        return simulated_clock["now"]
+
+    def simulated_sleep(delay):
+        simulated_clock["now"] += delay
+
+    def simulated_flock(_fd, operation):
+        if operation == suite_conftest.fcntl.LOCK_UN:
+            return
+        assert operation == (
+            suite_conftest.fcntl.LOCK_EX | suite_conftest.fcntl.LOCK_NB
+        )
+        active_cohorts = [
+            index for index, (start, end) in enumerate(cohort_windows)
+            if start <= simulated_clock["now"] < end
+        ]
+        if active_cohorts:
+            raise BlockingIOError(
+                suite_conftest.errno.EAGAIN,
+                f"reader cohorts active: {active_cohorts!r}",
+            )
+        writer_acquired_at.append(simulated_clock["now"])
+
+    with mock.patch.object(
+            suite_conftest, "_real_repo_lock_path",
+            return_value=tmp_path / "simulated-ccbench.lock",
+            ), mock.patch.object(
+                suite_conftest, "_open_real_repo_lock", return_value=91,
+            ), mock.patch.object(
+                suite_conftest.fcntl, "flock", side_effect=simulated_flock,
+            ), mock.patch.object(
+                suite_conftest.time, "monotonic", side_effect=simulated_monotonic,
+            ), mock.patch.object(
+                suite_conftest.time, "sleep", side_effect=simulated_sleep,
+            ), mock.patch.object(suite_conftest.os, "close"):
+        with suite_conftest._real_repo_file_lock(
+                "ccbench", "write", retry_interval_s=1.0):
+            assert writer_acquired_at == [147.0]
+    assert 120.0 < writer_acquired_at[0] < (
+        suite_conftest._REAL_REPO_LOCK_TIMEOUT_S
+    )
+
+    trace = []
+
+    @contextlib.contextmanager
+    def traced_lock(resource, mode):
+        trace.append(("enter", resource, mode))
+        try:
+            yield
+        finally:
+            trace.append(("exit", resource, mode))
+
+    with mock.patch.object(suite_conftest, "_real_repo_file_lock", traced_lock):
+        with suite_conftest._real_repo_locks(
+                suite_conftest.RealRepoAccess("read", "write")):
+            trace.append(("body", None, None))
+    assert trace == [
+        ("enter", "parent", "read"),
+        ("enter", "ccbench", "write"),
+        ("body", None, None),
+        ("exit", "ccbench", "write"),
+        ("exit", "parent", "read"),
     ]
-    _assert_real_repo_collection_order(report)
+
+    from orchestrator.campaign import patchharness
+    protocol_trace = []
+
+    @contextlib.contextmanager
+    def protocol_locks(access):
+        protocol_trace.append(("locks-enter", access))
+        try:
+            yield
+        finally:
+            protocol_trace.append(("locks-exit", access))
+
+    @contextlib.contextmanager
+    def protocol_stamp(node_id, access):
+        protocol_trace.append(("stamp-enter", node_id, access))
+        try:
+            yield
+        finally:
+            protocol_trace.append(("stamp-exit", node_id, access))
+
+    protocol_node = next(iter(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES))
+    filename, function = protocol_node.split("::", 1)
+    protocol_access = suite_conftest.REAL_REPO_ACCESS_BY_NODE[protocol_node]
+    protocol_item = SimpleNamespace(
+        path=HERE / filename,
+        name=function,
+        originalname=function,
+    )
+    setattr(protocol_item, suite_conftest._REAL_REPO_ACCESS_ATTR, protocol_access)
+    with mock.patch.object(
+            suite_conftest, "_real_repo_locks", protocol_locks,
+            ), mock.patch.object(
+                patchharness, "_pytest_node_context", protocol_stamp,
+            ):
+        wrapper = suite_conftest.pytest_runtest_protocol(protocol_item, None)
+        assert next(wrapper) is None
+        protocol_trace.append(("protocol-body", protocol_node, protocol_access))
+        try:
+            next(wrapper)
+        except StopIteration:
+            pass
+        else:
+            raise AssertionError("pytest_runtest_protocol wrapper did not finish")
+    assert protocol_trace == [
+        ("locks-enter", protocol_access),
+        ("stamp-enter", protocol_node, protocol_access),
+        ("protocol-body", protocol_node, protocol_access),
+        ("stamp-exit", protocol_node, protocol_access),
+        ("locks-exit", protocol_access),
+    ]
+
+    negative_trace = []
+
+    @contextlib.contextmanager
+    def forbidden_protocol_locks(access):
+        negative_trace.append(("locks", access))
+        yield
+
+    @contextlib.contextmanager
+    def forbidden_protocol_stamp(node_id, access):
+        negative_trace.append(("stamp", node_id, access))
+        yield
+
+    missing_stamp = object()
+    wrong_access = suite_conftest.RealRepoAccess(None, "read")
+    for stamped_access in (missing_stamp, wrong_access):
+        invalid_item = SimpleNamespace(
+            nodeid=f"orchestrator/tests/{protocol_node}@real-repo",
+            path=HERE / filename,
+            name=f"{function}@real-repo",
+            originalname=None,
+        )
+        if stamped_access is not missing_stamp:
+            setattr(
+                invalid_item, suite_conftest._REAL_REPO_ACCESS_ATTR,
+                stamped_access,
+            )
+        with mock.patch.object(
+                suite_conftest, "_real_repo_locks", forbidden_protocol_locks,
+                ), mock.patch.object(
+                    patchharness, "_pytest_node_context",
+                    forbidden_protocol_stamp,
+                ):
+            wrapper = suite_conftest.pytest_runtest_protocol(invalid_item, None)
+            with suite_conftest.pytest.raises(
+                    suite_conftest.pytest.UsageError,
+                    match="resource access stamp mismatch; fails-closed",
+                    ):
+                next(wrapper)
+    assert negative_trace == [], (
+        "missing/mismatched resource stamps reached an unlocked protocol body"
+    )
+
+    with suite_conftest._real_repo_file_lock("parent", "write"):
+        with suite_conftest.pytest.raises(RuntimeError) as excinfo:
+            with suite_conftest._real_repo_file_lock(
+                    "parent", "read", timeout_s=0.01, retry_interval_s=0.001):
+                raise AssertionError("contended lock must not be acquired")
+    message = str(excinfo.value)
+    assert "fails-closed" in message
+    assert "resource=parent" in message
+    assert "mode=read" in message
+    assert "holders=" in message
+
+    with suite_conftest.pytest.raises(ValueError):
+        with suite_conftest._real_repo_file_lock("ccbench", "write"):
+            raise ValueError("release control")
+    with suite_conftest._real_repo_file_lock("ccbench", "write"):
+        pass
 
 
 def test_protocol_builder_repo_tree_guard_is_wired_to_real_root():
@@ -1904,20 +2237,28 @@ def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(
     """
     suite_conftest = _load_suite_conftest()
     writer_nodes = {
+        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+        "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+        _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE,
+    }
+    reader_control_nodes = {
         "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
         "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
         "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
         "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
         "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint",
         "test_hooks.py::test_real_submodule_payload_edit",
-        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
-        "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
-        "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
-        _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE,
     }
-    assert writer_nodes <= set(suite_conftest.REAL_REPO_SERIAL_NODES), (
-        "候補 path writer の serial registry からの脱落: "
-        f"missing={sorted(writer_nodes - set(suite_conftest.REAL_REPO_SERIAL_NODES))}"
+    assert writer_nodes == set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES), (
+        "実 ccbench writer の独立 golden と access map が不一致: "
+        f"configured={sorted(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES)}"
+    )
+    assert all(
+        suite_conftest.REAL_REPO_ACCESS_BY_NODE[node].ccbench != "write"
+        for node in reader_control_nodes
+    ), (
+        "reader control を ccbench writer へ過剰分類している"
     )
 
     # Source-level guard: retain a cheap tripwire for new writer spellings, but
@@ -1925,7 +2266,7 @@ def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(
     # brittle because its quote style is not part of the AST contract.
     writer_files = {
         node.split("::", 1)[0]
-        for node in writer_nodes
+        for node in writer_nodes | reader_control_nodes
     }
     write_methods = {
         "mkdir", "mkdirs", "touch", "write_text", "write_bytes", "open",
@@ -2213,10 +2554,11 @@ def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(
         "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding"
     )
 
-    assert probed_nodes == writer_nodes, (
-        "現行 REAL_REPO_SERIAL_NODES の writer probe が不足: "
-        f"missing={sorted(writer_nodes - probed_nodes)} "
-        f"extra={sorted(probed_nodes - writer_nodes)}"
+    expected_probed_nodes = writer_nodes | reader_control_nodes
+    assert probed_nodes == expected_probed_nodes, (
+        "real-repo writer/reader control probe が不足: "
+        f"missing={sorted(expected_probed_nodes - probed_nodes)} "
+        f"extra={sorted(probed_nodes - expected_probed_nodes)}"
     )
 
     after_writers = {path: candidate_state(path) for path in candidate_paths}
