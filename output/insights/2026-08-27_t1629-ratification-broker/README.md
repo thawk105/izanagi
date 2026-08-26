@@ -104,7 +104,12 @@ probe は `mutation-spec-probe.json` (全件 SURVIVED 期待)、本走は `mutat
 
 詳細と択一は `ruling-package.md`。台帳の全面再生成を実測した結果
 (18 個の pin が壊れる、生成器は exact 所要値 pin が在る限り永久に使えない) も同文書にある。
-照合 script は `verbatim/parent-check-ledger-pins.py`。
+照合手順は、台帳の `duration_seconds_by_nodeid` に対して
+`test_t1574_changed_suite_ledger_node_delta_is_exact` の `removed` / `added` /
+`expected_suite_node_sets` をそのまま当て、8 接頭辞ごとに
+「件数 + sorted node を LF 連結した sha256」を再計算して比較する。
+**照合 script 自体は repo へ入れない** — `output/insights/` 配下の `.py` は
+実装面と判定され Codex `role=author` を要求するが、この probe は親が書いたものである。
 
 ## 監査の結果 (規律 6)
 

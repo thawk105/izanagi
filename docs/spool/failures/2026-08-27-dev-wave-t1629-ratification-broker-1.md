@@ -76,6 +76,23 @@ seq: 1
 - 再発検知: 共有 fixture に `importorskip` を書かない。
   同 fixture 内の他の依存 (Git 等) がどう扱われているかと揃っているかを見る。
 
+### {{F:parent-probe-py-in-insight-is-implementation-surface}}. 親が書いた probe を insight へ入れると実装面と判定され受入が赤になる [手順漏れ]
+
+- 事象: 受入全走が `check_ai_provenance` で赤になった。
+  `9e6e4ee93ca1 ...: 実装面に Codex role=author がない —
+  paths=output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`
+- 根本原因: **`output/insights/` 配下でも `.py` は実装面と判定される。** 親が書いた
+  照合 probe を「一次資料の保全」のつもりで insight へ入れたが、実装面は D95 により
+  Codex `role=author` を要求する。親が書いた probe にはその trailer を付けられない。
+  逐語 `.md` と結果 `.json` は実装面でないので同じ問題を起こさない。
+- 恒久対応: **親が書いた probe は repo へ入れない。** 手順は散文で README へ書き、
+  再現に要る値 (入力 path、判定式、期待値) を逐語で残す。
+  実装面として残す価値があるなら Codex `role=author` に書かせて `tools/` か
+  `orchestrator/tests/` へ置く (`DW-O17` の実装面 path 判定と同じ境界)。
+- 再発検知: insight を作ったら `git ls-files <insight dir> | grep '\.py$'` が空であることを
+  受入投入前に確かめる。既存 insight には `.py` を含むものがあるが、
+  それらは Codex が書いた harness であり本件とは出所が違う。
+
 ## 再発
 
 ### F217
