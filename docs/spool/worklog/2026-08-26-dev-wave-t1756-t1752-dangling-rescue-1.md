@@ -83,12 +83,12 @@ title: [T-1756] [T-1752] 到達不能 commit 20 件を親子関係ごと救出�
   親子関係ごと `/work/1/SFC/tanab/dangling-rescue-20260826/` の自己完結 bundle へ救出し、
   object を共有しない隔離 repo で復元できることを実測した。`landed` の 4 件は救出していない。
   remaining: none
-  base: b53824acaba5439f0dd5d480f63682a5a0f8a75b10b631ec5820f30d0051c2be
+  base: b4487b7341356a518a2027f5715c14ff0a0b83be33dbfeeaa0c083f5d4958c2a
 - [T-1752] 到達不能 28 commit のうち外部控えが皆無の 17 件を、監査全出力からの再構成で同定し、
   親子関係を含む自己完結 bundle へまとめて取り出して隔離復元まで実測した。既存
   `cleanup-20260825/dangling-28.bundle` は原本として残した。破棄は放置で足りる。
   remaining: none
-  base: ec4d992217dae9b52cc3aedc3bb01ad645c6cf0d17a3ffcace8d4507f41bdc1d
+  base: f0afe808451e76fd85700120029e3c1a49da91d0551dcf744d8d841764bacb25
 
 ### 新規
 
