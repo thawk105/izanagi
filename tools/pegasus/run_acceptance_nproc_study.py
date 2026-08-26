@@ -32,7 +32,7 @@ if str(_REPO_ROOT) not in sys.path:
 from tools import run_tests as production_runner  # noqa: E402
 
 
-SCHEMA_VERSION = "izanagi-acceptance-nproc-study/v2"
+SCHEMA_VERSION = "izanagi-acceptance-nproc-study/v3"
 JOB_FAILURE_SCHEMA_VERSION = "izanagi-acceptance-nproc-study-job-failure/v1"
 SCHEDULE_ALGORITHM = "sha256-rank-v1"
 ARMS = (16, 32, 48)
@@ -112,11 +112,22 @@ ABSOLUTE_WALL_EXTRAPOLATION = (
 )
 ARM_TIMEOUT_SCOPE = (
     "session creation + two shard runs + before/after fingerprints + "
-    "per-shard TMP cleanup"
+    "per-shard TMP cleanup, including eligible bounded retries"
+)
+PER_CELL_RETRY_LIMIT = SHARD_COUNT
+RETRY_LIMIT_DERIVATION = (
+    "per-cell retries equal the two shard allocations inside one existing arm "
+    "budget; total retries equal the count of existing arm budgets in the schedule"
+)
+RETRY_ELIGIBILITY_RULE = (
+    "retry only when the child did not time out, returned nonzero, and readable "
+    "JUnit reports at least one failure or error"
 )
 _TMP_JOB_PREFIX = "izn-"
 _TMP_JOB_TOKEN_HEX_LENGTH = 12
-_TMP_RUN_TOKEN_RE = re.compile(r"^run-(?:[0-9]{3}|pre)$")
+_TMP_RUN_TOKEN_RE = re.compile(
+    r"^run-(?:[0-9]{3}(?:-attempt-[0-9]{3})?|pre)$"
+)
 _STAT_BLOCK_BYTES = 512
 
 
@@ -516,6 +527,7 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
     if not cases:
         raise ContractError("JUnit contains no testcase")
     identities: list[tuple[str, str, str]] = []
+    failed_nodeids: list[str] = []
     skipped_identities: list[tuple[str, str, str]] = []
     serial_work = 0.0
     real_repo_chain = 0.0
@@ -532,8 +544,14 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
         identities.append(identity)
         duration = _parse_duration(case.attrib.get("time"), identity_label)
         serial_work += duration
-        failures += sum(1 for _ in case.findall("failure"))
-        errors += sum(1 for _ in case.findall("error"))
+        case_failures = sum(1 for _ in case.findall("failure"))
+        case_errors = sum(1 for _ in case.findall("error"))
+        failures += case_failures
+        errors += case_errors
+        if case_failures or case_errors:
+            failed_nodeids.append(
+                f"{file_name}::{name}" if file_name else f"{classname}::{name}"
+            )
         case_skipped = sum(1 for _ in case.findall("skipped"))
         skipped += case_skipped
         if case_skipped:
@@ -552,6 +570,7 @@ def analyze_junit(xml_bytes: bytes) -> dict[str, Any]:
         raise ContractError("JUnit testcase identities are duplicated")
     return {
         "error_count": errors,
+        "failed_nodeids": failed_nodeids,
         "failure_count": failures,
         "nodeids_sha256": _sha256(
             "\n".join("::".join(identity) for identity in identities).encode("utf-8")
@@ -1185,15 +1204,24 @@ def _tmp_job_root(config: StudyConfig) -> Path:
     return Path("/tmp") / f"{_TMP_JOB_PREFIX}{token}"
 
 
-def _tmp_run_token(global_run_index: int) -> str:
+def _tmp_run_token(global_run_index: int, *, attempt_number: int = 1) -> str:
     if global_run_index == -1:
+        if attempt_number != 1:
+            raise ContractError("setup TMP token cannot have retry attempts")
         return "run-pre"
     if not 0 <= global_run_index <= 999:
         raise ContractError("global run index does not fit the fixed TMP token")
-    return f"run-{global_run_index:03d}"
+    if type(attempt_number) is not int or not 1 <= attempt_number <= 999:
+        raise ContractError("attempt number does not fit the fixed TMP token")
+    token = f"run-{global_run_index:03d}"
+    if attempt_number > 1:
+        token += f"-attempt-{attempt_number:03d}"
+    return token
 
 
-def _prepare_tmp_tree(config: StudyConfig, *, global_run_index: int) -> Path:
+def _prepare_tmp_tree(
+    config: StudyConfig, *, global_run_index: int, attempt_number: int = 1,
+) -> Path:
     job_root = _tmp_job_root(config)
     job_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     root_stat = job_root.lstat()
@@ -1204,7 +1232,9 @@ def _prepare_tmp_tree(config: StudyConfig, *, global_run_index: int) -> Path:
         or stat.S_IMODE(root_stat.st_mode) != 0o700
     ):
         raise ContractError("TMP job root is not a private owned directory")
-    run_token = _tmp_run_token(global_run_index)
+    run_token = _tmp_run_token(
+        global_run_index, attempt_number=attempt_number,
+    )
     if _TMP_RUN_TOKEN_RE.fullmatch(run_token) is None:
         raise ContractError("TMP run token is not fixed-shape")
     run_tmp = job_root / run_token
@@ -1794,7 +1824,7 @@ def _create_session(executor: Executor, config: StudyConfig, clone: Path,
 
 
 def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
-                     root: Path) -> dict[str, str]:
+                     root: Path, attempt_number: int = 1) -> dict[str, str]:
     python_user_base = os.environ.get("PYTHONUSERBASE", "")
     if not python_user_base or not Path(python_user_base).is_absolute():
         raise ContractError("driver PYTHONUSERBASE must be a nonempty absolute path")
@@ -1809,7 +1839,9 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     run_name = (
         "setup-import-probe"
         if global_run_index == -1
-        else f"run-{global_run_index:03d}"
+        else _tmp_run_token(
+            global_run_index, attempt_number=attempt_number,
+        )
     )
     run_root = root / run_name
     paths = {
@@ -1822,7 +1854,8 @@ def _run_environment(config: StudyConfig, *, global_run_index: int, arm: int,
     for path in paths.values():
         path.mkdir(mode=0o700, parents=True, exist_ok=False)
     paths["TMPDIR"] = _prepare_tmp_tree(
-        config, global_run_index=global_run_index
+        config, global_run_index=global_run_index,
+        attempt_number=attempt_number,
     )
     env.update({key: str(value) for key, value in paths.items()})
     env["IZANAGI_TEST_NPROC"] = str(arm)
@@ -1895,17 +1928,31 @@ def _expected_run_manifest(
 
 def _expected_budget_stages(
     blocks: Sequence[ScheduleBlock],
+    discarded_runs: Sequence[Mapping[str, Any]] = (),
 ) -> tuple[str, ...]:
+    retries_by_run: dict[int, int] = {}
+    for discarded in discarded_runs:
+        run_index = discarded.get("global_run_index")
+        if type(run_index) is not int:
+            raise ContractError("discarded run lacks a global run index")
+        retries_by_run[run_index] = retries_by_run.get(run_index, 0) + 1
     stages = ["setup"]
+    global_run_index = 0
     for block in blocks:
         stages.append(f"block-{block.global_block_index}")
         for arm in block.arm_order:
             arm_stage = f"block-{block.global_block_index}-arm-{arm}"
             stages.append(arm_stage)
-            stages.extend(
-                f"{arm_stage}-shard-{shard_index}"
-                for shard_index in range(SHARD_COUNT)
-            )
+            for shard_index in range(SHARD_COUNT):
+                shard_stage = f"{arm_stage}-shard-{shard_index}"
+                stages.append(shard_stage)
+                stages.extend(
+                    f"{shard_stage}-retry-{retry_number}"
+                    for retry_number in range(
+                        1, retries_by_run.get(global_run_index, 0) + 1
+                    )
+                )
+                global_run_index += 1
     stages.append("finalize")
     return tuple(stages)
 
@@ -1939,8 +1986,10 @@ def validate_run_manifest(
             )
 
 
-def validate_junit_identity_sets(runs: Sequence[Mapping[str, Any]]) -> None:
-    """Require each shard to execute and skip the same identities in every arm/block."""
+def validate_junit_identity_sets(
+    runs: Sequence[Mapping[str, Any]], *, require_all_shards: bool = True,
+) -> None:
+    """Require each shard to execute/skip the same identities in every attempt."""
     expected_by_shard: dict[int, str] = {}
     expected_skipped_by_shard: dict[int, str] = {}
     for index, run in enumerate(runs):
@@ -1969,13 +2018,34 @@ def validate_junit_identity_sets(runs: Sequence[Mapping[str, Any]]) -> None:
                 f"JUnit skipped testcase identity set differs for shard {shard_index} "
                 f"at run {index}"
             )
-    if set(expected_by_shard) != set(range(SHARD_COUNT)):
+    if require_all_shards and set(expected_by_shard) != set(range(SHARD_COUNT)):
         raise ContractError("JUnit testcase identity sets do not cover every shard")
-    if set(expected_skipped_by_shard) != set(range(SHARD_COUNT)):
+    if (
+        require_all_shards
+        and set(expected_skipped_by_shard) != set(range(SHARD_COUNT))
+    ):
         raise ContractError("JUnit skipped testcase identity sets do not cover every shard")
 
 
+def _require_green_analysis_runs(runs: Sequence[Mapping[str, Any]]) -> None:
+    if not runs:
+        raise ContractError("analysis input contains no runs")
+    for index, run in enumerate(runs):
+        junit = run.get("junit")
+        if (
+            run.get("child_returncode") != 0
+            or run.get("timed_out") is not False
+            or not isinstance(junit, Mapping)
+            or junit.get("failure_count") != 0
+            or junit.get("error_count") != 0
+        ):
+            raise ContractError(
+                f"analysis input contains non-green run at index {index}"
+            )
+
+
 def _derive_analysis(runs: Sequence[Mapping[str, Any]], *, mode: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    _require_green_analysis_runs(runs)
     measured = [run for run in runs if run["analysis_included"]]
     expected_runs = (FULL_MEASUREMENT_BLOCKS if mode == "full" else 1) * len(ARMS) * SHARD_COUNT
     if len(measured) != expected_runs:
@@ -2070,6 +2140,7 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
             "shard_count": SHARD_COUNT,
             "warmup_blocks": 1 if config.mode == "full" else 0,
         },
+        "discarded_runs": [],
         "excluded_estimands": [dict(item) for item in EXCLUDED_ESTIMANDS],
         "failure": None,
         "inputs": {
@@ -2104,6 +2175,13 @@ def _new_receipt(config: StudyConfig, schedule: Sequence[ScheduleBlock], *,
         "occasion": {
             "allocation_hosts": [], "host_match": False,
             "hostname": socket.gethostname(), "pbs_jobid": os.environ.get("PBS_JOBID", ""),
+        },
+        "retry_policy": {
+            "eligibility_rule": RETRY_ELIGIBILITY_RULE,
+            "limit_derivation": RETRY_LIMIT_DERIVATION,
+            "per_cell_retry_limit": PER_CELL_RETRY_LIMIT,
+            "retries_started": 0,
+            "study_retry_limit": len(schedule) * len(ARMS),
         },
         "runs": [],
         "schedule": schedule_doc,
@@ -2173,6 +2251,7 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
     observed_tmp_usage_bytes: list[int] = []
     observed_tmp_peak_consumption_bytes: list[int] = []
     observed_cleanup_wall_s: list[float] = []
+    study_retry_count = 0
     try:
         with _signal_contract():
             current_stage = "initial-qstat"
@@ -2257,204 +2336,310 @@ def run_study(config: StudyConfig, executor: Executor) -> tuple[int, dict[str, A
                             )
                         calibration_arm_walls = raw_arm_walls
                     for shard_index in range(SHARD_COUNT):
-                        current_stage = (
+                        shard_stage = (
                             f"block-{block.global_block_index}-arm-{arm}-shard-{shard_index}"
                         )
+                        current_stage = shard_stage
                         _budget_check(
                             executor, config, receipt["budget"]["budget_checks"],
                             stage=current_stage,
                             remaining_arm_timeout_s=arm_remaining,
                         )
-                        if observed_tmp_usage_bytes:
-                            capacity_check = _tmp_capacity_check(
-                                observed_tmp_usage_bytes,
-                                free_bytes=_tmp_free_bytes(_tmp_job_root(config)),
-                                global_run_index=global_run_index,
-                            )
-                            receipt["cleanup"]["tmp_capacity_checks"].append(
-                                capacity_check
-                            )
-                            _require_tmp_capacity(capacity_check)
-                        before = collect_fingerprint(
-                            executor, clone,
-                            label=f"run-{global_run_index}-before",
-                            timeout_s=_remaining(arm_deadline),
-                        )
-                        baseline = receipt["inputs"]["clone_baseline_fingerprint"]
-                        if before["digest_sha256"] != baseline["digest_sha256"]:
-                            raise ContractError("prerun fingerprint differs from clone baseline")
-                        argv = [
-                            config.python_command,
-                            str(clone / "tools/run_tests.py"),
-                            f"--izanagi-acceptance-shard-session={session}",
-                            "--izanagi-acceptance-shard-count=2",
-                            f"--izanagi-acceptance-shard-index={shard_index}",
-                        ]
-                        validate_measurement_argv(
-                            argv, clone=clone, session=session, shard_index=shard_index,
-                            python_command=config.python_command,
-                        )
-                        child_env = _run_environment(
-                            config, global_run_index=global_run_index, arm=arm, root=env_root
-                        )
-                        child_timeout_s = allocate_shard_timeout(
-                            arm_remaining_s=_remaining(arm_deadline),
-                            remaining_shards=SHARD_COUNT - shard_index,
-                            mode=config.mode,
-                            remaining_shard_walls_s=(
-                                None
-                                if calibration_arm_walls is None
-                                else calibration_arm_walls[shard_index:]
-                            ),
-                            observed_cleanup_reserve_s=max(
-                                observed_cleanup_wall_s, default=0.0,
-                            ),
-                        )
-                        stdout_path = artifact_root / f"run-{global_run_index:03d}.stdout"
-                        stderr_path = artifact_root / f"run-{global_run_index:03d}.stderr"
-                        run_started = time.monotonic()
-                        result: ExecResult | None = None
-                        run_record: dict[str, Any] | None = None
-                        peak_capacity: dict[str, Any] | None = None
-                        child_error: BaseException | None = None
-                        try:
-                            try:
-                                tmp_capacity_spec = TmpCapacitySpec(
-                                    path=Path(child_env["TMPDIR"]),
+                        attempt_number = 1
+                        prior_failed_wall_s: float | None = None
+                        while True:
+                            if attempt_number > 1:
+                                retry_number = attempt_number - 1
+                                current_stage = f"{shard_stage}-retry-{retry_number}"
+                                _budget_check(
+                                    executor, config,
+                                    receipt["budget"]["budget_checks"],
+                                    stage=current_stage,
+                                    remaining_arm_timeout_s=arm_remaining,
+                                )
+                            if observed_tmp_usage_bytes:
+                                capacity_check = _tmp_capacity_check(
+                                    observed_tmp_usage_bytes,
+                                    free_bytes=_tmp_free_bytes(_tmp_job_root(config)),
                                     global_run_index=global_run_index,
-                                    prior_observed_max_consumption_bytes=max(
-                                        observed_tmp_peak_consumption_bytes,
-                                        default=0,
-                                    ),
-                                    receipt_reserve_bytes=_receipt_reserve_bytes(receipt),
                                 )
-                                result = executor(ExecRequest(
-                                    purpose=f"measurement:{global_run_index}",
-                                    argv=tuple(argv), cwd=clone, env=child_env,
-                                    timeout_s=child_timeout_s,
-                                    stdout_path=stdout_path, stderr_path=stderr_path,
-                                    sample_isolation=True, expected_host=hostname,
-                                    tmp_capacity=tmp_capacity_spec,
-                                    isolation_job_roots=(
-                                        config.scratch_root,
-                                        _tmp_job_root(config),
-                                    ),
-                                ))
-                                validate_process_cleanup(result.process_cleanup)
-                                if not isinstance(result.tmp_capacity, Mapping):
-                                    raise ContractError(
-                                        f"run {global_run_index} lacks TMP peak capacity evidence"
-                                    )
-                                peak_capacity = dict(result.tmp_capacity)
-                                receipt["cleanup"]["tmp_peak_capacity_observations"].append(
-                                    peak_capacity
+                                receipt["cleanup"]["tmp_capacity_checks"].append(
+                                    capacity_check
                                 )
-                                observed_tmp_peak_consumption_bytes.append(
-                                    int(peak_capacity.get("observed_consumption_bytes", -1))
-                                )
-                            except BaseException as exc:
-                                child_error = exc
-                            postrun_deadline = time.monotonic() + min(
-                                _remaining(arm_deadline),
-                                float(PER_SHARD_POSTRUN_RESERVE_S),
-                            )
-                            after = collect_fingerprint(
+                                _require_tmp_capacity(capacity_check)
+                            before = collect_fingerprint(
                                 executor, clone,
-                                label=f"run-{global_run_index}-after",
-                                timeout_s=_remaining(postrun_deadline),
-                            )
-                            if after["digest_sha256"] != before["digest_sha256"]:
-                                raise PostrunDirt(
-                                    f"run {global_run_index} changed "
-                                    "superproject/submodule fingerprint"
-                                ) from child_error
-                            if child_error is not None:
-                                raise child_error
-                            assert result is not None
-                            assert peak_capacity is not None
-                            _require_tmp_peak_capacity(peak_capacity)
-                            junit_path = session / f"shard-{shard_index}" / "junit.xml"
-                            if not junit_path.is_file() or junit_path.is_symlink():
-                                raise ContractError(
-                                    f"run {global_run_index} JUnit is missing or unsafe: "
-                                    f"child_returncode={result.returncode}"
-                                )
-                            junit = analyze_junit(junit_path.read_bytes())
-                            run_record = {
-                                "analysis_block_index": block.analysis_block_index,
-                                "analysis_included": block.phase == "measurement",
-                                "arm": arm,
-                                "argv": argv,
-                                "child_returncode": result.returncode,
-                                "child_timeout_s": child_timeout_s,
-                                "elapsed_end_s": time.monotonic() - started,
-                                "elapsed_start_s": run_started - started,
-                                "env_nproc": str(arm),
-                                "fingerprint_after_sha256": after["digest_sha256"],
-                                "fingerprint_before_sha256": before["digest_sha256"],
-                                "global_block_index": block.global_block_index,
-                                "global_run_index": global_run_index,
-                                "host": hostname,
-                                "isolation": dict(result.isolation),
-                                "junit": junit,
-                                "order_index": order_index,
-                                "phase": block.phase,
-                                "process_cleanup": dict(result.process_cleanup),
-                                "session_root": str(session),
-                                "shard_index": shard_index,
-                                "stderr_sha256": result.stderr_sha256,
-                                "stdout_sha256": result.stdout_sha256,
-                                "timed_out": result.timed_out,
-                                "wall_minus_chain_s": (
-                                    result.duration_s
-                                    - junit["real_repo_exclusive_chain_s"]
+                                label=(
+                                    f"run-{global_run_index}-before"
+                                    if attempt_number == 1
+                                    else f"run-{global_run_index}-attempt-"
+                                    f"{attempt_number}-before"
                                 ),
-                                "wall_s": result.duration_s,
-                            }
-                        finally:
-                            cleanup_started = time.monotonic()
-                            tmp_cleanup = _remove_tmp_tree(
-                                Path(child_env["TMPDIR"]),
-                                global_run_index=global_run_index,
-                                purpose="measurement",
+                                timeout_s=_remaining(arm_deadline),
                             )
-                            cleanup_wall_s = time.monotonic() - cleanup_started
-                            observed_cleanup_wall_s.append(cleanup_wall_s)
-                            receipt["cleanup"]["tmp_tree_cleanups"].append(
-                                tmp_cleanup
-                            )
-                            observed_tmp_usage_bytes.append(
-                                int(tmp_cleanup["usage_bytes_before_cleanup"])
-                            )
-                            if run_record is not None:
-                                run_record["cleanup_wall_s"] = cleanup_wall_s
-                                run_record["budget_wall_s"] = (
-                                    float(run_record["wall_s"]) + cleanup_wall_s
+                            baseline = receipt["inputs"]["clone_baseline_fingerprint"]
+                            if before["digest_sha256"] != baseline["digest_sha256"]:
+                                raise ContractError(
+                                    "prerun fingerprint differs from clone baseline"
                                 )
-                            _remaining(arm_deadline)
-                        assert run_record is not None
-                        receipt["runs"].append(run_record)
-                        if (
-                            result.timed_out or result.returncode != 0
-                            or junit["failure_count"] or junit["error_count"]
-                        ):
-                            raise ContractError(
-                                f"run {global_run_index} did not complete green: "
-                                f"rc={result.returncode} timeout={result.timed_out}"
+                            argv = [
+                                config.python_command,
+                                str(clone / "tools/run_tests.py"),
+                                f"--izanagi-acceptance-shard-session={session}",
+                                "--izanagi-acceptance-shard-count=2",
+                                f"--izanagi-acceptance-shard-index={shard_index}",
+                            ]
+                            validate_measurement_argv(
+                                argv, clone=clone, session=session,
+                                shard_index=shard_index,
+                                python_command=config.python_command,
                             )
-                        if (
-                            result.isolation.get("valid") is not True
-                            or result.isolation.get("disturbed") is not False
-                            or result.isolation.get("host_match") is not True
-                        ):
-                            raise ContractError(f"run {global_run_index} isolation is invalid/disturbed")
+                            child_timeout_s = allocate_shard_timeout(
+                                arm_remaining_s=_remaining(arm_deadline),
+                                remaining_shards=SHARD_COUNT - shard_index,
+                                mode=config.mode,
+                                remaining_shard_walls_s=(
+                                    None
+                                    if calibration_arm_walls is None
+                                    else calibration_arm_walls[shard_index:]
+                                ),
+                                observed_cleanup_reserve_s=max(
+                                    observed_cleanup_wall_s, default=0.0,
+                                ),
+                            )
+                            if (
+                                prior_failed_wall_s is not None
+                                and child_timeout_s <= prior_failed_wall_s
+                            ):
+                                raise ContractError(
+                                    "insufficient arm budget for retry: "
+                                    f"timeout={child_timeout_s} "
+                                    f"observed_failed_wall={prior_failed_wall_s}"
+                                )
+                            child_env = _run_environment(
+                                config, global_run_index=global_run_index, arm=arm,
+                                root=env_root, attempt_number=attempt_number,
+                            )
+                            artifact_stem = f"run-{global_run_index:03d}"
+                            purpose = f"measurement:{global_run_index}"
+                            if attempt_number > 1:
+                                artifact_stem += f"-attempt-{attempt_number:03d}"
+                                purpose += f":retry-{attempt_number - 1}"
+                            stdout_path = artifact_root / f"{artifact_stem}.stdout"
+                            stderr_path = artifact_root / f"{artifact_stem}.stderr"
+                            run_started = time.monotonic()
+                            result: ExecResult | None = None
+                            run_record: dict[str, Any] | None = None
+                            peak_capacity: dict[str, Any] | None = None
+                            child_error: BaseException | None = None
+                            try:
+                                try:
+                                    if attempt_number > 1:
+                                        study_retry_count += 1
+                                        receipt["retry_policy"][
+                                            "retries_started"
+                                        ] = study_retry_count
+                                    tmp_capacity_spec = TmpCapacitySpec(
+                                        path=Path(child_env["TMPDIR"]),
+                                        global_run_index=global_run_index,
+                                        prior_observed_max_consumption_bytes=max(
+                                            observed_tmp_peak_consumption_bytes,
+                                            default=0,
+                                        ),
+                                        receipt_reserve_bytes=_receipt_reserve_bytes(receipt),
+                                    )
+                                    result = executor(ExecRequest(
+                                        purpose=purpose,
+                                        argv=tuple(argv), cwd=clone, env=child_env,
+                                        timeout_s=child_timeout_s,
+                                        stdout_path=stdout_path,
+                                        stderr_path=stderr_path,
+                                        sample_isolation=True, expected_host=hostname,
+                                        tmp_capacity=tmp_capacity_spec,
+                                        isolation_job_roots=(
+                                            config.scratch_root,
+                                            _tmp_job_root(config),
+                                        ),
+                                    ))
+                                    validate_process_cleanup(result.process_cleanup)
+                                    if not isinstance(result.tmp_capacity, Mapping):
+                                        raise ContractError(
+                                            f"run {global_run_index} lacks TMP peak "
+                                            "capacity evidence"
+                                        )
+                                    peak_capacity = dict(result.tmp_capacity)
+                                    receipt["cleanup"][
+                                        "tmp_peak_capacity_observations"
+                                    ].append(peak_capacity)
+                                    observed_tmp_peak_consumption_bytes.append(
+                                        int(peak_capacity.get(
+                                            "observed_consumption_bytes", -1,
+                                        ))
+                                    )
+                                except BaseException as exc:
+                                    child_error = exc
+                                postrun_deadline = time.monotonic() + min(
+                                    _remaining(arm_deadline),
+                                    float(PER_SHARD_POSTRUN_RESERVE_S),
+                                )
+                                after = collect_fingerprint(
+                                    executor, clone,
+                                    label=(
+                                        f"run-{global_run_index}-after"
+                                        if attempt_number == 1
+                                        else f"run-{global_run_index}-attempt-"
+                                        f"{attempt_number}-after"
+                                    ),
+                                    timeout_s=_remaining(postrun_deadline),
+                                )
+                                if after["digest_sha256"] != before["digest_sha256"]:
+                                    raise PostrunDirt(
+                                        f"run {global_run_index} changed "
+                                        "superproject/submodule fingerprint"
+                                    ) from child_error
+                                if child_error is not None:
+                                    raise child_error
+                                assert result is not None
+                                assert peak_capacity is not None
+                                _require_tmp_peak_capacity(peak_capacity)
+                                junit_path = (
+                                    session / f"shard-{shard_index}" / "junit.xml"
+                                )
+                                if not junit_path.is_file() or junit_path.is_symlink():
+                                    raise ContractError(
+                                        f"run {global_run_index} JUnit is missing or unsafe: "
+                                        f"child_returncode={result.returncode}"
+                                    )
+                                junit = analyze_junit(junit_path.read_bytes())
+                                run_record = {
+                                    "analysis_block_index": block.analysis_block_index,
+                                    "analysis_included": block.phase == "measurement",
+                                    "arm": arm,
+                                    "argv": argv,
+                                    "attempt_number": attempt_number,
+                                    "child_returncode": result.returncode,
+                                    "child_timeout_s": child_timeout_s,
+                                    "elapsed_end_s": time.monotonic() - started,
+                                    "elapsed_start_s": run_started - started,
+                                    "env_nproc": str(arm),
+                                    "fingerprint_after_sha256": after["digest_sha256"],
+                                    "fingerprint_before_sha256": before["digest_sha256"],
+                                    "global_block_index": block.global_block_index,
+                                    "global_run_index": global_run_index,
+                                    "host": hostname,
+                                    "isolation": dict(result.isolation),
+                                    "junit": junit,
+                                    "order_index": order_index,
+                                    "phase": block.phase,
+                                    "process_cleanup": dict(result.process_cleanup),
+                                    "session_root": str(session),
+                                    "shard_index": shard_index,
+                                    "stderr_sha256": result.stderr_sha256,
+                                    "stdout_sha256": result.stdout_sha256,
+                                    "timed_out": result.timed_out,
+                                    "wall_minus_chain_s": (
+                                        result.duration_s
+                                        - junit["real_repo_exclusive_chain_s"]
+                                    ),
+                                    "wall_s": result.duration_s,
+                                }
+                            finally:
+                                cleanup_started = time.monotonic()
+                                tmp_cleanup = _remove_tmp_tree(
+                                    Path(child_env["TMPDIR"]),
+                                    global_run_index=global_run_index,
+                                    purpose="measurement",
+                                )
+                                cleanup_wall_s = time.monotonic() - cleanup_started
+                                observed_cleanup_wall_s.append(cleanup_wall_s)
+                                receipt["cleanup"]["tmp_tree_cleanups"].append(
+                                    tmp_cleanup
+                                )
+                                observed_tmp_usage_bytes.append(
+                                    int(tmp_cleanup["usage_bytes_before_cleanup"])
+                                )
+                                if run_record is not None:
+                                    run_record["cleanup_wall_s"] = cleanup_wall_s
+                                    run_record["budget_wall_s"] = (
+                                        float(run_record["wall_s"]) + cleanup_wall_s
+                                    )
+                                _remaining(arm_deadline)
+                            assert run_record is not None
+                            assert result is not None
+                            red = (
+                                result.timed_out
+                                or result.returncode != 0
+                                or junit["failure_count"]
+                                or junit["error_count"]
+                            )
+                            if red:
+                                retry_eligible = (
+                                    result.timed_out is False
+                                    and result.returncode != 0
+                                    and (
+                                        junit["failure_count"] > 0
+                                        or junit["error_count"] > 0
+                                    )
+                                )
+                                if not retry_eligible:
+                                    receipt["runs"].append(run_record)
+                                    raise ContractError(
+                                        f"run {global_run_index} did not complete green: "
+                                        f"rc={result.returncode} "
+                                        f"timeout={result.timed_out}"
+                                    )
+                                receipt["discarded_runs"].append(run_record)
+                                validate_junit_identity_sets(
+                                    [
+                                        *receipt["runs"],
+                                        *receipt["discarded_runs"],
+                                    ],
+                                    require_all_shards=False,
+                                )
+                                retries_already_used = attempt_number - 1
+                                retry_policy = receipt["retry_policy"]
+                                if (
+                                    retries_already_used
+                                    >= retry_policy["per_cell_retry_limit"]
+                                ):
+                                    raise ContractError(
+                                        f"run {global_run_index} exceeded per-cell "
+                                        "retry limit"
+                                    )
+                                if (
+                                    study_retry_count
+                                    >= retry_policy["study_retry_limit"]
+                                ):
+                                    raise ContractError(
+                                        "study exceeded total retry limit"
+                                    )
+                                prior_failed_wall_s = float(result.duration_s)
+                                attempt_number += 1
+                                continue
+                            receipt["runs"].append(run_record)
+                            validate_junit_identity_sets(
+                                [*receipt["runs"], *receipt["discarded_runs"]],
+                                require_all_shards=False,
+                            )
+                            if (
+                                result.isolation.get("valid") is not True
+                                or result.isolation.get("disturbed") is not False
+                                or result.isolation.get("host_match") is not True
+                            ):
+                                raise ContractError(
+                                    f"run {global_run_index} isolation is "
+                                    "invalid/disturbed"
+                                )
+                            break
                         global_run_index += 1
                     flat_arm_index += 1
             expected_total = (7 if config.mode == "full" else 1) * len(ARMS) * SHARD_COUNT
             if global_run_index != expected_total:
                 raise ContractError("global run count differs from the fixed design")
             validate_run_manifest(receipt["runs"], schedule)
-            validate_junit_identity_sets(receipt["runs"])
+            validate_junit_identity_sets(
+                [*receipt["runs"], *receipt["discarded_runs"]]
+            )
             outcomes, contrasts = _derive_analysis(receipt["runs"], mode=config.mode)
             receipt["arm_outcomes"] = outcomes
             receipt["contrasts"] = contrasts
@@ -2664,8 +2849,9 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     root = _expect_keys(
         document,
         {"arm_outcomes", "budget", "cleanup", "completed_epoch_s", "contrasts", "design",
-         "excluded_estimands", "failure", "inputs", "invariant_checks", "mode", "occasion",
-         "runs", "schedule", "schedule_algorithm", "schema_version", "seed", "status"},
+         "discarded_runs", "excluded_estimands", "failure", "inputs", "invariant_checks",
+         "mode", "occasion", "retry_policy", "runs", "schedule", "schedule_algorithm",
+         "schema_version", "seed", "status"},
         "receipt",
     )
     if root["schema_version"] != SCHEMA_VERSION or root["mode"] != expected_mode:
@@ -2761,6 +2947,9 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         "safety_factor_denominator_bytes", "safety_factor_numerator_bytes",
         "scaled_observed_max_bytes",
     }
+    expected_run_count = (
+        (7 if expected_mode == "full" else 1) * len(ARMS) * SHARD_COUNT
+    )
     for index, row in enumerate(cleanup["tmp_capacity_checks"]):
         item = _expect_keys(
             row, tmp_capacity_keys,
@@ -2770,7 +2959,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         if (
             any(type(item[field]) is not int or item[field] < 0 for field in integer_fields)
             or type(item["passed"]) is not bool
-            or item["global_run_index"] <= 0
+            or not 0 <= item["global_run_index"] < expected_run_count
             or item["observed_max_bytes"] <= 0
             or item["observed_mean_reserve_bytes"] <= 0
             or item["observed_min_bytes"] <= 0
@@ -2831,6 +3020,22 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             raise ContractError("receipt TMP peak capacity observation is invalid")
     _expect_keys(root["occasion"], {"allocation_hosts", "host_match", "hostname", "pbs_jobid"},
                  "receipt.occasion")
+    retry_policy = _expect_keys(
+        root["retry_policy"],
+        {"eligibility_rule", "limit_derivation", "per_cell_retry_limit",
+         "retries_started", "study_retry_limit"},
+        "receipt.retry_policy",
+    )
+    if (
+        retry_policy["eligibility_rule"] != RETRY_ELIGIBILITY_RULE
+        or retry_policy["limit_derivation"] != RETRY_LIMIT_DERIVATION
+        or retry_policy["per_cell_retry_limit"] != PER_CELL_RETRY_LIMIT
+        or retry_policy["study_retry_limit"]
+        != (7 if expected_mode == "full" else 1) * len(ARMS)
+        or type(retry_policy["retries_started"]) is not int
+        or not 0 <= retry_policy["retries_started"] <= retry_policy["study_retry_limit"]
+    ):
+        raise ContractError("receipt retry policy differs from the fixed budget derivation")
     invariant_keys = {
         "all_junit_valid", "all_process_groups_reaped", "all_run_fingerprints_match",
         "all_tmp_trees_removed", "budget_strict", "canonical_unchanged", "host_match",
@@ -2850,7 +3055,8 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
     if root["schedule"] != expected_schedule:
         raise ContractError("receipt schedule differs from the seeded fixed algorithm")
     run_keys = {
-        "analysis_block_index", "analysis_included", "arm", "argv", "child_returncode",
+        "analysis_block_index", "analysis_included", "arm", "argv", "attempt_number",
+        "child_returncode",
         "child_timeout_s", "elapsed_end_s", "elapsed_start_s", "env_nproc", "fingerprint_after_sha256",
         "fingerprint_before_sha256", "global_block_index", "global_run_index", "host", "isolation",
         "junit", "order_index", "phase", "process_cleanup", "session_root", "shard_index",
@@ -2858,23 +3064,48 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         "timed_out", "wall_minus_chain_s", "wall_s",
     }
     junit_keys = {
-        "error_count", "failure_count", "nodeids_sha256", "real_repo_exclusive_chain_s",
+        "error_count", "failed_nodeids", "failure_count", "nodeids_sha256",
+        "real_repo_exclusive_chain_s",
         "real_repo_test_count", "serial_work_sum_s", "skipped_count",
         "skipped_testcase_identity_set_sha256", "testcase_identity_set_sha256",
         "test_count",
     }
-    for index, run in enumerate(root["runs"]):
-        _expect_keys(run, run_keys, f"receipt.runs[{index}]")
-        _expect_keys(run["junit"], junit_keys, f"receipt.runs[{index}].junit")
+    all_recorded_runs = [
+        *(('runs', index, run) for index, run in enumerate(root["runs"])),
+        *(
+            ('discarded_runs', index, run)
+            for index, run in enumerate(root["discarded_runs"])
+        ),
+    ]
+    for collection, index, run in all_recorded_runs:
+        context = f"receipt.{collection}[{index}]"
+        _expect_keys(run, run_keys, context)
+        junit = _expect_keys(run["junit"], junit_keys, f"{context}.junit")
+        if (
+            type(run["attempt_number"]) is not int
+            or run["attempt_number"] <= 0
+            or type(run["child_returncode"]) is not int
+            or type(run["timed_out"]) is not bool
+            or type(junit["failure_count"]) is not int
+            or junit["failure_count"] < 0
+            or type(junit["error_count"]) is not int
+            or junit["error_count"] < 0
+            or not isinstance(junit["failed_nodeids"], list)
+            or any(
+                not isinstance(nodeid, str) or not nodeid
+                for nodeid in junit["failed_nodeids"]
+            )
+        ):
+            raise ContractError(f"{context} attempt/JUnit failure evidence is invalid")
         for digest_field in (
             "nodeids_sha256", "skipped_testcase_identity_set_sha256",
             "testcase_identity_set_sha256",
         ):
-            if _HASH_RE.fullmatch(str(run["junit"][digest_field])) is None:
+            if _HASH_RE.fullmatch(str(junit[digest_field])) is None:
                 raise ContractError(
-                    f"receipt.runs[{index}].junit.{digest_field} is not sha256"
+                    f"{context}.junit.{digest_field} is not sha256"
                 )
-        _validate_isolation(run["isolation"], f"receipt.runs[{index}].isolation")
+        _validate_isolation(run["isolation"], f"{context}.isolation")
         validate_process_cleanup(run["process_cleanup"])
         validate_measurement_argv(
             run["argv"],
@@ -2884,7 +3115,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             python_command="python3.10",
         )
         if run["env_nproc"] != str(run["arm"]):
-            raise ContractError(f"receipt.runs[{index}] env_nproc differs from arm")
+            raise ContractError(f"{context} env_nproc differs from arm")
         if (
             not isinstance(run["cleanup_wall_s"], (int, float))
             or not math.isfinite(float(run["cleanup_wall_s"]))
@@ -2893,7 +3124,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             or float(run["budget_wall_s"])
             != float(run["wall_s"]) + float(run["cleanup_wall_s"])
         ):
-            raise ContractError(f"receipt.runs[{index}] cleanup budget accounting is invalid")
+            raise ContractError(f"{context} cleanup budget accounting is invalid")
     outcome_keys = {
         "analysis_block_index", "arm", "outcome_wall_s", "real_repo_exclusive_chain_s",
         "serial_work_sum_s", "shard_walls_s", "wall_minus_chain_s",
@@ -2912,16 +3143,64 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             raise ContractError("completed receipt was required")
         if any(value is not True for value in invariants.values()):
             raise ContractError("completed receipt has a false invariant")
-        expected_runs = (42 if expected_mode == "full" else 6)
+        expected_runs = expected_run_count
         if len(root["runs"]) != expected_runs:
             raise ContractError("completed receipt has the wrong total run count")
+        if len(root["discarded_runs"]) > retry_policy["study_retry_limit"]:
+            raise ContractError("completed receipt exceeds the study retry limit")
+        if retry_policy["retries_started"] != len(root["discarded_runs"]):
+            raise ContractError("completed receipt retry count differs from discarded runs")
+        discarded_by_run: dict[int, list[Mapping[str, Any]]] = {}
+        for discarded in root["discarded_runs"]:
+            run_index = discarded["global_run_index"]
+            discarded_by_run.setdefault(run_index, []).append(discarded)
+        attempts_in_order: list[Mapping[str, Any]] = []
+        manifest_fields = (
+            "analysis_block_index", "analysis_included", "arm",
+            "global_block_index", "global_run_index", "order_index", "phase",
+            "session_root", "shard_index",
+        )
+        for run_index, run in enumerate(root["runs"]):
+            discarded = discarded_by_run.pop(run_index, [])
+            if len(discarded) > retry_policy["per_cell_retry_limit"]:
+                raise ContractError("completed receipt exceeds a per-cell retry limit")
+            expected_attempts = list(range(1, len(discarded) + 1))
+            if [item["attempt_number"] for item in discarded] != expected_attempts:
+                raise ContractError("discarded retry attempt sequence is incomplete")
+            if run["attempt_number"] != len(discarded) + 1:
+                raise ContractError("accepted run is not linked to every discarded attempt")
+            if (
+                run["child_returncode"] != 0
+                or run["timed_out"] is not False
+                or run["junit"]["failure_count"] != 0
+                or run["junit"]["error_count"] != 0
+                or run["junit"]["failed_nodeids"] != []
+            ):
+                raise ContractError("completed receipt contains a non-green accepted run")
+            for item in discarded:
+                if any(item[field] != run[field] for field in manifest_fields):
+                    raise ContractError("discarded run differs from its measurement cell")
+                if (
+                    item["timed_out"] is not False
+                    or item["child_returncode"] == 0
+                    or (
+                        item["junit"]["failure_count"] <= 0
+                        and item["junit"]["error_count"] <= 0
+                    )
+                    or not item["junit"]["failed_nodeids"]
+                ):
+                    raise ContractError("discarded run was not eligible for retry")
+            attempts_in_order.extend((*discarded, run))
+        if discarded_by_run:
+            raise ContractError("discarded run does not belong to the fixed manifest")
         tmp_cleanups = cleanup["tmp_tree_cleanups"]
         capacity_checks = cleanup["tmp_capacity_checks"]
         peak_capacity_observations = cleanup["tmp_peak_capacity_observations"]
+        total_attempts = len(attempts_in_order)
         if (
-            len(tmp_cleanups) != expected_runs + 1
-            or len(capacity_checks) != expected_runs - 1
-            or len(peak_capacity_observations) != expected_runs
+            len(tmp_cleanups) != total_attempts + 1
+            or len(capacity_checks) != total_attempts - 1
+            or len(peak_capacity_observations) != total_attempts
         ):
             raise ContractError("completed receipt has incomplete TMP cleanup/capacity evidence")
         if dict(tmp_cleanups[0]) != {
@@ -2933,18 +3212,18 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
             raise ContractError("completed receipt has invalid import-probe TMP cleanup evidence")
         observed_tmp_usage: list[int] = []
         observed_tmp_peaks: list[int] = []
-        for run_index, run in enumerate(root["runs"]):
-            cleanup_row = tmp_cleanups[run_index + 1]
+        for attempt_index, run in enumerate(attempts_in_order):
+            cleanup_row = tmp_cleanups[attempt_index + 1]
             expected_cleanup = {
-                "global_run_index": run_index,
+                "global_run_index": run["global_run_index"],
                 "purpose": "measurement",
                 "removed": True,
                 "usage_bytes_before_cleanup": cleanup_row["usage_bytes_before_cleanup"],
             }
             if dict(cleanup_row) != expected_cleanup:
                 raise ContractError("completed receipt TMP cleanup order differs from runs")
-            if run_index:
-                capacity_row = capacity_checks[run_index - 1]
+            if attempt_index:
+                capacity_row = capacity_checks[attempt_index - 1]
                 observed_max = max(observed_tmp_usage)
                 observed_min = min(observed_tmp_usage)
                 observed_mean = sum(observed_tmp_usage) // len(observed_tmp_usage)
@@ -2954,11 +3233,11 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
                 required = scaled_observed_max + observed_mean
                 expected_capacity = {
                     "free_bytes": capacity_row["free_bytes"],
-                    "global_run_index": run_index,
+                    "global_run_index": run["global_run_index"],
                     "observed_max_bytes": observed_max,
                     "observed_mean_reserve_bytes": observed_mean,
                     "observed_min_bytes": observed_min,
-                    "observed_run_count": run_index,
+                    "observed_run_count": attempt_index,
                     "passed": capacity_row["passed"],
                     "required_bytes": required,
                     "safety_factor_denominator_bytes": observed_min,
@@ -2973,8 +3252,8 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
                     raise ContractError(
                         "completed receipt has a failed TMP capacity observation"
                     )
-            peak_capacity_row = peak_capacity_observations[run_index]
-            if peak_capacity_row["global_run_index"] != run_index:
+            peak_capacity_row = peak_capacity_observations[attempt_index]
+            if peak_capacity_row["global_run_index"] != run["global_run_index"]:
                 raise ContractError(
                     "completed receipt TMP peak capacity order differs from runs"
                 )
@@ -2994,7 +3273,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
                 int(cleanup_row["usage_bytes_before_cleanup"])
             )
         validate_run_manifest(root["runs"], expected_blocks)
-        validate_junit_identity_sets(root["runs"])
+        validate_junit_identity_sets(attempts_in_order)
         measured = [run for run in root["runs"] if run["analysis_included"]]
         if len(measured) != (36 if expected_mode == "full" else 6):
             raise ContractError("warm-up leaked into or measurement escaped the analysis set")
@@ -3002,7 +3281,7 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         if any(
             run["fingerprint_before_sha256"] != baseline_digest
             or run["fingerprint_after_sha256"] != baseline_digest
-            for run in root["runs"]
+            for run in attempts_in_order
         ):
             raise ContractError("completed receipt contains a non-baseline run fingerprint")
         expected_outcomes, expected_contrasts = _derive_analysis(root["runs"], mode=expected_mode)
@@ -3029,7 +3308,9 @@ def validate_receipt(document: Mapping[str, Any], *, expected_mode: str,
         observed_budget_stages = tuple(
             str(check["stage"]) for check in budget["budget_checks"]
         )
-        expected_budget_stages = _expected_budget_stages(expected_blocks)
+        expected_budget_stages = _expected_budget_stages(
+            expected_blocks, root["discarded_runs"]
+        )
         if observed_budget_stages != expected_budget_stages:
             raise ContractError(
                 "completed receipt lacks an exact stage-start remaining-walltime check"

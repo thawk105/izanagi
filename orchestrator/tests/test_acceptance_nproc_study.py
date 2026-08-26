@@ -66,6 +66,14 @@ _JUNIT_SKIPPED = b"""<?xml version="1.0" encoding="utf-8"?>
   <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
 </testsuite>
 """
+_JUNIT_FAILED = b"""<?xml version="1.0" encoding="utf-8"?>
+<testsuite tests="2" failures="1" errors="0" skipped="0">
+  <testcase classname="suite.test_fast" name="test_a" time="0.5">
+    <failure message="synthetic flake" />
+  </testcase>
+  <testcase classname="suite.test_repo" name="test_b@real_repo" time="0.25" />
+</testsuite>
+"""
 _PATH_BASE_START = "# BEGIN acceptance nproc ambient PATH construction"
 _PATH_BASE_END = "# END acceptance nproc ambient PATH construction"
 _PATH_PYTHON_DIR_START = "# BEGIN acceptance nproc Python directory PATH prefix"
@@ -325,6 +333,7 @@ class FakeExecutor:
         imports_available: bool = True,
         write_junit: bool = True,
         measurement_returncode: int = 0,
+        measurement_outcomes: list[tuple[int, bytes, float, bool]] | None = None,
         honor_absorbgitdirs: bool = True,
         missing_absorbed_gitdir: str | None = None,
         clone_gitmodules_mode: int | None = None,
@@ -337,6 +346,10 @@ class FakeExecutor:
         self.imports_available = imports_available
         self.write_junit = write_junit
         self.measurement_returncode = measurement_returncode
+        self.measurement_outcomes = (
+            [] if measurement_outcomes is None else list(measurement_outcomes)
+        )
+        self.measurement_call_count = 0
         self.honor_absorbgitdirs = honor_absorbgitdirs
         self.missing_absorbed_gitdir = missing_absorbed_gitdir
         self.clone_gitmodules_mode = clone_gitmodules_mode
@@ -467,15 +480,29 @@ class FakeExecutor:
             )
             session = Path(session_token.split("=", 1)[1])
             shard = int(shard_token.split("=", 1)[1])
-            junit = self.junit_by_nproc.get(request.env["IZANAGI_TEST_NPROC"], _JUNIT)
+            outcome = (
+                self.measurement_outcomes[self.measurement_call_count]
+                if self.measurement_call_count < len(self.measurement_outcomes)
+                else None
+            )
+            self.measurement_call_count += 1
+            if outcome is None:
+                returncode = self.measurement_returncode
+                junit = self.junit_by_nproc.get(
+                    request.env["IZANAGI_TEST_NPROC"], _JUNIT
+                )
+                duration_s = 1.0 + shard / 10
+                timed_out = False
+            else:
+                returncode, junit, duration_s, timed_out = outcome
             if self.write_junit and tmp_capacity["passed"] is True:
                 (session / f"shard-{shard}" / "junit.xml").write_bytes(junit)
             return study.ExecResult(
-                returncode=self.measurement_returncode,
+                returncode=returncode,
                 stdout=b"measurement stdout",
                 stderr=b"",
-                duration_s=1.0 + shard / 10,
-                timed_out=False,
+                duration_s=duration_s,
+                timed_out=timed_out,
                 stdout_sha256=study._sha256(b"measurement stdout"),
                 stderr_sha256=study._sha256(b""),
                 isolation=_isolation(self.host),
@@ -1560,12 +1587,16 @@ def test_analysis_rejects_warmup_leaking_into_smoke_estimand() -> None:
                     "analysis_block_index": 0,
                     "analysis_included": included,
                     "arm": arm,
+                    "child_returncode": 0,
                     "junit": {
+                        "error_count": 0,
+                        "failure_count": 0,
                         "real_repo_exclusive_chain_s": 0.2,
                         "serial_work_sum_s": 1.0,
                     },
                     "phase": phase,
                     "shard_index": shard,
+                    "timed_out": False,
                     "wall_s": 2.0,
                 })
     outcomes, contrasts = study._derive_analysis(runs, mode="smoke")
@@ -1686,11 +1717,11 @@ def test_receipt_pins_three_known_nonequivalences_and_estimand_scope(
         )
 
 
-def test_v2_receipt_rejects_v1_schema_identifier(tmp_path: Path) -> None:
+def test_v3_receipt_rejects_v2_schema_identifier(tmp_path: Path) -> None:
     valid = _failed_schema_fixture(tmp_path)
-    assert valid["schema_version"] == "izanagi-acceptance-nproc-study/v2"
+    assert valid["schema_version"] == "izanagi-acceptance-nproc-study/v3"
     changed = copy.deepcopy(valid)
-    changed["schema_version"] = "izanagi-acceptance-nproc-study/v1"
+    changed["schema_version"] = "izanagi-acceptance-nproc-study/v2"
     with pytest.raises(study.ContractError, match="schema or mode mismatch"):
         study.validate_receipt(changed, expected_mode="smoke", require_complete=False)
 
@@ -1909,6 +1940,229 @@ def test_fake_executor_is_the_only_process_surface_and_smoke_receipt_is_complete
         study.validate_receipt(
             failed_capacity, expected_mode="smoke", require_complete=True
         )
+
+
+def _run_retry_smoke(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcomes: list[tuple[int, bytes, float, bool]],
+) -> tuple[study.StudyConfig, FakeExecutor, int, dict[str, object]]:
+    _poison_process_creation(monkeypatch)
+    monkeypatch.setattr(study, "_tmp_free_bytes", lambda _path: 1 << 50)
+    config = _config(tmp_path)
+    host = "bnode-retry"
+    monkeypatch.setattr(study.socket, "gethostname", lambda: host)
+    nodefile = tmp_path / "pbs-nodefile"
+    nodefile.write_text(host + "\n", encoding="utf-8")
+    monkeypatch.setenv("PBS_JOBID", "0:retry.nqsv")
+    monkeypatch.setenv("PBS_NODEFILE", str(nodefile))
+    executor = FakeExecutor(
+        tmp_path, host, measurement_outcomes=outcomes,
+    )
+    rc, receipt = study.run_study(config, executor)
+    return config, executor, rc, receipt
+
+
+def test_red_run_is_retried_once_and_only_green_wall_enters_analysis(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+
+    assert rc == 0
+    assert receipt["status"] == "complete"
+    assert executor.measurement_call_count == 7
+    assert receipt["retry_policy"]["retries_started"] == 1
+    assert receipt["retry_policy"]["per_cell_retry_limit"] == study.SHARD_COUNT
+    assert receipt["retry_policy"]["study_retry_limit"] == len(study.ARMS)
+    assert len(receipt["discarded_runs"]) == 1
+    discarded = receipt["discarded_runs"][0]
+    accepted = receipt["runs"][0]
+    assert {
+        "global_block_index": discarded["global_block_index"],
+        "arm": discarded["arm"],
+        "shard_index": discarded["shard_index"],
+        "attempt_number": discarded["attempt_number"],
+        "child_returncode": discarded["child_returncode"],
+        "failure_count": discarded["junit"]["failure_count"],
+        "error_count": discarded["junit"]["error_count"],
+        "failed_nodeids": discarded["junit"]["failed_nodeids"],
+    } == {
+        "global_block_index": 0,
+        "arm": accepted["arm"],
+        "shard_index": 0,
+        "attempt_number": 1,
+        "child_returncode": 1,
+        "failure_count": 1,
+        "error_count": 0,
+        "failed_nodeids": ["suite.test_fast::test_a"],
+    }
+    assert accepted["attempt_number"] == 2
+    assert accepted["wall_s"] == 2.0
+    arm_outcome = next(
+        row for row in receipt["arm_outcomes"]
+        if row["analysis_block_index"] == 0 and row["arm"] == accepted["arm"]
+    )
+    assert arm_outcome["shard_walls_s"] == [2.0, 1.1]
+    assert discarded["wall_s"] == 9.0
+    assert discarded["wall_s"] not in arm_outcome["shard_walls_s"]
+    assert receipt["cleanup"]["tmp_capacity_checks"][0][
+        "global_run_index"
+    ] == 0
+    study.validate_receipt(receipt, expected_mode=config.mode, require_complete=True)
+
+
+def test_complete_receipt_rejects_out_of_range_tmp_capacity_run_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    for invalid_index in (-1, len(receipt["runs"])):
+        changed = copy.deepcopy(receipt)
+        changed["cleanup"]["tmp_capacity_checks"][0][
+            "global_run_index"
+        ] = invalid_index
+        with pytest.raises(study.ContractError, match="TMP capacity observation"):
+            study.validate_receipt(
+                changed, expected_mode=config.mode, require_complete=True
+            )
+
+
+def test_analysis_rejects_a_discarded_red_run_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    assert receipt["discarded_runs"]
+    mixed = copy.deepcopy(receipt["runs"])
+    red = receipt["discarded_runs"][0]
+    mixed[0]["wall_s"] = red["wall_s"]
+    mixed[0]["child_returncode"] = red["child_returncode"]
+    mixed[0]["junit"] = copy.deepcopy(red["junit"])
+    with pytest.raises(study.ContractError, match="non-green run"):
+        study._derive_analysis(mixed, mode="smoke")
+
+
+def test_complete_receipt_rejects_an_unrecorded_discarded_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    missing = copy.deepcopy(receipt)
+    missing["discarded_runs"] = []
+    missing["retry_policy"]["retries_started"] = 0
+    with pytest.raises(study.ContractError, match="not linked"):
+        study.validate_receipt(
+            missing, expected_mode="smoke", require_complete=True
+        )
+
+
+def test_discarded_retry_must_keep_test_and_skip_identity_sets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, _executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False), (0, _JUNIT, 2.0, False)],
+    )
+    assert rc == 0
+    changed = copy.deepcopy(receipt)
+    changed["discarded_runs"][0]["junit"][
+        "skipped_testcase_identity_set_sha256"
+    ] = study._sha256(b"different-retry-skip-set")
+    with pytest.raises(study.ContractError, match="skipped testcase identity set"):
+        study.validate_receipt(
+            changed, expected_mode="smoke", require_complete=True
+        )
+
+
+def test_per_cell_retry_limit_stops_before_an_unbounded_attempt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    red_attempts = study.PER_CELL_RETRY_LIMIT + 1
+    assert red_attempts > 1
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 1.0, False)] * red_attempts,
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == red_attempts
+    assert len(receipt["discarded_runs"]) == red_attempts
+    assert receipt["retry_policy"]["retries_started"] == red_attempts - 1
+    assert receipt["failure"]["message"].endswith("exceeded per-cell retry limit")
+
+
+def test_study_retry_limit_stops_across_distinct_cells(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    study_limit = len(study.ARMS)
+    assert study_limit > study.PER_CELL_RETRY_LIMIT
+    outcomes: list[tuple[int, bytes, float, bool]] = []
+    for _index in range(study_limit):
+        outcomes.extend(((1, _JUNIT_FAILED, 1.0, False), (0, _JUNIT, 1.0, False)))
+    outcomes.append((1, _JUNIT_FAILED, 1.0, False))
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path, monkeypatch, outcomes,
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == 2 * study_limit + 1
+    assert receipt["retry_policy"]["retries_started"] == study_limit
+    assert len(receipt["discarded_runs"]) == study_limit + 1
+    assert receipt["failure"]["message"] == "study exceeded total retry limit"
+
+
+def test_timed_out_red_run_is_never_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 1.0, True)],
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == 1
+    assert receipt["retry_policy"]["retries_started"] == 0
+    assert receipt["discarded_runs"] == []
+    assert receipt["runs"]
+    assert receipt["runs"][0]["timed_out"] is True
+    assert receipt["failure"]["message"].endswith("rc=1 timeout=True")
+
+
+def test_retry_does_not_start_when_observed_arm_budget_does_not_fit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    allocations = iter((10.0, 5.0))
+    monkeypatch.setattr(
+        study, "allocate_shard_timeout", lambda **_kwargs: next(allocations)
+    )
+    _config_value, executor, rc, receipt = _run_retry_smoke(
+        tmp_path,
+        monkeypatch,
+        [(1, _JUNIT_FAILED, 9.0, False)],
+    )
+    assert rc == 1
+    assert executor.measurement_call_count == 1
+    assert receipt["retry_policy"]["retries_started"] == 0
+    assert len(receipt["discarded_runs"]) == 1
+    assert receipt["failure"]["message"].startswith(
+        "insufficient arm budget for retry"
+    )
 
 
 def test_tmp_capacity_gate_rejects_before_next_run_and_keeps_first_cleanup(
