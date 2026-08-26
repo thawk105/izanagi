@@ -1,0 +1,103 @@
+{
+  "runs": 1,
+  "certified_serializable": 0,
+  "non_serializable": 1,
+  "indeterminate": 0,
+  "results": [
+    {
+      "trace_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-g2-repro-20260826/output/env/pegasus/mocc-trace/job-staging/0:950401.nqsv/run/trace",
+      "verdict": "non-serializable",
+      "certified": false,
+      "serializable": false,
+      "stats": {
+        "txns": 745328,
+        "reads": 3606014,
+        "writes": 3661758,
+        "keys": 10000,
+        "edges": 10510748,
+        "abort_reasons": {}
+      },
+      "integrity": {
+        "clean": true,
+        "orphan_reads": 0,
+        "version_dups": 0,
+        "dup_txids": 0,
+        "genesis_commits": 0,
+        "missing_txids": 0,
+        "write_version_mismatch": 0,
+        "malformed_keys": 0,
+        "framing_violations": 0,
+        "framing_violation_details": [],
+        "lock_coverage_violations": 0,
+        "write_intent_violations": 0,
+        "permutation_violations": 0,
+        "permutation_violation_details": {
+          "counts": {
+            "size-changed": 0,
+            "rcdptr-set-changed": 0,
+            "unknown": 0
+          },
+          "sample": [],
+          "unknown_reason_sample": []
+        },
+        "notes": []
+      },
+      "anomaly_count": 1,
+      "total_cycles": 1,
+      "anomalies": [
+        {
+          "phenomenon": "G2",
+          "length": 2,
+          "cycle": [
+            691105,
+            691107
+          ],
+          "edges": [
+            {
+              "from": 691105,
+              "to": 691107,
+              "types": [
+                "rw"
+              ],
+              "reasons": [
+                {
+                  "type": "rw",
+                  "key": "0000000000000002",
+                  "u_ver": [
+                    69,
+                    4355
+                  ],
+                  "v_ver": [
+                    69,
+                    4359
+                  ]
+                }
+              ]
+            },
+            {
+              "from": 691107,
+              "to": 691105,
+              "types": [
+                "rw"
+              ],
+              "reasons": [
+                {
+                  "type": "rw",
+                  "key": "000000000000000b",
+                  "u_ver": [
+                    69,
+                    4355
+                  ],
+                  "v_ver": [
+                    69,
+                    4358
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
