@@ -1,0 +1,8 @@
+{
+  "message": "TRACE=1 verifier did not certify the captured trace",
+  "pbs_jobid": "0:950438.nqsv",
+  "rc": 1,
+  "recorded_epoch": 1787747267,
+  "schema_version": "mocc-trace-pilot-failure/v1",
+  "stage": "verifier"
+}
