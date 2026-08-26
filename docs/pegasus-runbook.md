@@ -166,6 +166,30 @@ qstat -f <JOBID>
 qdel <JOBID>
 ```
 
+#### `qstat` の読み方で踏みやすい罠 (2026-08-26 実測、[T-1852])
+
+- **`qstat` は存在しない request に対しても終了コード 0 を返す。** `-f` / `-J -f` / `-T` の
+  いずれも rc=0 で、本文だけが `does not exist` と述べる。
+  **存在判定を rc で書くと常に「在る」になる。** 本文で判定する。
+- **投入直後、job record が作られる前の窓では `qstat -J -f` が `does not exist` を返す。**
+  同じ時刻に `qstat -f` は request を `Current State = Queued` で返している。
+  「まだ始まっていない」と「もう消えた」を `-J -f` だけでは区別できない。
+  request 単位の `qstat -f` を併せて見る。
+- **終了した request は約 5〜6 秒で `qstat` から消える。** 終了 status
+  (`Exit Code`) と `State Transition Reason` が見えるのはこの窓の中だけで、
+  終了後に取りに行く履歴照会 command はこの scheduler に無い。
+  終端の記録が要る処理は、job の終了時刻に張り付いて観測する。
+- **`Exit Code` は事由ではなく `wait(2)` status の 16 進表記である。**
+  実行時間超過も実行中の `qdel` も同じ `9` を返す。値・意味の対応表と未観測の範囲は
+  `output/insights/2026-08-26_t1852-nqsv-exit-code-mapping/RESULT.md`。
+- 警告値付きの経過時間制限は**引用符を qsub の argv まで届ける**必要がある。shell から呼ぶなら
+  `-l 'elapstim_req="HH:MM:SS,HH:MM:SS"'` と外側を single quote で括る
+  (`-l elapstim_req="..."` は shell が引用符を外すため `Invalid syntax following -l flag.`
+  で rc=1 になり投入されない)。job script の directive に書くなら
+  `#PBS -l elapstim_req="HH:MM:SS,HH:MM:SS"`。
+  失敗と成功の逐語は上記 insight の
+  `evidence/qstat-qsub-behaviour-verbatim.md`。
+
 ## 4. モジュールとビルド
 
 利用可能なソフトウェアとバージョンは実行時に確認する。
