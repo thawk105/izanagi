@@ -91,6 +91,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Read-only Git HEAD/status probes bind the delegated CCBench source tree;
     # measurement itself remains owned by run_campaign().
     ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 2,
+    # Fixed Git executable and fixed allow-list environment run read-only
+    # repository-binding queries; argv never names or executes CCBench.
+    ("campaign/p3_b4_admission_record.py", "<module>._git_call"): 1,
     ("campaign/queue_state.py", "<module>._run_qstat_bounded"): 1,
     ("campaign/reflux_origin_ledger.py", "<module>._git"): 1,
     ("campaign/reflux_source_closure.py", "<module>._git"): 1,

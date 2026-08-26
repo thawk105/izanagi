@@ -1,0 +1,27 @@
+{
+ "estimated_run_seconds": 60,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "        return self.__production_certification\n",
+     "old": "        if (\n            self.__certification_seal is not _PRODUCTION_PAIR_SEAL\n            or self.__production_certification is None\n        ):\n            raise B4ReceiptError(\n                \"certified pair requires a live production factory pair\"\n            )\n        return self.__production_certification\n"
+    },
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+     "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 2400
+}
