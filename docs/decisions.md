@@ -34868,3 +34868,255 @@ lifecycle) は、共有 8b ratified freeze が active になるまで着手し�
 **却下した選択肢:**
 - **導出可否の二分を維持し、註記で例外を書く** — 例外註記は読み飛ばされる。
   分類そのものを拘束層へ変えないと同じ誤りが再発する。
+
+## D994. 批准台帳の全史規則を DAG の追記として定義し、保証の文言を狭める (2026-08-26)
+
+**決定:** 批准台帳の履歴検査は、`git log --full-history <path>` が列挙する版を線形に並べて
+前置拡張を求める形をやめ、HEAD の到達可能 commit を自前で列挙して DAG の遷移として検査する。
+各 commit について、台帳 entry を持つ実親の行集合の和が子の行集合の部分集合であること、
+子の行集合から親の和を引いた大きさが 1 以下であること、実親がちょうど 1 つのときは
+親の行列が子の行列の部分列であることを要求する。実親が 2 つ以上のときは順序を課さない。
+台帳を持つ実親を 1 つも持たない導入 commit は、到達可能 DAG 全体でちょうど 1 件に限る。
+
+この機構が主張してよいのは
+**「台帳は全史にわたり、どの commit でも既存行を落とさず、1 commit あたり高々 1 digest しか
+増えない形で成長した」**までである。「人間が批准した」とは主張しない。D526 が既に
+「人間が批准したことの機械的証明と記述してはならない」と定めた線を、DAG へ拡張しても保つ。
+
+**理由:**
+- 旧規則は merge commit を台帳の改版と数えるため、台帳が byte 不変でも main が進むたびに
+  版数が増え、2 件目で必ず落ちた。実測では現行 main で版が 17、うち 16 が merge であり、
+  そのすべてが「片方の親が台帳を持たない」ために列挙されていた。検査は台帳の中身と無関係に
+  常に赤で、批准行を足しても gate は開かない。
+- 分岐した 2 branch がそれぞれ 1 行足して合流する形は、最終 bytes が正しくても
+  受理集合の読み込み自体が例外になった。合成履歴で再現済みである。
+- 合流で全親の行順を同時に保存させると、`[a,b]` と `[b,a]` のように解の存在しない組合せが
+  作れる。順序は受理集合の値に入らないため、合流では集合の一致だけを求める。
+- 末尾追記だけを許すと、cherry-pick や rebase で行が中間へ入った正しい履歴を拒否する。
+  部分列に緩めても、置換・欠落・並べ替え・複数行追加はすべて拒否のまま残る。
+- 導入 commit を一意にしないと、同じ台帳なし祖先から 2 つの独立導入を作って合流させ、
+  片方に未批准 digest を載せられる。旧規則はこの形を拒否していたので、
+  一意性を課さない DAG 規則は検出力の後退になる。実測で確認した。
+
+**却下した選択肢:**
+- **`--full-history` の列挙に規則の健全性を預ける** — 「台帳 blob がどれかの親と異なる commit を
+  過不足なく列挙する」ことは 1 repo 1 HEAD で実測したが、git の一般保証としては未確認である。
+  さらに blob 同一で tree mode だけ変える commit が列挙される事実があり、
+  述語を blob 差と同一視する一般化は既に破れている。到達可能 DAG を自前で列挙すれば
+  この依存は消え、実測では所要も呼出し回数も増えない。
+- **commit 間で tree mode の一致を求める** — 批准の値は digest の集合であって tree mode ではない。
+  守る値に対応しない拒否を足すことになる。entry が regular file の blob であることだけを求める。
+- **合流での行追加を禁じる** — 人間が合流の解決中に批准する形を機械的に拒む理由が無く、
+  1 commit あたり高々 1 digest という不変条件は親数によらず同じ強さである。
+
+## D995. 履歴検査は shallow と実効 graft を拒否し、replace ref の存在では拒否しない (2026-08-26)
+
+**決定:** 批准台帳の履歴検査は、開始時に次を要求する。
+
+- `rev-parse --is-shallow-repository` が exact に `false` であること。そうでなければ拒否する。
+- `info/grafts` が存在する場合、空行と `#` で始まる行以外を 1 行も含まないこと。
+- `refs/replace` の ref が存在すること自体は拒否しない。
+- 台帳の tree entry は regular file の blob (`100644` または `100755`) であること。
+  symlink と gitlink は拒否する。
+
+**理由:**
+- shallow clone では置換された履歴を観測できず、検査が恒真の側へ倒れる。
+  「批准済み」という主張が証拠なしに立つ経路を残さない。同型の拒否は既に
+  `s8b_ratified_freeze.py` と `trial_registry.py` にあり、家法に沿う。
+- graft は実親を書き換えるため、DAG 走査そのものを偽装できる。一方、空の graft file や
+  コメントだけの graft file は何も書き換えない。存在だけで拒否すると偽赤になる。
+- replace object は検査が使う git 呼出しで既に無効化されている
+  (`--no-replace-objects`、`core.useReplaceRefs=false`、`GIT_NO_REPLACE_OBJECTS`)。
+  ref の存在を追加で拒否しても検出力は増えず、到達不能 commit の救出などの正当な用途を壊す。
+- symlink の object type は blob であるため、type の検査だけでは symlink を弾けない。
+  mode の allowlist が実質的な type 検査になる。git が通常経路で
+  `100644` / `100755` 以外の regular file mode を書くことはない。
+
+**却下した選択肢:**
+- **shallow を受理して警告に留める** — 恒真ゲートを残すのと同じである。
+- **graft file の存在だけで拒否する** — 偽赤を作る。実効行の有無で判定する。
+- **replace ref の存在で拒否する** — 既に無効化済みの経路に対する重複であり、
+  正当な運用を壊す側にだけ効く。
+
+## D996. JSONL の行境界を LF だけに限る (2026-08-26)
+
+**決定:** codex 子の JSONL を読む経路では、行境界を LF だけとする。JSON 文字列の中で
+escape 不要な文字を行境界として扱わない。`orchestrator/codex_roles/events.py` の
+`parse_jsonl` と `tools/codex_worker_launch.py` の 5 箇所、計 6 式を
+`splitlines()` から `split("\n")` / `split(b"\n")` へ置き換えた。D971 の実装であり、
+本エントリはその実装が受理集合に与えた変化を実測で確定させたものである。
+
+**受理集合の変化 (実測、変更前後で下流 gate は同一):**
+
+- **新規受理は 3 文字だけ。** JSON 文字列の値に U+0085 (NEL) / U+2028 (LINE SEPARATOR) /
+  U+2029 (PARAGRAPH SEPARATOR) を含む event が受理されるようになった。この 3 文字は
+  JSON 文字列の中で escape 不要な正当な文字であり、`str.splitlines()` だけが
+  行境界と誤認していた。受理されるのは元から正当な JSON であって、正しさゲートは緩んでいない。
+  D971 が名指しした 2 文字に U+0085 が加わるが、同一の欠陥クラスである。
+- **U+000B / U+000C / U+001C / U+001D / U+001E は変更前後とも拒否**で差が無い。
+  JSON がこれらの未 escape を禁じるため、行を分けても分けなくても拒否される。
+- **新規拒否は、上記 8 文字を区切りに使った非 LF 区切り入力**である。これは D971 が
+  名指しした U+2028 / U+2029 の修理についても等しく起きるため、追認された修理に内在する
+  性質であり、追加の逸脱ではない。JSONL は LF 区切りが定義であり、非 LF 区切りは正常入力ではない。
+- **bytes 経路では、非空の CR / CRLF 終端 event が拒否されるようになった。**
+  `bytes.splitlines()` は CR を捨てていたが、`split(b"\n")` は CR を行に残すため、
+  既存の CR 拒否が発火する。この系は元から CR を不正と宣言しており、縮むのは
+  **宣言済みの不正入力に対する過受理**である。なお CR だけの空行は分割直後の空行 skip に
+  捨てられるため、この変更の前後で挙動が同一である。
+
+**理由:**
+
+- 実害が独立に 2 件記録されている (F540 と F609)。完成した成果物 6 本と約 2 時間を失った
+  事例では、子が該当文字を含む file を読むだけで全 attempt が構造的に失われていた。
+- 変更は行分割 1 手法の置換であり、正常な LF 区切り JSONL への挙動は不変である。
+- 既存の封印済み codex event artifact 3,678 件を走査し、CR を含む file は 0 件だった。
+  CR / CRLF の拒否強化が既存の受領証を壊す経路は実在しない。
+
+**却下した選択肢:**
+
+- **U+2028 / U+2029 を含む行を弾く拒否分岐を足す** — 正当な入力を壊す側に倒れる
+  (D971 が却下済み)。
+- **JSON 文字列の quote / escape 状態を追う splitter を新設し、旧来の境界を保つ** —
+  実測すると「文字列の外に現れた区切り文字」の入力は変更前後とも拒否されるため、
+  直す対象が実在しない。手書きの JSON scanner は `strict_json_loads` と二重の解釈を持ち、
+  新しい欠陥面を作る。
+- **分割後に末尾 CR を落として CR / CRLF 耐性を保つ** — この系が CR を不正と宣言している
+  規律に反する黙示修復を新設し直すことになり、`bytes.splitlines()` と機能的にほぼ等価になる。
+
+## D997. 床値 oracle の依存材料は規則で導出した canonical root へ射影し、build 境界は二根で照合する (2026-08-26)
+
+**決定:** 床値の `sort_best` cell について、oracle が判定する依存 root を、実 source root から
+規則で導出した canonical root にする。宣言集合は **VCS の tracked 一覧と `config.h` と生成した
+`PIN` の和**とし、test fixture を production から参照しない。`PIN` は検証済み HEAD と改行から
+生成し、実 source にある `PIN` は読まない。pin 比較は既存の
+`sort_swo_oracle._prepare_verified_dependency` を再利用し、第二の pin 実装を作らない。
+
+build 境界は canonical root への単純な付け替えにせず、**二根検査**にする。
+
+- canonical root には既存の exact verifier (`_verify_dependency_root`) を掛ける。
+- 実 source root には canonical との等価検査を掛ける。tracked 集合、宣言 path の bytes、HEAD、
+  `config.h` を対象とし、各 file を読取時 identity 付きで読んだうえで、**全 file を読み終えた後に
+  それらが一つの安定状態だったことを一括再検査する。**
+- archive は宣言集合に含めず、従来どおり独立 hash で照合する。
+
+受理集合は二段に分けて述べる。**oracle 単体の root 述語の受理集合は不変である。**
+一方「実 source root から floor が PASS する」という合成述語の受理集合は空集合から非空へ拡大する。
+拡大は等価射影に限る。
+
+**本決定が束縛しないもの**を明記する。archive (`libkohler_masstree_json.a`) の**生成権威は
+束縛しない**。archive は生成後に観測した hash を権威として運ぶだけで、それを作った tool の
+identity は検査していない。宣言外の生成物 (`configure`、`config.h.in`、`GNUmakefile`、object file)
+も検査していない。したがって**因果鎖を閉じたとは主張しない**。
+
+**理由:**
+
+- **実 source root は oracle の受理形になり得ない。** floor の preflight は依存 root が VCS の
+  top-level であることを要求するので、root には必ず VCS metadata が入る。oracle は root 直下再帰の
+  全 regular file 集合が宣言集合と exact 一致することを要求する。実測では実 root 196 file に対し
+  宣言は 101 で、差の 95 件は VCS metadata と prebuild 生成物だった。実 root に manifest を置く案は
+  成功する入力を持たない。
+- **規則導出なら pin を緩めずに到達できる。** 実測では、宣言 101 path のうち実 root に無いのは
+  `PIN` だけで、残り 100 path は `config.h` を含めすべて bytes 一致した。規則で組み立てた manifest は
+  凍結 fixture のそれと byte-identical になり pin と一致する。独立な 2 つの実 root で確認した。
+  `config.h` は configure 生成物だが、同じ recipe を別 base で走らせても bytes が一致した。
+- **canonical だけを見る build 境界は D953 を壊す。** 実 source の非 `config.h` tracked file が
+  変わっても通ってしまう。実 source だけを見る形は成功集合が空のままである。二根で見て初めて
+  「oracle が受理した材料と build が読む材料が同じ」が成立する。
+- **pin 一致は宣言 bytes の同一性しか証明しない。** 宣言外の file が root に無いことは
+  canonical root の作り方が保証するのであって pin が保証するのではない。両者を混同しない。
+- **合成 root では pin 一致に到達できない。** 生成する `PIN` の中身は実 HEAD であり、合成 checkout の
+  HEAD が pin 済み commit になることはない。したがって合成材料での試験は「pin 不一致で
+  fail-closed する」ことの確認に限り、pin 一致から先は実 checkout を要する明示 opt-in が担う。
+  この非対称は隠さず試験設計へ書く。
+
+**却下した選択肢:**
+
+- **宣言側を実在へ合わせて pin を広げる** — VCS metadata の可変内容を宣言に含めることになり
+  安定しない。受理集合を広げるので規律 2 に反する。
+- **build 境界の検査対象を canonical root へ単純に付け替える** — oracle と build が別材料でも
+  通る。D953 が閉じた穴を開け直す。
+- **test fixture の宣言リストを production が読む** — production が test 資材へ依存する。
+  規則で導出すれば、規則の誤りは pin 不一致として fail-closed する。
+- **pin 比較を新 module で再実装する** — 同じ規則を 2 箇所で実装すると両方を通る入力が
+  空になりうる (F625 の型)。既存関数を再利用すれば構造的に避けられる。
+- **prebuild が使う tool の identity をこの決定で束縛する** — 実行権威の変更であり、
+  D425 が別審査とした型に属する。CCBench の改変も伴う。代わりに保証水準の限定を明記した。
+- **合成材料で pin 一致まで通す試験を作る** — 原理的に不可能である。迂回するには pin か
+  VCS probe を置換することになり、どちらも受理集合か検査そのものを壊す。
+
+## D998. B-4 実走前に commit された admission record を controller の必須入力にする (2026-08-26)
+
+**決定:** 閉じた critic invocation の production factory
+`orchestrator/campaign/p3_b4_closed_critic.create_b4_closed_critic_pair` に、既定値なしの
+必須 keyword `admission_record_path` を置く。record は canonical JSON schema
+`p3-b4-prerun-admission/v1` とし、事前登録文書の (repository path, blob sha256, content commit) と、
+`expected_claude_model_snapshot` / `expected_effective_critic_prompt_sha256` /
+`expected_closed_critic_projection_closure_sha256` の 3 期待値を持つ。
+検証は executable 探索・artifact 作成・provider 作成より**前**に行い、
+projection は pair 作成時、prompt は provider 作成直後 (role query 前)、
+model は envelope 検証直後 (decision parse 前) に照合して、不一致は例外で停止する。
+警告・環境変数・CLI flag の逃がし道を作らない。
+
+**理由:**
+- 事前登録 §6 の前提条件 1 は「§5 の全欄が記入済みで、その版が commit されている」ことを
+  実走の前提にする。3 期待値は controller が**実走後に** receipt へ書くだけだったため、
+  走らせてから出てきた値を §5 へ書き写せた。§1 が自ら書いた ancestry の穴がそのまま残る。
+- 既定値を持たせると既存の呼び手が黙って record 無しで通り、gate が恒真になる。
+  受理集合が 1 件も変わらないなら実装した意味がない。
+- 3 期待値のうち projection と prompt は repository の bytes だけから実走前に確定する。
+  model は `modelUsage` からしか観測できないので、record は**期待値の宣言**を持ち、
+  controller が実測と照合する。「予測」ではなく「事前宣言 + 実行時照合」がこの欄の意味である。
+
+**却下した選択肢:**
+- receipt schema を `/v3` へ上げて admission field を持たせる — `/v2` は既に 3 実測値と
+  `evidence_class` を持っており、昇格は gate を 1 bit も強くしない。併走 wave が同じ
+  dataclass と reader を編集面に持つため、合流の被害だけが増える。
+- record を `projection_closure_manifest()` の entry に加える — 同 manifest は controller 自身の
+  bytes を含むため、record を入れると「自分の hash を自分が宣言する」自己参照になり充足不能になる。
+  代わりに**検証器の Python bytes だけ**を閉包へ入れた。検証器の後付け改変は projection 不一致で落ちる。
+
+## D999. 発効版 commit hash の記録は receipt でなく独立 sidecar で満たす (2026-08-26)
+
+**決定:** provider query より前に、artifact root へ排他生成 (`O_EXCL`) する canonical JSON の
+sidecar `p3-b4-prerun-admission-sidecar/v1` を書く。record の path と sha256、検証時 HEAD commit、
+事前登録文書の path / content commit / content sha256、3 期待値を持たせ、CLI が sidecar の
+path と hash を出す。certified pair の関門は、fresh な record から canonical bytes を再構築して
+sidecar の bytes と hash の双方を照合する。success receipt の `schema_version` と field は変えない。
+
+**理由:**
+- 事前登録 §1 は逐語で「実走成果物にその発効版の commit hash を記録する。記録がない実走は
+  事前登録された実験として扱わない」と要求する。receipt を変えない裁定と組み合わせると、
+  gate は通るのに監査の跡が残らない状態になる。sidecar はその穴を receipt の形式を触らずに埋める。
+- 後段の consumer は receipt と sidecar の組を必須入力にできる。receipt 単独を台帳へ載せて
+  「事前登録済み」と分類する経路は誤受理になるため、sidecar hash の照合を必須にする。
+
+**却下した選択肢:**
+- receipt dataclass への field 追加 — 上の D998 と同じ理由で却下。
+- sidecar を projection 閉包へ入れる — record と同じく自己参照になる。
+
+## D1000. §5 の機械検査は構文的非空と期待値行の grammar に限り、名前で主張を越えない (2026-08-26)
+
+**決定:** 事前登録 §5 の機械検査は次に限る。(a) 固定表の 10 label が重複なく揃い、
+各値 cell が空でなく登録済み sentinel と一致しないこと、(b) model / prompt / projection の
+1 行だけを exact grammar で読み、record の 3 期待値と一致すること。
+**残り 9 欄の型・意味・artifact 実在・render 後の非空は検査しない。**
+関数名・例外文言・docstring・テスト名は、この範囲を越える語を使わない
+(`assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel`、
+`[admission-preregistration] section 5 source cell contract failed`)。
+証明範囲は repository-local な順序に限り、証明できないことを module docstring に逐語で列挙する。
+
+**理由:**
+- 絶対規律 2 は「正しさゲートを緩める変異を許さない」であり、検査していないものを
+  検査したと読める名前は、後段の実装者に「10 欄すべてが照合された」と信じさせる。
+  これは gate を緩めるのと同じ効果を持つ。
+- 10 欄すべてに型検査を入れると、欄の書式を今まさに決めている併走 wave の記入を壊す。
+  型が先に固定されると、文書側が型に合わせる義務を負い、事前登録の内容を実装が支配する。
+- 証明できないこと (別経路で先に結果を知ってから record を commit する攻撃、
+  Git timestamp による絶対時系列、model 不一致が critic query の後にしか検出できないこと) は、
+  外部の append-only ledger か署名済み token が無い限り repository 内では閉じない。
+  閉じないものを閉じたと書かないことが、この決定の中心である。
+
+**却下した選択肢:**
+- 10 欄の型検査を今 wave で入れる — 併走 wave の記入を壊す。文書の書式が確定した後の別 wave。
+- 名前を変えず検査だけ足す — 名前が主張を越えたまま残る。
+- 「§6 前提条件 1 を充足した」と読める名前 — 充足していない前提を緑に見せる。規律 2 違反。

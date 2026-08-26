@@ -1,0 +1,238 @@
+{
+ "estimated_run_seconds": 60,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "    if False:\n        raise _RecordSchemaFailure(\"record bytes are not canonical\")\n",
+     "old": "    if raw != canonical or type(value) is not dict:\n        raise _RecordSchemaFailure(\"record bytes are not canonical\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "    if False:\n        raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n",
+     "old": "    if committed_record_bytes != record_bytes:\n        raise B4AdmissionRecordError(_RECORD_NOT_AT_HEAD)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "        pass\n",
+     "old": "        _git_call(\n            root,\n            \"merge-base\",\n            \"--is-ancestor\",\n            declared.preregistration_content_commit,\n            head,\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "        if False:\n            raise _GitVerificationFailure(\"declared document hash differs\")\n",
+     "old": "        if _sha256(document_blob) != declared.preregistration_content_sha256:\n            raise _GitVerificationFailure(\"declared document hash differs\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "        if False:\n            raise _GitVerificationFailure(\"HEAD document differs from declared blob\")\n",
+     "old": "        if head_document_blob != document_blob:\n            raise _GitVerificationFailure(\"HEAD document differs from declared blob\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character",
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "        if False:\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n",
+     "old": "        if (\n            not value\n            or _RESERVED_SENTINEL_RE.search(value) is not None\n            or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES\n        ):\n            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cells_exclude_only_registered_sentinels_and_bind_three_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "",
+     "old": "    assert_admission_expectation(\n        \"expected_effective_critic_prompt_sha256\",\n        expected=expected_effective_critic_prompt_sha256,\n        actual=match.group(\"prompt\"),\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        pass\n",
+     "old": "    if verified_admission is not None:\n        assert_admission_expectation(\n            \"expected_closed_critic_projection_closure_sha256\",\n            expected=(\n                verified_admission\n                .expected_closed_critic_projection_closure_sha256\n            ),\n            actual=closure_sha256,\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_rejects_projection_and_prompt_before_query"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "            if False:\n                pass\n",
+     "old": "            if self.__verified_admission is not None:\n                assert_admission_expectation(\n                    \"expected_effective_critic_prompt_sha256\",\n                    expected=(\n                        self.__verified_admission\n                        .expected_effective_critic_prompt_sha256\n                    ),\n                    actual=self.__provider.effective_prompt_sha256,\n                )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_admission_model_mismatch_queries_once_and_writes_failure_terminal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "            if False:\n                pass\n",
+     "old": "            if self.__verified_admission is not None:\n                assert_admission_expectation(\n                    \"expected_claude_model_snapshot\",\n                    expected=(\n                        self.__verified_admission.expected_claude_model_snapshot\n                    ),\n                    actual=response.provenance[\"model\"],\n                )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M11",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+     "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_admission_keyword_and_binding_failures_precede_executable_artifact_provider",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    admission_record_path: Path | None = None,\n    repository_root: Path | None = None,\n",
+     "old": "    admission_record_path: Path,\n    repository_root: Path | None = None,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_admission_record.py",
+     "new": "def _git_environment() -> dict[str, str]:\n    env = {\n        key: value\n        for key, value in os.environ.items()\n        if not key.startswith(\"GIT_\")\n    }\n    env[\"GIT_NO_REPLACE_OBJECTS\"] = \"1\"\n    return env\n",
+     "old": "def _git_environment() -> dict[str, str]:\n    return {\n        \"GIT_ATTR_NOSYSTEM\": \"1\",\n        \"GIT_CONFIG_GLOBAL\": \"/dev/null\",\n        \"GIT_CONFIG_NOSYSTEM\": \"1\",\n        \"GIT_CONFIG_SYSTEM\": \"/dev/null\",\n        \"GIT_NO_REPLACE_OBJECTS\": \"1\",\n    }\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_certified_pair_gate_rejects_test_only_pair_while_legacy_gate_accepts_it",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_m19_pair_gate_accepts_terminal_paths_and_rejects_promoted_dataclasses"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "        return self.__production_certification\n",
+     "old": "        if (\n            self.__certification_seal is not _PRODUCTION_PAIR_SEAL\n            or self.__production_certification is None\n        ):\n            raise B4ReceiptError(\n                \"certified pair requires a live production factory pair\"\n            )\n        return self.__production_certification\n"
+    },
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "new": "    if False:\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n",
+     "old": "    if on.evidence_class != \"certified\" or off.evidence_class != \"certified\":\n        raise B4ReceiptError(\"certified pair requires evidence_class certified\")\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 2400
+}

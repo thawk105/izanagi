@@ -1,0 +1,216 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1-events-parse-jsonl",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/events.py",
+          "old": "    for lineno, line in enumerate(text.split(\"\\n\"), 1):",
+          "new": "    for lineno, line in enumerate(text.splitlines(), 1):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_accepts_unicode_line_separators[u0085]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_accepts_unicode_line_separators[u2028]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_accepts_unicode_line_separators[u2029]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_accepts_unicode_line_separators[u0085]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_accepts_unicode_line_separators[u2028]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_accepts_unicode_line_separators[u2029]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drain-stdout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    state.stdout_pending = pending\n    for raw_line in complete.split(b\"\\n\"):",
+          "new": "    state.stdout_pending = pending\n    for raw_line in complete.splitlines():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_rejects_crlf_terminated_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-tail-rollout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    rollout.pending = pending\n    for raw_line in complete.split(b\"\\n\"):",
+          "new": "    rollout.pending = pending\n    for raw_line in complete.splitlines():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_tail_rollout_rejects_crlf_terminated_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-recorded-summary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "            raw = Path(rollout[\"path\"]).read_bytes()[: rollout[\"bytes\"]]\n            for raw_line in raw.split(b\"\\n\"):",
+          "new": "            raw = Path(rollout[\"path\"]).read_bytes()[: rollout[\"bytes\"]]\n            for raw_line in raw.splitlines():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_recorded_summary_skips_crlf_terminated_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-recompute-stdout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    for raw_line in closed.split(b\"\\n\"):",
+          "new": "    for raw_line in closed.splitlines():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_recompute_metering_stdout_rejects_crlf_terminated_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-recompute-rollout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        state.rollouts[rollout.session_id] = rollout\n        for raw_line in raw.split(b\"\\n\"):",
+          "new": "        state.rollouts[rollout.session_id] = rollout\n        for raw_line in raw.splitlines():"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_recompute_metering_rollout_rejects_crlf_terminated_event"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1-blank-skip-removed",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/events.py",
+          "old": "        if not line.strip():\n            continue",
+          "new": "        if False:\n            continue"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_accepts_unicode_line_separators[u0085]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_accepts_unicode_line_separators[u2028]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_drain_stdout_accepts_unicode_line_separators[u2029]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_accepts_unicode_line_separators[u0085]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_accepts_unicode_line_separators[u2028]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_accepts_unicode_line_separators[u2029]",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_parse_jsonl_still_rejects_malformed_and_oversized_lines",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_recompute_metering_rollout_rejects_crlf_terminated_event",
+        "orchestrator/tests/test_codex_jsonl_line_split.py::test_recompute_metering_stdout_rejects_crlf_terminated_event",
+        "orchestrator/tests/test_codex_role_runtime.py::test_event_stream_requires_real_thread_and_two_stage_json_schema",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[command_execution]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[file_change]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[mcp_tool_call]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[plan]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[unknown_tool]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[view_image]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_jsonl_exposed_tool_or_unknown_item_is_rejected[web_search]",
+        "orchestrator/tests/test_codex_role_runtime.py::test_probe_thread_evidence_requires_canonical_uuid",
+        "orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[high]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[low]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[max]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[medium]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[xhigh]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[author-None]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[consult-sol]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_job_rejects_prior_invalid_attempt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_launch_uses_derived_model_and_effort",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cached_exceeding_input_is_malformed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_executable_identity_change",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_output_tampering",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_external_limit_detects_self_asserted_limit_tampering",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[True]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[main-parent]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[wave-parent]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade[main-parent]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade[wave-parent]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[repo_root]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[wave_id]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_attempt_output_hash",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reconstructs_authority_from_recorded_commit",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table",
+        "orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_unknown_and_duplicate_fields",
+        "orchestrator/tests/test_codex_worker_launch.py::test_clean_committed_hook_fixture_allows_launcher_to_spawn",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cli_reported_running_max_latches_usage_rollback",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cli_reported_token_limit_stops_process",
+        "orchestrator/tests/test_codex_worker_launch.py::test_codex_argv_has_exact_trust_bypass_without_sandbox_bypass",
+        "orchestrator/tests/test_codex_worker_launch.py::test_complete_receipt_publication_is_atomic_create_only_at_run_callsite",
+        "orchestrator/tests/test_codex_worker_launch.py::test_correlated_authority_invalid_session_uses_nullable_manifest_value",
+        "orchestrator/tests/test_codex_worker_launch.py::test_cumulative_limits_do_not_reset_between_attempts",
+        "orchestrator/tests/test_codex_worker_launch.py::test_delayed_thread_and_rollout_are_read_from_byte_zero",
+        "orchestrator/tests/test_codex_worker_launch.py::test_docs_authority_alone_rejects_consistent_effort_mutation",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_forced_stop_propagates_unknown_residual_to_sidecar",
+        "orchestrator/tests/test_codex_worker_launch.py::test_f43_fragment_is_classified_and_retried",
+        "orchestrator/tests/test_codex_worker_launch.py::test_failure_class_enum_and_receipt_recomputation_are_closed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_fake_can_reproduce_thread_id_change_and_multiple_sessions",
+        "orchestrator/tests/test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape",
+        "orchestrator/tests/test_codex_worker_launch.py::test_final_drain_actuals_are_rechecked_before_acceptance",
+        "orchestrator/tests/test_codex_worker_launch.py::test_hook_preflight_validates_repo_root",
+        "orchestrator/tests/test_codex_worker_launch.py::test_inconsistent_metering_is_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_late_rollout_writer_does_not_change_sealed_receipt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_sidecar_is_outside_receipt_schema",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_write_failure_does_not_change_control_result",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_failed_predicates",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_validator_rejection",
+        "orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running",
+        "orchestrator/tests/test_codex_worker_launch.py::test_manifest_refuses_foreign_wave_id",
+        "orchestrator/tests/test_codex_worker_launch.py::test_manifest_v2_accepts_two_sibling_worktree_repo_roots",
+        "orchestrator/tests/test_codex_worker_launch.py::test_null_token_count_is_observed_and_makes_metering_incomplete",
+        "orchestrator/tests/test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries",
+        "orchestrator/tests/test_codex_worker_launch.py::test_partial_existing_receipt_is_atomically_replaced",
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_accepted_attempt_has_no_failure_class_and_no_retry",
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p1_normal_job_is_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_preflight_accepts_sibling_worktree_with_same_git_common_dir",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_retry_admission_exact_model_call_limit_is_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_rollout_missing_after_grace_is_stopped_and_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_setsid_escape_is_not_claimed_as_contained",
+        "orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed",
+        "orchestrator/tests/test_codex_worker_launch.py::test_spawned_process_group_is_cleaned_on_manifest_append_failure",
+        "orchestrator/tests/test_codex_worker_launch.py::test_token_cap_uses_cli_reported_definition",
+        "orchestrator/tests/test_codex_worker_launch.py::test_turn_context_top_level_and_collaboration_decoys_are_rejected",
+        "orchestrator/tests/test_codex_worker_launch.py::test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask",
+        "orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[normal]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
