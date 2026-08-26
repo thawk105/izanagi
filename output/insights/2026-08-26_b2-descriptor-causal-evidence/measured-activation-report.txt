@@ -1,0 +1,24 @@
+NOT_EFFECTIVE commit=e29084e02d626d812281be6f97f45bb2dde3a843 freeze=valid
+decider_version decider-version-match
+section5 UNFILLED 累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限: placeholder
+section5 UNFILLED env_tag (実測環境): placeholder
+section5 UNFILLED 反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限): placeholder
+section5 UNFILLED master_seed: placeholder
+section5 FILLED 検定 4 点 (n / 検定単位 / 検定力 / 総予算): canonical-json
+section5 UNFILLED 未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の出力 hash / (d) positive control の hit 数 / (e) 確認者: placeholder
+section5 UNFILLED swapped 対応表の固定日時と bytes hash: placeholder
+section5 UNFILLED 実走前に確定する 6 cell manifest (trial id、arm、holdout、campaign id): placeholder
+section5 UNFILLED 実行責任者・開始時刻: placeholder
+C01 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C02 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C03 UNSATISFIED: manifest-registry-proof-undefined
+C04 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C05 EVIDENCE_UNDEFINED: schedule-schema-absent
+C06 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C07 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C08 EVIDENCE_UNDEFINED: prereg-binding-proof-undefined
+C09 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C10 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C11 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+C12 EVIDENCE_UNDEFINED: completion-proof-not-machine-checkable
+main() rc = 1

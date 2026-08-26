@@ -13499,6 +13499,43 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   構造的に解けず、誰も居ない空 directory ですら `rc=2` になった (5 scan 連続で同一 pid)。
   原因の誤記録が「再試行で直るはず」という誤った期待を生み、修理を 1 日遅らせた。
   恒久対応は D793。
+
+- **再発: 2026-08-26 (4 例目)** — 受入全走 2 走とも 1 node が
+  `phase=occupancy reason=occupancy result is indeterminate or inconsistent` (rc=22) で落ち、
+  **落ちる node は走ごとに移動した** (`test_forward_merged_landing_tip_is_used_for_cleanup[asserted]` と
+  `test_reentry_states_run_only_remaining_cleanup[b]`)。原因は D705 / D793 のどちらの射程でもなく、
+  **再試行の門そのもの**だった。`tools/dev_wave_cleanup.py` の `_assert_unoccupied` は最大 3 scan を
+  持つが、2 回目へ進む条件が「全 issue が `error=="missing"` かつ
+  `source ∈ {stat,cwd,cmdline}`」に限られ、48 worker の churn で出る他種別が 1 件混じると
+  **再試行が 1 度も発火せずに拒否していた** (拒否本文の実測 `attempts=1 retry_count=0`)。
+  実 `/proc` に到達する成功経路は 6 node で、各 node が preflight / recheck の 2 phase を持つため
+  1 走あたり 12 判定、実測の判定あたり赤率は 8.3% (2 走 24 判定中 2 赤)、
+  修理前に 1 走が緑になる確率は 35%。単独 file 走は 94 passed で緑のままだったため、
+  **前回 (2026-08-24) の解除条件「明示 file 走が全緑」は満たされたまま再発した。**
+  原因の特定が 3 例目まで 2 度誤ったのは、拒否本文が `payload["issues"]` を捨てていて
+  **何が読めなかったかを一切残さなかった**ためである。恒久対応は D1017。
+- **supersede: 2026-08-26** — D705 と D793 はいずれも `_scan_pid` 内の個別経路 (zombie、削除済み cwd) を閉じたもので、再試行の門が種別で閉じているという上位の欠陥は 4 例目まで残っていた。現行の恒久対応は D1017 であり、issue の種別に依存しない。
+
+- **再発: 2026-08-26** — **D793 の恒久対応と `[T-1623]` の land 後も、受入全走で再発した。**
+  実装差分ゼロ (docs のみ) の wave の受入全走が 2 走とも
+  `1 failed / 17097 passed / 62 skipped` で戻り、赤はどちらも
+  `orchestrator/tests/test_dev_wave_cleanup.py` の中だが**別の node** だった
+  (1 走目 `test_forward_merged_landing_tip_is_used_for_cleanup[asserted]`、
+  2 走目 `test_reentry_states_run_only_remaining_cleanup[b]`)。
+  本文は 2 走とも逐語一致で
+  `dev-wave-cleanup: status=rejected phase=occupancy reason=occupancy result is indeterminate or inconsistent; attempts=1 retry_count=0` の rc=22 である。
+  同 file の単独走は **94 passed / 3.93 秒 / rc=0** で非再現だった。
+  本 wave の差分は `docs/spool/**` と `output/insights/**` だけで、
+  `tools/check_worktree_occupancy.py` へ到達する経路は無い。
+  **落ちる node が走ごとに動くため、node 単位の hold では塞がらない。**
+  脆弱なのは「占有検査の成功を前提に rc=0 を要求する正例」という class であり、
+  この class は同 file 内に複数ある。
+  2026-08-24 の再発では `orchestrator/test_selection_contract.py` の
+  `SANCTIONED_EXCLUSIONS` へ file 単位の一時除外を入れて凌いだが、その除外は
+  `[T-1623]` の land 時に空集合へ戻されている (現在 `SANCTIONED_EXCLUSIONS = ()`)。
+  除外を戻すか、class 単位の hold を作るか、占有検査を計算ノードの
+  process churn に依らない形へ変えるかは受理集合を変える判断であり、
+  ユーザー裁定へ返した。本 wave は land せずに停止した。
 ### F490. gate の述語を到達可能な値域を測らずに採用し、同じ wave で 2 度撤回した [誤前提] [恒真ゲート]
 
 - 事象: (1) 敵対所見を採って `unreachable.cwd_permission == 0` を要求したが、この共有
@@ -16852,3 +16889,80 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   成長比例でも flaky でもない環境依存の赤を独断で恒久 skip へ落とさない。
 - 再発検知: 新規 worktree で焦点走または変異 baseline を走らせた時点で必ず出る。
   fresh worktree を作る全 wave が対象であり、頻度は高い。
+
+
+- **再発: 2026-08-26** — fresh worktree の**初回**受入全走で 3 node が同時に落ちた
+  (`test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes`、
+  `test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes`、
+  `test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes`)。
+  赤の本文は 3 件とも `assert 'runs' in ('insights/2026-08-05_t471-restore-bound/driver/__pycache__',
+  'pegasus-dispatch')`。**本エントリの根本原因の記述は 1 点ずれていた** — 当該 worktree には
+  `output/runs/` が**実在していた**。落ちたのは dir が**空**だったからで、
+  `git ls-files -o -i --exclude-standard --directory` は untracked entry を含まない dir を返さない。
+  したがって「環境側で `output/runs/` を作る」という前回の回避は、**空の dir を作っただけでは
+  効かない**。
+- **同じ受入走行が自分で前提を満たす。** 落ちた走行が `output/runs/pytest-launcher-failures/` を
+  作るため、直後に同じ 3 node を単独走すると `3 passed` になり、2 回目の受入全走は緑になる。
+  すなわち**新しい worktree の初回受入全走は構造的に必ず 1 回赤になり、lease 窓を 1 つ捨てる**。
+  本 wave はこの 1 回を捨てて再走した (実装差分は docs のみで、3 node のどれにも到達しない)。
+- 恒久対応の候補に 1 つ足す: (d) 判定器が要求する ignored dir を、テストが
+  **untracked entry ごと**自分で用意してから判定する。実在確認だけでは足りないことが本再発で確定した。
+### F647. 機構の検出実績を、同じ回に別の機構が赤にしたかを確かめずに数えた [計測汚染] [手順漏れ]
+
+- 事象: 親が合成監査の必要性を判定するため、台帳から走行 13〜15 回・検出 8 件を数え
+  「固有検出率 5 割超」とユーザーへ報告した。段 3 の独立レビューが 3 件を反証した。
+  1 件は git が実際に競合を報告しており、1 件は既存の凍結不変テストが同じ回に赤を出しており、
+  1 件は既存の collection 検査が同型の赤を出す経路だった。固有検出は最大 5 件だった。
+- 根本原因: 台帳に「監査が検出した」と書いてあることを、
+  **「監査が無ければ検出されなかった」と読み替えた。** 前者は帰属であって反実仮想ではない。
+  台帳のエントリは監査の成果を書く動機で書かれており、
+  同じ回に他の gate が発火したかは通常そこに書かれない。
+  親は検出側の記述だけを母集合にし、**他 gate の発火を別資料で照合しなかった。**
+- 恒久対応: 規律として、機構の必要性を「検出件数」で主張するときは
+  1 件ごとに (a) 同じ回に他の gate が赤を出したか、(b) 次の定常走行で赤になったか を
+  別資料で照合し、照合できない件は固有に数えず「未照合」として分離する。
+  正当化は件数でなく**型の一意性**へ置く (D1010 がこの形を採った)。
+- 再発検知: 必要性・撤廃の裁定を含む brief では、検出実績表に
+  「同回に他 gate が発火したか」の欄を必須にする。欄が埋まらない行を率の分子に入れない。
+
+### F648. 同じ問いへ既に答えた先行 wave を段 7 まで見つけられず、成果物を書き直した [手順漏れ] [コンテキスト浪費]
+
+- 事象: B-2 (descriptor 条件付き合成の因果証拠) の設計・事前登録 wave が、現在地の実測と
+  裁定パッケージを書き上げた段 7 の記録中に、**同日の先行 wave が同じ問いへ既に答えていた**ことに
+  気づいた (`output/insights/2026-08-26_8b-b2-precheck-package.md`、worklog エントリ 981)。
+  先行 package は実走入口の閉塞を層 (a)〜(f) に分けて確定済みで、再訪条件まで列挙していた。
+  親の成果物は §1〜§3 と §5 の大半がその再掲になっていた。**差分だけを残す形へ全面的に
+  書き直した。** 純増は 1 点 (判定規則に残る generation/search 固有の読み替えの穴) だけだった。
+- 根本原因: `DW-S01` の既存被覆検索は「検査・テストを増やす wave では対象 vector の既存被覆を
+  機構名でなく性質で先に検索し、純増検出力だけを書く」と、**検査を増やす wave に限定**して
+  書かれていた。本 wave は docs・設計の wave だったため、親はこの義務が自分に掛かると読まなかった。
+  さらに親が段 1 で読んだのは worklog の**末尾エントリだけ**であり (クラス 3 の起動手順どおり)、
+  先行 wave はその 1 つ手前の rotation で `docs/archive/` へ移っていた。
+  **起動手順が読む範囲と、既存被覆が住む範囲がずれている。**
+- 恒久対応: `docs/dev-wave/core.md` の `DW-S01` を、成果物の種類によらず「依頼の問いそのものの
+  既存被覆を worklog archive まで性質で検索する」義務へ広げた。
+- 再発検知: 段 1 brief に、依頼の問いで `docs/archive/worklog-*.md` を検索した結果
+  (該当なしなら「該当なし」) を 1 行書く。書けない brief で子を起動しない。
+
+### F649. 裁定が要求した機構の正例・負例を、実装子が両層とも依存先の stub で書き、機構を 1 度も通さないまま緑になった [恒真ゲート] [テスト代表性]
+
+- 事象: 段 4 裁定は解除条件として「同じ pid が 1 回目の scan だけ issue を出し次で消える」正例と
+  「3 回とも出る」負例を synthetic `/proc` で固定することを要求した。段 5 の実装子 2 本は
+  どちらもその名前のテストを書き、親の実走も緑だった。しかし
+  `orchestrator/tests/test_check_worktree_occupancy.py` の新設 4 node は
+  `monkeypatch.setattr(checker, "scan_worktree_occupancy", scan)` で作り置きの `ScanReport` を返し、
+  `orchestrator/tests/test_dev_wave_cleanup.py` の新設 node は `_occupancy_payload` を stub していた。
+  **両方の層が依存先を差し替えたため、実際の走査が変化する `/proc` に対して
+  一過性 issue を解消できるかを誰も検査していなかった。** 検査されていたのは再試行の制御フローだけである。
+- 根本原因: 裁定文が「正例・負例を対で固定せよ」と**性質**で書き、
+  **どの実体を通るか**を書かなかった。実装子は名前と観測可能な結論 (rc と retry 回数) を
+  満たす最小の書き方を選び、それは stub だった。緑・テスト名・件数のどれもこの差を表さない。
+- 恒久対応: `docs/dev-wave/workers.md` の `DW-S05-C` へ
+  「機構の正例・負例を要求する裁定は、**その機構の実体を通ることを prompt で名指しする**
+  (`X を差し替えてはならない。本物を呼べ`)」を足す。本 wave の fix prompt がこの形を実証し、
+  `test_main_real_scan_accepts_pid_issue_that_disappears_after_first_scan` と
+  `test_main_real_scan_rejects_same_pid_issue_on_all_three_scans` が実 scanner を
+  連続で呼ぶ形へ置き換わった。
+- 再発検知: 段 6 の敵対レビューのレンズに「新設 node が、裁定の名指しした機構の実体を通るか」を
+  入れる。本件は 2 本のうち 1 本 (運用レンズ) だけが検出し、正しさレンズは見落とした。
+  変異では検出できない — stub 版でも制御フローの変異は正しく KILLED になるためである。
