@@ -8,10 +8,15 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest.mock
 
-from orchestrator.campaign import p3_b4_admission_record as A
+_HERE = Path(__file__).resolve().parent
+_ORCH = _HERE.parent
+sys.path.insert(0, str(_ORCH.parent))
+
+from orchestrator.campaign import p3_b4_admission_record as A  # noqa: E402
 
 
 _MODEL = "claude-opus-5"
@@ -670,3 +675,24 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
         ),
         exact="[admission-record] record is unavailable",
     )
+
+
+if __name__ == "__main__":
+    import traceback
+
+    functions = [
+        value
+        for name, value in sorted(globals().items())
+        if name.startswith("test_")
+    ]
+    failures = 0
+    for function in functions:
+        try:
+            function()
+            print(f"[PASS] {function.__name__}")
+        except Exception:
+            failures += 1
+            print(f"[FAIL] {function.__name__}")
+            traceback.print_exc()
+    print(f"\n{len(functions) - failures}/{len(functions)} passed")
+    raise SystemExit(1 if failures else 0)
