@@ -4,6 +4,7 @@ import hashlib
 import inspect
 import json
 import socket
+import subprocess
 import time
 from pathlib import Path
 
@@ -40,6 +41,15 @@ QSTAT_VISIBILITY_FIXTURE = (
     Path(__file__).parent / "fixtures" / "paper_story_a2"
     / "qstat-visibility-945411.stdout"
 )
+QSTAT_FANOUT_VISIBILITY_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "paper_story_a2"
+)
+QSTAT_FANOUT_VISIBILITY_FIXTURES = {
+    "rr5": QSTAT_FANOUT_VISIBILITY_FIXTURE
+    / "qstat-visibility-fanout-945411.stdout",
+    "rr50": QSTAT_FANOUT_VISIBILITY_FIXTURE
+    / "qstat-visibility-fanout-945412.stdout",
+}
 NON_ACCEPTED_VISIBILITY_VOCABULARY = (
     ("Held", "outside the submission acceptance set"),
     ("Suspended", "state vocabulary is unknown"),
@@ -136,7 +146,12 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
             search_config=identity["search_config"],
             trial=attempt_root.name,
         )
-        layout_root = attempt_root / "campaigns" / str(ident.campaign_id(cfg))
+        job_root = attempt_root / "jobs" / workload_id
+        for child in (job_root, job_root / "campaigns", job_root / "cache",
+                      job_root / "scheduler"):
+            child.mkdir(parents=True, exist_ok=True)
+        campaign_id = str(ident.campaign_id(cfg))
+        layout_root = job_root / "campaigns" / campaign_id
         runs = layout_root / "runs"
         runs.mkdir(parents=True)
         (layout_root / "campaign.lock").write_text(
@@ -221,6 +236,21 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
             "".join(wal._record_to_line(record) + "\n" for record in records),
             encoding="utf-8",
         )
+        claim_path = A2.raw_result_claim_path(
+            policy, workload_id, attempt_root, campaign_id)
+        claim_path.parent.mkdir(parents=True, exist_ok=True)
+        claim_path.write_text(json.dumps({
+            "campaign_identity": campaign_id,
+            "protocol_digest": "a" * 64,
+            "job_id": (
+                "945411.nqsv" if workload_id == "rr5" else "945412.nqsv"),
+            "host": "bnode001",
+            "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text(
+                encoding="ascii").strip(),
+            "pid": 123,
+            "proc_starttime": 456,
+            "created_utc": "2026-08-27T00:00:00+00:00",
+        }, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
         for cell in cells:
             results.append(A2._raw_cell_from_wal(
                 policy, cell,
@@ -245,23 +275,16 @@ def _raw_cell(policy, cell, root, *, adopted_gain=1.1):
 
 def _write_receipt_bundle(
         policy, attempt_root, *, driver_rc=0, claim_manifest=True,
-        terminal_reason="scheduler-end-state"):
-    raw_root = attempt_root / "raw"
-    if not raw_root.exists():
-        raw_root.mkdir()
-        for result in _positive_results(policy, attempt_root):
-            A2.write_json_x(raw_root / f"{result['cell_id']}.json", result)
-    manifest_path = A2.finalize_raw_manifest(
-        policy, attempt_root, CURRENT_PIN)
-    request_id = "945411.nqsv"
-    stdout_path = attempt_root / "scheduler" / "job.stdout"
-    stderr_path = attempt_root / "scheduler" / "job.stderr"
-    stdout_path.write_text("job output\n", encoding="utf-8")
-    stderr_path.write_text(
-        "Request ID: 945411.nqsv\nGroup Name: SFC\n"
-        "Started Request Time: now\nEnded Request Time: later\nElapse: 1\n",
-        encoding="utf-8",
-    )
+        terminal_reason="scheduler-end-state", record_completion=True):
+    results = _positive_results(policy, attempt_root)
+    for workload_id in A2.workload_ids(policy):
+        raw_root = A2.workload_job_root(policy, attempt_root, workload_id) / "raw"
+        if not raw_root.exists():
+            raw_root.mkdir()
+            for result in results:
+                if policy.cell(result["cell_id"]).workload_id == workload_id:
+                    A2.write_json_x(
+                        raw_root / f"{result['cell_id']}.json", result)
     log_record = lambda path: {
         "path": str(path),
         "size": path.stat().st_size,
@@ -269,44 +292,126 @@ def _write_receipt_bundle(
     }
     repo_root = A2.POLICY_PATH.parents[2]
     job_body = repo_root / policy.document["scheduler"]["job_body"]
-    qsub_environment = {
-        "IZANAGI_A2_ATTEMPT_ROOT": str(attempt_root),
-        "IZANAGI_A2_EXPECTED_HEAD": SOURCE_COMMIT,
-        "IZANAGI_A2_CURRENT_PIN": CURRENT_PIN,
-        "IZANAGI_A2_CCBENCH_ROOT": "/pinned/ccbench",
-        "IZANAGI_A2_REPO_ROOT": str(repo_root),
-        "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": "/pinned/deps",
-    }
-    variable_arg = ",".join(
-        f"{key}={value}" for key, value in qsub_environment.items())
-    allocation_stdout = attempt_root / "scheduler" / "allocation-qstat.stdout"
-    allocation_stderr = attempt_root / "scheduler" / "allocation-qstat.stderr"
-    allocation_stdout.write_text(
-        "Request ID: 945411.nqsv\nStarted Request Time = now\n"
-        "(Per-Req) Elapse Time Limit = Max: 21600S\n",
-        encoding="utf-8",
-    )
-    allocation_stderr.write_text("", encoding="utf-8")
     started = int(time.time()) - 1
-    reservation_environment = {
-        "IZANAGI_RESERVATION_JOB_ID": request_id,
-        "IZANAGI_RESERVATION_REQUESTED_S": "21600",
-        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
-        "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + 21600),
-        "IZANAGI_RESERVATION_HOST": "bnode001",
-        "IZANAGI_RESERVATION_BOOT_ID": Path(
-            "/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip(),
-        "IZANAGI_RESERVATION_SCRIPT_SHA256": hashlib.sha256(
-            job_body.read_bytes()).hexdigest(),
-        "IZANAGI_RESERVATION_NONCE": request_id,
+    request_ids = {"rr5": "945411.nqsv", "rr50": "945412.nqsv"}
+    submission_jobs = []
+    completion_jobs = []
+    driver_rcs = {
+        "rr5": driver_rc,
+        "rr50": 0,
     }
-    reservation_result = attempt_root / "reservation.json"
-    A2.write_json_x(reservation_result, {
-        "schema_version": A2.RESERVATION_RESULT_SCHEMA,
-        "environment": reservation_environment,
-        "allocation_qstat_stdout": log_record(allocation_stdout),
-        "allocation_qstat_stderr": log_record(allocation_stderr),
-    })
+    for workload_id in A2.workload_ids(policy):
+        request_id = request_ids[workload_id]
+        job_root = A2.workload_job_root(policy, attempt_root, workload_id)
+        stdout_path = job_root / "scheduler" / "job.stdout"
+        stderr_path = job_root / "scheduler" / "job.stderr"
+        stdout_path.write_text("job output\n", encoding="utf-8")
+        stderr_path.write_text(
+            f"Request ID: {request_id}\nGroup Name: SFC\n"
+            "Started Request Time: now\nEnded Request Time: later\nElapse: 1\n",
+            encoding="utf-8",
+        )
+        qsub_environment = {
+            "IZANAGI_A2_ATTEMPT_ROOT": str(attempt_root),
+            "IZANAGI_A2_WORKLOAD": workload_id,
+            "IZANAGI_A2_EXPECTED_HEAD": SOURCE_COMMIT,
+            "IZANAGI_A2_CURRENT_PIN": CURRENT_PIN,
+            "IZANAGI_A2_CCBENCH_ROOT": "/pinned/ccbench",
+            "IZANAGI_A2_REPO_ROOT": str(repo_root),
+            "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": "/pinned/deps",
+        }
+        variable_arg = ",".join(
+            f"{key}={value}" for key, value in qsub_environment.items())
+        submission_jobs.append({
+            "workload": workload_id,
+            "qsub_argv": [
+                "qsub", "-A", "SFC", "-q", "gen_S", "-b", "1",
+                "-l", "elapstim_req=06:00:00", "-N", "paper-a2-cert",
+                "-v", variable_arg,
+                "-o", str(stdout_path), "-e", str(stderr_path),
+                str(job_body),
+            ],
+            "qsub_stdout": f"Request {request_id} submitted\n",
+            "qsub_stderr": "",
+            "qsub_returncode": 0,
+            "request_id": request_id,
+            "qstat_visibility": {
+                "observed": True,
+                "observed_at_utc": "2026-08-25T00:00:00Z",
+                "request_id": request_id,
+                "argv": ["qstat", "-f", request_id],
+                "returncode": 0,
+                "state": "QUE",
+                "stdout": QSTAT_FANOUT_VISIBILITY_FIXTURES[workload_id].read_text(
+                    encoding="utf-8"),
+                "stderr": "",
+            },
+            "qsub_environment": qsub_environment,
+        })
+        allocation_stdout = job_root / "scheduler" / "allocation-qstat.stdout"
+        allocation_stderr = job_root / "scheduler" / "allocation-qstat.stderr"
+        allocation_stdout.write_text(
+            f"Request ID: {request_id}\nStarted Request Time = now\n"
+            "(Per-Req) Elapse Time Limit = Max: 21600S\n",
+            encoding="utf-8",
+        )
+        allocation_stderr.write_text("", encoding="utf-8")
+        reservation_environment = {
+            "IZANAGI_RESERVATION_JOB_ID": request_id,
+            "IZANAGI_RESERVATION_REQUESTED_S": "21600",
+            "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": str(started),
+            "IZANAGI_RESERVATION_DEADLINE_EPOCH": str(started + 21600),
+            "IZANAGI_RESERVATION_HOST": "bnode001",
+            "IZANAGI_RESERVATION_BOOT_ID": Path(
+                "/proc/sys/kernel/random/boot_id").read_text(
+                    encoding="ascii").strip(),
+            "IZANAGI_RESERVATION_SCRIPT_SHA256": hashlib.sha256(
+                job_body.read_bytes()).hexdigest(),
+            "IZANAGI_RESERVATION_NONCE": request_id,
+        }
+        reservation_result = job_root / "reservation.json"
+        A2.write_json_x(reservation_result, {
+            "schema_version": A2.RESERVATION_RESULT_SCHEMA,
+            "environment": reservation_environment,
+            "allocation_qstat_stdout": log_record(allocation_stdout),
+            "allocation_qstat_stderr": log_record(allocation_stderr),
+        })
+        compute_result = job_root / "compute-result.json"
+        A2.write_json_x(compute_result, {
+            "schema_version": A2.COMPUTE_RESULT_SCHEMA,
+            "workload": workload_id,
+            "driver_rc": driver_rcs[workload_id],
+            "pbs_jobid": request_id,
+            "current_pin": CURRENT_PIN,
+        })
+        terminal_stdout = (
+            f"Request ID: {request_id}\nRequest State = EXT\n"
+            if terminal_reason == "scheduler-end-state"
+            else f"Batch Request: {request_id} does not exist on nqsv.\n"
+        )
+        completion_jobs.append({
+            "workload": workload_id,
+            "request_id": request_id,
+            "terminal_observation": {
+                "observed": True,
+                "request_id": request_id,
+                "argv": ["qstat", "-f", request_id],
+                "returncode": 0,
+                "state": "END",
+                "stdout": terminal_stdout,
+                "stderr": "",
+                "reason": terminal_reason,
+            },
+            "driver_rc": driver_rcs[workload_id],
+            "compute_result": str(compute_result),
+            "compute_result_sha256": hashlib.sha256(
+                compute_result.read_bytes()).hexdigest(),
+            "reservation_result": str(reservation_result),
+            "reservation_result_sha256": hashlib.sha256(
+                reservation_result.read_bytes()).hexdigest(),
+            "scheduler_stdout": log_record(stdout_path),
+            "scheduler_stderr": log_record(stderr_path),
+        })
     submission = {
         "schema_version": A2.SUBMISSION_SCHEMA,
         "route": "direct-qsub",
@@ -317,45 +422,18 @@ def _write_receipt_bundle(
         "source_commit": SOURCE_COMMIT,
         "current_pin": CURRENT_PIN,
         "submit_host": socket.gethostname(),
-        "qsub_argv": [
-            "qsub", "-A", "SFC", "-q", "gen_S", "-b", "1",
-            "-l", "elapstim_req=06:00:00", "-N", "paper-a2-cert",
-            "-v", variable_arg,
-            "-o", str(stdout_path), "-e", str(stderr_path),
-            str(job_body),
-        ],
         "submission_cwd": str(repo_root),
-        "qsub_environment": qsub_environment,
         "job_body_sha256": hashlib.sha256(job_body.read_bytes()).hexdigest(),
-        "qsub_stdout": "Request 945411.nqsv submitted\n",
-        "qsub_stderr": "",
-        "qsub_returncode": 0,
-        "request_id": request_id,
-        "qstat_visibility": {
-            "observed": True,
-            "observed_at_utc": "2026-08-25T00:00:00Z",
-            "request_id": request_id,
-            "argv": ["qstat", "-f", request_id],
-            "returncode": 0,
-            "state": "QUE",
-            "stdout": QSTAT_VISIBILITY_FIXTURE.read_text(encoding="utf-8"),
-            "stderr": "",
-        },
+        "jobs": submission_jobs,
     }
-    submission_path = A2.record_submission_receipt(
+    A2.record_submission_receipt(
         policy, attempt_root, CURRENT_PIN, submission)
-    compute_result = attempt_root / "compute-result.json"
-    A2.write_json_x(compute_result, {
-        "schema_version": A2.COMPUTE_RESULT_SCHEMA,
-        "driver_rc": driver_rc,
-        "pbs_jobid": request_id,
-        "current_pin": CURRENT_PIN,
-    })
-    terminal_stdout = (
-        "Request ID: 945411.nqsv\nRequest State = EXT\n"
-        if terminal_reason == "scheduler-end-state"
-        else "Batch Request: 945411.nqsv does not exist on nqsv.\n"
-    )
+    if not record_completion:
+        return None, submission
+    manifest_path = None
+    if all(value == 0 for value in driver_rcs.values()) and claim_manifest:
+        manifest_path = A2.finalize_raw_manifest(
+            policy, attempt_root, CURRENT_PIN)
     completion = {
         "schema_version": A2.COMPLETION_SCHEMA,
         "study": policy.study,
@@ -364,36 +442,17 @@ def _write_receipt_bundle(
         "attempt_root": str(attempt_root),
         "source_commit": SOURCE_COMMIT,
         "current_pin": CURRENT_PIN,
-        "request_id": request_id,
-        "terminal_observation": {
-            "observed": True,
-            "request_id": request_id,
-            "argv": ["qstat", "-f", request_id],
-            "returncode": 0,
-            "state": "END",
-            "stdout": terminal_stdout,
-            "stderr": "",
-            "reason": terminal_reason,
-        },
-        "driver_rc": driver_rc,
-        "compute_result": str(compute_result),
-        "compute_result_sha256": hashlib.sha256(
-            compute_result.read_bytes()).hexdigest(),
-        "reservation_result": str(reservation_result),
-        "reservation_result_sha256": hashlib.sha256(
-            reservation_result.read_bytes()).hexdigest(),
+        "jobs": completion_jobs,
         "raw_result_manifest": (
-            str(manifest_path) if driver_rc == 0 and claim_manifest else None),
+            str(manifest_path) if manifest_path is not None else None),
         "raw_result_manifest_sha256": (
             hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-            if driver_rc == 0 and claim_manifest else None),
-        "scheduler_stdout": log_record(stdout_path),
-        "scheduler_stderr": log_record(stderr_path),
+            if manifest_path is not None else None),
     }
     A2.record_completion_receipt(
         policy, attempt_root, CURRENT_PIN, completion)
     acquisition_path = A2.record_acquisition_receipt(
-        policy, attempt_root, CURRENT_PIN, request_id)
+        policy, attempt_root, CURRENT_PIN)
     return acquisition_path, submission
 
 
@@ -448,6 +507,25 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
             "jobs_option": "-j",
         },
     }
+    assert policy.document["certification_composition"] == {
+        "campaign_unit": (
+            "one independently environment-contracted campaign per workload"),
+        "outer_certification": "logical conjunction in policy workload order",
+    }
+    original = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(original)
+    changed["certification_composition"]["outer_certification"] += " changed"
+    original_sha = hashlib.sha256(
+        A2._canonical_json(A2._protocol_preimage(original))).hexdigest()
+    changed_sha = hashlib.sha256(
+        A2._canonical_json(A2._protocol_preimage(changed))).hexdigest()
+    assert original_sha != changed_sha
+    decorative_original = dict(A2._protocol_preimage(original))
+    decorative_changed = dict(A2._protocol_preimage(changed))
+    decorative_original.pop("certification_composition")
+    decorative_changed.pop("certification_composition")
+    assert hashlib.sha256(A2._canonical_json(decorative_original)).hexdigest() == \
+        hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
 
 
 def test_m1_closed_verify_mode_wires_performance_and_rejects_unknown():
@@ -517,7 +595,8 @@ def test_m4_full_scale_verify_is_required_for_cell_completion(tmp_path):
     results[0]["correctness"].pop(PERFORMANCE_TAG)
     report = A2.collect_results(
         policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_id="123.nqsv", _test_token=A2._COLLECT_TEST_TOKEN)
+        request_ids={"rr5": "123.nqsv", "rr50": "124.nqsv"},
+        _test_token=A2._COLLECT_TEST_TOKEN)
     assert report["cells"][0]["correctness"]["status"] == "indeterminate"
     assert report["status"] == "indeterminate"
 
@@ -538,7 +617,7 @@ def test_m5_collector_rejects_non_exact_cell_sets(tmp_path, mutation):
     with pytest.raises(A2.CertificationError):
         A2.collect_results(
             policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
-            request_id="123.nqsv")
+            request_ids={"rr5": "123.nqsv", "rr50": "124.nqsv"})
 
 
 def test_m6_positive_report_never_claims_global_minimality(tmp_path):
@@ -546,7 +625,8 @@ def test_m6_positive_report_never_claims_global_minimality(tmp_path):
     root = A2.create_attempt_root(policy, "attempt-m6")
     report = A2.collect_results(
         policy, _positive_results(policy, root), attempt_id=root.name,
-        current_pin=CURRENT_PIN, request_id="123.nqsv")
+        current_pin=CURRENT_PIN,
+        request_ids={"rr5": "123.nqsv", "rr50": "124.nqsv"})
     assert report["status"] == "observed-positive"
     assert report["global_minimality_established"] is False
     assert report["smallest_observed_sufficient_in_this_two_point_protocol"] is None
@@ -573,7 +653,8 @@ def test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass(
     results[1]["correctness"].pop(PERFORMANCE_TAG)
     report = A2.collect_results(
         policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_id="123.nqsv", _test_token=A2._COLLECT_TEST_TOKEN)
+        request_ids={"rr5": "123.nqsv", "rr50": "124.nqsv"},
+        _test_token=A2._COLLECT_TEST_TOKEN)
     assert report["status"] == "reject"
     assert A2.driver_rc(report) == 0
 
@@ -582,7 +663,8 @@ def test_anomaly_is_determinate_reject_and_performance_incomplete_is_not_pass(
     results2[0]["performance"]["samples_tps"].pop()
     report2 = A2.collect_results(
         policy, results2, attempt_id=root2.name, current_pin=CURRENT_PIN,
-        request_id="124.nqsv", _test_token=A2._COLLECT_TEST_TOKEN)
+        request_ids={"rr5": "124.nqsv", "rr50": "125.nqsv"},
+        _test_token=A2._COLLECT_TEST_TOKEN)
     assert report2["status"] == "performance-indeterminate"
     assert A2.driver_rc(report2) != 0
 
@@ -645,22 +727,90 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
     acquisition, submission = _write_receipt_bundle(policy, root)
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
-    assert evidence["request_id"] == "945411.nqsv"
+    assert evidence["request_ids"] == {
+        "rr5": "945411.nqsv", "rr50": "945412.nqsv"}
     assert "scheduler_stdout" not in submission
     assert "scheduler_stderr" not in submission
-    assert "scheduler_stdout" in evidence["completion"]
-    assert "scheduler_stderr" in evidence["completion"]
-    binding = reservation.read_binding(evidence["reservation_result"]["environment"])
+    assert "scheduler_stdout" in evidence["completion"]["jobs"][0]
+    assert "scheduler_stderr" in evidence["completion"]["jobs"][0]
+    binding = reservation.read_binding(
+        evidence["reservation_results"]["rr5"]["environment"])
     assert binding.job_id == "945411.nqsv"
     assert binding.deadline_epoch == binding.scheduler_started_epoch + 21600
     with pytest.raises(FileExistsError):
         A2.record_submission_receipt(
             policy, root, CURRENT_PIN, submission)
     subset = {key: submission[key] for key in (
-        "route", "study", "current_pin", "attempt_root", "request_id")}
+        "route", "study", "current_pin", "attempt_root", "jobs")}
     with pytest.raises(A2.CertificationError, match="missing required"):
         A2._validate_submission_receipt(
             policy, subset, root.name, root, CURRENT_PIN)
+
+    coordinates = [
+        {
+            "workload": "rr5", "request_id": "101.nqsv",
+            "scheduler_stdout_path": tmp_path / "rr5.stdout",
+            "scheduler_stderr_path": tmp_path / "rr5.stderr",
+        },
+        {
+            "workload": "rr50", "request_id": "102.nqsv",
+            "scheduler_stdout_path": tmp_path / "rr50.stdout",
+            "scheduler_stderr_path": tmp_path / "rr50.stderr",
+        },
+    ]
+    A2._validate_group_coordinates(policy, coordinates)
+    duplicate_request = copy.deepcopy(coordinates)
+    duplicate_request[1]["request_id"] = duplicate_request[0]["request_id"]
+    with pytest.raises(A2.CertificationError, match="request IDs must be distinct"):
+        A2._validate_group_coordinates(policy, duplicate_request)
+    with pytest.raises(A2.CertificationError, match="workload order"):
+        A2._validate_group_coordinates(policy, list(reversed(coordinates)))
+
+    qsub_calls = []
+    original_precheck = A2.submission_ratification_precheck
+    try:
+        A2.submission_ratification_precheck = lambda: "ratified-fixture-digest"
+
+        def runner(argv, **kwargs):
+            qsub_calls.append((argv, kwargs))
+            return subprocess.CompletedProcess(argv, 0, "101.nqsv\n", "")
+
+        assert A2.ratified_qsub(
+            ["qsub", "job.sh"], runner=runner).returncode == 0
+
+        def unratified():
+            raise A2.CertificationError(
+                "enforcement-source-closure-unratified")
+
+        A2.submission_ratification_precheck = unratified
+        with pytest.raises(A2.CertificationError, match="unratified"):
+            A2.ratified_qsub(["qsub", "job.sh"], runner=runner)
+        assert len(qsub_calls) == 1
+    finally:
+        A2.submission_ratification_precheck = original_precheck
+
+    finish_root = A2.preregister_attempt(
+        policy, "attempt-finish-group", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, finish_root, record_completion=False)
+    try:
+        A2.submission_ratification_precheck = lambda: "ratified-fixture-digest"
+
+        def qstat(command, **kwargs):
+            request_id = command[-1]
+            return subprocess.CompletedProcess(
+                command, 0,
+                f"Request ID: {request_id}\nRequest State = EXT\n", "")
+
+        completion_path, finish_acquisition = A2.finish_group(
+            policy, finish_root, CURRENT_PIN, qstat_runner=qstat)
+    finally:
+        A2.submission_ratification_precheck = original_precheck
+    assert completion_path == finish_root / "receipts" / "completion.json"
+    finish_evidence = A2.validate_acquisition_bundle(
+        policy, finish_acquisition, current_pin=CURRENT_PIN)
+    assert finish_evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
+    assert finish_evidence["raw_manifest_valid"] is True
 
 
 @pytest.mark.parametrize("missing", ("qsub_argv", "qstat_visibility"))
@@ -671,8 +821,8 @@ def test_m10_each_canonical_qsub_and_submit_observation_field_is_required(
         policy, "attempt-m10-" + missing.replace("_", "-"), CURRENT_PIN)
     _, submission = _write_receipt_bundle(policy, root)
     mutant = copy.deepcopy(submission)
-    mutant.pop(missing)
-    with pytest.raises(A2.CertificationError, match="missing required"):
+    mutant["jobs"][0].pop(missing)
+    with pytest.raises(A2.CertificationError, match="not exact"):
         A2._validate_submission_receipt(
             policy, mutant, root.name, root, CURRENT_PIN)
 
@@ -686,17 +836,17 @@ def test_submission_argv_environment_nodes_and_job_body_are_exact(
     _, submission = _write_receipt_bundle(policy, root)
     mutant = copy.deepcopy(submission)
     if mutation == "extra-env":
-        mutant["qsub_environment"]["PYTHONPATH"] = "/tmp/decoy"
-        mutant["qsub_argv"][12] += ",PYTHONPATH=/tmp/decoy"
+        mutant["jobs"][0]["qsub_environment"]["PYTHONPATH"] = "/tmp/decoy"
+        mutant["jobs"][0]["qsub_argv"][12] += ",PYTHONPATH=/tmp/decoy"
     elif mutation == "nodes":
-        mutant["qsub_argv"][6] = "2"
+        mutant["jobs"][0]["qsub_argv"][6] = "2"
     else:
         decoy = root / "decoy" / "paper_story_a2_certification.sh"
         decoy.parent.mkdir()
         decoy.write_bytes(
             (A2.POLICY_PATH.parents[2]
              / policy.document["scheduler"]["job_body"]).read_bytes())
-        mutant["qsub_argv"][-1] = str(decoy)
+        mutant["jobs"][0]["qsub_argv"][-1] = str(decoy)
         mutant["job_body_sha256"] = hashlib.sha256(decoy.read_bytes()).hexdigest()
     with pytest.raises(A2.CertificationError):
         A2._validate_submission_receipt(
@@ -706,8 +856,9 @@ def test_submission_argv_environment_nodes_and_job_body_are_exact(
 def _assert_real_submission_visibility_is_accepted(policy, root, submission):
     binding = A2._validate_submission_receipt(
         policy, submission, root.name, root, CURRENT_PIN)
-    assert binding["request_id"] == "945411.nqsv"
-    assert submission["qstat_visibility"]["state"] == "QUE"
+    assert binding["request_ids"] == {
+        "rr5": "945411.nqsv", "rr50": "945412.nqsv"}
+    assert submission["jobs"][0]["qstat_visibility"]["state"] == "QUE"
 
 
 def test_submission_visibility_uses_the_full_real_qstat_fixture(tmp_path):
@@ -720,11 +871,12 @@ def test_submission_visibility_uses_the_full_real_qstat_fixture(tmp_path):
         "55bc7a633cd903bfa592ab71c4f347b6a50cce7ca295acb068de50b390ef830d"
     )
     fixture = fixture_bytes.decode("utf-8")
-    assert submission["qstat_visibility"]["stdout"] == fixture
+    submission["jobs"][0]["qstat_visibility"]["stdout"] = fixture
+    assert submission["jobs"][0]["qstat_visibility"]["stdout"] == fixture
     assert len(fixture.splitlines()) == 94
     assert "Current State           = Staging" in fixture
     assert "Request State = RUN" not in fixture
-    assert A2.SUBMISSION_SCHEMA == "paper-story-a2-submission-receipt/v3"
+    assert A2.SUBMISSION_SCHEMA == "paper-story-a2-submission-receipt/v4"
     assert A2._SUBMISSION_VISIBLE_STATES == frozenset({"QUE", "RUN"})
     _assert_real_submission_visibility_is_accepted(
         policy, root, submission)
@@ -737,9 +889,9 @@ def test_submission_visibility_rejects_another_request_block(tmp_path):
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] = (
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] = (
         "Request ID: 999999.nqsv\nCurrent State = Running\n"
-        + mutant["qstat_visibility"]["stdout"])
+        + mutant["jobs"][0]["qstat_visibility"]["stdout"])
     with pytest.raises(A2.CertificationError, match="request ID count is not one"):
         A2._validate_submission_receipt(
             policy, mutant, root.name, root, CURRENT_PIN)
@@ -752,7 +904,7 @@ def test_submission_visibility_rejects_conflicting_state_fields(tmp_path):
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] += "Request State = RUN\n"
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] += "Request State = RUN\n"
     with pytest.raises(A2.CertificationError, match="state fields conflict"):
         A2._validate_submission_receipt(
             policy, mutant, root.name, root, CURRENT_PIN)
@@ -765,8 +917,9 @@ def test_submission_visibility_rejects_state_before_target_id(tmp_path):
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] = (
-        "Request State = QUE\n" + mutant["qstat_visibility"]["stdout"])
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] = (
+        "Request State = QUE\n"
+        + mutant["jobs"][0]["qstat_visibility"]["stdout"])
     with pytest.raises(
         A2.CertificationError, match="state before the target request ID"):
         A2._validate_submission_receipt(
@@ -780,8 +933,8 @@ def test_submission_visibility_rejects_non_none_ended_time(tmp_path):
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] = mutant[
-        "qstat_visibility"]["stdout"].replace(
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] = mutant[
+        "jobs"][0]["qstat_visibility"]["stdout"].replace(
             "Ended Request Time   = (none)",
             "Ended Request Time   = Tue Aug 25 09:00:00 2026",
             1,
@@ -808,7 +961,7 @@ def test_submission_visibility_requires_one_ended_time_after_request_id(
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
     ended_line = "    Ended Request Time   = (none)\n"
-    stdout = mutant["qstat_visibility"]["stdout"]
+    stdout = mutant["jobs"][0]["qstat_visibility"]["stdout"]
     assert stdout.count(ended_line) == 1
     if mutation == "missing":
         stdout = stdout.replace(ended_line, "", 1)
@@ -816,7 +969,7 @@ def test_submission_visibility_requires_one_ended_time_after_request_id(
         stdout = stdout.replace(ended_line, ended_line * 2, 1)
     else:
         stdout = ended_line + stdout.replace(ended_line, "", 1)
-    mutant["qstat_visibility"]["stdout"] = stdout
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] = stdout
     with pytest.raises(A2.CertificationError, match=signature):
         A2._validate_submission_receipt(
             policy, mutant, root.name, root, CURRENT_PIN)
@@ -829,7 +982,7 @@ def test_submission_visibility_rejects_disappearance_with_visible_block(tmp_path
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] += (
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] += (
         "Batch Request: 945411.nqsv does not exist on nqsv.\n")
     with pytest.raises(
             A2.CertificationError,
@@ -845,7 +998,7 @@ def test_submission_visibility_rejects_receipt_state_mismatch(tmp_path):
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["state"] = "RUN"
+    mutant["jobs"][0]["qstat_visibility"]["state"] = "RUN"
     with pytest.raises(
             A2.CertificationError,
             match="receipt state differs from canonical stdout state"):
@@ -860,8 +1013,8 @@ def test_submission_visibility_rejects_finished_request_stdout(tmp_path):
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] = mutant[
-        "qstat_visibility"]["stdout"].replace(
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] = mutant[
+        "jobs"][0]["qstat_visibility"]["stdout"].replace(
             "Current State           = Staging",
             "Current State           = Completed",
             1,
@@ -883,8 +1036,8 @@ def test_submission_visibility_rejects_nonaccepted_vocabulary(
     _, submission = _write_receipt_bundle(policy, root)
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
     mutant = copy.deepcopy(submission)
-    mutant["qstat_visibility"]["stdout"] = mutant[
-        "qstat_visibility"]["stdout"].replace(
+    mutant["jobs"][0]["qstat_visibility"]["stdout"] = mutant[
+        "jobs"][0]["qstat_visibility"]["stdout"].replace(
             "Current State           = Staging",
             "Current State           = " + raw_state,
             1,
@@ -909,7 +1062,7 @@ def test_submission_visibility_requires_timestamped_nonterminal_state(tmp_path):
     _assert_real_submission_visibility_is_accepted(policy, root, submission)
 
     missing_time = copy.deepcopy(submission)
-    missing_time["qstat_visibility"].pop("observed_at_utc")
+    missing_time["jobs"][0]["qstat_visibility"].pop("observed_at_utc")
     with pytest.raises(A2.CertificationError, match="qstat visibility"):
         A2._validate_submission_receipt(
             policy, missing_time, root.name, root, CURRENT_PIN)
@@ -984,7 +1137,8 @@ def test_correctness_requires_every_ratified_repetition(tmp_path):
     results[0]["correctness"][PERFORMANCE_TAG].pop()
     report = A2.collect_results(
         policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_id="reps.nqsv", _test_token=A2._COLLECT_TEST_TOKEN)
+        request_ids={"rr5": "reps-a.nqsv", "rr50": "reps-b.nqsv"},
+        _test_token=A2._COLLECT_TEST_TOKEN)
     assert report["cells"][0]["correctness"]["status"] == "indeterminate"
     assert report["status"] == "indeterminate"
 
@@ -1001,7 +1155,8 @@ def test_nonfinite_json_and_samples_are_fail_closed(tmp_path):
     results[0]["performance"]["samples_tps"][0] = float("inf")
     report = A2.collect_results(
         policy, results, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_id="finite.nqsv", _test_token=A2._COLLECT_TEST_TOKEN)
+        request_ids={"rr5": "finite-a.nqsv", "rr50": "finite-b.nqsv"},
+        _test_token=A2._COLLECT_TEST_TOKEN)
     assert report["status"] == "performance-indeterminate"
     assert report["effects"] == {"rr50": pytest.approx(0.1)}
 
@@ -1042,10 +1197,11 @@ def test_completion_driver_rc_request_and_pin_are_bound_to_compute_result(tmp_pa
     policy = _policy(tmp_path)
     root = A2.preregister_attempt(policy, "attempt-compute-binding", CURRENT_PIN)
     acquisition, _ = _write_receipt_bundle(policy, root)
-    compute = root / "compute-result.json"
+    compute = root / "jobs" / "rr5" / "compute-result.json"
     compute.write_text(
         json.dumps({
             "schema_version": A2.COMPUTE_RESULT_SCHEMA,
+            "workload": "rr5",
             "driver_rc": 0,
             "pbs_jobid": "different.nqsv",
             "current_pin": CURRENT_PIN,
@@ -1072,7 +1228,7 @@ def test_completion_accepts_both_canonical_terminal_observations(
         policy, acquisition, current_pin=CURRENT_PIN)
     assert evidence["raw_manifest_valid"] is True
     if terminal_reason == "request-disappeared-after-visibility":
-        assert evidence["completion"]["terminal_observation"]["stdout"] == (
+        assert evidence["completion"]["jobs"][0]["terminal_observation"]["stdout"] == (
             "Batch Request: 945411.nqsv does not exist on nqsv.\n")
 
 
@@ -1087,7 +1243,7 @@ def test_disappeared_terminal_rejects_noncanonical_observations(
     _, submission = _write_receipt_bundle(
         policy, root, terminal_reason="request-disappeared-after-visibility")
     completion, _ = A2._read_json(root / "receipts" / "completion.json")
-    terminal = completion["terminal_observation"]
+    terminal = completion["jobs"][0]["terminal_observation"]
     if mutation == "empty-output":
         terminal["stdout"] = ""
     elif mutation == "visible-output":
@@ -1101,7 +1257,7 @@ def test_disappeared_terminal_rejects_noncanonical_observations(
     with pytest.raises(A2.CertificationError):
         A2._validate_completion_receipt(
             policy, completion, root.name, root, CURRENT_PIN,
-            submission_binding["request_id"], submission_binding,
+            submission_binding,
         )
 
 
@@ -1111,23 +1267,89 @@ def test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes(tmp_path
     acquisition, _ = _write_receipt_bundle(policy, root)
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
-    assert len(evidence["raw_files"]) == 8
-    raw_path = root / "raw" / "rr5-stock.json"
+    assert len(evidence["raw_files"]) == 10
+    raw_path = root / "jobs" / "rr5" / "raw" / "rr5-stock.json"
     raw_path.write_text('{"tampered":true}\n', encoding="utf-8")
     report = A2.collect_results(
         policy, evidence["raw_results"], attempt_id=root.name,
-        current_pin=CURRENT_PIN, request_id=evidence["request_id"],
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
         frozen_files=evidence["raw_files"], attempt_root=root)
     assert report["status"] == "observed-positive"
     assert report["independent_observation_limits"]["correctness_run_argv"] \
         == "not-recorded-by-existing-pipeline"
+
+    direct_root = A2.preregister_attempt(
+        policy, "attempt-finalizer-direct", CURRENT_PIN)
+    _write_receipt_bundle(policy, direct_root, claim_manifest=False)
+    noise = direct_root / "jobs" / "not-a-policy-workload" / "raw"
+    noise.mkdir(parents=True)
+    (noise / "decoy.json").write_text("{}\n", encoding="utf-8")
+    assert A2.finalize_raw_manifest(
+        policy, direct_root, CURRENT_PIN).is_file()
+
+    completion, _ = A2._read_json(root / "receipts" / "completion.json")
+    submission, _ = A2._read_json(root / "receipts" / "submission.json")
+    submission_binding = A2._validate_submission_receipt(
+        policy, submission, root.name, root, CURRENT_PIN)
+    completion_binding = A2._validate_completion_receipt(
+        policy, completion, root.name, root, CURRENT_PIN, submission_binding)
+    manifest_path = Path(completion["raw_result_manifest"])
+    manifest, _ = A2._read_json(manifest_path)
+    manifest["files"]["jobs/rr5/raw/extra.json"] = "0" * 64
+    mutant_path = root / "raw-manifest-mutant.json"
+    A2.write_json_x(mutant_path, manifest)
+    with pytest.raises(A2.CertificationError, match="inventory"):
+        A2._load_raw_manifest_bundle(
+            policy, mutant_path,
+            hashlib.sha256(mutant_path.read_bytes()).hexdigest(),
+            attempt_id=root.name, attempt_root=root, current_pin=CURRENT_PIN,
+            job_bindings=completion_binding["jobs"],
+        )
+
+    raw = evidence["raw_results"][0]
+    claim_path = Path(raw["campaign_evidence"]["claim_path"])
+    claim = A2._decode_campaign_claim(claim_path.read_bytes(), "fixture claim")
+    binding = reservation.read_binding(
+        evidence["reservation_results"]["rr5"]["environment"])
+    A2._validate_claim_reservation_binding(
+        claim, campaign_id=raw["campaign_evidence"]["campaign_id"],
+        request_id="945411.nqsv", reservation_binding=binding)
+    mutant_claim = dict(claim)
+    mutant_claim["job_id"] = "another-request.nqsv"
+    with pytest.raises(A2.CertificationError, match="submission or reservation"):
+        A2._validate_claim_reservation_binding(
+            mutant_claim,
+            campaign_id=raw["campaign_evidence"]["campaign_id"],
+            request_id="945411.nqsv", reservation_binding=binding)
+
+    failed_root = A2.preregister_attempt(
+        policy, "attempt-one-driver-failed", CURRENT_PIN)
+    failed_acquisition, failed_submission = _write_receipt_bundle(
+        policy, failed_root, driver_rc=7, claim_manifest=False)
+    failed_evidence = A2.validate_acquisition_bundle(
+        policy, failed_acquisition, current_pin=CURRENT_PIN)
+    assert failed_evidence["driver_rcs"] == {"rr5": 7, "rr50": 0}
+    failed_completion, _ = A2._read_json(
+        failed_root / "receipts" / "completion.json")
+    decoy = failed_root / "decoy-manifest.json"
+    A2.write_json_x(decoy, {"decoy": True})
+    failed_completion["raw_result_manifest"] = str(decoy)
+    failed_completion["raw_result_manifest_sha256"] = hashlib.sha256(
+        decoy.read_bytes()).hexdigest()
+    failed_submission_binding = A2._validate_submission_receipt(
+        policy, failed_submission, failed_root.name, failed_root, CURRENT_PIN)
+    with pytest.raises(A2.CertificationError, match="failed group"):
+        A2._validate_completion_receipt(
+            policy, failed_completion, failed_root.name, failed_root,
+            CURRENT_PIN, failed_submission_binding)
 
 
 def test_changed_campaign_wal_invalidates_the_manifest_bundle(tmp_path):
     policy = _policy(tmp_path)
     root = A2.preregister_attempt(policy, "attempt-wal-change", CURRENT_PIN)
     acquisition, _ = _write_receipt_bundle(policy, root)
-    raw, _ = A2._read_json(root / "raw" / "rr5-stock.json")
+    raw, _ = A2._read_json(
+        root / "jobs" / "rr5" / "raw" / "rr5-stock.json")
     wal_path = Path(raw["campaign_evidence"]["wal_path"])
     with wal_path.open("ab") as stream:
         stream.write(b"{}\n")
@@ -1199,17 +1421,12 @@ def test_wal_configure_locator_comes_from_versioned_grammar():
 def test_synthetic_pbs_free_preregister_through_analyze_positive(tmp_path):
     policy = _policy(tmp_path)
     root = A2.preregister_attempt(policy, "synthetic-positive", CURRENT_PIN)
-    raw_root = root / "raw"
-    raw_root.mkdir()
-    results = _positive_results(policy, root)
-    for result in results:
-        A2.write_json_x(raw_root / f"{result['cell_id']}.json", result)
     acquisition, _ = _write_receipt_bundle(policy, root)
     evidence = A2.validate_acquisition_bundle(
         policy, acquisition, current_pin=CURRENT_PIN)
     report = A2.collect_results(
         policy, A2.load_raw_results(policy, root), attempt_id=root.name,
-        current_pin=CURRENT_PIN, request_id=evidence["request_id"])
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"])
     repo = tmp_path / "repo"
     repo.mkdir()
     destination = A2.materialize(policy, report, evidence, repo_root=repo)
@@ -1230,10 +1447,10 @@ def test_volatile_diagnostics_are_not_fixture_authority(tmp_path):
         }
     report_a = A2.collect_results(
         policy, first, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_id="125.nqsv")
+        request_ids={"rr5": "125.nqsv", "rr50": "126.nqsv"})
     report_b = A2.collect_results(
         policy, second, attempt_id=root.name, current_pin=CURRENT_PIN,
-        request_id="125.nqsv")
+        request_ids={"rr5": "125.nqsv", "rr50": "126.nqsv"})
     assert report_a == report_b
 
 
