@@ -41,6 +41,51 @@ def _shell_integer_assignments(
     return assignments
 
 
+def _git(cwd: Path, *args: str, input_text: str | None = None) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        input=input_text,
+    )
+    return completed.stdout.strip()
+
+
+def _fixture_git_repository(root: Path) -> tuple[Path, str, str]:
+    repository = root / "objects.git"
+    repository.mkdir()
+    _git(repository, "init", "--bare", "--quiet")
+
+    def commit(content: str, parent: str | None = None) -> str:
+        blob = _git(repository, "hash-object", "-w", "--stdin", input_text=content)
+        tree = _git(
+            repository, "mktree",
+            input_text=f"100644 blob {blob}\ttracked.txt\n",
+        )
+        argv = [
+            "-c", "user.name=B10 Test", "-c", "user.email=b10@example.invalid",
+            "commit-tree", tree,
+        ]
+        if parent is not None:
+            argv.extend(["-p", parent])
+        return _git(repository, *argv, input_text="fixture\n")
+
+    expected = commit("expected\n")
+    other = commit("other\n", expected)
+    return repository, expected, other
+
+
+def _add_detached_worktree(repository: Path, path: Path, commit: str) -> None:
+    _git(repository, "worktree", "add", "--detach", str(path), commit)
+
+
+def _shell_function(script: str, name: str) -> str:
+    start = script.index(f"{name}() {{")
+    end = script.index("\n}", start) + 2
+    return script[start:end]
+
+
 def _stub_patch_and_prebuild(monkeypatch, events=None):
     observed = [] if events is None else events
 
@@ -115,6 +160,63 @@ def test_applied_tree_contains_the_backoff_fixed_build_surface(tmp_path):
     backoff.write_text("#ifndef BACKOFF_FIXED\n#endif\n", encoding="utf-8")
     with pytest.raises(RuntimeError, match="patch is not materialized"):
         M._assert_backoff_fixed_materialized(str(tmp_path))
+
+
+def test_both_drivers_accept_the_same_explicit_ccbench_worktree_cli(monkeypatch):
+    observed = []
+    total = len(M.genomes("balanced"))
+
+    def run_workload(*_args, **kwargs):
+        observed.append(("sweep", kwargs["ccbench_dir"]))
+        return SimpleNamespace(committed=total, aborted=0, campaign_id="cid")
+
+    def measure(*_args, **kwargs):
+        observed.append(("aa", kwargs["ccbench_dir"]))
+        return {"record_count": total * O.REPS, "manifest": "/result/manifest.json"}
+
+    monkeypatch.setattr(M, "run_workload", run_workload)
+    monkeypatch.setattr(O, "measure", measure)
+    common = [
+        "balanced", "--output-root", "/outside/root",
+        "--cache-root", "/scratch/cache",
+        "--ccbench-dir", "/scratch/ccbench-source",
+    ]
+    assert M.main(common) == 0
+    assert O.main(common) == 0
+    assert observed == [
+        ("sweep", "/scratch/ccbench-source"),
+        ("aa", "/scratch/ccbench-source"),
+    ]
+    assert O._resolve_ccbench_dir is M._resolve_ccbench_dir
+
+
+def test_invalid_explicit_worktree_cannot_fall_back_to_valid_shared_tree(
+        tmp_path, monkeypatch):
+    repository, expected, other = _fixture_git_repository(tmp_path)
+    shared = tmp_path / "shared-ccbench"
+    invalid = tmp_path / "invalid-ccbench"
+    _add_detached_worktree(repository, shared, expected)
+    _add_detached_worktree(repository, invalid, other)
+    monkeypatch.setattr(M.pin, "CURRENT_PIN", expected[:7])
+    fallback_calls = []
+
+    def shared_fallback():
+        fallback_calls.append("shared")
+        return str(shared)
+
+    monkeypatch.setattr(M.buildcache, "_ccbench_dir", shared_fallback)
+    assert M._resolve_ccbench_dir(str(shared)) == str(shared.resolve())
+    assert M._resolve_ccbench_dir(None) == str(shared)
+    assert fallback_calls == ["shared"]
+
+    with pytest.raises(RuntimeError, match="HEAD mismatch"):
+        M._resolve_ccbench_dir(str(invalid))
+    assert fallback_calls == ["shared"]
+
+    (shared / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="tracked modifications"):
+        M._resolve_ccbench_dir(str(shared))
+    assert fallback_calls == ["shared"]
 
 
 def test_distinct_backoff_fixed_amounts_produce_distinct_build_results(monkeypatch):
@@ -374,12 +476,14 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert "#PBS -b 1" in job
     assert "#PBS -l elapstim_req=05:00:00" in job
     budget = _shell_integer_assignments(job, (
-        "SWEEP_CAP_S", "AA_CAP_S", "REPORT_CAP_S", "FINALIZE_CAP_S",
-        "EXPECTED_WALLTIME_S",
+        "WORKTREE_SETUP_CAP_S", "SWEEP_CAP_S", "AA_CAP_S", "REPORT_CAP_S",
+        "WORKTREE_CLEANUP_CAP_S", "FINALIZE_CAP_S", "EXPECTED_WALLTIME_S",
     ))
+    assert budget["WORKTREE_SETUP_CAP_S"] == 120
     assert budget["SWEEP_CAP_S"] == 11700
     assert budget["AA_CAP_S"] == 3900
     assert budget["REPORT_CAP_S"] == 300
+    assert budget["WORKTREE_CLEANUP_CAP_S"] == 120
     assert budget["FINALIZE_CAP_S"] == 300
     assert budget["EXPECTED_WALLTIME_S"] == 18000
     assert (
@@ -461,12 +565,70 @@ def test_b10_job_builds_pinned_dependencies_in_job_scratch():
     assert 'export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"' in job
 
 
+def test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree():
+    root = Path(__file__).resolve().parents[2]
+    job = (root / "tools/pegasus/b10_backoff_grid.sh").read_text(encoding="utf-8")
+    assert (
+        'git -C "$REPO_ROOT" ls-tree "$CURRENT_COMMIT" -- external/ccbench'
+        in job
+    )
+    assert (
+        'worktree_setup_run git -C "$CCBENCH_BASE" worktree add --detach \\\n'
+        '  "$CCBENCH_WORKTREE" "$CCBENCH_EXPECTED_COMMIT"'
+        in job
+    )
+    assert '"ccbench_gitlink_commit": ccbench_commit' in job
+    assert '"expected_gitlink_commit": expected' in job
+    assert '"observed_head_commit": observed' in job
+    assert 'status --porcelain --untracked-files=no' in job
+    assert job.count('--ccbench-dir "$CCBENCH_WORKTREE"') == 2
+    assert 'trap cleanup_worktree EXIT' in job
+    assert 'CURRENT_STAGE=ccbench_worktree_cleanup\nremove_ccbench_worktree' in job
+
+
+@pytest.mark.parametrize("job_rc", [0, 23], ids=["normal", "abnormal"])
+def test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit(
+        tmp_path, job_rc):
+    root = Path(__file__).resolve().parents[2]
+    job = (root / "tools/pegasus/b10_backoff_grid.sh").read_text(encoding="utf-8")
+    repository, expected, _other = _fixture_git_repository(tmp_path)
+    worktree = tmp_path / "job-ccbench"
+    output_root = tmp_path / "output"
+    (output_root / "env").mkdir(parents=True)
+    _add_detached_worktree(repository, worktree, expected)
+    snippet = "\n".join((
+        "set -Eeuo pipefail",
+        "WORKTREE_CLEANUP_CAP_S=30",
+        'CCBENCH_BASE="$1"',
+        'CCBENCH_WORKTREE="$2"',
+        'OUTPUT_ROOT="$3"',
+        _shell_function(job, "remove_ccbench_worktree"),
+        _shell_function(job, "cleanup_worktree"),
+        "trap cleanup_worktree EXIT",
+        'exit "$4"',
+    ))
+    completed = subprocess.run(
+        [
+            "bash", "-c", snippet, "b10-cleanup-test",
+            str(repository), str(worktree), str(output_root), str(job_rc),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == job_rc, completed.stderr
+    assert not worktree.exists()
+    assert str(worktree) not in _git(repository, "worktree", "list", "--porcelain")
+    assert (output_root / "env/worktree-remove.rc").read_text() == "0\n"
+
+
 def test_b10_job_time_budget_matches_walltime():
     root = Path(__file__).resolve().parents[2]
     job = (root / "tools/pegasus/b10_backoff_grid.sh").read_text(encoding="utf-8")
     cap_names = (
-        "DEPENDENCY_BUILD_CAP_S", "SWEEP_CAP_S", "AA_CAP_S",
-        "REPORT_CAP_S", "FINALIZE_CAP_S",
+        "WORKTREE_SETUP_CAP_S", "DEPENDENCY_BUILD_CAP_S", "SWEEP_CAP_S",
+        "AA_CAP_S", "REPORT_CAP_S", "WORKTREE_CLEANUP_CAP_S",
+        "FINALIZE_CAP_S",
     )
     budget = _shell_integer_assignments(
         job, (*cap_names, "EXPECTED_RESERVE_S", "EXPECTED_WALLTIME_S"),

@@ -28,6 +28,7 @@ from .backoff_extended_sweep import (  # noqa: E402
     _assert_backoff_fixed_materialized,
     _repo_root,
     _require_distinct_static_binary_hashes,
+    _resolve_ccbench_dir,
     config_for,
     genomes,
 )
@@ -334,8 +335,10 @@ def _run_rep(binary: str, flags: list[str], numactl: list[str]):
 def measure(
         tag: str, *, output_root: str, log=print,
         cache_root: str,
+        ccbench_dir: Optional[str] = None,
         binding_loader=certified_reference_bindings) -> dict:
     """Measure one workload and finish its append-only log with a manifest."""
+    ccbench_dir = _resolve_ccbench_dir(ccbench_dir)
     workload = WORKLOAD_BY_TAG[tag]
     p2_2._assert_single_tenant()
     _site, contract, _authorization = p2_2.resolve_site_runtime()
@@ -374,7 +377,6 @@ def measure(
         if missing_reps:
             pending.append((point_index, reference, reference_variant, missing_reps))
 
-    ccbench_dir = buildcache._ccbench_dir()
     patch_path = os.path.join(_repo_root(), TEMPLATE_PATCH)
     with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
         _assert_backoff_fixed_materialized(ccbench_dir)
@@ -495,9 +497,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("workload", choices=[tag for tag, _workload in WORKLOADS])
     parser.add_argument("--output-root", required=True)
     parser.add_argument("--cache-root", required=True)
+    parser.add_argument("--ccbench-dir")
     args = parser.parse_args(argv)
     result = measure(
         args.workload, output_root=args.output_root, cache_root=args.cache_root,
+        ccbench_dir=args.ccbench_dir,
     )
     print(
         f"{args.workload}: {result['record_count']} rep records, "

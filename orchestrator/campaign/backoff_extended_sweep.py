@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import random
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -70,6 +71,67 @@ class PreflightStop(RuntimeError):
 
 def _repo_root() -> str:
     return str(Path(__file__).resolve().parents[2])
+
+
+def _git_worktree_output(root: Path, *args: str) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), *args],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise RuntimeError("provided CCBench worktree cannot be inspected") from exc
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "no diagnostic"
+        raise RuntimeError(
+            "provided CCBench worktree failed git validation: "
+            f"{' '.join(args)}: {detail}"
+        )
+    return completed.stdout.strip()
+
+
+def _resolve_ccbench_dir(ccbench_dir: Optional[str]) -> str:
+    """Use the legacy shared tree only when no explicit worktree was supplied."""
+    if ccbench_dir is None:
+        return buildcache._ccbench_dir()
+    if type(ccbench_dir) is not str or not ccbench_dir:
+        raise RuntimeError("provided CCBench worktree path is empty or non-string")
+    candidate = Path(ccbench_dir)
+    if candidate.is_symlink():
+        raise RuntimeError("provided CCBench worktree path must not be a symlink")
+    try:
+        root = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError("provided CCBench worktree does not exist") from exc
+    if not root.is_dir():
+        raise RuntimeError("provided CCBench worktree is not a directory")
+    if _git_worktree_output(root, "rev-parse", "--is-inside-work-tree") != "true":
+        raise RuntimeError("provided CCBench path is not a git worktree")
+    try:
+        top = Path(
+            _git_worktree_output(root, "rev-parse", "--show-toplevel")
+        ).resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError("provided CCBench worktree root is not resolvable") from exc
+    if top != root:
+        raise RuntimeError("provided CCBench path is not the git worktree root")
+    head = _git_worktree_output(root, "rev-parse", "--verify", "HEAD^{commit}")
+    expected_head = _git_worktree_output(
+        root, "rev-parse", "--verify", f"{pin.CURRENT_PIN}^{{commit}}",
+    )
+    if head != expected_head:
+        raise RuntimeError(
+            "provided CCBench worktree HEAD mismatch: "
+            f"expected={expected_head}, actual={head}"
+        )
+    tracked_status = _git_worktree_output(
+        root, "status", "--porcelain", "--untracked-files=no",
+    )
+    if tracked_status:
+        raise RuntimeError("provided CCBench worktree has tracked modifications")
+    return str(root)
 
 
 def _assert_backoff_fixed_materialized(ccbench_dir: str) -> None:
@@ -273,8 +335,9 @@ def config_for(tag: str, workload: dict[str, str], *, contract=None) -> Campaign
 
 def run_workload(
         tag: str, workload: dict[str, str], log=print, *, output_root: str = "",
-        cache_root: str):
+        cache_root: str, ccbench_dir: Optional[str] = None):
     """Run one workload through the unchanged certified campaign pipeline."""
+    ccbench_dir = _resolve_ccbench_dir(ccbench_dir)
     p2_2._assert_single_tenant()
     site, contract, authorization = p2_2.resolve_site_runtime()
     p2_2._assert_matches_calibration(contract)
@@ -311,7 +374,6 @@ def run_workload(
     preflight_receipt_path = (
         Path(output_root) / f"b10-backoff-grid-{tag}-perf-preflight.json"
     )
-    ccbench_dir = buildcache._ccbench_dir()
     patch_path = os.path.join(_repo_root(), TEMPLATE_PATCH)
     try:
         with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
@@ -365,6 +427,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("workload", choices=[tag for tag, _workload in WORKLOADS])
     parser.add_argument("--output-root", required=True)
     parser.add_argument("--cache-root", required=True)
+    parser.add_argument("--ccbench-dir")
     args = parser.parse_args(argv)
     try:
         summary = run_workload(
@@ -372,6 +435,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             WORKLOAD_BY_TAG[args.workload],
             output_root=args.output_root,
             cache_root=args.cache_root,
+            ccbench_dir=args.ccbench_dir,
         )
     except PreflightStop as exc:
         print(str(exc), file=sys.stderr)
