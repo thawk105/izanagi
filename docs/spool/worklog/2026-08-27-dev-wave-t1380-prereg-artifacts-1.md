@@ -84,11 +84,15 @@ title: [T-1380] 事前登録 artifact の発行は導出の権威が実在せず
   8 suite の node 集合 identity が全て壊れる。ここで「どちらの gate も緑にできる中身は無い」と
   結論しかけたが、**現 collection にあって台帳に無い 1787 node のうち 1725 node は
   凍結対象の 8 suite の外**にあり、そこだけを足せば被覆率は 99.64% へ戻り凍結部分は
-  1 byte も動かないことを実測した。全体再生成は revert し、部分更新で着地させた。
-  数値は {{F:pinned-suites-freeze-part-of-a-living-ledger}}。
+  1 byte も動かないことを実測した。全体再生成は revert し、部分更新を作った。
+  **ただし着地したのは main の 50b36435 で、本 wave とは独立に同じ手を採っている。**
+  land 再試行の merge で main 側を採り、本 wave の重複した台帳変更は落とした。
+  数値と経緯は {{F:pinned-suites-freeze-part-of-a-living-ledger}}。
 - Codex author への指示では、閾値を下げる・gate を skip する・`xfail` を付ける・
   hold へ登録する・gate 自身を編集する、を個別に禁止し、編集可能 file を台帳 1 件へ限定した。
-  子はこれを守り、両立不能を発見して報告した。
+  子はこれを守り、1 本目は全体再生成の不成立を、2 本目は部分更新の成立を報告した。
+- **land は 1 度 `stale-main` (rc=10) で止まった。** 受入時点の main は b9d21206 だったが、
+  lock 取得時には f84af392 まで進んでいた。固定 SHA で wave 側へ merge して再試行した。
 
 ## 次の一手差分
 
