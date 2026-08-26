@@ -1,0 +1,715 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/915a09aaa69951dc15d80a9f52e699d7/izdw-915a09aaa6.o950603",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/915a09aaa69951dc15d80a9f52e699d7/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "........................................................................ [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n214 passed in 111.11s (0:01:51)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+      "stdout_sha256": "55c3996cbb0ad8e27b0d2cac95c8a92a6a9fddae2223fb3dfd226a7d93b2cc47"
+    },
+    "artifact_error": null,
+    "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+    "duration_s": 135.44,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "8c3cc72616ad7df2a996b67d72c46f8b60932399d1cb70940ab7f70f00b1978d",
+    "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+    "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+    "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+    "status": "PASSED",
+    "test_output_sha256": "55c3996cbb0ad8e27b0d2cac95c8a92a6a9fddae2223fb3dfd226a7d93b2cc47",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+  },
+  "date": "2026-08-26T13:06:52.407001+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/378c5e4577e881ccaf7617cecb1e20a5/izdw-378c5e4577.o950613",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/378c5e4577e881ccaf7617cecb1e20a5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "..F........F............................................................ [ 33%]\n........................................................................ [ 67%]\n...........................................................F..........   [100%]\n=================================== FAILURES ===================================\n_____ test_repository_tip_binds_current_decider_version_without_activation _____\n\nrepository_candidate_commit = 'd958f00c9adc949f95fa36e075611d1a71a6fc68'\ncandidate_activation_report = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True)\n\n    @CANDIDATE_XDIST_GROUP\n    def test_repository_tip_binds_current_decider_version_without_activation(\n        repository_candidate_commit: str,\n        candidate_activation_report: prereg.ActivationReport,\n    ) -> None:\n        candidate = repository_candidate_commit\n        report = candidate_activation_report\n        assert report.commit == candidate\n        assert report.condition_freeze_valid is True\n        assert report.freeze_reason_code == \"valid\"\n        assert report.freeze_generation is not None\n    \n        tip_raw = prereg.read_blob_at(\n            ROOT,\n            report.commit,\n            prereg.generation_path(report.freeze_generation),\n        )\n        assert tip_raw is not None\n        tip = json.loads(tip_raw)\n        record = prereg._load_freeze_record(\n            tip_raw,\n            expected_generation=report.freeze_generation,\n        )\n    \n        assert tip[\"schema_version\"] == prereg.SCHEMA_VERSION\n        assert tip[\"decider_version\"] == prereg.DECIDER_VERSION\n        assert record.schema_version == prereg.SCHEMA_VERSION\n        assert record.decider_version == prereg.DECIDER_VERSION\n        assert report.decider_version == prereg.DECIDER_VERSION\n        assert report.decider_version_matches is True\n        assert report.decider_version_reason_code == \"decider-version-match\"\n>       assert report.effective is False\nE       AssertionError: assert True is False\nE        +  where True = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True).effective\n\norchestrator/tests/test_s8c_preregistration_invariant.py:472: AssertionError\n______ test_candidate_is_not_effective_and_has_zero_satisfied_predicates _______\n\nrepository_candidate_commit = 'd958f00c9adc949f95fa36e075611d1a71a6fc68'\ncandidate_activation_report = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True)\n\n    @CANDIDATE_XDIST_GROUP\n    def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(\n        repository_candidate_commit: str,\n        candidate_activation_report: prereg.ActivationReport,\n    ) -> None:\n        candidate = repository_candidate_commit\n        report = candidate_activation_report\n        assert report.commit == candidate\n>       assert report.effective is False\nE       AssertionError: assert True is False\nE        +  where True = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True).effective\n\norchestrator/tests/test_s8c_preregistration_invariant.py:603: AssertionError\n_____________ test_c06_machine_fixture_is_not_a_contract_promotion _____________\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_c06_machine_fixture_is_no0')\n\n    def test_c06_machine_fixture_is_not_a_contract_promotion(\n        tmp_path: Path,\n    ) -> None:\n        \"\"\"これは mutation fixture であり凍結された契約ではない。\"\"\"\n        root, head, result = _machine_c06_result(\n            tmp_path,\n            \"machine-c06\",\n            budget_source=TOKEN_ONLY_C06_BUDGET,\n        )\n        assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n        assert result.reason_code == \"completion-proof-not-machine-checkable\"\n        report = core.activation_report_at(root, head)\n>       assert report.effective is False\nE       AssertionError: assert True is False\nE        +  where True = ActivationReport(commit='5c8c470d94b886eee957953e3d663aa6c44ea59d', condition_freeze_valid=False, freeze_generation=No...), core_module_blob_sha256=None, evaluator_module_blob_sha256=None, projection_module_blob_sha256=None, effective=True).effective\n\norchestrator/tests/test_s8c_preregistration_predicates.py:3816: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\nFAILED orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion\n3 failed, 211 passed in 119.33s (0:01:59)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=2116 retained_bytes=2116 omitted_bytes=0 rendered_excerpt_bytes=2195 sha256=f57da5d7cf2262f909445d4897c509ff12d36d7a7c31bcb66c185a40d3c99272\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> repository_candidate_commit = 'd958f00c9adc949f95fa36e075611d1a71a6fc68'\n> candidate_activation_report = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True)\n> \n>     @CANDIDATE_XDIST_GROUP\n>     def test_repository_tip_binds_current_decider_version_without_activation(\n>         repository_candidate_commit: str,\n>         candidate_activation_report: prereg.ActivationReport,\n>     ) -> None:\n>         candidate = repository_candidate_commit\n>         report = candidate_activation_report\n>         assert report.commit == candidate\n>         assert report.condition_freeze_valid is True\n>         assert report.freeze_reason_code == \"valid\"\n>         assert report.freeze_generation is not None\n>     \n>         tip_raw = prereg.read_blob_at(\n>             ROOT,\n>             report.commit,\n>             prereg.generation_path(report.freeze_generation),\n>         )\n>         assert tip_raw is not None\n>         tip = json.loads(tip_raw)\n>         record = prereg._load_freeze_record(\n>             tip_raw,\n>             expected_generation=report.freeze_generation,\n>         )\n>     \n>         assert tip[\"schema_version\"] == prereg.SCHEMA_VERSION\n>         assert tip[\"decider_version\"] == prereg.DECIDER_VERSION\n>         assert record.schema_version == prereg.SCHEMA_VERSION\n>         assert record.decider_version == prereg.DECIDER_VERSION\n>         assert report.decider_version == prereg.DECIDER_VERSION\n>         assert report.decider_version_matches is True\n>         assert report.decider_version_reason_code == \"decider-version-match\"\n> >       assert report.effective is False\n> E       AssertionError: assert True is False\n> E        +  where True = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True).effective\n> \n> orchestrator/tests/test_s8c_preregistration_invariant.py:472: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 rendered_excerpt_bytes=1172 sha256=fc8403a522dbf156ef36e9e6b72596096db6f94cc68d4191b9d0c76d8bbb3894\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_c06_machine_fixture_is_no0')\n> \n>     def test_c06_machine_fixture_is_not_a_contract_promotion(\n>         tmp_path: Path,\n>     ) -> None:\n>         \"\"\"\\u3053\\u308c\\u306f mutation fixture \\u3067\\u3042\\u308a\\u51cd\\u7d50\\u3055\\u308c\\u305f\\u5951\\u7d04\\u3067\\u306f\\u306a\\u3044\\u3002\"\"\"\n>         root, head, result = _machine_c06_result(\n>             tmp_path,\n>             \"machine-c06\",\n>             budget_source=TOKEN_ONLY_C06_BUDGET,\n>         )\n>         assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED\n>         assert result.reason_code == \"completion-proof-not-machine-checkable\"\n>         report = core.activation_report_at(root, head)\n> >       assert report.effective is False\n> E       AssertionError: assert True is False\n> E        +  where True = ActivationReport(commit='5c8c470d94b886eee957953e3d663aa6c44ea59d', condition_freeze_valid=False, freeze_generation=No...), core_module_blob_sha256=None, evaluator_module_blob_sha256=None, projection_module_blob_sha256=None, effective=True).effective\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:3816: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1140 retained_bytes=1140 omitted_bytes=0 rendered_excerpt_bytes=1173 sha256=8cd6f2aa32ae0233a7b7f3afcbcec4c31279ddd593b82e0a5ed6383ef5f35b88\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> repository_candidate_commit = 'd958f00c9adc949f95fa36e075611d1a71a6fc68'\n> candidate_activation_report = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True)\n> \n>     @CANDIDATE_XDIST_GROUP\n>     def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(\n>         repository_candidate_commit: str,\n>         candidate_activation_report: prereg.ActivationReport,\n>     ) -> None:\n>         candidate = repository_candidate_commit\n>         report = candidate_activation_report\n>         assert report.commit == candidate\n> >       assert report.effective is False\n> E       AssertionError: assert True is False\n> E        +  where True = ActivationReport(commit='d958f00c9adc949f95fa36e075611d1a71a6fc68', condition_freeze_valid=True, freeze_generation=10,...394', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=True).effective\n> \n> orchestrator/tests/test_s8c_preregistration_invariant.py:603: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4335 retained_bytes=4335 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6210 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "023268eb712d4da2ce937ef7a4350887cfef1076f257f26cc76afd5b92bc7e56"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+      "duration_s": 216.534,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1858-EFFECTIVE-ALWAYS-TRUE",
+      "injection_diff_sha256": "1498c332a0add0a12dcfc39a065184b642644db028ab0779c7468803d2509afc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "61d524fe046a56d242921e7146665ff62c1fb6bfdbabb7786c0e6c2319e9e790",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    effective = True\n",
+          "old": "    effective = (\n        validation is not None\n        and decider_version_matches\n        and all_filled\n        and all_satisfied\n    )\n"
+        }
+      ],
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "KILLED",
+      "test_output_sha256": "023268eb712d4da2ce937ef7a4350887cfef1076f257f26cc76afd5b92bc7e56",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90b3e78e549a835d833c477815575697/izdw-90b3e78e54.o950617",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/90b3e78e549a835d833c477815575697/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "..F..................................................................... [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n=================================== FAILURES ===================================\n_____ test_repository_tip_binds_current_decider_version_without_activation _____\n\nrepository_candidate_commit = 'eeef76c84579ebf9931626556cf4a605abebb3ba'\ncandidate_activation_report = ActivationReport(commit='eeef76c84579ebf9931626556cf4a605abebb3ba', condition_freeze_valid=True, freeze_generation=Non...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n\n    @CANDIDATE_XDIST_GROUP\n    def test_repository_tip_binds_current_decider_version_without_activation(\n        repository_candidate_commit: str,\n        candidate_activation_report: prereg.ActivationReport,\n    ) -> None:\n        candidate = repository_candidate_commit\n        report = candidate_activation_report\n        assert report.commit == candidate\n        assert report.condition_freeze_valid is True\n        assert report.freeze_reason_code == \"valid\"\n>       assert report.freeze_generation is not None\nE       AssertionError: assert None is not None\nE        +  where None = ActivationReport(commit='eeef76c84579ebf9931626556cf4a605abebb3ba', condition_freeze_valid=True, freeze_generation=Non...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False).freeze_generation\n\norchestrator/tests/test_s8c_preregistration_invariant.py:451: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\n1 failed, 213 passed in 108.04s (0:01:48)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1270 retained_bytes=1270 omitted_bytes=0 rendered_excerpt_bytes=1307 sha256=5dba8e560ef9191ce9d336d303817d55af5fd898e64c2a1f988f8b097f8ac703\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> repository_candidate_commit = 'eeef76c84579ebf9931626556cf4a605abebb3ba'\n> candidate_activation_report = ActivationReport(commit='eeef76c84579ebf9931626556cf4a605abebb3ba', condition_freeze_valid=True, freeze_generation=Non...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> \n>     @CANDIDATE_XDIST_GROUP\n>     def test_repository_tip_binds_current_decider_version_without_activation(\n>         repository_candidate_commit: str,\n>         candidate_activation_report: prereg.ActivationReport,\n>     ) -> None:\n>         candidate = repository_candidate_commit\n>         report = candidate_activation_report\n>         assert report.commit == candidate\n>         assert report.condition_freeze_valid is True\n>         assert report.freeze_reason_code == \"valid\"\n> >       assert report.freeze_generation is not None\n> E       AssertionError: assert None is not None\n> E        +  where None = ActivationReport(commit='eeef76c84579ebf9931626556cf4a605abebb3ba', condition_freeze_valid=True, freeze_generation=Non...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False).freeze_generation\n> \n> orchestrator/tests/test_s8c_preregistration_invariant.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1270 retained_bytes=1270 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2061 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d4e63b334e1d38ab92a496b32205a52c8dd657a01f6a7397d50f0c8d09342ed6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+      "duration_s": 139.675,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1858-FREEZE-GENERATION-DROPPED",
+      "injection_diff_sha256": "3306199bc1aafd625fd8297c75ffdac89282807d8a2af27351c82101cae8760d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e9d8ea8ccb885879902dfd80ba1e7c789fe81f186a57298c765d5217f3674288",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "        freeze_generation=None,\n",
+          "old": "        freeze_generation=validation.generation_number if validation else None,\n"
+        }
+      ],
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "KILLED",
+      "test_output_sha256": "d4e63b334e1d38ab92a496b32205a52c8dd657a01f6a7397d50f0c8d09342ed6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6e25b8829b1eb1ab91164e47358ecd47/izdw-6e25b8829b.o950621",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6e25b8829b1eb1ab91164e47358ecd47/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "FFF..................................................................... [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n=================================== FAILURES ===================================\n_________ test_candidate_freeze_matches_contract_and_generation_chain __________\n\nrepository_candidate_commit = 'b79b00c6d12cc33745529cb6c0c73b3c24fb18d0'\ncandidate_commit_paths = frozenset({'.agents/skills/cleanup-branches/SKILL.md', '.agents/skills/cleanup-branches/agents/openai.yaml', '.agents/...lls/dev-wave/agents/openai.yaml', '.agents/skills/rulings/SKILL.md', '.agents/skills/rulings/agents/openai.yaml', ...})\n\n    @CANDIDATE_XDIST_GROUP\n    def test_candidate_freeze_matches_contract_and_generation_chain(\n        repository_candidate_commit: str,\n        candidate_commit_paths: frozenset[str],\n    ) -> None:\n        \"\"\"g1 発行前は意図的に赤。未 commit 差分を含む同じ履歴性質を検査する。\"\"\"\n    \n        candidate = repository_candidate_commit\n>       validation = prereg.validate_condition_freeze_at(ROOT, candidate)\n\norchestrator/tests/test_s8c_preregistration_invariant.py:389: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8c_preregistration.py:1691: in validate_condition_freeze_at\n    state = state_at(item)\norchestrator/campaign/s8c_preregistration.py:1679: in state_at\n    _assert_record_matches_contract(records[-1], contract, evidence_sha)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrecord = FreezeRecord(schema_version='s8c-prereg-condition-freeze/v1', decider_version=None, generation_number=1, supersedes_sh...b3d85dabb83993e7d9c07a42cc9afc7382654360\",\"source_path\":\"docs/phase3-8c-preregistration.md\",\"supersedes_sha256\":null}')\ncontract = MarkdownContract(section5_field_names=frozenset({'env_tag (実測環境)', '未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の...78f26cab94041a827b90965d3')), normative_body_sha256='83cb20d29e1e20887128e01ea48e22f64416f64fe64486fb8fffeefa776b73bb')\nevidence_sha256 = 'c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471'\n\n    def _assert_record_matches_contract(\n        record: FreezeRecord, contract: MarkdownContract, evidence_sha256: str\n    ) -> None:\n        expected = {\n            \"section5_field_names_sha256\": contract.section5_field_names_sha256,\n            \"section6_conditions_sha256\": contract.section6_conditions_sha256,\n            \"section6_condition_hashes\": contract.section6_condition_hashes,\n            \"normative_body_sha256\": contract.normative_body_sha256,\n            \"evidence_contract_sha256\": evidence_sha256,\n            \"protected_sha256\": contract.protected_sha256(evidence_sha256),\n        }\n        for name, value in expected.items():\n            if getattr(record, name) != value:\n>               raise PreregistrationError(\"record-protected-mismatch\", name)\nE               orchestrator.campaign.s8c_preregistration.PreregistrationError: [record-protected-mismatch] section6_conditions_sha256\n\norchestrator/campaign/s8c_preregistration.py:1471: PreregistrationError\n________ test_candidate_freeze_batch_is_bounded_by_frozen_touch_points _________\n\nrepository_candidate_commit = 'b79b00c6d12cc33745529cb6c0c73b3c24fb18d0'\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bcbce43970>\n\n    @CANDIDATE_XDIST_GROUP\n    def test_candidate_freeze_batch_is_bounded_by_frozen_touch_points(\n        repository_candidate_commit: str, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        calls: list[tuple[int, int]] = []\n        original = prereg._batch_oids\n    \n        def counted_batch_oids(repo_root, commits, paths):\n            calls.append((len(commits), len(paths)))\n            return original(repo_root, commits, paths)\n    \n        monkeypatch.setattr(prereg, \"_batch_oids\", counted_batch_oids)\n>       prereg.validate_condition_freeze_at(ROOT, repository_candidate_commit)\n\norchestrator/tests/test_s8c_preregistration_invariant.py:433: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8c_preregistration.py:1691: in validate_condition_freeze_at\n    state = state_at(item)\norchestrator/campaign/s8c_preregistration.py:1679: in state_at\n    _assert_record_matches_contract(records[-1], contract, evidence_sha)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrecord = FreezeRecord(schema_version='s8c-prereg-condition-freeze/v1', decider_version=None, generation_number=1, supersedes_sh...b3d85dabb83993e7d9c07a42cc9afc7382654360\",\"source_path\":\"docs/phase3-8c-preregistration.md\",\"supersedes_sha256\":null}')\ncontract = MarkdownContract(section5_field_names=frozenset({'env_tag (実測環境)', '未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の...78f26cab94041a827b90965d3')), normative_body_sha256='83cb20d29e1e20887128e01ea48e22f64416f64fe64486fb8fffeefa776b73bb')\nevidence_sha256 = 'c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471'\n\n    def _assert_record_matches_contract(\n        record: FreezeRecord, contract: MarkdownContract, evidence_sha256: str\n    ) -> None:\n        expected = {\n            \"section5_field_names_sha256\": contract.section5_field_names_sha256,\n            \"section6_conditions_sha256\": contract.section6_conditions_sha256,\n            \"section6_condition_hashes\": contract.section6_condition_hashes,\n            \"normative_body_sha256\": contract.normative_body_sha256,\n            \"evidence_contract_sha256\": evidence_sha256,\n            \"protected_sha256\": contract.protected_sha256(evidence_sha256),\n        }\n        for name, value in expected.items():\n            if getattr(record, name) != value:\n>               raise PreregistrationError(\"record-protected-mismatch\", name)\nE               orchestrator.campaign.s8c_preregistration.PreregistrationError: [record-protected-mismatch] section6_conditions_sha256\n\norchestrator/campaign/s8c_preregistration.py:1471: PreregistrationError\n_____ test_repository_tip_binds_current_decider_version_without_activation _____\n\nrepository_candidate_commit = 'b79b00c6d12cc33745529cb6c0c73b3c24fb18d0'\ncandidate_activation_report = ActivationReport(commit='b79b00c6d12cc33745529cb6c0c73b3c24fb18d0', condition_freeze_valid=False, freeze_generation=No...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n\n    @CANDIDATE_XDIST_GROUP\n    def test_repository_tip_binds_current_decider_version_without_activation(\n        repository_candidate_commit: str,\n        candidate_activation_report: prereg.ActivationReport,\n    ) -> None:\n        candidate = repository_candidate_commit\n        report = candidate_activation_report\n        assert report.commit == candidate\n>       assert report.condition_freeze_valid is True\nE       AssertionError: assert False is True\nE        +  where False = ActivationReport(commit='b79b00c6d12cc33745529cb6c0c73b3c24fb18d0', condition_freeze_valid=False, freeze_generation=No...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False).condition_freeze_valid\n\norchestrator/tests/test_s8c_preregistration_invariant.py:449: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain\nFAILED orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points\nFAILED orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\n3 failed, 211 passed in 116.29s (0:01:56)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2875 retained_bytes=2875 omitted_bytes=0 rendered_excerpt_bytes=3125 sha256=c535e21787bb23ebac1f96486971af0469bb5c9bfe1ce91eee360d9a4df9f874\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> repository_candidate_commit = 'b79b00c6d12cc33745529cb6c0c73b3c24fb18d0'\n> candidate_commit_paths = frozenset({'.agents/skills/cleanup-branches/SKILL.md', '.agents/skills/cleanup-branches/agents/openai.yaml', '.agents/...lls/dev-wave/agents/openai.yaml', '.agents/skills/rulings/SKILL.md', '.agents/skills/rulings/agents/openai.yaml', ...})\n> \n>     @CANDIDATE_XDIST_GROUP\n>     def test_candidate_freeze_matches_contract_and_generation_chain(\n>         repository_candidate_commit: str,\n>         candidate_commit_paths: frozenset[str],\n>     ) -> None:\n>         \"\"\"g1 \\u767a\\u884c\\u524d\\u306f\\u610f\\u56f3\\u7684\\u306b\\u8d64\\u3002\\u672a commit \\u5dee\\u5206\\u3092\\u542b\\u3080\\u540c\\u3058\\u5c65\\u6b74\\u6027\\u8cea\\u3092\\u691c\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>     \n>         candidate = repository_candidate_commit\n> >       validation = prereg.validate_condition_freeze_at(ROOT, candidate)\n> \n> orchestrator/tests/test_s8c_preregistration_invariant.py:389: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8c_preregistration.py:1691: in validate_condition_freeze_at\n>     state = state_at(item)\n> orchestrator/campaign/s8c_preregistration.py:1679: in state_at\n>     _assert_record_matches_contract(records[-1], contract, evidence_sha)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> record = FreezeRecord(schema_version='s8c-prereg-condition-freeze/v1', decider_version=None, generation_number=1, supersedes_sh...b3d85dabb83993e7d9c07a42cc9afc7382654360\",\"source_path\":\"docs/phase3-8c-preregistration.md\",\"supersedes_sha256\":null}')\n> contract = MarkdownContract(section5_field_names=frozenset({'env_tag (\\u5b9f\\u6e2c\\u74b0\\u5883)', '\\u672a\\u65e2\\u77e5\\u6027\\u518d\\u78ba\\u8a8d\\u306e\\u8a3c\\u8de1 (a) \\u691c\\u7d22\\u5bfe\\u8c61 dir \\u4e00\\u89a7 / (b) \\u691c\\u7d22\\u5f0f / (c) \\u4e00\\u81f4 0 \\u4ef6\\u306e...78f26cab94041a827b90965d3')), normative_body_sha256='83cb20d29e1e20887128e01ea48e22f64416f64fe64486fb8fffeefa776b73bb')\n> evidence_sha256 = 'c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471'\n> \n>     def _assert_record_matches_contract(\n>         record: FreezeRecord, contract: MarkdownContract, evidence_sha256: str\n>     ) -> None:\n>         expected = {\n>             \"section5_field_names_sha256\": contract.section5_field_names_sha256,\n>             \"section6_conditions_sha256\": contract.section6_conditions_sha256,\n>             \"section6_condition_hashes\": contract.section6_condition_hashes,\n>             \"normative_body_sha256\": contract.normative_body_sha256,\n>             \"evidence_contract_sha256\": evidence_sha256,\n>             \"protected_sha256\": contract.protected_sha256(evidence_sha256),\n>         }\n>         for name, value in expected.items():\n>             if getattr(record, name) != value:\n> >               raise PreregistrationError(\"record-protected-mismatch\", name)\n> E               orchestrator.campaign.s8c_preregistration.PreregistrationError: [record-protected-mismatch] section6_conditions_sha256\n> \n> orchestrator/campaign/s8c_preregistration.py:1471: PreregistrationError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=2838 retained_bytes=2838 omitted_bytes=0 rendered_excerpt_bytes=3012 sha256=757a3624facbe4fceb54d67c399eaa89f9ec2b47398427a1be877b56001eeb4b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> repository_candidate_commit = 'b79b00c6d12cc33745529cb6c0c73b3c24fb18d0'\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bcbce43970>\n> \n>     @CANDIDATE_XDIST_GROUP\n>     def test_candidate_freeze_batch_is_bounded_by_frozen_touch_points(\n>         repository_candidate_commit: str, monkeypatch: pytest.MonkeyPatch\n>     ) -> None:\n>         calls: list[tuple[int, int]] = []\n>         original = prereg._batch_oids\n>     \n>         def counted_batch_oids(repo_root, commits, paths):\n>             calls.append((len(commits), len(paths)))\n>             return original(repo_root, commits, paths)\n>     \n>         monkeypatch.setattr(prereg, \"_batch_oids\", counted_batch_oids)\n> >       prereg.validate_condition_freeze_at(ROOT, repository_candidate_commit)\n> \n> orchestrator/tests/test_s8c_preregistration_invariant.py:433: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8c_preregistration.py:1691: in validate_condition_freeze_at\n>     state = state_at(item)\n> orchestrator/campaign/s8c_preregistration.py:1679: in state_at\n>     _assert_record_matches_contract(records[-1], contract, evidence_sha)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> record = FreezeRecord(schema_version='s8c-prereg-condition-freeze/v1', decider_version=None, generation_number=1, supersedes_sh...b3d85dabb83993e7d9c07a42cc9afc7382654360\",\"source_path\":\"docs/phase3-8c-preregistration.md\",\"supersedes_sha256\":null}')\n> contract = MarkdownContract(section5_field_names=frozenset({'env_tag (\\u5b9f\\u6e2c\\u74b0\\u5883)', '\\u672a\\u65e2\\u77e5\\u6027\\u518d\\u78ba\\u8a8d\\u306e\\u8a3c\\u8de1 (a) \\u691c\\u7d22\\u5bfe\\u8c61 dir \\u4e00\\u89a7 / (b) \\u691c\\u7d22\\u5f0f / (c) \\u4e00\\u81f4 0 \\u4ef6\\u306e...78f26cab94041a827b90965d3')), normative_body_sha256='83cb20d29e1e20887128e01ea48e22f64416f64fe64486fb8fffeefa776b73bb')\n> evidence_sha256 = 'c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471'\n> \n>     def _assert_record_matches_contract(\n>         record: FreezeRecord, contract: MarkdownContract, evidence_sha256: str\n>     ) -> None:\n>         expected = {\n>             \"section5_field_names_sha256\": contract.section5_field_names_sha256,\n>             \"section6_conditions_sha256\": contract.section6_conditions_sha256,\n>             \"section6_condition_hashes\": contract.section6_condition_hashes,\n>             \"normative_body_sha256\": contract.normative_body_sha256,\n>             \"evidence_contract_sha256\": evidence_sha256,\n>             \"protected_sha256\": contract.protected_sha256(evidence_sha256),\n>         }\n>         for name, value in expected.items():\n>             if getattr(record, name) != value:\n> >               raise PreregistrationError(\"record-protected-mismatch\", name)\n> E               orchestrator.campaign.s8c_preregistration.PreregistrationError: [record-protected-mismatch] section6_conditions_sha256\n> \n> orchestrator/campaign/s8c_preregistration.py:1471: PreregistrationError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1169 retained_bytes=1169 omitted_bytes=0 rendered_excerpt_bytes=1202 sha256=ed66e2cbbef551cb68358707010629405eae3ff5881629f34ffb8095f42103e0\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> repository_candidate_commit = 'b79b00c6d12cc33745529cb6c0c73b3c24fb18d0'\n> candidate_activation_report = ActivationReport(commit='b79b00c6d12cc33745529cb6c0c73b3c24fb18d0', condition_freeze_valid=False, freeze_generation=No...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False)\n> \n>     @CANDIDATE_XDIST_GROUP\n>     def test_repository_tip_binds_current_decider_version_without_activation(\n>         repository_candidate_commit: str,\n>         candidate_activation_report: prereg.ActivationReport,\n>     ) -> None:\n>         candidate = repository_candidate_commit\n>         report = candidate_activation_report\n>         assert report.commit == candidate\n> >       assert report.condition_freeze_valid is True\n> E       AssertionError: assert False is True\n> E        +  where False = ActivationReport(commit='b79b00c6d12cc33745529cb6c0c73b3c24fb18d0', condition_freeze_valid=False, freeze_generation=No...94', projection_module_blob_sha256='5af4f45c371fca6c4f41ff927a2ef6302e050b9ca773184a3052281869003457', effective=False).condition_freeze_valid\n> \n> orchestrator/tests/test_s8c_preregistration_invariant.py:449: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=6882 retained_bytes=6882 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9011 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1ed982be340c53460783780aaadacdf2fd491c43013a51166e2007cd2cbfea40"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+      "duration_s": 139.71,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1858-MAX-GENERATION-PINNED",
+      "injection_diff_sha256": "381c3c72b92da91aa633fd50c0186e3b1715ac33ba975161dc1f1788ec959e7e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a1a8c112edb45d95044504b70b5907055864a6f15a32b64a80d46d4fd465f12d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    max_generation = 1\n",
+          "old": "    max_generation = max(generations)\n"
+        }
+      ],
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "KILLED",
+      "test_output_sha256": "1ed982be340c53460783780aaadacdf2fd491c43013a51166e2007cd2cbfea40",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5bd537dc3507b694ead9f8383dff636d/izdw-5bd537dc35.o950625",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5bd537dc3507b694ead9f8383dff636d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "........................FF.............................................. [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n=================================== FAILURES ===================================\n____________ test_current_repository_snapshot_exactly_matches_head _____________\n\ncurrent_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/current-commit0/current-snapshot'), 'ed5fc80e07a64e4f928aabc682a29918a9bb3c3...orchestrator/campaign/wal.py', blob_sha256='9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2'))), ...))\n\n    @pytest.mark.xdist_group(\"s8c-predicate-snapshot\")\n    def test_current_repository_snapshot_exactly_matches_head(\n        current_commit_snapshot: _CurrentCommitSnapshot,\n    ) -> None:\n        _, _, snapshot, evaluated_head, actual = current_commit_snapshot\n        current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n        _require_unchanged_head(evaluated_head, current_head)\n>       assert snapshot == actual\nE       AssertionError: assert (PredicateRes...f2b2'))), ...) == (PredicateRes...f2b2'))), ...)\nE         \nE         At index 6 diff: PredicateResult(id='C07', status=<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, reason_code='result-judge-consumer-incomplete', evidence=(EvidenceRef(path='orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json', blob_sha256='25d661034d8483b74adaa35d06d2270875610d16d32a9fde8d2e15671abfc8a2'),)) != PredicateResult(id='C07', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-proof-not-machine-checkable', evidence=(EvidenceRef(path='orchestrator/campaign/s8b_ratified_freeze.py', blob_sha256='d8eb19221800c...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_s8c_preregistration_predicates.py:247: AssertionError\n____ test_current_repository_gap_reason_snapshot_requires_cross_wave_review ____\n\ncurrent_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/current-commit0/current-snapshot'), 'ed5fc80e07a64e4f928aabc682a29918a9bb3c3...orchestrator/campaign/wal.py', blob_sha256='9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2'))), ...))\n\n    @pytest.mark.xdist_group(\"s8c-predicate-snapshot\")\n    def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n        current_commit_snapshot: _CurrentCommitSnapshot,\n    ) -> None:\n        \"\"\"個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。\n    \n        [T-325] の land で trial_registry の capability probe 段階を通過した。\n    \n        退役した `test_current_repository_c12_registry_reports_unwired_allocation_consumer` が\n        表していた C12 registry の allocation consumer 未配線という主張と、\n        `test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer` が\n        表していた C12 allocation binding helper の consumer 未配線という主張も発見用に残す。\n        この記述は検査ではなく、安全性や退役可否の根拠にはしない。\n        \"\"\"\n        _, _, results, _, _ = current_commit_snapshot\n        snapshot_by_id = {\n            item.id: (item.status, item.reason_code) for item in results\n        }\n        assert snapshot_by_id[\"C12\"][0] is core.PredicateStatus.EVIDENCE_UNDEFINED\n>       assert snapshot_by_id == {\n            \"C01\": (\n                core.PredicateStatus.EVIDENCE_UNDEFINED,\n                \"completion-proof-not-machine-checkable\",\n            ),\n            \"C02\": (\n                core.PredicateStatus.EVIDENCE_UNDEFINED,\n                \"completion-proof-not-machine-checkable\",\n            ),\n            \"C03\": (core.PredicateStatus.UNSATISFIED, \"manifest-registry-proof-undefined\"),\n            \"C04\": (\n                core.PredicateStatus.EVIDENCE_UNDEFINED,\n                \"completion-proof-not-machine-checkable\",\n            ),\n            \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n            \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n            \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n            \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n            \"C09\": (\n                core.PredicateStatus.EVIDENCE_UNDEFINED,\n                \"completion-proof-not-machine-checkable\",\n            ),\n            \"C10\": (\n                core.PredicateStatus.EVIDENCE_UNDEFINED,\n                \"completion-proof-not-machine-checkable\",\n            ),\n            \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n            \"C12\": (\n                core.PredicateStatus.EVIDENCE_UNDEFINED,\n                \"completion-proof-not-machine-checkable\",\n            ),\n        }\nE       AssertionError: assert {'C01': (<Pre...ckable'), ...} == {'C01': (<Pre...ckable'), ...}\nE         \nE         Omitting 11 identical items, use -vv to show\nE         Differing items:\nE         {'C07': (<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, 'result-judge-consumer-incomplete')} != {'C07': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8c_preregistration_predicates.py:269: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\n2 failed, 212 passed in 111.48s (0:01:51)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=3494 retained_bytes=3494 omitted_bytes=0 rendered_excerpt_bytes=3932 sha256=528c3c3ec6486d6d9cc3c26792eafb07c57abb5f696b3dd71bcdf626c6ca5b53\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/current-commit0/current-snapshot'), 'ed5fc80e07a64e4f928aabc682a29918a9bb3c3...orchestrator/campaign/wal.py', blob_sha256='9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2'))), ...))\n> \n>     @pytest.mark.xdist_group(\"s8c-predicate-snapshot\")\n>     def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(\n>         current_commit_snapshot: _CurrentCommitSnapshot,\n>     ) -> None:\n>         \"\"\"\\u500b\\u5225 reason \\u306f gap ledger\\u3002\\u4ed6 wave \\u306e land \\u6642\\u306f\\u610f\\u56f3\\u3092\\u518d\\u5be9\\u67fb\\u3057\\u3066\\u66f4\\u65b0\\u3059\\u308b\\u3002\n>     \n>         [T-325] \\u306e land \\u3067 trial_registry \\u306e capability probe \\u6bb5\\u968e\\u3092\\u901a\\u904e\\u3057\\u305f\\u3002\n>     \n>         \\u9000\\u5f79\\u3057\\u305f `test_current_repository_c12_registry_reports_unwired_allocation_consumer` \\u304c\n>         \\u8868\\u3057\\u3066\\u3044\\u305f C12 registry \\u306e allocation consumer \\u672a\\u914d\\u7dda\\u3068\\u3044\\u3046\\u4e3b\\u5f35\\u3068\\u3001\n>         `test_current_repository_c12_allocation_binding_helper_reports_unwired_consumer` \\u304c\n>         \\u8868\\u3057\\u3066\\u3044\\u305f C12 allocation binding helper \\u306e consumer \\u672a\\u914d\\u7dda\\u3068\\u3044\\u3046\\u4e3b\\u5f35\\u3082\\u767a\\u898b\\u7528\\u306b\\u6b8b\\u3059\\u3002\n>         \\u3053\\u306e\\u8a18\\u8ff0\\u306f\\u691c\\u67fb\\u3067\\u306f\\u306a\\u304f\\u3001\\u5b89\\u5168\\u6027\\u3084\\u9000\\u5f79\\u53ef\\u5426\\u306e\\u6839\\u62e0\\u306b\\u306f\\u3057\\u306a\\u3044\\u3002\n>         \"\"\"\n>         _, _, results, _, _ = current_commit_snapshot\n>         snapshot_by_id = {\n>             item.id: (item.status, item.reason_code) for item in results\n>         }\n>         assert snapshot_by_id[\"C12\"][0] is core.PredicateStatus.EVIDENCE_UNDEFINED\n> >       assert snapshot_by_id == {\n>             \"C01\": (\n>                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n>                 \"completion-proof-not-machine-checkable\",\n>             ),\n>             \"C02\": (\n>                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n>                 \"completion-proof-not-machine-checkable\",\n>             ),\n>             \"C03\": (core.PredicateStatus.UNSATISFIED, \"manifest-registry-proof-undefined\"),\n>             \"C04\": (\n>                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n>                 \"completion-proof-not-machine-checkable\",\n>             ),\n>             \"C05\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"schedule-schema-absent\"),\n>             \"C06\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n>             \"C07\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n>             \"C08\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"prereg-binding-proof-undefined\"),\n>             \"C09\": (\n>                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n>                 \"completion-proof-not-machine-checkable\",\n>             ),\n>             \"C10\": (\n>                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n>                 \"completion-proof-not-machine-checkable\",\n>             ),\n>             \"C11\": (core.PredicateStatus.EVIDENCE_UNDEFINED, \"completion-proof-not-machine-checkable\"),\n>             \"C12\": (\n>                 core.PredicateStatus.EVIDENCE_UNDEFINED,\n>                 \"completion-proof-not-machine-checkable\",\n>             ),\n>         }\n> E       AssertionError: assert {'C01': (<Pre...ckable'), ...} == {'C01': (<Pre...ckable'), ...}\n> E         \n> E         Omitting 11 identical items, use -vv to show\n> E         Differing items:\n> E         {'C07': (<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, 'result-judge-consumer-incomplete')} != {'C07': (<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, 'completion-proof-not-machine-checkable')}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:269: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1564 retained_bytes=1564 omitted_bytes=0 rendered_excerpt_bytes=1599 sha256=307918c7f7e6d24bde649a811443ab3ecde52ecc0e882bdcae925e02d1d196ba\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> current_commit_snapshot = (PosixPath('/tmp/pytest-of-tanab/pytest-0/current-commit0/current-snapshot'), 'ed5fc80e07a64e4f928aabc682a29918a9bb3c3...orchestrator/campaign/wal.py', blob_sha256='9e0861b69c8aafe8599e46d4e8046b71b9518320ac027bc09cd9a3ae8200f2b2'))), ...))\n> \n>     @pytest.mark.xdist_group(\"s8c-predicate-snapshot\")\n>     def test_current_repository_snapshot_exactly_matches_head(\n>         current_commit_snapshot: _CurrentCommitSnapshot,\n>     ) -> None:\n>         _, _, snapshot, evaluated_head, actual = current_commit_snapshot\n>         current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n>         _require_unchanged_head(evaluated_head, current_head)\n> >       assert snapshot == actual\n> E       AssertionError: assert (PredicateRes...f2b2'))), ...) == (PredicateRes...f2b2'))), ...)\n> E         \n> E         At index 6 diff: PredicateResult(id='C07', status=<PredicateStatus.UNSATISFIED: 'UNSATISFIED'>, reason_code='result-judge-consumer-incomplete', evidence=(EvidenceRef(path='orchestrator/campaign/s8c_preregistration_evidence_contract.v1.json', blob_sha256='25d661034d8483b74adaa35d06d2270875610d16d32a9fde8d2e15671abfc8a2'),)) != PredicateResult(id='C07', status=<PredicateStatus.EVIDENCE_UNDEFINED: 'EVIDENCE_UNDEFINED'>, reason_code='completion-proof-not-machine-checkable', evidence=(EvidenceRef(path='orchestrator/campaign/s8b_ratified_freeze.py', blob_sha256='d8eb19221800c...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:247: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5058 retained_bytes=5058 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6741 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2b1690fe3749cf725be4b27b2ff76ea42940492c50a2a32296fb1f1c7f504226"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+      "duration_s": 139.578,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1858-EVIDENCE-REF-NOT-RECORDED",
+      "injection_diff_sha256": "64f0cf93ca4a6c675143f5ee30d6faf1cd85112416f7329195cf6f6a69b13a68",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1eeae37f1833d35d7ba52ebc2467ba4cdf5ea3acb36b87f09a052e7cd62991c0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        raw = self.cache[path]\n        return raw\n",
+          "old": "        raw = self.cache[path]\n        if raw is not None:\n            self.refs[path] = core.EvidenceRef(path, core._sha256(raw))\n        return raw\n"
+        }
+      ],
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "KILLED",
+      "test_output_sha256": "2b1690fe3749cf725be4b27b2ff76ea42940492c50a2a32296fb1f1c7f504226",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6bafff6cbb47fd0dfe5eedf7aa64020d/izdw-6bafff6cbb.o950630",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6bafff6cbb47fd0dfe5eedf7aa64020d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "......................F................................................. [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n=================================== FAILURES ===================================\n_____________ test_require_unchanged_head_rejects_mismatched_oids ______________\n\n    def test_require_unchanged_head_rejects_mismatched_oids() -> None:\n>       with pytest.raises(AssertionError, match=\"repository HEAD changed\"):\nE       Failed: DID NOT RAISE AssertionError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:225: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids\n1 failed, 213 passed in 109.87s (0:01:49)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=259 retained_bytes=259 omitted_bytes=0 rendered_excerpt_bytes=270 sha256=6a09a0a6cb2f5c8f88c73e792d8e24b558fb4472ebfec6b7cdf0dc6809a713e0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> def test_require_unchanged_head_rejects_mismatched_oids() -> None:\n> >       with pytest.raises(AssertionError, match=\"repository HEAD changed\"):\n> E       Failed: DID NOT RAISE AssertionError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:225: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=259 retained_bytes=259 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1003 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "59fe4b2b1ebe43c27374aba4d0b9d5fdfbd49814725ab8d836e00cc1ab7f5512"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+      "duration_s": 144.872,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1858-HEAD-GATE-TAUTOLOGY",
+      "injection_diff_sha256": "2d1d641ef21a2ae762373c42f115dba4d449ecd6902979237689911582fb2c72",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fbc7ceec5ea0e53db272e2c73370698a3fc537001bb705261e018e3b6aef686a",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+          "new": "def _require_unchanged_head(recorded: str, current: str) -> None:\n    if False:\n",
+          "old": "def _require_unchanged_head(recorded: str, current: str) -> None:\n    if recorded != current:\n"
+        }
+      ],
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "KILLED",
+      "test_output_sha256": "59fe4b2b1ebe43c27374aba4d0b9d5fdfbd49814725ab8d836e00cc1ab7f5512",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c1b935b8fdf2572c658f868c7d1c1992/izdw-c1b935b8fd.o950637",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c1b935b8fdf2572c658f868c7d1c1992/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "........................................................................ [ 33%]\n........................................................................ [ 67%]\n......................................................................   [100%]\n214 passed in 107.79s (0:01:47)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "caacff1252bf536097e554b0411a7835e5a77b1c2734a20c84fd71870c607476"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "42a379e27e1c65bd52ec399148a18a19f4ebceb60158a8541168992d47dd5a38",
+      "duration_s": 134.449,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MUT-T1858-HEAD-GATE-CALLSITE-REMOVED",
+      "injection_diff_sha256": "4b8c77259bf0f96716fac4fa31e17532cf526b8b0dd3495ceacad4f005d62447",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "267a8d1de2e54a229651a80f2c5cf30867785ca6cd86832020bdfb12c43a2120",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+          "new": "    current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n    assert snapshot == actual\n",
+          "old": "    current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n    _require_unchanged_head(evaluated_head, current_head)\n    assert snapshot == actual\n"
+        }
+      ],
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "SURVIVED",
+      "test_output_sha256": "caacff1252bf536097e554b0411a7835e5a77b1c2734a20c84fd71870c607476",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/48c4bd7ead42d8ec6e86098dc7c29b23/izdw-48c4bd7ead.o950602",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/48c4bd7ead42d8ec6e86098dc7c29b23/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain\norchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points\norchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation\norchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_function_names_exist_and_checked_set_is_exact\norchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_exclusion_pin_cannot_be_omitted\norchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_rejects_prewave_accept_trial_name\norchestrator/tests/test_s8c_preregistration_invariant.py::test_generation_4_changes_revision_procedure_without_changing_condition_contract\norchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_legacy_v1_generations_remain_readable[1]\norchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_legacy_v1_generations_remain_readable[2]\norchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_legacy_v1_generations_remain_readable[3]\norchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_commit_observes_uncommitted_worktree_delta\norchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates\norchestrator/tests/test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan\norchestrator/tests/test_s8c_preregistration_invariant.py::test_s8c_namespace_is_not_excluded_from_holdout_scan\norchestrator/tests/test_s8c_preregistration_invariant.py::test_actual_cli_has_no_approval_or_activation_commands\norchestrator/tests/test_s8c_preregistration_invariant.py::test_s8c_preregistration_is_an_enumerated_living_doc\norchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_violations_are_empty\norchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_validator_positive_control\norchestrator/tests/test_s8c_preregistration_invariant.py::test_section5_validator_keys_exist_in_living_doc_field_names\norchestrator/tests/test_s8c_preregistration_invariant.py::test_s8c_living_doc_reference_negative_controls\norchestrator/tests/test_s8c_preregistration_predicates.py::test_predicate_registry_is_exactly_c01_through_c12\norchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_accepts_matching_oids\norchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids\norchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\norchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head\norchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_missing_registry_preserves_capability_absent_reason\norchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_undefined_is_never_satisfied\norchestrator/tests/test_s8c_preregistration_predicates.py::test_missing_target_module_is_capability_probe_not_exception\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_semantic_hash_ignores_formatting_but_not_values\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_unknown_and_duplicate_keys\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path\norchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass\norchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\norchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_does_not_add_a_holdout_axis_conjunction\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_declares_exact_terminal_definition_path_universe\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_binding_helper_rejects_check_without_read_binding\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_binding_gate_precedes_environment_gate\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_negative_control_collides_two_arms_by_one_namespace_token\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_token_only_direct_evaluation_is_terminal_undefined\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_negative_control_removes_one_floor_field_only\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_missing_ratified_loader_has_dedicated_reason\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_removed_ratified_loader_call_is_not_a_consumer\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_contract_path_rejects_same_name_decoy_module\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_declared_contract_path_decoy_is_not_a_consumer\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_discarded_validator_return_is_incomplete\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_dead_validator_assignment_is_not_a_consumer\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_literal_floor_fields_without_verification_are_incomplete\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_is_registered_and_added_to_negative_controls\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_real_result_judge_blob_is_static_only\norchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[multi-name-from-package]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[from-symbol]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[from-symbol-as]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[absolute-import-as]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[absolute-import]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_local_single_assignment_and_keyword_value_flow_is_witness\norchestrator/tests/test_s8c_preregistration_predicates.py::test_single_assignment_dict_carrier_with_unrelated_literal_update_is_witness\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[target-key-subscript]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[nonliteral-subscript]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[update]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[pop]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[delete]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[ior]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[literal-splat]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[dict-positional-input]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[dict-keyword-merge]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[dict-literal-carrier]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[expression-splat]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[carrier-rebound]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[carrier-alias-mutation]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[carrier-splatted-twice]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[caller-override]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[caller-positional-override]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[sentinel-resolution-removed]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[callable-default-is-not-witness]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[multiple-assignment]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[positional-only-is-not-propagated]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[star-args-blocks-all-target-parameters]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[conditional-local-assignment]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[use-before-assignment]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[sentinel-assignment-in-else]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[sentinel-assignment-nested]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_target_requires_exact_imported_definition[missing-definition]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_target_requires_exact_imported_definition[unimported-same-name]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_absence_shapes_are_independent_from_definition[read-binding-call-edge]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_absence_shapes_are_independent_from_definition[check-reservation-call-edge]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_absence_shapes_are_independent_from_definition[unreachable-check-reservation]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_rejects_import_alias_consumer\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_rejects_local_decoy_consumer\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_rejects_dead_code_after_return\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C02]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C02]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C02]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_namespace_fstring_must_flow_to_return_value\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_call_after_literal_true_return_is_dead\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[if-true-else]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[while-false-body]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[after-return]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_unknown_branch_remains_a_potential_reachability_witness\norchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_absence_matrix_exclusions_are_explicit_and_limited\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[production-entrypoint-cut]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[package-shadow]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[package-shadow-if-true]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[module-rebind]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[local-shadow]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[test-only-module]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[local-import]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[for-target]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[with-target]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[except-target]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[walrus-target]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[global-declaration]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[nonlocal-declaration]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_test_only_layer3_target_is_not_production_witness\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_same_name_target_in_undeclared_production_path_is_not_witness\norchestrator/tests/test_s8c_preregistration_predicates.py::test_production_default_module_limit_accepts_sixty_five_modules\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_limits_accept_boundary_and_reject_boundary_plus_one[modules]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_limits_accept_boundary_and_reject_boundary_plus_one[depth]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_limits_accept_boundary_and_reject_boundary_plus_one[states]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_byte_limit_accepts_boundary_and_rejects_next_byte\norchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_cycle_terminates_on_canonical_callable_state\norchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_preserves_reachability_limit_reason\norchestrator/tests/test_s8c_preregistration_predicates.py::test_evaluate_all_shares_blob_ast_binding_and_root_graph_caches\norchestrator/tests/test_s8c_preregistration_predicates.py::test_report_projection_is_hash_seed_deterministic\norchestrator/tests/test_s8c_preregistration_predicates.py::test_satisfiable_predicate_requires_negative_control\norchestrator/tests/test_s8c_preregistration_predicates.py::test_static_negative_controls_equal_non_machine_contract_controls\norchestrator/tests/test_s8c_preregistration_predicates.py::test_static_negative_control_binds_c03_to_its_contract_case\norchestrator/tests/test_s8c_preregistration_predicates.py::test_static_negative_control_binds_c08_to_its_contract_case\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c01_perf_scale_regression-C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c02_proposal_path_arm_collision-C02]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c04_partial_crash_survives-C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c05_initial_state_hash_bitflip-C05]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c06_one_arm_reservation_removed-C06]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c07_floor_or_result_cell_removed-C07]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c09_acceptance_skips_layer3-C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c11_generation_cap_reverts_to_one-C11]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c12_reservation_check_bypassed-C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success\norchestrator/tests/test_s8c_preregistration_predicates.py::test_non_machine_c03_satisfied_is_rejected_by_runtime_allowlist\norchestrator/tests/test_s8c_preregistration_predicates.py::test_non_machine_c08_satisfied_is_rejected_by_runtime_allowlist\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_negative_control_rejects_manifest_cell_check_removal\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_negative_control_rejects_parent_commit_substitution\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_negative_control_rejects_deterministic_false_strict_branch\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_producer_reachability_requires_classification_and_terminal\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_negative_control_rejects_deterministic_false_binding_branch\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_acceptance_legacy_bypass_is_unsatisfied\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_acceptance_requires_independent_runtime_cell_route\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_noop_helpers_do_not_prove_manifest_registry\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_noop_helpers_do_not_prove_prereg_binding\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_dispatch_trace_never_calls_machine_evaluator\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_dispatch_trace_never_calls_machine_evaluator\norchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_reads_commit_blob_not_dirty_worktree\norchestrator/tests/test_s8c_preregistration_predicates.py::test_live_evaluator_bytes_must_match_commit_blob\norchestrator/tests/test_s8c_preregistration_predicates.py::test_evaluator_identity_precedes_projection_identity\norchestrator/tests/test_s8c_preregistration_predicates.py::test_live_core_bytes_must_match_commit_blob\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_prohibition_ruling_blob_alone_is_not_compliance\norchestrator/tests/test_s8c_preregistration_predicates.py::test_machine_checkable_condition_without_evaluator_is_error\norchestrator/tests/test_s8c_preregistration_predicates.py::test_historical_c08_machine_checkable_contract_fails_closed\norchestrator/tests/test_s8c_preregistration_predicates.py::test_legacy_contract_routes_machine_evaluators_to_undefined\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_generation_projection_is_required_before_terminal_undefined[missing-blob]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_generation_projection_is_required_before_terminal_undefined[broken-identifier]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c05_direct_evaluator_reports_current_head_unreachable\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c05_evaluator_reports_undefined_when_consumer_commit_module_is_absent\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c05_initial_state_hash_bitflip_is_single_shared_layer_failure[nc_c05_initial_state_hash_bitflip-C05]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_c08_contract_uses_two_stage_binding_without_self_reference\norchestrator/tests/test_s8c_preregistration_predicates.py::test_machine_checkable_contract_and_evaluator_registry_are_bijective\norchestrator/tests/test_s8c_preregistration_predicates.py::test_current_contract_promotes_c06_to_machine_registry\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_negative_control_removes_one_arm_reservation\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_missing_supervisor_or_run_trial_is_unsatisfied[machine-c06-supervisor-absent-None]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_missing_supervisor_or_run_trial_is_unsatisfied[machine-c06-run-trial-absent-\\nfrom .s8b_ratified_freeze import load_ratified_freeze\\nfrom .s8c_budget import reserve_all_cells, settle, symmetric_indeterminate\\ndef _budget():\\n    ratified = load_ratified_freeze()\\n    generation_sha256 = ratified.sha256\\n    ledger = reserve_all_cells(None, manifest_sha256=\"a\", freeze_sha256=\"b\",\\n                               schedule_sha256=\"c\", ratified_generation_sha256=generation_sha256,\\n                               cells=(), limits=None)\\n    settle(None, cell_id=\"cell\", actual_bench_s=0.0)\\n    return symmetric_indeterminate(ledger)\\ndef not_run_trial():\\n    return _budget()\\n]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_rejects_name_only_supervisor_decoy\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_rejects_budget_without_limit_check\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_rejects_broken_reachable_from_contract\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_field_path_checker_rejects_non_closed_shapes[dict-literal-only]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_field_path_checker_rejects_non_closed_shapes[annotation-only]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_field_path_checker_rejects_non_closed_shapes[dynamic-field-generation]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module\n\n214 tests collected in 0.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "b35e31ffb2f947120270b34545f2fe8a7da848b5360722d221d24c48b8d84954"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_function_names_exist_and_checked_set_is_exact",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_exclusion_pin_cannot_be_omitted",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_machine_contract_rejects_prewave_accept_trial_name",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_generation_4_changes_revision_procedure_without_changing_condition_contract",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_legacy_v1_generations_remain_readable[1]",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_legacy_v1_generations_remain_readable[2]",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_legacy_v1_generations_remain_readable[3]",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_commit_observes_uncommitted_worktree_delta",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_s8c_namespace_is_not_excluded_from_holdout_scan",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_actual_cli_has_no_approval_or_activation_commands",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_s8c_preregistration_is_an_enumerated_living_doc",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_violations_are_empty",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_living_doc_section5_value_validator_positive_control",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_section5_validator_keys_exist_in_living_doc_field_names",
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::test_s8c_living_doc_reference_negative_controls",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_predicate_registry_is_exactly_c01_through_c12",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_accepts_matching_oids",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_missing_registry_preserves_capability_absent_reason",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_undefined_is_never_satisfied",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_missing_target_module_is_capability_probe_not_exception",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_semantic_hash_ignores_formatting_but_not_values",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_unknown_and_duplicate_keys",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_does_not_add_a_holdout_axis_conjunction",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_declares_exact_terminal_definition_path_universe",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_binding_helper_rejects_check_without_read_binding",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_binding_gate_precedes_environment_gate",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_negative_control_collides_two_arms_by_one_namespace_token",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_token_only_direct_evaluation_is_terminal_undefined",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_negative_control_removes_one_floor_field_only",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_missing_ratified_loader_has_dedicated_reason",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_removed_ratified_loader_call_is_not_a_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_contract_path_rejects_same_name_decoy_module",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_declared_contract_path_decoy_is_not_a_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_discarded_validator_return_is_incomplete",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_dead_validator_assignment_is_not_a_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_literal_floor_fields_without_verification_are_incomplete",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_is_registered_and_added_to_negative_controls",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c07_real_result_judge_blob_is_static_only",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[multi-name-from-package]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[from-symbol]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[from-symbol-as]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[absolute-import-as]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_import_forms_resolve_exact_bound_target[absolute-import]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_local_single_assignment_and_keyword_value_flow_is_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_single_assignment_dict_carrier_with_unrelated_literal_update_is_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[target-key-subscript]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[nonliteral-subscript]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[update]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[pop]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[delete]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[ior]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[literal-splat]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[dict-positional-input]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[dict-keyword-merge]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[dict-literal-carrier]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[expression-splat]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[carrier-rebound]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[carrier-alias-mutation]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unsafe_dict_carriers_block_the_target_parameter[carrier-splatted-twice]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[caller-override]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[caller-positional-override]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[sentinel-resolution-removed]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[callable-default-is-not-witness]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[multiple-assignment]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[positional-only-is-not-propagated]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[star-args-blocks-all-target-parameters]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[conditional-local-assignment]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[use-before-assignment]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[sentinel-assignment-in-else]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_callable_value_flow_failures_stay_environment_absent[sentinel-assignment-nested]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_target_requires_exact_imported_definition[missing-definition]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_target_requires_exact_imported_definition[unimported-same-name]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_absence_shapes_are_independent_from_definition[read-binding-call-edge]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_absence_shapes_are_independent_from_definition[check-reservation-call-edge]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_absence_shapes_are_independent_from_definition[unreachable-check-reservation]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_rejects_import_alias_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_rejects_local_decoy_consumer",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_allocation_rejects_dead_code_after_return",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[not-called-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[constant-false-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachable_consumers_reject_absence_shapes_with_single_reason[nested-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_namespace_fstring_must_flow_to_return_value",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c02_call_after_literal_true_return_is_dead",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[if-true-else]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[while-false-body]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_provably_dead_calls_are_not_reachability_witnesses[after-return]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_unknown_branch_remains_a_potential_reachability_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_entrypoint_cut_is_rejected_for_all_reachability_conditions[C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_test_only_target_is_rejected_for_all_reachability_conditions[C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_unimported_same_name_decoy_is_rejected_for_all_reachability_conditions[C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_absence_matrix_exclusions_are_explicit_and_limited",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[production-entrypoint-cut]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[package-shadow]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[package-shadow-if-true]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[module-rebind]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[local-shadow]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_shadow_entrypoint_and_test_only_paths[test-only-module]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[local-import]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[for-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[with-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[except-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[walrus-target]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[global-declaration]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c12_rejects_conservative_local_binding_forms[nonlocal-declaration]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_test_only_layer3_target_is_not_production_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c09_same_name_target_in_undeclared_production_path_is_not_witness",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_production_default_module_limit_accepts_sixty_five_modules",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_limits_accept_boundary_and_reject_boundary_plus_one[modules]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_limits_accept_boundary_and_reject_boundary_plus_one[depth]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_limits_accept_boundary_and_reject_boundary_plus_one[states]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_reachability_byte_limit_accepts_boundary_and_rejects_next_byte",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_cross_module_cycle_terminates_on_canonical_callable_state",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_preserves_reachability_limit_reason",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_evaluate_all_shares_blob_ast_binding_and_root_graph_caches",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_report_projection_is_hash_seed_deterministic",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_satisfiable_predicate_requires_negative_control",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_static_negative_controls_equal_non_machine_contract_controls",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_static_negative_control_binds_c03_to_its_contract_case",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_static_negative_control_binds_c08_to_its_contract_case",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c01_perf_scale_regression-C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c02_proposal_path_arm_collision-C02]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c04_partial_crash_survives-C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c05_initial_state_hash_bitflip-C05]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c06_one_arm_reservation_removed-C06]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c07_floor_or_result_cell_removed-C07]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c09_acceptance_skips_layer3-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c11_generation_cap_reverts_to_one-C11]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c12_reservation_check_bypassed-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_runtime_satisfiable_allowlist_rejects_unlisted_evaluator_success",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_non_machine_c03_satisfied_is_rejected_by_runtime_allowlist",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_non_machine_c08_satisfied_is_rejected_by_runtime_allowlist",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_negative_control_rejects_manifest_cell_check_removal",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_negative_control_rejects_parent_commit_substitution",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_negative_control_rejects_deterministic_false_strict_branch",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_producer_reachability_requires_classification_and_terminal",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_negative_control_rejects_deterministic_false_binding_branch",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_acceptance_legacy_bypass_is_unsatisfied",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_acceptance_requires_independent_runtime_cell_route",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_noop_helpers_do_not_prove_manifest_registry",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_noop_helpers_do_not_prove_prereg_binding",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_dispatch_trace_never_calls_machine_evaluator",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c08_dispatch_trace_never_calls_machine_evaluator",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_reads_commit_blob_not_dirty_worktree",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_live_evaluator_bytes_must_match_commit_blob",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_evaluator_identity_precedes_projection_identity",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_live_core_bytes_must_match_commit_blob",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_prohibition_ruling_blob_alone_is_not_compliance",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_machine_checkable_condition_without_evaluator_is_error",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_historical_c08_machine_checkable_contract_fails_closed",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_legacy_contract_routes_machine_evaluators_to_undefined",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_generation_projection_is_required_before_terminal_undefined[missing-blob]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_generation_projection_is_required_before_terminal_undefined[broken-identifier]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c05_direct_evaluator_reports_current_head_unreachable",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c05_evaluator_reports_undefined_when_consumer_commit_module_is_absent",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c05_initial_state_hash_bitflip_is_single_shared_layer_failure[nc_c05_initial_state_hash_bitflip-C05]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c03_c08_contract_uses_two_stage_binding_without_self_reference",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_machine_checkable_contract_and_evaluator_registry_are_bijective",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_contract_promotes_c06_to_machine_registry",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_negative_control_removes_one_arm_reservation",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_missing_supervisor_or_run_trial_is_unsatisfied[machine-c06-supervisor-absent-None]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_missing_supervisor_or_run_trial_is_unsatisfied[machine-c06-run-trial-absent-/nfrom .s8b_ratified_freeze import load_ratified_freeze/nfrom .s8c_budget import reserve_all_cells, settle, symmetric_indeterminate/ndef _budget():/n    ratified = load_ratified_freeze()/n    generation_sha256 = ratified.sha256/n    ledger = reserve_all_cells(None, manifest_sha256=\"a\", freeze_sha256=\"b\",/n                               schedule_sha256=\"c\", ratified_generation_sha256=generation_sha256,/n                               cells=(), limits=None)/n    settle(None, cell_id=\"cell\", actual_bench_s=0.0)/n    return symmetric_indeterminate(ledger)/ndef not_run_trial():/n    return _budget()/n]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_rejects_name_only_supervisor_decoy",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_rejects_budget_without_limit_check",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_rejects_broken_reachable_from_contract",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_field_path_checker_rejects_non_closed_shapes[dict-literal-only]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_field_path_checker_rejects_non_closed_shapes[annotation-only]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_field_path_checker_rejects_non_closed_shapes[dynamic-field-generation]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module"
+      ],
+      "duration_s": 32.156,
+      "rc": 0,
+      "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+      "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+      "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+      "status": "PASSED",
+      "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T1858-EFFECTIVE-ALWAYS-TRUE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+          "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1498c332a0add0a12dcfc39a065184b642644db028ab0779c7468803d2509afc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "    effective = True\n",
+            "old": "    effective = (\n        validation is not None\n        and decider_version_matches\n        and all_filled\n        and all_satisfied\n    )\n"
+          }
+        ]
+      },
+      "MUT-T1858-EVIDENCE-REF-NOT-RECORDED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "64f0cf93ca4a6c675143f5ee30d6faf1cd85112416f7329195cf6f6a69b13a68",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "        raw = self.cache[path]\n        return raw\n",
+            "old": "        raw = self.cache[path]\n        if raw is not None:\n            self.refs[path] = core.EvidenceRef(path, core._sha256(raw))\n        return raw\n"
+          }
+        ]
+      },
+      "MUT-T1858-FREEZE-GENERATION-DROPPED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3306199bc1aafd625fd8297c75ffdac89282807d8a2af27351c82101cae8760d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "        freeze_generation=None,\n",
+            "old": "        freeze_generation=validation.generation_number if validation else None,\n"
+          }
+        ]
+      },
+      "MUT-T1858-HEAD-GATE-CALLSITE-REMOVED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4b8c77259bf0f96716fac4fa31e17532cf526b8b0dd3495ceacad4f005d62447",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+            "new": "    current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n    assert snapshot == actual\n",
+            "old": "    current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n    _require_unchanged_head(evaluated_head, current_head)\n    assert snapshot == actual\n"
+          }
+        ]
+      },
+      "MUT-T1858-HEAD-GATE-TAUTOLOGY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2d1d641ef21a2ae762373c42f115dba4d449ecd6902979237689911582fb2c72",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+            "new": "def _require_unchanged_head(recorded: str, current: str) -> None:\n    if False:\n",
+            "old": "def _require_unchanged_head(recorded: str, current: str) -> None:\n    if recorded != current:\n"
+          }
+        ]
+      },
+      "MUT-T1858-MAX-GENERATION-PINNED": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+          "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+          "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "381c3c72b92da91aa633fd50c0186e3b1715ac33ba975161dc1f1788ec959e7e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "    max_generation = 1\n",
+            "old": "    max_generation = max(generations)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "8c3cc72616ad7df2a996b67d72c46f8b60932399d1cb70940ab7f70f00b1978d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8c_preregistration_invariant.py",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-q",
+      "-p",
+      "no:randomly",
+      "-n",
+      "0",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "b9953324d753b2949eb853286f0dba0196c9a4b4",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8c_preregistration_invariant.py",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-q",
+      "-p",
+      "no:randomly",
+      "-n",
+      "0",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "dispatch_head_blob_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "2715632606ccd4d9d9e7998086415bae06f8ba9b",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "062c1ebd62a82ad7264f7c79ea56fbba4131cfea5efd5f7bb42a462aa93f24ec",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "99a62c9ecbcef1581685c84c48e453220fbdf8f14b5d68af729f73c2152d60af",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1858-final2/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "cdad530e9fc0e4b2594cc13762a4551c2138407bc13cec3b7927afd9e76c818d",
+  "updated_at": "2026-08-26T13:24:43.777768+00:00"
+}

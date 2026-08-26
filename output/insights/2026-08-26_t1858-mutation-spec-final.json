@@ -1,0 +1,107 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T1858-EFFECTIVE-ALWAYS-TRUE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c06_machine_fixture_is_not_a_contract_promotion"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    effective = (\n        validation is not None\n        and decider_version_matches\n        and all_filled\n        and all_satisfied\n    )\n",
+     "new": "    effective = True\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1858-FREEZE-GENERATION-DROPPED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "        freeze_generation=validation.generation_number if validation else None,\n",
+     "new": "        freeze_generation=None,\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1858-MAX-GENERATION-PINNED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+    "orchestrator/tests/test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "old": "    max_generation = max(generations)\n",
+     "new": "    max_generation = 1\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1858-EVIDENCE-REF-NOT-RECORDED",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "old": "        raw = self.cache[path]\n        if raw is not None:\n            self.refs[path] = core.EvidenceRef(path, core._sha256(raw))\n        return raw\n",
+     "new": "        raw = self.cache[path]\n        return raw\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1858-HEAD-GATE-TAUTOLOGY",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_require_unchanged_head_rejects_mismatched_oids"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+     "old": "def _require_unchanged_head(recorded: str, current: str) -> None:\n    if recorded != current:\n",
+     "new": "def _require_unchanged_head(recorded: str, current: str) -> None:\n    if False:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1858-HEAD-GATE-CALLSITE-REMOVED",
+   "category": "negative",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+     "old": "    current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n    _require_unchanged_head(evaluated_head, current_head)\n    assert snapshot == actual\n",
+     "new": "    current_head = _git(_ROOT, \"rev-parse\", \"HEAD\").decode(\"ascii\").strip()\n    assert snapshot == actual\n"
+    }
+   ]
+  }
+ ]
+}
