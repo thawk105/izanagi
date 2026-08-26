@@ -55,7 +55,25 @@ title: [T-1879] arXiv 2604.09318 (CIR+CVN) の一次資料で軸 1 への接地�
   (`report that`) は道具の診断の説明文だった。anomaly なし。
 - **検査。** `tools/check_docs.py` rc=0、焦点走 (`orchestrator/tests/test_check_docs.py`)
   560 passed / 3 skipped、`tools/check_ai_provenance.py` 6,277 件 新規違反なし。
-  受入全走はこの記録 commit を含む tip に対して投入し、結果の正本は受領証とする。
+- **受入全走は 2 走とも同じ 1 件の非帰属赤で戻った。** どちらも
+  1 failed / 17390 passed / 64 skipped、rc=70 (source_rc=1)。唯一の赤は
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` で、assertion 本文は
+  `child.pid was not registered before deadline; stderr=''` — launcher の子が **2 秒の deadline 内に
+  child.pid を登録しなかった**という時間依存の主張である。同一 tree の単独走は
+  1 passed / 7.18 秒 / rc=0 で再現しない。当 wave の差分は docs だけで `tools/` にも
+  `orchestrator/` にも触れていないため帰属しない。
+- **DW-O18 に従い hold へ登録した。証拠は F57。** 実装面なので Codex `role=author` が
+  `orchestrator/tests/flaky_test_holds.py` へ 1 行足した (`evidence_id="F57"`、
+  `failure_signature="child.pid was not registered before deadline; stderr=''"`、
+  `reintroduction_task_id` は slug `flaky-child-pid-registration-deadline` の placeholder 形式で、
+  既存 3 行と同じく未解決のまま置く)。
+  登録件数は 3 から 4 になった。焦点走
+  (`test_flaky_test_holds_contract.py` + `test_check_docs.py`) は 597 passed / 3 skipped。
+- **[T-1675] wave が「登録は構造的に不可能」と書いた閂は、この時点では解けていた。**
+  同 wave は F57 への再発記録が canonical へ fold されるまで登録できないと述べ裁定へ送っていたが、
+  その再発はすでに fold 済みで、検証器が要求する 3 述語 (F 節の実在、test 関数名の逐語一致、
+  `failure_signature` の逐語一致) を実データで検算するとすべて通った。**閂の前提は必要条件であって、
+  解除後も塞がったままとは限らない。**
 - **工数。** 段 2・3 は軽量版として省略 (docs-only)。段 6 のレビュー子 1 本のみ、
   一次資料の全文を job dir へ渡して逐語と語の件数を子が独立に数え直せる形にした。
   Web を使えない子でも外部文献のレビューが成立する。

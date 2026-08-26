@@ -288,6 +288,32 @@ _FLAKY_TEST_HOLD_ROWS = (
             reintroduction_task_id="{{T:flaky-xdist-hook-order}}",
         ),
     ),
+    (
+        "orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed",
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({
+                "orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed",
+            }),
+            same_tree=True,
+            green_observation=(
+                "同一 tree の単独走が 1 passed / 7.18 秒 / rc=0 だった"
+            ),
+            green_collection_condition="single-node",
+            green_run_count=1,
+            red_observation=(
+                "同一 tree の受入全走 2 走がいずれも "
+                "1 failed / 17390 passed / 64 skipped"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature="child.pid was not registered before deadline; stderr=''",
+            cause=(
+                "受入全走の高並列下で launcher の子が 2 秒の deadline 内に "
+                "child.pid を登録できない (F57 の族)"
+            ),
+            evidence_id="F57",
+            reintroduction_task_id="{{T:flaky-child-pid-registration-deadline}}",
+        ),
+    ),
 )
 
 
