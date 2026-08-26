@@ -148,3 +148,73 @@ gate (perf report に対象 symbol が出ることの要求) が偽の成果物�
 - **要求した define が実際に効いたことを build 側の実体で確かめる。**
   この走では 7 点の binary hash が 7/7 相異なることを、計測を 1 点も始める前に検査した。
   無視されていれば静的量を持つ全点が同一 binary になる。
+
+## 10. 受入で 2 回止まった経緯と、判明した死に配線
+
+この wave の受入全走は 2 回投入して 2 回とも受領証に到達しなかった。どちらも計測成果物とは
+無関係だが、後続の一次資料として残す。
+
+### 10.1 1 回目 — 取り込みの競走 (自分の回帰ではない)
+
+`error: stage=postcheck rc=70`、`raw_child_rc=null` (テストは 1 件も走っていない)。
+受入ツールは投入時の main を claim して merge するが、その merge の最中に main がさらに
+進むと postcheck で遅れが再検出される。実測では merge 成立後に main が 1 commit 進んでいた。
+
+対処は取り込みと受入を 1 本の script へ連結して競走窓を狭めること
+(`git merge --no-ff --no-commit main` → 競合なら停止 → trailer 付き commit → 続けて同じ
+script 内で受入を起動)。別々の呼び出しに分けると、その間に main が進んで同じ rc=70 を繰り返す。
+
+### 10.2 2 回目 — main 既存の決定的な赤
+
+**17,756 passed / 3 failed。** 赤は `orchestrator/tests/test_spool_fold.py` の
+supersede 境界テスト 3 件で、いずれも `RecursionError: maximum recursion depth exceeded`。
+
+**この wave の差分は `tools/spool_fold.py` にも `docs/failures.md` にも触れていない。**
+使い捨て worktree を main 単独で切って同じ 3 件を走らせ、同じ理由で同じ 3 件が赤になることを
+確認した。したがって非帰属である。
+
+原因は traceback から特定できる。`tools/spool_fold.py` の `substantive_digest` が carry 鎖を
+**再帰で**遡る実装で、worklog の carry stub が世代を重ねた結果 Python の既定再帰上限を超える。
+再帰の底は `_split_top_items` の `re.finditer` 内部だった。
+
+**並行 wave が越えた瞬間の窓を特定した。** 直近 2 回の受入受領証が境界を挟んでおり、
+`30e7f8c41` では当該 node を含めて全緑、`a0a0cdf46` で赤。その間の 20 commit のうち台帳を
+触ったのは fold 4 件だけで、**`tools/spool_fold.py` は 1 行も変わっていない**。
+つまりコード変更ではなく**台帳データの成長だけ**で越えた。30 分・fold 4 回で越えたので、
+余裕はほとんど残っていなかった。
+
+**`tools/spool_fold.py --dry-run` は同じ木で成功する。** fold は lock 内で直接呼ばれ pytest を
+経由しないため、land 経路自体は生きている。**fold は動くが受入は止まる**という非対称な状態である。
+
+### 10.3 「既知違反として通す」が実行できなかった理由
+
+ユーザー裁定は「known violation に登録して後続 wave で解決」だった。**3 経路とも塞がっていた。**
+
+1. **`orchestrator/tests/flaky_test_holds.py`** — validator が `same_tree=True` と
+   `green_observation` 非空と `green_run_count >= 1` を必須にする。契約 test の実例が示す
+   `same_tree` の意味は「同じ tree で緑と赤の両方を観測した」であり、緑は別の収集条件
+   (単独走など) で得たものを書く。**この赤は同じ tree の単独走でも赤なので、埋めれば捏造になる。**
+2. **`tools/known_violations/`** — provenance 監査専用。`tools/check_ai_provenance.py` だけが
+   読み、型も `missing-ai-agent` / `malformed-ai-agent` / `missing-codex-author` の 3 つで、
+   受入の赤とは無関係。
+3. **`non-attributable-only` 受領証** — **これが本来の正解経路で、緑の観測を要求しない。**
+   `tools/dev_wave_land.py` は `checker_status == "non-attributable-only"` を受理し、
+   `tools/acceptance_launcher.py` は `child_rc == 1` かつ `red_check` が dict であることを
+   受け付ける。**ところが `tools/dev_wave_wait.py` は `"red_check": None` を無条件で
+   書き込む。** したがって `child_rc != 0` は必ず `runner result is not receiptable` で落ち、
+   **この経路は構造的に発火しない。** 赤を分類する checker も使用停止済みである。
+
+**設計上の経路が存在して配線だけが死んでいる**、というのが実際だった。
+
+### 10.4 hold は原理的に成立しない (node 集合が走行ごとに動く)
+
+並行 wave の受入では同じ根本原因の赤が **4 件**出ていた (こちらは 3 件)。本文も traceback も
+同一で、4 件目は `test_n37_real_repo_canonical_family_requires_archive_active_history`。
+
+**再帰上限は「そこへ来るまでにスタックをどれだけ消費したか」で決まるため、同じ根本原因でも
+走らせ方によって顕在化する node 数が変わる。** 登録簿の key は complete node ID の literal
+比較であり、集合が動くものを hold で押さえると常に後追いになる。3 件を登録した翌日に 4 件目が
+出て、また受入が止まる。**hold は手段として成立しない。**
+
+恒久対応 (`substantive_digest` の再帰を反復へ) は並行 wave が持つ。起票は別セッションが
+`spool-fold-recursion-depth-on-real-ledger` として P1 で行っており、重複起票しない。
