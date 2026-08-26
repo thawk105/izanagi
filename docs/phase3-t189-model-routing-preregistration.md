@@ -165,38 +165,49 @@ adjudication・CLI・score 層を含む横断的 refactor である) ことを f
 schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数名・定数名を第一の目印とし、
 行番号は補助**として括弧に入れる。行番号が合わないときは名前で引くこと。
 
-到達度の語彙は次の 4 つを使い分ける。
+到達度の語彙は次の 6 つを使い分ける。**2026-08-27 に、表が実際に使っている語へ揃えた** —
+`未実装` は以前から表で使われていたのに語彙節に無く、`部分実装` は下記の理由で新設した。
 
 - **実装済み** — 機構が存在し、内部 API と CLI の双方から到達できる。
+- **部分実装** — その行の申し送りの一部だけが着地し、残りが未接続または未登録である。
+  **この語を使うときは、閉じていない面を必ず名指しする。** 名指しできないなら使ってはならない。
+  二値へ押し込むと、どちらへ倒しても偽になる行が出るため置いた語である
+  (到達度を上げる方向へ倒す誘惑を塞ぐのが目的)。
 - **内部 API のみ** — 機構は存在するが、CLI からは呼べない。
 - **CLI 未接続** — 実験を CLI から実走するための入口が無い。
+- **未実装** — 機構そのものが存在しない。
 - **acceptance 未束縛** — 機構はあるが、意味的な受理条件が `unbound` で登録されている (D767)。
 
-| 箇所 (名前 / 補助行番号) | 当初の申し送り | 到達度 (2026-08-25 実測) |
+到達度は「その行の申し送りが閉じたか」を表す。行に関連する周辺機構がすべて終わったかどうかでは
+ない。周辺の限定は行内の追記として書く。
+
+| 箇所 (名前 / 補助行番号) | 当初の申し送り | 到達度 (2026-08-27 実測) |
 |---|---|---|
-| `MODEL` (`:94`)、`MODEL_ALLOWLIST` (`:3459`) | 単一 hard-code を routing authority にしない | **実装済み**。`requested_model` を schedule slot から受け、allowlist で検査する |
-| `TASK_MANIFEST` (`:264`)、`EXPECTED_SCHEDULE` (`:330`)、`KNOWN_FINDINGS` (`:336`) | 固定集合を task catalog 由来の可変集合へ | **CLI 未接続**。schema v3 の task manifest 層は存在するが、既定値は T-181 の POS/NEG 固定のままで、CLI に task-manifest 入力が無い |
-| `_normalized_exec_argv` (`:3494`) | model slug の一意性・許可集合検査 | **実装済み** |
-| `_launch_identity_value` (`:3547`) | treatment identity へ `requested_model` を含める | **実装済み** |
-| `_codex_exec_argv` (`:3702`) | `-m <requested_model>` を渡す | **実装済み**。effort は別引数として維持 |
-| `_supervise_one` (`:6926`) | slot の model を receipt と argv へ記録 | **実装済み** |
-| `supervise_pair` (`:7181`) | 同一 task の sol/luna block を検証 | **内部 API のみ**。外部 task manifest を受け取らず既定値で検査する |
-| `_verify_launch_receipt` (`:7485`) | argv の `-m`・receipt・turn context の一致を fail-closed で検査 | **実装済み** |
-| `collect_run` (`:7793`) | `expected_model=MODEL` 既定値を廃し slot 由来を検査 | **実装済み**。served model とは呼ばない |
-| task-specific 入力処理層 | POS/NEG 固定処理を task manifest 経由へ | **CLI 未接続**。上の task manifest 行と同じ理由 |
-| `validate_nullable_dimensions` (`:2698`)、`_slot_dimensions` (`:8744`)、`_validate_schedule` (`:8833`) | POS/NEG × max/high の固定検査を task・cache・model・price の paired schema へ | **実装済み**。task・stage・`requested_model` の検査に加え、**price version の凍結束縛は 2026-08-25 に接続した** (§10)。`cache_condition` は §9 の実測により非 null を拒否したままである |
-| `_load_adjudication` (`:8969`) | adjudication 層を task-specific oracle へ対応 | **未実装**。§8 の oracle ledger が未作成のため着手条件を満たさない |
-| `_aggregate_verified` (`:9463`)、`_replay_manifest` (`:10072`) | task・stage・model・cache 別の集計 | **実装済み**。price version も集計軸に入る。ただし**費用の正規化計算は未実装**であり、version の束縛と cost 計算は別物である |
-| `make_packets` (`:10585`) | 10 slot 固定を廃し、public packet に model・stage・task_id・price version を出さない | **実装済み**。非 null price が実在する schedule では、凍結 version の文字列が本文にあれば packet 公開前に fail-closed で止める。なお **schedule descriptor を持たない legacy 互換経路が残っており、この経路は price 束縛も一様性検査も通らない (uncertified)** |
-| `append_verdicts` (`:10806`)、`freeze_verdicts` (`:10871`)、`reveal_mapping` (`:10953`) | T-181 と同じ順序で再利用し、oracle finding ID と cache/price の欠測も束縛 | **acceptance 未束縛**。順序の再利用は成立しているが、oracle finding ID の束縛は §8 待ちである |
+| `MODEL` (`:95`)、`MODEL_ALLOWLIST` (`:3643`) | 単一 hard-code を routing authority にしない | **実装済み**。`requested_model` を schedule slot から受け、allowlist で検査する |
+| `TASK_MANIFEST` (`:265`)、`EXPECTED_SCHEDULE` (`:331`)、`KNOWN_FINDINGS` (`:337`) | 固定集合を task catalog 由来の可変集合へ | **部分実装**。schema v3 の外部 task manifest を 10 verb の `--task-manifest` から読み込み、v3 schedule 経路では task/arm の cardinality と task 別 known finding 集合を manifest 由来で検査する。**閉じていない面**: schema v2 および `schema_version` 欠落の schedule は互換経路として `LEGACY_EXPECTED_SCHEDULE` 固定のままである |
+| `_normalized_exec_argv` (`:3678`) | model slug の一意性・許可集合検査 | **実装済み** |
+| `_launch_identity_value` (`:3731`) | treatment identity へ `requested_model` を含める | **実装済み** |
+| `_codex_exec_argv` (`:3886`) | `-m <requested_model>` を渡す | **実装済み**。effort は別引数として維持 |
+| `_supervise_one` (`:7110`) | slot の model を receipt と argv へ記録 | **実装済み** |
+| `supervise_pair` (`:7373`) | 同一 task の sol/luna block を検証 | **実装済み**。`supervise-pair` は `--task-manifest` を受け、schedule の canonical digest を exact 検査し、attempt ledger・launch/completion・返却値を同じ digest へ束縛する |
+| `_verify_launch_receipt` (`:7696`) | argv の `-m`・receipt・turn context の一致を fail-closed で検査 | **実装済み** |
+| `collect_run` (`:8004`) | `expected_model=MODEL` 既定値を廃し slot 由来を検査 | **実装済み**。served model とは呼ばない |
+| task-specific 入力処理層 | POS/NEG 固定処理を task manifest 経由へ | **部分実装**。`render-prompt` は外部 manifest から task を選び、source session・rollout・prompt-source pin を入力決定に使い、prompt が参照する untracked artifact 集合を task の `snapshot.artifact_names` と照合する。**閉じていない面**: `new_root` と snapshot oracle は CLI 引数であって manifest が決めるものではなく、standalone `verify-snapshot` は `--task-manifest` を持たない |
+| `validate_nullable_dimensions` (`:2819`)、`_slot_dimensions` (`:8998`)、`_validate_schedule` (`:9097`) | POS/NEG × max/high の固定検査を task・cache・model・price の paired schema へ | **実装済み**。task・stage・`requested_model` の検査に加え、**price version の凍結束縛は 2026-08-25 に接続した** (§10)。`cache_condition` は §9 の実測により非 null を拒否したままである |
+| `_load_adjudication` (`:9238`) | adjudication 層を task-specific oracle へ対応 | **未実装**。§8 の oracle ledger が未作成のため着手条件を満たさない |
+| `_aggregate_verified` (`:10078`)、`_replay_manifest` (`:10738`) | task・stage・model・cache 別の集計 | **実装済み**。task・stage・`requested_model`・cache・price version を軸として集計する。**2026-08-25 に部分正規化 cost の計算器も接続した** — material に schedule descriptor があり全 slot が凍結 price version を持つ場合に、観測可能な token 数から run/attempt ごとと軸別の値を Decimal で生成する。ただし cache 書込は未計上で、`coverage_status` は `partial`、`certification_status` は `not-certified` である (§10、D932) |
+| `make_packets` (`:11285`) | 10 slot 固定を廃し、public packet に model・stage・task_id・price version を出さない | **実装済み**。非 null price が実在する schedule では、凍結 version の文字列が本文にあれば packet 公開前に fail-closed で止める。schedule descriptor を持たない経路自体は残るが、**この経路も packet-source manifest の task manifest digest を必須とするため、digest を持たない既存 artifact との byte 単位の後方互換は無く、利用には再生成が要る。** scheduleless 経路は price 束縛も一様性検査も通らない (uncertified) |
+| `append_verdicts` (`:11528`)、`freeze_verdicts` (`:11608`)、`reveal_mapping` (`:11697`) | T-181 と同じ順序で再利用し、oracle finding ID と cache/price の欠測も束縛 | **acceptance 未束縛**。順序の再利用に加え、各 artifact と verdict 行を task manifest digest へ束縛する。finding ID は blind verdict 時には manifest 全体の union、mapping reveal 後の集計では task ごとの集合として検査する。**閉じていない面**: 独立 oracle ledger と task 固有 acceptance は未登録であり、意味的な受理条件は依然 §8 待ちである |
 
 実装担当は本表を「変更閉包」の出発点として扱い、依存関係を実装前に再確認すること。
-**表の到達度は price component の wiring を除いて 2026-08-25 時点のものであり、
-「全機能が完了した」という主張ではない。**
+**表の到達度は 2026-08-27 の静的実測へ張り替えた。部分実装・未実装・acceptance 未束縛と
+明記した面を含んでおり、「全機能が完了した」という主張ではない。**
+補助行番号も同日に実測値へ更新した (以前の 22 件はすべて実在しない位置を指していた)。
 
 ### 5.3 装置以外に必要な仕組み (段4裁定 B2/B7 反映、実装は本 wave の scope 外)
 
-以下は要求仕様である。**2026-08-25 に到達度を実測へ張り替えた。** 旧版は「いずれも未実装」と
+以下は要求仕様である。**2026-08-25 に到達度を実測へ張り替え、2026-08-27 に再実測して更新した。**
+旧版は「いずれも未実装」と
 一括で書いていたが、その後に一部の機構が着地したため実態と食い違っていた。
 一括の到達度表現をやめ、機構ごとに次の 3 語で書き分ける。
 
@@ -234,12 +245,35 @@ schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数�
   段3所見 B7)。task ごとの oracle finding ID、positive/negative control、reader agreement、
   task-stage-model 別 numerator/denominator を schema 化し、`_validate_schedule`、
   `_load_adjudication`、`_aggregate_verified` 全体で hash と件数を束縛する。
-- task catalog と task type 層別器
-- task ごとの snapshot、prompt、oracle manifest の hash 固定
-- 独立 oracle ledger の作成・凍結
-- cache context の cold/warm 管理と cache usage の記録
-- price snapshot の保存
-- 実験実施者から隔離された mapping custodian
+  - **到達度 (2026-08-27 実測):** 着地したのは**現行 task manifest の中にある oracle 契約**、
+    すなわち `oracle_kind` と `known_finding_ids` とその consumer であって、**機構は着地**である。
+    `oracle_kind` は正規化した schedule と、reveal 後の集計の軸・resource 台帳へ反映される
+    (raw の launch receipt や supervisor の attempt 台帳には保存しない)。
+    `known_finding_ids` は blind verdict の時点では manifest 全体の union、mapping reveal 後の
+    集計では task ごとの集合として検査され、いずれも task manifest digest で同一 manifest に
+    束縛される。
+    一方、**独立した oracle manifest そのものは存在しない。** 独立 oracle ledger、
+    その固有 hash 契約、task 固有 acceptance は **task 固有契約は未登録**であり、
+    acceptance は **acceptance 未束縛**のままである。
+    **§8 が要求する独立 oracle 機構の全体を実装済みとは呼ばない。**
+    `_load_adjudication` の task-specific oracle 対応も未実装のままである (§5.2 の表)。
+- task catalog と task type 層別器 — **機構は着地**。事前選別の候補台帳と公開基準による分類まで
+  作成済み (§6.1、§6.2)。ただし oracle 件数と stage 境界が未確立のため、held-out として
+  採用する契約は **task 固有契約は未登録**である。
+- task ごとの snapshot、prompt、oracle manifest の hash 固定 — snapshot と prompt については
+  **機構は着地**。外部 manifest を使う prompt は同じ digest を持つ snapshot oracle を要求し、
+  prompt receipt にも digest を残す。独立 oracle manifest とその固有 hash 契約は
+  **task 固有契約は未登録**である。
+- 独立 oracle ledger の作成・凍結 — **未作成・未凍結。** §8 のまま着手条件を満たさない。
+- cache context の cold/warm 管理と cache usage の記録 — provider 側の制御は 2026-08-21 の実測で
+  不成立と確定した (§9)。装置は非 null の `cache_condition` を拒否し、resource 指標は
+  `not-applicable` とする。**この項目は「実装しない」で確定しており未実装の残件ではない。**
+- price snapshot の保存 — **機構は着地**。保存済み bytes を読む parser と検証器、固定 path・
+  SHA-256・version の照合、schedule への凍結束縛、集計での部分正規化費用までが接続済みである
+  (§10)。**閉じていない面**: 登録世代の lock と、完全な費用に必要な cache 書込数量の receipt
+  項目は未完了である。
+- 実験実施者から隔離された mapping custodian — **未実現。** D674 により same-owner-advisory で
+  確定しており、結果は `apparatus_diagnostic` に留まる (§12.1)。
 
 served model attest は現行 repository 内に存在しない。これを本文書だけで解決したとは記録しない。
 
@@ -585,7 +619,7 @@ version が記録されていないと指摘した (段3所見 B6)。実走前�
 - 通貨
 - price table version
 - effective timestamp と取得 timestamp
-- 価格が不明な token category
+- 正規 receipt から数量を得られず金額を算出できない token category
 
 **price snapshot は 2026-08-23 に実データで作成した (D674 の (7))。**
 
@@ -609,8 +643,11 @@ version が記録されていないと指摘した (段3所見 B6)。実走前�
   入力 = `input_tokens` − `cached_input_tokens`、キャッシュ入力 = `cached_input_tokens`、
   出力 = `output_tokens` (`reasoning_output_tokens` は `output_tokens` の部分集合であり
   二重計上しない)。
-- **価格が不明な token category は「キャッシュ書込」である。**
-  receipt にこれへ対応する記録項目が存在しないため、`unknown_token_categories` に載せてある。
+- **数量が不明な token category は「キャッシュ書込」である。** (2026-08-27 訂正: 以前は
+  「価格が不明」と書いていたが、不明なのは単価ではない。) 単価は snapshot に存在するが、
+  正規 receipt が `cache_write_input_tokens` に相当する記録項目を持たないため、
+  その金額を計算できない。したがって `unknown_token_categories` に載せ、
+  部分正規化費用では未計上とする。
 - effective timestamp は原表が公開していないため `null` とし、`effective_at_status` を
   `not-published-in-source` にする。**HTTP の `last-modified` を effective timestamp へ
   流用しない** (別 field として記録する)。
@@ -641,20 +678,44 @@ version が記録されていないと指摘した (段3所見 B6)。実走前�
 
 - **「price lock 完了」ではない。** §13 の登録世代 lock 手続きは D674 により
   power simulation の段で停止しており、全体としては未完了である。
-- **費用の正規化計算は未実装である。** version を束縛したことと、SKU 単価を使って
-  cost を計算することは別である。集計は price version を軸として持つが、
-  正規化 cost の値は生成しない。
 - **原表そのものの真正性は認証していない。** repo 外に保存した取得時の生データは
   gate の必須入力にしていない。装置が証明できるのは
   「review 済みのローカル snapshot と抜粋を用いたこと」までである。
-- schedule descriptor を持たない legacy 互換の packet 生成経路は、この束縛も一様性検査も
-  通らない。同経路の出力は uncertified として扱う。
+- schedule descriptor を持たない packet 生成経路は、この束縛も一様性検査も通らない。
+  同経路の出力は uncertified として扱う。**ただしこの経路も packet 元 manifest の
+  task manifest digest を必須とするため、digest を持たない既存 artifact との byte 単位の
+  後方互換は無く、利用には再生成が要る** (2026-08-27 訂正: 以前は「legacy 互換の経路」と
+  書いており、既存 bytes がそのまま通ると読めた)。
+
+**2026-08-25 に、部分正規化費用の計算器も接続した ([T-1434])。到達度は次のとおりである
+(2026-08-27 実測)。**
+
+- material に schedule descriptor があり、schedule の全 slot が凍結 price version を持つとき、
+  凍結 snapshot の SKU 単価と receipt の token 数から、run/attempt ごとと軸別の
+  正規化費用を `Decimal` 8 桁・`ROUND_HALF_EVEN` で生成する。
+- **被覆は構造的に partial である。** キャッシュ書込の数量を正規 receipt が保存しないため、
+  その金額は計上できない。生成する値は `coverage_status` が `partial`、
+  `certification_status` が `not-certified` である。
+- **費用は certified field でも判定 gate でもない** (D932)。`certification_scope` の
+  certified な報告 field は `valid` だけであり、費用 field は含まれない。
+  resource 指標 (§11.2)・gate 表 (§12) から費用を読む経路は実装していない。
+- **ただし malformed な入力の拒否は残る** (D932 の但し書き)。token 数が観測できない試行は
+  例外を出さず `unavailable` として記録するだけで報告を無効化しないが、
+  `cached_input_tokens > input_tokens` のような token 関係の矛盾や、凍結 SKU の会計情報の
+  欠落は共通の failure reason に入り、その結果として certified な `valid` を false にする。
+  **「費用は certification から完全に独立している」とは書かない。**
+- **完全な費用ではない。** キャッシュ書込の数量を保存する receipt 項目と、それに伴う
+  receipt schema の新しい登録世代は未着手である。**「費用計算が完了した」とは書かない。**
 
 schedule の全 slot は同じ `price_version` を参照する。**上記項目が欠落する場合、schedule を
 無効化する (fail-closed)。** 価格改定が実験開始前に発生した場合は、実験を開始せず価格 snapshot
 と事前登録 version を更新する。実験中に改定された場合は、次の二つを分離する。
 
-1. 比較可能性のため、全 run の正規化 cost は開始時に凍結した price version で計算する。
+1. 比較可能性のため、全 run について、開始時に凍結した price version に基づく正規化 cost、
+   または観測不能・非発生の状態を記録する。被覆が partial である限り、その費用は D932 に従って
+   記述統計に留め、certified field にも判定 gate にもしない。観測できなかった試行を
+   0 円として計上せず、黙って分母から外さず、観測済み・観測不能・非発生の内訳を
+   軸ごとの行へ機械可読で出す。
 2. 実請求額は実際の billing version として別記録する。
 
 価格改定後の実請求額を用いて、結果に都合よく cost 結論を再計算しない。価格改定が GO/NO-GO の
@@ -896,7 +957,8 @@ schedule) で lock する。
   検証済み version・repo 内抜粋の SHA-256 と byte 長・全 slot の一様性を fail-closed で検査する。
   **これは price component の配線完了だけを意味し、「price lock 完了」ではない。**
   この lock 手続き自体が本節冒頭のとおり power simulation の段で停止している。
-  **費用の正規化計算も未実装である**)
+  **部分正規化費用の計算器は 2026-08-25 に接続したが、被覆は partial のままである**
+  — 到達度の正本は §10)
 - margin 値 (§11.3、§11.4 power simulation を経て確定。**D674 が (1) を落としたため未確定のまま**)
 - custodian 実現方式 (**D674 により独立 custodian の実現方式は見送り**。
   したがって same-owner-advisory で確定し、§12.1 に従い結果は `apparatus_diagnostic` に留まる)
@@ -946,12 +1008,14 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
   解消されない限り、盲検性・cache 分離の一部は T-181/T-182 と同水準の限界を引き継ぐ。
 - T-181 装置の model 軸拡張は横断的 refactor に相当し (§5.2)、段2/段5 downstream replayer・
   task-specific oracle schema (§5.3) を含め、実装コストは当初想定より大きい。
-  **2026-08-25 時点では一部が着地している** — model 軸の配線と price version の束縛は完了し、
-  両 replayer は機構が着地して acceptance 未束縛である。残余は task manifest の CLI 接続、
-  adjudication の oracle 対応、費用の正規化計算である。到達度の正本は §5.2 と §5.3。
-- **価格については、version の provenance を装置へ束縛したにすぎない。**
-  公表単価から比較可能な費用を計算する処理は実装しておらず、
-  台帳に price version が載ることと cost 系の指標が使えることは別である。
+  **2026-08-27 時点では一部が着地している** — model 軸の配線と price version の束縛は完了し、
+  task manifest は 10 verb の CLI へ接続され、部分正規化費用の計算器も接続した。
+  両 replayer は機構が着地して acceptance 未束縛である。残余は adjudication の oracle 対応
+  (§8 待ち)、schema v2 互換経路と standalone `verify-snapshot` の未接続、
+  キャッシュ書込数量を保存する receipt 項目である。到達度の正本は §5.2 と §5.3。
+- **価格については、version の provenance を束縛したうえで、部分正規化費用まで計算する。**
+  ただし被覆は partial であり、費用は記述統計に留めて certified な判定を動かさない (D932)。
+  台帳に price version が載ることと、完全な cost 系の指標が使えることは別である。
 - 本文書は文書設計だけを行い、実験走行、`qsub`、production の model routing 変更は行わない。
 
 ## 総括
@@ -972,7 +1036,7 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
 | 独立 oracle | §8 | 設計は満たす |
 | block randomization | §6.3 | 設計は満たす |
 | cache 条件の分離 | §9、§12.2 | 設計は満たすが、現行装置は制御手段を持たない場合 resource 指標を `not-applicable` とする (blocker)。**2026-08-21 実測で制御不能と確定**、resource は `not-applicable` のまま (§9 追記) |
-| 価格 version | §10 | 設計は満たす。**2026-08-23 に実データを取得・検証済み** (`price-snapshot-v1.json`)、**2026-08-25 に装置へ接続済み** ([T-1434]。固定 path・bytes SHA-256・検証済み version・repo 内抜粋・全 slot 一様性を fail-closed で検査)。**ただしこれは price component の配線完了だけを意味する。** 「price lock 完了」ではなく (§13 の lock 手続きは power simulation の段で停止)、**費用の正規化計算は未実装**であり、原表そのものの真正性は認証していない |
+| 価格 version | §10 | 設計は満たす。**2026-08-23 に実データを取得・検証済み** (`price-snapshot-v1.json`)、**2026-08-25 に装置へ接続済み** ([T-1434]。固定 path・bytes SHA-256・検証済み version・repo 内抜粋・全 slot 一様性を fail-closed で検査)。**ただしこれは price component の配線完了だけを意味する。** 「price lock 完了」ではなく (§13 の lock 手続きは power simulation の段で停止)、**費用は 2026-08-25 に接続した部分正規化までで被覆は partial** (§10 が到達度の正本)、原表そのものの真正性は認証していない |
 | 事前登録済み非劣性 margin | §11、判定表 §12 | 候補値と lock 手続き (`N_positive_min`/`N_negative_min`/`power_threshold=0.80`) を明記。現実的標本数では confirmatory な検出力が不足する可能性が高く、その場合は `inconclusive` に確定的に固定する |
 
 主指標は task-cluster paired 差による finding coverage (§3 の式)、副指標は log 尺度の
@@ -990,12 +1054,15 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
   結果は `apparatus_diagnostic` に留まる (§12.1)。
 - (3) provider cache 制御可能性の実測 — **2026-08-21 実測済み・不成立で確定** (§9)。
 - (4) T-181 装置の横断的 refactor (§5.2) — **部分的に着地。残余あり。**
-  到達度は §5.2 の表が正本である (2026-08-25 実測へ張り替え済み)。
+  到達度は §5.2 の表が正本である (2026-08-27 実測へ張り替え済み)。
   `price_version` の非 null 拒否 2 箇所の解消は **2026-08-25 に完了した** ([T-1434]、§10)。
   model 軸の配線 (allowlist、argv、launch identity、receipt 検査、`collect_run`) も着地済み。
-  **残余は次の 3 つである。** (a) task manifest が既定値のままで CLI 入力口が無い、
+  **2026-08-25 に、外部 task manifest の CLI 入力口 (10 verb) と部分正規化費用の計算器も
+  接続した** ([T-1434])。**残余は次の 3 つである。**
+  (a) schema v2 / `schema_version` 欠落の schedule 互換経路と standalone `verify-snapshot` が
+  外部 manifest に未接続であること、
   (b) adjudication 層の task-specific oracle 対応 (§8 待ち)、
-  (c) 費用の正規化計算。
+  (c) キャッシュ書込数量を保存する receipt 項目 (これが無い限り費用の被覆は partial に留まる)。
 - (5) stage2/stage5 downstream replayer の実装 (§5.3、両 stage とも downstream model/effort
   pin を含む) — **機構は着地、acceptance 未束縛。** 到達度は §5.3 の追記が正本である。
   stage2 は driver が、stage5 は契約と validator が着地した。両 stage とも receipt は
@@ -1009,8 +1076,10 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
   作成した。独立分類者2名の確保は D674 により見送り、公開基準による自前分類へ置き換えた。**
   ただし oracle 件数と stage 境界が未確立のため、**実走可能な catalog としては未完了**である。
 - (7) price snapshot の実データ取得 (§10) — **2026-08-23 に取得・検証済み、
-  2026-08-25 に装置へ接続済み** ([T-1434])。**price component の配線完了だけを意味し、
-  「price lock 完了」ではない。費用の正規化計算は未実装。**
+  2026-08-25 に装置へ接続済み** ([T-1434])。**「price lock 完了」ではない。**
+  同日に部分正規化費用の計算器も接続したが、キャッシュ書込の数量を receipt から得られないため
+  被覆は partial であり、費用は記述統計として出して certified な判定を動かさない (D932)。
+  到達度の正本は §10。
 
 このほか §8 の独立 oracle ledger は依然として未作成であり、(6) が実走可能になる前提である。
 本文書はこれらの前提条件を明示することで、将来の実装 wave が着手可能な状態を作ることを目的とする。
