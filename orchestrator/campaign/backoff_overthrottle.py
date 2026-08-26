@@ -18,11 +18,16 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from ..calibrator.benchparse import abort_rate, latency_ns, throughput_tps  # noqa: E402
 from ..calibrator.runner import run_once  # noqa: E402
-from . import buildcache, p2_2, pin, screening_driver, source_digest, wal  # noqa: E402
+from . import (buildcache, p2_2, patchharness, pin, screening_driver,  # noqa: E402
+               source_digest, wal)
 from .artifact_admission import CampaignReadPurpose, require_certified_campaign_view  # noqa: E402
 from .backoff_extended_sweep import (  # noqa: E402
+    TEMPLATE_PATCH,
     WORKLOADS,
     WORKLOAD_BY_TAG,
+    _assert_backoff_fixed_materialized,
+    _repo_root,
+    _require_distinct_static_binary_hashes,
     config_for,
     genomes,
 )
@@ -357,73 +362,95 @@ def measure(
     toolchain_manifest = buildcache.observed_toolchain_manifest(resolved_cc, resolved_cxx)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_OVERTHROTTLE)
     ordered_references = genomes(tag)
+    pending = []
     for point_index, reference in enumerate(ordered_references):
         reference_variant = bindings.get(reference.canonical())
         if reference_variant is None:
             raise RuntimeError(f"missing certified AA reference: {reference.canonical()}")
-        missing_reps = [rep for rep in range(REPS) if (reference_variant, rep) not in completed]
-        if not missing_reps:
-            continue
-        aa_genome = _aa_genome(reference)
-        evidence = source_digest.resolve_evidence(
-            aa_genome,
-            pin.CURRENT_PIN,
-            cxx=resolved_cxx,
-        )
-        generator_receipt = attest_generator_output(
-            build_context,
-            evidence,
-            generator_input_sha256=hashlib.sha256(
-                f"backoff-overthrottle/v2|{aa_genome.canonical()}".encode("utf-8")
-            ).hexdigest(),
-        )
-        admission = derive_build_admission(
-            build_context,
-            evidence,
-            generator_receipt=generator_receipt,
-        )
-        built = buildcache.build_v2(
-            aa_genome,
-            contract=contract,
-            ccbench_commit=pin.CURRENT_PIN,
-            trace=False,
-            cc=resolved_cc,
-            cxx=resolved_cxx,
-            cache_root=cache_root,
-            admission=admission,
-            build_context=build_context,
-            source_evidence=evidence,
-            expected_toolchain_manifest=toolchain_manifest,
-            declared_use_class="official",
-        )
-        for rep in missing_reps:
-            metrics, _counters, _wall = _run_rep(
-                built.binary,
-                _flags(workload, contract),
-                list(contract.numactl),
+        missing_reps = [
+            rep for rep in range(REPS)
+            if (reference_variant, rep) not in completed
+        ]
+        if missing_reps:
+            pending.append((point_index, reference, reference_variant, missing_reps))
+
+    ccbench_dir = buildcache._ccbench_dir()
+    patch_path = os.path.join(_repo_root(), TEMPLATE_PATCH)
+    with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
+        _assert_backoff_fixed_materialized(ccbench_dir)
+        prebuilt = {}
+        for _point_index, reference, _reference_variant, _missing_reps in pending:
+            aa_genome = _aa_genome(reference)
+            evidence = source_digest.resolve_evidence(
+                aa_genome,
+                pin.CURRENT_PIN,
+                ccbench_dir=ccbench_dir,
+                cxx=resolved_cxx,
             )
-            values = extract_rep_values(metrics, reference)
-            row = {
-                "schema_version": JSONL_SCHEMA,
-                "workload": tag,
-                "workload_coordinates": dict(workload),
-                "campaign_id": campaign_id,
-                "reference_variant_id": reference_variant,
-                "reference_genome": reference.canonical(),
-                "aa_genome": aa_genome.canonical(),
-                "label": _point_label(reference),
-                "point_index": point_index,
-                "rep": rep,
-                "back_off": reference.flags["BACK_OFF"],
-                "backoff_us": reference.flags["BACKOFF_FIXED"],
-                "certified": False,
-                "diagnostic_only": True,
-                "values": {field: _value(value) for field, value in values.items()},
-            }
-            _append_jsonl(jsonl_path, row)
-            existing.append(row)
-            completed.add((reference_variant, rep))
-            log(f"[{tag}] append {_point_label(reference)} rep={rep}")
+            generator_receipt = attest_generator_output(
+                build_context,
+                evidence,
+                generator_input_sha256=hashlib.sha256(
+                    f"backoff-overthrottle/v2|{aa_genome.canonical()}".encode("utf-8")
+                ).hexdigest(),
+            )
+            admission = derive_build_admission(
+                build_context,
+                evidence,
+                generator_receipt=generator_receipt,
+            )
+            built = buildcache.build_v2(
+                aa_genome,
+                contract=contract,
+                ccbench_commit=pin.CURRENT_PIN,
+                trace=False,
+                src_token=evidence.src_token,
+                cc=resolved_cc,
+                cxx=resolved_cxx,
+                cache_root=cache_root,
+                ccbench_dir=ccbench_dir,
+                admission=admission,
+                build_context=build_context,
+                source_evidence=evidence,
+                expected_toolchain_manifest=toolchain_manifest,
+                declared_use_class="official",
+            )
+            prebuilt[(aa_genome.canonical(), False)] = built
+        _require_distinct_static_binary_hashes(prebuilt)
+
+        # All binaries and the static-point identity check complete before the
+        # first benchmark rep.  A bad fixed flag therefore consumes no measure time.
+        for point_index, reference, reference_variant, missing_reps in pending:
+            aa_genome = _aa_genome(reference)
+            built = prebuilt[(aa_genome.canonical(), False)]
+            for rep in missing_reps:
+                metrics, _counters, _wall = _run_rep(
+                    built.binary,
+                    _flags(workload, contract),
+                    list(contract.numactl),
+                )
+                values = extract_rep_values(metrics, reference)
+                row = {
+                    "schema_version": JSONL_SCHEMA,
+                    "workload": tag,
+                    "workload_coordinates": dict(workload),
+                    "campaign_id": campaign_id,
+                    "reference_variant_id": reference_variant,
+                    "reference_genome": reference.canonical(),
+                    "aa_genome": aa_genome.canonical(),
+                    "label": _point_label(reference),
+                    "point_index": point_index,
+                    "rep": rep,
+                    "back_off": reference.flags["BACK_OFF"],
+                    "backoff_us": reference.flags["BACKOFF_FIXED"],
+                    "certified": False,
+                    "diagnostic_only": True,
+                    "values": {field: _value(value) for field, value in values.items()},
+                }
+                _append_jsonl(jsonl_path, row)
+                existing.append(row)
+                completed.add((reference_variant, rep))
+                log(f"[{tag}] append {_point_label(reference)} rep={rep}")
 
     expected_count = len(ordered_references) * REPS
     if len(existing) != expected_count:

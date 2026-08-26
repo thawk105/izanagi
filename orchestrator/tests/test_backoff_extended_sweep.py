@@ -6,6 +6,7 @@ import os
 import random
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,6 +27,29 @@ from orchestrator.campaign import (
     site_policy,
 )
 from orchestrator.calibrator import perf_preflight
+
+
+def _stub_patch_and_prebuild(monkeypatch, events=None):
+    observed = [] if events is None else events
+
+    @contextmanager
+    def applied(patch_path, pin_commit, ccbench_dir):
+        observed.append(("patch-enter", patch_path, pin_commit, ccbench_dir))
+        try:
+            yield ["cmake/Options.cmake", "include/backoff.hh"]
+        finally:
+            observed.append(("patch-exit",))
+
+    monkeypatch.setattr(M.patchharness, "applied", applied)
+    monkeypatch.setattr(
+        M, "_assert_backoff_fixed_materialized",
+        lambda _ccbench_dir: observed.append(("patch-materialized",)),
+    )
+    monkeypatch.setattr(
+        M, "_prebuild_backoff_binaries",
+        lambda *_args, **_kwargs: observed.append(("prebuild",)) or {},
+    )
+    return observed
 
 
 def test_mu1_extended_grid_semantic_golden_except_registered_upper_endpoint():
@@ -57,6 +81,104 @@ def test_fixed_zero_and_none_are_distinct_genomes():
     assert none.flags["BACKOFF_FIXED"] == -1
     assert fixed_zero.flags["BACKOFF_FIXED"] == 0
     assert none.canonical() != fixed_zero.canonical()
+
+
+def test_applied_tree_contains_the_backoff_fixed_build_surface(tmp_path):
+    cmake = tmp_path / "cmake"
+    include = tmp_path / "include"
+    cmake.mkdir()
+    include.mkdir()
+    (cmake / "Options.cmake").write_text(
+        "set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING fixture)\n"
+        "BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\n",
+        encoding="utf-8",
+    )
+    backoff = include / "backoff.hh"
+    backoff.write_text(
+        "#ifndef BACKOFF_FIXED\n#endif\n#if BACKOFF_FIXED >= 0\n#endif\n",
+        encoding="utf-8",
+    )
+    M._assert_backoff_fixed_materialized(str(tmp_path))
+
+    backoff.write_text("#ifndef BACKOFF_FIXED\n#endif\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="patch is not materialized"):
+        M._assert_backoff_fixed_materialized(str(tmp_path))
+
+
+def test_distinct_backoff_fixed_amounts_produce_distinct_build_results(monkeypatch):
+    points = [
+        M.Genome("silo", {"BACK_OFF": 1, "BACKOFF_FIXED": amount})
+        for amount in (5, 10)
+    ]
+    build_events = []
+
+    def resolve_evidence(genome, *_args, **_kwargs):
+        return SimpleNamespace(
+            src_token=f"source-{genome.flags['BACKOFF_FIXED']}",
+        )
+
+    def build_v2(genome, **kwargs):
+        amount = genome.flags["BACKOFF_FIXED"]
+        build_events.append((amount, kwargs["trace"]))
+        return M.buildcache.BuildResult(
+            genome=genome, trace=kwargs["trace"], binary=f"/bin/fixed-{amount}",
+            bin_sha256=hashlib.sha256(f"binary-{amount}".encode()).hexdigest(),
+            build_dir=f"/build/fixed-{amount}", cached=False,
+        )
+
+    monkeypatch.setattr(M.source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(M, "derive_build_admission", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(M.buildcache, "build_v2", build_v2)
+    built = M._prebuild_backoff_binaries(
+        points,
+        contract=object(),
+        cache_root="/cache",
+        ccbench_dir="/ccbench",
+        resolved_cc="cc",
+        resolved_cxx="c++",
+        expected_toolchain_manifest={},
+        build_context=object(),
+        capability_resolver=lambda _evidence: object(),
+        trace_modes=(False,),
+    )
+    hashes = [built[(point.canonical(), False)].bin_sha256 for point in points]
+    assert build_events == [(5, False), (10, False)]
+    assert len(set(hashes)) == 2
+
+
+def test_duplicate_static_binary_hash_stops_before_campaign(monkeypatch):
+    points = [
+        M.Genome("silo", {"BACK_OFF": 1, "BACKOFF_FIXED": amount})
+        for amount in (5, 10)
+    ]
+    shared_sha256 = hashlib.sha256(b"same-binary").hexdigest()
+    monkeypatch.setattr(
+        M.source_digest, "resolve_evidence",
+        lambda genome, *_args, **_kwargs: SimpleNamespace(
+            src_token=f"source-{genome.flags['BACKOFF_FIXED']}",
+        ),
+    )
+    monkeypatch.setattr(M, "derive_build_admission", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        M.buildcache, "build_v2",
+        lambda genome, **kwargs: M.buildcache.BuildResult(
+            genome=genome, trace=kwargs["trace"], binary="/bin/shared",
+            bin_sha256=shared_sha256, build_dir="/build/shared", cached=False,
+        ),
+    )
+    with pytest.raises(RuntimeError, match="produced the same binary"):
+        M._prebuild_backoff_binaries(
+            points,
+            contract=object(),
+            cache_root="/cache",
+            ccbench_dir="/ccbench",
+            resolved_cc="cc",
+            resolved_cxx="c++",
+            expected_toolchain_manifest={},
+            build_context=object(),
+            capability_resolver=lambda _evidence: object(),
+            trace_modes=(False,),
+        )
 
 
 def test_mu4_workload_literal_oracle_reaches_config_diagnostic_and_argv():
@@ -107,6 +229,7 @@ def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):
     contract = p2_2._legacy_linux_contract()
     authorization = env_contract.authorize(contract.env_tag)
     observed = {}
+    events = _stub_patch_and_prebuild(monkeypatch)
     monkeypatch.setattr(M.p2_2, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(
         M.p2_2,
@@ -122,6 +245,7 @@ def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):
     monkeypatch.setattr(M.buildcache, "observed_toolchain_manifest", lambda *_args: {"cc": {}, "cxx": {}})
 
     def run_campaign(*args, **_kwargs):
+        events.append(("campaign",))
         observed["config"] = args[0]
         observed["perf"] = args[2]
         observed["cache_root"] = _kwargs["cache_root"]
@@ -136,6 +260,9 @@ def test_mu13_run_path_uses_the_calibration_bound_records(monkeypatch):
     assert observed["perf"].records == p2_2.RECORDS == 1_000_000
     assert observed["config"].search_config["records"] == 1_000_000
     assert observed["cache_root"] == "/tmp/b10-test-cache"
+    assert [event[0] for event in events] == [
+        "patch-enter", "patch-materialized", "prebuild", "campaign", "patch-exit",
+    ]
     argv = O._flags(M.WORKLOAD_BY_TAG["balanced"], contract)
     assert "-ycsb_tuple_num=1000000" in argv
 
@@ -190,6 +317,7 @@ def test_probe_error_driver_materializes_typed_stop_receipt(tmp_path, monkeypatc
     monkeypatch.setattr(
         M.buildcache, "observed_toolchain_manifest", lambda *_args: {"cc": {}, "cxx": {}},
     )
+    _stub_patch_and_prebuild(monkeypatch)
     receipt = _probe_error_receipt()
 
     def stopped_campaign(*_args, **kwargs):
@@ -259,6 +387,12 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert 'timeout 30 qstat -f "$QSTAT_JOBID"' in job
     assert 'export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"' in job
     assert job.count('--cache-root "$B10_BUILD_CACHE_ROOT"') == 2
+    assert job.count("http://10.120.96.1:8080") == 1
+    assert "BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080" in job
+    assert 'export http_proxy="$BUILD_NETWORK_PROXY_URL"' in job
+    assert 'export https_proxy="$BUILD_NETWORK_PROXY_URL"' in job
+    assert '"external_fetch_via_proxy": True' in job
+    assert '"dependency_revisions": "sha-pinned"' in job
 
 
 def test_failure_and_submission_receipts_cover_partial_progress():

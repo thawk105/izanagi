@@ -94,6 +94,15 @@ def test_aa_build_uses_the_job_supplied_cache_root():
     assert 'os.path.join(buildcache._ccbench_dir(), "build-variants")' not in source
 
 
+def test_aa_applies_patch_and_checks_all_binary_hashes_before_first_rep():
+    source = inspect.getsource(M.measure)
+    patch = source.index("with patchharness.applied")
+    build = source.index("buildcache.build_v2")
+    identity = source.index("_require_distinct_static_binary_hashes")
+    measure = source.index("_run_rep")
+    assert patch < build < identity < measure
+
+
 def _run():
     return pytest.main([__file__, "-q"])
 

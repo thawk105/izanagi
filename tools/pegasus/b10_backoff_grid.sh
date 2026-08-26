@@ -15,6 +15,7 @@ REPORT_CAP_S=300
 FINALIZE_CAP_S=300
 EXPECTED_WALLTIME_S=18000
 EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080
 CURRENT_STAGE=bootstrap
 PY=""
 OUTPUT_ROOT=""
@@ -171,6 +172,8 @@ done
 [[ -n "$PY" ]] || fail 2 "Python 3.10 is required"
 
 export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
+export http_proxy="$BUILD_NETWORK_PROXY_URL"
+export https_proxy="$BUILD_NETWORK_PROXY_URL"
 for command_name in git cmake cc c++ make timeout gnuplot qstat sha256sum hostname; do
   command -v -- "$command_name" >/dev/null 2>&1 || \
     fail 2 "required command is unavailable: $command_name"
@@ -408,6 +411,10 @@ document = {
     "pbs_jobid": job,
     "campaign_id": campaigns[0].name,
     "freeze_trees_sha256": freeze_hash,
+    "build_network": {
+        "external_fetch_via_proxy": True,
+        "dependency_revisions": "sha-pinned",
+    },
     "artifacts": artifacts,
 }
 with (base / "completion.json").open("x", encoding="utf-8") as handle:

@@ -15,12 +15,13 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import buildcache, ident, p2_2, pin  # noqa: E402
+from . import buildcache, ident, p2_2, patchharness, pin, source_digest  # noqa: E402
 from .backoff_sweep import _BASE, _official_durable_root_policy  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
     build_run_context,
+    derive_build_admission,
 )
 from .loop import run_campaign  # noqa: E402
 from .model import CampaignConfig, Genome  # noqa: E402
@@ -49,10 +50,125 @@ MEASUREMENT_SEEDS = {
 }
 
 PREFLIGHT_RECEIPT_SCHEMA = "b10-backoff-grid-perf-preflight-stop/v1"
+TEMPLATE_PATCH = "patches/silo-backoff-fixed.patch"
+
+_BACKOFF_FIXED_PATCH_MARKERS = {
+    "cmake/Options.cmake": (
+        "set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING",
+        "BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}",
+    ),
+    "include/backoff.hh": (
+        "#ifndef BACKOFF_FIXED",
+        "#if BACKOFF_FIXED >= 0",
+    ),
+}
 
 
 class PreflightStop(RuntimeError):
     """The durable perf receipt proves that measurement cannot start."""
+
+
+def _repo_root() -> str:
+    return str(Path(__file__).resolve().parents[2])
+
+
+def _assert_backoff_fixed_materialized(ccbench_dir: str) -> None:
+    """Confirm the applied tree, rather than a discarded CMake staging tree."""
+    root = Path(ccbench_dir)
+    for relative, markers in _BACKOFF_FIXED_PATCH_MARKERS.items():
+        try:
+            text = (root / relative).read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise RuntimeError(
+                f"BACKOFF_FIXED patch materialization is unreadable: {relative}"
+            ) from exc
+        missing = [marker for marker in markers if marker not in text]
+        if missing:
+            raise RuntimeError(
+                f"BACKOFF_FIXED patch is not materialized in {relative}: {missing!r}"
+            )
+
+
+def _static_backoff_amount(genome: Genome) -> Optional[int]:
+    amount = genome.flags.get("BACKOFF_FIXED")
+    if genome.flags.get("BACK_OFF") != 1 or type(amount) is not int or amount < 0:
+        return None
+    return amount
+
+
+def _require_distinct_static_binary_hashes(
+        builds: dict[tuple[str, bool], buildcache.BuildResult],
+) -> None:
+    """Fail closed if two requested static magnitudes produced one perf binary."""
+    amount_by_sha256: dict[str, int] = {}
+    checked_amounts: set[int] = set()
+    for (canonical, trace), built in builds.items():
+        if trace:
+            continue
+        if type(built) is not buildcache.BuildResult:
+            raise RuntimeError("static binary identity requires an exact BuildResult")
+        amount = _static_backoff_amount(built.genome)
+        if amount is None:
+            continue
+        if built.genome.canonical() != canonical:
+            raise RuntimeError("prebuilt BACKOFF_FIXED binary lost its genome binding")
+        sha256 = built.bin_sha256
+        if not buildcache.is_full_sha256(sha256):
+            raise RuntimeError(
+                f"BACKOFF_FIXED={amount} build returned a non-canonical binary sha256"
+            )
+        previous = amount_by_sha256.setdefault(sha256, amount)
+        if previous != amount:
+            raise RuntimeError(
+                "distinct BACKOFF_FIXED amounts produced the same binary: "
+                f"{previous} and {amount} (sha256={sha256})"
+            )
+        checked_amounts.add(amount)
+    if len(checked_amounts) >= 2 and len(amount_by_sha256) != len(checked_amounts):
+        raise RuntimeError("BACKOFF_FIXED binary identity check is incomplete")
+
+
+def _prebuild_backoff_binaries(
+        ordered_genomes: list[Genome], *, contract, cache_root: str,
+        ccbench_dir: str, resolved_cc: str, resolved_cxx: str,
+        expected_toolchain_manifest, build_context, capability_resolver,
+        trace_modes: tuple[bool, ...] = (True, False),
+) -> dict[tuple[str, bool], buildcache.BuildResult]:
+    """Build every requested binary before measurement and check static identity."""
+    builds: dict[tuple[str, bool], buildcache.BuildResult] = {}
+    for genome in ordered_genomes:
+        evidence = source_digest.resolve_evidence(
+            genome,
+            pin.CURRENT_PIN,
+            ccbench_dir=ccbench_dir,
+            cxx=resolved_cxx,
+        )
+        capability = capability_resolver(evidence)
+        admission = derive_build_admission(
+            build_context,
+            evidence,
+            generator_receipt=capability,
+        )
+        for trace in trace_modes:
+            built = buildcache.build_v2(
+                genome,
+                contract=contract,
+                ccbench_commit=pin.CURRENT_PIN,
+                trace=trace,
+                src_token=evidence.src_token,
+                cc=resolved_cc,
+                cxx=resolved_cxx,
+                cache_root=cache_root,
+                ccbench_dir=ccbench_dir,
+                admission=admission,
+                build_context=build_context,
+                source_evidence=evidence,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                declared_use_class="official",
+            )
+            builds[(genome.canonical(), trace)] = built
+    _require_distinct_static_binary_hashes(builds)
+    return builds
 
 
 def _write_create_only_json(path: Path, value: object) -> None:
@@ -195,28 +311,44 @@ def run_workload(
     preflight_receipt_path = (
         Path(output_root) / f"b10-backoff-grid-{tag}-perf-preflight.json"
     )
+    ccbench_dir = buildcache._ccbench_dir()
+    patch_path = os.path.join(_repo_root(), TEMPLATE_PATCH)
     try:
-        return run_campaign(
-            cfg,
-            ordered_genomes,
-            perf,
-            contract.env_tag,
-            contract.clocks_per_us,
-            numactl=list(contract.numactl),
-            output_root=output_root,
-            log=log,
-            cache_root=cache_root,
-            authorization_contract=authorization,
-            env_contract=contract,
-            expected_toolchain_manifest=expected_toolchain_manifest,
-            build_context=build_context,
-            declared_use_class="official",
-            capability_resolver=capability_resolver,
-            perf_preflight_receipt_path=str(preflight_receipt_path),
-            durable_root_policy=_official_durable_root_policy(
-                Path(output_root) if output_root else None,
-            ),
-        )
+        with patchharness.applied(patch_path, pin.CURRENT_PIN, ccbench_dir):
+            _assert_backoff_fixed_materialized(ccbench_dir)
+            _prebuild_backoff_binaries(
+                ordered_genomes,
+                contract=contract,
+                cache_root=cache_root,
+                ccbench_dir=ccbench_dir,
+                resolved_cc=resolved_cc,
+                resolved_cxx=resolved_cxx,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                build_context=build_context,
+                capability_resolver=capability_resolver,
+            )
+            return run_campaign(
+                cfg,
+                ordered_genomes,
+                perf,
+                contract.env_tag,
+                contract.clocks_per_us,
+                numactl=list(contract.numactl),
+                output_root=output_root,
+                log=log,
+                ccbench_dir=ccbench_dir,
+                cache_root=cache_root,
+                authorization_contract=authorization,
+                env_contract=contract,
+                expected_toolchain_manifest=expected_toolchain_manifest,
+                build_context=build_context,
+                declared_use_class="official",
+                capability_resolver=capability_resolver,
+                perf_preflight_receipt_path=str(preflight_receipt_path),
+                durable_root_policy=_official_durable_root_policy(
+                    Path(output_root) if output_root else None,
+                ),
+            )
     except perf_preflight.PerfPreflightError as exc:
         if not preflight_receipt_path.is_file():
             raise
