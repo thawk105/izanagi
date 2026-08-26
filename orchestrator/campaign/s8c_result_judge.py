@@ -39,6 +39,42 @@ _CONDITION_SET = frozenset(_CONDITION_IDS)
 _TABLE_NAMES = ("descriptive_only", "official_status", "selection_evaluation")
 _PARAM_UNIT = "throughput_tps"
 _PARAM_DIRECTION = "on_minus_off"
+_GENERATION_EXPERIMENT_KIND = "generation_search"
+_GENERATION_NORMAL_FORM_SCHEMA = "s8c-generation-prediction/v1"
+_GENERATION_AXIS = "silo-backoff-trigger-gating"
+_GENERATION_OUTCOME_UNIT = "final_generation_canonical_variant"
+_GENERATION_SELECTOR_KEYS = frozenset({
+    "on_off", "predictions", "on_predictions", "off_predictions",
+    "swapped", "swapped_predictions", "swapped_follow_through",
+})
+_GENERATION_FATAL_STOP_REASONS = frozenset({
+    "role-invalid", "supervisor-error", "supervisor-wall-budget",
+})
+_GENERATION_DIAGNOSTIC_REASONS = frozenset({
+    "generation-results-missing",
+    "generation-sequence-invalid",
+    "final-generation-missing",
+    "final-harness-missing",
+    "generation-harness-outcome-mismatch",
+    "final-outcome-not-admissible",
+    "final-variant-missing-or-invalid",
+    "terminal-stop-reason-invalid",
+    "proposal-binding-missing-or-invalid",
+    "proposal-bytes-unreadable",
+    "proposal-sha256-mismatch",
+    "proposal-not-canonical-json",
+    "proposal-schema-invalid",
+    "proposal-arm-binding-mismatch",
+    "proposal-axis-invalid",
+    "proposal-wire-invalid",
+    "variant-normal-form-conflict",
+    "generation-cell-binding-invalid",
+    "generation-schema-invalid",
+    "source-on-normal-forms-constant",
+    "manifest-or-complete-block-missing",
+    "swapped-mapping-or-prediction-invalid",
+    "observation-block-or-source-binding-invalid",
+})
 _MISSING = object()
 
 
@@ -56,6 +92,16 @@ class _PreregistrationNotEffectiveError(_ResultJudgeError):
 
 class _InputContractError(_ResultJudgeError):
     """A caller supplied an input shape that is not an accepted contract."""
+
+
+class _GenerationSchemaError(_InputContractError):
+    """A generation-only schema error with structured mismatch evidence."""
+
+    def __init__(
+        self, message: str, mismatches: Sequence[Mapping[str, Any]],
+    ) -> None:
+        super().__init__(message)
+        self.mismatches = tuple(mismatches)
 
 
 class _ResultTableError(_ResultJudgeError):
@@ -145,6 +191,24 @@ class _Cell:
     arm: str
     configuration_id: str
     declared_n: object
+
+
+@dataclass(frozen=True)
+class _GenerationCell:
+    cell_id: str
+    holdout_id: str
+    arm: str
+    workload: str
+    declared_n: object
+
+
+@dataclass(frozen=True)
+class _GenerationOutcome:
+    cell: _GenerationCell
+    variant: str
+    normal_form: Mapping[str, Any]
+    proposal_digest: str
+    diagnostics: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -515,6 +579,424 @@ def _build_observation_context(
     )
 
 
+def _lower_hex(value: Any, length: int) -> bool:
+    return (
+        type(value) is str
+        and len(value) == length
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _canonical_json_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _strict_json_value(raw: bytes) -> Any:
+    def _pairs(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+
+    def _constant(_value: str) -> Any:
+        raise ValueError("non-finite JSON number")
+
+    return json.loads(
+        raw.decode("utf-8"),
+        object_pairs_hook=_pairs,
+        parse_constant=_constant,
+    )
+
+
+def _repo_relative_proposal_path(path_value: str) -> str | None:
+    try:
+        relative = Path(path_value).resolve(strict=False).relative_to(
+            _REPO_ROOT.resolve(),
+        )
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return relative.as_posix()
+
+
+def _normalise_generation_cells(
+    manifest: Mapping[str, Any],
+) -> tuple[tuple[_GenerationCell, ...], tuple[str, ...]]:
+    raw_cells = _sequence(manifest.get("cells"), "manifest.cells")
+    if len(raw_cells) != 6:
+        raise _InputContractError("generation manifest must declare exactly six cells")
+    cells: list[_GenerationCell] = []
+    cell_ids: set[str] = set()
+    holdout_arms: set[tuple[str, str]] = set()
+    for index, raw in enumerate(raw_cells):
+        item = _mapping(raw, f"manifest.cells[{index}]")
+        if "configuration_id" in item or "config_id" in item:
+            mixed_keys = tuple(
+                key for key in ("configuration_id", "config_id") if key in item
+            )
+            raise _GenerationSchemaError(
+                "generation cell mixes selector configuration identity",
+                tuple({
+                    "path": f"manifest.cells[{index}].{key}",
+                    "expected": "absent",
+                    "actual": item[key],
+                } for key in mixed_keys),
+            )
+        cell_id = _text(item.get("cell_id"), f"cells[{index}].cell_id")
+        holdout_id = _text(item.get("holdout_id"), f"cells[{index}].holdout_id")
+        arm = _text(item.get("arm"), f"cells[{index}].arm")
+        workload = _text(item.get("workload"), f"cells[{index}].workload")
+        if arm not in {"on", "off", "swapped"}:
+            raise _InputContractError(f"unknown generation arm {arm!r}")
+        if cell_id in cell_ids or (holdout_id, arm) in holdout_arms:
+            raise _InputContractError("generation cell identity or holdout/arm is duplicated")
+        cell_ids.add(cell_id)
+        holdout_arms.add((holdout_id, arm))
+        cells.append(_GenerationCell(
+            cell_id=cell_id,
+            holdout_id=holdout_id,
+            arm=arm,
+            workload=workload,
+            declared_n=item.get("n", _MISSING),
+        ))
+    holdouts = tuple(dict.fromkeys(cell.holdout_id for cell in cells))
+    if len(holdouts) != 2:
+        raise _InputContractError("the generation manifest must contain two holdouts")
+    expected = {
+        (holdout_id, arm)
+        for holdout_id in holdouts
+        for arm in ("on", "off", "swapped")
+    }
+    if holdout_arms != expected:
+        raise _InputContractError("generation manifest holdout/arm cells are incomplete")
+    return tuple(cells), holdouts
+
+
+def _generation_diagnostic_template(record: Any) -> dict[str, Any]:
+    stop_reason = record.get("stop_reason") if isinstance(record, Mapping) else None
+    return {
+        "extraction_status": "INDETERMINATE",
+        "reason": None,
+        "generation_numbers": None,
+        "selected_generation": None,
+        "selected_list_index": None,
+        "cell_stop_reason": stop_reason if type(stop_reason) is str else None,
+        "harness_outcome": None,
+        "variant": None,
+        "proposal_generation": None,
+        "proposal_path": None,
+        "proposal_declared_sha256": None,
+        "proposal_actual_sha256": None,
+        "normal_form": None,
+        "mismatches": (),
+    }
+
+
+def _invalid_generation_diagnostic(
+    diagnostic: Mapping[str, Any],
+    reason: str,
+    *,
+    mismatches: Sequence[Mapping[str, Any]] = (),
+) -> Mapping[str, Any]:
+    if reason not in _GENERATION_DIAGNOSTIC_REASONS:
+        raise ValueError("unknown generation diagnostic reason")
+    result = dict(diagnostic)
+    result["extraction_status"] = "INDETERMINATE"
+    result["reason"] = reason
+    result["mismatches"] = tuple(mismatches)
+    return _freeze(result)
+
+
+def _extract_generation_proposal(
+    generation: Mapping[str, Any],
+    diagnostic: dict[str, Any],
+    *,
+    generation_number: int,
+    generation_index: int,
+    require_normal_form: bool,
+) -> tuple[str | None, Mapping[str, Any] | None, Mapping[str, Any] | None]:
+    diagnostic["proposal_generation"] = generation_number
+    diagnostic["proposal_path"] = None
+    diagnostic["proposal_declared_sha256"] = None
+    diagnostic["proposal_actual_sha256"] = None
+    proposal_path_prefix = f"generations[{generation_index}].proposal"
+    proposal = generation.get("proposal")
+    if not isinstance(proposal, Mapping):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-binding-missing-or-invalid",
+            mismatches=({
+                "path": proposal_path_prefix,
+                "expected": "mapping",
+                "actual": proposal,
+            },),
+        )
+    path_value = proposal.get("path")
+    declared_sha256 = proposal.get("sha256")
+    proposal_digest = proposal.get("digest")
+    if type(path_value) is str and path_value:
+        diagnostic["proposal_path"] = _repo_relative_proposal_path(path_value)
+    diagnostic["proposal_declared_sha256"] = (
+        declared_sha256 if _lower_hex(declared_sha256, 64) else None
+    )
+    binding_mismatches: list[Mapping[str, Any]] = []
+    if type(path_value) is not str or not path_value:
+        binding_mismatches.append({
+            "path": f"{proposal_path_prefix}.path",
+            "expected": "non-empty-string",
+            "actual": path_value,
+        })
+    if not _lower_hex(declared_sha256, 64):
+        binding_mismatches.append({
+            "path": f"{proposal_path_prefix}.sha256",
+            "expected": "lowercase-sha256",
+            "actual": declared_sha256,
+        })
+    if not _lower_hex(proposal_digest, 64):
+        binding_mismatches.append({
+            "path": f"{proposal_path_prefix}.digest",
+            "expected": "lowercase-sha256",
+            "actual": proposal_digest,
+        })
+    if binding_mismatches:
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-binding-missing-or-invalid",
+            mismatches=binding_mismatches,
+        )
+    proposal_path = Path(path_value)
+    try:
+        if proposal_path.is_symlink() or not proposal_path.is_file():
+            raise OSError("proposal is not a regular file")
+        proposal_bytes = proposal_path.read_bytes()
+    except OSError:
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic, "proposal-bytes-unreadable",
+        )
+    actual_sha256 = hashlib.sha256(proposal_bytes).hexdigest()
+    diagnostic["proposal_actual_sha256"] = actual_sha256
+    if not hmac.compare_digest(actual_sha256, declared_sha256):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-sha256-mismatch",
+            mismatches=({
+                "path": f"{proposal_path_prefix}.sha256",
+                "expected": declared_sha256,
+                "actual": actual_sha256,
+            },),
+        )
+    try:
+        proposal_value = _strict_json_value(proposal_bytes)
+        canonical = _canonical_json_bytes(proposal_value)
+    except (TypeError, ValueError, UnicodeError):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic, "proposal-not-canonical-json",
+        )
+    if canonical != proposal_bytes:
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic, "proposal-not-canonical-json",
+        )
+    if not isinstance(proposal_value, Mapping):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-schema-invalid",
+            mismatches=({
+                "path": f"{proposal_path_prefix}.json",
+                "expected": "mapping",
+                "actual": proposal_value,
+            },),
+        )
+    artifact_binding = proposal_value.get("arm_binding_digest_sha256")
+    if not _lower_hex(artifact_binding, 64) or not hmac.compare_digest(
+        artifact_binding, proposal_digest,
+    ):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-arm-binding-mismatch",
+            mismatches=({
+                "path": f"{proposal_path_prefix}.json.arm_binding_digest_sha256",
+                "expected": proposal_digest,
+                "actual": artifact_binding,
+            },),
+        )
+    if not require_normal_form:
+        return proposal_digest, None, None
+    coder = proposal_value.get("coder")
+    if not isinstance(coder, Mapping):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-schema-invalid",
+            mismatches=({
+                "path": f"{proposal_path_prefix}.json.coder",
+                "expected": "mapping",
+                "actual": coder,
+            },),
+        )
+    axis = coder.get("axis")
+    if axis != _GENERATION_AXIS:
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-axis-invalid",
+            mismatches=({
+                "path": f"{proposal_path_prefix}.json.coder.axis",
+                "expected": _GENERATION_AXIS,
+                "actual": axis,
+            },),
+        )
+    wire = coder.get("wire")
+    if type(wire) is not str or len(wire) != 5 or any(bit not in "01" for bit in wire):
+        return None, None, _invalid_generation_diagnostic(
+            diagnostic,
+            "proposal-wire-invalid",
+            mismatches=({
+                "path": f"{proposal_path_prefix}.json.coder.wire",
+                "expected": "five-character-binary-string",
+                "actual": wire,
+            },),
+        )
+    normal_form = _freeze({
+        "schema": _GENERATION_NORMAL_FORM_SCHEMA,
+        "axis": axis,
+        "parameters": {"wire": wire},
+    })
+    return proposal_digest, normal_form, None
+
+
+def _extract_generation_outcome(
+    cell: _GenerationCell,
+    raw_record: Any,
+) -> tuple[_GenerationOutcome | None, Mapping[str, Any]]:
+    diagnostic = _generation_diagnostic_template(raw_record)
+    if not isinstance(raw_record, Mapping):
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "generation-results-missing",
+        )
+    identity_mismatches: list[Mapping[str, Any]] = []
+    for field, expected in (
+        ("workload", cell.workload),
+        ("holdout", cell.holdout_id),
+        ("arm", cell.arm),
+    ):
+        actual = raw_record.get(field)
+        if actual != expected:
+            identity_mismatches.append({
+                "path": field,
+                "expected": expected,
+                "actual": actual,
+            })
+    if identity_mismatches:
+        return None, _invalid_generation_diagnostic(
+            diagnostic,
+            "generation-cell-binding-invalid",
+            mismatches=identity_mismatches,
+        )
+    generations = raw_record.get("generations")
+    if type(generations) is not list:
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "generation-results-missing",
+        )
+    numbers: list[int] = []
+    for item in generations:
+        if not isinstance(item, Mapping) or type(item.get("generation")) is not int:
+            return None, _invalid_generation_diagnostic(
+                diagnostic, "generation-sequence-invalid",
+            )
+        numbers.append(item["generation"])
+    diagnostic["generation_numbers"] = tuple(numbers)
+    if numbers != [1, 2]:
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "generation-sequence-invalid",
+        )
+    selected_index, selected = next(
+        (index, item)
+        for index, item in enumerate(generations)
+        if item.get("generation") == 2
+    )
+    diagnostic["selected_generation"] = 2
+    diagnostic["selected_list_index"] = selected_index
+    _, _, invalid_proposal = _extract_generation_proposal(
+        generations[0],
+        diagnostic,
+        generation_number=1,
+        generation_index=0,
+        require_normal_form=False,
+    )
+    if invalid_proposal is not None:
+        return None, invalid_proposal
+    proposal_digest, normal_form, invalid_proposal = _extract_generation_proposal(
+        selected,
+        diagnostic,
+        generation_number=2,
+        generation_index=selected_index,
+        require_normal_form=True,
+    )
+    if invalid_proposal is not None:
+        return None, invalid_proposal
+    if proposal_digest is None or normal_form is None:
+        raise AssertionError("validated final proposal lacks its canonical binding")
+    stop_reason = raw_record.get("stop_reason")
+    if (
+        (stop_reason is not None and type(stop_reason) is not str)
+        or stop_reason in _GENERATION_FATAL_STOP_REASONS
+    ):
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "terminal-stop-reason-invalid",
+        )
+    harness = selected.get("harness")
+    if not isinstance(harness, Mapping):
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "final-harness-missing",
+        )
+    record_outcome = selected.get("outcome")
+    harness_outcome = harness.get("outcome")
+    diagnostic["harness_outcome"] = harness_outcome if type(harness_outcome) is str else None
+    if (
+        type(record_outcome) is not str
+        or type(harness_outcome) is not str
+        or record_outcome != harness_outcome
+    ):
+        return None, _invalid_generation_diagnostic(
+            diagnostic,
+            "generation-harness-outcome-mismatch",
+            mismatches=({
+                "path": "generations[1].outcome",
+                "expected": harness_outcome,
+                "actual": record_outcome,
+            },),
+        )
+    if harness_outcome != "certified":
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "final-outcome-not-admissible",
+        )
+    variant = harness.get("variant")
+    diagnostic["variant"] = variant if type(variant) is str else None
+    if not _lower_hex(variant, 12):
+        return None, _invalid_generation_diagnostic(
+            diagnostic, "final-variant-missing-or-invalid",
+        )
+    diagnostic.update({
+        "extraction_status": "VALID",
+        "reason": None,
+        "normal_form": normal_form,
+        "mismatches": (),
+    })
+    frozen_diagnostic = _freeze(diagnostic)
+    return _GenerationOutcome(
+        cell=cell,
+        variant=variant,
+        normal_form=normal_form,
+        proposal_digest=proposal_digest,
+        diagnostics=frozen_diagnostic,
+    ), frozen_diagnostic
+
+
 def _prediction_value(item: Mapping[str, Any], keys: tuple[str, ...], label: str) -> str:
     value = _first(item, *keys)
     return _text(value, label)
@@ -679,6 +1161,167 @@ def _condition(
     return _ConditionResult(condition_id, status, _freeze(dict(diagnostics)))
 
 
+def _generation_common_diagnostics(
+    holdout_diagnostics: Mapping[str, Any],
+    invalid_cells: Sequence[str],
+    reason: str | None,
+    mismatches: Sequence[Mapping[str, Any]] = (),
+) -> dict[str, Any]:
+    if reason is not None and reason not in _GENERATION_DIAGNOSTIC_REASONS:
+        raise ValueError("unknown generation diagnostic reason")
+    return {
+        "mode": _GENERATION_EXPERIMENT_KIND,
+        "outcome_unit": _GENERATION_OUTCOME_UNIT,
+        "required_generation": 2,
+        "holdouts": holdout_diagnostics,
+        "invalid_cells": tuple(sorted(invalid_cells)),
+        "reason": reason,
+        "mismatches": tuple(mismatches),
+    }
+
+
+def _generation_indeterminate_result(
+    reason: str,
+    *,
+    holdout_diagnostics: Mapping[str, Any] | None = None,
+    invalid_cells: Sequence[str] = (),
+    mismatches: Sequence[Mapping[str, Any]] = (),
+) -> _JudgeResult:
+    diagnostics = _generation_common_diagnostics(
+        holdout_diagnostics or {}, invalid_cells, reason, mismatches,
+    )
+    conditions = MappingProxyType({
+        condition_id: _condition(
+            condition_id, _Status.INDETERMINATE, diagnostics,
+        )
+        for condition_id in _CONDITION_IDS
+    })
+    return _JudgeResult(
+        conditions=conditions,
+        conclusion=_Status.INDETERMINATE,
+        cell_rows=(),
+        selection_rows=(),
+        official_by_holdout=MappingProxyType({}),
+    )
+
+
+def _generation_arm_diagnostics(
+    cells: Sequence[_GenerationCell],
+    diagnostics: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    result: dict[str, dict[str, Any]] = {}
+    for cell in cells:
+        result.setdefault(cell.holdout_id, {})[cell.arm] = diagnostics[cell.cell_id]
+    return result
+
+
+def _evaluate_generation_difference(
+    generation_cells: Sequence[_GenerationCell],
+    holdouts: Sequence[str],
+    outcomes: Mapping[str, _GenerationOutcome],
+) -> tuple[_ConditionResult, dict[str, tuple[str, str]]]:
+    by_holdout_arm = {
+        (cell.holdout_id, cell.arm): outcomes[cell.cell_id]
+        for cell in generation_cells
+    }
+    per_holdout: dict[str, Any] = {}
+    on_off: dict[str, tuple[str, str]] = {}
+    any_different = False
+    for holdout_id in holdouts:
+        on = by_holdout_arm[(holdout_id, "on")]
+        off = by_holdout_arm[(holdout_id, "off")]
+        normal_form_equal = on.normal_form == off.normal_form
+        different = on.variant != off.variant and not normal_form_equal
+        any_different = any_different or different
+        on_off[holdout_id] = (on.variant, off.variant)
+        per_holdout[holdout_id] = {
+            "on": on.diagnostics,
+            "off": off.diagnostics,
+            "normal_form_equal": normal_form_equal,
+            "different": different,
+        }
+    return _condition(
+        _CONDITION_IDS[0],
+        _Status.SATISFIED if any_different else _Status.UNSATISFIED,
+        _generation_common_diagnostics(per_holdout, (), None),
+    ), on_off
+
+
+def _normal_form_mismatch_components(
+    expected: Mapping[str, Any], actual: Mapping[str, Any],
+) -> tuple[str, ...]:
+    components: list[str] = []
+    if expected.get("schema") != actual.get("schema"):
+        components.append("schema")
+    if expected.get("axis") != actual.get("axis"):
+        components.append("axis")
+    expected_parameters = expected.get("parameters")
+    actual_parameters = actual.get("parameters")
+    expected_wire = (
+        expected_parameters.get("wire") if isinstance(expected_parameters, Mapping) else None
+    )
+    actual_wire = (
+        actual_parameters.get("wire") if isinstance(actual_parameters, Mapping) else None
+    )
+    if expected_wire != actual_wire:
+        components.append("parameters.wire")
+    return tuple(components)
+
+
+def _evaluate_generation_swapped(
+    manifest: Mapping[str, Any],
+    generation_cells: Sequence[_GenerationCell],
+    holdouts: Sequence[str],
+    outcomes: Mapping[str, _GenerationOutcome],
+) -> _ConditionResult:
+    mapping = _normalise_swap_mapping(manifest, holdouts)
+    if mapping is None:
+        return _condition(
+            _CONDITION_IDS[1],
+            _Status.INDETERMINATE,
+            _generation_common_diagnostics(
+                {}, (), "swapped-mapping-or-prediction-invalid",
+            ),
+        )
+    by_holdout_arm = {
+        (cell.holdout_id, cell.arm): outcomes[cell.cell_id]
+        for cell in generation_cells
+    }
+    per_holdout: dict[str, Any] = {}
+    follows = True
+    source_on_normal_forms: list[Mapping[str, Any]] = []
+    for holdout_id, source_holdout in mapping.items():
+        expected = by_holdout_arm[(source_holdout, "on")]
+        actual = by_holdout_arm[(holdout_id, "swapped")]
+        source_on_normal_forms.append(expected.normal_form)
+        matched = actual.normal_form == expected.normal_form
+        follows = follows and matched
+        per_holdout[holdout_id] = {
+            "source_holdout": source_holdout,
+            "expected_normal_form": expected.normal_form,
+            "actual_normal_form": actual.normal_form,
+            "expected_variant": expected.variant,
+            "actual_variant": actual.variant,
+            "matched": matched,
+            "mismatch_components": _normal_form_mismatch_components(
+                expected.normal_form, actual.normal_form,
+            ),
+        }
+    source_on_constant = bool(source_on_normal_forms) and all(
+        value == source_on_normal_forms[0]
+        for value in source_on_normal_forms[1:]
+    )
+    status = (
+        _Status.SATISFIED
+        if follows and not source_on_constant
+        else _Status.UNSATISFIED
+    )
+    reason = "source-on-normal-forms-constant" if source_on_constant else None
+    diagnostics = _generation_common_diagnostics(per_holdout, (), reason)
+    diagnostics["source_on_normal_forms_constant"] = source_on_constant
+    return _condition(_CONDITION_IDS[1], status, diagnostics)
+
+
 def _evaluate_prediction_difference(
     prediction: Any, holdouts: Sequence[str], cells: Sequence[_Cell],
 ) -> tuple[_ConditionResult, dict[str, tuple[str, str]] | None]:
@@ -766,6 +1409,7 @@ def _evaluate_contrast(
     on_off: Mapping[str, tuple[str, str]] | None,
     params: _ContrastParams,
     source_binding_ok: bool,
+    generation_outcomes: Mapping[str, _GenerationOutcome] | None = None,
 ) -> tuple[_ConditionResult, dict[str, _Status]]:
     if not holdouts or context is None or on_off is None or not source_binding_ok:
         return _condition(
@@ -779,18 +1423,35 @@ def _evaluate_contrast(
         on_cell = by_holdout_arm[(holdout_id, "on")]
         off_cell = by_holdout_arm[(holdout_id, "off")]
         on_prediction, off_prediction = on_off[holdout_id]
-        same_prediction = on_prediction == off_prediction
+        generation_diagnostics: dict[str, Any] = {}
+        same_normal_form = False
+        if generation_outcomes is not None:
+            on_outcome = generation_outcomes[on_cell.cell_id]
+            off_outcome = generation_outcomes[off_cell.cell_id]
+            same_normal_form = on_outcome.normal_form == off_outcome.normal_form
+            generation_diagnostics = {
+                "on_variant": on_outcome.variant,
+                "off_variant": off_outcome.variant,
+                "on_normal_form": on_outcome.normal_form,
+                "off_normal_form": off_outcome.normal_form,
+            }
+        same_prediction = on_prediction == off_prediction or same_normal_form
         if same_prediction:
             holdout_statuses[holdout_id] = _Status.UNSATISFIED
             holdout_diagnostics[holdout_id] = {
                 "status": _Status.UNSATISFIED.value,
                 "same_prediction": True,
                 "reason": "prediction-configurations-are-identical",
+                **generation_diagnostics,
             }
             continue
         if not _cell_matches(on_cell, on_prediction) or not _cell_matches(off_cell, off_prediction):
             holdout_statuses[holdout_id] = _Status.INDETERMINATE
-            holdout_diagnostics[holdout_id] = {"status": _Status.INDETERMINATE.value, "reason": "prediction-cell-binding-invalid"}
+            holdout_diagnostics[holdout_id] = {
+                "status": _Status.INDETERMINATE.value,
+                "reason": "prediction-cell-binding-invalid",
+                **generation_diagnostics,
+            }
             continue
         on_values: list[float] = []
         off_values: list[float] = []
@@ -804,6 +1465,7 @@ def _evaluate_contrast(
                 holdout_diagnostics[holdout_id] = {
                     "status": _Status.INDETERMINATE.value,
                     "reason": "paired-replicate-missing",
+                    **generation_diagnostics,
                 }
                 break
             if context.blocks[on_key] != context.blocks[off_key]:
@@ -811,6 +1473,7 @@ def _evaluate_contrast(
                 holdout_diagnostics[holdout_id] = {
                     "status": _Status.INDETERMINATE.value,
                     "reason": "paired-block-mismatch",
+                    **generation_diagnostics,
                 }
                 break
             on_schedule = context.medians[on_key]
@@ -823,6 +1486,7 @@ def _evaluate_contrast(
                 holdout_diagnostics[holdout_id] = {
                     "status": _Status.INDETERMINATE.value,
                     "reason": "non-finite-paired-delta",
+                    **generation_diagnostics,
                 }
                 break
             deltas.append(delta)
@@ -833,6 +1497,7 @@ def _evaluate_contrast(
                 holdout_diagnostics[holdout_id] = {
                     "status": _Status.INDETERMINATE.value,
                     "reason": "replicate-count-invalid",
+                    **generation_diagnostics,
                 }
                 continue
             try:
@@ -843,6 +1508,7 @@ def _evaluate_contrast(
                 holdout_diagnostics[holdout_id] = {
                     "status": _Status.INDETERMINATE.value,
                     "reason": "summary-calculation-failed",
+                    **generation_diagnostics,
                 }
                 continue
             if not math.isfinite(mean_delta) or not math.isfinite(sample_sd):
@@ -850,6 +1516,7 @@ def _evaluate_contrast(
                 holdout_diagnostics[holdout_id] = {
                     "status": _Status.INDETERMINATE.value,
                     "reason": "non-finite-summary",
+                    **generation_diagnostics,
                 }
                 continue
             covariance = _safe_diagnostic(lambda: _sample_covariance(on_values, off_values))
@@ -883,6 +1550,7 @@ def _evaluate_contrast(
                 "relative_difference": relative_difference,
                 "spread_ratio": spread_ratio,
                 "paired_blocks": tuple(block_pairs),
+                **generation_diagnostics,
             }
     if any(status is _Status.INDETERMINATE for status in holdout_statuses.values()):
         status = _Status.INDETERMINATE
@@ -1000,6 +1668,62 @@ def _selection_evaluation_rows(
     return tuple(enriched)
 
 
+def _generation_selection_evaluation_rows(
+    generation_cells: Sequence[_GenerationCell],
+    rows: Sequence[Mapping[str, Any]],
+    manifest: Mapping[str, Any],
+    holdouts: Sequence[str],
+    outcomes: Mapping[str, _GenerationOutcome],
+    conditions: Mapping[str, _ConditionResult],
+) -> tuple[Mapping[str, Any], ...]:
+    swap_mapping = _normalise_swap_mapping(manifest, holdouts)
+    by_cell_id = {row["cell_id"]: row for row in rows}
+    by_holdout_arm = {
+        (cell.holdout_id, cell.arm): cell
+        for cell in generation_cells
+    }
+    on_off_status = conditions[_CONDITION_IDS[0]].status.value
+    swapped_status = conditions[_CONDITION_IDS[1]].status.value
+    enriched: list[Mapping[str, Any]] = []
+    for cell in generation_cells:
+        row = by_cell_id[cell.cell_id]
+        expected_cell: _GenerationCell | None = cell
+        rank_holdout_id = cell.holdout_id
+        if cell.arm == "swapped":
+            if swap_mapping is None:
+                expected_cell = None
+            else:
+                rank_holdout_id = swap_mapping[cell.holdout_id]
+                expected_cell = by_holdout_arm[(rank_holdout_id, "on")]
+        predicted = (
+            outcomes[expected_cell.cell_id].variant
+            if expected_cell is not None
+            else None
+        )
+        predicted_rank = (
+            by_cell_id[expected_cell.cell_id].get("within_config_rank")
+            if expected_cell is not None
+            else None
+        )
+        enriched.append(_freeze({
+            "cell_id": row["cell_id"],
+            "holdout_id": row["holdout_id"],
+            "arm": row["arm"],
+            "configuration_id": row["configuration_id"],
+            "within_config_rank": row["within_config_rank"],
+            "predicted_configuration_id": predicted,
+            "prediction_rank_holdout_id": rank_holdout_id,
+            "predicted_rank": predicted_rank,
+            "prediction_matches_rank": (
+                predicted_rank is not None
+                and row["within_config_rank"] == predicted_rank
+            ),
+            "on_off_prediction_difference": on_off_status,
+            "swapped_follow_through": swapped_status,
+        }))
+    return tuple(enriched)
+
+
 def _derive_conclusion(conditions: Mapping[str, _ConditionResult]) -> _Status:
     statuses = tuple(conditions[condition_id].status for condition_id in _CONDITION_IDS)
     if any(status is _Status.INDETERMINATE for status in statuses):
@@ -1009,6 +1733,217 @@ def _derive_conclusion(conditions: Mapping[str, _ConditionResult]) -> _Status:
     return _Status.SATISFIED
 
 
+def _judge_generation(
+    manifest: Mapping[str, Any],
+    observations: Sequence[Mapping[str, Any]],
+    prediction: Mapping[str, Any],
+    params: _ContrastParams,
+) -> _JudgeResult:
+    if not isinstance(prediction, Mapping):
+        return _generation_indeterminate_result("generation-schema-invalid")
+    if "experiment_kind" in prediction:
+        prediction_kind = prediction.get("experiment_kind")
+        if (
+            type(prediction_kind) is not str
+            or prediction_kind != _GENERATION_EXPERIMENT_KIND
+        ):
+            return _generation_indeterminate_result(
+                "generation-schema-invalid",
+                mismatches=({
+                    "path": "prediction.experiment_kind",
+                    "expected": _GENERATION_EXPERIMENT_KIND,
+                    "actual": prediction_kind,
+                },),
+            )
+    selector_keys = tuple(sorted(_GENERATION_SELECTOR_KEYS & set(prediction)))
+    if selector_keys:
+        return _generation_indeterminate_result(
+            "generation-schema-invalid",
+            mismatches=tuple({
+                "path": f"prediction.{key}",
+                "expected": "absent",
+                "actual": prediction[key],
+            } for key in selector_keys),
+        )
+    try:
+        generation_cells, holdouts = _normalise_generation_cells(manifest)
+    except _GenerationSchemaError as error:
+        return _generation_indeterminate_result(
+            "generation-schema-invalid", mismatches=error.mismatches,
+        )
+    except _InputContractError:
+        return _generation_indeterminate_result("generation-schema-invalid")
+    _validate_condition_declarations(manifest, prediction)
+    generation_results = prediction.get("generation_results")
+    expected_cell_ids = {cell.cell_id for cell in generation_cells}
+    if (
+        not isinstance(generation_results, Mapping)
+        or set(generation_results) != expected_cell_ids
+    ):
+        return _generation_indeterminate_result(
+            "generation-results-missing",
+            invalid_cells=tuple(sorted(expected_cell_ids)),
+        )
+    outcomes: dict[str, _GenerationOutcome] = {}
+    outcome_diagnostics: dict[str, Mapping[str, Any]] = {}
+    for cell in generation_cells:
+        outcome, diagnostic = _extract_generation_outcome(
+            cell, generation_results[cell.cell_id],
+        )
+        outcome_diagnostics[cell.cell_id] = diagnostic
+        if outcome is not None:
+            outcomes[cell.cell_id] = outcome
+
+    digests: dict[str, list[str]] = {}
+    for cell_id, outcome in outcomes.items():
+        digests.setdefault(outcome.proposal_digest, []).append(cell_id)
+    for digest, cell_ids in digests.items():
+        if len(cell_ids) < 2:
+            continue
+        for cell_id in cell_ids:
+            diagnostic = _invalid_generation_diagnostic(
+                outcome_diagnostics[cell_id],
+                "proposal-binding-missing-or-invalid",
+                mismatches=({
+                    "path": "proposal.digest",
+                    "expected": "unique-across-generation-cells",
+                    "actual": digest,
+                },),
+            )
+            outcome_diagnostics[cell_id] = diagnostic
+            outcomes.pop(cell_id, None)
+
+    variants: dict[str, list[str]] = {}
+    for cell_id, outcome in outcomes.items():
+        variants.setdefault(outcome.variant, []).append(cell_id)
+    for variant, cell_ids in variants.items():
+        normal_forms = [outcomes[cell_id].normal_form for cell_id in cell_ids]
+        if len(normal_forms) < 2 or all(
+            normal_form == normal_forms[0] for normal_form in normal_forms[1:]
+        ):
+            continue
+        for cell_id in cell_ids:
+            diagnostic = _invalid_generation_diagnostic(
+                outcome_diagnostics[cell_id],
+                "variant-normal-form-conflict",
+                mismatches=({
+                    "path": "harness.variant",
+                    "expected": "one-normal-form-per-variant",
+                    "actual": variant,
+                },),
+            )
+            outcome_diagnostics[cell_id] = diagnostic
+            outcomes.pop(cell_id, None)
+
+    invalid_cells = tuple(
+        cell.cell_id
+        for cell in generation_cells
+        if cell.cell_id not in outcomes
+    )
+    if invalid_cells:
+        first_reason = next(
+            outcome_diagnostics[cell.cell_id]["reason"]
+            for cell in generation_cells
+            if cell.cell_id in invalid_cells
+        )
+        return _generation_indeterminate_result(
+            first_reason,
+            holdout_diagnostics=_generation_arm_diagnostics(
+                generation_cells, outcome_diagnostics,
+            ),
+            invalid_cells=invalid_cells,
+        )
+
+    cells = tuple(
+        _Cell(
+            cell_id=cell.cell_id,
+            holdout_id=cell.holdout_id,
+            arm=cell.arm,
+            configuration_id=outcomes[cell.cell_id].variant,
+            declared_n=cell.declared_n,
+        )
+        for cell in generation_cells
+    )
+    try:
+        schedule, by_cell_replicate = _validate_complete_block(
+            manifest, cells, params.n,
+        )
+        context = _build_observation_context(
+            observations, schedule, by_cell_replicate,
+        )
+    except _InputContractError:
+        return _generation_indeterminate_result(
+            "manifest-or-complete-block-missing",
+            holdout_diagnostics=_generation_arm_diagnostics(
+                generation_cells, outcome_diagnostics,
+            ),
+        )
+
+    first, on_off = _evaluate_generation_difference(
+        generation_cells, holdouts, outcomes,
+    )
+    second = _evaluate_generation_swapped(
+        manifest, generation_cells, holdouts, outcomes,
+    )
+    third, official_by_holdout = _evaluate_contrast(
+        cells,
+        holdouts,
+        context,
+        on_off,
+        params,
+        _source_binding_matches(manifest, params),
+        generation_outcomes=outcomes,
+    )
+    third_diagnostics = _generation_common_diagnostics(
+        third.diagnostics.get("holdouts", {}),
+        (),
+        third.diagnostics.get("reason"),
+    )
+    third = _condition(_CONDITION_IDS[2], third.status, third_diagnostics)
+    conditions = MappingProxyType({
+        _CONDITION_IDS[0]: first,
+        _CONDITION_IDS[1]: second,
+        _CONDITION_IDS[2]: third,
+    })
+    cell_rows, base_selection_rows = _derived_cell_rows(cells, context, holdouts)
+    selection_rows = _generation_selection_evaluation_rows(
+        generation_cells,
+        base_selection_rows,
+        manifest,
+        holdouts,
+        outcomes,
+        conditions,
+    )
+    return _JudgeResult(
+        conditions=conditions,
+        conclusion=_derive_conclusion(conditions),
+        cell_rows=cell_rows,
+        selection_rows=selection_rows,
+        official_by_holdout=MappingProxyType(dict(official_by_holdout)),
+    )
+
+
+def _unknown_experiment_result(experiment_kind: Any) -> _JudgeResult:
+    conditions = MappingProxyType({
+        condition_id: _condition(
+            condition_id,
+            _Status.INDETERMINATE,
+            {
+                "reason": "experiment-kind-invalid",
+                "experiment_kind": experiment_kind,
+            },
+        )
+        for condition_id in _CONDITION_IDS
+    })
+    return _JudgeResult(
+        conditions=conditions,
+        conclusion=_Status.INDETERMINATE,
+        cell_rows=(),
+        selection_rows=(),
+        official_by_holdout=MappingProxyType({}),
+    )
+
+
 def judge(
     manifest: Mapping[str, Any],
     observations: Sequence[Mapping[str, Any]],
@@ -1016,6 +1951,18 @@ def judge(
     params: _ContrastParams,
 ) -> _JudgeResult:
     """Derive all three condition statuses from sealed, raw observation inputs."""
+    if isinstance(manifest, Mapping) and "experiment_kind" in manifest:
+        experiment_kind = manifest.get("experiment_kind")
+        if (
+            type(experiment_kind) is not str
+            or experiment_kind != _GENERATION_EXPERIMENT_KIND
+        ):
+            return _unknown_experiment_result(experiment_kind)
+        params = _validate_contrast_params(params)
+        manifest_map = _mapping(manifest, "manifest")
+        return _judge_generation(manifest_map, observations, prediction, params)
+    if isinstance(prediction, Mapping) and "experiment_kind" in prediction:
+        return _unknown_experiment_result(prediction.get("experiment_kind"))
     params = _validate_contrast_params(params)
     _validate_condition_declarations(manifest, prediction)
     manifest_map = _mapping(manifest, "manifest")

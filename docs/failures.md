@@ -4691,6 +4691,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「消えたあとに気づく」だけで、「消す前に止める」防壁ではない。また判定は path 名の有無だけを
   見るため、既存ファイルへの変更・削除・同名別内容・gitlink 更新は検出しない (出力に明示済み)。
   拡張の可否は裁定へ返した。
+- **supersede: 2026-08-27** — 未了節の盲点一覧は検出側だけを挙げている。抑止側にも射程があり、runbook §7.2 のとおり抑止には basename 一致が要るため、別名同内容の控えは抑止されない。2026-08-27 の 19 commit の分類では、監査が控え無しとした 9 path の**全件**が「同じ探索根に別名で同一 bytes が在る」型で、名前違いだけを理由に要確認へ残っていた。安全側の過大報告なので防壁は破れないが、効き方は例外的ではない。抑止条件を緩められるかの検討は [T-1954]。
 
 ### F119. merge commit を親ごとの差分で見て、取り込んだ側を丸ごと「その commit の変更」と数えた [測り方の誤り]
 
@@ -16164,6 +16165,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   型は F606 と同じ「走査の網が実際の編集予約より狭い」である。
   走査対象は変更予定の production file だけでなく、**その file を検査する既存テスト file と、
   新設予定の path** も含めて組む。恒久対応は F606 既存のとおり変わらない。
+
+- **再発: 2026-08-27** — [T-1434] の段 1 で編集面重複走査を組んだ際、F606 の恒久対応が要求する
+  **repo 外 job directory の走査を掛けなかった**。走査面は「全 local branch の三点 diff」と
+  「全登録 worktree の porcelain」だけで、段 1〜4 の間 repo へ 1 行も書かない併走 wave の
+  編集予約は原理的に捕まえられない状態だった。偽の結論には至っていない (near miss) —
+  たまたま作成途中の worktree を dirty として掴み、そこから台帳で scope を確かめる経路に入ったため。
+  段 7 の記録前に、稼働中 worktree に対応する job directory を対象文書名で全件 grep して
+  **hit 0 件**を確認し、走査面を埋めた。型は F606 と同じ「走査の網が実際の編集予約より狭い」で、
+  今回は**恒久対応が既に台帳にあるのに参照されなかった**ことが差分である。
 ### F607. workspace-write の子が親の未追跡成果物を一時コピーと誤認して消した [権限逸脱] [手順漏れ]
 
 - 事象: 段 6 の fix 子が作業終了時に「insights の一時コピー」として
@@ -17704,3 +17714,134 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   git object を解決しない。commit を message だけ作り直しても
   `python3 -m orchestrator.campaign.mocc_g2_repro_ledger` の出力が変わらないことを
   本 wave で実測した。
+
+### F682. pin 閉包を「値の長い表現」と「成果物 path」だけで引き、短縮表現と操作起動の gate を落とした [手順漏れ] [テスト代表性]
+
+- 事象: CCBench pin 前進の影響範囲を測る precheck wave の段 1 で、親が
+  `DW-O09` に従って閉包を列挙したが、2 種類の束縛を丸ごと落とした。
+  段 3 の敵対検証が両方を露出させ、親の再実測で確定した。
+  (1) 正本の定数 `orchestrator/campaign/pin.py` の `CURRENT_PIN` は **7 桁** (`511c953`) だが、
+  親は 40 桁 (`511c9538…`) だけを `git grep` した。40 桁で 119 file、7 桁で 142 file。
+  差集合 23 file を落とし、その中に「repo policy から逆算しない独立 pin」と明記された
+  test golden が 6 file・7 箇所あった。
+  (2) `docs/decisions.md` D297 は「pin を前進させるとき」に発火する専用 checker
+  `tools/check_trace0_preprocess_identity.py` を定めるが、この gate は成果物 path でも
+  pin 値でもなく **操作 (pin 前進) を key に**張られており、親の検索語のどれにも掛からなかった。
+  実走すると rc=1 で赤だった。
+- 根本原因: `DW-O09` は「path を key にする pin」と「role 名など key 側の pin」の 2 形しか
+  警告しておらず、親はその 2 形だけを検索軸にした。同じ値が**長短 2 通りの表現**を持つこと、
+  および gate が**これから行う操作**を key に張られうることを、検索軸として持っていなかった。
+  結果として「119 file を全数検索した」という手続きの見た目が、閉包の完全性の根拠に化けた。
+- 恒久対応: memory `pin-closure-search-two-missing-axes` — 閉包の件数を報告する前に
+  (a) 正本定数の定義を開いてそこに書かれている表現で再検索し件数差を見る、
+  (b) 行う操作の名前で `docs/decisions.md` を検索する、の 2 つを必須にする。
+  本来の置き場は `docs/dev-wave/operations.md` の `DW-O09` だが、同節は
+  997/1000 byte で追記余地が 3 byte しかなく、既存の安全義務を削らずには入らない。
+  予算引き上げは自己改善契約に従い裁定パッケージへ回した
+  (`output/insights/2026-08-27_ccbench-pin-precheck/README.md`)。
+- 再発検知: 閉包を数える前に「正本の定数がどの表現で書かれているか」を定数定義から読み、
+  その表現で再検索して件数差がゼロであることを確認する。件数差が出たら差集合を必ず列挙する。
+  gate 側は、行う操作の名前 (「pin 前進」「凍結」「発行」など) で `docs/decisions.md` を
+  検索してから閉包を確定する。
+
+### F683. 投入 script が実在しないコマンドを必須にしており、着地後の初回起動でしか出なかった [手順漏れ]
+
+- 事象: 新設した Pegasus 投入 script が必須コマンドとして `quota` を要求していたが、
+  このクラスタに `quota` は存在しない (`command -v` も `/usr/bin` `/usr/sbin` `/bin` `/sbin`
+  の探索も 0 件)。実機で起動すると
+  `required submission command is unavailable: quota` で rc=2 になり、**永久に起動できない。**
+  正しいコマンドは `check_quota` (`/system/tool/bin/check_quota`) で、
+  `docs/pegasus-runbook.md` の「ストレージと quota」節と投入前チェックリストの両方が
+  そう書いていた。
+- 根本原因: 実装子が汎用 Unix の `quota` を書き、**実在を確かめなかった。**
+  受入全走はこの型を捕まえない — script を実機で起動して初めて出る。
+  さらに**新しい Pegasus 実行体は登録簿が main へ着地するまで hook に拒否されて起動できない**
+  ため、**着地後の初回起動でしか発見できない**構造になっていた。
+  段 6 のレビューは payload の中身を静的に読んだが、コマンドの実在は照合しなかった。
+- 恒久対応: 必須コマンド一覧と実呼び出しを `check_quota` へ直し、
+  **必須一覧・実呼び出し・旧呼び出しの不在の 3 点を golden で固定する検査**を
+  `orchestrator/tests/test_backoff_extended_sweep.py` へ追加した。
+  あわせて job body の固定 PATH 上のコマンドを含め、全必須コマンドの実在を
+  `command -v` で確認した (submitter 5 件 + job body 8 件、全件 rc=0)。
+- 再発検知: **新しい実行体を足す wave では、必須コマンド一覧の各要素を
+  `command -v` で 1 件ずつ確かめてから commit する。** runbook が名前を定めている場合は
+  そちらを正本にする (このクラスタは `check_quota` / `rbudgetcheck` であって
+  `quota` / `df` ではない)。段 6 のレビュー観点にも「payload が要求する外部コマンドの実在」を含める。
+
+### F684. 生きた台帳の一部を exact pin で凍結し、全体更新をできなくした [恒真ゲート] [自己整合]
+
+- 事象: 受入全走が 17700 件中 1 件だけ赤で戻った。落ちたのは
+  `orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection`
+  で、`orchestrator/tests/acceptance_duration_ledger.json` の被覆率が
+  **15912 / 17700 = 89.898305%** となり閾値 0.90 を 18 node 分だけ割った。
+  7 時間前の別 wave の受入では同 gate は緑で、suite の成長が閾値を跨いだ初回である。
+- 根本原因: 台帳は「90% 被覆契約の非網羅台帳」として運用され、被覆率 gate が
+  **現在の collection への追随**を要求する (F515 が同 gate を陳腐化検知も兼ねると明記)。
+  一方 `orchestrator/tests/test_update_acceptance_duration_ledger.py::test_t1574_changed_suite_ledger_node_delta_is_exact`
+  は、**8 suite 分の node 集合 identity (件数 + sorted UTF-8 の SHA-256) と 12 個の所要値を
+  exact に固定**している。**同じ台帳の一部だけが凍結され、残りは追随を要求される。**
+- 実測 1 (全体再生成は通らない): 受入走行の JUnit から台帳全体を再生成すると被覆率は
+  99.994350% (17699 / 17700) へ回復するが、pin が 121 / 42 / 69 node と定める
+  `test_critic.py` / `test_real_repo_serialization.py` / `test_sort_swo_oracle.py` の実体は
+  現在 **138 / 46 / 81 node** であり node 集合 hash が一致しない。pin 済み 12 値も
+  5.89 対 8.6 のように全て食い違う。**全体再生成は T-1574 を壊す。**
+- 実測 2 (部分更新なら通る): 現 collection にあって台帳に無い node は 1787 件で、
+  そのうち **1725 件は凍結対象の 8 suite の外**にある。この 1725 件だけを実測所要つきで
+  足すと被覆率は 17637 / 17700 = 99.64% となり、凍結された 8 suite の node 集合も
+  12 個の所要値も 1 byte も動かない。**両 gate は同時に緑にできる。**
+  「両立不能」と結論するのは誤りである — 本 wave も一度そう判断しかけ、実測で覆した。
+- 恒久対応: 部分更新で被覆率を回復させた。**着地したのは main の 50b36435 で、
+  本 wave とは独立に同じ手を採っている** — 凍結 pin の 8 prefix には触れず、その外側の
+  1725 nodeid だけを受入全走の実測値で足す、という手も理由も同一である。本 wave も
+  同じ結論に独立到達して同じ変更を作ったが、land 再試行の merge で main 側を採り、
+  重複した変更は落とした。**同一の欠陥に対し 2 つの wave が独立に同一解へ到達した。**
+  ただし**根本原因は残る** — 凍結された 8 suite の台帳 entry は今後も更新できず、
+  その部分の陳腐化は被覆率 gate の分母が大きいうちは検出されない。凍結 pin の対象を
+  所要値と node 集合から「delta の向き」だけへ絞るかどうかはユーザー裁定へ送った。
+- 再発検知: **同じ artifact を対象にする gate を新設するとき、既存 gate と要求の向きが
+  逆でないかを機械検査する仕組みが無い。** 本件は受入が赤になって初めて表面化した。
+  向きの衝突を機械検出する gate は未実装で、次の一手として起票した。
+
+### F685. 編集面重複走査が、作成途中の worktree を「編集中」と誤検出した [手順漏れ]
+
+- 事象: [T-1434] の段 1 で、対象文書 `docs/phase3-t189-model-routing-preregistration.md` を触る
+  他 wave を全登録 worktree の `git status --porcelain -- <対象 path>` で走査したところ、
+  `dev-wave-t1380-prereg-artifacts` が **2 行**を返した。名前も `prereg` を含むため、
+  同じ事前登録文書を書き換える併走 wave に見えた。数分後に同じ command を再実行すると
+  **0 行**で、branch tip も `main` と同一、対象 path の三点 diff も 0 件だった。
+  実体は、その worktree が 01:00 に作成された直後で `git checkout` が進行中だったため、
+  未展開の tracked file が一時的に差分として見えていたことである。near miss —
+  偽の衝突として本 wave を止めるか、逆に「dirty は checkout のせい」という誤った一般化を
+  作るかのどちらにも倒れえた。
+- 根本原因: 重複走査が **1 回の `git status` の出力を終局的な事実として扱っていた**。
+  worktree の中身は作成中・submodule 初期化中・別 wave の一時変異中 (`DW-O19`) に
+  不安定であり、その瞬間の porcelain 出力は編集予約を意味しない。
+  走査面の広さ (F606 の型) ではなく、走査した**時点**の安定性が問題である。
+- 恒久対応: 重複走査の hit は、次の 3 点で live 判定してから結論する。
+  (1) 同じ走査を再実行して安定を確認する、(2) `git -C <wt> log --oneline -1` と
+  `git diff --name-only main...<branch> -- <対象>` で branch 側の実体を見る、
+  (3) `/proc/*/cwd` の走査でその worktree を cwd に持つ process を特定し、
+  cmdline から何の wave かを確かめる (memory `worktree-liveness-needs-cmdline-scan` と同じ作法)。
+  1 回の porcelain 出力だけで collision とも非 collision とも結論しない。
+- 再発検知: 段 1 の brief に「重複走査の hit / 非 hit をどの時点でどう安定確認したか」を
+  書かせる。本 wave の brief と handoff は実際にこの再検査の経緯を残しており、
+  それが誤検出だと判定できた唯一の根拠だった。
+
+### F686. 既裁定の逐語を射影されなかった子が、その裁定を超える規則文を起草した [手順漏れ]
+
+- 事象: [T-1434] の段 2 で、親は plan 子へ brief・前 wave の文面案・対象文書・実装 source を
+  射影したが、**wave の前提である既裁定 D932 の逐語を射影しなかった** (brief 内の 1 行要約だけ)。
+  plan 子が起草した §10 の規則文は、D932 が裁定していない分母規則 (観測不能な試行を
+  `attempt_count` へ算入しない) を新設していた。段 3 のレンズ B には D932 の逐語を射影しており、
+  そのレンズが「越境」として must-fix で捕まえた。plan 子自身も出力末尾に
+  「親は執筆前に D932 正本と逐語照合すること」と書いて自分の射程不足を申告していた。
+  near miss — 親がこの文案をそのまま採れば、事前登録に既裁定を超える受理規則を密輸していた。
+- 根本原因: `DW-O02` は「必読資料は job dir へ取り出して渡す」と定めるが、**何が必読かの
+  列挙に既裁定が入っていなかった。** 裁定に依存する wave では、裁定の逐語こそが子の
+  scope 境界を決める資料であり、要約では境界を判定できない。
+- 恒久対応: `DW-O02` の射影義務を「**必読資料と前提の既裁定は逐語を** job dir へ取り出して渡す」へ
+  改めた (本 wave の段 8)。同じ wave で、逐語を渡したレンズと渡さなかった子の結果が実際に割れた
+  ことが根拠である。L1.5 の byte 予算が満杯だったため、同節の既存文を意味等価に縮約して
+  収めた (731 bytes、改訂前 744 bytes)。
+- 再発検知: 段 3 / 段 6 の敵対レンズへ「提案が既裁定を超えていないか」を明示的に探させる
+  prompt 節 (本 wave で実際に発火し、この F を生んだ経路そのもの)。
