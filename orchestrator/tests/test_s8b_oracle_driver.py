@@ -2198,6 +2198,45 @@ def _prepare_factory(
     return fake_prepare
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_materialization_for_oracle_fixtures(monkeypatch, request):
+    """Oracle の synthetic identity fixture を filesystem gate から分離する。"""
+    if request.node.name.startswith("test_slow_oracle_"):
+        return
+
+    @contextlib.contextmanager
+    def fixture_prepared_binding(
+            *, freeze, holdout_id, configuration_id, ccbench_pin, cxx,
+            prepare_fn):
+        entry = s8b_materialization.binding_entry(
+            freeze, holdout_id, configuration_id,
+        )
+        resource = prepare_fn(
+            {"configuration": configuration_id, "variant": entry},
+            ccbench_pin, cxx=cxx,
+        )
+        manager = (
+            resource if hasattr(resource, "__enter__")
+            else contextlib.nullcontext(resource)
+        )
+        with manager as prepared:
+            yield s8b_materialization.binding_from_prepared(
+                entry, prepared,
+            ), prepared
+
+    def fixture_prepare_binding(**kwargs):
+        with fixture_prepared_binding(**kwargs) as (identity, _prepared):
+            return identity
+
+    monkeypatch.setattr(
+        s8b_materialization, "prepare_binding", fixture_prepare_binding,
+    )
+    monkeypatch.setattr(
+        driver, "_materialization_prepared_binding",
+        fixture_prepared_binding,
+    )
+
+
 def _schedule(*, master_seed="driver-fixture") -> dict:
     return manifest_module.build_schedule(
         n=1, master_seed=master_seed, block_sizes={"b0": 1},
