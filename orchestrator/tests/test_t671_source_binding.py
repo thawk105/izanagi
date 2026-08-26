@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import base64
 from collections import Counter
 import hashlib
 import json
@@ -44,6 +45,8 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/campaign/campaign_lock.py",
     "orchestrator/campaign/contract_loader_binding.py",
     "orchestrator/campaign/enforcement_source_ratification.py",
+    "orchestrator/campaign/ed25519_verify.py",
+    "orchestrator/campaign/enforcement_source_ratification_receipt.py",
     "orchestrator/campaign/guided.py",
     "orchestrator/campaign/replay.py",
     "orchestrator/qualification/artifacts.py",
@@ -52,8 +55,10 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
 )
 _PRE_T1287_ENFORCEMENT_SOURCE_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[:14]
 _S8C_DECIDER_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[14:17]
-_RATIFICATION_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[17:20]
-_RECEIPT_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[20:]
+# Ratification owns the codec/binding, legacy kernel, signature verifier, and
+# signed-receipt verifier.  Downstream receipt/certification consumers follow it.
+_RATIFICATION_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[17:22]
+_RECEIPT_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[22:]
 _GIT_ENV_ALLOWLIST = (
     "LANG",
     "LC_ALL",
@@ -178,7 +183,7 @@ def _canonical_json(value: object) -> str:
     )
 
 
-def test_enforcement_source_closure_is_the_independent_exact_twenty_five_paths() -> None:
+def test_enforcement_source_closure_is_the_independent_exact_twenty_seven_paths() -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
     from orchestrator.campaign import s8c_preregistration
 
@@ -198,6 +203,8 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_five_paths()
         "orchestrator/campaign/campaign_lock.py",
         "orchestrator/campaign/contract_loader_binding.py",
         "orchestrator/campaign/enforcement_source_ratification.py",
+        "orchestrator/campaign/ed25519_verify.py",
+        "orchestrator/campaign/enforcement_source_ratification_receipt.py",
     )
     assert _RECEIPT_IMPLEMENTATION_PATHS == (
         "orchestrator/campaign/guided.py",
@@ -333,7 +340,7 @@ def _assert_pre_t1287_exact_fourteen_misses_new_face(
     _S8C_DECIDER_PATHS,
     ids=lambda path: f"s8c-{Path(path).name}",
 )
-def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_s8c_face(
+def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_seven_rejects_s8c_face(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutated_path: str,
 ) -> None:
     _assert_pre_t1287_exact_fourteen_misses_new_face(
@@ -346,7 +353,7 @@ def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_s8c_face(
     _RECEIPT_IMPLEMENTATION_PATHS,
     ids=lambda path: f"receipt-{Path(path).name}",
 )
-def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_receipt_face(
+def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_seven_rejects_receipt_face(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutated_path: str,
 ) -> None:
     _assert_pre_t1287_exact_fourteen_misses_new_face(
@@ -354,7 +361,7 @@ def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_receipt_f
     )
 
 
-def test_exact_twenty_five_clean_closure_capture_and_live_verify(
+def test_exact_twenty_seven_clean_closure_capture_and_live_verify(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
@@ -424,26 +431,81 @@ def test_contract_loader_binding_ignores_fake_git_at_front_of_path(
 
 
 def _commit_closure_ratification(
-        repo: Path, blob_sha256s: dict[str, str],
+        repo: Path, blob_sha256s: dict[str, str], *, ratify: bool = True,
 ) -> None:
     from orchestrator.campaign import enforcement_source_ratification as ratification
+    from orchestrator.campaign import (
+        enforcement_source_ratification_receipt as receipt,
+    )
+
+    ed25519 = pytest.importorskip(
+        "cryptography.hazmat.primitives.asymmetric.ed25519"
+    )
+    serialization = pytest.importorskip(
+        "cryptography.hazmat.primitives.serialization"
+    )
+
+    def canonical_bytes(value: object) -> bytes:
+        return json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("ascii")
 
     digest = ratification.closure_digest_sha256(blob_sha256s)
-    ledger = repo / ratification.RATIFICATION_LEDGER_RELATIVE_PATH
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    ledger.write_text(
-        _canonical_json({
-            "schema_version": 1,
-            "closure_digest_sha256": digest,
-        }) + "\n",
-        encoding="ascii",
+    source_commit = _git(
+        repo, "rev-parse", "--verify", "HEAD^{commit}",
+    ).decode("ascii").strip()
+    private_key = ed25519.Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
     )
-    _git(repo, "add", "--", ratification.RATIFICATION_LEDGER_RELATIVE_PATH)
+    trust_root = repo / receipt.TRUST_ROOT_RELATIVE_PATH
+    trust_root.parent.mkdir(parents=True, exist_ok=True)
+    trust_root.write_bytes(canonical_bytes({
+        "public_key_ed25519_base64": base64.b64encode(public_key).decode(
+            "ascii"
+        ),
+        "schema_version": "enforcement-source-ratification-trust-root/v1",
+    }) + b"\n")
+    ledger = repo / receipt.RECEIPT_LEDGER_RELATIVE_PATH
+    if ratify:
+        paths = sorted(_EXPECTED_ENFORCEMENT_SOURCE_PATHS)
+        signed: dict[str, object] = {
+            "closure_digest_sha256": digest,
+            "closure_paths": paths,
+            "closure_paths_sha256": hashlib.sha256(
+                canonical_bytes(paths)
+            ).hexdigest(),
+            "decision": "ratify",
+            "previous_receipt_sha256": None,
+            "ratification_serial": 1,
+            "schema_version": receipt.RECEIPT_SCHEMA_VERSION,
+            "source_commit": source_commit,
+            "trust_root_sha256": hashlib.sha256(public_key).hexdigest(),
+        }
+        row = dict(signed)
+        row["signature_ed25519_base64"] = base64.b64encode(
+            private_key.sign(receipt._DOMAIN_PREFIX + canonical_bytes(signed))
+        ).decode("ascii")
+        ledger.write_bytes(canonical_bytes(row) + b"\n")
+    else:
+        ledger.write_bytes(b"")
+    _git(
+        repo,
+        "add",
+        "--",
+        receipt.TRUST_ROOT_RELATIVE_PATH,
+        receipt.RECEIPT_LEDGER_RELATIVE_PATH,
+    )
     _git(
         repo,
         "-c", "user.email=t1287-fixture@example.invalid",
         "-c", "user.name=T1287 fixture",
-        "commit", "-q", "-m", "record closure ratification fixture",
+        "commit", "-q", "-m", "record signed ratification fixture",
     )
 
 
@@ -451,13 +513,16 @@ def test_new_certified_lock_rejects_unratified_closure_digest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from orchestrator.campaign import contract_loader_binding
-    from orchestrator.campaign import enforcement_source_ratification as ratification
+    from orchestrator.campaign import (
+        enforcement_source_ratification_receipt as receipt,
+    )
 
-    repo, _commit, _blob_sha256s = _committed_loader_repo(
+    repo, _commit, blob_sha256s = _committed_loader_repo(
         tmp_path, copy_current_loaders=True,
     )
+    _commit_closure_ratification(repo, blob_sha256s, ratify=False)
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
-    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
+    monkeypatch.setattr(receipt, "_REPO_ROOT", repo)
     cfg, policy, _authorization = _bound_config()
     layout = CampaignLayout(root=str(tmp_path / "unratified-campaign")).ensure()
 
@@ -473,14 +538,16 @@ def test_new_certified_lock_accepts_ratified_closure_digest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from orchestrator.campaign import contract_loader_binding
-    from orchestrator.campaign import enforcement_source_ratification as ratification
+    from orchestrator.campaign import (
+        enforcement_source_ratification_receipt as receipt,
+    )
 
     repo, _commit, blob_sha256s = _committed_loader_repo(
         tmp_path, copy_current_loaders=True,
     )
     _commit_closure_ratification(repo, blob_sha256s)
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
-    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
+    monkeypatch.setattr(receipt, "_REPO_ROOT", repo)
     cfg, policy, _authorization = _bound_config()
     layout = CampaignLayout(root=str(tmp_path / "ratified-campaign")).ensure()
 
@@ -770,6 +837,30 @@ def test_production_contract_loader_binding_call_sites_are_exact() -> None:
                     actual[(name, function.name, func.attr)] += 1
 
     assert actual == expected
+
+
+def test_legacy_ratification_kernel_has_no_production_callers() -> None:
+    """v1 reader は回帰 kernel として残すが production caller は 0 に固定する。"""
+    orchestrator_root = Path(__file__).resolve().parents[1]
+    callers: list[tuple[str, int]] = []
+    for path in sorted(orchestrator_root.rglob("*.py")):
+        if "tests" in path.relative_to(orchestrator_root).parts:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function = node.func
+            if (
+                isinstance(function, ast.Name)
+                and function.id == "require_ratified_closure"
+            ) or (
+                isinstance(function, ast.Attribute)
+                and function.attr == "require_ratified_closure"
+            ):
+                callers.append((path.relative_to(orchestrator_root).as_posix(), node.lineno))
+
+    assert callers == []
 
 
 def _run() -> int:

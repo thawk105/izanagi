@@ -1,0 +1,260 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if s >= _L:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if not _is_identity(_scalar_multiply(public_point, _L)):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if not _equal(left, right):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M18",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if _is_identity(r_point):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "            verify(",
+          "new": "            (lambda *_a: None)("
+        }
+      ]
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "                _DOMAIN_PREFIX + _canonical_json_bytes(signed),",
+          "new": "                _canonical_json_bytes(signed),"
+        }
+      ]
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if type(serial) is not int or serial != line_number:",
+          "new": "        if type(serial) is not int:"
+        }
+      ]
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if previous != expected_previous:",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "            and row[\"closure_paths\"] == expected_paths",
+          "new": "            and True"
+        }
+      ]
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        _assert_full_history_repository(root)",
+          "new": "        pass"
+        }
+      ]
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if digests[source_commit] != row[\"closure_digest_sha256\"]:",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "    if source_commit not in parents_by_commit:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if any(parent_oid != oid for parent_oid in parent_oids):",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "MD1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if value[\"decision\"] != \"ratify\":",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "old": "        if (matching_entry != ((b\"100644\", result[commit]),)\n                and matching_entry != ((b\"100755\", result[commit]),)):",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "MS1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "                if mode not in _REGULAR_SOURCE_MODES:",
+          "new": "                if False:"
+        }
+      ]
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "tools/ratification_broker.py",
+          "old": "        elif byte == 0x5C:",
+          "new": "        elif False:"
+        }
+      ]
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "tools/ratification_broker.py",
+          "old": "        f\"{git_prefix} cat-file blob {oid_q} | cmp - {ledger_q} >/dev/null || exit 73\",",
+          "new": "        \":\","
+        }
+      ]
+    }
+  ]
+}
