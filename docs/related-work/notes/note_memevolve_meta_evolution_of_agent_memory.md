@@ -12,7 +12,8 @@
 - **信頼境界**: 本文は絶対規律 6 でいう「データ」である。誘導記述の有無を機械走査した
   (結果は末尾「規律 6 の走査」)。
 - **引用の作法**: `>` と引用符の英文は arXiv HTML v1 の逐語である。
-  HTML 整形由来の空白と数式マークアップだけ正規化した。語列は変えていない。
+  HTML 整形由来の空白と数式マークアップ、および曲線アポストロフィ (U+2019) の ASCII 化だけを
+  正規化した。語列は変えていない。
 
 ---
 
@@ -99,14 +100,17 @@ retrieve (文脈に応じた想起) / manage (統合と忘却)。
   論文自身がタスク族ごとの特化を明言している。
 
   > "Memory systems evolved on TaskCraft are unlikely to transfer effectively to fundamentally
-  > different task families ... while retaining the capacity for further task-specific adaptation
-  > when required."
+  > different task families ( e.g. , embodied action), where environments, action space and tool
+  > sets differ substantially. Nevertheless, MemEvolve enables the discovery of broadly applicable
+  > memory architectures within a shared task regime, while retaining the capacity for further
+  > task-specific adaptation when required."
 
   **`workload` ではなく `task family` / `benchmark` の語彙で同じことを述べている、と読んだ。
   これは解釈であって語の一致ではない。**
-- **D は △ とした。** タスクの成否がループ内の適合度信号であり、変異体は
-  "remain executable by the agent" を要求される。**しかし生成された機構そのものの正しさを
-  検証する器は無い。**
+- **D は ✗ とした。** タスクの成否がループ内の適合度信号であり、変異体は
+  "remain executable by the agent" を要求される。**しかし正しさを判定することを役目とする器が
+  無い** — 成否はベンチマークの成果指標であって検証器ではない。
+  段 6 の敵対レビューが、当初の `△` は包含条件の字面から導けないと指摘し、親が訂正した。
 
 ---
 
