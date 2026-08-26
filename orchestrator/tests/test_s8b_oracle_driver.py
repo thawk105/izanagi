@@ -91,6 +91,7 @@ from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E40
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    _check_rule_candidates,
     git_ignored_output_ancestor_directories,
     git_ignored_output_prefixes,
     git_ignored_output_snapshot_rules,
@@ -738,6 +739,50 @@ def test_git_ignored_output_prefixes_rejects_entire_output_ignore(tmp_path):
 
     with pytest.raises(AssertionError, match="output/ 全体が Git ignore 対象"):
         git_ignored_output_prefixes(repo)
+
+
+def test_check_rule_candidates_fails_closed_on_git_error(tmp_path):
+    completed = subprocess.CompletedProcess(
+        args=("git", "check-ignore"), returncode=128,
+        stdout=b"", stderr=b"fatal: fixture git error",
+    )
+
+    with mock.patch(
+            "orchestrator.tests.output_snapshot_ignores.subprocess.run",
+            return_value=completed,
+            ) as run:
+        with pytest.raises(AssertionError, match=r"git check-ignore .* に失敗"):
+            _check_rule_candidates(tmp_path, {b"output/runs": True})
+
+    assert run.call_count == 1
+
+
+def test_check_rule_candidates_rejects_rc1_with_stdout(tmp_path):
+    completed = subprocess.CompletedProcess(
+        args=("git", "check-ignore"), returncode=1,
+        stdout=b"output/runs/\0", stderr=b"",
+    )
+
+    with mock.patch(
+            "orchestrator.tests.output_snapshot_ignores.subprocess.run",
+            return_value=completed,
+            ):
+        with pytest.raises(AssertionError, match=r"rc=1 で stdout を返した"):
+            _check_rule_candidates(tmp_path, {b"output/runs": True})
+
+
+def test_check_rule_candidates_rejects_rc0_without_nul_terminator(tmp_path):
+    completed = subprocess.CompletedProcess(
+        args=("git", "check-ignore"), returncode=0,
+        stdout=b"output/runs/", stderr=b"",
+    )
+
+    with mock.patch(
+            "orchestrator.tests.output_snapshot_ignores.subprocess.run",
+            return_value=completed,
+            ):
+        with pytest.raises(AssertionError, match=r"rc=0 で正しい NUL 出力を返さない"):
+            _check_rule_candidates(tmp_path, {b"output/runs": True})
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:
