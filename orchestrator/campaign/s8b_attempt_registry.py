@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
-"""File-backed, currently unconnected 8b attempt-registry adapter.
+"""File-backed 8b attempt-registry adapter for the trusted floor launcher.
 
-This adapter does not close D510 decision 4.  A caller can bypass it and read
-an output file directly, and can import :mod:`attempt_registry_core` directly.
-True ordering enforcement requires a trusted launcher which owns the output
-surface.  This module is also not a "safe recovery mechanism": no scheduler
-accounting collector exists here, and recovery evidence remains caller input.
+The sole connection owner is :mod:`s8b_floor_attempt_launcher`, which keeps the
+captured output token away from the floor campaign and opens it only after this
+adapter has durably published the classification claim, receipt, and row.  The
+floor campaign and holdout admission deliberately do not import this adapter
+directly.  A scheduler-accounting collector now exists, while recovery still
+requires the adapter's pinned receipt checks and currently configured policy.
 
-The adapter supplies guarded file publication, directory fsyncs, and typed API
-ordering only for callers which choose this API.  It is deliberately not
-imported by the production 8b floor campaign.
+The existing adapter-disconnection meta-test only inspects direct AST imports
+in the campaign and admission modules.  It therefore still passes with the
+launcher indirection and is not proof that production cannot reach this
+adapter.  Ordering assurance comes from the launcher's capability ownership
+together with the guarded publication and typed phase handles implemented
+here.
 """
 from __future__ import annotations
 
@@ -1514,12 +1518,7 @@ def _captured_state(state: _AttemptState, raw_output: object) -> _AttemptState:
     )
 
 
-def begin_attempt_observation(
-    classified: ClassifiedAttempt,
-) -> CapturedObservation:
-    """Persist observation-start, then and only then invoke the deferred reader."""
-
-    state = _require_handle(classified, ClassifiedAttempt)
+def _begin_attempt_observation(state: _AttemptState) -> CapturedObservation:
     root, path = _entry_paths(
         state.repo_root, freeze_sha256=state.freeze_id,
     )
@@ -1568,6 +1567,30 @@ def begin_attempt_observation(
         observed_state, state.deferred_output_reader(),
     )
     return _new_handle(CapturedObservation, captured)
+
+
+def begin_attempt_observation(
+    classified: ClassifiedAttempt,
+) -> CapturedObservation:
+    """Begin observation for a classification with no pre-output reason."""
+
+    state = _require_handle(classified, ClassifiedAttempt)
+    return _begin_attempt_observation(state)
+
+
+def begin_classified_failure_observation(
+    failure: ClassifiedFailure,
+) -> CapturedObservation:
+    """Begin observation after a durably classified pre-output reason.
+
+    This is intentionally separate from :func:`begin_attempt_observation` so
+    the existing no-reason handle contract does not widen implicitly.  The
+    resulting terminal uses the deferred reader's actual bytes and never the
+    unopened-failure zero-output sentinel.
+    """
+
+    state = _require_handle(failure, ClassifiedFailure)
+    return _begin_attempt_observation(state)
 
 
 def _assert_observation_row(

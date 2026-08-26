@@ -1,4 +1,4 @@
-"""Durability and typed-order tests for the unconnected 8b adapter."""
+"""Durability and typed-order tests for the 8b attempt adapter."""
 from __future__ import annotations
 
 import ast
@@ -456,6 +456,140 @@ def test_slot_classification_claim_allows_exact_retry_and_rejects_new_reason(
     ):
         registry.begin_attempt_observation(failure)  # type: ignore[arg-type]
     assert failure_path.read_bytes().count(b"\n") == 4
+
+
+def test_mut_t1668_obs_after_preout_digests_actual_output(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    failure = _classify(
+        _reserve(repo, profile, slot, reader=lambda: b"actual-failed-output"),
+        reason="preflight-failure",
+    )
+    assert type(failure) is registry.ClassifiedFailure
+    _write_marker(repo, slot)
+
+    captured = registry.begin_classified_failure_observation(failure)
+    registry.record_attempt_terminal(
+        captured,
+        terminal_status="terminal-failure",
+        report_sha256=_REPORT,
+        observation_sha256=None,
+        primary_value=None,
+        finished_at="2026-08-25T00:00:02+00:00",
+    )
+
+    terminal = registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]
+    assert terminal["event"] == "terminal"
+    assert terminal["raw_output_sha256"] == hashlib.sha256(
+        b"actual-failed-output"
+    ).hexdigest()
+    assert terminal["raw_output_sha256"] != registry._ZERO_OUTPUT_SHA256
+    assert terminal["observation_start_event_sha256"] is not None
+    assert terminal["failure_reason"] == "preflight-failure"
+    assert terminal["pre_observation_failure_reason_echo"] == (
+        "preflight-failure"
+    )
+
+
+def test_failure_observation_without_classification_remains_rejected(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+    _write_marker(repo, slot)
+    forged = registry.ClassifiedFailure(reserved._state, reserved._seal)
+
+    with pytest.raises(
+        registry.S8BAttemptRegistryError,
+        match="handle was not issued for this attempt phase",
+    ):
+        registry.begin_classified_failure_observation(forged)
+    assert registry.read_attempt_registry(
+        repo, profile=profile, binding=_BINDING,
+    )[-1]["event"] == "pre-observation-seal"
+
+
+def test_failure_observation_cannot_be_recorded_twice(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    failure = _classify(
+        _reserve(repo, profile, slot), reason="preflight-failure",
+    )
+    assert type(failure) is registry.ClassifiedFailure
+    _write_marker(repo, slot)
+    registry.begin_classified_failure_observation(failure)
+
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match="slot already has observation-start",
+    ):
+        registry.begin_classified_failure_observation(failure)
+
+
+def test_failure_observation_after_terminal_remains_rejected(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    failure = _classify(
+        _reserve(repo, profile, slot), reason="preflight-failure",
+    )
+    assert type(failure) is registry.ClassifiedFailure
+    registry.record_classified_failure_terminal(
+        failure,
+        terminal_status="terminal-failure",
+        report_sha256=None,
+        finished_at="2026-08-25T00:00:02+00:00",
+    )
+    _write_marker(repo, slot)
+
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match="observation-start follows terminal",
+    ):
+        registry.begin_classified_failure_observation(failure)
+
+
+def test_failure_observation_after_recovery_remains_rejected(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path / "repo")
+    profile = _profile()
+    slot = _slot()
+    _create(repo, profile, [slot])
+    reserved = _reserve(repo, profile, slot)
+    failure = _classify(reserved, reason="preflight-failure")
+    assert type(failure) is registry.ClassifiedFailure
+    registry.record_attempt_recovery(
+        reserved,
+        scheduler_accounting_receipt=_recovery_receipt_bytes(
+            repo, profile, slot, "node_failure",
+        ),
+        recoverer_process_identity=_RECOVERER,
+        recovered_at="2026-08-25T00:00:04+00:00",
+    )
+    _write_marker(repo, slot)
+
+    with pytest.raises(
+        core.AttemptRegistryCoreError,
+        match="observation-start follows verified recovery",
+    ):
+        registry.begin_classified_failure_observation(failure)
 
 
 @pytest.mark.parametrize(
