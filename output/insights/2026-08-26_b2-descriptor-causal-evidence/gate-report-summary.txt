@@ -1,0 +1,25 @@
+top-level keys: ['authorization', 'predicates', 'schema_version', 'section5', 'source', 'status']
+authorization: {'authority': 'USER', 'decision_in_report': 'NOT_REPRESENTED', 'report_effect': 'DOES_NOT_AUTHORIZE'}
+predicate count: 12
+  C01 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C02 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C03 UNSATISFIED manifest-registry-proof-undefined
+  C04 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C05 EVIDENCE_UNDEFINED schedule-schema-absent
+  C06 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C07 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C08 EVIDENCE_UNDEFINED prereg-binding-proof-undefined
+  C09 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C10 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C11 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+  C12 EVIDENCE_UNDEFINED completion-proof-not-machine-checkable
+section5 rows: 9
+  UNFILLED | placeholder | 累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限
+  UNFILLED | placeholder | env_tag (実測環境)
+  UNFILLED | placeholder | 反復単位対比の判定パラメータ (H1 / H2: n・平均差の下限・差の標本 SD の上限)
+  UNFILLED | placeholder | master_seed
+  FILLED | canonical-json | 検定 4 点 (n / 検定単位 / 検定力 / 総予算)
+  UNFILLED | placeholder | 未既知性再確認の証跡 (a) 検索対象 dir 一覧 / (b) 検索式 / (c) 一致 0 件の出力 hash / 
+  UNFILLED | placeholder | swapped 対応表の固定日時と bytes hash
+  UNFILLED | placeholder | 実走前に確定する 6 cell manifest (trial id、arm、holdout、campaign id)
+  UNFILLED | placeholder | 実行責任者・開始時刻

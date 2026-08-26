@@ -1,0 +1,316 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-MOCCPAIR-M01-T1-THROUGHPUT-REF",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[trace1-throughput-reference]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if artifacts.get(\"throughput_json\") is not None:\n        _reject(\"TRACE=1 throughput artifact reference must be null\")\n",
+          "new": "    if False:\n        _reject(\"TRACE=1 throughput artifact reference must be null\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M02-T0-VERIFIER-REF",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[trace0-verifier-reference]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if artifacts.get(\"verifier_json\") is not None:\n        _reject(\"TRACE=0 verifier artifact reference must be null\")\n",
+          "new": "    if False:\n        _reject(\"TRACE=0 verifier artifact reference must be null\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M03-T1-EVIDENCE-SHA",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[trace1-mode-evidence-sha]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if artifacts.get(\"verifier_sha256\") != evidence.sha256:\n        _reject(\"TRACE=1 verifier bytes do not match the pilot receipt\")\n",
+          "new": "    if False:\n        _reject(\"TRACE=1 verifier bytes do not match the pilot receipt\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M17-T0-EVIDENCE-SHA",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[trace0-mode-evidence-sha-m17]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if artifacts.get(\"throughput_sha256\") != evidence.sha256:\n        _reject(\"TRACE=0 throughput bytes do not match the pilot receipt\")\n",
+          "new": "    if False:\n        _reject(\"TRACE=0 throughput bytes do not match the pilot receipt\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M04-PROJECTION-SAME",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[policy-projection]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    projection = _same(legs, \"projection\", \"receipt mocc_trace projection\")\n",
+          "new": "    projection = legs[0].projection\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M05-CARDINALITY-WEAKEN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_one_per_mode_cardinality_mutation"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if not (n0 == n1 and n0 >= 2):\n        _reject(\"pair requires n_trace0 == n_trace1 >= 2\")\n",
+          "new": "    if not (n0 == n1 and n0 >= 1):\n        _reject(\"pair requires n_trace0 == n_trace1 >= 2\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M11-CARDINALITY-OVERREJECT",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_accepts_different_binary_sha_within_mode_m15",
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_accepts_two_per_mode_actual_shape",
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_n_equals_two_is_positive_control_against_n_three_mutation",
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_records_wide_throughput_without_threshold_rejection",
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_removes_partial_sidecar_after_write_failure"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if not (n0 == n1 and n0 >= 2):\n        _reject(\"pair requires n_trace0 == n_trace1 >= 2\")\n",
+          "new": "    if not (n0 == n1 and n0 >= 3):\n        _reject(\"pair requires n_trace0 == n_trace1 >= 2\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M06-OFFICIAL-CERT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[official-certification]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    _false(receipt.get(\"official_certification\"), \"official_certification\")\n",
+          "new": "    pass\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M07P-COMPILER-SAME",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[compiler-version-m07-prime]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    compiler_version = _same(legs, \"compiler_version\", \"compiler version\")\n",
+          "new": "    compiler_version = legs[0].compiler_version\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M08-JOBSCRIPT-SAME",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[job-script-sha]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    job_script_sha = _same(legs, \"job_script_sha256\", \"job script SHA-256\")\n",
+          "new": "    job_script_sha = legs[0].job_script_sha256\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M09A-CERTIFIED-COUNT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_each_m09_verifier_predicate_independently[certified_serializable-0]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "        and verifier.get(\"certified_serializable\") == 1\n",
+          "new": "        and verifier.get(\"certified_serializable\") >= 0\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M09B-ANOMALY-COUNT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_each_m09_verifier_predicate_independently[anomaly_count-1]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "        and result.get(\"anomaly_count\") == 0\n",
+          "new": "        and result.get(\"anomaly_count\") >= 0\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M09C-ANOMALIES-LIST",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_each_m09_verifier_predicate_independently[anomalies-replacement5]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "        and result.get(\"anomalies\") == []\n",
+          "new": "        and result.get(\"anomalies\") is not None\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M10-IDENTITY-REPORT-SHA",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_registered_predicate_mutation[identity-report-sha]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if report.get(\"sha256\") != identity_evidence.sha256:\n        _reject(\"TRACE=0 identity report bytes do not match the pilot receipt\")\n",
+          "new": "    if False:\n        _reject(\"TRACE=0 identity report bytes do not match the pilot receipt\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M16-OUTER-COMMIT-OPTIONAL",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_rejects_wrong_expected_outer_commit"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    if outer != expected_outer_commit:\n        _reject(\"outer repository commit differs from --expected-outer-commit\")\n",
+          "new": "    if False:\n        _reject(\"outer repository commit differs from --expected-outer-commit\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPAIR-M15-BINARY-SHA-OVERREJECT",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_pair.py::test_pair_accepts_different_binary_sha_within_mode_m15"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/mocc_trace_pair.py",
+          "old": "    same_mode_binary_sha256_equal = all(\n        len(set(mode_shas)) == 1 for mode_shas in binary_shas.values()\n    )\n",
+          "new": "    same_mode_binary_sha256_equal = all(\n        len(set(mode_shas)) == 1 for mode_shas in binary_shas.values()\n    )\n    if not same_mode_binary_sha256_equal:\n        _reject(\"legs differ in same-mode binary SHA-256\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCSUB-M12-EXCLUSION-SYMLINK",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-symlink-?? output/env/pegasus/mocc-trace/attempts/old/receipt.json-symlink-2]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_mocc_trace.sh",
+          "old": "    if not stat.S_ISREG(candidate_stat.st_mode):\n        raise SystemExit(1)\n",
+          "new": "    if False:\n        raise SystemExit(1)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCSUB-M13-EXCLUSION-BROADEN",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[unowned-file-?? dirty.txt-file-2]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_mocc_trace.sh",
+          "old": "    if not any(relative.startswith(prefix) for prefix in owned_prefixes):\n        raise SystemExit(1)\n",
+          "new": "    if False:\n        raise SystemExit(1)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-MOCCPIL-M14-HYDRATE-STAGING",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_uses_job_private_third_party_root"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "old": "  --cache-root \"$CACHE_ROOT\" --staging-root \"$THIRD_PARTY_STAGING_ROOT\" \\\n",
+          "new": "  --cache-root \"$CACHE_ROOT\" \\\n"
+        }
+      ]
+    }
+  ]
+}
