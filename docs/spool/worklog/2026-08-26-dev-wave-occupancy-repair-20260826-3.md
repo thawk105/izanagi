@@ -73,6 +73,15 @@ title: 占有判定の再試行を issue 種別から解放し F489 の 4 例目
   段 6 の正しさレンズが「恒真」と名指しした
   `test_main_does_not_retry_occupied_scan` / `test_main_does_not_retry_invalid_target_scan` も、
   再試行の guard を外す M9 が実際に殺したので恒真ではなかった。
+- **段 8 の追記が byte 予算で入らなかった。これは同じ壁の 2 例目である。**
+  {{F:stubbed-dependency-hides-the-mechanism}} の恒久対応として
+  `docs/dev-wave/workers.md` の `DW-S05-C` へ 2 行 (約 246 bytes) を足そうとしたところ、
+  L1.5 層の unique footprint が 9812 bytes となり予算 9566 bytes を超えた。
+  **予算のために既存の安全義務を削らない規律に従い追記を撤回し、memory へ置いた。**
+  1 例目は 2026-08-26 の別 wave (worklog 992) で、60 bytes の追記でも超過している。
+  **DW-G03 の「独立 2 例」の閾値に達したので、予算値そのものの扱いをユーザー裁定へ返す。**
+  予算値を上げる変更は通常の自己改善に含めず独立審査対象とする、と
+  `docs/skill-self-improvement.md` が定めているためである。
 - **エージェント工数**: codex 子 8 本 (plan 1 / consult 2 / author 2 / review 2 / fix 1、
   うち author 2 本は dispatch 不能で未実走報告)。親の dispatch した焦点走 5 回、
   変異走 2 回 (probe + 本走、各 baseline 1 + 9 変異)。
