@@ -11956,6 +11956,45 @@ def test_backlog_guard_new_carry_syntax_in_prose_is_not_a_reference():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_archive_filename_entry_range_two_token_boundaries():
+    """2 token 形では entry 位置を優先し、旧日付範囲名は維持する。"""
+
+    numbered = {
+        "worklog-phase3-0826-1000.md": (1000, 1000),
+        "worklog-phase3-0826-1001.md": (1001, 1001),
+        "worklog-phase3-0826-1031.md": (1031, 1031),
+        "worklog-phase3-0826-1032.md": (1032, 1032),
+        "worklog-phase3-0826-1100.md": (1100, 1100),
+        "worklog-phase3-0826-1101.md": (1101, 1101),
+        # MMDD の日部は月と独立に 31 を通すため、暦にない 11/31 も両義になる。
+        "worklog-phase3-0826-1131.md": (1131, 1131),
+        "worklog-phase3-0826-1201.md": (1201, 1201),
+        "worklog-phase3-0826-1231.md": (1231, 1231),
+        "worklog-phase3-0826-1300.md": (1300, 1300),
+    }
+    unnumbered = (
+        "worklog-phase3-0722-0724.md",
+        "worklog-phase3-0730-0731.md",
+        "worklog-phase3-0719.md",
+        "worklog-phase1-2.md",
+    )
+
+    for name, entry_range in numbered.items():
+        path = check_docs.REPO / "docs/archive" / name
+        claim = check_docs._archive_filename_entry_range(path)
+        assert (claim.classification, claim.entry_range) == (
+            "numbered",
+            entry_range,
+        ), name
+    for name in unnumbered:
+        path = check_docs.REPO / "docs/archive" / name
+        claim = check_docs._archive_filename_entry_range(path)
+        assert (claim.classification, claim.entry_range) == (
+            "unnumbered",
+            None,
+        ), name
+
+
 def test_backlog_guard_numbered_archive_entry_is_carry_target():
     root = _build_min_repo()
     try:
@@ -11972,6 +12011,30 @@ def test_backlog_guard_numbered_archive_entry_is_carry_target():
         )
         worklog = _CLEAN_WORKLOG.replace(
             "1. [T-002] continue", "- [T-001] (1000)"
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_two_token_entry_1001_is_carry_target():
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-1001.md"
+        archive = _archive_with_entries(("2026-07-30", "1001")).replace(
+            "### 次の一手\n",
+            "### 次の一手\n- [T-001] carry target\n",
+            1,
+        )
+        _write(root, f"docs/archive/{name}", archive)
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(name, "2026-07-30", 1001),
+        )
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-002] continue", "- [T-001] (1001)"
         )
         _write_backlog_docs(root, worklog_text=worklog)
         res = _run_check(root)
@@ -12267,6 +12330,70 @@ def test_spool_fold_rotation_output_passes_real_check_docs():
         spec.loader.exec_module(module)
         plan = module.plan_fold(root, fold_date="2026-08-03")
         assert plan.rotation_path is not None
+        module.apply_fold(root, plan)
+
+        res = _run_check(root, "--expect-active-transaction", plan.transaction_id)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "違反なし" in res.stdout
+    finally:
+        sys.modules.pop(module_name, None)
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_fold_rotation_ordinal_1001_is_numbered_archive():
+    root = _build_min_repo()
+    module_name = "_t1732_spool_fold_ordinal_1001_integration"
+    try:
+        worklog = _read(root, "docs/worklog.md")
+        worklog = worklog.replace("(1) — first", "(1001) — first", 1)
+        worklog = worklog.replace("(2) — second", "(1002) — second", 1)
+        worklog = worklog.replace(
+            "### 次の一手\n1. [T-001] carry",
+            ("rotation filler " * 7500) + "\n\n### 次の一手\n1. [T-001] carry",
+            1,
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        subprocess.run(["git", "-C", root, "init", "-q"], check=True)
+        subprocess.run(["git", "-C", root, "config", "user.name", "Fixture"], check=True)
+        subprocess.run(
+            ["git", "-C", root, "config", "user.email", "fixture@example.invalid"],
+            check=True,
+        )
+        subprocess.run(["git", "-C", root, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", root, "commit", "-qm", "base"], check=True)
+        _write(
+            root,
+            "docs/spool/worklog/2026-08-03-t1732-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: worklog\n"
+            "authored: 2026-08-03\n"
+            "wave: t1732\n"
+            "seq: 1\n"
+            "title: ordinal 1001 rotation integration\n"
+            "---\n"
+            "## 本文\n\n- ordinal 1001 rotation integration\n\n"
+            "## 次の一手差分\n\n### carry\n\n- [T-002]\n",
+        )
+        subprocess.run(["git", "-C", root, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", root, "commit", "-qm", "fragment"], check=True)
+
+        source = os.path.join(root, "tools", "spool_fold.py")
+        spec = importlib.util.spec_from_file_location(module_name, source)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        plan = module.plan_fold(root, fold_date="2026-08-03")
+        expected = "docs/archive/worklog-phase3-0801-1001.md"
+        assert plan.rotation_path == expected
+        claim = check_docs._archive_filename_entry_range(
+            check_docs.REPO / plan.rotation_path
+        )
+        assert (claim.classification, claim.entry_range) == (
+            "numbered",
+            (1001, 1001),
+        )
         module.apply_fold(root, plan)
 
         res = _run_check(root, "--expect-active-transaction", plan.transaction_id)

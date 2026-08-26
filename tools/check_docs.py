@@ -2115,10 +2115,10 @@ def _archive_filename_entry_range(path: Path) -> _ArchiveFilenameClaim:
 
     is_mmdd = lambda token: ARCHIVE_MMDD_TOKEN_RE.fullmatch(token) is not None
     is_entry = lambda token: ARCHIVE_ENTRY_TOKEN_RE.fullmatch(token) is not None
-    if len(tail) in {1, 2} and all(is_mmdd(token) for token in tail):
-        return _ArchiveFilenameClaim("unnumbered")
     if len(tail) == 2 and is_mmdd(tail[0]) and is_entry(tail[1]):
         entry_tokens = (tail[1], tail[1])
+    elif len(tail) in {1, 2} and all(is_mmdd(token) for token in tail):
+        return _ArchiveFilenameClaim("unnumbered")
     elif (
         len(tail) == 3
         and is_mmdd(tail[0])
