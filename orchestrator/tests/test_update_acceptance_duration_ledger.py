@@ -512,6 +512,98 @@ def test_g7g_failed_and_error_cases_are_excluded_but_skipped_is_included(
     }
 
 
+def test_add_only_preserves_existing_entry_bytes_and_excludes_frozen_nodes(
+    join_repo: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    for prefix in ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES:
+        module = join_repo / prefix.removesuffix("::")
+        module.parent.mkdir(parents=True, exist_ok=True)
+        module.write_text("# add-only exclusion fixture\n", encoding="utf-8")
+
+    existing_durations = {
+        "pkg/tests/test_mod.py::test_other": 0.7,
+        "pkg/tests/test_mod.py::test_existing": 0.5,
+    }
+    before = (
+        json.dumps(
+            {
+                "duration_seconds_by_nodeid": existing_durations,
+                "nodeid_count": len(existing_durations),
+                "schema_version": 1,
+                "unit": "seconds",
+            },
+            ensure_ascii=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("ascii")
+    output = tmp_path / "ledger.json"
+    output.write_bytes(before)
+
+    def case_for_nodeid(
+        nodeid: str,
+        time: str,
+        *,
+        failure: bool = False,
+    ) -> dict[str, object]:
+        module_path, name = nodeid.split("::", 1)
+        classname = module_path.removesuffix(".py").replace("/", ".")
+        return _case(classname, name, time, failure=failure)
+
+    frozen_suite_nodeids = {
+        f"{prefix}test_add_only_must_exclude"
+        for prefix in ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES
+    }
+    failed_nodeid = "pkg/tests/test_mod.py::test_failed_new"
+    junit = tmp_path / "add-only.xml"
+    _write_junit(
+        junit,
+        [
+            case_for_nodeid("pkg/tests/test_mod.py::test_existing", "9.9"),
+            case_for_nodeid("pkg/tests/test_mod.py::test_new", "0.25"),
+            *(case_for_nodeid(nodeid, "0.1") for nodeid in frozen_suite_nodeids),
+            *(
+                case_for_nodeid(nodeid, "0.2")
+                for nodeid in ledger._ADD_ONLY_FROZEN_REMOVED_NODEIDS
+            ),
+            case_for_nodeid(failed_nodeid, "0.3", failure=True),
+        ],
+        failures=1,
+    )
+
+    assert _run(join_repo, output, junit, extra=["--add-only"]) == 0
+    assert capsys.readouterr().out == (
+        "excluded_failure_or_error=1\n"
+        "mode=add-only\n"
+        "added=1\n"
+        "skipped_existing=1\n"
+        "excluded_frozen_removed=4\n"
+        "excluded_writer_base_key=1\n"
+        "excluded_frozen_suite=8\n"
+        "excluded_total=14\n"
+    )
+
+    after = output.read_bytes()
+    added_entry = b'    "pkg/tests/test_mod.py::test_new": 0.25,\n'
+    assert after.count(added_entry) == 1
+    restored = after.replace(added_entry, b"", 1).replace(
+        b'  "nodeid_count": 3,',
+        b'  "nodeid_count": 2,',
+        1,
+    )
+    assert restored == before
+
+    durations = json.loads(after.decode("ascii"))["duration_seconds_by_nodeid"]
+    assert list(durations.items())[-2:] == list(existing_durations.items())
+    assert durations["pkg/tests/test_mod.py::test_existing"] == 0.5
+    assert frozen_suite_nodeids.isdisjoint(durations)
+    assert ledger._ADD_ONLY_FROZEN_REMOVED_NODEIDS.isdisjoint(durations)
+    assert ledger._ADD_ONLY_FROZEN_WRITER_BASE_KEY not in durations
+    assert failed_nodeid not in durations
+
+
 def test_f6_failed_case_is_excluded_before_duration_validation(
     join_repo: Path,
     tmp_path: Path,

@@ -11,13 +11,36 @@ import os
 from pathlib import Path
 import sys
 import tempfile
-from typing import Sequence
+from typing import Mapping, Sequence
 import xml.etree.ElementTree as ET
 
 
 _REJECTION_PREFIX = "acceptance duration ledger input rejected:"
 _SCHEMA_VERSION = 1
 _MINIMUM_POSITIVE_SECONDS = Decimal("0.001")
+_ADD_ONLY_FROZEN_SUITE_PREFIXES = (
+    "orchestrator/tests/test_critic.py::",
+    "orchestrator/tests/test_p3_exploration_namespace.py::",
+    "orchestrator/tests/test_p3_s4_loop_sort.py::",
+    "orchestrator/tests/test_real_repo_serialization.py::",
+    "orchestrator/tests/test_s1_direct_comparison.py::",
+    "orchestrator/tests/test_s8b_materialization.py::",
+    "orchestrator/tests/test_s8b_sort_swo_receipt.py::",
+    "orchestrator/tests/test_sort_swo_oracle.py::",
+)
+_ADD_ONLY_FROZEN_REMOVED_NODEIDS = frozenset(
+    {
+        "orchestrator/tests/test_critic.py::test_current_loader_rejects_non_exact_oracle_contract_ids[sort-swo-v3-corpus1-protocol2-checker2-grammar1-x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe-suffix]",
+        "orchestrator/tests/test_critic.py::test_current_loader_rejects_non_exact_oracle_contract_ids[sort-swo-v4-corpus1-protocol2-checker2-grammar1-x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe]",
+        r"orchestrator/tests/test_critic.py::test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering[mutation-\u5168 field snapshot \u304c\u5909\u5316]",
+        r"orchestrator/tests/test_critic.py::test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering[protocol-\u56fa\u5b9a\u9577 protocol \u306e\u7570\u5e38]",
+        "orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
+    }
+)
+_ADD_ONLY_FROZEN_WRITER_BASE_KEY = (
+    "orchestrator/tests/test_sort_swo_oracle.py::"
+    "test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+)
 
 
 class LedgerInputError(ValueError):
@@ -55,6 +78,14 @@ def _parser() -> argparse.ArgumentParser:
         "--check",
         action="store_true",
         help="生成 bytes と既存台帳の一致だけを検査し、書き込まない",
+    )
+    parser.add_argument(
+        "--add-only",
+        action="store_true",
+        help=(
+            "既存 duration entry を byte exact に保ち、未登録かつ凍結対象外の "
+            "nodeid だけを追加する"
+        ),
     )
     parser.add_argument(
         "--coverage-against",
@@ -295,6 +326,121 @@ def _coverage_line(ledger_nodeids: set[str], collection: set[str]) -> str:
     return f"covered={covered} total={total} ratio={covered / total:.3f}"
 
 
+def _existing_ledger(path: Path) -> tuple[bytes, dict[str, float]]:
+    try:
+        existing = path.read_bytes()
+        document = json.loads(existing.decode("ascii"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise LedgerInputError(f"{path}: cannot read existing ledger: {exc}") from exc
+    if not isinstance(document, dict) or set(document) != {
+        "duration_seconds_by_nodeid",
+        "nodeid_count",
+        "schema_version",
+        "unit",
+    }:
+        raise LedgerInputError(f"{path}: existing ledger has invalid top-level schema")
+    if document["schema_version"] != _SCHEMA_VERSION:
+        raise LedgerInputError(f"{path}: existing ledger has invalid schema_version")
+    if document["unit"] != "seconds":
+        raise LedgerInputError(f"{path}: existing ledger has invalid unit")
+    durations = document["duration_seconds_by_nodeid"]
+    count = document["nodeid_count"]
+    if not isinstance(durations, dict) or not all(
+        isinstance(nodeid, str)
+        and isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value >= 0
+        for nodeid, value in durations.items()
+    ):
+        raise LedgerInputError(f"{path}: existing ledger has invalid durations")
+    if isinstance(count, bool) or not isinstance(count, int) or count != len(durations):
+        raise LedgerInputError(f"{path}: existing ledger has invalid nodeid_count")
+    return existing, durations
+
+
+def _add_only_bytes(
+    existing: bytes,
+    existing_durations: Mapping[str, float],
+    additions: Mapping[str, float],
+) -> bytes:
+    """Insert additions without altering any existing duration-entry bytes."""
+
+    if not additions:
+        return existing
+    old_count = len(existing_durations)
+    new_count = old_count + len(additions)
+    count_field = f'  "nodeid_count": {old_count},'.encode("ascii")
+    if existing.count(count_field) != 1:
+        raise LedgerInputError("existing ledger has non-canonical nodeid_count framing")
+
+    nonempty_open = b'  "duration_seconds_by_nodeid": {\n'
+    empty_mapping = b'  "duration_seconds_by_nodeid": {},\n'
+    rendered_entries = [
+        (
+            "    "
+            + json.dumps(nodeid, ensure_ascii=True)
+            + ": "
+            + json.dumps(value, allow_nan=False)
+        ).encode("ascii")
+        for nodeid, value in sorted(additions.items())
+    ]
+    if existing_durations:
+        if existing.count(nonempty_open) != 1:
+            raise LedgerInputError(
+                "existing ledger has non-canonical duration mapping framing"
+            )
+        insertion = b"".join(entry + b",\n" for entry in rendered_entries)
+        rendered = existing.replace(
+            nonempty_open,
+            nonempty_open + insertion,
+            1,
+        )
+    else:
+        if existing.count(empty_mapping) != 1:
+            raise LedgerInputError(
+                "existing ledger has non-canonical empty duration mapping framing"
+            )
+        mapping = nonempty_open + b",\n".join(rendered_entries) + b"\n  },\n"
+        rendered = existing.replace(empty_mapping, mapping, 1)
+    return rendered.replace(
+        count_field,
+        f'  "nodeid_count": {new_count},'.encode("ascii"),
+        1,
+    )
+
+
+def _add_only_result(
+    generated: bytes,
+    existing: bytes,
+    existing_durations: Mapping[str, float],
+) -> tuple[bytes, set[str], dict[str, int]]:
+    generated_durations = json.loads(generated.decode("ascii"))[
+        "duration_seconds_by_nodeid"
+    ]
+    additions: dict[str, float] = {}
+    counts = {
+        "skipped_existing": 0,
+        "excluded_frozen_removed": 0,
+        "excluded_writer_base_key": 0,
+        "excluded_frozen_suite": 0,
+    }
+    for nodeid, duration in generated_durations.items():
+        if nodeid in existing_durations:
+            counts["skipped_existing"] += 1
+        elif nodeid == _ADD_ONLY_FROZEN_WRITER_BASE_KEY:
+            counts["excluded_writer_base_key"] += 1
+        elif nodeid in _ADD_ONLY_FROZEN_REMOVED_NODEIDS:
+            counts["excluded_frozen_removed"] += 1
+        elif nodeid.startswith(_ADD_ONLY_FROZEN_SUITE_PREFIXES):
+            counts["excluded_frozen_suite"] += 1
+        else:
+            additions[nodeid] = duration
+    rendered = _add_only_bytes(existing, existing_durations, additions)
+    counts["added"] = len(additions)
+    return rendered, set(existing_durations) | set(additions), counts
+
+
 def _atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -337,6 +483,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             repo / "orchestrator" / "tests" / "acceptance_duration_ledger.json"
         )
         rendered, ledger_nodeids, excluded = _ledger_bytes(args.JUNIT, repo)
+        add_only_counts = None
+        if args.add_only:
+            existing, existing_durations = _existing_ledger(output)
+            rendered, ledger_nodeids, add_only_counts = _add_only_result(
+                rendered,
+                existing,
+                existing_durations,
+            )
         coverage = None
         if args.coverage_against is not None:
             coverage = _coverage_line(
@@ -353,6 +507,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             _atomic_write(output, rendered)
             result = 0
         print(f"excluded_failure_or_error={excluded}")
+        if add_only_counts is not None:
+            excluded_total = excluded + sum(
+                add_only_counts[key]
+                for key in (
+                    "excluded_frozen_removed",
+                    "excluded_writer_base_key",
+                    "excluded_frozen_suite",
+                )
+            )
+            print("mode=add-only")
+            print(f"added={add_only_counts['added']}")
+            print(f"skipped_existing={add_only_counts['skipped_existing']}")
+            print(
+                "excluded_frozen_removed="
+                f"{add_only_counts['excluded_frozen_removed']}"
+            )
+            print(
+                "excluded_writer_base_key="
+                f"{add_only_counts['excluded_writer_base_key']}"
+            )
+            print(
+                "excluded_frozen_suite="
+                f"{add_only_counts['excluded_frozen_suite']}"
+            )
+            print(f"excluded_total={excluded_total}")
         if coverage is not None:
             print(coverage)
         return result
