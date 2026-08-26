@@ -1,0 +1,174 @@
+{
+ "estimated_run_seconds": 2400,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_uses_rule_sources_before_paths_exist",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m01-drop-trailing-slash",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "new": "        candidate: candidate\n        for candidate, _directory_rule in candidates.items()\n",
+     "old": "        candidate + (b\"/\" if directory_rule else b\"\"): candidate\n        for candidate, directory_rule in candidates.items()\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_fails_closed_on_git_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m02-git-error-as-no-match",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "new": "    else:\n        matched_queries = frozenset()\n",
+     "old": "    else:\n        raise _git_failure(command, completed)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_preserve_tracked_rule_descendant"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m03-drop-tracked-exception",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "new": "    if False and isinstance(ignored_prefixes, GitIgnoredOutputPrefixes):\n        if relative in ignored_prefixes.git_visible_paths:\n            return False\n",
+     "old": "    if isinstance(ignored_prefixes, GitIgnoredOutputPrefixes):\n        if relative in ignored_prefixes.git_visible_paths:\n            return False\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_uses_rule_sources_before_paths_exist",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m04-prefix-boundary-weakened",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/output_snapshot_ignores.py",
+     "new": "        relative == prefix\n        or relative.startswith(prefix)\n",
+     "old": "        relative == prefix\n        or relative.startswith(f\"{prefix}/\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_observes_git_visible_create_and_delete"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m05-normalize-every-directory",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+     "new": "        normalize = (\n            stat.S_ISDIR(info.st_mode)\n            or False\n        )\n",
+     "old": "        normalize = (\n            stat.S_ISDIR(info.st_mode)\n            and ignored_ancestors.contains(relative)\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m06-no-ancestor-normalization",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_real_repo_serialization.py",
+     "new": "        normalize = (\n            stat.S_ISDIR(info.st_mode)\n            and False\n        )\n",
+     "old": "        normalize = (\n            stat.S_ISDIR(info.st_mode)\n            and ignored_ancestors.contains(relative)\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_flaky_test_holds_contract.py::test_each_acceptance_condition_has_a_rejected_negative_control[known failure node IDs-changes14]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m07-registry-key-check-disabled",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/flaky_test_holds.py",
+     "new": "        if False and hold.known_failure_node_ids != frozenset({node_id}):\n",
+     "old": "        if hold.known_failure_node_ids != frozenset({node_id}):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m08-pending-hold-drops-fake-sleep",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_pegasus_dispatch_compute.py",
+     "new": "            clock=clock,\n            poll_interval_s=poll_interval_s,\n            nonce=\"shard-0\",\n",
+     "old": "            clock=clock,\n            sleep=clock.sleep,\n            poll_interval_s=poll_interval_s,\n            nonce=\"shard-0\",\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_control_lock_allows_peer_after_pending_hold_is_durably_released"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m09-pending-hold-drops-fake-clock",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_pegasus_dispatch_compute.py",
+     "new": "            sleep=clock.sleep,\n            poll_interval_s=poll_interval_s,\n            nonce=\"shard-0\",\n",
+     "old": "            clock=clock,\n            sleep=clock.sleep,\n            poll_interval_s=poll_interval_s,\n            nonce=\"shard-0\",\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_control_lock_serializes_latch_check_through_immediate_visibility"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "flakyholds.m10-latch-drops-fake-clock",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_pegasus_dispatch_compute.py",
+     "new": "            sleep=clock.sleep,\n            poll_interval_s=poll_interval_s,\n            nonce=label,\n",
+     "old": "            clock=clock,\n            sleep=clock.sleep,\n            poll_interval_s=poll_interval_s,\n            nonce=label,\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}

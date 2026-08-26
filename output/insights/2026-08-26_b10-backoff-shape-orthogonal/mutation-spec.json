@@ -1,0 +1,350 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 15,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m01_patch_path_widening_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if result != EXPECTED_PATCH_PATHS:\n",
+          "new": "    if OPTIONS_REL not in result:\n"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m02_patch_sha_bypass_witness_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if not _SHA256_RE.fullmatch(expected_sha256 or \"\") or observed != expected_sha256:\n",
+          "new": "    if not _SHA256_RE.fullmatch(expected_sha256 or \"\"):\n"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m03_duplicate_marker_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if source_bytes.count(begin) != 1 or source_bytes.count(end) != 1:\n",
+          "new": "    if source_bytes.count(begin) < 1 or source_bytes.count(end) < 1:\n"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "source_bytes.count(b\"EVOLVE-BLOCK-BEGIN\") != 1",
+          "new": "source_bytes.count(b\"EVOLVE-BLOCK-BEGIN\") < 1"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "source_bytes.count(b\"EVOLVE-BLOCK-END\") != 1",
+          "new": "source_bytes.count(b\"EVOLVE-BLOCK-END\") < 1"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m04_hole_substring_match_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if payload == expected:\n",
+          "new": "        if expected in payload:\n"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if physical.count(expected_line) != 1:\n",
+          "new": "    if sum(expected_line in line for line in physical) != 1:\n"
+        }
+      ]
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m05_wait_loop_mutation_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if options_sha != expected_options_sha256 or frame_sha != expected_frame_sha256:\n",
+          "new": "    if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if token != source_digest.STOCK:\n",
+          "new": "        if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m07_unapplied_patch_is_not_a_success"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        raise PreflightError(\"patch-unapplied\", \"template patch が適用されていない\")\n",
+          "new": "        return {\"patch_sha256\": patch_sha256, \"inert_references\": []}\n"
+        }
+      ]
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m08_legacy_wal_without_binding_is_rejected_for_one_reason"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if stored != binding.as_dict():\n",
+          "new": "        if stored is not None and stored != binding.as_dict():\n"
+        }
+      ]
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m09_shape_code_three_is_rejected_instead_of_falling_back"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if code not in SHAPE_NAMES or mean_us not in MEANS_US:\n",
+          "new": "    if mean_us not in MEANS_US:\n"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    return SHAPE_NAMES[code], mean_us\n",
+          "new": "    return SHAPE_NAMES.get(code, \"constant\"), mean_us\n"
+        }
+      ]
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m10_underexposed_cell_is_indeterminate_not_success_or_failure"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        and int(record[\"backoff_call_count\"]) >= spec.minimum_abort_calls\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        elif adjusted[key] <= spec.alpha:\n",
+          "new": "        elif item[\"raw_p\"] <= spec.alpha:\n"
+        }
+      ]
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m11_raw_p_cannot_bypass_holm_family_correction",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m12_sign_flip_test_is_two_sided_not_fixed_one_sided"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    observed = abs(sum(values))\n",
+          "new": "    observed = sum(values)\n"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        if abs(permuted) + tolerance >= observed:\n",
+          "new": "        if permuted + tolerance >= observed:\n"
+        }
+      ]
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_cpp_expression_compiles_with_werror_and_matches_fraction_model"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 1ULL))) : ((((start",
+          "new": "((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 2ULL))) : ((((start"
+        },
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 1ULL))) : ((((start",
+          "new": "((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(BACKOFF_FIXED) % 1000ULL) + 2ULL))) : ((((start"
+        }
+      ]
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m06_nonstock_inert_token_is_rejected_for_one_reason",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_preregistration_matching_commit_blob_patch_and_formula_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_p01_registered_patch_hole_frame_and_inert_binding_are_accepted",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_is_applied_in_isolation_and_inert_gate_does_not_skip",
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_actual_patch_has_only_one_authorized_hole_line_and_exact_formula_sha"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "((start * 0x9e3779b97f4a7c15ULL) >> 63) ? (2ULL",
+          "new": "((start * 0x9e3779bb6a4f841bULL) >> 63) ? (2ULL"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "- ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) %",
+          "new": "- ((((start * 0x9e3779bb6a4f841bULL) << 1) >> 1) %"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": ": ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) %",
+          "new": ": ((((start * 0x9e3779bb6a4f841bULL) << 1) >> 1) %"
+        },
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "((start * 0x9e3779b97f4a7c15ULL) >> 63) ? (2ULL",
+          "new": "((start * 0x9e3779bb6a4f841bULL) >> 63) ? (2ULL"
+        },
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": "- ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) %",
+          "new": "- ((((start * 0x9e3779bb6a4f841bULL) << 1) >> 1) %"
+        },
+        {
+          "file": "patches/silo-backoff-fixed.patch",
+          "old": ": ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) %",
+          "new": ": ((((start * 0x9e3779bb6a4f841bULL) << 1) >> 1) %"
+        }
+      ]
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m15_uncertified_performance_binary_sha_is_rejected_before_measurement"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "built_sha256 != certified.perf_bin_sha256",
+          "new": "False"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "current_sha256 != certified.perf_bin_sha256",
+          "new": "False"
+        }
+      ]
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m16_omitting_one_registered_analysis_field_is_rejected"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "            \"alpha\", \"holm_families\", \"permutation\", \"confidence_interval\",\n",
+          "new": "            \"alpha\", \"holm_families\", \"permutation\",\n            *({\"confidence_interval\"} if \"confidence_interval\" in document[\"analysis\"] else set()),\n"
+        },
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "        analysis[\"confidence_interval\"],\n",
+          "new": "        analysis.get(\"confidence_interval\", {\n            \"method\": \"student-t-paired-block-mean\",\n            \"confidence_level\": 0.95,\n            \"degrees_of_freedom\": 2,\n            \"critical_value\": 4.302652729911275,\n        }),\n"
+        }
+      ]
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_shape_sweep.py::test_m17_and_p05_matching_bound_wal_is_resumable"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_shape_sweep.py",
+          "old": "    if not wal_exists:\n        return\n",
+          "new": "    if wal_exists:\n        raise PreflightError(\"resume-binding\", \"既存 WAL の resume を拒否\")\n    if not wal_exists:\n        return\n"
+        }
+      ]
+    }
+  ]
+}

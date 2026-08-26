@@ -50,6 +50,11 @@ class MaterializerRegistration:
 
 
 MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
+    "orchestrator.campaign.b10_backoff_shape_sweep._compile_probe_harnesses":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "standalone realized-wait probe harness; never enters a certified campaign",
+        ),
     "orchestrator.campaign.paper_story_a1_paired._trace0_commands_match":
         MaterializerRegistration(
             NON_ADMISSIBLE,
