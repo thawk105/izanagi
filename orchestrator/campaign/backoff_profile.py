@@ -18,6 +18,8 @@ build cache を用意してから、この module を起動する。
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import hashlib
 import json
 import math
@@ -43,7 +45,7 @@ from ..calibrator.benchparse import (  # noqa: E402
 from ..holdout_observation import (  # noqa: E402
     assert_holdout_observation_admitted,
 )
-from . import buildcache, pin, source_digest  # noqa: E402
+from . import buildcache, patchharness, pin, source_digest  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -90,6 +92,12 @@ _COMPARISON_PATH = (
 _CACHE_ROOT_ENV = "IZANAGI_BACKOFF_PROFILE_CACHE_ROOT"
 _DEPENDENCY_LOG_ENV = "IZANAGI_BACKOFF_PROFILE_DEPENDENCY_LOG"
 _DEPENDENCY_PUBLISH_LOG_ENV = "IZANAGI_BACKOFF_PROFILE_DEPENDENCY_PUBLISH_LOG"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_BACKOFF_PATCH_PATH = _REPO_ROOT / "patches/silo-backoff-fixed.patch"
+_CCBENCH_DIR = _REPO_ROOT / "external/ccbench"
+_BACKOFF_PATCH_ACTIVE = contextvars.ContextVar(
+    "backoff_profile_patch_active", default=False,
+)
 
 
 @dataclass(frozen=True)
@@ -319,6 +327,66 @@ def _genome(backoff_us):
     )
 
 
+@contextlib.contextmanager
+def _applied_backoff_patch():
+    """同一 workload 内では一度だけ backoff patch を apply/revert する。"""
+    if _BACKOFF_PATCH_ACTIVE.get():
+        yield
+        return
+    with patchharness.applied(
+        str(_BACKOFF_PATCH_PATH), CCBENCH_COMMIT, str(_CCBENCH_DIR),
+    ):
+        token = _BACKOFF_PATCH_ACTIVE.set(True)
+        try:
+            yield
+        finally:
+            _BACKOFF_PATCH_ACTIVE.reset(token)
+
+
+def _find_cmake_cache(binary: str) -> Path:
+    """build binary から最寄りの CMakeCache.txt を解決する。"""
+    for directory in Path(binary).resolve().parents:
+        candidate = directory / "CMakeCache.txt"
+        if candidate.is_file():
+            return candidate
+    raise RuntimeError(
+        f"backoff build の CMakeCache.txt を見つけられない: {binary}"
+    )
+
+
+def _assert_build_accepted_backoff_defines(binary: str, backoff_us) -> None:
+    """生成 cache が要求した backoff define を型つきで受理したことを検査する。"""
+    cache = _find_cmake_cache(binary)
+    try:
+        lines = cache.read_text(encoding="utf-8", errors="strict").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise RuntimeError(f"backoff build cache を読めない: {cache}: {exc}") from exc
+    entries = {}
+    for line in lines:
+        if not line or line.startswith(("#", "//")) or "=" not in line:
+            continue
+        key_and_type, value = line.split("=", 1)
+        if ":" not in key_and_type:
+            continue
+        key, cache_type = key_and_type.split(":", 1)
+        entries[key] = (cache_type, value)
+
+    expected = {
+        "CCBENCH_BACKOFF_FIXED": str(-1 if backoff_us is None else backoff_us),
+        "CCBENCH_BACKOFF_NOINLINE": "1",
+    }
+    rejected = {
+        key: {"expected": ("STRING", value), "actual": entries.get(key)}
+        for key, value in expected.items()
+        if entries.get(key) != ("STRING", value)
+    }
+    if rejected:
+        raise RuntimeError(
+            "backoff build が要求 define を受理していない: "
+            f"cache={cache}, entries={rejected}"
+        )
+
+
 def _flags(workload, clocks_per_us=CLK):
     flags = [
         f"-thread_num={THREADS}",
@@ -453,15 +521,8 @@ def _derive_rep(run):
     }
 
 
-def profile_point(backoff_us, workload, log=print, *, runtime=None):
-    """1 backoff 量を REPS 回 profile し、有用 IPC を含む集計を返す。"""
-    workload_snapshot = dict(workload)
-    clock = runtime.clocks_per_us if runtime is not None else CLK
-    assert_holdout_observation_admitted(
-        gflags=tuple(_flags(workload_snapshot, clock)), admission=None,
-    )
-    if runtime is None:
-        runtime = _default_runtime()
+def _profile_point_in_patch(backoff_us, workload_snapshot, log, runtime):
+    """適用済み patch scope 内で 1 backoff 量を build/profile する。"""
     genome = _genome(backoff_us)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_PROFILE)
     evidence = source_digest.resolve_evidence(
@@ -487,6 +548,7 @@ def profile_point(backoff_us, workload, log=print, *, runtime=None):
         build_context=build_context,
         source_evidence=evidence,
     )
+    _assert_build_accepted_backoff_defines(built.binary, backoff_us)
     _assert_single_tenant()
     runs = []
     for _ in range(REPS):
@@ -538,6 +600,21 @@ def profile_point(backoff_us, workload, log=print, *, runtime=None):
     return row
 
 
+def profile_point(backoff_us, workload, log=print, *, runtime=None):
+    """1 backoff 量を REPS 回 profile し、有用 IPC を含む集計を返す。"""
+    workload_snapshot = dict(workload)
+    clock = runtime.clocks_per_us if runtime is not None else CLK
+    assert_holdout_observation_admitted(
+        gflags=tuple(_flags(workload_snapshot, clock)), admission=None,
+    )
+    if runtime is None:
+        runtime = _default_runtime()
+    with _applied_backoff_patch():
+        return _profile_point_in_patch(
+            backoff_us, workload_snapshot, log, runtime,
+        )
+
+
 def profile_workload(tag, workload, log=print, *, runtime=None):
     effective = runtime
     if effective is None:
@@ -547,9 +624,10 @@ def profile_workload(tag, workload, log=print, *, runtime=None):
         f"  {'pt':>6} {'tps':>14} {'abort':>7} {'spin_cyc':>9} "
         f"{'tot_ipc':>8} {'use_ipc':>8} {'K_useful':>12}"
     )
-    rows = [profile_point(None, workload, log, runtime=effective)]
-    for amount in BACKOFF_US:
-        rows.append(profile_point(amount, workload, log, runtime=effective))
+    with _applied_backoff_patch():
+        rows = [profile_point(None, workload, log, runtime=effective)]
+        for amount in BACKOFF_US:
+            rows.append(profile_point(amount, workload, log, runtime=effective))
     return rows
 
 

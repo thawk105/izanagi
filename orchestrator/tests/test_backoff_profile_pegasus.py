@@ -1,6 +1,7 @@
 """Pegasus balanced backoff profile の裁定 R1-R15 を固定する焦点テスト。"""
 from __future__ import annotations
 
+import contextlib
 import inspect
 import json
 import os
@@ -121,6 +122,14 @@ def _install_profile_point_spies(monkeypatch, runs=None) -> dict:
     monkeypatch.setattr(subject, "attest_generator_output", fake_attest)
     monkeypatch.setattr(subject, "derive_build_admission", fake_admission)
     monkeypatch.setattr(subject.buildcache, "build", fake_build)
+    monkeypatch.setattr(
+        subject.patchharness,
+        "applied",
+        lambda *args: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        subject, "_assert_build_accepted_backoff_defines", lambda *args: None,
+    )
     monkeypatch.setattr(subject, "_assert_single_tenant", lambda: None)
     monkeypatch.setattr(subject, "_profile_run", fake_run)
     return observed
@@ -515,11 +524,144 @@ def test_m12_profile_workload_drives_the_frozen_seven_point_grid(monkeypatch):
         return {"backoff_us": 0 if amount is None else amount}
 
     monkeypatch.setattr(subject, "profile_point", fake_point)
+    monkeypatch.setattr(
+        subject.patchharness,
+        "applied",
+        lambda *args: contextlib.nullcontext(),
+    )
 
     subject.profile_workload("balanced", _workload(), log=lambda _: None, runtime=runtime)
 
     assert [amount for amount, _ in calls] == [None, 2, 5, 10, 25, 50, 100]
     assert all(seen is runtime for _, seen in calls)
+
+
+def test_fx11_workload_resolves_builds_and_measures_inside_one_patch_scope(
+    monkeypatch,
+):
+    events = []
+    runtime = _runtime()
+
+    @contextlib.contextmanager
+    def fake_applied(patch_path, pin_commit, ccbench_dir):
+        events.append(("enter", patch_path, pin_commit, ccbench_dir))
+        try:
+            yield
+        finally:
+            events.append(("exit",))
+
+    monkeypatch.setattr(subject.patchharness, "applied", fake_applied)
+    monkeypatch.setattr(
+        subject, "assert_holdout_observation_admitted", lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        subject, "build_run_context", lambda **kwargs: object(),
+    )
+
+    def fake_evidence(*args, **kwargs):
+        events.append(("resolve", args[0].canonical()))
+        return object()
+
+    def fake_build(*args, **kwargs):
+        events.append(("build", args[0].canonical()))
+        return SimpleNamespace(binary="/tmp/fake-ccbench")
+
+    checked_points = []
+
+    def fake_check(binary, backoff_us):
+        events.append(("define-check", backoff_us))
+        checked_points.append(backoff_us)
+
+    def fake_run(binary, workload, tmp, got_runtime, backoff_us):
+        events.append(("measure", backoff_us))
+        return _raw_runs()[0]
+
+    monkeypatch.setattr(subject.source_digest, "resolve_evidence", fake_evidence)
+    monkeypatch.setattr(
+        subject, "attest_generator_output", lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        subject, "derive_build_admission", lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(subject.buildcache, "build", fake_build)
+    monkeypatch.setattr(subject, "_assert_build_accepted_backoff_defines", fake_check)
+    monkeypatch.setattr(subject, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(subject, "_profile_run", fake_run)
+
+    subject.profile_workload(
+        "balanced", _workload(), log=lambda _: None, runtime=runtime,
+    )
+
+    assert [event[0] for event in events].count("enter") == 1
+    assert [event[0] for event in events].count("exit") == 1
+    assert events[0] == (
+        "enter",
+        str(REPO_ROOT / "patches/silo-backoff-fixed.patch"),
+        pin.CURRENT_PIN,
+        str(REPO_ROOT / "external/ccbench"),
+    )
+    assert events[-1] == ("exit",)
+    point_phases = [
+        phase
+        for _amount in (None, 2, 5, 10, 25, 50, 100)
+        for phase in (
+            "resolve", "build", "define-check", "measure", "measure", "measure",
+        )
+    ]
+    assert [event[0] for event in events[1:-1]] == point_phases
+    assert checked_points == [None, 2, 5, 10, 25, 50, 100]
+
+
+def test_fx12_build_cache_must_show_accepted_typed_defines(tmp_path):
+    binary = tmp_path / "build/cc/silo/ycsb_silo.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"binary")
+    cache = tmp_path / "build/CMakeCache.txt"
+
+    cache.write_text(
+        "CCBENCH_BACKOFF_FIXED:UNINITIALIZED=2\n"
+        "CCBENCH_BACKOFF_NOINLINE:UNINITIALIZED=1\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="要求 define を受理していない"):
+        subject._assert_build_accepted_backoff_defines(str(binary), 2)
+
+    cache.write_text(
+        "CCBENCH_BACKOFF_FIXED:STRING=2\n"
+        "CCBENCH_BACKOFF_NOINLINE:UNINITIALIZED=1\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="要求 define を受理していない"):
+        subject._assert_build_accepted_backoff_defines(str(binary), 2)
+
+    cache.write_text(
+        "CCBENCH_BACKOFF_FIXED:STRING=2\n"
+        "CCBENCH_BACKOFF_NOINLINE:STRING=1\n",
+        encoding="utf-8",
+    )
+    subject._assert_build_accepted_backoff_defines(str(binary), 2)
+
+
+def test_fx12_none_point_requires_fixed_minus_one_and_noinline(tmp_path):
+    binary = tmp_path / "build/cc/silo/ycsb_silo.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"binary")
+    cache = tmp_path / "build/CMakeCache.txt"
+    cache.write_text(
+        "CCBENCH_BACKOFF_FIXED:STRING=0\n"
+        "CCBENCH_BACKOFF_NOINLINE:STRING=1\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="要求 define を受理していない"):
+        subject._assert_build_accepted_backoff_defines(str(binary), None)
+
+    cache.write_text(
+        "CCBENCH_BACKOFF_FIXED:STRING=-1\n"
+        "CCBENCH_BACKOFF_NOINLINE:STRING=1\n",
+        encoding="utf-8",
+    )
+    subject._assert_build_accepted_backoff_defines(str(binary), None)
 
 
 def test_m13_resolver_policy_path_is_independent_of_cwd(monkeypatch, tmp_path):
