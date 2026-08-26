@@ -29,6 +29,15 @@ from orchestrator import scheduler_nqsv as NQSV
 
 _JOB_ID = "0:424242.nqsv"
 
+# These thread bounds recover hangs; they are not pass/fail latency budgets.
+# Thirty seconds is a conservative recovery window at nearly 3x the 10.015s
+# deterministic pre-injection floor.  That parent sample was three compute-node
+# standalone-file runs, not the acceptance full-suite regime.  Event waits use
+# the same bound because a 5s thread-start deadline is not a property under 48-way
+# parallelism.  The parent will measure and finalize the post-injection runtime
+# in stage 6.
+_THREAD_COORDINATION_WATCHDOG_S = 30.0
+
 
 class _Clock:
     def __init__(self):
@@ -5388,16 +5397,20 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
     def blocking_first(command, **kwargs):
         if list(command)[0] == "qsub":
             qsub_entered.set()
-            assert release_qsub.wait(5)
+            assert release_qsub.wait(_THREAD_COORDINATION_WATCHDOG_S)
         return first_scheduler(command, **kwargs)
 
     def invoke(label, artifact, runner):
+        clock = _Clock()
         results[label] = DC.dispatch(
             [],
             repo_root=repo,
             artifact_root=artifact,
             control_root=control,
             run_command=runner,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=5,
             nonce=label,
         )
 
@@ -5408,11 +5421,11 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
         target=invoke, args=("second", tmp_path / "artifact-second", second_scheduler),
     )
     first.start()
-    assert qsub_entered.wait(5)
+    assert qsub_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     second.start()
     release_qsub.set()
-    first.join(10)
-    second.join(10)
+    first.join(_THREAD_COORDINATION_WATCHDOG_S)
+    second.join(_THREAD_COORDINATION_WATCHDOG_S)
 
     assert not first.is_alive() and not second.is_alive()
     assert results == {"first": DC.INFRA_RC, "second": DC.INFRA_RC}
@@ -5451,10 +5464,11 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
     def blocking_first(command, **kwargs):
         if list(command)[0] == "qsub":
             qsub_entered.set()
-            assert release_qsub.wait(5)
+            assert release_qsub.wait(_THREAD_COORDINATION_WATCHDOG_S)
         return first_scheduler(command, **kwargs)
 
     def invoke(label, artifact, runner):
+        clock = _Clock()
         results[label] = DC.dispatch(
             [],
             repo_root=repo,
@@ -5464,6 +5478,9 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
             intent_group_id=label,
             intent_shard_index=0,
             run_command=runner,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=5,
             nonce="shard-0",
         )
 
@@ -5477,13 +5494,12 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
         name="second-dispatch",
     )
     first.start()
-    assert qsub_entered.wait(5)
+    assert qsub_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     second.start()
-    assert second_acquire_entered.wait(5)
+    assert second_acquire_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     release_qsub.set()
-    # 60s is over 4x the measured 13.94s standalone run, but still bounds deadlocks.
-    first.join(60)
-    second.join(60)
+    first.join(_THREAD_COORDINATION_WATCHDOG_S)
+    second.join(_THREAD_COORDINATION_WATCHDOG_S)
 
     assert not first.is_alive() and not second.is_alive()
     assert results == {"first": 0, "second": 0}
