@@ -5196,6 +5196,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
     )
 
     expected_inventory = collections.Counter({
+        ("orchestrator/campaign/b10_backoff_shape_sweep.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/backoff_extended_sweep.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/backoff_repro.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/backoff_sweep.py", "campaign.loop.run_campaign"): 1,
@@ -5218,7 +5219,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/qualification/t126_driver.py", "campaign.pipeline.evaluate"): 1,
     })
     assert sum(count for (path, target), count in expected_inventory.items()
-               if target == "campaign.loop.run_campaign") == 18
+               if target == "campaign.loop.run_campaign") == 19
     assert sum(count for (path, target), count in expected_inventory.items()
                if target == "campaign.pipeline.evaluate") == 5
 

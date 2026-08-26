@@ -148,6 +148,7 @@ MACHINE_CALLERS = {
 }
 
 MANUAL_BUILD_FILES = {
+    "b10_backoff_shape_sweep.py",
     "paper_story_a1_paired.py",
     "s2_verify_calibration.py",
     "s3_lock_coverage.py",
@@ -161,6 +162,7 @@ MANUAL_BUILD_FILES = {
 ADMITTED_MANUAL_BUILD_FILES = {"s8a_trigger_coverage.py"}
 
 EXPECTED_NON_ADMISSIBLE = {
+    "orchestrator.campaign.b10_backoff_shape_sweep._compile_probe_harnesses",
     "orchestrator.campaign.paper_story_a1_paired._trace0_commands_match",
     "orchestrator.campaign.s2_verify_calibration._broken_build_and_verify",
     "orchestrator.campaign.s3_lock_coverage._build_broken",

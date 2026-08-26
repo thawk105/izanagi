@@ -36434,3 +36434,218 @@ D445 が定めた「日付 token と entry 番号 token の判別鍵は先頭ゼ
   「緑にすること」ではない以上、緩和は目的そのものを裏切る。
 - 実負荷 artifact を取るために飽和全走を反復する — site ごとの発火率を推定するには
   約 287 走を要し、それでも順位差の比較には足りない。絶対規律 4 に反する。
+
+## D1057. 待ち方を「平均を揃えた半幅族」として操作化する (2026-08-27)
+
+**決定:** backoff の「待ち方」を、指示待ち量の平均を μ に固定したうえでの**ばらつき**として操作化し、
+3 段階の族を使う。一定 (常に μ)、対称 modulo (μ/2 〜 3μ/2)、二値 (μ/2 か 3μ/2 を確率半々)。
+**どの形も待ち量 0 を指示しない。** 2 つの乱数形は同一の撹拌器を使う。
+
+**理由:**
+- 待機の実体は `_mm_pause()` の busy spin を `clocks_per_us × now_backoff` サイクル回すだけなので、
+  `now_backoff` が待ち量、spin の回し方が待ち方である。平均を固定してばらつきだけを動かせば、
+  2 つを直交させられる。
+- 0 を含む族 (0〜2μ の一様、{0, 2μ} の二値) では、待機ループが 0 指示でも最低 1 回は
+  `_mm_pause()` と `rdtscp()` を通るため、名目平均と物理平均のずれが形ごとに違ってしまう。
+  半幅にすると最小指示値が μ/2 になり、このずれが構造的に小さくなる。
+- 撹拌器を形ごとに変えると、throughput 差が分布形でなく撹拌器と TSC の相互作用でも生じうる。
+  同一撹拌器はこの交絡を無料で消す。
+- 平均が厳密に μ になる論拠は撹拌器が奇数であること (全単射なので最上位 bit がちょうど半々、
+  かつ下位 63 bit と独立) だけに依存し、剰余の分布の偏りには依存しない。
+
+**却下した選択肢:**
+- 0〜2μ の一様と {0, 2μ} の二値 — ばらつきの幅は大きいが、上記の物理下限の非対称を持ち込む。
+- 形ごとに新しいビルドフラグを足す — 合成枝の外 (骨格・ビルド設定) を触ることになる。
+  既存マクロの千の位へ符号化すれば、0〜999 の意味を変えずに合成枝の 1 行に収まる。
+
+## D1058. 判定規則は事前登録文書の機械可読 spec に置き解析の引数にする (2026-08-27)
+
+**決定:** μ grid、形と符号化、ブロック数と実行順、workload、threads、extime、反復数、有意水準、
+多重比較補正の族、信頼区間の作り方、欠測規則、曝露規則、判定手続きを、事前登録文書内の
+機械可読 spec として全件 parse する。解析関数は module の定数でなく、この immutable な spec を
+**引数で**受け取る。spec の SHA と解析コードの SHA / commit を campaign lock、各 `BUILD_START`、
+ブロック記録、レポートへ束縛する。canonical な文書 path は固定し、任意の文書を指せないようにする。
+
+**理由:**
+- 事前登録の値打ちは「結果を見る前に判定規則を固定したこと」にある。規則がコードの定数にあると、
+  同じ文書 blob を指したまま子 commit で有意水準・ブロック順・信頼区間・欠測規則を変えても、
+  祖先性と clean tree の検査を通ってしまう。
+- 文書の存在を ancestry で示すだけでは「その bytes が存在した」ことしか言えない。
+  解析が実際にその bytes を読んでいることまで束縛して初めて、規則の固定が実効になる。
+
+**却下した選択肢:**
+- 文書は散文のみとし規則はコードに置く — 上記のとおり後から静かに変えられる。
+- 数値だけを文書から読む — 実際に採用していた形だが、読んでいたのは 6 値だけで、
+  規則の大半がコード定数のままだった。
+
+## D1059. 実行時間の制約は相の分割で解き、正しさ検証の反復では解かない (2026-08-27)
+
+**決定:** 全規模の正しさ検証が反復 5 回ぶん回るため単一の割当て時間に収まらない場合、
+反復回数を減らさず、job を相 (`probe` / `build` / `verify` / `perf`) と workload で分割する。
+事前登録束縛が一致する既存 WAL への resume を許し、束縛の無い / 食い違う WAL は拒否する。
+
+**理由:**
+- 実行時間のために検証回数を減らすことは、性能や利便性のために正しさゲートを緩めることである。
+  これは絶対規律 2 が禁じている。
+- 相と workload は互いに独立なので、分割しても各セルの測定条件は変わらない。
+- resume を無条件に拒否すると、分割した job が途中で切れたときに再開できず、
+  分割そのものが成立しない。束縛の一致を条件にすれば、古い WAL の混入は防ぎつつ再開できる。
+
+**却下した選択肢:**
+- 全規模検証を反復 1 回にする — 検証の検出機会を 5 分の 1 にする。規律 2 に反する。
+- 割当て時間を実測に合わせて大きく取る — ビルドを含む単一 job が長大になり、
+  途中で切れたときの損失が大きい。
+
+## D1060. B-4 事前登録 §5 は 1 欄も埋めず、代わりに §5.1 の解除条件を締める (2026-08-27)
+
+**決定:** B-4 還流 ablation の事前登録 §5 の値欄は、本 wave で **1 セルも埋めない**。
+全 10 欄が §5.1 の解除条件を満たさないためである。代わりに、解除条件そのものが欠けていた
+3 欄へ規範を新設し、埋められない機械的理由を §10 へ書く。**文書は発効しない。**
+
+**理由:**
+- `floor` と `校正済み PerfConfig` は計測 campaign を要する。§5.1 は既存値の流用を禁じ、
+  `default_perf()` は自ら「性能比較用の校正ではない」と宣言している。
+- `対象 driver と軸` は §5.1 (ii) の probe を要するが、**その条件を満たす sanctioned CLI が
+  存在しない**。build を伴う経路は次の synthesis と primary / secondary outcome を生成するため
+  probe にならず、`--no-build` 経路は §3.1 の切替点を通らない。
+  当初の親の裁定はこの点を取り違えており、段 3 の敵対レンズが refuted した。
+- `env_tag` / `実行責任者` / `開始時刻` の 3 欄には **§5.1 の解除条件が存在しなかった**。
+  任意値や後付け値を拒む規範が無いまま埋めると、異なる環境・時点・実行主体の試行を同じ発効版へ
+  紐付けられる。埋めるのではなく規範を足すのが正しい。
+- §6 は「1 つでも未充足なら実走しない」と定める。埋まらない欄を埋めたことにする書き換えは
+  絶対規律 2 が禁じる方向である。
+
+**却下した選択肢:**
+- **埋められる欄だけ埋める** — `primary outcome の演算定義` は一見埋められるが、tie・欠測・
+  非 certified の順位規則は各 block の比較値と確率優越を直接変える分析契約であり、
+  既成事実化せず裁定へ返す。
+- **解除条件が無い 3 欄をそのまま埋める** — 拒む規範が無い欄を埋めるのは、事前登録の
+  拘束力を持たない値を書く行為であり、ancestry 条件を形式的に満たすだけの空洞化にあたる。
+
+## D1061. B-4 の必須配線は「閉じた critic の併存」までを閉じ、決定と proposal 本文の因果は未了として残す (2026-08-27)
+
+**決定:** 段 4 driver への必須配線は、**閉じた critic invocation が実在し、当該 campaign・arm・
+iteration・digest・driver 種別に束縛され、一度だけ消費されたこと**までを機械強制する。
+`prior_critic_reverse` は自己申告を禁じ receipt 由来にする。
+**「その決定で次の合成を行った」ことは本 wave では閉じず、事前登録の未了項目として残す。**
+
+**理由:**
+- proposal が持つ receipt hash は proposal 作成者の**自己申告**である。valid な receipt を取得し、
+  その hash を legacy critic 由来の proposal へ書き写せば通る。段 3 と段 6 の敵対レンズが
+  独立にこの穴へ到達した。
+- 閉じるには決定を入力とする sanctioned な proposal producer と、生成後の proposal bytes を含む
+  handoff receipt が要る。閉じた critic module は設計上 proposal を書かない。規律 5 (段階導入) に従う。
+- **狭めたうえでも到達点はある。** 以前は閉じた critic を一度も起動せずに off アームを名乗れた。
+  以後は当該 campaign・arm・iteration・digest に対応する certified な起動が実在し一度だけ
+  消費されることが要り、停止挙動を変える 1 bit も自己申告できない。偽装の costは実際に上がった。
+- 到達点を実態より広く書けば、off 汚染された標本が受理集合へ入り、偽の negative が論文 §8 へ流れる。
+
+**却下した選択肢:**
+- **通行券のまま「前提条件 3 を充足した」と書く** — legacy 経路が実際には塞がらないため、
+  差が出なくても「還流に価値なし」と読めない。絶対規律 2 が禁じる緑化にあたる。
+- **proposal producer まで本 wave で実装する** — 合成ループ全体を閉じる別機構であり、規律 5 に反する。
+
+## D1062. B-4 の識別は campaign identity へ残す marker で行い、marker を分類の権限と見なさない (2026-08-27)
+
+**決定:** B-4 として走ったかどうかは、`search_config` へ焼く exact な protocol marker で識別する。
+marker 不在の通常走行には key 自体を足さず、既存 campaign の identity を 1 bit も変えない。
+**marker は自己申告であり、分類の権限を証明しない**と事前登録へ明記する。
+
+**理由:**
+- 既存の `reflux` key は 3 driver の `default_cfg` が常に焼くため、存在判定では B-4 走行と
+  通常走行を分けられない。
+- `search_config` は campaign identity の正準原像に丸ごと入る。**新 key を無条件で足すと、
+  B-4 でない通常走行の campaign 識別子まで変わり、既存 campaign dir・WAL・checkpoint が
+  参照できなくなる。** opt-in にしてこれを避ける。
+- marker は provenance にはなるが、marker を付けて任意の config を B-4 と名乗ること、および
+  marker 不在の campaign を報告時だけ B-4 と名乗ることは機械では止まらない。
+  必要条件であって十分条件ではない。
+
+**却下した選択肢:**
+- **receipt 引数の存在で B-4 を判定する** — receipt を省けば通常走行へ降格でき、閂にならない。
+- **CLI flag だけで識別する** — 成果物に残らず、後から通常 campaign を B-4 と再分類できる。
+- **marker の値に receipt の schema 文字列を流用する** — receipt schema を上げると campaign
+  identity まで動き、同一実験の campaign が別 ID へ割れる。
+
+## D1063. `output/` の snapshot 除外集合を実在ではなく ignore 規則から導く (2026-08-27)
+
+**決定:** `orchestrator/tests/output_snapshot_ignores.py` の除外 prefix は、
+repository root の `.gitignore`、`git rev-parse --git-path info/exclude` が返す file、
+`git config --get core.excludesFile` の 3 source の**規則 bytes だけ**から候補を作り、
+`git check-ignore --no-index --stdin -z` で判定して得る。従来の
+`git ls-files -o -i --exclude-standard --directory` の結果とは和を取る。
+候補生成に `Path.exists` / `rglob` / `listdir` を使わない。
+
+directory 規則由来の候補は**末尾スラッシュを付けて**問い合わせ、prefix にするときに外す。
+`git check-ignore` の rc は 0 (一致あり) / 1 (一致なし) / その他 (Git error で fail-closed) の
+3 分岐で扱い、per-path の可否は stdout の NUL 区切り集合だけで判定する。
+
+wildcard 規則 (`output/variants/*/bin/` 等) は有限展開できないため、
+実在後に `ls-files` 側で得られるものだけが prefix になる。**この実在依存は残る**と
+helper の docstring に明記する。
+
+**理由:**
+- `ls-files -o -i` は今そこに在る ignored path しか返さない。除外集合が `.gitignore` の
+  規則ではなく実行時の状態の関数になり、fresh worktree で 3 検査が決定的に赤になっていた。
+- 規則を自前で解釈すると negation、`**`、escape、nested `.gitignore`、global exclude で
+  Git と drift する。候補生成だけを規則から行い、最終判定は Git に戻すのが drift しない。
+- 末尾スラッシュを落とすと `check-ignore` 自身が directory の実在で答えを変えるため、
+  置き換えが黙って無意味になる。この経路は F665 に記録した。
+- linked worktree では `.git` が file なので、`repo_root / ".git" / "info" / "exclude"` を
+  組み立てる実装は成立しない。`git rev-parse --git-path` で解決する必要がある。
+
+**却下した選択肢:**
+- `.gitignore` を直接解釈して判定まで行う — Git と drift する。
+- `git check-ignore` 単独で列挙まで行う — 候補を自分で列挙できない。
+- wildcard を存在前に有限展開する — 展開が有限にならない。
+
+## D1064. ignore 規則配下でも tracked path は snapshot から隠さない (2026-08-27)
+
+**決定:** 規則由来の除外 prefix 配下にあっても、**tracked path とその祖先 directory は
+除外しない**。同じ prefix 配下の untracked path だけを除外する。
+prefix 配下に tracked entry があること自体を拒否理由にしない。
+
+**理由:**
+- Git の ignore 規則は tracked file には適用されない。除外側だけが隠すと、
+  snapshot が tracked 成果物への副作用を見逃す。
+- 本 repository には実例がある。`.gitignore` が `output/env/pegasus/silo_ladder_rung1/job-staging/`
+  を ignore と書いている一方、その配下に tracked file が 418 個ある。
+  変更前の `ls-files -o -i --directory` は tracked file を含む directory を collapse できないため
+  この prefix を返さず、418 file は snapshot から見えていた。
+  規則由来化でこの prefix が入ると、隠れてしまう。
+- fail-closed (prefix 配下に tracked entry があれば `AssertionError`) は一度実装され、
+  実走で全 snapshot caller が決定的に赤になった。正当な repository 状態を検査不能にするだけで、
+  隠蔽の害を 1 bit も減らさない。
+
+**却下した選択肢:**
+- prefix 配下の tracked entry を fail-closed で拒否する — 上記のとおり実測で破綻した。
+- `.gitignore` を編集して矛盾を解消する — 別 wave の所有面であり、
+  ignore 規則の意味を変える判断を伴う。
+
+## D1065. snapshot の timestamp 正規化は規則由来 prefix の祖先 directory だけに限る (2026-08-27)
+
+**決定:** `_t080_output_snapshot()` は、規則由来 ignored prefix の**祖先である directory**
+(root を含む) についてだけ `st_size` / `st_mtime_ns` / `st_ctime_ns` を正規化する。
+祖先でない directory、regular file、symlink の metadata は保持する。
+wildcard 規則は最初の wildcard より手前の静的 prefix 以下の subtree 全体を祖先扱いする。
+tracked path の祖先も正規化対象に加える。
+
+**理由:**
+- ignored な子の新規作成は祖先 directory の mtime を動かす。除外したはずの事象が
+  祖先 entry から漏れ、並行 shard の書き込みが偽赤になっていた。
+- 一律に全 directory の timestamp を捨てると、git-visible path の一時作成後削除が
+  捉えられなくなる。祖先だけに限ればその検出力を保てる。
+- 祖先集合を**規則 bytes からだけ**導けば before / after で不変になる。
+  実在から導くと正規化対象自体が窓の中で変わり、新しい状態依存を持ち込む。
+  D1063 が先に成立していることが前提である。
+- 変更前は「一時作成後削除も timestamp で捉える」と docstring が謳いながら、
+  それを独立に確かめる検査が存在しなかった。祖先でない directory での
+  一時作成後削除を検査する control を新設し、初めて検証可能にした。
+
+**却下した選択肢:**
+- 全 directory を一律に正規化する — 検出力を落とし、しかも捨てた検出力が
+  検証されていなかったことを固定化する。
+- inotify で区間中の event を記録する — helper を context manager 化し、
+  動的 watch、短命 event、queue overflow、Linux 固有性、全 call site の変更を伴う。
+- 並行 writer を観測 root の外へ移す — 恒久解だが acceptance runner と
+  task-run の配線変更を伴い、本 wave の scope を超える。

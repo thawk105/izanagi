@@ -19,6 +19,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/b10_backoff_shape_campaign.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS B10 backoff-shape measurement campaign job body",
+      "primary_gate": "PBS allocation and job-body compute-host preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",
       "reason": "PBS calibration job body",
@@ -263,6 +269,12 @@
       "class": "local-ok",
       "reason": "login-side PBS B-10 three-workload submitter",
       "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
+    "tools/pegasus/submit_b10_backoff_shape.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS B10 backoff-shape campaign submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
       "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_certify.sh": {
