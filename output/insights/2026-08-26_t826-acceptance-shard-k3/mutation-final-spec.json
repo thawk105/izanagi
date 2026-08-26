@@ -1,0 +1,165 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "m01-drop-injection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    environment = dict(os.environ)\n    environment[_ACCEPTANCE_SHARDS_ENV] = _PEGASUS_ACCEPTANCE_SHARDS\n    return environment",
+          "new": "    return None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_empty_acceptance_shard_request_is_injected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_pegasus_login_acceptance_launcher_adds_three_shards_only",
+        "orchestrator/tests/test_dev_wave_wait.py::test_standalone_waiter_sys_path_resolves_shard_injection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02-constant-two",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "_PEGASUS_ACCEPTANCE_SHARDS = \"3\"",
+          "new": "_PEGASUS_ACCEPTANCE_SHARDS = \"2\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_empty_acceptance_shard_request_is_injected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_pegasus_login_acceptance_launcher_adds_three_shards_only",
+        "orchestrator/tests/test_dev_wave_wait.py::test_standalone_waiter_sys_path_resolves_shard_injection",
+        "orchestrator/tests/test_run_tests_shards.py::test_waiter_three_shard_cross_contract_is_eligible"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03-constant-four",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "_PEGASUS_ACCEPTANCE_SHARDS = \"3\"",
+          "new": "_PEGASUS_ACCEPTANCE_SHARDS = \"4\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_empty_acceptance_shard_request_is_injected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_pegasus_login_acceptance_launcher_adds_three_shards_only",
+        "orchestrator/tests/test_dev_wave_wait.py::test_standalone_waiter_sys_path_resolves_shard_injection",
+        "orchestrator/tests/test_run_tests_shards.py::test_waiter_three_shard_cross_contract_is_eligible"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04-site-gate-always-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        if not site_policy.is_pegasus_login(site_policy.current_site()):\n            return None",
+          "new": "        if False:\n            return None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_launcher_site_error_keeps_inherited_environment",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_pegasus_acceptance_launcher_does_not_inject_shards"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05-site-gate-always-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        if not site_policy.is_pegasus_login(site_policy.current_site()):\n            return None",
+          "new": "        if True:\n            return None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_empty_acceptance_shard_request_is_injected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_pegasus_login_acceptance_launcher_adds_three_shards_only",
+        "orchestrator/tests/test_dev_wave_wait.py::test_standalone_waiter_sys_path_resolves_shard_injection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06-drop-inherited-env",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    environment = dict(os.environ)\n    environment[_ACCEPTANCE_SHARDS_ENV] = _PEGASUS_ACCEPTANCE_SHARDS",
+          "new": "    environment = {}\n    environment[_ACCEPTANCE_SHARDS_ENV] = _PEGASUS_ACCEPTANCE_SHARDS"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_pegasus_login_acceptance_launcher_adds_three_shards_only"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07-queue-gate-tautology",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if not (\n        type(queue_result) is tuple\n        and len(queue_result) == 2\n        and queue_result[0] is True\n        and type(queue_result[1]) is str\n        and \"ENA=ENA\" in queue_result[1]\n        and \"STS=ACT\" in queue_result[1]\n    ):\n        return None",
+          "new": "    if False:\n        return None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_launcher_queue_not_confirmed_keeps_inherited_environment[contract-drift]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_launcher_queue_not_confirmed_keeps_inherited_environment[observation-unavailable-fail-open]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_launcher_queue_not_confirmed_keeps_inherited_environment[unavailable]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08-empty-string-not-unset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if os.environ.get(_ACCEPTANCE_SHARDS_ENV) not in {None, \"\"}:\n        return None",
+          "new": "    if os.environ.get(_ACCEPTANCE_SHARDS_ENV) is not None:\n        return None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_empty_acceptance_shard_request_is_injected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09-drop-sys-path-root",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\nif _REPO_ROOT not in sys.path:\n    sys.path.insert(0, _REPO_ROOT)",
+          "new": "_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_standalone_waiter_sys_path_resolves_shard_injection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

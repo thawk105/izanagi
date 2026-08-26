@@ -17454,3 +17454,136 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   主題で照合する。
 - 再発検知: 再走査で新規に見つかった裁定待ちの件数を索引に明記する
   (0 件でも「再走査して 0 件」と書く)。本 fold ではこの手順が実際に 7 件を拾った。
+
+### F670. 生きた worktree 登録の scan は 2 種の失敗を出すが、台帳は 1 種しか記録していなかった [誤前提] [テスト代表性]
+
+- 事象: F633 は churn 下の失敗を
+  `cannot read worktree registration: file is absent` の 1 種として記録していた。
+  親が実測すると失敗は 2 種あり、`worktree registration changed while reading` も出る。
+  hermetic な churn では 1032 scan 中 798 失敗のうち 57 件 (7%)、実 git の
+  `worktree add` / `worktree remove` を反復させた条件では 634 失敗のうち 1 件 (0.16%) だった。
+  稀だが到達可能である。
+- 根本原因: 消滅は `os.open` の `FileNotFoundError` 経路、読み中変化は読み取り前後の
+  dev/ino/size/mtime_ns 比較の経路で、発火点が別である。**`git worktree add` は登録 dir が
+  列挙可能になってから `gitdir` が完成する窓を持つ**ため、撤去だけでなく**追加**でも失敗する。
+  F633 は撤去の事例しか観測しておらず、消滅だけを吸収する修理案を書いていた。
+  その案は 7% (実 git では 0.16%) を取り残す。
+- 恒久対応: production は未変更のまま、テスト側を hermetic にして観測される赤を閉じた
+  (D1101)。
+  2 種の拒否はそれぞれ専用の負例テストが固定し、変異
+  `M5-registration-read-tolerates-absence` と
+  `M10-registration-read-accepts-non-regular`、および読み中変化の負例で KILLED を実測した。
+  production 側の競合そのものは受理集合を変えるため裁定へ送った。
+- 再発検知: 修理案が「消滅」だけを名指しして種別で閉じた条件を持つなら本件である。
+  親の実測値 (所要中央値 17.391 ms、最大 808.553 ms、44 登録) と、
+  取り直し 3 回でも連続 churn 下で 1.5% 残る点を前提に読む。
+
+### F671. 事前登録した変異を確実に赤にする node が 1 つも存在しなかった [恒真ゲート] [手順漏れ]
+
+- 事象: 親は段 4 で「登録読み取りの `missing_ok` 化」と「symlink 拒否の除去」を KILLED 期待で
+  変異登録した。段 6 のレビューが、その 2 つを決定的に赤にする node が**変更前から存在しない**
+  ことを見つけた。hermetic 骨格も実 repository も正常な regular file しか置かないため、
+  欠落・symlink・非 regular・登録経路の読み中変化を踏む経路が 1 つも無かった。
+  既存の `test_git_common_dir_preserves_missing_registered_worktree_claim` は
+  「登録ファイルの欠落」ではなく「登録先 worktree の欠落」を検査する別物である。
+- 根本原因: 親が変異位置を「production の拒否がある場所」から選び、
+  **その拒否を踏むテスト入力が実在するかを確認しなかった**。DW-M01 が要求する
+  「無効化時の赤理由が一つに絞れることをコードで確認する」を、拒否の実在確認で代用していた。
+- 恒久対応: 負例 4 件 (欠落・symlink・非 regular・読み中変化) を新設してから変異を登録し直し、
+  本走で 4 件すべて KILLED を実測した。さらに DW-M08 の反実仮想走で、この 4 負例を取り除くと
+  3 件が SURVIVED に戻ることを実測して寄与を分離した。
+- 再発検知: 変異の期待 node 欄を書くとき、その node が**変異前に緑で、変異後に赤になる**ことを
+  probe で観測していない場合は本件を疑う。probe を全件 SURVIVED 期待で回すと観測 node が出る。
+
+### F672. land 側の登録 path 解決が EINTR で落ち、一時的な基盤障害が非再試行の内容失敗として分類された [誤前提] [手順漏れ]
+
+- 事象: 本 wave の land 再挑戦 (2026-08-27 00:17 JST) が `rc=31 status=fold-gate-failed` で止まった。
+  本文は
+  `fold gate failed: registered worktree path cannot be resolved: [Errno 4] Interrupted system call:
+  '<共有 repo>/.claude/worktrees/dev-wave-t1879-cir-cvn'`
+  で、返り値は `release_safe=true` / `retryable_same_request=false`。main は 1 bit も動いていない。
+  直前の 2 回は `rc=11` (lock-busy) で、修理着地後に複数 wave が一斉に land する負荷の下で起きた。
+- 根本原因: `tools/dev_wave_land.py` の `_registered_worktree_paths` は
+  `git worktree list --porcelain` の結果を `Path(...).resolve(strict=True)` で解決するが、
+  **`OSError` を一律に `_FoldGateFailure` へ変換する。** 同 class の既定は
+  `retryable_same_request=False` なので、`EINTR` のような**明らかに一時的な syscall 中断**が
+  「同じ request では再試行できない内容の失敗」として報告される。
+  一時障害用の subclass `_FoldGateInfrastructureFailure` は存在するのに使われていない。
+  自分の wave と無関係な worktree (別 wave のもの) の path 解決で発火する点も同型である。
+- 恒久対応: 未実施。受理集合と retry 意味論 (D977 が registry を正とする) に触るため裁定へ送った。
+  当面は受入を取り直して新しい request を作るしかなく、緑の全走 1 本を捨てることになる。
+- 再発検知: land の `status=fold-gate-failed` で本文に `registered worktree path cannot be resolved`
+  が出て、括弧内が `Errno 4` / `Errno 11` などの一時エラー、かつ path が**自分の wave のものでない**なら
+  本件である。`main_before == main_after` で main は無傷なので、受入をやり直せば進める。
+  一斉着地の直後 (他 wave の land が並ぶ時間帯) が窓である。
+
+### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
+
+- 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
+  それを根拠に「有界な取り直しは受理集合を変えない」と暫定裁定した。段 3 のレンズが、
+  その性質は**現行コードに存在しない**ことを示した。列挙した admin 名から `gitdir` を開くまでの
+  間に同名 admin を作り直す ABA も、列挙後に増えた登録も検出していない。
+  暫定裁定の前提そのものが偽だった。
+- 根本原因: 不変条件の欄に「守りたい性質」と「現に成立している性質」を書き分けず、
+  前者を後者として扱った。DW-S01 は「brief 前に承認済み裁定と引数の前提を実測する」と定めるが、
+  親は依頼の前提 (競合の実在) だけを実測し、**自分が書いた不変条件の実在を実測しなかった。**
+- 恒久対応: 未実施 (`docs/dev-wave/**` の L1 層予算に 174 bytes 入らず、D782 / D961 の手順で
+  収容先を本台帳とした。上限引き上げには至っていない)。当面の歯止めは本エントリの再発検知と、
+  DW-S01 の既存義務「brief 前に前提を実測する」を不変条件欄にも適用する運用である。
+- 再発検知: brief の不変条件に「現行はこうなっている」と読める断定があり、その断定に
+  file:line か実測の裏付けが添えられていないなら本件を疑う。段 3 のレンズへ
+  「親 brief の不変条件は現に成立しているか」を明示的に含めると露出する。
+
+### F674. 変異 harness は fixture で落ちる変異を rc=1 でも分類できず停止する [手順漏れ]
+
+- 事象: 空骨格の変異を投入すると harness が
+  `rc=1 だが canonical stdout から failed node を確実に抽出できないため停止` で中止した。
+  job stdout を読むと **42 errors / 0 failures** で、全 hermetic node が `when=setup` で
+  落ちていた。変異は検出されているのに分類できていない。
+- 根本原因: 抽出器は `FAILED ` で始まる行だけを読む。fixture / setup で落ちる node は
+  pytest が `ERROR` として報告するため、`-rf` の出力に `FAILED ` 行が現れない。
+  rc≠0 かつ 0 件は fail-closed 停止の条件なので、正しく止まっている。
+- 恒久対応: 未実施。本 wave では該当 2 変異を登録から外し、親が単発で実測して
+  worklog へ書いた (空骨格 = 42 errors / 0 failures、authority 常時失敗 = live 3 node が FAILED)。
+  抽出契約を `ERROR` 行まで広げるかは受理集合の変更なので裁定へ送った。
+- 再発検知: 変異の効果が fixture・conftest・collection に落ちる位置なら本件である。
+  `IZANAGI_FAILURE_DIGEST_ACCOUNT` の `failed=0 errors=N` が証拠になる。
+
+### F675. 非帰属 flake の規定の是正経路が並行 wave の所有で塞がり、hold 登録という誤った側へ倒れかけた [手順漏れ] [資源競合]
+
+- 事象: 本 wave の受入全走が 2 走続けて `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed`
+  1 件だけで赤になった (17392 passed / 1 failed / 64 skipped、2 走とも同一 node・同一 assertion)。
+  assertion 本文は `child.pid was not registered before deadline; stderr=''` で、
+  子 process が 2 秒の期限内に pid file を書けなかったという時間依存の主張である。
+  同 node の単独走は 1 passed / 7.15 秒で再現しない。本 wave の差分は s8c 事前登録の
+  test 2 file だけで、この経路へ到達しない。**非帰属である。**
+- `DW-O18` は再赤に対して「main 既存の F を証拠に Codex `role=author` が
+  `orchestrator/tests/flaky_test_holds.py` へ登録」を規定する。証拠は F57 が満たしており、
+  検証器の要求 (evidence section が test 関数名と failure signature を逐語で含むこと) も
+  実測で確認した。**それでも登録できなかった。**
+- 根本原因: 是正経路 2 本がどちらも並行 wave の所有下にあった。
+  (a) `orchestrator/tests/flaky_test_holds.py` は 3 wave が触っており、うち 1 つは
+  登録済み hold を全撤去する wave だった。(b) 期限そのものを直す
+  `orchestrator/tests/test_codex_worker_launch.py` も 2 wave の所有下だった。
+- **書き込む前に所有者へ相談したことで、より重い誤りを避けられた。** 相談の結果、
+  同じ node を別 wave (`worktree-dev-wave-t1848-env-coincidence`) が
+  **hold ではなく修理で既に閉じている**ことが分かった。修理は 2 秒の絶対期限を除去して
+  判定を launcher 終了後へ移すもので (`child.pid` は終了後も残る)、外側の 10 秒 watchdog は
+  元のまま、上限は 1 つも広げていない。期限を復活させない回帰検出テストも同時に足されている。
+  **もし所有を押し切って hold を登録していたら、着地の瞬間に「修理済みのテストが台帳に残る」
+  状態を作っていた。**
+- **同じ node で 3 つの wave が独立に詰まり、うち 2 つが hold へ倒れかけた** (1 つは登録後に
+  撤回した)。同型の陳腐化そのものは別 wave が `stale-flaky-hold-outlives-its-fix` として
+  記録しているので、本項では重複させない。
+- **hold の射程を過小評価してはならない。** `conftest.py` の `pytest_collection_modifyitems` は
+  登録 node へ無条件に `pytest.mark.skip(..., append=False)` を付けるため、受入だけでなく
+  焦点走でも常に skip される。登録は「受入から一時的に外す」ではなく
+  「検査集合から落とす」である。
+- 恒久対応: **非帰属赤で hold 登録へ進む前に、(1) 同じ node を別 wave が修理していないか、
+  (2) 是正経路の file を別 wave が所有していないかを、この順で確認する。**
+  どちらかに当たったら書き込まず所有者へ相談する。所有の塞がりが常態化する場合の構造的対処は
+  裁定事項として次の 2 案を残す — (a) hold registry を wave ごとの fragment + fold 方式にして
+  行の奪い合いをなくす、(b) 是正経路の file を編集面重複検査の例外にする。
+  (b) は fail-open の方向に既定値を作るため D445 が同型の allowlist 案を却下した前例がある。
+  本件の実地の解は (a) でも (b) でもなく**別 wave による修理**だった。
+- 再発検知: 受入が非帰属赤で 2 走連続して落ち、かつ是正経路の file が別 wave の所有下にある状態。

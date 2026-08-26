@@ -174,6 +174,15 @@ def test_acceptance_shard_request_closed_positive_values(value, expected):
     assert RT._acceptance_shard_request(environ) == expected
 
 
+def test_waiter_three_shard_cross_contract_is_eligible() -> None:
+    assert DW._PEGASUS_ACCEPTANCE_SHARDS == "3"
+    request = RT._acceptance_shard_request(
+        {RT._ACCEPTANCE_SHARDS_ENV: "3"}
+    )
+    assert request == 3
+    assert _resolve_shards(request) == 3
+
+
 @pytest.mark.parametrize("value", ["0", "4", " 1", "1 ", "02", "serial"])
 def test_acceptance_shard_request_invalid_values_are_rc16_inputs(value):
     with pytest.raises(ValueError):
