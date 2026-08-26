@@ -81,6 +81,15 @@ title: [T-1798] 床値 SWO oracle の依存材料を規則で導出した canoni
   `git ls-files -o -i` が**実在する** untracked ignored path しか返さないため、`output/runs` が
   実在しない新しい作業ツリーでは必ず落ちる。`.gitignore` に規則自体はあり、共有 checkout では通る。
   本 wave の差分と無関係で、変異 baseline ではこの根拠により deselect した。
+- **受入全走の初回 (tested main `1e2efc89`) は 5 failed / 17135 passed / 64 skipped で rc=70、
+  receipt は発行されなかった。** 赤の内訳は自分起因 2 件と非帰属 3 件である。両方を解消してから
+  投げ直し、`child-green`・red 0・flake 0 の receipt を得た。値の正本は receipt である。
+- **親は受入と記録の順序を誤って land を 1 度 rc=23 で弾かれた。** 受入結果そのものを記録へ
+  書き足した commit を `--landing-wave-tip-sha` へ渡したが、この flag は forward main merge
+  (2 親の merge commit) だけを受ける経路であり、通常 commit は
+  `forward main merge first-parent commit must have exactly two parents` で拒否される。
+  受入結果を記録に含めようとすると循環するので、記録は回数や件数に依存しない書き方にし、
+  値の正本を receipt に置いて、記録を終えた tip で受入を投げる順序へ直した。
 - **受入全走が親の焦点走の漏れを 1 件見つけた。** 新設 module の VCS 照会 helper が
   レビュー済みの process 起動 site inventory に載っておらず 2 件が赤になった。
   「新しい process 起動は review で分類されるまで通さない」という防壁が正しく発火したもので、
