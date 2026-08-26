@@ -89,6 +89,10 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
   **この lookup は起動した作業木の台帳を読む。** wave の作業木は wave 開始時点で止まっており、
   その間に別 wave が同じ item を書き換えていることがあるので、**digest は land 先の
   local main の現物に対して取る**。作業木の値で書くと fold が停止する。
+  main を取り込まずに取るなら `docs/worklog.md` だけでは足りない。carry 鎖が
+  過去エントリを指すため `docs/archive/` も同時に借りないと `carry-reference` で
+  invalid になる。`git checkout <main> -- docs/` で一式を借り、lookup 後に
+  `git checkout HEAD -- docs/` と、main にだけ在る path の除去で作業木を戻す。
 - `見送り` は `docs/phase3.md` の見送り台帳に**実在する H3 名**を H4 として指定し、`理由:` を必ず書く。
 - item の継続行は 2 space インデントにする。
 - エントリ番号・日付・carry stub `- [T-NNN] (N)` の N は **fold が付ける**。fragment に書かない。
