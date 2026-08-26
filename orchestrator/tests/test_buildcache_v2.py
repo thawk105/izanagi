@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import json
 import os
+import platform
 import shutil
 import stat
 import subprocess
@@ -2870,159 +2872,499 @@ def test_secure_copyout_environment_contract_accepts_delegate_wrappers(
     buildcache._require_secure_fs_contract()
 
 
-def test_close_fds_best_effort_closes_all_and_reraises_first_error(monkeypatch):
-    """F-1: later fd closes run even when earlier close calls report errors."""
-    baseline = len(os.listdir("/proc/self/fd"))
-    fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(3)]
-    real_close = buildcache.os.close
-    calls = []
+_KCMP_FILE = 0
+_KCMP_SYSCALL_BY_MACHINE = {
+    "aarch64": 272,
+    "arm64": 272,
+    "armv7l": 378,
+    "i386": 349,
+    "i686": 349,
+    "ppc64": 354,
+    "ppc64le": 354,
+    "riscv64": 272,
+    "s390x": 343,
+    "x86_64": 312,
+}
 
-    def close_then_report_error(fd):
-        real_close(fd)
-        calls.append(fd)
-        if len(calls) in {1, 2}:
-            raise OSError(f"injected-close-{len(calls)}")
 
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-close-1"):
-        buildcache._close_fds_best_effort(fds)
-    assert calls == fds
-    assert len(os.listdir("/proc/self/fd")) == baseline
+def _fd_kernel_identities(
+        *, exclude: frozenset[int] = frozenset(),
+) -> tuple[tuple[int, int, int, int, int], ...]:
+    """Enumerate live fds, or explicitly reject an unusable procfs view."""
+    try:
+        names = os.listdir("/proc/self/fd")
+    except OSError as exc:
+        raise RuntimeError(
+            "fd open-description guard unavailable: cannot enumerate "
+            "/proc/self/fd"
+        ) from exc
+    identities = []
+    for name in names:
+        if not name.isdecimal():
+            continue
+        fd = int(name)
+        if fd in exclude:
+            continue
+        try:
+            info = os.fstat(fd)
+        except OSError:
+            continue
+        identities.append((
+            fd,
+            info.st_dev,
+            info.st_ino,
+            stat.S_IFMT(info.st_mode),
+            info.st_rdev,
+        ))
+    if not identities:
+        raise RuntimeError(
+            "fd open-description guard unavailable: /proc/self/fd exposed "
+            "no live descriptors"
+        )
+    return tuple(sorted(identities))
+
+
+def _same_open_description(left_fd: int, right_fd: int) -> bool:
+    machine = platform.machine().lower()
+    syscall_number = _KCMP_SYSCALL_BY_MACHINE.get(machine)
+    if syscall_number is None:
+        raise RuntimeError(
+            "fd open-description guard unavailable: no kcmp syscall number "
+            f"for architecture {machine!r}"
+        )
+    syscall = ctypes.CDLL(None, use_errno=True).syscall
+    syscall.restype = ctypes.c_long
+    ctypes.set_errno(0)
+    result = syscall(
+        syscall_number,
+        os.getpid(),
+        os.getpid(),
+        _KCMP_FILE,
+        left_fd,
+        right_fd,
+    )
+    if result < 0:
+        error_number = ctypes.get_errno()
+        raise RuntimeError(
+            "fd open-description guard unavailable: "
+            f"kcmp(KCMP_FILE) failed with errno {error_number} "
+            f"({os.strerror(error_number)})"
+        )
+    return result == 0
+
+
+def _capture_fd_description_snapshot():
+    """Keep one duplicate of every baseline open description for comparison."""
+    kernel_identities = _fd_kernel_identities()
+    keepers: dict[int, int] = {}
+    try:
+        for identity in kernel_identities:
+            fd = identity[0]
+            keepers[fd] = os.dup(fd)
+        for fd, keeper_fd in keepers.items():
+            if not _same_open_description(fd, keeper_fd):
+                raise RuntimeError(
+                    "fd open-description guard unavailable: dup did not retain "
+                    f"open description for fd {fd}"
+                )
+    except BaseException:
+        for keeper_fd in keepers.values():
+            os.close(keeper_fd)
+        raise
+    before = tuple((*identity, 0) for identity in kernel_identities)
+    return before, keepers
+
+
+def _fd_identities_against_snapshot(before, keepers):
+    """Assign generation 0 only to fds retaining their baseline description."""
+    before_by_fd = {identity[0]: identity for identity in before}
+    after = []
+    for identity in _fd_kernel_identities(
+            exclude=frozenset(keepers.values()),
+    ):
+        fd = identity[0]
+        generation = 1
+        if fd in before_by_fd and _same_open_description(fd, keepers[fd]):
+            generation = 0
+        after.append((*identity, generation))
+    return tuple(after)
+
+
+def _close_fd_description_snapshot(keepers) -> None:
+    for keeper_fd in keepers.values():
+        os.close(keeper_fd)
+
+
+def _fd_identity_delta(before, after):
+    before_set = set(map(tuple, before))
+    after_set = set(map(tuple, after))
+    return (
+        tuple(sorted(before_set - after_set)),
+        tuple(sorted(after_set - before_set)),
+    )
+
+
+def _same_inode_open_description_swap_probe() -> dict[str, object]:
+    """Replace /dev/null at the same fd number and expose the generation change."""
+    target_fd = os.open(os.devnull, os.O_RDONLY)
+    before = ()
+    keepers = {}
+    replacement_fd = None
+    try:
+        before, keepers = _capture_fd_description_snapshot()
+        os.close(target_fd)
+        replacement_fd = os.open(os.devnull, os.O_RDONLY)
+        if replacement_fd != target_fd:
+            raise AssertionError(
+                "same-inode swap probe did not reuse the closed fd number"
+            )
+        after = _fd_identities_against_snapshot(before, keepers)
+        before_identity = next(row for row in before if row[0] == target_fd)
+        after_identity = next(row for row in after if row[0] == target_fd)
+        removed, added = _fd_identity_delta(before, after)
+        return {
+            "before_count": len(before),
+            "after_count": len(after),
+            "before_identity": before_identity,
+            "after_identity": after_identity,
+            "removed": removed,
+            "added": added,
+        }
+    finally:
+        if replacement_fd is not None:
+            os.close(replacement_fd)
+        elif not keepers:
+            os.close(target_fd)
+        _close_fd_description_snapshot(keepers)
+
+
+def _exception_record(action):
+    try:
+        action()
+    except BaseException as exc:
+        return {"type": type(exc).__name__, "message": str(exc)}
+    return None
+
+
+def _proc_unavailable_guard_probe() -> dict[str, str] | None:
+    """Prove that an unavailable procfs view is diagnosed instead of ignored."""
+    patch = pytest.MonkeyPatch()
+    original_listdir = os.listdir
+
+    def deny_proc_fd(path):
+        if os.fspath(path) == "/proc/self/fd":
+            raise PermissionError("injected procfs denial")
+        return original_listdir(path)
+
+    try:
+        patch.setattr(os, "listdir", deny_proc_fd)
+        return _exception_record(_capture_fd_description_snapshot)
+    finally:
+        patch.undo()
+
+
+def _clean_fd_identity_case(case: str, tmp_path: Path) -> dict[str, object]:
+    """Run one fd-ownership fault in a fresh interpreter and report its full delta."""
+    patch = pytest.MonkeyPatch()
+    report: dict[str, object] = {}
+    cleanup_fds: list[int] = []
+    before = ()
+    keepers = {}
+    try:
+        if case == "close-fds-best-effort":
+            before, keepers = _capture_fd_description_snapshot()
+            fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(3)]
+            cleanup_fds.extend(fds)
+            real_close = buildcache.os.close
+            calls = []
+
+            def close_then_report_error(fd):
+                real_close(fd)
+                calls.append(fd)
+                if len(calls) in {1, 2}:
+                    raise OSError(f"injected-close-{len(calls)}")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(
+                lambda: buildcache._close_fds_best_effort(fds)
+            )
+            report.update(error=error, calls=calls, expected=fds)
+        elif case == "copied-binary":
+            before, keepers = _capture_fd_description_snapshot()
+            source_fd = os.open(os.devnull, os.O_RDONLY)
+            destination_fd = os.open(os.devnull, os.O_RDONLY)
+            first_dir_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            cleanup_fds.extend((
+                source_fd, destination_fd, first_dir_fd, parent_fd,
+            ))
+            copied = buildcache._CopiedBinary(
+                source_fd=source_fd,
+                destination_fd=destination_fd,
+                destination_parent_fd=parent_fd,
+                destination_name="unused",
+                directory_fds=[first_dir_fd, parent_fd],
+                destination_path="unused",
+            )
+            expected = copied._owned_fds()
+            real_close = buildcache.os.close
+            calls = []
+
+            def close_then_report_error(fd):
+                real_close(fd)
+                calls.append(fd)
+                if len(calls) == 1:
+                    raise OSError("injected-copied-close")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(copied.close)
+            report.update(error=error, calls=calls, expected=expected)
+        elif case == "directory-traversal":
+            before, keepers = _capture_fd_description_snapshot()
+            real_close = buildcache.os.close
+            injected = False
+
+            def close_then_report_error(fd):
+                nonlocal injected
+                real_close(fd)
+                if not injected:
+                    injected = True
+                    raise OSError("injected-traversal-close")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(
+                lambda: buildcache._open_or_create_directory_path(
+                    str(tmp_path / "child")
+                )
+            )
+            report.update(error=error, injected=injected)
+        elif case.startswith("leaf:"):
+            opener_name = case.partition(":")[2]
+            leaf = tmp_path / "leaf"
+            leaf.write_bytes(b"leaf")
+            root_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            cleanup_fds.append(root_fd)
+            before, keepers = _capture_fd_description_snapshot()
+            real_close = buildcache.os.close
+            injected = False
+
+            def close_then_report_error(fd):
+                nonlocal injected
+                real_close(fd)
+                if not injected:
+                    injected = True
+                    raise OSError("injected-leaf-parent-close")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            opener = getattr(buildcache, opener_name)
+            error = _exception_record(
+                lambda: opener(root_fd, "leaf", label="test leaf")
+            )
+            report.update(error=error, injected=injected)
+        elif case == "v2-validation":
+            _install_toolchain(tmp_path, patch)
+            _fake_build_environment(patch, tmp_path)
+            first = _call_copyout_api(tmp_path, "v2")
+            bdir_identity = buildcache._stat_identity(os.stat(first.build_dir))
+            before, keepers = _capture_fd_description_snapshot()
+            real_open_regular = buildcache._open_regular_at
+            real_close = buildcache.os.close
+            binary_opened = False
+            injected = False
+
+            def observe_binary_open(root_fd, relpath, *, label):
+                nonlocal binary_opened
+                result = real_open_regular(root_fd, relpath, label=label)
+                if label.startswith("v2 cached binary "):
+                    binary_opened = True
+                return result
+
+            def close_then_report_error(fd):
+                nonlocal injected
+                is_bdir = buildcache._stat_identity(os.fstat(fd)) == bdir_identity
+                real_close(fd)
+                if binary_opened and is_bdir and not injected:
+                    injected = True
+                    raise OSError("injected-v2-bdir-close")
+
+            patch.setattr(buildcache, "_open_regular_at", observe_binary_open)
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(
+                lambda: _call_copyout_api(tmp_path, "v2")
+            )
+            report.update(
+                error=error,
+                binary_opened=binary_opened,
+                injected=injected,
+            )
+        elif case == "mkdir-open-at":
+            parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            cleanup_fds.append(parent_fd)
+            before, keepers = _capture_fd_description_snapshot()
+
+            def fail_fchmod(fd, mode):
+                raise OSError("injected-fchmod")
+
+            patch.setattr(buildcache.os, "fchmod", fail_fchmod)
+            error = _exception_record(
+                lambda: buildcache._mkdir_open_at(
+                    parent_fd, "half-created", label="test directory"
+                )
+            )
+            report.update(
+                error=error,
+                entry_exists=(tmp_path / "half-created").exists(),
+            )
+        else:
+            raise AssertionError(f"unknown clean fd identity case: {case}")
+    finally:
+        patch.undo()
+    try:
+        after = _fd_identities_against_snapshot(before, keepers)
+        removed, added = _fd_identity_delta(before, after)
+        report.update(
+            before=before,
+            after=after,
+            removed=removed,
+            added=added,
+            same_inode_swap=_same_inode_open_description_swap_probe(),
+            proc_unavailable=_proc_unavailable_guard_probe(),
+        )
+        return report
+    finally:
+        _close_fd_description_snapshot(keepers)
+        for fd in cleanup_fds:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+def _run_clean_fd_identity_case(case: str, tmp_path: Path) -> dict[str, object]:
+    environment = dict(os.environ)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, sys; from pathlib import Path; "
+                "from orchestrator.tests import test_buildcache_v2 as tests; "
+                "print(json.dumps(tests._clean_fd_identity_case("
+                "sys.argv[1], Path(sys.argv[2])), sort_keys=True))"
+            ),
+            case,
+            str(tmp_path),
+        ],
+        cwd=_ORCH.parent,
+        env=environment,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stderr == ""
+    return json.loads(completed.stdout)
+
+
+def _assert_full_fd_identity_guard(probe: dict[str, object]) -> None:
+    """Accept equality and reject a same-fd, same-inode description swap."""
+    before = probe["before"]
+    after = probe["after"]
+    assert before
+    assert _fd_identity_delta(before, before) == ((), ())
+    swap = probe["same_inode_swap"]
+    assert swap["before_count"] == swap["after_count"]
+    assert swap["before_identity"][:5] == swap["after_identity"][:5]
+    assert swap["before_identity"][5] == 0
+    assert swap["after_identity"][5] == 1
+    assert swap["removed"] == [swap["before_identity"]]
+    assert swap["added"] == [swap["after_identity"]]
+    assert probe["proc_unavailable"] == {
+        "type": "RuntimeError",
+        "message": (
+            "fd open-description guard unavailable: cannot enumerate "
+            "/proc/self/fd"
+        ),
+    }
+    assert _fd_identity_delta(before, after) == ((), ())
+
+
+def test_close_fds_best_effort_closes_all_and_reraises_first_error(
+        tmp_path, monkeypatch):
+    """Returning to parent-process fd counts misses a count-preserving leaked identity."""
+    probe = _run_clean_fd_identity_case("close-fds-best-effort", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-close-1",
+    }
+    assert probe["calls"] == probe["expected"]
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_copied_binary_close_error_does_not_leak_later_fds(tmp_path, monkeypatch):
-    """F-1: _CopiedBinary.close owns every fd until all close attempts finish."""
-    baseline = len(os.listdir("/proc/self/fd"))
-    source_fd = os.open(os.devnull, os.O_RDONLY)
-    destination_fd = os.open(os.devnull, os.O_RDONLY)
-    first_dir_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    copied = buildcache._CopiedBinary(
-        source_fd=source_fd,
-        destination_fd=destination_fd,
-        destination_parent_fd=parent_fd,
-        destination_name="unused",
-        directory_fds=[first_dir_fd, parent_fd],
-        destination_path="unused",
-    )
-    expected = copied._owned_fds()
-    real_close = buildcache.os.close
-    calls = []
-
-    def close_then_report_error(fd):
-        real_close(fd)
-        calls.append(fd)
-        if len(calls) == 1:
-            raise OSError("injected-copied-close")
-
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-copied-close"):
-        copied.close()
-    assert calls == expected
-    assert len(os.listdir("/proc/self/fd")) == baseline
+    """Returning to parent-process fd counts misses a count-preserving copied-fd leak."""
+    probe = _run_clean_fd_identity_case("copied-binary", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-copied-close",
+    }
+    assert probe["calls"] == probe["expected"]
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_directory_traversal_close_error_does_not_lose_child_fd(tmp_path, monkeypatch):
-    """F-1: child ownership is registered before its parent close can fail."""
-    baseline = len(os.listdir("/proc/self/fd"))
-    real_close = buildcache.os.close
-    injected = False
-
-    def close_then_report_error(fd):
-        nonlocal injected
-        real_close(fd)
-        if not injected:
-            injected = True
-            raise OSError("injected-traversal-close")
-
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-traversal-close"):
-        buildcache._open_or_create_directory_path(str(tmp_path / "child"))
-    assert len(os.listdir("/proc/self/fd")) == baseline
+    """Returning to parent-process fd counts misses a count-preserving traversal leak."""
+    probe = _run_clean_fd_identity_case("directory-traversal", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-traversal-close",
+    }
+    assert probe["injected"] is True
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 @pytest.mark.parametrize("opener_name", ["_open_regular_at", "_open_source_regular_at"])
 def test_leaf_open_parent_close_error_does_not_lose_leaf_fd(
         tmp_path, monkeypatch, opener_name):
-    """G-1: leaf ownership transfers only after auxiliary parent fds close."""
-    leaf = tmp_path / "leaf"
-    leaf.write_bytes(b"leaf")
-    root_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    baseline = len(os.listdir("/proc/self/fd"))
-    real_close = buildcache.os.close
-    injected = False
-
-    def close_then_report_error(fd):
-        nonlocal injected
-        real_close(fd)
-        if not injected:
-            injected = True
-            raise OSError("injected-leaf-parent-close")
-
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    try:
-        opener = getattr(buildcache, opener_name)
-        with pytest.raises(OSError, match="injected-leaf-parent-close"):
-            opener(root_fd, "leaf", label="test leaf")
-        assert injected
-        assert len(os.listdir("/proc/self/fd")) == baseline
-    finally:
-        real_close(root_fd)
+    """Returning to parent-process fd counts misses a count-preserving leaf-fd leak."""
+    probe = _run_clean_fd_identity_case(f"leaf:{opener_name}", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-leaf-parent-close",
+    }
+    assert probe["injected"] is True
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_v2_validation_parent_close_error_does_not_lose_result_fd(
         tmp_path, monkeypatch):
-    """G-1: a planned v2-hit result fd returns to cleanup if bdir close fails."""
-    _install_toolchain(tmp_path, monkeypatch)
-    _fake_build_environment(monkeypatch, tmp_path)
-    first = _call_copyout_api(tmp_path, "v2")
-    bdir_identity = buildcache._stat_identity(os.stat(first.build_dir))
-    baseline = len(os.listdir("/proc/self/fd"))
-    real_open_regular = buildcache._open_regular_at
-    real_close = buildcache.os.close
-    binary_opened = False
-    injected = False
-
-    def observe_binary_open(root_fd, relpath, *, label):
-        nonlocal binary_opened
-        result = real_open_regular(root_fd, relpath, label=label)
-        if label.startswith("v2 cached binary "):
-            binary_opened = True
-        return result
-
-    def close_then_report_error(fd):
-        nonlocal injected
-        is_bdir = buildcache._stat_identity(os.fstat(fd)) == bdir_identity
-        real_close(fd)
-        if binary_opened and is_bdir and not injected:
-            injected = True
-            raise OSError("injected-v2-bdir-close")
-
-    monkeypatch.setattr(buildcache, "_open_regular_at", observe_binary_open)
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-v2-bdir-close"):
-        _call_copyout_api(tmp_path, "v2")
-    assert injected
-    assert len(os.listdir("/proc/self/fd")) == baseline
+    """Returning to parent-process fd counts misses a count-preserving v2 result leak."""
+    probe = _run_clean_fd_identity_case("v2-validation", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-v2-bdir-close",
+    }
+    assert probe["binary_opened"] is True
+    assert probe["injected"] is True
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_mkdir_open_at_removes_created_entry_when_post_mkdir_step_fails(
         tmp_path, monkeypatch):
-    """F-6: caller never loses cleanup ownership of a half-created directory."""
-    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    baseline = len(os.listdir("/proc/self/fd"))
-
-    def fail_fchmod(fd, mode):
-        raise OSError("injected-fchmod")
-
-    monkeypatch.setattr(buildcache.os, "fchmod", fail_fchmod)
-    try:
-        with pytest.raises(buildcache.BuildCacheError, match="injected-fchmod"):
-            buildcache._mkdir_open_at(parent_fd, "half-created", label="test directory")
-        assert not (tmp_path / "half-created").exists()
-        assert len(os.listdir("/proc/self/fd")) == baseline
-    finally:
-        os.close(parent_fd)
+    """Returning to parent-process fd counts misses a count-preserving mkdir-fd leak."""
+    probe = _run_clean_fd_identity_case("mkdir-open-at", tmp_path)
+    assert probe["error"]["type"] == "BuildCacheError"
+    assert "injected-fchmod" in probe["error"]["message"]
+    assert probe["entry_exists"] is False
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_mkdir_open_at_reports_original_and_rmdir_cleanup_failures(
