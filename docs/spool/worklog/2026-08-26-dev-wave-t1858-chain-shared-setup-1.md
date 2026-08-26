@@ -62,6 +62,14 @@ title: 受入の排他鎖 2 本を共有化で 42% / 36% 短縮し、鎖はも�
   なお本 wave が採ったのは台帳の 2026-08-25 項と同じ `-n 0` 直列であり、
   古い項が採っていた `--deselect` ではない — `--deselect` は当の group node を走行から外すため、
   鎖そのものを対象にする本 wave では検出力の実証にならない。
+- **受入全走は 2 走とも非帰属の赤で、land できていない。**
+  2 走とも `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` 1 件だけが落ちた
+  (17392 passed / 1 failed / 64 skipped)。assertion は「子が 2 秒以内に pid file を登録しなかった」
+  という時間依存の主張で、単独走は 1 passed / 7.15 秒で再現しない。本 wave の差分 (s8c 事前登録の
+  test 2 file) はこの経路へ到達しない。F57 の既記録と同一の node・同一の assertion 本文である。
+  `DW-O18` が規定する再赤の是正 (flaky hold への登録) は、**経路の file が並行 wave の所有下**で
+  実行できなかった。詳細と恒久対応の候補は {{F:flaky-hold-remediation-blocked-by-ownership}}。
+  **実装・記録・変異はすべて完了しており、残るのは受入 green と land だけである。**
 
 ## 次の一手差分
 
