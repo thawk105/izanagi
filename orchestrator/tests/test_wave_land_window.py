@@ -649,18 +649,24 @@ def test_stale_self_claim_reacquires_instead_of_renewing(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Closing the old lease before reacquire makes the inode inequality accidental again."""
     monkeypatch.setattr(WLW.time, "time", lambda: float(_NOW))
     _claim(tmp_path, _WAVE_A, capsys)
     lease = tmp_path / "acceptance.lease"
-    old_inode = lease.stat().st_ino
-    os.utime(lease, (_NOW - 2401,) * 2)
+    old_lease_fd = os.open(lease, os.O_RDONLY)
+    old_inode = os.fstat(old_lease_fd).st_ino
+    try:
+        os.utime(lease, (_NOW - 2401,) * 2)
 
-    reacquired = _claim(tmp_path, _WAVE_A, capsys, main_sha=_SHA_B)
+        reacquired = _claim(tmp_path, _WAVE_A, capsys, main_sha=_SHA_B)
 
-    assert reacquired["state"] == "acquired"
-    assert reacquired["holder_self"] is True
-    assert reacquired["main_sha"] == _SHA_B
-    assert lease.stat().st_ino != old_inode
+        assert reacquired["state"] == "acquired"
+        assert reacquired["holder_self"] is True
+        assert reacquired["main_sha"] == _SHA_B
+        assert os.fstat(old_lease_fd).st_ino == old_inode
+        assert lease.stat().st_ino != old_inode
+    finally:
+        os.close(old_lease_fd)
 
 
 def test_open_lease_uses_post_flock_metadata_for_stale_decision(

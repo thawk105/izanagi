@@ -110,8 +110,25 @@ def _publish_sigterm_ready(calls, child_pid):
     })
 
 
+def _append_sigterm_stage_event(calls, event, value):
+    trace = calls.with_name("sigterm-stage-trace-v1.jsonl")
+    with trace.open("a", encoding="utf-8") as stream:
+        json.dump(
+            {
+                "schema": "izanagi-mutation-sigterm-stage/v1",
+                "event": event,
+                "value": value,
+            },
+            stream,
+            sort_keys=True,
+        )
+        stream.write("\\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
 @pytest.fixture(scope="session", autouse=True)
-def record_run():
+def record_run(request):
     value = TARGET.read_text(encoding="utf-8").splitlines()[0].split("=", 1)[1].strip()
     calls = Path(os.environ["IZANAGI_MUTATION_TEST_CALLS"])
     mode = os.environ.get("IZANAGI_MUTATION_TEST_MODE")
@@ -124,6 +141,12 @@ def record_run():
         os.fsync(stream.fileno())
     if discovery_written_ns is not None:
         _publish_sigterm_discovery(calls, value, discovery_written_ns)
+    if mode == "hang-three-sigterm-ready" and value == "0":
+        request.addfinalizer(
+            lambda: _append_sigterm_stage_event(calls, "stage-0-complete", value)
+        )
+    elif mode == "hang-three-sigterm-ready" and value == "3":
+        _append_sigterm_stage_event(calls, "stage-3-entered", value)
     dispatch_modes = {
         "hang-three-dispatched",
         "hang-three-dispatched-missing-request",
@@ -2023,9 +2046,11 @@ def test_completed_record_is_flushed_before_next_runner_sigkill(repo: Path) -> N
 def test_sigterm_handler_stops_child_and_restores_active_mutation(
     repo: Path, record_property: Callable[[str, object], None]
 ) -> None:
+    """Returning to elapsed-time stage inference fails the exact pre/post-signal event trace."""
     spec, out, calls, mode = _paths(repo)
     discovery = calls.with_name("sigterm-discovery-v1.json").resolve()
     marker = calls.with_name("sigterm-ready-v1.json").resolve()
+    stage_trace = calls.with_name("sigterm-stage-trace-v1.jsonl").resolve()
     mutation = {
         "id": "H1",
         "category": "negative",
@@ -2090,6 +2115,23 @@ def test_sigterm_handler_stops_child_and_restores_active_mutation(
                 f"value={value!r}"
             )
         return value
+
+    def read_stage_trace() -> list[dict[str, str]]:
+        try:
+            lines = stage_trace.read_text(encoding="utf-8").splitlines()
+        except OSError as exc:
+            pytest.fail(
+                "sigterm causal stage trace is unavailable: "
+                f"path={stage_trace}; error={type(exc).__name__}: {exc}"
+            )
+        try:
+            records = [json.loads(line) for line in lines]
+        except json.JSONDecodeError as exc:
+            pytest.fail(
+                "sigterm causal stage trace is corrupt: "
+                f"path={stage_trace}; error={exc}"
+            )
+        return records
 
     def communicate_or_fail(label: str) -> tuple[str, str]:
         try:
@@ -2269,6 +2311,19 @@ def test_sigterm_handler_stops_child_and_restores_active_mutation(
             )
         assert marker_actual_pgid == pgid
         assert child_actual_pgid == pgid
+        stage_trace_before_signal = read_stage_trace()
+        assert stage_trace_before_signal == [
+            {
+                "schema": "izanagi-mutation-sigterm-stage/v1",
+                "event": "stage-0-complete",
+                "value": "0",
+            },
+            {
+                "schema": "izanagi-mutation-sigterm-stage/v1",
+                "event": "stage-3-entered",
+                "value": "3",
+            },
+        ]
 
         rc = process.poll()
         if rc is not None:
@@ -2295,6 +2350,7 @@ def test_sigterm_handler_stops_child_and_restores_active_mutation(
         )
         ledger = json.loads(out.read_text(encoding="utf-8"))
         assert ledger["mutations"] == []
+        assert read_stage_trace() == stage_trace_before_signal
         assert _calls(calls) == ["0", "3"]
 
         cleanup_deadline = time.monotonic() + 10
