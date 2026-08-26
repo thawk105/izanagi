@@ -64,6 +64,8 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/campaign/campaign_lock.py",
     "orchestrator/campaign/contract_loader_binding.py",
     "orchestrator/campaign/enforcement_source_ratification.py",
+    "orchestrator/campaign/ed25519_verify.py",
+    "orchestrator/campaign/enforcement_source_ratification_receipt.py",
     "orchestrator/campaign/guided.py",
     "orchestrator/campaign/replay.py",
     "orchestrator/qualification/artifacts.py",
@@ -376,7 +378,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 25-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 27-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -1007,7 +1009,7 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (exact 25 path; witness gate、S8C 判定器、"
+        "enforcement source closure (exact 27 path; witness gate、S8C 判定器、"
         "批准比較、receipt 発行・検証面を含む)"
     )
     assert excinfo.value.excluded_scope == (
@@ -1131,7 +1133,7 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 25
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 27
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
@@ -1752,6 +1754,44 @@ def test_v2_resume_authenticates_activation_tuple_before_wal_repair(
 
     assert rejected.value.reason == "activation-tuple-invalid"
     assert wal_path.read_bytes() == before
+
+
+def test_existing_v2_lock_resume_currently_bypasses_signed_ratification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """これは既知の scope 外事項であり、閉じるには lock schema 変更が要る。"""
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    decoded = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text(encoding="utf-8")
+    )
+    authorization = env_contract.authorize("linux-baremetal")
+    cfg = CampaignConfig(
+        spec_slug="campaign",
+        search_tag=decoded.identity["search_tag"],
+        spec_content=decoded.identity["spec_content"],
+        ccbench_commit=decoded.identity["ccbench_commit"],
+        search_config=dict(decoded.identity["search_config"]),
+        trial=decoded.identity["trial"],
+        bound_environment_contract=authorization.contract,
+    )
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+
+    def signed_gate_must_not_run(_binding) -> str:
+        raise AssertionError("existing-lock resume unexpectedly reached signed gate")
+
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "verify_ratified_contract_loader_binding",
+        signed_gate_must_not_run,
+    )
+
+    assert ident.ensure_campaign_identity(
+        cfg,
+        CampaignLayout(root=str(campaign)),
+        admission_policy=context.policy,
+    ) is False
 
 
 def test_post_policy_trigger_proposal_requires_marker_and_complete_binding(tmp_path: Path) -> None:
