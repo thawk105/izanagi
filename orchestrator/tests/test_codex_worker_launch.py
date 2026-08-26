@@ -9,6 +9,7 @@ import inspect
 import json
 import math
 import os
+import queue
 import re
 import signal
 import shutil
@@ -5852,18 +5853,64 @@ def test_manifest_v1_cannot_receive_new_stage_bound_session(
 
 def test_manifest_lock_covers_load_replace_critical_section(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The contender fd must conflict before the critical-order guard proceeds."""
     manifest_path = tmp_path / "manifest.json"
     first_inside = threading.Event()
     release_first = threading.Event()
+    second_lock_conflict_observed = threading.Event()
+    second_inside = threading.Event()
     second_done = threading.Event()
     errors: list[BaseException] = []
+    second_thread_ids: set[int] = set()
+    causal_trace: list[str] = []
+    coordination: queue.SimpleQueue[str] = queue.SimpleQueue()
+    original_flock = LAUNCHER.fcntl.flock
+
+    def observe_flock(fd: int, operation: int) -> None:
+        if (
+            threading.get_ident() in second_thread_ids
+            and operation == LAUNCHER.fcntl.LOCK_EX
+        ):
+            try:
+                original_flock(fd, operation | LAUNCHER.fcntl.LOCK_NB)
+            except BlockingIOError:
+                pass
+            else:
+                original_flock(fd, LAUNCHER.fcntl.LOCK_UN)
+                raise AssertionError(
+                    "job-b manifest contender fd did not conflict with job-a"
+                )
+            causal_trace.append("second-lock-attempt")
+            second_lock_conflict_observed.set()
+            coordination.put("second-lock-attempt")
+        original_flock(fd, operation)
+
+    def wait_for_coordination(reason: str) -> str:
+        # Two seconds matches the existing wait/join watchdogs and only bounds
+        # failure recovery; it is not a scheduling expectation.
+        try:
+            return coordination.get(timeout=2)
+        except queue.Empty:
+            pytest.fail(f"timed out waiting for {reason}", pytrace=False)
 
     def first_hook() -> None:
+        causal_trace.append("first-critical-enter")
         first_inside.set()
-        assert release_first.wait(2)
+        assert release_first.wait(2), (
+            "job-a timed out waiting for the manifest conflict probe to finish"
+        )
+        causal_trace.append("first-critical-exit")
+
+    def second_hook() -> None:
+        causal_trace.append("second-critical-enter")
+        second_inside.set()
+        coordination.put("second-critical-enter")
 
     def append(job_id: str, session_id: str, hook: Any = None) -> None:
+        if job_id == "job-b":
+            second_thread_ids.add(threading.get_ident())
         try:
             snapshot = LAUNCHER.snapshot_authority(_ROOT)
             LAUNCHER._append_manifest(
@@ -5891,6 +5938,7 @@ def test_manifest_lock_covers_load_replace_critical_section(
         finally:
             if job_id == "job-b":
                 second_done.set()
+                coordination.put("second-done")
 
     first = threading.Thread(
         target=append,
@@ -5898,17 +5946,47 @@ def test_manifest_lock_covers_load_replace_critical_section(
     )
     second = threading.Thread(
         target=append,
-        args=("job-b", "bbbbbbbb-0000-4000-8000-000000000002"),
+        args=(
+            "job-b",
+            "bbbbbbbb-0000-4000-8000-000000000002",
+            second_hook,
+        ),
     )
+    monkeypatch.setattr(LAUNCHER.fcntl, "flock", observe_flock)
     first.start()
-    assert first_inside.wait(2)
+    assert first_inside.wait(2), "job-a did not enter the manifest critical section"
     second.start()
-    assert not second_done.wait(0.2)
+    assert wait_for_coordination(
+        "job-b manifest fd to observe a real lock conflict"
+    ) == "second-lock-attempt"
+    assert second_lock_conflict_observed.is_set()
+    probe_fd = os.open(
+        manifest_path.with_name(manifest_path.name + ".lock"),
+        os.O_RDWR | os.O_CREAT,
+        0o600,
+    )
+    try:
+        with pytest.raises(BlockingIOError):
+            fcntl.flock(probe_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    finally:
+        os.close(probe_fd)
+    assert causal_trace == ["first-critical-enter", "second-lock-attempt"]
+    assert not second_inside.is_set()
+    assert not second_done.is_set()
     release_first.set()
     first.join(2)
     second.join(2)
 
+    assert not first.is_alive(), "job-a did not leave the manifest critical section"
+    assert not second.is_alive(), "job-b did not finish after the manifest lock release"
     assert errors == []
+    assert causal_trace == [
+        "first-critical-enter",
+        "second-lock-attempt",
+        "first-critical-exit",
+        "second-critical-enter",
+    ]
+    assert second_inside.is_set()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert [item["job_id"] for item in manifest["sessions"]] == [
         "job-a",
