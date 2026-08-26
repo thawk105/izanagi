@@ -116,7 +116,28 @@ title: [T-1629] 取り残された D905 執行機構を独立監査して回収�
   **所要値は機体負荷で動くので、exact 値 pin が在る限り生成器は永久に使えない**
   (観測差は 39% に達し、量子化の吸収範囲の外)。
   したがって hold 登録は一度きりの回避にならず、恒久的な更新が要る。
-  択一は {{T:acceptance-ledger-coverage-gate}} の裁定パッケージへ返した。
+- **ユーザーが「迂回してでも land しろ、known-violation 登録で進めろ」と指示したが、
+  それより良い道が見つかったので指示から外れた。** 明示して報告した。
+  - **hold 登録は構造的に成立しなかった。** `flaky_test_holds.py` の `evidence_id` は
+    `^F[0-9]+$` かつ `docs/failures.md` に実在することを要求するが、F 番号は land 時の
+    fold でしか生まれず、fold には緑の受入が要る。canonical 台帳は fold だけが書けるという
+    **運用規則との循環**である (コードが禁止しているのではない。codex の訂正を採用)。
+    `reintroduction_task_id` は T 番号の placeholder 表記を許すのに `evidence_id` は
+    許さない、という非対称がある。
+  - **代わりに実測値の追記で実際に直した。** 診断走の JUnit から、pin される 8 接頭辞配下と
+    removed 5 node を除いて 1851 件を追記し、**coverage 89.267882% -> 99.652174%**。
+    既存値の変更は 0 件で、pin 4 本すべてを保存した。
+    **除外は分母を減らさず numerator だけ減らすので coverage を下げる方向にしか働かない。**
+    除外しなければ 100% であり、90% 到達は除外の有無と無関係である。
+  - **4 本目の pin は親が見落としており、並行セッションの指摘で気づいた。**
+    `test_acceptance_schedule_order.py` の G6 pin (無 suffix key の不在、`@real-repo == 0.19`、
+    consumer の suffix fallback、reorder 後の順序)。規則によって結果的に保護されるだけなので、
+    将来 `sort_swo_oracle` を除外から外す判断が出たときに無音で壊れる。
+  - 8 接頭辞配下の 62 件は未被覆のまま残る。収集が 19736 件を超えると再び 90% を割るので、
+    **新規 node 約 1911 件ぶんの余裕**がある。恒久解は {{T:acceptance-ledger-duration-pin}}。
+- **codex と並行セッションの双方に独立判定させ、いずれも「迂回ではなく正当な是正」で一致した。**
+  codex は親の主張 5 件を訂正した。うち「追記 1851 件に失敗中の G5 が含まれる」は
+  **親が実測で否定した** (生成器が failure 行を既に除外しており `G5 in augmented: False`)。
 - **段 8 の自己改善候補 2 件は byte 予算に収まらず、契約どおり編集を止めた。**
   「子は Web 検索禁止が prompt へ自動で入らない」と
   「隔離環境の子は pytest を実走できない」を `DW-O02` / `DW-O05` へ統合しようとしたが、
@@ -163,12 +184,17 @@ title: [T-1629] 取り残された D905 執行機構を独立監査して回収�
   変わると過去の不正を取り逃す。v1 も同一構造。外部の固定実行器を要する。
 - {{T:qualification-signed-gate}} **P3・新規**: qualification lane へ署名 gate を付けるかは
   evidence-only lane の意味を変えるため別裁定とする。
-- {{T:acceptance-ledger-coverage-gate}} **P1・ユーザー裁定待ち・repo 全体の blocker**:
-  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` が main 単独で赤で、
-  **受入を通す全 wave が塞がっている**。択一は (α) 全面再生成 + pin 18 件更新 /
-  (β) 不足 6〜18 件の部分追記 (現行 tool では不可、join mode の新設が要る) /
-  (γ) F 起票 + hold (恒久更新になる) / (δ) 所要値 pin を性質述語へ置き換えてから (α)。
-  実測は `output/insights/2026-08-27_t1629-ratification-broker/ruling-package.md`。
+- {{T:acceptance-ledger-duration-pin}} **P2・新規**: `test_t1574_changed_suite_ledger_node_delta_is_exact`
+  の `added` 12 node は**実測所要値を exact に固定**している。所要は機体負荷で動くので、
+  **この pin が在る限り生成器は永久に使えない** (本 wave の実測で 12/12 不一致、差は 39% に達した)。
+  そのため本 wave は追記で回避し、8 接頭辞配下 62 件を未被覆のまま残した。
+  恒久解は pin を値の性質を見る述語 (有限・非負・上限、あるいは相対誤差) へ置き換えること。
+  そうすれば生成器が再び使え、未被覆も解ける。
+- {{T:flaky-hold-evidence-id-circularity}} **P2・新規**: `flaky_test_holds.py` の `evidence_id` は
+  `^F[0-9]+$` かつ `docs/failures.md` に実在することを要求するが、F 番号は land 時の fold でしか
+  生まれず、fold には緑の受入が要る。**同一 wave 内で新種の赤を hold 登録できない。**
+  `reintroduction_task_id` は T 番号の placeholder 表記を許すので、`evidence_id` も
+  同じ表記を許すか、fold と hold の順序を変えるかの裁定が要る。
 - {{T:dev-wave-web-search-prompt}} **P2・新規**: `DW-C01` の「子は Web 検索禁止」が
   子の prompt へ自動で入らない。本 wave は書き落として 2 回全損した (約 47 分・約 9M token)。
   `DW-O02` へ統合しようとしたが L1.5 の byte 予算に 292 bytes 収まらず revert した。
