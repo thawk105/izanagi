@@ -1662,25 +1662,13 @@ def _validate_real_repo_shard_state(config) -> None:
 
 
 def _strip_real_repo_loadgroup_suffix(item) -> bool:
-    """Split resource nodes while retaining exact process-memo work units."""
+    """Strip xdist's suffix except from exact process-memo work units."""
     node_id = _real_repo_node_id(item)
     if node_id not in REAL_REPO_RESOURCE_NODES:
         return False
     current = str(getattr(item, "nodeid", ""))
     suffix = "@real-repo"
     if node_id in REAL_REPO_PROCESS_MEMO_NODES:
-        if current.endswith(suffix):
-            return False
-        # Standalone collection probes do not activate xdist loadgroup, so
-        # xdist does not materialize its marker as a nodeid suffix.  Keep the
-        # process-memo contract identical in that collection context too.
-        if _acceptance_loadgroup_scope(current) != current:
-            return False
-        preserved = f"{current}{suffix}"
-        if hasattr(item, "_nodeid"):
-            item._nodeid = preserved
-        else:
-            item.nodeid = preserved
         return False
     if not current.endswith(suffix):
         return False

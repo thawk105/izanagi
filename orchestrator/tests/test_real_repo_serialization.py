@@ -1121,18 +1121,17 @@ def _assert_no_direct_xdist_group_decorators(
 
 
 def _assert_real_repo_suffix_contract(report: list[dict]) -> None:
-    """Marker objects survive while only four process-memo suffixes remain."""
+    """Plain collection preserves marker objects without xdist suffixes."""
     exact_mark = [{"args": ["real-repo"], "kwargs": {}}]
     for entry in report:
+        assert not entry["nodeid"].endswith("@real-repo"), (
+            f"plain collection synthesized xdist suffix: {entry!r}"
+        )
         canonical = entry["canonical_node"]
         if canonical not in _REAL_REPO_CLASSIFIED_NODES_GOLDEN:
             continue
         is_resource = canonical not in _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN
         assert (entry["marks"] == exact_mark) is is_resource
-        has_suffix = entry["nodeid"].endswith("@real-repo")
-        assert has_suffix is (canonical in _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN), (
-            f"real-repo runtime suffix contract mismatch: {entry!r}"
-        )
 
 
 def _assert_real_repo_suffix_strip_mutation_killer(suite_conftest) -> None:

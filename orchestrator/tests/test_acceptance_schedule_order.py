@@ -798,21 +798,13 @@ def test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order():
         item for item in resource_items
         if canonical_by_identity[id(item)] in CONF.REAL_REPO_PROCESS_MEMO_NODES
     ]
-    split_items = [
-        item for item in resource_items
-        if canonical_by_identity[id(item)] not in CONF.REAL_REPO_PROCESS_MEMO_NODES
-    ]
     assert {canonical_by_identity[id(item)] for item in memo_items} == set(
         CONF.REAL_REPO_PROCESS_MEMO_NODES
     )
     assert all(
-        CONF._acceptance_loadgroup_scope(item.nodeid) == "real-repo"
-        for item in memo_items
-    )
-    assert all(
         CONF._acceptance_loadgroup_scope(item.nodeid) != "real-repo"
-        for item in split_items
-    )
+        for item in resource_items
+    ), "plain collection must not synthesize xdist loadgroup scopes"
 
     ledger_writer_node = (
         "test_sort_swo_oracle.py::"
