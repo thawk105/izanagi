@@ -43,6 +43,13 @@ title: [T-782] 査読済み spec の凍結発行を批准凍結の後へ送り�
 - **子の工数** (receipt schema 4、全件 accepted・validator rc=0)。段 2 プラン = model call 26 回・
   wall 747.9 秒・output 24,989 token。段 3 sol = 27 回・730.1 秒・27,469 token。
   段 3 luna = 25 回・1016.1 秒・29,609 token。段 5・6 は裁定により起動していない。
+- **段 8 の改善候補 2 件は、どちらも byte 予算が満杯で入らなかった。**
+  (i) 段 2 プラン起草の節へ「親 brief の前提実測に反証があれば plan にも出させる」を足す案は、
+  L1.5 の unique footprint が予算ちょうどで、144 bytes 追加すると超過した (実測して差し戻した)。
+  (ii) 凍結 bytes の pin 閉包の節へ「検査値そのものを literal で持つ側」という 3 番目の
+  検索方向を足す案は、当該 L2 節が 997 bytes で単節予算 1000 bytes に対し余地が 3 bytes しかない。
+  どちらも安全義務の削除・弱化なしには入らないため、自己改善契約に従い実装せず裁定へ返した。
+  恒久対応の記述自体は failures 台帳の再発追記に残っている。
 - **実装 wave へ引き継ぐ既知の穴を 6 件、実在確認つきで裁定パッケージへ残した** —
   trust root 照合の迂回、canonical path の symlink 経由で査読 diff 外の bytes を承認済みにできる点、
   pin だけあって file が無い状態を現行検査が受理する点、generator の drift を lifecycle が
@@ -60,5 +67,7 @@ title: [T-782] 査読済み spec の凍結発行を批准凍結の後へ送り�
   (Q2) T-782 と共有 ratified freeze の着手順序 (親推奨 = freeze が先)、
   (Q3) 生成 site 依存の identity をどの site で凍結するか、
   (Q4) 既存の producer 設計資産を実装 wave の起点にするか。
+  段 8 由来の追加論点として (Q5) dev-wave docs の L1.5 と該当 L2 節の byte 予算が満杯で、
+  実測に基づく手順改善 2 件が入らない点も同じパッケージへ入れた。
   一次資料は `output/insights/2026-08-26_t782-spec-issuance-ruling/`。
   base: 737ed75a874b51b05cf78b0956ad0c86969fdba86a23a60f008465649d4f91cb
