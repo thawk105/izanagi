@@ -32,6 +32,13 @@ _C06_CANDIDATE_PATHS = (
     "orchestrator/campaign/s8b_ratified_freeze.py",
     "orchestrator/campaign/p3_autonomous_workload_trial.py",
 )
+_CurrentCommitSnapshot = tuple[
+    Path,
+    str,
+    tuple[core.PredicateResult, ...],
+    str,
+    tuple[core.PredicateResult, ...],
+]
 
 
 def _c05_authority() -> dict[str, object]:
@@ -135,26 +142,42 @@ def _result(root: Path, commit: str, identifier: str) -> core.PredicateResult:
     return {item.id: item for item in results}[identifier]
 
 
-def _snapshot_current_commit(tmp_path: Path) -> tuple[Path, str]:
+def _require_unchanged_head(recorded: str, current: str) -> None:
+    if recorded != current:
+        raise AssertionError(
+            "repository HEAD changed after shared evaluation: "
+            f"recorded={recorded}, current={current}"
+        )
+
+
+def _snapshot_current_commit(
+    tmp_path: Path,
+) -> tuple[Path, str, str, tuple[core.PredicateResult, ...]]:
     """現 HEAD を一時 commit へ写す補助検査。
 
     snapshot と HEAD は同じ evaluator を使うため、resolver mutation の kill 根拠には
     数えない。ここで固定するのは commit-blob 投影の同値性だけである。
     """
     root = _init_repo(tmp_path, "current-snapshot")
+    evaluated_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
+    evaluated_results = tuple(
+        M.get_registry().evaluate_all(evaluated_head, repo_root=_ROOT)
+    )
     paths = {
         reference.path
-        for result in M.get_registry().evaluate_all("HEAD", repo_root=_ROOT)
+        for result in evaluated_results
         for reference in result.evidence
     }
     paths.add(core.EVIDENCE_CONTRACT_PATH)
     tracked = set(
-        _git(_ROOT, "ls-tree", "-r", "--name-only", "HEAD").decode().splitlines()
+        _git(_ROOT, "ls-tree", "-r", "--name-only", evaluated_head).decode().splitlines()
     )
     assert paths - tracked <= {core.EVIDENCE_CONTRACT_PATH}
     present = sorted(paths & tracked)
     if present:
-        archive = _git(_ROOT, "archive", "--format=tar", "HEAD", "--", *present)
+        archive = _git(
+            _ROOT, "archive", "--format=tar", evaluated_head, "--", *present
+        )
         with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
             for member in bundle.getmembers():
                 if not member.isfile():
@@ -164,17 +187,24 @@ def _snapshot_current_commit(tmp_path: Path) -> tuple[Path, str]:
                 _write(root, member.name, source.read())
     # HEAD がこの単位をまだ含まない段 5 でも、評価対象 commit には契約を含める。
     _write(root, core.EVIDENCE_CONTRACT_PATH, CONTRACT_FILE.read_bytes())
-    return root, _commit(root, "current evidence snapshot")
+    return (
+        root,
+        _commit(root, "current evidence snapshot"),
+        evaluated_head,
+        evaluated_results,
+    )
 
 
 @pytest.fixture(scope="module")
 def current_commit_snapshot(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[Path, str, tuple[core.PredicateResult, ...]]:
+) -> _CurrentCommitSnapshot:
     """Read-only snapshot shared by all current-tree equivalence checks."""
-    root, head = _snapshot_current_commit(tmp_path_factory.mktemp("current-commit"))
+    root, head, evaluated_head, evaluated_results = _snapshot_current_commit(
+        tmp_path_factory.mktemp("current-commit")
+    )
     results = tuple(M.get_registry().evaluate_all(head, repo_root=root))
-    return root, head, results
+    return root, head, results, evaluated_head, evaluated_results
 
 
 def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
@@ -186,11 +216,21 @@ def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
     assert all(item.reason_code in M.REASON_CODES for item in results)
 
 
+def test_require_unchanged_head_accepts_matching_oids() -> None:
+    oid = "a" * 40
+    _require_unchanged_head(oid, oid)
+
+
+def test_require_unchanged_head_rejects_mismatched_oids() -> None:
+    with pytest.raises(AssertionError, match="repository HEAD changed"):
+        _require_unchanged_head("a" * 40, "b" * 40)
+
+
 @pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_snapshot_has_zero_satisfied_predicates(
-    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
+    current_commit_snapshot: _CurrentCommitSnapshot,
 ) -> None:
-    root, head, results = current_commit_snapshot
+    _, _, results, _, _ = current_commit_snapshot
     assert sum(item.status is core.PredicateStatus.SATISFIED for item in results) == 0
     for item in results:
         assert item.evidence
@@ -199,16 +239,17 @@ def test_current_repository_snapshot_has_zero_satisfied_predicates(
 
 @pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_snapshot_exactly_matches_head(
-    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
+    current_commit_snapshot: _CurrentCommitSnapshot,
 ) -> None:
-    root, head, snapshot = current_commit_snapshot
-    actual = tuple(M.get_registry().evaluate_all("HEAD", repo_root=_ROOT))
+    _, _, snapshot, evaluated_head, actual = current_commit_snapshot
+    current_head = _git(_ROOT, "rev-parse", "HEAD").decode("ascii").strip()
+    _require_unchanged_head(evaluated_head, current_head)
     assert snapshot == actual
 
 
 @pytest.mark.xdist_group("s8c-predicate-snapshot")
 def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
-    current_commit_snapshot: tuple[Path, str, tuple[core.PredicateResult, ...]],
+    current_commit_snapshot: _CurrentCommitSnapshot,
 ) -> None:
     """個別 reason は gap ledger。他 wave の land 時は意図を再審査して更新する。
 
@@ -220,7 +261,7 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     表していた C12 allocation binding helper の consumer 未配線という主張も発見用に残す。
     この記述は検査ではなく、安全性や退役可否の根拠にはしない。
     """
-    root, head, results = current_commit_snapshot
+    _, _, results, _, _ = current_commit_snapshot
     snapshot_by_id = {
         item.id: (item.status, item.reason_code) for item in results
     }

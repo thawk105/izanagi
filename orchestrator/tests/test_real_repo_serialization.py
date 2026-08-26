@@ -39,7 +39,9 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 from skiputil import Skip, skip  # noqa: E402
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_ignored_output_ancestor_directories,
     git_ignored_output_prefixes,
+    git_ignored_output_snapshot_rules,
     is_git_ignored_output_path,
 )
 
@@ -577,8 +579,11 @@ def _run_subprocess(argv, *, cwd, env=None):
 
 
 def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
-    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
-    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    """Git-visible entry と非 ignore 祖先での一時作成後削除を捉える。
+
+    規則由来 ignore prefix の祖先 directory だけ size / mtime / ctime を正規化する。
+    """
+    ignored_prefixes, ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
     entries = [
         root,
         *(
@@ -588,17 +593,22 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
             )
         ),
     ]
-    return tuple(
-        (
-            path.relative_to(root).as_posix() if path != root else ".",
-            info.st_mode,
-            info.st_size,
-            info.st_mtime_ns,
-            info.st_ctime_ns,
+    snapshot = []
+    for path in sorted(entries):
+        relative = path.relative_to(root).as_posix() if path != root else "."
+        info = path.lstat()
+        normalize = (
+            stat.S_ISDIR(info.st_mode)
+            and ignored_ancestors.contains(relative)
         )
-        for path in sorted(entries)
-        for info in (path.lstat(),)
-    )
+        snapshot.append((
+            relative,
+            info.st_mode,
+            None if normalize else info.st_size,
+            None if normalize else info.st_mtime_ns,
+            None if normalize else info.st_ctime_ns,
+        ))
+    return tuple(snapshot)
 
 
 def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
@@ -625,10 +635,10 @@ def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
 def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
     ignored_prefixes = git_ignored_output_prefixes(ROOT)
     assert "runs" in ignored_prefixes
+    before = _t080_output_snapshot(tmp_path)
     ignored_parent = tmp_path / "runs"
     ignored_parent.mkdir()
     try:
-        before = _t080_output_snapshot(tmp_path)
         control = ignored_parent / "snapshot-ignored-t080"
         control.mkdir()
         (control / "nested").mkdir()
@@ -637,8 +647,34 @@ def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
         )
 
         assert _t080_output_snapshot(tmp_path) == before
+
+        assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
+        visible_before = _t080_output_snapshot(tmp_path)
+        visible = tmp_path / "runs-visible" / "nested"
+        visible.mkdir(parents=True)
+        (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
+        visible_after = _t080_output_snapshot(tmp_path)
+        assert visible_after != visible_before, (
+            "rule-derived ignore prefix 'runs' must not hide "
+            "Git-visible 'runs-visible'"
+        )
     finally:
         shutil.rmtree(ignored_parent, ignore_errors=True)
+        shutil.rmtree(tmp_path / "runs-visible", ignore_errors=True)
+
+
+def test_t080_output_snapshot_observes_git_visible_create_and_delete(tmp_path):
+    ignored_ancestors = git_ignored_output_ancestor_directories(ROOT)
+    parent = tmp_path / "visible-transient-parent"
+    assert not ignored_ancestors.contains(parent.name)
+    parent.mkdir()
+    before = _t080_output_snapshot(tmp_path)
+    transient = parent / "visible-transient"
+    transient.mkdir()
+    (transient / "payload").write_bytes(b"visible transient")
+    shutil.rmtree(transient)
+    after = _t080_output_snapshot(tmp_path)
+    assert after != before, "Git-visible create-and-delete must remain observable"
 
 
 def _require_pytest() -> None:
@@ -3781,6 +3817,93 @@ def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():
     assert calls == [{"run_id": None, "session_id": "session-test"}]
 
 
+_RECEIPT_ORDER_WORKER_HOOK_SOURCE = textwrap.dedent(
+    """\
+    @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+    def pytest_collection_finish(session):
+        if hasattr(session.config, "workerinput"):
+            record("worker-hook")
+        yield
+    """
+)
+
+
+def _receipt_order_pluggy_trace(worker_hook_source: str) -> list[str]:
+    """実 xdist probe と同じ worker hook を pluggy の一段で順序実行する。"""
+    import pluggy
+
+    hookspec = pluggy.HookspecMarker("pytest")
+    hookimpl = pluggy.HookimplMarker("pytest")
+
+    class Spec:
+        @hookspec
+        def pytest_collection_finish(self, session):
+            """Minimal collection-finish hook specification."""
+
+    trace: list[str] = []
+    namespace = {
+        "pytest": SimpleNamespace(hookimpl=hookimpl),
+        "record": trace.append,
+    }
+    exec(compile(worker_hook_source, "receipt-order-worker", "exec"), namespace)
+    worker = SimpleNamespace(
+        pytest_collection_finish=namespace["pytest_collection_finish"],
+    )
+
+    class Controller:
+        @hookimpl
+        def pytest_collection_finish(self, session):
+            trace.append("controller-hook")
+
+    manager = pluggy.PluginManager("pytest")
+    manager.add_hookspecs(Spec)
+    manager.register(worker, name="worker")
+    manager.register(Controller(), name="controller")
+    manager.hook.pytest_collection_finish(
+        session=SimpleNamespace(config=SimpleNamespace(workerinput={})),
+    )
+    return trace
+
+
+def test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants():
+    """hookwrapper と yield 前記録のどちらを失っても相対順検査を通さない。"""
+    decorator = "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+    pre_yield = (
+        '    if hasattr(session.config, "workerinput"):\n'
+        '        record("worker-hook")\n'
+        "    yield\n"
+    )
+    post_yield = (
+        "    yield\n"
+        '    if hasattr(session.config, "workerinput"):\n'
+        '        record("worker-hook")\n'
+    )
+    assert _RECEIPT_ORDER_WORKER_HOOK_SOURCE.count(decorator) == 1
+    assert _RECEIPT_ORDER_WORKER_HOOK_SOURCE.count(pre_yield) == 1
+
+    def assert_worker_first(source: str) -> None:
+        trace = _receipt_order_pluggy_trace(source)
+        assert trace.count("worker-hook") == 1, trace
+        assert trace.count("controller-hook") == 1, trace
+        assert trace.index("worker-hook") < trace.index("controller-hook"), trace
+
+    assert_worker_first(_RECEIPT_ORDER_WORKER_HOOK_SOURCE)
+    mutants = {
+        "decorator removed": _RECEIPT_ORDER_WORKER_HOOK_SOURCE.replace(
+            decorator, "", 1,
+        ),
+        "record moved after yield": _RECEIPT_ORDER_WORKER_HOOK_SOURCE.replace(
+            pre_yield, post_yield, 1,
+        ),
+    }
+    for label, mutant in mutants.items():
+        try:
+            assert_worker_first(mutant)
+        except AssertionError:
+            continue
+        raise AssertionError(f"{label} mutant が worker-first 検査を通過した")
+
+
 def test_receipt_memo_real_xdist_order_has_no_worker_payer():
     """実 xdist 順序を worker collection hook から controller hook まで固定する。"""
     _require_loadgroup_capability()
@@ -3792,9 +3915,7 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
             "    pass\n",
             encoding="utf-8",
         )
-        (directory / "receipt_order_plugin.py").write_text(
-            textwrap.dedent(
-                f"""
+        plugin_source = f"""
                 import os
                 from pathlib import Path
 
@@ -3820,16 +3941,19 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
                     from orchestrator.tests import conftest as suite_conftest
                     suite_conftest._receipt_memo_module = lambda: FakeMemo
 
-                @pytest.hookimpl(hookwrapper=True, tryfirst=True)
-                def pytest_collection_finish(session):
-                    if hasattr(session.config, "workerinput"):
-                        record("worker-hook")
-                    yield
+                __WORKER_HOOK__
 
                 def pytest_xdist_node_collection_finished(node, ids):
                     record("controller-hook")
                 """
+        plugin_source = plugin_source.replace(
+            "                __WORKER_HOOK__",
+            textwrap.indent(
+                _RECEIPT_ORDER_WORKER_HOOK_SOURCE.rstrip(), "                ",
             ),
+        )
+        (directory / "receipt_order_plugin.py").write_text(
+            textwrap.dedent(plugin_source),
             encoding="utf-8",
         )
         env = os.environ.copy()

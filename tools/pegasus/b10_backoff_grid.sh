@@ -1,0 +1,416 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -l elapstim_req=05:00:00
+#PBS -b 1
+
+set -Eeuo pipefail
+umask 077
+
+# 31/24 scaling: 11700 + 3900 + 300 + 300 = 16200 seconds.
+# A five-hour reservation therefore retains the preregistered 1800-second reserve.
+SWEEP_CAP_S=11700
+AA_CAP_S=3900
+REPORT_CAP_S=300
+FINALIZE_CAP_S=300
+EXPECTED_WALLTIME_S=18000
+EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+CURRENT_STAGE=bootstrap
+PY=""
+OUTPUT_ROOT=""
+OUTPUT_ROOT_READY=0
+
+write_failure_receipt() {
+  local rc=$1
+  local line=$2
+  [[ -n "$PY" && -n "$OUTPUT_ROOT" && "$OUTPUT_ROOT_READY" -eq 1 ]] || return 0
+  "$PY" -I -B - "$OUTPUT_ROOT" "$rc" "$CURRENT_STAGE" "$line" "${PBS_JOBID:-}" <<'PY' || true
+import hashlib, json, os, pathlib, sys
+root, rc, stage, line, job = sys.argv[1:]
+path = pathlib.Path(root + ".failure.json")
+base = pathlib.Path(root)
+wal_receipts = []
+last_committed = None
+for candidate in sorted(base.glob("campaigns/*/runs/wal.jsonl")):
+    raw = candidate.read_bytes()
+    committed = None
+    for row in raw.splitlines():
+        if not row:
+            continue
+        try:
+            parsed = json.loads(row)
+        except json.JSONDecodeError:
+            continue
+        if parsed.get("stage") == "commit":
+            committed = {
+                "variant": parsed.get("variant"),
+                "build_attempt_id": parsed.get("payload", {}).get("build_attempt_id"),
+                "timestamp": parsed.get("ts"),
+            }
+    receipt = {
+        "path": candidate.relative_to(base).as_posix(),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "last_committed": committed,
+    }
+    wal_receipts.append(receipt)
+    if committed is not None:
+        last_committed = {**committed, "wal_path": receipt["path"],
+                          "wal_sha256": receipt["sha256"]}
+aa_receipts = []
+last_aa = None
+for candidate in sorted(base.glob("campaigns/*/reports/b10-backoff-overthrottle-*.jsonl")):
+    raw = candidate.read_bytes()
+    rows = [row for row in raw.splitlines() if row]
+    parsed = None
+    for row in reversed(rows):
+        try:
+            parsed = json.loads(row)
+        except json.JSONDecodeError:
+            continue
+        break
+    receipt = {
+        "path": candidate.relative_to(base).as_posix(),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "last_record": None if parsed is None else {
+            "workload": parsed.get("workload"),
+            "label": parsed.get("label"),
+            "rep": parsed.get("rep"),
+            "reference_variant_id": parsed.get("reference_variant_id"),
+        },
+    }
+    aa_receipts.append(receipt)
+    if receipt["last_record"] is not None:
+        last_aa = {**receipt["last_record"], "path": receipt["path"],
+                   "sha256": receipt["sha256"]}
+report_receipts = []
+for candidate in sorted(base.glob("campaigns/*/reports/*")):
+    if not candidate.is_file() or candidate.name.endswith(".jsonl"):
+        continue
+    raw = candidate.read_bytes()
+    report_receipts.append({
+        "path": candidate.relative_to(base).as_posix(),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "size": len(raw),
+    })
+top_level_receipts = []
+for candidate in sorted(base.glob("b10-backoff-grid-*.json")):
+    if candidate.is_file():
+        raw = candidate.read_bytes()
+        top_level_receipts.append({
+            "path": candidate.relative_to(base).as_posix(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "size": len(raw),
+        })
+document = {
+    "schema_version": "b10-backoff-grid-job-failure/v1",
+    "returncode": int(rc),
+    "stage": stage,
+    "line": int(line),
+    "pbs_jobid": job,
+    "last_persisted": {"wal_commit": last_committed, "aa_record": last_aa},
+    "campaign_wals": wal_receipts,
+    "aa_jsonl": aa_receipts,
+    "reports": report_receipts,
+    "typed_receipts": top_level_receipts,
+}
+try:
+    with path.open("x", encoding="utf-8") as handle:
+        json.dump(document, handle, sort_keys=True, indent=2)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    parent_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
+except FileExistsError:
+    pass
+PY
+}
+
+fail() {
+  local rc=$1
+  local message=$2
+  local line=${BASH_LINENO[0]:-0}
+  echo "$message" >&2
+  trap - ERR
+  write_failure_receipt "$rc" "$line"
+  exit "$rc"
+}
+
+on_error() {
+  local rc=$?
+  local line=${BASH_LINENO[0]:-0}
+  trap - ERR
+  write_failure_receipt "$rc" "$line"
+  exit "$rc"
+}
+trap on_error ERR
+
+[[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
+  && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" ]] || \
+  fail 2 "PBS_JOBID, PBS_NODEFILE, PBS_O_WORKDIR, and B10_SUBMISSION_NONCE are required"
+[[ "$B10_SUBMISSION_NONCE" =~ ^[0-9a-f]{32}$ ]] || \
+  fail 2 "B10_SUBMISSION_NONCE must be 32 lowercase hex characters"
+
+WORKLOAD=${1:-${B10_WORKLOAD:-}}
+case "$WORKLOAD" in
+  write-heavy|balanced|read-heavy) ;;
+  *) fail 2 "workload must be write-heavy, balanced, or read-heavy" ;;
+esac
+
+for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+  resolved=$(command -v -- "$candidate" 2>/dev/null || true)
+  [[ -n "$resolved" && -x "$resolved" ]] || continue
+  if "$resolved" -I -B -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 10))'; then
+    PY=$("$resolved" -I -B -c 'import os,sys; print(os.path.realpath(sys.executable))')
+    break
+  fi
+done
+[[ -n "$PY" ]] || fail 2 "Python 3.10 is required"
+
+export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
+for command_name in git cmake cc c++ make timeout gnuplot qstat sha256sum hostname; do
+  command -v -- "$command_name" >/dev/null 2>&1 || \
+    fail 2 "required command is unavailable: $command_name"
+done
+
+unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS LD_PRELOAD LD_LIBRARY_PATH
+unset CPATH CPLUS_INCLUDE_PATH LIBRARY_PATH COMPILER_PATH GCC_EXEC_PREFIX
+unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE PYTHONPATH PYTHONHOME PYTHONSTARTUP MAKEFLAGS
+
+REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
+OUTPUT_ROOT=${B10_OUTPUT_ROOT:-}
+[[ -n "$OUTPUT_ROOT" && "$OUTPUT_ROOT" == /* && ! -e "$OUTPUT_ROOT" ]] || \
+  fail 2 "B10_OUTPUT_ROOT must be an absolute, job-unique, uncreated path"
+"$PY" -I -B - "$REPO_ROOT" "$OUTPUT_ROOT" <<'PY'
+import pathlib, sys
+repo = pathlib.Path(sys.argv[1]).resolve(strict=True)
+target = pathlib.Path(sys.argv[2]).resolve(strict=False)
+if target == repo or repo in target.parents or target in repo.parents:
+    raise SystemExit("official output root must be outside the repository")
+if any((parent / ".git").exists() for parent in (target, *target.parents)):
+    raise SystemExit("official output root has a repository ancestor")
+PY
+
+HOSTNAME_SHORT=$(hostname) || fail 2 "cannot observe compute hostname"
+HOSTNAME_FQDN=$(hostname -f) || fail 2 "cannot observe compute hostname -f"
+[[ "$HOSTNAME_SHORT" =~ ^bnode[0-9]+([.].*)?$ ]] || \
+  fail 2 "B-10 job body is compute-node-only"
+[[ -f "$PBS_NODEFILE" && ! -L "$PBS_NODEFILE" ]] || \
+  fail 2 "PBS_NODEFILE must be a regular non-symlink file"
+
+export TMPDIR="/scr/${PBS_JOBID//:/_}-b10-backoff-grid-${WORKLOAD}"
+mkdir -m 0700 "$TMPDIR"
+export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
+export B10_BUILD_CACHE_ROOT="$TMPDIR/build-cache"
+mkdir -m 0700 "$B10_BUILD_CACHE_ROOT"
+mkdir -m 0700 "$OUTPUT_ROOT"
+OUTPUT_ROOT_READY=1
+mkdir -m 0700 "$OUTPUT_ROOT/campaigns" "$OUTPUT_ROOT/campaign-locks" "$OUTPUT_ROOT/env"
+
+CURRENT_STAGE=allocation_reservation
+qstat_rc=0
+QSTAT_JOBID=${PBS_JOBID#0:}
+timeout 30 qstat -f "$QSTAT_JOBID" >"$OUTPUT_ROOT/qstat-f.stdout" \
+  2>"$OUTPUT_ROOT/qstat-f.stderr" || qstat_rc=$?
+printf '%s\n' "$qstat_rc" >"$OUTPUT_ROOT/qstat-f.rc"
+readarray -t qstat_values < <(
+  "$PY" -I -B - "$OUTPUT_ROOT/qstat-f.stdout" "$qstat_rc" <<'PY'
+import re
+import subprocess
+import sys
+
+path, rc = sys.argv[1:]
+text = open(path, encoding="utf-8", errors="replace").read()
+assigned = "unavailable"
+started = "unavailable"
+limit_s = "unavailable"
+if rc == "0":
+    section = re.search(
+        r"(?im)^\s*Execution Hosts\(JSVNO\):\s*$\n[ \t]+([^\s(),:+/]+)",
+        text,
+    )
+    if section and section.group(1).lower() != "none":
+        assigned = section.group(1)
+    if assigned == "unavailable":
+        for key in ("exec_host", "exec_vnode", "assigned_host", "vnode"):
+            match = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*([^\n]+)", text)
+            if not match:
+                continue
+            raw = match.group(1).strip()
+            if raw.lower() == "(none)":
+                continue
+            token = re.split(r"[:+/,()\s]", raw.lstrip("("))[0]
+            if token:
+                assigned = token
+                break
+    for key in ("Started Request Time", "stime", "start_time", "start"):
+        match = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*(.+?)\s*$", text)
+        if not match:
+            continue
+        raw = match.group(1).strip()
+        if raw.lower() == "(none)":
+            continue
+        if raw.isdigit() and int(raw) > 1_000_000_000:
+            started = str(int(raw))
+            break
+        parsed = subprocess.run(
+            ["date", "-d", raw, "+%s"], capture_output=True, text=True,
+        )
+        if parsed.returncode == 0 and parsed.stdout.strip().isdigit():
+            started = str(int(parsed.stdout.strip()))
+            break
+    limits = re.findall(
+        r"(?im)^\s*\(Per-Req\)\s+Elapse Time Limit\s*=\s*Max:\s*([0-9]+)S(?:\s|$)",
+        text,
+    )
+    if len(limits) == 1 and int(limits[0]) > 0:
+        limit_s = str(int(limits[0]))
+print(assigned)
+print(started)
+print(limit_s)
+PY
+)
+ASSIGNED_HOST=${qstat_values[0]:-unavailable}
+SCHEDULER_STARTED_EPOCH=${qstat_values[1]:-unavailable}
+REQUESTED_S=${qstat_values[2]:-unavailable}
+[[ "$qstat_rc" -eq 0 && "$ASSIGNED_HOST" != unavailable \
+  && "$SCHEDULER_STARTED_EPOCH" != unavailable && "$REQUESTED_S" != unavailable ]] || \
+  fail 2 "qstat allocation, start, or walltime binding is unavailable"
+[[ "$REQUESTED_S" -eq "$EXPECTED_WALLTIME_S" ]] || \
+  fail 2 "qstat walltime differs from the B-10 PBS envelope"
+if [[ "$ASSIGNED_HOST" == "$HOSTNAME_SHORT" ]]; then
+  RESERVATION_HOST=$HOSTNAME_SHORT
+elif [[ "$ASSIGNED_HOST" == "$HOSTNAME_FQDN" ]]; then
+  RESERVATION_HOST=$HOSTNAME_FQDN
+else
+  fail 2 "qstat assigned host has no exact hostname or hostname-f observation"
+fi
+"$PY" -I -B - "$PBS_NODEFILE" "$HOSTNAME_SHORT" <<'PY'
+import pathlib, sys
+nodefile, observed = sys.argv[1:]
+entries = [line.strip().split(".")[0] for line in pathlib.Path(nodefile).read_text().splitlines()]
+if observed.split(".")[0] not in entries:
+    raise SystemExit("PBS_NODEFILE does not contain the observed compute host")
+PY
+SCRIPT_PATH=$(realpath -e -- "${BASH_SOURCE[0]}")
+[[ "$SCRIPT_PATH" == "$REPO_ROOT/tools/pegasus/b10_backoff_grid.sh" ]] || \
+  fail 2 "executed B-10 script is not the repository payload"
+SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")
+SCRIPT_SHA256=${SCRIPT_SHA256%% *}
+BOOT_ID=$(tr -d '\n' </proc/sys/kernel/random/boot_id) || \
+  fail 2 "cannot read compute boot id"
+[[ -n "$BOOT_ID" ]] || fail 2 "compute boot id is empty"
+DEADLINE_EPOCH=$((SCHEDULER_STARTED_EPOCH + REQUESTED_S))
+export IZANAGI_RESERVATION_JOB_ID="$PBS_JOBID"
+export IZANAGI_RESERVATION_REQUESTED_S="$REQUESTED_S"
+export IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH="$SCHEDULER_STARTED_EPOCH"
+export IZANAGI_RESERVATION_DEADLINE_EPOCH="$DEADLINE_EPOCH"
+export IZANAGI_RESERVATION_HOST="$RESERVATION_HOST"
+export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
+export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"
+export IZANAGI_RESERVATION_NONCE="$B10_SUBMISSION_NONCE"
+"$PY" -I -B - "$OUTPUT_ROOT/reservation.json" \
+  "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" <<'PY'
+import hashlib, json, os, pathlib, sys
+destination, stdout_path, stderr_path = sys.argv[1:]
+keys = (
+    "JOB_ID", "REQUESTED_S", "SCHEDULER_STARTED_EPOCH", "DEADLINE_EPOCH",
+    "HOST", "BOOT_ID", "SCRIPT_SHA256", "NONCE",
+)
+binding = {
+    key.lower(): os.environ["IZANAGI_RESERVATION_" + key] for key in keys
+}
+for key in ("requested_s", "scheduler_started_epoch", "deadline_epoch"):
+    binding[key] = int(binding[key])
+def evidence(path):
+    raw = pathlib.Path(path).read_bytes()
+    return {"filename": pathlib.Path(path).name, "sha256": hashlib.sha256(raw).hexdigest()}
+document = {
+    "schema_version": "b10-backoff-grid-reservation/v1",
+    "binding": binding,
+    "qstat_stdout": evidence(stdout_path),
+    "qstat_stderr": evidence(stderr_path),
+}
+with open(destination, "x", encoding="utf-8") as handle:
+    json.dump(document, handle, sort_keys=True, separators=(",", ":"))
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+PY
+
+ENV_TAG=$("$PY" -I -B - "$REPO_ROOT" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from orchestrator.campaign import p2_2
+print(p2_2.resolve_site_runtime()[1].env_tag)
+PY
+)
+mkdir -m 0700 "$OUTPUT_ROOT/env/$ENV_TAG" "$OUTPUT_ROOT/env/$ENV_TAG/claims"
+export IZANAGI_OFFICIAL_OUTPUT_ROOT="$OUTPUT_ROOT"
+
+freeze_digest() {
+  "$PY" -I -B - "$REPO_ROOT" <<'PY'
+import hashlib, pathlib, sys
+repo = pathlib.Path(sys.argv[1])
+digest = hashlib.sha256()
+for relative in ("output/s1-freeze", "output/s8b-freeze"):
+    root = repo / relative
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        digest.update(path.relative_to(repo).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+print(digest.hexdigest())
+PY
+}
+
+FREEZE_BEFORE=$(freeze_digest)
+[[ "$FREEZE_BEFORE" == "$EXPECTED_FREEZE_TREES_SHA256" ]] || \
+  fail 2 "freeze trees do not match the B-10 preregistered bytes"
+CURRENT_STAGE=extended_sweep
+timeout "$SWEEP_CAP_S" "$PY" -I -B \
+  "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py" \
+  "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
+  --cache-root "$B10_BUILD_CACHE_ROOT"
+
+CURRENT_STAGE=add_analysis
+timeout "$AA_CAP_S" "$PY" -I -B \
+  "$REPO_ROOT/orchestrator/campaign/backoff_overthrottle.py" \
+  "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
+  --cache-root "$B10_BUILD_CACHE_ROOT"
+
+CURRENT_STAGE=report
+timeout "$REPORT_CAP_S" "$PY" -I -B \
+  "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
+  "$WORKLOAD" --output-root "$OUTPUT_ROOT"
+
+CURRENT_STAGE=finalize
+FREEZE_AFTER=$(freeze_digest)
+[[ "$FREEZE_AFTER" == "$EXPECTED_FREEZE_TREES_SHA256" ]] || \
+  fail 2 "freeze trees changed during the job"
+timeout "$FINALIZE_CAP_S" "$PY" -I -B - \
+  "$OUTPUT_ROOT" "$WORKLOAD" "$PBS_JOBID" "$FREEZE_AFTER" <<'PY'
+import hashlib, json, pathlib, sys
+root, workload, job, freeze_hash = sys.argv[1:]
+base = pathlib.Path(root)
+campaigns = [path for path in (base / "campaigns").iterdir() if path.is_dir()]
+if len(campaigns) != 1:
+    raise SystemExit(f"expected exactly one campaign, found {len(campaigns)}")
+artifacts = {}
+for path in sorted(item for item in campaigns[0].rglob("*") if item.is_file()):
+    artifacts[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+document = {
+    "schema_version": "b10-backoff-grid-job-complete/v1",
+    "status": "complete",
+    "workload": workload,
+    "pbs_jobid": job,
+    "campaign_id": campaigns[0].name,
+    "freeze_trees_sha256": freeze_hash,
+    "artifacts": artifacts,
+}
+with (base / "completion.json").open("x", encoding="utf-8") as handle:
+    json.dump(document, handle, sort_keys=True, indent=2)
+    handle.write("\n")
+PY

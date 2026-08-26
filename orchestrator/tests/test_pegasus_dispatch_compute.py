@@ -29,6 +29,15 @@ from orchestrator import scheduler_nqsv as NQSV
 
 _JOB_ID = "0:424242.nqsv"
 
+# These thread bounds recover hangs; they are not pass/fail latency budgets.
+# Thirty seconds is a conservative recovery window at nearly 3x the 10.015s
+# deterministic pre-injection floor.  That parent sample was three compute-node
+# standalone-file runs, not the acceptance full-suite regime.  Event waits use
+# the same bound because a 5s thread-start deadline is not a property under 48-way
+# parallelism.  The parent will measure and finalize the post-injection runtime
+# in stage 6.
+_THREAD_COORDINATION_WATCHDOG_S = 30.0
+
 
 class _Clock:
     def __init__(self):
@@ -39,6 +48,27 @@ class _Clock:
 
     def sleep(self, seconds):
         self.now += seconds
+
+
+class _RecordingClock:
+    """Record injected clock reads and sleeps without consulting wall time."""
+
+    def __init__(self):
+        self._clock = _Clock()
+        self.read_calls = 0
+        self.sleep_calls = []
+
+    @property
+    def now(self):
+        return self._clock.now
+
+    def __call__(self):
+        self.read_calls += 1
+        return self._clock()
+
+    def sleep(self, seconds):
+        self.sleep_calls.append(seconds)
+        self._clock.sleep(seconds)
 
 
 class _Scheduler:
@@ -5384,20 +5414,27 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
     qsub_entered = threading.Event()
     release_qsub = threading.Event()
     results = {}
+    clocks = {}
+    poll_interval_s = 5
 
     def blocking_first(command, **kwargs):
         if list(command)[0] == "qsub":
             qsub_entered.set()
-            assert release_qsub.wait(5)
+            assert release_qsub.wait(_THREAD_COORDINATION_WATCHDOG_S)
         return first_scheduler(command, **kwargs)
 
     def invoke(label, artifact, runner):
+        clock = _RecordingClock()
+        clocks[label] = clock
         results[label] = DC.dispatch(
             [],
             repo_root=repo,
             artifact_root=artifact,
             control_root=control,
             run_command=runner,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=poll_interval_s,
             nonce=label,
         )
 
@@ -5408,13 +5445,16 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
         target=invoke, args=("second", tmp_path / "artifact-second", second_scheduler),
     )
     first.start()
-    assert qsub_entered.wait(5)
+    assert qsub_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     second.start()
     release_qsub.set()
-    first.join(10)
-    second.join(10)
+    first.join(_THREAD_COORDINATION_WATCHDOG_S)
+    second.join(_THREAD_COORDINATION_WATCHDOG_S)
 
     assert not first.is_alive() and not second.is_alive()
+    first_clock = clocks["first"]
+    # This scenario never polls, so removing sleep= is an equivalent mutation.
+    assert first_clock.read_calls > 0
     assert results == {"first": DC.INFRA_RC, "second": DC.INFRA_RC}
     qsubs = [
         command
@@ -5439,6 +5479,8 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
     release_qsub = threading.Event()
     second_acquire_entered = threading.Event()
     results = {}
+    clocks = {}
+    poll_interval_s = 5
     real_acquire = DC._acquire_control_lock
 
     def observe_control_acquire(output_root):
@@ -5451,10 +5493,12 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
     def blocking_first(command, **kwargs):
         if list(command)[0] == "qsub":
             qsub_entered.set()
-            assert release_qsub.wait(5)
+            assert release_qsub.wait(_THREAD_COORDINATION_WATCHDOG_S)
         return first_scheduler(command, **kwargs)
 
     def invoke(label, artifact, runner):
+        clock = _RecordingClock()
+        clocks[label] = clock
         results[label] = DC.dispatch(
             [],
             repo_root=repo,
@@ -5464,6 +5508,9 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
             intent_group_id=label,
             intent_shard_index=0,
             run_command=runner,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=poll_interval_s,
             nonce="shard-0",
         )
 
@@ -5477,15 +5524,23 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
         name="second-dispatch",
     )
     first.start()
-    assert qsub_entered.wait(5)
+    assert qsub_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     second.start()
-    assert second_acquire_entered.wait(5)
+    assert second_acquire_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     release_qsub.set()
-    # 60s is over 4x the measured 13.94s standalone run, but still bounds deadlocks.
-    first.join(60)
-    second.join(60)
+    first.join(_THREAD_COORDINATION_WATCHDOG_S)
+    second.join(_THREAD_COORDINATION_WATCHDOG_S)
 
     assert not first.is_alive() and not second.is_alive()
+    for label, scheduler in (
+        ("first", first_scheduler),
+        ("second", second_scheduler),
+    ):
+        clock = clocks[label]
+        minimum_poll_transitions = scheduler.states.index("DONE")
+        assert clock.sleep_calls
+        assert clock.now >= poll_interval_s * minimum_poll_transitions
+        assert clock.read_calls > 0
     assert results == {"first": 0, "second": 0}
     assert sum(
         command[0] == "qsub"
