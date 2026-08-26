@@ -27,7 +27,6 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
   ``test_real_repo_serialization.py`` の回帰ガードが検査して赤にする
 - 素の python3 実行 (二重 runner) は元から conftest を経由しない
 """
-import base64
 import contextlib
 import errno
 import fcntl
@@ -35,9 +34,7 @@ import hashlib
 import json
 import math
 import os
-import shutil
 import stat
-import subprocess
 import sys
 import time
 import uuid
@@ -57,16 +54,6 @@ except ModuleNotFoundError as exc:
         raise
     _SELECTION_CONTRACT = None
 
-
-_RATIFICATION_GIT_ENV_ALLOWLIST = (
-    "LANG",
-    "LC_ALL",
-    "LC_CTYPE",
-    "PATH",
-    "SYSTEMROOT",
-    "TMPDIR",
-    "TZ",
-)
 
 try:
     from orchestrator.tests.growth_test_holds import (
@@ -160,145 +147,9 @@ def _detect_site_under_test():
     """Allow site-policy unit tests to exercise the real detector explicitly."""
 
 
-def _ratification_fixture_git(repo: Path, *args: str) -> bytes:
-    executable = shutil.which("git")
-    if executable is None:
-        pytest.fail("ratified enforcement-source fixture requires git")
-    env = {
-        key: os.environ[key]
-        for key in _RATIFICATION_GIT_ENV_ALLOWLIST
-        if key in os.environ
-    }
-    env.update({
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_NO_REPLACE_OBJECTS": "1",
-        "GIT_OPTIONAL_LOCKS": "0",
-    })
-    completed = subprocess.run(
-        [executable, "-C", str(repo), *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-        env=env,
-        timeout=30,
-    )
-    if completed.returncode != 0:
-        pytest.fail(
-            "ratified enforcement-source fixture git failed: "
-            f"args={args!r} "
-            f"stderr={completed.stderr.decode(errors='replace')!r}"
-        )
-    return completed.stdout
-
-
 @pytest.fixture
-def ratified_enforcement_source(
-    tmp_path_factory: pytest.TempPathFactory,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Opt in to a committed signed receipt for the current exact closure."""
-    try:
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import ed25519
-    except ImportError:
-        pytest.fail(
-            "ratified enforcement-source fixture requires cryptography; "
-            "this fixture must not be skipped in batch because that would "
-            "leave ratification-gate regressions unchecked"
-        )
-    from orchestrator.campaign import campaign_lock, contract_loader_binding
-    from orchestrator.campaign import enforcement_source_ratification as ratification
-    from orchestrator.campaign import (
-        enforcement_source_ratification_receipt as receipt,
-    )
-
-    def canonical_bytes(value: object) -> bytes:
-        return json.dumps(
-            value,
-            ensure_ascii=True,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("ascii")
-
-    binding = contract_loader_binding.capture_contract_loader_binding()
-    blob_sha256s = dict(binding.contract_loader_blob_sha256s)
-    repo = tmp_path_factory.mktemp("ratified-enforcement-source") / "repo"
-    repo.mkdir()
-    _ratification_fixture_git(repo, "init", "-q")
-    identity = (
-        "-c", "user.email=ratification-fixture@example.invalid",
-        "-c", "user.name=Ratification fixture",
-    )
-
-    checkout_root = Path(__file__).resolve().parents[2]
-    for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS:
-        raw = (checkout_root / relative).read_bytes()
-        target = repo / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(raw)
-        assert hashlib.sha256(raw).hexdigest() == blob_sha256s[relative]
-
-    private_key = ed25519.Ed25519PrivateKey.generate()
-    public_key = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    )
-    trust_root = repo / receipt.TRUST_ROOT_RELATIVE_PATH
-    trust_root.parent.mkdir(parents=True, exist_ok=True)
-    trust_root.write_bytes(canonical_bytes({
-        "public_key_ed25519_base64": base64.b64encode(public_key).decode(
-            "ascii"
-        ),
-        "schema_version": "enforcement-source-ratification-trust-root/v1",
-    }) + b"\n")
-    ledger = repo / receipt.RECEIPT_LEDGER_RELATIVE_PATH
-    ledger.write_bytes(b"")
-
-    _ratification_fixture_git(
-        repo,
-        "add",
-        "--",
-        *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
-        receipt.TRUST_ROOT_RELATIVE_PATH,
-        receipt.RECEIPT_LEDGER_RELATIVE_PATH,
-    )
-    _ratification_fixture_git(
-        repo, *identity, "commit", "-q", "-m", "initialize signed fixture",
-    )
-    source_commit = _ratification_fixture_git(
-        repo, "rev-parse", "--verify", "HEAD^{commit}",
-    ).decode("ascii").strip()
-
-    digest = ratification.closure_digest_sha256(blob_sha256s)
-    closure_paths = sorted(campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS)
-    signed: dict[str, object] = {
-        "closure_digest_sha256": digest,
-        "closure_paths": closure_paths,
-        "closure_paths_sha256": hashlib.sha256(
-            canonical_bytes(closure_paths)
-        ).hexdigest(),
-        "decision": "ratify",
-        "previous_receipt_sha256": None,
-        "ratification_serial": 1,
-        "schema_version": receipt.RECEIPT_SCHEMA_VERSION,
-        "source_commit": source_commit,
-        "trust_root_sha256": hashlib.sha256(public_key).hexdigest(),
-    }
-    row = dict(signed)
-    row["signature_ed25519_base64"] = base64.b64encode(
-        private_key.sign(receipt._DOMAIN_PREFIX + canonical_bytes(signed))
-    ).decode("ascii")
-    ledger.write_bytes(canonical_bytes(row) + b"\n")
-    _ratification_fixture_git(
-        repo, "add", "--", receipt.RECEIPT_LEDGER_RELATIVE_PATH,
-    )
-    _ratification_fixture_git(
-        repo, *identity, "commit", "-q", "-m", "record signed ratification",
-    )
-    monkeypatch.setattr(receipt, "_REPO_ROOT", repo)
-    return digest
+def ratified_enforcement_source() -> None:
+    """Compatibility fixture: closure ratification has been retired."""
 
 
 @pytest.fixture
