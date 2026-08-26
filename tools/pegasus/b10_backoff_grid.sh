@@ -174,7 +174,9 @@ done
 export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
 export http_proxy="$BUILD_NETWORK_PROXY_URL"
 export https_proxy="$BUILD_NETWORK_PROXY_URL"
-for command_name in git cmake cc c++ make timeout gnuplot qstat sha256sum hostname; do
+# This gate runs in the PBS payload on the allocated compute node.
+for command_name in \
+  git cmake cc c++ make timeout qstat sha256sum hostname mkdir realpath tr date; do
   command -v -- "$command_name" >/dev/null 2>&1 || \
     fail 2 "required command is unavailable: $command_name"
 done
@@ -387,7 +389,7 @@ timeout "$AA_CAP_S" "$PY" -I -B \
 CURRENT_STAGE=report
 timeout "$REPORT_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
-  "$WORKLOAD" --output-root "$OUTPUT_ROOT"
+  "$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot
 
 CURRENT_STAGE=finalize
 FREEZE_AFTER=$(freeze_digest)

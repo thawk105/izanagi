@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import (
     backoff_extended_sweep as M,
+    backoff_extended_sweep_report as R,
     backoff_overthrottle as O,
     build_admission,
     env_contract,
@@ -386,6 +387,19 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert '[[ "$HOSTNAME_SHORT" =~ ^bnode[0-9]+([.].*)?$ ]]' in job
     assert 'timeout 30 qstat -f "$QSTAT_JOBID"' in job
     assert 'export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"' in job
+    required_commands = job.split("for command_name in ", 1)[1].split("; do", 1)[0].split()
+    required_commands = [name for name in required_commands if name != "\\"]
+    assert "gnuplot" not in required_commands
+    assert "gnuplot" not in job
+    assert required_commands == [
+        "git", "cmake", "cc", "c++", "make", "timeout", "qstat", "sha256sum",
+        "hostname", "mkdir", "realpath", "tr", "date",
+    ]
+    report_call = job.split(
+        '"$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py"', 1,
+    )[1].split("CURRENT_STAGE=finalize", 1)[0]
+    assert '"$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot' in report_call
+    assert "gnuplot" not in report_call
     assert job.count('--cache-root "$B10_BUILD_CACHE_ROOT"') == 2
     assert job.count("http://10.120.96.1:8080") == 1
     assert "BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080" in job
@@ -393,6 +407,74 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     assert 'export https_proxy="$BUILD_NETWORK_PROXY_URL"' in job
     assert '"external_fetch_via_proxy": True' in job
     assert '"dependency_revisions": "sha-pinned"' in job
+
+
+def test_deferred_report_writes_plot_inputs_and_records_missing_png(
+        tmp_path, monkeypatch):
+    layout = SimpleNamespace(reports_dir=str(tmp_path), root=str(tmp_path / "campaign-id"))
+    normal = [{
+        "kind": "static", "backoff_us": 10, "median_tps": 123.0,
+        "abort_rate": 0.25, "latency_ns": 456.0, "cv": 0.01,
+    }]
+    verdict = {
+        **R.CLAIM_BOUNDARY,
+        "status": "complete",
+        "peak": None,
+        "onset": None,
+        "mechanism": {"trace_disabled_table": [], "add_analysis_table": []},
+    }
+    monkeypatch.setattr(
+        R, "load_normal_points", lambda *_args: (normal, "available", layout),
+    )
+    monkeypatch.setattr(R, "load_aa_records", lambda *_args: [])
+    monkeypatch.setattr(R, "evaluate_workload", lambda *_args, **_kwargs: verdict)
+
+    def forbidden_renderer(*_args, **_kwargs):
+        raise AssertionError("measurement job must not start the plot renderer")
+
+    monkeypatch.setattr(R, "make_plot", forbidden_renderer)
+    result = R.report_workload(
+        "balanced", str(tmp_path), log=lambda *_args: None, render_plot=False,
+    )
+
+    stem = tmp_path / "b10-backoff-grid-balanced"
+    recorded = json.loads(Path(result["verdict_path"]).read_text(encoding="utf-8"))
+    assert Path(f"{stem}.dat").is_file()
+    assert Path(f"{stem}.plt").is_file()
+    assert not Path(f"{stem}.png").exists()
+    assert recorded["plot_artifact"] == {
+        "status": "deferred",
+        "reason": "measurement_host_plotting_prohibited",
+        "renderer": "gnuplot",
+        "renderer_invoked": False,
+        "dat": "b10-backoff-grid-balanced.dat",
+        "script": "b10-backoff-grid-balanced.plt",
+        "png": {
+            "path": "b10-backoff-grid-balanced.png",
+            "status": "not_generated_on_measurement_host",
+        },
+    }
+    report = Path(result["report"]).read_text(encoding="utf-8")
+    assert "Plot status: `deferred`." in report
+    assert "PNG was not generated" in report
+    assert "![balanced]" not in report
+
+
+@pytest.mark.parametrize(
+    ("extra_args", "expected_render"),
+    [([], True), (["--defer-plot"], False)],
+)
+def test_report_cli_preserves_default_render_and_allows_measurement_deferral(
+        monkeypatch, extra_args, expected_render):
+    observed = []
+
+    def report(tag, output_root, *, render_plot=True):
+        observed.append((tag, output_root, render_plot))
+        return {"verdict": {"status": "complete"}}
+
+    monkeypatch.setattr(R, "report_workload", report)
+    assert R.main(["balanced", "--output-root", "/outside/root", *extra_args]) == 0
+    assert observed == [("balanced", "/outside/root", expected_render)]
 
 
 def test_failure_and_submission_receipts_cover_partial_progress():
