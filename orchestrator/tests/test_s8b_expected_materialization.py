@@ -659,3 +659,11 @@ def test_module_docstring_states_the_exact_proof_boundary():
     assert "tree after materialization differs" in doc
     assert "does not claim dynamic predicate reachability" in doc
     assert "directory owner can restore" in doc
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

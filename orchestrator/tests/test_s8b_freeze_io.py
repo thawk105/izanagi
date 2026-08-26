@@ -261,6 +261,18 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
             c: {
                 "holdout_id": holdout_id, "label": f"fx-{holdout_id}-{c}",
                 "flags": {"BACK_OFF": i},
+                **({
+                    "comparator": (
+                        "  sort(write_set_.begin(), write_set_.end(),\n"
+                        "       [](const WriteElement<Tuple>& a, "
+                        "const WriteElement<Tuple>& b) -> bool {\n"
+                        "         return a.storage_ != b.storage_ ? "
+                        "a.storage_ < b.storage_\n"
+                        "                                         : "
+                        "b.key_ < a.key_;\n"
+                        "       });"
+                    ),
+                } if c == "sort_best" else {}),
             }
             for i, c in enumerate(configs)
         }
@@ -349,12 +361,23 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
             version_first_line=entry["version_first_line"], version=entry["version"],
         )
 
+    snapshot_base = tmp_path / "ccbench-snapshots"
+    compiler_input_rel = "include/fixture.hh"
+    fixture_cache_root = tmp_path / "cache"
+
     @contextlib.contextmanager
     def fake_prepare(cell, ccbench_pin, *, cxx):
         assert cxx == "fixture-cxx"
         cell_id = f"{cell['variant']['holdout_id']}::{cell['configuration']}"
+        snapshot_root = snapshot_base / cell_id.replace("::", "__")
+        compiler_input = snapshot_root / compiler_input_rel
+        compiler_input.parent.mkdir(parents=True)
+        compiler_input.write_bytes(
+            f"compiler-input:{cell_id}\n".encode("utf-8")
+        )
         yield PreparedCell(genome=Genome("silo", {}), src_token=cell_id,
-                           ccbench_dir="/fx/ccbench", cache_root="/fx/cache",
+                           ccbench_dir=str(snapshot_root),
+                           cache_root=str(fixture_cache_root),
                            oracle_attempt=(
                                fake_sort_swo_pass_attempt()
                                if cell["configuration"] == "sort_best" else None
@@ -362,27 +385,64 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
 
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
+                   expected_materialization_descriptor=None,
                    timeout_s=None, admission=None, build_context=None,
                    source_evidence=None, expected_toolchain_manifest=None):
         assert admission is not None
         assert build_context is not None
         assert source_evidence is not None
         assert expected_toolchain_manifest == toolchain_manifest
-        assert ccbench_dir == "/fx/ccbench"
+        expected_snapshot_root = snapshot_base / src_token.replace("::", "__")
+        assert ccbench_dir == str(expected_snapshot_root)
         assert timeout_s == 900
+        assert type(expected_materialization_descriptor) is (
+            floor._expected_materialization.ExpectedMaterializationDescriptor
+        )
+        compiler_input = Path(ccbench_dir) / compiler_input_rel
         d = Path(cache_root) / "fixture" / src_token.replace("::", "__")
         d.mkdir(parents=True, exist_ok=True)
         b = d / "ycsb.exe"
         payload = src_token.encode()
         b.write_bytes(payload)
         sha = hashlib.sha256(payload).hexdigest()
+        compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": f"ycsb_{genome.protocol}.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": compiler_input_rel,
+                "sha256": hashlib.sha256(compiler_input.read_bytes()).hexdigest(),
+            }],
+        }
+        compiler_input_manifest_sha256 = hashlib.sha256(json.dumps(
+            compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        expected_materialization_sha256 = hashlib.sha256(
+            b"fixture-expected-materialization\0"
+            + json.dumps(
+                expected_materialization_descriptor.declaration,
+                ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
         return SimpleNamespace(binary=str(b), bin_sha256=sha, bin_hash=sha[:16],
                                configure_cmd="#", build_cmd="#", cached=False,
                                configure_argv=[
-                                   "cmake", "-S", "/fx/ccbench", "-B", str(d)],
+                                   "cmake", "-S", ccbench_dir, "-B", str(d)],
                                build_argv=["cmake", "--build", str(d)],
-                               ccbench_root="/fx/ccbench",
-                               contract_sha256=contract.contract_sha256)
+                               ccbench_root=ccbench_dir,
+                               contract_sha256=contract.contract_sha256,
+                               compiler_input_manifest=compiler_input_manifest,
+                               compiler_input_manifest_sha256=(
+                                   compiler_input_manifest_sha256
+                               ),
+                               source_snapshot_sha256=(
+                                   expected_materialization_sha256
+                               ),
+                               expected_materialization_sha256=(
+                                   expected_materialization_sha256
+                               ))
 
     seen = {}
 

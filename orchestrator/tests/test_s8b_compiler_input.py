@@ -274,3 +274,11 @@ def test_no_particular_declared_source_membership_is_required(tmp_path):
     assert [entry["path"] for entry in result.manifest["inputs"]] == [
         "include/unrelated.hh"
     ]
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

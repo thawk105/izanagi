@@ -255,3 +255,11 @@ def test_consumer_rejects_resealed_reverse_proof_mismatch(
             expected_ccbench_pin=_PIN,
             expected_contract_sha256=_CONTRACT_SHA256,
         )
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
