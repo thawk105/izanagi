@@ -3536,7 +3536,16 @@ def test_pre_provenance_release_does_not_close_reused_fd() -> None:
             with pytest.raises(OSError) as released:
                 os.fstat(opened[-1])
             assert released.value.errno == errno.EBADF
-            reused_fd = os.open(request.acceptance_receipt, os.O_RDONLY)
+            target_fd = opened[-1]
+            candidate_fd = os.open(request.acceptance_receipt, os.O_RDONLY)
+            if candidate_fd == target_fd:
+                reused_fd = candidate_fd
+            else:
+                try:
+                    os.dup2(candidate_fd, target_fd)
+                finally:
+                    os.close(candidate_fd)
+                reused_fd = target_fd
             assert reused_fd == opened[-1]
             raise KeyboardInterrupt("synthetic audit interrupt after fd reuse")
 

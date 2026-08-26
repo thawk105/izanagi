@@ -86,6 +86,9 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
   別 wave が先に同じ項を書き換えていた場合に、古い本文から作った更新で上書きするのを防ぐ。
   この digest は `python3 tools/spool_fold.py --base-digest '[T-NNN]'` で読み取り専用に取得できる
   (非 carry item にも使える)。fold の受理・land 検証を代替する gate ではなく、値の lookup だけを行う。
+  **この lookup は起動した作業木の台帳を読む。** wave の作業木は wave 開始時点で止まっており、
+  その間に別 wave が同じ item を書き換えていることがあるので、**digest は land 先の
+  local main の現物に対して取る**。作業木の値で書くと fold が停止する。
 - `見送り` は `docs/phase3.md` の見送り台帳に**実在する H3 名**を H4 として指定し、`理由:` を必ず書く。
 - item の継続行は 2 space インデントにする。
 - エントリ番号・日付・carry stub `- [T-NNN] (N)` の N は **fold が付ける**。fragment に書かない。

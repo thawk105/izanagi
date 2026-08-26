@@ -196,12 +196,19 @@ PYTHONUSERBASE=$("$PY" -I -B -c 'import site; print(site.getuserbase())')
 }
 export PYTHONUSERBASE
 
-export PATH="/usr/bin:/bin"
-for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
-  [[ -d "$candidate" ]] || continue
-  PATH="${PATH}:$candidate"
-done
+# BEGIN acceptance nproc ambient PATH construction
+AMBIENT_PATH=${PATH:-}
+if [[ -n "$AMBIENT_PATH" ]]; then
+  PATH=$AMBIENT_PATH
+else
+  PATH="/usr/bin:/bin"
+  for candidate in /opt/nec/nqsv/bin /system/tool/bin; do
+    [[ -d "$candidate" ]] || continue
+    PATH="${PATH}:$candidate"
+  done
+fi
 export PATH
+# END acceptance nproc ambient PATH construction
 for command_name in git qstat timeout mkdir ln setsid sleep; do
   command -v -- "$command_name" >/dev/null 2>&1 || {
     echo "required command is unavailable: $command_name" >&2
@@ -214,10 +221,28 @@ if ! mkdir "$TMPDIR"; then
   echo "TMPDIR already exists or cannot be created: $TMPDIR" >&2
   exit 2
 fi
-mkdir "$TMPDIR/python-shim" "$TMPDIR/job-home" "$TMPDIR/job-xdg"
-ln -s "$PY" "$TMPDIR/python-shim/python3"
-ln -s "$PY" "$TMPDIR/python-shim/python3.10"
-export PATH="$TMPDIR/python-shim:$PATH"
+mkdir "$TMPDIR/job-home" "$TMPDIR/job-xdg"
+# BEGIN acceptance nproc Python directory PATH prefix
+PY_DIR=${PY%/*}
+[[ -n "$PY_DIR" && "$PY_DIR" == /* && -d "$PY_DIR" ]] || {
+  echo "resolved Python directory must be an existing absolute directory" >&2
+  exit 2
+}
+export PATH="$PY_DIR:$PATH"
+# END acceptance nproc Python directory PATH prefix
+PINNED_PYTHON=$(command -v -- python3.10 2>/dev/null || true)
+[[ -n "$PINNED_PYTHON" && -f "$PINNED_PYTHON" && ! -L "$PINNED_PYTHON" ]] || {
+  echo "python3.10 must resolve to a regular non-symlink file" >&2
+  exit 2
+}
+PINNED_PYTHON=$(
+  "$PY" -I -B -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' \
+    "$PINNED_PYTHON"
+)
+[[ "$PINNED_PYTHON" == "$PY" ]] || {
+  echo "python3.10 must resolve to the selected interpreter" >&2
+  exit 2
+}
 export HOME="$TMPDIR/job-home"
 export XDG_CACHE_HOME="$TMPDIR/job-xdg/cache"
 export XDG_CONFIG_HOME="$TMPDIR/job-xdg/config"

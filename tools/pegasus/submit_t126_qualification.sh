@@ -111,7 +111,12 @@ while IFS= read -r -d '' untracked; do
   }
 done <"$UNTRACKED_LIST"
 rm -f -- "$UNTRACKED_LIST"
-if git -C "$REPO_ROOT" ls-files -v | grep -Eq '^[a-zS]'; then
+index_flags_rc=0
+INDEX_FLAGS=$(git -C "$REPO_ROOT" ls-files -v) || index_flags_rc=$?
+if [[ "$index_flags_rc" -ne 0 ]]; then
+  exit "$index_flags_rc"
+fi
+if grep -Eq '^[a-zS]' <<<"$INDEX_FLAGS"; then
   echo "assume-unchanged/skip-worktree source is forbidden" >&2
   exit 2
 fi

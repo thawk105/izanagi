@@ -386,8 +386,13 @@ def test_other_preserves_cap_no_dispatch_and_legacy_xdist_pip_path():
     ensure.assert_called_once_with()
     dispatch.assert_not_called()
     assert "-n" not in captured["command"]
-    with mock.patch.object(RT.site_policy, "available_cpus", return_value=96):
-        assert RT._default_nproc(site=RT.site_policy.OTHER) == 32
+    saved = os.environ.get("IZANAGI_TEST_NPROC")
+    try:
+        _with_env(None)
+        with mock.patch.object(RT.site_policy, "available_cpus", return_value=96):
+            assert RT._default_nproc(site=RT.site_policy.OTHER) == 32
+    finally:
+        _restore(saved)
 
 
 def test_legacy_xdist_installer_still_uses_user_pip_command():
