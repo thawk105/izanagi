@@ -15,11 +15,24 @@ import json
 import math
 from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 import pytest
 
 from orchestrator.campaign import s8c_result_judge as M
+
+
+_TEST_GENERATION_AXIS = "silo-backoff-trigger-gating"
+
+
+def _test_canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
 
 
 C2_BOUNDARIES = (
@@ -38,6 +51,11 @@ C2_BOUNDARIES = (
     "self swapped mapping is indeterminate",
     "missing swapped prediction is indeterminate",
     "extra swapped prediction is indeterminate",
+    "generation marker selects only the generation schema",
+    "generation results bind exact cell identities",
+    "generation proposal digests are unique across cells",
+    "generation proposal bytes and canonical JSON are verified",
+    "generation proposal arm binding is verified",
 )
 C3_BOUNDARIES = (
     "missing replicate",
@@ -58,6 +76,11 @@ C3_BOUNDARIES = (
     "condition IDs are an exact set",
     "raw observation attestation is bound to values",
     "empty complete blocks are indeterminate",
+    "generation sequence is exact ordered G1 G2",
+    "generation final outcome is certified only",
+    "generation on off difference requires variant and normal form difference",
+    "generation swapped follows exact nonconstant wire normal forms",
+    "generation paired same prediction uses variant or normal form identity",
 )
 C4_BOUNDARIES = (
     "predeclared cell set is independent",
@@ -170,6 +193,150 @@ def _observations(
     return result
 
 
+def _generation_manifest(*, n: int = 2) -> dict:
+    manifest = _manifest(n=n)
+    manifest["experiment_kind"] = "generation_search"
+    for cell in manifest["cells"]:
+        cell.pop("configuration_id")
+        cell["workload"] = "rr80" if cell["holdout_id"] == "H1" else "rr20"
+    return manifest
+
+
+def _generation_case(
+    tmp_path: Path,
+    *,
+    wires: dict[str, str] | None = None,
+    variants: dict[str, str] | None = None,
+) -> tuple[dict, list[dict], dict]:
+    manifest = _generation_manifest()
+    wire_by_cell = {
+        "H1-on": "10000",
+        "H1-off": "00100",
+        "H1-swapped": "01000",
+        "H2-on": "01000",
+        "H2-off": "00010",
+        "H2-swapped": "10000",
+    }
+    if wires:
+        wire_by_cell.update(wires)
+    variant_by_cell = {
+        cell["cell_id"]: f"{index + 1:012x}"
+        for index, cell in enumerate(manifest["cells"])
+    }
+    if variants:
+        variant_by_cell.update(variants)
+    generation_results: dict[str, dict] = {}
+    for cell in manifest["cells"]:
+        cell_id = cell["cell_id"]
+        proposals: dict[int, dict[str, str]] = {}
+        for generation_number in (1, 2):
+            binding_label = (
+                f"binding:{cell_id}:g1"
+                if generation_number == 1
+                else f"binding:{cell_id}"
+            )
+            digest = hashlib.sha256(binding_label.encode("ascii")).hexdigest()
+            proposal_value = {
+                "arm_binding_digest_sha256": digest,
+                "coder": {
+                    "axis": _TEST_GENERATION_AXIS,
+                    "wire": wire_by_cell[cell_id],
+                },
+            }
+            proposal_bytes = _test_canonical_json_bytes(proposal_value)
+            proposal_path = tmp_path / f"{cell_id}.g{generation_number}.json"
+            proposal_path.write_bytes(proposal_bytes)
+            proposals[generation_number] = {
+                "path": str(proposal_path),
+                "sha256": hashlib.sha256(proposal_bytes).hexdigest(),
+                "digest": digest,
+            }
+        harness = {
+            "outcome": "certified",
+            "variant": variant_by_cell[cell_id],
+        }
+        generation_results[cell_id] = {
+            "workload": cell["workload"],
+            "holdout": cell["holdout_id"],
+            "arm": cell["arm"],
+            "stop_reason": "fixed-generation-budget",
+            "generations": [
+                {"generation": 1, "proposal": proposals[1]},
+                {
+                    "generation": 2,
+                    "proposal": proposals[2],
+                    "harness": harness,
+                    "outcome": "certified",
+                },
+            ],
+        }
+    prediction = {
+        "experiment_kind": "generation_search",
+        "conditions": list(M._CONDITION_IDS),
+        "generation_results": generation_results,
+    }
+    return manifest, _observations(manifest), prediction
+
+
+def _generation_record(prediction: dict, cell_id: str) -> dict:
+    return prediction["generation_results"][cell_id]
+
+
+def _generation_two(prediction: dict, cell_id: str) -> dict:
+    return _generation_by_number(prediction, cell_id, 2)
+
+
+def _generation_by_number(
+    prediction: dict, cell_id: str, generation_number: int,
+) -> dict:
+    matches = [
+        generation
+        for generation in _generation_record(prediction, cell_id)["generations"]
+        if generation["generation"] == generation_number
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _rewrite_generation_proposal(
+    prediction: dict,
+    cell_id: str,
+    value: object,
+    *,
+    generation_number: int = 2,
+    raw: bytes | None = None,
+    update_sha256: bool = True,
+) -> None:
+    generation = _generation_by_number(prediction, cell_id, generation_number)
+    path = Path(generation["proposal"]["path"])
+    proposal_bytes = _test_canonical_json_bytes(value) if raw is None else raw
+    path.write_bytes(proposal_bytes)
+    if update_sha256:
+        generation["proposal"]["sha256"] = hashlib.sha256(proposal_bytes).hexdigest()
+
+
+def _judge_generation_case(
+    manifest: dict,
+    observations: list[dict],
+    prediction: dict,
+    *,
+    params: M._ContrastParams | None = None,
+) -> M._JudgeResult:
+    return M.judge(
+        copy.deepcopy(manifest),
+        copy.deepcopy(observations),
+        copy.deepcopy(prediction),
+        params or _params(delta_min=0.5),
+    )
+
+
+def _all_conditions_are_indeterminate(result: M._JudgeResult) -> bool:
+    return all(
+        condition.status is M._Status.INDETERMINATE
+        for condition in result.conditions.values()
+    )
+
+
 def _judge(
     *,
     manifest: dict | None = None,
@@ -181,6 +348,82 @@ def _judge(
     observations = copy.deepcopy(observations if observations is not None else _observations(manifest))
     prediction = copy.deepcopy(prediction if prediction is not None else _prediction())
     return M.judge(manifest, observations, prediction, params or _params())
+
+
+def _selector_reference_result(
+    manifest: dict,
+    observations: list[dict],
+    prediction: dict,
+    params: M._ContrastParams,
+) -> M._JudgeResult:
+    params = M._validate_contrast_params(params)
+    M._validate_condition_declarations(manifest, prediction)
+    manifest_map = M._mapping(manifest, "manifest")
+    try:
+        cells, holdouts = M._normalise_cells(manifest_map)
+    except M._InputContractError:
+        cells = ()
+        holdouts = ()
+    complete_block = False
+    context = None
+    if cells:
+        try:
+            schedule, by_cell_replicate = M._validate_complete_block(
+                manifest_map, cells, params.n,
+            )
+            context = M._build_observation_context(
+                observations, schedule, by_cell_replicate,
+            )
+            complete_block = True
+        except M._InputContractError:
+            context = None
+    if not cells or not holdouts or not complete_block:
+        conditions = {
+            condition_id: M._condition(
+                condition_id,
+                M._Status.INDETERMINATE,
+                {"reason": "manifest-or-complete-block-missing"},
+            )
+            for condition_id in M._CONDITION_IDS
+        }
+        official_by_holdout = {}
+    else:
+        first, on_off = M._evaluate_prediction_difference(
+            prediction, holdouts, cells,
+        )
+        second = M._evaluate_swapped(
+            manifest_map, prediction, holdouts, on_off, cells,
+        )
+        third, official_by_holdout = M._evaluate_contrast(
+            cells,
+            holdouts,
+            context,
+            on_off,
+            params,
+            M._source_binding_matches(manifest_map, params),
+        )
+        conditions = {
+            M._CONDITION_IDS[0]: first,
+            M._CONDITION_IDS[1]: second,
+            M._CONDITION_IDS[2]: third,
+        }
+    cell_rows, selection_rows = M._derived_cell_rows(cells, context, holdouts)
+    frozen_conditions = MappingProxyType(conditions)
+    selection_rows = M._selection_evaluation_rows(
+        cells,
+        selection_rows,
+        manifest_map,
+        prediction,
+        holdouts,
+        frozen_conditions,
+    )
+    return M._JudgeResult(
+        conditions=frozen_conditions,
+        conclusion=M._derive_conclusion(frozen_conditions),
+        cell_rows=cell_rows,
+        selection_rows=selection_rows,
+        official_by_holdout=MappingProxyType(dict(official_by_holdout)),
+    )
 
 
 def _status(result: M._JudgeResult, condition_id: str) -> M._Status:
@@ -257,6 +500,28 @@ def test_judge_signature_has_no_floor_argument() -> None:
     names = set(inspect.signature(M.judge).parameters)
     assert not names & {"floor", "floor_refs", "floor_value", "floor_artifact", "verified_floor"}
     assert names == {"manifest", "observations", "prediction", "params"}
+
+
+def test_generation_diagnostic_reason_enum_contains_required_closed_values() -> None:
+    assert {
+        "generation-results-missing",
+        "generation-sequence-invalid",
+        "final-generation-missing",
+        "final-harness-missing",
+        "generation-harness-outcome-mismatch",
+        "final-outcome-not-admissible",
+        "final-variant-missing-or-invalid",
+        "terminal-stop-reason-invalid",
+        "proposal-binding-missing-or-invalid",
+        "proposal-bytes-unreadable",
+        "proposal-sha256-mismatch",
+        "proposal-not-canonical-json",
+        "proposal-schema-invalid",
+        "proposal-arm-binding-mismatch",
+        "proposal-axis-invalid",
+        "proposal-wire-invalid",
+        "variant-normal-form-conflict",
+    } <= M._GENERATION_DIAGNOSTIC_REASONS
 
 
 @pytest.mark.parametrize("case", C2_BOUNDARIES)
@@ -624,6 +889,642 @@ def test_missing_observation_block_does_not_make_any_condition_satisfied() -> No
         for condition in result.conditions.values()
     )
     assert result.conclusion is M._Status.INDETERMINATE
+
+
+def test_selector_path_remains_exact_without_marker() -> None:
+    manifest = _manifest()
+    observations = _observations(manifest)
+    prediction = _prediction()
+    params = _params()
+    expected = _selector_reference_result(
+        copy.deepcopy(manifest),
+        copy.deepcopy(observations),
+        copy.deepcopy(prediction),
+        params,
+    )
+    actual = M.judge(manifest, observations, prediction, params)
+    assert actual == expected
+    result_snapshot = {
+        "conditions": {
+            condition_id: {
+                "condition_id": condition.condition_id,
+                "status": condition.status.value,
+                "diagnostics": M._plain(condition.diagnostics),
+            }
+            for condition_id, condition in actual.conditions.items()
+        },
+        "conclusion": actual.conclusion.value,
+        "cell_rows": M._plain(actual.cell_rows),
+        "selection_rows": M._plain(actual.selection_rows),
+        "official_by_holdout": {
+            holdout_id: status.value
+            for holdout_id, status in actual.official_by_holdout.items()
+        },
+    }
+    snapshot_bytes = json.dumps(
+        result_snapshot,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    assert hashlib.sha256(snapshot_bytes).hexdigest() == (
+        "7974acc6362f1ff6955e76143cf6c5472c708fc39b8a0035e85f50c8e573b92e"
+    )
+
+    provenance = {
+        "floor_protocol_path": "/sealed/floor-protocol.json",
+        "floor_protocol_sha256": "1" * 64,
+        "floor_source_path": "/sealed/floor-source.cc",
+        "floor_source_sha256": "2" * 64,
+        "env_tag": "selector-golden",
+        "frozen_at_head": "3" * 40,
+    }
+    actual_rows = {
+        "descriptive_only": actual.cell_rows,
+        "official_status": M._official_rows(actual.cell_rows, actual),
+        "selection_evaluation": M._selection_rows(actual.cell_rows, actual),
+    }
+    expected_rows = {
+        "descriptive_only": expected.cell_rows,
+        "official_status": M._official_rows(expected.cell_rows, expected),
+        "selection_evaluation": M._selection_rows(expected.cell_rows, expected),
+    }
+    for table_name in M._TABLE_NAMES:
+        actual_bytes = M._table_bytes(
+            table_name, actual_rows[table_name], actual, provenance,
+        )
+        assert actual_bytes == M._table_bytes(
+            table_name, expected_rows[table_name], expected, provenance,
+        )
+        assert hashlib.sha256(actual_bytes).hexdigest() == {
+            "descriptive_only": (
+                "6319ab5d809edbb73518bf644d1774fa9e9e88ca02a5fbef472efd8aadb753dd"
+            ),
+            "official_status": (
+                "b1769163d5c02ea805db5b315c348315926fd88e26f716f2a2ec744941de8895"
+            ),
+            "selection_evaluation": (
+                "eb7a06012061f372ba4c7e64ac4c7123c1442874b2702fed0fcf60fc6edb890d"
+            ),
+        }[table_name]
+
+
+def test_generation_marker_rejects_selector_shaped_mixed_input() -> None:
+    manifest = _manifest()
+    manifest["experiment_kind"] = "generation_search"
+    prediction = _prediction()
+    prediction["experiment_kind"] = "generation_search"
+    result = M.judge(
+        manifest, _observations(manifest), prediction, _params(),
+    )
+    assert _all_conditions_are_indeterminate(result)
+    assert {
+        condition.diagnostics["reason"]
+        for condition in result.conditions.values()
+    } == {"generation-schema-invalid"}
+
+
+def test_generation_cell_configuration_id_is_an_independent_schema_error(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    manifest["cells"][0]["configuration_id"] = "selector-identity"
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics
+    assert diagnostic["reason"] == "generation-schema-invalid"
+    assert tuple(diagnostic["mismatches"]) == ({
+        "path": "manifest.cells[0].configuration_id",
+        "expected": "absent",
+        "actual": "selector-identity",
+    },)
+
+
+def test_generation_selector_prediction_key_is_an_independent_schema_error(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    prediction["on_off"] = {"H1": {"on": "unused", "off": "unused"}}
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics
+    assert diagnostic["reason"] == "generation-schema-invalid"
+    assert tuple(diagnostic["mismatches"]) == ({
+        "path": "prediction.on_off",
+        "expected": "absent",
+        "actual": {"H1": {"on": "unused", "off": "unused"}},
+    },)
+
+
+def test_generation_cell_workload_is_independently_required(tmp_path: Path) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    manifest["cells"][0].pop("workload")
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics
+    assert diagnostic["reason"] == "generation-schema-invalid"
+    assert diagnostic["mismatches"] == ()
+
+
+@pytest.mark.parametrize("marker_owner", ["manifest", "prediction"])
+def test_generation_marker_requires_exact_str_type(
+    tmp_path: Path, marker_owner: str,
+) -> None:
+    class MarkerSubclass(str):
+        pass
+
+    manifest, observations, prediction = _generation_case(tmp_path)
+    if marker_owner == "manifest":
+        manifest["experiment_kind"] = MarkerSubclass("generation_search")
+        expected_reason = "experiment-kind-invalid"
+    else:
+        prediction["experiment_kind"] = MarkerSubclass("generation_search")
+        expected_reason = "generation-schema-invalid"
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    assert {
+        condition.diagnostics["reason"]
+        for condition in result.conditions.values()
+    } == {expected_reason}
+
+
+def test_unknown_experiment_kind_is_indeterminate() -> None:
+    manifest = _manifest()
+    manifest["experiment_kind"] = "selector"
+    result = M.judge(
+        manifest, _observations(manifest), _prediction(), _params(),
+    )
+    assert _all_conditions_are_indeterminate(result)
+    assert {
+        condition.diagnostics["reason"]
+        for condition in result.conditions.values()
+    } == {"experiment-kind-invalid"}
+
+
+def test_prediction_marker_without_manifest_authority_is_indeterminate() -> None:
+    prediction = _prediction()
+    prediction["experiment_kind"] = "generation_search"
+    manifest = _manifest()
+    result = M.judge(
+        manifest, _observations(manifest), prediction, _params(),
+    )
+    assert _all_conditions_are_indeterminate(result)
+
+
+def test_generation_fixture_pins_literal_axis_and_canonical_json_bytes(
+    tmp_path: Path,
+) -> None:
+    _, _, prediction = _generation_case(tmp_path)
+    proposal_path = Path(_generation_two(prediction, "H1-on")["proposal"]["path"])
+    assert proposal_path.read_bytes() == (
+        b'{"arm_binding_digest_sha256":"'
+        b'd400fed6f4b325fc51e8e78b43c42d737e6debb29ed5e8bcbfc0fdb22d177503'
+        b'","coder":{"axis":"silo-backoff-trigger-gating","wire":"10000"}}'
+    )
+
+
+@pytest.mark.parametrize(
+    ("case", "wire_override", "expected"),
+    [
+        pytest.param("wire-follow", {}, M._Status.SATISFIED, id="wire-follow"),
+        pytest.param(
+            "wire-mismatch",
+            {"H1-swapped": "10000"},
+            M._Status.UNSATISFIED,
+            id="wire-mismatch",
+        ),
+    ],
+)
+def test_generation_swapped_follow_through_is_not_axis_tautology(
+    tmp_path: Path,
+    case: str,
+    wire_override: dict[str, str],
+    expected: M._Status,
+) -> None:
+    manifest, observations, prediction = _generation_case(
+        tmp_path, wires=wire_override,
+    )
+    result = _judge_generation_case(manifest, observations, prediction)
+    condition = result.conditions["swapped_follow_through"]
+    assert condition.status is expected
+    assert case in {"wire-follow", "wire-mismatch"}
+    for diagnostic in condition.diagnostics["holdouts"].values():
+        assert diagnostic["expected_normal_form"]["axis"] == _TEST_GENERATION_AXIS
+        assert diagnostic["actual_normal_form"]["axis"] == _TEST_GENERATION_AXIS
+    if case == "wire-mismatch":
+        diagnostic = condition.diagnostics["holdouts"]["H1"]
+        assert diagnostic["matched"] is False
+        assert diagnostic["mismatch_components"] == ("parameters.wire",)
+        assert diagnostic["expected_normal_form"]["axis"] == diagnostic[
+            "actual_normal_form"
+        ]["axis"]
+
+
+def test_generation_swapped_constant_source_family_is_unsatisfied(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(
+        tmp_path,
+        wires={
+            "H2-on": "10000",
+            "H1-swapped": "10000",
+            "H2-swapped": "10000",
+        },
+    )
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _status(result, "on_off_prediction_difference") is M._Status.SATISFIED
+    swapped = result.conditions["swapped_follow_through"]
+    assert swapped.status is M._Status.UNSATISFIED
+    assert swapped.diagnostics["reason"] == "source-on-normal-forms-constant"
+    assert swapped.diagnostics["source_on_normal_forms_constant"] is True
+    assert _status(result, "paired_repeat_contrast") is M._Status.SATISFIED
+
+
+def test_generation_converged_same_variant_and_normal_form_is_unsatisfied(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(
+        tmp_path,
+        wires={"H1-off": "10000", "H2-off": "01000"},
+        variants={"H1-off": "000000000001", "H2-off": "000000000004"},
+    )
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert not _all_conditions_are_indeterminate(result)
+    assert _status(result, "on_off_prediction_difference") is M._Status.UNSATISFIED
+    contrast = result.conditions["paired_repeat_contrast"]
+    assert contrast.status is M._Status.UNSATISFIED
+    assert contrast.diagnostics["holdouts"]["H1"]["same_prediction"] is True
+
+
+def test_generation_same_normal_form_different_variant_is_unsatisfied(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(
+        tmp_path,
+        wires={"H1-off": "10000", "H2-off": "01000"},
+    )
+    result = _judge_generation_case(manifest, observations, prediction)
+    difference = result.conditions["on_off_prediction_difference"]
+    assert difference.status is M._Status.UNSATISFIED
+    assert difference.diagnostics["holdouts"]["H1"]["normal_form_equal"] is True
+    contrast = result.conditions["paired_repeat_contrast"]
+    assert contrast.status is M._Status.UNSATISFIED
+    h1 = contrast.diagnostics["holdouts"]["H1"]
+    assert h1["on_variant"] != h1["off_variant"]
+    assert h1["same_prediction"] is True
+
+
+def test_generation_duplicate_final_outcome_is_not_admissible(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    generation = _generation_two(prediction, "H1-on")
+    generation["outcome"] = "duplicate"
+    generation["harness"]["outcome"] = "duplicate"
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]
+    assert diagnostic["reason"] == "final-outcome-not-admissible"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "numbers"),
+    [
+        pytest.param("reordered", [2, 1], id="reordered"),
+        pytest.param("missing-g2", [1], id="missing-g2"),
+        pytest.param("duplicate-g2", [1, 2, 2], id="duplicate-g2"),
+        pytest.param("extra-g3", [1, 2, 3], id="extra-g3"),
+    ],
+)
+def test_generation_outcome_requires_exact_generation_sequence(
+    tmp_path: Path,
+    mutation: str,
+    numbers: list[int],
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    original = _generation_record(prediction, "H1-on")["generations"]
+    by_number = {item["generation"]: item for item in original}
+    replacements = []
+    for number in numbers:
+        if number in by_number:
+            replacements.append(copy.deepcopy(by_number[number]))
+        else:
+            replacements.append({"generation": number})
+    _generation_record(prediction, "H1-on")["generations"] = replacements
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert mutation in {"reordered", "missing-g2", "duplicate-g2", "extra-g3"}
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]
+    assert diagnostic["reason"] == "generation-sequence-invalid"
+    assert diagnostic["generation_numbers"] == tuple(numbers)
+
+
+def test_generation_result_record_swap_is_indeterminate(tmp_path: Path) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    results = prediction["generation_results"]
+    results["H1-on"], results["H1-off"] = results["H1-off"], results["H1-on"]
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    assert result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]["reason"] == "generation-cell-binding-invalid"
+
+
+@pytest.mark.parametrize(
+    ("field", "actual", "expected"),
+    [
+        pytest.param("workload", "rr20", "rr80", id="workload-only"),
+        pytest.param("holdout", "H2", "H1", id="holdout-only"),
+    ],
+)
+def test_generation_result_record_field_binding_is_independent(
+    tmp_path: Path, field: str, actual: str, expected: str,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    _generation_record(prediction, "H1-on")[field] = actual
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]
+    assert diagnostic["reason"] == "generation-cell-binding-invalid"
+    assert tuple(diagnostic["mismatches"]) == ({
+        "path": field,
+        "expected": expected,
+        "actual": actual,
+    },)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "extra"], ids=["missing", "extra"])
+def test_generation_results_are_keyed_by_exact_manifest_cell_set(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    if mutation == "missing":
+        prediction["generation_results"].pop("H1-on")
+    else:
+        prediction["generation_results"]["H3-on"] = copy.deepcopy(
+            prediction["generation_results"]["H1-on"]
+        )
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    assert {
+        condition.diagnostics["reason"]
+        for condition in result.conditions.values()
+    } == {"generation-results-missing"}
+
+
+def test_generation_proposal_digests_are_unique_across_cells(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    source = _generation_two(prediction, "H1-on")["proposal"]["digest"]
+    target = _generation_two(prediction, "H1-off")
+    target["proposal"]["digest"] = source
+    proposal_path = Path(target["proposal"]["path"])
+    proposal_value = json.loads(proposal_path.read_text("utf-8"))
+    proposal_value["arm_binding_digest_sha256"] = source
+    _rewrite_generation_proposal(prediction, "H1-off", proposal_value)
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    assert result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["off"]["reason"] == "proposal-binding-missing-or-invalid"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_reason"),
+    [
+        pytest.param("hash-mismatch", "proposal-sha256-mismatch", id="hash-mismatch"),
+        pytest.param(
+            "noncanonical-json", "proposal-not-canonical-json", id="noncanonical-json",
+        ),
+        pytest.param("invalid-wire", "proposal-wire-invalid", id="invalid-wire"),
+        pytest.param(
+            "arm-binding-mismatch",
+            "proposal-arm-binding-mismatch",
+            id="arm-binding-mismatch",
+        ),
+    ],
+)
+def test_generation_proposal_validation_is_fail_closed(
+    tmp_path: Path,
+    mutation: str,
+    expected_reason: str,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    generation = _generation_two(prediction, "H1-on")
+    proposal_path = Path(generation["proposal"]["path"])
+    proposal_value = json.loads(proposal_path.read_text("utf-8"))
+    if mutation == "hash-mismatch":
+        generation["proposal"]["sha256"] = "0" * 64
+    elif mutation == "noncanonical-json":
+        raw = json.dumps(proposal_value, indent=2, sort_keys=True).encode("utf-8")
+        _rewrite_generation_proposal(prediction, "H1-on", proposal_value, raw=raw)
+    elif mutation == "invalid-wire":
+        proposal_value["coder"]["wire"] = "22222"
+        _rewrite_generation_proposal(prediction, "H1-on", proposal_value)
+    else:
+        proposal_value["arm_binding_digest_sha256"] = "f" * 64
+        _rewrite_generation_proposal(prediction, "H1-on", proposal_value)
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]
+    assert diagnostic["reason"] == expected_reason
+    assert diagnostic["proposal_path"] is None
+    if mutation == "invalid-wire":
+        assert tuple(diagnostic["mismatches"]) == ({
+            "path": "generations[1].proposal.json.coder.wire",
+            "expected": "five-character-binary-string",
+            "actual": "22222",
+        },)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_reason"),
+    [
+        pytest.param(
+            "missing-proposal",
+            "proposal-binding-missing-or-invalid",
+            id="missing-proposal",
+        ),
+        pytest.param(
+            "missing-digest",
+            "proposal-binding-missing-or-invalid",
+            id="missing-digest",
+        ),
+        pytest.param(
+            "unreadable-path", "proposal-bytes-unreadable", id="unreadable-path",
+        ),
+        pytest.param("hash-mismatch", "proposal-sha256-mismatch", id="hash-mismatch"),
+        pytest.param(
+            "noncanonical-json", "proposal-not-canonical-json", id="noncanonical-json",
+        ),
+        pytest.param(
+            "arm-binding-mismatch",
+            "proposal-arm-binding-mismatch",
+            id="arm-binding-mismatch",
+        ),
+    ],
+)
+def test_generation_one_proposal_validation_is_fail_closed(
+    tmp_path: Path, mutation: str, expected_reason: str,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    generation = _generation_by_number(prediction, "H1-on", 1)
+    proposal = generation["proposal"]
+    proposal_path = Path(proposal["path"])
+    proposal_value = json.loads(proposal_path.read_text("utf-8"))
+    if mutation == "missing-proposal":
+        generation.pop("proposal")
+    elif mutation == "missing-digest":
+        proposal.pop("digest")
+    elif mutation == "unreadable-path":
+        proposal["path"] = str(tmp_path / "missing-g1-proposal.json")
+    elif mutation == "hash-mismatch":
+        proposal["sha256"] = "0" * 64
+    elif mutation == "noncanonical-json":
+        raw = json.dumps(proposal_value, indent=2, sort_keys=True).encode("utf-8")
+        _rewrite_generation_proposal(
+            prediction,
+            "H1-on",
+            proposal_value,
+            generation_number=1,
+            raw=raw,
+        )
+    else:
+        proposal_value["arm_binding_digest_sha256"] = "f" * 64
+        _rewrite_generation_proposal(
+            prediction, "H1-on", proposal_value, generation_number=1,
+        )
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]
+    assert diagnostic["reason"] == expected_reason
+    assert diagnostic["proposal_generation"] == 1
+    assert diagnostic["proposal_path"] is None
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_reason"),
+    [
+        pytest.param("invalid-axis", "proposal-axis-invalid", id="invalid-axis"),
+        pytest.param("symlink-path", "proposal-bytes-unreadable", id="symlink-path"),
+        pytest.param(
+            "unreadable-path", "proposal-bytes-unreadable", id="unreadable-path",
+        ),
+        pytest.param("coder-not-mapping", "proposal-schema-invalid", id="coder-not-mapping"),
+    ],
+)
+def test_generation_proposal_shape_and_reference_are_fail_closed(
+    tmp_path: Path, mutation: str, expected_reason: str,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    generation = _generation_two(prediction, "H1-on")
+    proposal_path = Path(generation["proposal"]["path"])
+    proposal_value = json.loads(proposal_path.read_text("utf-8"))
+    if mutation == "invalid-axis":
+        proposal_value["coder"]["axis"] = "wrong-axis"
+        _rewrite_generation_proposal(prediction, "H1-on", proposal_value)
+    elif mutation == "symlink-path":
+        link_path = tmp_path / "H1-on.g2-link.json"
+        link_path.symlink_to(proposal_path)
+        generation["proposal"]["path"] = str(link_path)
+    elif mutation == "unreadable-path":
+        generation["proposal"]["path"] = str(tmp_path / "missing-g2-proposal.json")
+    else:
+        proposal_value["coder"] = ["not", "a", "mapping"]
+        _rewrite_generation_proposal(prediction, "H1-on", proposal_value)
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    diagnostic = result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]
+    assert diagnostic["reason"] == expected_reason
+    assert diagnostic["proposal_generation"] == 2
+    assert diagnostic["proposal_path"] is None
+    if mutation == "invalid-axis":
+        assert tuple(diagnostic["mismatches"]) == ({
+            "path": "generations[1].proposal.json.coder.axis",
+            "expected": _TEST_GENERATION_AXIS,
+            "actual": "wrong-axis",
+        },)
+
+
+def test_proposal_diagnostic_path_is_repo_relative_or_omitted(tmp_path: Path) -> None:
+    repo_path = M._REPO_ROOT / "orchestrator" / "campaign" / "proposal.json"
+    assert M._repo_relative_proposal_path(str(repo_path)) == (
+        "orchestrator/campaign/proposal.json"
+    )
+    assert M._repo_relative_proposal_path(str(tmp_path / "proposal.json")) is None
+
+
+def test_generation_variant_normal_form_conflict_is_indeterminate(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(
+        tmp_path, variants={"H1-off": "000000000001"},
+    )
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert _all_conditions_are_indeterminate(result)
+    assert result.conditions[M._CONDITION_IDS[0]].diagnostics[
+        "holdouts"
+    ]["H1"]["on"]["reason"] == "variant-normal-form-conflict"
+
+
+def test_generation_result_tables_use_actual_and_expected_g2_variants(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    result = _judge_generation_case(manifest, observations, prediction)
+    variants = {
+        cell_id: _generation_two(prediction, cell_id)["harness"]["variant"]
+        for cell_id in prediction["generation_results"]
+    }
+    by_cell = {row["cell_id"]: row for row in result.selection_rows}
+    assert by_cell["H1-on"]["configuration_id"] == variants["H1-on"]
+    assert by_cell["H1-on"]["predicted_configuration_id"] == variants["H1-on"]
+    assert by_cell["H1-off"]["predicted_configuration_id"] == variants["H1-off"]
+    assert by_cell["H1-swapped"]["configuration_id"] == variants["H1-swapped"]
+    assert by_cell["H1-swapped"]["predicted_configuration_id"] == variants["H2-on"]
+    assert by_cell["H2-swapped"]["predicted_configuration_id"] == variants["H1-on"]
+
+
+def test_generation_invalid_swap_mapping_does_not_invent_expected_variants(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    manifest["swapped_mapping"] = {"H1": "H1", "H2": "H2"}
+    result = _judge_generation_case(manifest, observations, prediction)
+    assert result.conditions["swapped_follow_through"].status is M._Status.INDETERMINATE
+    by_cell = {row["cell_id"]: row for row in result.selection_rows}
+    for cell_id in ("H1-swapped", "H2-swapped"):
+        assert by_cell[cell_id]["predicted_configuration_id"] is None
+        assert by_cell[cell_id]["predicted_rank"] is None
+        assert by_cell[cell_id]["prediction_matches_rank"] is False
+
+
+def test_generation_prediction_marker_is_optional_but_must_match_when_present(
+    tmp_path: Path,
+) -> None:
+    manifest, observations, prediction = _generation_case(tmp_path)
+    prediction.pop("experiment_kind")
+    assert not _all_conditions_are_indeterminate(
+        _judge_generation_case(manifest, observations, prediction)
+    )
+    prediction["experiment_kind"] = "selector"
+    assert _all_conditions_are_indeterminate(
+        _judge_generation_case(manifest, observations, prediction)
+    )
 
 
 def test_floor_verification_derives_expectations_from_ratified_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
