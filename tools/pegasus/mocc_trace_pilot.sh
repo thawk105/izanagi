@@ -91,6 +91,10 @@ VERIFIER_TOOL_SHA=""
 CHECKER_REPORT_SHA=""
 VERIFIER_RC="not-run"
 RUN_RC="not-run"
+JUDGMENT_PRE_CAPTURE=""
+JUDGMENT_PRE_SHA=""
+JUDGMENT_POST_CAPTURE=""
+JUDGMENT_POST_SHA=""
 TRACE_MODE=$IZANAGI_MOCC_TRACE_MODE
 
 write_failure() {
@@ -141,6 +145,516 @@ on_signal() {
 trap 'on_signal INT' INT
 trap 'on_signal TERM' TERM
 trap 'on_signal HUP' HUP
+
+write_artifact_classification_manifest() {
+  python3 - "$ATTEMPT_DIR/artifact-classification-manifest.json" \
+    "$TRACE_MODE" <<'PY_ARTIFACT_MANIFEST'
+import json
+import sys
+
+output, trace_mode = sys.argv[1:]
+trace_mode_i = int(trace_mode)
+if trace_mode_i not in {0, 1}:
+    raise SystemExit("trace mode must be zero or one")
+
+classifications = (
+    "correctness_evidence",
+    "performance_evidence",
+    "operational_diagnostic",
+)
+artifacts = []
+
+
+def add(scope, path_pattern, classification, reason, modes=(0, 1)):
+    if trace_mode_i not in modes:
+        return
+    if classification not in classifications:
+        raise ValueError("artifact classification is outside the closed enum")
+    if not reason or "\n" in reason or "\r" in reason:
+        raise ValueError("artifact reason must be one nonempty line")
+    artifacts.append(
+        {
+            "scope": scope,
+            "path_pattern": path_pattern,
+            "classification": classification,
+            "trace1_performance_use_forbidden": trace_mode_i == 1,
+            "reason": reason,
+        }
+    )
+
+
+for path_pattern in (
+    "artifact-classification-manifest.json",
+    "failure.json",
+    "worktree-cleanup.stdout",
+    "worktree-cleanup.stderr",
+    "qstat-f.stdout",
+    "qstat-f.stderr",
+    "qstat-f.rc",
+    "hostname.stdout",
+    "hostname-f.stdout",
+    "allocation-unavailable.json",
+    "reservation.json",
+    "window-remaining-*.stdout",
+    "topology.json",
+    "cpu-model.stdout",
+    "module-list.stdout",
+    "module-list.stderr",
+    "module-list.rc",
+    "compiler-gcc.path",
+    "compiler-gxx.path",
+    "cmake.path",
+    "compiler-gcc.version",
+    "compiler-gxx.version",
+    "cmake.version",
+    "gflags-source-head.stdout",
+    "gflags-source-status.stdout",
+    "gflags-configure.argv.json",
+    "gflags-configure.stdout",
+    "gflags-configure.stderr",
+    "gflags-build.stdout",
+    "gflags-build.stderr",
+    "gflags-install.stdout",
+    "gflags-install.stderr",
+    "glog-source-head.stdout",
+    "glog-source-status.stdout",
+    "glog-configure.argv.json",
+    "glog-configure.stdout",
+    "glog-configure.stderr",
+    "glog-build.stdout",
+    "glog-build.stderr",
+    "glog-install.stdout",
+    "glog-install.stderr",
+    "third-party-hydrate.json",
+    "third-party-hydrate.stderr",
+    "third-party-source-root.stdout",
+    "submodule-head.stdout",
+    "submodule-status.stdout",
+    "worktree-add.stdout",
+    "worktree-add.stderr",
+    "configure-trace*.argv.json",
+    "configure-trace*.stdout",
+    "configure-trace*.stderr",
+    "build-trace*.stdout",
+    "build-trace*.stderr",
+    "compiler-used.version",
+    "run/workload.stderr",
+    "run/workload.rc",
+    "qstat-final.stdout",
+    "qstat-final.stderr",
+    "qstat-final.rc",
+    "qstat-accounting.stdout",
+    "qstat-accounting.stderr",
+    "qstat-accounting.rc",
+    "worktree-remove.stdout",
+    "worktree-remove.stderr",
+):
+    add(
+        "attempt_dir",
+        path_pattern,
+        "operational_diagnostic",
+        "Records execution, environment, build, scheduler, or failure diagnostics.",
+    )
+
+for path_pattern, reason in (
+    (
+        "submit-receipt.json",
+        "Binds the job to the submitted request and frozen source inputs.",
+    ),
+    (
+        "judgment-source-pre.json",
+        "Records the source identity and clean state before judgment.",
+    ),
+    (
+        "judgment-source-post.json",
+        "Records the source identity and clean state after judgment.",
+    ),
+    (
+        "binary-trace*.sha256",
+        "Binds the executed workload binary bytes.",
+    ),
+    (
+        "binary-trace*.path",
+        "Records the executed workload binary path.",
+    ),
+    (
+        "run/workload.argv.json",
+        "Records the exact workload configuration and arguments.",
+    ),
+    (
+        "mocc-trace-pilot-receipt.sha256",
+        "Binds the pilot receipt bytes by digest.",
+    ),
+    (
+        "job-result.json",
+        "Binds the completed job result to the pilot receipt.",
+    ),
+):
+    add("attempt_dir", path_pattern, "correctness_evidence", reason)
+
+for path_pattern, reason in (
+    (
+        "run/workload.stdout",
+        "CCBench stdout contains the commit-count witness and may expose other performance values.",
+    ),
+    (
+        "run/workload.elapsed_ns",
+        "Elapsed time combines with a commit count to derive throughput.",
+    ),
+    (
+        "commit-count.json",
+        "The commit-count witness combines with elapsed time to derive throughput.",
+    ),
+):
+    add("attempt_dir", path_pattern, "performance_evidence", reason)
+
+if trace_mode_i == 0:
+    add(
+        "attempt_dir",
+        "mocc-trace-pilot-receipt.json",
+        "performance_evidence",
+        "The TRACE=0 receipt records completed transactions and elapsed time.",
+    )
+else:
+    add(
+        "attempt_dir",
+        "mocc-trace-pilot-receipt.json",
+        "correctness_evidence",
+        "The TRACE=1 receipt binds correctness artifacts while other listed files still permit performance derivation.",
+    )
+
+for path_pattern, classification, reason in (
+    (
+        "trace0-preprocess-identity.json",
+        "correctness_evidence",
+        "Certifies the TRACE=0 preprocess identity gate.",
+    ),
+    (
+        "trace0-preprocess-identity.stderr",
+        "operational_diagnostic",
+        "Records diagnostics from the TRACE=0 preprocess identity gate.",
+    ),
+    (
+        "trace0-preprocess-identity.rc",
+        "operational_diagnostic",
+        "Records the TRACE=0 preprocess identity gate return code.",
+    ),
+    (
+        "trace0-execution.json",
+        "correctness_evidence",
+        "Records fail-closed skipping when the TRACE=0 identity gate rejects.",
+    ),
+    (
+        "throughput.json",
+        "performance_evidence",
+        "Records TRACE=0 throughput and latency derived from count and elapsed time.",
+    ),
+):
+    add("attempt_dir", path_pattern, classification, reason, modes=(0,))
+
+for path_pattern, classification, reason in (
+    (
+        "run/trace/trace_*.log",
+        "correctness_evidence",
+        "Trace records support verification and may expose timing or transaction-count information.",
+    ),
+    (
+        "trace-manifest.json",
+        "correctness_evidence",
+        "Binds trace file names, sizes, and digests for verification.",
+    ),
+    (
+        "verifier.json",
+        "correctness_evidence",
+        "The verifier verdict includes stats.txns, which exposes a transaction count.",
+    ),
+    (
+        "verifier.stderr",
+        "operational_diagnostic",
+        "Records verifier diagnostics.",
+    ),
+    (
+        "verifier.rc",
+        "operational_diagnostic",
+        "Records the verifier return code.",
+    ),
+):
+    add("attempt_dir", path_pattern, classification, reason, modes=(1,))
+
+for path_pattern, reason in (
+    (
+        "pbs-job.stdout",
+        "PBS captures the job's unredirected standard output.",
+    ),
+    (
+        "pbs-job.stderr",
+        "PBS captures the job's unredirected standard error.",
+    ),
+):
+    add("submission_dir", path_pattern, "operational_diagnostic", reason)
+
+artifacts.sort(key=lambda item: (item["scope"], item["path_pattern"]))
+identities = [(item["scope"], item["path_pattern"]) for item in artifacts]
+if len(identities) != len(set(identities)):
+    raise ValueError("artifact path patterns must be unique within each scope")
+
+payload = {
+    "schema_version": "mocc-trace-artifact-classification-manifest/v1",
+    "trace_mode": trace_mode_i,
+    "classification_enum": list(classifications),
+    "performance_use_policy": (
+        "TRACE=1 files must not be used as performance evidence even when "
+        "performance values remain derivable from their contents or combinations."
+    ),
+    "artifacts": artifacts,
+}
+with open(output, "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+PY_ARTIFACT_MANIFEST
+}
+
+validate_artifact_classification_manifest() {
+  python3 - "$ATTEMPT_DIR/artifact-classification-manifest.json" \
+    "$ATTEMPT_DIR" "$TRACE_MODE" <<'PY_VALIDATE_ARTIFACT_MANIFEST'
+import fnmatch
+import json
+import os
+import pathlib
+import sys
+
+manifest_path, attempt_dir, trace_mode = sys.argv[1:]
+with open(manifest_path, encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+classifications = {
+    "correctness_evidence",
+    "performance_evidence",
+    "operational_diagnostic",
+}
+if manifest.get("schema_version") != (
+    "mocc-trace-artifact-classification-manifest/v1"
+):
+    raise ValueError("artifact classification manifest schema differs")
+if manifest.get("trace_mode") != int(trace_mode):
+    raise ValueError("artifact classification manifest trace mode differs")
+if set(manifest.get("classification_enum", ())) != classifications:
+    raise ValueError("artifact classification enum differs")
+entries = manifest.get("artifacts")
+if not isinstance(entries, list) or not entries:
+    raise ValueError("artifact classification entries are absent")
+
+entry_keys = {
+    "scope",
+    "path_pattern",
+    "classification",
+    "trace1_performance_use_forbidden",
+    "reason",
+}
+identities = []
+for entry in entries:
+    if not isinstance(entry, dict) or set(entry) != entry_keys:
+        raise ValueError("artifact classification entry shape differs")
+    if entry["scope"] not in {"attempt_dir", "submission_dir"}:
+        raise ValueError("artifact classification scope differs")
+    if (
+        not isinstance(entry["path_pattern"], str)
+        or not entry["path_pattern"]
+        or os.path.isabs(entry["path_pattern"])
+        or ".." in pathlib.PurePosixPath(entry["path_pattern"]).parts
+    ):
+        raise ValueError("artifact path pattern is unsafe")
+    if entry["classification"] not in classifications:
+        raise ValueError("artifact classification is outside the closed enum")
+    forbidden = entry["trace1_performance_use_forbidden"]
+    if type(forbidden) is not bool:
+        raise ValueError("TRACE=1 performance-use flag is not boolean")
+    if int(trace_mode) == 1 and forbidden is not True:
+        raise ValueError("TRACE=1 artifact performance use is not forbidden")
+    if int(trace_mode) == 0 and forbidden is not False:
+        raise ValueError("TRACE=0 artifact is over-restricted")
+    reason = entry["reason"]
+    if not isinstance(reason, str) or not reason or "\n" in reason or "\r" in reason:
+        raise ValueError("artifact reason must be one nonempty line")
+    identities.append((entry["scope"], entry["path_pattern"]))
+if len(identities) != len(set(identities)):
+    raise ValueError("artifact path patterns are duplicated")
+
+serialized_text = json.dumps(manifest, ensure_ascii=False).casefold()
+for prohibited_claim in (
+    "not derivable",
+    "cannot derive",
+    "impossible to derive",
+    "non-derivable",
+):
+    if prohibited_claim in serialized_text:
+        raise ValueError("manifest overstates performance redaction")
+
+attempt_entries = [entry for entry in entries if entry["scope"] == "attempt_dir"]
+unclassified = []
+root = pathlib.Path(attempt_dir)
+for path in root.rglob("*"):
+    if path.is_symlink():
+        raise ValueError(f"artifact is a symlink: {path.relative_to(root)}")
+    if not path.is_file():
+        continue
+    relative = path.relative_to(root).as_posix()
+    matches = [
+        entry
+        for entry in attempt_entries
+        if fnmatch.fnmatchcase(relative, entry["path_pattern"])
+    ]
+    if len(matches) != 1:
+        unclassified.append(relative)
+if unclassified:
+    raise ValueError(
+        "unclassified or ambiguously classified artifacts: " + repr(unclassified)
+    )
+PY_VALIDATE_ARTIFACT_MANIFEST
+}
+
+write_artifact_classification_manifest
+
+capture_judgment_source_state() {
+  local phase=$1
+  local output=$2
+  python3 - "$REPO_ROOT" "$output" "$phase" <<'PY'
+import base64
+import hashlib
+import json
+import re
+import subprocess
+import sys
+
+repo_root, output, phase = sys.argv[1:]
+if phase not in {"pre_judgment", "post_judgment"}:
+    raise SystemExit("unsupported judgment source capture phase")
+
+
+def run_git(arguments):
+    try:
+        return subprocess.run(
+            ["git", "-C", repo_root, *arguments],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except OSError:
+        return subprocess.CompletedProcess(arguments, 127, stdout=b"", stderr=b"")
+
+
+head_result = run_git(["rev-parse", "HEAD"])
+status_result = run_git(
+    [
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--",
+        ".",
+        ":(exclude)output",
+    ]
+)
+try:
+    head = head_result.stdout.decode("ascii").strip()
+except UnicodeDecodeError:
+    head = ""
+head_valid = bool(re.fullmatch(r"[0-9a-f]{40}", head))
+capture_ok = (
+    head_result.returncode == 0
+    and status_result.returncode == 0
+    and head_valid
+)
+clean = capture_ok and status_result.stdout == b""
+payload = {
+    "schema_version": "mocc-trace-judgment-source-capture/v1",
+    "capture_phase": phase,
+    "capture_ok": capture_ok,
+    "head": head if head_valid else None,
+    "clean": clean,
+    "pathspec": [".", ":(exclude)output"],
+    "status_format": "git status --porcelain=v1 -z --untracked-files=all",
+    "status_bytes_base64": base64.b64encode(status_result.stdout).decode("ascii"),
+    "command_rc": {
+        "head": head_result.returncode,
+        "status": status_result.returncode,
+    },
+}
+capture_bytes = (
+    json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+).encode("utf-8")
+with open(output, "xb") as handle:
+    handle.write(capture_bytes)
+print("1" if capture_ok else "0")
+print(head if head_valid else "-")
+print("1" if clean else "0")
+print(hashlib.sha256(capture_bytes).hexdigest())
+PY
+}
+
+initialize_judgment_source_state() {
+  local capture_output
+  local -a capture_values=()
+  JUDGMENT_PRE_CAPTURE="$ATTEMPT_DIR/judgment-source-pre.json"
+  if ! capture_output=$(capture_judgment_source_state \
+    pre_judgment "$JUDGMENT_PRE_CAPTURE"); then
+    write_failure 2 source_identity "pre_judgment source capture failed"
+    return 2
+  fi
+  mapfile -t capture_values <<<"$capture_output"
+  if [[ ${#capture_values[@]} -ne 4 ]]; then
+    write_failure 2 source_identity "pre_judgment source capture failed"
+    return 2
+  fi
+  if [[ "${capture_values[0]}" != 1 ||
+        ! "${capture_values[3]}" =~ ^[0-9a-f]{64}$ ]]; then
+    write_failure 2 source_identity "pre_judgment source capture failed"
+    return 2
+  fi
+  CURRENT_COMMIT=${capture_values[1]}
+  JUDGMENT_PRE_SHA=${capture_values[3]}
+  if [[ "${capture_values[2]}" != 1 ]]; then
+    write_failure 2 source_identity "working tree was dirty at pre_judgment"
+    return 2
+  fi
+  return 0
+}
+
+verify_post_judgment_source_state() {
+  local capture_output
+  local -a capture_values=()
+  JUDGMENT_POST_CAPTURE="$ATTEMPT_DIR/judgment-source-post.json"
+  if ! capture_output=$(capture_judgment_source_state \
+    post_judgment "$JUDGMENT_POST_CAPTURE"); then
+    write_failure 2 post_judgment_source \
+      "post_judgment source capture failed"
+    return 2
+  fi
+  mapfile -t capture_values <<<"$capture_output"
+  if [[ ${#capture_values[@]} -ne 4 ]]; then
+    write_failure 2 post_judgment_source \
+      "post_judgment source capture failed"
+    return 2
+  fi
+  if [[ "${capture_values[0]}" != 1 ||
+        ! "${capture_values[3]}" =~ ^[0-9a-f]{64}$ ]]; then
+    write_failure 2 post_judgment_source \
+      "post_judgment source capture failed"
+    return 2
+  fi
+  JUDGMENT_POST_SHA=${capture_values[3]}
+  if [[ "${capture_values[1]}" != "$CURRENT_COMMIT" ]]; then
+    write_failure 2 post_judgment_source \
+      "outer source HEAD changed between pre_judgment and post_judgment"
+    return 2
+  fi
+  if [[ "${capture_values[2]}" != 1 ]]; then
+    write_failure 2 post_judgment_source \
+      "working tree was dirty at post_judgment"
+    return 2
+  fi
+  return 0
+}
 
 cleanup_worktree() {
   local original_rc=$?
@@ -238,13 +752,11 @@ fi
 cp "$SUBMIT_SOURCE" "$ATTEMPT_DIR/submit-receipt.json"
 ATTEMPT_RECEIPT="$ATTEMPT_DIR/submit-receipt.json"
 
-CURRENT_COMMIT=$(git -C "$REPO_ROOT" rev-parse HEAD)
-if [[ ! "$CURRENT_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
-  write_failure 2 source_identity "outer source commit is not a full OID"
+if ! initialize_judgment_source_state; then
   exit 2
 fi
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all -- . ':(exclude)output')" ]]; then
-  write_failure 2 source_identity "working tree became dirty before job start"
+if [[ ! "$CURRENT_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+  write_failure 2 source_identity "outer source commit is not a full OID"
   exit 2
 fi
 CURRENT_SCRIPT_SHA=$(sha256sum "$TOOLS/mocc_trace_pilot.sh" | awk '{print $1}')
@@ -779,6 +1291,11 @@ with open(sys.argv[1], "x", encoding="utf-8") as handle:
     )
     handle.write("\n")
 PY
+  fi
+  if ! verify_post_judgment_source_state; then
+    exit 2
+  fi
+  if [[ "$CHECKER_RC" -ne 0 ]]; then
     write_failure "$CHECKER_RC" trace0_preprocess_identity \
       "TRACE=0 workload skipped because preprocess identity checker failed closed"
     exit "$CHECKER_RC"
@@ -1044,6 +1561,9 @@ PY
   ) >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc
   printf '%s\n' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"
+  if ! verify_post_judgment_source_state; then
+    exit 2
+  fi
   if [[ "$VERIFIER_RC" -ne 0 ]]; then
     write_failure "$VERIFIER_RC" verifier \
       "TRACE=1 verifier did not certify the captured trace"
@@ -1106,10 +1626,15 @@ RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$AT
   "$ATTEMPT_DIR/trace0-preprocess-identity.json" "$BUILD_SOURCE" \
   "$CHECKER_PY" "$VERIFIER_PY" "$CHECKER_REPORT_SHA" \
   "$CHECKER_TOOL_PATH" "$CHECKER_TOOL_SHA" \
-  "$VERIFIER_TOOL_PATH" "$VERIFIER_TOOL_SHA" <<'PY'
+  "$VERIFIER_TOOL_PATH" "$VERIFIER_TOOL_SHA" \
+  "$JUDGMENT_PRE_CAPTURE" "$JUDGMENT_PRE_SHA" \
+  "$JUDGMENT_POST_CAPTURE" "$JUDGMENT_POST_SHA" <<'PY'
+import base64
+import binascii
 import hashlib
 import json
 import os
+import re
 import stat
 import sys
 import time
@@ -1123,6 +1648,8 @@ import time
     checker_report_path, build_source, checker_py, verifier_py,
     checker_report_sha, checker_tool_path, checker_tool_sha,
     verifier_tool_path, verifier_tool_sha,
+    judgment_pre_path, judgment_pre_sha,
+    judgment_post_path, judgment_post_sha,
 ) = sys.argv[1:]
 
 
@@ -1186,6 +1713,73 @@ def read_regular_bytes(path, label):
             os.close(fd)
 
 
+def bound_judgment_capture(path, expected_sha, expected_phase):
+    expected_path = os.path.join(
+        attempt_dir,
+        f"judgment-source-{'pre' if expected_phase == 'pre_judgment' else 'post'}.json",
+    )
+    if os.path.abspath(path) != expected_path:
+        reject(f"{expected_phase} capture path is outside the attempt directory")
+    capture_bytes = read_regular_bytes(path, f"{expected_phase} source capture")
+    capture_sha = hashlib.sha256(capture_bytes).hexdigest()
+    if capture_sha != expected_sha:
+        reject(f"{expected_phase} source capture changed after capture")
+    try:
+        capture = json.loads(capture_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{expected_phase} source capture is not strict JSON") from exc
+    if not isinstance(capture, dict) or set(capture) != {
+        "schema_version",
+        "capture_phase",
+        "capture_ok",
+        "head",
+        "clean",
+        "pathspec",
+        "status_format",
+        "status_bytes_base64",
+        "command_rc",
+    }:
+        reject(f"{expected_phase} source capture shape differs")
+    if capture["schema_version"] != "mocc-trace-judgment-source-capture/v1":
+        reject(f"{expected_phase} source capture schema differs")
+    if capture["capture_phase"] != expected_phase:
+        reject(f"{expected_phase} source capture phase differs")
+    if capture["capture_ok"] is not True:
+        reject(f"{expected_phase} source capture did not complete")
+    if not isinstance(capture["head"], str) or not re.fullmatch(
+        r"[0-9a-f]{40}", capture["head"]
+    ):
+        reject(f"{expected_phase} source capture HEAD is invalid")
+    if type(capture["clean"]) is not bool:
+        reject(f"{expected_phase} source capture clean is not boolean")
+    if capture["pathspec"] != [".", ":(exclude)output"]:
+        reject(f"{expected_phase} source capture pathspec differs")
+    if (
+        capture["status_format"]
+        != "git status --porcelain=v1 -z --untracked-files=all"
+    ):
+        reject(f"{expected_phase} source capture status format differs")
+    encoded_status = capture["status_bytes_base64"]
+    if not isinstance(encoded_status, str):
+        reject(f"{expected_phase} source status bytes are not encoded text")
+    try:
+        status_bytes = base64.b64decode(encoded_status, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError(
+            f"{expected_phase} source status bytes are not valid base64"
+        ) from exc
+    if capture["clean"] != (status_bytes == b"") or not capture["clean"]:
+        reject(f"{expected_phase} source capture is dirty")
+    if capture["command_rc"] != {"head": 0, "status": 0}:
+        reject(f"{expected_phase} source capture command rc differs")
+    return {
+        "capture_path": os.path.basename(path),
+        "capture_sha256": capture_sha,
+        "head": capture["head"],
+        "clean": capture["clean"],
+    }
+
+
 def bound_tool(path, expected_sha, label):
     if not is_resolved_absolute_file(path):
         reject(f"{label} path is not a resolved absolute file")
@@ -1193,6 +1787,37 @@ def bound_tool(path, expected_sha, label):
     if actual_sha != expected_sha:
         reject(f"{label} changed after execution")
     return {"path": path, "sha256": actual_sha}
+
+
+judgment_pre = bound_judgment_capture(
+    judgment_pre_path, judgment_pre_sha, "pre_judgment"
+)
+judgment_post = bound_judgment_capture(
+    judgment_post_path, judgment_post_sha, "post_judgment"
+)
+if judgment_pre["head"] != outer_commit:
+    reject("pre_judgment source capture HEAD differs from outer commit")
+if judgment_post["head"] != outer_commit:
+    reject("post_judgment source capture HEAD differs from outer commit")
+
+commit_count_path = os.path.join(attempt_dir, "commit-count.json")
+commit_count_bytes = read_regular_bytes(
+    commit_count_path, "commit count witness"
+)
+try:
+    commit_count_witness = json.loads(commit_count_bytes.decode("utf-8"))
+except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    raise ValueError("commit count witness is not strict JSON") from exc
+if (
+    not isinstance(commit_count_witness, dict)
+    or commit_count_witness.get("schema_version")
+    != "mocc-commit-counter-witness/v1"
+    or type(commit_count_witness.get("count")) is not int
+    or commit_count_witness["count"] < 0
+    or commit_count_witness["count"] != int(commit_count)
+):
+    reject("commit count witness does not match the workload result")
+commit_count_sha = hashlib.sha256(commit_count_bytes).hexdigest()
 
 if trace_mode_i == 0:
     if checker_rc != "0":
@@ -1333,8 +1958,21 @@ mocc_trace["workload"] = json.loads(workload_json)
 mocc_trace["workload_note"] = (
     "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
 )
+workload_receipt = {
+    "config": json.loads(workload_json),
+    "argv": run_argv["argv"],
+    "argv_source": run_argv["argv_source"],
+}
+if trace_mode_i == 0:
+    workload_receipt.update(
+        {
+            "completed_txns": int(commit_count),
+            "elapsed_ns": int(elapsed_ns),
+            "elapsed_s": int(elapsed_ns) / 1_000_000_000,
+        }
+    )
 payload = {
-    "schema_version": "mocc-trace-pilot-receipt/v3",
+    "schema_version": "mocc-trace-pilot-receipt/v4",
     "status": "completed",
     "pilot": True,
     "eligible_for_refreeze": False,
@@ -1372,6 +2010,16 @@ payload = {
         "submodule_new_oid": new_oid,
         "materialization": "git worktree add --detach in qsub job body",
         "outer_gitlink_advanced": False,
+        "judgment_source_state": {
+            "guarantee_name": "pre/post endpoint consistency",
+            "pre": judgment_pre,
+            "post": judgment_post,
+            "head_unchanged": judgment_pre["head"] == judgment_post["head"],
+            "residual_windows": [
+                "temporary source changes between captures can be missed",
+                "source changes after the post_judgment capture can be missed",
+            ],
+        },
     },
     "mocc_trace": mocc_trace,
     "trace0_preprocess_identity_report": report_binding,
@@ -1384,20 +2032,15 @@ payload = {
         "binary_sha256": binary_sha,
         "compiler_path": cxx_path,
     },
-    "workload": {
-        "config": json.loads(workload_json),
-        "argv": run_argv["argv"],
-        "argv_source": run_argv["argv_source"],
-        "completed_txns": int(commit_count),
-        "elapsed_ns": int(elapsed_ns),
-        "elapsed_s": int(elapsed_ns) / 1_000_000_000,
-    },
+    "workload": workload_receipt,
     "artifacts": {
         "attempt_dir": os.path.dirname(output),
         "run_dir": run_dir,
         "trace_dir": trace_dir,
         "submit_receipt": "submit-receipt.json",
         "receipt_sha256_sidecar": "mocc-trace-pilot-receipt.sha256",
+        "commit_count_json": "commit-count.json",
+        "commit_count_sha256": commit_count_sha,
         "verifier_json": "verifier.json" if int(trace_mode) == 1 else None,
         "verifier_sha256": verifier_sha,
         "throughput_json": "throughput.json" if int(trace_mode) == 0 else None,
@@ -1478,6 +2121,8 @@ except UnicodeDecodeError as exc:
 if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:
     raise ValueError("receipt sha does not match writer stdout and sidecar")
 receipt = json.loads(receipt_bytes.decode("utf-8"))
+if receipt.get("schema_version") != "mocc-trace-pilot-receipt/v4":
+    raise ValueError("job result requires exact pilot receipt schema v4")
 report_binding = receipt.get("trace0_preprocess_identity_report")
 if not isinstance(report_binding, dict) or set(report_binding) != {
     "path", "sha256", "schema", "guarantee",
@@ -1511,4 +2156,9 @@ git -C "$CCBENCH_BASE" worktree remove --force "$BUILD_SOURCE" \
   >"$ATTEMPT_DIR/worktree-remove.stdout" \
   2>"$ATTEMPT_DIR/worktree-remove.stderr"
 BUILD_SOURCE=""
+if ! validate_artifact_classification_manifest; then
+  write_failure 2 artifact_classification_manifest \
+    "artifact classification manifest does not cover job outputs"
+  exit 2
+fi
 exit 0
