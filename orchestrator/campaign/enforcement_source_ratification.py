@@ -112,6 +112,7 @@ def _load_rows(raw: bytes) -> tuple[str, ...]:
             "ratification ledger is not newline terminated"
         )
     digests: list[str] = []
+    seen_digests: set[str] = set()
     for line_number, line in enumerate(raw.split(b"\n")[:-1], start=1):
         if not line:
             raise EnforcementSourceRatificationError(
@@ -146,10 +147,11 @@ def _load_rows(raw: bytes) -> tuple[str, ...]:
             raise EnforcementSourceRatificationError(
                 f"ratification row is not canonical JSON: {line_number}"
             )
-        if digest in digests:
+        if digest in seen_digests:
             raise EnforcementSourceRatificationError(
                 f"ratification ledger repeats a closure digest: {line_number}"
             )
+        seen_digests.add(digest)
         digests.append(digest)
     return tuple(digests)
 
@@ -382,13 +384,49 @@ def _reachable_commit_parents(
     return parents_by_commit
 
 
+def _parse_batch_object(
+    query: str, expected_rest: str, raw_line: bytes,
+) -> tuple[str, bytes, int] | None:
+    missing = query.encode("ascii") + b" missing"
+    if raw_line == missing:
+        return None
+    fields = raw_line.split(b" ")
+    if len(fields) != 4:
+        raise EnforcementSourceRatificationError(
+            "ratification ledger is not a blob in committed history"
+        )
+    raw_oid, object_type, raw_size, raw_rest = fields
+    try:
+        oid = raw_oid.decode("ascii")
+        size_text = raw_size.decode("ascii")
+        rest = raw_rest.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise EnforcementSourceRatificationError(
+            "ratification ledger is not a blob in committed history"
+        ) from exc
+    if (_HEX40_RE.fullmatch(oid) is None
+            or not size_text.isdecimal()
+            or (len(size_text) > 1 and size_text.startswith("0"))
+            or rest != expected_rest):
+        raise EnforcementSourceRatificationError(
+            "ratification ledger is not a blob in committed history"
+        )
+    try:
+        size = int(size_text)
+    except ValueError as exc:
+        raise EnforcementSourceRatificationError(
+            "ratification ledger is not a blob in committed history"
+        ) from exc
+    return oid, object_type, size
+
+
 def _ledger_blob_oids(
     root: Path, commits: tuple[str, ...],
-) -> dict[str, str | None]:
+) -> tuple[dict[str, str | None], dict[str, int]]:
     ledger_name = RATIFICATION_LEDGER_RELATIVE_PATH.rsplit("/", 1)[1]
     ledger_directory = RATIFICATION_LEDGER_RELATIVE_PATH.rsplit("/", 1)[0]
     queries = tuple(
-        query
+        (query, commit)
         for commit in commits
         for query in (
             f"{commit}:{RATIFICATION_LEDGER_RELATIVE_PATH}",
@@ -398,8 +436,11 @@ def _ledger_blob_oids(
     raw = _require_git(
         root,
         "cat-file",
-        "--batch-check",
-        input_bytes=b"".join(query.encode("ascii") + b"\n" for query in queries),
+        "--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)",
+        input_bytes=b"".join(
+            f"{query} {expected_rest}\n".encode("ascii")
+            for query, expected_rest in queries
+        ),
     )
     if not raw.endswith(b"\n"):
         raise EnforcementSourceRatificationError(
@@ -411,41 +452,17 @@ def _ledger_blob_oids(
             "ratification ledger is not a blob in committed history"
         )
 
-    def batch_object(
-        query: str, raw_line: bytes,
-    ) -> tuple[str, bytes] | None:
-        missing = query.encode("ascii") + b" missing"
-        if raw_line == missing:
-            return None
-        fields = raw_line.split(b" ")
-        if len(fields) != 3:
-            raise EnforcementSourceRatificationError(
-                "ratification ledger is not a blob in committed history"
-            )
-        raw_oid, object_type, raw_size = fields
-        try:
-            oid = raw_oid.decode("ascii")
-            size_text = raw_size.decode("ascii")
-        except UnicodeDecodeError as exc:
-            raise EnforcementSourceRatificationError(
-                "ratification ledger is not a blob in committed history"
-            ) from exc
-        if (_HEX40_RE.fullmatch(oid) is None
-                or not size_text.isdecimal()
-                or (len(size_text) > 1 and size_text.startswith("0"))):
-            raise EnforcementSourceRatificationError(
-                "ratification ledger is not a blob in committed history"
-            )
-        return oid, object_type
-
     result: dict[str, str | None] = {}
+    sizes_by_oid: dict[str, int] = {}
     directory_trees: dict[str, str] = {}
     for index, commit in enumerate(commits):
-        ledger_query = queries[index * 2]
-        directory_query = queries[index * 2 + 1]
-        ledger_object = batch_object(ledger_query, lines[index * 2])
-        directory_object = batch_object(
-            directory_query, lines[index * 2 + 1],
+        ledger_query, ledger_rest = queries[index * 2]
+        directory_query, directory_rest = queries[index * 2 + 1]
+        ledger_object = _parse_batch_object(
+            ledger_query, ledger_rest, lines[index * 2],
+        )
+        directory_object = _parse_batch_object(
+            directory_query, directory_rest, lines[index * 2 + 1],
         )
         if ledger_object is None:
             result[commit] = None
@@ -457,6 +474,12 @@ def _ledger_blob_oids(
                 "ratification ledger is not a blob in committed history"
             )
         result[commit] = ledger_object[0]
+        if (ledger_object[0] in sizes_by_oid
+                and sizes_by_oid[ledger_object[0]] != ledger_object[2]):
+            raise EnforcementSourceRatificationError(
+                "ratification ledger is not a blob in committed history"
+            )
+        sizes_by_oid[ledger_object[0]] = ledger_object[2]
         directory_trees[commit] = directory_object[0]
 
     tree_entry_cache: dict[str, tuple[tuple[bytes, str], ...]] = {}
@@ -490,17 +513,28 @@ def _ledger_blob_oids(
             raise EnforcementSourceRatificationError(
                 "ratification ledger is not a blob in committed history"
             )
-    return result
+    return result, sizes_by_oid
+
+
+def _load_rows_with_size(raw: bytes, expected_size: int) -> tuple[str, ...]:
+    if len(raw) != expected_size:
+        raise EnforcementSourceRatificationError(
+            "ratification ledger is not a blob in committed history"
+        )
+    return _load_rows(raw)
 
 
 def _rows_by_blob_oid(
-    root: Path, entries: Mapping[str, str | None],
+    root: Path,
+    entries: Mapping[str, str | None],
+    sizes_by_oid: Mapping[str, int],
 ) -> dict[str, tuple[str, ...]]:
     result: dict[str, tuple[str, ...]] = {}
     for oid in dict.fromkeys(
         oid for oid in entries.values() if oid is not None
     ):
-        result[oid] = _load_rows(_require_git(root, "cat-file", "blob", oid))
+        raw = _require_git(root, "cat-file", "blob", oid)
+        result[oid] = _load_rows_with_size(raw, sizes_by_oid[oid])
     return result
 
 
@@ -520,8 +554,8 @@ def _committed_ratification_digests() -> frozenset[str]:
     head = _head_commit(root)
     parents_by_commit = _reachable_commit_parents(root, head)
     commits = tuple(parents_by_commit)
-    entries = _ledger_blob_oids(root, commits)
-    rows_by_oid = _rows_by_blob_oid(root, entries)
+    entries, sizes_by_oid = _ledger_blob_oids(root, commits)
+    rows_by_oid = _rows_by_blob_oid(root, entries, sizes_by_oid)
 
     def rows_at(commit: str) -> tuple[str, ...]:
         oid = entries[commit]

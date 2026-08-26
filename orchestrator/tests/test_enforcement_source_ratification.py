@@ -229,6 +229,39 @@ def _unparented_commit(repo: Path, message: str) -> str:
     ).decode("ascii").strip()
 
 
+def test_batch_success_response_is_bound_to_requested_commit() -> None:
+    query_commit = "1" * 40
+    other_commit = "2" * 40
+    oid = "3" * 40
+    query = f"{query_commit}:{R.RATIFICATION_LEDGER_RELATIVE_PATH}"
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationError,
+        match="not a blob in committed history",
+    ):
+        R._parse_batch_object(
+            query,
+            query_commit,
+            f"{oid} blob 1 {other_commit}".encode("ascii"),
+        )
+
+
+def test_blob_bytes_must_match_batch_checked_size(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    raw = _row(_ledger_digest("size-mismatch"))
+    blob_path = repo / "size-mismatch-ledger"
+    blob_path.write_bytes(raw)
+    oid = _git(
+        repo, "hash-object", "-w", "--", os.fspath(blob_path),
+    ).decode("ascii").strip()
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationError,
+        match="not a blob in committed history",
+    ):
+        R._rows_by_blob_oid(repo, {"commit": oid}, {oid: len(raw) + 1})
+
+
 def test_closure_digest_is_canonical_map_hash_without_commit_identity() -> None:
     blob_map = _closure_map("same-bytes")
     reversed_map = dict(reversed(tuple(blob_map.items())))
@@ -447,6 +480,29 @@ def test_pre_ledger_branch_merge_with_unchanged_ledger_is_accepted(
     assert R._committed_ratification_digests() == frozenset({digest})
 
 
+def test_merge_with_bearing_and_nonbearing_parents_cannot_replace_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    root = _head(repo)
+    side = _commit_tree_with_rows(repo, None, (root,), "pre-ledger side work")
+    original = _ledger_digest("original")
+    replacement = _ledger_digest("replacement")
+    introduced = _commit_tree_with_rows(
+        repo, [original], (root,), "introduce ledger",
+    )
+    _commit_tree_with_rows(
+        repo, [replacement], (introduced, side), "merge replaces ledger row",
+    )
+    monkeypatch.setattr(R, "_REPO_ROOT", repo)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationError,
+        match="not a strict prefix extension",
+    ):
+        R._committed_ratification_digests()
+
+
 def test_concurrent_branch_appends_are_accepted_after_merge(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -552,6 +608,33 @@ def test_octopus_branch_appends_are_accepted_after_merge(
     monkeypatch.setattr(R, "_REPO_ROOT", repo)
 
     assert R._committed_ratification_digests() == frozenset({base, *additions})
+
+
+def test_octopus_merge_omitting_third_parent_row_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    base = _ledger_digest("base")
+    additions = [_ledger_digest(seed) for seed in ("one", "two", "three")]
+    introduced = _commit_tree_with_rows(
+        repo, [base], (_head(repo),), "introduce ledger",
+    )
+    branches = tuple(
+        _commit_tree_with_rows(
+            repo, [base, digest], (introduced,), f"branch appends {index}",
+        )
+        for index, digest in enumerate(additions, start=1)
+    )
+    _commit_tree_with_rows(
+        repo, [base, *additions[:2]], branches, "octopus drops third row",
+    )
+    monkeypatch.setattr(R, "_REPO_ROOT", repo)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationError,
+        match="not a strict prefix extension",
+    ):
+        R._committed_ratification_digests()
 
 
 def test_repeated_pre_ledger_branch_merges_are_accepted(
@@ -707,8 +790,14 @@ def test_invalid_middle_history_transition_is_rejected(
     invalid = _commit_tree_with_rows(
         repo, [replacement], (introduced,), "replace row in middle history",
     )
-    _commit_tree_with_rows(
+    appended = _commit_tree_with_rows(
         repo, [replacement, final], (invalid,), "normal append at head",
+    )
+    carried_once = _commit_tree_with_rows(
+        repo, [replacement, final], (appended,), "first normal carry",
+    )
+    _commit_tree_with_rows(
+        repo, [replacement, final], (carried_once,), "second normal carry",
     )
     monkeypatch.setattr(R, "_REPO_ROOT", repo)
 
@@ -804,7 +893,7 @@ def test_effective_graft_file_is_rejected(
         R._committed_ratification_digests()
 
 
-def test_empty_graft_and_unrelated_replace_ref_are_accepted(
+def test_empty_graft_file_is_accepted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = _repo(tmp_path)
@@ -813,6 +902,17 @@ def test_empty_graft_and_unrelated_replace_ref_are_accepted(
     grafts = _git_path(repo, "info/grafts")
     grafts.parent.mkdir(parents=True, exist_ok=True)
     grafts.write_bytes(b"")
+    monkeypatch.setattr(R, "_REPO_ROOT", repo)
+
+    assert R._committed_ratification_digests() == frozenset({digest})
+
+
+def test_unrelated_replace_ref_is_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    digest = _ledger_digest("base")
+    _commit_tree_with_rows(repo, [digest], (_head(repo),), "introduce ledger")
     original = _unparented_commit(repo, "unreachable original")
     replacement = _unparented_commit(repo, "unreachable replacement")
     _git(repo, "update-ref", f"refs/replace/{original}", replacement)
