@@ -1,0 +1,14 @@
+{
+  "binary_sha256": "c43887ae6170fe281adeb0135b6414b68ce0f51496b9eafc7e0aa0e2a7925b70",
+  "completed_epoch": 1787748152,
+  "job_script_sha256": "e1bd1e436addfec5f2fb9b7532d961932600716c4ac7238e4de381eca9238dde",
+  "pbs_jobid": "0:950486.nqsv",
+  "receipt_sha256": "0c3db53c6e948b7a8cbbb293d62563e0356cf4b9d8dde5d20cc4ad96469e4574",
+  "schema_version": "mocc-trace-pilot-job-result/v2",
+  "trace0_preprocess_identity_report": {
+    "guarantee": null,
+    "path": null,
+    "schema": null,
+    "sha256": null
+  }
+}

@@ -17646,3 +17646,90 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 新規 production file を足したら、`orchestrator/tests/` のうち
   production ディレクトリを走査する test (glob / `rglob` / ディレクトリ列挙を行うもの) を
   機械的に列挙して焦点へ入れる。
+
+### F679. 投入集合の閉包を解析対象側で取ると恒真になる [恒真ゲート] [テスト代表性]
+
+- 事象: 事前登録は「投入口が作る submission directory を**全列挙**して受理集合を閉じる」と
+  定めていたが、実装は親が解析用に写した `runs/*` を列挙していた。写す段で 1 件落とせば
+  検出されないので、**どの run を受理集合に入れるかを結果を見た後に選べた。**
+  段 6 の敵対レビュー 2 本が独立に同じ穴を指摘した。
+- 根本原因: 閉包の「正本」を、実際の生成元ではなく解析の入力に取った。
+  解析の入力は親が作るので、閉包が親の選択を検査できない。
+- 恒久対応: D1109 の決定 3。
+  正本の submission directory を repository へ収録し、生成器がそれを全列挙して
+  receipt の `source_commit` で分割し、凍結 commit のものがちょうど N 件であることと、
+  除外したものの識別子・理由を出すことを fails-closed で要求する
+  (`orchestrator/campaign/mocc_g2_repro_ledger.py` の閉包検査と
+  `orchestrator/tests/test_mocc_g2_repro_ledger.py` の閉包拒否 3 node)。
+- 再発検知: 閉包の 3 つの破れ (nonce 集合不一致・`source_commit` 不一致・件数不足) を
+  それぞれ独立に拒否する node と、**除外 2 件があっても N 件揃っていれば通る**正例 node。
+  事前登録済み変異 `MUT-G2REPRO-M05/M06/M07` が本走で KILLED を確認した。
+
+### F680. 待ち手が子の生存中に完了を報告する [手順漏れ] [恒真ゲート]
+
+- 事象: 同一 wave で 2 度起きた。(1) `tools/dev_wave_wait.py producer` が rc=0・無出力で戻ったが
+  `.done` も成果物も無く、`pgrep` では子が生きていた。(2) 親が書いた Monitor 用 watch script が
+  `fix2b DONE rc=0` を出したが `.done` は不在で、子は 3 プロセス生きていた。
+  さらに同 script は稼働中の 2 子について `PROCESS-GONE without done file` も誤報した。
+- 根本原因: 完了の判定を「待ち手が戻ったこと」「イベント本文」に置いた。
+  待ち手自身が落ちた場合と正常完了が区別できない。
+- 恒久対応: 完了イベントを受けたら**必ず実体で裏取りしてから次の段へ進む** —
+  `.done` が実在しかつ非空であること、成果物 file が実在すること、
+  `pgrep -f "job-id <id>"` で子が居ないこと。本 wave はこの手順で 2 度とも誤りを弾き、
+  待ち手を張り直した。手順の正本は `docs/dev-wave/core.md` の `DW-C00` の待ち手規律。
+- 再発検知: 待ち手が完了を返したのに `.done` が不在・空である事象を、
+  親が次段へ進む前の照合で必ず検出する (照合を飛ばした段が無いことを handoff の進捗行で追える)。
+
+### F681. 測定結果を commit オブジェクトの hash に人質に取らない [誤前提] [恒真ゲート]
+
+- 事象: 凍結 commit の provenance trailer に無効な role 名を書いてしまい、受入が
+  `preclaim-history-provenance` で rc=70 になった。親は「42 本の receipt が
+  `source_commit` としてこの SHA を記録しているので commit を直せない」と判断し、
+  既知違反登録かユーザー裁定かの二択としてユーザーへ返した。
+  **ユーザーは前提そのものを却下した** — 実験結果が特定の commit に結び付いていて、
+  それが変わったら全部無駄になるような厳格な紐付けは一度も要求していない。
+- 根本原因: 「測定の同一性」を commit オブジェクトの hash で語ってしまった。
+  実際に守るべきは**測定が走ったソースの内容**であって commit オブジェクトではない。
+  実測すると、台帳は `source_commit` を文字列として比較するだけで commit の実在を
+  一切参照しておらず、message だけを直して commit を作り直しても
+  **台帳の出力は byte 単位で同一**だった (tree も 1 bit も変わらない)。
+  人質になっていたのは結果ではなく、親の説明の書き方だった。
+- 恒久対応: D1109 の決定 1・3 に従い、
+  study の同一性は (a) 事前登録文書の bytes、(b) 凍結時の tree、
+  (c) 全 run の receipt が同じ `source_commit` 値を持つこと、の 3 つで述べる。
+  **commit オブジェクトの実在を検査しない・要求しない。**
+  結果文の「何がこの結果を同一の source に束縛しているか」節がこの形の正本
+  (`output/insights/2026-08-26_mocc-g2-repro/results.md`)。
+- 再発検知: 台帳生成器の閉包検査は `source_commit` を文字列比較でだけ扱い、
+  git object を解決しない。commit を message だけ作り直しても
+  `python3 -m orchestrator.campaign.mocc_g2_repro_ledger` の出力が変わらないことを
+  本 wave で実測した。
+
+### F682. pin 閉包を「値の長い表現」と「成果物 path」だけで引き、短縮表現と操作起動の gate を落とした [手順漏れ] [テスト代表性]
+
+- 事象: CCBench pin 前進の影響範囲を測る precheck wave の段 1 で、親が
+  `DW-O09` に従って閉包を列挙したが、2 種類の束縛を丸ごと落とした。
+  段 3 の敵対検証が両方を露出させ、親の再実測で確定した。
+  (1) 正本の定数 `orchestrator/campaign/pin.py` の `CURRENT_PIN` は **7 桁** (`511c953`) だが、
+  親は 40 桁 (`511c9538…`) だけを `git grep` した。40 桁で 119 file、7 桁で 142 file。
+  差集合 23 file を落とし、その中に「repo policy から逆算しない独立 pin」と明記された
+  test golden が 6 file・7 箇所あった。
+  (2) `docs/decisions.md` D297 は「pin を前進させるとき」に発火する専用 checker
+  `tools/check_trace0_preprocess_identity.py` を定めるが、この gate は成果物 path でも
+  pin 値でもなく **操作 (pin 前進) を key に**張られており、親の検索語のどれにも掛からなかった。
+  実走すると rc=1 で赤だった。
+- 根本原因: `DW-O09` は「path を key にする pin」と「role 名など key 側の pin」の 2 形しか
+  警告しておらず、親はその 2 形だけを検索軸にした。同じ値が**長短 2 通りの表現**を持つこと、
+  および gate が**これから行う操作**を key に張られうることを、検索軸として持っていなかった。
+  結果として「119 file を全数検索した」という手続きの見た目が、閉包の完全性の根拠に化けた。
+- 恒久対応: memory `pin-closure-search-two-missing-axes` — 閉包の件数を報告する前に
+  (a) 正本定数の定義を開いてそこに書かれている表現で再検索し件数差を見る、
+  (b) 行う操作の名前で `docs/decisions.md` を検索する、の 2 つを必須にする。
+  本来の置き場は `docs/dev-wave/operations.md` の `DW-O09` だが、同節は
+  997/1000 byte で追記余地が 3 byte しかなく、既存の安全義務を削らずには入らない。
+  予算引き上げは自己改善契約に従い裁定パッケージへ回した
+  (`output/insights/2026-08-27_ccbench-pin-precheck/README.md`)。
+- 再発検知: 閉包を数える前に「正本の定数がどの表現で書かれているか」を定数定義から読み、
+  その表現で再検索して件数差がゼロであることを確認する。件数差が出たら差集合を必ず列挙する。
+  gate 側は、行う操作の名前 (「pin 前進」「凍結」「発行」など) で `docs/decisions.md` を
+  検索してから閉包を確定する。
