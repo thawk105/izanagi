@@ -62,31 +62,51 @@ title: [T-1879] arXiv 2604.09318 (CIR+CVN) の一次資料で軸 1 への接地�
   child.pid を登録しなかった**という時間依存の主張である。同一 tree の単独走は
   1 passed / 7.18 秒 / rc=0 で再現しない。当 wave の差分は docs だけで `tools/` にも
   `orchestrator/` にも触れていないため帰属しない。
-- **DW-O18 に従い hold へ登録した。証拠は F57。** 実装面なので Codex `role=author` が
-  `orchestrator/tests/flaky_test_holds.py` へ 1 行足した (`evidence_id="F57"`、
-  `failure_signature="child.pid was not registered before deadline; stderr=''"`、
-  `reintroduction_task_id` は slug `flaky-child-pid-registration-deadline` の placeholder 形式で、
-  既存 3 行と同じく未解決のまま置く)。
-  登録件数は 3 から 4 になった。焦点走
-  (`test_flaky_test_holds_contract.py` + `test_check_docs.py`) は 597 passed / 3 skipped。
-- **受入は 4 走を要した。緑は 4 走目である。** 1 走目と 2 走目は上記の `sigterm` の赤。
-  3 走目は hold が効いて `sigterm` が collection から外れ (skipped が 64 から 65 へ増えた)、
+- **DW-O18 に従い hold へ登録したが、並行セッションの指摘で撤回した。**
+  受入 2 走目までは、F57 を証拠に Codex `role=author` が
+  `orchestrator/tests/flaky_test_holds.py` へ 1 行足す形で進めた。
+  **撤回した理由は 2 つあり、どちらも独立に成立する。**
+  (a) 別 wave (`worktree-dev-wave-t1848-env-coincidence`) が同じ node を hold ではなく
+  **是正**していた — 2 秒の絶対期限を除去して launcher 終了後の判定へ移す形で、外側の
+  10 秒 watchdog は温存されている。一方 `orchestrator/tests/conftest.py` は hold 対象へ
+  `pytest.mark.skip(..., append=False)` を**無条件**に付ける (現物で確認した)。
+  両方が着地すると、**決定的に緑になったテストが受入でも焦点走でもどこでも走らなくなる。**
+  (b) `worktree-dev-wave-flaky-holds-20260826` は同台帳を**全撤去**する内容で、追加行は
+  そちらとも競合する。
+  **教訓は「hold は落ちても許すではなく、走らせないである」。** 是正が進行中の node を hold すると、
+  検出力が静かに消える。DW-O18 の本文には「同じ node を触っている稼働 branch があるか」を
+  確かめる手順が無い。撤回後、本 wave の実装面の差分はゼロに戻った。
+- **受入は当初 5 走を要し、非帰属赤は 2 種類・のべ 3 件だった。** 1・2 走目は上記の `sigterm`。
+  3 走目は hold が効いて `sigterm` が collection から外れ (skipped が 64 から 65 へ)、
   代わりに**別の node** `test_campaign_claim.py::test_two_real_processes_racing_acquire_have_exactly_one_winner`
-  が 1 件落ちた (`assert None == 2255171` — 2 プロセスの claim 競走で敗者が勝者の pid を
-  読めず `None` を返した)。同一 tree の単独走は 1 passed / 3.64 秒で非再現。
-  この node には失敗台帳に F 証拠が無いので hold へは登録せず、DW-O18 に従い受入を 1 回だけ再走した。
-  **4 走目は 17390 passed / 65 skipped / rc=0 で緑。** 受領証は
-  `dev-wave-acceptance-receipt/v5`、`verdict=child-green`、
-  `tested_main=b253e0b7`、`tested_tip=fb2f94fd`。
-- **落ちる node が毎走変わるのは F57 が記録している型そのものである。** 4 走で観測した非帰属赤は
-  2 種類・のべ 3 件で、いずれも単独走では再現しない時間依存・資源競合の主張だった。
-  **hold を 1 件足しても全走が緑になる保証は得られず、次の走で別の node が出た。**
-  この機体の負荷下では、受入 1 走あたり 1 件程度の負荷依存フレークが出ると見ておく必要がある。
-- **[T-1675] wave が「登録は構造的に不可能」と書いた閂は、この時点では解けていた。**
+  が落ちた (`assert None == 2255171`、単独走は 1 passed / 3.64 秒)。
+  この node は失敗台帳に F 証拠が無いので DW-O18 に従い登録しなかった。4・5 走目は緑。
+  **落ちる node が毎走変わるのは F57 が記録している型そのものである。**
+  この機体の負荷下では受入 1 走あたり 1 件程度の負荷依存フレークを見込む必要がある。
+- **land は 1 回目に `status=fold-failed` で戻り、main は 1 bit も動かなかった。**
+  worklog の rotation で entry 1001 を archive へ送る計画だったが、`tools/check_docs.py` の
+  `_archive_filename_entry_range` が `1001` を MMDD (10 月 01 日) と読み、
+  `docs/archive/worklog-phase3-0826-1001.md` を「番号なし archive」に分類した。
+  `(1001)` を指す carry stub 821 本が全域番号 universe から外れて宙吊りになる。
+  **`spool_fold.py --dry-run` はこの赤を出さない** — 計画 JSON だけで生成後の canonical 検査を
+  走らせないためで、land 結果 JSON 自身が `fold_gate_uncovered_families: ["rotation"]` と報告する。
+  診断は `output/insights/2026-08-26_worklog-rotation-entry-1001-mmdd-collision.md`。
+- **この欠陥は少なくとも 6 セッションが独立に診断し、修正は 1 本が所有した。**
+  親は稼働中の全 branch tip を走査して `tools/check_docs.py` に差分を持つのが
+  `worktree-dev-wave-t1732-condition18-two-points` 1 本だけであることを確認し、**重複実装しなかった。**
+  同 branch の修正は `dcf7c615` (`D1054` = D445 の改訂) として main へ着地し、
+  その land 自身が entry 1001 の rotation を通した。本 wave はその後 main を取り込んで再受入した。
+- **診断で 2 点、他セッションの指摘を受けて訂正した。** (a) 衝突域は 1101〜1130 ではなく
+  **1101〜1131** — `ARCHIVE_MMDD_TOKEN_RE` は月ごとの日数を検証しないので 11 月 31 日も通る。
+  900〜1299 の全件実測は `[(1001,1031), (1101,1131), (1201,1231)]` の 93 件。
+  (b) **この欠陥は 2 token 形の単一 entry rotation でしか出ない** — 複数 entry をまとめた名前は
+  3 token になり修正前でも正しく numbered になる (`worklog-phase3-0826-1000-1001.md` で実測)。
+  **したがって回帰検知の負例は単一 entry 名でなければ、欠陥が残ったまま緑になる。**
+- **[T-1675] wave が「hold 登録は構造的に不可能」と書いた閂は、この時点では解けていた。**
   同 wave は F57 への再発記録が canonical へ fold されるまで登録できないと述べ裁定へ送っていたが、
   その再発はすでに fold 済みで、検証器が要求する 3 述語 (F 節の実在、test 関数名の逐語一致、
   `failure_signature` の逐語一致) を実データで検算するとすべて通った。**閂の前提は必要条件であって、
-  解除後も塞がったままとは限らない。**
+  解除後も塞がったままとは限らない。** ただし本件は上記のとおり、通ったうえで撤回が正解だった。
 - **工数。** 段 2・3 は軽量版として省略 (docs-only)。段 6 のレビュー子 1 本のみ、
   一次資料の全文を job dir へ渡して逐語と語の件数を子が独立に数え直せる形にした。
   Web を使えない子でも外部文献のレビューが成立する。
