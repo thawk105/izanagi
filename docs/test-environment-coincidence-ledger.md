@@ -136,8 +136,13 @@ F641 が挙げた 4 型のうち、P1 が確実に拾うのは待ち上限の型
 | C | `orchestrator/tests/test_codex_worker_launch.py` | lock-attempt event と非 blocking lock probe、critical hook の前後関係で排他を証明する |
 | C | `orchestrator/tests/test_trial_registry.py` | writer の lock-attempt hook と critical section の因果 trace を同期 event で検査する |
 | C | `orchestrator/tests/test_mutation_harness.py` | signal 前後の段階遷移を実時間でなく因果 event で検査する |
+| T | `orchestrator/tests/test_codex_worker_launch.py` | 子 process の pid 登録を 2 秒の絶対期限で待つのをやめ、launcher 終了後に判定する。証拠は終了後も残る |
 
 各 site には、環境の偶然への依存が戻ったら落ちる検査を残した。
+
+最後の 1 件は受入全走で実際に落ちたものである。2 回連続で同じ node だけが落ち (いずれも 17,390 passed / 1 failed)、単独走は緑だった。台帳の F57 に同じ node・同じ assertion 逐語で非帰属として 2 度記録されている型で、**本族の実例が受入で発火した**。
+hold で隠す道もあったが、`orchestrator/tests/flaky_test_holds.py` は稼働 wave の所有であり、同 wave は受入済みの tip で凍結していた。そこへ書けば相手に受入の再走を強いる。
+対象 file は本 wave の所有なので、隠さずに直した。
 
 **検査する性質は 1 つも捨てていない。既存の待ち上限の数値は 1 つも変えていない。**
 ただし文字どおりの意味で「assert を 1 行も消していない」わけではない。
