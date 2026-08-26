@@ -139,6 +139,7 @@ _LOW_LEVEL_ISSUER_ALLOWLIST = frozenset({
 })
 
 MACHINE_CALLERS = {
+    "backoff_extended_sweep.py": "BACKOFF_SWEEP",
     "backoff_overthrottle.py": "BACKOFF_OVERTHROTTLE",
     "backoff_profile.py": "BACKOFF_PROFILE",
     "backoff_repro.py": "BACKOFF_REPRO",

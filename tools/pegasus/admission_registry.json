@@ -13,6 +13,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/b10_backoff_grid.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS B-10 extended backoff measurement job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",
       "reason": "PBS calibration job body",
@@ -252,6 +258,12 @@
       "reason": "PBS SS2PL lock study job body",
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
+    },
+    "tools/pegasus/submit_b10_backoff_grid.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS B-10 three-workload submitter",
+      "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_certify.sh": {
       "class": "local-ok",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import fnmatch
 import inspect
 import json
 import os
@@ -445,6 +446,57 @@ def test_backoff_sweep_grid_matches_registered_golden():
     from orchestrator.campaign import backoff_sweep
 
     assert tuple(backoff_sweep.SWEEP_US) == EXPECTED_SWEEP_US
+
+
+def test_mu3_extended_campaign_ids_do_not_change_legacy_source_path_tuple(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import backoff_extended_sweep, build_admission, ident
+
+    legacy_root = M.ROOT
+    for workload in ("write-heavy", "balanced", "read-heavy"):
+        pattern = f"output/campaigns/backoff-sweep-silo-{workload}-sweep-*"
+        for source in sorted(legacy_root.glob(pattern)):
+            destination = tmp_path / source.relative_to(legacy_root)
+            (destination / "runs").mkdir(parents=True)
+            shutil.copy2(source / "campaign.lock", destination / "campaign.lock")
+            shutil.copy2(source / "runs/wal.jsonl", destination / "runs/wal.jsonl")
+
+    monkeypatch.setattr(M, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        M,
+        "_module_source",
+        lambda _module, key: {
+            "path": "orchestrator/campaign/backoff_sweep.py",
+            "sha256": "0" * 64,
+            "key": key,
+        },
+    )
+    before = {
+        workload: tuple(source["path"] for source in M._backoff_entry(workload)["sources"])
+        for workload in ("write-heavy", "balanced", "read-heavy")
+    }
+    context = build_admission.build_run_context(
+        generator_id=build_admission.GeneratorId.BACKOFF_SWEEP,
+    )
+    for workload in ("write-heavy", "balanced", "read-heavy"):
+        cfg = backoff_extended_sweep.config_for(
+            workload, backoff_extended_sweep.WORKLOAD_BY_TAG[workload],
+        )
+        cfg = ident.bind_admission_policy(cfg, context.policy)
+        campaign_id = str(ident.campaign_id(cfg))
+        assert not fnmatch.fnmatch(
+            campaign_id,
+            f"backoff-sweep-silo-{workload}-sweep-*",
+        )
+        added = tmp_path / "output/campaigns" / campaign_id
+        (added / "runs").mkdir(parents=True)
+        (added / "campaign.lock").write_text("{}\n", encoding="utf-8")
+        (added / "runs/wal.jsonl").write_text("{}\n", encoding="utf-8")
+    after = {
+        workload: tuple(source["path"] for source in M._backoff_entry(workload)["sources"])
+        for workload in ("write-heavy", "balanced", "read-heavy")
+    }
+    assert after == before
 
 
 def test_goldens_helper_is_independent_of_production():
