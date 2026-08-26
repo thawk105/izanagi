@@ -1,0 +1,92 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-08-27
+wave: dev-wave-t1828-dangling-19-triage
+seq: 1
+title: [T-1828] 到達不能 commit の要確認 19 件を分類し、外部控え皆無の 11 件を救出して隔離復元まで実測した (docs、branch worktree-dev-wave-t1828-dangling-19-triage)
+---
+
+## 本文
+
+- **救出物は `/work/1/SFC/tanab/dangling-rescue-20260827-t1828/`。** canonical は
+  `dangling-rescue-20260827-t1828.bundle` (105,886,452 bytes、sha256
+  `f5d6c2b41ab2c1cf917ca8eeed9996aa4caba907b6065e1af83ecf65ee6ca6de`)。11 head を持つ
+  自己完結 bundle で、prerequisite ゼロ。復元手順・件数・分類の正本は同 dir の `MANIFEST.md`、
+  path 単位の全証拠は同 dir の `classification.md` と `classification.json`。
+  検索語は「到達不能 commit / 救出 / 復元 / dangling / unreachable commit / git bundle /
+  dangling-rescue-20260827-t1828 / dangling-rescue-20260826 / cleanup-20260825」。
+- **対象 19 件は定義どおり再構成できた。** 2026-08-26 監査再走の要確認 47 件から
+  2026-08-25 の 28 件を引くと 19 件で、件数が 47 / 28 / 19 と一致した。
+  19 件すべてが着手時点で object store に健在で、いずれも main に到達不能だった。
+- **分類は 6 / 2 / 11 になった。** D970 の規則 (全 path 外部 = 破棄 / 一部だけ外部 = 破棄 /
+  外部控え皆無 = 救出) をそのまま当てると、全 path 外部 6 件・一部だけ外部 2 件・
+  外部控え皆無 11 件で、合計が 19 に一致する。救出したのは皆無の 11 件だけである。
+- **対象の中身はコードを含まない。** 40 (commit, path) 対 / 32 個の異なる blob はすべて
+  `output/insights/**` の変異 harness 出力 (mutation spec / ledger / result / out) と
+  1 件の `log-survival-scan.txt` だった。
+- **着手直後に `refs/rescue/t1828/<sha>` 19 本を張って自動 prune の時限を止めた。** 対象の
+  最古は 2026-08-11 で、自動 gc の既定猶予 2 週間を既に越えており、分類の最中に刈られうる
+  状態だった。前回 (2026-08-26) は source repo の ref DB へ書かない方針だったが、
+  本 wave はこの理由で意図的に書いた。詳細は {{D:rescue-pin-before-triage}}。
+  **救出完了後に ref を全部外し、破棄判定分を到達不能へ戻した。**
+- **「外部控えあり」は path の存在でなく内容の一致で確かめた。** 対象 blob の生 bytes の
+  sha256 と、探索根の全 file を size 一致で絞ってから sha256 で突き合わせた。
+  走査した repo 外 file は 1,482,382 件。**監査が挙げた控えは 9 件とも今も内容一致で健在**で、
+  破棄側が実体を失っている例はゼロだった。現 main の全 blob と全 local branch tip (35 本) の
+  全 blob とも照合し、40 path のいずれも main / tip のどこにも無いことを確かめた。
+- **既存の救出 bundle 2 本に、対象 32 blob のうち 29 が既に入っていた。** commit 自体は
+  0 件である。bundle は自己完結で main の履歴を丸ごと含むため、同じ内容の blob が
+  祖先として副次的に入っている。本当にどこにも無い blob は 3 個だけだった
+  (`1aa5ae77` / `c3e2218c` の T-812 変異 spec 2 版と、`e0a80472` の T-1262 変異 spec)。
+- **監査ツールの外部控え抑止は basename 一致で先に絞っている。** `_enumerate_offrepo_candidates`
+  が「blob を読まず basename・size・mode が一致する外部実体を列挙する」と実装されており、
+  **同一 bytes でも file 名が違う控えは見えない**。監査が「控え無し」とした 9 path のうち
+  **9 件すべて**について、監査と同じ探索根 `/work/1/SFC/tanab/dev-wave-jobs` の中に別名の
+  同一 bytes 実体を実測した (例: `mutation-result-round1-probe.json` の控えが
+  `mutation-ledger-run.json` という名前で在る)。方向は安全側 (控えがあるのに要確認と
+  過大報告する) なので正しさは破れていないが、要確認の件数と分類作業量は過大になる。
+  F118 の未了節が挙げる盲点一覧はこの型を含んでいなかったので supersede で補った。
+- **広い照合で見つかった控えを根拠に救出集合を縮めてはいない。** D1031 は「既存手順で行い」と
+  指示しており、既存手順の基準は監査の注記である。監査より広い探索で見つかった控えを
+  破棄の根拠に使うのは規則の拡張になるため、該当 3 件 (`4a62da8c` / `6902920c` / `f1feb592`)
+  は救出側に残し、事実は `classification.md` と `MANIFEST.md` に明示した。
+- **隔離復元は 6 種の検査を全部通した。** 復元先の事前条件 (alternates / http-alternates /
+  commondir / shallow / grafts の不在、objects が symlink でない、object 0、ref 0、`env -i`)、
+  `bundle verify` = `complete history` で prerequisite ゼロ、head 11 件の `cmp` 一致、
+  object 集合 (OID) と OID+type+size inventory の `cmp` 一致、
+  `fsck --full --strict --no-reflogs` rc=0 (blob 内容まで検査する)、
+  head の `%H|%T|%P|%s` が生成側・復元側・source 側の 3 者一致。
+- **読み戻しまで測った。** 11 head すべてについて救出対象 path 14 本の中身を復元先から
+  実際に読み出し、source repo 側の sha256 と 1 行ずつ `cmp` 一致させた。
+  bundle と SHA 一覧だけで閉じる循環を断つために入れた検査で、前回の manifest 手順に
+  無かった段である。
+- **保管の failure domain は今も 1 個である。** 新しい保管先も同じ lustre 上にあり、
+  secondary は D1030 のユーザー手番待ちのままである。**冗長保管済みとは書けない。**
+- **破棄に能動的操作は要らなかった。** 対象は既に到達不能であり、放置が破棄である。
+  手動 gc・`git prune`・`git repack`・branch 削除は一切行っていない。
+
+## 次の一手差分
+
+### 完了
+
+- [T-1828] 19 件を 6 / 2 / 11 に分類し、外部控え皆無の 11 件を親子関係ごと救出して
+  隔離復元まで実測した。破棄 8 件は外部控えの実在 path を sha256 一致で記録した。
+  remaining: none
+  base: 618d23b81fdbf14ff6f9b0544ac285dc54e05f99cb7db55adbf63f901c8addbd
+
+### 更新
+
+- [T-1823] **P1・裁定済み・ユーザーの手番が残る (2026-08-26 /rulings 全件)**: 場所の指定は
+  未了のまま (D1030)。**共有 filesystem の 2 か所は同一の故障単位ではないが同一の
+  ストレージサーバ群を指すことを実測した**ため、真に別の故障単位はこの計算機の外になる。
+  対象は 3 か所になった — `cleanup-20260825/` `dangling-rescue-20260826/`
+  `dangling-rescue-20260827-t1828/` はいずれも同じ lustre 上にある。
+  base: 0157b959f51e3eca9d31356266cd820c9a89099246705d575839cea9dbd60274
+
+### 新規
+
+- {{T:audit-offrepo-name-independent}} **P2・新規**: `tools/audit_dangling_commits.py` の
+  外部控え抑止が basename 一致で候補を絞っているため、別名同内容の控えを取り逃す。
+  安全側の過大報告なので急がないが、要確認件数と分類作業量を押し上げている。
+  size + 内容 hash だけで絞る形へ変えられるか、走査費用と併せて測る。
