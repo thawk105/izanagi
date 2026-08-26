@@ -53,6 +53,19 @@ title: 受入の実行器 tip 等値要求は単独では外せない — 受入
 - **実 repo を読むテストは記録 commit の後に実走した。** 段 4 の規定は記録前なので順序を誤った。
   結果は緑で判断は変わらない — `test_s8b_repo_scan_invariant.py` と `test_check_docs.py` を
   計算ノードへ dispatch して 567 passed / 4 skipped / 11.81 秒。
+- **受入全走 attempt 1 は非帰属の赤 1 件で戻り、land していない。** claimed main `b9d21206`、
+  17700 collected / 17638 passed / 1 failed / 61 skipped、rc=70 (source_rc=1)。赤は
+  `test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection`
+  だけで、所要時間台帳の被覆率が閾値 90% を割ったものである。**本 wave は docs と insight しか
+  変えておらずテスト node を 1 つも足していないので、この判定の分母を動かさない。**
+  並行 wave ([T-1629] 所有) が素の main worktree で 15912/17700 = 89.898% を独立に実測しており、
+  本走の collected 17700 と分母が完全に一致する。決定的な赤なので再走はしていない
+  (再走は lease 窓を捨てるだけである)。**対応する F も `orchestrator/tests/flaky_test_holds.py` の
+  登録も存在しないことを親が確認したので、DW-O18 に従い保留登録をせず裁定へ送って停止した。**
+  被覆率の是正そのものは [T-1629] の wave が所有し、ユーザー裁定へ上げている
+  (台帳の全面再生成は 12 node の所要値 exact pin を壊し、閾値の引き下げは規律 2 に触れる、
+  というのが同 wave の調査結果)。本 wave は重複起票しない。
+- 受入 lease は取得しないまま終わったので `release` していない (`status` は `free` を実測)。
 - 逐語・実測表・選択肢は `output/insights/2026-08-27_runner-tip-equality-dispatch/`。
 
 ## 次の一手差分
