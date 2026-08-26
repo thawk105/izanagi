@@ -244,6 +244,12 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
         "c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3"
     ) in job
     assert "WORKLOADS=(write-heavy balanced read-heavy)" in submit
+    assert (
+        "for command_name in qstat qsub pegasusinfo check_quota sha256sum; do"
+        in submit
+    )
+    assert "\ncheck_quota >/dev/null\n" in submit
+    assert "\nquota -s >/dev/null\n" not in submit
     assert submit.count("job_id=$(qsub") == 1
     assert "B10_WORKLOAD=$workload" in submit
     assert "B10_SUBMISSION_NONCE=$SUBMISSION_NONCE" in submit

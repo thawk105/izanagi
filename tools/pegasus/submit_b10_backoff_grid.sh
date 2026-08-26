@@ -55,14 +55,14 @@ if any((parent / ".git").exists() for parent in (target, *target.parents)):
     raise SystemExit("output parent has a repository ancestor")
 PY
 
-for command_name in qstat qsub pegasusinfo quota sha256sum; do
+for command_name in qstat qsub pegasusinfo check_quota sha256sum; do
   command -v -- "$command_name" >/dev/null 2>&1 || {
     echo "required submission command is unavailable: $command_name" >&2
     exit 2
   }
 done
 python3.10 -I -B -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 10))'
-quota -s >/dev/null
+check_quota >/dev/null
 QUEUE_STATE=$(qstat -Q)
 printf '%s\n' "$QUEUE_STATE" | python3.10 -I -B -c '
 import re, sys
