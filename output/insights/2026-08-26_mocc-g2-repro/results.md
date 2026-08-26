@@ -3,14 +3,29 @@
 **G2 は再現した。** 42 本中 5 本が non-serializable で、5 件すべてが G2 だった。
 
 - 事前登録: `output/insights/2026-08-26_mocc-g2-repro/pre-registration.md`
-  (凍結 commit `f7f6dd2e70ccb27f531011881e47c45617d3ffaf`、
-  sha256 `182abe5cdad001d8ec799bbf33d097674ad7292cd8e5880826ca56654dd6e235`)
+  (sha256 `182abe5cdad001d8ec799bbf33d097674ad7292cd8e5880826ca56654dd6e235`)
 - 段 4 裁定: 同 directory の `s4-adjudication.md`
 - 機械台帳: 同 directory の `ledger.json` (`orchestrator/campaign/mocc_g2_repro_ledger.py` が生成)
 - 証拠: 同 directory の `runs/<ordinal>/`、`submissions/<nonce>/`、`submission-ledger.tsv`
 - anomaly の構造化投影: 同 directory の `anomaly-projection.md`
 - 生 trace を含む job-staging (12 GB) は repo 外
   `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-g2-repro-20260826/evidence/` へ退避した
+
+## 何がこの結果を同一の source に束縛しているか
+
+**commit オブジェクトの hash ではない。** 束縛は次の 3 つで、いずれも commit の書き換えで壊れない。
+
+- **事前登録文書の bytes** — sha256 `182abe5cdad001d8ec799bbf33d097674ad7292cd8e5880826ca56654dd6e235`。
+- **凍結時のソース内容 (tree)** — `f737e87dfadfadea6e76a4feb1d3d2219134dc70`。
+  42 本が走ったときの作業ツリーそのものである。
+- **42 本の receipt が記録した同一の `source_commit` 値** — 投入時の commit hash という
+  歴史的事実であり、台帳は「42 本すべてが同じ値を持つこと」を検査する。
+  **その commit オブジェクトが今も branch 上に在るかは検査しないし、要求もしない。**
+
+実際に本 wave では、凍結 commit の message にある provenance trailer の role 名が
+許可値でなかったため、**message だけを訂正して commit を作り直した** (`f7f6dd2e` →
+`b74f6434`)。tree は 1 bit も変わっておらず、台帳を再生成しても出力は byte 単位で同一だった。
+**測定の意味を担保するのはソースの内容であって commit オブジェクトの hash ではない。**
 
 ## この結果の射程 — 先に限界を書く
 
