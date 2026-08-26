@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import ctypes
 import hashlib
 import json
@@ -75,6 +76,29 @@ def _admission_bundle(genome: Genome, commit: str, source_root: str):
     )
     admission = derive_build_admission(
         context, evidence, generator_receipt=receipt,
+    )
+    return context, evidence, admission
+
+
+def _review_admission_bundle(
+        genome: Genome, commit: str, source_root: str, *, input_sha256: str):
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = _source_evidence(genome, commit, source_root)
+    unsigned = {
+        "schema": "source-review/v1",
+        "review_id": ReviewId.S8B_FLOOR.value,
+        "source": evidence.as_receipt(),
+        "input_sha256": input_sha256,
+    }
+    body = dict(unsigned)
+    body["receipt_sha256"] = hashlib.sha256(json.dumps(
+        unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    review = verify_review_receipt(
+        ReviewId.S8B_FLOOR, evidence, receipt=body,
+    )
+    admission = derive_build_admission(
+        context, evidence, review_receipt=review,
     )
     return context, evidence, admission
 
@@ -237,6 +261,30 @@ def _fake_build_environment(
     )
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", lambda *a, **k: None)
 
+    def fake_compiler_inputs(_build_dir, snapshot_root, *, target):
+        source = Path(snapshot_root).resolve() / "compiler-input.hh"
+        payload = source.read_bytes()
+        manifest = {
+            "schema_version": buildcache.s8b_compiler_input.MANIFEST_SCHEMA,
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": target,
+            "depfile_count": 1,
+            "inputs": [{
+                "path": "compiler-input.hh",
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }],
+        }
+        return buildcache.s8b_compiler_input.CompilerInputManifest(
+            manifest,
+            buildcache.s8b_compiler_input.manifest_sha256(manifest),
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        fake_compiler_inputs,
+    )
+
     def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
         if what == "configure":
             base_tokens = [
@@ -297,6 +345,8 @@ def _fake_build_environment(
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
+           source_snapshot_sha256: str | None = None,
+           bind_source_snapshot: bool = False,
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
            fetchcontent_dependency_receipt=None, declared_use_class=None,
@@ -306,6 +356,22 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            googletest_source_dir=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
+    if bind_source_snapshot or source_snapshot_sha256 is not None:
+        source_path = Path(source_root)
+        source_path.mkdir(parents=True, exist_ok=True)
+        snapshot_input = source_path / "compiler-input.hh"
+        if not snapshot_input.exists():
+            snapshot_input.write_bytes(b"compiler input fixture\n")
+        if bind_source_snapshot:
+            if source_snapshot_sha256 is not None:
+                raise ValueError(
+                    "bind_source_snapshot and source_snapshot_sha256 are exclusive"
+                )
+            source_snapshot_sha256 = (
+                buildcache.s8b_expected_materialization.snapshot_tree_digest(
+                    source_path.resolve(),
+                )
+            )
     context, evidence, admission = _admission_bundle(
         genome, "a" * 40, source_root,
     )
@@ -323,6 +389,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         ccbench_dir=ccbench_dir,
         timeout_s=timeout_s,
     )
+    if source_snapshot_sha256 is not None:
+        kwargs["source_snapshot_sha256"] = source_snapshot_sha256
     if dependency_prefix:
         kwargs["dependency_prefix"] = dependency_prefix
     if site is not None:
@@ -2325,6 +2393,366 @@ def test_v2_preimage_binds_exact_admission(tmp_path):
         for admission in admissions
     }
     assert len(digests) == 4
+
+
+def test_v2_identity_optional_snapshot_preserves_legacy_digest_and_separates_proof():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {
+            "requested": role,
+            "realpath": f"/tool/{role}",
+            "version_first_line": "v1",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    common = dict(
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+    )
+    legacy = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **common,
+    )
+    explicit_none = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        source_snapshot_sha256=None, **common,
+    )
+    first = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        source_snapshot_sha256="1" * 64, **common,
+    )
+    second = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        source_snapshot_sha256="2" * 64, **common,
+    )
+    assert legacy == explicit_none
+    assert "source_snapshot_sha256" not in legacy[0]
+    assert legacy[1] == (
+        "e65e196014c1b0f6bac649bc33b07ad201388a7d9f4ef637a7a5bf03fdcb0c88"
+    )
+    assert first[0]["source_snapshot_sha256"] == "1" * 64
+    assert first[1] != second[1]
+
+
+def test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manifest(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    collector_calls = []
+    snapshot_checks = []
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        lambda *args, **kwargs: collector_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        buildcache,
+        "_assert_source_snapshot_sha256",
+        lambda *args, **kwargs: snapshot_checks.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        lambda **_kwargs: pytest.fail(
+            "descriptor-less build must not enter the declaration gate"
+        ),
+    )
+
+    fresh = _build(tmp_path, _contract(1))
+    hit = _build(tmp_path, _contract(1))
+    completion = json.loads(
+        (Path(fresh.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+
+    assert not fresh.cached and hit.cached
+    assert "source_snapshot_sha256" not in completion["preimage"]
+    assert "compiler_input_manifest" not in completion
+    assert "compiler_input_manifest_sha256" not in completion
+    assert fresh.compiler_input_manifest is None
+    assert fresh.compiler_input_manifest_sha256 is None
+    assert hit.compiler_input_manifest is None
+    assert hit.compiler_input_manifest_sha256 is None
+    assert fresh.source_snapshot_sha256 is None
+    assert fresh.expected_materialization_sha256 is None
+    assert hit.source_snapshot_sha256 is None
+    assert hit.expected_materialization_sha256 is None
+    assert collector_calls == []
+    assert snapshot_checks == []
+
+
+def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(
+        b"compiler input fixture\n"
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    declaration = {
+        "configuration": "stock_common",
+        "flags": {"BACK_OFF": 1},
+    }
+    descriptor = (
+        buildcache.s8b_expected_materialization.
+        expected_materialization_descriptor(
+            ccbench_commit="a" * 40,
+            configuration="stock_common",
+            declaration=declaration,
+        )
+    )
+    context, evidence, admission = _review_admission_bundle(
+        genome, "a" * 40, str(source_root),
+        input_sha256=descriptor.declaration_sha256,
+    )
+    digest = buildcache.s8b_expected_materialization.snapshot_tree_digest(
+        source_root
+    )
+    events = []
+
+    @contextlib.contextmanager
+    def fake_gate(**kwargs):
+        assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
+        assert kwargs["configuration"] == descriptor.configuration
+        assert kwargs["declaration"] == descriptor.declaration
+        events.append("gate-enter")
+        yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
+            source_snapshot_sha256=digest,
+            expected_materialization_sha256=digest,
+            source_evidence=evidence,
+        )
+        events.append("gate-exit")
+
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        fake_gate,
+    )
+    kwargs = dict(
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+        expected_materialization_descriptor=descriptor,
+        contract=_contract(1),
+        ccbench_commit="a" * 40,
+        trace=False,
+        src_token="stock",
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(source_root),
+    )
+    fresh = buildcache.build_v2(genome, **kwargs)
+    hit = buildcache.build_v2(genome, **kwargs)
+
+    assert not fresh.cached and hit.cached
+    assert fresh.source_snapshot_sha256 == digest
+    assert fresh.expected_materialization_sha256 == digest
+    assert hit.source_snapshot_sha256 == digest
+    assert hit.expected_materialization_sha256 == digest
+    assert events == ["gate-enter", "gate-exit", "gate-enter", "gate-exit"]
+
+
+def test_v2_descriptor_rejects_rederived_evidence_before_build(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(
+        b"compiler input fixture\n"
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    descriptor = (
+        buildcache.s8b_expected_materialization.
+        expected_materialization_descriptor(
+            ccbench_commit="a" * 40,
+            configuration="stock_common",
+            declaration={
+                "configuration": "stock_common",
+                "flags": {"BACK_OFF": 1},
+            },
+        )
+    )
+    context, evidence, admission = _review_admission_bundle(
+        genome, "a" * 40, str(source_root),
+        input_sha256=descriptor.declaration_sha256,
+    )
+    digest = buildcache.s8b_expected_materialization.snapshot_tree_digest(
+        source_root
+    )
+    different = _dirty_evidence(genome, "a" * 40, str(source_root))
+
+    @contextlib.contextmanager
+    def fake_gate(**_kwargs):
+        yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
+            source_snapshot_sha256=digest,
+            expected_materialization_sha256=digest,
+            source_evidence=different,
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        fake_gate,
+    )
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="SourceEvidence"):
+        buildcache.build_v2(
+            genome,
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
+            expected_materialization_descriptor=descriptor,
+            contract=_contract(1),
+            ccbench_commit="a" * 40,
+            trace=False,
+            src_token="stock",
+            cc="test-cc",
+            cxx="test-cxx",
+            cache_root=str(tmp_path / "cache"),
+            ccbench_dir=str(source_root),
+        )
+    assert calls == []
+
+
+def test_v2_fresh_completion_and_result_expose_compiler_input_manifest(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+
+    result = _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    completion = json.loads(
+        (Path(result.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+
+    assert result.compiler_input_manifest == completion["compiler_input_manifest"]
+    assert result.compiler_input_manifest_sha256 == completion[
+        "compiler_input_manifest_sha256"
+    ]
+    assert result.compiler_input_manifest_sha256 == (
+        buildcache.s8b_compiler_input.manifest_sha256(
+            result.compiler_input_manifest
+        )
+    )
+    assert completion["preimage"]["source_snapshot_sha256"] == (
+        buildcache.s8b_expected_materialization.snapshot_tree_digest(
+            tmp_path / "ccbench"
+        )
+    )
+
+
+def test_v2_collects_manifest_before_staging_discard(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    events = []
+    original_collect = (
+        buildcache.s8b_compiler_input.collect_compiler_input_manifest
+    )
+    original_discard = buildcache._discard_build_dir
+
+    def observe_collect(build_dir, snapshot_root, *, target):
+        assert Path(build_dir).is_dir()
+        events.append("collect")
+        return original_collect(build_dir, snapshot_root, target=target)
+
+    def observe_discard(path):
+        if ".staging-" in str(path):
+            events.append("discard")
+        return original_discard(path)
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        observe_collect,
+    )
+    monkeypatch.setattr(buildcache, "_discard_build_dir", observe_discard)
+
+    _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert events == ["collect", "discard"]
+
+
+def test_v2_hit_revalidates_compiler_input_bytes_without_rebuilding(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    completion_path = Path(result.build_dir) / "completion.json"
+    completion = json.loads(completion_path.read_text(encoding="utf-8"))
+    completion["compiler_input_manifest"]["inputs"][0]["sha256"] = "0" * 64
+    completion["compiler_input_manifest_sha256"] = (
+        buildcache.s8b_compiler_input.manifest_sha256(
+            completion["compiler_input_manifest"]
+        )
+    )
+    completion_path.write_text(json.dumps(completion), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="compiler input manifest"):
+        _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert calls == []
+
+
+def test_v2_hit_rejects_completion_without_compiler_input_proof(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    completion_path = Path(result.build_dir) / "completion.json"
+    completion = json.loads(completion_path.read_text(encoding="utf-8"))
+    completion.pop("compiler_input_manifest")
+    completion.pop("compiler_input_manifest_sha256")
+    completion_path.write_text(json.dumps(completion), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="field 集合"):
+        _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert calls == []
+
+
+def test_v2_rejects_source_snapshot_digest_mismatch_before_build(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="tree digest"):
+        _build(
+            tmp_path, _contract(1), source_snapshot_sha256="0" * 64,
+        )
+    assert calls == []
+
+
+def test_v2_rejects_snapshot_changed_during_build(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    original_run = buildcache._run
+
+    def mutate_after_build(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build":
+            (tmp_path / "ccbench" / "compiler-input.hh").write_bytes(
+                b"mutated during build\n"
+            )
+
+    monkeypatch.setattr(buildcache, "_run", mutate_after_build)
+    with pytest.raises(buildcache.BuildCacheError, match="tree digest"):
+        _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
 
 
 def test_completion_manifest_rejects_missing_receipt(tmp_path, monkeypatch):

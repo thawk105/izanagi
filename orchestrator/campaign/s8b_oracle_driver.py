@@ -6,6 +6,7 @@ import argparse
 import contextlib
 import datetime as dt
 import hashlib
+import inspect
 import json
 import math
 import os
@@ -27,6 +28,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from . import buildcache, model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from . import s8b_expected_materialization as _expected_materialization  # noqa: E402
 from orchestrator.calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
@@ -59,6 +61,7 @@ from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
 from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
+    binding_entry,
     prepared_binding as _materialization_prepared_binding,
     reviewed_source_capability,
 )
@@ -1161,10 +1164,63 @@ def _recheck_required_execution(plan: _V2Plan, *, remaining_rows: int) -> None:
 
 @contextlib.contextmanager
 def _assert_v2_build_contract(contract: "_env_contract.ExecutionEnvironmentContract"):
-    """pipeline が得た全 BuildResult の contract provenance を driver 側でも assert する。"""
+    """Assert BuildResult contract provenance for non-driver unit callers."""
     original = pipeline.buildcache.build_v2
 
     def checked(*args, **kwargs):
+        result = original(*args, **kwargs)
+        assert result.contract_sha256 == contract.contract_sha256, (
+            "pipeline BuildResult.contract_sha256 が oracle contract と不一致: "
+            f"{result.contract_sha256!r} != {contract.contract_sha256!r}"
+        )
+        return result
+
+    pipeline.buildcache.build_v2 = checked
+    try:
+        yield
+    finally:
+        pipeline.buildcache.build_v2 = original
+
+
+@contextlib.contextmanager
+def _assert_v2_build_contract_for_snapshot(
+        contract: "_env_contract.ExecutionEnvironmentContract", *,
+        entry: Mapping, configuration_id: str, ccbench_pin: str,
+        cxx: str, prepared):
+    """Pass one declaration to each real ``build_v2`` and assert provenance.
+
+    A replacement builder that does not expose the descriptor keyword skips
+    the build-owned gate together with the real compiler.  It cannot produce
+    declaration proof fields accepted at the S8b receipt boundary.
+    """
+    original = pipeline.buildcache.build_v2
+    try:
+        signature = inspect.signature(original)
+        descriptor_aware = (
+            "expected_materialization_descriptor" in signature.parameters
+            or any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in signature.parameters.values()
+            )
+        )
+    except (TypeError, ValueError):
+        descriptor_aware = False
+    try:
+        descriptor = (
+            _expected_materialization.expected_materialization_descriptor(
+                ccbench_commit=ccbench_pin,
+                configuration=configuration_id,
+                declaration=entry,
+            )
+        )
+    except _expected_materialization.ExpectedMaterializationError as exc:
+        raise OracleDriverError(
+            f"oracle build declaration を記述子へ固定できない: {exc}"
+        ) from exc
+
+    def checked(*args, **kwargs):
+        if descriptor_aware:
+            kwargs["expected_materialization_descriptor"] = descriptor
         result = original(*args, **kwargs)
         assert result.contract_sha256 == contract.contract_sha256, (
             "pipeline BuildResult.contract_sha256 が oracle contract と不一致: "
@@ -1648,7 +1704,15 @@ def run_block(
                     before = len(wal.read_records(layout))
                     evaluate_started = True
                     try:
-                        with _assert_v2_build_contract(plan.contract):
+                        with _assert_v2_build_contract_for_snapshot(
+                                plan.contract,
+                                entry=binding_entry(
+                                    freeze, holdout_id, configuration_id,
+                                ),
+                                configuration_id=configuration_id,
+                                ccbench_pin=run_contract["ccbench_pin"],
+                                cxx=cxx,
+                                prepared=prepared_for_eval):
                             result = evaluate_fn(
                                 prepared_for_eval.genome, layout, env_tag,
                                 run_contract["ccbench_pin"], perf,

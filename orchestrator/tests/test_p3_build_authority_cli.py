@@ -166,6 +166,7 @@ EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.s2_verify_calibration._broken_build_and_verify",
     "orchestrator.campaign.s3_lock_coverage._build_broken",
     "orchestrator.campaign.s5_permutation_coverage._build_broken",
+    "orchestrator.campaign.s8b_expected_materialization.produce_expected_materialization_sha256",
     "orchestrator.campaign.s8b_oracle_n_pilot.build_binaries",
     "orchestrator.campaign.t152_write_intent_coverage._build",
     "orchestrator.campaign.silo_ladder_rung1._build_variant",

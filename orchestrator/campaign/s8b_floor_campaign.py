@@ -57,6 +57,7 @@ import copy
 import contextlib
 import datetime as dt
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -92,6 +93,7 @@ from ..calibrator.runner import (  # noqa: E402
 )
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import buildcache, patchharness, s8b_floor_stats, source_digest  # noqa: E402
+from . import s8b_expected_materialization as _expected_materialization  # noqa: E402
 from . import sort_swo_dependency_material as _sort_swo_dependency_material  # noqa: E402
 from . import silo_ladder_rung1 as _silo_ladder  # noqa: E402
 from . import toolchain_binding  # noqa: E402
@@ -139,6 +141,7 @@ from .sort_swo_oracle import (  # noqa: E402
 )
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
+    binding_entry,
     prepared_binding,
     reviewed_source_capability,
 )
@@ -4262,15 +4265,30 @@ def _build_cells_impl(
                         "dependency-bound sort_best の build 直前に "
                         "post-oracle capability がない"
                     )
+            entry = binding_entry(freeze, holdout_id, configuration_id)
+            try:
+                descriptor = (
+                    _expected_materialization.expected_materialization_descriptor(
+                        ccbench_commit=ccbench_pin,
+                        configuration=configuration_id,
+                        declaration=entry,
+                    )
+                )
+            except _expected_materialization.ExpectedMaterializationError as exc:
+                raise FloorCampaignError(
+                    f"floor build declaration を記述子へ固定できない: {exc}"
+                ) from exc
             try:
                 result = _invoke_build(
                     prepared.genome,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
                     contract=contract, ccbench_commit=ccbench_pin,
-                    trace=False, cache_root=cache_root, src_token=prepared.src_token,
+                    trace=False, cache_root=cache_root,
+                    src_token=prepared.src_token,
                     cc=cc, cxx=cxx,
                     ccbench_dir=prepared.ccbench_dir,
+                    expected_materialization_descriptor=descriptor,
                     timeout_s=_FLOOR_BUILD_CAP_PER_CELL_S,
                     expected_toolchain_manifest=expected_toolchain_manifest,
                     **build_kwargs,
@@ -4297,6 +4315,18 @@ def _build_cells_impl(
                     "floor build が contract namespace provenance を返さない "
                     "(legacy build 経路への落下を拒否)"
                 )
+            compiler_input_manifest = getattr(
+                result, "compiler_input_manifest", None,
+            )
+            compiler_input_manifest_sha256 = getattr(
+                result, "compiler_input_manifest_sha256", None,
+            )
+            source_snapshot_sha256 = getattr(
+                result, "source_snapshot_sha256", None,
+            )
+            expected_materialization_sha256 = getattr(
+                result, "expected_materialization_sha256", None,
+            )
             binary_path = Path(result.binary)
             configure_argv = getattr(result, "configure_argv", ())
             build_argv = getattr(result, "build_argv", ())
@@ -4341,6 +4371,14 @@ def _build_cells_impl(
                     binding=receipt_identity, binary=binary_path,
                     binary_sha256=result.bin_sha256,
                     contract_sha256=contract.contract_sha256, trace=False,
+                    source_snapshot_sha256=source_snapshot_sha256,
+                    expected_materialization_sha256=(
+                        expected_materialization_sha256
+                    ),
+                    compiler_input_manifest=compiler_input_manifest,
+                    compiler_input_manifest_sha256=(
+                        compiler_input_manifest_sha256
+                    ),
                 )
             except _binary_admission.BinaryAdmissionError as exc:
                 raise FloorCampaignError(
@@ -4410,17 +4448,34 @@ def build_cells(
 ) -> dict[str, dict]:
     """Build cells while retaining the canonical lease through postflight."""
     build_fn = build_fn or buildcache.build_v2
-    invoke_build = (
-        lambda genome, *, admission, build_context, source_evidence,
-        expected_toolchain_manifest, **kwargs: build_fn(
-            genome,
-            admission=admission,
-            build_context=build_context,
-            source_evidence=source_evidence,
-            expected_toolchain_manifest=expected_toolchain_manifest,
-            **kwargs,
+    try:
+        build_signature = inspect.signature(build_fn)
+        descriptor_aware = (
+            "expected_materialization_descriptor" in build_signature.parameters
+            or any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in build_signature.parameters.values()
+            )
         )
-    )
+    except (TypeError, ValueError):
+        descriptor_aware = False
+
+    def invoke_build(
+            genome, *, admission, build_context, source_evidence,
+            expected_toolchain_manifest,
+            expected_materialization_descriptor, **kwargs):
+        call_kwargs = {
+            "admission": admission,
+            "build_context": build_context,
+            "source_evidence": source_evidence,
+            "expected_toolchain_manifest": expected_toolchain_manifest,
+            **kwargs,
+        }
+        if descriptor_aware:
+            call_kwargs["expected_materialization_descriptor"] = (
+                expected_materialization_descriptor
+            )
+        return build_fn(genome, **call_kwargs)
     materials: list[
         _sort_swo_dependency_material.CanonicalDependencyMaterial
     ] = []
