@@ -38,6 +38,9 @@ _BOUNDED_RUN_ONCE_CLIENTS = Counter({
 })
 
 _DIRECT_SAFE_ALLOWLIST = Counter({
+    # Fixed probe binary argv, required measurement-site admission, and a
+    # bounded timeout; the probe harness does not accept YCSB ratio flags.
+    ("campaign/b10_backoff_shape_sweep.py", "<module>._measure_probe_binary"): 1,
     # Production passes CALIBRATION_FLAGS, whose frozen read ratio is rr95.
     ("campaign/s1_verify_extime_calibration.py", "<module>._run_once"): 1,
     # Production passes the module-level S2_FLAGS, fixed at rr50.
@@ -76,6 +79,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # registered B10 preregistration/current repository state.
     ("campaign/b10_backoff_shape_sweep.py", "<module>._git"): 1,
     ("campaign/b10_backoff_shape_sweep.py", "<module>.load_preregistration"): 1,
+    # Builds and identifies the standalone probe harness/toolchain only; the
+    # realized-wait measurement binary is launched at the reviewed site above.
+    ("campaign/b10_backoff_shape_sweep.py", "<module>._run_probe_command"): 1,
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
     ("campaign/buildcache.py", "<module>._assert_no_trace_symbols"): 1,
     ("campaign/buildcache.py", "<module>._run"): 1,

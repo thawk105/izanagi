@@ -22,6 +22,10 @@
 - `phase3-8c-preregistration.md` — 段 8c 正式系列 (H1/H2 × on/off/swapped) の事前登録。
   発効条件・発効の判定手続き (条件充足の機械確認で自動発効、条件契約は hash 世代台帳で凍結)・
   全件報告の機械強制が現在どこまで効くかの正本 (D116、[T-327])
+- `b10-backoff-shape-preregistration.md` — B-10「待ち方 / 待ち量の直交切り分け」の登録追試。
+  平均を μ に固定した半幅 3 形 × 6 平均 × 3 workload × 独立 3 ブロックの grid、
+  判定規則の機械可読 spec (符号反転 exact 検定・Holm・曝露 gate・欠測規則)、
+  待機の物理残差の実測欄、発効条件と束縛の正本
 - `worklog.md` — 日誌。末尾エントリ = 可変状態の正本。書式とローテーションは同ファイル冒頭
 - `spool/README.md` — 3 台帳へ書くための fragment 形式と fold の正本。並行セッションが同じ行末を
   奪い合わないよう、wave は fragment だけを書き、採番と追記は land が lock 内で一度だけ行う
