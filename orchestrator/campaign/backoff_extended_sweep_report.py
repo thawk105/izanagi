@@ -565,10 +565,90 @@ def load_aa_records(layout, tag: str, normal_points: Sequence[Mapping]) -> list[
     return rows
 
 
-def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
+def _gnuplot_quote(value: str) -> str:
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def _dat_value(value: object) -> str:
+    if isinstance(value, float) and math.isnan(value):
+        return "nan"
+    return str(value)
+
+
+def _materialize_deferred_plot_inputs(
+        stem: Path, *, title: str, columns: Sequence[str],
+        rows: Sequence[Sequence[object]], provenance: Mapping,
+        build_command: str, repro_command: str) -> dict[str, str]:
+    """Write portable plot inputs without starting a renderer."""
+    dat_path = Path(f"{stem}.dat")
+    script_path = Path(f"{stem}.plt")
+    png_path = Path(f"{stem}.png")
+    dat_lines = [
+        f"# {title}",
+        "# columns: " + " ".join(columns),
+        "# provenance: " + json.dumps(
+            provenance, sort_keys=True, separators=(",", ":"), allow_nan=False,
+        ),
+        f"# build command: {build_command}",
+        f"# reproduce data: {repro_command}",
+        *[" ".join(_dat_value(value) for value in row) for row in rows],
+    ]
+    dat_path.write_text("\n".join(dat_lines) + "\n", encoding="utf-8")
+
+    dat_name = dat_path.name
+    png_name = png_path.name
+    script_lines = [
+        "# Plot rendering was deferred on the measurement host.",
+        "# Run this script from its containing directory on a non-measurement host.",
+        "set terminal pngcairo size 1400,900 enhanced",
+        f"set output {_gnuplot_quote(png_name)}",
+        f"set title {_gnuplot_quote(title)}",
+        "set xlabel 'static backoff (us)'",
+        "set ylabel 'throughput (tps; workload-local axis)'",
+        "set y2label 'abort rate'",
+        "set y2tics",
+        "set key outside",
+        "set yrange [0:*]",
+        "set y2range [0:*]",
+        (
+            f"plot {_gnuplot_quote(dat_name)} using 1:2 axes x1y1 "
+            "with linespoints title 'throughput', \\"
+        ),
+        "     '' using 1:3 axes x1y2 with linespoints title 'abort rate'",
+    ]
+    script_path.write_text("\n".join(script_lines) + "\n", encoding="utf-8")
+    return {"dat": str(dat_path), "plt": str(script_path), "png": str(png_path)}
+
+
+def _plot_record(
+        paths: Mapping[str, str], *, rendered: bool, stem: Path) -> dict[str, object]:
+    script = paths.get("plt", paths.get("script", f"{stem}.plt"))
+    return {
+        "status": "rendered" if rendered else "deferred",
+        "reason": None if rendered else "measurement_host_plotting_prohibited",
+        "renderer": "gnuplot",
+        "renderer_invoked": rendered,
+        "dat": os.path.basename(paths["dat"]),
+        "script": os.path.basename(script),
+        "png": {
+            "path": os.path.basename(paths["png"]),
+            "status": "generated" if rendered else "not_generated_on_measurement_host",
+        },
+    }
+
+
+def _markdown(tag: str, verdict: Mapping, plot: Mapping | str, dat: str) -> str:
     claim_boundary = {key: verdict[key] for key in CLAIM_BOUNDARY}
     claim_json = json.dumps(
         claim_boundary, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    )
+    plot_artifact = (
+        {
+            "status": "rendered",
+            "png": {"path": plot},
+        }
+        if isinstance(plot, str)
+        else plot
     )
     lines = [
         f"# B-10 extended backoff report: {tag}",
@@ -578,8 +658,29 @@ def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
             "compared across workloads."
         ),
         "",
-        f"![{tag}]({png})",
-        "",
+    ]
+    if plot_artifact["status"] == "rendered":
+        lines.extend([
+            f"![{tag}]({plot_artifact['png']['path']})",
+            "",
+        ])
+    else:
+        lines.extend([
+            "Plot status: `deferred`.",
+            "",
+            (
+                "PNG was not generated because plotting on the measurement host is "
+                "prohibited. Render the plot on a non-measurement host with "
+                f"`{plot_artifact['script']}`."
+            ),
+            "",
+            (
+                "Expected PNG after deferred rendering: "
+                f"`{plot_artifact['png']['path']}`"
+            ),
+            "",
+        ])
+    lines.extend([
         f"Data: `{dat}`",
         "",
         "The claim boundary below is generated directly from the verdict JSON.",
@@ -596,7 +697,7 @@ def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
             "abort rate (trace_disabled) | latency ns (trace_disabled) |"
         ),
         "|---:|---:|---:|---:|",
-    ]
+    ])
     for row in verdict["mechanism"]["trace_disabled_table"]:
         lines.append(
             f"| {row['backoff_us']['value']} | {row['throughput_tps']['value']} | "
@@ -617,7 +718,8 @@ def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
     return "\n".join(lines)
 
 
-def report_workload(tag: str, output_root: str, log=print) -> dict:
+def report_workload(
+        tag: str, output_root: str, log=print, *, render_plot: bool = True) -> dict:
     normal, perf_status, layout = load_normal_points(tag, output_root)
     aa = load_aa_records(layout, tag, normal)
     verdict = evaluate_workload(normal, aa, perf_preflight_status=perf_status)
@@ -627,23 +729,29 @@ def report_workload(tag: str, output_root: str, log=print) -> dict:
         (point for point in normal if point["kind"] == "static"),
         key=lambda point: point["backoff_us"],
     )
-    dat_file = DatFile(
-        title=f"B-10 extended static backoff: {tag}",
-        columns=["backoff_us", "throughput_tps", "abort_rate", "latency_ns", "cv"],
-        rows=[[
+    title = f"B-10 extended static backoff: {tag}"
+    columns = ["backoff_us", "throughput_tps", "abort_rate", "latency_ns", "cv"]
+    rows = [[
             point["backoff_us"], point["median_tps"],
             point["abort_rate"] if point["abort_rate"] is not None else float("nan"),
             point["latency_ns"] if point["latency_ns"] is not None else float("nan"),
             point["cv"],
-        ] for point in statics],
-        provenance={
-            "campaign": os.path.basename(layout.root),
-            "workload": tag,
-            "claim_scope": CLAIM_BOUNDARY["claim_scope"],
-            "source_measurement": TRACE_DISABLED,
-        },
-        build_command="orchestrator/campaign/backoff_extended_sweep.py",
-        repro_command=f"python -m orchestrator.campaign.backoff_extended_sweep {tag}",
+        ] for point in statics]
+    provenance = {
+        "campaign": os.path.basename(layout.root),
+        "workload": tag,
+        "claim_scope": CLAIM_BOUNDARY["claim_scope"],
+        "source_measurement": TRACE_DISABLED,
+    }
+    build_command = "orchestrator/campaign/backoff_extended_sweep.py"
+    repro_command = f"python -m orchestrator.campaign.backoff_extended_sweep {tag}"
+    dat_file = DatFile(
+        title=title,
+        columns=columns,
+        rows=rows,
+        provenance=provenance,
+        build_command=build_command,
+        repro_command=repro_command,
     )
     plot_spec = PlotSpec(
         title=f"B-10 extended static backoff: {tag}",
@@ -656,7 +764,21 @@ def report_workload(tag: str, output_root: str, log=print) -> dict:
         ],
         extra_setup=["set yrange [0:*]", "set y2range [0:*]"],
     )
-    paths = make_plot(dat_file, plot_spec, str(stem))
+    if render_plot:
+        paths = make_plot(dat_file, plot_spec, str(stem))
+    else:
+        paths = _materialize_deferred_plot_inputs(
+            stem,
+            title=title,
+            columns=columns,
+            rows=rows,
+            provenance=provenance,
+            build_command=build_command,
+            repro_command=repro_command,
+        )
+    verdict["plot_artifact"] = _plot_record(
+        paths, rendered=render_plot, stem=stem,
+    )
     verdict_path = Path(f"{stem}_verdict.json")
     verdict_path.write_text(
         json.dumps(verdict, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n",
@@ -664,7 +786,7 @@ def report_workload(tag: str, output_root: str, log=print) -> dict:
     )
     report_path = Path(f"{stem}_report.md")
     report_path.write_text(
-        _markdown(tag, verdict, os.path.basename(paths["png"]), os.path.basename(paths["dat"])),
+        _markdown(tag, verdict, verdict["plot_artifact"], os.path.basename(paths["dat"])),
         encoding="utf-8",
     )
     log(f"[{tag}] report={report_path} verdict={verdict_path}")
@@ -675,8 +797,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="B-10 extended backoff report")
     parser.add_argument("workload", choices=[tag for tag, _workload in WORKLOADS])
     parser.add_argument("--output-root", required=True)
+    parser.add_argument(
+        "--defer-plot", action="store_true",
+        help="write .dat and .plt but do not start gnuplot or generate PNG",
+    )
     args = parser.parse_args(argv)
-    result = report_workload(args.workload, args.output_root)
+    result = report_workload(
+        args.workload, args.output_root, render_plot=not args.defer_plot,
+    )
     return 0 if result["verdict"]["status"] == "complete" else 1
 
 

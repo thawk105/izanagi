@@ -7,18 +7,26 @@
 set -Eeuo pipefail
 umask 077
 
-# 31/24 scaling: 11700 + 3900 + 300 + 300 = 16200 seconds.
-# A five-hour reservation therefore retains the preregistered 1800-second reserve.
+# 31/24 scaling plus detached worktree and dependency build:
+# 120 + 180 + 11700 + 3900 + 300 + 120 + 300 = 16620 seconds.
+# A five-hour reservation therefore retains the preregistered 1380-second reserve.
+WORKTREE_SETUP_CAP_S=120
+DEPENDENCY_BUILD_CAP_S=180
 SWEEP_CAP_S=11700
 AA_CAP_S=3900
 REPORT_CAP_S=300
+WORKTREE_CLEANUP_CAP_S=120
 FINALIZE_CAP_S=300
 EXPECTED_WALLTIME_S=18000
+EXPECTED_RESERVE_S=1380
 EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080
 CURRENT_STAGE=bootstrap
 PY=""
 OUTPUT_ROOT=""
 OUTPUT_ROOT_READY=0
+CCBENCH_BASE=""
+CCBENCH_WORKTREE=""
 
 write_failure_receipt() {
   local rc=$1
@@ -148,11 +156,38 @@ on_error() {
 }
 trap on_error ERR
 
+remove_ccbench_worktree() {
+  local cleanup_rc=0
+  [[ -n "$CCBENCH_BASE" && -n "$CCBENCH_WORKTREE" ]] || return 0
+  timeout "$WORKTREE_CLEANUP_CAP_S" \
+    git -C "$CCBENCH_BASE" worktree remove --force "$CCBENCH_WORKTREE" \
+    >>"$OUTPUT_ROOT/env/worktree-remove.stdout" \
+    2>>"$OUTPUT_ROOT/env/worktree-remove.stderr" || cleanup_rc=$?
+  printf '%s\n' "$cleanup_rc" >"$OUTPUT_ROOT/env/worktree-remove.rc" || true
+  [[ "$cleanup_rc" -eq 0 ]] || return "$cleanup_rc"
+  CCBENCH_WORKTREE=""
+}
+
+cleanup_worktree() {
+  local original_rc=$?
+  local cleanup_rc=0
+  trap - EXIT ERR
+  remove_ccbench_worktree || cleanup_rc=$?
+  if [[ "$original_rc" -eq 0 && "$cleanup_rc" -ne 0 ]]; then
+    original_rc=$cleanup_rc
+  fi
+  exit "$original_rc"
+}
+trap cleanup_worktree EXIT
+
 [[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
-  && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" ]] || \
-  fail 2 "PBS_JOBID, PBS_NODEFILE, PBS_O_WORKDIR, and B10_SUBMISSION_NONCE are required"
+  && -n "${PBS_O_WORKDIR:-}" && -n "${B10_SUBMISSION_NONCE:-}" \
+  && -n "${JOB_SCRIPT_SHA256:-}" ]] || \
+  fail 2 "PBS_JOBID, PBS_NODEFILE, PBS_O_WORKDIR, B10_SUBMISSION_NONCE, and JOB_SCRIPT_SHA256 are required"
 [[ "$B10_SUBMISSION_NONCE" =~ ^[0-9a-f]{32}$ ]] || \
   fail 2 "B10_SUBMISSION_NONCE must be 32 lowercase hex characters"
+[[ "$JOB_SCRIPT_SHA256" =~ ^[0-9a-f]{64}$ ]] || \
+  fail 2 "JOB_SCRIPT_SHA256 must be 64 lowercase hex characters"
 
 WORKLOAD=${1:-${B10_WORKLOAD:-}}
 case "$WORKLOAD" in
@@ -160,6 +195,7 @@ case "$WORKLOAD" in
   *) fail 2 "workload must be write-heavy, balanced, or read-heavy" ;;
 esac
 
+export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
 for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
   resolved=$(command -v -- "$candidate" 2>/dev/null || true)
   [[ -n "$resolved" && -x "$resolved" ]] || continue
@@ -170,15 +206,27 @@ for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
 done
 [[ -n "$PY" ]] || fail 2 "Python 3.10 is required"
 
-export PATH="/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"
-for command_name in git cmake cc c++ make timeout gnuplot qstat sha256sum hostname; do
+export http_proxy="$BUILD_NETWORK_PROXY_URL"
+export https_proxy="$BUILD_NETWORK_PROXY_URL"
+# This gate runs in the PBS payload on the allocated compute node.
+for command_name in \
+  git cmake cc c++ make ar ranlib as ld numactl timeout qstat sha256sum \
+  hostname mkdir realpath tr date env; do
   command -v -- "$command_name" >/dev/null 2>&1 || \
     fail 2 "required command is unavailable: $command_name"
 done
 
 unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS LD_PRELOAD LD_LIBRARY_PATH
 unset CPATH CPLUS_INCLUDE_PATH LIBRARY_PATH COMPILER_PATH GCC_EXEC_PREFIX
-unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE PYTHONPATH PYTHONHOME PYTHONSTARTUP MAKEFLAGS
+unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE
+unset CMAKE_PROJECT_INCLUDE CMAKE_PROJECT_INCLUDE_BEFORE
+unset CMAKE_PROJECT_TOP_LEVEL_INCLUDES CMAKE_C_COMPILER_LAUNCHER
+unset CMAKE_CXX_COMPILER_LAUNCHER PYTHONPATH PYTHONHOME PYTHONSTARTUP MAKEFLAGS
+while IFS='=' read -r env_name _; do
+  case "$env_name" in
+    GIT_*|CCACHE_*|SCCACHE_*|DISTCC_*|ICECC_*) unset "$env_name" ;;
+  esac
+done < <(env)
 
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
 OUTPUT_ROOT=${B10_OUTPUT_ROOT:-}
@@ -295,11 +343,32 @@ entries = [line.strip().split(".")[0] for line in pathlib.Path(nodefile).read_te
 if observed.split(".")[0] not in entries:
     raise SystemExit("PBS_NODEFILE does not contain the observed compute host")
 PY
+CURRENT_COMMIT=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit})
+CCBENCH_BASE="$REPO_ROOT/external/ccbench"
+[[ -d "$CCBENCH_BASE" && ! -L "$CCBENCH_BASE" ]] || \
+  fail 2 "CCBench submodule base is not a real directory"
+read -r CCBENCH_GITLINK_MODE CCBENCH_GITLINK_TYPE \
+  CCBENCH_EXPECTED_COMMIT CCBENCH_GITLINK_PATH < <(
+    git -C "$REPO_ROOT" ls-tree "$CURRENT_COMMIT" -- external/ccbench
+  )
+[[ "$CCBENCH_GITLINK_MODE" == 160000 \
+    && "$CCBENCH_GITLINK_TYPE" == commit \
+    && "$CCBENCH_EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ \
+    && "$CCBENCH_GITLINK_PATH" == external/ccbench ]] || \
+  fail 2 "CCBench gitlink binding is invalid"
+git -C "$CCBENCH_BASE" cat-file -e "$CCBENCH_EXPECTED_COMMIT^{commit}" || \
+  fail 2 "CCBench gitlink commit is unavailable from the submodule repository"
 SCRIPT_PATH=$(realpath -e -- "${BASH_SOURCE[0]}")
-[[ "$SCRIPT_PATH" == "$REPO_ROOT/tools/pegasus/b10_backoff_grid.sh" ]] || \
-  fail 2 "executed B-10 script is not the repository payload"
-SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")
-SCRIPT_SHA256=${SCRIPT_SHA256%% *}
+EXECUTING_SCRIPT_SHA256=$(sha256sum -- "$SCRIPT_PATH")
+EXECUTING_SCRIPT_SHA256=${EXECUTING_SCRIPT_SHA256%% *}
+COMMITTED_SCRIPT_SHA256=$(
+  git -C "$REPO_ROOT" cat-file blob \
+    "$CURRENT_COMMIT:tools/pegasus/b10_backoff_grid.sh" | sha256sum
+)
+COMMITTED_SCRIPT_SHA256=${COMMITTED_SCRIPT_SHA256%% *}
+[[ "$EXECUTING_SCRIPT_SHA256" == "$JOB_SCRIPT_SHA256" \
+    && "$COMMITTED_SCRIPT_SHA256" == "$JOB_SCRIPT_SHA256" ]] || \
+  fail 2 "job script SHA binding mismatch"
 BOOT_ID=$(tr -d '\n' </proc/sys/kernel/random/boot_id) || \
   fail 2 "cannot read compute boot id"
 [[ -n "$BOOT_ID" ]] || fail 2 "compute boot id is empty"
@@ -310,12 +379,13 @@ export IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH="$SCHEDULER_STARTED_EPOCH"
 export IZANAGI_RESERVATION_DEADLINE_EPOCH="$DEADLINE_EPOCH"
 export IZANAGI_RESERVATION_HOST="$RESERVATION_HOST"
 export IZANAGI_RESERVATION_BOOT_ID="$BOOT_ID"
-export IZANAGI_RESERVATION_SCRIPT_SHA256="$SCRIPT_SHA256"
+export IZANAGI_RESERVATION_SCRIPT_SHA256="$COMMITTED_SCRIPT_SHA256"
 export IZANAGI_RESERVATION_NONCE="$B10_SUBMISSION_NONCE"
 "$PY" -I -B - "$OUTPUT_ROOT/reservation.json" \
-  "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" <<'PY'
+  "$OUTPUT_ROOT/qstat-f.stdout" "$OUTPUT_ROOT/qstat-f.stderr" \
+  "$CURRENT_COMMIT" "$CCBENCH_EXPECTED_COMMIT" <<'PY'
 import hashlib, json, os, pathlib, sys
-destination, stdout_path, stderr_path = sys.argv[1:]
+destination, stdout_path, stderr_path, repo_commit, ccbench_commit = sys.argv[1:]
 keys = (
     "JOB_ID", "REQUESTED_S", "SCHEDULER_STARTED_EPOCH", "DEADLINE_EPOCH",
     "HOST", "BOOT_ID", "SCRIPT_SHA256", "NONCE",
@@ -331,6 +401,10 @@ def evidence(path):
 document = {
     "schema_version": "b10-backoff-grid-reservation/v1",
     "binding": binding,
+    "source_binding": {
+        "repository_commit": repo_commit,
+        "ccbench_gitlink_commit": ccbench_commit,
+    },
     "qstat_stdout": evidence(stdout_path),
     "qstat_stderr": evidence(stderr_path),
 }
@@ -340,6 +414,130 @@ with open(destination, "x", encoding="utf-8") as handle:
     handle.flush()
     os.fsync(handle.fileno())
 PY
+
+# Each job patches and builds an isolated detached CCBench worktree. The base
+# submodule supplies Git objects and worktree administration only; its checkout
+# is never changed by this payload.
+CURRENT_STAGE=ccbench_worktree_setup
+CCBENCH_WORKTREE="$TMPDIR/ccbench-source"
+WORKTREE_SETUP_DEADLINE=$((SECONDS + WORKTREE_SETUP_CAP_S))
+worktree_setup_run() {
+  local remaining=$((WORKTREE_SETUP_DEADLINE - SECONDS))
+  [[ "$remaining" -gt 0 ]] || fail 124 "CCBench worktree setup deadline exhausted"
+  timeout "$remaining" "$@"
+}
+worktree_setup_run git -C "$CCBENCH_BASE" worktree add --detach \
+  "$CCBENCH_WORKTREE" "$CCBENCH_EXPECTED_COMMIT" \
+  >"$OUTPUT_ROOT/env/worktree-add.stdout" \
+  2>"$OUTPUT_ROOT/env/worktree-add.stderr"
+[[ -d "$CCBENCH_WORKTREE" && ! -L "$CCBENCH_WORKTREE" \
+    && -f "$CCBENCH_WORKTREE/.git" && ! -L "$CCBENCH_WORKTREE/.git" ]] || \
+  fail 2 "CCBench detached worktree was not materialized"
+CCBENCH_WORKTREE_TOP=$(
+  worktree_setup_run git -C "$CCBENCH_WORKTREE" rev-parse --show-toplevel
+)
+CCBENCH_WORKTREE_TOP=$(realpath -e -- "$CCBENCH_WORKTREE_TOP")
+CCBENCH_WORKTREE_HEAD=$(
+  worktree_setup_run git -C "$CCBENCH_WORKTREE" rev-parse --verify HEAD^{commit}
+)
+CCBENCH_WORKTREE_STATUS=$(
+  worktree_setup_run git -C "$CCBENCH_WORKTREE" \
+    status --porcelain --untracked-files=no
+)
+[[ "$CCBENCH_WORKTREE_TOP" == "$CCBENCH_WORKTREE" \
+    && "$CCBENCH_WORKTREE_HEAD" == "$CCBENCH_EXPECTED_COMMIT" \
+    && -z "$CCBENCH_WORKTREE_STATUS" ]] || \
+  fail 2 "CCBench detached worktree identity or cleanliness mismatch"
+"$PY" -I -B - "$OUTPUT_ROOT/env/ccbench-worktree.json" \
+  "$CCBENCH_WORKTREE" "$CCBENCH_EXPECTED_COMMIT" "$CCBENCH_WORKTREE_HEAD" <<'PY'
+import json, os, sys
+destination, path, expected, observed = sys.argv[1:]
+document = {
+    "schema_version": "b10-ccbench-worktree/v1",
+    "path": path,
+    "detached": True,
+    "expected_gitlink_commit": expected,
+    "observed_head_commit": observed,
+    "tracked_clean": True,
+}
+with open(destination, "x", encoding="utf-8") as handle:
+    json.dump(document, handle, sort_keys=True, separators=(",", ":"))
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+PY
+
+# Build registered dependency sources in fresh job scratch. Only the two install
+# prefixes cross the boundary into the campaign drivers.
+CURRENT_STAGE=dependency_policy_contract
+POLICY="$REPO_ROOT/tools/pegasus/policy.json"
+readarray -t dependency_policy_values < <("$PY" -I -B - "$POLICY" <<'PY'
+import json, sys
+policy = json.load(open(sys.argv[1], encoding="utf-8"))
+for key in (
+    "gflags_source_path", "gflags_expected_head",
+    "glog_source_path", "glog_expected_head",
+):
+    print(policy[key])
+PY
+)
+[[ ${#dependency_policy_values[@]} -eq 4 ]] || \
+  fail 2 "dependency policy values are unavailable"
+GFLAGS_SOURCE=${dependency_policy_values[0]}
+GFLAGS_EXPECTED_HEAD=${dependency_policy_values[1]}
+GLOG_SOURCE=${dependency_policy_values[2]}
+GLOG_EXPECTED_HEAD=${dependency_policy_values[3]}
+[[ "$GFLAGS_SOURCE" == /* && "$GLOG_SOURCE" == /* \
+  && "$GFLAGS_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ \
+  && "$GLOG_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || \
+  fail 2 "dependency policy values are invalid"
+
+DEPENDENCY_EVIDENCE="$OUTPUT_ROOT/env/dependencies"
+mkdir -m 0700 "$DEPENDENCY_EVIDENCE"
+for dep in gflags glog; do
+  if [[ "$dep" == gflags ]]; then
+    dep_source=$GFLAGS_SOURCE
+    dep_expected=$GFLAGS_EXPECTED_HEAD
+  else
+    dep_source=$GLOG_SOURCE
+    dep_expected=$GLOG_EXPECTED_HEAD
+  fi
+  [[ -d "$dep_source" && ! -L "$dep_source" ]] || \
+    fail 2 "$dep source is not a real directory"
+  dep_head=$(git -C "$dep_source" rev-parse --verify HEAD)
+  printf '%s\n' "$dep_head" >"$DEPENDENCY_EVIDENCE/$dep-source-head.txt"
+  git -C "$dep_source" status --porcelain --untracked-files=all \
+    >"$DEPENDENCY_EVIDENCE/$dep-source-status.txt"
+  if [[ "$dep_head" != "$dep_expected" \
+      || -s "$DEPENDENCY_EVIDENCE/$dep-source-status.txt" ]]; then
+    fail 2 "$dep source is not pinned-clean"
+  fi
+done
+
+GFLAGS_INSTALL="$TMPDIR/gflags-install"
+GLOG_INSTALL="$TMPDIR/glog-install"
+DEPENDENCY_DEADLINE=$((SECONDS + DEPENDENCY_BUILD_CAP_S))
+dependency_run() {
+  local remaining=$((DEPENDENCY_DEADLINE - SECONDS))
+  [[ "$remaining" -gt 0 ]] || \
+    fail 124 "dependency group deadline exhausted"
+  timeout "$remaining" "$@"
+}
+CURRENT_STAGE=dependency_build
+dependency_run cmake -S "$GFLAGS_SOURCE" -B "$TMPDIR/gflags-build" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DREGISTER_INSTALL_PREFIX=OFF \
+  "-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL"
+dependency_run cmake --build "$TMPDIR/gflags-build" -j 48
+dependency_run cmake --install "$TMPDIR/gflags-build"
+dependency_run cmake -S "$GLOG_SOURCE" -B "$TMPDIR/glog-build" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWITH_GTEST=OFF -DBUILD_TESTING=OFF \
+  -DWITH_UNWIND=OFF "-DCMAKE_PREFIX_PATH=$GFLAGS_INSTALL" \
+  "-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL"
+dependency_run cmake --build "$TMPDIR/glog-build" -j 48
+dependency_run cmake --install "$TMPDIR/glog-build"
+export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL:$GLOG_INSTALL"
 
 ENV_TAG=$("$PY" -I -B - "$REPO_ROOT" <<'PY'
 import sys
@@ -373,18 +571,23 @@ CURRENT_STAGE=extended_sweep
 timeout "$SWEEP_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
-  --cache-root "$B10_BUILD_CACHE_ROOT"
+  --cache-root "$B10_BUILD_CACHE_ROOT" \
+  --ccbench-dir "$CCBENCH_WORKTREE"
 
 CURRENT_STAGE=add_analysis
 timeout "$AA_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_overthrottle.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
-  --cache-root "$B10_BUILD_CACHE_ROOT"
+  --cache-root "$B10_BUILD_CACHE_ROOT" \
+  --ccbench-dir "$CCBENCH_WORKTREE"
 
 CURRENT_STAGE=report
 timeout "$REPORT_CAP_S" "$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep_report.py" \
-  "$WORKLOAD" --output-root "$OUTPUT_ROOT"
+  "$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot
+
+CURRENT_STAGE=ccbench_worktree_cleanup
+remove_ccbench_worktree
 
 CURRENT_STAGE=finalize
 FREEZE_AFTER=$(freeze_digest)
@@ -408,6 +611,10 @@ document = {
     "pbs_jobid": job,
     "campaign_id": campaigns[0].name,
     "freeze_trees_sha256": freeze_hash,
+    "build_network": {
+        "external_fetch_via_proxy": True,
+        "dependency_revisions": "sha-pinned",
+    },
     "artifacts": artifacts,
 }
 with (base / "completion.json").open("x", encoding="utf-8") as handle:
