@@ -150,6 +150,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8c_acceptance_receipt.py", "<module>._git"): 1,
     ("campaign/s8c_preregistration.py", "<module>._git"): 1,
     ("campaign/silo_ladder_rung1.py", "<module>._run"): 2,
+    # Sanitized read-only Git root/HEAD and tracked-path queries; neither argv
+    # names nor executes CCBench.
+    ("campaign/sort_swo_dependency_material.py", "<module>._run_git"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compile"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._compiler_version"): 1,
     # Compiler -M scan only emits dependencies; -I paths do not run CCBench.

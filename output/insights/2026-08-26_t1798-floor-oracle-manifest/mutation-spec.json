@@ -1,0 +1,168 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_dependency_material.py",
+     "old": "    payloads[\"PIN\"] = f\"{head}\\n\".encode(\"ascii\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_manifest_line_builder_matches_pinned_fixture_exactly",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_manifest_mutations_have_one_exact_verifier_reason[drop-pin-declaration-canonical-manifest-mismatch-dependency-manifest-not-canonical]",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_materialize_uses_rule_derived_inventory_and_generated_pin",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_two_root_verifier_rejects_live_tracked_byte_drift"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_dependency_material.py",
+     "old": "_MANIFEST_SEPARATOR = b\"  \"\n",
+     "new": "_MANIFEST_SEPARATOR = b\" \"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_synthetic_production_dependency_series_uses_real_git_and_fails_closed",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_manifest_line_builder_matches_pinned_fixture_exactly",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_manifest_mutations_have_one_exact_verifier_reason[drop-pin-declaration-canonical-manifest-mismatch-dependency-manifest-not-canonical]",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_materialize_manifest_mismatch_has_fixed_reason_and_bounded_hashes",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_materialize_uses_rule_derived_inventory_and_generated_pin",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_two_root_verifier_rejects_live_tracked_byte_drift"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_dependency_material.py",
+     "old": "    return tuple(sorted(payloads))\n",
+     "new": "    return tuple(sorted(payloads, reverse=True))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_synthetic_production_dependency_series_uses_real_git_and_fails_closed",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_manifest_line_builder_matches_pinned_fixture_exactly",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_manifest_mutations_have_one_exact_verifier_reason[drop-pin-declaration-canonical-manifest-mismatch-dependency-manifest-not-canonical]",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_materialize_manifest_mismatch_has_fixed_reason_and_bounded_hashes",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_materialize_uses_rule_derived_inventory_and_generated_pin",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_two_root_verifier_rejects_live_tracked_byte_drift"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_dependency_material.py",
+     "old": "    for relative in sorted(declared_without_pin):\n",
+     "new": "    for relative in ():\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_config_mismatch_refuses_before_configure",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_manifest_rejects_changed_declared_non_config_file",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_two_root_verifier_rechecks_all_file_identities_after_final_probe",
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_two_root_verifier_rejects_live_tracked_byte_drift"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_dependency_material.py",
+     "old": "    for relative in sorted(source_identities):\n",
+     "new": "    for relative in ():\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_dependency_material.py::test_two_root_verifier_rechecks_all_file_identities_after_final_probe"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "    \"fetchcontent_base_dir\", \"oracle_dependency_root\",\n",
+     "new": "    \"fetchcontent_base_dir\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_canonical_path_is_not_cache_identity",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_config_mismatch_refuses_before_configure",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_effective_disconnected_off_refuses_before_build",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_flag_is_exact_one_and_generic_base_only_stays_zero",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_manifest_rejects_changed_declared_non_config_file",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_policy_forces_miss_against_same_material_generic_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_rejects_legacy_five_key_capability",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "                if post_oracle_binding is not None:\n                    _assert_post_oracle_dependency_material(\n                        post_oracle_binding\n                    )\n",
+     "new": "                if False:\n                    _assert_post_oracle_dependency_material(\n                        post_oracle_binding\n                    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "                    oracle_dependency_root=_dependency.oracle_root,\n",
+     "new": "                    oracle_dependency_root=_dependency.source_root,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_production_postflight_rejects_dependency_drift[archive-floor-dependency-postflight-archive-drift]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_production_postflight_rejects_dependency_drift[source-inode-floor-dependency-postflight-source-identity-drift]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_production_postflight_rejects_dependency_drift[tracked-floor-dependency-postflight-tracked-source-drift]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_dependency_bound_sort_best_default_builder_receives_literal_capability",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_dependency_bound_sort_best_rejects_nonexact_builder_before_call",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_preflight_marker_precedes_toolchain_and_dependency_probes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

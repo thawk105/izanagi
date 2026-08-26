@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
-from . import site_policy, source_digest
+from . import site_policy, sort_swo_dependency_material, source_digest
 from .build_admission import (
     BuildAdmission,
     BuildRunContext,
@@ -53,7 +53,8 @@ _FETCHCONTENT_RECEIPT_KEYS = frozenset({
     "masstree_head", "config_sha256",
 })
 _POST_ORACLE_DEPENDENCY_BINDING_KEYS = frozenset({
-    "fetchcontent_base_dir", "dependency_manifest_sha256",
+    "fetchcontent_base_dir", "oracle_dependency_root",
+    "dependency_manifest_sha256",
     "masstree_head", "config_sha256", "archive_sha256",
 })
 _POST_ORACLE_POPULATION_POLICY_ID = (
@@ -740,6 +741,29 @@ def _canonical_fetchcontent_base(value: object) -> str:
     return canonical
 
 
+def _canonical_post_oracle_dependency_root(value: object) -> str:
+    try:
+        raw = os.fspath(value)
+    except TypeError as exc:
+        raise BuildCacheError(
+            "post-oracle canonical dependency root が path-like でない"
+        ) from exc
+    if type(raw) is not str or not raw or "\0" in raw or not os.path.isabs(raw):
+        raise BuildCacheError(
+            "post-oracle canonical dependency root は NUL なし絶対 path 必須"
+        )
+    if os.path.islink(raw) or not os.path.isdir(raw):
+        raise BuildCacheError(
+            "post-oracle canonical dependency root は non-symlink directory 必須"
+        )
+    canonical = os.path.realpath(raw)
+    if canonical != os.path.abspath(raw):
+        raise BuildCacheError(
+            "post-oracle canonical dependency root は canonical path 必須"
+        )
+    return canonical
+
+
 def _validate_post_oracle_dependency_binding(
         value: Optional[Mapping[str, object]],
 ) -> Optional[Dict[str, str]]:
@@ -752,6 +776,9 @@ def _validate_post_oracle_dependency_binding(
     normalized = {
         "fetchcontent_base_dir": _canonical_fetchcontent_base(
             value["fetchcontent_base_dir"]
+        ),
+        "oracle_dependency_root": _canonical_post_oracle_dependency_root(
+            value["oracle_dependency_root"]
         ),
         "dependency_manifest_sha256": value["dependency_manifest_sha256"],
         "masstree_head": value["masstree_head"],
@@ -939,33 +966,30 @@ def _observe_fetchcontent_dependency_receipt(
 def _assert_post_oracle_dependency_material(
         binding: Mapping[str, str],
 ) -> None:
-    """Require the live source to match the oracle receipt authority."""
-    from . import sort_swo_oracle
-
+    """Require canonical exactness, live source equivalence, and archive hash."""
     base = _canonical_fetchcontent_base(binding["fetchcontent_base_dir"])
     source_root = os.path.join(base, "masstree-src")
     try:
-        verified = sort_swo_oracle._verify_dependency_root(Path(source_root))
-    except sort_swo_oracle._DependencyVerificationError as exc:
+        verified = sort_swo_dependency_material.assert_source_matches_canonical(
+            Path(source_root),
+            Path(binding["oracle_dependency_root"]),
+            expected_head=binding["masstree_head"],
+            expected_manifest_sha256=binding[
+                "dependency_manifest_sha256"
+            ],
+        )
+    except sort_swo_dependency_material.CanonicalDependencyMaterialError as exc:
         raise BuildCacheError(
-            "FetchContent dependency tracked.hh/config.h/archive の "
-            f"SHA256SUMS oracle 検証に失敗: {exc.detail_code}"
+            "FetchContent dependency canonical/source 二根検査に失敗: "
+            f"{exc.detail_code}"
         ) from exc
     if verified.manifest_sha256 != binding["dependency_manifest_sha256"]:
         raise BuildCacheError(
-            "FetchContent dependency SHA256SUMS が oracle receipt と不一致"
+            "FetchContent canonical SHA256SUMS が oracle receipt と不一致"
         )
     if verified.config_sha256 != binding["config_sha256"]:
         raise BuildCacheError(
-            "FetchContent dependency config.h が oracle receipt と不一致"
-        )
-    expected_receipt = {
-        "masstree_head": binding["masstree_head"],
-        "config_sha256": binding["config_sha256"],
-    }
-    if _observe_fetchcontent_dependency_receipt(source_root) != expected_receipt:
-        raise BuildCacheError(
-            "FetchContent dependency HEAD/config.h が oracle binding と不一致"
+            "FetchContent canonical/source config.h が oracle receipt と不一致"
         )
     if _observe_fetchcontent_archive_sha256(source_root) != binding["archive_sha256"]:
         raise BuildCacheError(
@@ -2117,7 +2141,9 @@ def build_v2(
         _canonical_fetchcontent_base(fetchcontent_base_dir)
         if fetchcontent_base_dir else ""
     )
-    if dependency_archive_sha256 is not None:
+    if post_oracle_binding is not None:
+        _assert_post_oracle_dependency_material(post_oracle_binding)
+    elif dependency_archive_sha256 is not None:
         observed_archive_sha256 = _observe_fetchcontent_archive_sha256(
             os.path.join(canonical_fetchcontent_base, "masstree-src"),
         )
@@ -2235,7 +2261,11 @@ def build_v2(
                 )
                 if not trace:
                     _assert_no_trace_symbols(binary, binary_fd=binary_fd)
-                if dependency_archive_sha256 is not None:
+                if post_oracle_binding is not None:
+                    _assert_post_oracle_dependency_material(
+                        post_oracle_binding
+                    )
+                elif dependency_archive_sha256 is not None:
                     post_hit_archive_sha256 = (
                         _observe_fetchcontent_archive_sha256(
                             os.path.join(
@@ -2328,6 +2358,9 @@ def build_v2(
                     )
             except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
                 raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
+
+            if post_oracle_binding is not None:
+                _assert_post_oracle_dependency_material(post_oracle_binding)
 
             masstree_source_root_sha256 = ""
             if dependency_receipt is not None:
