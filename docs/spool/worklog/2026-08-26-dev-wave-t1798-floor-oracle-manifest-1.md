@@ -81,9 +81,21 @@ title: [T-1798] 床値 SWO oracle の依存材料を規則で導出した canoni
   `git ls-files -o -i` が**実在する** untracked ignored path しか返さないため、`output/runs` が
   実在しない新しい作業ツリーでは必ず落ちる。`.gitignore` に規則自体はあり、共有 checkout では通る。
   本 wave の差分と無関係で、変異 baseline ではこの根拠により deselect した。
+- **受入全走が親の焦点走の漏れを 1 件見つけた。** 新設 module の VCS 照会 helper が
+  レビュー済みの process 起動 site inventory に載っておらず 2 件が赤になった。
+  「新しい process 起動は review で分類されるまで通さない」という防壁が正しく発火したもので、
+  迂回せず 1 エントリ分類登録した。親の焦点走が、`subprocess` を使う production file の
+  検査側 (`test_ccbench_spawn_sites.py`) を consumer として引いていなかったのが原因である。
+- **受入で落ちた残り 3 件は同型の非帰属赤で、`output/runs` を作るだけで解消した。**
+  `git ls-files -o -i` は**実在する** untracked ignored path しか返さないため、その directory が
+  無い作業ツリーでは必ず落ちる。ignore 規則自体は存在し、テストが検査している命題は真である。
+  作成後に 3 件とも緑を確認した。作業ツリーは ignored なので clean のまま。
 - **変異は probe 巡で観測 node を集めてから本走した。** 期待 node は完全集合でなければならないため、
   初回は全 8 件中 6 件が MISMATCH になった。観測集合へ登録し直した本走で
   baseline PASSED (赤 0)、**8/8 KILLED、SURVIVED 0、MISMATCH 0、TIMEOUT 0**。初回結果は erratum として保全した。
+  **最初の本走は親が `DW-M07` を読み落として `--force-dispatch` と `--wrapper-attempt` を欠いていた。**
+  fix 3 後の最終 commit で anchor を再検証し、契約どおりの argv で再走して同じ結果を得た。
+  その 2 回目を台帳の正とし、1 回目は `mutation-ledger-prefix3.json` として残した。
   M08 (VCS 一覧取得の失敗握り潰し) は複数行の構造変更を要し単一理由性を保てないため登録から落とした。
   逐語と変異台帳は `output/insights/2026-08-26_t1798-floor-oracle-manifest/`。
 

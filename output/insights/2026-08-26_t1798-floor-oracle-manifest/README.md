@@ -95,7 +95,9 @@ generator から post-oracle build の cache miss / hit までの系列と phase
 ## 変異 matrix
 
 - spec: `mutation-spec.json` (本走で使った最終版)
-- 台帳: `mutation-ledger.json`
+- 台帳: `mutation-ledger.json` (fix 3 後の最終 commit で、契約どおりの argv で走らせた 2 回目)
+- 1 回目の本走 (erratum): `mutation-ledger-prefix3.json`。親が `DW-M07` を読み落として
+  `--force-dispatch` と `--wrapper-attempt` を欠いていた。結果は 2 回目と同じである
 - probe 巡の初回結果 (erratum): `mutation-probe.json`
 
 期待 node は完全集合でなければならないため、初回は 8 件中 6 件が MISMATCH になった。
