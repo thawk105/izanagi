@@ -101,6 +101,27 @@ title: [T-1629] 取り残された D905 執行機構を独立監査して回収�
   実測は tracked lock 32 件中 closure map 保持 0 件、repo 外 lock 1536 件中 36 件保持だが
   記録されているのは 8 path と 12 path のみで、**現行 25 path を記録するものは 0 件**だった。
 
+- **受入は赤 1 件を除いて緑で、その 1 件で land が止まっている。**
+  最終走は `1 failed, 17764 passed, 61 skipped`。
+  赤は `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` で、
+  **main 単独で再現する** (`b9d21206` で 15912/17700 = 89.898305%、閾値 90%)。
+  peer session が**テスト node を 1 つも足さない wave** で同じ 1 件だけの赤を独立再現し、
+  分母 17700 も一致した。**現時点で受入を通す全 wave が塞がっている。**
+  本 wave の 126 node に所要をすべて与えても 16038/17826 = 89.97% で届かない。
+- **「台帳を再生成すれば直るか」を実測して否定した。**
+  `tools/update_acceptance_duration_ledger.py` は join ではなく**全面置換**で、
+  再生成すると台帳は 15944 node から 17825 node になり、
+  `test_t1574_changed_suite_ledger_node_delta_is_exact` の pin が
+  所要値 12/12・node 集合 6/8・removed 1 件で壊れる。
+  **所要値は機体負荷で動くので、exact 値 pin が在る限り生成器は永久に使えない**
+  (観測差は 39% に達し、量子化の吸収範囲の外)。
+  したがって hold 登録は一度きりの回避にならず、恒久的な更新が要る。
+  択一は {{T:acceptance-ledger-coverage-gate}} の裁定パッケージへ返した。
+- **段 8 の自己改善候補 2 件は byte 予算に収まらず、契約どおり編集を止めた。**
+  「子は Web 検索禁止が prompt へ自動で入らない」と
+  「隔離環境の子は pytest を実走できない」を `DW-O02` / `DW-O05` へ統合しようとしたが、
+  最小形でも L1.5 が 9858 bytes となり予算 9566 を 292 bytes 超えた。
+  **予算のために安全義務を削らない**ため revert し、候補として裁定へ回す。
 - **本 wave が確かめていないこと:** 実 repo の信頼根と台帳はまだ存在しない。
   したがって**現時点の批准受理集合は空**であり、certified な選択結果は 1 件も生成できない。
   これは land 前と同じ状態であり後退ではない。gate が開くのは、人間が一度きりの bootstrap を
@@ -142,3 +163,17 @@ title: [T-1629] 取り残された D905 執行機構を独立監査して回収�
   変わると過去の不正を取り逃す。v1 も同一構造。外部の固定実行器を要する。
 - {{T:qualification-signed-gate}} **P3・新規**: qualification lane へ署名 gate を付けるかは
   evidence-only lane の意味を変えるため別裁定とする。
+- {{T:acceptance-ledger-coverage-gate}} **P1・ユーザー裁定待ち・repo 全体の blocker**:
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` が main 単独で赤で、
+  **受入を通す全 wave が塞がっている**。択一は (α) 全面再生成 + pin 18 件更新 /
+  (β) 不足 6〜18 件の部分追記 (現行 tool では不可、join mode の新設が要る) /
+  (γ) F 起票 + hold (恒久更新になる) / (δ) 所要値 pin を性質述語へ置き換えてから (α)。
+  実測は `output/insights/2026-08-27_t1629-ratification-broker/ruling-package.md`。
+- {{T:dev-wave-web-search-prompt}} **P2・新規**: `DW-C01` の「子は Web 検索禁止」が
+  子の prompt へ自動で入らない。本 wave は書き落として 2 回全損した (約 47 分・約 9M token)。
+  `DW-O02` へ統合しようとしたが L1.5 の byte 予算に 292 bytes 収まらず revert した。
+  予算を確保するか、`dev_wave_codex.py` が prompt へ機械的に前置する形にするかの裁定が要る。
+- {{T:dev-wave-child-cannot-run-pytest}} **P2・新規**: 隔離環境の codex 子は
+  実行場所判定が scheduler を叩くため pytest を実走できず必ず `rc=16` になる。
+  本 wave の段 5 は 4 子すべてが当たり、1 子は 12 回空振りした。
+  `DW-O05` へ統合しようとしたが同じく byte 予算に収まらなかった。

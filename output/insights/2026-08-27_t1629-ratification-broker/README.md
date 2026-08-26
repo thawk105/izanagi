@@ -82,6 +82,30 @@ probe は `mutation-spec-probe.json` (全件 SURVIVED 期待)、本走は `mutat
 - 承認端末の要求 — 早期 probe と実 read の二段構えで、単一置換では帰属しない。
 - 特殊 file 形式 (gitlink) — mode 検査と blob load の両方が同じ入力を弾く。
 
+## 受入全走と land 状態
+
+**受入は赤 1 件を除いて緑である。** land はその 1 件で停止しており、裁定待ちである。
+
+| 走 | 結果 |
+|---|---|
+| 1 回目 | `merge-message-provenance` で停止。自動合成が両親と異なる実装面を作ったため Codex `role=author` の merge message が要った |
+| 2 回目 | `restart-required`。main の前進で待ち手 tool の bytes が変わった (取り込み merge は成立) |
+| 3 回目 | `3 failed, 17762 passed, 61 skipped` |
+| 4 回目 | **`1 failed, 17764 passed, 61 skipped`** |
+
+3 回目の赤 3 件の帰属:
+
+- **自分起因 2 件 → 直した。** 新規 test file の自走 harness 欠落と、
+  閉包拡張で stale になった論文図の来歴記録 (再生成。**PNG はバイト同一**)。
+- **非帰属 1 件 → 裁定へ。** `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` は
+  **main 単独で赤** (`b9d21206` で 15912/17700 = 89.898305%)。
+  peer session が**テスト node を 1 つも足さない wave** で同じ 1 件だけの赤を独立再現し、
+  分母 17700 も一致した。**現時点で受入を通す全 wave が塞がっている。**
+
+詳細と択一は `ruling-package.md`。台帳の全面再生成を実測した結果
+(18 個の pin が壊れる、生成器は exact 所要値 pin が在る限り永久に使えない) も同文書にある。
+照合 script は `verbatim/parent-check-ledger-pins.py`。
+
 ## 監査の結果 (規律 6)
 
 回収物は「素性の知れない外部入力」として扱い、取り込む前に独立監査した。
