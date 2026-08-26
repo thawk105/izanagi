@@ -27,6 +27,7 @@ fsync を呼ぶコード経路は変えていない (検査は弱めない) — 
   ``test_real_repo_serialization.py`` の回帰ガードが検査して赤にする
 - 素の python3 実行 (二重 runner) は元から conftest を経由しない
 """
+import base64
 import contextlib
 import errno
 import fcntl
@@ -196,43 +197,104 @@ def ratified_enforcement_source(
     tmp_path_factory: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Opt in to a committed temporary ledger for the current exact closure."""
-    from orchestrator.campaign import contract_loader_binding
+    """Opt in to a committed signed receipt for the current exact closure."""
+    ed25519 = pytest.importorskip(
+        "cryptography.hazmat.primitives.asymmetric.ed25519"
+    )
+    serialization = pytest.importorskip(
+        "cryptography.hazmat.primitives.serialization"
+    )
+    from orchestrator.campaign import campaign_lock, contract_loader_binding
     from orchestrator.campaign import enforcement_source_ratification as ratification
+    from orchestrator.campaign import (
+        enforcement_source_ratification_receipt as receipt,
+    )
+
+    def canonical_bytes(value: object) -> bytes:
+        return json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("ascii")
 
     binding = contract_loader_binding.capture_contract_loader_binding()
-    digest = ratification.closure_digest_sha256(
-        binding.contract_loader_blob_sha256s
-    )
+    blob_sha256s = dict(binding.contract_loader_blob_sha256s)
     repo = tmp_path_factory.mktemp("ratified-enforcement-source") / "repo"
     repo.mkdir()
     _ratification_fixture_git(repo, "init", "-q")
-    marker = repo / "marker"
-    marker.write_text("ratification fixture\n", encoding="ascii")
-    _ratification_fixture_git(repo, "add", "--", "marker")
     identity = (
         "-c", "user.email=ratification-fixture@example.invalid",
         "-c", "user.name=Ratification fixture",
     )
+
+    checkout_root = Path(__file__).resolve().parents[2]
+    for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS:
+        raw = (checkout_root / relative).read_bytes()
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+        assert hashlib.sha256(raw).hexdigest() == blob_sha256s[relative]
+
+    private_key = ed25519.Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    trust_root = repo / receipt.TRUST_ROOT_RELATIVE_PATH
+    trust_root.parent.mkdir(parents=True, exist_ok=True)
+    trust_root.write_bytes(canonical_bytes({
+        "public_key_ed25519_base64": base64.b64encode(public_key).decode(
+            "ascii"
+        ),
+        "schema_version": "enforcement-source-ratification-trust-root/v1",
+    }) + b"\n")
+    ledger = repo / receipt.RECEIPT_LEDGER_RELATIVE_PATH
+    ledger.write_bytes(b"")
+
     _ratification_fixture_git(
-        repo, *identity, "commit", "-q", "-m", "initialize fixture",
-    )
-    ledger = repo / ratification.RATIFICATION_LEDGER_RELATIVE_PATH
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    ledger.write_bytes(
-        json.dumps(
-            {"schema_version": 1, "closure_digest_sha256": digest},
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("ascii") + b"\n"
+        repo,
+        "add",
+        "--",
+        *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+        receipt.TRUST_ROOT_RELATIVE_PATH,
+        receipt.RECEIPT_LEDGER_RELATIVE_PATH,
     )
     _ratification_fixture_git(
-        repo, "add", "--", ratification.RATIFICATION_LEDGER_RELATIVE_PATH,
+        repo, *identity, "commit", "-q", "-m", "initialize signed fixture",
+    )
+    source_commit = _ratification_fixture_git(
+        repo, "rev-parse", "--verify", "HEAD^{commit}",
+    ).decode("ascii").strip()
+
+    digest = ratification.closure_digest_sha256(blob_sha256s)
+    closure_paths = sorted(campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS)
+    signed: dict[str, object] = {
+        "closure_digest_sha256": digest,
+        "closure_paths": closure_paths,
+        "closure_paths_sha256": hashlib.sha256(
+            canonical_bytes(closure_paths)
+        ).hexdigest(),
+        "decision": "ratify",
+        "previous_receipt_sha256": None,
+        "ratification_serial": 1,
+        "schema_version": receipt.RECEIPT_SCHEMA_VERSION,
+        "source_commit": source_commit,
+        "trust_root_sha256": hashlib.sha256(public_key).hexdigest(),
+    }
+    row = dict(signed)
+    row["signature_ed25519_base64"] = base64.b64encode(
+        private_key.sign(receipt._DOMAIN_PREFIX + canonical_bytes(signed))
+    ).decode("ascii")
+    ledger.write_bytes(canonical_bytes(row) + b"\n")
+    _ratification_fixture_git(
+        repo, "add", "--", receipt.RECEIPT_LEDGER_RELATIVE_PATH,
     )
     _ratification_fixture_git(
-        repo, *identity, "commit", "-q", "-m", "record ratification",
+        repo, *identity, "commit", "-q", "-m", "record signed ratification",
     )
-    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
+    monkeypatch.setattr(receipt, "_REPO_ROOT", repo)
     return digest
 
 
