@@ -82,6 +82,8 @@ _REVIEWED_PERF_FILES = frozenset({
     "tools/pegasus/probes/t316_sandbox_backend_probe.py",
     "tools/pegasus/t126_qualification.sh",
     "tools/pegasus/t141_region_profile.sh",
+    # Parses producer-recorded perf-wrapped argv as measurement evidence; it never launches perf.
+    "tools/plotting/plot_s1_9pair.py",
 })
 
 
