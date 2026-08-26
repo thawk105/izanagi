@@ -70,6 +70,25 @@ def _scan(target: Path, proc_root: Path) -> checker.ScanReport:
     )
 
 
+def _scan_report(
+    target: Path,
+    *,
+    status: str,
+    occupants: tuple[checker.Occupant, ...] = (),
+    issues: tuple[checker.ScanIssue, ...] = (),
+    scanned: int = 1,
+) -> checker.ScanReport:
+    return checker.ScanReport(
+        worktree=target.resolve(),
+        status=status,
+        occupants=occupants,
+        issues=issues,
+        scanned=scanned,
+        same_uid_cwd_unreachable=(),
+        unreachable=checker.Unreachable(cwd_permission=0),
+    )
+
+
 def _shell_exe(tmp_path: Path, name: str = "bash") -> Path:
     exe = tmp_path / "bin" / name
     exe.parent.mkdir(exist_ok=True)
@@ -1241,6 +1260,221 @@ def test_main_indeterminate_returns_two(
     payload = json.loads(capsys.readouterr().out)
     assert rc == 2
     assert payload["status"] == "indeterminate"
+
+
+def test_main_retries_transient_issue_until_clean_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    transient_issue = checker.ScanIssue(
+        error="os-error",
+        pid=113,
+        source="cwd",
+    )
+    reports = iter(
+        (
+            _scan_report(
+                target,
+                status="indeterminate",
+                issues=(transient_issue,),
+            ),
+            _scan_report(target, status="unoccupied", scanned=0),
+        )
+    )
+    calls = 0
+
+    def scan(*_args, **_kwargs) -> checker.ScanReport:
+        nonlocal calls
+        calls += 1
+        return next(reports)
+
+    monkeypatch.setattr(checker, "scan_worktree_occupancy", scan)
+
+    rc = checker.main([str(target)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert calls == 2
+    assert payload["status"] == "unoccupied"
+    assert payload["issues"] == []
+    assert payload["scanned"] == 0
+    assert payload["retry_count"] == 1
+
+
+def test_main_three_persistent_issue_scans_remain_indeterminate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    persistent_issue = checker.ScanIssue(
+        error="os-error",
+        pid=113,
+        source="cwd",
+    )
+    report = _scan_report(
+        target,
+        status="indeterminate",
+        issues=(persistent_issue,),
+    )
+    calls = 0
+
+    def scan(*_args, **_kwargs) -> checker.ScanReport:
+        nonlocal calls
+        calls += 1
+        return report
+
+    monkeypatch.setattr(checker, "scan_worktree_occupancy", scan)
+
+    rc = checker.main([str(target)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 2
+    assert calls == 3
+    assert payload["status"] == "indeterminate"
+    assert payload["issues"] == [
+        {"error": "os-error", "pid": 113, "source": "cwd"},
+    ]
+    assert payload["retry_count"] == 2
+
+
+def test_main_real_scan_accepts_pid_issue_that_disappears_after_first_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    proc_root = tmp_path / "proc"
+    pid_dir = proc_root / "113"
+    pid_dir.mkdir(parents=True)
+    real_iterdir = checker.Path.iterdir
+    proc_iterations = 0
+
+    def iterdir_after_first_scan(path: Path):
+        nonlocal proc_iterations
+        if path == proc_root:
+            proc_iterations += 1
+        if path == proc_root and proc_iterations == 2:
+            shutil.rmtree(pid_dir)
+        return real_iterdir(path)
+
+    monkeypatch.setattr(checker.Path, "iterdir", iterdir_after_first_scan)
+
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert proc_iterations == 2
+    assert not pid_dir.exists()
+    assert payload["status"] == "unoccupied"
+    assert payload["issues"] == []
+    assert payload["retry_count"] == 1
+
+
+def test_main_real_scan_rejects_same_pid_issue_on_all_three_scans(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    proc_root = tmp_path / "proc"
+    pid_dir = proc_root / "113"
+    pid_dir.mkdir(parents=True)
+
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 2
+    assert pid_dir.is_dir()
+    assert payload["status"] == "indeterminate"
+    assert payload["issues"] == [
+        {"error": "missing", "pid": 113, "source": "stat"},
+    ]
+    assert payload["retry_count"] == 2
+
+
+def test_main_does_not_retry_occupied_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    calls = 0
+
+    def scan(*_args, **_kwargs) -> checker.ScanReport:
+        nonlocal calls
+        calls += 1
+        return _scan_report(
+            target,
+            status="occupied",
+            occupants=(checker.Occupant(pid=113, sources=("cwd",)),),
+        )
+
+    monkeypatch.setattr(checker, "scan_worktree_occupancy", scan)
+
+    rc = checker.main([str(target)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert calls == 1
+    assert payload["status"] == "occupied"
+    assert payload["occupants"] == [{"pid": 113, "sources": ["cwd"]}]
+    assert "retry_count" not in payload
+
+
+def test_main_does_not_retry_invalid_target_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "missing"
+    calls = 0
+
+    def scan(*_args, **_kwargs) -> checker.ScanReport:
+        nonlocal calls
+        calls += 1
+        return _scan_report(
+            target,
+            status="invalid-target",
+            issues=(
+                checker.ScanIssue(
+                    error="missing",
+                    pid=None,
+                    source="worktree",
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(checker, "scan_worktree_occupancy", scan)
+
+    rc = checker.main([str(target)])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert rc == 2
+    assert calls == 1
+    assert payload["status"] == "invalid-target"
+    assert payload["issues"] == [
+        {"error": "missing", "pid": None, "source": "worktree"},
+    ]
+    assert "retry_count" not in payload
+    assert captured.err == "check_worktree_occupancy: status=invalid-target\n"
 
 
 def test_main_rejects_missing_or_nondirectory_target(

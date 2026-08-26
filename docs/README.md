@@ -46,7 +46,8 @@
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
 - `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類
 - `glossary.md` — 用語集 (用語を grep して該当項目だけ読む)
-- `related-work/` — 関連研究 (README.md が本体 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
+- `related-work/` — 関連研究 (README.md が本体 — 7.7 が主張軸別の調査状態と不在主張の成立条件の規則 +
+  claim-survey/ 主張軸別の凍結棚卸し・監査 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。
