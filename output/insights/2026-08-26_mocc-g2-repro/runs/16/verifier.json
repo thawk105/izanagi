@@ -1,0 +1,50 @@
+{
+  "runs": 1,
+  "certified_serializable": 1,
+  "non_serializable": 0,
+  "indeterminate": 0,
+  "results": [
+    {
+      "trace_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-g2-repro-20260826/output/env/pegasus/mocc-trace/job-staging/0:950393.nqsv/run/trace",
+      "verdict": "serializable",
+      "certified": true,
+      "serializable": true,
+      "stats": {
+        "txns": 728824,
+        "reads": 3527976,
+        "writes": 3579511,
+        "keys": 10000,
+        "edges": 10281846,
+        "abort_reasons": {}
+      },
+      "integrity": {
+        "clean": true,
+        "orphan_reads": 0,
+        "version_dups": 0,
+        "dup_txids": 0,
+        "genesis_commits": 0,
+        "missing_txids": 0,
+        "write_version_mismatch": 0,
+        "malformed_keys": 0,
+        "framing_violations": 0,
+        "framing_violation_details": [],
+        "lock_coverage_violations": 0,
+        "write_intent_violations": 0,
+        "permutation_violations": 0,
+        "permutation_violation_details": {
+          "counts": {
+            "size-changed": 0,
+            "rcdptr-set-changed": 0,
+            "unknown": 0
+          },
+          "sample": [],
+          "unknown_reason_sample": []
+        },
+        "notes": []
+      },
+      "anomaly_count": 0,
+      "total_cycles": 0,
+      "anomalies": []
+    }
+  ]
+}

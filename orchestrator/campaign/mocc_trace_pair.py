@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 from dataclasses import dataclass
 import hashlib
 import json
@@ -14,16 +16,29 @@ import stat
 import sys
 from typing import Any, Sequence
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-PAIR_SCHEMA = "mocc-trace-pair-receipt/v2"
-PILOT_SCHEMA = "mocc-trace-pilot-receipt/v3"
+from . import contract_loader_binding  # noqa: E402
+
+
+PAIR_SCHEMA = "mocc-trace-pair-receipt/v3"
+PILOT_SCHEMA = "mocc-trace-pilot-receipt/v4"
 JOB_RESULT_SCHEMA = "mocc-trace-pilot-job-result/v2"
 THROUGHPUT_SCHEMA = "mocc-trace-throughput/v1"
+COUNTER_SCHEMA = "mocc-commit-counter-witness/v1"
+SOURCE_CAPTURE_SCHEMA = "mocc-trace-judgment-source-capture/v1"
+CHECKER_REPO_PATH = "orchestrator/campaign/mocc_trace_pair.py"
 _HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 _HEX64 = re.compile(r"[0-9a-f]{64}\Z")
+_GIT_OID = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _JOB_ID = re.compile(r"(?:0:)?[A-Za-z0-9._-]+\Z")
 _TRACE1_PERFORMANCE_KEYS = frozenset(
     {
+        "completed_txns",
+        "elapsed_ns",
+        "elapsed_s",
         "throughput_txns_per_s",
         "average_latency_s",
         "average_latency_us",
@@ -59,6 +74,8 @@ class ValidatedLeg:
     receipt: InputDocument
     job_result: InputDocument
     mode_evidence: InputDocument
+    counter_witness: InputDocument
+    source_captures: tuple[InputDocument, InputDocument]
     identity_evidence: InputDocument | None
     outer_commit: str
     base_oid: str
@@ -76,6 +93,15 @@ class ValidatedLeg:
     tool: dict[str, str]
     throughput: float | None
     output: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class CheckerSourceBinding:
+    expected_commit: str
+    expected_sha256: str
+    git_blob_oid: str
+    git_blob_sha256: str
+    live_sha256: str
 
 
 def _reject(message: str) -> None:
@@ -182,6 +208,11 @@ def _false(value: Any, label: str) -> None:
         _reject(f"{label} is not strict false")
 
 
+def _true(value: Any, label: str) -> None:
+    if type(value) is not bool or value is not True:
+        _reject(f"{label} is not strict true")
+
+
 def _path_string(value: Any, label: str) -> str:
     value = _string(value, label)
     if not os.path.isabs(value):
@@ -231,6 +262,143 @@ def _validate_tool(value: Any, label: str) -> dict[str, str]:
         "path": _path_string(tool.get("path"), f"{label}.path"),
         "sha256": _sha256(tool.get("sha256"), f"{label}.sha256"),
     }
+
+
+def _validate_counter_witness(
+    receipt_doc: InputDocument,
+    counter_doc: InputDocument,
+    index: int,
+) -> int:
+    artifacts = _dict(receipt_doc.value.get("artifacts"), "artifacts")
+    if artifacts.get("commit_count_json") != "commit-count.json":
+        _reject("commit counter witness artifact path differs")
+    if counter_doc.path.name != artifacts["commit_count_json"]:
+        _reject(f"leg {index} commit counter witness input path differs")
+    if artifacts.get("commit_count_sha256") != counter_doc.sha256:
+        _reject("commit counter witness bytes do not match the pilot receipt")
+    witness = counter_doc.value
+    if witness.get("schema_version") != COUNTER_SCHEMA:
+        _reject("commit counter witness schema differs")
+    count = _integer(witness.get("count"), "commit counter witness count", minimum=0)
+    return count
+
+
+def _validate_source_capture(
+    capture_doc: InputDocument,
+    binding: dict[str, Any],
+    *,
+    phase: str,
+    short_phase: str,
+    outer_commit: str,
+    index: int,
+) -> dict[str, Any]:
+    expected_name = f"judgment-source-{short_phase}.json"
+    if set(binding) != {"capture_path", "capture_sha256", "head", "clean"}:
+        _reject(f"{phase} receipt source capture binding fields differ")
+    if binding.get("capture_path") != expected_name:
+        _reject(f"{phase} receipt source capture path differs")
+    if capture_doc.path.name != expected_name:
+        _reject(f"leg {index} {phase} source capture input path differs")
+    if binding.get("capture_sha256") != capture_doc.sha256:
+        _reject(f"{phase} source capture bytes do not match the pilot receipt")
+
+    capture = capture_doc.value
+    if set(capture) != {
+        "schema_version",
+        "capture_phase",
+        "capture_ok",
+        "head",
+        "clean",
+        "pathspec",
+        "status_format",
+        "status_bytes_base64",
+        "command_rc",
+    }:
+        _reject(f"{phase} source capture shape differs")
+    if capture.get("schema_version") != SOURCE_CAPTURE_SCHEMA:
+        _reject(f"{phase} source capture schema differs")
+    if capture.get("capture_phase") != phase:
+        _reject(f"{phase} source capture phase differs")
+    _true(capture.get("capture_ok"), f"{phase} source capture capture_ok")
+    head = _oid(capture.get("head"), f"{phase} source capture HEAD")
+    if head != outer_commit:
+        _reject(f"{phase} source capture HEAD differs from outer commit")
+    _true(capture.get("clean"), f"{phase} source capture clean")
+    if capture.get("pathspec") != [".", ":(exclude)output"]:
+        _reject(f"{phase} source capture pathspec differs")
+    if (
+        capture.get("status_format")
+        != "git status --porcelain=v1 -z --untracked-files=all"
+    ):
+        _reject(f"{phase} source capture status format differs")
+    encoded_status = capture.get("status_bytes_base64")
+    if not isinstance(encoded_status, str):
+        _reject(f"{phase} source capture status bytes are not encoded text")
+    try:
+        status_bytes = base64.b64decode(encoded_status, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise PairValidationError(
+            f"{phase} source capture status bytes are not valid base64"
+        ) from exc
+    if status_bytes != b"":
+        _reject(f"{phase} source capture status bytes are dirty")
+    if capture.get("command_rc") != {"head": 0, "status": 0}:
+        _reject(f"{phase} source capture command rc differs")
+    if binding.get("head") != head:
+        _reject(f"{phase} receipt source capture HEAD binding differs")
+    _true(binding.get("clean"), f"{phase} receipt source capture clean")
+    return {
+        "capture_path": expected_name,
+        "capture_sha256": capture_doc.sha256,
+        "head": head,
+        "clean": True,
+    }
+
+
+def _validate_source_captures(
+    receipt_doc: InputDocument,
+    pre_doc: InputDocument,
+    post_doc: InputDocument,
+    outer_commit: str,
+    index: int,
+) -> dict[str, Any]:
+    source = _dict(receipt_doc.value.get("source"), "source")
+    state = _dict(source.get("judgment_source_state"), "judgment_source_state")
+    if set(state) != {
+        "guarantee_name",
+        "pre",
+        "post",
+        "head_unchanged",
+        "residual_windows",
+    }:
+        _reject("judgment source state fields differ")
+    if state.get("guarantee_name") != "pre/post endpoint consistency":
+        _reject("judgment source state guarantee differs")
+    _true(state.get("head_unchanged"), "judgment source state head_unchanged")
+    if state.get("residual_windows") != [
+        "temporary source changes between captures can be missed",
+        "source changes after the post_judgment capture can be missed",
+    ]:
+        _reject("judgment source state residual windows differ")
+    pre = _validate_source_capture(
+        pre_doc,
+        _dict(state.get("pre"), "judgment_source_state.pre"),
+        phase="pre_judgment",
+        short_phase="pre",
+        outer_commit=outer_commit,
+        index=index,
+    )
+    post = _validate_source_capture(
+        post_doc,
+        _dict(state.get("post"), "judgment_source_state.post"),
+        phase="post_judgment",
+        short_phase="post",
+        outer_commit=outer_commit,
+        index=index,
+    )
+    if pre["head"] != post["head"]:
+        _reject("judgment source capture HEAD changed")
+    return {"guarantee_name": state["guarantee_name"], "pre": pre, "post": post}
 
 
 def _validate_common(
@@ -333,6 +501,7 @@ def _validate_common(
 def _validate_trace1(
     receipt_doc: InputDocument,
     evidence: InputDocument,
+    counter_count: int,
     common: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, str]]:
     receipt = receipt_doc.value
@@ -367,11 +536,12 @@ def _validate_trace1(
     result = results[0] if isinstance(results, list) and len(results) == 1 else None
     integrity = result.get("integrity") if isinstance(result, dict) else None
     stats = result.get("stats") if isinstance(result, dict) else None
-    completed_txns = _integer(
-        _dict(receipt.get("workload"), "workload").get("completed_txns"),
-        "workload.completed_txns",
-        minimum=0,
-    )
+    if (
+        not isinstance(stats, dict)
+        or type(stats.get("txns")) is not int
+        or stats.get("txns") != counter_count
+    ):
+        _reject("TRACE=1 verifier transaction count differs from counter witness")
     certified = (
         type(verifier.get("runs")) is int
         and verifier.get("runs") == 1
@@ -389,9 +559,6 @@ def _validate_trace1(
         and result.get("anomalies") == []
         and isinstance(integrity, dict)
         and integrity.get("clean") is True
-        and isinstance(stats, dict)
-        and type(stats.get("txns")) is int
-        and stats.get("txns") == completed_txns
         and result.get("trace_dir") == artifacts.get("trace_dir")
     )
     if not certified:
@@ -416,6 +583,7 @@ def _validate_trace0(
     receipt_doc: InputDocument,
     evidence: InputDocument,
     identity_evidence: InputDocument,
+    counter_count: int,
     common: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, str], float]:
     receipt = receipt_doc.value
@@ -486,6 +654,7 @@ def _validate_trace0(
     )
     if not (
         receipt_completed == completed
+        and completed == counter_count
         and receipt_elapsed_ns == elapsed_ns
         and receipt_elapsed_s == elapsed_s
     ):
@@ -524,27 +693,56 @@ def _validate_trace0(
 
 
 def validate_leg(parts: Sequence[str], index: int) -> ValidatedLeg:
-    if len(parts) not in (3, 4):
-        _reject(f"leg {index} must contain three fields for TRACE=1 or four for TRACE=0")
+    if len(parts) not in (6, 7):
+        _reject(f"leg {index} must contain six fields for TRACE=1 or seven for TRACE=0")
     receipt_doc = _read_json(parts[0], f"leg {index} receipt")
     job_doc = _read_json(parts[1], f"leg {index} job-result")
     evidence = _read_json(parts[2], f"leg {index} mode evidence")
     common = _validate_common(receipt_doc, job_doc)
     mode = common["mode"]
-    identity_evidence = None
     if mode == 1:
-        if len(parts) != 3:
+        if len(parts) != 6:
             _reject(f"TRACE=1 leg {index} must not provide identity evidence")
-        correctness, tool = _validate_trace1(receipt_doc, evidence, common)
+        counter_index, pre_index, post_index = 3, 4, 5
+        identity_evidence = None
+    else:
+        if len(parts) != 7:
+            _reject(f"TRACE=0 leg {index} must provide identity evidence")
+        identity_evidence = _read_json(parts[3], f"leg {index} identity evidence")
+        counter_index, pre_index, post_index = 4, 5, 6
+    counter_witness = _read_json(
+        parts[counter_index], f"leg {index} commit counter witness"
+    )
+    pre_capture = _read_json(
+        parts[pre_index], f"leg {index} pre_judgment source capture"
+    )
+    post_capture = _read_json(
+        parts[post_index], f"leg {index} post_judgment source capture"
+    )
+    counter_count = _validate_counter_witness(receipt_doc, counter_witness, index)
+    source_state = _validate_source_captures(
+        receipt_doc,
+        pre_capture,
+        post_capture,
+        common["outer_commit"],
+        index,
+    )
+    if mode == 1:
+        correctness, tool = _validate_trace1(
+            receipt_doc, evidence, counter_count, common
+        )
         throughput = None
         union = {"correctness": correctness}
         evidence_kind = "verifier"
     else:
-        if len(parts) != 4:
-            _reject(f"TRACE=0 leg {index} must provide identity evidence")
-        identity_evidence = _read_json(parts[3], f"leg {index} identity evidence")
+        if identity_evidence is None:
+            _reject(f"TRACE=0 leg {index} identity evidence is absent")
         performance, tool, throughput = _validate_trace0(
-            receipt_doc, evidence, identity_evidence, common
+            receipt_doc,
+            evidence,
+            identity_evidence,
+            counter_count,
+            common,
         )
         union = {"performance": performance}
         evidence_kind = "throughput"
@@ -559,6 +757,21 @@ def validate_leg(parts: Sequence[str], index: int) -> ValidatedLeg:
             "path": str(evidence.path),
             "sha256": evidence.sha256,
         },
+        "counter_witness": {
+            "path": str(counter_witness.path),
+            "sha256": counter_witness.sha256,
+        },
+        "judgment_source_state": {
+            "guarantee_name": source_state["guarantee_name"],
+            "pre": {
+                "path": str(pre_capture.path),
+                "sha256": pre_capture.sha256,
+            },
+            "post": {
+                "path": str(post_capture.path),
+                "sha256": post_capture.sha256,
+            },
+        },
         **union,
     }
     return ValidatedLeg(
@@ -567,6 +780,8 @@ def validate_leg(parts: Sequence[str], index: int) -> ValidatedLeg:
         receipt=receipt_doc,
         job_result=job_doc,
         mode_evidence=evidence,
+        counter_witness=counter_witness,
+        source_captures=(pre_capture, post_capture),
         identity_evidence=identity_evidence,
         outer_commit=common["outer_commit"],
         base_oid=common["base_oid"],
@@ -600,8 +815,90 @@ def _unique(legs: Sequence[ValidatedLeg], attribute: str, label: str) -> None:
         _reject(f"legs are not distinct in {label}")
 
 
+def _git_bytes(repo_root: Path, arguments: Sequence[str], label: str) -> bytes:
+    try:
+        return contract_loader_binding._run_git(repo_root, *arguments)
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise PairValidationError(f"{label} failed") from exc
+
+
+def _regular_file_bytes(path: Path, label: str) -> bytes:
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise PairValidationError(f"{label} is unavailable") from exc
+    try:
+        file_stat = os.fstat(fd)
+        if not stat.S_ISREG(file_stat.st_mode):
+            _reject(f"{label} is not a regular file")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            return handle.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def _checker_source_binding(
+    expected_commit: str,
+    expected_sha256: str,
+) -> CheckerSourceBinding:
+    expected_commit = _oid(expected_commit, "--expected-checker-commit")
+    expected_sha256 = _sha256(expected_sha256, "--expected-checker-sha256")
+    checker_path = Path(__file__).resolve(strict=True)
+    root_bytes = _git_bytes(
+        checker_path.parent,
+        ["rev-parse", "--show-toplevel"],
+        "checker repository root lookup",
+    )
+    try:
+        repo_root = Path(root_bytes.decode("utf-8").strip()).resolve(strict=True)
+        relative_path = checker_path.relative_to(repo_root).as_posix()
+    except (UnicodeDecodeError, OSError, ValueError) as exc:
+        raise PairValidationError("checker path is outside its Git repository") from exc
+    if relative_path != CHECKER_REPO_PATH:
+        _reject("live checker repository path differs")
+    object_type = _git_bytes(
+        repo_root,
+        ["cat-file", "-t", expected_commit],
+        "expected checker commit lookup",
+    ).decode("ascii", errors="replace").strip()
+    if object_type != "commit":
+        _reject("--expected-checker-commit does not name a commit")
+    blob_oid = _git_bytes(
+        repo_root,
+        ["rev-parse", f"{expected_commit}:{CHECKER_REPO_PATH}"],
+        "checker Git blob lookup",
+    ).decode("ascii", errors="replace").strip()
+    if _GIT_OID.fullmatch(blob_oid) is None:
+        _reject("checker Git blob OID is invalid")
+    blob_bytes = _git_bytes(
+        repo_root,
+        ["cat-file", "blob", blob_oid],
+        "checker Git blob read",
+    )
+    blob_sha256 = hashlib.sha256(blob_bytes).hexdigest()
+    live_sha256 = hashlib.sha256(
+        _regular_file_bytes(checker_path, "live checker")
+    ).hexdigest()
+    if blob_sha256 != expected_sha256:
+        _reject("checker Git blob SHA-256 differs from caller pin")
+    if live_sha256 != blob_sha256:
+        _reject("live checker SHA-256 differs from checker Git blob")
+    return CheckerSourceBinding(
+        expected_commit=expected_commit,
+        expected_sha256=expected_sha256,
+        git_blob_oid=blob_oid,
+        git_blob_sha256=blob_sha256,
+        live_sha256=live_sha256,
+    )
+
+
 def validate_pair(
-    legs: Sequence[ValidatedLeg], expected_outer_commit: str
+    legs: Sequence[ValidatedLeg],
+    expected_outer_commit: str,
+    expected_checker_commit: str,
+    expected_checker_sha256: str,
 ) -> dict[str, Any]:
     by_mode = {mode: [leg for leg in legs if leg.mode == mode] for mode in (0, 1)}
     n0, n1 = len(by_mode[0]), len(by_mode[1])
@@ -652,8 +949,10 @@ def validate_pair(
     projection_bytes = json.dumps(
         projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
-    checker_path = Path(__file__).resolve(strict=True)
-    checker_sha = hashlib.sha256(checker_path.read_bytes()).hexdigest()
+    checker_binding = _checker_source_binding(
+        expected_checker_commit,
+        expected_checker_sha256,
+    )
     return {
         "schema_version": PAIR_SCHEMA,
         "status": "accepted",
@@ -712,9 +1011,21 @@ def validate_pair(
         },
         "legs": [leg.output for leg in ordered],
         "checker": {
-            "path": "orchestrator/campaign/mocc_trace_pair.py",
-            "sha256": checker_sha,
-            "self_reported_not_external_trust_anchor": True,
+            "generator": {
+                "path": CHECKER_REPO_PATH,
+                "sha256": checker_binding.live_sha256,
+                "self_reported_not_external_trust_anchor": True,
+            },
+            "source_binding": {
+                "expected_checker_commit": checker_binding.expected_commit,
+                "expected_checker_sha256": checker_binding.expected_sha256,
+                "git_blob_path": CHECKER_REPO_PATH,
+                "git_blob_oid": checker_binding.git_blob_oid,
+                "git_blob_sha256": checker_binding.git_blob_sha256,
+                "live_checker_sha256": checker_binding.live_sha256,
+                "expected_sha256_matches_git_blob": True,
+                "live_checker_sha256_matches_git_blob": True,
+            },
         },
     }
 
@@ -762,13 +1073,24 @@ def _parser() -> argparse.ArgumentParser:
         help="exact 40-hex wave tip required for every leg",
     )
     parser.add_argument(
+        "--expected-checker-commit",
+        required=True,
+        help="caller-pinned commit containing the checker source blob",
+    )
+    parser.add_argument(
+        "--expected-checker-sha256",
+        required=True,
+        help="caller-pinned SHA-256 of the checker source blob",
+    )
+    parser.add_argument(
         "--leg",
         action="append",
         nargs="+",
         required=True,
         metavar="FILE",
         help=(
-            "RECEIPT JOB_RESULT MODE_EVIDENCE, plus IDENTITY_REPORT for TRACE=0"
+            "RECEIPT JOB_RESULT MODE_EVIDENCE, then IDENTITY_REPORT only for "
+            "TRACE=0, followed by COUNTER_WITNESS SOURCE_PRE SOURCE_POST"
         ),
     )
     return parser
@@ -778,8 +1100,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = _parser().parse_args(argv)
         expected = _oid(args.expected_outer_commit, "--expected-outer-commit")
+        expected_checker_commit = _oid(
+            args.expected_checker_commit, "--expected-checker-commit"
+        )
+        expected_checker_sha256 = _sha256(
+            args.expected_checker_sha256, "--expected-checker-sha256"
+        )
         legs = [validate_leg(parts, index) for index, parts in enumerate(args.leg)]
-        payload = validate_pair(legs, expected)
+        payload = validate_pair(
+            legs,
+            expected,
+            expected_checker_commit,
+            expected_checker_sha256,
+        )
         _write_create_only(args.output, payload)
         return 0
     except (PairValidationError, FileExistsError, OSError) as exc:
