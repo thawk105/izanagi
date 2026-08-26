@@ -76,6 +76,12 @@ title: JSONL の行分割を改行だけに限り、codex 子の成果物が U+2
   `_parse_events` が Codex JSON event の str stdout を `splitlines()` で切っており、
   U+0085 / U+2028 / U+2029 で同型に割れる。D971 が 6 箇所を明示列挙していたため
   本 wave の scope 外とした。同じ修理と負例テストを当てるか、意図的に残す理由を裁定する。
+- {{T:dev-wave-s01-anchor-recount}} **P3・新規**: 段 8 の自己改善で `DW-S01` へ
+  「裁定の N 箇所は実アンカーで数え直し、同名の非対象は対象外行に残す」「受理集合を変えるなら
+  広がる側と縮む側の両方を書く」を足そうとしたが、**L1 層の予算を 150 bytes 超過**して
+  入らなかった (10,775 > 10,625)。安全義務を削る圧縮はしないので入口へは入れず、
+  dev-wave 文書予算の収容表へ載せる案件とする。本 wave はこの 2 点を実際に踏んでおり、
+  片方は tool を常時失敗させる誤りだった。
 - {{T:crlf-blank-line-skip}} **P3・新規**: `tools/codex_worker_launch.py` の bytes 側 5 箇所は、
   行に分けた直後の空行 skip が CR だけの行を捨てるため、CRLF の空行を混ぜた stdout / rollout が
   `evidence_status=complete` になりうる。変更前後で挙動は同一 (実測) であり本 wave の回帰ではないが、
