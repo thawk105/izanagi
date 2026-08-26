@@ -66,6 +66,15 @@ title: 論文の claim-evidence matrix と limitations 素材稿を一次資料�
   artifact は特定していない。英語版は作っていない。A-1 の estimand 不一致は `要裁定` のままとし、
   二択 (案 A = 分母を組み直す / 案 B = 別 claim として採る) と帰結だけを固定した。
 
+- **段 8 の自己改善は候補 2 件を記録し、command / reference は編集しなかった。**
+  (1) `tools/dev_wave_wait.py acceptance --help` は `--` delimiter が必須のため単独では rc=2 になり、
+  argv は `docs/pegasus-runbook.md` §7.3 を読まないと分からない。正本が既に持っており実害ゼロなので、
+  事故を伴わない明確化として入口・reference の編集理由にしない。
+  (2) **docs-only でも一次資料から数値を再抽出する wave ではレンズを省くべきでない** —
+  本 wave は `DW-C00` の既定なら段 3・段 6 を省けたが、レンズが親の制約違反 1 件と
+  一次資料との食い違い 4 件を出した。族への一般化は `DW-G03` が独立 2 例を要求し、
+  **本 wave が 1 例目**なので制度化しない。
+
 ## 次の一手差分
 
 ### 新規
