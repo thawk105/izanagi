@@ -17,7 +17,7 @@
 // ヘッダ取り込み・型/関数/マクロ定義の追加、生の条件指令 (if/ifdef/elif 系)、非決定ビルトイン
 // (DATE/TIME 系) を禁止 (このコメントは行頭アンカー走査で誤検出しないよう生トークンを避ける)。
 #if BACKOFF_FIXED >= 0
-    double now_backoff = static_cast<double>(BACKOFF_FIXED);  // <- 合成枝 (hole) / coder がここを編集
+    double now_backoff = <B-10 の固定式>;  // <- 合成枝 (hole) / coder がここを編集
 #else
     double now_backoff = Backoff_.load(std::memory_order_acquire);  // <- stock 枝 (人間の領域)
 #endif
@@ -33,6 +33,22 @@
 > **⚠ 上の骨格コード内のコメント「既存 silo API を呼ぶ straight-line code のみ」は、骨格 patch
 > (`patches/silo-backoff-fixed.patch`) の逐語コピーであり、patch bytes は不可触である。
 > 初期化子に関する限り、この記述は D836 と D901 が上書きした。現行の受理契約は本節の本文である。**
+
+### 骨格の hole に入っている式と、coder が書ける式は別物である
+
+骨格 patch の hole には、現在 B-10 (待ち方 / 待ち量の直交切り分け) の**固定式**が入っている。
+逐語は `orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` が正本で、
+`BACKOFF_FIXED` の千の位で待機の形を選び、0〜999 では従来の一定値と数値的に同一になる。
+
+**この式は coder が提案できる文法ではない。** 二層を混同しないこと。
+
+1. **人間所有の template baseline**: B-10 の固定式。B-10 driver の実行時 preflight だけが受理する。
+   同 driver は coder の quarantine を通さず、commit 済みの patch SHA・式 SHA・hole 外の骨格・
+   inert なソース同一性を自前で検査する。
+2. **coder が出す候補**: 数値 literal 1 個だけ。既存の受理文法と quarantine だけが受理する。
+
+coder の受理集合は本節の本文のまま**不変**である。B-10 は受理集合を広げていない。
+文法の fixture や過去の archive を新しい式へ一括置換しない。
 
 ---
 
