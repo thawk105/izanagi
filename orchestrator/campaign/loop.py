@@ -100,11 +100,42 @@ def _policy_perf_candidates(repo_root: Path) -> tuple[str, ...]:
 
 def _perform_perf_preflight(
         producer: Callable[..., object],
+        *, receipt_path: str = "",
 ) -> tuple[dict, bool]:
     """探索 bench の perf 可否を一度だけ確定し、判定不能は上位へ送出する。"""
     receipt = _perf_preflight.validate_perf_preflight_receipt(producer(
         perf_candidates=_policy_perf_candidates(_repo_root()),
     ))
+    if receipt_path:
+        path = Path(receipt_path)
+        if not path.is_absolute() or not path.parent.is_dir() or path.is_symlink():
+            raise _perf_preflight.PerfPreflightError(
+                "perf preflight receipt path が既存 absolute parent に束縛されていない"
+            )
+        payload = (
+            json.dumps(receipt, sort_keys=True, separators=(",", ":"), allow_nan=False)
+            + "\n"
+        ).encode("utf-8")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(path, flags, 0o600)
+            try:
+                if os.write(fd, payload) != len(payload):
+                    raise OSError("short perf preflight receipt write")
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            parent_fd = os.open(
+                path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+            )
+            try:
+                os.fsync(parent_fd)
+            finally:
+                os.close(parent_fd)
+        except OSError as exc:
+            raise _perf_preflight.PerfPreflightError(
+                f"perf preflight receipt を durable 保存できない: {exc}"
+            ) from exc
     return receipt, _perf_preflight.use_perf_from_receipt(receipt)
 
 
@@ -211,6 +242,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  declared_use_class: str,
                  trigger_gate_binding=None,
                  perf_preflight_fn: Optional[Callable[..., object]] = None,
+                 perf_preflight_receipt_path: str = "",
                  durable_root_policy=None,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
@@ -233,6 +265,18 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
             "official mode への非 default seam 注入を拒否する: "
             "['perf_preflight_fn']"
         )
+    if perf_preflight_receipt_path:
+        receipt_path = Path(perf_preflight_receipt_path)
+        output_path = Path(output_root)
+        if (
+            not output_root
+            or not receipt_path.is_absolute()
+            or receipt_path.parent.resolve(strict=False)
+               != output_path.resolve(strict=False)
+        ):
+            raise ValueError(
+                "perf preflight receipt は campaign output root 直下に限る"
+            )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if expected_toolchain_manifest is not None and env_contract is None:
@@ -276,6 +320,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     if do_bench:
         perf_preflight_receipt, use_perf = _perform_perf_preflight(
             perf_preflight_fn or _perf_preflight.probe_perf_availability,
+            receipt_path=perf_preflight_receipt_path,
         )
     layout = layout_constructor(cid, output_root).ensure()
     with campaign_lock(campaign_lock_path(

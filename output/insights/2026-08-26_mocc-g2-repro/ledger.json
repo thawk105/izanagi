@@ -1,0 +1,1354 @@
+{
+  "estimates": {
+    "clopper_pearson_two_sided_95": {
+      "lower": 0.03980552894268838,
+      "upper": 0.2563166776063778
+    },
+    "effective_detection_power": 0.988027484817438,
+    "identification_interval": [
+      0.11904761904761904,
+      0.11904761904761904
+    ],
+    "k_over_N": {
+      "denominator": 42,
+      "numerator": 5,
+      "value": 0.11904761904761904
+    },
+    "k_over_m": {
+      "denominator": 42,
+      "numerator": 5,
+      "value": 0.11904761904761904
+    },
+    "planned_power_achieved": true
+  },
+  "runs": [
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "6d64e24c1805f36f847a7a082ec9bc5bf114dd5db8aa57318737ed4e09599038",
+        "mocc-trace-pilot-receipt.json": "a0a41bd6117c0acb598d2f5fa1d33f0018ef5ad3b23ab9940687aae6e5c88ac5",
+        "reservation.json": "621a8acba1be95be994c0128551e1fcae7123766f6a5b134dd4bab3c54ca4ba5",
+        "submit-receipt.json": "b63d9f991e66a12c19b37e70465d42bb2b9224d7d239f0b7fafcbcf3f77c0c79",
+        "verifier.json": "0a4487941d597da910f4826a43e690452c52a123ca72326337730e6eb8b15576"
+      },
+      "batch": 1,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode107",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "da3e3b31752f52220a0bd1b9f3c92af5",
+      "ordinal": 1,
+      "phenomena": [],
+      "request_id": "950346.nqsv",
+      "total_cycles": 0,
+      "txns": 739679,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "b9b155f3135945634b3baa74e8feaaf482900feb141f4ceff98b3755cbf6070b",
+        "mocc-trace-pilot-receipt.json": "68ac90fc5cafd8e425e097f93b7ef76ef7bb6f7d182511fbf8fc0eece6c6a449",
+        "reservation.json": "9b14645f33f2d21d4b64b47cd2da32197723faf5ff2ff4cb66a5917232223fac",
+        "submit-receipt.json": "e184d319b29170e6f725a14aa8416b9c35d37075f85b0b209fc8208fefe36ba8",
+        "verifier.json": "cb5c6d410c5feab5d94e31a4169c0de74ad9e2c039c86334cb04486fc27d348e"
+      },
+      "batch": 1,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode017",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "ce8b4ede5fabc9bb2da0d832baf64ce4",
+      "ordinal": 2,
+      "phenomena": [],
+      "request_id": "950348.nqsv",
+      "total_cycles": 0,
+      "txns": 776721,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "ceedf504b4f6527cabd1c559be41c270b2e15620af4a3c07447d79ea21d9d187",
+        "mocc-trace-pilot-receipt.json": "6fbf998ced5ac522b49d11cf02de91bb0115f2779a37e0a98b460ec6fbd0aa45",
+        "reservation.json": "30981ea230fbed054eea3615ac840466abbeaf2df9d56d9173771163cbbfb196",
+        "submit-receipt.json": "94c22ae63fa2fc93ec995c79d83ca9907abb42d5647323141a21218dce762fa1",
+        "verifier.json": "261e5f2aaecff4d7a3eda4fca6a20b8544a8c53ff0b675c010129fee2bf2a01b"
+      },
+      "batch": 1,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode014",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "e013b9f638ce571d30f9332a1605a0ac",
+      "ordinal": 3,
+      "phenomena": [],
+      "request_id": "950350.nqsv",
+      "total_cycles": 0,
+      "txns": 736765,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "6eacbc0c47595206eb5d34cf9d7d89881da88b52d630cd6a5e820e140558f98a",
+        "mocc-trace-pilot-receipt.json": "d11061747f399d1f523a15c343b0f35c8f37ab0e14681c956969de3dd8f35c2c",
+        "reservation.json": "0d674eca970b4a2b4ee7fe496229224c59fd9ebc1b91519977e55d78d791a6b0",
+        "submit-receipt.json": "76ba695f89a206a1adafcd8c76597b10ff7d0dbfbeb4b8aee3e4cdcf7bfd2bc7",
+        "verifier.json": "15198b86d6cbc6894f9e9d381d868d6c9372843dbfe436d0451630c9b2a9cd1e"
+      },
+      "batch": 1,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode015",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "cb7b91634756bd682247378ac4371ad4",
+      "ordinal": 4,
+      "phenomena": [],
+      "request_id": "950351.nqsv",
+      "total_cycles": 0,
+      "txns": 736452,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "842db4427482ef3fd1239d6dffbd3937538bb95e720316a12d9cae87a0d7bd60",
+        "mocc-trace-pilot-receipt.json": "5213695e63e83cf0ffdb9f8cba375d50bd7dc1d5fc365f5e40f8e91c20cca1bf",
+        "reservation.json": "b9306f4965eff9eadef20f13a6f0b1041897caadf25c912d157a04c236a87fde",
+        "submit-receipt.json": "878d03c735f7b75f20461df6b57a0620dcbfc7ce5f89e471e76ddd979adede73",
+        "verifier.json": "526126a12a402b6bfa153f9e19e4acf58f70af52d7e35a713bd19061919e7204"
+      },
+      "batch": 1,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode015",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "cfd8afa18d036afa0875994bb229b9da",
+      "ordinal": 5,
+      "phenomena": [],
+      "request_id": "950352.nqsv",
+      "total_cycles": 0,
+      "txns": 753723,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "2c1fe394c35d5b9d35eb165d4451f7134df453b990206eaa38bdbde079808e9d",
+        "mocc-trace-pilot-receipt.json": "231cec7de663fd3acea46eefa0548344785468eae161c450c0da52fb0b16757f",
+        "reservation.json": "99e6610d1fad60d45ff570a124c4e04b15ba93bb021649f5eb7110352c4d8686",
+        "submit-receipt.json": "e08bc25d05ae5cbee06e62bf637993219edf8a23c0ff7b81e63b4646440f487a",
+        "verifier.json": "5b2a03360a11b4d07ec2e799f5fbcf1c2084f3ec6a1729939112c7c073672771"
+      },
+      "batch": 1,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode022",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "aeb704d92482b19c42799f0b3269c2e7",
+      "ordinal": 6,
+      "phenomena": [],
+      "request_id": "950353.nqsv",
+      "total_cycles": 0,
+      "txns": 710982,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "a176778b0319b9c07f6f1fcd529df7135a8b48bf3002bdc849725147eda7d5db",
+        "mocc-trace-pilot-receipt.json": "7fa62e93c26225061197bff1989d7b99f785e9d6cf0f093732a3f84b134aef20",
+        "reservation.json": "bd7377751171b4707ad77dc777b6c58d8f59b99092b53ff922818e2e28f42165",
+        "submit-receipt.json": "79cca468fdf9f371b12edffa3ecf0ed49720f014a52184a3008fb8d0b5c3762b",
+        "verifier.json": "ddb87be50131ac0299a126821a1d69e2eb7f89e5462350f65827ae41683e353b"
+      },
+      "batch": 2,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode007",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "7dfe0a882cef4d449a824de9e4be675a",
+      "ordinal": 7,
+      "phenomena": [],
+      "request_id": "950362.nqsv",
+      "total_cycles": 0,
+      "txns": 755169,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "bb258082a4ff90348c7b297af719613ec6de4af2fa533ee2d3550c838b00e919",
+        "mocc-trace-pilot-receipt.json": "b91588db8fcd59ef276da1dcf52bb3502be26ef0f56e115f1757c59ac5a1625b",
+        "reservation.json": "f238bd438907b9050b905b50ea023cea209d22f63f10e021730cad9a31e56698",
+        "submit-receipt.json": "7346b158eb242277cae6c376716bd3a7e125af7426fa4ffe533770b9acbd4e0e",
+        "verifier.json": "19bf24d5a8a1adf6a1fef9c4185f833defa5ea830edad81e9abf1cf908ef2805"
+      },
+      "batch": 2,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode103",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "1b0e8ce4471341837243f37ffc465546",
+      "ordinal": 8,
+      "phenomena": [],
+      "request_id": "950364.nqsv",
+      "total_cycles": 0,
+      "txns": 748914,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "0f7aa0748625a2c5251f9e3061eb8bf98095a7c4c12564a594b2c2a1e9ff3927",
+        "mocc-trace-pilot-receipt.json": "9c3600c25b4dd817eb3af1b8e1aa6d4fde20efbc1648fed0f9ceab244edb7d76",
+        "reservation.json": "8ac4c1cd83ae3fc87efb2ece6ec31833bfe8dd289767c3855a1cd5749f20e96a",
+        "submit-receipt.json": "a23cfdc6cc18d668bb01aa5fc704a4cc17ea35b1b1992e5ebe75cd49ec3ca1c8",
+        "verifier.json": "8987c132a26f49bb659f20293c374e60161736b24912921b58b9e648624869e7"
+      },
+      "batch": 2,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode110",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "82c9b1c0a66226cb165fb3ae1b064877",
+      "ordinal": 9,
+      "phenomena": [],
+      "request_id": "950366.nqsv",
+      "total_cycles": 0,
+      "txns": 759458,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "461fdb012c439d0171a8f5ea702ff72e6b27b26798fad29206ea746f717db5bb",
+        "mocc-trace-pilot-receipt.json": "6b845de8ceab1a05165ba67e3f381cc89538f42547d097881241820b6aeb9fb0",
+        "reservation.json": "7ca64398698b0d8dfeaf5f9d918791e53695d459064aa0e8e1ec2b7f79c360c8",
+        "submit-receipt.json": "12a504d08d0599a066609c9c9633f9a5db85a588d89960cdcaf5efca7c791c70",
+        "verifier.json": "ac062ef04ff8a7fc6f0e1018530c702500db08fe0eaa15e224cc5be93aa2b303"
+      },
+      "batch": 2,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode119",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "bf9a2cefb8af410bc89d521576322bc4",
+      "ordinal": 10,
+      "phenomena": [],
+      "request_id": "950368.nqsv",
+      "total_cycles": 0,
+      "txns": 769481,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "44fe22abcc60b45bb661837fb1491a0a54b71c8b95ecf4e1eabaf3e9ad66c836",
+        "mocc-trace-pilot-receipt.json": "ed50273ef037c79daaffa845f9123b695606a99e2ec6eb38f06ab433c9930dbd",
+        "reservation.json": "f755bf0571688c544d1406de385f71a12bdd2da2a4e78bdeeee3107a5d065bb1",
+        "submit-receipt.json": "ce77828346b118276b2dc87690dc4ba2084e8c023cca74d53dc378905c03b8b8",
+        "verifier.json": "9eaa6f391b0d0b78b6871b0e15001d4b79eefd2b226f9c94f940fe84a824e9a7"
+      },
+      "batch": 2,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode110",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "78fb95b5018c8aaaa2cf2864a8c18c28",
+      "ordinal": 11,
+      "phenomena": [],
+      "request_id": "950371.nqsv",
+      "total_cycles": 0,
+      "txns": 752681,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "9efbd3e22b1d6b4494f60c1ae69b7d6b7658b05fa0923d795ddacb24a053bee9",
+        "mocc-trace-pilot-receipt.json": "d4cbe4cf386d5a81751def18fa196b6270eb1f220977a4dd0ea3df487533a146",
+        "reservation.json": "6839e87996497b2a379198a76ec8e56c5da17d1a1bfee2c8bda6f5c610cf3f24",
+        "submit-receipt.json": "a760d40ca90899c0a1325c9ffb9f139b7a02b7a79c3143a83f1ae4124398f97f",
+        "verifier.json": "487e90297cd263b30b906b1d57fbe3a93d51b56a6650ad0b17256b42c4e69b53"
+      },
+      "batch": 2,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode119",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "04dbc91cad7cfd149f7fcdd82253751b",
+      "ordinal": 12,
+      "phenomena": [],
+      "request_id": "950372.nqsv",
+      "total_cycles": 0,
+      "txns": 755022,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "24f1f13fd39c3df7bf942d6b1983d16b9623c513c31f449d619e4e04b765364a",
+        "mocc-trace-pilot-receipt.json": "217478d4a8c1a907e0b7c1d69c2ed81ee179e6fa2d8f4df442f272c72a182c99",
+        "reservation.json": "f54a94104a87dd687978bf4af9cd2de42029db43aa89f31474f809c85055015b",
+        "submit-receipt.json": "b137ef120b4e6913a01f995e14b17be603d26b3ca55e90c8809228c0e9d1f96d",
+        "verifier.json": "2ecf91a096cecbecb63e9dc4a8764e973a14480200a27aefdad692bfa73e1252"
+      },
+      "batch": 3,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode023",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "c50ca39d1cb1373505b62835753452aa",
+      "ordinal": 13,
+      "phenomena": [],
+      "request_id": "950390.nqsv",
+      "total_cycles": 0,
+      "txns": 756338,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "039a86825db6775867c9dd4f4fce8a58a076ac100dcb9b6dad5ec98e2072d0a5",
+        "mocc-trace-pilot-receipt.json": "9924d733adf7f77fe52c20756132def43321453775deb4e3ea13a5544b2d9367",
+        "reservation.json": "d92f2dfcc2d53fbfee52760ef5b59bc691abb8e43b6c4687aa9923c381b3b496",
+        "submit-receipt.json": "a889d0184efe686ba4105fa6de2c502203df3ff7f42322d6d9f52256f054e538",
+        "verifier.json": "6ca76ecae8b325561db587607b3e3313c2a9a021d06947221b9ad0a91572ee27"
+      },
+      "batch": 3,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode026",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "af5c163a5a0fdf03ea8226be22b54a01",
+      "ordinal": 14,
+      "phenomena": [],
+      "request_id": "950391.nqsv",
+      "total_cycles": 0,
+      "txns": 774732,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "3800e69dc3f4e33abe0e00eba3c5941334b1cd8b915bda1d555531c86b05a1ca",
+        "mocc-trace-pilot-receipt.json": "6c98102427446bd951dd5f9315e2680df4fd838be125838ab5ff43f656e3a6b0",
+        "reservation.json": "cceddecf14b28ee0b980a3e8f9689d112a5e21155646c6f4ac0a4243766431f9",
+        "submit-receipt.json": "a126df32d36a711e23d68ef69dda285d799908eabce5336b6a4137870e163d64",
+        "verifier.json": "bcdf8643a12a624a12c98f87fd894d0bb41fa448a4babe8c4a32fc523433e127"
+      },
+      "batch": 3,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode008",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "d28bf732c4996bbc0fbb142ac1676092",
+      "ordinal": 15,
+      "phenomena": [],
+      "request_id": "950392.nqsv",
+      "total_cycles": 0,
+      "txns": 763481,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "ba047778aa44d39d399c02c2057c7d1877364827a2ddfdda5c015c19adb7cb2a",
+        "mocc-trace-pilot-receipt.json": "df99f2e41c5b08f169a272adf269323f03790f75e9b0df5f91f5ee5d1140216b",
+        "reservation.json": "94ce98806845776c6d9d0fbfaf136a30451ba80348709c32a1cdbeb2b434534e",
+        "submit-receipt.json": "c29d9105459d71c4fe1798a8e5b210e8515bffb79af6a7fb98650e0850a773cd",
+        "verifier.json": "0d144ac999036bf68c0377957516e6e15ca1f4f776c16217f8c02ae46d429a1e"
+      },
+      "batch": 3,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode036",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "7998036a3e8ef3261d48a5772097247b",
+      "ordinal": 16,
+      "phenomena": [],
+      "request_id": "950393.nqsv",
+      "total_cycles": 0,
+      "txns": 728824,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "579f381597b202603f3d30017836f1e776f897324fc270ad02ecd520822b5233",
+        "mocc-trace-pilot-receipt.json": "59f2557e8c68cb55cb06906561b96c1e1888fbbfc8bc28ea3229423ecd23f60c",
+        "reservation.json": "2cb8cc32d8112a7b8cf7e31751d02f3c66b14ba6916e342febfb3ee101c9f193",
+        "submit-receipt.json": "54f4b8d470294bfc947ce20ddad8e378f5ecc2a8c553f52e757c698725199169",
+        "verifier.json": "ec6da494e4f47f5039d301851e52e4c2e3a02dd38a32c0f534daf520acaa4d65"
+      },
+      "batch": 3,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode066",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "69635b051a7bd891a268d311c10193fd",
+      "ordinal": 17,
+      "phenomena": [],
+      "request_id": "950395.nqsv",
+      "total_cycles": 0,
+      "txns": 780561,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "7f5270e31b83b2cb98ab75ebb088f34e321cd1899f4de48ae22fced5316ec212",
+        "mocc-trace-pilot-receipt.json": "7f6e01857877c5a233f3251c51e704ff1d4c91260398251a7a33d3eabf7f0a54",
+        "reservation.json": "4e1044b866f9771f30d134d5c479315277b1759eea515c42de673ca7e6fbbb09",
+        "submit-receipt.json": "439e6caa62d656c782dc20dd2b3ccf631418bc1b789ef35d4352cb1d2ec60938",
+        "verifier.json": "a1912b59fc9ee0a7cf0515d3a8a9620a4bea9eed3905c9d3eaebf6072aa15be0"
+      },
+      "batch": 3,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode101",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "602d820c8e7c32c65aac2cf51a03b3b3",
+      "ordinal": 18,
+      "phenomena": [],
+      "request_id": "950396.nqsv",
+      "total_cycles": 0,
+      "txns": 740879,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 1,
+      "artifact_sha256": {
+        "failure.json": "3a33497f9307495f42b589c3d8a0eef6aabc76687a21e1b230a5dc03d8173355",
+        "reservation.json": "5ccd85f05a4e606c18f350cd9bce64980e7beb499a7c8f0e83aa6feb6b94036c",
+        "submit-receipt.json": "a121e4b72f7406947ffa46ce8670730308235bb7b26e17abfd17551888ef559e",
+        "verifier.json": "2b20b5452127f1aa23392dc4c7ea54849eec0e7f64f998943a8a907dc6187209"
+      },
+      "batch": 4,
+      "classification": "non_serializable",
+      "failure_rc": 1,
+      "failure_stage": "verifier",
+      "host": "bnode008",
+      "in_denominator": true,
+      "in_numerator": true,
+      "integrity_clean": true,
+      "nonce": "4f0672e5954943a62331af83234bb31a",
+      "ordinal": 19,
+      "phenomena": [
+        "G2"
+      ],
+      "request_id": "950401.nqsv",
+      "total_cycles": 1,
+      "txns": 745328,
+      "verdict": "non-serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "cb5d94bcb7e6a79b375891031d683c776c304bc20261a611bdbe8ad59121762e",
+        "mocc-trace-pilot-receipt.json": "90c62ed75523844f297ace3cfbd8e7ecd6fcb1a737d9c31ae69803f5a6904928",
+        "reservation.json": "16a2fe6deadbbedbc0e011aaaef2698d88338aac8afcddbd732087e53438aab5",
+        "submit-receipt.json": "b4e0a06ab55b2e1f81be7ae0db496fd39805d80b10d6e5896b7d50efeac3b987",
+        "verifier.json": "150c4dd4fed17f7f9def587caf038574db787a7ced1bd52e86d78f74a48aa9b1"
+      },
+      "batch": 4,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode036",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "89bae1b528b200f13c5b11f4e453e8b6",
+      "ordinal": 20,
+      "phenomena": [],
+      "request_id": "950402.nqsv",
+      "total_cycles": 0,
+      "txns": 766961,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "407a4f6b12e03309b57d3679900a0fb3aebe8701c24d2c10e3c3e7a1b8c01f37",
+        "mocc-trace-pilot-receipt.json": "d41a8b50e57841833bf9db2bd33b5cacf021daef269790f84bf1968551ee2779",
+        "reservation.json": "628df553968aef16b085f98f8092a6ad853f97f8a081f9933cd715879fc91d31",
+        "submit-receipt.json": "a5904902987faa8e7037275d90bf5013265d9ba8c95061b7680da09ae238ea71",
+        "verifier.json": "091ea58bc619be137a9b39f67c05cc9ba6d62d5b535a9e442478bb74c1b34adc"
+      },
+      "batch": 4,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode046",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "e58d8f131004e87d93c1e5b15f91df33",
+      "ordinal": 21,
+      "phenomena": [],
+      "request_id": "950403.nqsv",
+      "total_cycles": 0,
+      "txns": 749511,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "325962e6fd320ab5fc7c29faf5256f03836d61a14a95c10bf0afd54a73a8e132",
+        "mocc-trace-pilot-receipt.json": "207d4f02da17421ca6b8f652c3828a3a19f069626c2fefa2dc149aede9006d73",
+        "reservation.json": "39488738e918322bdb123816c11ce6d00fc78be6e6c3e5ca6d5cead6a94bcf05",
+        "submit-receipt.json": "1822c696467c0b192f0d65abbc25f97074d79ca56d0136e3065cf34b442af276",
+        "verifier.json": "60171438b863d0e68714bba6b6e86cae63c3fe651d715064762c9afd64c0ad04"
+      },
+      "batch": 4,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode103",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "f96c478a09f401a92b0b86def10b757e",
+      "ordinal": 22,
+      "phenomena": [],
+      "request_id": "950406.nqsv",
+      "total_cycles": 0,
+      "txns": 743976,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "0412f90a19163a2c0090cab7f285f3e24c1c692091c3ddc25e888ce6a892cb4b",
+        "mocc-trace-pilot-receipt.json": "9b9058165a14bc5ef6b0794e1252673034981617fc72123c7633b0a3560d50a4",
+        "reservation.json": "94992a498b90b818c069ef32714db2229ef2d00600107c85b74831a8adef6ab4",
+        "submit-receipt.json": "550c540944809f88fcbd4e2b2b4d4f3518b068e71b7e979b2fbc5d0c3731f732",
+        "verifier.json": "ba300440014494f9726b683b58c1b688647df1597f37d294059891153ebb92fa"
+      },
+      "batch": 4,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode066",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "863e886b9e3babbf2cb291aed3507e93",
+      "ordinal": 23,
+      "phenomena": [],
+      "request_id": "950407.nqsv",
+      "total_cycles": 0,
+      "txns": 784560,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 1,
+      "artifact_sha256": {
+        "failure.json": "ecc8dad9fd699d8e3f63b6d85a9e232e45a834dca0a970de3ba91f3cc3ff34cf",
+        "reservation.json": "35610ce311d1375114470178882503c4fce8600421c10e035f24e56a31d4d628",
+        "submit-receipt.json": "0bbab6a7e17a81bd5ba09dd5e6a9fb43e867967028c7eaa2e6424ed95dd3863f",
+        "verifier.json": "49495df3d50fa3b20a6079023f3400ac1bc53538092a26e9143a9f0721ef46a1"
+      },
+      "batch": 4,
+      "classification": "non_serializable",
+      "failure_rc": 1,
+      "failure_stage": "verifier",
+      "host": "bnode036",
+      "in_denominator": true,
+      "in_numerator": true,
+      "integrity_clean": true,
+      "nonce": "8230e17114706b0e663d19446959b637",
+      "ordinal": 24,
+      "phenomena": [
+        "G2"
+      ],
+      "request_id": "950408.nqsv",
+      "total_cycles": 1,
+      "txns": 764160,
+      "verdict": "non-serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "3dc67e6368ce7016906985ef90e76eadd629fa143c185666d140f8098cfe4d7d",
+        "mocc-trace-pilot-receipt.json": "c7cd815ba1883574ca736e027c28dbbb41ecd8367aebbcb7190b563f80c7b9d4",
+        "reservation.json": "e0799602221d2486f36b6f122d1b849805543524a8844bbcdd548893d82e64f7",
+        "submit-receipt.json": "9a1b2c7f68e0e3f90b02d838481ebc910d1bf9fffa97e40e9ddbd8005ccab775",
+        "verifier.json": "652b8cc3bc528f1c07e99dd037b6e472f4ceb7c3ff4c4d802a5b0da9267bd7d8"
+      },
+      "batch": 5,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode022",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "5a14f6d6b4e4019f8f1a10826d5f301b",
+      "ordinal": 25,
+      "phenomena": [],
+      "request_id": "950419.nqsv",
+      "total_cycles": 0,
+      "txns": 768599,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "12a73a072aa14b45ae9ed5debdf897b07afa1bf5edf7e0cf395c396c28494d3d",
+        "mocc-trace-pilot-receipt.json": "a2757cd5a1ffe47e1b2f42a6674698d14e9f775ce55e8f0230622be75b5ac4ab",
+        "reservation.json": "d9b895b32fe8fc6d5c934557bad63a8317213cde9f1234de57a596f5481b41ef",
+        "submit-receipt.json": "190cc3124efbf681cfd416bc52c852b9c9fcdc5d7b543453acbee434f9480f49",
+        "verifier.json": "6b8f53f459cb8699c2d46f08c76e3b9228f60de2dba89b80caa077e883eddc80"
+      },
+      "batch": 5,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode023",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "9e6e9c4525f128bd62a0d1b40cec308c",
+      "ordinal": 26,
+      "phenomena": [],
+      "request_id": "950420.nqsv",
+      "total_cycles": 0,
+      "txns": 757365,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "3a58b7b71ee062750e58c5a163c2e928985c927c01ff5e3d586be95da6ea794e",
+        "mocc-trace-pilot-receipt.json": "ecfbc090944be1fb0ecd729956ab41a601b659be0fb35479a971f87e68ea0edd",
+        "reservation.json": "62bc9095fbfda6315258a9d4eca39a06e5ff3f24091ab811c9dc2f2ae6a844a6",
+        "submit-receipt.json": "4e03c13be383cb443602a1114a54fe333154ad33cb33fd1f3afcaee3d7dfd972",
+        "verifier.json": "c3dfe90ace5496e0a396d894f3226815b4eac78309f94398b28d07b1f594a2b7"
+      },
+      "batch": 5,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode036",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "3f7c94e90ac0968e2693edc85ee1fe1e",
+      "ordinal": 27,
+      "phenomena": [],
+      "request_id": "950421.nqsv",
+      "total_cycles": 0,
+      "txns": 719527,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "aefdb3766f48f6f4e4d157abae0cf2e2f4849bb5aa324715d1bdfa5fa49c668a",
+        "mocc-trace-pilot-receipt.json": "e5946744809b1f5be3993620cbc479c2ca8cd17780704cab43c2071134b3dbac",
+        "reservation.json": "deef9100b1a3acf887221fe23e09ddbe3f57c29731e796a548b8c9a0c29acd66",
+        "submit-receipt.json": "a397e8294b9b70e3ed96b573cdd0400a5cf849e8e6c5c56cde7d7071a19ef5bc",
+        "verifier.json": "23585b340c6fe51d3d7ef0e50640084f0c5b83c15bc2bc3efcaf403a6802cc82"
+      },
+      "batch": 5,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode008",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "ef19cc6d893779b6ce60c47f1d647049",
+      "ordinal": 28,
+      "phenomena": [],
+      "request_id": "950422.nqsv",
+      "total_cycles": 0,
+      "txns": 741032,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "3c351016266a8c643c8e3fc79480bf55b2f365a0bc9dafaae92ec5b2f4e6b3b2",
+        "mocc-trace-pilot-receipt.json": "b51640a3f6a1a12118eb694d31be48ad61846169181259a797e7875aaaee74e4",
+        "reservation.json": "356518c4c43e3b93f3d10155d1970aedce61293dfdec6e2d5911994fb0c56b56",
+        "submit-receipt.json": "a4dd5f716120c20fdec38e50dfc914e1c90cd083b53b790597b8a900707c2639",
+        "verifier.json": "12a4b082ccebe093e7a523e251a2a7d400e1002e5a91b1a981329cf5f1b5945f"
+      },
+      "batch": 5,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode028",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "bfe2604ca52c918080ef255125f4ea05",
+      "ordinal": 29,
+      "phenomena": [],
+      "request_id": "950423.nqsv",
+      "total_cycles": 0,
+      "txns": 748036,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 1,
+      "artifact_sha256": {
+        "failure.json": "ac46775397247bff8c156644e68e9931adc8eb9269784d1f30f5322e7e9ee513",
+        "reservation.json": "1c3a7e2835e7766ccf018166b7a7144125400172d097b626df3c59bda6e664f8",
+        "submit-receipt.json": "cbb4e95d0d7bf4c9f5fd4c32eae8a98c3ce77bb019cc7e4a0ca390c17add75c1",
+        "verifier.json": "f42a139fe60d42889f42f3b20ec4f0e258c7fe8dd88486f972c13fea3c8b3dfc"
+      },
+      "batch": 5,
+      "classification": "non_serializable",
+      "failure_rc": 1,
+      "failure_stage": "verifier",
+      "host": "bnode061",
+      "in_denominator": true,
+      "in_numerator": true,
+      "integrity_clean": true,
+      "nonce": "17615c14c5bec81d41246905d49b0d27",
+      "ordinal": 30,
+      "phenomena": [
+        "G2"
+      ],
+      "request_id": "950424.nqsv",
+      "total_cycles": 1,
+      "txns": 782296,
+      "verdict": "non-serializable"
+    },
+    {
+      "anomaly_count": 1,
+      "artifact_sha256": {
+        "failure.json": "b5e89879f1a70990101c0cfd0c1ee642a8ee54550d5d1b7642595d123125ae9d",
+        "reservation.json": "cb3ab76f05272e99aa4f1b2c3880b9facb647ac4f65fa31fcbbf2437a4ec70b3",
+        "submit-receipt.json": "a438ee2ec96e45c6a6bbe0a6f6c02c71cef5a84ac694994ac4bb9327f9765855",
+        "verifier.json": "1d664a8c7cf621b79806f83cf3ab2cb2c408fb35cc5365aa065f51b95efb9847"
+      },
+      "batch": 6,
+      "classification": "non_serializable",
+      "failure_rc": 1,
+      "failure_stage": "verifier",
+      "host": "bnode064",
+      "in_denominator": true,
+      "in_numerator": true,
+      "integrity_clean": true,
+      "nonce": "8cc4bbfd6ec96d73c4597490a63c9e16",
+      "ordinal": 31,
+      "phenomena": [
+        "G2"
+      ],
+      "request_id": "950437.nqsv",
+      "total_cycles": 1,
+      "txns": 753208,
+      "verdict": "non-serializable"
+    },
+    {
+      "anomaly_count": 1,
+      "artifact_sha256": {
+        "failure.json": "1cf89f518ab3a03ddb088315fe29f9f54fa7833c3f0619ac82b4077ce70093d3",
+        "reservation.json": "0897acf1b037b1fce3878891ae5eae0e8f717e2df5858ddb8234526920789460",
+        "submit-receipt.json": "93ebd877ebcb74bf4acbc4e224fe616fd7b0bcca4d3af413a4402c50eaad7dd4",
+        "verifier.json": "2c060fc0f29f9c7346e7b1999157ff7694b03f042df5fe315ad0d9bf8e11eca1"
+      },
+      "batch": 6,
+      "classification": "non_serializable",
+      "failure_rc": 1,
+      "failure_stage": "verifier",
+      "host": "bnode023",
+      "in_denominator": true,
+      "in_numerator": true,
+      "integrity_clean": true,
+      "nonce": "7efdbef5bfddb72b11d383b904d76b21",
+      "ordinal": 32,
+      "phenomena": [
+        "G2"
+      ],
+      "request_id": "950438.nqsv",
+      "total_cycles": 1,
+      "txns": 564251,
+      "verdict": "non-serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "b59a53af0441094e8903ade0a689e60d3399f73002d291f4938e0ea1eb3b7684",
+        "mocc-trace-pilot-receipt.json": "ea16a439158c98ea7cb6407888dac05d951b4dbdbf20338515173008f35910f7",
+        "reservation.json": "7221a2a8c0ba7dd4f39644fecd69696bd1c414ce80cd1b91d56cf90bf102d825",
+        "submit-receipt.json": "caf65e5fb70abc72680c0481159aeb52829cda6bbf3fecb5fc38bb6638d0d548",
+        "verifier.json": "f22c031310ec5736b653165bc349c5bc69ed2b0f152e4171c9ff6bf0d2df89b3"
+      },
+      "batch": 6,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode086",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "4eeaa00acf5c6b1ad6aeb6c074e8036f",
+      "ordinal": 33,
+      "phenomena": [],
+      "request_id": "950439.nqsv",
+      "total_cycles": 0,
+      "txns": 743582,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "4be476e16bb7a2785cd91db370caba08e35805465832cd6903ffa12cd7cba975",
+        "mocc-trace-pilot-receipt.json": "a20935d2ff1f9c2c384b2a807f1693b43a6cb865121ab4df58c712fe6ad9f20b",
+        "reservation.json": "95d9e8b6cc8e30c97a9e8cfabfa735202d0449ef81a684757d38d95cebee80f4",
+        "submit-receipt.json": "e36560620cee9b02d6e09768e8ed1ff5fc6addf32a2203e6d2facf3bc0dce41f",
+        "verifier.json": "696b3eceff94a6c22d9b41a2d39476619fd96b1ba940a55adb5216f437e3c03b"
+      },
+      "batch": 6,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode103",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "2f852073841e110452e278f5d98dcd34",
+      "ordinal": 34,
+      "phenomena": [],
+      "request_id": "950440.nqsv",
+      "total_cycles": 0,
+      "txns": 739720,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "0fd1473fa2befbe8de27f35a38df5cae22f3c2e3c811d87bee4ffdc25f86bc9c",
+        "mocc-trace-pilot-receipt.json": "fdb495aa1b799b9de79bbf3f938862e4b29cd07eb6565a51edfcc6fc0736d9f8",
+        "reservation.json": "5e3e38ba0b0c58b3839e7683e2631540deebc3fb7bc7e592091ad3e8a514734d",
+        "submit-receipt.json": "35ebb65dce5c435fd391eab97f8a25e5a16d146dcb8f68425aad27df9db8b9fd",
+        "verifier.json": "24dc470e08911ae135d345b305ff7b778c9b53184b890cf1831bfeeb0b2ac03b"
+      },
+      "batch": 6,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode023",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "48311a7a61b441051fc0836fb6d01a64",
+      "ordinal": 35,
+      "phenomena": [],
+      "request_id": "950441.nqsv",
+      "total_cycles": 0,
+      "txns": 731698,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "7e2f77f55da47bc54bbc3d6531fcdf7f6a71f04e56947d7642b6f73294b56151",
+        "mocc-trace-pilot-receipt.json": "befac944a9e15dc36d2d4c1b1154543db91b48dfd8c06cbf88411bbd238618d1",
+        "reservation.json": "9d8cd75c1f0f7e8941aca9d1267e84c1498e2f140bc141e29a00007ea86e3725",
+        "submit-receipt.json": "38629a5d8b7b13066a246d5344600a37bff77ad575a42553ccbc24c32666c3f8",
+        "verifier.json": "96dcab20405f70b6fe43d837172a508adb00921e7c4ce80b9a6ffd68eb1f1df9"
+      },
+      "batch": 6,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode023",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "99ad5378c044d070817eff37c54b4d29",
+      "ordinal": 36,
+      "phenomena": [],
+      "request_id": "950442.nqsv",
+      "total_cycles": 0,
+      "txns": 753289,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "1ebffce6dab9d01a53f2df7c0cd6cdcd413eb45031740f8aef5e092c39a98bcd",
+        "mocc-trace-pilot-receipt.json": "3c8315c9f608d702770a4b6d8c763d669c7013f1f46dab001bbeb4246859632a",
+        "reservation.json": "c0efe496173c8b3699644cdacca965d24701e714fcc5f82ca91f386bbb0d944b",
+        "submit-receipt.json": "563f943c37cf26e5c0f6d32f3c341a7555692a2fe57c3ce119f8b906af4c31d2",
+        "verifier.json": "4f5f205c98431323a0bc840787596114662d4a7d15955baa2b9f9bd9af7e354a"
+      },
+      "batch": 7,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode009",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "4b582706d35e7ddd12f904f95ed290b3",
+      "ordinal": 37,
+      "phenomena": [],
+      "request_id": "950483.nqsv",
+      "total_cycles": 0,
+      "txns": 764379,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "807d880cba2ee8be79eee5cda68ea316442dd2e78462e1a3c1d25b688ed10f93",
+        "mocc-trace-pilot-receipt.json": "5c1366ca8f92c56fb843a483237b04de627509dc08cc773a2b89c8b80138a689",
+        "reservation.json": "e35e70823113e072e659fd416d2d650e8c5a7636efe0238ed0268f4071136609",
+        "submit-receipt.json": "e137c69c83c8195615240beb46231fceead7f695c8a8cf3b5881474ca790f4a8",
+        "verifier.json": "ad3f596f36488325b809079048af10d005db2d24eaeed8f2a2ba08d7ae0fe911"
+      },
+      "batch": 7,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode086",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "8523ededd53cf9051969dad206477f4c",
+      "ordinal": 38,
+      "phenomena": [],
+      "request_id": "950484.nqsv",
+      "total_cycles": 0,
+      "txns": 779841,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "76e8210b225019bd0133f0443075011886cf749dc43c0f4d2da188de614c24b3",
+        "mocc-trace-pilot-receipt.json": "0c3db53c6e948b7a8cbbb293d62563e0356cf4b9d8dde5d20cc4ad96469e4574",
+        "reservation.json": "6f81d222938a00a2bb779cc5a35a5407db89bf74555dad7b631f781763114c57",
+        "submit-receipt.json": "fe85813ace5d2ddc9701f6ba76220f2c74a7dd2df898fbb8b48a8c34e01631e9",
+        "verifier.json": "6d6014e23190c7205acc136c2124a4e447254b89380d0eaaba923e3426391648"
+      },
+      "batch": 7,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode048",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "c34f15c62272f6b9aec6f925f7dc4e4b",
+      "ordinal": 39,
+      "phenomena": [],
+      "request_id": "950486.nqsv",
+      "total_cycles": 0,
+      "txns": 752428,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "3dd5fecf05e4454780f0553f43a19da2ebcf27d8846c30d53fc1843603bf1433",
+        "mocc-trace-pilot-receipt.json": "a48c0d33a0ab3a80920ace89e1d809257193012b384593223cc4e1fabc56fa5c",
+        "reservation.json": "7196bbd619723a763c08217664600d0785d9478d747b5f5b29afa5b8c503169e",
+        "submit-receipt.json": "1219015cb04dd45367b4f3b4181ac0860344b9ed502c29478814859f3e0a1728",
+        "verifier.json": "e256e765c58ebd8ff855365e1077445406e127ac655990186b96e1c10620472c"
+      },
+      "batch": 7,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode050",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "502a38932f508f513c60b22590a8ce00",
+      "ordinal": 40,
+      "phenomena": [],
+      "request_id": "950487.nqsv",
+      "total_cycles": 0,
+      "txns": 759050,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "ce389bf63d13ff2f6d6c655a627c497a0d7a1e42aa6bf87b1c4f96b87d7ec781",
+        "mocc-trace-pilot-receipt.json": "63d130d5755637bd4624fbb923f6a84726c434d90fa8ea30db94d08506244187",
+        "reservation.json": "fa152238e61070667427614774afc61d7cd19bf201764136247791b2afef48ce",
+        "submit-receipt.json": "1b5708353c592cac1a60249fe3c02dd00c9b5a1d5ae25102930e24c2fe0c9d91",
+        "verifier.json": "4c709845ee9e1ba0ce583f5590ecd503d85e9bd678a9485bf2aa248dfe3c725f"
+      },
+      "batch": 7,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode070",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "bbdd8778b6a7607c2a1d3c0172c3dba8",
+      "ordinal": 41,
+      "phenomena": [],
+      "request_id": "950488.nqsv",
+      "total_cycles": 0,
+      "txns": 751026,
+      "verdict": "serializable"
+    },
+    {
+      "anomaly_count": 0,
+      "artifact_sha256": {
+        "job-result.json": "e399efaaf564a0105e8958fdcd2b8ee76eb431553d1802b2bb392fe0fccb9415",
+        "mocc-trace-pilot-receipt.json": "56be6530eb5b35cd523a9a3617183b667ed6b9f4977e6e5fc99dab3ebbd47357",
+        "reservation.json": "78ee568eaf4916b5b07c323a979547486e2fb35d02a4d128897a9998439fa894",
+        "submit-receipt.json": "2e43c24f292103a03bd4986528ae65627bc268eebccbd0422ff0e3d15e417109",
+        "verifier.json": "7104d7f8178df815b017c38ccf472ca3bf30300a48d4811f606587cbda37239c"
+      },
+      "batch": 7,
+      "classification": "certified",
+      "failure_rc": null,
+      "failure_stage": null,
+      "host": "bnode076",
+      "in_denominator": true,
+      "in_numerator": false,
+      "integrity_clean": true,
+      "nonce": "08ab8ea87027292f2793381fac41d5ce",
+      "ordinal": 42,
+      "phenomena": [],
+      "request_id": "950489.nqsv",
+      "total_cycles": 0,
+      "txns": 735548,
+      "verdict": "serializable"
+    }
+  ],
+  "schema_version": "mocc-g2-repro-ledger/v1",
+  "secondary_analysis_e": {
+    "by_batch": [
+      {
+        "batch": 1,
+        "k": 0,
+        "m": 6
+      },
+      {
+        "batch": 2,
+        "k": 0,
+        "m": 6
+      },
+      {
+        "batch": 3,
+        "k": 0,
+        "m": 6
+      },
+      {
+        "batch": 4,
+        "k": 2,
+        "m": 6
+      },
+      {
+        "batch": 5,
+        "k": 1,
+        "m": 6
+      },
+      {
+        "batch": 6,
+        "k": 2,
+        "m": 6
+      },
+      {
+        "batch": 7,
+        "k": 0,
+        "m": 6
+      }
+    ],
+    "by_host": [
+      {
+        "host": "bnode007",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode008",
+        "k": 1,
+        "m": 3
+      },
+      {
+        "host": "bnode009",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode014",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode015",
+        "k": 0,
+        "m": 2
+      },
+      {
+        "host": "bnode017",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode022",
+        "k": 0,
+        "m": 2
+      },
+      {
+        "host": "bnode023",
+        "k": 1,
+        "m": 5
+      },
+      {
+        "host": "bnode026",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode028",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode036",
+        "k": 1,
+        "m": 4
+      },
+      {
+        "host": "bnode046",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode048",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode050",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode061",
+        "k": 1,
+        "m": 1
+      },
+      {
+        "host": "bnode064",
+        "k": 1,
+        "m": 1
+      },
+      {
+        "host": "bnode066",
+        "k": 0,
+        "m": 2
+      },
+      {
+        "host": "bnode070",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode076",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode086",
+        "k": 0,
+        "m": 2
+      },
+      {
+        "host": "bnode101",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode103",
+        "k": 0,
+        "m": 3
+      },
+      {
+        "host": "bnode107",
+        "k": 0,
+        "m": 1
+      },
+      {
+        "host": "bnode110",
+        "k": 0,
+        "m": 2
+      },
+      {
+        "host": "bnode119",
+        "k": 0,
+        "m": 2
+      }
+    ]
+  },
+  "study": {
+    "frozen_commit": "f7f6dd2e70ccb27f531011881e47c45617d3ffaf",
+    "id": "dev-wave-mocc-g2-repro-20260826",
+    "planned_N": 42,
+    "preregistration_sha256": "182abe5cdad001d8ec799bbf33d097674ad7292cd8e5880826ca56654dd6e235"
+  },
+  "submission_closure": {
+    "enumerated_submission_count": 44,
+    "excluded_submissions": [
+      {
+        "nonce": "42e812a775f1109996c4c79244f00719",
+        "reason": "pre-freeze dry-run; source_commit differs from frozen commit",
+        "source_commit": "b0c1a8bd8728f86ed9f0033bf6a08c13a3746f67"
+      },
+      {
+        "nonce": "f8b5b12f13d088cb164916c3130dba7e",
+        "reason": "pre-freeze liveness probe; source_commit differs from frozen commit",
+        "source_commit": "b0c1a8bd8728f86ed9f0033bf6a08c13a3746f67"
+      }
+    ],
+    "frozen_commit_nonces": [
+      "04dbc91cad7cfd149f7fcdd82253751b",
+      "08ab8ea87027292f2793381fac41d5ce",
+      "17615c14c5bec81d41246905d49b0d27",
+      "1b0e8ce4471341837243f37ffc465546",
+      "2f852073841e110452e278f5d98dcd34",
+      "3f7c94e90ac0968e2693edc85ee1fe1e",
+      "48311a7a61b441051fc0836fb6d01a64",
+      "4b582706d35e7ddd12f904f95ed290b3",
+      "4eeaa00acf5c6b1ad6aeb6c074e8036f",
+      "4f0672e5954943a62331af83234bb31a",
+      "502a38932f508f513c60b22590a8ce00",
+      "5a14f6d6b4e4019f8f1a10826d5f301b",
+      "602d820c8e7c32c65aac2cf51a03b3b3",
+      "69635b051a7bd891a268d311c10193fd",
+      "78fb95b5018c8aaaa2cf2864a8c18c28",
+      "7998036a3e8ef3261d48a5772097247b",
+      "7dfe0a882cef4d449a824de9e4be675a",
+      "7efdbef5bfddb72b11d383b904d76b21",
+      "8230e17114706b0e663d19446959b637",
+      "82c9b1c0a66226cb165fb3ae1b064877",
+      "8523ededd53cf9051969dad206477f4c",
+      "863e886b9e3babbf2cb291aed3507e93",
+      "89bae1b528b200f13c5b11f4e453e8b6",
+      "8cc4bbfd6ec96d73c4597490a63c9e16",
+      "99ad5378c044d070817eff37c54b4d29",
+      "9e6e9c4525f128bd62a0d1b40cec308c",
+      "aeb704d92482b19c42799f0b3269c2e7",
+      "af5c163a5a0fdf03ea8226be22b54a01",
+      "bbdd8778b6a7607c2a1d3c0172c3dba8",
+      "bf9a2cefb8af410bc89d521576322bc4",
+      "bfe2604ca52c918080ef255125f4ea05",
+      "c34f15c62272f6b9aec6f925f7dc4e4b",
+      "c50ca39d1cb1373505b62835753452aa",
+      "cb7b91634756bd682247378ac4371ad4",
+      "ce8b4ede5fabc9bb2da0d832baf64ce4",
+      "cfd8afa18d036afa0875994bb229b9da",
+      "d28bf732c4996bbc0fbb142ac1676092",
+      "da3e3b31752f52220a0bd1b9f3c92af5",
+      "e013b9f638ce571d30f9332a1605a0ac",
+      "e58d8f131004e87d93c1e5b15f91df33",
+      "ef19cc6d893779b6ce60c47f1d647049",
+      "f96c478a09f401a92b0b86def10b757e"
+    ],
+    "frozen_commit_submission_count": 42
+  },
+  "submission_ledger_sha256": "39e9b28e78116c329e18c943ae4bab2228fce354a864a631e6698b5c8db943c3",
+  "summary": {
+    "N": 42,
+    "classification_counts": {
+      "certified": 37,
+      "indeterminate": 0,
+      "no_verdict": 0,
+      "non_serializable": 5,
+      "stage_failure": 0,
+      "verifier_infra": 0
+    },
+    "exclusions": {
+      "indeterminate": {
+        "count": 0,
+        "ordinals": []
+      },
+      "no_verdict": {
+        "count": 0,
+        "ordinals": []
+      },
+      "stage_failure": {
+        "count": 0,
+        "ordinals": []
+      },
+      "verifier_infra": {
+        "count": 0,
+        "ordinals": []
+      }
+    },
+    "g0_g1c_only": {
+      "count": 0,
+      "ordinals": []
+    },
+    "k": 5,
+    "m": 42,
+    "missing": 0,
+    "reported_phenomena_counts": {
+      "G2": 5
+    }
+  }
+}
