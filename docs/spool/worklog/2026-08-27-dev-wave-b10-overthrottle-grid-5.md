@@ -41,6 +41,7 @@ title: 投入 script が実在しないコマンドを必須にしていたの�
 ### 更新
 
 - [T-1940] **P1**: B-10 拡張格子の実測を 3 workload 投入して回収する。
-  投入 script の必須コマンドを直したので起動できる状態になった。
+  投入 script の必須コマンド、patch 適用と効いたことの正例検査、計算ノードの取得経路を
+  すべて直したので投入の前提が揃った。
   `tools/pegasus/submit_b10_backoff_grid.sh --output-parent <repo 外の絶対 path>`。
   base: 14f44a6a3650803822164efec8a8123b4af6eda906406fb1a8a31e3711165e54
