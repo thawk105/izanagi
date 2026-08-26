@@ -383,6 +383,9 @@ _REAL_REPO_NODE_INVENTORY = frozenset({
     "test_s1_9pair_figure_provenance.py::test_n12_collects_all_artist_and_legend_text",
     "test_s1_9pair_figure_provenance.py::test_n13_bbox_checker_rejects_overlapping_non_tick_text",
     "test_s1_9pair_figure_provenance.py::test_n14_bbox_checker_pins_ticks_marker_reference_clearance_and_agg",
+    "test_s1_9pair_figure_provenance.py::test_n16_bbox_checker_rejects_legacy_bottom_legend_overlap",
+    "test_s1_9pair_figure_provenance.py::test_n17_bbox_checker_rejects_missing_bottom_legend",
+    "test_s1_9pair_figure_provenance.py::test_n18_bbox_checker_rejects_bottom_legend_excluded_from_tight_bbox",
 
     # known-axes の生成/検証が実 ccbench source path を読む reader。
     "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
@@ -490,6 +493,9 @@ _REAL_REPO_PARENT_ONLY_NODES = frozenset({
     "test_s1_9pair_figure_provenance.py::test_n12_collects_all_artist_and_legend_text",
     "test_s1_9pair_figure_provenance.py::test_n13_bbox_checker_rejects_overlapping_non_tick_text",
     "test_s1_9pair_figure_provenance.py::test_n14_bbox_checker_pins_ticks_marker_reference_clearance_and_agg",
+    "test_s1_9pair_figure_provenance.py::test_n16_bbox_checker_rejects_legacy_bottom_legend_overlap",
+    "test_s1_9pair_figure_provenance.py::test_n17_bbox_checker_rejects_missing_bottom_legend",
+    "test_s1_9pair_figure_provenance.py::test_n18_bbox_checker_rejects_bottom_legend_excluded_from_tight_bbox",
     "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight",
 })
 _REAL_REPO_CCBENCH_ONLY_NODES = frozenset({

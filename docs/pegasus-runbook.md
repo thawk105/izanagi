@@ -1188,6 +1188,12 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
 ```
 
+**spec には `schema` と時間 3 field が要る** (2026-08-26 実測)。`schema`
+(`izanagi-dev-wave-mutation-spec/v1`)、`estimated_run_seconds`、`timeout_seconds`、
+`hang_timeout_seconds` のどれかを欠くと `spec の field 集合が不正: missing=[...]` で
+**変異を 1 件も走らせずに起動前へ中止する**。上の起動例は argv だけを示しており、
+spec 側の必須 field は含まない。
+
 **`--attempt-out` は `--wrapper-attempt` と同時指定でなければならない** (2026-08-26 実測)。
 片方だけを渡すと `mutation harness aborted: --attempt-out と --wrapper-attempt は同時指定が必要`
 で起動前に落ちる。attempt 記録を取るなら両方渡す。
