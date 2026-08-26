@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 import pytest
 
 from orchestrator.campaign import campaign_lock
+from orchestrator.campaign import contract_loader_binding as B
 from orchestrator.campaign import enforcement_source_ratification as V1
 from orchestrator.campaign import enforcement_source_ratification_receipt as R
 
@@ -353,6 +354,21 @@ def test_valid_signed_receipt_for_current_closure_is_accepted(
     expected = V1.closure_digest_sha256(signed_repo.closure.blob_map)
 
     assert R.require_signed_ratification(signed_repo.closure.blob_map) == expected
+
+
+def test_single_repository_binding_and_receipt_are_accepted(
+    signed_repo: _SignedRepo,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _append_row(signed_repo, b"", signed_repo.closure, serial=1)
+    monkeypatch.setattr(B, "_REPO_ROOT", signed_repo.path)
+    binding = B.capture_contract_loader_binding()
+
+    assert binding.contract_loader_commit == _head(signed_repo.path)
+    assert dict(binding.contract_loader_blob_sha256s) == signed_repo.closure.blob_map
+    assert B.verify_ratified_contract_loader_binding(binding) == (
+        V1.closure_digest_sha256(signed_repo.closure.blob_map)
+    )
 
 
 def test_three_receipt_chain_accepts_the_matching_earlier_row(

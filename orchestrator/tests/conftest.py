@@ -222,6 +222,8 @@ def ratified_enforcement_source(
             allow_nan=False,
         ).encode("ascii")
 
+    binding = contract_loader_binding.capture_contract_loader_binding()
+    blob_sha256s = dict(binding.contract_loader_blob_sha256s)
     repo = tmp_path_factory.mktemp("ratified-enforcement-source") / "repo"
     repo.mkdir()
     _ratification_fixture_git(repo, "init", "-q")
@@ -231,13 +233,12 @@ def ratified_enforcement_source(
     )
 
     checkout_root = Path(__file__).resolve().parents[2]
-    blob_sha256s: dict[str, str] = {}
     for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS:
         raw = (checkout_root / relative).read_bytes()
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(raw)
-        blob_sha256s[relative] = hashlib.sha256(raw).hexdigest()
+        assert hashlib.sha256(raw).hexdigest() == blob_sha256s[relative]
 
     private_key = ed25519.Ed25519PrivateKey.generate()
     public_key = private_key.public_key().public_bytes(
@@ -296,20 +297,7 @@ def ratified_enforcement_source(
     _ratification_fixture_git(
         repo, *identity, "commit", "-q", "-m", "record signed ratification",
     )
-    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
     monkeypatch.setattr(receipt, "_REPO_ROOT", repo)
-    binding = contract_loader_binding.capture_contract_loader_binding()
-    synthetic_head = _ratification_fixture_git(
-        repo, "rev-parse", "--verify", "HEAD^{commit}",
-    ).decode("ascii").strip()
-    assert binding.contract_loader_commit == synthetic_head
-    assert dict(binding.contract_loader_blob_sha256s) == blob_sha256s
-    assert _ratification_fixture_git(
-        repo,
-        "merge-base",
-        source_commit,
-        binding.contract_loader_commit,
-    ).decode("ascii").strip() == source_commit
     return digest
 
 
