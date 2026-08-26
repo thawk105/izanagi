@@ -110,7 +110,6 @@ class GeneratorId(str, Enum):
     BACKOFF_OVERTHROTTLE = "backoff-overthrottle"
     BACKOFF_PROFILE = "backoff-profile"
     BACKOFF_REPRO = "backoff-repro"
-    B10_BACKOFF_SHAPE_SWEEP = "b10-backoff-shape-sweep"
     BACKOFF_SWEEP = "backoff-sweep"
     S1_EXTIME_CALIBRATION = "s1-extime-calibration"
     S6_SORT_SWEEP = "s6-sort-sweep"

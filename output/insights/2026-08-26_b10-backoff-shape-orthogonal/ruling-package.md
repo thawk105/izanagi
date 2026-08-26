@@ -42,6 +42,20 @@
   **B-10 の必要条件からは外れた**。参考線としては有用。
 - 既存 driver あり。2 workload で 20〜30 分の見込み。次の一手へ登録済み。
 
+### A-5. B-10 driver の専用 generator authority
+
+- 出所: 段 6 レビュー B の should-fix。「B10 の人間所有の式が旧 magnitude sweep の生成物として
+  帰属し、certified source の生成主体を区別できない」。
+- 本 wave は一度実装したが、**受入全走の実測で取り下げた。**
+  `GeneratorId` の閉集合へ member を 1 件足すと**方針の識別子の hash が変わり、
+  それが campaign 識別子に焼かれているためすべての campaign の識別子が動く**。
+  実測: `test_campaign_id_binds_admission_policy` が
+  `readheavy-locont-fullsearch-27d737fd` → `...-b7eb9aa1`。受入で 65 件が赤になった。
+- **既存の凍結成果物・campaign 群との対応が壊れるので、治療の害が病気より大きい。**
+  期待値の hash を書き換えて緑にするのは、比較可能性を捨てることなので採らなかった。
+- 判断が要る点: 生成主体の区別を、識別子を動かさない別の場所 (receipt の field 等) で
+  与えるか、区別しないままにするか。
+
 ## B. 予算制約で実装できなかった自己改善候補
 
 `docs/dev-wave/` の byte 予算 (L1 / L1.5) が満杯で、次の 3 件はいずれも入らなかった。

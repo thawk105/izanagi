@@ -2713,7 +2713,7 @@ def run_formal(
             )
             cache_root = os.fspath(ccbench_base / "build-variants")
             context = build_run_context(
-                generator_id=GeneratorId.B10_BACKOFF_SHAPE_SWEEP,
+                generator_id=GeneratorId.BACKOFF_SWEEP,
             )
             build_kwargs = {
                 "sub": sub,

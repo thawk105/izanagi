@@ -983,9 +983,9 @@ def test_config_uses_calibration_records_and_binds_preregistration():
         records=765432, threads=48, env_tag="pegasus", clocks_per_us=2100,
         saturated=False, lower_bound_selected=True, cache_floor_warning=False,
     )
-    context = B.build_run_context(generator_id=B.GeneratorId.B10_BACKOFF_SHAPE_SWEEP)
-    assert context.generator_id.value == "b10-backoff-shape-sweep"
-    assert "b10-backoff-shape-sweep" in context.policy.as_preimage()["generator_registry"]
+    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
+    assert context.generator_id.value == "backoff-sweep"
+    assert "backoff-sweep" in context.policy.as_preimage()["generator_registry"]
     contract = B.env_contract.GENERATIONS["pegasus"][-1].contract
     cfg = B.config_for("balanced", prereg, calibration, context, contract)
     perf = B.perf_for("balanced", calibration, spec)
@@ -1030,7 +1030,7 @@ def test_rejected_missing_null_or_cache_warning_calibration_fails_before_run(
 
 def test_each_generator_receipt_commits_the_exact_preregistration_bundle():
     binding = _binding()
-    context = B.build_run_context(generator_id=B.GeneratorId.B10_BACKOFF_SHAPE_SWEEP)
+    context = B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP)
     evidence = B.source_digest.SourceEvidence(
         schema_version=B.source_digest.SOURCE_EVIDENCE_SCHEMA,
         source_root="/tmp/b10-source-fixture",
