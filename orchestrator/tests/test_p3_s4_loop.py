@@ -2614,6 +2614,16 @@ def test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1(tmp_path):
     )
 
 
+def test_b4_nonempty_admitted_history_allows_valid_continuation(tmp_path):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_admitted_history(layout, cfg)
+    state = L.LoopState(iteration=1, start_wall=time.time())
+
+    assert L.b4_bootstrap(state) is False
+    L.require_b4_bootstrap_history_empty(layout, state)
+
+
 def test_b4_nonempty_truncated_wal_rejects_false_bootstrap(tmp_path):
     layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
     Path(layout.wal_file).write_bytes(b'{"variant":"truncated"')
