@@ -2397,6 +2397,158 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     )
 
 
+def test_real_floor_prepare_material_oracle_and_capability_series_when_configured(
+        tmp_path, monkeypatch):
+    configured = os.environ.get("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT")
+    if not configured:
+        pytest.skip("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT is not configured")
+    configured_source = Path(configured).resolve(strict=True)
+    compiler = shutil.which("g++")
+    c_compiler = shutil.which("gcc")
+    cmake = shutil.which("cmake")
+    if compiler is None or c_compiler is None or cmake is None:
+        pytest.skip("real floor series requires gcc, g++, and cmake")
+
+    def tool_entry(requested: str) -> dict[str, str]:
+        completed = subprocess.run(
+            [requested, "--version"], check=True,
+            capture_output=True, text=True,
+        )
+        version = (completed.stdout + completed.stderr).strip()
+        return {
+            "requested": requested,
+            "realpath": str(Path(requested).resolve(strict=True)),
+            "version_first_line": completed.stdout.splitlines()[0],
+            "version": version,
+        }
+
+    toolchain_manifest = {
+        "cc": tool_entry(c_compiler),
+        "cxx": tool_entry(compiler),
+        "cmake": tool_entry(cmake),
+    }
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "compilers_for_current_site",
+        lambda: (c_compiler, compiler),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_bind_current_toolchain",
+        lambda *_args, **_kwargs: toolchain_manifest,
+    )
+    monkeypatch.setenv("TMPDIR", str(tmp_path.resolve()))
+
+    prebuild_bases = []
+
+    def prebuild_from_configured_root(**kwargs):
+        base = Path(kwargs["fetchcontent_base_dir"])
+        prebuild_bases.append(base)
+        shutil.copytree(configured_source, base / "masstree-src")
+        return SimpleNamespace()
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache,
+        "prepare_masstree_fetchcontent",
+        prebuild_from_configured_root,
+    )
+
+    capability_calls = []
+
+    def exact_build(genome, **kwargs):
+        capability = kwargs["post_oracle_dependency_binding"]
+        assert set(capability) == {
+            "fetchcontent_base_dir", "oracle_dependency_root",
+            "dependency_manifest_sha256", "masstree_head",
+            "config_sha256", "archive_sha256",
+        }
+        source = Path(capability["fetchcontent_base_dir"]) / "masstree-src"
+        assert Path(capability["oracle_dependency_root"]) != source
+        capability_calls.append(dict(capability))
+        binary = Path(kwargs["cache_root"]) / "real-floor" / "ycsb_silo.exe"
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        binary.write_bytes(b"real-floor-series-binary")
+        binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+        expected_manifest = dict(kwargs["expected_toolchain_manifest"])
+        base = Path(capability["fetchcontent_base_dir"])
+        return SimpleNamespace(
+            genome=genome,
+            trace=False,
+            binary=str(binary),
+            bin_sha256=binary_sha256,
+            bin_hash=binary_sha256[:16],
+            build_dir=str(binary.parent),
+            cached=False,
+            configure_cmd="fixture configure",
+            build_cmd="fixture build",
+            configure_argv=(
+                "cmake", f"-DFETCHCONTENT_BASE_DIR={base}",
+                "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+            ),
+            build_argv=("cmake", "--build", str(binary.parent)),
+            cache_root=kwargs["cache_root"],
+            ccbench_root=kwargs["ccbench_dir"],
+            contract_sha256=kwargs["contract"].contract_sha256,
+            toolchain_manifest=expected_manifest,
+            toolchain_manifest_sha256=(
+                s8b_floor_campaign._floor_toolchain_manifest_sha256(
+                    expected_manifest
+                )
+            ),
+            fetchcontent_base_dir=str(base),
+            masstree_source_root_sha256=hashlib.sha256(
+                str(source).encode("utf-8")
+            ).hexdigest(),
+        )
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "build_v2", exact_build,
+    )
+    freeze = json.loads(
+        (ROOT / "output/s8b-freeze/holdout_freeze.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration="stock_common",
+        )
+        if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    ccbench_pin = subprocess.run(
+        ["git", "-C", str(ROOT / "external/ccbench"), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    built = s8b_floor_campaign.build_cells(
+        freeze,
+        cells,
+        ccbench_pin=ccbench_pin,
+        out_root=tmp_path / "out",
+        prepare_fn=s8b_floor_campaign.prepare_cell,
+        contract=contract,
+        verified_calibration=verified,
+        phase_marker_root=marker_root,
+    )
+
+    assert len(built) == 1
+    assert len(prebuild_bases) == 1
+    assert len(capability_calls) == 1
+    capability = capability_calls[0]
+    assert capability["masstree_head"] == (
+        "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+    )
+    assert capability["dependency_manifest_sha256"] == (
+        sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+    )
+    oracle_root = Path(capability["oracle_dependency_root"])
+    assert oracle_root.name == "canonical"
+    assert not oracle_root.parent.exists()
+    record = next(iter(built.values()))
+    assert record["sort_swo_oracle"]["reason_code"] == "sort-swo-oracle-pass"
+
+
 def test_dependency_bound_sort_best_rejects_nonexact_builder_before_call(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -4814,6 +4966,10 @@ def test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash
     assert payload["cell"] == "rr79:sort_best"
     assert payload["phase"] == "oracle"
     assert payload["dependency_root"] == str(dependency.source_root)
+    assert payload["oracle_dependency_root"] == str(dependency.oracle_root)
+    assert payload["dependency_manifest_sha256"] == (
+        dependency.dependency_manifest_sha256
+    )
     assert payload["dependency_config_sha256"] == "b" * 64
     assert payload["dependency_toolchain_manifest_sha256"] == (
         _fixture_toolchain_manifest_sha256()

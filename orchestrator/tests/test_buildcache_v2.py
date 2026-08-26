@@ -434,8 +434,8 @@ def _post_oracle_binding(base: Path, receipt: dict[str, str]) -> dict[str, str]:
     }
 
 
-def test_production_dependency_series_materializes_oracle_pass_then_miss_hit(
-        tmp_path, monkeypatch):
+def test_synthetic_production_dependency_series_uses_real_git_and_fails_closed(
+        tmp_path):
     base = tmp_path / "fetchcontent"
     source = base / "masstree-src"
     source.mkdir(parents=True)
@@ -451,89 +451,45 @@ def test_production_dependency_series_materializes_oracle_pass_then_miss_hit(
         destination = source.joinpath(*relative.split("/"))
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(fixture / relative, destination)
-    archive = source / "libkohler_masstree_json.a"
-    archive.write_bytes(b"production-series archive\n")
-    state = sort_swo_dependency_material._GitSourceState(
-        root=source.resolve(),
-        head="b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
-        tracked_paths=tracked,
-    )
     subprocess.run(["git", "init", "-q", str(source)], check=True)
-    (source / ".git" / "HEAD").write_text(
-        f"{state.head}\n", encoding="ascii",
+    subprocess.run(
+        ["git", "-C", str(source), "add", "--", *tracked], check=True,
     )
-    monkeypatch.setattr(
-        sort_swo_dependency_material,
-        "_probe_git_source",
-        lambda observed: (
-            state if Path(observed).resolve() == state.root
-            else pytest.fail("unexpected dependency source root")
-        ),
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "synthetic production-series checkout",
+        ],
+        check=True,
     )
-    canonical = sort_swo_dependency_material.materialize_canonical_dependency(
-        source.resolve(), lease_parent=base.resolve(),
-        expected_head=state.head,
-    )
-    try:
-        compiler = shutil.which("g++")
-        assert compiler is not None, "production series requires g++"
-        environment = sort_swo_oracle.resolve_oracle_environment(
-            _ORCH.parent / "external" / "ccbench",
-            compiler=compiler,
-            dependency_root=canonical.root,
-        )
-        assert isinstance(environment, sort_swo_oracle.OracleEnvironment)
-        statement = (
-            "    sort(write_set_.begin(), write_set_.end(),\n"
-            "         [](const auto& a, const auto& b) { "
-            "return a.key_ < b.key_; });"
-        )
-        materialized_source = (
-            "// EVOLVE-BLOCK-BEGIN silo-writeset-sort\n"
-            "#if SORT_VARIANT\n"
-            f"{statement}\n"
-            "#else\n"
-            "sort(write_set_.begin(), write_set_.end());\n"
-            "#endif\n"
-            "// EVOLVE-BLOCK-END silo-writeset-sort\n"
-        )
-        oracle_result = sort_swo_oracle.check_materialized_sort_swo(
-            materialized_source,
-            marker_id="silo-writeset-sort",
-            proposal_source=statement,
-            environment=environment,
-        )
-        assert oracle_result.status is sort_swo_oracle.OracleStatus.PASS
-        assert oracle_result.finding is None
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "--verify", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    observed_tracked = subprocess.run(
+        ["git", "-C", str(source), "ls-files", "--cached"],
+        check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    assert head != "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+    assert observed_tracked == list(tracked)
 
-        _install_toolchain(tmp_path, monkeypatch)
-        _fake_build_environment(monkeypatch, tmp_path)
-        receipt = {
-            "masstree_head": state.head,
-            "config_sha256": canonical.config_sha256,
-        }
-        binding = {
-            "fetchcontent_base_dir": str(base.resolve()),
-            "oracle_dependency_root": str(canonical.root),
-            "dependency_manifest_sha256": canonical.manifest_sha256,
-            **receipt,
-            "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
-        }
-        first = _build(
-            tmp_path, _contract(1),
-            ccbench_dir=str(_ORCH.parent / "external" / "ccbench"),
-            post_oracle_dependency_binding=binding,
+    with pytest.raises(
+            sort_swo_dependency_material.CanonicalDependencyMaterialError
+    ) as caught:
+        sort_swo_dependency_material.materialize_canonical_dependency(
+            source.resolve(), lease_parent=base.resolve(), expected_head=head,
         )
-        second = _build(
-            tmp_path, _contract(1),
-            ccbench_dir=str(_ORCH.parent / "external" / "ccbench"),
-            post_oracle_dependency_binding=binding,
-        )
-        assert first.cached is False
-        assert second.cached is True
-        assert first.build_dir == second.build_dir
-    finally:
-        sort_swo_dependency_material.cleanup_canonical_dependency(canonical)
+    error = caught.value
+    assert error.detail_code == "canonical-manifest-mismatch"
+    assert error.generated_manifest_sha256 is not None
+    assert error.expected_manifest_sha256 == (
+        sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+    )
+    assert error.generated_manifest_sha256 != error.expected_manifest_sha256
+    assert error.generated_manifest_sha256 in str(error)
+    assert error.expected_manifest_sha256 in str(error)
+    assert list(base.glob(".sort-swo-dependency-*")) == []
 
 
 def _write_cmake_cache(build_dir: Path, lines: tuple[str, ...]) -> None:

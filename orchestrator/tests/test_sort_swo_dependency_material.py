@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -191,6 +192,72 @@ def test_two_root_verifier_rejects_live_tracked_byte_drift(
         material.cleanup_canonical_dependency(created)
 
 
+def test_two_root_verifier_rechecks_all_file_identities_after_final_probe(
+        tmp_path, monkeypatch):
+    source = tmp_path / "masstree-src"
+    source.mkdir()
+    (source / "tracked.hh").write_text("// pinned\n", encoding="utf-8")
+    (source / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "add", "--", "tracked.hh"], check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "identity recheck source",
+        ],
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "--verify", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    payloads = {
+        "PIN": f"{head}\n".encode("ascii"),
+        "config.h": (source / "config.h").read_bytes(),
+        "tracked.hh": (source / "tracked.hh").read_bytes(),
+    }
+    for relative, payload in payloads.items():
+        (canonical / relative).write_bytes(payload)
+    manifest = b"".join(
+        hashlib.sha256(payloads[relative]).hexdigest().encode("ascii")
+        + b"  " + relative.encode("utf-8") + b"\n"
+        for relative in sorted(payloads)
+    )
+    (canonical / "SHA256SUMS").write_bytes(manifest)
+    first_relative = sorted(set(payloads) - {"PIN"})[0]
+    original_reader = material._read_source_file_with_identity
+    changed = False
+
+    def read_then_change_first(observed_root: Path, relative: str):
+        nonlocal changed
+        payload, identity = original_reader(observed_root, relative)
+        if relative == first_relative and not changed:
+            observed_root.joinpath(*relative.split("/")).write_bytes(
+                payload + b"\nchanged after the first stable read\n"
+            )
+            changed = True
+        return payload, identity
+
+    monkeypatch.setattr(
+        material, "_read_source_file_with_identity",
+        read_then_change_first,
+    )
+    with pytest.raises(
+            material.CanonicalDependencyMaterialError) as caught:
+        material.assert_source_matches_canonical(
+            source.resolve(), canonical, expected_head=head,
+            expected_manifest_sha256=hashlib.sha256(manifest).hexdigest(),
+        )
+    assert changed is True
+    assert caught.value.detail_code == "canonical-source-drift"
+    assert caught.value.path == source.resolve() / first_relative
+
+
 def test_manifest_line_builder_matches_pinned_fixture_exactly(
         tmp_path, monkeypatch):
     source, tracked = _synthetic_source(tmp_path)
@@ -209,40 +276,68 @@ def test_manifest_line_builder_matches_pinned_fixture_exactly(
 
 
 @pytest.mark.parametrize(
-    ("mutation", "expected_detail"),
+    ("mutation", "material_detail", "verifier_detail"),
     [
-        ("drop-pin-declaration", "dependency-file-set-mismatch"),
-        ("single-space", "dependency-manifest-invalid"),
-        ("reverse-order", "dependency-manifest-invalid"),
+        (
+            "drop-pin-declaration", "canonical-manifest-mismatch",
+            "dependency-manifest-not-canonical",
+        ),
+        (
+            "single-space", "canonical-verification-failed",
+            "dependency-manifest-invalid",
+        ),
+        (
+            "reverse-order", "canonical-verification-failed",
+            "dependency-manifest-invalid",
+        ),
     ],
 )
 def test_manifest_mutations_have_one_exact_verifier_reason(
-        tmp_path, mutation, expected_detail):
-    root = tmp_path / "canonical"
-    shutil.copytree(_FIXTURE, root)
-    manifest = root / "SHA256SUMS"
-    lines = manifest.read_bytes().splitlines(keepends=True)
+        tmp_path, monkeypatch, mutation, material_detail, verifier_detail):
+    source, tracked = _synthetic_source(tmp_path)
+    _install_source_probe(monkeypatch, source, tracked)
     if mutation == "drop-pin-declaration":
-        lines = [line for line in lines if not line.endswith(b"  PIN\n")]
-    elif mutation == "single-space":
-        lines[0] = lines[0].replace(b"  ", b" ", 1)
-    else:
-        lines = list(reversed(lines))
-    manifest.write_bytes(b"".join(lines))
+        original_payloads = material._canonical_payloads
 
-    with pytest.raises(sort_swo_oracle._DependencyVerificationError) as caught:
-        sort_swo_oracle._verify_dependency_root(root)
-    assert caught.value.detail_code == expected_detail
+        def without_pin(source_payloads: dict[str, bytes], head: str):
+            payloads = original_payloads(source_payloads, head)
+            del payloads["PIN"]
+            return payloads
+
+        monkeypatch.setattr(material, "_canonical_payloads", without_pin)
+    elif mutation == "single-space":
+        monkeypatch.setattr(material, "_MANIFEST_SEPARATOR", b" ")
+    else:
+        monkeypatch.setattr(
+            material, "_manifest_paths",
+            lambda payloads: tuple(reversed(sorted(payloads))),
+        )
+
+    with pytest.raises(
+            material.CanonicalDependencyMaterialError) as caught:
+        material.materialize_canonical_dependency(
+            source, lease_parent=tmp_path, expected_head=_PINNED_HEAD,
+        )
+    assert caught.value.detail_code == material_detail
+    assert isinstance(
+        caught.value.__cause__, sort_swo_oracle._DependencyVerificationError,
+    )
+    assert caught.value.__cause__.detail_code == verifier_detail
+    assert list(tmp_path.glob(".sort-swo-dependency-*")) == []
 
 
 def test_real_prebuilt_masstree_material_is_pinned_when_explicitly_configured(
-        tmp_path):
+        tmp_path, monkeypatch):
     configured = os.environ.get("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT")
     if not configured:
         pytest.skip("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT is not configured")
-    source = Path(configured).resolve(strict=True)
+    configured_source = Path(configured).resolve(strict=True)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    source = base / "masstree-src"
+    shutil.copytree(configured_source, source)
     created = material.materialize_canonical_dependency(
-        source, lease_parent=tmp_path, expected_head=_PINNED_HEAD,
+        source.resolve(), lease_parent=base, expected_head=_PINNED_HEAD,
     )
     try:
         assert created.head == _PINNED_HEAD
@@ -256,6 +351,65 @@ def test_real_prebuilt_masstree_material_is_pinned_when_explicitly_configured(
         assert (created.root / "SHA256SUMS").read_bytes() == (
             _FIXTURE / "SHA256SUMS"
         ).read_bytes()
+
+        compiler = shutil.which("g++")
+        if compiler is None:
+            pytest.skip("real-root oracle series requires g++")
+        environment = sort_swo_oracle.resolve_oracle_environment(
+            _ORCH.parent / "external" / "ccbench",
+            compiler=compiler,
+            dependency_root=created.root,
+        )
+        statement = (
+            "    sort(write_set_.begin(), write_set_.end(),\n"
+            "         [](const auto& a, const auto& b) { "
+            "return a.key_ < b.key_; });"
+        )
+        materialized_source = (
+            "// EVOLVE-BLOCK-BEGIN silo-writeset-sort\n"
+            "#if SORT_VARIANT\n"
+            f"{statement}\n"
+            "#else\n"
+            "sort(write_set_.begin(), write_set_.end());\n"
+            "#endif\n"
+            "// EVOLVE-BLOCK-END silo-writeset-sort\n"
+        )
+        oracle_result = sort_swo_oracle.check_materialized_sort_swo(
+            materialized_source,
+            marker_id="silo-writeset-sort",
+            proposal_source=statement,
+            environment=environment,
+        )
+        assert oracle_result.status is sort_swo_oracle.OracleStatus.PASS
+        assert oracle_result.finding is None
+
+        from orchestrator.tests import test_buildcache_v2 as build_support
+
+        archive = source / "libkohler_masstree_json.a"
+        assert archive.is_file()
+        build_support._install_toolchain(tmp_path, monkeypatch)
+        build_support._fake_build_environment(monkeypatch, tmp_path)
+        binding = {
+            "fetchcontent_base_dir": str(base.resolve()),
+            "oracle_dependency_root": str(created.root),
+            "dependency_manifest_sha256": created.manifest_sha256,
+            "masstree_head": created.head,
+            "config_sha256": created.config_sha256,
+            "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+        }
+        first = build_support._build(
+            tmp_path, build_support._contract(1798),
+            ccbench_dir=str(_ORCH.parent / "external" / "ccbench"),
+            post_oracle_dependency_binding=binding,
+        )
+        second = build_support._build(
+            tmp_path, build_support._contract(1798),
+            ccbench_dir=str(_ORCH.parent / "external" / "ccbench"),
+            post_oracle_dependency_binding=binding,
+        )
+        assert first.cached is False
+        assert second.cached is True
+        assert first.build_dir == second.build_dir
     finally:
         material.cleanup_canonical_dependency(created)
 

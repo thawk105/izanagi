@@ -25,6 +25,7 @@ from . import sort_swo_oracle
 _HEAD_RE = re.compile(r"[0-9a-f]{40}")
 _LEASE_PREFIX = ".sort-swo-dependency-"
 _MANIFEST_NAME = "SHA256SUMS"
+_MANIFEST_SEPARATOR = b"  "
 _RESERVED_TRACKED_PATHS = frozenset({_MANIFEST_NAME, "PIN"})
 _READ_CHUNK_SIZE = 64 * 1024
 
@@ -218,7 +219,9 @@ def _file_identity(metadata: os.stat_result) -> tuple[int, ...]:
     )
 
 
-def _read_root_file(root: Path, relative: str) -> bytes:
+def _read_root_file_with_identity(
+        root: Path, relative: str,
+) -> tuple[bytes, tuple[int, ...]]:
     parts = PurePosixPath(relative).parts
     directory_fds: list[int] = []
     file_fd = -1
@@ -256,7 +259,7 @@ def _read_root_file(root: Path, relative: str) -> bytes:
         after = os.fstat(file_fd)
         if _file_identity(before) != _file_identity(after):
             raise _SourceDriftError(relative)
-        return b"".join(chunks)
+        return b"".join(chunks), _file_identity(after)
     finally:
         if file_fd >= 0:
             os.close(file_fd)
@@ -264,9 +267,16 @@ def _read_root_file(root: Path, relative: str) -> bytes:
             os.close(descriptor)
 
 
-def _read_source_file(root: Path, relative: str) -> bytes:
+def _read_root_file(root: Path, relative: str) -> bytes:
+    payload, _identity = _read_root_file_with_identity(root, relative)
+    return payload
+
+
+def _read_source_file_with_identity(
+        root: Path, relative: str,
+) -> tuple[bytes, tuple[int, ...]]:
     try:
-        return _read_root_file(root, relative)
+        return _read_root_file_with_identity(root, relative)
     except _SourceDriftError as exc:
         raise CanonicalDependencyMaterialError(
             "canonical-source-drift", path=root / relative,
@@ -275,6 +285,63 @@ def _read_source_file(root: Path, relative: str) -> bytes:
         raise CanonicalDependencyMaterialError(
             "canonical-copy-failed", path=root / relative,
         ) from exc
+
+
+def _read_source_file(root: Path, relative: str) -> bytes:
+    payload, _identity = _read_source_file_with_identity(root, relative)
+    return payload
+
+
+def _source_file_identity(root: Path, relative: str) -> tuple[int, ...]:
+    parts = PurePosixPath(relative).parts
+    directory_fds: list[int] = []
+    file_fd = -1
+    try:
+        root_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        root_flags |= getattr(os, "O_CLOEXEC", 0)
+        root_flags |= getattr(os, "O_NOFOLLOW", 0)
+        root_fd = os.open(root, root_flags)
+        directory_fds.append(root_fd)
+        current_fd = root_fd
+        for component in parts[:-1]:
+            directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            directory_flags |= getattr(os, "O_CLOEXEC", 0)
+            directory_flags |= getattr(os, "O_NOFOLLOW", 0)
+            current_fd = os.open(component, directory_flags, dir_fd=current_fd)
+            directory_fds.append(current_fd)
+        file_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+        file_flags |= getattr(os, "O_NOFOLLOW", 0)
+        entry = os.stat(parts[-1], dir_fd=current_fd, follow_symlinks=False)
+        file_fd = os.open(parts[-1], file_flags, dir_fd=current_fd)
+        opened = os.fstat(file_fd)
+        if (
+            stat.S_ISLNK(entry.st_mode)
+            or not stat.S_ISREG(entry.st_mode)
+            or not stat.S_ISREG(opened.st_mode)
+            or _file_identity(entry) != _file_identity(opened)
+        ):
+            raise _SourceDriftError(relative)
+        return _file_identity(opened)
+    finally:
+        if file_fd >= 0:
+            os.close(file_fd)
+        for descriptor in reversed(directory_fds):
+            os.close(descriptor)
+
+
+def _assert_source_file_identity(
+        root: Path, relative: str, expected: tuple[int, ...],
+) -> None:
+    try:
+        observed = _source_file_identity(root, relative)
+    except (OSError, _SourceDriftError) as exc:
+        raise CanonicalDependencyMaterialError(
+            "canonical-source-drift", path=root / relative,
+        ) from exc
+    if observed != expected:
+        raise CanonicalDependencyMaterialError(
+            "canonical-source-drift", path=root / relative,
+        )
 
 
 def _write_private_file(root: Path, relative: str, payload: bytes) -> None:
@@ -321,6 +388,26 @@ def _same_git_state(left: _GitSourceState, right: _GitSourceState) -> bool:
         left.root == right.root
         and left.head == right.head
         and left.tracked_paths == right.tracked_paths
+    )
+
+
+def _canonical_payloads(
+        source_payloads: dict[str, bytes], head: str,
+) -> dict[str, bytes]:
+    payloads = dict(source_payloads)
+    payloads["PIN"] = f"{head}\n".encode("ascii")
+    return payloads
+
+
+def _manifest_paths(payloads: dict[str, bytes]) -> tuple[str, ...]:
+    return tuple(sorted(payloads))
+
+
+def _render_manifest(payloads: dict[str, bytes]) -> bytes:
+    return b"".join(
+        hashlib.sha256(payloads[relative]).hexdigest().encode("ascii")
+        + _MANIFEST_SEPARATOR + relative.encode("utf-8") + b"\n"
+        for relative in _manifest_paths(payloads)
     )
 
 
@@ -373,8 +460,12 @@ def assert_source_matches_canonical(
         raise CanonicalDependencyMaterialError(
             "canonical-source-drift", path=before.root,
         )
+    source_identities: dict[str, tuple[int, ...]] = {}
     for relative in sorted(declared_without_pin):
-        source_bytes = _read_source_file(before.root, relative)
+        source_bytes, source_identity = _read_source_file_with_identity(
+            before.root, relative,
+        )
+        source_identities[relative] = source_identity
         if hashlib.sha256(source_bytes).hexdigest() != canonical_hashes[relative]:
             raise CanonicalDependencyMaterialError(
                 "canonical-source-drift", path=before.root / relative,
@@ -383,6 +474,10 @@ def assert_source_matches_canonical(
     if not _same_git_state(before, after):
         raise CanonicalDependencyMaterialError(
             "canonical-source-drift", path=before.root,
+        )
+    for relative in sorted(source_identities):
+        _assert_source_file_identity(
+            before.root, relative, source_identities[relative],
         )
     return CanonicalDependencyVerification(
         source_root=before.root,
@@ -424,13 +519,8 @@ def materialize_canonical_dependency(
         source_payloads["config.h"] = _read_source_file(
             initial.root, "config.h",
         )
-        payloads = dict(source_payloads)
-        payloads["PIN"] = f"{initial.head}\n".encode("ascii")
-        manifest = b"".join(
-            hashlib.sha256(payloads[relative]).hexdigest().encode("ascii")
-            + b"  " + relative.encode("utf-8") + b"\n"
-            for relative in sorted(payloads)
-        )
+        payloads = _canonical_payloads(source_payloads, initial.head)
+        manifest = _render_manifest(payloads)
         manifest_sha256 = hashlib.sha256(manifest).hexdigest()
         try:
             for relative in sorted(payloads):
