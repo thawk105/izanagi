@@ -48,6 +48,28 @@ seq: 3
 - 再発検知: 変異の期待 node 欄を書くとき、その node が**変異前に緑で、変異後に赤になる**ことを
   probe で観測していない場合は本件を疑う。probe を全件 SURVIVED 期待で回すと観測 node が出る。
 
+### {{F:land-registration-scan-eintr-is-classified-as-non-retryable}}. land 側の登録 path 解決が EINTR で落ち、一時的な基盤障害が非再試行の内容失敗として分類された [誤前提] [手順漏れ]
+
+- 事象: 本 wave の land 再挑戦 (2026-08-27 00:17 JST) が `rc=31 status=fold-gate-failed` で止まった。
+  本文は
+  `fold gate failed: registered worktree path cannot be resolved: [Errno 4] Interrupted system call:
+  '<共有 repo>/.claude/worktrees/dev-wave-t1879-cir-cvn'`
+  で、返り値は `release_safe=true` / `retryable_same_request=false`。main は 1 bit も動いていない。
+  直前の 2 回は `rc=11` (lock-busy) で、修理着地後に複数 wave が一斉に land する負荷の下で起きた。
+- 根本原因: `tools/dev_wave_land.py` の `_registered_worktree_paths` は
+  `git worktree list --porcelain` の結果を `Path(...).resolve(strict=True)` で解決するが、
+  **`OSError` を一律に `_FoldGateFailure` へ変換する。** 同 class の既定は
+  `retryable_same_request=False` なので、`EINTR` のような**明らかに一時的な syscall 中断**が
+  「同じ request では再試行できない内容の失敗」として報告される。
+  一時障害用の subclass `_FoldGateInfrastructureFailure` は存在するのに使われていない。
+  自分の wave と無関係な worktree (別 wave のもの) の path 解決で発火する点も同型である。
+- 恒久対応: 未実施。受理集合と retry 意味論 (D977 が registry を正とする) に触るため裁定へ送った。
+  当面は受入を取り直して新しい request を作るしかなく、緑の全走 1 本を捨てることになる。
+- 再発検知: land の `status=fold-gate-failed` で本文に `registered worktree path cannot be resolved`
+  が出て、括弧内が `Errno 4` / `Errno 11` などの一時エラー、かつ path が**自分の wave のものでない**なら
+  本件である。`main_before == main_after` で main は無傷なので、受入をやり直せば進める。
+  一斉着地の直後 (他 wave の land が並ぶ時間帯) が窓である。
+
 ### {{F:brief-invariant-conflated-must-hold-with-currently-holds}}. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、

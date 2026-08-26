@@ -62,6 +62,19 @@ title: [T-1889] 生きた worktree 登録を読むテストを hermetic 化し�
   1 件の赤を「rc=0」と読みかけた。パイプなしで取り直した。
 - **焦点走の赤 1 件は F57 の既知・決定的・site 依存の赤だった** (計算ノードでのみ発火、所有 [T-1079])。
   台帳の既定手順どおり `--deselect` し、他は 452 passed で rc=0。
+- **land を 2 度止められ、2 度目の理由は本 wave が裁定へ送った欠陥そのものだった。**
+  1 度目は archive 名の月日衝突 (別 wave が修理して着地。本 wave の差分とは無関係) で
+  `rc=26 fold-failed`。修理着地後の再挑戦では `rc=11` (lock-busy) を 2 回踏んだ後、
+  3 回目が `rc=31 fold-gate-failed` で止まった。本文は
+  `registered worktree path cannot be resolved: [Errno 4] Interrupted system call` で、
+  **落ちた path は自分の wave ではなく別 wave の worktree** である。
+  すなわち **land 側の生きた worktree 登録の読み取りが、一斉着地の負荷下で一時的な syscall 中断で
+  落ち、それが非再試行の内容失敗として分類された** ({{F:land-registration-scan-eintr-is-classified-as-non-retryable}})。
+  段 3 のレンズが must-fix として予告し、親が scope 外として裁定へ送った項目
+  ({{T:land-registration-scan-failure-is-not-retryable}}) が実機で発火した形である。
+  **land 側 production を触らないという段 4 の裁定は変えていない** — 触るには受理集合と
+  retry 意味論の裁定が要る。非再試行の判定を迂回して同一 request で投げ直すことはせず、
+  受入を取り直した。緑の全走 1 本を捨てている。
 - **codex 子の工数**: plan・敵対 2 本・author・review 2 本・fix の 7 本。全て accepted、失敗ゼロ。
 - 一次資料は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1889-worktree-registration-race/` の
   `brief.md`・`s4-ruling.md`・`primary-measurements.md`・`s2-plan.md`・`s3-{sol,luna}.md`・
