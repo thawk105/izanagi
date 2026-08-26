@@ -200,38 +200,25 @@ def shape_decision(
         right = max(equivalent)
         right_index = EXTENDED_SWEEP_US.index(right)
         candidates = statics[right_index + 1:]
-        for index in range(len(candidates) - 1):
-            first, second = candidates[index:index + 2]
-            first_drop = 1.0 - float(first["median_tps"]) / tmax
-            second_drop = 1.0 - float(second["median_tps"]) / tmax
-            if first_drop > delta and second_drop > delta:
-                previous_us = (
-                    right if index == 0 else candidates[index - 1]["backoff_us"]
-                )
-                onset = {
-                    "status": "resolved",
-                    "source_measurements": [TRACE_DISABLED],
-                    "onset_grid_us": first["backoff_us"],
-                    "onset_bracket_us": [previous_us, first["backoff_us"]],
-                    "observed_lower_bound_us": first["backoff_us"],
-                }
-                break
-        else:
-            if candidates:
-                last = candidates[-1]
-                last_drop = 1.0 - float(last["median_tps"]) / tmax
-                if last_drop > delta:
-                    previous_us = (
-                        right if len(candidates) == 1
-                        else candidates[-2]["backoff_us"]
-                    )
-                    onset = {
-                        "status": "right_censored",
-                        "source_measurements": [TRACE_DISABLED],
-                        "onset_grid_us": None,
-                        "onset_bracket_us": [previous_us, last["backoff_us"]],
-                        "observed_lower_bound_us": last["backoff_us"],
-                    }
+        # Candidates are outside equivalent, so every candidate has drop > delta.
+        if len(candidates) >= 2:
+            first = candidates[0]
+            onset = {
+                "status": "resolved",
+                "source_measurements": [TRACE_DISABLED],
+                "onset_grid_us": first["backoff_us"],
+                "onset_bracket_us": [right, first["backoff_us"]],
+                "observed_lower_bound_us": first["backoff_us"],
+            }
+        elif candidates:
+            only = candidates[0]
+            onset = {
+                "status": "right_censored",
+                "source_measurements": [TRACE_DISABLED],
+                "onset_grid_us": None,
+                "onset_bracket_us": [right, only["backoff_us"]],
+                "observed_lower_bound_us": only["backoff_us"],
+            }
     return {
         **base,
         "status": "complete",

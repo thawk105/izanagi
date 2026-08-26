@@ -141,6 +141,19 @@ def test_mu7_single_tail_drop_does_not_establish_onset():
     }
 
 
+def test_single_mid_grid_drop_then_recovery_keeps_onset_unresolved():
+    values = {amount: 1000.0 for amount in M.EXTENDED_SWEEP_US}
+    dip_index = M.EXTENDED_SWEEP_US.index(150)
+    values[M.EXTENDED_SWEEP_US[dip_index]] = 900.0
+    for amount in M.EXTENDED_SWEEP_US[dip_index + 2:]:
+        values[amount] = 900.0
+
+    verdict = M.shape_decision(_normal_points(values))
+
+    assert verdict["peak"]["status"] == "noncontiguous_noise_plateau"
+    assert verdict["onset"]["status"] == "onset_unresolved"
+
+
 def test_mu8_plateau_contrast_and_boundary_are_never_forced_resolved():
     plateau = M.shape_decision(_normal_points({10: 1000.0, 12: 990.0}))
     assert plateau["peak"]["status"] == "noise_bounded_interval"
