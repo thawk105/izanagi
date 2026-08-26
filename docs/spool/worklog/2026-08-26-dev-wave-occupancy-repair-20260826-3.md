@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-26
 wave: dev-wave-occupancy-repair-20260826
 seq: 3
-title: 占有判定の再試行を issue 種別から解放し F489 の 4 例目を閉じた (コード + テスト、branch worktree-dev-wave-occupancy-repair-20260826)
+title: 占有判定の再試行を issue 種別から解放し F489 の 4 例目を閉じた (コード + テスト、branch worktree-dev-wave-occupancy-repair-20260826、変異 matrix = baseline PASSED・9/9 一致・KILLED 8・SURVIVED 1 (登録どおり)・MISMATCH 0)
 ---
 
 ## 本文
@@ -65,8 +65,17 @@ title: 占有判定の再試行を issue 種別から解放し F489 の 4 例目
 - **親が変異走行中に spool fragment を書いて harness を止めた** (`untracked file を検出`)。
   DW-M05 の「変異中は親の編集と worktree へ書きうる子の起動を止める」に親自身が違反した。
   fragment を commit してから回し直した。
-- **エージェント工数**: codex 子 6 本 (plan 1 / consult 2 / author 2 / review 2 / fix 1 の計 8、
-  うち author 2 本は未実走報告)。親の dispatch した焦点走 5 回、変異走 2 回。
+- **変異 matrix は 9 件を事前登録し、本走で 9/9 一致した** (baseline PASSED、KILLED 8、
+  SURVIVED 1、MISMATCH 0、TIMEOUT 0)。唯一の SURVIVED は M2 (再試行述語から
+  `occupants == []` を外す) で、**敵対レビューが equivalent と予測し親が期待 SURVIVED として
+  登録し直したものが、実測でそのとおりになった。** 本 wave の主目的を戻す M1 は
+  新設 2 node と既存 1 node に、受理集合を広げる M3 は既存 2 node に殺された。
+  段 6 の正しさレンズが「恒真」と名指しした
+  `test_main_does_not_retry_occupied_scan` / `test_main_does_not_retry_invalid_target_scan` も、
+  再試行の guard を外す M9 が実際に殺したので恒真ではなかった。
+- **エージェント工数**: codex 子 8 本 (plan 1 / consult 2 / author 2 / review 2 / fix 1、
+  うち author 2 本は dispatch 不能で未実走報告)。親の dispatch した焦点走 5 回、
+  変異走 2 回 (probe + 本走、各 baseline 1 + 9 変異)。
 
 ## 次の一手差分
 
