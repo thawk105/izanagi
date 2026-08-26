@@ -80,6 +80,7 @@ from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight 
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
     git_ignored_output_prefixes,
+    git_ignored_output_snapshot_rules,
     is_git_ignored_output_path,
 )
 
@@ -1489,7 +1490,7 @@ def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
     """
     if not output.exists():
         return ()
-    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    ignored_prefixes, _ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
     entries = [
         entry for entry in _walk_entries(output)
         if not is_git_ignored_output_path(entry[1], ignored_prefixes)
@@ -1514,7 +1515,7 @@ def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
     """最適化版の独立 oracle として保持する ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
-    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    ignored_prefixes, _ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
     snapshot = []
     for path in sorted(output.rglob("*"), key=lambda item: item.as_posix()):
         rel = path.relative_to(output).as_posix()
@@ -1573,10 +1574,10 @@ def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
 def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
     ignored_prefixes = git_ignored_output_prefixes(ROOT)
     assert "runs" in ignored_prefixes
-    ignored_parent = tmp_path / "runs"
-    ignored_parent.mkdir()
     before = _real_output_snapshot(tmp_path)
     before_reference = _real_output_snapshot_reference(tmp_path)
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
     control = ignored_parent / "snapshot-ignored-floor"
     control.mkdir()
     (control / "nested").mkdir()
@@ -1586,6 +1587,17 @@ def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
 
     assert _real_output_snapshot(tmp_path) == before
     assert _real_output_snapshot_reference(tmp_path) == before_reference
+
+    assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
+    visible_before = _real_output_snapshot(tmp_path)
+    visible_before_reference = _real_output_snapshot_reference(tmp_path)
+    visible = tmp_path / "runs-visible" / "nested"
+    visible.mkdir(parents=True)
+    (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
+    assert _real_output_snapshot(tmp_path) != visible_before, (
+        "rule-derived ignore prefix 'runs' must not hide Git-visible 'runs-visible'"
+    )
+    assert _real_output_snapshot_reference(tmp_path) != visible_before_reference
 
 
 def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):

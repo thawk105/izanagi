@@ -171,7 +171,10 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   off で §8 の項目 1・2 が成立すること、on/off の campaign identity が分離することを実測する。
   (iii) (ii) に合格した driver と軸だけを記入する。**(ii) は next synthesis と primary / secondary
   outcome を生成も閲覧もしない配線 probe に限る。「正式標本ではない」と分類して outcome を先に
-  生成・閲覧することを禁じる。その条件を満たす sanctioned CLI が無い場合は、用意されるまで
+  生成・閲覧することを禁じる。**build を伴う sanctioned CLI 経路はこの probe にならない** —
+  同経路は次の synthesis を実行して primary / secondary outcome を生成するためである。
+  `--no-build` 経路も §3.1 の切替点を通らない (digest を生成しない) ため probe にならない。
+  その条件を満たす sanctioned CLI が無い場合は、用意されるまで
   対象 driver と軸を記入しない。(i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
 - **赤 precursor の母集合**: B-4 の出力を見る前に freeze する。赤が出なかった block も
   除外・差替えせず「treatment 未発火」として全件報告する (§7)。
@@ -189,6 +192,15 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 - **総計測予算**: arm ごとに対称とする。失敗した role query と reject も予算を消費する。
   再試行・差替えは禁止。
 - **model snapshot / prompt hash / projection hash**: 両アームで同一であることを確認して記入する。
+- **env_tag (実測環境)**: 選択した driver と実行 site が確定し、その site の環境契約の exact tag と
+  一致することを**同じ site resolver から機械導出して**確認してから記入する。同一 driver でも site に
+  よって tag が分かれるため、driver・site・tag の 3 つ組で固定し、環境契約の artifact path と hash、
+  確認者を発効版へ併記する。**別 tag の環境で開始した block は削除せず `protocol violation` とする**
+  (`判定不能` ではない。事前条件違反であり、差し替えも禁じる)。
+- **実行責任者**: 実走前に 1 名を指名し、不変の識別子で記入する。実走後に差し替えない。
+  **この欄は計測に依存しないので、計測待ちを空欄の理由にしない。** 指名がないまま実走しない。
+- **開始時刻**: timezone 付きの**予定**開始時刻を記入し、「この時刻より前に実走を開始しない」と読む。
+  実際の開始時刻は実走成果物側に別途記録し、**本欄を後から実測値へ書き換えない。**
 
 ## 6. 実走の前提条件 (1 つでも未充足なら実走しない)
 
@@ -207,10 +219,32 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
    campaign_id / repository root の exact literal が payload の canonical JSON bytes に
    現れないことを 3 view で検査し、on/off を別 controller・別 provider・別 context・別 session で
    起動して receipt を残す。
-   **ただし前提条件 3 はこれで完了しない。** 段 4 driver への必須配線は行っておらず
-   (legacy の `Agent(subagent_type='critic')` 経路は依然使用可能)、§5 の欄は未記入で、
-   その事前 commit も済んでいない。**「機構は用意された。正式経路への採用と §5 の事前 commit は
-   未了」が現在地である。**
+   **現在地の更新 (2026-08-26、段 4 driver への必須配線):** [T-1697] の機構を、段 4 の 3 driver
+   (base / sort / trigger-gating) が**要求する**形へ配線した。閉じた範囲は次に限る。
+
+   - 3 driver の `default_cfg()` に、campaign identity へ残る exact な B-4 protocol marker を
+     opt-in で足した。**marker 不在の通常走行の campaign identity と proposal 契約は変えていない**
+     (本 wave 前の実測値を golden として固定した)。
+   - marker 付き走行の継続は、certified な閉じた invocation の terminal receipt を必須とし、
+     campaign id・arm・iteration・live WAL bytes・live checkpoint bytes・再生成した digest・
+     driver 種別・authoritative layout のすべてが一致しなければ、iteration を進める前に停止する。
+     layout は呼び手が渡した値でなく campaign id から再構成した値だけを使う。
+   - 同一 receipt の 2 度目の消費を拒否し、gate が発火した事実を campaign 成果物へ残す。
+   - `prior_critic_reverse` の自己申告を marker 付き走行で禁じ、receipt の
+     `decision_reverse_recommended` から取る。
+
+   **前提条件 3 はこれでも「off の全経路が閉じた」ことを意味しない。正直に書く。**
+
+   - **閉じたのは「閉じた critic invocation が実在し、この campaign・arm・iteration・digest に
+     束縛されて一度だけ消費された」ことまでである。**
+   - **「その critic の決定で次の合成を行った」ことは閉じていない。** proposal が持つ receipt hash は
+     proposal 作成者の**自己申告**であり、legacy critic の出力から作った proposal に valid な
+     receipt hash を書き写せば通る。閉じるには決定を入力とする sanctioned な proposal producer が
+     要り、閉じた critic module は設計上 proposal を書かない。**§10 に未了として残す。**
+   - legacy の `Agent(subagent_type='critic')` 経路は、B-4 の正式標本としては不適格になったが、
+     走ること自体は止まらない。marker は自己申告であり分類の権限を証明しない (§7.2)。
+   - §5 の欄が未記入でその事前 commit が済んでいないことは**前提条件 1 の未充足**であって、
+     本条件の問題ではない。
 4. **API 直呼びと `policy_hint` の規律が守られている。** `run_one_iteration()` の戻り値には
    reject 時に `digest`、certified/aborted 時に `records` (WAL payload 一式) が載る。
    sanctioned CLI はこれを表示しないが、Python API を直接呼ぶ controller には見える。
@@ -246,13 +280,34 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 
 - **file-drawer は開いている。** manifest・append-only registry・完全性 consumer は存在しない。
   不都合な campaign を別 root へ出す、report 前に止める、台帳に載せない経路が残る。
-- **off アームの遮断は機械的な閂ではない。** §6 の前提条件 3・4 が列挙する経路
-  (critic role の Bash、digest CLI、`run_one_iteration` の戻り値、`policy_hint`) は
-  いずれもテストで閉じられない。負の対照 (§8) が固定するのは
-  **harness が生成する critic digest における loader 非呼出**までである。
-  **[T-1697] の閉じた起動形は、この 4 経路のうち専用 route 内の 2 つ
-  (critic role の Bash、digest CLI) だけを、その route を通る限りにおいて閉じる。**
-  `run_one_iteration` の戻り値と `policy_hint` は開いたままであり、legacy route も開いたままである。
+- **off アームの遮断は、1 経路についてだけ閂になった。残りは開いている。**
+  負の対照 (§8) の項目 1〜5 が固定するのは、**harness が生成する critic digest における
+  loader 非呼出**までである。項目 6 (必須配線、2026-08-26 に追加) が足したのは、
+  **marker 付き sanctioned continuation を通る限りにおいて**次が成立することである —
+  閉じた critic invocation が実在し、この campaign・arm・iteration・digest・driver 種別に
+  束縛され、一度だけ消費されたこと。停止挙動を変える `prior_critic_reverse` が自己申告でなく
+  receipt 由来であること。
+
+  **依然として開いている経路 (1 項も削らない):**
+
+  - **「その決定で次を合成した」ことは閉じていない。** proposal が持つ receipt hash は
+    proposal 作成者の**自己申告**であり、legacy critic の出力から作った proposal に valid な
+    receipt hash を書き写せば通る。**本書の関門は「閉じた critic が併存した」ことまでを示す。**
+  - `run_one_iteration()` の Python API 直呼びは sanctioned CLI の gate を迂回する。
+  - `policy_hint` は無加工で planner payload へ入る。
+  - legacy の `Agent(subagent_type='critic')` route は、B-4 の正式標本としては不適格になったが、
+    走ること自体は止まらない。
+  - **B-4 protocol marker は自己申告である。** campaign identity に残るため provenance にはなるが、
+    分類の権限を証明しない。marker を付けて任意の config を B-4 と名乗ること、および marker 不在の
+    campaign を報告時だけ B-4 と名乗ることは、いずれも機械では止まらない。
+    **marker は必要条件であって十分条件ではない。**
+  - **certified の実行主体は認証されない。** production factory は `PATH` 上の `claude` を
+    解決するだけで、その binary の identity を認証しない。PATH 上に schema 適合の偽 `claude` を
+    置けば、任意の決定について `evidence_class=="certified"` の receipt を作れる。
+  - **pair の完全性と receipt shopping。** 関門は receipt 1 枚を検証するが、on と off が同じ
+    block・同じ precursor・同じ model/prompt から来たことを強制しない。複数の pair を作り
+    都合のよい receipt を選ぶ経路が残る (同一 receipt の再消費だけは閉じた)。
+
   同 module が保証しないことは receipt の非保証 field に列挙してある — 間接識別子
   (variant label / src token / genome label / WAL 由来自由文) の非開示、報告されない local な
   tool 使用の不在、同一 process からの module 属性書換えに対する耐性、進んだ WAL と
@@ -275,6 +330,20 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
    on/off の正規化済み WAL payload が exact equality。
 5. sanctioned CLI の stdout に赤詳細 field の sentinel が現れない。
 
+6. **必須配線の関門** (2026-08-26 に追加。`orchestrator/tests/test_p3_b4_closed_critic.py` と
+   `orchestrator/tests/test_p3_s4_loop.py` および sort / trigger の各 test file に置く)。
+   marker 付き走行が certified な receipt を要求すること。campaign id・arm・iteration・
+   live WAL・live checkpoint・再生成 digest・driver 種別・authoritative layout・layout の exact type の
+   各照合が**それぞれ単独で**外れると赤になること。`test-only` evidence の拒否。
+   proposal の receipt hash 不一致の拒否。`prior_critic_reverse` 自己申告の拒否。
+   同一 receipt の再消費と並行二重書込みの拒否。bootstrap への receipt 供給の拒否。
+   marker + `--no-build` の拒否。marker 不在の通常走行の campaign identity が
+   本 wave 前の実測値と一致すること。
+
+   **変異による裏取り:** 上記の各検査を 1 つずつ外す 15 変異を実装前に事前登録し、実走した。
+   **baseline 緑、15 件すべて KILLED、生存ゼロ、MISMATCH ゼロ。** 期待ノードは probe 走で
+   実観測した完全集合を使い、各変異は自分の狙ったテストだけを落とした (過剰決定なし)。
+
 **このテスト群が証明しないこと (省略不可の限定):**
 
 - **critic role の能力遮断を証明しない。** §7.2 の経路は閉じられない。
@@ -286,6 +355,13 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   検査しない。** 固定するのは base driver の diff-quarantine reject 1 経路である (§4)。
 - **項目 3 が固定するのは campaign identity の分離であって、実 path の分離は
   sanctioned CLI の ID 由来 layout に限る** (§3.1)。
+- **項目 6 が固定するのは「閉じた critic invocation が実在し、この campaign・arm・iteration・
+  digest・driver 種別に束縛されて一度だけ消費された」ことまでである。**
+  **「その決定で次の合成を行った」ことは固定しない** — proposal の receipt hash は自己申告であり、
+  legacy critic 由来の proposal に書き写せば通る。加えて、実行主体の真正性 (PATH)、
+  外部での並行 legacy query の不在、pair の完全性、WAL と checkpoint の論理世代の一致は
+  いずれも証明しない。**変異 15 件が全件 KILLED であることは、登録した各検査が発火することを
+  示すのであって、ここに列挙した未閉鎖を埋めるものではない。**
 
 **既知の生存変異 (登録せず、開いていることを記録する):**
 - `build_digest()` が別経路で abort payload を出す変異 — 編集面が `orchestrator/critic/digest.py`
@@ -310,11 +386,29 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 
 ## 10. 本書が閉じないこと
 
-- 対象 driver と軸の選定 (§5.1 の手順)。
+- **§5.1 (ii) を満たす非標本 probe。現時点で、その条件を満たす sanctioned CLI は存在しない。**
+  build を伴う経路は次の synthesis と outcome を生成するため probe にならず、`--no-build` 経路は
+  §3.1 の切替点を通らない。probe は §5.1 (ii) の 4 検査 (候補 driver で切替点を通ること、
+  on で赤詳細が出現すること、off で §8 の項目 1・2 が成立すること、on/off の campaign identity が
+  分離すること) を、**next synthesis と primary / secondary outcome を生成も閲覧もせずに**
+  行えなければならない。§5.1 (i) の先行 freeze (候補集合・exact command・証拠 path と hash・
+  0 件/複数件の決定規則・記入者・レビュー者) も依存条件である。
+  **これが用意されるまで「対象 driver と軸」の欄は埋められず、したがって本書は発効しない。**
+- 対象 driver と軸の選定そのもの (§5.1 の手順)。
 - 旧登録の B-4 記述を本書が supersede するかどうかのユーザー裁定。
-- 広い主張を成立させる実装 — 閉じた critic invocation の**正式経路への必須配線**
-  (機構自体は [T-1697] で用意した。段 4 driver がそれを要求する配線は未了)、
-  role-facing の型付き結果 projection、`prior_critic_reverse` の receipt 束縛。
+- **critic の決定と proposal 本文の因果的束縛。** 2026-08-26 の必須配線は、閉じた critic
+  invocation の実在・束縛・一度きりの消費と、`prior_critic_reverse` が receipt 由来であることまでを
+  閉じた。**proposal の receipt hash は自己申告のままであり、legacy critic 由来の proposal に
+  書き写せば通る。** 閉じるには決定を入力とする sanctioned な proposal producer と、
+  生成後の proposal bytes を含む handoff receipt が要る。
+- 広い主張を成立させる実装 — role-facing の型付き結果 projection。
+  (**正式経路への必須配線と `prior_critic_reverse` の receipt 束縛は 2026-08-26 に実装した。
+  ただし marker 付き sanctioned continuation に限る。**この 2 つが揃っても本書の estimand は
+  広がらない — §2.1 の但し書きに従う。)
+- **certified の実行主体の trust root。** production factory は `PATH` 上の `claude` を解決するだけで
+  binary の identity を認証しない。閉じるには AI が書けない領域の鍵と発行主体が要る。
+- **pair の完全性と receipt shopping の遮断** (同一 receipt の再消費だけは閉じた)。
+- **WAL と checkpoint の論理世代の束縛。**
 - file-drawer の機械強制 (manifest・append-only registry・完全性 consumer)。
 - 第 3 アーム reason-only による「構造化された帰属」と「赤の存在の通知」の弁別。
 - 新架構 (機械が導いた制約の適用 on/off) の機構設計・実装と、treatment・負の対照を固定した後の

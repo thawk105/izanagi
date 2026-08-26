@@ -18,11 +18,12 @@ prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再�
 
 ## DW-O02 — job artifact
 
-prompt、log、patch はすべて wave 専用 subdirectory に置き、job tmp 直下や過去 wave の同名
+prompt、log、patch は wave 専用 subdirectory に置き、job tmp 直下や過去 wave の同名
 artifact と共有しない。専用場所を確保できなければ作成を止める。
-親 brief と前段の子成果物は同 subdirectory のファイルへ置き、prompt へ全文複製せず絶対パスで
-読ませる。その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と
-数えない。必読資料は job dir へ取り出して渡す（repo 内 path は worktree の遅れで fail-closed する）。
+親 brief と前段の子成果物は同 subdirectory へ置き、prompt へ全文複製せず絶対パスで
+読ませる。prompt には読めなければ即停止と書き、context 無しの子出力をレビュー結果と
+数えない。必読資料と前提の既裁定は逐語を job dir へ取り出して渡す（repo 内 path は
+worktree の遅れで fail-closed する）。
 出力へ結合文字 U+0300〜U+036F を使わせない。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
@@ -180,7 +181,7 @@ lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / 
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
-焦点走の分割投入は直列にする。同一 worktree の並行 dispatch は orphan hold で rc=16 になる。
+同一 worktree からの dispatch は全種を直列にする。並行投入は orphan hold で rc=16 になる。
 変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
 test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
 所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。

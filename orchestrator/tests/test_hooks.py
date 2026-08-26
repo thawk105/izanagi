@@ -2572,6 +2572,8 @@ _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
 _PEGASUS_EXPECTED_CLASSES = {
     "tools/claude_session_ledger.py": "unknown",
     "tools/pegasus/acceptance_nproc_study.sh": "dispatch-required",
+    "tools/pegasus/b10_backoff_grid.sh": "dispatch-required",
+    "tools/pegasus/b10_backoff_shape_campaign.sh": "dispatch-required",
     "tools/pegasus/certify_calibration.sh": "dispatch-required",
     "tools/pegasus/collect_receipt.py": "unknown",
     "tools/pegasus/collect_t126_qualification.py": "unknown",
@@ -2612,6 +2614,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
     "tools/pegasus/smoke_probe.sh": "dispatch-required",
     "tools/pegasus/ss2pl_lock_study.sh": "dispatch-required",
+    "tools/pegasus/submit_b10_backoff_grid.sh": "local-ok",
+    "tools/pegasus/submit_b10_backoff_shape.sh": "local-ok",
     "tools/pegasus/submit_certify.sh": "local-ok",
     "tools/pegasus/submit_floor.sh": "local-ok",
     "tools/pegasus/submit_mocc_trace.sh": "local-ok",
@@ -2640,6 +2644,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "class": "dispatch-required",
         "reason": "PBS acceptance nproc measurement job body",
         "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/b10_backoff_grid.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS B-10 extended backoff measurement job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/b10_backoff_shape_campaign.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS B10 backoff-shape measurement campaign job body",
+        "primary_gate": "PBS allocation and job-body compute-host preflight",
         "evidence": "static job-body classification"
     },
     "tools/pegasus/certify_calibration.sh": {
@@ -2881,6 +2897,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "PBS SS2PL lock study job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
+    },
+    "tools/pegasus/submit_b10_backoff_grid.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS B-10 three-workload submitter",
+      "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
+    "tools/pegasus/submit_b10_backoff_shape.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS B10 backoff-shape campaign submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_certify.sh": {
       "class": "local-ok",
@@ -3395,6 +3423,10 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
     expected_local_evidence = {
         "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
         "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
+        "tools/pegasus/submit_b10_backoff_grid.sh":
+            "static login-side submitter classification",
+        "tools/pegasus/submit_b10_backoff_shape.sh":
+            "static login-side submitter classification",
         "tools/pegasus/submit_certify.sh": "legacy-admitted (未実測)",
         "tools/pegasus/submit_floor.sh": "legacy-admitted (未実測)",
         "tools/pegasus/submit_mocc_trace.sh": "static login-side submitter classification",

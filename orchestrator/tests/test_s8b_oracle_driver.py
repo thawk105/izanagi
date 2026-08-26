@@ -14,6 +14,7 @@ import inspect
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -90,7 +91,10 @@ from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E40
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    _check_rule_candidates,
+    git_ignored_output_ancestor_directories,
     git_ignored_output_prefixes,
+    git_ignored_output_snapshot_rules,
     is_git_ignored_output_path,
 )
 
@@ -556,8 +560,11 @@ _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
 
 
 def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
-    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
-    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    """Git-visible entry と非 ignore 祖先での一時作成後削除を捉える。
+
+    規則由来 ignore prefix の祖先 directory だけ size / mtime / ctime を正規化する。
+    """
+    ignored_prefixes, ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
     entries = [
         root,
         *(
@@ -567,17 +574,22 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
             )
         ),
     ]
-    return tuple(
-        (
-            path.relative_to(root).as_posix() if path != root else ".",
-            info.st_mode,
-            info.st_size,
-            info.st_mtime_ns,
-            info.st_ctime_ns,
+    snapshot = []
+    for path in sorted(entries):
+        relative = path.relative_to(root).as_posix() if path != root else "."
+        info = path.lstat()
+        normalize = (
+            stat.S_ISDIR(info.st_mode)
+            and ignored_ancestors.contains(relative)
         )
-        for path in sorted(entries)
-        for info in (path.lstat(),)
-    )
+        snapshot.append((
+            relative,
+            info.st_mode,
+            None if normalize else info.st_size,
+            None if normalize else info.st_mtime_ns,
+            None if normalize else info.st_ctime_ns,
+        ))
+    return tuple(snapshot)
 
 
 def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
@@ -601,9 +613,9 @@ def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
 def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
     ignored_prefixes = git_ignored_output_prefixes(ROOT)
     assert "runs" in ignored_prefixes
+    before = _t080_output_snapshot(tmp_path)
     ignored_parent = tmp_path / "runs"
     ignored_parent.mkdir()
-    before = _t080_output_snapshot(tmp_path)
     control = ignored_parent / "snapshot-ignored-t080"
     control.mkdir()
     (control / "nested").mkdir()
@@ -613,15 +625,164 @@ def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
 
     assert _t080_output_snapshot(tmp_path) == before
 
-
-def test_git_ignored_output_prefixes_rejects_entire_output_ignore(monkeypatch):
-    completed = subprocess.CompletedProcess(
-        args=("git", "ls-files"), returncode=0, stdout="output/\n", stderr="",
+    assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
+    visible_before = _t080_output_snapshot(tmp_path)
+    visible = tmp_path / "runs-visible" / "nested"
+    visible.mkdir(parents=True)
+    (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
+    visible_after = _t080_output_snapshot(tmp_path)
+    assert visible_after != visible_before, (
+        "rule-derived ignore prefix 'runs' must not hide Git-visible 'runs-visible'"
     )
-    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: completed)
+
+
+def test_t080_output_snapshot_observes_git_visible_create_and_delete(tmp_path):
+    ignored_ancestors = git_ignored_output_ancestor_directories(ROOT)
+    parent = tmp_path / "visible-transient-parent"
+    assert not ignored_ancestors.contains(parent.name)
+    parent.mkdir()
+    before = _t080_output_snapshot(tmp_path)
+    transient = parent / "visible-transient"
+    transient.mkdir()
+    (transient / "payload").write_bytes(b"visible transient")
+    shutil.rmtree(transient)
+    after = _t080_output_snapshot(tmp_path)
+    assert after != before, "Git-visible create-and-delete must remain observable"
+
+
+def _output_ignore_contract_repo(
+        tmp_path: Path, root_rules: bytes, *, force_tracked: bool = False,
+) -> Path:
+    repo = tmp_path / "output-ignore-repo"
+    repo.mkdir()
+    _run_git(repo, "init", "-q")
+    global_rules = tmp_path / "global-ignore"
+    global_rules.write_bytes(b"output/global-cache/\n")
+    _run_git(repo, "config", "core.excludesFile", str(global_rules))
+    (repo / ".gitignore").write_bytes(root_rules)
+    info_path = Path(_run_git(repo, "rev-parse", "--git-path", "info/exclude"))
+    if not info_path.is_absolute():
+        info_path = repo / info_path
+    info_path.write_bytes(b"output/info-cache/\n")
+    (repo / "output").mkdir()
+    (repo / "output" / "README").write_bytes(b"tracked output sentinel")
+    _run_git(
+        repo, "add", *(('-f',) if force_tracked else ()), "output/README",
+    )
+    return repo
+
+
+def test_git_ignored_output_prefixes_uses_rule_sources_before_paths_exist(tmp_path):
+    repo = _output_ignore_contract_repo(
+        tmp_path,
+        b"""\
+output/runs/
+output/cache/deep/
+output/variants/*/bin/
+output/cancelled/deep/
+!output/cancelled/deep/
+output/**/recursive/
+output/escaped\\ name/
+other*/output/outside/
+""",
+    )
+
+    prefixes_before = git_ignored_output_prefixes(repo)
+    assert prefixes_before == (
+        "cache/deep", "global-cache", "info-cache", "runs",
+    )
+    ancestors_before = git_ignored_output_ancestor_directories(repo)
+    assert ancestors_before.exact == frozenset({".", "cache"})
+    assert ancestors_before.subtree_roots == frozenset({"variants"})
+    assert ancestors_before.contains("variants/branch/deeper")
+    assert not ancestors_before.contains("cache/unrelated")
+    assert not is_git_ignored_output_path("runs-visible", prefixes_before)
+
+    (repo / "output" / "variants" / "v1" / "bin").mkdir(parents=True)
+    # tracked descendant の無い ignored-only subtree は Git が各祖先も除外可能な directory として畳む。
+    assert git_ignored_output_prefixes(repo) == (
+        "cache/deep", "global-cache", "info-cache", "runs", "variants",
+        "variants/v1", "variants/v1/bin",
+    )
+    assert git_ignored_output_ancestor_directories(repo) == ancestors_before
+
+
+def test_git_ignored_output_prefixes_preserve_tracked_rule_descendant(tmp_path):
+    repo = _output_ignore_contract_repo(tmp_path, b"output/runs/\n")
+    tracked = repo / "output" / "runs" / "nested" / "tracked.txt"
+    tracked.parent.mkdir(parents=True)
+    tracked.write_bytes(b"force-added tracked descendant")
+    _run_git(repo, "add", "-f", "output/runs/nested/tracked.txt")
+    untracked = tracked.with_name("untracked.txt")
+    untracked.write_bytes(b"ignored untracked peer")
+
+    ignored_prefixes, ignored_ancestors = git_ignored_output_snapshot_rules(repo)
+    visible = {
+        path.relative_to(repo / "output").as_posix()
+        for path in (repo / "output").rglob("*")
+        if not is_git_ignored_output_path(
+            path.relative_to(repo / "output").as_posix(), ignored_prefixes,
+        )
+    }
+
+    assert "runs" in ignored_prefixes
+    assert {"runs", "runs/nested", "runs/nested/tracked.txt"} <= visible
+    assert "runs/nested/untracked.txt" not in visible
+    assert ignored_ancestors.contains("runs")
+    assert ignored_ancestors.contains("runs/nested")
+
+
+def test_git_ignored_output_prefixes_rejects_entire_output_ignore(tmp_path):
+    repo = _output_ignore_contract_repo(
+        tmp_path, b"output/\n", force_tracked=True,
+    )
 
     with pytest.raises(AssertionError, match="output/ 全体が Git ignore 対象"):
-        git_ignored_output_prefixes(ROOT)
+        git_ignored_output_prefixes(repo)
+
+
+def test_check_rule_candidates_fails_closed_on_git_error(tmp_path):
+    completed = subprocess.CompletedProcess(
+        args=("git", "check-ignore"), returncode=128,
+        stdout=b"", stderr=b"fatal: fixture git error",
+    )
+
+    with mock.patch(
+            "orchestrator.tests.output_snapshot_ignores.subprocess.run",
+            return_value=completed,
+            ) as run:
+        with pytest.raises(AssertionError, match=r"git check-ignore .* に失敗"):
+            _check_rule_candidates(tmp_path, {b"output/runs": True})
+
+    assert run.call_count == 1
+
+
+def test_check_rule_candidates_rejects_rc1_with_stdout(tmp_path):
+    completed = subprocess.CompletedProcess(
+        args=("git", "check-ignore"), returncode=1,
+        stdout=b"output/runs/\0", stderr=b"",
+    )
+
+    with mock.patch(
+            "orchestrator.tests.output_snapshot_ignores.subprocess.run",
+            return_value=completed,
+            ):
+        with pytest.raises(AssertionError, match=r"rc=1 で stdout を返した"):
+            _check_rule_candidates(tmp_path, {b"output/runs": True})
+
+
+def test_check_rule_candidates_rejects_rc0_without_nul_terminator(tmp_path):
+    completed = subprocess.CompletedProcess(
+        args=("git", "check-ignore"), returncode=0,
+        stdout=b"output/runs/", stderr=b"",
+    )
+
+    with mock.patch(
+            "orchestrator.tests.output_snapshot_ignores.subprocess.run",
+            return_value=completed,
+            ):
+        with pytest.raises(AssertionError, match=r"rc=0 で正しい NUL 出力を返さない"):
+            _check_rule_candidates(tmp_path, {b"output/runs": True})
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:
