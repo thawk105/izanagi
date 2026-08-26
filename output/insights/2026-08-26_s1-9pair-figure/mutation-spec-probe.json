@@ -1,0 +1,123 @@
+{
+  "estimated_run_seconds": 240,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m01.strict-gate",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    return clean_relative > clean_floor",
+          "new": "    return clean_relative >= clean_floor"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m02.judgment-authority",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    expected = \"成立\" if gate1 and gate2 else \"不成立\"",
+          "new": "    expected = judgment"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m03.trust-boundary",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    command = payload.get(\"perf_configure_cmd\")",
+          "new": "    command = \" \".join(v for v in payload.values() if type(v) is str)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m04.admission-purpose",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "        directory, purpose=CampaignReadPurpose.HISTORICAL_RAW)",
+          "new": "        directory, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m05.internal-labels",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    \"system_gate\": \"trigger gating\",",
+          "new": "    \"system_gate\": \"system_gate\","
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m06.floor-line-shift",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "            \"strict_floor_line_percent\": 3.0,",
+          "new": "            \"strict_floor_line_percent\": 4.0,"
+        },
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    axis.axvline(3.0, color=failed_color, linewidth=1.0, linestyle=\"--\", zorder=1,",
+          "new": "    axis.axvline(4.0, color=failed_color, linewidth=1.0, linestyle=\"--\", zorder=1,"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m07.unstable-filter",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "            grouped[role].setdefault(row[\"cell_id\"], []).append(dict(row))",
+          "new": "            if row.get(\"unstable\"):\n                continue\n            grouped[role].setdefault(row[\"cell_id\"], []).append(dict(row))"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "s1fig.m08.evidence-order",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_s1_9pair.py",
+          "old": "    return sorted((dict(row) for row in rows), key=lambda row: row[\"schedule_index\"])",
+          "new": "    return [dict(row) for row in rows]"
+        }
+      ]
+    }
+  ]
+}
