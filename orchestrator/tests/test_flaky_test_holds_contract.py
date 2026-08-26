@@ -29,10 +29,6 @@ _HELD_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
     "test_sigterm_handler_stops_child_and_restores_active_mutation"
 )
-_NEW_HELD_NODE = (
-    "orchestrator/tests/test_pegasus_dispatch_compute.py::"
-    "test_control_lock_allows_peer_after_pending_hold_is_durably_released"
-)
 _HELD_FILE = _HELD_NODE.split("::", 1)[0]
 _SIBLING_NODE = (
     "orchestrator/tests/test_mutation_harness.py::"
@@ -288,7 +284,9 @@ def _expected_flaky_summary_line(
     )
 
 
-def test_live_registry_excludes_reintroduced_node_and_preserves_main_hold() -> None:
+def test_live_registry_is_empty_and_exports_empty_digest() -> None:
+    assert REG._FLAKY_TEST_HOLD_ROWS == ()
+    assert dict(REG.FLAKY_TEST_HOLDS) == {}
     assert _HELD_NODE not in dict(REG._FLAKY_TEST_HOLD_ROWS)
     assert _HELD_NODE not in REG.FLAKY_TEST_HOLDS
     assert _HELD_NODE not in REG.FLAKY_TEST_HOLD_NODE_IDS
@@ -296,20 +294,7 @@ def test_live_registry_excludes_reintroduced_node_and_preserves_main_hold() -> N
     assert REG.FLAKY_TEST_HOLDS_SHA256 == (
         REG.flaky_test_hold_registry_sha256(REG.FLAKY_TEST_HOLDS)
     )
-
-    new_hold = REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE]
-    assert new_hold.known_failure_node_ids == frozenset({_NEW_HELD_NODE})
-    assert new_hold.same_tree is True
-    assert new_hold.green_collection_condition == "single-node"
-    assert new_hold.green_run_count == 1
-    assert new_hold.red_collection_condition == REG.ACCEPTANCE_COLLECTION
-    assert new_hold.failure_signature
-    assert new_hold.cause
-    assert new_hold.evidence_id == "F480"
-    assert (
-        new_hold.reintroduction_task_id
-        == "{{T:flaky-thread-join-upper-bound}}"
-    )
+    assert REG.FLAKY_TEST_HOLDS_SHA256 == _EMPTY_REGISTRY_SHA256
 
 
 def test_empty_and_nonempty_registries_validate_immutably() -> None:
@@ -910,7 +895,10 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
 
     synthetic_holds = {
         _HELD_NODE: _synthetic_valid_hold(),
-        _NEW_HELD_NODE: REG.FLAKY_TEST_HOLDS[_NEW_HELD_NODE],
+        _SIBLING_NODE: replace(
+            _synthetic_valid_hold(),
+            known_failure_node_ids=frozenset({_SIBLING_NODE}),
+        ),
     }
     monkeypatch.setattr(CONF, "FLAKY_TEST_HOLDS", synthetic_holds)
     monkeypatch.setattr(
@@ -940,7 +928,7 @@ def test_flaky_summary_is_separate_and_uses_registry_digest(
         "matched_node_count": 1,
         "skipped_node_count": 1,
         "registry_sha256": (
-            "9a31d0948e6d17e491b3dc06101563d73719cf04643eb454c3339be92c91a089"
+            "ed29898f01a3d4693bceae000423b429ea44141e51ea18d1ad5b2dcc8be3c594"
         ),
     }
     assert not any(
@@ -985,7 +973,7 @@ def test_empty_synthetic_flaky_summary_has_literal_contract(
     }
 
 
-def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
+def test_live_empty_flaky_summary_derives_count_and_digest_from_registry() -> None:
     lines: list[str] = []
 
     class Terminal:
@@ -997,8 +985,8 @@ def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
         pluginmanager=SimpleNamespace(
             get_plugin=lambda name: Terminal() if name == "terminalreporter" else None
         ),
-        _izanagi_collected_flaky_hold_ids={_NEW_HELD_NODE},
-        _izanagi_skipped_flaky_hold_ids={_NEW_HELD_NODE},
+        _izanagi_collected_flaky_hold_ids={_HELD_NODE},
+        _izanagi_skipped_flaky_hold_ids={_HELD_NODE},
     )
 
     CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
@@ -1008,12 +996,10 @@ def test_live_flaky_summary_derives_count_and_digest_from_registry() -> None:
     assert len(summary_lines) == 1
     payload = json.loads(summary_lines[0].split(" ", 1)[1])
     expected_payload = {
-        "registered_node_count": len(REG.FLAKY_TEST_HOLDS),
-        "matched_node_count": 1,
-        "skipped_node_count": 1,
-        "registry_sha256": REG.flaky_test_hold_registry_sha256(
-            REG.FLAKY_TEST_HOLDS
-        ),
+        "registered_node_count": 0,
+        "matched_node_count": 0,
+        "skipped_node_count": 0,
+        "registry_sha256": _EMPTY_REGISTRY_SHA256,
     }
     assert set(payload) == set(expected_payload)
     assert {key: type(payload[key]) for key in payload} == {
