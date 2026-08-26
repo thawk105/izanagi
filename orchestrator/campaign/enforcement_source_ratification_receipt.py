@@ -16,7 +16,7 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
-from typing import Mapping
+from typing import Mapping, cast
 
 from .campaign_lock import CONTRACT_LOADER_RELATIVE_PATHS
 from .ed25519_verify import Ed25519VerifyError, verify
@@ -34,6 +34,8 @@ from .enforcement_source_ratification import (
     closure_digest_sha256,
 )
 
+# These test-visible aliases are not separate hardening barriers; _git delegates
+# every command to the imported v1 Git kernel.
 
 RECEIPT_LEDGER_RELATIVE_PATH = (
     "hooks/enforcement-source-ratification-receipts.v2.jsonl"
@@ -66,20 +68,16 @@ _TRUST_ROOT_KEYS = frozenset({
 })
 _ED25519_FIELD_PRIME = (1 << 255) - 19
 
-# Each limit is at least 8x a 100-row, 3 KiB-row, depth-2 operating ledger.
+# Each scalar cap is at least 8x a 100-row, 3 KiB-row, depth-2 ledger.
 _MAX_LEDGER_BYTES = 4 * 1024 * 1024
 _MAX_LEDGER_LINE_BYTES = 32 * 1024
 _MAX_LEDGER_ROWS = 2048
 _MAX_JSON_NESTING = 16
-
-# Keep the v2 verifier bound to the exact hardened Git kernel imported above.
-_GIT_HARDENING_BINDING = (
-    _GIT_EXECUTABLE,
-    _GIT_HARDEN,
-    _git_env,
-    _GIT_ENV_ALLOWLIST,
-    _FORBIDDEN_AMBIENT_GIT_ENV,
-)
+# Aggregate caps are 8x+ a realistic 20-receipt history (3 KiB rows, 1 MiB closure).
+_MAX_HISTORY_COMMITS = 2048
+_MAX_HISTORY_LEDGER_BYTES = 128 * 1024 * 1024
+_MAX_SOURCE_BATCH_BYTES = 256 * 1024 * 1024
+_REGULAR_SOURCE_MODES = frozenset({b"100644", b"100755"})
 
 
 class EnforcementSourceRatificationReceiptError(ValueError):
@@ -214,6 +212,24 @@ def _head_commit(root: Path) -> str:
 def _full_history(root: Path, head: str) -> dict[str, tuple[str, ...]]:
     try:
         _assert_full_history_repository(root)
+    except EnforcementSourceRatificationError as exc:
+        raise EnforcementSourceRatificationReceiptError(str(exc)) from exc
+    raw = _require_git(
+        root,
+        "rev-list",
+        f"--max-count={_MAX_HISTORY_COMMITS + 1}",
+        head,
+    )
+    if not raw.endswith(b"\n"):
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt history returned an invalid commit ID"
+        )
+    commits = raw.split(b"\n")[:-1]
+    if len(commits) > _MAX_HISTORY_COMMITS:
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt history exceeds the commit limit"
+        )
+    try:
         return _reachable_commit_parents(root, head)
     except EnforcementSourceRatificationError as exc:
         raise EnforcementSourceRatificationReceiptError(str(exc)) from exc
@@ -284,12 +300,8 @@ def _assert_immutable_trust_root_history(
             "ratification receipt trust root must be introduced exactly once"
         )
     head = next(iter(parents_by_commit))
-    head_oid = entries[head]
-    if head_oid is None:
-        raise EnforcementSourceRatificationReceiptError(
-            "ratification receipt trust root is absent from committed history"
-        )
-    return head_oid
+    # Exact-one introduction plus the live deletion check imply HEAD presence.
+    return cast(str, entries[head])
 
 
 def _load_trust_root(root: Path, oid: str, expected_size: int) -> bytes:
@@ -364,16 +376,8 @@ def _validate_json_nesting(raw: bytes) -> None:
 
 
 def _validate_ledger_blob_bounds(raw: bytes) -> None:
-    if len(raw) > _MAX_LEDGER_BYTES:
-        raise EnforcementSourceRatificationReceiptError(
-            "ratification receipt ledger exceeds the byte limit"
-        )
     if not raw:
         return
-    if not raw.endswith(b"\n"):
-        raise EnforcementSourceRatificationReceiptError(
-            "ratification receipt ledger is not newline terminated"
-        )
     lines = raw.split(b"\n")[:-1]
     if len(lines) > _MAX_LEDGER_ROWS:
         raise EnforcementSourceRatificationReceiptError(
@@ -394,6 +398,7 @@ def _load_ledger_blobs(
 ) -> dict[str, bytes]:
     """Load each historical ledger blob OID once without parsing its rows."""
     memo: dict[str, bytes] = {}
+    total_size = 0
     for oid in dict.fromkeys(
         entry for entry in entries.values() if entry is not None
     ):
@@ -401,6 +406,12 @@ def _load_ledger_blobs(
         if size > _MAX_LEDGER_BYTES:
             raise EnforcementSourceRatificationReceiptError(
                 "ratification receipt ledger exceeds the byte limit"
+            )
+        total_size += size
+        if total_size > _MAX_HISTORY_LEDGER_BYTES:
+            raise EnforcementSourceRatificationReceiptError(
+                "ratification receipt historical ledger blobs exceed the "
+                "aggregate byte limit"
             )
         raw = _load_blob_exact(root, oid, size, "ledger")
         if raw and not raw.endswith(b"\n"):
@@ -487,10 +498,7 @@ def _assert_linear_ledger_history(
             "ratification receipt history must introduce the ledger exactly once"
         )
     head = next(iter(parents_by_commit))
-    if entries[head] is None:
-        raise EnforcementSourceRatificationReceiptError(
-            "ratification receipt ledger is absent from committed history"
-        )
+    # Exact-one introduction plus the live deletion check imply HEAD presence.
     return raw_at(head)
 
 
@@ -548,6 +556,8 @@ def _load_rows(
     rows: list[dict[str, object]] = []
     previous_canonical: bytes | None = None
     trust_root_sha256 = hashlib.sha256(public_key).hexdigest()
+    # R11 is linear only in scalar multiplications: one signature check per row.
+    # Historical prefix bytes are separately bounded, not claimed to be linear.
     for line_number, line in enumerate(raw.split(b"\n")[:-1], start=1):
         if not line:
             raise EnforcementSourceRatificationReceiptError(
@@ -662,64 +672,241 @@ def _require_reachable_source_commit(
         )
 
 
+def _parse_source_header(
+    header: bytes,
+    *,
+    query: str,
+    relative: str,
+    expected_type: bytes,
+    expected_rest: bytes,
+) -> tuple[str, int]:
+    if header == query.encode("ascii") + b" missing":
+        if expected_type == b"blob":
+            raise EnforcementSourceRatificationReceiptError(
+                "ratification receipt source closure path is absent: "
+                f"{relative}"
+            )
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt source closure tree is incomplete"
+        )
+    fields = header.split(b" ")
+    if len(fields) != 4:
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt source closure is not exact Git objects"
+        )
+    raw_oid, object_type, raw_size, rest = fields
+    try:
+        oid = raw_oid.decode("ascii")
+        size_text = raw_size.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt source closure is not exact Git objects"
+        ) from exc
+    if (
+        _HEX40_RE.fullmatch(oid) is None
+        or object_type != expected_type
+        or not size_text.isdecimal()
+        or (len(size_text) > 1 and size_text.startswith("0"))
+        or rest != expected_rest
+    ):
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt source closure is not exact Git objects"
+        )
+    return oid, int(size_text)
+
+
+def _source_tree_queries(
+    source_commits: tuple[str, ...],
+) -> tuple[tuple[str, str, str], ...]:
+    directories = tuple(dict.fromkeys(
+        PurePosixPath(relative).parent.as_posix()
+        for relative in CONTRACT_LOADER_RELATIVE_PATHS
+    ))
+    return tuple(
+        (
+            commit,
+            directory,
+            (
+                f"{commit}^{{tree}}"
+                if directory == "."
+                else f"{commit}:{directory}"
+            ),
+        )
+        for commit in source_commits
+        for directory in directories
+    )
+
+
+def _source_batch_specs(
+    queries: tuple[tuple[str, str, str], ...],
+    tree_queries: tuple[tuple[str, str, str], ...],
+) -> tuple[tuple[bytes, str, str, str, bytes], ...]:
+    return tuple(
+        (b"blob", commit, relative, query, f"q{index}".encode("ascii"))
+        for index, (commit, relative, query) in enumerate(queries)
+    ) + tuple(
+        (b"tree", commit, directory, query, f"t{index}".encode("ascii"))
+        for index, (commit, directory, query) in enumerate(tree_queries)
+    )
+
+
+def _source_batch_metadata(
+    root: Path,
+    queries: tuple[tuple[str, str, str], ...],
+    tree_queries: tuple[tuple[str, str, str], ...],
+) -> tuple[
+    dict[tuple[str, str], tuple[str, int]],
+    dict[tuple[str, str], tuple[str, int]],
+]:
+    specs = _source_batch_specs(queries, tree_queries)
+    raw = _require_git(
+        root,
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)",
+        input_bytes=b"".join(
+            query.encode("ascii") + b" " + rest + b"\n"
+            for _kind, _commit, _relative, query, rest in specs
+        ),
+    )
+    if not raw.endswith(b"\n"):
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt source closure batch is truncated"
+        )
+    headers = raw.split(b"\n")[:-1]
+    if len(headers) != len(specs):
+        raise EnforcementSourceRatificationReceiptError(
+            "ratification receipt source closure batch is truncated"
+        )
+    blob_metadata: dict[tuple[str, str], tuple[str, int]] = {}
+    tree_metadata: dict[tuple[str, str], tuple[str, int]] = {}
+    predicted_batch_bytes = 0
+    for ((kind, commit, relative, query, rest), header) in zip(
+        specs, headers, strict=True
+    ):
+        oid, size = _parse_source_header(
+            header,
+            query=query,
+            relative=relative,
+            expected_type=kind,
+            expected_rest=rest,
+        )
+        target = blob_metadata if kind == b"blob" else tree_metadata
+        target[(commit, relative)] = (oid, size)
+        predicted_batch_bytes += len(header) + 1 + size + 1
+        if predicted_batch_bytes > _MAX_SOURCE_BATCH_BYTES:
+            raise EnforcementSourceRatificationReceiptError(
+                "ratification receipt source closure batch exceeds the "
+                "aggregate byte limit"
+            )
+    return blob_metadata, tree_metadata
+
+
+def _validate_source_tree_modes(
+    tree_blobs: Mapping[tuple[str, str], bytes],
+    blob_metadata: Mapping[tuple[str, str], tuple[str, int]],
+    tree_queries: tuple[tuple[str, str, str], ...],
+) -> None:
+    expected_by_directory: dict[str, dict[bytes, str]] = {}
+    for relative in CONTRACT_LOADER_RELATIVE_PATHS:
+        path = PurePosixPath(relative)
+        expected_by_directory.setdefault(path.parent.as_posix(), {})[
+            path.name.encode("ascii")
+        ] = relative
+
+    for commit, directory, _query in tree_queries:
+        expected = expected_by_directory[directory]
+        found: set[bytes] = set()
+        raw = tree_blobs[(commit, directory)]
+        offset = 0
+        while offset < len(raw):
+            mode_end = raw.find(b" ", offset)
+            name_end = raw.find(b"\0", mode_end + 1)
+            oid_end = name_end + 21
+            if (
+                mode_end <= offset
+                or name_end <= mode_end + 1
+                or oid_end > len(raw)
+            ):
+                raise EnforcementSourceRatificationReceiptError(
+                    "ratification receipt source closure tree is not exact"
+                )
+            mode = raw[offset:mode_end]
+            name = raw[mode_end + 1:name_end]
+            raw_oid = raw[name_end + 1:oid_end]
+            if name in expected:
+                if name in found:
+                    raise EnforcementSourceRatificationReceiptError(
+                        "ratification receipt source closure tree is not exact"
+                    )
+                found.add(name)
+                relative = expected[name]
+                expected_oid, _size = blob_metadata[(commit, relative)]
+                if mode not in _REGULAR_SOURCE_MODES:
+                    raise EnforcementSourceRatificationReceiptError(
+                        "ratification receipt source closure path is not a "
+                        f"regular file: {relative}"
+                    )
+                if raw_oid.hex() != expected_oid:
+                    raise EnforcementSourceRatificationReceiptError(
+                        "ratification receipt source closure tree is not exact"
+                    )
+            offset = oid_end
+        if found != set(expected):
+            raise EnforcementSourceRatificationReceiptError(
+                "ratification receipt source closure tree is incomplete"
+            )
+
+
 def _parse_source_batch(
     raw: bytes,
     queries: tuple[tuple[str, str, str], ...],
+    tree_queries: tuple[tuple[str, str, str], ...],
+    blob_metadata: Mapping[tuple[str, str], tuple[str, int]],
+    tree_metadata: Mapping[tuple[str, str], tuple[str, int]],
 ) -> dict[str, dict[str, str]]:
+    specs = _source_batch_specs(queries, tree_queries)
     cursor = 0
     digests: dict[str, dict[str, str]] = {}
-    for index, (commit, relative, query) in enumerate(queries):
+    tree_blobs: dict[tuple[str, str], bytes] = {}
+    for kind, commit, relative, query, rest in specs:
         header_end = raw.find(b"\n", cursor)
         if header_end < 0:
             raise EnforcementSourceRatificationReceiptError(
                 "ratification receipt source closure batch is truncated"
             )
         header = raw[cursor:header_end]
-        missing = query.encode("ascii") + b" missing"
-        if header == missing:
+        oid, size = _parse_source_header(
+            header,
+            query=query,
+            relative=relative,
+            expected_type=kind,
+            expected_rest=rest,
+        )
+        metadata = blob_metadata if kind == b"blob" else tree_metadata
+        if (oid, size) != metadata[(commit, relative)]:
             raise EnforcementSourceRatificationReceiptError(
-                "ratification receipt source closure path is absent: "
-                f"{relative}"
+                "ratification receipt source closure batch changed after "
+                "metadata validation"
             )
-        fields = header.split(b" ")
-        expected_rest = f"q{index}".encode("ascii")
-        if len(fields) != 4:
-            raise EnforcementSourceRatificationReceiptError(
-                "ratification receipt source closure is not exact Git blobs"
-            )
-        raw_oid, object_type, raw_size, rest = fields
-        try:
-            oid = raw_oid.decode("ascii")
-            size_text = raw_size.decode("ascii")
-        except UnicodeDecodeError as exc:
-            raise EnforcementSourceRatificationReceiptError(
-                "ratification receipt source closure is not exact Git blobs"
-            ) from exc
-        if (
-            _HEX40_RE.fullmatch(oid) is None
-            or object_type != b"blob"
-            or not size_text.isdecimal()
-            or (len(size_text) > 1 and size_text.startswith("0"))
-            or rest != expected_rest
-        ):
-            raise EnforcementSourceRatificationReceiptError(
-                "ratification receipt source closure is not exact Git blobs"
-            )
-        size = int(size_text)
         content_start = header_end + 1
         content_end = content_start + size
         if content_end >= len(raw) or raw[content_end:content_end + 1] != b"\n":
             raise EnforcementSourceRatificationReceiptError(
                 "ratification receipt source closure batch is truncated"
             )
-        digests.setdefault(commit, {})[relative] = hashlib.sha256(
-            raw[content_start:content_end]
-        ).hexdigest()
+        content = raw[content_start:content_end]
+        if kind == b"blob":
+            digests.setdefault(commit, {})[relative] = hashlib.sha256(
+                content
+            ).hexdigest()
+        else:
+            tree_blobs[(commit, relative)] = content
         cursor = content_end + 1
     if cursor != len(raw):
         raise EnforcementSourceRatificationReceiptError(
             "ratification receipt source closure batch has trailing output"
         )
+    _validate_source_tree_modes(tree_blobs, blob_metadata, tree_queries)
     return digests
 
 
@@ -728,14 +915,21 @@ def _source_closure_digests(
     source_commits: tuple[str, ...],
 ) -> dict[str, str]:
     unique_commits = tuple(dict.fromkeys(source_commits))
+    if not unique_commits:
+        return {}
     queries = tuple(
         (commit, relative, f"{commit}:{relative}")
         for commit in unique_commits
         for relative in CONTRACT_LOADER_RELATIVE_PATHS
     )
+    tree_queries = _source_tree_queries(unique_commits)
+    specs = _source_batch_specs(queries, tree_queries)
     request = b"".join(
-        f"{query} q{index}\n".encode("ascii")
-        for index, (_commit, _relative, query) in enumerate(queries)
+        query.encode("ascii") + b" " + rest + b"\n"
+        for _kind, _commit, _relative, query, rest in specs
+    )
+    blob_metadata, tree_metadata = _source_batch_metadata(
+        root, queries, tree_queries
     )
     raw = _require_git(
         root,
@@ -743,7 +937,13 @@ def _source_closure_digests(
         "--batch=%(objectname) %(objecttype) %(objectsize) %(rest)",
         input_bytes=request,
     )
-    maps = _parse_source_batch(raw, queries)
+    maps = _parse_source_batch(
+        raw,
+        queries,
+        tree_queries,
+        blob_metadata,
+        tree_metadata,
+    )
     result: dict[str, str] = {}
     for commit in unique_commits:
         try:
@@ -762,16 +962,14 @@ def _validate_source_bindings(
 ) -> None:
     source_commits: list[str] = []
     for line_number, row in enumerate(rows, start=1):
-        source_commit = row["source_commit"]
-        assert type(source_commit) is str
+        source_commit = cast(str, row["source_commit"])
         _require_reachable_source_commit(
             source_commit, line_number, parents_by_commit
         )
         source_commits.append(source_commit)
     digests = _source_closure_digests(root, tuple(source_commits))
     for line_number, row in enumerate(rows, start=1):
-        source_commit = row["source_commit"]
-        assert type(source_commit) is str
+        source_commit = cast(str, row["source_commit"])
         if digests[source_commit] != row["closure_digest_sha256"]:
             raise EnforcementSourceRatificationReceiptError(
                 "ratification receipt source commit closure digest disagrees: "

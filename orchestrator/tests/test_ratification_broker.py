@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 
 from orchestrator.campaign import campaign_lock
+from orchestrator.campaign import enforcement_source_ratification_receipt as receipt_verifier
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -91,6 +92,18 @@ def _private_material(key: Path) -> tuple[bytes, bytes]:
     return pem, der[-32:]
 
 
+def _private_encodings(key: Path) -> dict[str, bytes]:
+    pem, seed = _private_material(key)
+    return {
+        "pem": pem,
+        "seed": seed,
+        "pem_base64": base64.b64encode(pem),
+        "seed_base64": base64.b64encode(seed),
+        "pem_hex": pem.hex().encode("ascii"),
+        "seed_hex": seed.hex().encode("ascii"),
+    }
+
+
 def _trust_line(public_key: bytes) -> bytes:
     return _canonical({
         "public_key_ed25519_base64": base64.b64encode(public_key).decode("ascii"),
@@ -137,7 +150,8 @@ import base64, json, os, subprocess, sys
 data = sys.stdin.buffer.read()
 with open(os.environ["BROKER_TEST_LOG"], "a", encoding="utf-8") as stream:
     stream.write(json.dumps({"tool": "ssh", "argv": sys.argv[1:],
-                             "stdin": base64.b64encode(data).decode("ascii")}) + "\\n")
+                             "stdin": base64.b64encode(data).decode("ascii"),
+                             "environ": dict(os.environ)}) + "\\n")
 result = subprocess.run(sys.argv[-1], shell=True, input=data,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 sys.stdout.buffer.write(result.stdout)
@@ -154,9 +168,13 @@ import base64, json, os, subprocess, sys
 data = sys.stdin.buffer.read()
 with open(os.environ["BROKER_TEST_LOG"], "a", encoding="utf-8") as stream:
     stream.write(json.dumps({"tool": "openssl", "argv": sys.argv[1:],
-                             "stdin": base64.b64encode(data).decode("ascii")}) + "\\n")
+                             "stdin": base64.b64encode(data).decode("ascii"),
+                             "environ": dict(os.environ)}) + "\\n")
+passed_fds = tuple(int(arg.rsplit("/", 1)[1]) for arg in sys.argv[1:]
+                   if arg.startswith("/proc/self/fd/"))
 result = subprocess.run([os.environ["BROKER_TEST_OPENSSL"], *sys.argv[1:]],
-                        input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        pass_fds=passed_fds)
 sys.stdout.buffer.write(result.stdout)
 sys.stderr.buffer.write(result.stderr)
 raise SystemExit(result.returncode)
@@ -403,14 +421,40 @@ def test_private_key_non_regular_file_is_rejected(broker_env: BrokerEnv) -> None
 
 
 def test_private_key_must_be_owned_by_current_user(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_path = SimpleNamespace(
-        lstat=lambda: SimpleNamespace(
+    closed: list[int] = []
+    monkeypatch.setattr(os, "open", lambda *_args, **_kwargs: 91)
+    monkeypatch.setattr(
+        os,
+        "fstat",
+        lambda _fd: SimpleNamespace(
             st_mode=stat.S_IFREG | 0o600,
             st_uid=os.geteuid() + 1,
-        )
+        ),
     )
+    monkeypatch.setattr(os, "close", closed.append)
     with pytest.raises(broker.BrokerError, match="owned by the broker user"):
-        broker._validate_private_key(fake_path)
+        broker._open_private_key(Path("/not-opened"))
+    assert closed == [91]
+
+
+def test_private_key_fd_remains_bound_after_path_replacement(
+    broker_env: BrokerEnv,
+    tmp_path: Path,
+) -> None:
+    assert REAL_OPENSSL is not None
+    key_fd = broker._open_private_key(broker_env.key)
+    try:
+        captured_public_key = broker._public_key(REAL_OPENSSL, key_fd)
+        original = tmp_path / "original.key"
+        broker_env.key.rename(original)
+        replacement_public_key = _make_key(broker_env.key)
+        message = b"fd-bound signing probe"
+        signature = broker._sign(REAL_OPENSSL, key_fd, message)
+    finally:
+        os.close(key_fd)
+
+    assert replacement_public_key != captured_public_key
+    broker.verify(captured_public_key, message, signature)
 
 
 def test_absent_committed_trust_root_never_writes(broker_env: BrokerEnv) -> None:
@@ -525,6 +569,34 @@ def test_control_bytes_are_escaped_before_prompt(capsys: pytest.CaptureFixture[s
     assert output.index("\\x1b") < output.index("PROMPT-SENTINEL")
 
 
+def test_c1_and_bidi_bytes_are_escaped_to_injective_ascii() -> None:
+    raw = "left\\right\u009b\u202eright".encode("utf-8")
+    escaped = broker._escape_control_bytes(raw)
+
+    assert escaped.isascii()
+    assert b"left\\\\right" in escaped
+    assert b"\\xc2\\x9b" in escaped
+    assert b"\\xe2\\x80\\xae" in escaped
+    assert "\u009b".encode("utf-8") not in escaped
+    assert "\u202e".encode("utf-8") not in escaped
+
+
+def test_first_ratification_displays_all_closure_bytes(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = broker.CLOSURE_PATHS[0]
+    blob = b"first line\nlast\\line\xe2\x80\xae"
+
+    broker._show_diff(None, {path: blob})
+    output = capsys.readouterr().out
+
+    assert f"bytes={len(blob)} path={path}" in output
+    assert "+first line\n" in output
+    assert "+last\\\\line\\xe2\\x80\\xae" in output
+    assert "\\ No LF at end of blob" in output
+    assert "\u202e" not in output
+
+
 def test_invalid_signature_on_existing_row_stops_before_approval(broker_env: BrokerEnv) -> None:
     receipt = _receipt(broker_env)
     receipt["signature_ed25519_base64"] = base64.b64encode(b"x" * 64).decode("ascii")
@@ -539,14 +611,18 @@ def test_every_existing_signature_is_checked(broker_env: BrokerEnv) -> None:
     first = _receipt(broker_env)
     first["signature_ed25519_base64"] = base64.b64encode(b"z" * 64).decode("ascii")
     first_line = _canonical(first)
+    first_commit = _commit_ledger(
+        broker_env, first_line + b"\n", "bad earlier row"
+    )
     second = _receipt(
         broker_env,
         serial=2,
         previous_hash=hashlib.sha256(first_line).hexdigest(),
+        source_commit=first_commit,
     )
     _commit_ledger(
         broker_env, first_line + b"\n" + _canonical(second) + b"\n",
-        "bad earlier row",
+        "append later valid row",
     )
     result = _run_without_tty(broker_env)
     assert result.returncode != 0
@@ -562,12 +638,76 @@ def test_valid_existing_signature_reaches_approval(broker_env: BrokerEnv) -> Non
     assert "signature failed" not in result.stderr
 
 
+def test_rewritten_ledger_history_stops_before_approval(broker_env: BrokerEnv) -> None:
+    receipt = _receipt(broker_env)
+    _commit_ledger(broker_env, _canonical(receipt) + b"\n", "valid signed row")
+    _commit_ledger(broker_env, b"", "rewrite ledger to empty")
+
+    result = _run_without_tty(broker_env)
+
+    assert result.returncode != 0
+    assert "strict prefix extension" in result.stderr
+    assert "cannot open /dev/tty" not in result.stderr
+    assert not any(
+        call["tool"] == "openssl" and "pkeyutl" in call["argv"]
+        for call in _calls(broker_env)
+    )
+
+
 def test_nonempty_ledger_requires_one_final_lf(broker_env: BrokerEnv) -> None:
     receipt = _receipt(broker_env)
     _commit_ledger(broker_env, _canonical(receipt), "missing ledger LF")
     result = _run_without_tty(broker_env)
     assert result.returncode != 0
     assert "must end with exactly one LF" in result.stderr
+
+
+def test_sha256_head_is_rejected_before_signing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    key_fd = os.open(os.devnull, os.O_RDONLY)
+    sign_called = False
+
+    monkeypatch.setattr(shutil, "which", lambda name: f"/fake/{name}")
+    monkeypatch.setattr(broker, "_open_private_key", lambda _path: key_fd)
+    monkeypatch.setattr(broker, "_public_key", lambda _openssl, _fd: b"p" * 32)
+    monkeypatch.setattr(broker, "_git", lambda *_args, **_kwargs: b"a" * 64 + b"\n")
+
+    def forbidden_sign(*_args: Any, **_kwargs: Any) -> bytes:
+        nonlocal sign_called
+        sign_called = True
+        return b"x" * 64
+
+    monkeypatch.setattr(broker, "_sign", forbidden_sign)
+    args = SimpleNamespace(
+        target="fixture:/target",
+        key_file=Path("/unused"),
+    )
+    with pytest.raises(broker.BrokerError, match="40-hex SHA-1"):
+        broker.run(args)
+    assert sign_called is False
+
+
+def test_generated_signature_is_verified_before_approval(
+    broker_env: BrokerEnv,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for key, value in broker_env.environ.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setattr(broker, "_require_approval_tty", lambda: None)
+    monkeypatch.setattr(broker, "_sign", lambda *_args, **_kwargs: b"x" * 64)
+    monkeypatch.setattr(
+        broker,
+        "_read_approval",
+        lambda: pytest.fail("approval was requested before signature verification"),
+    )
+
+    args = SimpleNamespace(
+        target=f"fixture:{broker_env.remote}",
+        key_file=broker_env.key,
+    )
+    with pytest.raises(broker.BrokerError, match="failed self-verification"):
+        broker.run(args)
 
 
 def test_remote_path_list_mismatch_stops(broker_env: BrokerEnv) -> None:
@@ -647,37 +787,84 @@ def test_approved_receipt_is_signed_committed_and_records_provenance(
     assert author == b"Trusted Operator <operator@example.invalid>"
     assert _git(broker_env.remote, "status", "--porcelain") == b""
     assert f"commit={new_head}" in result.stdout
+    verified_rows = receipt_verifier._committed_receipts(
+        broker_env.remote, new_head
+    )
+    assert verified_rows[-1]["closure_digest_sha256"] == _expected_digest(
+        broker_env
+    )
+
+
+def test_every_remote_git_call_uses_verifier_hardening(
+    broker_env: BrokerEnv,
+) -> None:
+    result = _run_with_tty(broker_env)
+    assert result.returncode == 0, result.stderr
+    git_commands = [
+        call["argv"][-1]
+        for call in _calls(broker_env)
+        if call["tool"] == "ssh" and "/usr/bin/git" in call["argv"][-1]
+    ]
+    assert git_commands
+    for command in git_commands:
+        assert "/usr/bin/env -i" in command
+        assert "GIT_CONFIG_GLOBAL=/dev/null" in command
+        assert "GIT_NO_REPLACE_OBJECTS=1" in command
+        assert "core.useReplaceRefs=false" in command
+        assert "core.commitGraph=false" in command
+        assert "core.fsmonitor=false" in command
+        assert "--no-replace-objects" in command
 
 
 def test_private_key_bytes_are_not_written_to_output(broker_env: BrokerEnv) -> None:
-    pem, seed = _private_material(broker_env.key)
+    encodings = _private_encodings(broker_env.key)
     result = _run_without_tty(broker_env)
     output = result.stdout.encode("utf-8") + result.stderr.encode("utf-8")
-    assert pem not in output
-    assert seed not in output
+    for label, encoded in encodings.items():
+        assert encoded not in output, label
 
 
 def test_private_key_bytes_are_not_sent_to_children(broker_env: BrokerEnv) -> None:
-    pem, seed = _private_material(broker_env.key)
+    encodings = _private_encodings(broker_env.key)
     result = _run_with_tty(broker_env)
     assert result.returncode == 0, result.stderr
     calls = _calls(broker_env)
     assert any(base64.b64decode(call["stdin"]) for call in calls)
+    assert {call["tool"] for call in calls} == {"ssh", "openssl"}
     for call in calls:
-        payload = base64.b64decode(call["stdin"])
-        assert pem not in payload
-        assert seed not in payload
+        surfaces = {
+            "stdin": base64.b64decode(call["stdin"]),
+            "argv": "\0".join(call["argv"]).encode("utf-8"),
+            "environment": "\0".join(
+                f"{key}={value}"
+                for key, value in sorted(call["environ"].items())
+            ).encode("utf-8"),
+        }
+        for encoding_label, encoded in encodings.items():
+            for surface_label, surface in surfaces.items():
+                assert encoded not in surface, (
+                    call["tool"], encoding_label, surface_label
+                )
 
 
 def test_private_key_bytes_are_not_present_in_remote_tree(broker_env: BrokerEnv) -> None:
-    pem, seed = _private_material(broker_env.key)
+    encodings = _private_encodings(broker_env.key)
     result = _run_with_tty(broker_env)
     assert result.returncode == 0, result.stderr
     for path in broker_env.remote.rglob("*"):
         if path.is_file():
             raw = path.read_bytes()
-            assert pem not in raw
-            assert seed not in raw
+            for label, encoded in encodings.items():
+                assert encoded not in raw, (label, path)
+
+    object_history = _git(
+        broker_env.remote,
+        "cat-file",
+        "--batch-all-objects",
+        "--batch",
+    )
+    for label, encoded in encodings.items():
+        assert encoded not in object_history, label
 
 
 def _self_test() -> int:

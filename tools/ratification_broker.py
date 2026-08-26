@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+from contextlib import contextmanager
 import difflib
+import errno
 import hashlib
 import io
 import json
@@ -26,13 +28,20 @@ import stat
 import subprocess
 import sys
 import tempfile
-from typing import IO, Any
+from typing import IO, Any, Iterator, cast
 
 _INSTALL_ROOT = Path(__file__).resolve().parents[1]
 if os.fspath(_INSTALL_ROOT) not in sys.path:
     sys.path.insert(0, os.fspath(_INSTALL_ROOT))
 
+from orchestrator.campaign import enforcement_source_ratification_receipt as _receipt_verifier
 from orchestrator.campaign.ed25519_verify import Ed25519VerifyError, verify
+from orchestrator.campaign.enforcement_source_ratification import (
+    _FORBIDDEN_AMBIENT_GIT_ENV,
+    _GIT_ENV_ALLOWLIST,
+    _GIT_EXECUTABLE,
+    _GIT_HARDEN,
+)
 
 
 CLOSURE_PATHS = (
@@ -65,31 +74,15 @@ CLOSURE_PATHS = (
     "orchestrator/verifier/commit_receipt.py",
 )
 SORTED_PATHS = tuple(sorted(CLOSURE_PATHS))
-LEDGER_PATH = "hooks/enforcement-source-ratification-receipts.v2.jsonl"
-TRUST_PATH = "hooks/enforcement-source-ratification-trust-root.v1.json"
-SCHEMA = "enforcement-source-ratification-receipt/v2"
-TRUST_SCHEMA = "enforcement-source-ratification-trust-root/v1"
-DOMAIN = b"izanagi/enforcement-source-ratification-receipt/v2\x00"
-RECEIPT_FIELDS = frozenset({
-    "closure_digest_sha256",
-    "closure_paths",
-    "closure_paths_sha256",
-    "decision",
-    "previous_receipt_sha256",
-    "ratification_serial",
-    "schema_version",
-    "source_commit",
-    "trust_root_sha256",
-    "signature_ed25519_base64",
-})
-TRUST_FIELDS = frozenset({
-    "public_key_ed25519_base64",
-    "schema_version",
-})
+LEDGER_PATH = _receipt_verifier.RECEIPT_LEDGER_RELATIVE_PATH
+TRUST_PATH = _receipt_verifier.TRUST_ROOT_RELATIVE_PATH
+SCHEMA = _receipt_verifier.RECEIPT_SCHEMA_VERSION
+TRUST_SCHEMA = _receipt_verifier._TRUST_ROOT_SCHEMA_VERSION
+DOMAIN = _receipt_verifier._DOMAIN_PREFIX
+RECEIPT_FIELDS = _receipt_verifier._ROW_KEYS
+TRUST_FIELDS = _receipt_verifier._TRUST_ROOT_KEYS
 _LOCK_PATH = "orchestrator/campaign/campaign_lock.py"
-_HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
-_HEX64_RE = re.compile(r"[0-9a-f]{64}\Z")
-_OBJECT_ID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
+_HEX40_RE = _receipt_verifier._HEX40_RE
 
 
 class BrokerError(RuntimeError):
@@ -98,14 +91,8 @@ class BrokerError(RuntimeError):
 
 def _canonical(value: object) -> bytes:
     try:
-        return json.dumps(
-            value,
-            ensure_ascii=True,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("ascii")
-    except (TypeError, ValueError) as exc:
+        return _receipt_verifier._canonical_json_bytes(value)
+    except _receipt_verifier.EnforcementSourceRatificationReceiptError as exc:
         raise BrokerError("value cannot be represented as canonical JSON") from exc
 
 
@@ -127,7 +114,12 @@ def _load_json(raw: bytes, *, label: str) -> Any:
         raise BrokerError(f"{label} is not valid JSON") from exc
 
 
-def _run(argv: list[str], *, data: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+def _run(
+    argv: list[str],
+    *,
+    data: bytes | None = None,
+    pass_fds: tuple[int, ...] = (),
+) -> subprocess.CompletedProcess[bytes]:
     try:
         if data is None:
             return subprocess.run(
@@ -136,6 +128,7 @@ def _run(argv: list[str], *, data: bytes | None = None) -> subprocess.CompletedP
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=False,
+                pass_fds=pass_fds,
             )
         return subprocess.run(
             argv,
@@ -143,43 +136,68 @@ def _run(argv: list[str], *, data: bytes | None = None) -> subprocess.CompletedP
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
+            pass_fds=pass_fds,
         )
     except OSError as exc:
         raise BrokerError(f"cannot execute {Path(argv[0]).name}") from exc
 
 
-def _openssl(executable: str, args: list[str], *, data: bytes | None = None) -> bytes:
-    result = _run([executable, *args], data=data)
+def _openssl(
+    executable: str,
+    args: list[str],
+    *,
+    data: bytes | None = None,
+    pass_fds: tuple[int, ...] = (),
+) -> bytes:
+    result = _run([executable, *args], data=data, pass_fds=pass_fds)
     if result.returncode:
         raise BrokerError("openssl operation failed")
     return result.stdout
 
 
-def _validate_private_key(path: Path) -> None:
+def _private_key_absent_message(path: Path) -> str:
+    return (
+        "private key is absent; this broker never creates keys. On a trusted "
+        "host and account that AI cannot reach, run:\n"
+        "  umask 077\n"
+        f"  install -d -m 0700 {shlex.quote(os.fspath(path.parent))}\n"
+        f"  openssl genpkey -algorithm ED25519 -out {shlex.quote(os.fspath(path))}"
+    )
+
+
+def _open_private_key(path: Path) -> int:
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
     try:
-        metadata = path.lstat()
+        fd = os.open(path, flags)
     except FileNotFoundError as exc:
-        raise BrokerError(
-            "private key is absent; this broker never creates keys. On a trusted "
-            "host and account that AI cannot reach, run:\n"
-            "  umask 077\n"
-            f"  install -d -m 0700 {shlex.quote(os.fspath(path.parent))}\n"
-            f"  openssl genpkey -algorithm ED25519 -out {shlex.quote(os.fspath(path))}"
-        ) from exc
+        raise BrokerError(_private_key_absent_message(path)) from exc
     except OSError as exc:
-        raise BrokerError("cannot inspect private key") from exc
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-        raise BrokerError("private key must be a regular non-symlink file")
-    if metadata.st_uid != os.geteuid():
-        raise BrokerError("private key must be owned by the broker user")
-    if stat.S_IMODE(metadata.st_mode) & (stat.S_IRGRP | stat.S_IROTH):
-        raise BrokerError("private key must not be readable by group or other")
+        if exc.errno == errno.ELOOP:
+            raise BrokerError("private key must be a regular non-symlink file") from exc
+        raise BrokerError("cannot open private key") from exc
+    try:
+        metadata = os.fstat(fd)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise BrokerError("private key must be a regular non-symlink file")
+        if metadata.st_uid != os.geteuid():
+            raise BrokerError("private key must be owned by the broker user")
+        if stat.S_IMODE(metadata.st_mode) & (stat.S_IRGRP | stat.S_IROTH):
+            raise BrokerError("private key must not be readable by group or other")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
 
 
-def _public_key(executable: str, key: Path) -> bytes:
+def _fd_path(fd: int) -> str:
+    return f"/proc/self/fd/{fd}"
+
+
+def _public_key(executable: str, key_fd: int) -> bytes:
     der = _openssl(
         executable,
-        ["pkey", "-in", os.fspath(key), "-pubout", "-outform", "DER"],
+        ["pkey", "-in", _fd_path(key_fd), "-pubout", "-outform", "DER"],
+        pass_fds=(key_fd,),
     )
     prefix = bytes.fromhex("302a300506032b6570032100")
     if len(der) != len(prefix) + 32 or not der.startswith(prefix):
@@ -187,7 +205,7 @@ def _public_key(executable: str, key: Path) -> bytes:
     return der[len(prefix):]
 
 
-def _sign(executable: str, key: Path, message: bytes) -> bytes:
+def _sign(executable: str, key_fd: int, message: bytes) -> bytes:
     with tempfile.TemporaryDirectory(prefix="izanagi-ratification-sign-") as raw_dir:
         private_dir = Path(raw_dir)
         private_dir.chmod(0o700)
@@ -213,10 +231,11 @@ def _sign(executable: str, key: Path, message: bytes) -> bytes:
                     "-sign",
                     "-rawin",
                     "-inkey",
-                    os.fspath(key),
+                    _fd_path(key_fd),
                     "-in",
                     os.fspath(message_path),
                 ],
+                pass_fds=(key_fd,),
             )
         finally:
             message_path.unlink(missing_ok=True)
@@ -259,20 +278,48 @@ def _ssh(
     return result.stdout
 
 
-def _git_command(repo: str, args: list[str]) -> str:
+def _remote_git_environment() -> tuple[str, ...]:
+    contaminated = sorted(
+        key for key in _FORBIDDEN_AMBIENT_GIT_ENV if key in os.environ
+    )
+    if contaminated:
+        raise BrokerError(
+            "ratification git environment has repository/object overrides: "
+            f"{contaminated!r}"
+        )
+    allowed = tuple(
+        f"{key}={os.environ[key]}"
+        for key in _GIT_ENV_ALLOWLIST
+        if key in os.environ
+    )
+    return (*allowed, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+            "GIT_NO_REPLACE_OBJECTS=1", "GIT_OPTIONAL_LOCKS=0",
+            "GIT_TERMINAL_PROMPT=0")
+
+
+def _git_prefix(repo: str, *, commit: bool = False) -> str:
+    if not _GIT_EXECUTABLE.is_absolute():
+        raise BrokerError("ratification git executable is not an absolute path")
+    extra = (
+        ("-c", "core.hooksPath=/dev/null", "-c", "commit.gpgSign=false")
+        if commit
+        else ()
+    )
     return shlex.join([
-        "env",
-        "GIT_CONFIG_NOSYSTEM=1",
-        "GIT_TERMINAL_PROMPT=0",
-        "git",
-        "-c",
-        "core.pager=cat",
-        "-c",
-        "color.ui=false",
+        "/usr/bin/env",
+        "-i",
+        *_remote_git_environment(),
+        os.fspath(_GIT_EXECUTABLE),
+        *_GIT_HARDEN,
+        "--no-replace-objects",
+        *extra,
         "-C",
         repo,
-        *args,
     ])
+
+
+def _git_command(repo: str, args: list[str]) -> str:
+    return f"{_git_prefix(repo)} {shlex.join(args)}"
 
 
 def _git(executable: str, spec: str, repo: str, args: list[str]) -> bytes:
@@ -314,7 +361,7 @@ def _committed_blob_oid(
         oid = raw.decode("ascii")
     except UnicodeDecodeError as exc:
         raise BrokerError("committed ledger blob id is not ASCII") from exc
-    if _OBJECT_ID_RE.fullmatch(oid) is None:
+    if _HEX40_RE.fullmatch(oid) is None:
         raise BrokerError("committed ledger blob id is malformed")
     return oid
 
@@ -330,8 +377,11 @@ def _head(executable: str, spec: str, repo: str) -> str:
         head = raw.decode("ascii")
     except UnicodeDecodeError as exc:
         raise BrokerError("remote HEAD is not ASCII") from exc
-    if _OBJECT_ID_RE.fullmatch(head) is None:
-        raise BrokerError("remote HEAD is not a commit id")
+    if _HEX40_RE.fullmatch(head) is None:
+        raise BrokerError(
+            "remote HEAD is not a 40-hex SHA-1 commit id; the receipt verifier "
+            "does not accept this target object format"
+        )
     return head
 
 
@@ -347,9 +397,7 @@ def _remote_paths(lock_blob: bytes) -> tuple[str, ...]:
         )
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise BrokerError("remote closure path table is not a plain tuple") from exc
-    if not all(type(path) is str for path in paths):
-        raise BrokerError("remote closure path table contains a non-string")
-    return paths
+    return cast(tuple[str, ...], paths)
 
 
 def _parse_trust_root(raw: bytes) -> bytes:
@@ -400,81 +448,21 @@ def _missing_trust_root_message(public_key: bytes) -> str:
     )
 
 
-def _receipt_signature(value: dict[str, Any]) -> bytes:
-    encoded = value.get("signature_ed25519_base64")
-    if type(encoded) is not str:
-        raise BrokerError("receipt signature is not a string")
-    try:
-        signature = base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise BrokerError("receipt signature is not canonical base64") from exc
-    if len(signature) != 64 or base64.b64encode(signature).decode("ascii") != encoded:
-        raise BrokerError("receipt signature is not a raw Ed25519 signature")
-    return signature
-
-
-def _latest_receipt(
-    raw: bytes,
-    public_key: bytes,
-    fingerprint: str,
-) -> tuple[dict[str, Any] | None, str | None]:
-    if raw == b"":
-        return None, None
-    if not raw.endswith(b"\n") or raw.endswith(b"\n\n"):
-        raise BrokerError("receipt ledger must end with exactly one LF")
-
-    expected_paths_hash = hashlib.sha256(_canonical(list(SORTED_PATHS))).hexdigest()
-    previous_hash: str | None = None
-    latest: dict[str, Any] | None = None
-    for serial, line in enumerate(raw[:-1].split(b"\n"), 1):
-        value = _load_json(line, label="receipt ledger line")
-        if type(value) is not dict or set(value) != RECEIPT_FIELDS:
-            raise BrokerError("receipt ledger line has an unexpected field set")
-        if _canonical(value) != line:
-            raise BrokerError("receipt ledger line is not canonical JSON")
-        paths = value["closure_paths"]
-        if (
-            value["schema_version"] != SCHEMA
-            or type(value["ratification_serial"]) is not int
-            or value["ratification_serial"] != serial
-            or value["previous_receipt_sha256"] != previous_hash
-            or value["trust_root_sha256"] != fingerprint
-            or value["decision"] != "ratify"
-            or type(paths) is not list
-            or tuple(paths) != SORTED_PATHS
-            or not all(type(path) is str for path in paths)
-            or value["closure_paths_sha256"] != expected_paths_hash
-            or type(value["closure_digest_sha256"]) is not str
-            or _HEX64_RE.fullmatch(value["closure_digest_sha256"]) is None
-            or type(value["source_commit"]) is not str
-            or _HEX40_RE.fullmatch(value["source_commit"]) is None
-        ):
-            raise BrokerError("receipt ledger is not a canonical v2 chain")
-        signature = _receipt_signature(value)
-        signed = dict(value)
-        del signed["signature_ed25519_base64"]
-        try:
-            verify(public_key, DOMAIN + _canonical(signed), signature)
-        except Ed25519VerifyError as exc:
-            raise BrokerError(f"receipt ledger signature failed at serial {serial}") from exc
-        previous_hash = hashlib.sha256(line).hexdigest()
-        latest = value
-    return latest, previous_hash
-
-
 def _escape_control_bytes(raw: bytes) -> bytes:
     escaped = bytearray()
     named = {
         0x08: b"\\b",
         0x09: b"\\t",
-        0x0A: b"\\n\n",
+        0x0A: b"\n",
         0x0C: b"\\f",
         0x0D: b"\\r",
     }
     for byte in raw:
         if byte in named:
             escaped.extend(named[byte])
-        elif byte < 0x20:
+        elif byte == 0x5C:
+            escaped.extend(b"\\\\")
+        elif byte < 0x20 or byte >= 0x7F:
             escaped.extend(f"\\x{byte:02x}".encode("ascii"))
         else:
             escaped.append(byte)
@@ -483,14 +471,38 @@ def _escape_control_bytes(raw: bytes) -> bytes:
 
 def _display_lines(raw: bytes) -> list[str]:
     safe = _escape_control_bytes(raw)
-    return safe.decode("utf-8", "backslashreplace").splitlines(keepends=True)
+    return safe.decode("ascii").splitlines(keepends=True)
+
+
+def _diff_lines(raw: bytes) -> list[str]:
+    lines = _display_lines(raw)
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+        lines.append("\\ No LF at end of blob\n")
+    return lines
+
+
+def _show_initial_blob(path: str, blob: bytes) -> None:
+    print(f"--- /dev/null\n+++ {path} (current)")
+    lines = _display_lines(blob)
+    if not lines:
+        print("[0 bytes]")
+        return
+    for line in lines:
+        sys.stdout.write("+" + line)
+        if not line.endswith("\n"):
+            sys.stdout.write("\n\\ No LF at end of blob\n")
 
 
 def _show_diff(old: dict[str, bytes] | None, new: dict[str, bytes]) -> None:
     if old is None:
-        print("no previous receipt; current closure blobs:")
+        print("no previous receipt; full current closure bytes follow:")
         for path, blob in new.items():
-            print(f"  {hashlib.sha256(blob).hexdigest()}  {path}")
+            print(
+                f"sha256={hashlib.sha256(blob).hexdigest()} "
+                f"bytes={len(blob)} path={path}"
+            )
+            _show_initial_blob(path, blob)
         return
     changed = False
     for path in CLOSURE_PATHS:
@@ -498,13 +510,198 @@ def _show_diff(old: dict[str, bytes] | None, new: dict[str, bytes]) -> None:
             continue
         changed = True
         sys.stdout.writelines(difflib.unified_diff(
-            _display_lines(old[path]),
-            _display_lines(new[path]),
+            _diff_lines(old[path]),
+            _diff_lines(new[path]),
             fromfile=f"{path} (previous)",
             tofile=f"{path} (current)",
         ))
     if not changed:
         print("no closure changes since the previous receipt")
+
+
+def _preflight_error(exc: Exception) -> BrokerError:
+    message = str(exc)
+    signature_match = re.search(r"signature is invalid: ([0-9]+)\Z", message)
+    if signature_match is not None:
+        return BrokerError(
+            "receipt ledger signature failed at serial "
+            f"{signature_match.group(1)}"
+        )
+    if "ledger is not newline terminated" in message:
+        return BrokerError("receipt ledger must end with exactly one LF")
+    return BrokerError(f"target receipt verifier preflight failed: {message}")
+
+
+def _write_private_file(path: Path, raw: bytes) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            fd = -1
+            stream.write(raw)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def _assert_remote_full_history(
+    executable: str,
+    spec: str,
+    repo: str,
+) -> None:
+    shallow = _git(
+        executable, spec, repo, ["rev-parse", "--is-shallow-repository"]
+    )
+    if shallow != b"false\n":
+        raise BrokerError("ratification history requires a non-shallow repository")
+
+    raw_grafts = _git(
+        executable, spec, repo, ["rev-parse", "--git-path", "info/grafts"]
+    )
+    try:
+        grafts = raw_grafts.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise BrokerError("ratification history cannot use Git grafts") from exc
+    if not grafts.endswith("\n") or "\n" in grafts[:-1] or not grafts[:-1]:
+        raise BrokerError("ratification history cannot use Git grafts")
+    grafts_path = grafts[:-1]
+    if not grafts_path.startswith("/"):
+        grafts_path = repo.rstrip("/") + "/" + grafts_path
+    path_q = shlex.quote(grafts_path)
+    result = _ssh_result(
+        executable,
+        spec,
+        f"if test -e {path_q}; then /bin/cat -- {path_q}; fi",
+    )
+    if result.returncode != 0 or any(
+        line and not line.startswith(b"#")
+        for line in result.stdout.split(b"\n")
+    ):
+        raise BrokerError("ratification history cannot use Git grafts")
+
+
+@contextmanager
+def _target_snapshot(
+    executable: str,
+    spec: str,
+    repo: str,
+    expected_head: str,
+) -> Iterator[Path]:
+    _assert_remote_full_history(executable, spec, repo)
+    bundle = _git(executable, spec, repo, ["bundle", "create", "-", "HEAD"])
+    with tempfile.TemporaryDirectory(prefix="izanagi-ratification-preflight-") as raw_dir:
+        private_dir = Path(raw_dir)
+        private_dir.chmod(0o700)
+        bundle_path = private_dir / "target.bundle"
+        mirror = private_dir / "mirror"
+        _write_private_file(bundle_path, bundle)
+        try:
+            _receipt_verifier._require_git(
+                private_dir,
+                "clone",
+                "--quiet",
+                "--no-checkout",
+                os.fspath(bundle_path),
+                os.fspath(mirror),
+            )
+            observed_head = _receipt_verifier._head_commit(mirror)
+        except _receipt_verifier.EnforcementSourceRatificationReceiptError as exc:
+            raise _preflight_error(exc) from exc
+        if observed_head != expected_head:
+            raise BrokerError(
+                "remote HEAD changed while the verifier snapshot was being captured"
+            )
+        yield mirror
+
+
+def _snapshot_blob(
+    root: Path,
+    commit: str,
+    relative: str,
+    *,
+    missing_ok: bool = False,
+) -> bytes | None:
+    try:
+        result = _receipt_verifier._git(
+            root, "cat-file", "blob", f"{commit}:{relative}"
+        )
+    except _receipt_verifier.EnforcementSourceRatificationReceiptError as exc:
+        raise _preflight_error(exc) from exc
+    if result.returncode == 0:
+        return result.stdout
+    if missing_ok and result.returncode == 128:
+        return None
+    raise BrokerError(f"cannot read committed blob {relative}")
+
+
+def _snapshot_blob_oid(root: Path, commit: str, relative: str) -> str:
+    try:
+        raw = _receipt_verifier._require_git(
+            root, "rev-parse", "--verify", f"{commit}:{relative}"
+        ).strip()
+    except _receipt_verifier.EnforcementSourceRatificationReceiptError as exc:
+        raise _preflight_error(exc) from exc
+    try:
+        oid = raw.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise BrokerError("committed ledger blob id is not ASCII") from exc
+    if _HEX40_RE.fullmatch(oid) is None:
+        raise BrokerError("committed ledger blob id is malformed")
+    return oid
+
+
+def _preflight_committed_rows(
+    root: Path,
+    head: str,
+) -> tuple[dict[str, object], ...]:
+    try:
+        return _receipt_verifier._committed_receipts(root, head)
+    except _receipt_verifier.EnforcementSourceRatificationReceiptError as exc:
+        raise _preflight_error(exc) from exc
+
+
+def _replace_snapshot_ledger(root: Path, head: str, ledger: bytes) -> str:
+    relative = root / LEDGER_PATH
+    try:
+        _receipt_verifier._require_git(
+            root, "checkout", head, "--", LEDGER_PATH
+        )
+        fd = os.open(relative, os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                fd = -1
+                stream.write(ledger)
+        finally:
+            if fd >= 0:
+                os.close(fd)
+        _receipt_verifier._require_git(root, "add", "--", LEDGER_PATH)
+        _receipt_verifier._require_git(
+            root,
+            "-c", "user.name=Ratification Broker Preflight",
+            "-c", "user.email=preflight@example.invalid",
+            "-c", "core.hooksPath=/dev/null",
+            "-c", "commit.gpgSign=false",
+            "commit", "--quiet", "--only", "-m",
+            "Prospective ratification receipt preflight",
+            "--", LEDGER_PATH,
+        )
+        return _receipt_verifier._head_commit(root)
+    except (OSError, _receipt_verifier.EnforcementSourceRatificationReceiptError) as exc:
+        raise _preflight_error(exc) from exc
+
+
+def _preflight_prospective_ledger(
+    root: Path,
+    head: str,
+    ledger: bytes,
+    receipt: dict[str, Any],
+) -> None:
+    prospective_head = _replace_snapshot_ledger(root, head, ledger)
+    rows = _preflight_committed_rows(root, prospective_head)
+    if not rows or rows[-1] != receipt:
+        raise BrokerError(
+            "target receipt verifier did not return the prospective final row"
+        )
 
 
 def _approval_stream() -> IO[str]:
@@ -525,6 +722,15 @@ def _approval_stream() -> IO[str]:
     except BaseException:
         raw.close()
         raise
+
+
+def _require_approval_tty() -> None:
+    """Confirm the approval channel exists without asking for a decision."""
+    try:
+        stream = _approval_stream()
+    except OSError as exc:
+        raise BrokerError("cannot open /dev/tty; ratification is not approved") from exc
+    stream.close()
 
 
 def _read_approval() -> None:
@@ -564,21 +770,13 @@ def _transaction_command(
     expected_ledger_oid: str,
     commit_message: str,
 ) -> str:
-    repo_q = shlex.quote(repo)
     relative_q = shlex.quote(LEDGER_PATH)
     ledger_q = shlex.quote(repo.rstrip("/") + "/" + LEDGER_PATH)
     head_q = shlex.quote(expected_head)
     oid_q = shlex.quote(expected_ledger_oid)
     message_q = shlex.quote(commit_message)
-    git_prefix = (
-        "env GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 "
-        f"git -c core.pager=cat -c color.ui=false -C {repo_q}"
-    )
-    commit_prefix = (
-        "env GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 "
-        f"git -c core.hooksPath=/dev/null -c core.pager=cat "
-        f"-c color.ui=false -c commit.gpgSign=false -C {repo_q}"
-    )
+    git_prefix = _git_prefix(repo)
+    commit_prefix = _git_prefix(repo, commit=True)
     return "\n".join([
         "set -eu",
         "tmp=''",
@@ -677,7 +875,7 @@ def _commit_receipt(
         new_head, new_oid = result.stdout.decode("ascii").splitlines()
     except (UnicodeDecodeError, ValueError) as exc:
         raise BrokerError("ratification transaction returned malformed provenance") from exc
-    if _OBJECT_ID_RE.fullmatch(new_head) is None or _OBJECT_ID_RE.fullmatch(new_oid) is None:
+    if _HEX40_RE.fullmatch(new_head) is None or _HEX40_RE.fullmatch(new_oid) is None:
         raise BrokerError("ratification transaction returned malformed object ids")
     return new_head
 
@@ -703,74 +901,112 @@ def run(args: argparse.Namespace) -> str:
         raise BrokerError("target must be <ssh-spec>:<absolute-repo-path>")
 
     key = args.key_file.expanduser()
-    _validate_private_key(key)
-    public_key = _public_key(openssl, key)
-    fingerprint = hashlib.sha256(public_key).hexdigest()
+    key_fd = _open_private_key(key)
+    try:
+        public_key = _public_key(openssl, key_fd)
+        fingerprint = hashlib.sha256(public_key).hexdigest()
+        head = _head(ssh, spec, repo)
 
-    head = _head(ssh, spec, repo)
-    blobs: dict[str, bytes] = {}
-    for path in CLOSURE_PATHS:
-        blob = _git_blob(ssh, spec, repo, head, path)
-        assert blob is not None
-        blobs[path] = blob
-    remote_paths = _remote_paths(blobs[_LOCK_PATH])
-    if remote_paths != CLOSURE_PATHS:
-        print("closure path mismatch:", file=sys.stderr)
-        for line in difflib.unified_diff(
-            list(remote_paths),
-            list(CLOSURE_PATHS),
-            fromfile="remote",
-            tofile="broker",
-            lineterm="",
-        ):
-            print(line, file=sys.stderr)
-        raise BrokerError("remote closure path list differs from broker table")
-
-    trust_raw = _git_blob(ssh, spec, repo, head, TRUST_PATH, missing_ok=True)
-    if trust_raw is None:
-        raise BrokerError(_missing_trust_root_message(public_key))
-    trusted_public_key = _parse_trust_root(trust_raw)
-    if trusted_public_key != public_key:
-        raise BrokerError("committed trust root differs from this private key")
-
-    ledger = _git_blob(ssh, spec, repo, head, LEDGER_PATH)
-    assert ledger is not None
-    ledger_oid = _committed_blob_oid(ssh, spec, repo, head, LEDGER_PATH)
-    latest, previous_hash = _latest_receipt(ledger, trusted_public_key, fingerprint)
-
-    blob_hashes = {path: hashlib.sha256(blob).hexdigest() for path, blob in blobs.items()}
-    digest = hashlib.sha256(_canonical(blob_hashes)).hexdigest()
-    paths_hash = hashlib.sha256(_canonical(list(SORTED_PATHS))).hexdigest()
-    old = None
-    if latest is not None:
-        old = {}
-        for path in CLOSURE_PATHS:
-            old_blob = _git_blob(
-                ssh,
-                spec,
-                repo,
-                latest["source_commit"],
-                path,
+        with _target_snapshot(ssh, spec, repo, head) as snapshot:
+            trust_raw = _snapshot_blob(
+                snapshot, head, TRUST_PATH, missing_ok=True
             )
-            assert old_blob is not None
-            old[path] = old_blob
-    _show_diff(old, blobs)
-    _read_approval()
+            if trust_raw is None:
+                raise BrokerError(_missing_trust_root_message(public_key))
+            trusted_public_key = _parse_trust_root(trust_raw)
+            if trusted_public_key != public_key:
+                raise BrokerError("committed trust root differs from this private key")
 
-    receipt: dict[str, Any] = {
-        "closure_digest_sha256": digest,
-        "closure_paths": list(SORTED_PATHS),
-        "closure_paths_sha256": paths_hash,
-        "decision": "ratify",
-        "previous_receipt_sha256": previous_hash,
-        "ratification_serial": 1 if latest is None else latest["ratification_serial"] + 1,
-        "schema_version": SCHEMA,
-        "source_commit": head,
-        "trust_root_sha256": fingerprint,
-    }
-    signature = _sign(openssl, key, DOMAIN + _canonical(receipt))
-    receipt["signature_ed25519_base64"] = base64.b64encode(signature).decode("ascii")
-    next_ledger = ledger + _canonical(receipt) + b"\n"
+            ledger = cast(
+                bytes, _snapshot_blob(snapshot, head, LEDGER_PATH)
+            )
+            ledger_oid = _snapshot_blob_oid(snapshot, head, LEDGER_PATH)
+            rows = _preflight_committed_rows(snapshot, head)
+            latest = rows[-1] if rows else None
+            previous_hash = (
+                None
+                if latest is None
+                else hashlib.sha256(_canonical(latest)).hexdigest()
+            )
+
+            blobs = {
+                path: cast(bytes, _snapshot_blob(snapshot, head, path))
+                for path in CLOSURE_PATHS
+            }
+            remote_paths = _remote_paths(blobs[_LOCK_PATH])
+            if remote_paths != CLOSURE_PATHS:
+                print("closure path mismatch:", file=sys.stderr)
+                for line in difflib.unified_diff(
+                    list(remote_paths),
+                    list(CLOSURE_PATHS),
+                    fromfile="remote",
+                    tofile="broker",
+                    lineterm="",
+                ):
+                    print(line, file=sys.stderr)
+                raise BrokerError(
+                    "remote closure path list differs from broker table"
+                )
+
+            blob_hashes = {
+                path: hashlib.sha256(blob).hexdigest()
+                for path, blob in blobs.items()
+            }
+            digest = hashlib.sha256(_canonical(blob_hashes)).hexdigest()
+            paths_hash = hashlib.sha256(
+                _canonical(list(SORTED_PATHS))
+            ).hexdigest()
+            old = None
+            if latest is not None:
+                source_commit = cast(str, latest["source_commit"])
+                old = {
+                    path: cast(
+                        bytes,
+                        _snapshot_blob(snapshot, source_commit, path),
+                    )
+                    for path in CLOSURE_PATHS
+                }
+
+            _require_approval_tty()
+            receipt: dict[str, Any] = {
+                "closure_digest_sha256": digest,
+                "closure_paths": list(SORTED_PATHS),
+                "closure_paths_sha256": paths_hash,
+                "decision": "ratify",
+                "previous_receipt_sha256": previous_hash,
+                "ratification_serial": (
+                    1
+                    if latest is None
+                    else cast(int, latest["ratification_serial"]) + 1
+                ),
+                "schema_version": SCHEMA,
+                "source_commit": head,
+                "trust_root_sha256": fingerprint,
+            }
+            signed_payload = DOMAIN + _canonical(receipt)
+            signature = _sign(openssl, key_fd, signed_payload)
+            try:
+                verify(trusted_public_key, signed_payload, signature)
+            except Ed25519VerifyError as exc:
+                raise BrokerError(
+                    "generated Ed25519 signature failed self-verification"
+                ) from exc
+            os.close(key_fd)
+            key_fd = -1
+
+            receipt["signature_ed25519_base64"] = base64.b64encode(
+                signature
+            ).decode("ascii")
+            next_ledger = ledger + _canonical(receipt) + b"\n"
+            _preflight_prospective_ledger(
+                snapshot, head, next_ledger, receipt
+            )
+            _show_diff(old, blobs)
+    finally:
+        if key_fd >= 0:
+            os.close(key_fd)
+
+    _read_approval()
 
     if _head(ssh, spec, repo) != head:
         raise BrokerError("remote HEAD changed while ratification was being prepared")

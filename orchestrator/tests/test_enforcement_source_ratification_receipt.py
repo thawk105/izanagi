@@ -32,12 +32,36 @@ _GIT_ENV_ALLOWLIST = (
     "TMPDIR",
     "TZ",
 )
-_SOURCE_CLOSURE_PATHS = tuple(dict.fromkeys((
-    *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+_SOURCE_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/enforcement_source_ratification.py",
     "orchestrator/campaign/ed25519_verify.py",
     "orchestrator/campaign/enforcement_source_ratification_receipt.py",
-)))
-assert len(_SOURCE_CLOSURE_PATHS) == 27
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+)
+assert _SOURCE_CLOSURE_PATHS == campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
 _UNSET = object()
 
 
@@ -569,6 +593,74 @@ def test_source_commit_must_bind_signed_closure(
         R.require_signed_ratification(signed_closure.blob_map)
 
 
+def test_symlink_mode_source_path_is_rejected(
+    signed_repo: _SignedRepo,
+) -> None:
+    relative = _SOURCE_CLOSURE_PATHS[0]
+    oid = _git(
+        signed_repo.path,
+        "rev-parse",
+        f"HEAD:{relative}",
+    ).decode("ascii").strip()
+    _git(
+        signed_repo.path,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        "120000",
+        oid,
+        relative,
+    )
+    _git(
+        signed_repo.path,
+        "-c", "user.email=t1629-fixture@example.invalid",
+        "-c", "user.name=T1629 fixture",
+        "commit", "-q", "-m", "install symlink-mode source path",
+    )
+    source_commit = _head(signed_repo.path)
+    tree_entry = _git(
+        signed_repo.path,
+        "ls-tree",
+        source_commit,
+        "--",
+        relative,
+    )
+    assert tree_entry.startswith(b"120000 blob " + oid.encode("ascii"))
+
+    _git(
+        signed_repo.path,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        "100644",
+        oid,
+        relative,
+    )
+    _git(
+        signed_repo.path,
+        "-c", "user.email=t1629-fixture@example.invalid",
+        "-c", "user.name=T1629 fixture",
+        "commit", "-q", "-m", "restore regular-mode source path",
+    )
+    assert _git(
+        signed_repo.path,
+        "rev-parse",
+        f"HEAD:{relative}",
+    ).decode("ascii").strip() == oid
+
+    symlink_source = _Closure(
+        dict(signed_repo.closure.blob_map),
+        source_commit,
+    )
+    _append_row(signed_repo, b"", symlink_source, serial=1)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationReceiptError,
+        match="source closure path is not a regular file",
+    ):
+        R.require_signed_ratification(signed_repo.closure.blob_map)
+
+
 def test_unreachable_source_commit_with_same_closure_is_rejected(
     signed_repo: _SignedRepo,
 ) -> None:
@@ -841,6 +933,47 @@ def test_ledger_input_limits_fail_closed(
     with pytest.raises(
         R.EnforcementSourceRatificationReceiptError,
         match=message,
+    ):
+        R.require_signed_ratification(signed_repo.closure.blob_map)
+
+
+def test_history_commit_limit_fails_closed(
+    signed_repo: _SignedRepo,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(R, "_MAX_HISTORY_COMMITS", 1)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationReceiptError,
+        match="history exceeds the commit limit",
+    ):
+        R.require_signed_ratification(signed_repo.closure.blob_map)
+
+
+def test_historical_ledger_aggregate_byte_limit_fails_closed(
+    signed_repo: _SignedRepo,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _append_row(signed_repo, b"", signed_repo.closure, serial=1)
+    monkeypatch.setattr(R, "_MAX_HISTORY_LEDGER_BYTES", 1)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationReceiptError,
+        match="historical ledger blobs exceed the aggregate byte limit",
+    ):
+        R.require_signed_ratification(signed_repo.closure.blob_map)
+
+
+def test_source_batch_aggregate_byte_limit_fails_closed(
+    signed_repo: _SignedRepo,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _append_row(signed_repo, b"", signed_repo.closure, serial=1)
+    monkeypatch.setattr(R, "_MAX_SOURCE_BATCH_BYTES", 1)
+
+    with pytest.raises(
+        R.EnforcementSourceRatificationReceiptError,
+        match="source closure batch exceeds the aggregate byte limit",
     ):
         R.require_signed_ratification(signed_repo.closure.blob_map)
 

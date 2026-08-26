@@ -198,12 +198,15 @@ def ratified_enforcement_source(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Opt in to a committed signed receipt for the current exact closure."""
-    ed25519 = pytest.importorskip(
-        "cryptography.hazmat.primitives.asymmetric.ed25519"
-    )
-    serialization = pytest.importorskip(
-        "cryptography.hazmat.primitives.serialization"
-    )
+    try:
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+    except ImportError:
+        pytest.fail(
+            "ratified enforcement-source fixture requires cryptography; "
+            "this fixture must not be skipped in batch because that would "
+            "leave ratification-gate regressions unchecked"
+        )
     from orchestrator.campaign import campaign_lock, contract_loader_binding
     from orchestrator.campaign import enforcement_source_ratification as ratification
     from orchestrator.campaign import (
@@ -219,8 +222,6 @@ def ratified_enforcement_source(
             allow_nan=False,
         ).encode("ascii")
 
-    binding = contract_loader_binding.capture_contract_loader_binding()
-    blob_sha256s = dict(binding.contract_loader_blob_sha256s)
     repo = tmp_path_factory.mktemp("ratified-enforcement-source") / "repo"
     repo.mkdir()
     _ratification_fixture_git(repo, "init", "-q")
@@ -230,12 +231,13 @@ def ratified_enforcement_source(
     )
 
     checkout_root = Path(__file__).resolve().parents[2]
+    blob_sha256s: dict[str, str] = {}
     for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS:
         raw = (checkout_root / relative).read_bytes()
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(raw)
-        assert hashlib.sha256(raw).hexdigest() == blob_sha256s[relative]
+        blob_sha256s[relative] = hashlib.sha256(raw).hexdigest()
 
     private_key = ed25519.Ed25519PrivateKey.generate()
     public_key = private_key.public_key().public_bytes(
@@ -294,7 +296,20 @@ def ratified_enforcement_source(
     _ratification_fixture_git(
         repo, *identity, "commit", "-q", "-m", "record signed ratification",
     )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
     monkeypatch.setattr(receipt, "_REPO_ROOT", repo)
+    binding = contract_loader_binding.capture_contract_loader_binding()
+    synthetic_head = _ratification_fixture_git(
+        repo, "rev-parse", "--verify", "HEAD^{commit}",
+    ).decode("ascii").strip()
+    assert binding.contract_loader_commit == synthetic_head
+    assert dict(binding.contract_loader_blob_sha256s) == blob_sha256s
+    assert _ratification_fixture_git(
+        repo,
+        "merge-base",
+        source_commit,
+        binding.contract_loader_commit,
+    ).decode("ascii").strip() == source_commit
     return digest
 
 
