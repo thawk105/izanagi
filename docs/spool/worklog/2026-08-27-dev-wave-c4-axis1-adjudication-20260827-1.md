@@ -75,6 +75,10 @@ title: 軸 1 の文献検索の母集合契約を事前登録して凍結し、�
   `docs/paper-story/README.md` の「最新スナップショット以後に確定したこと」から指した。
 - 起動時の編集面重複検査で、`docs/related-work/` と `docs/paper-story/` に触れている branch も
   稼働 worktree の未 commit も 0 件であることを確認した。
+- **段 8 の裁定。** 改善候補は 2 件 ({{F:injection-scan-word-form}} と
+  {{F:preregistration-not-executable}}) で、どちらも**単発事故**である。`DW-G03` に従い
+  failures 台帳への記録に留め、command / reference の編集は見送った。
+  族一般化は同型欠陥が異なる producer / consumer で独立に 2 件再現したときに行う。
 
 - [T-1880] `2404.13359` の採録判断を確定し、7.1 へ採録した。判定は `直接接地` / 競合。
 
