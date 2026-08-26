@@ -151,3 +151,57 @@ a1k2 と K=1 の 2 走では緑だった。
 - `/work/1/SFC/tanab/.izanagi-acceptance-shards/e4a77eb86b3e8ad9c4855255307be11c/` — a1k2
 - `/work/1/SFC/tanab/.izanagi-acceptance-shards/87fb18347fefb28dbbe2eb099604265e/` — a4k2
 - `/work/1/SFC/tanab/.izanagi-acceptance-shards/e6887cb4d4059ee0ec0dbb6aea880485/` — 参照走
+
+## land 待ちの相談 (2026-08-26、段 9)
+
+受入全走が 2 走とも `test_dev_wave_cleanup.py` の別 node で rc=22 の占有不定になり land できず、
+扱いを codex 2 レンズへ相談した。逐語は `verbatim/s9-consult-sol.md` と
+`verbatim/s9-consult-luna.md`、相談材料は `verbatim/s9-situation.md`。
+
+**両レンズが独立に (a) file 除外も (b) node hold も否定した。**
+
+- **親の「脆弱な 15 node」は誤りだった。** 実 `/proc` に到達する成功経路は **6 node** だけである。
+  `test_landed_attached_worktree_is_removed[locked|unlocked]`、
+  `test_forward_merged_landing_tip_is_used_for_cleanup[derived|asserted]`、
+  `test_reentry_states_run_only_remaining_cleanup[a|b]`。
+  残りは `_occupancy_payload` を monkeypatch 済みか occupancy phase を持たない。
+  親が現物で裏を取り直して確認した。観測された赤 2 件はどちらもこの 6 の中である。
+- **同 file に隔離用ヘルパー `_stub_unoccupied` が既にある**
+  (`orchestrator/tests/test_dev_wave_cleanup.py:128`、呼び出し 854 / 974 / 1018 / 1102)。
+  上の 6 node だけがこれを使っていない。
+- **今回の赤は D793 の射程外である。** 拒否本文が `attempts=1 retry_count=0` であり、
+  `missing/{stat,cwd,cmdline}` だけなら最大 3 scan の再試行に入る
+  (`tools/dev_wave_cleanup.py:29-30, 488-496`)。1 回で拒否された以上、
+  `pid-reused` / permission / invalid / os-error / proc-root のような非 retryable な issue が
+  少なくとも 1 件混じっている。D793 が閉じたのは deleted-cwd の 1 経路だけである
+  (`tools/check_worktree_occupancy.py:427-445`)。
+- **どの経路かは現状の出力からは特定できない。** 拒否 stderr が issue payload を捨てている。
+  最初の一手は rc=22 の診断へ issue の `error` / `source` を出すことである。
+- **(b) は現行契約では成立しない。** registry は row ごとに赤の実測を要求し、さらに canonical
+  `docs/failures.md` の該当節が test 関数名と失敗署名を逐語で含むことを要求する
+  (`orchestrator/tests/flaky_test_holds.py:105-112, 115-126, 146-161`)。
+  赤を実測したのは 2 node だけで、その再発記録もまだ spool fragment のままである。
+- **(a) は 94 node を受入から落とす。** 除外は実際には `--ignore=<file>` になる
+  (`orchestrator/test_selection_contract.py:121-124`)。旧 entry の理由文
+  「消滅 pid 型」も F489 の 2026-08-25 追記で誤りと判明している。
+- luna は 1 走あたりの非帰属赤の確率を感度範囲 0.65〜1.0 と見積もった (観測 2 点であることの
+  限界を明記した上で)。20 wave なら追加 25.8〜40 request、pytest wall 合計 59〜102 分になる。
+- **前回の解除条件は再利用できない。** 「task が land し、明示 file 走が全緑」は 2026-08-25 に
+  満たされ、翌日に再発した。
+- **hold は受入だけでなく焦点走でも無条件に skip する。** 並行 job
+  「dev-wave flake test correction」の指摘を親が現物で確認した。
+  `orchestrator/tests/conftest.py:1335-1347` は collection 中の item の nodeid が registry に
+  在れば無条件に `pytest.mark.skip` を付ける。growth hold と違って解除 env が無い。
+  つまり一度登録した node はどこでも走らなくなる。(b) を採らなかったのはこの点でも正しい。
+- **同 job から、登録行が修理より長生きする実例も来た。** 登録済み 3 件のうち 2 件は
+  2026-08-26 09:17 の `639f2f28` (T-1719 の fix 子) でテスト側が既に直っていたのに、
+  登録行だけが残っていた。修理と登録が別 wave に分かれると取り残しが起きる。
+
+## 段 9 の帰結
+
+- (c) の実装修理は並行 job「known-violation triage」が引き取った。
+  編集面は `tools/check_worktree_occupancy.py` / `tools/dev_wave_cleanup.py` /
+  `orchestrator/tests/test_dev_wave_cleanup.py` / `orchestrator/tests/test_check_worktree_occupancy.py`。
+- 本 wave は受理集合を変えず、その修理が land するまで land を待つ。
+- 親から先方へ渡した実測: 脆弱 6 node の名前、`_stub_unoccupied` の実在、
+  `attempts=1` が D793 の射程外を意味すること、最初の一手は issue payload の可視化であること。
