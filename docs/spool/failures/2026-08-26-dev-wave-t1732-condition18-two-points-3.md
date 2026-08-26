@@ -26,6 +26,31 @@ seq: 3
 - 波及: 本件の hold は先行走行の自然終了で撤去された。手動削除も `qdel` もしていない
   (`qdel` は F47 の submission-disabled を武装させる)。
 
+### {{F:archive-name-entry-number-collides-with-mmdd}}. 4 桁 entry 番号が MMDD と衝突し、rotation した archive が番号付きと認識されず land が塞がる [恒真ゲート]
+
+- 事象: entry 1001 を rotation する fold が `docs/archive/worklog-phase3-0826-1001.md` を作ったが、
+  生成後の canonical 検証が `carry 参照先 entry (1001) が全域番号 universe に実在しない — 宙吊り参照`
+  を 22 件出して停止した (land rc=26、main は 1 bit も変わらず)。
+  現行 worklog には entry 1001 を指す carry が 821 件ある。
+- 根本原因: archive の file 名は `worklog-phase3-<MMDD>-<entry>` と
+  `worklog-phase3-<MMDD>-<MMDD>` (日付範囲、旧形式) の 2 形を取る。
+  entry 番号が 4 桁になると後者と曖昧になり、`1001` は 10 月 01 日として読めるため
+  **日付範囲に分類され、番号付き archive として登録されない**。
+  `tools/check_docs.py` の `_archive_filename_entry_range` を直接呼んで再現した:
+  `...-0826-0999.md`→numbered、`...-0826-1000.md`→numbered (10/00 は無効)、
+  `...-0826-1001.md`→**unnumbered**、`...-0826-1300.md`→numbered (13 月は無効)。
+- 影響範囲 (実測): entry 1001-1031 / 1101-1131 / 1201-1231 の計 93 件。
+  プロジェクトは 1001 に達したところで、この区間の入口に居る。
+  **rotation を起こす wave はどれも land できない。**
+- 恒久対応: 未定 (設計択一のためユーザー裁定へ返す)。候補は
+  (a) numbered 形の file 名に曖昧でない marker を入れる、
+  (b) 旧日付範囲形を allowlist で凍結し新規は必ず numbered と読む、
+  (c) file 名でなく内容の H2 見出しから entry 番号を採る。
+  いずれも受理集合を変えるため独立審査が要る。
+- 再発検知: `spool_fold.py` の生成後 canonical 検証が宙吊り参照で停止し、land が rc=26 になる。
+  **`--dry-run` はこの検証を回さないため手前で出ない** — 本件も dry-run は rc=0 だった。
+- 波及: 本 wave は受入まで完全緑 (`verdict=child-green`、赤ゼロ) で、land だけが塞がっている。
+
 ## 再発
 
 ### F24
