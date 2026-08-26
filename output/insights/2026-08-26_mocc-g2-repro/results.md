@@ -191,7 +191,7 @@ fail-closed し、throughput を生成していない。verifier の受理集合
 
 ## 変異 matrix
 
-事前登録した 9 変異を、実装 commit `e3cab1693e7a2310ee371ab504429b77b1b356a0` を固定 HEAD として
+事前登録した 9 変異を、最終 tip `28222b34b4c694b2aca9451b8fd06e2eb9868b91` を固定 HEAD として
 本走した (spec: `mutation-final-spec.json`、
 sha256 `f0732d3a9102c7a235433017c5eef18779a8a9826cd852e94525531dcdbac3d2`)。
 
