@@ -55,7 +55,7 @@ if any((parent / ".git").exists() for parent in (target, *target.parents)):
     raise SystemExit("output parent has a repository ancestor")
 PY
 
-for command_name in qstat qsub pegasusinfo quota; do
+for command_name in qstat qsub pegasusinfo quota sha256sum; do
   command -v -- "$command_name" >/dev/null 2>&1 || {
     echo "required submission command is unavailable: $command_name" >&2
     exit 2
@@ -78,12 +78,13 @@ PEGASUS_INFO=$(pegasusinfo)
 [[ -n "$PEGASUS_INFO" ]] || { echo "pegasusinfo returned no data" >&2; exit 2; }
 
 GROUP_ID="b10-backoff-grid-$(date -u +%Y%m%dT%H%M%SZ)-$$"
-RECEIPT="$OUTPUT_PARENT/$GROUP_ID.submit.json"
+SUBMISSION_NONCE=$(python3.10 -I -B -c 'import secrets; print(secrets.token_hex(16))')
+JOB_SCRIPT_SHA256=$(sha256sum -- "$JOB_SCRIPT")
+JOB_SCRIPT_SHA256=${JOB_SCRIPT_SHA256%% *}
+RECEIPT="$OUTPUT_PARENT/$GROUP_ID.submit.jsonl"
 [[ ! -e "$RECEIPT" ]] || { echo "submission receipt already exists" >&2; exit 2; }
 
 WORKLOADS=(write-heavy balanced read-heavy)
-JOB_IDS=()
-ROOTS=()
 for workload in "${WORKLOADS[@]}"; do
   root="$OUTPUT_PARENT/$GROUP_ID-$workload"
   stdout="$OUTPUT_PARENT/$GROUP_ID-$workload.stdout"
@@ -92,33 +93,91 @@ for workload in "${WORKLOADS[@]}"; do
     echo "job-unique output already exists for $workload" >&2
     exit 2
   }
-  job_id=$(qsub \
-    -v "B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root" \
-    -o "$stdout" -e "$stderr" "$JOB_SCRIPT")
-  [[ -n "$job_id" ]] || { echo "qsub returned no job id for $workload" >&2; exit 2; }
-  JOB_IDS+=("$job_id")
-  ROOTS+=("$root")
 done
 
-python3.10 -I -B - "$RECEIPT" "$GROUP_ID" \
-  "${WORKLOADS[0]}" "${JOB_IDS[0]}" "${ROOTS[0]}" \
-  "${WORKLOADS[1]}" "${JOB_IDS[1]}" "${ROOTS[1]}" \
-  "${WORKLOADS[2]}" "${JOB_IDS[2]}" "${ROOTS[2]}" <<'PY'
-import json, pathlib, sys
+append_submission_event() {
+  python3.10 -I -B - "$RECEIPT" "$@" <<'PY'
+import json, os, pathlib, stat, sys
 path = pathlib.Path(sys.argv[1])
-group = sys.argv[2]
+kind = sys.argv[2]
 values = sys.argv[3:]
-jobs = [
-    {"workload": values[index], "job_id": values[index + 1], "output_root": values[index + 2]}
-    for index in range(0, len(values), 3)
-]
-with path.open("x", encoding="utf-8") as handle:
-    json.dump({
-        "schema_version": "b10-backoff-grid-submit/v1",
+if kind == "manifest":
+    group, nonce, script_hash, *workloads = values
+    event = {
+        "schema_version": "b10-backoff-grid-submit-event/v1",
+        "event": "manifest",
         "group_id": group,
-        "jobs": jobs,
-    }, handle, sort_keys=True, indent=2)
-    handle.write("\n")
+        "submission_nonce": nonce,
+        "job_script_sha256": script_hash,
+        "workloads": workloads,
+    }
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+elif kind == "submitted":
+    workload, job_id, root, stdout, stderr = values
+    event = {
+        "schema_version": "b10-backoff-grid-submit-event/v1",
+        "event": "submitted",
+        "workload": workload,
+        "job_id": job_id,
+        "output_root": root,
+        "stdout": stdout,
+        "stderr": stderr,
+    }
+    flags = os.O_WRONLY | os.O_APPEND
+elif kind == "failed":
+    workload, returncode, reason = values
+    event = {
+        "schema_version": "b10-backoff-grid-submit-event/v1",
+        "event": "failed",
+        "workload": workload,
+        "returncode": int(returncode),
+        "reason": reason,
+    }
+    flags = os.O_WRONLY | os.O_APPEND
+else:
+    raise SystemExit("unknown submission event")
+flags |= getattr(os, "O_NOFOLLOW", 0)
+if kind != "manifest":
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise SystemExit("submission receipt is not a unique regular file")
+payload = (json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n").encode()
+fd = os.open(path, flags, 0o600)
+try:
+    if os.write(fd, payload) != len(payload):
+        raise OSError("short submission receipt append")
+    os.fsync(fd)
+finally:
+    os.close(fd)
+parent_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+try:
+    os.fsync(parent_fd)
+finally:
+    os.close(parent_fd)
 PY
+}
 
-printf '%s\n' "${JOB_IDS[@]}"
+append_submission_event manifest "$GROUP_ID" "$SUBMISSION_NONCE" \
+  "$JOB_SCRIPT_SHA256" "${WORKLOADS[@]}"
+
+for workload in "${WORKLOADS[@]}"; do
+  root="$OUTPUT_PARENT/$GROUP_ID-$workload"
+  stdout="$OUTPUT_PARENT/$GROUP_ID-$workload.stdout"
+  stderr="$OUTPUT_PARENT/$GROUP_ID-$workload.stderr"
+  qsub_rc=0
+  job_id=$(qsub \
+    -v "B10_WORKLOAD=$workload,B10_OUTPUT_ROOT=$root,B10_SUBMISSION_NONCE=$SUBMISSION_NONCE" \
+    -o "$stdout" -e "$stderr" "$JOB_SCRIPT") || qsub_rc=$?
+  if [[ "$qsub_rc" -ne 0 ]]; then
+    append_submission_event failed "$workload" "$qsub_rc" "qsub_failed"
+    exit "$qsub_rc"
+  fi
+  if [[ -z "$job_id" ]]; then
+    append_submission_event failed "$workload" 2 "qsub_returned_empty_job_id"
+    echo "qsub returned no job id for $workload" >&2
+    exit 2
+  fi
+  append_submission_event submitted \
+    "$workload" "$job_id" "$root" "$stdout" "$stderr"
+  printf '%s\n' "$job_id"
+done

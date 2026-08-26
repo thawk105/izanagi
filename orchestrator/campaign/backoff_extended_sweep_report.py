@@ -23,8 +23,10 @@ from .backoff_extended_sweep import (  # noqa: E402
     WORKLOADS,
     WORKLOAD_BY_TAG,
     config_for,
+    genomes,
 )
 from .backoff_overthrottle import JSONL_SCHEMA, MANIFEST_SCHEMA, REPS  # noqa: E402
+from .model import Genome  # noqa: E402
 from .replay import discover_campaign_dir  # noqa: E402
 from ..reports.plot import DatFile, PlotSpec, Series, make_plot  # noqa: E402
 
@@ -81,7 +83,7 @@ def _perf_state(status: str) -> str:
 def _input_errors(points: Sequence[Mapping]) -> list[str]:
     errors: list[str] = []
     if len(points) != len(EXTENDED_SWEEP_US) + 2:
-        errors.append("all_24_points_required")
+        errors.append("all_31_points_required")
     keys = [(point.get("kind"), point.get("backoff_us")) for point in points]
     if len(set(keys)) != len(keys):
         errors.append("duplicate_points")
@@ -169,7 +171,7 @@ def shape_decision(
     contiguous = positions == list(range(min(positions), max(positions) + 1))
     if not contiguous:
         peak_status = "noncontiguous_noise_plateau"
-    elif 1 in equivalent or 1000 in equivalent:
+    elif EXTENDED_SWEEP_US[0] in equivalent or EXTENDED_SWEEP_US[-1] in equivalent:
         peak_status = "boundary_censored"
     elif len(equivalent) == 1:
         peak_status = "resolved"
@@ -177,17 +179,22 @@ def shape_decision(
         peak_status = "noise_bounded_interval"
     peak = {
         "status": peak_status,
+        "source_measurements": [TRACE_DISABLED],
         "peak_grid_argmax_us": argmax["backoff_us"],
-        "tmax": tmax,
+        "tmax": _sourced(tmax, TRACE_DISABLED),
         "noise_equivalent_peak_points_us": equivalent_points,
         "noise_bounded_interval_us": [min(equivalent), max(equivalent)],
-        "raw_rep_contrast_intervals": contrast_intervals,
+        "raw_rep_contrast_intervals": _derived(
+            contrast_intervals, TRACE_DISABLED,
+        ),
     }
 
     onset = {
         "status": "onset_unresolved",
+        "source_measurements": [TRACE_DISABLED],
         "onset_grid_us": None,
         "onset_bracket_us": None,
+        "observed_lower_bound_us": None,
     }
     if contiguous:
         right = max(equivalent)
@@ -203,22 +210,40 @@ def shape_decision(
                 )
                 onset = {
                     "status": "resolved",
+                    "source_measurements": [TRACE_DISABLED],
                     "onset_grid_us": first["backoff_us"],
                     "onset_bracket_us": [previous_us, first["backoff_us"]],
+                    "observed_lower_bound_us": first["backoff_us"],
                 }
                 break
+        else:
+            if candidates:
+                last = candidates[-1]
+                last_drop = 1.0 - float(last["median_tps"]) / tmax
+                if last_drop > delta:
+                    previous_us = (
+                        right if len(candidates) == 1
+                        else candidates[-2]["backoff_us"]
+                    )
+                    onset = {
+                        "status": "right_censored",
+                        "source_measurements": [TRACE_DISABLED],
+                        "onset_grid_us": None,
+                        "onset_bracket_us": [previous_us, last["backoff_us"]],
+                        "observed_lower_bound_us": last["backoff_us"],
+                    }
     return {
         **base,
         "status": "complete",
         "input_errors": [],
-        "point_cvs": {
-            (
-                str(point["backoff_us"])
-                if point["kind"] == "static"
-                else point["kind"]
-            ): point["cv"]
-            for point in points
-        },
+        "point_cvs": _sourced({
+                (
+                    str(point["backoff_us"])
+                    if point["kind"] == "static"
+                    else point["kind"]
+                ): point["cv"]
+                for point in points
+            }, TRACE_DISABLED),
         "peak": peak,
         "onset": onset,
     }
@@ -228,38 +253,88 @@ def _sourced(value: object, source: str) -> dict[str, object]:
     return {"value": value, "source_measurement": source}
 
 
-def _validated_aa_groups(
-        normal_points: Sequence[Mapping], aa_records: Sequence[Mapping]) -> dict[str, list[Mapping]]:
-    normal_variants = {point["variant_id"] for point in normal_points}
-    grouped: dict[str, list[Mapping]] = {}
-    seen: set[tuple[str, int]] = set()
+def _derived(value: object, *sources: str) -> dict[str, object]:
+    return {"value": value, "source_measurements": list(sources)}
+
+
+def _aa_genome_canonical(reference_canonical: str) -> str:
+    protocol, _body = reference_canonical.split("|", 1)
+    flags = _parse_flags(reference_canonical)
+    if "ADD_ANALYSIS" in flags:
+        raise ValueError("normal point unexpectedly contains ADD_ANALYSIS")
+    return Genome(protocol, {**flags, "ADD_ANALYSIS": 1}).canonical()
+
+
+def _expected_aa_binding(point: Mapping) -> dict[str, object]:
+    reference = point.get("reference_genome")
+    if type(reference) is not str:
+        raise ValueError("normal point lacks its full reference genome")
+    flags = _parse_flags(reference)
+    kind = point.get("kind")
+    amount = point.get("backoff_us")
+    label = "none" if kind == "none" else (
+        "adaptive" if kind == "adaptive" else f"fixed-{amount}us"
+    )
+    expected_amount = flags.get("BACKOFF_FIXED")
+    if (
+        flags.get("BACK_OFF") not in {0, 1}
+        or expected_amount != (-1 if kind in {"none", "adaptive"} else amount)
+    ):
+        raise ValueError("normal point kind/backoff fields differ from full flags")
+    return {
+        "workload": point.get("workload"),
+        "workload_coordinates": point.get("workload_coordinates"),
+        "campaign_id": point.get("campaign_id"),
+        "reference_variant_id": point.get("variant_id"),
+        "reference_genome": reference,
+        "aa_genome": _aa_genome_canonical(reference),
+        "label": label,
+        "point_index": point.get("point_index"),
+        "back_off": flags["BACK_OFF"],
+        "backoff_us": expected_amount,
+        "certified": False,
+        "diagnostic_only": True,
+    }
+
+
+def _validate_aa_values(values: object) -> None:
     required_values = {
         "backoff_latency_rate", "abort_rate", "latency_ns", "tps_aa", "eff_tps",
     }
+    if type(values) is not dict or set(values) != required_values:
+        raise ValueError("AA value set mismatch")
+    for value in values.values():
+        if (
+            type(value) is not dict
+            or value.get("source_measurement") != ADD_ANALYSIS
+            or value.get("certified") is not False
+            or value.get("diagnostic_only") is not True
+            or not _finite(value.get("value"))
+        ):
+            raise ValueError("AA value provenance mismatch")
+
+
+def _validated_aa_groups(
+        normal_points: Sequence[Mapping], aa_records: Sequence[Mapping]) -> dict[str, list[Mapping]]:
+    expected_by_variant = {
+        point["variant_id"]: _expected_aa_binding(point) for point in normal_points
+    }
+    normal_variants = set(expected_by_variant)
+    grouped: dict[str, list[Mapping]] = {}
+    seen: set[tuple[str, int]] = set()
     for row in aa_records:
+        expected = expected_by_variant.get(row.get("reference_variant_id"))
         if (
             row.get("schema_version") != JSONL_SCHEMA
-            or row.get("certified") is not False
-            or row.get("diagnostic_only") is not True
-            or row.get("reference_variant_id") not in normal_variants
+            or expected is None
+            or any(row.get(field) != value for field, value in expected.items())
         ):
             raise ValueError("AA record is not bound to a certified campaign point")
         key = (row["reference_variant_id"], row.get("rep"))
-        if key in seen or type(key[1]) is not int:
+        if key in seen or type(key[1]) is not int or key[1] not in range(REPS):
             raise ValueError("AA record key is duplicate or malformed")
         seen.add(key)
-        values = row.get("values")
-        if type(values) is not dict or set(values) != required_values:
-            raise ValueError("AA value set mismatch")
-        for value in values.values():
-            if (
-                type(value) is not dict
-                or value.get("source_measurement") != ADD_ANALYSIS
-                or value.get("certified") is not False
-                or value.get("diagnostic_only") is not True
-                or not _finite(value.get("value"))
-            ):
-                raise ValueError("AA value provenance mismatch")
+        _validate_aa_values(row.get("values"))
         grouped.setdefault(row["reference_variant_id"], []).append(row)
     if set(grouped) != normal_variants or any(len(rows) != REPS for rows in grouped.values()):
         raise ValueError("AA point/rep set is incomplete")
@@ -275,19 +350,34 @@ def _spin_equivalent(static_rows: Sequence[Mapping], adaptive_spin: float) -> di
         for row in ordered
     ]
     if any(right < left for left, right in zip(medians, medians[1:])):
-        return {"status": "ambiguous", "bracket_us": None}
+        return {
+            "status": "ambiguous", "bracket_us": None,
+            "source_measurements": ["configuration", ADD_ANALYSIS],
+        }
     brackets = [
         [ordered[index]["backoff_us"], ordered[index + 1]["backoff_us"]]
         for index in range(len(ordered) - 1)
         if medians[index] <= adaptive_spin <= medians[index + 1]
     ]
     if len(brackets) > 1:
-        return {"status": "ambiguous", "bracket_us": None}
+        return {
+            "status": "ambiguous", "bracket_us": None,
+            "source_measurements": ["configuration", ADD_ANALYSIS],
+        }
     if len(brackets) == 1:
-        return {"status": "bounded", "bracket_us": brackets[0]}
+        return {
+            "status": "bounded", "bracket_us": brackets[0],
+            "source_measurements": ["configuration", ADD_ANALYSIS],
+        }
     if adaptive_spin > medians[-1]:
-        return {"status": "right_censored", "bracket_us": [1000, None]}
-    return {"status": "ambiguous", "bracket_us": None}
+        return {
+            "status": "right_censored", "bracket_us": [1000, None],
+            "source_measurements": ["configuration", ADD_ANALYSIS],
+        }
+    return {
+        "status": "ambiguous", "bracket_us": None,
+        "source_measurements": ["configuration", ADD_ANALYSIS],
+    }
 
 
 def evaluate_workload(
@@ -318,7 +408,7 @@ def evaluate_workload(
         "spin_occupancy_static_equivalent_bracket_us": _spin_equivalent(
             static_aa, adaptive_spin,
         ),
-        "spin_range_separated": None,
+        "spin_range_separated": _derived(None, TRACE_DISABLED, ADD_ANALYSIS),
         "trace_disabled_table": [],
         "add_analysis_table": [],
     }
@@ -366,7 +456,9 @@ def evaluate_workload(
                 for amount in onset_amounts
                 for rep in aa_by_us[amount]["reps"]
             ]
-            mechanism["spin_range_separated"] = min(onset_spins) > max(peak_spins)
+            mechanism["spin_range_separated"] = _derived(
+                min(onset_spins) > max(peak_spins), TRACE_DISABLED, ADD_ANALYSIS,
+            )
     return {**decision, "mechanism": mechanism}
 
 
@@ -385,6 +477,11 @@ def load_normal_points(tag: str, output_root: str) -> tuple[list[dict], str, obj
     ))
     points = []
     perf_statuses = set()
+    campaign_id = os.path.basename(view.layout.root)
+    expected_indexes = {
+        genome.canonical(): index
+        for index, genome in enumerate(genomes(tag))
+    }
     for variant, state in wal.replay_admitted_records(view.records).items():
         if not state.committed:
             continue
@@ -405,6 +502,11 @@ def load_normal_points(tag: str, output_root: str) -> tuple[list[dict], str, obj
         indicators = bench["leading_indicators"]
         points.append({
             "variant_id": variant,
+            "workload": tag,
+            "workload_coordinates": dict(WORKLOAD_BY_TAG[tag]),
+            "campaign_id": campaign_id,
+            "reference_genome": state.committed_build_start.payload["genome"],
+            "point_index": expected_indexes[state.committed_build_start.payload["genome"]],
             "kind": kind,
             "backoff_us": amount,
             "committed": True,
@@ -423,25 +525,64 @@ def load_normal_points(tag: str, output_root: str) -> tuple[list[dict], str, obj
     return points, next(iter(perf_statuses)), view.layout
 
 
-def load_aa_records(layout, tag: str) -> list[dict]:
+def load_aa_records(layout, tag: str, normal_points: Sequence[Mapping]) -> list[dict]:
     reports = Path(layout.reports_dir)
     jsonl_path = reports / f"b10-backoff-overthrottle-{tag}.jsonl"
     manifest_path = reports / f"b10-backoff-overthrottle-{tag}.manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     raw = jsonl_path.read_bytes()
+    campaign_ids = {point.get("campaign_id") for point in normal_points}
+    if len(campaign_ids) != 1:
+        raise ValueError("normal points do not identify one campaign")
+    campaign_id = next(iter(campaign_ids))
     if (
         manifest.get("schema_version") != MANIFEST_SCHEMA
         or manifest.get("status") != "complete"
+        or manifest.get("workload") != tag
+        or manifest.get("workload_coordinates") != WORKLOAD_BY_TAG[tag]
+        or manifest.get("campaign_id") != campaign_id
+        or manifest.get("certified") is not False
+        or manifest.get("diagnostic_only") is not True
         or manifest.get("records_sha256") != hashlib.sha256(raw).hexdigest()
     ):
         raise ValueError("AA terminal manifest does not bind the append-only JSONL")
     rows = [json.loads(line) for line in raw.splitlines() if line]
     if manifest.get("record_count") != len(rows):
         raise ValueError("AA terminal manifest record count mismatch")
+    groups = _validated_aa_groups(normal_points, rows)
+    expected_by_variant = {
+        point["variant_id"]: _expected_aa_binding(point) for point in normal_points
+    }
+    manifest_points = manifest.get("points")
+    if type(manifest_points) is not list or len(manifest_points) != len(normal_points):
+        raise ValueError("AA manifest point set is incomplete")
+    seen_manifest = set()
+    for point in manifest_points:
+        if type(point) is not dict:
+            raise ValueError("AA manifest point is malformed")
+        variant = point.get("reference_variant_id")
+        expected = expected_by_variant.get(variant)
+        if (
+            expected is None
+            or variant in seen_manifest
+            or any(point.get(field) != value for field, value in expected.items())
+            or point.get("rep_count") != REPS
+        ):
+            raise ValueError("AA manifest point binding mismatch")
+        _validate_aa_values(point.get("values"))
+        if len(groups[variant]) != REPS:
+            raise ValueError("AA manifest point rep binding mismatch")
+        seen_manifest.add(variant)
+    if seen_manifest != set(expected_by_variant):
+        raise ValueError("AA manifest point binding set mismatch")
     return rows
 
 
 def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
+    claim_boundary = {key: verdict[key] for key in CLAIM_BOUNDARY}
+    claim_json = json.dumps(
+        claim_boundary, sort_keys=True, separators=(",", ":"), allow_nan=False,
+    )
     lines = [
         f"# B-10 extended backoff report: {tag}",
         "",
@@ -454,19 +595,9 @@ def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
         "",
         f"Data: `{dat}`",
         "",
-        (
-            "This result is descriptive backoff shape evidence only. It is not eligible "
-            "for paper gain claims: all configurations were measured in one campaign, "
-            "but the comparison rule was not preregistered as a frozen artifact and the "
-            "estimand does not match the paper headline."
-        ),
+        "The claim boundary below is generated directly from the verdict JSON.",
         "",
-        (
-            "`paper_gain_eligible=false`; `same_campaign_contrast=true`; "
-            "`prereg_frozen_comparison_rule=false`; "
-            "`estimand_matches_paper_headline=false`; "
-            "`claim_scope=descriptive_backoff_shape_only`."
-        ),
+        f"Claim boundary JSON: `{claim_json}`",
         "",
         f"Peak status: `{verdict['peak']['status'] if verdict['peak'] else 'none'}`",
         f"Onset status: `{verdict['onset']['status'] if verdict['onset'] else 'none'}`",
@@ -501,7 +632,7 @@ def _markdown(tag: str, verdict: Mapping, png: str, dat: str) -> str:
 
 def report_workload(tag: str, output_root: str, log=print) -> dict:
     normal, perf_status, layout = load_normal_points(tag, output_root)
-    aa = load_aa_records(layout, tag)
+    aa = load_aa_records(layout, tag, normal)
     verdict = evaluate_workload(normal, aa, perf_preflight_status=perf_status)
     reports = Path(layout.reports_dir)
     stem = reports / f"b10-backoff-grid-{tag}"

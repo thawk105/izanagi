@@ -453,13 +453,27 @@ def test_mu3_extended_campaign_ids_do_not_change_legacy_source_path_tuple(
     from orchestrator.campaign import backoff_extended_sweep, build_admission, ident
 
     legacy_root = M.ROOT
-    for workload in ("write-heavy", "balanced", "read-heavy"):
-        pattern = f"output/campaigns/backoff-sweep-silo-{workload}-sweep-*"
-        for source in sorted(legacy_root.glob(pattern)):
-            destination = tmp_path / source.relative_to(legacy_root)
-            (destination / "runs").mkdir(parents=True)
-            shutil.copy2(source / "campaign.lock", destination / "campaign.lock")
-            shutil.copy2(source / "runs/wal.jsonl", destination / "runs/wal.jsonl")
+    legacy_wals = {
+        "write-heavy": (
+            "output/campaigns/backoff-sweep-silo-write-heavy-sweep-493813a7/"
+            "runs/wal.jsonl"
+        ),
+        "balanced": (
+            "output/campaigns/backoff-sweep-silo-balanced-sweep-484c663e/"
+            "runs/wal.jsonl"
+        ),
+        "read-heavy": (
+            "output/campaigns/backoff-sweep-silo-read-heavy-sweep-610004b9/"
+            "runs/wal.jsonl"
+        ),
+    }
+    for relative in legacy_wals.values():
+        source_wal = legacy_root / relative
+        source = source_wal.parents[1]
+        destination = tmp_path / source.relative_to(legacy_root)
+        (destination / "runs").mkdir(parents=True)
+        shutil.copy2(source / "campaign.lock", destination / "campaign.lock")
+        shutil.copy2(source_wal, destination / "runs/wal.jsonl")
 
     monkeypatch.setattr(M, "ROOT", tmp_path)
     monkeypatch.setattr(
@@ -474,6 +488,10 @@ def test_mu3_extended_campaign_ids_do_not_change_legacy_source_path_tuple(
     before = {
         workload: tuple(source["path"] for source in M._backoff_entry(workload)["sources"])
         for workload in ("write-heavy", "balanced", "read-heavy")
+    }
+    assert before == {
+        workload: (relative, "orchestrator/campaign/backoff_sweep.py")
+        for workload, relative in legacy_wals.items()
     }
     context = build_admission.build_run_context(
         generator_id=build_admission.GeneratorId.BACKOFF_SWEEP,

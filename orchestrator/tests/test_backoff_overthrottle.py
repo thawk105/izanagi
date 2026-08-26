@@ -80,3 +80,9 @@ def test_mu12_rep_records_survive_before_terminal_manifest(tmp_path):
     source = inspect.getsource(M.measure)
     assert "_append_jsonl(jsonl_path, row)" in source
     assert source.index("_append_jsonl(jsonl_path, row)") < source.index("_write_create_only")
+
+
+def test_aa_build_uses_the_job_supplied_cache_root():
+    source = inspect.getsource(M.measure)
+    assert "cache_root=cache_root" in source
+    assert 'os.path.join(buildcache._ccbench_dir(), "build-variants")' not in source

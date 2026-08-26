@@ -252,11 +252,19 @@ def _summaries(rows: Iterable[dict]) -> list[dict]:
     for variant, reps in sorted(grouped.items(), key=lambda item: item[1][0]["point_index"]):
         reps.sort(key=lambda row: row["rep"])
         summary = {
+            "workload": reps[0]["workload"],
+            "workload_coordinates": reps[0]["workload_coordinates"],
+            "campaign_id": reps[0]["campaign_id"],
             "reference_variant_id": variant,
+            "reference_genome": reps[0]["reference_genome"],
+            "aa_genome": reps[0]["aa_genome"],
             "label": reps[0]["label"],
+            "point_index": reps[0]["point_index"],
             "back_off": reps[0]["back_off"],
             "backoff_us": reps[0]["backoff_us"],
             "rep_count": len(reps),
+            "certified": False,
+            "diagnostic_only": True,
             "values": {},
         }
         for field in (
@@ -320,6 +328,7 @@ def _run_rep(binary: str, flags: list[str], numactl: list[str]):
 
 def measure(
         tag: str, *, output_root: str, log=print,
+        cache_root: str,
         binding_loader=certified_reference_bindings) -> dict:
     """Measure one workload and finish its append-only log with a manifest."""
     workload = WORKLOAD_BY_TAG[tag]
@@ -380,7 +389,7 @@ def measure(
             trace=False,
             cc=resolved_cc,
             cxx=resolved_cxx,
-            cache_root=os.path.join(buildcache._ccbench_dir(), "build-variants"),
+            cache_root=cache_root,
             admission=admission,
             build_context=build_context,
             source_evidence=evidence,
@@ -458,8 +467,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="B-10 ADD_ANALYSIS diagnostics")
     parser.add_argument("workload", choices=[tag for tag, _workload in WORKLOADS])
     parser.add_argument("--output-root", required=True)
+    parser.add_argument("--cache-root", required=True)
     args = parser.parse_args(argv)
-    result = measure(args.workload, output_root=args.output_root)
+    result = measure(
+        args.workload, output_root=args.output_root, cache_root=args.cache_root,
+    )
     print(
         f"{args.workload}: {result['record_count']} rep records, "
         f"manifest={result['manifest']}"

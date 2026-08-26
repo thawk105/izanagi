@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+import os
 import random
 import sys
 from pathlib import Path
@@ -23,11 +25,12 @@ from .build_admission import (  # noqa: E402
 from .loop import run_campaign  # noqa: E402
 from .model import CampaignConfig, Genome  # noqa: E402
 from .pipeline import PerfConfig  # noqa: E402
+from ..calibrator import perf_preflight  # noqa: E402
 
 
 EXTENDED_SWEEP_US = [
-    1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 35, 50, 75, 100,
-    150, 250, 400, 560, 680, 1000,
+    0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 35, 50, 75, 100,
+    150, 200, 250, 300, 400, 500, 560, 600, 700, 800, 900, 1000,
 ]
 
 # The literals are an oracle independent of labels and of the legacy sweep.
@@ -44,6 +47,54 @@ MEASUREMENT_SEEDS = {
     "balanced": 0xB10050,
     "read-heavy": 0xB10095,
 }
+
+PREFLIGHT_RECEIPT_SCHEMA = "b10-backoff-grid-perf-preflight-stop/v1"
+
+
+class PreflightStop(RuntimeError):
+    """The durable perf receipt proves that measurement cannot start."""
+
+
+def _write_create_only_json(path: Path, value: object) -> None:
+    payload = (
+        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        + "\n"
+    ).encode("utf-8")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags, 0o600)
+    try:
+        if os.write(fd, payload) != len(payload):
+            raise OSError("short preflight stop receipt write")
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    parent_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
+
+
+def _materialize_preflight_stop(
+        tag: str, output_root: str, receipt_path: Path, error: Exception) -> Path:
+    receipt = perf_preflight.validate_perf_preflight_receipt(
+        json.loads(receipt_path.read_text(encoding="utf-8"))
+    )
+    if receipt["status"] != "probe_error":
+        raise RuntimeError("perf preflight exception lacks a probe_error receipt") from error
+    stop_path = Path(output_root) / f"b10-backoff-grid-{tag}-preflight-stop.json"
+    _write_create_only_json(stop_path, {
+        "schema_version": PREFLIGHT_RECEIPT_SCHEMA,
+        "status": "preflight-error-no-verdict",
+        "workload": tag,
+        "perf_preflight_receipt": {
+            "filename": receipt_path.name,
+            "sha256": hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+            "status": receipt["status"],
+            "reason": receipt["reason"],
+        },
+    })
+    return stop_path
 
 
 def _ordered_points(tag: str) -> list[tuple[str, dict[str, int]]]:
@@ -105,7 +156,8 @@ def config_for(tag: str, workload: dict[str, str], *, contract=None) -> Campaign
 
 
 def run_workload(
-        tag: str, workload: dict[str, str], log=print, *, output_root: str = ""):
+        tag: str, workload: dict[str, str], log=print, *, output_root: str = "",
+        cache_root: str):
     """Run one workload through the unchanged certified campaign pipeline."""
     p2_2._assert_single_tenant()
     site, contract, authorization = p2_2.resolve_site_runtime()
@@ -140,37 +192,58 @@ def run_workload(
         f"\n=== B-10 extended sweep workload={tag} "
         f"seed={MEASUREMENT_SEEDS[tag]} order={measurement_order(tag)} ==="
     )
-    return run_campaign(
-        cfg,
-        ordered_genomes,
-        perf,
-        contract.env_tag,
-        contract.clocks_per_us,
-        numactl=list(contract.numactl),
-        output_root=output_root,
-        log=log,
-        authorization_contract=authorization,
-        env_contract=contract,
-        expected_toolchain_manifest=expected_toolchain_manifest,
-        build_context=build_context,
-        declared_use_class="official",
-        capability_resolver=capability_resolver,
-        durable_root_policy=_official_durable_root_policy(
-            Path(output_root) if output_root else None,
-        ),
+    preflight_receipt_path = (
+        Path(output_root) / f"b10-backoff-grid-{tag}-perf-preflight.json"
     )
+    try:
+        return run_campaign(
+            cfg,
+            ordered_genomes,
+            perf,
+            contract.env_tag,
+            contract.clocks_per_us,
+            numactl=list(contract.numactl),
+            output_root=output_root,
+            log=log,
+            cache_root=cache_root,
+            authorization_contract=authorization,
+            env_contract=contract,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+            build_context=build_context,
+            declared_use_class="official",
+            capability_resolver=capability_resolver,
+            perf_preflight_receipt_path=str(preflight_receipt_path),
+            durable_root_policy=_official_durable_root_policy(
+                Path(output_root) if output_root else None,
+            ),
+        )
+    except perf_preflight.PerfPreflightError as exc:
+        if not preflight_receipt_path.is_file():
+            raise
+        stop_path = _materialize_preflight_stop(
+            tag, output_root, preflight_receipt_path, exc,
+        )
+        raise PreflightStop(
+            f"perf preflight stopped B-10 before measurement: {stop_path.name}"
+        ) from exc
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="B-10 certified extended backoff sweep")
     parser.add_argument("workload", choices=[tag for tag, _workload in WORKLOADS])
     parser.add_argument("--output-root", required=True)
+    parser.add_argument("--cache-root", required=True)
     args = parser.parse_args(argv)
-    summary = run_workload(
-        args.workload,
-        WORKLOAD_BY_TAG[args.workload],
-        output_root=args.output_root,
-    )
+    try:
+        summary = run_workload(
+            args.workload,
+            WORKLOAD_BY_TAG[args.workload],
+            output_root=args.output_root,
+            cache_root=args.cache_root,
+        )
+    except PreflightStop as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     complete = summary.committed == len(genomes(args.workload)) and summary.aborted == 0
     print(
         f"{args.workload}: {summary.campaign_id} committed={summary.committed} "
