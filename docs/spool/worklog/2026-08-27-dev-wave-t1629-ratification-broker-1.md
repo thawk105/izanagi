@@ -143,6 +143,27 @@ title: [T-1629] 取り残された D905 執行機構を独立監査して回収�
   「隔離環境の子は pytest を実走できない」を `DW-O02` / `DW-O05` へ統合しようとしたが、
   最小形でも L1.5 が 9858 bytes となり予算 9566 を 292 bytes 超えた。
   **予算のために安全義務を削らない**ため revert し、候補として裁定へ回す。
+- **並行 wave `dev-wave-b10-overthrottle-grid` が、批准突き合わせの撤去を草案している。**
+  /rulings セッションの照会で判明した。草案
+  (`dev-wave-jobs/b10-overthrottle-grid/draft-decisions-ratify-removal.md`) は
+  「ユーザーの決定である」と書き、`enforcement_source_ratification.py` の削除と
+  `ident.py` からの呼び出し除去を指示している。参照先に本 wave の file は 1 つも入っていない。
+  - **撤去の中心的な理由は、本 wave が解いた問題そのものである。**
+    草案は「批准は closure 版ごとにしか効かず、**書いた瞬間から古くなる**。
+    運用を丁寧にしても解消しない」と書く。これは v1 (人間が 64hex を転記する形) には
+    完全に正しく、**D905 がその解決を命じ、本 wave が実装した**。
+    broker は official 起動の直前に remote HEAD から digest を計算して署名するので、
+    転記は無く、古くなる構造が消える。**草案はこの機構を知らずに書かれている。**
+  - **親が現行 main (`283fb29a`) の `docs/decisions.md` を自分で確かめた結果、
+    批准突き合わせの廃止を定めた裁定は存在しない。** `廃止 / 撤去 / 削除 / やめ` で
+    `批准` 周辺を検索して 0 件。逆に**同じ 2026-08-27 付のユーザー裁定 2 件が批准を拡張している** —
+    D1070 (批准検査を artifact 受入と dispatch へ広げる)、
+    D1071 (批准の撤回を正当操作とし、撤回記録で表す = 機構の存続が前提)。D1039 も同方向。
+  - 親は b10 が誤っているとは主張しない (ユーザーが対話で直接指示した可能性があり
+    decisions.md は遅れる)。**同日 landed の裁定と逆向きである事実を裁定材料として返した。**
+  - 本 wave の land は何も削除しない (追加と gate の切替だけ)。撤去が正しければ
+    b10 は削除対象が増えるだけであり、land が撤去を妨げない。
+    逆に撤去が退けられた場合、**本 wave が着地していなければ D905 は未実装のまま残る。**
 - **本 wave が確かめていないこと:** 実 repo の信頼根と台帳はまだ存在しない。
   したがって**現時点の批准受理集合は空**であり、certified な選択結果は 1 件も生成できない。
   これは land 前と同じ状態であり後退ではない。gate が開くのは、人間が一度きりの bootstrap を
@@ -171,10 +192,13 @@ title: [T-1629] 取り残された D905 執行機構を独立監査して回収�
 - {{T:ratification-external-executor}} **P1・裁定へ返す**: 判定器が判定対象の内側にある
   構造的限界を閉じる設計。D906 の「署名対象に実行器と検査器の bytes を含める」を
   どう実装するか。repo の外に固定された実行器が要る。
-- {{T:ratification-resume-bypass}} **P1・裁定へ返す**: 既存 lock の resume と
-  certified artifact consumer が署名 gate を素通りする。閉じるには campaign lock の
-  authority へ signed receipt identity を記録する schema 変更が要り、D956 の領域に当たる。
-  本 wave では素通りを固定する負例テストだけを入れた。
+- {{T:ratification-resume-bypass}} **P1・裁定済み (D1039 / D1070) → 実装待ち**: 既存 lock の
+  resume と certified artifact consumer が署名 gate を素通りする。
+  **本 wave は当初「裁定へ返す」と書いたが、方向は既に裁定済みだった** —
+  D1039 が再開時の再検査を「穴として塞ぐ」と定め、D1070 (ユーザー裁定、2026-08-27) が
+  批准検査を artifact 受入と dispatch へ広げると定めている。並行の /rulings セッションの
+  指摘で気づいた。本 wave では素通りを固定する負例テストだけを入れており、実装は未着手。
+  閉じるには campaign lock の authority へ signed receipt identity を記録する schema 変更が要る。
 - {{T:ratification-key-lifecycle}} **P2・裁定へ返す**: 鍵の紛失・交代・信頼根 rotation を
   schema が表現できない。epoch / key-id を足す形の是非。
 - {{T:ratification-window-lease}} **P2・裁定へ返す**: 批准から official 起動までの間に
