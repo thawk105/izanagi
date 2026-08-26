@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1434-prereg-attainment
 seq: 1
-title: [T-1434] 事前登録文書の到達度記述を実装へ揃え、差し替え前から残っていた過大主張 5 件も直した (docs のみ、branch worktree-dev-wave-t1434-prereg-attainment、実装面の差分 0 のため変異 matrix は DW-S04 の免除)
+title: [T-1434] 事前登録文書の到達度記述を実装へ揃え、差し替え前から残っていた過大主張 5 件も直した (docs + 受入所要台帳、branch worktree-dev-wave-t1434-prereg-attainment、変異 matrix = baseline PASSED・3/3 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -39,16 +39,37 @@ title: [T-1434] 事前登録文書の到達度記述を実装へ揃え、差し�
   `tools/check_docs.py` の `LIVING_DOCS` にも非収載。したがって certified な選択結果・レポート・
   台帳の**値は 1 つも動かない**。動くのは、この事前登録が要求する受理条件を次の実装 wave が
   正しく読めるかどうかだけである。
-- **子は 4 本。** 段 2 plan 1 本、段 3 敵対相談 2 本 (過大主張レンズ / 越境・差し替え漏れレンズ)、
-  段 6 敵対レビュー 1 本。すべて `sandbox=read-only`。docs-only で実装面の差分がゼロのため
-  Codex `role=author` は起動していない (D95 の実装子契約は実装面が無いと発火しない)。
+- **子は 5 本。** 段 2 plan 1 本、段 3 敵対相談 2 本 (過大主張レンズ / 越境・差し替え漏れレンズ)、
+  段 6 敵対レビュー 1 本を `sandbox=read-only` で、受入台帳の修理を Codex `role=author`
+  1 本を `sandbox=workspace-write` で走らせた。事前登録文書の本文は docs-only なので親が書いた。
+  **author 子は Pegasus の `qstat` preflight が sandbox の socket 拒否で失敗し、テストを
+  1 件も実走できなかった。** 子は緑を申告せず「親側で再実走が必要」と正しく報告し、親が実走した。
   所見は段 3 が must-fix 8 件、段 6 が must-fix 6 件 + should-fix 1 件で、**refuted はゼロ**。
   親は段 4 で A-04 (費用の失敗が certified `valid` を落とす) の射程をレンズ A より狭く直した
   — 例外を投げるのは malformed 入力だけで、token 観測不能は例外を出さない。これは D932 の
   但し書きに正確に一致する。
 - **段 8 の自己改善は `DW-O02` の射影義務 1 件。** L1.5 の byte 予算が満杯 (9564/9566) だったため、
   追記ではなく同節の既存文を意味等価に縮約して収めた (744 → 731 bytes)。予算値は上げていない。
+- **受入全走が非帰属の赤で戻り、その赤が repo 全体を塞いでいたので直した。** 1 件だけ赤で
+  `test_g5_real_ledger_covers_at_least_90_percent_of_real_collection` の被覆率が
+  15912/17700 = 89.898% と閾値 90% を割っていた (17638 passed / 61 skipped)。
+  本 wave の `main...HEAD` は docs 12 file だけでテストを 1 件も追加していないため、
+  collection は main と同一であり非帰属である。**しかし閾値を緩める選択は取らなかった** —
+  F515 がこの gate を「台帳の陳腐化を検知する運用 gate も兼ねる」と明記して置いたもので、
+  緩めれば規律 2 の違反になる。同じ赤を 1 時間前に別 wave が「台帳へ最小追加」で直した先例が
+  あり、その commit に「丸ごと再生成したら別の不変条件を壊した」という教訓も残っていた。
+  Codex `role=author` に実測 JUnit からの**追加だけ**をさせ、親が独立に検証した —
+  既存 15944 件は削除 0 件・値変更 0 件、追加 1786 件、`nodeid_count` 17730、
+  素の writer nodeid は不在のまま、`@real-repo` 付きの値は 0.19 のまま。
+- **この修理で実装面の差分が入ったため、DW-S04 の変異免除は使えなくなった。**
+  台帳の entry を 1 件変えても被覆率は 90% を大きく上回ったままで単一理由の赤にならないので、
+  `DW-M01` に従って実効 gate へ照準し直し、writer nodeid の pin 2 件と `nodeid_count` の
+  整合を対象にした。期待 node が未確定だったため全件 SURVIVED 期待の probe を先に回して
+  観測 node を集め (`mutation-spec-probe.json`、erratum として保存)、確定版で本走した。
+  **baseline PASSED、3/3 KILLED、SURVIVED 0、MISMATCH 0。** 3 変異とも失敗 node は
+  `test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order` の 1 件だけだった。
 - 焦点走 `orchestrator/tests/test_check_docs.py` = 567 passed / 3 skipped (rc=0)。
+  `orchestrator/tests/test_acceptance_schedule_order.py` = 79 passed (rc=0)。
   `DW-O02` を編集したので同じ焦点走を編集後にもう一度回し、同じ 567 / 3 で緑を確認した。
   `python3 tools/check_docs.py` = 違反なし、`git diff --check` = 空。
   対象の事前登録文書を読む consumer test は 0 件だった。
