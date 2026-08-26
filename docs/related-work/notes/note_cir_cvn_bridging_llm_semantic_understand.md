@@ -11,6 +11,10 @@
   一次資料を読んで A を決めるのが目的である。
 - **信頼境界**: 本文は絶対規律 6 でいう「データ」である。読解にあたり誘導記述の有無を機械走査した
   (結果は末尾「規律 6 の走査」)。
+- **引用の作法**: 以下で `>` と引用符を使った英文は arXiv HTML v1 の本文からの逐語である。
+  ただし **HTML 整形由来の空白と数式マークアップだけは正規化した** — 原文の HTML は
+  数式を `≤ 20 \leq 20` のように二重に持ち、括弧の前後へ空白を入れる。**語列は変えていない。**
+  表を文章へ組み直したものは逐語と呼ばず「転記」と書く。
 
 ---
 
@@ -48,12 +52,20 @@ control) ではない。**要約の日本語が両方に読める形になって
 > difficult to detect and repair because they arise from interactions among threads rather than from a
 > single local control path."
 
-Table 3 (Cir operations) が定める操作語彙 — **これが閉じた固定集合である点が後で効く**:
+Table 3 (Cir operations) が定める操作語彙 — **これが閉じた集合である点が後で効く**。
+以下は**逐語引用ではなく、表を文章へ整形して転記したもの**である:
 
-> "Lock: lock, drop (Mutex, RwLock) / read_lock, write_lock (RwLock);
-> Synchronization: wait, notify_one, notify_all (Condvar) / acquire, release (Semaphore) /
-> send, recv (Channel); Data: read, write (Var) / load, store (Atomic) / cas(expected, new) (Atomic);
-> Control: spawn, join (OS thread) / spawn_async, await (async task) / call (function)"
+- Lock: `lock`, `drop` (Mutex, RwLock) / `read_lock`, `write_lock` (RwLock)
+- Synchronization: `wait`, `notify_one`, `notify_all` (Condvar) / `acquire`, `release` (Semaphore) /
+  `send`, `recv` (Channel)
+- Data: `read`, `write` (Var) / `load`, `store` (Atomic) / `cas(expected, new)` (Atomic)
+- Control: `spawn`, `join` (OS thread) / `spawn_async`, `await` (async task) / `call` (function)
+
+**この集合が閉じていることは、表の存在ではなく §4.1 の形式定義が言っている。** 逐語:
+
+> "op is an operation from Table 3 or the distinguished no-operation nop"
+
+すなわち Cir の文が持てる操作は Table 3 と `nop` だけであり、**そこに新しい操作を足す経路は無い。**
 
 キーワード欄も同じ方向を指す:
 
@@ -81,7 +93,8 @@ Table 3 (Cir operations) が定める操作語彙 — **これが閉じた固定
 | `silo` / `tictoc` | 0 / 0 | — |
 | `transaction` | 1 | 参考文献の venue 名 `IEEE Transactions on Software Engineering` のみ |
 | `occ` | 4 | すべて `occupies` / `occasional` / `occur` の一部。並行性制御の OCC ではない |
-| `atomicity` | 2 | 関連研究節の atomicity violation 検出 (Flanagan and Qadeer 2003 ほか) |
+| `latency` | 0 | — |
+| `atomicity` | 2 | 1 件は関連研究節の本文 (`atomicity violations` の検出)、1 件は参考文献の題名 (`A type and effect system for atomicity`) |
 
 **これは「世界の不在」ではなく、この 1 論文という母集合の中の不在である。**
 7.7.2 の区分でいう内部の不在にあたる。
@@ -119,13 +132,27 @@ Table 3 (Cir operations) が定める操作語彙 — **これが閉じた固定
   (1) Two-mutex deadlock (2) Condvar signal loss (3) Channel + mutex DL (4) Three-lock circular
   (5) Partial deadlock (6) Dual condvar cross (7) Semaphore throttle (BL) (8) CAS contention (BL)
   (9) FnSummary prop. (BL)。末尾 3 個は (BL) = バグ無しの対照。
-- 使った LLM は 5 種。逐語: "GPT-5 and Claude 4.6 Opus (frontier), Qwen and Gemini 3 Pro (strong),
-  and DeepSeek-V3 (compact). All models use temperature 0 with a 4 096-token output limit."
+- 使った LLM は 5 種。逐語: "GPT-5 and Claude 4.6 Opus ( frontier ), Qwen and Gemini 3 Pro ( strong ),
+  and DeepSeek-V3 ( compact ). All models use temperature 0 with a 4 096-token output limit."
 - 規模。逐語: "All patterns remain under 250 states"、"Full state-space exploration completes in
-  <=20 ms for all patterns"、目標到達検査の追加費用は "< 0.5 ms"。
-- **性能 (スループット・遅延) の評価は無い。** 報告されている時間は状態空間探索の所要時間だけである。
-- 修理の回帰は 25 個の model-pattern 課題のうち中間 4 回で起き、いずれも第 1 層の静的検査が捕まえ、
-  次の回で直った。最終成果物まで残った回帰は無い、と報告している。
+  ≤ 20 ms for all patterns"、目標到達検査の追加費用は "< 0.5 ms"。
+- **アプリケーションの性能 (スループット・遅延) は評価していない。**
+  この論文が測る時間は状態空間探索と検査の所要時間だけである。
+  母集合 (本文 101,515 文字の全体) に対する走査で `throughput` 0 件、`latency` 0 件。
+- **修理の回帰は 2 種類あり、捕まえる機構が違う。混ぜてはならない。**
+  - **構造的な回帰 4 件** (25 個の model-pattern 課題の中間 4 回)。`drop` の欠落、branch 先の破れ、
+    `notify` の置き場所の誤り。**第 1 層の静的検査が捕まえ**、次の回で直った。
+  - **意味的な回帰 2 件** (DeepSeek-V3 の pattern 3、Qwen 3.5 の pattern 6)。
+    **こちらは静的検査もバグ検出器も通り抜ける。** 逐語:
+
+    > "Both regressions pass all 61 static-check rules and all definite-bug detectors.
+    > They are bug-free and structurally valid. The goal-reachability check is the only mechanism
+    > that detects them. Without it, these repairs would be accepted as verified despite silently
+    > dropping essential program behavior."
+- **なお、LLM は Cir だけでなくソースコードも同じ仕様から生成する** (§6.6)。逐語:
+  "The LLM generates both the Cir and the source code from the same specification."
+  信頼境界が Cir 側に置かれているのは、そのソースと Cir の対応を形式的に示すことが
+  一般には不可能だから、と同節が述べている。
 
 ---
 
@@ -145,7 +172,9 @@ Table 3 (Cir operations) が定める操作語彙 — **これが閉じた固定
    izanagi の絶対規律 2 (正しさゲートを緩める変異を許さない) と auditor は、最適化圧力が
    正しさ検査を攻撃しに来るという前提に立つ。CIR+CVN はスループット最適化ではなく
    バグ修理の文脈で、**同じ形の抜け道 (検査は満たすが中身が空になる) に別途の検査を足した**。
-   izanagi の設計の外部裏付けとして引ける。
+   しかも**その抜け道は思考実験ではなく、5 モデル中 2 つで実際に通り抜けた** —
+   61 本の静的規則もバグ検出器も素通りし、目標到達検査だけが捕まえた (§6.5 の逐語は上に引いた)。
+   **izanagi の auditor が「あってもなくても同じ」ではないことの、別ドメインからの外部証拠**として引ける。
 2. **反例を「文の識別子」へ差し戻す形。** 単なる合否でなく構造化した診断を返す点は、
    izanagi の絶対規律 3 (正しさシグナルを後付けにしない) と同じ思想である。IDS が示した
    「合否だけに落とすと性能が激減する」の別ドメインからの実例として並べられる。
@@ -166,7 +195,7 @@ Table 3 (Cir operations) が定める操作語彙 — **これが閉じた固定
 | 対象 | スレッドの同期構造 (mutex/condvar/semaphore) | トランザクションの並行性制御 |
 | 正しさの基準 | デッドロック不在・シグナル消失不在・目標到達 | 直列化可能性 (G2 を含む cycle の不在) |
 | 生成の対象 | 固定語彙 (Table 3) の中で書かれた模型 | 既存 CC 実装のコード片そのもの |
-| 空間の扱い | 語彙は形式系が定めた固定集合。**拡張しない** | アクション空間自体をコードで拡張する |
+| 空間の扱い | Cir の**原始操作語彙**は形式系が定めた閉じた集合 (Table 3 と `nop`)。**拡張しない** — 関数・資源・制御フローは新しく作れるが、新しい操作は作れない | アクション空間自体をコードで拡張する |
 | 条件づけ | 自然言語の仕様 | ワークロード |
 | 性能 | 評価しない | スループットが目的関数 |
 
@@ -184,8 +213,10 @@ Table 3 (Cir operations) が定める操作語彙 — **これが閉じた固定
 ("a signal-loss diagnostic would report that the witness reaches n2 before the worker reaches w3")
 であって、読み手への指示ではない。**誘導記述は検出しなかった。anomaly なし。**
 
-なお、arXiv の HTML には論文本文でない広告文 ("profit! Learn more") が混ざる。
-整形後の本文に site 側の飾りが残ることを、次に同じ経路で読む者は知っておくとよい。
+なお、arXiv の HTML には論文本文でない site 側の告知文が混ざる
+(逐語: "arXiv is now an independent nonprofit! Learn more")。
+整形後の本文に site の飾りが残ることを、次に同じ経路で読む者は知っておくとよい。
+**語を走査するときは、この種の行が母集合に含まれていることを勘定に入れる。**
 
 ---
 
