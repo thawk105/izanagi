@@ -50,6 +50,12 @@ title: 受入分割の時間不均衡を測り、duration 重み割付を実装�
   `test_t810_coordinator.py::test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg`
   が、走行中に別セッションが `dev-wave-8b-b2-precheck` の worktree 登録を撤去したことで落ちた。
   この test は生きた worktree 登録を読む。1 走目・K=1 の 2 走では緑だった。
+- **受入全走の 1 走目は非帰属の赤 1 件で戻った。**
+  `test_dev_wave_cleanup.py::test_forward_merged_landing_tip_is_used_for_cleanup[asserted]` が
+  `status=rejected phase=occupancy reason=occupancy result is indeterminate or inconsistent` で
+  落ちた。本 wave の差分は docs のみで、cleanup の占有検査へ到達しえない。同 file を単独走した
+  ところ 94 passed で非再現だったので、DW-O18 に従い受入を 1 回だけ再走した。
+  占有検査が全走の負荷下で不定になる型は既知である。
 - **codex 子の工数**: plan 902.8 秒 / 22 model call、sol 830.4 秒 / 17 call、
   luna 458.2 秒 / 18 call。3 本とも accepted、失敗ゼロ。
 - 一次資料は `dev-wave-jobs/dev-wave-t1814-shard-time-balance/` の `arm-*.log`・`arm-*.meta`・
