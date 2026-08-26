@@ -1,0 +1,153 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T1669-RECOVERY-CANDIDATE-COUNT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_counts_corrupt_extra_candidate_before_replay"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "    candidates = tuple(\n        row for row in rows\n        if row.get(\"event\") == \"recovery\" and targets_trigger_start(row)\n    )\n",
+     "new": "    candidates = tuple(\n        row for row in rows\n        if row.get(\"event\") == \"recovery\" and targets_trigger_start(row)\n    )[:1]\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-AUTHORITY-PIN",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_authority_is_empty_and_fail_closed"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "    if (authority_id, authority_policy_sha256) not in _FLOOR_RECOVERY_AUTHORITIES:\n        raise HoldoutAdmissionError(\"registry recovery authority is not pinned\")\n",
+     "new": "    if False:\n        raise HoldoutAdmissionError(\"registry recovery authority is not pinned\")\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-RETRY-PREFIX",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_inspection_rejects_registry_recovery_nonprefix_or_reused_trigger[ordinals0]",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_non_next_or_multiple_retry_ordinals[ordinals0]"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "        ordinals != list(range(1, len(retries) + 1))\n",
+     "new": "        False\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-RETRY-LATEST",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_verified_registry_recovery_rejects_nonlatest_retry_start"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "        or (authorizing_new_start and retries[-1] is not retry_start)\n",
+     "new": "        or False\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-TRIGGER-UNIQUE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_registry_recovery_rejects_two_starts_when_target_is_first"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "        or len(recovery_starts) != 1\n",
+     "new": "        or False\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-RETRY-XOR",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_legacy_retry_rejects_extra_completion_for_same_trigger"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "    if len(trigger_sessions) + len(recovery.candidates) != 1:\n",
+     "new": "    if len([_r for _r in trigger_sessions if _is_canonical_failed_planned_trigger(state, row=_r)]) + len(recovery.candidates) != 1:\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-TRIGGER-FORWARD",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_runner_produces_one_retry_from_admission_selected_recovery"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "            trigger = authorization.trigger_attempt_id\n",
+     "new": "            trigger = (\n                authorization.trigger_attempt_id\n                if authorization.source != \"verified-registry-recovery\"\n                else None\n            )\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-ONE-ORDINAL",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_verified_recovery_emits_only_one_invalid_retry_ordinal"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "                if authorization.source == \"verified-registry-recovery\":\n                    break\n",
+     "new": "                if False:\n                    break\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1669-CUT6-ADMISSION",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_cut6_replay_rejects_truthy_non_bool_verdict"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "        if type(replay) is not bool:\n",
+     "new": "        if False:\n"
+    }
+   ]
+  }
+ ]
+}

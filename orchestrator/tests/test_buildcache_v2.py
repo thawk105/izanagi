@@ -22,6 +22,8 @@ _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))
 
 from orchestrator.campaign import buildcache  # noqa: E402
+from orchestrator.campaign import sort_swo_dependency_material  # noqa: E402
+from orchestrator.campaign import sort_swo_oracle  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
@@ -252,6 +254,10 @@ def _fake_build_environment(
                     "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n",
                     f"FETCHCONTENT_BASE_DIR:PATH={base}\n",
                 ]
+                if "-DFETCHCONTENT_FULLY_DISCONNECTED=ON" in cmd:
+                    cache_lines.append(
+                        "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON\n"
+                    )
                 if masstree_tokens:
                     configured_root = Path(
                         masstree_tokens[0].split("=", 1)[1]
@@ -293,6 +299,7 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
            fetchcontent_dependency_receipt=None, declared_use_class=None,
            fetchcontent_archive_sha256=None,
+           post_oracle_dependency_binding=None,
            masstree_source_dir=None, mimalloc_source_dir=None,
            googletest_source_dir=None):
     genome = Genome("silo", {"BACK_OFF": 1})
@@ -328,6 +335,10 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["fetchcontent_dependency_receipt"] = fetchcontent_dependency_receipt
     if fetchcontent_archive_sha256 is not None:
         kwargs["fetchcontent_archive_sha256"] = fetchcontent_archive_sha256
+    if post_oracle_dependency_binding is not None:
+        kwargs["post_oracle_dependency_binding"] = (
+            post_oracle_dependency_binding
+        )
     if masstree_source_dir is not None:
         kwargs["masstree_source_dir"] = masstree_source_dir
     if mimalloc_source_dir is not None:
@@ -347,31 +358,138 @@ def _dependency_receipt(*, config: str = "b") -> dict[str, str]:
     }
 
 
+_FETCHCONTENT_FIXTURE_CONFIG_SHA256 = (
+    "0026ab15b63efac9fe1189a05bc003de6583256ac00bab9fe54c11b76d60596f"
+)
+_FETCHCONTENT_FIXTURE_ARCHIVE_SHA256 = (
+    "b82d14bd3717287c78a2e1351107a49a925192cae59c0f844437eed8a0d6caef"
+)
+_FETCHCONTENT_FIXTURE_FILES = {
+    "config.h": b"fixture config\n",
+    "libkohler_masstree_json.a": b"fixture archive\n",
+    "tracked.hh": b"// pinned\n",
+}
+
+
+def _canonical_manifest(payloads: dict[str, bytes]) -> bytes:
+    return b"".join(
+        hashlib.sha256(payloads[relative]).hexdigest().encode("ascii")
+        + b"  " + relative.encode("utf-8") + b"\n"
+        for relative in sorted(payloads)
+    )
+
+
 def _write_fetchcontent_dependency(base: Path) -> dict[str, str]:
     source = base / "masstree-src"
     source.mkdir(parents=True)
+    for relative, payload in _FETCHCONTENT_FIXTURE_FILES.items():
+        path = source.joinpath(*relative.split("/"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
     subprocess.run(["git", "init", "-q", str(source)], check=True)
-    (source / "tracked.hh").write_text("// pinned\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(source), "add", "tracked.hh"], check=True)
     subprocess.run(
-        [
-            "git", "-C", str(source), "-c", "user.name=Fixture",
-            "-c", "user.email=fixture@example.invalid", "commit", "-qm", "pin",
-        ],
+        ["git", "-C", str(source), "config", "user.email", "fixture@example.invalid"],
         check=True,
     )
-    config = source / "config.h"
-    archive = source / "libkohler_masstree_json.a"
-    config.write_bytes(b"fixture config\n")
-    archive.write_bytes(b"fixture archive\n")
+    subprocess.run(
+        ["git", "-C", str(source), "config", "user.name", "Fixture"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source), "add", "--", "tracked.hh"], check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(source), "commit", "-qm", "fixture"], check=True,
+    )
     head = subprocess.run(
         ["git", "-C", str(source), "rev-parse", "HEAD"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
     return {
         "masstree_head": head,
-        "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
+        "config_sha256": _FETCHCONTENT_FIXTURE_CONFIG_SHA256,
     }
+
+
+def _post_oracle_binding(base: Path, receipt: dict[str, str]) -> dict[str, str]:
+    source = base / "masstree-src"
+    canonical = base / "oracle-canonical"
+    canonical.mkdir()
+    payloads = {
+        "PIN": f"{receipt['masstree_head']}\n".encode("ascii"),
+        "config.h": (source / "config.h").read_bytes(),
+        "tracked.hh": (source / "tracked.hh").read_bytes(),
+    }
+    for relative, payload in payloads.items():
+        (canonical / relative).write_bytes(payload)
+    manifest = _canonical_manifest(payloads)
+    (canonical / "SHA256SUMS").write_bytes(manifest)
+    return {
+        "fetchcontent_base_dir": str(base.resolve()),
+        "oracle_dependency_root": str(canonical.resolve()),
+        "dependency_manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+        "masstree_head": receipt["masstree_head"],
+        "config_sha256": receipt["config_sha256"],
+        "archive_sha256": _FETCHCONTENT_FIXTURE_ARCHIVE_SHA256,
+    }
+
+
+def test_synthetic_production_dependency_series_uses_real_git_and_fails_closed(
+        tmp_path):
+    base = tmp_path / "fetchcontent"
+    source = base / "masstree-src"
+    source.mkdir(parents=True)
+    fixture = _HERE / "fixtures" / "sort_swo_masstree"
+    entries = tuple(
+        line.split("  ", 1)[1]
+        for line in (fixture / "SHA256SUMS").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    )
+    tracked = tuple(sorted(set(entries) - {"PIN", "config.h"}))
+    for relative in (*tracked, "config.h"):
+        destination = source.joinpath(*relative.split("/"))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(fixture / relative, destination)
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    subprocess.run(
+        ["git", "-C", str(source), "add", "--", *tracked], check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "synthetic production-series checkout",
+        ],
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "--verify", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    observed_tracked = subprocess.run(
+        ["git", "-C", str(source), "ls-files", "--cached"],
+        check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    assert head != "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+    assert observed_tracked == list(tracked)
+
+    with pytest.raises(
+            sort_swo_dependency_material.CanonicalDependencyMaterialError
+    ) as caught:
+        sort_swo_dependency_material.materialize_canonical_dependency(
+            source.resolve(), lease_parent=base.resolve(), expected_head=head,
+        )
+    error = caught.value
+    assert error.detail_code == "canonical-manifest-mismatch"
+    assert error.generated_manifest_sha256 is not None
+    assert error.expected_manifest_sha256 == (
+        sort_swo_oracle.DEPENDENCY_MANIFEST_SHA256
+    )
+    assert error.generated_manifest_sha256 != error.expected_manifest_sha256
+    assert error.generated_manifest_sha256 in str(error)
+    assert error.expected_manifest_sha256 in str(error)
+    assert list(base.glob(".sort-swo-dependency-*")) == []
 
 
 def _write_cmake_cache(build_dir: Path, lines: tuple[str, ...]) -> None:
@@ -685,6 +803,303 @@ def test_v2_fetchcontent_dependency_receipt_requires_exact_head_config_schema():
     for candidate in invalid:
         with pytest.raises(buildcache.BuildCacheError):
             buildcache._validate_fetchcontent_dependency_receipt(candidate)
+
+
+def test_v2_post_oracle_rejects_legacy_five_key_capability(tmp_path):
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    binding.pop("oracle_dependency_root")
+
+    with pytest.raises(buildcache.BuildCacheError, match="exact key"):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+        )
+
+
+def test_v2_post_oracle_cache_hit_rechecks_two_roots_before_return(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    first = _build(
+        tmp_path, _contract(1), post_oracle_dependency_binding=binding,
+    )
+    assert first.cached is False
+
+    original_validate = buildcache._validate_v2_entry
+
+    def validate_then_drift(*args, **kwargs):
+        result = original_validate(*args, **kwargs)
+        (base / "masstree-src" / "tracked.hh").write_text(
+            "// cache-hit drift\n", encoding="utf-8",
+        )
+        return result
+
+    monkeypatch.setattr(buildcache, "_validate_v2_entry", validate_then_drift)
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-source-drift"):
+        _build(
+            tmp_path, _contract(1), post_oracle_dependency_binding=binding,
+        )
+
+
+def test_v2_post_oracle_canonical_path_is_not_cache_identity(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base_a = tmp_path / "fetchcontent-a"
+    base_a.mkdir()
+    receipt_a = _write_fetchcontent_dependency(base_a)
+    binding_a = _post_oracle_binding(base_a, receipt_a)
+    first = _build(
+        tmp_path, _contract(1), post_oracle_dependency_binding=binding_a,
+    )
+
+    base_b = tmp_path / "fetchcontent-b"
+    base_b.mkdir()
+    shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    receipt_b = {
+        "masstree_head": receipt_a["masstree_head"],
+        "config_sha256": receipt_a["config_sha256"],
+    }
+    binding_b = _post_oracle_binding(base_b, receipt_b)
+    second = _build(
+        tmp_path, _contract(1), post_oracle_dependency_binding=binding_b,
+    )
+
+    assert first.cached is False
+    assert second.cached is True
+    assert binding_a["oracle_dependency_root"] != (
+        binding_b["oracle_dependency_root"]
+    )
+    assert first.build_dir == second.build_dir
+
+
+def test_v2_post_oracle_flag_is_exact_one_and_generic_base_only_stays_zero(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+
+    post_oracle = _build(
+        tmp_path, _contract(1),
+        post_oracle_dependency_binding=binding,
+    )
+    generic = _build(
+        tmp_path, _contract(1),
+        fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+
+    flag = "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
+    assert post_oracle.configure_argv.count(flag) == 1
+    assert generic.configure_argv.count(flag) == 0
+    assert not post_oracle.cached
+    assert not generic.cached
+    assert post_oracle.build_dir != generic.build_dir
+
+
+def test_v2_post_oracle_policy_forces_miss_against_same_material_generic_entry(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+
+    generic = _build(
+        tmp_path, _contract(1),
+        fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=_FETCHCONTENT_FIXTURE_ARCHIVE_SHA256,
+    )
+    post_oracle = _build(
+        tmp_path, _contract(1),
+        fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        fetchcontent_archive_sha256=_FETCHCONTENT_FIXTURE_ARCHIVE_SHA256,
+        post_oracle_dependency_binding=binding,
+    )
+
+    assert not generic.cached
+    assert not post_oracle.cached
+    assert generic.build_dir != post_oracle.build_dir
+
+
+def test_v2_post_oracle_rejects_self_consistent_rewritten_manifest_authority(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    canonical = Path(binding["oracle_dependency_root"])
+    changed_tracked = b"// changed with self-consistent manifest\n"
+    (canonical / "tracked.hh").write_bytes(changed_tracked)
+    payloads = {
+        relative: (canonical / relative).read_bytes()
+        for relative in ("PIN", "config.h", "tracked.hh")
+    }
+    (canonical / "SHA256SUMS").write_bytes(_canonical_manifest(payloads))
+    calls = []
+    original_run = buildcache._run
+
+    def record_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_run", record_run)
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-manifest-mismatch"):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+        )
+    assert calls == []
+
+
+def test_v2_post_oracle_manifest_rejects_changed_declared_non_config_file(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    source = base / "masstree-src"
+    (source / "tracked.hh").write_text(
+        "// changed after oracle\n", encoding="utf-8",
+    )
+
+    assert buildcache._observe_fetchcontent_dependency_receipt(
+        str(source.resolve())
+    ) == receipt
+    assert hashlib.sha256(
+        (source / "config.h").read_bytes()
+    ).hexdigest() == receipt["config_sha256"]
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-source-drift"):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+        )
+
+
+def test_v2_post_oracle_config_mismatch_refuses_before_configure(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    (base / "masstree-src" / "config.h").write_bytes(
+        b"changed after oracle\n"
+    )
+    calls = []
+    original_run = buildcache._run
+
+    def record_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_run", record_run)
+    with pytest.raises(buildcache.BuildCacheError, match="canonical-source-drift"):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+        )
+    assert calls == []
+
+
+def test_v2_post_oracle_effective_disconnected_off_refuses_before_build(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    binding = _post_oracle_binding(base, receipt)
+    calls = []
+    original_run = buildcache._run
+
+    def force_effective_off(cmd, what, **kwargs):
+        calls.append(what)
+        original_run(cmd, what, **kwargs)
+        if what == "configure":
+            staging = Path(cmd[cmd.index("-B") + 1])
+            cache = staging / "CMakeCache.txt"
+            cache.write_text(
+                cache.read_text(encoding="utf-8").replace(
+                    "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON",
+                    "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=OFF",
+                ),
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(buildcache, "_run", force_effective_off)
+    with pytest.raises(buildcache.BuildCacheError, match="実効値.*exact ON"):
+        _build(
+            tmp_path, _contract(1),
+            post_oracle_dependency_binding=binding,
+        )
+    assert calls == ["configure"]
+
+
+def test_v2_post_oracle_policy_separates_only_bound_identity():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {
+            "requested": role,
+            "realpath": f"/tool/{role}",
+            "version_first_line": "v1",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    common = dict(
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+    )
+    unbound = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **common,
+    )
+    explicit_unbound = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_population_policy=None,
+        fetchcontent_dependency_manifest_sha256=None,
+        **common,
+    )
+    base_bound = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_dependency_receipt=_dependency_receipt(),
+        fetchcontent_archive_sha256="c" * 64,
+        **common,
+    )
+    post_oracle = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_dependency_receipt=_dependency_receipt(),
+        fetchcontent_archive_sha256="c" * 64,
+        fetchcontent_population_policy=(
+            "post-oracle-fully-disconnected-manifest-bound/v1"
+        ),
+        fetchcontent_dependency_manifest_sha256="d" * 64,
+        **common,
+    )
+
+    assert unbound == explicit_unbound
+    assert base_bound[1] != post_oracle[1]
+    assert "fetchcontent_population_policy" not in base_bound[0]
+    assert post_oracle[0]["fetchcontent_population_policy"] == (
+        "post-oracle-fully-disconnected-manifest-bound/v1"
+    )
 
 
 def test_v2_cache_and_generated_masstree_roots_must_match_before_publish(

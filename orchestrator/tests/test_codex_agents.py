@@ -15,6 +15,8 @@ from dataclasses import replace
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 _REPO = Path(__file__).resolve().parents[2]
 _CHECKER = _REPO / "tools" / "check_codex_agents.py"
 _SPEC = importlib.util.spec_from_file_location("check_codex_agents", _CHECKER)
@@ -906,6 +908,75 @@ def test_axis_planner_and_coder_semantic_policy_negative_cases():
             pass
         else:
             raise AssertionError(f"coder-v4の不正{field}={value!r}を許可した")
+
+
+def test_coder_v4_output_semantics_requires_literal_only_single_statement_value_match():
+    projected = {
+        "planner_direction": {
+            "axis": "silo-backoff-magnitude",
+            "direction": "increase",
+            "magnitude": "small",
+        }
+    }
+    proposal = {
+        "axis": "silo-backoff-magnitude",
+        "value": 20,
+        "implementation": "double now_backoff = 20;",
+        "justification": "fixture",
+        "confidence": "medium",
+    }
+    for implementation in (
+        "double now_backoff = 20;",
+        "double now_backoff = 20.0;",
+    ):
+        ROLE_POLICY.validate_output_semantics(
+            "coder-v4-autonomous",
+            projected,
+            {"proposal": {**proposal, "implementation": implementation}},
+        )
+
+    sentinel = "SENTINEL_POLICY_CANDIDATE_65ad"
+    invalid = (
+        {**proposal, "implementation": "double now_backoff = (20.0);"},
+        {**proposal, "implementation": "double now_backoff = 20.0f;"},
+        {**proposal, "implementation": "double now_backoff = 20; helper();"},
+        {**proposal, "implementation": "double now_backoff = 21;"},
+        {**proposal, "implementation": f"double now_backoff = {sentinel};"},
+    )
+    for candidate in invalid:
+        with pytest.raises(ROLE_POLICY.RolePolicyError) as caught:
+            ROLE_POLICY.validate_output_semantics(
+                "coder-v4-autonomous", projected, {"proposal": candidate}
+            )
+        assert sentinel not in str(caught.value)
+        assert candidate["implementation"] not in str(caught.value)
+
+
+def test_backoff_literal_only_contract_has_role_manifest_adapter_parity():
+    role_text = (
+        _REPO / ".claude" / "agents" / "coder-v4-autonomous.md"
+    ).read_text(encoding="utf-8")
+    coder_text = (
+        _REPO / ".claude" / "agents" / "coder.md"
+    ).read_text(encoding="utf-8")
+    projection = _manifest(_REPO)["roles"]["coder-v4-autonomous"][
+        "projection_instructions"
+    ]
+    autonomous_adapter = CCA.ROLE_SPEC.load_json_strict(
+        _REPO / ".codex" / "role-adapters" / "coder-v4-autonomous.json"
+    )["developer_instructions"]
+    coder_adapter = CCA.ROLE_SPEC.load_json_strict(
+        _REPO / ".codex" / "role-adapters" / "coder.json"
+    )["developer_instructions"]
+
+    for text in (role_text, projection, autonomous_adapter):
+        assert "numeric literal" in text
+        assert "value" in text
+    assert "ちょうど 1 文" in role_text
+    assert "ちょうど1文" in projection
+    for text in (coder_text, coder_adapter):
+        assert "silo-backoff-magnitude" in text
+        assert "D836 / D901(1)" in text
 
 
 def test_trigger_gating_semantic_literal_has_four_surface_parity():

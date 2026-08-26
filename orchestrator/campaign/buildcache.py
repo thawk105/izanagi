@@ -22,9 +22,10 @@ import stat
 import subprocess
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
-from . import site_policy, source_digest
+from . import site_policy, sort_swo_dependency_material, source_digest
 from .build_admission import (
     BuildAdmission,
     BuildRunContext,
@@ -51,6 +52,17 @@ _FETCHCONTENT_SOURCE_NAMES = ("masstree", "mimalloc", "googletest")
 _FETCHCONTENT_RECEIPT_KEYS = frozenset({
     "masstree_head", "config_sha256",
 })
+_POST_ORACLE_DEPENDENCY_BINDING_KEYS = frozenset({
+    "fetchcontent_base_dir", "oracle_dependency_root",
+    "dependency_manifest_sha256",
+    "masstree_head", "config_sha256", "archive_sha256",
+})
+_POST_ORACLE_POPULATION_POLICY_ID = (
+    "post-oracle-fully-disconnected-manifest-bound/v1"
+)
+_FETCHCONTENT_FULLY_DISCONNECTED_DEFINE = (
+    "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
+)
 
 _SECURE_FLAG_NAMES = (
     "O_CLOEXEC", "O_DIRECTORY", "O_EXCL", "O_NOFOLLOW", "O_NONBLOCK",
@@ -729,6 +741,64 @@ def _canonical_fetchcontent_base(value: object) -> str:
     return canonical
 
 
+def _canonical_post_oracle_dependency_root(value: object) -> str:
+    try:
+        raw = os.fspath(value)
+    except TypeError as exc:
+        raise BuildCacheError(
+            "post-oracle canonical dependency root が path-like でない"
+        ) from exc
+    if type(raw) is not str or not raw or "\0" in raw or not os.path.isabs(raw):
+        raise BuildCacheError(
+            "post-oracle canonical dependency root は NUL なし絶対 path 必須"
+        )
+    if os.path.islink(raw) or not os.path.isdir(raw):
+        raise BuildCacheError(
+            "post-oracle canonical dependency root は non-symlink directory 必須"
+        )
+    canonical = os.path.realpath(raw)
+    if canonical != os.path.abspath(raw):
+        raise BuildCacheError(
+            "post-oracle canonical dependency root は canonical path 必須"
+        )
+    return canonical
+
+
+def _validate_post_oracle_dependency_binding(
+        value: Optional[Mapping[str, object]],
+) -> Optional[Dict[str, str]]:
+    """Validate the single capability that authorizes a post-oracle build."""
+    if value is None:
+        return None
+    if (not isinstance(value, Mapping)
+            or set(value) != _POST_ORACLE_DEPENDENCY_BINDING_KEYS):
+        raise BuildCacheError("post-oracle dependency binding の exact key 集合が不正")
+    normalized = {
+        "fetchcontent_base_dir": _canonical_fetchcontent_base(
+            value["fetchcontent_base_dir"]
+        ),
+        "oracle_dependency_root": _canonical_post_oracle_dependency_root(
+            value["oracle_dependency_root"]
+        ),
+        "dependency_manifest_sha256": value["dependency_manifest_sha256"],
+        "masstree_head": value["masstree_head"],
+        "config_sha256": value["config_sha256"],
+        "archive_sha256": value["archive_sha256"],
+    }
+    if (type(normalized["masstree_head"]) is not str
+            or re.fullmatch(
+                r"[0-9a-f]{40}", normalized["masstree_head"],
+            ) is None):
+        raise BuildCacheError("post-oracle dependency binding の masstree HEAD が不正")
+    for key in (
+            "dependency_manifest_sha256", "config_sha256", "archive_sha256"):
+        if not is_full_sha256(normalized[key]):
+            raise BuildCacheError(
+                f"post-oracle dependency binding の {key} が不正"
+            )
+    return normalized
+
+
 def _canonical_fetchcontent_source_dir(value: object, *, name: str) -> str:
     """FetchContent SOURCE_DIR の canonical non-symlink directory を返す。"""
     try:
@@ -891,6 +961,68 @@ def _observe_fetchcontent_dependency_receipt(
             os.path.join(canonical_source, "config.h"), label="config.h",
         ),
     }
+
+
+def _assert_post_oracle_dependency_material(
+        binding: Mapping[str, str],
+) -> None:
+    """Require canonical exactness, live source equivalence, and archive hash."""
+    base = _canonical_fetchcontent_base(binding["fetchcontent_base_dir"])
+    source_root = os.path.join(base, "masstree-src")
+    try:
+        verified = sort_swo_dependency_material.assert_source_matches_canonical(
+            Path(source_root),
+            Path(binding["oracle_dependency_root"]),
+            expected_head=binding["masstree_head"],
+            expected_manifest_sha256=binding[
+                "dependency_manifest_sha256"
+            ],
+        )
+    except sort_swo_dependency_material.CanonicalDependencyMaterialError as exc:
+        raise BuildCacheError(
+            "FetchContent dependency canonical/source 二根検査に失敗: "
+            f"{exc.detail_code}"
+        ) from exc
+    if verified.manifest_sha256 != binding["dependency_manifest_sha256"]:
+        raise BuildCacheError(
+            "FetchContent canonical SHA256SUMS が oracle receipt と不一致"
+        )
+    if verified.config_sha256 != binding["config_sha256"]:
+        raise BuildCacheError(
+            "FetchContent canonical/source config.h が oracle receipt と不一致"
+        )
+    if _observe_fetchcontent_archive_sha256(source_root) != binding["archive_sha256"]:
+        raise BuildCacheError(
+            "FetchContent dependency archive が oracle binding と不一致"
+        )
+
+
+def _assert_fetchcontent_fully_disconnected_effective(build_dir: str) -> None:
+    cache = os.path.join(build_dir, "CMakeCache.txt")
+    try:
+        info = os.lstat(cache)
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise BuildCacheError(
+                "CMakeCache.txt が non-symlink regular file でない"
+            )
+        with open(cache, encoding="utf-8", errors="strict") as handle:
+            matches = []
+            for line in handle:
+                match = re.fullmatch(
+                    r"FETCHCONTENT_FULLY_DISCONNECTED:BOOL=([^\r\n]*)\r?\n?",
+                    line,
+                )
+                if match is not None:
+                    matches.append(match.group(1))
+    except (OSError, UnicodeError) as exc:
+        raise BuildCacheError(
+            f"CMakeCache.txt から FetchContent disconnected 実効値を読めない: {cache}"
+        ) from exc
+    if matches != ["ON"]:
+        raise BuildCacheError(
+            "CMakeCache.txt の FETCHCONTENT_FULLY_DISCONNECTED 実効値が "
+            "exact ON でない"
+        )
 
 
 def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
@@ -1144,6 +1276,8 @@ def _v2_identity(
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
         fetchcontent_archive_sha256: Optional[object] = None,
         fetchcontent_transport_mode: Optional[str] = None,
+        fetchcontent_population_policy: Optional[str] = None,
+        fetchcontent_dependency_manifest_sha256: Optional[object] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
@@ -1179,6 +1313,27 @@ def _v2_identity(
                 "FetchContent transport mode は base-only/source-dir のいずれか"
             )
         preimage["fetchcontent_transport_mode"] = fetchcontent_transport_mode
+    if fetchcontent_population_policy is not None:
+        if fetchcontent_population_policy != _POST_ORACLE_POPULATION_POLICY_ID:
+            raise BuildCacheError("FetchContent population policy ID が不正")
+        if receipt is None or archive_sha256 is None:
+            raise BuildCacheError(
+                "FetchContent population policy は dependency receipt/archive と同時指定必須"
+            )
+        if not is_full_sha256(fetchcontent_dependency_manifest_sha256):
+            raise BuildCacheError(
+                "FetchContent population policy の dependency manifest sha256 が不正"
+            )
+        preimage["fetchcontent_population_policy"] = (
+            fetchcontent_population_policy
+        )
+        preimage["fetchcontent_dependency_manifest_sha256"] = (
+            fetchcontent_dependency_manifest_sha256
+        )
+    elif fetchcontent_dependency_manifest_sha256 is not None:
+        raise BuildCacheError(
+            "FetchContent dependency manifest sha256 は population policy と同時指定必須"
+        )
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
 
 
@@ -1542,6 +1697,7 @@ def _v2_commands(
         masstree_source_dir: Optional[object] = None,
         mimalloc_source_dir: Optional[object] = None,
         googletest_source_dir: Optional[object] = None,
+        post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
 ) -> tuple[List[str], List[str]]:
     resolved_jobs = _resolve_build_jobs(jobs, site)
     target = f"ycsb_{genome.protocol}.exe"
@@ -1552,6 +1708,14 @@ def _v2_commands(
     fetchcontent_define = (
         [f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}"]
         if fetchcontent_base_dir else []
+    )
+    if post_oracle_dependency_binding is not None and not fetchcontent_base_dir:
+        raise BuildCacheError(
+            "post-oracle dependency binding は FETCHCONTENT_BASE_DIR と同時指定必須"
+        )
+    fully_disconnected_define = (
+        [_FETCHCONTENT_FULLY_DISCONNECTED_DEFINE]
+        if post_oracle_dependency_binding is not None else []
     )
     source_dirs = _normalize_fetchcontent_source_dirs(
         masstree_source_dir=masstree_source_dir,
@@ -1568,7 +1732,8 @@ def _v2_commands(
         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
         f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
         f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
-    ] + prefix_define + fetchcontent_define + source_defines + defines
+    ] + prefix_define + fetchcontent_define + fully_disconnected_define \
+        + source_defines + defines
     if fetchcontent_base_dir and sum(
             token.startswith("-DFETCHCONTENT_BASE_DIR=")
             for token in configure) != 1:
@@ -1591,6 +1756,14 @@ def _v2_commands(
             raise BuildCacheError(
                 "FetchContent floor configure に SOURCE_DIR override がある"
             )
+    expected_disconnected_count = (
+        1 if post_oracle_dependency_binding is not None else 0
+    )
+    if configure.count(_FETCHCONTENT_FULLY_DISCONNECTED_DEFINE) != (
+            expected_disconnected_count):
+        raise BuildCacheError(
+            "FetchContent configure の FULLY_DISCONNECTED define 数が不正"
+        )
     build_cmd = [
         toolchain["cmake"]["realpath"], "--build", bdir,
         "--target", target, "-j", str(resolved_jobs),
@@ -1688,6 +1861,7 @@ def _v2_result(
         masstree_source_root_sha256: str = "",
         toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         toolchain_manifest_sha256: Optional[str] = None,
+        post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
         genome, trace, sub, bdir, toolchain, site=site,
@@ -1696,6 +1870,7 @@ def _v2_result(
         masstree_source_dir=masstree_source_dir,
         mimalloc_source_dir=mimalloc_source_dir,
         googletest_source_dir=googletest_source_dir,
+        post_oracle_dependency_binding=post_oracle_dependency_binding,
     )
     return BuildResult(
         genome=genome, trace=trace, binary=binary, bin_sha256=bin_sha256,
@@ -1838,6 +2013,7 @@ def build_v2(
         googletest_source_dir: Optional[object] = None,
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
         fetchcontent_archive_sha256: Optional[object] = None,
+        post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -1862,6 +2038,12 @@ def build_v2(
     ``version`` 全文を別に再観測し、双方の完全一致を要求する。``declared_use_class`` が
     ``official`` のときは expected の省略を build 前に拒否する。その他の caller では
     既定 ``None`` の受理集合と実行順を変えない。
+
+    ``post_oracle_dependency_binding`` の存在だけが post-oracle capability である。
+    指定時は oracle receipt の manifest authority と HEAD/config/archive を configure
+    前後で再照合し、configure の実効 disconnected 値を build 前に要求する。既存の
+    FetchContent 引数を併記した場合は同じ内容だけを受理し、省略時は binding から導出する。
+    binding が無い generic caller の argv と identity policy は従来どおりである。
 
     fresh publish は untrusted staging から binary だけを clean candidate へ copy し、
     host-generated ``completion.json`` とともに完成名へ rename する。Python 3.10 stdlib
@@ -1902,12 +2084,42 @@ def build_v2(
             "dependency_prefix は NUL を含まない str でなければならない: "
             f"{dependency_prefix!r}"
         )
+    post_oracle_binding = _validate_post_oracle_dependency_binding(
+        post_oracle_dependency_binding,
+    )
     dependency_receipt = _validate_fetchcontent_dependency_receipt(
         fetchcontent_dependency_receipt,
     )
     dependency_archive_sha256 = _validate_fetchcontent_archive_sha256(
         fetchcontent_archive_sha256,
     )
+    if post_oracle_binding is not None:
+        binding_receipt = {
+            "masstree_head": post_oracle_binding["masstree_head"],
+            "config_sha256": post_oracle_binding["config_sha256"],
+        }
+        if fetchcontent_base_dir:
+            if (_canonical_fetchcontent_base(fetchcontent_base_dir)
+                    != post_oracle_binding["fetchcontent_base_dir"]):
+                raise BuildCacheError(
+                    "post-oracle binding と FETCHCONTENT_BASE_DIR が不一致"
+                )
+        else:
+            fetchcontent_base_dir = post_oracle_binding[
+                "fetchcontent_base_dir"
+            ]
+        if dependency_receipt is not None and dependency_receipt != binding_receipt:
+            raise BuildCacheError(
+                "post-oracle binding と dependency receipt が不一致"
+            )
+        dependency_receipt = binding_receipt
+        if (dependency_archive_sha256 is not None
+                and dependency_archive_sha256
+                != post_oracle_binding["archive_sha256"]):
+            raise BuildCacheError(
+                "post-oracle binding と dependency archive sha256 が不一致"
+            )
+        dependency_archive_sha256 = post_oracle_binding["archive_sha256"]
     if dependency_archive_sha256 is not None and dependency_receipt is None:
         raise BuildCacheError(
             "FetchContent archive sha256 は dependency receipt と同時指定必須"
@@ -1929,7 +2141,9 @@ def build_v2(
         _canonical_fetchcontent_base(fetchcontent_base_dir)
         if fetchcontent_base_dir else ""
     )
-    if dependency_archive_sha256 is not None:
+    if post_oracle_binding is not None:
+        _assert_post_oracle_dependency_material(post_oracle_binding)
+    elif dependency_archive_sha256 is not None:
         observed_archive_sha256 = _observe_fetchcontent_archive_sha256(
             os.path.join(canonical_fetchcontent_base, "masstree-src"),
         )
@@ -2003,6 +2217,14 @@ def build_v2(
         fetchcontent_dependency_receipt=dependency_receipt,
         fetchcontent_archive_sha256=dependency_archive_sha256,
         fetchcontent_transport_mode=fetchcontent_transport_mode,
+        fetchcontent_population_policy=(
+            _POST_ORACLE_POPULATION_POLICY_ID
+            if post_oracle_binding is not None else None
+        ),
+        fetchcontent_dependency_manifest_sha256=(
+            post_oracle_binding["dependency_manifest_sha256"]
+            if post_oracle_binding is not None else None
+        ),
     )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
@@ -2039,7 +2261,11 @@ def build_v2(
                 )
                 if not trace:
                     _assert_no_trace_symbols(binary, binary_fd=binary_fd)
-                if dependency_archive_sha256 is not None:
+                if post_oracle_binding is not None:
+                    _assert_post_oracle_dependency_material(
+                        post_oracle_binding
+                    )
+                elif dependency_archive_sha256 is not None:
                     post_hit_archive_sha256 = (
                         _observe_fetchcontent_archive_sha256(
                             os.path.join(
@@ -2062,6 +2288,7 @@ def build_v2(
                 source_dirs.get("googletest") if source_dirs else None,
                 masstree_source_root_sha256,
                 complete_toolchain_manifest, complete_toolchain_manifest_sha256,
+                post_oracle_binding,
             )
 
         nonce = secrets.token_hex(16)
@@ -2097,27 +2324,43 @@ def build_v2(
                 googletest_source_dir=(
                     source_dirs.get("googletest") if source_dirs else None
                 ),
+                post_oracle_dependency_binding=post_oracle_binding,
             )
             run_env = {}
             if configure_dependency_prefix:
                 build_env = os.environ.copy()
                 build_env.pop("CMAKE_PREFIX_PATH", None)
                 run_env["env"] = build_env
+            if post_oracle_binding is not None:
+                _assert_post_oracle_dependency_material(post_oracle_binding)
             try:
                 if site is None:
                     _run(configure, "configure", timeout_s=timeout_s, **run_env)
-                    _run(build_cmd, "build", timeout_s=timeout_s, **run_env)
                 else:
                     _run(
                         configure, "configure", timeout_s=timeout_s,
                         site=resolved_site, **run_env,
                     )
+            except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+                raise BuildError(
+                    f"v2 build 実行失敗 (staging={staging}): {exc}"
+                ) from exc
+            if post_oracle_binding is not None:
+                _assert_fetchcontent_fully_disconnected_effective(staging)
+                _assert_post_oracle_dependency_material(post_oracle_binding)
+            try:
+                if site is None:
+                    _run(build_cmd, "build", timeout_s=timeout_s, **run_env)
+                else:
                     _run(
                         build_cmd, "build", timeout_s=timeout_s,
                         site=resolved_site, **run_env,
                     )
             except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
                 raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
+
+            if post_oracle_binding is not None:
+                _assert_post_oracle_dependency_material(post_oracle_binding)
 
             masstree_source_root_sha256 = ""
             if dependency_receipt is not None:
@@ -2246,6 +2489,7 @@ def build_v2(
             source_dirs.get("googletest") if source_dirs else None,
             masstree_source_root_sha256,
             complete_toolchain_manifest, complete_toolchain_manifest_sha256,
+            post_oracle_binding,
         )
     finally:
         os.close(parent_fd)

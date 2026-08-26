@@ -37,6 +37,10 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 from skiputil import Skip, skip  # noqa: E402
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
+    git_ignored_output_prefixes,
+    is_git_ignored_output_path,
+)
 
 
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
@@ -62,6 +66,8 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_campaign.py::test_evolve_block_markers_structure_and_inert",
     "test_hooks.py::test_real_submodule_payload_edit",
     "test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control",
+    # caller inventory が実 working tree の Python と設計・前提条件正本を列挙・読取する reader。
+    "test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
     "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
     "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
     "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
@@ -104,6 +110,7 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
     "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
     "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
     "test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
@@ -471,8 +478,17 @@ def _run_subprocess(argv, *, cwd, env=None):
 
 
 def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
-    """一時 file の作成後削除も directory timestamp で捉える軽量 snapshot。"""
-    entries = [root, *root.rglob("*")]
+    """Git-visible path の一時作成後削除も timestamp で捉える snapshot。"""
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    entries = [
+        root,
+        *(
+            path for path in root.rglob("*")
+            if not is_git_ignored_output_path(
+                path.relative_to(root).as_posix(), ignored_prefixes,
+            )
+        ),
+    ]
     return tuple(
         (
             path.relative_to(root).as_posix() if path != root else ".",
@@ -484,6 +500,46 @@ def _t080_output_snapshot(root: Path) -> tuple[tuple[object, ...], ...]:
         for path in sorted(entries)
         for info in (path.lstat(),)
     )
+
+
+def test_t080_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert not is_git_ignored_output_path("visible", ignored_prefixes)
+    control = tmp_path / "visible"
+    before = _t080_output_snapshot(tmp_path)
+    try:
+        control.mkdir()
+        (control / "nested").mkdir()
+        payload = control / "nested" / "payload.bin"
+        payload.write_bytes(b"git-visible t080 snapshot positive control")
+
+        after = _t080_output_snapshot(tmp_path)
+        assert after != before
+        relative_control = control.relative_to(tmp_path).as_posix()
+        relative_payload = payload.relative_to(tmp_path).as_posix()
+        assert any(row[0] == relative_control for row in after)
+        assert any(row[0] == relative_payload for row in after)
+    finally:
+        shutil.rmtree(control, ignore_errors=True)
+
+
+def test_t080_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
+    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    assert "runs" in ignored_prefixes
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
+    try:
+        before = _t080_output_snapshot(tmp_path)
+        control = ignored_parent / "snapshot-ignored-t080"
+        control.mkdir()
+        (control / "nested").mkdir()
+        (control / "nested" / "payload.bin").write_bytes(
+            b"git-ignored t080 snapshot control"
+        )
+
+        assert _t080_output_snapshot(tmp_path) == before
+    finally:
+        shutil.rmtree(ignored_parent, ignore_errors=True)
 
 
 def _require_pytest() -> None:

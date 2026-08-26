@@ -48,6 +48,7 @@ from . import reflux_origin_topology
 from . import s8b_holdout_freeze
 from . import s8b_ratified_freeze
 from . import s8c_arm_inputs
+from . import s8c_generation_projection
 from . import s8c_preregistration
 from . import trial_registry
 from .reflux_source_closure import ValidatedSourceClosure
@@ -152,6 +153,7 @@ DEFAULT_MAX_WALL_S = 3600
 PROVIDER_KINDS = frozenset(("fixture", "claude-headless"))
 _DRIVE_NOT_PROVIDED: Any = object()
 _PREVIEW_NOT_PROVIDED: Any = object()
+_STANDARD_DRIVE_ITERATION = trigger.drive_iteration
 DRIVER_STOP_REASONS = frozenset((
     "continue",
     "converged",
@@ -371,6 +373,36 @@ class AutonomousTrialError(RuntimeError):
     """Bounded supervisor contract violation."""
 
 
+class RoleResponseJsonSyntaxError(AutonomousTrialError):
+    """Role response is not decodable JSON syntax."""
+
+
+class RoleResponseJsonShapeError(AutonomousTrialError):
+    """Role response violates the JSON object shape policy."""
+
+
+FAILURE_PHASE_PRE_RAW_WRITE = "pre-raw-write"
+FAILURE_PHASE_RAW_WRITE = "raw-write"
+FAILURE_PHASE_JSON_SYNTAX = "json-syntax"
+FAILURE_PHASE_JSON_SHAPE = "json-shape"
+FAILURE_PHASE_ROLE_SCHEMA = "role-schema"
+FAILURE_PHASE_PARSER_ERROR = "parser-error"
+FAILURE_PHASES = frozenset({
+    FAILURE_PHASE_PRE_RAW_WRITE,
+    FAILURE_PHASE_RAW_WRITE,
+    FAILURE_PHASE_JSON_SYNTAX,
+    FAILURE_PHASE_JSON_SHAPE,
+    FAILURE_PHASE_ROLE_SCHEMA,
+    FAILURE_PHASE_PARSER_ERROR,
+})
+FAILURE_PHASES_AFTER_RAW_WRITE = frozenset({
+    FAILURE_PHASE_JSON_SYNTAX,
+    FAILURE_PHASE_JSON_SHAPE,
+    FAILURE_PHASE_ROLE_SCHEMA,
+    FAILURE_PHASE_PARSER_ERROR,
+})
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class PreparedCampaignIdentity:
     """Pure producer projection used by both preflight and execution."""
@@ -509,7 +541,9 @@ def _parse_raw_object(raw: str, *, role: str) -> dict[str, Any]:
     try:
         return _parse_json_object(raw.encode("utf-8"), source=f"{role} response")
     except PredictionRunnerError as exc:
-        raise AutonomousTrialError(str(exc)) from exc
+        if isinstance(exc.__cause__, json.JSONDecodeError):
+            raise RoleResponseJsonSyntaxError(str(exc)) from exc
+        raise RoleResponseJsonShapeError(str(exc)) from exc
 
 
 def parse_planner(raw: str) -> loop_core.PlannerProposal:
@@ -2036,6 +2070,8 @@ def _drive_s8c_generation(
             "_resolved_site": resolved_site,
             "_contract": contract,
         })
+        if drive is _STANDARD_DRIVE_ITERATION:
+            drive_kwargs["_require_source_preimage_artifact"] = do_build
     if do_build:
         drive_kwargs["build_context"] = build_context
     outcome = dict(drive(
@@ -2378,6 +2414,11 @@ def _invoke(
         base["arm_binding_digest_sha256"] = arm_binding_digest
     if validation_receipt is not None:
         base["payload_validation_receipt"] = validation_receipt.as_dict()
+    failure_phase = FAILURE_PHASE_PRE_RAW_WRITE
+    provenance: dict[str, Any] | None = None
+    raw_path: Path | None = None
+    raw_sha256: str | None = None
+    parser_started = False
     try:
         # This is the single accounting point: every provider.invoke call,
         # including calls that raise or later fail parsing, receives one ordinal.
@@ -2437,10 +2478,29 @@ def _invoke(
             )
         raw_bytes = response.raw_response.encode("utf-8")
         raw_path = raw_root / f"raw_{audit_id}.txt"
+        failure_phase = FAILURE_PHASE_RAW_WRITE
         raw_sha256 = _write_bytes_bound(raw_path, raw_bytes)
+        parser_started = True
         parsed = PARSERS[role](response.raw_response)
     except Exception as exc:
+        if parser_started:
+            if isinstance(exc, RoleResponseJsonSyntaxError):
+                failure_phase = FAILURE_PHASE_JSON_SYNTAX
+            elif isinstance(exc, RoleResponseJsonShapeError):
+                failure_phase = FAILURE_PHASE_JSON_SHAPE
+            elif isinstance(exc, AutonomousTrialError):
+                failure_phase = FAILURE_PHASE_ROLE_SCHEMA
+            else:
+                failure_phase = FAILURE_PHASE_PARSER_ERROR
         error_artifacts: dict[str, str] = {}
+        error_artifacts["failure_phase"] = failure_phase
+        if raw_path is not None and raw_sha256 is not None:
+            error_artifacts["raw_response_path"] = str(raw_path)
+            error_artifacts["raw_response_sha256"] = raw_sha256
+        if provenance is not None:
+            child_id = provenance.get("child_id")
+            if isinstance(child_id, str) and child_id:
+                error_artifacts["child_id"] = child_id
         if arm_binding_digest is not None:
             error_artifacts["arm_binding_digest_sha256"] = arm_binding_digest
         invalid = {
@@ -2539,7 +2599,7 @@ def _common_payload(
         "generation": generation,
         "workload_descriptor": dict(descriptor),
         "descriptor_binding": payload_descriptor_binding,
-        "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
+        "attempt_policy": dict(s8c_generation_projection.ATTEMPT_POLICY),
         "stop_policy": {
             "performance_early_stop": False,
             "generation_budget_is_fixed": True,
@@ -4459,7 +4519,7 @@ def run_trial(
         raise AutonomousTrialError(
             "build trial requires parser-issued --allow-coder-derived-build authority"
         )
-    run_root = Path(run_root)
+    run_root = Path(run_root).resolve()
     _reject_worktree_container(run_root)
     if run_root.exists() or run_root.is_symlink():
         raise AutonomousTrialError(

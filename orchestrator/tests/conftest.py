@@ -362,6 +362,8 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_campaign.py::test_evolve_block_markers_structure_and_inert",
     "test_hooks.py::test_real_submodule_payload_edit",
     "test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control",
+    # caller inventory が実 working tree の Python と設計・前提条件正本を列挙・読取する reader。
+    "test_calibration_freeze_stage6_candidate_gate.py::test_stage6_candidate_gate_caller_inventory_matches_repository_and_docs",
 
     # known-axes の生成/検証が実 ccbench source path を読む reader。
     "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
@@ -411,6 +413,7 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
     "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
     "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_material_replay_rejects_task_manifest_exchange_at_digest_consumers",
     "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
     "test_codex_reasoning_ab.py::test_verify_checks_pre_post_snapshot_for_every_shared_oracle_run",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
@@ -1627,7 +1630,13 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             matched_ids = set(getattr(
                 session.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()
             )) & set(FLAKY_TEST_HOLDS)
-        if terminal is not None and matched_ids:
+        if terminal is not None and (
+            matched_ids
+            or (
+                not FLAKY_TEST_HOLDS
+                and getattr(session.config, "invocation_params", None) is not None
+            )
+        ):
             skipped_ids = set(getattr(
                 session.config, _FLAKY_HOLD_SKIPPED_IDS_ATTR, ()
             )) & set(FLAKY_TEST_HOLDS)

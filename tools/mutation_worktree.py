@@ -26,6 +26,12 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if os.fspath(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, os.fspath(_REPO_ROOT))
+
+from orchestrator.campaign import site_policy  # noqa: E402
+
 
 WRAPPER_RECEIPT_SCHEMA = "izanagi-mutation-worktree-wrapper/v1"
 HARNESS_LEDGER_SCHEMA = "izanagi-dev-wave-mutation/v4"
@@ -390,9 +396,13 @@ def _assert_shared_unchanged(before: SharedObservation) -> None:
 
 
 def _preflight(
-    args: argparse.Namespace, *, out: Path, lock_path: Path
+    args: argparse.Namespace,
+    *,
+    source: Path,
+    commit: str,
+    out: Path,
+    lock_path: Path,
 ) -> Preflight:
-    source, commit = _resolve_source_and_commit(args.source_repo, args.commit)
     registered = _registered_worktrees(source)
     scratch = _validate_scratch(args.scratch_root, registered)
     container = scratch / CONTAINER_NAME
@@ -1123,6 +1133,15 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _refusing_local_site(runner_mode: str) -> str | None:
+    if runner_mode != "local":
+        return None
+    site = site_policy.current_site(require_evidence=True)
+    if site in {site_policy.PEGASUS_LOGIN, site_policy.PEGASUS_SUSPECT}:
+        return site
+    return None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     state = RunState()
     signum: int | None = None
@@ -1153,9 +1172,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         with _signal_scope() as signal_state:
             try:
                 _raise_if_signaled(signal_state)
+                source, commit = _resolve_source_and_commit(
+                    args.source_repo, args.commit
+                )
+                refusing_site = _refusing_local_site(args.runner_mode)
+                if refusing_site is not None:
+                    print(
+                        "mutation worktree aborted: --runner-mode local は "
+                        f"{refusing_site} で実行できない",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    return 2
                 expected_lock_path = _lock_path_for_out(out)
                 state.preflight = _preflight(
-                    args, out=out, lock_path=expected_lock_path
+                    args,
+                    source=source,
+                    commit=commit,
+                    out=out,
+                    lock_path=expected_lock_path,
                 )
                 preflight = state.preflight
                 _raise_if_signaled(signal_state)

@@ -340,6 +340,19 @@ def test_all_32_predicates_match_independent_golden_byte_for_byte():
         assert actual.encode("ascii") == expected[mask][1].encode("ascii")
 
 
+def test_all_32_predicates_are_complete_assignments_and_never_skeleton_true():
+    emitted = [IR.emit_predicate(IR.TriggerGateIR(mask)) for mask in range(32)]
+    assert [len(value.encode("utf-8")) for value in emitted] == [
+        len(_expected_by_mask()[mask][1].encode("utf-8")) for mask in range(32)
+    ]
+    assert min(map(len, emitted)) == 72
+    assert max(map(len, emitted)) == 379
+    assert all(value.startswith("izanagi_gate_pass = ") for value in emitted)
+    assert all(value.endswith(";") for value in emitted)
+    assert "true" not in emitted
+    assert "izanagi_gate_pass = true;" not in emitted
+
+
 def test_all_32_predicates_match_legacy_differential_oracle_byte_for_byte():
     for mask in range(32):
         reasons = [reason for bit, reason in enumerate(AXIS.GATEABLE_REASONS)

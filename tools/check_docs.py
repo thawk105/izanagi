@@ -21,7 +21,7 @@ import re
 import stat
 import sys
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
@@ -143,6 +143,7 @@ LIVING_DOCS = [
     REPO / "docs" / "phase3-main-experiment.md",  # 事前登録 (サンプル設計数値の確定追記が残るため living)
     REPO / "docs" / "phase3-8b-descriptor-design.md",  # 段 8b の実走前凍結設計 (draft の間は living)
     REPO / "docs" / "phase3-8c-preregistration.md",  # 段 8c の実走前事前登録 (発効前は living)
+    REPO / "docs" / "phase3-b4-reflux-ablation-preregistration.md",  # B-4 還流 ablation の実走前事前登録 (発効前は living)
     REPO / "docs" / "glossary.md",
     REPO / "docs" / "agent-architecture.md",
     REPO / "docs" / "orchestrator-design.md",
@@ -246,6 +247,25 @@ KNOWN_PLACEHOLDER_MENTIONS = {
 # 新規 hit に例外を認めない。台帳への追加はユーザーの明示裁定のみ。
 EXPECTED_KNOWN_PLACEHOLDER_DEBTS = 4
 EXPECTED_KNOWN_PLACEHOLDER_MENTIONS = 5
+
+# D837 (c) で認められた歴史的な carry ID 不一致だけを固定する。
+# 外側 key は source entry の H2 raw 行、内側 key は list marker と継続行を
+# 含む carry 論理項目の raw slice の sha256。追加はユーザーの明示裁定に限る。
+# この境界はレビュー契約であり、
+# 台帳と期待総数を同じ patch で変えること自体を機械的に禁止するものではない。
+KNOWN_CARRY_ID_MISMATCHES = {
+    "6bc0dfb4679d3be38c2a97c7c81c595b62a2b033800e5b27d7f9a63b75c3814b": {
+        "34209a9f738fe90a9f3cd57531c3ef900085884b79fc6c1dd833fdf3c46ee45c": 1,
+        "f46fe17fc7831678f44471bf5c7c460be6bd65bac6a7e5a47cd0535c150a54a6": 1,
+        "f5e03b5bb559682274a1731a73e6d4dca0208c7846fabe312cad1834bc74c14e": 1,
+        "5e4a6cb7d118a27df5b710ca20351ea9e5e45ef764ed559b597dc9931140b666": 1,
+    },
+}
+EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 4
+# candidate == parsed が parser の完全性を担う。これは母集合全体が消える型だけを
+# 捉える粗い補助下限であり、完全性の保証ではない。
+MIN_EXPECTED_CARRY_REFERENCE_COUNT = 404_326
+_CARRY_FINDING_SAMPLE_LIMIT = 20
 PHASE3 = REPO / "docs" / "phase3.md"
 
 # --- command / reference anti-bloat ---
@@ -263,7 +283,7 @@ class TextLimit:
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
     ".claude/commands/cleanup-branches.md": TextLimit(4_000, 110),
-    ".claude/commands/rulings.md": TextLimit(5_000, 180),
+    ".claude/commands/rulings.md": TextLimit(5_623, 180),
 }
 SELF_LIMITS = {
     "docs/skill-self-improvement.md": TextLimit(6_000, 100),
@@ -361,6 +381,14 @@ DEV_WAVE_OPERATIONS_OUTSIDE_DW_O01_MODEL_SLUG_ABSENCE_FINDING = (
 DEV_WAVE_COMMAND_MODEL_SLUG_ABSENCE_FINDING = (
     ".claude/commands/dev-wave.md: ファイル全体の可視テキストに `gpt-` model slug がある — "
     "model の権威は DW-O01 の model 権威行だけ"
+)
+DEV_WAVE_OPERATIONS_NON_ATTRIBUTABLE_ONLY_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: 可視本文に `non-attributable-only` がある — "
+    "受入の受理は `child-green` だけ"
+)
+DEV_WAVE_OPERATIONS_ACCEPTANCE_REDS_TOOL_ABSENCE_FINDING = (
+    "docs/dev-wave/operations.md: 可視本文に `tools/check_acceptance_reds.py` がある — "
+    "廃止済みの代替受理経路を正本へ戻さない"
 )
 DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 節が一意でない — "
@@ -573,6 +601,13 @@ DEV_WAVE_SELF_ROUTING_SECTION_LITERAL = """## routing
    failures は事象・原因・恒久対応、decisions は採用理由を担う。
 
 """
+DEV_WAVE_DW_O18_SECTION_LITERAL = """## DW-O18 — テスト cwd と非帰属赤の着地
+
+cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+
+受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
+
+"""
 DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 provenance 関門
 
 D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
@@ -584,6 +619,10 @@ DEV_WAVE_DW_O26_SECTION_LITERAL = """## DW-O26 — 焦点走の consumer test �
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+焦点走の分割投入は直列にする。同一 worktree の並行 dispatch は orphan hold で rc=16 になる。
+変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
+test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
+所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 """
 DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 
@@ -595,23 +634,26 @@ F26 に従い `git worktree remove` と `git submodule deinit` は使わない�
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
-`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
-- `--lane`は`--stage consult`だけ必須、無指定/他段rc=2。
-- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
-- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
-- 複数起点の判別は全隣接区間へ異なる正値を入れる。
-- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+`DW-O01/O08/O17/O20`より優先。
+- `--lane`はconsult、`--reasoning`はplan/consultで必須。他段指定/必須段無指定はrc=2。
+- 待ち手はpid file実在後に張る。先行は子の生存中も即戻る。
+- 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
+- 複数起点は全隣接区間の異なる正値で判別。
+- 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
 - submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
-- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
-- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
-- mergeは親。子は競合解決だけ、`add`とcommitも親。
-- 子のWeb検索を禁じる。成果物が全損する。
+- 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
+- merge/`add`/commitは親、子は競合解決だけ。
+- 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
+- 子はWeb検索禁止。成果物が全損する。
 """
 DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
     (".claude/commands/dev-wave.md", "入力と開始"):
         DEV_WAVE_COMMAND_START_SECTION_LITERAL,
     ("docs/skill-self-improvement.md", "routing"):
         DEV_WAVE_SELF_ROUTING_SECTION_LITERAL,
+    ("docs/dev-wave/operations.md", "DW-O18 — テスト cwd と非帰属赤の着地"):
+        DEV_WAVE_DW_O18_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O25 — ff-only land の全史 provenance 関門"):
         DEV_WAVE_DW_O25_SECTION_LITERAL,
     ("docs/dev-wave/operations.md", "DW-O26 — 焦点走の consumer test 拡張"):
@@ -707,7 +749,7 @@ CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
+    "b42c873e30f2d631d1e745820bc3070616fc78641e21c33e72721def6418fa4d"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (
@@ -1022,6 +1064,32 @@ class _CarryReference:
     path: str
     line: int
     task_id: str
+    source_entry: int
+    target_entry: int
+    source_h2_digest: str
+    item_digest: str
+
+
+@dataclass(frozen=True)
+class _CarrySource:
+    path: str
+    whole_text: str
+    source_entry: int
+    h2_raw_line: str
+    section_body: str
+    section_offset: int
+
+
+@dataclass
+class _CarryScanStats:
+    candidate_count: int = 0
+    parsed_count: int = 0
+    invalid_count: int = 0
+    invalid_samples: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.invalid_samples is None:
+            self.invalid_samples = []
 
 
 @dataclass(frozen=True)
@@ -1836,15 +1904,13 @@ def _check_exact_visible_h2_section(
         )
 
 
-def _top_level_items(body: str) -> list[tuple[str, int]]:
-    """code fence / HTML comment 外にあるトップレベル項目と offset を返す。"""
+def _top_level_items(body: str) -> Iterator[tuple[str, int]]:
+    """code fence / HTML comment 外にあるトップレベル項目を逐次返す。"""
 
-    items: list[tuple[str, int]] = []
     for visible, offset, _ in _visible_markdown_lines(body):
         item = TOP_LEVEL_ITEM_RE.fullmatch(visible)
         if item is not None:
-            items.append((item.group("text"), offset))
-    return items
+            yield item.group("text"), offset
 
 
 def _top_level_ids(body: str) -> list[str]:
@@ -1858,13 +1924,127 @@ def _top_level_ids(body: str) -> list[str]:
     return ids
 
 
+def _entry_h2_raw_line(
+    whole_text: str,
+    entry: tuple[str, str, int],
+) -> str:
+    """entry tuple の body offset 直前にある H2 raw 物理行を返す。"""
+
+    h2_end = entry[2]
+    h2_start = whole_text.rfind("\n", 0, h2_end) + 1
+    return whole_text[h2_start:h2_end]
+
+
+def _top_level_item_raw_slice(body: str, item_offset: int) -> str:
+    """list marker から継続物理行の終端までの raw slice を返す。"""
+
+    assert 0 <= item_offset < len(body)
+    line_end = item_offset
+    while line_end < len(body) and body[line_end] not in "\r\n":
+        line_end += 1
+    raw_end = line_end
+    cursor = line_end
+    while cursor < len(body):
+        if body[cursor] == "\r":
+            cursor += 1
+            if cursor < len(body) and body[cursor] == "\n":
+                cursor += 1
+        elif body[cursor] == "\n":
+            cursor += 1
+        continuation_end = cursor
+        while (
+            continuation_end < len(body)
+            and body[continuation_end] not in "\r\n"
+        ):
+            continuation_end += 1
+        continuation = body[cursor:continuation_end]
+        if not continuation.startswith((" ", "\t")):
+            break
+        raw_end = continuation_end
+        cursor = continuation_end
+    return body[item_offset:raw_end]
+
+
+def _is_carry_candidate(item_text: str) -> bool:
+    """厳密 parser の取りこぼしを拾う、意図的に広い carry 候補述語。"""
+
+    task = TASK_ID_AT_HEAD_RE.match(item_text)
+    if task is None:
+        return False
+    unchanged_at = item_text.find("変わらず", task.end())
+    reference_at = item_text.find("参照", unchanged_at + len("変わらず"))
+    if (
+        unchanged_at >= 0
+        and reference_at > unchanged_at
+        and re.search(
+            r"[0-9]", item_text[unchanged_at:reference_at]
+        ) is not None
+    ):
+        return True
+    return re.fullmatch(
+        r"[ \t]*\((?=[ \t0-9]*[0-9])[ \t0-9]*\)",
+        item_text[task.end():],
+    ) is not None
+
+
+def _iter_carry_references(
+    sources: Iterable[_CarrySource],
+    stats: _CarryScanStats | None = None,
+) -> Iterator[_CarryReference]:
+    """carry occurrence を entry source 群から逐次 yield する。"""
+
+    scan = stats if stats is not None else _CarryScanStats()
+    for source in sources:
+        source_h2_digest = _placeholder_line_digest(source.h2_raw_line)
+        for item_text, item_offset in _top_level_items(source.section_body):
+            candidate = _is_carry_candidate(item_text)
+            carry = CARRY_REFERENCE_RE.fullmatch(item_text)
+            if carry is None:
+                carry = LEGACY_CARRY_REFERENCE_RE.search(item_text)
+            if candidate:
+                scan.candidate_count += 1
+            if carry is None:
+                if candidate:
+                    scan.invalid_count += 1
+                    assert scan.invalid_samples is not None
+                    if len(scan.invalid_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                        lineno = _line_number(
+                            source.whole_text,
+                            source.section_offset + item_offset,
+                        )
+                        scan.invalid_samples.append(
+                            f"{source.path}:{lineno}: carry 風 candidate {item_text!r} が"
+                            "厳密 carry 文法に一致しない — 正例: `- [T-1219] (953)`"
+                        )
+                continue
+            # 厳密 parser の受理集合は広い candidate 集合の部分集合でなければならない。
+            # 将来この前提を壊す parser 変更も candidate == parsed で赤にする。
+            scan.parsed_count += 1
+            yield _CarryReference(
+                source.path,
+                _line_number(
+                    source.whole_text,
+                    source.section_offset + item_offset,
+                ),
+                carry.group("id"),
+                source.source_entry,
+                int(carry.group("target")),
+                source_h2_digest,
+                _placeholder_line_digest(
+                    _top_level_item_raw_slice(
+                        source.section_body,
+                        item_offset,
+                    )
+                ),
+            )
+
+
 def _validate_next_action_items(
     rel: str,
     whole_text: str,
     entry: tuple[str, str, int],
     section: tuple[str, int],
     findings: list[str],
-    carry_references: dict[int, _CarryReference] | None = None,
     *,
     latest: bool = False,
 ) -> None:
@@ -1897,17 +2077,6 @@ def _validate_next_action_items(
                 f"{rel}:{lineno}: {label} の `### 次の一手` 内で ID {task_id} が重複"
             )
         seen.add(task_id)
-
-        if carry_references is not None:
-            carry = CARRY_REFERENCE_RE.fullmatch(item_text)
-            if carry is None:
-                carry = LEGACY_CARRY_REFERENCE_RE.search(item_text)
-            if carry is not None:
-                target = int(carry.group("target"))
-                carry_references.setdefault(
-                    target,
-                    _CarryReference(rel, lineno, carry.group("id")),
-                )
 
 
 def _archive_filename_entry_range(path: Path) -> _ArchiveFilenameClaim:
@@ -2026,9 +2195,38 @@ def _validate_claimed_entry_range(
     )
 
 
+def _append_sampled_findings(
+    findings: list[str],
+    category: str,
+    samples: Sequence[str],
+    total: int,
+    *,
+    unit: str = "carry occurrence",
+) -> None:
+    """分類別 finding を上限付きで出し、抑止件数を必ず明示する。"""
+
+    if total == 0:
+        return
+    findings.extend(samples)
+    suppressed = max(0, total - len(samples))
+    findings.append(
+        f"carry {category}: 他 {suppressed} 件を抑止"
+    )
+    if unit == "carry occurrence":
+        findings.append(
+            f"carry {category}: 上記の {suppressed} 件は target 数でなく "
+            "carry occurrence 数"
+        )
+    else:
+        findings.append(
+            f"carry {category}: 上記の {suppressed} 件の単位は {unit}"
+        )
+
+
 def _validate_entry_universe(
-    locations: dict[int, list[str]],
-    carry_references: dict[int, _CarryReference],
+    locations: Mapping[int, list[str]],
+    next_action_ids_by_entry: Mapping[int, set[str] | None],
+    carry_sources: Sequence[_CarrySource],
     findings: list[str],
     *,
     numbered_archive_input_complete: bool,
@@ -2048,12 +2246,189 @@ def _validate_entry_universe(
             "carry 参照先の実在検査を停止"
         )
         return
-    for target, carry in sorted(carry_references.items()):
-        if target in locations or target in duplicated:
-            continue
+
+    registered_total = sum(
+        expected
+        for entries in KNOWN_CARRY_ID_MISMATCHES.values()
+        for expected in entries.values()
+    )
+    if registered_total != EXPECTED_KNOWN_CARRY_ID_MISMATCHES:
         findings.append(
+            "KNOWN_CARRY_ID_MISMATCHES の登録 occurrence 総数が不一致 — "
+            f"expected={EXPECTED_KNOWN_CARRY_ID_MISMATCHES}, actual={registered_total}"
+        )
+
+    universe = set(locations)
+    index = set(next_action_ids_by_entry)
+    index_samples: list[str] = []
+    index_total = 0
+    for number in sorted(universe - index):
+        index_total += 1
+        if len(index_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+            index_samples.append(
+                f"entry ({number}) は全域 universe にあるが次の一手索引 key が不在"
+            )
+    for number in sorted(index - universe):
+        index_total += 1
+        if len(index_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+            index_samples.append(
+                f"entry ({number}) は次の一手索引にあるが全域 universe に不在"
+            )
+    _append_sampled_findings(
+        findings,
+        "universe / index 集合不一致",
+        index_samples,
+        index_total,
+        unit="entry key",
+    )
+
+    scan = _CarryScanStats()
+    missing_samples: list[_CarryReference] = []
+    missing_total = 0
+    index_key_missing_samples: list[_CarryReference] = []
+    index_key_missing_total = 0
+    index_none_samples: list[_CarryReference] = []
+    index_none_total = 0
+    index_empty_samples: list[_CarryReference] = []
+    index_empty_total = 0
+    mismatch_samples: list[str] = []
+    mismatch_total = 0
+    observed_known: dict[tuple[str, str], int] = {}
+
+    for carry in _iter_carry_references(carry_sources, scan):
+        target = carry.target_entry
+        if target not in locations:
+            missing_total += 1
+            if len(missing_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                missing_samples.append(carry)
+            continue
+        if target in duplicated:
+            continue
+        if target not in next_action_ids_by_entry:
+            index_key_missing_total += 1
+            if len(index_key_missing_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                index_key_missing_samples.append(carry)
+            continue
+        target_ids = next_action_ids_by_entry[target]
+        if target_ids is None:
+            index_none_total += 1
+            if len(index_none_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                index_none_samples.append(carry)
+            continue
+        if not target_ids:
+            index_empty_total += 1
+            if len(index_empty_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+                index_empty_samples.append(carry)
+            continue
+        if carry.task_id in target_ids:
+            continue
+
+        known_key = (carry.source_h2_digest, carry.item_digest)
+        expected = KNOWN_CARRY_ID_MISMATCHES.get(
+            carry.source_h2_digest, {}
+        ).get(carry.item_digest)
+        if expected is not None:
+            observed_known[known_key] = observed_known.get(known_key, 0) + 1
+            continue
+
+        mismatch_total += 1
+        if len(mismatch_samples) < _CARRY_FINDING_SAMPLE_LIMIT:
+            target_location = locations[target][0]
+            mismatch_samples.append(
+                f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
+                f"({target}) の次の一手に同じ ID がない — 参照先 H2 "
+                f"{target_location}; 参照先の次の一手に同じ ID を置くか、"
+                "carry を正しい参照先へ直す"
+            )
+
+    if scan.candidate_count != scan.parsed_count:
+        assert scan.invalid_samples is not None
+        detail = " | ".join(scan.invalid_samples)
+        suppressed = max(0, scan.invalid_count - len(scan.invalid_samples))
+        findings.append(
+            "carry 風 candidate 数と厳密 parse 成功数が不一致 — "
+            f"candidate={scan.candidate_count}, parsed={scan.parsed_count}; "
+            f"厳密 carry 文法に一致しない sample={detail}; "
+            f"他 {suppressed} carry occurrence を抑止"
+        )
+
+    missing_sample_text = [
+        f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
+        f"({carry.target_entry}) が全域番号 universe に実在しない — 宙吊り参照"
+        for carry in missing_samples
+    ]
+    _append_sampled_findings(
+        findings,
+        "参照先不在",
+        missing_sample_text,
+        missing_total,
+    )
+
+    def target_index_samples(
+        references: Sequence[_CarryReference],
+        detail: str,
+    ) -> list[str]:
+        return [
             f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
-            f"({target}) が全域番号 universe に実在しない — 宙吊り参照"
+            f"({carry.target_entry}) の次の一手索引が {detail} — 参照先 H2 "
+            f"{locations[carry.target_entry][0]}"
+            for carry in references
+        ]
+
+    for category, references, total, detail in (
+        (
+            "索引 key 不在",
+            index_key_missing_samples,
+            index_key_missing_total,
+            "key 不在",
+        ),
+        (
+            "索引値 None",
+            index_none_samples,
+            index_none_total,
+            "値 None (section 抽出対象外)",
+        ),
+        (
+            "索引値空集合",
+            index_empty_samples,
+            index_empty_total,
+            "空集合 (次の一手が空)",
+        ),
+    ):
+        _append_sampled_findings(
+            findings,
+            category,
+            target_index_samples(references, detail),
+            total,
+        )
+
+    _append_sampled_findings(
+        findings,
+        "同一 ID 不一致",
+        mismatch_samples,
+        mismatch_total,
+    )
+
+    for source_digest, entries in KNOWN_CARRY_ID_MISMATCHES.items():
+        for item_digest, expected in entries.items():
+            actual = observed_known.get((source_digest, item_digest), 0)
+            if actual == expected:
+                continue
+            remediation = (
+                "凍結 archive を編集せず、復元するか裁定へ返す"
+                if actual == 0
+                else "凍結 archive を編集せず、重複を裁定へ返す"
+            )
+            findings.append(
+                "KNOWN_CARRY_ID_MISMATCHES の登録 digest が観測数不一致 — "
+                f"source_h2={source_digest}, item={item_digest}, "
+                f"expected={expected}, actual={actual}; {remediation}"
+            )
+
+    if scan.parsed_count < MIN_EXPECTED_CARRY_REFERENCE_COUNT:
+        findings.append(
+            "carry 参照母数が粗い下限を下回る — "
+            f"minimum={MIN_EXPECTED_CARRY_REFERENCE_COUNT}, actual={scan.parsed_count}"
         )
 
 
@@ -2545,7 +2920,8 @@ def _check_backlog_guard(
         return _BacklogCheckResult({}, False)
 
     entry_locations: dict[int, list[str]] = {}
-    carry_references: dict[int, _CarryReference] = {}
+    next_action_ids_by_entry: dict[int, set[str] | None] = {}
+    carry_sources: list[_CarrySource] = []
     for entry in entries:
         match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
         assert match is not None
@@ -2559,6 +2935,13 @@ def _check_backlog_guard(
     ]
     sources = [set(_top_level_ids(section[0])) if section is not None else set()
                for section in next_actions]
+    for entry, section, source_ids in zip(entries, next_actions, sources):
+        match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
+        assert match is not None
+        number = int(match.group("order"))
+        next_action_ids_by_entry[number] = (
+            source_ids if section is not None else None
+        )
     if not any(sources):
         findings.append(
             "docs/worklog.md: 現行 worklog に有効 ID を持つエントリが 1 件もない — "
@@ -2575,8 +2958,19 @@ def _check_backlog_guard(
                 entry,
                 section,
                 findings,
-                carry_references,
                 latest=i == len(entries) - 1,
+            )
+            match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
+            assert match is not None
+            carry_sources.append(
+                _CarrySource(
+                    "docs/worklog.md",
+                    worklog_text,
+                    int(match.group("order")),
+                    _entry_h2_raw_line(worklog_text, entry),
+                    section[0],
+                    section[1],
+                )
             )
 
     def check_transition(
@@ -2703,6 +3097,12 @@ def _check_backlog_guard(
             archive_next_actions.append(section)
             source_ids = set(_top_level_ids(section[0])) if section is not None else set()
             archive_sources.append(source_ids)
+            if filename_claim.classification == "numbered":
+                number = _entry_number_from_title(entry[0])
+                if number is not None:
+                    next_action_ids_by_entry[number] = (
+                        source_ids if section is not None else None
+                    )
             if entry_has_id and section is not None:
                 _validate_next_action_items(
                     archive_rel,
@@ -2710,10 +3110,20 @@ def _check_backlog_guard(
                     entry,
                     section,
                     findings,
-                    carry_references
-                    if filename_claim.classification == "numbered"
-                    else None,
                 )
+                if filename_claim.classification == "numbered":
+                    number = _entry_number_from_title(entry[0])
+                    assert number is not None
+                    carry_sources.append(
+                        _CarrySource(
+                            archive_rel,
+                            archive_text,
+                            number,
+                            _entry_h2_raw_line(archive_text, entry),
+                            section[0],
+                            section[1],
+                        )
+                    )
 
         archive = _ArchiveWorklog(
             archive_path,
@@ -2779,7 +3189,8 @@ def _check_backlog_guard(
 
     _validate_entry_universe(
         entry_locations,
-        carry_references,
+        next_action_ids_by_entry,
+        carry_sources,
         findings,
         numbered_archive_input_complete=numbered_archive_input_complete,
     )
@@ -3318,6 +3729,89 @@ def _dispatch_inventory_from_source(
     assert definition is not None
     definition_end = getattr(definition, "end_lineno", definition.lineno)
     definition_end_col = getattr(definition, "end_col_offset", 0)
+
+    def preserves_tasks_alias(node: ast.AST | None) -> bool:
+        """式の値が TASKS 本体を保持し得る場合だけ True にする。"""
+
+        if node is None:
+            return False
+        if isinstance(node, ast.Name):
+            return node.id == "TASKS" and isinstance(node.ctx, ast.Load)
+        if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+            return any(preserves_tasks_alias(element) for element in node.elts)
+        if isinstance(node, ast.Dict):
+            return any(
+                preserves_tasks_alias(element)
+                for element in (*node.keys, *node.values)
+            )
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+            return (
+                preserves_tasks_alias(node.elt)
+                or any(
+                    preserves_tasks_alias(generator.iter)
+                    or any(
+                        preserves_tasks_alias(condition)
+                        for condition in generator.ifs
+                    )
+                    for generator in node.generators
+                )
+            )
+        if isinstance(node, ast.DictComp):
+            return (
+                preserves_tasks_alias(node.key)
+                or preserves_tasks_alias(node.value)
+                or any(
+                    preserves_tasks_alias(generator.iter)
+                    or any(
+                        preserves_tasks_alias(condition)
+                        for condition in generator.ifs
+                    )
+                    for generator in node.generators
+                )
+            )
+        if isinstance(node, ast.Starred):
+            return preserves_tasks_alias(node.value)
+        if isinstance(node, ast.NamedExpr):
+            return preserves_tasks_alias(node.value)
+        if isinstance(node, ast.BoolOp):
+            return any(preserves_tasks_alias(value) for value in node.values)
+        if isinstance(node, ast.IfExp):
+            return (
+                preserves_tasks_alias(node.body)
+                or preserves_tasks_alias(node.orelse)
+            )
+        if isinstance(node, ast.Subscript):
+            # TASKS[key] は task spec の読み取りであって mapping alias ではない。
+            # container[TASKS を含む位置] は本体を再び取り出し得るので拒否する。
+            return (
+                not isinstance(node.value, ast.Name)
+                and preserves_tasks_alias(node.value)
+            )
+        if isinstance(node, ast.Lambda):
+            return preserves_tasks_alias(node.body)
+        if isinstance(node, ast.Call):
+            # tuple(TASKS) は既存の task 名 snapshot。TASKS 本体を保持しない。
+            if (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "tuple"
+                and len(node.args) == 1
+                and isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "TASKS"
+                and not node.keywords
+            ):
+                return False
+            return any(
+                preserves_tasks_alias(argument)
+                for argument in (
+                    *node.args,
+                    *(keyword.value for keyword in node.keywords),
+                )
+            ) or (
+                isinstance(node.func, ast.Attribute)
+                and preserves_tasks_alias(node.func.value)
+            )
+        return False
+
     writes: list[str] = []
     for node in ast.walk(tree):
         node_start = (
@@ -3334,11 +3828,24 @@ def _dispatch_inventory_from_source(
             writes.append(f"line {node.lineno}: TASKS への束縛/削除")
         elif (
             isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
-            and isinstance(node.value, ast.Name)
-            and node.value.id == "TASKS"
-            and isinstance(node.value.ctx, ast.Load)
+            and preserves_tasks_alias(node.value)
         ):
             writes.append(f"line {node.lineno}: TASKS の alias 束縛")
+        elif (
+            isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+            )
+            and any(
+                preserves_tasks_alias(default)
+                for default in (
+                    *node.args.defaults,
+                    *(default for default in node.args.kw_defaults
+                      if default is not None),
+                )
+            )
+        ):
+            writes.append(f"line {node.lineno}: TASKS の function default capture")
         elif (
             isinstance(node, ast.Call)
             and not (
@@ -3346,9 +3853,7 @@ def _dispatch_inventory_from_source(
                 and node.func.id == "tuple"
             )
             and any(
-                isinstance(argument, ast.Name)
-                and argument.id == "TASKS"
-                and isinstance(argument.ctx, ast.Load)
+                preserves_tasks_alias(argument)
                 for argument in (
                     *node.args,
                     *(keyword.value for keyword in node.keywords),
@@ -5086,6 +5591,29 @@ def _check_dev_wave_model_pins(
             )
 
 
+def _check_dev_wave_operations_forbidden_terms(
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """operations 全体の可視本文から廃止済み受理経路を排除する。"""
+
+    if operations_text is None:
+        return
+    visible_operations = _visible_markdown_text(operations_text)
+    for literal, finding in (
+        (
+            "non-attributable-only",
+            DEV_WAVE_OPERATIONS_NON_ATTRIBUTABLE_ONLY_ABSENCE_FINDING,
+        ),
+        (
+            "tools/check_acceptance_reds.py",
+            DEV_WAVE_OPERATIONS_ACCEPTANCE_REDS_TOOL_ABSENCE_FINDING,
+        ),
+    ):
+        if literal in visible_operations:
+            findings.append(finding)
+
+
 def _check_dev_wave_waiter_consumer_pins(
     dev_wave_text: str | None,
     core_text: str | None,
@@ -5441,6 +5969,10 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     _check_dev_wave_model_pins(
         dev_wave_text,
         workers_text,
+        operations_text,
+        findings,
+    )
+    _check_dev_wave_operations_forbidden_terms(
         operations_text,
         findings,
     )

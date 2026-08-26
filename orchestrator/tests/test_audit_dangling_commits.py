@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import errno
+import hashlib
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -82,6 +84,95 @@ def _commit_executable(repo: Path, branch: str, relpath: str, content: str) -> s
     return _git(repo, "rev-parse", "HEAD")
 
 
+def _commit_bytes_path(
+    repo: Path,
+    branch: str,
+    raw_relpath: bytes,
+    content: bytes = b"raw path\n",
+) -> tuple[str, str]:
+    _git(repo, "checkout", "-q", "-b", branch)
+    raw_target = os.fsencode(repo) + b"/" + raw_relpath
+    raw_parent = raw_target.rsplit(b"/", 1)[0]
+    os.makedirs(raw_parent, exist_ok=True)
+    descriptor = os.open(raw_target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    try:
+        os.write(descriptor, content)
+    finally:
+        os.close(descriptor)
+    _git(repo, "add", "--all")
+    _git(repo, "commit", "-qm", f"raw path on {branch}")
+    return _git(repo, "rev-parse", "HEAD"), os.fsdecode(raw_relpath)
+
+
+class _RecordingInput(io.BytesIO):
+    def close(self) -> None:
+        self.flush()
+
+
+class _FakeCatProcess:
+    def __init__(self, stdout: bytes, *, returncode: int = 0, stderr: bytes = b""):
+        self.stdin = _RecordingInput()
+        self.stdout = io.BytesIO(stdout)
+        self.stderr = io.BytesIO(stderr)
+        self.returncode = returncode
+        self.communicate_calls = 0
+        self.terminate_calls = 0
+        self.kill_calls = 0
+        self.wait_calls = 0
+
+    def communicate(self, timeout):
+        self.communicate_calls += 1
+        self.stdin.close()
+        return self.stdout.read(), self.stderr.read()
+
+    def terminate(self) -> None:
+        self.terminate_calls += 1
+
+    def kill(self) -> None:
+        self.kill_calls += 1
+
+    def wait(self) -> int:
+        self.wait_calls += 1
+        return self.returncode
+
+
+def _fake_oid(label: str) -> str:
+    return hashlib.sha1(label.encode("utf-8")).hexdigest()
+
+
+def _fake_ls_tree_result(
+    args: tuple[str, ...],
+    contents_by_path: dict[str, bytes],
+) -> subprocess.CompletedProcess[bytes]:
+    assert args[:5] == (
+        "--literal-pathspecs",
+        "ls-tree",
+        "-z",
+        "-l",
+        "--full-tree",
+    )
+    assert args[6] == "--"
+    records = []
+    for path in args[7:]:
+        content = contents_by_path[path]
+        records.append(
+            f"100644 blob {_fake_oid(path)} {len(content)}\t".encode()
+            + os.fsencode(path)
+            + b"\0"
+        )
+    return subprocess.CompletedProcess(args, 0, b"".join(records), b"")
+
+
+def _fake_cat_stdout(contents_by_path: dict[str, bytes]) -> bytes:
+    by_oid = {
+        _fake_oid(path): content for path, content in contents_by_path.items()
+    }
+    return b"".join(
+        oid.encode() + f" blob {len(content)}\n".encode() + content + b"\n"
+        for oid, content in sorted(by_oid.items())
+    )
+
+
 def _external_file(
     root: Path,
     relpath: str,
@@ -122,6 +213,24 @@ def _grep_patterns(args: tuple[str, ...]) -> tuple[str, ...]:
 
 def _audit(repo: Path, excluded=ADC.DEFAULT_EXCLUDED_PREFIXES):
     return ADC.audit(repo, "main", excluded)
+
+
+def _report(findings=()) -> ADC.AuditReport:
+    return ADC.AuditReport(
+        findings=list(findings),
+        suppressions=[],
+        unreferenced_copies=[],
+        requested_roots=(),
+        accepted_roots=(),
+        rejected_roots=(),
+        scan_performed=False,
+        blob_failures=0,
+        scan_failures=0,
+        oversize_blobs=(),
+        reference_failure=None,
+        regenerable_excluded_pairs=0,
+        regenerable_only_commits=(),
+    )
 
 
 def test_positive_control_deleted_branch_work_is_reported(
@@ -173,7 +282,143 @@ def test_help_discloses_detection_limitations(monkeypatch, capsys) -> None:
         ADC.main(["--help"])
 
     assert excinfo.value.code == 0
-    assert ADC.LIMITATION_NOTICE in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert ADC.LIMITATION_NOTICE in output
+    assert f"{ADC.AUDIT_ELAPSED_LIMIT_SECONDS:.3f} 秒" in output
+    assert "--include-regenerable-artifacts" in output
+
+
+@pytest.mark.parametrize(
+    ("findings", "expected_rc"),
+    (((), 0), ((("c" * 40, "subject", ["lost.py"]),), 1)),
+)
+def test_cli_progress_flush_order_and_elapsed_without_rc_change(
+    monkeypatch, capsys, findings, expected_rc,
+) -> None:
+    import builtins
+
+    real_print = builtins.print
+    print_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    def record_print(*args, **kwargs):
+        print_calls.append((args, kwargs))
+        return real_print(*args, **kwargs)
+
+    def fake_audit(*_args, progress=None, **_kwargs):
+        assert progress is not None
+        progress("fsck 開始")
+        progress("fsck 完了 elapsed_seconds=1.000 commits=1")
+        return _report(findings)
+
+    monotonic_values = iter((10.0, 12.0))
+    monkeypatch.setattr(ADC, "audit_with_offrepo", fake_audit)
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(builtins, "print", record_print)
+
+    assert ADC.main(["--repo", "/tmp/fake-progress-repo"]) == expected_rc
+    output = capsys.readouterr().out
+    progress_calls = [
+        kwargs
+        for args, kwargs in print_calls
+        if args and str(args[0]).startswith("audit_dangling_commits: 進捗 ")
+    ]
+    assert progress_calls
+    assert all(kwargs.get("flush") is True for kwargs in progress_calls)
+    assert output.index("進捗 fsck 開始") < output.index("repo 外の同一実体")
+    assert output.rstrip().endswith("audit_dangling_commits: elapsed_seconds=2.000")
+
+
+def test_cli_elapsed_is_reported_on_execution_failure(
+    monkeypatch, capsys,
+) -> None:
+    def fail_audit(*_args, **_kwargs):
+        raise RuntimeError("synthetic failure")
+
+    monotonic_values = iter((3.0, 4.5))
+    monkeypatch.setattr(ADC, "audit_with_offrepo", fail_audit)
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(monotonic_values))
+
+    assert ADC.main(["--repo", "/tmp/fake-failure-repo"]) == 2
+    captured = capsys.readouterr()
+    assert "synthetic failure" in captured.err
+    assert captured.out.rstrip().endswith(
+        "audit_dangling_commits: elapsed_seconds=1.500"
+    )
+
+
+def test_cli_argparse_usage_error_precedes_audit_and_has_no_elapsed(
+    capsys,
+) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        ADC.main(["--definitely-not-a-valid-option"])
+
+    assert excinfo.value.code == 2
+    captured = capsys.readouterr()
+    assert "unrecognized arguments" in captured.err
+    assert "elapsed_seconds=" not in captured.out
+    assert "elapsed_seconds=" not in captured.err
+
+
+def test_cli_progress_preserves_existing_report_line_order(
+    monkeypatch, capsys,
+) -> None:
+    commit = "9" * 40
+    external = Path("/fixed/external.py")
+    report = ADC.AuditReport(
+        findings=[(commit, "subject", ["tools/lost.py"])],
+        suppressions=[(commit, "tools/copied.py", external)],
+        unreferenced_copies=[],
+        requested_roots=(Path("/fixed/root"),),
+        accepted_roots=(Path("/fixed/root"),),
+        rejected_roots=(),
+        scan_performed=True,
+        blob_failures=0,
+        scan_failures=0,
+        oversize_blobs=((commit, "tools/large.py", ADC.MAX_BLOB_SIZE + 1),),
+        reference_failure=None,
+        regenerable_excluded_pairs=1,
+        regenerable_only_commits=(("8" * 40, "generated", 1),),
+    )
+
+    def fake_audit(*_args, progress=None, **_kwargs):
+        progress("fsck 開始")
+        return report
+
+    monotonic_values = iter((0.0, 1.0))
+    monkeypatch.setattr(ADC, "audit_with_offrepo", fake_audit)
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(monotonic_values))
+
+    assert ADC.main(["--repo", "/tmp/fake-order-repo"]) == 1
+    output = capsys.readouterr().out
+    ordered_fragments = (
+        "audit_dangling_commits: 進捗 fsck 開始",
+        "audit_dangling_commits: 再生成可能物として除外",
+        "audit_dangling_commits: repo 外の同一実体の探索根",
+        "oversize (抑止せず)",
+        "audit_dangling_commits: repo 外の同一実体で抑止",
+        "audit_dangling_commits: 要確認の到達不能変更",
+        "audit_dangling_commits: elapsed_seconds=",
+    )
+    positions = [output.index(fragment) for fragment in ordered_fragments]
+    assert positions == sorted(positions)
+
+
+@pytest.mark.parametrize("findings", ((), (("d" * 40, "subject", ["lost.py"]),)))
+def test_cli_elapsed_limit_overrun_is_disclosed_without_rc_change(
+    monkeypatch, capsys, findings,
+) -> None:
+    monkeypatch.setattr(ADC, "audit_with_offrepo", lambda *_a, **_kw: _report(findings))
+    monotonic_values = iter((0.0, ADC.AUDIT_ELAPSED_LIMIT_SECONDS + 1.0))
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(monotonic_values))
+
+    expected_rc = 1 if findings else 0
+    assert ADC.main(["--repo", "/tmp/fake-overrun-repo"]) == expected_rc
+    output = capsys.readouterr().out
+    assert "audit_dangling_commits: 所要上限超過" in output
+    assert f"limit_seconds={ADC.AUDIT_ELAPSED_LIMIT_SECONDS:.3f}" in output
+    assert output.rstrip().endswith(
+        f"audit_dangling_commits: elapsed_seconds={ADC.AUDIT_ELAPSED_LIMIT_SECONDS + 1.0:.3f}"
+    )
 
 
 def test_decode_error_is_execution_failure(
@@ -249,6 +494,702 @@ def test_negative_main_side_of_unreachable_merge_is_not_reported(
     assert _audit(repo) == []
 
 
+def test_bulk_commit_records_preserve_all_path_block_shapes_and_octopus(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    parent_one = _commit_files(
+        repo,
+        "parent-one",
+        {"resolved.txt": "parent one\n", "inherited.txt": "one\n"},
+    )
+    _git(repo, "checkout", "-q", "main")
+    parent_two = _commit_files(
+        repo, "parent-two", {"resolved.txt": "parent two\n"}
+    )
+    _git(repo, "checkout", "-q", "main")
+    parent_three = _commit_files(
+        repo, "parent-three", {"resolved.txt": "parent three\n"}
+    )
+    _git(repo, "checkout", "-q", "parent-one")
+    (repo / "resolved.txt").write_text("resolved differently\n", encoding="utf-8")
+    _git(repo, "add", "resolved.txt")
+    tree = _git(repo, "write-tree")
+    merge = _git(
+        repo,
+        "commit-tree",
+        tree,
+        "-p",
+        parent_one,
+        "-p",
+        parent_two,
+        "-m",
+        "two parent merge",
+    )
+    octopus = _git(
+        repo,
+        "commit-tree",
+        tree,
+        "-p",
+        parent_one,
+        "-p",
+        parent_two,
+        "-p",
+        parent_three,
+        "-m",
+        "three parent merge",
+    )
+    parent_one_tree = _git(repo, "rev-parse", f"{parent_one}^{{tree}}")
+    empty_merge = _git(
+        repo,
+        "commit-tree",
+        parent_one_tree,
+        "-p",
+        parent_one,
+        "-p",
+        parent_two,
+        "-m",
+        "empty combined merge",
+    )
+    _git(repo, "commit", "-qm", "single parent normal")
+    single_parent = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "commit", "--allow-empty", "-qm", "empty single parent")
+    empty_single_parent = _git(repo, "rev-parse", "HEAD")
+    real_bulk = ADC._git_bytes_input
+    argv_seen: list[tuple[str, ...]] = []
+    outputs_seen: list[bytes] = []
+
+    def record_bulk(repo_path, args, input_bytes):
+        argv_seen.append(tuple(args))
+        completed = real_bulk(repo_path, args, input_bytes)
+        outputs_seen.append(completed.stdout)
+        return completed
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", record_bulk)
+    records = ADC.bulk_commit_records(
+        repo,
+        (
+            single_parent,
+            merge,
+            octopus,
+            empty_merge,
+            empty_single_parent,
+        ),
+    )
+
+    assert records[single_parent].paths == ("resolved.txt",)
+    assert records[merge].paths == ("resolved.txt",)
+    assert records[octopus].paths == ("resolved.txt",)
+    assert records[empty_merge].paths == ()
+    assert records[empty_single_parent].paths == ()
+    assert "inherited.txt" not in records[merge].paths
+    assert "inherited.txt" not in records[octopus].paths
+    assert len(records[single_parent].parents) == 1
+    assert len(records[merge].parents) == 2
+    assert len(records[octopus].parents) == 3
+    assert len(records[empty_merge].parents) == 2
+    assert len(records[empty_single_parent].parents) == 1
+    assert len(argv_seen) == 1
+    assert len(outputs_seen) == 1
+    assert argv_seen[0].index("-c") > argv_seen[0].index("-m")
+    assert b"single parent normal\0\nresolved.txt\0" in outputs_seen[0]
+    assert b"two parent merge\0\0resolved.txt\0" in outputs_seen[0]
+    assert b"empty combined merge\0\0" in outputs_seen[0]
+    assert outputs_seen[0].endswith(b"empty single parent\0")
+
+
+def test_bulk_commit_records_accept_allow_empty_single_parent(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    _git(repo, "commit", "--allow-empty", "-qm", "empty single parent")
+    empty_single_parent = _git(repo, "rev-parse", "HEAD")
+    real_bulk = ADC._git_bytes_input
+    outputs_seen: list[bytes] = []
+
+    def record_bulk(repo_path, args, input_bytes):
+        completed = real_bulk(repo_path, args, input_bytes)
+        outputs_seen.append(completed.stdout)
+        return completed
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", record_bulk)
+    records = ADC.bulk_commit_records(repo, (empty_single_parent,))
+
+    assert records[empty_single_parent].paths == ()
+    assert len(records[empty_single_parent].parents) == 1
+    assert len(outputs_seen) == 1
+    assert outputs_seen[0].endswith(b"empty single parent\0")
+    assert not outputs_seen[0].endswith(b"empty single parent\0\n")
+    assert not outputs_seen[0].endswith(b"empty single parent\0\0")
+
+
+def test_bulk_commit_records_preserve_root_and_single_parent(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    root_commit = _git(repo, "rev-list", "--max-parents=0", "main")
+    (repo / "child.txt").write_text("child\n", encoding="utf-8")
+    _git(repo, "add", "child.txt")
+    _git(repo, "commit", "-qm", "single parent")
+    child = _git(repo, "rev-parse", "HEAD")
+
+    records = ADC.bulk_commit_records(repo, (root_commit, child))
+
+    assert records[root_commit].paths == ("base.txt",)
+    assert records[child].paths == ("child.txt",)
+
+
+def _assert_raw_path_is_reported(tmp_path: Path, raw_path: bytes) -> None:
+    repo = _repo(tmp_path)
+    lost, decoded_path = _commit_bytes_path(repo, "doomed", raw_path)
+    _delete_branch(repo, "doomed")
+    assert _audit(repo) == [(lost, "raw path on doomed", [decoded_path])]
+
+
+def test_bulk_path_preserves_invalid_utf8_name(tmp_path: Path) -> None:
+    _assert_raw_path_is_reported(tmp_path, b"tools/invalid-\xff.py")
+
+
+def test_bulk_path_preserves_leading_lf_name(tmp_path: Path) -> None:
+    _assert_raw_path_is_reported(tmp_path, b"\nleading-lf.py")
+
+
+def test_bulk_path_preserves_leading_colon_name(tmp_path: Path) -> None:
+    _assert_raw_path_is_reported(tmp_path, b":leading-colon.py")
+
+
+def test_bulk_path_preserves_literal_glob_name(tmp_path: Path) -> None:
+    _assert_raw_path_is_reported(tmp_path, b"tools/literal[*?].py")
+
+
+def test_bulk_path_preserves_valid_non_ascii_name(tmp_path: Path) -> None:
+    _assert_raw_path_is_reported(tmp_path, "tools/監査.py".encode("utf-8"))
+
+
+@pytest.mark.parametrize("hex_length", (40, 64))
+def test_bulk_path_preserves_oid_shaped_hex_filename(
+    tmp_path: Path, hex_length: int,
+) -> None:
+    _assert_raw_path_is_reported(tmp_path, b"a" * hex_length)
+
+
+def test_bulk_path_preserves_record_marker_like_name(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    lost = _commit_files(repo, "doomed", {"before.py": "one\n", "R": "two\n"})
+    _delete_branch(repo, "doomed")
+    assert _audit(repo) == [
+        (lost, "work on doomed", ["R", "before.py"])
+    ]
+
+
+def _fake_bulk_output(
+    records: tuple[tuple[str, tuple[str, ...], str, tuple[bytes, ...]], ...]
+) -> bytes:
+    output = bytearray()
+    for commit, parents, subject, paths in records:
+        output.extend(ADC._BULK_LOG_RECORD_MARKER)
+        output.extend(commit.encode())
+        output.extend(b"\0")
+        output.extend(" ".join(parents).encode())
+        output.extend(b"\0")
+        output.extend(subject.encode())
+        if paths:
+            output.extend(b"\0\n")
+            for path in paths:
+                output.extend(path + b"\0")
+        else:
+            output.extend(b"\0\0")
+    return bytes(output)
+
+
+def test_bulk_log_preserves_zero_path_records_in_all_batch_positions() -> None:
+    first = "1" * 40
+    consecutive = "2" * 64
+    before_middle = "3" * 40
+    middle = "4" * 40
+    after_middle = "5" * 64
+    last = "6" * 40
+    raw_records = (
+        (first, (), "zero first", ()),
+        (consecutive, (first,), "zero consecutive", ()),
+        (before_middle, (), "path before middle", (b"before.py",)),
+        (middle, (), "zero middle", ()),
+        (after_middle, (), "path after middle", (b"after.py",)),
+        (last, (), "zero last", ()),
+    )
+    output = _fake_bulk_output(raw_records)
+
+    records = ADC._parse_bulk_commit_records(
+        output, tuple(record[0] for record in raw_records)
+    )
+
+    assert records[first].paths == ()
+    assert records[consecutive].paths == ()
+    assert records[before_middle].paths == ("before.py",)
+    assert records[middle].paths == ()
+    assert records[after_middle].paths == ("after.py",)
+    assert records[last].paths == ()
+    assert records[consecutive].parents == (first,)
+    assert b"zero first\0\0" + ADC._BULK_LOG_RECORD_MARKER in output
+    assert output.endswith(b"zero last\0\0")
+
+
+def _fake_bulk_delimiter_free_zero_path_record(
+    commit: str, subject: str
+) -> bytes:
+    return (
+        ADC._BULK_LOG_RECORD_MARKER
+        + commit.encode()
+        + b"\0\0"
+        + subject.encode()
+        + b"\0"
+    )
+
+
+@pytest.mark.parametrize("record_position", ("nonterminal", "terminal"))
+def test_bulk_log_preserves_delimiter_free_zero_paths_at_all_positions(
+    tmp_path: Path, monkeypatch, record_position: str,
+) -> None:
+    first = "1" * 40
+    second = "2" * 40
+    first_valid = _fake_bulk_output(
+        ((first, (), "first", (b"first.py",)),)
+    )
+    second_valid = _fake_bulk_output(
+        ((second, (), "second", (b"second.py",)),)
+    )
+    if record_position == "nonterminal":
+        output = (
+            _fake_bulk_delimiter_free_zero_path_record(first, "first")
+            + second_valid
+        )
+    else:
+        output = (
+            first_valid
+            + _fake_bulk_delimiter_free_zero_path_record(second, "second")
+        )
+
+    def fake_bulk(_repo, _args, _input):
+        return subprocess.CompletedProcess((), 0, output, b"")
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", fake_bulk)
+    records = ADC.bulk_commit_records(tmp_path, (first, second))
+
+    if record_position == "nonterminal":
+        assert records[first].paths == ()
+        assert records[second].paths == ("second.py",)
+    else:
+        assert records[first].paths == ("first.py",)
+        assert records[second].paths == ()
+
+
+@pytest.mark.parametrize("malformed_suffix", (b"path.py\0", b"\npath.py"))
+@pytest.mark.parametrize("record_position", ("nonterminal", "terminal"))
+def test_bulk_log_path_block_requires_leading_lf_and_terminal_nul(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+    malformed_suffix: bytes,
+    record_position: str,
+) -> None:
+    first = "1" * 40
+    second = "2" * 40
+    first_valid = _fake_bulk_output(
+        ((first, (), "first", (b"first.py",)),)
+    )
+    second_valid = _fake_bulk_output(
+        ((second, (), "second", (b"second.py",)),)
+    )
+    if record_position == "nonterminal":
+        output = (
+            _fake_bulk_delimiter_free_zero_path_record(first, "first")
+            + malformed_suffix
+            + second_valid
+        )
+    else:
+        output = (
+            first_valid
+            + _fake_bulk_delimiter_free_zero_path_record(second, "second")
+            + malformed_suffix
+        )
+
+    def fake_bulk(_repo, _args, _input):
+        return subprocess.CompletedProcess((), 0, output, b"")
+
+    def invoke_bulk(*_args, **_kwargs):
+        ADC.bulk_commit_records(tmp_path, (first, second))
+        raise AssertionError("malformed bulk path block was not rejected")
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", fake_bulk)
+    monkeypatch.setattr(ADC, "audit_with_offrepo", invoke_bulk)
+
+    assert ADC.main(["--repo", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert "header/path 境界が不正" in captured.err
+    assert captured.out.splitlines()[-1].startswith(
+        "audit_dangling_commits: elapsed_seconds="
+    )
+
+
+def test_bulk_log_nonzero_git_rc_rejects_partial_output(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    first = "1" * 40
+    second = "2" * 40
+    partial = _fake_bulk_output(((first, (), "first", (b"one",)),))
+
+    def fake_bulk(_repo, _args, _input):
+        return subprocess.CompletedProcess((), 128, partial, b"bad object")
+
+    def invoke_bulk(*_args, **_kwargs):
+        ADC.bulk_commit_records(tmp_path, (first, second))
+        raise AssertionError("bulk completeness failure was not raised")
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", fake_bulk)
+    monkeypatch.setattr(ADC, "audit_with_offrepo", invoke_bulk)
+
+    assert ADC.main(["--repo", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert "実行できません" in captured.err
+    assert "bulk git log に失敗した (rc=128)" in captured.err
+    assert "elapsed_seconds=" in captured.out
+
+
+def test_bulk_log_missing_complete_record_is_execution_failure(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    first = "1" * 40
+    second = "2" * 40
+    first_only = _fake_bulk_output(((first, (), "first", (b"one",)),))
+
+    def fake_bulk(_repo, _args, _input):
+        return subprocess.CompletedProcess((), 0, first_only, b"")
+
+    def invoke_bulk(*_args, **_kwargs):
+        ADC.bulk_commit_records(tmp_path, (first, second))
+        raise AssertionError("bulk completeness failure was not raised")
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", fake_bulk)
+    monkeypatch.setattr(ADC, "audit_with_offrepo", invoke_bulk)
+
+    assert ADC.main(["--repo", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert "bulk log の完全性検査に失敗した" in captured.err
+    assert captured.out.splitlines()[-1].startswith(
+        "audit_dangling_commits: elapsed_seconds="
+    )
+
+
+def test_audit_invokes_one_bulk_log_for_all_unreachable_commits(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    _commit_files(repo, "doomed", {"first.py": "first\n"})
+    (repo / "second.py").write_text("second\n", encoding="utf-8")
+    _git(repo, "add", "second.py")
+    _git(repo, "commit", "-qm", "second unreachable")
+    _delete_branch(repo, "doomed")
+    unreachable = ADC.unreachable_commits(repo)
+    assert len(unreachable) == 2
+    real_bulk = ADC._git_bytes_input
+    calls: list[tuple[tuple[str, ...], bytes]] = []
+
+    def count_bulk(repo_path, args, input_bytes):
+        calls.append((tuple(args), input_bytes))
+        return real_bulk(repo_path, args, input_bytes)
+
+    monkeypatch.setattr(ADC, "_git_bytes_input", count_bulk)
+    findings = _audit(repo)
+
+    assert len(findings) == 2
+    assert len(calls) == 1
+    assert calls[0][0][0] == "log"
+    assert sorted(calls[0][1].decode().splitlines()) == unreachable
+
+
+@pytest.mark.parametrize(
+    "stdout",
+    (
+        f"unreachable commit {'a' * 40}",
+        "unreachable commit\n",
+        "unreachable commit not-an-object-id\n",
+        f"unreachable commit {'b' * 40} extra\n",
+    ),
+)
+def test_fsck_malformed_commit_lines_are_execution_failure(
+    tmp_path: Path, monkeypatch, capsys, stdout: str,
+) -> None:
+    def fake_git(_repo, *_args):
+        return subprocess.CompletedProcess((), 0, stdout, "")
+
+    def invoke_fsck(*_args, **_kwargs):
+        ADC.unreachable_commits(tmp_path)
+        raise AssertionError("malformed fsck output was not rejected")
+
+    monkeypatch.setattr(ADC, "_git", fake_git)
+    monkeypatch.setattr(ADC, "audit_with_offrepo", invoke_fsck)
+
+    assert ADC.main(["--repo", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert "git fsck" in captured.err
+    assert captured.out.splitlines()[-1].startswith(
+        "audit_dangling_commits: elapsed_seconds="
+    )
+
+
+def test_fsck_accepts_complete_sha256_commit_line(monkeypatch) -> None:
+    commit = "c" * 64
+
+    def fake_git(_repo, *_args):
+        return subprocess.CompletedProcess(
+            (), 0, f"unreachable blob {'d' * 64}\nunreachable commit {commit}\n", ""
+        )
+
+    monkeypatch.setattr(ADC, "_git", fake_git)
+
+    assert ADC.unreachable_commits(Path("/tmp/fake-sha256-fsck-repo")) == [commit]
+
+
+def test_fsck_emits_internal_rate_limited_heartbeat(monkeypatch) -> None:
+    commit = "e" * 40
+
+    class FakeFsckProcess:
+        def __init__(self):
+            self.returncode = 0
+            self.calls = 0
+
+        def communicate(self, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise subprocess.TimeoutExpired("git fsck", timeout)
+            return f"unreachable commit {commit}\n", ""
+
+    process = FakeFsckProcess()
+    monotonic_values = iter((1.0, 17.0))
+    monkeypatch.setattr(ADC.subprocess, "Popen", lambda *_a, **_kw: process)
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(monotonic_values))
+    progress: list[str] = []
+
+    assert ADC.unreachable_commits(
+        Path("/tmp/fake-fsck-repo"), progress=progress.append
+    ) == [commit]
+    assert len(progress) == 1
+    assert progress[0].startswith("fsck heartbeat elapsed_seconds=")
+
+
+def test_git_heartbeat_zero_interval_has_bounded_poll_count(monkeypatch) -> None:
+    class FakeFsckProcess:
+        def __init__(self):
+            self.returncode = 0
+            self.calls = 0
+            self.waited = 0.0
+
+        def communicate(self, timeout):
+            self.calls += 1
+            if self.calls > 4:
+                raise AssertionError("zero-interval poll count is unbounded")
+            self.waited += timeout
+            if self.waited < ADC.POLL_FLOOR_SECONDS * 2.5:
+                raise subprocess.TimeoutExpired("git fsck", timeout)
+            return "", ""
+
+    process = FakeFsckProcess()
+    monkeypatch.setattr(ADC.subprocess, "Popen", lambda *_a, **_kw: process)
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: 0.0)
+    progress: list[str] = []
+
+    completed = ADC._git_with_heartbeat(
+        Path("/tmp/fake-zero-interval-repo"),
+        ("fsck",),
+        stage="fsck",
+        progress=progress.append,
+    )
+
+    assert completed.returncode == 0
+    assert process.calls == 3
+    assert len(progress) == 2
+
+
+def test_offrepo_walk_emits_internal_rate_limited_heartbeat(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "offrepo"
+    root.mkdir()
+    candidate = ADC._BlobMetadata(
+        "f" * 40, "tools/missing.py", "missing.py", False, "1" * 40, 4
+    )
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    progress: list[str] = []
+
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), (candidate,), progress=progress.append
+    )
+
+    assert possible == {}
+    assert failures == 0
+    assert scanned is True
+    assert any(line.startswith("repo 外走査 heartbeat ") for line in progress)
+
+
+def test_flat_offrepo_filename_loop_emits_heartbeat(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "offrepo"
+    _external_file(root, "missing.py", "same")
+    candidate = ADC._BlobMetadata(
+        "f" * 40, "tools/missing.py", "missing.py", False, "1" * 40, 4
+    )
+    monotonic_values = iter((0.0, 0.5, 2.0))
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 1.0)
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(monotonic_values))
+    progress: list[str] = []
+
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), (candidate,), progress=progress.append
+    )
+
+    assert set(possible) == {candidate.object_id}
+    assert failures == 0
+    assert scanned is True
+    assert progress == ["repo 外走査 heartbeat directories=1 files=1"]
+
+
+def test_candidate_comparison_emits_file_and_read_chunk_heartbeats(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "same.py", "same")
+    alias = root / "alias" / "same.py"
+    alias.parent.mkdir()
+    os.link(external, alias)
+    alias = alias.resolve()
+    metadata = ADC._BlobMetadata(
+        "c" * 40, "tools/same.py", "same.py", False, "1" * 40, 4
+    )
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), (metadata,)
+    )
+    assert failures == 0
+    assert scanned is True
+
+    class FakeCat:
+        def read_blob(self, object_id: str, size: int) -> bytes:
+            assert (object_id, size) == (metadata.object_id, metadata.size)
+            return b"same"
+
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    progress: list[str] = []
+    matches, failed_keys, comparison_failures = ADC._compare_offrepo_candidates(
+        FakeCat(), possible, progress=progress.append
+    )
+
+    assert matches == {
+        (metadata.commit, metadata.path): sorted(
+            (
+                ADC._ExternalMatch(external, root),
+                ADC._ExternalMatch(alias, root),
+            ),
+            key=lambda item: (str(item.path), str(item.root)),
+        ),
+    }
+    assert failed_keys == set()
+    assert comparison_failures == 0
+    assert any(line.startswith("候補比較 heartbeat files=1") for line in progress)
+    assert any("read_chunks=1" in line for line in progress)
+
+
+def test_stage_instrumentation_reports_separate_cost_surfaces(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    progress: list[str] = []
+
+    report = ADC.audit_with_offrepo(repo, progress=progress.append)
+
+    assert report.findings == []
+    for stage in (
+        "fsck",
+        "bulk log",
+        "main・tip tree",
+        "blob metadata",
+        "repo 外走査の列挙",
+        "候補比較",
+        "landed 参照",
+    ):
+        assert any(line.startswith(f"{stage} 開始") for line in progress)
+        assert any(line.startswith(f"{stage} 完了") for line in progress)
+
+
+def test_stage_instrumentation_covers_root_suppression_and_final_report(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    repo = _repo(tmp_path)
+    progress: list[str] = []
+
+    report = ADC.audit_with_offrepo(repo, progress=progress.append)
+
+    assert report.findings == []
+    for stage in ("root 検証", "抑止集約"):
+        assert any(line.startswith(f"{stage} 開始") for line in progress)
+        assert any(line.startswith(f"{stage} 完了") for line in progress)
+
+    monkeypatch.setattr(ADC, "audit_with_offrepo", lambda *_a, **_kw: _report())
+    assert ADC.main(["--repo", str(repo)]) == 0
+    output = capsys.readouterr().out
+    assert "進捗 最終報告 開始" in output
+    assert "進捗 最終報告 完了 elapsed_seconds=" in output
+
+
+def test_candidate_session_materialization_is_inside_comparison_stage(
+    monkeypatch,
+) -> None:
+    events: list[str] = []
+
+    class ObservedPossible(dict):
+        def values(self):
+            events.append("session keys materialized")
+            return super().values()
+
+    monkeypatch.setattr(ADC, "_checked_git", lambda *_a, **_kw: "a" * 40)
+    monkeypatch.setattr(
+        ADC,
+        "_audit_snapshot",
+        lambda *_a, **_kw: ADC._CoreAudit([], 0, ()),
+    )
+    monkeypatch.setattr(
+        ADC,
+        "_enumerate_offrepo_candidates",
+        lambda *_a, **_kw: (ObservedPossible(), 0, True),
+    )
+
+    report = ADC.audit_with_offrepo(
+        Path("/repo"),
+        offrepo_roots=(Path("/offrepo"),),
+        progress=events.append,
+    )
+
+    assert report.findings == []
+    comparison_start = events.index("候補比較 開始")
+    session_materialized = events.index("session keys materialized")
+    comparison_complete = next(
+        index
+        for index, event in enumerate(events)
+        if event.startswith("候補比較 完了")
+    )
+    assert comparison_start < session_materialized < comparison_complete
+
+
+def test_initial_patch_contains_no_parallel_execution() -> None:
+    source = _TOOL.read_text(encoding="utf-8")
+    assert "concurrent.futures" not in source
+    assert "ThreadPoolExecutor" not in source
+
+
+def test_removed_changed_files_api_cannot_reintroduce_per_commit_fork() -> None:
+    assert not hasattr(ADC, "changed_files")
+
+
 def test_negative_fold_managed_paths_are_excluded_by_default(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     lost = _commit_files(
@@ -269,6 +1210,151 @@ def test_negative_fold_managed_paths_are_excluded_by_default(tmp_path: Path) -> 
             ["docs/archive/old-fragment.md", "docs/spool/worklog/fragment.md"],
         )
     ]
+
+    cache_only = _commit_files(
+        repo,
+        "cache-only-after-fold",
+        {"output/s8b-build-cache/cache.bin": "generated\n"},
+    )
+    _delete_branch(repo, "cache-only-after-fold")
+    assert cache_only not in {commit for commit, _subject, _paths in _audit(repo, excluded=())}
+
+
+def test_negative_regenerable_build_cache_is_excluded_by_default(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    cache_only = _commit_files(
+        repo,
+        "cache-only",
+        {"output/s8b-build-cache/only.bin": "generated\n"},
+    )
+    _delete_branch(repo, "cache-only")
+    mixed = _commit_files(
+        repo,
+        "cache-and-source",
+        {
+            "output/s8b-build-cache/mixed.bin": "generated\n",
+            "tools/handwritten.py": "keep me\n",
+        },
+    )
+    _delete_branch(repo, "cache-and-source")
+
+    assert _audit(repo) == [
+        (mixed, "work on cache-and-source", ["tools/handwritten.py"])
+    ]
+    expected_with_regenerable = [
+        (
+            cache_only,
+            "work on cache-only",
+            ["output/s8b-build-cache/only.bin"],
+        ),
+        (
+            mixed,
+            "work on cache-and-source",
+            [
+                "output/s8b-build-cache/mixed.bin",
+                "tools/handwritten.py",
+            ],
+        ),
+    ]
+    assert ADC.audit(
+        repo,
+        "main",
+        ADC.DEFAULT_EXCLUDED_PREFIXES,
+        (),
+    ) == sorted(expected_with_regenerable)
+
+
+def test_regenerable_prefix_does_not_exclude_sibling_path(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    sibling_path = "output/s8b-build-cacheX/sibling.bin"
+    lost = _commit_files(
+        repo,
+        "cache-sibling",
+        {sibling_path: "handwritten sibling\n"},
+    )
+    _delete_branch(repo, "cache-sibling")
+
+    assert _audit(repo) == [
+        (lost, "work on cache-sibling", [sibling_path])
+    ]
+
+
+def test_regenerable_exclusion_discloses_pairs_and_cache_only_commit(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)
+    repo = _repo(tmp_path)
+    lost = _commit_files(
+        repo,
+        "cache-only",
+        {
+            "output/s8b-build-cache/one.bin": "one\n",
+            "output/s8b-build-cache/two.bin": "two\n",
+        },
+    )
+    _delete_branch(repo, "cache-only")
+
+    assert ADC.main(["--repo", str(repo)]) == 0
+    output = capsys.readouterr().out
+    assert "再生成可能物として除外 2 (commit, path) 対" in output
+    assert f"commit {lost} (work on cache-only)" in output
+    assert "除外 path 2 件" in output
+
+
+@pytest.mark.parametrize(
+    ("include_fold", "include_regenerable", "expected_paths"),
+    (
+        (False, False, ()),
+        (True, False, ("docs/spool/worklog/fragment.md",)),
+        (False, True, ("output/s8b-build-cache/cache.bin",)),
+        (
+            True,
+            True,
+            (
+                "docs/spool/worklog/fragment.md",
+                "output/s8b-build-cache/cache.bin",
+            ),
+        ),
+    ),
+)
+def test_cli_include_regenerable_artifacts_is_independent_from_fold_flag(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+    include_fold: bool,
+    include_regenerable: bool,
+    expected_paths: tuple[str, ...],
+) -> None:
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)
+    repo = _repo(tmp_path)
+    _commit_files(
+        repo,
+        "doomed",
+        {
+            "docs/spool/worklog/fragment.md": "fold\n",
+            "output/s8b-build-cache/cache.bin": "generated\n",
+        },
+    )
+    _delete_branch(repo, "doomed")
+    argv = ["--repo", str(repo)]
+    if include_fold:
+        argv.append("--include-fold-trees")
+    if include_regenerable:
+        argv.append("--include-regenerable-artifacts")
+
+    expected_rc = 1 if expected_paths else 0
+    assert ADC.main(argv) == expected_rc
+    output = capsys.readouterr().out
+    for path in expected_paths:
+        assert f"main・全 local branch tip に不在: {path}" in output
+    all_paths = {
+        "docs/spool/worklog/fragment.md",
+        "output/s8b-build-cache/cache.bin",
+    }
+    for path in all_paths - set(expected_paths):
+        assert f"main・全 local branch tip に不在: {path}" not in output
 
 
 def test_positive_landed_referenced_offrepo_copy_is_suppressed(
@@ -872,6 +1958,101 @@ def test_negative_landed_reference_left_boundary_collision_does_not_suppress(
     assert report.unreferenced_copies == [(lost, relpath, external)]
 
 
+@pytest.mark.parametrize(
+    ("content", "pattern"),
+    (
+        (b"/offrepo/w/a.py\n", b"/offrepo/w/a.py"),
+        (b"/offrepo/w/a.py.backup\n", b"/offrepo/w/a.py"),
+        (b"/offrepo/w/a.py+backup\n", b"/offrepo/w/a.py"),
+        (b"/other/offrepo/w/a.py\n", b"/offrepo/w/a.py"),
+        ("/offrepo/w/a.py。\n".encode(), b"/offrepo/w/a.py"),
+        (
+            b"/offrepo/w/a.py+backup\n/offrepo/w/a.py\n",
+            b"/offrepo/w/a.py",
+        ),
+    ),
+    ids=(
+        "bounded",
+        "prefix-collision",
+        "plus-suffix",
+        "left-boundary-collision",
+        "non-ascii-suffix",
+        "valid-after-invalid",
+    ),
+)
+def test_bounded_path_reference_single_scan_matches_legacy_boundary_semantics(
+    content: bytes,
+    pattern: bytes,
+) -> None:
+    found = ADC._bounded_path_reference_matches(
+        content,
+        {pattern},
+        {b"/offrepo"},
+    )
+
+    assert (pattern in found) is ADC._has_bounded_path_reference(content, pattern)
+
+
+def test_bounded_path_reference_single_scan_matches_ancestor_directory() -> None:
+    root = Path("/offrepo")
+    match = ADC._ExternalMatch(root / "wave/nested/file.py", root)
+    patterns = {os.fsencode(pattern) for pattern in ADC._reference_patterns(match)}
+    ancestor = os.fsencode(str(root / "wave/nested"))
+
+    found = ADC._bounded_path_reference_matches(
+        b"landed: /offrepo/wave/nested\n",
+        patterns,
+        {os.fsencode(root)},
+    )
+
+    assert found == {ancestor}
+
+
+def test_bounded_path_reference_single_scan_rejects_search_root() -> None:
+    root = Path("/offrepo")
+    match = ADC._ExternalMatch(root / "wave/file.py", root)
+    patterns = {os.fsencode(pattern) for pattern in ADC._reference_patterns(match)}
+    encoded_root = os.fsencode(root)
+
+    found = ADC._bounded_path_reference_matches(
+        b"landed: /offrepo\n",
+        patterns,
+        {encoded_root},
+    )
+
+    assert encoded_root not in patterns
+    assert found == set()
+
+
+def test_bounded_path_reference_single_scan_finds_multiple_tokens() -> None:
+    root = Path("/offrepo")
+    first = os.fsencode(str(root / "one/a.py"))
+    second = os.fsencode(str(root / "two"))
+    not_bounded = os.fsencode(str(root / "three/c.py"))
+    patterns = {
+        os.fsencode(pattern)
+        for match in (
+            ADC._ExternalMatch(root / "one/a.py", root),
+            ADC._ExternalMatch(root / "two/b.py", root),
+            ADC._ExternalMatch(root / "three/c.py", root),
+        )
+        for pattern in ADC._reference_patterns(match)
+    }
+
+    # Positive: space and quotes are D248 boundaries, so both distinct tokens match.
+    # Negative: "=" extends the path left, so /offrepo/three/c.py does not match.
+    # Negative: the exploration root /offrepo alone is not reference evidence.
+    found = ADC._bounded_path_reference_matches(
+        b"first /offrepo/one/a.py second='/offrepo/two' "
+        b"negative=/offrepo/three/c.py ignored=/offrepo\n",
+        patterns,
+        {os.fsencode(root)},
+    )
+
+    assert found == {first, second}
+    assert not_bounded not in found
+
+
 def test_negative_external_file_changed_during_comparison_is_not_suppressed(
     tmp_path: Path, monkeypatch, capsys,
 ) -> None:
@@ -964,6 +2145,486 @@ def test_negative_external_file_ctime_change_during_comparison_is_not_suppressed
     assert "repo 外候補の確認不能 1 件 (抑止せず)" in capsys.readouterr().out
 
 
+def test_ls_tree_path_batches_pin_argv_byte_limit_shape() -> None:
+    repo = Path("/tmp/ls-tree-batch-repo")
+    commit = "a" * 40
+    over_budget = "x" * 80
+    paths = ("aa", "bbb", over_budget, "c", "dd")
+    byte_budget = ADC._ls_tree_argv_size(repo, commit, paths[:2])
+
+    batches = ADC._ls_tree_path_batches(
+        repo,
+        commit,
+        paths,
+        max_paths_per_batch=100,
+        max_argv_bytes=byte_budget,
+    )
+
+    assert tuple(path for batch in batches for path in batch) == paths
+    multi_element_batches = [batch for batch in batches if len(batch) > 1]
+    assert multi_element_batches
+    assert all(
+        ADC._ls_tree_argv_size(repo, commit, batch) <= byte_budget
+        for batch in multi_element_batches
+    )
+    overlong_singletons = [
+        batch
+        for batch in batches
+        if len(batch) == 1
+        and ADC._ls_tree_argv_size(repo, commit, batch) > byte_budget
+    ]
+    assert overlong_singletons == [(over_budget,)]
+    for batch, next_batch in zip(batches, batches[1:]):
+        candidate = batch + (next_batch[0],)
+        assert (
+            len(candidate) > 100
+            or ADC._ls_tree_argv_size(repo, commit, candidate) > byte_budget
+        )
+
+
+def test_ls_tree_batches_are_literal_and_complete(monkeypatch) -> None:
+    commit = "b" * 40
+    paths = ("literal[*?].py", "plain.py")
+    calls: list[tuple[str, ...]] = []
+
+    def empty_tree(_repo, *args):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, b"", b"")
+
+    monkeypatch.setattr(ADC, "_git_bytes", empty_tree)
+    metadata, failures, oversize = ADC._load_blob_metadata(
+        Path("/tmp/literal-tree-repo"), [(commit, "subject", list(paths))]
+    )
+
+    assert metadata == []
+    assert failures == 0
+    assert oversize == ()
+    assert calls
+    assert tuple(path for args in calls for path in args[7:]) == paths
+    assert all(args[0] == "--literal-pathspecs" for args in calls)
+
+
+def test_blob_contents_are_loaded_only_after_basename_size_mode_prefilter(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "offrepo"
+    positive_path = _external_file(root, "positive.py", "same")
+    _external_file(root, "other-name.py", "same")
+    _external_file(root, "wrong-size.py", "longer")
+    _external_file(root, "wrong-mode.py", "same")
+    positive_oid = "1" * 40
+    candidates = [
+        ADC._BlobMetadata("c-pos", "src/positive.py", "positive.py", False, positive_oid, 4),
+        ADC._BlobMetadata("c-name", "src/wanted-name.py", "wanted-name.py", False, "2" * 40, 4),
+        ADC._BlobMetadata("c-size", "src/wrong-size.py", "wrong-size.py", False, "3" * 40, 4),
+        ADC._BlobMetadata("c-mode", "src/wrong-mode.py", "wrong-mode.py", True, "4" * 40, 4),
+    ]
+
+    possible, failures, scan_performed = ADC._enumerate_offrepo_candidates(
+        (root,), candidates
+    )
+
+    assert failures == 0
+    assert scan_performed is True
+    assert set(possible) == {positive_oid}
+
+    class FakeCat:
+        def __init__(self):
+            self.requests: list[tuple[str, int]] = []
+
+        def read_blob(self, object_id: str, size: int) -> bytes:
+            self.requests.append((object_id, size))
+            return b"same"
+
+    cat_file = FakeCat()
+    matches, failed_keys, comparison_failures = ADC._compare_offrepo_candidates(
+        cat_file, possible
+    )
+    assert cat_file.requests == [(positive_oid, 4)]
+    assert failed_keys == set()
+    assert comparison_failures == 0
+    assert matches == {("c-pos", "src/positive.py"): [ADC._ExternalMatch(positive_path, root)]}
+
+
+def test_comparison_mode_check_rejects_post_prefilter_mode_change(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "mode.py", "same")
+    metadata = ADC._BlobMetadata(
+        "c" * 40, "src/mode.py", "mode.py", False, "1" * 40, 4
+    )
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), (metadata,)
+    )
+    assert failures == 0
+    assert scanned is True
+    external.chmod(0o755)
+
+    class FakeCat:
+        def read_blob(self, object_id: str, size: int) -> bytes:
+            assert (object_id, size) == (metadata.object_id, metadata.size)
+            return b"same"
+
+    matches, failed_keys, comparison_failures = ADC._compare_offrepo_candidates(
+        FakeCat(), possible
+    )
+
+    assert matches == {}
+    assert failed_keys == set()
+    assert comparison_failures == 1
+
+
+def test_same_oid_external_file_is_compared_once_and_fanned_out(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "same.py", "same")
+    alias = root / "alias" / "same.py"
+    alias.parent.mkdir()
+    os.link(external, alias)
+    alias = alias.resolve()
+    object_id = "1" * 40
+    candidates = (
+        ADC._BlobMetadata(
+            "a" * 40, "one/same.py", "same.py", False, object_id, 4
+        ),
+        ADC._BlobMetadata(
+            "b" * 40, "two/same.py", "same.py", False, object_id, 4
+        ),
+    )
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), candidates
+    )
+    assert failures == 0
+    assert scanned is True
+    assert len(possible[object_id]) == 1
+
+    class FakeCat:
+        def __init__(self):
+            self.requests = 0
+
+        def read_blob(self, requested_oid: str, size: int) -> bytes:
+            assert (requested_oid, size) == (object_id, 4)
+            self.requests += 1
+            return b"same"
+
+    real_compare = ADC._compare_regular_candidate
+    compare_calls = 0
+
+    def count_compare(*args, **kwargs):
+        nonlocal compare_calls
+        compare_calls += 1
+        return real_compare(*args, **kwargs)
+
+    def reject_second_file_pass(*_args, **_kwargs):
+        raise AssertionError("external file was rewound for a second pass")
+
+    cat_file = FakeCat()
+    monkeypatch.setattr(ADC, "_compare_regular_candidate", count_compare)
+    monkeypatch.setattr(ADC.os, "lseek", reject_second_file_pass)
+    matches, failed_keys, comparison_failures = ADC._compare_offrepo_candidates(
+        cat_file, possible
+    )
+
+    expected_match = sorted(
+        (
+            ADC._ExternalMatch(external, root),
+            ADC._ExternalMatch(alias, root),
+        ),
+        key=lambda item: (str(item.path), str(item.root)),
+    )
+    assert matches == {
+        (candidates[0].commit, candidates[0].path): expected_match,
+        (candidates[1].commit, candidates[1].path): expected_match,
+    }
+    assert cat_file.requests == 1
+    assert compare_calls == 1
+    assert failed_keys == set()
+    assert comparison_failures == 0
+
+
+def test_distinct_same_bytes_external_files_are_all_fanned_out(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "offrepo"
+    first = _external_file(root, "first/same.py", "same")
+    second = _external_file(root, "second/same.py", "same")
+    metadata = ADC._BlobMetadata(
+        "a" * 40, "tools/same.py", "same.py", False, "1" * 40, 4
+    )
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), (metadata,)
+    )
+    assert failures == 0
+    assert scanned is True
+    assert len(possible[metadata.object_id]) == 2
+
+    class FakeCat:
+        def __init__(self):
+            self.requests = 0
+
+        def read_blob(self, object_id: str, size: int) -> bytes:
+            assert (object_id, size) == (metadata.object_id, metadata.size)
+            self.requests += 1
+            return b"same"
+
+    cat_file = FakeCat()
+    matches, failed_keys, comparison_failures = ADC._compare_offrepo_candidates(
+        cat_file, possible
+    )
+
+    assert matches == {
+        (metadata.commit, metadata.path): sorted(
+            (
+                ADC._ExternalMatch(first, root),
+                ADC._ExternalMatch(second, root),
+            ),
+            key=lambda item: (str(item.path), str(item.root)),
+        ),
+    }
+    assert cat_file.requests == 1
+    assert failed_keys == set()
+    assert comparison_failures == 0
+
+
+class _ShortReadBuffer(io.BytesIO):
+    def __init__(self, initial_bytes: bytes, chunk_sizes: tuple[int, ...]):
+        super().__init__(initial_bytes)
+        self._chunk_sizes = chunk_sizes
+        self._read_index = 0
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            return super().read(size)
+        limit = self._chunk_sizes[self._read_index % len(self._chunk_sizes)]
+        self._read_index += 1
+        return super().read(min(size, limit))
+
+
+class _EmptyMidstreamBuffer(io.BytesIO):
+    def __init__(self, initial_bytes: bytes):
+        super().__init__(initial_bytes)
+        self._content_reads = 0
+
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            return super().read(size)
+        self._content_reads += 1
+        if self._content_reads == 1:
+            return super().read(min(size, 1))
+        if self._content_reads == 2:
+            return b""
+        return super().read(size)
+
+
+def test_cat_file_batch_accepts_positive_short_reads_and_drains_concurrently(
+    monkeypatch,
+) -> None:
+    requested = "a" * 40
+    stdout = f"{requested} blob 6\n".encode() + b"abcdef\n"
+    process = _FakeCatProcess(stdout, stderr=b"diagnostic" * 1000)
+    process.stdout = _ShortReadBuffer(stdout, (1, 2, 3))
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
+    batch = ADC._CatFileBatch(Path("/tmp/fake-short-read-repo"))
+
+    assert batch.read_blob(requested, 6) == b"abcdef"
+    assert batch.close() is None
+    assert process.communicate_calls == 1
+    assert process.wait_calls == 0
+
+
+def test_cat_file_batch_rejects_empty_midstream_read_and_aborts_child(
+    monkeypatch,
+) -> None:
+    requested = "a" * 40
+    stdout = f"{requested} blob 3\n".encode() + b"abc\n" + b"x" * 1000
+    process = _FakeCatProcess(stdout, stderr=b"fatal" * 1000)
+    process.stdout = _EmptyMidstreamBuffer(stdout)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
+    batch = ADC._CatFileBatch(Path("/tmp/fake-empty-read-repo"))
+
+    with pytest.raises(RuntimeError, match="途中で切れた"):
+        batch.read_blob(requested, 3)
+    assert batch.close() is not None
+    assert process.terminate_calls == 1
+    assert process.communicate_calls == 1
+    assert process.wait_calls == 0
+
+
+def test_cat_file_batch_close_timeout_terminates_then_kills(monkeypatch) -> None:
+    requested = "a" * 40
+    stdout = f"{requested} blob 3\n".encode() + b"abc\n"
+
+    class TimeoutProcess(_FakeCatProcess):
+        def communicate(self, timeout):
+            self.communicate_calls += 1
+            if self.communicate_calls <= 2:
+                raise subprocess.TimeoutExpired("git cat-file", timeout)
+            self.stdin.close()
+            return self.stdout.read(), self.stderr.read()
+
+    process = TimeoutProcess(stdout)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
+    batch = ADC._CatFileBatch(Path("/tmp/fake-timeout-repo"))
+
+    assert batch.read_blob(requested, 3) == b"abc"
+    failure = batch.close()
+
+    assert failure is not None
+    assert "timeout" in failure
+    assert process.terminate_calls == 1
+    assert process.kill_calls == 1
+    assert process.communicate_calls == 3
+    assert process.wait_calls == 0
+
+
+@pytest.mark.parametrize(
+    ("failure_mode", "returncode"),
+    (
+        ("oid-mismatch", 0),
+        ("type-mismatch", 0),
+        ("size-mismatch", 0),
+        ("bad-terminator", 0),
+        ("mid-response", 128),
+        ("trailing-output", 0),
+        ("nonzero-after-response", 9),
+    ),
+)
+def test_cat_file_batch_rejects_protocol_and_exit_failures(
+    monkeypatch, failure_mode: str, returncode: int,
+) -> None:
+    requested = "a" * 40
+    echoed = "b" * 40 if failure_mode == "oid-mismatch" else requested
+    if failure_mode == "mid-response":
+        stdout = f"{echoed} blob 3\n".encode() + b"ab"
+    else:
+        object_type = "tree" if failure_mode == "type-mismatch" else "blob"
+        size = 4 if failure_mode == "size-mismatch" else 3
+        terminator = b"X" if failure_mode == "bad-terminator" else b"\n"
+        trailing = b"extra" if failure_mode == "trailing-output" else b""
+        stdout = (
+            f"{echoed} {object_type} {size}\n".encode()
+            + b"abc"
+            + terminator
+            + trailing
+        )
+    process = _FakeCatProcess(stdout, returncode=returncode, stderr=b"fatal")
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
+    batch = ADC._CatFileBatch(Path("/tmp/fake-cat-repo"))
+
+    if failure_mode in {"nonzero-after-response", "trailing-output"}:
+        assert batch.read_blob(requested, 3) == b"abc"
+        failure = batch.close()
+        assert failure is not None
+        expected = "非 0 終了" if failure_mode == "nonzero-after-response" else "余分な stdout"
+        assert expected in failure
+    else:
+        with pytest.raises(RuntimeError):
+            batch.read_blob(requested, 3)
+        assert batch.close() is not None
+
+
+def test_blob_batch_failure_keeps_all_affected_findings(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    lost = _commit_files(
+        repo,
+        "doomed",
+        {"tools/a.py": "shared\n", "tools/b.py": "shared\n"},
+    )
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    _external_file(root, "wave/a.py", "shared\n")
+    _external_file(root, "wave/b.py", "shared\n")
+    object_id = _git(repo, "rev-parse", f"{lost}:tools/a.py")
+    process = _FakeCatProcess(
+        f"{object_id} blob 7\n".encode() + b"sha",
+        returncode=128,
+    )
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
+
+    report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
+
+    assert report.findings == [
+        (lost, "work on doomed", ["tools/a.py", "tools/b.py"])
+    ]
+    assert report.suppressions == []
+    assert report.blob_failures == 2
+    assert process.stdin.getvalue() == (object_id + "\n").encode()
+
+
+def test_cat_file_nonzero_after_all_responses_keeps_findings_integration(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/recovered.py"
+    lost = _commit_files(repo, "doomed", {relpath: "recovered\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "wave/recovered.py", "recovered\n")
+    _landed_reference(repo, external)
+    candidate_oid = _git(repo, "rev-parse", f"{lost}:{relpath}")
+    landed_path = "docs/landed-copy.md"
+    landed_oid = _git(repo, "rev-parse", f"main:{landed_path}")
+    candidate_content = b"recovered\n"
+    landed_content = (repo / landed_path).read_bytes()
+    stdout = (
+        f"{candidate_oid} blob {len(candidate_content)}\n".encode()
+        + candidate_content
+        + b"\n"
+        + f"{landed_oid} blob {len(landed_content)}\n".encode()
+        + landed_content
+        + b"\n"
+    )
+    process = _FakeCatProcess(stdout, returncode=9, stderr=b"late failure")
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
+
+    report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
+
+    assert report.findings == [(lost, "work on doomed", [relpath])]
+    assert report.suppressions == []
+    assert report.unreferenced_copies == []
+    assert report.blob_failures == 1
+    assert report.reference_failure is not None
+    assert "非 0 終了" in report.reference_failure
+    assert process.communicate_calls == 1
+
+
+def test_cat_file_close_is_inside_landed_stage_before_completion(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/recovered.py"
+    _commit_files(repo, "doomed", {relpath: "recovered\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "wave/recovered.py", "recovered\n")
+    _landed_reference(repo, external)
+    events: list[str] = []
+    real_close = ADC._CatFileBatch.close
+
+    def record_close(self):
+        events.append("cat-file close")
+        return real_close(self)
+
+    monkeypatch.setattr(ADC._CatFileBatch, "close", record_close)
+
+    report = ADC.audit_with_offrepo(
+        repo, offrepo_roots=(root,), progress=events.append
+    )
+
+    assert report.findings == []
+    close_index = events.index("cat-file close")
+    landed_complete_index = next(
+        index
+        for index, event in enumerate(events)
+        if event.startswith("landed 参照 完了")
+    )
+    assert close_index < landed_complete_index
+
+
 def test_git_grep_pattern_batches_pin_count_limit_shape() -> None:
     repo = Path("/tmp/repo-for-count-limit")
     main_ref = "count-limit-snapshot"
@@ -1050,7 +2711,7 @@ def test_git_grep_pattern_batches_pin_argv_byte_limit_shape(monkeypatch) -> None
         )
     assert excinfo.value is sentinel
     assert len(grep_calls) == 1
-    assert _grep_patterns(grep_calls[0]) == (str(external),)
+    assert _grep_patterns(grep_calls[0]) == (str(root),)
 
 
 def test_git_grep_argv_size_matches_independently_computed_argv() -> None:
@@ -1078,6 +2739,67 @@ def test_git_grep_argv_size_matches_independently_computed_argv() -> None:
     assert ADC._git_grep_argv_size(repo, main_ref, patterns) == expected
     assert expected > encoded_payload_bytes
     assert len(os.fsencode(patterns[1])) > len(patterns[1])
+
+
+def test_pattern_owners_preserve_first_seen_order_and_deduplicate(
+    monkeypatch,
+) -> None:
+    root = Path("/offrepo")
+    first = ADC._ExternalMatch(root / "wave/first.py", root)
+    second = ADC._ExternalMatch(root / "wave/second.py", root)
+    first_key = ("commit-first", "tools/first.py")
+    second_key = ("commit-second", "tools/second.py")
+    matches = {
+        first_key: [first, first, second],
+        second_key: [first],
+    }
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    progress: list[str] = []
+
+    pattern_owners, processed_matches, generated_patterns = (
+        ADC._build_pattern_owners(matches, progress=progress.append)
+    )
+
+    assert pattern_owners[str(root / "wave")] == [
+        (first_key, first.path),
+        (first_key, second.path),
+        (second_key, first.path),
+    ]
+    assert pattern_owners[str(first.path)] == [
+        (first_key, first.path),
+        (second_key, first.path),
+    ]
+    assert processed_matches == 4
+    assert generated_patterns == 8
+    assert progress[-1] == (
+        "landed 参照 heartbeat pattern_owners "
+        "processed_matches=4 generated_patterns=8"
+    )
+
+
+def test_pattern_owners_complete_for_large_shared_ancestor_population() -> None:
+    root = Path("/offrepo")
+    key = ("commit", "tools/shared.py")
+    population = 50_000
+    matches = {
+        key: [
+            ADC._ExternalMatch(root / "wave" / f"copy-{index}.py", root)
+            for index in range(population)
+        ]
+    }
+
+    pattern_owners, processed_matches, generated_patterns = (
+        ADC._build_pattern_owners(matches)
+    )
+
+    # list membership 版は共有 ancestor だけで N(N-1)/2、すなわち
+    # 1,249,975,000 回の owner 比較になる規模である。
+    shared_owners = pattern_owners[str(root / "wave")]
+    assert len(shared_owners) == population
+    assert shared_owners[0] == (key, matches[key][0].path)
+    assert shared_owners[-1] == (key, matches[key][-1].path)
+    assert processed_matches == population
+    assert generated_patterns == population * 2
 
 
 def test_positive_git_grep_batches_survive_env_derived_e2big_population() -> None:
@@ -1143,17 +2865,23 @@ def test_positive_landed_reference_matches_batches_merge_like_single_grep(
 
     real_git_bytes = ADC._git_bytes
     grep_batches: list[tuple[str, ...]] = []
-    show_calls = 0
+    tree_batches: list[tuple[str, ...]] = []
+    real_read_blob = ADC._CatFileBatch.read_blob
+    cat_requests: list[str] = []
 
     def record_split_calls(repo_path, *args):
-        nonlocal show_calls
         if args and args[0] == "grep":
             grep_batches.append(_grep_patterns(args))
-        elif args and args[0] == "show":
-            show_calls += 1
+        elif args and args[0] == "--literal-pathspecs":
+            tree_batches.append(tuple(args[7:]))
         return real_git_bytes(repo_path, *args)
 
+    def record_cat_request(self, object_id, expected_size):
+        cat_requests.append(object_id)
+        return real_read_blob(self, object_id, expected_size)
+
     monkeypatch.setattr(ADC, "_git_bytes", record_split_calls)
+    monkeypatch.setattr(ADC._CatFileBatch, "read_blob", record_cat_request)
     split, split_failure = ADC._landed_reference_matches(
         repo,
         main_commit,
@@ -1164,8 +2892,122 @@ def test_positive_landed_reference_matches_batches_merge_like_single_grep(
 
     assert split_failure is None
     assert split == single == expected
-    assert grep_batches == [(str(first),), (str(middle),), (str(last),)]
-    assert show_calls == 1
+    assert grep_batches == [(str(root),)]
+    assert tree_batches == [("docs/landed-copy.md",)]
+    assert len(cat_requests) == 1
+
+
+def test_root_prefilter_and_full_pattern_prefilter_return_same_suppressions(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    root = tmp_path / "offrepo"
+    first = ADC._ExternalMatch(root / "one/first.py", root)
+    second = ADC._ExternalMatch(root / "two/second.py", root)
+    absent = ADC._ExternalMatch(root / "three/absent.py", root)
+    matches = {
+        ("commit-first", "tools/first.py"): [first],
+        ("commit-second", "tools/second.py"): [second],
+        ("commit-absent", "tools/absent.py"): [absent],
+    }
+    _landed_reference(repo, first.path, second.path.parent)
+    main_commit = _git(repo, "rev-parse", "main")
+    expected = {
+        ("commit-first", "tools/first.py"): [first.path],
+        ("commit-second", "tools/second.py"): [second.path],
+    }
+
+    root_prefiltered, root_failure = ADC._landed_reference_matches(
+        repo, main_commit, matches
+    )
+
+    exact_patterns = sorted(
+        {
+            pattern
+            for external_matches in matches.values()
+            for match in external_matches
+            for pattern in ADC._reference_patterns(match)
+        }
+    )
+    real_batches = ADC._git_grep_pattern_batches
+
+    def full_pattern_batches(repo_path, ref, _roots, **limits):
+        return real_batches(repo_path, ref, exact_patterns, **limits)
+
+    monkeypatch.setattr(
+        ADC, "_git_grep_pattern_batches", full_pattern_batches
+    )
+    full_prefiltered, full_failure = ADC._landed_reference_matches(
+        repo, main_commit, matches
+    )
+
+    assert root_failure is full_failure is None
+    assert root_prefiltered == full_prefiltered == expected
+
+
+def test_root_prefilter_superset_file_does_not_add_suppression(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    root = tmp_path / "offrepo"
+    external = ADC._ExternalMatch(root / "wave/target.py", root)
+    key = ("commit-target", "tools/target.py")
+    _landed_reference(repo, root.resolve())
+    main_commit = _git(repo, "rev-parse", "main")
+    stats = ADC._LandedReferenceStats()
+
+    referenced, failure = ADC._landed_reference_matches(
+        repo, main_commit, {key: [external]}, stats=stats
+    )
+
+    assert failure is None
+    assert referenced == {}
+    assert stats.grep_batches == 1
+    assert stats.contents_read == 1
+    assert stats.bytes_read == (repo / "docs/landed-copy.md").stat().st_size
+
+
+def test_landed_grep_batch_count_depends_on_roots_not_exact_patterns(
+    monkeypatch,
+) -> None:
+    repo = Path("/tmp/fake-root-prefilter-repo")
+    main_ref = "root-prefilter-snapshot"
+    root = Path("/offrepo")
+    match = ADC._ExternalMatch(root / "candidate.py", root)
+    matches = {("commit", "tools/candidate.py"): [match]}
+    exact_pattern_count = 36_102
+    pattern_owners = {
+        f"{root}/generated-{index}": []
+        for index in range(exact_pattern_count)
+    }
+    grep_batches: list[tuple[str, ...]] = []
+    stats = ADC._LandedReferenceStats()
+
+    monkeypatch.setattr(
+        ADC,
+        "_build_pattern_owners",
+        lambda _matches, progress=None: (
+            pattern_owners,
+            1,
+            exact_pattern_count,
+        ),
+    )
+
+    def no_landed_hits(_repo_path, *args):
+        grep_batches.append(_grep_patterns(args))
+        return subprocess.CompletedProcess(args, 1, b"", b"")
+
+    monkeypatch.setattr(ADC, "_git_bytes", no_landed_hits)
+
+    referenced, failure = ADC._landed_reference_matches(
+        repo, main_ref, matches, stats=stats
+    )
+
+    assert failure is None
+    assert referenced == {}
+    assert stats.patterns == exact_pattern_count
+    assert stats.grep_batches == 1
+    assert grep_batches == [(str(root),)]
 
 
 def test_positive_landed_reference_matches_keeps_hit_after_two_leading_misses(
@@ -1183,24 +3025,24 @@ def test_positive_landed_reference_matches_keeps_hit_after_two_leading_misses(
         ("commit-c", "tools/c.py"): [ADC._ExternalMatch(late_hit, root)],
     }
     grep_batches: list[tuple[str, ...]] = []
-    show_calls: list[str] = []
+    tree_path = "docs/late-hit.md"
+    contents_by_path = {tree_path: f"{late_hit}\n".encode()}
+    process = _FakeCatProcess(_fake_cat_stdout(contents_by_path))
 
     def miss_miss_hit(_repo_path, *args):
         if args[0] == "grep":
             batch = _grep_patterns(args)
             grep_batches.append(batch)
-            if batch != (str(late_hit),):
+            if batch != (str(root),):
                 return subprocess.CompletedProcess(args, 1, b"", b"")
             return subprocess.CompletedProcess(
-                args, 0, f"{main_ref}:docs/late-hit.md\0".encode(), b""
+                args, 0, f"{main_ref}:{tree_path}\0".encode(), b""
             )
-        assert args[0] == "show"
-        show_calls.append(args[1])
-        return subprocess.CompletedProcess(
-            args, 0, f"{late_hit}\n".encode(), b""
-        )
+        assert args[0] == "--literal-pathspecs"
+        return _fake_ls_tree_result(args, contents_by_path)
 
     monkeypatch.setattr(ADC, "_git_bytes", miss_miss_hit)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
 
     referenced, failure = ADC._landed_reference_matches(
         repo,
@@ -1212,12 +3054,8 @@ def test_positive_landed_reference_matches_keeps_hit_after_two_leading_misses(
 
     assert failure is None
     assert referenced == {("commit-c", "tools/c.py"): [late_hit]}
-    assert grep_batches == [
-        (str(first_miss),),
-        (str(second_miss),),
-        (str(late_hit),),
-    ]
-    assert show_calls == [f"{main_ref}:docs/late-hit.md"]
+    assert grep_batches == [(str(root),)]
+    assert process.stdin.getvalue() == (_fake_oid(tree_path) + "\n").encode()
 
 
 def test_positive_landed_reference_matches_keeps_same_basename_tree_paths(
@@ -1234,7 +3072,12 @@ def test_positive_landed_reference_matches_keeps_same_basename_tree_paths(
     }
     first_tree_path = "docs/first/config.md"
     second_tree_path = "docs/second/config.md"
-    show_calls: list[str] = []
+    contents_by_path = {
+        first_tree_path: b"unrelated\n",
+        second_tree_path: f"{external}\n".encode(),
+    }
+    process = _FakeCatProcess(_fake_cat_stdout(contents_by_path))
+    tree_batches: list[tuple[str, ...]] = []
 
     def same_basename_hits(_repo_path, *args):
         if args[0] == "grep":
@@ -1247,16 +3090,12 @@ def test_positive_landed_reference_matches_keeps_same_basename_tree_paths(
                 ).encode(),
                 b"",
             )
-        assert args[0] == "show"
-        show_calls.append(args[1])
-        if args[1] == f"{main_ref}:{first_tree_path}":
-            return subprocess.CompletedProcess(args, 0, b"unrelated\n", b"")
-        assert args[1] == f"{main_ref}:{second_tree_path}"
-        return subprocess.CompletedProcess(
-            args, 0, f"{external}\n".encode(), b""
-        )
+        assert args[0] == "--literal-pathspecs"
+        tree_batches.append(tuple(args[7:]))
+        return _fake_ls_tree_result(args, contents_by_path)
 
     monkeypatch.setattr(ADC, "_git_bytes", same_basename_hits)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
 
     referenced, failure = ADC._landed_reference_matches(
         repo, main_ref, matches
@@ -1264,47 +3103,183 @@ def test_positive_landed_reference_matches_keeps_same_basename_tree_paths(
 
     assert failure is None
     assert referenced == {("commit-target", "tools/target.py"): [external]}
-    assert show_calls == [
-        f"{main_ref}:{first_tree_path}",
-        f"{main_ref}:{second_tree_path}",
-    ]
+    assert tree_batches == [(first_tree_path, second_tree_path)]
+    assert set(process.stdin.getvalue().decode().splitlines()) == {
+        _fake_oid(first_tree_path),
+        _fake_oid(second_tree_path),
+    }
+
+
+def test_landed_reference_matches_emits_rate_limited_heartbeats(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    root = tmp_path / "offrepo"
+    external = root / "wave/target.py"
+    matches = {
+        ("commit-target", "tools/target.py"): [
+            ADC._ExternalMatch(external, root)
+        ],
+    }
+    _landed_reference(repo, external)
+    main_commit = _git(repo, "rev-parse", "main")
+    progress: list[str] = []
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+
+    referenced, failure = ADC._landed_reference_matches(
+        repo,
+        main_commit,
+        matches,
+        progress=progress.append,
+    )
+
+    assert failure is None
+    assert referenced == {("commit-target", "tools/target.py"): [external]}
+    assert any(
+        line.startswith("landed 参照 heartbeat grep_batches=")
+        for line in progress
+    )
+    assert any(
+        line.startswith("landed 参照 heartbeat contents=")
+        for line in progress
+    )
+    assert any(
+        line.startswith("landed 参照 heartbeat scanned_bytes=")
+        for line in progress
+    )
+
+
+def test_stage_diagnostics_report_candidate_and_landed_scale(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    repo = _repo(tmp_path)
+    relpath = "tools/shared.py"
+    lost = _commit_files(repo, "doomed", {relpath: "same bytes\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    first = _external_file(root, "one/shared.py", "same bytes\n")
+    _external_file(root, "two/shared.py", "same bytes\n")
+    _landed_reference(repo, first)
+    landed_bytes = (repo / "docs" / "landed-copy.md").stat().st_size
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    progress: list[str] = []
+
+    report = ADC.audit_with_offrepo(
+        repo, offrepo_roots=(root,), progress=progress.append
+    )
+
+    assert report.findings == []
+    assert report.suppressions == [(lost, relpath, first)]
+    comparison_complete = next(
+        line for line in progress if line.startswith("候補比較 完了")
+    )
+    comparison_fields = set(comparison_complete.split())
+    assert {
+        "matched_keys=1",
+        "external_files=2",
+        "external_matches=2",
+        "max_matches_per_key=2",
+    } <= comparison_fields
+    landed_complete = next(
+        line for line in progress if line.startswith("landed 参照 完了")
+    )
+    landed_fields = set(landed_complete.split())
+    assert {
+        "matches=1",
+        "match_keys=1",
+        "external_matches=2",
+        "patterns=4",
+        "generated_patterns=4",
+        "grep_batches=1",
+        "metadata_batches=1",
+        "contents_read=1",
+        f"bytes_read={landed_bytes}",
+    } <= landed_fields
+    assert any(
+        line.startswith(
+            "landed 参照 heartbeat pattern_owners processed_matches="
+        )
+        for line in progress
+    )
+    assert any(
+        "landed 参照 heartbeat grep_batches=1/1 phase=start" in line
+        for line in progress
+    )
+    assert any(
+        "landed 参照 heartbeat grep_batches=1/1 phase=complete" in line
+        for line in progress
+    )
+    assert any(
+        "landed 参照 heartbeat ls_tree_batches=1/1 phase=start" in line
+        for line in progress
+    )
+    assert any(
+        "landed 参照 heartbeat ls_tree_batches=1/1 phase=complete" in line
+        for line in progress
+    )
 
 
 @pytest.mark.parametrize(
-    ("failure_mode", "expected_show_calls", "failure_fragment"),
+    ("failure_mode", "expected_tree_calls", "failure_fragment"),
     (
         ("later-grep-rc", 0, "batch 2/2 rc=2"),
         ("later-invalid-prefix", 0, "path 出力を解釈できない"),
-        ("first-show", 1, "landed file の参照確認不能"),
-        ("second-show", 2, "landed file の参照確認不能"),
+        ("metadata-rc", 1, "metadata 確認不能"),
+        ("cat-mid-response", 1, "landed file の参照確認不能"),
     ),
     ids=(
         "later-grep-rc",
         "later-invalid-prefix",
-        "first-show",
-        "second-show",
+        "metadata-rc",
+        "cat-mid-response",
     ),
 )
 def test_negative_landed_reference_matches_discard_all_on_later_batch_failure(
     monkeypatch,
     failure_mode: str,
-    expected_show_calls: int,
+    expected_tree_calls: int,
     failure_fragment: str,
 ) -> None:
     repo = Path("/tmp/fake-repo")
     main_ref = "immutable-snapshot"
-    root = Path("/offrepo")
-    first = root / "a-hit"
-    second = root / "b-hit"
+    first_root = Path("/offrepo-a")
+    second_root = Path("/offrepo-b")
+    first = first_root / "a-hit"
+    second = second_root / "b-hit"
     matches = {
-        ("commit-a", "tools/a.py"): [ADC._ExternalMatch(first, root)],
-        ("commit-b", "tools/b.py"): [ADC._ExternalMatch(second, root)],
+        ("commit-a", "tools/a.py"): [
+            ADC._ExternalMatch(first, first_root)
+        ],
+        ("commit-b", "tools/b.py"): [
+            ADC._ExternalMatch(second, second_root)
+        ],
     }
     grep_calls = 0
-    show_calls = 0
+    tree_calls = 0
+    contents_by_path = {
+        "docs/one": f"{first}\n".encode(),
+        "docs/two": f"{second}\n".encode(),
+    }
+    if failure_mode == "cat-mid-response":
+        ordered = sorted(
+            (_fake_oid(path), content)
+            for path, content in contents_by_path.items()
+        )
+        first_oid, first_content = ordered[0]
+        second_oid, second_content = ordered[1]
+        cat_stdout = (
+            f"{first_oid} blob {len(first_content)}\n".encode()
+            + first_content
+            + b"\n"
+            + f"{second_oid} blob {len(second_content)}\n".encode()
+            + second_content[:1]
+        )
+        process = _FakeCatProcess(cat_stdout, returncode=128)
+    else:
+        process = _FakeCatProcess(_fake_cat_stdout(contents_by_path))
 
     def fail_later(_repo_path, *args):
-        nonlocal grep_calls, show_calls
+        nonlocal grep_calls, tree_calls
         if args[0] == "grep":
             grep_calls += 1
             if grep_calls == 1:
@@ -1320,19 +3295,14 @@ def test_negative_landed_reference_matches_discard_all_on_later_batch_failure(
             return subprocess.CompletedProcess(
                 args, 0, f"{main_ref}:docs/two\0".encode(), b""
             )
-        assert args[0] == "show"
-        show_calls += 1
-        if failure_mode == "first-show" and show_calls == 1:
-            return subprocess.CompletedProcess(
-                args, 128, f"{first}\n".encode(), b""
-            )
-        if failure_mode == "second-show" and show_calls == 2:
-            return subprocess.CompletedProcess(args, 128, b"", b"show failed")
-        return subprocess.CompletedProcess(
-            args, 0, f"{first}\n{second}\n".encode(), b""
-        )
+        assert args[0] == "--literal-pathspecs"
+        tree_calls += 1
+        if failure_mode == "metadata-rc":
+            return subprocess.CompletedProcess(args, 128, b"partial", b"tree failed")
+        return _fake_ls_tree_result(args, contents_by_path)
 
     monkeypatch.setattr(ADC, "_git_bytes", fail_later)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
 
     referenced, failure = ADC._landed_reference_matches(
         repo,
@@ -1348,7 +3318,7 @@ def test_negative_landed_reference_matches_discard_all_on_later_batch_failure(
     if failure_mode == "later-grep-rc":
         assert "fatal" in failure
         assert "partial" in failure
-    assert show_calls == expected_show_calls
+    assert tree_calls == expected_tree_calls
 
 
 def test_positive_landed_reference_matches_runs_batched_over_oversized_population(
@@ -1356,33 +3326,45 @@ def test_positive_landed_reference_matches_runs_batched_over_oversized_populatio
 ) -> None:
     repo = Path("/tmp/fake-oversized-repo")
     main_ref = "oversized-population-snapshot"
-    root = Path("/offrepo")
     population = ADC.GIT_GREP_BATCH_MAX_PATTERNS + 1
-    patterns = tuple(str(root / f"pattern-{index:04d}") for index in range(population))
+    roots = tuple(
+        Path(f"/offrepo-{index:04d}") for index in range(population)
+    )
+    patterns = tuple(str(root) for root in roots)
     assert len(patterns) > ADC.GIT_GREP_BATCH_MAX_PATTERNS
     matches = {
         (f"commit-{index:04d}", f"tools/{index:04d}.py"): [
-            ADC._ExternalMatch(Path(pattern), root)
+            ADC._ExternalMatch(root / "candidate.py", root)
         ]
-        for index, pattern in enumerate(patterns)
+        for index, root in enumerate(roots)
     }
     grep_batches: list[tuple[str, ...]] = []
-    show_calls = 0
+    tree_path = "docs/landed"
+    contents_by_path = {
+        tree_path: (
+            "\n".join(
+                str(external_matches[0].path)
+                for external_matches in matches.values()
+            )
+            + "\n"
+        ).encode()
+    }
+    process = _FakeCatProcess(_fake_cat_stdout(contents_by_path))
+    tree_calls = 0
 
     def fake_git_bytes(_repo_path, *args):
-        nonlocal show_calls
+        nonlocal tree_calls
         if args[0] == "grep":
             grep_batches.append(_grep_patterns(args))
             return subprocess.CompletedProcess(
-                args, 0, f"{main_ref}:docs/landed\0".encode(), b""
+                args, 0, f"{main_ref}:{tree_path}\0".encode(), b""
             )
-        assert args[0] == "show"
-        show_calls += 1
-        return subprocess.CompletedProcess(
-            args, 0, ("\n".join(patterns) + "\n").encode(), b""
-        )
+        assert args[0] == "--literal-pathspecs"
+        tree_calls += 1
+        return _fake_ls_tree_result(args, contents_by_path)
 
     monkeypatch.setattr(ADC, "_git_bytes", fake_git_bytes)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", lambda _repo: process)
 
     referenced, failure = ADC._landed_reference_matches(repo, main_ref, matches)
 
@@ -1400,7 +3382,8 @@ def test_positive_landed_reference_matches_runs_batched_over_oversized_populatio
         key: [external_matches[0].path]
         for key, external_matches in matches.items()
     }
-    assert show_calls == 1
+    assert tree_calls == 1
+    assert process.stdin.getvalue() == (_fake_oid(tree_path) + "\n").encode()
 
 
 def test_positive_landed_reference_matches_executes_all_five_batches(
@@ -1408,36 +3391,45 @@ def test_positive_landed_reference_matches_executes_all_five_batches(
 ) -> None:
     repo = Path("/tmp/fake-five-batch-repo")
     main_ref = "five-batch-snapshot"
-    root = Path("/offrepo")
-    patterns = tuple(str(root / f"pattern-{index}") for index in range(5))
+    roots = tuple(Path(f"/offrepo-{index}") for index in range(5))
+    patterns = tuple(str(root) for root in roots)
     matches = {
         (f"commit-{index}", f"tools/{index}.py"): [
-            ADC._ExternalMatch(Path(pattern), root)
+            ADC._ExternalMatch(root / "candidate.py", root)
         ]
-        for index, pattern in enumerate(patterns)
+        for index, root in enumerate(roots)
+    }
+    external_by_root = {
+        str(external_matches[0].root): str(external_matches[0].path)
+        for external_matches in matches.values()
     }
     grep_batches: list[tuple[str, ...]] = []
-    show_calls: list[str] = []
     contents_by_tree: dict[str, bytes] = {}
+    process_holder: list[_FakeCatProcess] = []
+    tree_batches: list[tuple[str, ...]] = []
 
     def distinct_tree_per_batch(_repo_path, *args):
         if args[0] == "grep":
             batch = _grep_patterns(args)
             grep_batches.append(batch)
             tree_path = f"docs/batch-{len(grep_batches)}.md"
-            contents_by_tree[f"{main_ref}:{tree_path}"] = (
-                "\n".join(batch) + "\n"
+            contents_by_tree[tree_path] = (
+                "\n".join(external_by_root[root] for root in batch) + "\n"
             ).encode()
             return subprocess.CompletedProcess(
                 args, 0, f"{main_ref}:{tree_path}\0".encode(), b""
             )
-        assert args[0] == "show"
-        show_calls.append(args[1])
-        return subprocess.CompletedProcess(
-            args, 0, contents_by_tree[args[1]], b""
-        )
+        assert args[0] == "--literal-pathspecs"
+        tree_batches.append(tuple(args[7:]))
+        return _fake_ls_tree_result(args, contents_by_tree)
+
+    def start_cat(_repo):
+        process = _FakeCatProcess(_fake_cat_stdout(contents_by_tree))
+        process_holder.append(process)
+        return process
 
     monkeypatch.setattr(ADC, "_git_bytes", distinct_tree_per_batch)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", start_cat)
 
     referenced, failure = ADC._landed_reference_matches(
         repo,
@@ -1451,9 +3443,11 @@ def test_positive_landed_reference_matches_executes_all_five_batches(
     assert len(grep_batches) == 5
     assert grep_batches == [(pattern,) for pattern in patterns]
     assert tuple(pattern for batch in grep_batches for pattern in batch) == patterns
-    assert show_calls == [
-        f"{main_ref}:docs/batch-{index}.md" for index in range(1, 6)
+    assert tree_batches == [
+        tuple(f"docs/batch-{index}.md" for index in range(1, 6))
     ]
+    assert len(process_holder) == 1
+    assert len(process_holder[0].stdin.getvalue().splitlines()) == 5
     assert referenced == {
         key: [external_matches[0].path]
         for key, external_matches in matches.items()
@@ -1470,9 +3464,10 @@ def test_positive_landed_reference_matches_pins_main_ref_to_single_commit(
         {"tools/first.py": "first\n", "tools/second.py": "second\n"},
     )
     _delete_branch(repo, "doomed")
-    root = tmp_path / "offrepo"
-    first = _external_file(root, "one/first.py", "first\n")
-    second = _external_file(root, "two/second.py", "second\n")
+    first_root = tmp_path / "offrepo-first"
+    second_root = tmp_path / "offrepo-second"
+    first = _external_file(first_root, "one/first.py", "first\n")
+    second = _external_file(second_root, "two/second.py", "second\n")
     _landed_reference(repo, first)
     snapshot_commit = _git(repo, "rev-parse", "main")
 
@@ -1498,14 +3493,14 @@ def test_positive_landed_reference_matches_pins_main_ref_to_single_commit(
         ADC, "_git_grep_pattern_batches", force_singleton_batches
     )
     real_checked_git = ADC._checked_git
-    real_audit = ADC.audit
+    real_audit_snapshot = ADC._audit_snapshot
     real_landed_reference_matches = ADC._landed_reference_matches
     real_git_bytes = ADC._git_bytes
     symbolic_resolution_results: list[str] = []
     audit_main_refs: list[str] = []
     landed_main_refs: list[str] = []
     grep_refs: list[str] = []
-    show_refs: list[str] = []
+    tree_refs: list[str] = []
 
     def record_checked_git(repo_path, *args):
         result = real_checked_git(repo_path, *args)
@@ -1513,9 +3508,21 @@ def test_positive_landed_reference_matches_pins_main_ref_to_single_commit(
             symbolic_resolution_results.append(result.strip())
         return result
 
-    def record_audit(repo_path, ref, excluded_prefixes):
+    def record_audit_snapshot(
+        repo_path,
+        ref,
+        excluded_prefixes,
+        regenerable_prefixes,
+        **kwargs,
+    ):
         audit_main_refs.append(ref)
-        return real_audit(repo_path, ref, excluded_prefixes)
+        return real_audit_snapshot(
+            repo_path,
+            ref,
+            excluded_prefixes,
+            regenerable_prefixes,
+            **kwargs,
+        )
 
     def record_landed_reference_matches(repo_path, ref, found_matches, **limits):
         landed_main_refs.append(ref)
@@ -1530,25 +3537,27 @@ def test_positive_landed_reference_matches_pins_main_ref_to_single_commit(
             if len(grep_refs) == 1:
                 _git(repo, "branch", "-f", "main", future_commit)
             return result
-        if args[0] == "show":
-            show_refs.append(args[1].split(":", 1)[0])
+        if args[0] == "--literal-pathspecs":
+            tree_refs.append(args[5])
         return real_git_bytes(repo_path, *args)
 
     monkeypatch.setattr(ADC, "_checked_git", record_checked_git)
-    monkeypatch.setattr(ADC, "audit", record_audit)
+    monkeypatch.setattr(ADC, "_audit_snapshot", record_audit_snapshot)
     monkeypatch.setattr(
         ADC, "_landed_reference_matches", record_landed_reference_matches
     )
     monkeypatch.setattr(ADC, "_git_bytes", move_main_after_first_grep)
 
-    report = ADC.audit_with_offrepo(repo, "main", offrepo_roots=(root,))
+    report = ADC.audit_with_offrepo(
+        repo, "main", offrepo_roots=(first_root, second_root)
+    )
 
     assert symbolic_resolution_results == [snapshot_commit]
     assert audit_main_refs == landed_main_refs == [snapshot_commit]
     assert len(grep_refs) >= 2
-    assert show_refs
+    assert tree_refs
     assert set(grep_refs) == {snapshot_commit}
-    assert set(show_refs) == {snapshot_commit}
+    assert set(tree_refs) == {snapshot_commit, lost}
     assert _git(repo, "rev-parse", "main") == future_commit
     assert report.findings == [(lost, "work on doomed", ["tools/second.py"])]
     assert report.suppressions == [(lost, "tools/first.py", first)]
@@ -1577,19 +3586,32 @@ def test_landed_reference_git_grep_runs_once_for_all_bytes_matches(
     second = _external_file(root, "two/second.py", "second\n")
     _landed_reference(repo, first, second)
     real_git_bytes = ADC._git_bytes
+    real_start_cat = ADC._start_cat_file_batch
     grep_calls = 0
+    show_calls = 0
+    cat_sessions = 0
 
     def count_grep(repo_path, *args):
-        nonlocal grep_calls
+        nonlocal grep_calls, show_calls
         if args and args[0] == "grep":
             grep_calls += 1
+        if args and args[0] == "show":
+            show_calls += 1
         return real_git_bytes(repo_path, *args)
 
+    def count_cat_session(repo_path):
+        nonlocal cat_sessions
+        cat_sessions += 1
+        return real_start_cat(repo_path)
+
     monkeypatch.setattr(ADC, "_git_bytes", count_grep)
+    monkeypatch.setattr(ADC, "_start_cat_file_batch", count_cat_session)
 
     report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,))
 
     assert grep_calls == 1
+    assert show_calls == 0
+    assert cat_sessions == 1
     assert report.findings == []
     assert report.suppressions == [
         (lost, "tools/first.py", first),

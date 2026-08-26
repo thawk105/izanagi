@@ -45,6 +45,7 @@ class DiffRejectSubtype(Enum):
     OUTSIDE_REGION = "outside-region"    # EVOLVE-BLOCK 領域外 (別行・別ファイル) に変更あり
     MALFORMED = "malformed"              # diff がパース不能 / HEAD と行が不整合 (fail-closed)
     HOST_EFFECT = "host-effect"          # structural pass 後の有限 lexical 効果 gate
+    BACKOFF_GRAMMAR = "backoff-grammar"  # backoff marker 専用 Tier 1 grammar
     SORT_SWO_ORACLE = "sort-swo-oracle"  # 実型 relation matrix の独立 SWO oracle
 
 

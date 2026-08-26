@@ -1,0 +1,173 @@
+{
+  "estimated_run_seconds": 300,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_shallow_repository_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1759-SHALLOW-GUARD",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "    if shallow != b\"false\\n\" and False:\n",
+          "old": "    if shallow != b\"false\\n\":\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_effective_graft_file_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1759-GRAFT-GUARD",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "            if any(\n                line and not line.startswith(b\"#\") and False\n                for line in grafts.split(b\"\\n\")\n            ):\n",
+          "old": "            if any(\n                line and not line.startswith(b\"#\")\n                for line in grafts.split(b\"\\n\")\n            ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_non_regular_ledger_entries_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1759-ENTRY-MODE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "        if (matching_entry != ((b\"100644\", result[commit]),)\n                and matching_entry != ((b\"120000\", result[commit]),)\n                and matching_entry != ((b\"100755\", result[commit]),)):\n",
+          "old": "        if (matching_entry != ((b\"100644\", result[commit]),)\n                and matching_entry != ((b\"100755\", result[commit]),)):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_invalid_middle_history_transition_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_two_independent_ledger_introductions_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1742-WHOLE-DAG",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "    for commit, parents in tuple(parents_by_commit.items())[:1]:\n",
+          "old": "    for commit, parents in parents_by_commit.items():\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_omitting_one_parent_row_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_substituting_an_unknown_row_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_with_bearing_and_nonbearing_parents_cannot_replace_rows",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_octopus_merge_omitting_third_parent_row_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1742-PARENT-UNION",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "        if not parent_union.issubset(row_set) and False:\n",
+          "old": "        if not parent_union.issubset(row_set):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_committed_multirow_addition_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_merge_adding_two_new_rows_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1742-ROW-BUDGET",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "        if len(row_set - parent_union) > 2:\n",
+          "old": "        if len(row_set - parent_union) > 1:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_committed_ratification_row_reordering_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1742-SUBSEQUENCE",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "        if (len(parents) == 99\n",
+          "old": "        if (len(parents) == 1\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_opposite_branch_orders_are_accepted_after_merge"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1742-MERGE-ORDER",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "        if any(not _is_subsequence(rows_at(parent), rows)\n                for parent in bearing_parents):\n",
+          "old": "        if (len(parents) == 1\n                and not _is_subsequence(rows_at(bearing_parents[0]), rows)):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_two_independent_ledger_introductions_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1759-INTRODUCTION",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "    if len(introductions) > 99:\n",
+          "old": "    if len(introductions) > 1:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_crlf_ratification_ledger_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-T1742-LOAD-ROWS",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "new": "    for line_number, line in enumerate(raw.splitlines(), start=1):\n",
+          "old": "    for line_number, line in enumerate(raw.split(b\"\\n\")[:-1], start=1):\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

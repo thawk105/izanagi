@@ -2,6 +2,7 @@
 """T-325 exact trial registry gates and preregistered mutations."""
 from __future__ import annotations
 
+import ast
 import copy
 import dataclasses
 import hashlib
@@ -13,6 +14,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,17 +23,22 @@ from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import campaign_lock
 from orchestrator.campaign import layer3_report as L3
 from orchestrator.campaign import pipeline
+from orchestrator.campaign import reflux_ir
 from orchestrator.campaign import reflux_formal_consumer as formal
 from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import s8b_descriptor
 from orchestrator.campaign import s8c_arm_inputs
 from orchestrator.campaign import trigger_gate_binding as TGB
 from orchestrator.campaign import trial_registry as R
-from orchestrator.campaign.build_admission import derive_build_admission
+from orchestrator.campaign.build_admission import (
+    attest_generator_output,
+    derive_build_admission,
+)
 from orchestrator.campaign.source_digest import (
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
+from orchestrator.campaign import source_digest
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
 from orchestrator.campaign.layout import CampaignLayout
@@ -48,7 +55,38 @@ _GATING_SPEC_SHA256 = hashlib.sha256(
     producer.GATING_SPEC.encode("utf-8")
 ).hexdigest()
 _REGISTERED_FIXTURE_GENOME = Genome("fixture", {})
-_REGISTERED_FIXTURE_VARIANT = pipeline.variant_id(_REGISTERED_FIXTURE_GENOME)
+_REGISTERED_SOURCE_ASSIGNMENT = reflux_ir.emit_predicate(
+    reflux_ir.parse_wire("00000")
+)
+
+
+def _registered_source_preimage() -> bytes:
+    contexts = []
+    for index in range(len(source_digest.CONTEXT_MACROS) + 1):
+        contexts.append(b"\n".join((
+            f"[ctx:{index}]".encode("ascii"),
+            b"bool izanagi_gate_pass = true;",
+            _REGISTERED_SOURCE_ASSIGNMENT.encode("utf-8"),
+            b"if (izanagi_gate_pass) {",
+        )))
+    segments = [
+        f"fixture-source-{index}".encode("ascii")
+        for index, _path in enumerate(source_digest.EVOLVE_BLOCK_SOURCES)
+    ]
+    source_index = source_digest.EVOLVE_BLOCK_SOURCES.index(
+        "cc/silo/transaction.cc"
+    )
+    segments[source_index] = b"\x02".join(contexts)
+    return b"\0".join(segments)
+
+
+_REGISTERED_SOURCE_PREIMAGE = _registered_source_preimage()
+_REGISTERED_SOURCE_SHA256 = hashlib.sha256(
+    _REGISTERED_SOURCE_PREIMAGE
+).hexdigest()
+_REGISTERED_FIXTURE_VARIANT = pipeline.variant_id(
+    _REGISTERED_FIXTURE_GENOME, _REGISTERED_SOURCE_SHA256,
+)
 _T525_COMPLETE_CONDITION_CASES = (
     ("workload_flags", "ycsb_zipf_skew"),
     ("workload_flags", "ycsb_rmw"),
@@ -953,9 +991,27 @@ def _complete_report(
             seq += 1
             ordinal += 1
         proposal_value = {
-            "planner": copy.deepcopy(roles["planner"]["parsed"]),
-            "coder": copy.deepcopy(roles["coder"]["parsed"]),
-            "auditor": copy.deepcopy(roles["auditor"]["parsed"]),
+            "planner": {
+                "axis": "silo-backoff-trigger-gating",
+                "direction": "increase",
+                "magnitude": "small",
+                "justification": "fixture",
+                "uncertainty": "low",
+            },
+            "coder": {
+                "axis": "silo-backoff-trigger-gating",
+                "wire": "00000",
+                "justification": "fixture",
+                "confidence": "high",
+            },
+            "auditor": {
+                "verdict": "allow",
+                "diff_digest": "a" * 64,
+                "violations": [],
+                "nits": [],
+                "proposed_tests": [],
+                "uncertainty": "low",
+            },
             "prior_critic_reverse": False,
             "descriptor_sha256": descriptor_hash,
             "arm_binding_digest_sha256": arm_binding_digest,
@@ -1015,8 +1071,9 @@ def _complete_report(
 
 
 def _build_registered_campaign(
-    *, output_root: Path, trial: R.TrialSpec,
+    *, output_root: Path, trial: R.TrialSpec, proposal_paths: list[Path],
 ) -> tuple[Path, dict]:
+    assert len(proposal_paths) == trial.generations
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     entry = producer.resolve_workload_entry(workload)
     descriptor = _fixture_execution_descriptor(trial)
@@ -1053,85 +1110,106 @@ def _build_registered_campaign(
         source_root=str(output_root.resolve()),
         ccbench_commit=completeness._CURRENT_CCBENCH_PIN,
         genome_sha256=hashlib.sha256(genome.encode("utf-8")).hexdigest(),
-        src_token="stock",
-        source_bytes_sha256="a" * 64,
+        src_token=_REGISTERED_SOURCE_SHA256,
+        source_bytes_sha256=_REGISTERED_SOURCE_SHA256,
         tracked_clean=True,
         tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
         tracked_paths=(),
     )
-    admission = derive_build_admission(context, evidence).as_wal_receipt()
-    binding = TGB.TriggerGateBinding(
-        mask=0,
-        predicate_sha256=TGB.expected_predicate_sha256(0),
-        nonce="1" * 64,
-        source=TGB.SourceBinding(
-            src_token=evidence.src_token,
-            source_bytes_sha256=evidence.source_bytes_sha256,
-        ),
+    generator_receipt = attest_generator_output(
+        context,
+        evidence,
+        generator_input_sha256=hashlib.sha256(
+            proposal_paths[0].read_bytes()
+        ).hexdigest(),
     )
-    binding_commitment = TGB.commitment(binding)
-    attempt_id = "attempt-1"
-    terminal = {
-        "build_attempt_id": attempt_id,
-        "build_admission_receipt_sha256": admission["receipt_sha256"],
-    }
-    records = [
-        {
-            "ts": 0.5,
-            "stage": TGB.WAL_RECORD_STAGE,
-            "variant": variant,
-            "env_tag": contract.env_tag,
-            "payload": {
-                "build_attempt_id": attempt_id,
-                "trigger_gate_binding": TGB.to_record(binding),
+    admission = derive_build_admission(
+        context, evidence, generator_receipt=generator_receipt,
+    ).as_wal_receipt()
+    records = []
+    provenance_entries = {}
+    for generation, proposal_path in enumerate(proposal_paths, 1):
+        attempt_id = f"attempt-{generation}"
+        binding = TGB.TriggerGateBinding(
+            mask=0,
+            predicate_sha256=TGB.expected_predicate_sha256(0),
+            nonce=hashlib.sha256(attempt_id.encode("ascii")).hexdigest(),
+            source=TGB.SourceBinding(
+                src_token=evidence.src_token,
+                source_bytes_sha256=evidence.source_bytes_sha256,
+            ),
+        )
+        binding_commitment = TGB.commitment(binding)
+        terminal = {
+            "build_attempt_id": attempt_id,
+            "build_admission_receipt_sha256": admission["receipt_sha256"],
+        }
+        base_ts = float((generation - 1) * 5)
+        records.extend([
+            {
+                "ts": base_ts + 0.5,
+                "stage": TGB.WAL_RECORD_STAGE,
+                "variant": variant,
+                "env_tag": contract.env_tag,
+                "payload": {
+                    "build_attempt_id": attempt_id,
+                    "trigger_gate_binding": TGB.to_record(binding),
+                },
             },
-        },
-        {
-            "ts": 1.0,
-            "stage": "build_start",
-            "variant": variant,
-            "env_tag": contract.env_tag,
-            "payload": {
-                "build_attempt_id": attempt_id,
-                "genome": genome,
-                "src_token": "stock",
-                "build_admission": admission,
-                "build_admission_receipt_sha256": admission["receipt_sha256"],
-                "trigger_gate_binding_commitment": binding_commitment,
+            {
+                "ts": base_ts + 1.0,
+                "stage": "build_start",
+                "variant": variant,
+                "env_tag": contract.env_tag,
+                "payload": {
+                    "build_attempt_id": attempt_id,
+                    "genome": genome,
+                    "src_token": _REGISTERED_SOURCE_SHA256,
+                    "build_admission": admission,
+                    "build_admission_receipt_sha256": admission["receipt_sha256"],
+                    "trigger_gate_binding_commitment": binding_commitment,
+                },
             },
-        },
-        {
-            "ts": 2.0,
-            "stage": "build_done",
-            "variant": variant,
-            "env_tag": contract.env_tag,
-            "payload": dict(terminal),
-        },
-        {
-            "ts": 3.0,
-            "stage": "bench_done",
-            "variant": variant,
-            "env_tag": contract.env_tag,
-            "payload": {
-                "tps": [1.0],
-                "median_tps": 1.0,
-                "cv": 0.0,
-                "rounds": 1,
-                "bench_wall_s": 0.0,
-                "leading_indicators": {},
+            {
+                "ts": base_ts + 2.0,
+                "stage": "build_done",
+                "variant": variant,
+                "env_tag": contract.env_tag,
+                "payload": dict(terminal),
             },
-        },
-        {
-            "ts": 4.0,
-            "stage": "commit",
-            "variant": variant,
-            "env_tag": contract.env_tag,
-            "payload": {
-                **terminal,
-                "contract_sha256": contract.contract_sha256,
+            {
+                "ts": base_ts + 3.0,
+                "stage": "bench_done",
+                "variant": variant,
+                "env_tag": contract.env_tag,
+                "payload": {
+                    "tps": [1.0],
+                    "median_tps": 1.0,
+                    "cv": 0.0,
+                    "rounds": 1,
+                    "bench_wall_s": 0.0,
+                    "build_attempt_id": attempt_id,
+                    "leading_indicators": {},
+                },
             },
-        },
-    ]
+            {
+                "ts": base_ts + 4.0,
+                "stage": "commit",
+                "variant": variant,
+                "env_tag": contract.env_tag,
+                "payload": {
+                    **terminal,
+                    "contract_sha256": contract.contract_sha256,
+                },
+            },
+        ])
+        provenance_entries[str(generation)] = {
+            "proposal_path": str(proposal_path),
+            "variant": variant,
+            "build_attempt_id": attempt_id,
+            "trigger_gate_binding_commitment": binding_commitment,
+            "outcome": "certified",
+        }
     wal_path = campaign / "runs" / "wal.jsonl"
     wal_path.write_text(
         "".join(json.dumps(record, sort_keys=True) + "\n" for record in records),
@@ -1139,16 +1217,20 @@ def _build_registered_campaign(
     )
     (campaign / "reports" / "p3_s8a_trigger_loop_provenance.json").write_text(
         json.dumps({
-            "entries": {
-                variant: {
-                    "variant": variant,
-                    "build_attempt_id": attempt_id,
-                    "trigger_gate_binding_commitment": binding_commitment,
-                },
-            },
+            "entries": provenance_entries,
         }),
         encoding="utf-8",
     )
+    for proposal_path in proposal_paths:
+        proposal_sha256 = hashlib.sha256(proposal_path.read_bytes()).hexdigest()
+        preimage_path = campaign / source_digest.source_preimage_artifact_relative_path(
+            proposal_sha256
+        )
+        preimage_path.parent.mkdir(parents=True, exist_ok=True)
+        if preimage_path.exists():
+            assert preimage_path.read_bytes() == _REGISTERED_SOURCE_PREIMAGE
+        else:
+            preimage_path.write_bytes(_REGISTERED_SOURCE_PREIMAGE)
     persisted = L3.build_report(
         campaign,
         generated_from_head="a" * 40,
@@ -1180,30 +1262,36 @@ def _prepare_registered_build_report(
     events, report = _load_report_bundle(report_path)
     run_root = report_path.parent
     output_root = run_root.parent.parent
+    proposal_paths = [
+        Path(generation["proposal"]["path"])
+        for generation in report["cells"][0]["generations"]
+    ]
     campaign, persisted = _build_registered_campaign(
-        output_root=output_root, trial=trial,
+        output_root=output_root, trial=trial, proposal_paths=proposal_paths,
     )
     report["do_build"] = True
     events[0]["do_build"] = True
     cell = report["cells"][0]
     cell["campaign_root"] = str(campaign)
     cell["admission_decision"] = copy.deepcopy(persisted["admission_decision"])
-    bench = next(
-        row for row in persisted["runs"]
-        if row.get("variant") == _REGISTERED_FIXTURE_VARIANT
-    )
-    first_generation = cell["generations"][0]
-    first_generation["harness"].update({
-        "variant": _REGISTERED_FIXTURE_VARIANT,
-        "records": {"bench_done": {
-            key: value for key, value in bench.items()
-            if key != "source_ref"
-        }},
-    })
-    first_generation["harness"]["records"]["bench_done"].pop(
-        "variant", None,
-    )
-    first_generation["bench_wall_seconds"] = 0.0
+    for generation_number, generation in enumerate(cell["generations"], 1):
+        attempt_id = f"attempt-{generation_number}"
+        bench = persisted["runs"][generation_number - 1]
+        assert bench.get("variant") == _REGISTERED_FIXTURE_VARIANT
+        generation["harness"].update({
+            "variant": _REGISTERED_FIXTURE_VARIANT,
+            "records": {"bench_done": {
+                key: value for key, value in bench.items()
+                if key != "source_ref"
+            }},
+        })
+        generation["harness"]["records"]["bench_done"].pop(
+            "variant", None,
+        )
+        generation["harness"]["records"]["bench_done"][
+            "build_attempt_id"
+        ] = attempt_id
+        generation["bench_wall_seconds"] = 0.0
     by_invocation = {
         event["invocation_id"]: event
         for event in events if event.get("event") == "role-attempt"
@@ -1266,6 +1354,20 @@ def _prepare_registered_build_report(
                 if role_event["invocation_id"] == event["invocation_id"]:
                     role_event.update(copy.deepcopy(update))
     return _persist(run_root, events, report)
+
+
+def _registered_layer3_report_path(report_path: Path) -> Path:
+    report = json.loads(report_path.read_bytes())
+    return (
+        Path(report["cells"][0]["campaign_root"])
+        / "reports"
+        / "layer3_report.json"
+    )
+
+
+def _assert_acceptance_receipt_absent(repo: Path) -> None:
+    receipt_dir = repo / R.s8c_acceptance_receipt.DEFAULT_RECEIPT_DIR
+    assert not receipt_dir.exists() or not any(receipt_dir.iterdir())
 
 
 def _partial_report(
@@ -1562,7 +1664,7 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
     registry_bytes = registry.read_bytes()
     first_report = json.loads(reports[0].read_bytes())
     expected_receipt = {
-        "schema_version": "p3-8c-trial-acceptance-receipt/v3",
+        "schema_version": "p3-8c-trial-acceptance-receipt/v4",
         "manifest_path": manifest_path.relative_to(repo).as_posix(),
         "manifest_sha256": manifest.sha256,
         "prereg_commit": manifest.prereg_commit,
@@ -1658,14 +1760,21 @@ def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloa
         for trial in manifest.trials
     ]
     observed_workloads = {}
+    observed_ccbench_commits = set()
+    observed_env_tags = set()
     for report_path in reports:
         report = json.loads(report_path.read_bytes())
         observed_workloads[report["trial_id"]] = report["cells"][0]["workload"]
+        layer3 = json.loads(_registered_layer3_report_path(report_path).read_bytes())
+        observed_ccbench_commits.add(layer3["meta"]["ccbench_commit"])
+        observed_env_tags.add(tuple(layer3["env_tags"]))
     expected_workloads = {
         trial.trial_id: R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
         for trial in manifest.trials
     }
     assert observed_workloads == expected_workloads
+    assert observed_ccbench_commits == {completeness._CURRENT_CCBENCH_PIN}
+    assert observed_env_tags == {("linux-baremetal",)}
 
     summary = _accept(
         manifest_path=manifest_path,
@@ -1674,11 +1783,370 @@ def test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloa
         registry_path=registry,
     )
     assert len(summary.trials) == len(manifest.trials) == 6
-    receipt = json.loads((repo / summary.receipt_path).read_bytes())
+    receipt_bytes = (repo / summary.receipt_path).read_bytes()
+    receipt = json.loads(receipt_bytes)
+    assert receipt_bytes == _canonical(receipt) + b"\n"
+    assert summary.receipt_sha256 == hashlib.sha256(receipt_bytes).hexdigest()
+    assert set(receipt) == R.s8c_acceptance_receipt._TOP_LEVEL_KEYS
     assert len(receipt["trials"]) == 6
+    assert all(
+        set(row) == R.s8c_acceptance_receipt._V3_TRIAL_KEYS
+        for row in receipt["trials"]
+    )
     assert {
         row["trial_id"] for row in receipt["trials"]
     } == {trial.trial_id for trial in manifest.trials}
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_t822_acceptance_rejects_one_layer3_ccbench_commit_mismatch(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    layer3_path = _registered_layer3_report_path(reports[0])
+    baseline_trial_id = json.loads(reports[0].read_bytes())["trial_id"]
+    differing_trial_id = json.loads(reports[1].read_bytes())["trial_id"]
+    differing_path = _registered_layer3_report_path(reports[1])
+    layer3 = json.loads(layer3_path.read_bytes())
+    layer3["meta"]["ccbench_commit"] = "different-ccbench-commit"
+    layer3_path.write_bytes(_canonical(layer3) + b"\n")
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[measurement-target] layer3 reports do not share one "
+        "meta.ccbench_commit; "
+        f"baseline trial {baseline_trial_id!r} "
+        f"value={'different-ccbench-commit'!r} path={str(layer3_path)!r}; "
+        f"differing trial {differing_trial_id!r} "
+        f"value={completeness._CURRENT_CCBENCH_PIN!r} "
+        f"path={str(differing_path)!r}"
+    )
+    _assert_acceptance_receipt_absent(repo)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_t822_acceptance_rejects_one_layer3_env_tag_mismatch(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    layer3_path = _registered_layer3_report_path(reports[0])
+    baseline_trial_id = json.loads(reports[0].read_bytes())["trial_id"]
+    differing_trial_id = json.loads(reports[1].read_bytes())["trial_id"]
+    differing_path = _registered_layer3_report_path(reports[1])
+    layer3 = json.loads(layer3_path.read_bytes())
+    layer3["env_tags"] = ["different-environment"]
+    layer3_path.write_bytes(_canonical(layer3) + b"\n")
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[measurement-target] layer3 reports do not share one env_tag; "
+        f"baseline trial {baseline_trial_id!r} "
+        f"value={'different-environment'!r} path={str(layer3_path)!r}; "
+        f"differing trial {differing_trial_id!r} "
+        f"value={'linux-baremetal'!r} path={str(differing_path)!r}"
+    )
+    _assert_acceptance_receipt_absent(repo)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_t822_acceptance_rejects_missing_layer3_in_complete_build_bundle(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    missing_path = _registered_layer3_report_path(reports[0])
+    missing_trial_id = json.loads(reports[0].read_bytes())["trial_id"]
+    reference_trial_id = json.loads(reports[1].read_bytes())["trial_id"]
+    missing_path.unlink()
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[measurement-target] complete build bundle requires exactly 6 "
+        f"readable layer3 reports; found 5; reference trial {reference_trial_id!r}; "
+        f"missing=[trial {missing_trial_id!r} value=<missing> "
+        f"path={str(missing_path)!r}]"
+    )
+    _assert_acceptance_receipt_absent(repo)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_t822_acceptance_rejects_zero_layer3_reports_in_complete_build_bundle(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    missing = [
+        (
+            json.loads(report_path.read_bytes())["trial_id"],
+            _registered_layer3_report_path(report_path),
+        )
+        for report_path in reports
+    ]
+    for _trial_id, layer3_path in missing:
+        layer3_path.unlink()
+    missing_detail = ", ".join(
+        f"trial {trial_id!r} value=<missing> path={str(path)!r}"
+        for trial_id, path in missing
+    )
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[measurement-target] complete build bundle requires exactly 6 "
+        f"readable layer3 reports; found 0; reference trial {missing[0][0]!r}; "
+        f"missing=[{missing_detail}]"
+    )
+    _assert_acceptance_receipt_absent(repo)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_t822_acceptance_strictly_rejects_duplicate_layer3_json_key(
+    tmp_path: Path,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    layer3_path = _registered_layer3_report_path(reports[0])
+    layer3 = json.loads(layer3_path.read_bytes())
+    duplicate_meta_members = []
+    for key, value in sorted(layer3["meta"].items()):
+        member = _canonical(key) + b":" + _canonical(value)
+        duplicate_meta_members.append(member)
+        if key == "ccbench_commit":
+            duplicate_meta_members.append(member)
+    duplicate_meta = b"{" + b",".join(duplicate_meta_members) + b"}"
+    layer3_members = [
+        _canonical(key)
+        + b":"
+        + (duplicate_meta if key == "meta" else _canonical(value))
+        for key, value in sorted(layer3.items())
+    ]
+    layer3_path.write_bytes(b"{" + b",".join(layer3_members) + b"}\n")
+
+    written_objects = []
+
+    def capture_object_pairs(pairs):
+        written_objects.append(pairs)
+        return dict(pairs)
+
+    written_bytes = layer3_path.read_bytes()
+    json.loads(written_bytes, object_pairs_hook=capture_object_pairs)
+    ccbench_counts = [
+        sum(key == "ccbench_commit" for key, _value in pairs)
+        for pairs in written_objects
+    ]
+    assert [count for count in ccbench_counts if count > 1] == [2]
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == "[json] duplicate object key: 'ccbench_commit'"
+    _assert_acceptance_receipt_absent(repo)
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_t822_acceptance_reports_changed_layer3_snapshot_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    build_root = repo / "output" / "exploration" / "autonomous-trials"
+    reports = [
+        _prepare_registered_build_report(
+            build_root,
+            trial,
+            manifest,
+            _head(repo),
+            repository_root=repo,
+        )
+        for trial in manifest.trials
+    ]
+    baseline_trial_id = json.loads(reports[0].read_bytes())["trial_id"]
+    baseline_path = _registered_layer3_report_path(reports[0])
+    baseline_bytes = baseline_path.read_bytes()
+    changed_trial_id = json.loads(reports[1].read_bytes())["trial_id"]
+    changed_path = _registered_layer3_report_path(reports[1])
+    expected_bytes = changed_path.read_bytes()
+    observed_bytes = expected_bytes + b" "
+    original = R._receipt_lifecycle_snapshot
+
+    def mutate_after_lifecycle_snapshot(**kwargs):
+        result = original(**kwargs)
+        changed_path.write_bytes(observed_bytes)
+        return result
+
+    monkeypatch.setattr(
+        R,
+        "_receipt_lifecycle_snapshot",
+        mutate_after_lifecycle_snapshot,
+    )
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        _accept(
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+        )
+    assert str(exc_info.value) == (
+        "[measurement-target-snapshot] layer3 report changed during acceptance; "
+        f"baseline trial {baseline_trial_id!r} "
+        f"sha256={hashlib.sha256(baseline_bytes).hexdigest()} "
+        f"path={str(baseline_path)!r}; differing trial {changed_trial_id!r} "
+        f"expected_sha256={hashlib.sha256(expected_bytes).hexdigest()} "
+        f"observed_sha256={hashlib.sha256(observed_bytes).hexdigest()} "
+        f"path={str(changed_path)!r}"
+    )
+    _assert_acceptance_receipt_absent(repo)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    (
+        (
+            "ccbench-type",
+            "[measurement-target] trial 'trial-0' layer3 "
+            "meta.ccbench_commit is not a non-empty string",
+        ),
+        (
+            "env-tags-type",
+            "[measurement-target] trial 'trial-0' layer3 "
+            "env_tags is not a list",
+        ),
+        (
+            "env-tags-cardinality",
+            "[measurement-target] trial 'trial-0' layer3 env_tags must "
+            "contain exactly one non-empty string",
+        ),
+    ),
+)
+def test_t822_measurement_target_field_types_are_strict(
+    tmp_path: Path,
+    mutation: str,
+    expected: str,
+) -> None:
+    loaded = []
+    for index in range(6):
+        campaign_root = tmp_path / f"campaign-{index}"
+        layer3_path = campaign_root / "reports" / "layer3_report.json"
+        layer3_path.parent.mkdir(parents=True)
+        layer3 = {
+            "meta": {"ccbench_commit": "same-ccbench-commit"},
+            "env_tags": ["linux-baremetal"],
+        }
+        if index == 0 and mutation == "ccbench-type":
+            layer3["meta"]["ccbench_commit"] = 1
+        elif index == 0 and mutation == "env-tags-type":
+            layer3["env_tags"] = "linux-baremetal"
+        elif index == 0 and mutation == "env-tags-cardinality":
+            layer3["env_tags"] = []
+        layer3_path.write_bytes(_canonical(layer3) + b"\n")
+        loaded.append(
+            SimpleNamespace(
+                report={
+                    "trial_id": f"trial-{index}",
+                    "do_build": True,
+                    "cells": [{"campaign_root": str(campaign_root)}],
+                },
+                journal_path=tmp_path / f"run-{index}" / "attempts.jsonl",
+            )
+        )
+
+    with pytest.raises(R.TrialRegistryError) as exc_info:
+        R._read_acceptance_measurement_targets(loaded)
+    assert str(exc_info.value) == expected
+
+
+def test_t822_trial_registry_test_top_level_function_names_are_unique() -> None:
+    tree = ast.parse(
+        Path(__file__).read_text(encoding="utf-8"),
+        filename=__file__,
+    )
+    names = [
+        statement.name
+        for statement in tree.body
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    assert duplicates == []
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")

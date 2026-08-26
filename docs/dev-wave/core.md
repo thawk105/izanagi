@@ -19,17 +19,18 @@ L0=入口、L1=常時段の U 節、L1.5=クラス依存段の U 節、L2=C 節�
 
 ## DW-C01 — 実測で是正した作法
 
-`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
-- `--lane`は`--stage consult`だけ必須、無指定/他段rc=2。
-- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
-- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
-- 複数起点の判別は全隣接区間へ異なる正値を入れる。
-- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+`DW-O01/O08/O17/O20`より優先。
+- `--lane`はconsult、`--reasoning`はplan/consultで必須。他段指定/必須段無指定はrc=2。
+- 待ち手はpid file実在後に張る。先行は子の生存中も即戻る。
+- 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
+- 複数起点は全隣接区間の異なる正値で判別。
+- 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
 - submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
-- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
-- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
-- mergeは親。子は競合解決だけ、`add`とcommitも親。
-- 子のWeb検索を禁じる。成果物が全損する。
+- 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
+- merge/`add`/commitは親、子は競合解決だけ。
+- 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
+- 子はWeb検索禁止。成果物が全損する。
 
 ## DW-STOP — fail-closed 停止条件
 
@@ -90,7 +91,7 @@ scope 外の real 所見は実装せず、設計択一・所見・推奨案を�
 実装前の変異事前登録は `DW-M01` に従う。
 gate の禁止は署名で書き、通る正例を 1 つ添える。
 
-「実装しない」と裁定済みで実装差分ゼロの wave だけ変異 matrix を免除する。受入全走は免除せず、
+実装面 (D95 決定 2) の差分ゼロの wave だけ変異 matrix を免除する。受入全走は免除せず、
 実 repo を読むテストは段 7 の記録前に実走し、結果を worklog へ書く。
 段 4 直前に裁定 inbox を再走査し、wave 開始後の更新を取り込む。
 

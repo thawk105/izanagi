@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 import signal
@@ -61,6 +62,7 @@ class _Scheduler:
         stage="child",
         log_style="script",
         post_qstat_states=("EXT",),
+        result_request_sha256=None,
     ):
         self.states = list(states)
         self.child_rc = child_rc
@@ -79,6 +81,7 @@ class _Scheduler:
         self.stage = stage
         self.log_style = log_style
         self.post_qstat_states = list(post_qstat_states)
+        self.result_request_sha256 = result_request_sha256
         self.commands = []
         self.qstat_index = 0
         self.post_qstat_index = 0
@@ -115,16 +118,26 @@ class _Scheduler:
             + (b"\n" if self.stderr_prefix and not self.stderr_prefix.endswith(b"\n") else b"")
             + accounting,
         )
+        request_sha256 = self.result_request_sha256
+        if request_sha256 is None:
+            request_path = cwd / "request.json"
+            if request_path.is_file():
+                request_sha256 = hashlib.sha256(
+                    request_path.read_bytes(),
+                ).hexdigest()
+        result = {
+            "schema_version": "pegasus-dispatch-result/v1",
+            "stage": self.stage,
+            "child_rc": self.child_rc,
+            "pbs_jobid": _JOB_ID,
+            "hostname": "bnode114",
+            "interpreter": "/bin/python3.10",
+            "error": None,
+        }
+        if request_sha256 is not None:
+            result["request_sha256"] = request_sha256
         (cwd / "result.json").write_text(
-            json.dumps({
-                "schema_version": "pegasus-dispatch-result/v1",
-                "stage": self.stage,
-                "child_rc": self.child_rc,
-                "pbs_jobid": _JOB_ID,
-                "hostname": "bnode114",
-                "interpreter": "/bin/python3.10",
-                "error": None,
-            }) + "\n",
+            json.dumps(result) + "\n",
             encoding="utf-8",
         )
         if self.marker:
@@ -1008,6 +1021,7 @@ def test_m7_job_script_unset_isolated_redundant_gate(tmp_path):
         submission_dir=tmp_path,
         request_path=tmp_path / "request.json",
         probe_path=tmp_path / "interpreter_probe.py",
+        request_sha256="a" * 64,
         walltime="00:30:00",
     )
     assert (
@@ -1060,6 +1074,7 @@ def test_job_script_preserves_sidecar_and_auto_off(tmp_path):
         submission_dir=tmp_path,
         request_path=tmp_path / "request.json",
         probe_path=tmp_path / "interpreter_probe.py",
+        request_sha256="a" * 64,
         walltime="00:30:00",
     )
     assert "unset IZANAGI_TASK_RUN_ID IZANAGI_TASK_RUNS_ROOT\n" in script
@@ -1080,8 +1095,6 @@ def test_job_run_passes_sidecar_and_auto_off_to_tests_child(tmp_path):
             "task": "tests",
             "args": ["orchestrator/tests/test_sample.py", "-q"],
             "environment": {
-                "IZANAGI_TASK_RUN_ID": "must-not-reach-child",
-                "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
                 "IZANAGI_TASK_RUN_SIDECAR": str(tmp_path / "pytest-stats.json"),
                 "IZANAGI_TASK_RUN_AUTO_RECORD": "0",
             },
@@ -2244,6 +2257,7 @@ def test_job_script_binds_interpreter_path_repo_and_no_network_bootstrap(tmp_pat
         submission_dir=submission,
         request_path=submission / "request.json",
         probe_path=submission / "interpreter_probe.py",
+        request_sha256="a" * 64,
         walltime="00:30:00",
     )
     assert '&& "$resolved" "$PROBE"' in script
@@ -2336,6 +2350,13 @@ def test_m5_dual_layer_interpreter_rejection_changes_acceptance_only_together(
         }) + "\n",
         encoding="utf-8",
     )
+    (tmp_path / "interpreter_probe.py").write_text(
+        "raise SystemExit(0)\n", encoding="utf-8",
+    )
+    (tmp_path / "dispatch.sh").write_text(
+        f'REQUEST={request}\nexec "$DISPATCHER" --job-run "$REQUEST"\n',
+        encoding="utf-8",
+    )
 
     with mock.patch.object(DC.sys, "version_info", (3, 9, 13)):
         try:
@@ -2348,7 +2369,8 @@ def test_m5_dual_layer_interpreter_rejection_changes_acceptance_only_together(
     pipeline_rc = DC.INFRA_RC
     if probe_rc == 0:
         fake_uname = type("Uname", (), {"nodename": "bnode114"})()
-        with mock.patch.object(DC.sys, "version_info", (3, 9, 13)), \
+        with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
+                mock.patch.object(DC.sys, "version_info", (3, 9, 13)), \
                 mock.patch.object(DC.os, "uname", return_value=fake_uname), \
                 mock.patch.object(DC.os, "chdir"), \
                 mock.patch.object(DC.subprocess, "call", return_value=0):
@@ -2494,6 +2516,7 @@ def test_compute_marker_is_cross_namespace_evidence_without_release_handshake(
         submission_dir=tmp_path,
         request_path=tmp_path / "request.json",
         probe_path=tmp_path / "interpreter_probe.py",
+        request_sha256="a" * 64,
         walltime="00:30:00",
     )
     assert DC._COMPUTE_MARKER_NAME in script
@@ -3943,22 +3966,551 @@ def test_walltime_override_is_bound_to_pbs_and_total_bound(tmp_path):
     assert "elapstim_req=01:02:03" in qsub
 
 
-def _job_run_with_mocked_child(request_path: Path, *, child_rc: int = 0):
+_AUTO_REQUEST_SHA256 = object()
+
+
+def _job_run_with_mocked_child(
+    request_path: Path,
+    *,
+    child_rc: int = 0,
+    expected_request_sha256=_AUTO_REQUEST_SHA256,
+    hostname: str = "bnode114",
+):
     """計算ノード側 launcher を hostname / chdir / 子起動を注入して駆動する。"""
 
-    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+    request_payload = json.loads(request_path.read_text(encoding="utf-8"))
+    prepare_bound_envelope = False
+    if expected_request_sha256 is _AUTO_REQUEST_SHA256:
+        if request_payload["schema_version"] == DC._LEGACY_REQUEST_SCHEMA:
+            expected = None
+            (request_path.parent / "interpreter_probe.py").write_text(
+                "raise SystemExit(0)\n", encoding="utf-8",
+            )
+            (request_path.parent / "dispatch.sh").write_text(
+                f'REQUEST={request_path}\n'
+                'exec "$DISPATCHER" --job-run "$REQUEST"\n',
+                encoding="utf-8",
+            )
+        else:
+            request_payload.setdefault("request_binding", DC._REQUEST_BINDING)
+            request_path.write_text(
+                json.dumps(request_payload) + "\n",
+                encoding="utf-8",
+            )
+            expected = hashlib.sha256(request_path.read_bytes()).hexdigest()
+            prepare_bound_envelope = True
+    else:
+        expected = expected_request_sha256
+        prepare_bound_envelope = (
+            expected is not None
+            and request_payload.get("request_binding") == DC._REQUEST_BINDING
+        )
+    if prepare_bound_envelope:
+        probe_path = request_path.parent / "interpreter_probe.py"
+        probe_path.write_text("raise SystemExit(0)\n", encoding="utf-8")
+        (request_path.parent / "dispatch.sh").write_text(
+            DC._job_script(
+                repo_root=Path(request_payload["repo_root"]),
+                submission_dir=request_path.parent,
+                request_path=request_path,
+                probe_path=probe_path,
+                request_sha256=expected,
+                walltime="00:30:00",
+                task=request_payload["task"],
+            ),
+            encoding="utf-8",
+        )
+
+    fake_uname = type("Uname", (), {"nodename": hostname})()
     calls: list[tuple[list[str], dict]] = []
 
     def record(argv, **kwargs):
         calls.append((list(argv), kwargs))
         return child_rc
 
-    with mock.patch.object(DC.os, "uname", return_value=fake_uname), \
+    with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
+            mock.patch.object(DC.os, "uname", return_value=fake_uname), \
             mock.patch.object(DC.os, "chdir"), \
             mock.patch.object(DC, "_import_probe_modules"), \
             mock.patch.object(DC.subprocess, "call", side_effect=record):
-        rc = DC._job_run(request_path)
+        rc = DC._job_run(request_path, expected)
     return rc, calls
+
+
+def test_job_run_rejects_allowlist_external_environment_before_child(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "tests",
+            "args": ["orchestrator/tests/test_pegasus_dispatch_compute.py"],
+            "environment": {"LD_PRELOAD": "/tmp/forged.so"},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert result["stage"] == "bootstrap"
+    assert "allowlist" in result["error"]
+
+
+def test_valid_current_and_v1_environment_overlays_survive_child_enforcement(
+    tmp_path,
+):
+    cases = (
+        (
+            "tests",
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "tests",
+                "args": ["orchestrator/tests/test_pegasus_dispatch_compute.py"],
+                "environment": {
+                    name: f"value-{index}"
+                    for index, name in enumerate(sorted(
+                        DC.TASKS["tests"].env_allowlist,
+                    ))
+                },
+            },
+        ),
+        (
+            "provenance",
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "provenance",
+                "args": ["--range", "A..B"],
+                "environment": {},
+            },
+        ),
+        (
+            "v1",
+            {
+                "schema_version": "pegasus-dispatch-request/v1",
+                "repo_root": str(_REPO),
+                "pytest_args": [
+                    "orchestrator/tests/test_pegasus_dispatch_compute.py",
+                ],
+                "environment": {
+                    "PYTEST_ADDOPTS": "legacy-addopts",
+                    "IZANAGI_TEST_NPROC": "legacy-nproc",
+                    "IZANAGI_TEST_TRIGGER": "legacy-trigger",
+                    "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS": "legacy-deletions",
+                },
+            },
+        ),
+    )
+
+    for name, payload in cases:
+        case_root = tmp_path / name
+        case_root.mkdir()
+        request = case_root / "request.json"
+        request.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        rc, calls = _job_run_with_mocked_child(request)
+        assert rc == 0
+        assert len(calls) == 1
+
+    assert DC._LEGACY_V1_ENV_ALLOWLIST == frozenset({
+        "PYTEST_ADDOPTS",
+        "IZANAGI_TEST_NPROC",
+        "IZANAGI_TEST_TRIGGER",
+        "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS",
+    })
+
+
+@pytest.mark.parametrize(
+    "forbidden_tail",
+    [
+        ["-k", "selected"],
+        ["-qkselected"],
+        ["-qmslow"],
+        ["-qpforeign_plugin"],
+        ["@/tmp/pytest-options"],
+        ["-o", "addopts=-k selected"],
+        ["-qoaddopts=-k selected"],
+        ["--override-ini=addopts=-p foreign_plugin"],
+        ["--over=addopts=-m slow"],
+        ["-c", "/tmp/pytest.ini"],
+        ["--conf=/tmp/pytest.ini"],
+    ],
+    ids=(
+        "direct-k",
+        "cluster-k",
+        "cluster-m",
+        "cluster-p",
+        "argfile",
+        "short-addopts",
+        "cluster-addopts",
+        "long-addopts",
+        "abbreviated-addopts",
+        "config-file",
+        "abbreviated-config-file",
+    ),
+)
+def test_mutation_argv_policy_fires_independently_in_job_run(
+    tmp_path, forbidden_tail,
+):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "mutation",
+            "args": [
+                "--spec", "spec.json",
+                "--out", "ledger.json",
+                "--runner-mode", "local",
+                "--detached",
+                "--", sys.executable, "tools/run_tests.py",
+                "orchestrator/tests/test_pegasus_dispatch_compute.py",
+                *forbidden_tail,
+            ],
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "mutation_args",
+    [
+        [
+            "--runner-mode", "dispatch", "--detached", "--",
+            sys.executable, "tools/run_tests.py",
+        ],
+        [
+            "--runner-mode", "local", "--",
+            sys.executable, "tools/run_tests.py",
+        ],
+        [
+            "--runner-mode", "local", "--detached", "--",
+            "/tmp/foreign-python", "tools/run_tests.py",
+        ],
+        [
+            "--runner-mode", "local", "--detached", "--",
+            sys.executable, "tools/foreign_runner.py",
+        ],
+        [
+            "--runner-mode", "local", "--runner-m=dispatch", "--detached", "--",
+            sys.executable, "tools/run_tests.py",
+        ],
+    ],
+    ids=(
+        "dispatch-mode",
+        "missing-detached",
+        "foreign-python",
+        "foreign-runner",
+        "abbreviated-mode-override",
+    ),
+)
+def test_mutation_structure_policy_fires_independently_in_job_run(
+    tmp_path, mutation_args,
+):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "mutation",
+            "args": [
+                "--spec", "spec.json",
+                "--out", "ledger.json",
+                *mutation_args,
+                "orchestrator/tests/test_pegasus_dispatch_compute.py",
+            ],
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+
+
+def test_job_run_closes_stdin_uses_repo_cwd_and_cleans_mutation_env(
+    monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("PYTEST_ADDOPTS", "-k injected")
+    monkeypatch.setenv("PYTEST_PLUGINS", "foreign_plugin")
+    monkeypatch.setenv("LD_PRELOAD", "/tmp/injected.so")
+    monkeypatch.setenv("IZANAGI_FORGED", "1")
+    monkeypatch.setenv(DC._REQUEST_SHA256_ENV, "f" * 64)
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "mutation",
+            "args": [
+                "--spec", "spec.json",
+                "--out", "ledger.json",
+                "--runner-mode", "local",
+                "--detached",
+                "--", sys.executable, "tools/run_tests.py",
+                "orchestrator/tests/test_pegasus_dispatch_compute.py",
+            ],
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    argv, kwargs = calls[0]
+    assert argv[1] == str(_REPO / "tools" / "mutation_worktree.py")
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    assert kwargs["cwd"] == str(_REPO)
+    assert kwargs["shell"] is False
+    assert {
+        "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "LD_PRELOAD", "IZANAGI_FORGED",
+        DC._REQUEST_SHA256_ENV,
+    }.isdisjoint(kwargs["env"])
+
+
+def test_generic_job_run_executes_direct_argv_with_clean_contract(tmp_path):
+    request = tmp_path / "request.json"
+    command = [sys.executable, "-c", "raise SystemExit(23)"]
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "generic",
+            "args": command,
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request, child_rc=23)
+
+    assert rc == 23
+    argv, kwargs = calls[0]
+    assert argv == command
+    assert kwargs["shell"] is False
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    assert kwargs["cwd"] == str(_REPO)
+
+
+def test_generic_job_run_refuses_non_compute_before_child(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "generic",
+            "args": ["true"],
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request, hostname="pegasus02")
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+
+
+def test_job_run_rejects_request_hash_mismatch_before_child(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "tests",
+            "args": ["orchestrator/tests/test_pegasus_dispatch_compute.py"],
+            "environment": {},
+            "request_binding": DC._REQUEST_BINDING,
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(
+        request,
+        expected_request_sha256="0" * 64,
+    )
+
+    assert rc == DC.INFRA_RC
+    assert calls == []
+    result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    assert result["request_sha256"] == hashlib.sha256(request.read_bytes()).hexdigest()
+    assert "job script と不一致" in result["error"]
+
+
+def test_unbound_new_request_is_rejected_but_inflight_v2_tests_survives(
+    monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("PBS_JOBID", _JOB_ID)
+    for name, payload, expected_calls in (
+        (
+            "new",
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "tests",
+                "args": ["orchestrator/tests/test_pegasus_dispatch_compute.py"],
+                "environment": {},
+                "request_binding": DC._REQUEST_BINDING,
+            },
+            0,
+        ),
+        (
+            "inflight-v2-tests",
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "tests",
+                "args": ["orchestrator/tests/test_pegasus_dispatch_compute.py"],
+                "environment": {},
+            },
+            1,
+        ),
+        (
+            "inflight-v2-provenance",
+            {
+                "schema_version": "pegasus-dispatch-request/v2",
+                "repo_root": str(_REPO),
+                "task": "provenance",
+                "args": ["--range", "A..B"],
+                "environment": {},
+            },
+            1,
+        ),
+        (
+            "inflight-v1-tests",
+            {
+                "schema_version": "pegasus-dispatch-request/v1",
+                "repo_root": str(_REPO),
+                "pytest_args": ["orchestrator/tests"],
+                "environment": {},
+            },
+            1,
+        ),
+    ):
+        case_root = tmp_path / name
+        case_root.mkdir()
+        request = case_root / "request.json"
+        request.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        if expected_calls:
+            (case_root / "interpreter_probe.py").write_text(
+                "raise SystemExit(0)\n", encoding="utf-8",
+            )
+            (case_root / "dispatch.sh").write_text(
+                f'REQUEST={request}\nexec "$DISPATCHER" --job-run "$REQUEST"\n',
+                encoding="utf-8",
+            )
+        rc, calls = _job_run_with_mocked_child(
+            request,
+            expected_request_sha256=None,
+        )
+        assert rc == (0 if expected_calls else DC.INFRA_RC)
+        assert len(calls) == expected_calls
+
+
+@pytest.mark.parametrize(
+    "task,task_args",
+    [
+        (
+            "mutation",
+            [
+                "--runner-mode", "local", "--detached", "--",
+                sys.executable, "tools/run_tests.py", "orchestrator/tests",
+            ],
+        ),
+        ("generic", ["true"]),
+    ],
+    ids=("mutation", "generic"),
+)
+@pytest.mark.parametrize(
+    "defect",
+    ["binding", "envelope", "pbs-missing", "pbs-malformed"],
+)
+def test_public_three_arg_job_run_requires_bound_pbs_envelope(
+    tmp_path, task, task_args, defect,
+):
+    case_root = tmp_path / f"{task}-{defect}"
+    case_root.mkdir()
+    request = case_root / "request.json"
+    payload = {
+        "schema_version": "pegasus-dispatch-request/v2",
+        "repo_root": str(_REPO),
+        "task": task,
+        "args": task_args,
+        "environment": {},
+        "request_binding": DC._REQUEST_BINDING,
+    }
+    if defect == "binding":
+        payload.pop("request_binding")
+    request.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    request_sha256 = hashlib.sha256(request.read_bytes()).hexdigest()
+    probe = case_root / "interpreter_probe.py"
+    probe.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    if defect != "envelope":
+        (case_root / "dispatch.sh").write_text(
+            DC._job_script(
+                repo_root=_REPO,
+                submission_dir=case_root,
+                request_path=request,
+                probe_path=probe,
+                request_sha256=request_sha256,
+                walltime="00:30:00",
+                task=task,
+            ),
+            encoding="utf-8",
+        )
+    pbs_env = {
+        "binding": _JOB_ID,
+        "envelope": _JOB_ID,
+        "pbs-missing": None,
+        "pbs-malformed": "not a pbs job id",
+    }[defect]
+    environment = {} if pbs_env is None else {"PBS_JOBID": pbs_env}
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+
+    with mock.patch.dict(DC.os.environ, environment, clear=True), \
+            mock.patch.object(DC.os, "uname", return_value=fake_uname), \
+            mock.patch.object(DC, "_import_probe_modules"), \
+            mock.patch.object(DC.subprocess, "call") as child:
+        rc = DC.main(["--job-run", str(request), request_sha256])
+
+    assert rc == DC.INFRA_RC
+    child.assert_not_called()
+
+
+def test_public_job_run_cli_rejects_unbound_arbitrary_request_path(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "tests",
+            "args": ["orchestrator/tests/test_pegasus_dispatch_compute.py"],
+            "environment": {},
+        }) + "\n",
+        encoding="utf-8",
+    )
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+
+    with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}, clear=True), \
+            mock.patch.object(DC.os, "uname", return_value=fake_uname), \
+            mock.patch.object(DC, "_import_probe_modules"), \
+            mock.patch.object(DC.subprocess, "call") as child:
+        rc = DC.main(["--job-run", str(request)])
+
+    assert rc == DC.INFRA_RC
+    child.assert_not_called()
 
 
 def test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc(tmp_path):
@@ -3968,7 +4520,7 @@ def test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc(tmp_path):
     ``orchestrator/tests/test_pegasus_dispatch_compute.py::test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc``。
     """
 
-    assert set(DC.TASKS) == {"tests", "provenance"}
+    assert set(DC.TASKS) == {"tests", "provenance", "mutation", "generic"}
     assert DC.DEFAULT_TASK == "tests"
 
     root = tmp_path / "dispatch"
@@ -4008,6 +4560,191 @@ def test_tests_task_env_allowlist_is_exact():
         "PYTHONDONTWRITEBYTECODE",
         "IZANAGI_RUN_GROWTH_HELD_TESTS",
     })
+
+
+def test_new_task_specs_bind_closed_environment_argv_and_probe_contracts():
+    mutation = DC.TASKS["mutation"]
+    assert mutation.child_script == ("tools", "mutation_worktree.py")
+    assert mutation.env_allowlist == frozenset()
+    assert mutation.probe_imports == ("pytest", "xdist", "packaging")
+    assert mutation.env_mode == "clean"
+    assert mutation.argv_policy == "mutation-worktree-v1"
+
+    generic = DC.TASKS["generic"]
+    assert generic.child_script == ("<argv>",)
+    assert generic.env_allowlist == frozenset()
+    assert generic.probe_imports == ()
+    assert generic.env_mode == "clean"
+    assert generic.argv_policy == "generic-v1"
+
+    for task in ("tests", "provenance"):
+        assert DC.TASKS[task].env_mode == "inherit"
+        assert DC.TASKS[task].argv_policy == "passthrough"
+
+
+@pytest.mark.parametrize(
+    "forbidden_tail",
+    [
+        ["-k", "selected"],
+        ["-m=slow"],
+        ["-qkselected"],
+        ["-qmslow"],
+        ["-qpforeign_plugin"],
+        ["@/tmp/pytest-options"],
+        ["-o", "addopts=-k selected"],
+        ["-qoaddopts=-k selected"],
+        ["--override-ini=addopts=-p foreign_plugin"],
+        ["--over=addopts=-m slow"],
+        ["-c", "/tmp/pytest.ini"],
+        ["--conf=/tmp/pytest.ini"],
+        ["orchestrator/tests/test_sample.py::test_selected"],
+        ["--deselect=selected"],
+        ["--ignore-glob=orchestrator/tests/test_*.py"],
+        ["-p", "no:cacheprovider"],
+        ["PYTEST_ADDOPTS=-q"],
+        ["PYTEST_PLUGINS=foreign_plugin"],
+        ["--force-dispatch"],
+    ],
+    ids=(
+        "k-selector",
+        "m-selector",
+        "cluster-k",
+        "cluster-m",
+        "cluster-p",
+        "argfile",
+        "short-addopts",
+        "cluster-addopts",
+        "long-addopts",
+        "abbreviated-addopts",
+        "config-file",
+        "abbreviated-config-file",
+        "nodeid",
+        "deselect",
+        "ignore",
+        "plugin-option",
+        "addopts-env",
+        "plugins-env",
+        "force-dispatch",
+    ),
+)
+def test_mutation_argv_policy_rejects_before_qsub(tmp_path, forbidden_tail):
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        [
+            "--spec", "spec.json",
+            "--out", "ledger.json",
+            "--runner-mode", "local",
+            "--detached",
+            "--", sys.executable, "tools/run_tests.py",
+            "orchestrator/tests/test_pegasus_dispatch_compute.py",
+            *forbidden_tail,
+        ],
+        task="mutation",
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        run_command=scheduler,
+        nonce="mutation-forbidden",
+    )
+
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+
+
+@pytest.mark.parametrize(
+    "mutation_args",
+    [
+        [
+            "--runner-mode", "dispatch", "--detached", "--",
+            sys.executable, "tools/run_tests.py",
+        ],
+        [
+            "--runner-mode", "local", "--",
+            sys.executable, "tools/run_tests.py",
+        ],
+        [
+            "--runner-mode", "local", "--detached", "--",
+            "/tmp/foreign-python", "tools/run_tests.py",
+        ],
+        [
+            "--runner-mode", "local", "--detached", "--",
+            sys.executable, "tools/foreign_runner.py",
+        ],
+        [
+            "--runner-mode", "local", "--runner-m=dispatch", "--detached", "--",
+            sys.executable, "tools/run_tests.py",
+        ],
+    ],
+    ids=(
+        "dispatch-mode",
+        "missing-detached",
+        "foreign-python",
+        "foreign-runner",
+        "abbreviated-mode-override",
+    ),
+)
+def test_mutation_structure_policy_rejects_before_qsub(
+    tmp_path, mutation_args,
+):
+    scheduler = _Scheduler()
+    rc = DC.dispatch(
+        [
+            "--spec", "spec.json",
+            "--out", "ledger.json",
+            *mutation_args,
+            "orchestrator/tests/test_pegasus_dispatch_compute.py",
+        ],
+        task="mutation",
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        run_command=scheduler,
+        nonce="mutation-structure-forbidden",
+    )
+
+    assert rc == DC.INFRA_RC
+    assert scheduler.commands == []
+
+
+def test_mutation_argv_policy_allows_tracked_test_file_before_qsub(tmp_path):
+    scheduler = _Scheduler()
+    clock = _Clock()
+    rc = DC.dispatch(
+        [
+            "--spec", "spec.json",
+            "--out", "ledger.json",
+            "--runner-mode", "local",
+            "--detached",
+            "--", sys.executable, "tools/run_tests.py",
+            "orchestrator/tests/test_pegasus_dispatch_compute.py", "-rf",
+        ],
+        task="mutation",
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="mutation-tracked-file",
+    )
+
+    assert rc == 0
+    assert any(command[0] == "qsub" for command, _ in scheduler.commands)
+
+
+def test_generic_rejects_empty_argv_and_shell_string_before_qsub(tmp_path):
+    for index, args in enumerate(([], [""], ("true",), "printf shell-string")):
+        scheduler = _Scheduler()
+        rc = DC.dispatch(
+            args,
+            task="generic",
+            repo_root=_REPO,
+            output_root=tmp_path / f"dispatch-{index}",
+            run_command=scheduler,
+            nonce=f"generic-invalid-{index}",
+        )
+        assert rc == DC.INFRA_RC
+        assert scheduler.commands == []
 
 
 def test_python_dont_write_bytecode_env_is_projected_into_tests_request(
@@ -4079,6 +4816,69 @@ def test_python_dont_write_bytecode_env_is_projected_into_tests_request(
         sentinel_request["environment"]["PYTHONDONTWRITEBYTECODE"]
         == "sentinel-passthrough"
     )
+
+
+def test_parent_binds_canonical_request_hash_into_script_result_and_receipt(
+    tmp_path,
+):
+    rc, submission = _dispatch(tmp_path, _Scheduler())
+
+    assert rc == 0
+    request_sha256 = hashlib.sha256(
+        (submission / "request.json").read_bytes(),
+    ).hexdigest()
+    script = (submission / "dispatch.sh").read_text(encoding="utf-8")
+    result = json.loads((submission / "result.json").read_text(encoding="utf-8"))
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert f"REQUEST_SHA256={request_sha256}\n" in script
+    assert (
+        'export IZANAGI_DISPATCH_REQUEST_SHA256="$REQUEST_SHA256"\n'
+        in script
+    )
+    assert 'exec "$selected" "$DISPATCHER" --job-run "$REQUEST"' in script
+    assert result["request_sha256"] == request_sha256
+    assert receipt["request"]["sha256"] == request_sha256
+    assert receipt["result"]["request_sha256"] == request_sha256
+
+
+def test_parent_rejects_result_request_hash_mismatch_as_infrastructure(tmp_path):
+    scheduler = _Scheduler(result_request_sha256="0" * 64)
+    rc, submission = _dispatch(tmp_path, scheduler)
+
+    assert rc == DC.INFRA_RC
+    receipt = json.loads((submission / "receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"]["kind"] == "infra"
+    assert "result.request_sha256" in receipt["outcome"]["reason"]
+
+
+def test_generic_child_rc_16_is_receipted_as_child_not_dispatch_infra(tmp_path):
+    scheduler = _Scheduler(child_rc=DC.INFRA_RC)
+    clock = _Clock()
+    rc = DC.dispatch(
+        ["true"],
+        task="generic",
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        run_command=scheduler,
+        clock=clock,
+        sleep=clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="generic-child-16",
+    )
+
+    assert rc == DC.INFRA_RC
+    receipt = json.loads(
+        (tmp_path / "dispatch" / "generic-child-16" / "receipt.json").read_text(
+            encoding="utf-8",
+        ),
+    )
+    assert receipt["outcome"] == {
+        "kind": "child",
+        "rc": DC.INFRA_RC,
+        "accounting_verified": True,
+    }
 
 
 def test_provenance_task_binds_child_script_and_empty_env_allowlist(tmp_path):
@@ -4161,12 +4961,15 @@ def test_provenance_task_removes_recording_markers_at_every_hop(
         submission_dir=submission,
         request_path=submission / "request.json",
         probe_path=submission / "interpreter_probe.py",
+        request_sha256="a" * 64,
         walltime="00:30:00",
         task="provenance",
     )
     assert "unset IZANAGI_TASK_RUN_SIDECAR IZANAGI_TASK_RUN_AUTO_RECORD" in script
 
-    request_path = tmp_path / "provenance-child-request.json"
+    child_submission = tmp_path / "provenance-child"
+    child_submission.mkdir()
+    request_path = child_submission / "request.json"
     request_path.write_text(
         json.dumps({
             "schema_version": "pegasus-dispatch-request/v2",
@@ -4212,7 +5015,10 @@ def test_job_run_accepts_v1_request_as_tests_task(tmp_path):
             "schema_version": "pegasus-dispatch-request/v1",
             "repo_root": str(_REPO),
             "pytest_args": ["orchestrator/tests", "-q"],
-            "environment": {"PYTEST_ADDOPTS": "-q"},
+            "environment": {
+                "PYTEST_ADDOPTS": "-q",
+                "IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS": "1",
+            },
         }) + "\n",
         encoding="utf-8",
     )
@@ -4224,6 +5030,7 @@ def test_job_run_accepts_v1_request_as_tests_task(tmp_path):
     assert argv[1] == str(_REPO / "tools" / "run_tests.py")
     assert argv[2:] == ["orchestrator/tests", "-q"]
     assert kwargs["env"]["PYTEST_ADDOPTS"] == "-q"
+    assert kwargs["env"]["IZANAGI_TEST_ALLOW_UNSTAGED_DELETIONS"] == "1"
     result = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
     assert result["stage"] == "child"
     assert result["child_rc"] == 7
@@ -4289,17 +5096,30 @@ def test_job_run_rejects_unknown_schema_and_task(tmp_path, payload):
 
 
 @pytest.mark.parametrize(
-    ("task", "script"),
-    [("tests", "run_tests.py"), ("provenance", "check_ai_provenance.py")],
+    ("task", "script", "task_args"),
+    [
+        ("tests", "run_tests.py", ["--range", "A..B"]),
+        ("provenance", "check_ai_provenance.py", ["--range", "A..B"]),
+        (
+            "mutation",
+            "mutation_worktree.py",
+            [
+                "--runner-mode", "local", "--detached", "--",
+                sys.executable, "tools/run_tests.py", "orchestrator/tests",
+            ],
+        ),
+    ],
 )
-def test_job_run_launches_task_specific_child_script(tmp_path, task, script):
+def test_job_run_launches_task_specific_child_script(
+    tmp_path, task, script, task_args,
+):
     request = tmp_path / "request.json"
     request.write_text(
         json.dumps({
             "schema_version": "pegasus-dispatch-request/v2",
             "repo_root": str(_REPO),
             "task": task,
-            "args": ["--range", "A..B"],
+            "args": task_args,
             "environment": {},
         }) + "\n",
         encoding="utf-8",
@@ -4309,7 +5129,7 @@ def test_job_run_launches_task_specific_child_script(tmp_path, task, script):
     assert rc == 0
     argv, _ = calls[0]
     assert argv[1] == str(_REPO / "tools" / script)
-    assert argv[2:] == ["--range", "A..B"]
+    assert argv[2:] == task_args
 
 
 def test_tests_task_remains_default_and_receipt_records_task(tmp_path):

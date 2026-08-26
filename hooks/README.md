@@ -308,6 +308,15 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   dir) の backup は通す。
 - `git commit -m "$(...)"` の heredoc: メッセージに防護トークンが入ると不透明構文判定で拒否。単一行 `-m` か
   `git commit -F <file>` で回避。
+- **拒否メッセージは一致したトークンを名指ししない**: 不透明構文 + 防護パスの同居拒否は候補群を列挙する
+  だけで、実際に一致した文字列を出さない。呼び手は「どれに当たったか」を推測することになる。
+  heredoc で prompt や台帳追記を作ると再現しやすい (dev-wave の 1 巡で 2 回発火した実測がある)。
+  回避は Write ツールで file を作ること (`DW-O03`)。**理由を出す側の改善は未実施**であり、
+  hooks/ 配下は guard 自身が編集を拒むため通常の wave では直せない。
+- **`decide()` を直接 probe するときは `site` を渡す**: `decide(command, repo_root)` の既定は
+  実運用の site 判定を通らないため、**重量拒否が全件「許可」に見える**。
+  `_runtime_site()` の値を `site=` へ渡して測る。渡さずに測った結果を hook の実挙動として報告しない
+  (実測: 汎用 task の綴り依存を測ろうとして最初にこれを踏んだ)。
 - `chmod -R 000 <campaign dir>` の権限剥奪 DoS: 末端への chmod は末端層で拒否するが祖先 dir への再帰 chmod は
   通す。ただし WAL 追記は `pipeline.evaluate` が PermissionError で fails-closed に倒れ、owner の chmod で回復可能。
 - **computed include** (`#if __has_include("x.hh")`): #include 行に現れず、-nostdinc で header 未発見なら

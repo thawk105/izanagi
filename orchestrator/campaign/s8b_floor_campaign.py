@@ -92,6 +92,7 @@ from ..calibrator.runner import (  # noqa: E402
 )
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import buildcache, patchharness, s8b_floor_stats, source_digest  # noqa: E402
+from . import sort_swo_dependency_material as _sort_swo_dependency_material  # noqa: E402
 from . import silo_ladder_rung1 as _silo_ladder  # noqa: E402
 from . import toolchain_binding  # noqa: E402
 from .build_admission import (  # noqa: E402
@@ -245,6 +246,13 @@ _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-payload-policy-schema-invalid",
     "floor-dependency-payload-policy-pin-mismatch",
     "floor-dependency-payload-policy-hash-invalid",
+    "floor-dependency-canonical-tracked-list-unavailable",
+    "floor-dependency-canonical-tracked-list-invalid",
+    "floor-dependency-canonical-root-create-failed",
+    "floor-dependency-canonical-copy-failed",
+    "floor-dependency-canonical-source-drift",
+    "floor-dependency-canonical-manifest-mismatch",
+    "floor-dependency-canonical-verification-failed",
 })
 _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-postflight-build-failed",
@@ -264,6 +272,8 @@ _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-postflight-payload-policy-mismatch",
     "floor-dependency-postflight-toolchain-manifest-mismatch",
     "floor-dependency-postflight-toolchain-hash-mismatch",
+    "floor-dependency-postflight-canonical-drift",
+    "floor-dependency-postflight-canonical-source-drift",
 })
 _FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES = frozenset({
     "not-configured",
@@ -1956,6 +1966,8 @@ class _FloorOraclePreflightDiagnostic:
     origin: str
     outcome: str
     path: Optional[Path] = None
+    generated_manifest_sha256: Optional[str] = None
+    expected_manifest_sha256: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.detail_code not in (
@@ -1969,6 +1981,21 @@ class _FloorOraclePreflightDiagnostic:
             raise ValueError("floor oracle preflight outcome が不正")
         if self.path is not None and not isinstance(self.path, Path):
             raise TypeError("floor oracle preflight path が Path でない")
+        manifest_hashes = (
+            self.generated_manifest_sha256,
+            self.expected_manifest_sha256,
+        )
+        if any(value is not None for value in manifest_hashes):
+            if (
+                self.detail_code
+                != "floor-dependency-canonical-manifest-mismatch"
+                or any(
+                    type(value) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", value) is None
+                    for value in manifest_hashes
+                )
+            ):
+                raise ValueError("floor canonical manifest 診断 hash が不正")
 
     @property
     def phase(self) -> str:
@@ -1985,12 +2012,18 @@ class _FloorOraclePreflightDiagnostic:
         return "dependency"
 
     def private_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "detail_code": self.detail_code,
             "origin": self.origin,
             "outcome": self.outcome,
             "path": None if self.path is None else str(self.path),
         }
+        if self.generated_manifest_sha256 is not None:
+            result["generated_manifest_sha256"] = (
+                self.generated_manifest_sha256
+            )
+            result["expected_manifest_sha256"] = self.expected_manifest_sha256
+        return result
 
 
 def _bounded_utf8_text(value: str, *, max_bytes: int, keep_tail: bool) -> str:
@@ -2060,13 +2093,17 @@ class _FloorOraclePreflightError(FloorCampaignError):
 
     def __init__(
             self, message: str, *, detail_code: str, origin: str,
-            outcome: str, path: Optional[Path] = None):
+            outcome: str, path: Optional[Path] = None,
+            generated_manifest_sha256: Optional[str] = None,
+            expected_manifest_sha256: Optional[str] = None):
         super().__init__(message)
         self.diagnostic = _FloorOraclePreflightDiagnostic(
             detail_code=detail_code,
             origin=origin,
             outcome=outcome,
             path=path,
+            generated_manifest_sha256=generated_manifest_sha256,
+            expected_manifest_sha256=expected_manifest_sha256,
         )
 
 
@@ -2091,6 +2128,9 @@ class _FloorOracleDependencyBinding:
     expected_toolchain_manifest_sha256: str
     source_st_dev: int
     source_st_ino: int
+    oracle_root: Optional[Path] = None
+    canonical_lease_root: Optional[Path] = None
+    dependency_manifest_sha256: Optional[str] = None
     transport_mode: str = "base-only"
     expected_config_sha256: Optional[str] = None
     payload_policy_sha256: Optional[str] = None
@@ -2116,6 +2156,12 @@ class _FloorOracleDependencyBinding:
             "dependency_source_st_dev": self.source_st_dev,
             "dependency_source_st_ino": self.source_st_ino,
         }
+        if self.oracle_root is not None:
+            result["oracle_dependency_root"] = str(self.oracle_root)
+        if self.dependency_manifest_sha256 is not None:
+            result["dependency_manifest_sha256"] = (
+                self.dependency_manifest_sha256
+            )
         if self.transport_mode != "base-only":
             result["dependency_transport_mode"] = self.transport_mode
         if self.expected_config_sha256 is not None:
@@ -2129,6 +2175,53 @@ class _FloorOracleDependencyBinding:
                 self.captured_policy_pins
             )
         return result
+
+
+def _post_oracle_dependency_binding(
+        attempt: object, dependency: _FloorOracleDependencyBinding,
+) -> dict[str, str]:
+    """Project the oracle content authority into the build capability."""
+    if (not isinstance(attempt, Mapping)
+            or attempt.get("classification") != "pass"
+            or attempt.get("reason_code") != "sort-swo-oracle-pass"):
+        raise FloorCampaignError("sort_best post-oracle binding の PASS attempt が不正")
+    receipt = attempt.get("oracle_receipt")
+    if not isinstance(receipt, Mapping):
+        raise FloorCampaignError("sort_best post-oracle binding の oracle receipt が不正")
+    manifest_sha256 = receipt.get("dependency_manifest_sha256")
+    config_sha256 = receipt.get("dependency_config_sha256")
+    for label, value in (
+            ("dependency_manifest_sha256", manifest_sha256),
+            ("dependency_config_sha256", config_sha256)):
+        if (type(value) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", value) is None):
+            raise FloorCampaignError(
+                f"sort_best post-oracle binding の {label} が不正"
+            )
+    if (
+        dependency.oracle_root is None
+        or dependency.canonical_lease_root is None
+        or dependency.dependency_manifest_sha256 is None
+    ):
+        raise FloorCampaignError(
+            "sort_best post-oracle binding の canonical dependency が欠落"
+        )
+    if manifest_sha256 != dependency.dependency_manifest_sha256:
+        raise FloorCampaignError(
+            "sort_best oracle receipt の manifest hash が canonical binding と不一致"
+        )
+    if config_sha256 != dependency.config_sha256:
+        raise FloorCampaignError(
+            "sort_best oracle receipt の config.h hash が実 source binding と不一致"
+        )
+    return {
+        "fetchcontent_base_dir": str(dependency.source_root.parent),
+        "oracle_dependency_root": str(dependency.oracle_root),
+        "dependency_manifest_sha256": manifest_sha256,
+        "masstree_head": dependency.observed_head,
+        "config_sha256": config_sha256,
+        "archive_sha256": dependency.archive_sha256,
+    }
 
 
 @dataclass(frozen=True)
@@ -3011,9 +3104,81 @@ def _canonical_floor_fetchcontent_base(
     return resolved
 
 
+def _materialize_floor_oracle_dependency(
+        binding: _FloorOracleDependencyBinding, *, lease_parent: Path,
+) -> tuple[
+        _FloorOracleDependencyBinding,
+        _sort_swo_dependency_material.CanonicalDependencyMaterial,
+]:
+    try:
+        material = (
+            _sort_swo_dependency_material.materialize_canonical_dependency(
+                binding.source_root,
+                lease_parent=lease_parent,
+                expected_head=binding.observed_head,
+            )
+        )
+    except _sort_swo_dependency_material.CanonicalDependencyMaterialError as exc:
+        detail_map = {
+            "canonical-tracked-list-unavailable": (
+                "floor-dependency-canonical-tracked-list-unavailable",
+                "floor-dependency-canonical:git-ls-files",
+                "execution-failed",
+            ),
+            "canonical-tracked-list-invalid": (
+                "floor-dependency-canonical-tracked-list-invalid",
+                "floor-dependency-canonical:git-ls-files",
+                "identity-mismatch",
+            ),
+            "canonical-root-create-failed": (
+                "floor-dependency-canonical-root-create-failed",
+                "floor-dependency-canonical:materialize",
+                "execution-failed",
+            ),
+            "canonical-copy-failed": (
+                "floor-dependency-canonical-copy-failed",
+                "floor-dependency-canonical:masstree",
+                "execution-failed",
+            ),
+            "canonical-manifest-mismatch": (
+                "floor-dependency-canonical-manifest-mismatch",
+                "floor-dependency-canonical:manifest",
+                "identity-mismatch",
+            ),
+            "canonical-verification-failed": (
+                "floor-dependency-canonical-verification-failed",
+                "floor-dependency-canonical:root",
+                "identity-mismatch",
+            ),
+        }
+        detail_code, origin, outcome = detail_map.get(
+            exc.detail_code,
+            (
+                "floor-dependency-canonical-source-drift",
+                "floor-dependency-canonical:masstree",
+                "identity-mismatch",
+            ),
+        )
+        raise _FloorOraclePreflightError(
+            str(exc), detail_code=detail_code, origin=origin,
+            outcome=outcome, path=exc.path,
+            generated_manifest_sha256=exc.generated_manifest_sha256,
+            expected_manifest_sha256=exc.expected_manifest_sha256,
+        ) from exc
+    return replace(
+        binding,
+        oracle_root=material.root,
+        canonical_lease_root=material.lease_root,
+        dependency_manifest_sha256=material.manifest_sha256,
+    ), material
+
+
 def _prepare_floor_oracle_dependency(
         fetchcontent_base: Optional[Path], *, ccbench_pin: str,
         expected_toolchain_manifest: Mapping[str, object], repo_root: Path = ROOT,
+        _material_sink: Optional[list[
+            _sort_swo_dependency_material.CanonicalDependencyMaterial
+        ]] = None,
 ) -> _FloorOracleDependencyBinding:
     """staged/legacy の transport を固定して prebuild し、oracle identity を取得する。"""
     staged_sources: dict[str, Path] = {}
@@ -3116,16 +3281,21 @@ def _prepare_floor_oracle_dependency(
         binding,
         captured_policy_pins=tuple(sorted(captured_policy_pins.items())),
     )
-    if fetchcontent_base is None:
-        return binding
-    assert expected_payload is not None
-    return replace(
-        binding,
-        transport_mode="source-dir",
-        expected_config_sha256=expected_payload.config_sha256,
-        payload_policy_sha256=payload_policy_sha256,
-        payload_policy_pin=expected_payload.pin,
+    if fetchcontent_base is not None:
+        assert expected_payload is not None
+        binding = replace(
+            binding,
+            transport_mode="source-dir",
+            expected_config_sha256=expected_payload.config_sha256,
+            payload_policy_sha256=payload_policy_sha256,
+            payload_policy_pin=expected_payload.pin,
+        )
+    binding, material = _materialize_floor_oracle_dependency(
+        binding, lease_parent=effective_base,
     )
+    if _material_sink is not None:
+        _material_sink.append(material)
+    return binding
 
 
 def _phase_marker_root(
@@ -3220,6 +3390,12 @@ def _write_phase_marker(
             "dependency_source_st_dev": dependency.source_st_dev,
             "dependency_source_st_ino": dependency.source_st_ino,
         })
+        if dependency.oracle_root is not None:
+            document["oracle_dependency_root"] = str(dependency.oracle_root)
+        if dependency.dependency_manifest_sha256 is not None:
+            document["dependency_manifest_sha256"] = (
+                dependency.dependency_manifest_sha256
+            )
     _create_private_json(destination, document)
     return destination
 
@@ -3584,6 +3760,38 @@ def _verify_floor_build_dependency(
                 detail_code="floor-dependency-postflight-source-unavailable",
                 outcome="identity-mismatch", path=expected_source,
             )
+    if require_run_local_identity:
+        if (
+            before.oracle_root is None
+            or before.canonical_lease_root is None
+            or before.dependency_manifest_sha256 is None
+        ):
+            raise _floor_postflight_error(
+                "build 後の canonical dependency binding が欠落",
+                detail_code="floor-dependency-postflight-canonical-drift",
+                outcome="identity-mismatch", path=expected_source,
+            )
+        try:
+            _sort_swo_dependency_material.assert_source_matches_canonical(
+                expected_source,
+                before.oracle_root,
+                expected_head=before.observed_head,
+                expected_manifest_sha256=before.dependency_manifest_sha256,
+            )
+        except _sort_swo_dependency_material.CanonicalDependencyMaterialError as exc:
+            canonical_failure = exc.detail_code in {
+                "canonical-verification-failed",
+                "canonical-manifest-mismatch",
+            }
+            raise _floor_postflight_error(
+                "build 後の canonical dependency 二根検査に失敗",
+                detail_code=(
+                    "floor-dependency-postflight-canonical-drift"
+                    if canonical_failure
+                    else "floor-dependency-postflight-canonical-source-drift"
+                ),
+                outcome="identity-mismatch", path=exc.path,
+            ) from exc
     expected_config_sha256 = before.expected_config_sha256
     if before.transport_mode == "source-dir":
         if expected_config_sha256 is None:
@@ -3600,12 +3808,18 @@ def _verify_floor_build_dependency(
             )
     if before.transport_mode == "base-only":
         return after
-    return replace(
+    after = replace(
         after,
+        oracle_root=before.oracle_root,
+        canonical_lease_root=before.canonical_lease_root,
+        dependency_manifest_sha256=before.dependency_manifest_sha256,
         transport_mode=before.transport_mode,
         expected_config_sha256=expected_config_sha256,
         payload_policy_sha256=before.payload_policy_sha256,
+        payload_policy_pin=before.payload_policy_pin,
+        captured_policy_pins=before.captured_policy_pins,
     )
+    return after
 
 
 @contextlib.contextmanager
@@ -3776,12 +3990,16 @@ def _bind_current_toolchain(
     }
 
 
-def build_cells(
+def _build_cells_impl(
         freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
         out_root: Path, prepare_fn, contract, verified_calibration,
         build_fn=None,
+        _invoke_build,
         fetchcontent_base_dir: Optional[os.PathLike[str] | str] = None,
         phase_marker_root: Optional[os.PathLike[str] | str] = None,
+        _canonical_material_sink: list[
+            _sort_swo_dependency_material.CanonicalDependencyMaterial
+        ],
 ) -> dict[str, dict]:
     """全セルを実体化し、runner/store 専用の absolute-path runtime view を返す。"""
     build_fn = build_fn or buildcache.build_v2
@@ -3860,6 +4078,7 @@ def build_cells(
                     None,
                     ccbench_pin=ccbench_pin,
                     expected_toolchain_manifest=expected_toolchain_manifest,
+                    _material_sink=_canonical_material_sink,
                 )
                 fetchcontent_base = dependency_binding.source_root.parent
             else:
@@ -3870,6 +4089,21 @@ def build_cells(
                     fetchcontent_base,
                     ccbench_pin=ccbench_pin,
                     expected_toolchain_manifest=expected_toolchain_manifest,
+                    _material_sink=_canonical_material_sink,
+                )
+            if (
+                dependency_binding.oracle_root is None
+                or dependency_binding.canonical_lease_root is None
+                or dependency_binding.dependency_manifest_sha256 is None
+            ):
+                raise _FloorOraclePreflightError(
+                    "floor canonical dependency binding が不完全",
+                    detail_code=(
+                        "floor-dependency-canonical-verification-failed"
+                    ),
+                    origin="floor-dependency-canonical:root",
+                    outcome="identity-mismatch",
+                    path=dependency_binding.source_root,
                 )
             _create_private_json(
                 marker_root / "sort-swo-oracle-dependency.json",
@@ -3913,7 +4147,7 @@ def build_cells(
                     prepared_cell,
                     prepared_pin,
                     cxx=cxx,
-                    oracle_dependency_root=_dependency.source_root,
+                    oracle_dependency_root=_dependency.oracle_root,
                     oracle_compiler=_compiler,
                     oracle_phase_marker=_marker,
                 )
@@ -3977,9 +4211,15 @@ def build_cells(
                     dependency=dependency_binding,
                 )
             build_kwargs = {}
-            if (dependency_binding is not None
-                    and configuration_id == "sort_best"):
-                assert fetchcontent_base is not None
+            dependency_bound_sort = (
+                dependency_binding is not None
+                and configuration_id == "sort_best"
+            )
+            if dependency_bound_sort:
+                if fetchcontent_base is None:
+                    raise FloorCampaignError(
+                        "sort_best post-oracle capability の FetchContent base がない"
+                    )
                 build_kwargs = {
                     "fetchcontent_base_dir": str(fetchcontent_base),
                     "fetchcontent_dependency_receipt": (
@@ -3988,7 +4228,17 @@ def build_cells(
                     "fetchcontent_archive_sha256": (
                         dependency_binding.archive_sha256
                     ),
+                    "post_oracle_dependency_binding": (
+                        _post_oracle_dependency_binding(
+                            oracle_attempt, dependency_binding,
+                        )
+                    ),
                 }
+                if build_fn is not buildcache.build_v2:
+                    raise FloorCampaignError(
+                        "dependency-bound sort_best は exact buildcache.build_v2 "
+                        "builder が必須"
+                    )
                 if dependency_binding.transport_mode == "source-dir":
                     build_kwargs.update({
                         "masstree_source_dir": str(
@@ -4001,8 +4251,19 @@ def build_cells(
                             fetchcontent_base / "googletest-src"
                         ),
                     })
+            if dependency_bound_sort:
+                if build_fn is not buildcache.build_v2:
+                    raise FloorCampaignError(
+                        "dependency-bound sort_best の builder が exact "
+                        "buildcache.build_v2 でない"
+                    )
+                if "post_oracle_dependency_binding" not in build_kwargs:
+                    raise FloorCampaignError(
+                        "dependency-bound sort_best の build 直前に "
+                        "post-oracle capability がない"
+                    )
             try:
-                result = build_fn(
+                result = _invoke_build(
                     prepared.genome,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
@@ -4138,6 +4399,47 @@ def build_cells(
                     fetchcontent_base
                 )
     return built
+
+
+def build_cells(
+        freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
+        out_root: Path, prepare_fn, contract, verified_calibration,
+        build_fn=None,
+        fetchcontent_base_dir: Optional[os.PathLike[str] | str] = None,
+        phase_marker_root: Optional[os.PathLike[str] | str] = None,
+) -> dict[str, dict]:
+    """Build cells while retaining the canonical lease through postflight."""
+    build_fn = build_fn or buildcache.build_v2
+    invoke_build = (
+        lambda genome, *, admission, build_context, source_evidence,
+        expected_toolchain_manifest, **kwargs: build_fn(
+            genome,
+            admission=admission,
+            build_context=build_context,
+            source_evidence=source_evidence,
+            expected_toolchain_manifest=expected_toolchain_manifest,
+            **kwargs,
+        )
+    )
+    materials: list[
+        _sort_swo_dependency_material.CanonicalDependencyMaterial
+    ] = []
+    try:
+        return _build_cells_impl(
+            freeze, cells, ccbench_pin=ccbench_pin,
+            out_root=out_root, prepare_fn=prepare_fn, contract=contract,
+            verified_calibration=verified_calibration,
+            build_fn=build_fn,
+            _invoke_build=invoke_build,
+            fetchcontent_base_dir=fetchcontent_base_dir,
+            phase_marker_root=phase_marker_root,
+            _canonical_material_sink=materials,
+        )
+    finally:
+        for material in reversed(materials):
+            _sort_swo_dependency_material.cleanup_canonical_dependency(
+                material,
+            )
 
 
 def _portable_relpath(value, *, out_root: Path, field: str) -> str:
@@ -5427,7 +5729,8 @@ class _Runner:
 
     臨界区間は session ごとに ``session-start (=authorization) → probe → measure → post-probe →
     session (end)`` を journal へ即時記録する。crash した session は start だけが残り、resume では
-    **terminal (再実行しない)** 扱いにする (forward-only)。retry の枠消費は authorization
+    admission が cut 6 の M+A- を証明した planned attempt だけ同じ authorization で再開し、
+    それ以外は **terminal (再実行しない)** 扱いにする。retry の枠消費は authorization
     (session-start) の fsync 時点で確定し、(cell_id, retry_ordinal) は resume を跨いで再発行しない
     (β-5)。retry は失敗が起きた round の末尾で schedule 順に消化する (β-4)。
     """
@@ -5441,7 +5744,8 @@ class _Runner:
                  records=None, host_provenance_fn=None, process_identity_fn=None,
                  reservation_check=None, write_capability=None,
                  perf_preflight=None, mode="official",
-                 holdout_assert_fn=None, external_checkpoint_binding=None):
+                 holdout_assert_fn=None, external_checkpoint_binding=None,
+                 cut6_replay_query_fn=None, retry_trigger_query_fn=None):
         self.protocol = protocol
         self.contract = contract
         self.cells = cells
@@ -5457,6 +5761,14 @@ class _Runner:
         self.holdout_assert_fn = (
             _holdout_admission.assert_cell_holdout_admission
             if holdout_assert_fn is None else holdout_assert_fn
+        )
+        self.cut6_replay_query_fn = (
+            _holdout_admission.floor_attempt_requires_cut6_replay
+            if cut6_replay_query_fn is None else cut6_replay_query_fn
+        )
+        self.retry_trigger_query_fn = (
+            _holdout_admission.floor_retry_trigger_for_round
+            if retry_trigger_query_fn is None else retry_trigger_query_fn
         )
         self.probe_fn = probe_fn
         self.sleep_fn = sleep_fn
@@ -5485,6 +5797,7 @@ class _Runner:
         self.allowed_reasons = set(protocol["allowed_excluded_reasons"])
         self.records = (_read_journal(journal_path) if records is None
                         else [dict(record) for record in records])
+        self._retry_authorization_cache = {}
 
     # --- journal I/O ----------------------------------------------------- #
 
@@ -5546,20 +5859,33 @@ class _Runner:
         return None if seq is None else _attempt_id(cell_id, "planned", seq, None)
 
     def _round_failed_cells(self, round_no: int) -> list[str]:
-        """round 内で planned session が完了して無効だったセルを schedule 順に。
+        """Return schedule-ordered cells for which admission authorizes retry."""
 
-        crash (start だけで完了記録なし) は forward-only の terminal であり retry を発火しない
-        (完了 invalid のみが retry の trigger)。各セルは round ごと 1 回なので重複しない。
-        """
         order = [row["cell_id"] for row in self._round_rows(round_no)]
         failed: list[str] = []
         for cell_id in order:
-            planned = [r for r in self.records
-                       if r.get("event") == "session" and r.get("kind") == "planned"
-                       and r.get("round") == round_no and r.get("cell_id") == cell_id]
-            if planned and not planned[0].get("valid"):
+            if self._retry_authorization(round_no, cell_id) is not None:
                 failed.append(cell_id)
         return failed
+
+    def _retry_authorization(self, round_no: int, cell_id: str):
+        key = (round_no, cell_id)
+        if key in self._retry_authorization_cache:
+            return self._retry_authorization_cache[key]
+        try:
+            authorization = self.retry_trigger_query_fn(
+                self.holdout_admissions[cell_id], round_no=round_no,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            raise CampaignAbort(
+                f"retry trigger admission refused: cell={cell_id}: {exc}"
+            ) from exc
+        if authorization is not None and not isinstance(
+            authorization, _holdout_admission.FloorRetryAuthorization,
+        ):
+            raise CampaignAbort("retry trigger admission returned an invalid verdict")
+        self._retry_authorization_cache[key] = authorization
+        return authorization
 
     def _cell_round_has_valid(self, cell_id: str, round_no: int) -> bool:
         return any(r.get("event") == "session" and r.get("cell_id") == cell_id
@@ -5601,15 +5927,18 @@ class _Runner:
             raise
 
     def _run_session(self, *, seq: int, round_no: int, cell_id: str, kind: str,
-                     retry_ordinal: Optional[int], trigger: Optional[str]) -> dict:
+                     retry_ordinal: Optional[int], trigger: Optional[str],
+                     _cut6_authorization_already_recorded: bool = False) -> dict:
         self._recheck_reservation_before_measurement()
         attempt_id = _attempt_id(cell_id, kind, seq, retry_ordinal)
         # authorization record: retry 枠はこの fsync 時点で消費される (crash しても再発行しない)。
-        self._emit({
-            "event": "session-start", "seq": seq, "kind": kind, "cell_id": cell_id,
-            "round": round_no, "retry_ordinal": retry_ordinal, "attempt_id": attempt_id,
-            "trigger": trigger, "started_iso": self.now_fn().isoformat(),
-        })
+        if not _cut6_authorization_already_recorded:
+            self._emit({
+                "event": "session-start", "seq": seq, "kind": kind,
+                "cell_id": cell_id, "round": round_no,
+                "retry_ordinal": retry_ordinal, "attempt_id": attempt_id,
+                "trigger": trigger, "started_iso": self.now_fn().isoformat(),
+            })
         start_mono = self.monotonic_fn()
         cell = self.cell_by_id[cell_id]
         binary = self.binaries[cell_id]["binary"]
@@ -5773,7 +6102,11 @@ class _Runner:
 
     def _retry_round(self, round_no: int) -> None:
         for cell_id in self._round_failed_cells(round_no):
-            trigger = self._planned_attempt_id(round_no, cell_id)
+            authorization = self._retry_authorization(round_no, cell_id)
+            if authorization is None:  # pragma: no cover - cache invariant
+                raise CampaignAbort("retry authorization cache is inconsistent")
+            # MUT-T1669-TRIGGER-FORWARD (retargeted from withdrawn A8).
+            trigger = authorization.trigger_attempt_id
             # campaign 通算予算まで、first-authorized-valid で 1 本有効になるまで消化する。
             while (self._authorized_retries(cell_id) < self.retry_slots
                    and not self._cell_round_has_valid(cell_id, round_no)):
@@ -5782,6 +6115,40 @@ class _Runner:
                     kind="retry", retry_ordinal=self._next_retry_ordinal(cell_id),
                     trigger=trigger,
                 )
+                # MUT-T1669-ONE-ORDINAL (retargeted from withdrawn A8): one
+                # verified recovery can authorize only this next ordinal.
+                if authorization.source == "verified-registry-recovery":
+                    break
+
+    def _replay_cut6_start(self, start: Mapping[str, object]) -> bool:
+        """Replay one existing authorization only on admission's exact verdict."""
+
+        cell_id = str(start["cell_id"])
+        attempt_id = str(start["attempt_id"])
+        try:
+            replay = self.cut6_replay_query_fn(
+                self.holdout_admissions[cell_id], attempt_id=attempt_id,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            raise CampaignAbort(
+                f"cut-6 replay admission refused: cell={cell_id}: {exc}"
+            ) from exc
+        # MUT-T1669-CUT6-ADMISSION (retargeted from withdrawn A5): the runner
+        # neither infers a crash type nor treats a truthy non-bool as proof.
+        if type(replay) is not bool:
+            raise CampaignAbort(
+                "cut-6 replay admission returned an invalid verdict"
+            )
+        if not replay:
+            return False
+        self._run_session(
+            seq=int(start["seq"]), round_no=int(start["round"]),
+            cell_id=cell_id, kind=str(start["kind"]),
+            retry_ordinal=start.get("retry_ordinal"),
+            trigger=start.get("trigger"),
+            _cut6_authorization_already_recorded=True,
+        )
+        return True
 
     # --- campaign 実行 --------------------------------------------------- #
 
@@ -5898,11 +6265,30 @@ class _Runner:
                             "utc": self.now_fn().isoformat()})
             for row in self._round_rows(round_no):
                 if row["seq"] in started:
-                    continue  # 完了 or crash 済み = 再走しない (forward-only)
+                    self._replay_cut6_start({
+                        "seq": row["seq"], "round": round_no,
+                        "cell_id": row["cell_id"], "kind": "planned",
+                        "retry_ordinal": None, "trigger": None,
+                        "attempt_id": _attempt_id(
+                            row["cell_id"], "planned", row["seq"], None,
+                        ),
+                    })
+                    continue
                 self._run_session(
                     seq=row["seq"], round_no=round_no, cell_id=row["cell_id"],
                     kind="planned", retry_ordinal=None, trigger=None,
                 )
+            retry_starts = sorted(
+                (
+                    record for record in self.records
+                    if record.get("event") == "session-start"
+                    and record.get("kind") == "retry"
+                    and record.get("round") == round_no
+                ),
+                key=lambda record: record["seq"],
+            )
+            for retry_start in retry_starts:
+                self._replay_cut6_start(retry_start)
             self._retry_round(round_no)
             self._emit({"event": "round-complete", "round": round_no,
                         "utc": self.now_fn().isoformat()})

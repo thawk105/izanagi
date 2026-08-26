@@ -163,6 +163,13 @@ _PRE_WAVE_SELF_ROUTING_SECTION = """## routing
    failures は事象・原因・恒久対応、decisions は採用理由を担う。
 
 """
+_SYNTHETIC_DW_O18_SECTION = """## DW-O18 — テスト cwd と非帰属赤の着地
+
+cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+
+受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
+
+"""
 _SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance 関門
 
 D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
@@ -174,6 +181,10 @@ _SYNTHETIC_DW_O26_SECTION = """## DW-O26 — 焦点走の consumer test 拡張
 参照する consumer test も含める。名前の推測でなく参照関係で引く（例: 変更した production module 名で
 `orchestrator/tests/` を grep する）。この拡張を欠く焦点走は、静的レビューが見落とした破れを
 初回実測でも取り逃す（F242）。
+焦点走の分割投入は直列にする。同一 worktree の並行 dispatch は orphan hold で rc=16 になる。
+変更した test file は受入全走前に単独走で確認する（全走緑は file 単独緑を含意しない）。新規
+test file を足す走は file 集合列挙のメタテストも焦点走に含める。並行 wave が自分の編集 file を
+所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 """
 _SYNTHETIC_DW_O28_SECTION = """## DW-O28 — land 後の自己撤去
 
@@ -185,17 +196,18 @@ F26 に従い `git worktree remove` と `git submodule deinit` は使わない�
 """
 _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 
-`DW-O01`/`DW-O08`/`DW-O17`/`DW-O20` に優先する。
-- `--lane`は`--stage consult`だけ必須、無指定/他段rc=2。
-- 待ち手はpid file実在後に張る。先行は子の生存中でも即戻る。
-- 隔離worktreeのdetachはrunnerとlauncherの`.sh`へ外出しする。定型はguardが拒む。
-- 複数起点の判別は全隣接区間へ異なる正値を入れる。
-- 変異harnessはbaseline緑必須。既存赤は`--deselect`で外し根拠を台帳へ書く。
+`DW-O01/O08/O17/O20`より優先。
+- `--lane`はconsult、`--reasoning`はplan/consultで必須。他段指定/必須段無指定はrc=2。
+- 待ち手はpid file実在後に張る。先行は子の生存中も即戻る。
+- 隔離worktreeのdetachはrunner/launcherの`.sh`へ外出し。定型はguard拒否。
+- 複数起点は全隣接区間の異なる正値で判別。
+- 変異harnessはbaseline緑必須。既存赤は根拠を台帳へ書き`--deselect`。
 - submoduleは`python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE_WORKTREE>`で再帰初期化する。
-- 呼出し規約を変える取込は、両親の変更行が非競合でも全呼出しを数える。
-- 段6のfixも受理・拒否の含意の向きを2文へ分け、通る正例を添える。
-- mergeは親。子は競合解決だけ、`add`とcommitも親。
-- 子のWeb検索を禁じる。成果物が全損する。
+- 呼出し規約変更取込は、両親の変更行が非競合でも全呼出しを数える。
+- 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
+- merge/`add`/commitは親、子は競合解決だけ。
+- 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
+- 子はWeb検索禁止。成果物が全損する。
 """
 
 _SYNTHETIC_OPERATION_SECTION_IDS = (
@@ -408,6 +420,51 @@ _PLACEHOLDER_MENTION_INSIGHT_B = (
     "日本語メタ変数や欠陥説明の引用を誤検出する。"
 )
 _PLACEHOLDER_ARCHIVE_NAME = "worklog-phase3-0722-0724.md"
+_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME = "worklog-phase3-0726-73-78.md"
+_KNOWN_CARRY_SOURCE_H2 = (
+    "## 2026-07-31 (77) — [T-205] provenance 履歴監査を計算ノードへ移して高速化し、"
+    "Codex author 契約に正規の waiver を開く (コード + docs、branch "
+    "worktree-dev-wave-t205-provenance-compute、受入 = Pegasus gen_S 計算ノード request "
+    "`874788` / 監査 `874793`)"
+)
+_KNOWN_CARRY_ID_MISMATCH_ARCHIVE = f"""# synthetic known carry mismatches
+
+## 2026-07-26 (73) — synthetic carry target
+
+### 次の一手
+- [T-899] deferred bridge
+
+## 2026-07-26 (74) — synthetic bridge 74
+
+- [T-899] consumed
+
+### 次の一手
+
+## 2026-07-26 (75) — synthetic bridge 75
+
+### 次の一手
+
+## 2026-07-26 (76) — synthetic bridge 76
+
+### 次の一手
+
+{_KNOWN_CARRY_SOURCE_H2}
+
+### 次の一手
+- [T-208] 変わらず ((73) 参照)
+- [T-209] 変わらず ((73) 参照)
+- [T-210] 変わらず ((73) 参照)
+- [T-211] 変わらず ((73) 参照)
+
+## 2026-07-26 (78) — synthetic known-carry sink
+
+- [T-208] consumed
+- [T-209] consumed
+- [T-210] consumed
+- [T-211] consumed
+
+### 次の一手
+"""
 
 _PLACEHOLDER_WORKLOG_ENTRIES = f"""## 2026-07-25 (1) — [T-067] oracle refusal exact 化残余を消化 (test-only、branch worktree-dev-wave-e2e-real-seal、計測なし)
 
@@ -517,7 +574,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "72af2a3311dcd5daa0bb81a40dc4831b885d7015b7f88332907d29c20dbaf0e0"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
+    "b42c873e30f2d631d1e745820bc3070616fc78641e21c33e72721def6418fa4d"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -572,57 +629,59 @@ description: マージ済みブランチと worktree を安全手順で掃除す
 argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。省略時は全量棚卸しして安全なものだけ削除]
 ---
 
-ブランチ・worktree の掃除を行う (クラス 2)。削除は不可逆に近いため、安全条件を満たすものだけを
-消し、迷ったら残して報告する。対象限定の引数: $ARGUMENTS
+ブランチ・worktree の掃除 (クラス 2)。削除は不可逆に近いので、安全条件を満たすものだけ消し、
+迷ったら残して報告する。対象限定の引数: $ARGUMENTS
 
 ## 1. 棚卸し (削除の前に全量を見る)
 
-- `git worktree list` と `git branch -a` を列挙し、各ローカルブランチの `git rev-list --count
+- `git worktree list` と `git branch -a` を列挙し、各ローカル branch の `git rev-list --count
   main..<b>` (ahead) / `<b>..main` (behind) を出す
-- 各 worktree の `git status --short` を確認する (未コミット差分の有無)
-- ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは取り残しを判定できない
-  (rebase / cherry-pick 経由は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
-  (spool の不在は fold で正常)。未着地なら §5 で報告する
-- `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>`
-  rc0削除/1§5報告・救出判断/2実行不能・削除停止。抑止行も rc0 で §5 へ
+- 各 worktree の `git status --short` (未コミット差分の有無)
+- ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは判定できない
+  (rebase / cherry-pick は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
+  (spool の不在は fold で正常)。未着地なら §5 で報告
+- `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>` を単独実行
+  (パイプ禁止・rc を直後に保存、F152)。rc0削除/1§5報告・救出判断/2実行不能・削除停止。
+  抑止行も rc0 で §5 へ。最終 `elapsed_seconds=` 欠落・未知 rc も削除停止。上限超過行は
+  rc・削除可否を変えず §5 へ報告 (上限の正本は tool `--help`)
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
 - ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
-  -d が拒否したら取り込み漏れの兆候なので止まって報告)
-- worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのもののみ。
-  占有は §3 の検査で実測し、占有・判定不能・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
-- 自分がその worktree の中で作業している場合は、先に main checkout 側へ抜けてから操作する
+  -d が拒否したら取り込み漏れの兆候なので止めて報告)
+- worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのみ。
+  占有は §3 で実測し、占有・判定不能・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
+- 自分がその worktree 内で作業中なら、先に main checkout 側へ抜けてから操作する
 
 ## 3. worktree の削除手順 (F26)
 
 削除の直前に対象ごと `python3 tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、
 rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
-1. `git -C <worktree> checkout --detach` (ブランチを解放)
-2. `git branch -d <branch>` (取り込み済み確認の上で)
+1. `git -C <worktree> checkout --detach` (branch を解放)
+2. `git branch -d <branch>` (取り込み済み確認の上)
 3. ディレクトリを削除して `git worktree prune`
 
-**`git submodule deinit` は使わない**。誤って実行した場合は
-`git submodule update --init external/ccbench` で復元する。正本は `docs/failures.md` F26。
+**`git submodule deinit` は使わない**。誤実行時は
+`git submodule update --init external/ccbench` で復元。正本は `docs/failures.md` F26。
 
 ExitWorktree の remove を `discard_changes: true` で押し切らない。main が当該 commit を含むことを
-`git log` で確認し、`action: keep` で抜け、本節の手動手順で畳む。
+`git log` で確認し、`action: keep` で抜けて本節の手順で畳む。
 cwd 固定の背景セッション (ExitWorktree が no-op・cd 非持続) では、自分が居る
-worktree の削除と prune を行わず、detach → branch -d → unlock まで実施して
+worktree の削除と prune をせず、detach → branch -d → unlock まで実施し
 残りを引き渡す (F51)。
 
 ## 4. 事後検査
 
-- `git worktree list` / `git branch` が期待どおりか
+- `git worktree list` / `git branch` が期待どおり
 - `git submodule status` — main checkout の external/ccbench が `-` prefix なし (初期化済み) で
-  pin されたコミットに一致すること
-- `git status` がクリーンであること
+  pin に一致すること
+- `git status` がクリーン
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-リモートブランチの削除 (`git push origin --delete <b>`) と main の push は行わず、対象を列挙して
-ユーザーに提示する。削除しなかったブランチ・worktree はその理由 (ahead>0、dirty 等) と併せて報告する。
+リモート branch の削除 (`git push origin --delete <b>`) と main の push は行わず、対象を列挙して
+ユーザーへ提示する。削除しなかったブランチ・worktree は理由 (ahead>0、dirty 等) と併せて報告する。
 
 ## 6. スキル自己改善 (発火条件つき)
 
@@ -931,7 +990,9 @@ description: synthetic Codex rulings skill
                 )
             if rel == "docs/dev-wave/operations.md" and section == "DW-O23":
                 body += "\n\n`tools/dev_wave_land.py`"
-            if rel == "docs/dev-wave/operations.md" and section == "DW-O25":
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O18":
+                rendered_sections.append(_SYNTHETIC_DW_O18_SECTION.rstrip("\n"))
+            elif rel == "docs/dev-wave/operations.md" and section == "DW-O25":
                 rendered_sections.append(_SYNTHETIC_DW_O25_SECTION.rstrip("\n"))
             elif rel == "docs/dev-wave/operations.md" and section == "DW-O26":
                 rendered_sections.append(_SYNTHETIC_DW_O26_SECTION.rstrip("\n"))
@@ -943,7 +1004,7 @@ description: synthetic Codex rulings skill
                 rendered_sections.append(f"## {section} — synthetic\n\n{body}")
         text = "# synthetic reference\n\n" + "\n\n".join(rendered_sections) + "\n"
         if rel == "docs/dev-wave/operations.md":
-            # O25 の既存 exact pin を保ったまま、確定文面を直後へ追加する。
+            # exact pin 済みの節 slice を次の H2 直前の改行までに保つ。
             text = text.replace(
                 _SYNTHETIC_DW_O25_SECTION.rstrip("\n")
                 + "\n\n## DW-O26",
@@ -1068,6 +1129,67 @@ def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:
     return res
 
 
+def _replace_once(text: str, old: str, new: str) -> str:
+    assert text.count(old) == 1, (old, text.count(old))
+    return text.replace(old, new, 1)
+
+
+def _replace_carry_ledger_assignment(text: str, value: str) -> str:
+    start_marker = "KNOWN_CARRY_ID_MISMATCHES = {"
+    end_marker = "\nEXPECTED_KNOWN_CARRY_ID_MISMATCHES = "
+    assert text.count(start_marker) == 1
+    assert text.count(end_marker) == 1
+    start = text.index(start_marker)
+    end = text.index(end_marker, start)
+    old = text[start:end]
+    assert text.count(old) == 1
+    return text.replace(
+        old,
+        f"KNOWN_CARRY_ID_MISMATCHES = {value}",
+        1,
+    )
+
+
+def _enable_known_carry_mismatch_fixture(root: str) -> None:
+    """実台帳と対応する採番 archive を一体で opt-in する。"""
+
+    checker_rel = "tools/check_docs.py"
+    checker_text = _read(root, checker_rel)
+    checker_text = _replace_once(
+        checker_text,
+        "KNOWN_CARRY_ID_MISMATCHES = {}",
+        f"KNOWN_CARRY_ID_MISMATCHES = {check_docs.KNOWN_CARRY_ID_MISMATCHES!r}",
+    )
+    checker_text = _replace_once(
+        checker_text,
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 0",
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 4",
+    )
+    checker_text = _replace_once(
+        checker_text,
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 0",
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 4",
+    )
+    _write(root, checker_rel, checker_text)
+
+    archive_rel = f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}"
+    _write(root, archive_rel, _KNOWN_CARRY_ID_MISMATCH_ARCHIVE)
+    readme_rel = "docs/archive/README.md"
+    readme = _read(root, readme_rel)
+    placeholder_line = f"- `{_PLACEHOLDER_ARCHIVE_NAME}`\n"
+    claim = _numbered_archive_claim_line(
+        _KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME,
+        "2026-07-26",
+        73,
+        78,
+    )
+    _write(
+        root,
+        readme_rel,
+        _replace_once(readme, placeholder_line, placeholder_line + claim),
+    )
+
+
 def _build_min_repo() -> str:
     """check_docs が『違反なし』を返す最小合成 repo を tmp に作り、root を返す。
 
@@ -1079,6 +1201,21 @@ def _build_min_repo() -> str:
     _dst = os.path.join(root, "tools", "check_docs.py")
     os.makedirs(os.path.dirname(_dst))
     shutil.copy(check_docs.__file__, _dst)
+    with open(_dst, encoding="utf-8") as fixture_checker:
+        checker_text = fixture_checker.read()
+    checker_text = _replace_carry_ledger_assignment(checker_text, "{}")
+    checker_text = _replace_once(
+        checker_text,
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 4",
+        "EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 0",
+    )
+    checker_text = _replace_once(
+        checker_text,
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 404_326",
+        "MIN_EXPECTED_CARRY_REFERENCE_COUNT = 0",
+    )
+    with open(_dst, "w", encoding="utf-8") as fixture_checker:
+        fixture_checker.write(checker_text)
     authority_dst = os.path.join(
         root, "tools", "dev_waves", "launch_authority.py"
     )
@@ -1106,13 +1243,25 @@ def _build_min_repo() -> str:
         "s8b_holdout_admission.py",
         admission_dst,
     )
+    _write(
+        root,
+        os.path.join("orchestrator", "tests", "flaky_test_holds.py"),
+        "# synthetic path placeholder\n",
+    )
+    _write(
+        root,
+        os.path.join("tools", "check_acceptance_reds.py"),
+        "# synthetic path placeholder\n",
+    )
     _write(root, os.path.join("docs", "decisions.md"),
            "## D1. placeholder decision\n\n本文。\n\n"
            "## D254. placeholder decision\n\n本文。\n\n"
            "## D271. placeholder decision\n\n本文。\n\n"
+           "## D690. placeholder decision\n\n本文。\n\n"
            + _SYNTHETIC_R33_DECISION_SECTION)
     _write(root, os.path.join("docs", "failures.md"),
-           "# placeholder failures\n")
+           "# placeholder failures\n\n"
+           "## F242. placeholder failure\n\n本文。\n")
     _write(root, os.path.join("docs", "archive", "README.md"),
            _archive_readme())
     _write(
@@ -2146,12 +2295,12 @@ def test_backlog_guard_preservation_rule_still_rejects_implicit_drop():
 def test_raised_rulings_budget_still_rejects_new_limit():
     """N22: rulings の引上げ後予算を 1 byte 超える入力で gate 生存を固定する。"""
 
-    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_000
+    assert check_docs.COMMAND_LIMITS[".claude/commands/rulings.md"].max_bytes == 5_623
 
     root = _build_min_repo()
     try:
-        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_001)
-        _assert_violation(root, ".claude/commands/rulings.md", "予算 5000 bytes")
+        _pad_to_bytes(root, ".claude/commands/rulings.md", 5_624)
+        _assert_violation(root, ".claude/commands/rulings.md", "予算 5623 bytes")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -2538,6 +2687,71 @@ def test_dispatch_inventory_rejects_tasks_alias_subscript_write():
     )
 
 
+def test_dispatch_inventory_rejects_tasks_container_unpack_alias():
+    """container unpack 経由の TASKS alias 書込み変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\n(alias,) = (TASKS,)\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_in_assignment_rhs_subtree():
+    """RHS subtree に埋めた TASKS alias 書込み変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        '\nalias = {"registry": (TASKS,)}["registry"][0]\n'
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_list_comp():
+    """ListComp の iterator から取り出した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = [value for value in (TASKS,)][0]\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_set_comp():
+    """SetComp の element closure に保持した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nfactory = next(iter({(lambda: TASKS) for _ in (0,)}))\n"
+        "alias = factory()\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_dict_comp():
+    """DictComp の value に保持した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = {key: value for key, value in ((0, TASKS),)}[0]\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_alias_through_generator_exp():
+    """GeneratorExp の iterator から取り出した TASKS alias を拒否する。"""
+    _assert_tasks_source_mutation_rejected(
+        "\nalias = next(value for value in (TASKS,))\n"
+        'alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n',
+        "TASKS の alias 束縛",
+    )
+
+
+def test_dispatch_inventory_rejects_tasks_function_default_capture():
+    """function default に捕捉した TASKS の後続変更変異を殺す。"""
+    _assert_tasks_source_mutation_rejected(
+        "\ndef add_extra(alias=TASKS):\n"
+        '    alias["extra"] = _TaskSpec(child_script=("tools", "extra.py"))\n'
+        "add_extra()\n",
+        "TASKS の function default capture",
+    )
+
+
 def test_dispatch_inventory_rejects_dict_update_through_tasks_alias():
     """``dict.update(alias, ...)`` による TASKS alias 変更変異を殺す。"""
     _assert_tasks_source_mutation_rejected(
@@ -2562,6 +2776,21 @@ def test_dispatch_inventory_accepts_real_dispatcher_tasks_reads():
     source = (check_docs.REPO / "tools/pegasus/dispatch_compute.py").read_text()
     findings: list[str] = []
     assert check_docs._dispatch_inventory_from_source(source, findings) == {
+        "tests": "tools/run_tests.py",
+        "provenance": "tools/check_ai_provenance.py",
+        "mutation": "tools/mutation_worktree.py",
+        "generic": "<argv>",
+    }
+    assert findings == []
+
+
+def test_dispatch_inventory_accepts_literal_tasks_definition():
+    """正規の literal TASKS 定義を過剰拒否する変異を殺す。"""
+    findings: list[str] = []
+    assert check_docs._dispatch_inventory_from_source(
+        _SYNTHETIC_DISPATCH_SOURCE,
+        findings,
+    ) == {
         "tests": "tools/run_tests.py",
         "provenance": "tools/check_ai_provenance.py",
     }
@@ -7368,8 +7597,11 @@ def test_command_guard_case_registration_is_complete():
         "test_condition_26_contract_pins_exact_trigger_and_target",
         "test_condition_27_contract_pins_exact_trigger_and_target",
         "test_dev_wave_dispatch_accepts_comma_delimited_section_references",
+        "test_dw_o18_exact_section_pin_accepts_synthetic_fixture",
         "test_dw_o26_exact_section_pin_accepts_synthetic_fixture",
         "test_dw_o28_exact_section_pin_accepts_synthetic_fixture",
+        "test_non_attributable_landing_contract_mutations_have_one_finding",
+        "test_non_attributable_landing_general_terms_are_accepted",
         "test_normative_exact_section_contract_is_handwritten_and_complete",
         "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
         "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
@@ -8766,6 +8998,9 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_O25_SECTION_LITERAL == (
         _SYNTHETIC_DW_O25_SECTION
     )
+    assert check_docs.DEV_WAVE_DW_O18_SECTION_LITERAL == (
+        _SYNTHETIC_DW_O18_SECTION
+    )
     assert check_docs.DEV_WAVE_DW_O26_SECTION_LITERAL == (
         _SYNTHETIC_DW_O26_SECTION
     )
@@ -8775,15 +9010,20 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_C01_SECTION_LITERAL == (
         _SYNTHETIC_DW_C01_SECTION
     )
+    assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 998
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
-    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 470
+    assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 949
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
-    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 970
+    assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 995
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
             _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,
         ("docs/skill-self-improvement.md", "routing"):
             _SYNTHETIC_SELF_ROUTING_SECTION,
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O18 — テスト cwd と非帰属赤の着地",
+        ): _SYNTHETIC_DW_O18_SECTION,
         (
             "docs/dev-wave/operations.md",
             "DW-O25 — ff-only land の全史 provenance 関門",
@@ -8803,7 +9043,22 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     }
     assert len(check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS[
         ("docs/dev-wave/core.md", "DW-C01 — 実測で是正した作法")
-    ].encode("utf-8")) == 971
+    ].encode("utf-8")) == 996
+
+
+def test_dw_o18_exact_section_pin_accepts_synthetic_fixture():
+    """DW-O18/DW-O26 の独立全文 literal を持つ baseline 正例を固定する。"""
+
+    root = _build_min_repo()
+    try:
+        operations = _read(root, "docs/dev-wave/operations.md")
+        assert operations.count(_SYNTHETIC_DW_O18_SECTION) == 1
+        assert operations.count(_SYNTHETIC_DW_O26_SECTION) == 1
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "違反なし" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():
@@ -8816,6 +9071,105 @@ def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():
         result = _run_check(root)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "違反なし" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("case", ("M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"))
+def test_non_attributable_landing_contract_mutations_have_one_finding(case):
+    """段 4 の M1〜M8 は、それぞれ対応する単一理由だけで拒否する。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        o18_finding = (
+            f"{rel}: 可視 H2 節 'DW-O18 — テスト cwd と非帰属赤の着地' の"
+            "節全体が exact 契約と不一致 — sections=1"
+        )
+        o26_finding = (
+            f"{rel}: 可視 H2 節 'DW-O26 — 焦点走の consumer test 拡張' の"
+            "節全体が exact 契約と不一致 — sections=1"
+        )
+        if case == "M1":
+            changed = text.replace(
+                "非帰属赤の着地に5分超を使わず悩まない(D690)。",
+                "5分を目安にする。",
+                1,
+            )
+            expected = o18_finding
+        elif case == "M2":
+            changed = text.replace("F不在なら登録せず裁定へ送り停止。", "", 1)
+            expected = o18_finding
+        elif case == "M3":
+            changed = text.replace(
+                "受理は`child-green`だけ。",
+                "",
+                1,
+            )
+            expected = o18_finding
+        elif case == "M4":
+            changed = text.replace("判定不能・原因未理解も除外せず停止。", "", 1)
+            expected = o18_finding
+        elif case == "M5":
+            changed = _append_reference_section_body(
+                text,
+                "DW-O16",
+                "non-attributable-only",
+            )
+            expected = (
+                check_docs.DEV_WAVE_OPERATIONS_NON_ATTRIBUTABLE_ONLY_ABSENCE_FINDING
+            )
+        elif case == "M6":
+            changed = _append_reference_section_body(
+                text,
+                "DW-O16",
+                "tools/check_acceptance_reds.py",
+            )
+            expected = (
+                check_docs.DEV_WAVE_OPERATIONS_ACCEPTANCE_REDS_TOOL_ABSENCE_FINDING
+            )
+        elif case == "M7":
+            changed = text.replace(
+                "## DW-O18 — テスト cwd と非帰属赤の着地",
+                "## DW-O18 — テスト cwd と非帰属赤の処理",
+                1,
+            )
+            expected = o18_finding.replace("sections=1", "sections=0")
+        elif case == "M8":
+            changed = text.replace(
+                "変更した test file は受入全走前に単独走で確認する"
+                "（全走緑は file 単独緑を含意しない）。",
+                "",
+                1,
+            )
+            expected = o26_finding
+        else:  # pragma: no cover - parameter 集合を上で固定する
+            raise AssertionError(case)
+        assert changed != text
+        _write(root, rel, changed)
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert _finding_set(result) == {expected}, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_non_attributable_landing_general_terms_are_accepted():
+    """M9: 一般語だけの追記を禁止語として過検出しない。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _append_reference_section_body(
+            _read(root, rel),
+            "DW-O16",
+            "非帰属という語は分類用語として用いられる。",
+        )
+        _write(root, rel, text)
+        result = _run_check(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert _finding_set(result) == set()
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -8836,7 +9190,7 @@ def test_dw_o28_exact_section_pin_accepts_synthetic_fixture():
 
 
 def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
-    """pin 済み 7 節の内側へ raw HTML block を差し込むと拒否する。"""
+    """pin 済み 8 節の内側へ raw HTML block を差し込むと拒否する。"""
 
     cases = (
         (
@@ -8846,6 +9200,10 @@ def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
         (
             "docs/skill-self-improvement.md",
             "routing",
+        ),
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O18 — テスト cwd と非帰属赤の着地",
         ),
         (
             "docs/dev-wave/operations.md",
@@ -9138,8 +9496,12 @@ def test_cleanup_command_closing_hash_h2_is_rejected():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        _write(root, rel, _read(root, rel).replace(
+        original = _read(root, rel)
+        changed = original.replace(
             "## 4. 事後検査", "## 4. 事後検査 ##", 1
+        )
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
         ))
         _assert_cleanup_digest_violation(root, rel)
     finally:
@@ -9162,8 +9524,12 @@ def test_cleanup_command_setext_h2_is_rejected():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        _write(root, rel, _read(root, rel).replace(
+        original = _read(root, rel)
+        changed = original.replace(
             "## 4. 事後検査", "4. 事後検査\n------------", 1
+        )
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
         ))
         _assert_cleanup_digest_violation(root, rel)
     finally:
@@ -9174,7 +9540,11 @@ def test_cleanup_command_invalid_backtick_info_is_rejected():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        _write(root, rel, _read(root, rel) + "\n```x`x\n## x\n```\n")
+        original = _read(root, rel)
+        changed = original + "\n```x`x\n## x\n```\n"
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
+        ))
         _assert_cleanup_digest_violation(root, rel)
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -9281,6 +9651,25 @@ def _rebind_synthetic_cleanup_command_digest(root: str) -> None:
         ")",
         1,
     ))
+
+
+def _make_cleanup_command_mutation_budget_neutral(
+    original: str,
+    mutated: str,
+) -> str:
+    """変異の byte 純増分を、検査対象外の別箇所から取り除く。"""
+
+    original_size = len(original.encode("utf-8"))
+    added_bytes = len(mutated.encode("utf-8")) - original_size
+    slack = "discard_changes: true"
+    assert added_bytes > 0, "cleanup command mutation must add bytes"
+    assert original.count(slack) == 1, "cleanup command slack must be unique"
+    assert mutated.count(slack) == 1, "mutation must not touch cleanup command slack"
+    assert added_bytes < len(slack), "insufficient cleanup command mutation slack"
+
+    balanced = mutated.replace(slack, slack[:-added_bytes], 1)
+    assert len(balanced.encode("utf-8")) == original_size
+    return balanced
 
 
 def _assert_cleanup_address_edge_violation(root: str) -> None:
@@ -9422,12 +9811,15 @@ def test_cleanup_address_edge_rejects_id_adjacent_decoy():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        changed = _read(root, rel).replace(
+        original = _read(root, rel)
+        changed = original.replace(
             "正本は `docs/failures.md` F26。",
             "旧 `docs/failures.md` の F260 は無効。",
             1,
         )
-        _write(root, rel, changed)
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
+        ))
         _rebind_synthetic_cleanup_command_digest(root)
         _assert_cleanup_address_edge_violation(root)
     finally:
@@ -9438,12 +9830,15 @@ def test_cleanup_address_edge_rejects_non_code_span_path_decoy():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        changed = _read(root, rel).replace(
+        original = _read(root, rel)
+        changed = original.replace(
             "正本は `docs/failures.md` F26。",
             "正本は docs/failures.md の F26。",
             1,
         )
-        _write(root, rel, changed)
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
+        ))
         _rebind_synthetic_cleanup_command_digest(root)
         _assert_cleanup_address_edge_violation(root)
     finally:
@@ -9454,13 +9849,16 @@ def test_cleanup_address_edge_rejects_raw_html_block():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        changed = _read(root, rel).replace(
+        original = _read(root, rel)
+        changed = original.replace(
             "正本は `docs/failures.md` F26。",
             "",
             1,
         )
         changed += "\n<div hidden>F26 (`docs/failures.md`)</div>\n"
-        _write(root, rel, changed)
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
+        ))
         _rebind_synthetic_cleanup_command_digest(root)
         _assert_cleanup_address_edge_violation(root)
     finally:
@@ -9471,13 +9869,16 @@ def test_cleanup_address_edge_rejects_link_definition():
     root = _build_min_repo()
     try:
         rel = ".claude/commands/cleanup-branches.md"
-        changed = _read(root, rel).replace(
+        original = _read(root, rel)
+        changed = original.replace(
             "正本は `docs/failures.md` F26。",
             "",
             1,
         )
         changed += "\n[F26]: https://invalid.example/docs/failures.md\n"
-        _write(root, rel, changed)
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
+        ))
         _rebind_synthetic_cleanup_command_digest(root)
         _assert_cleanup_address_edge_violation(root)
     finally:
@@ -9524,7 +9925,9 @@ def test_cleanup_address_edge_accepts_rewording():
             "F26 (`docs/failures.md`) が正本。",
             1,
         )
-        _write(root, rel, changed)
+        _write(root, rel, _make_cleanup_command_mutation_budget_neutral(
+            original, changed
+        ))
         _rebind_synthetic_cleanup_command_digest(root)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout
@@ -10622,6 +11025,547 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
             shutil.rmtree(root, ignore_errors=True)
 
 
+def _direct_carry_source(
+    module,
+    source_entry: int,
+    items: tuple[str, ...],
+    *,
+    h2: str | None = None,
+    path: str = "docs/worklog.md",
+):
+    raw_h2 = h2 or f"## 2026-08-01 ({source_entry}) — direct carry source"
+    section_body = "".join(f"- {item}\n" for item in items)
+    whole_text = f"{raw_h2}\n\n### 次の一手\n{section_body}"
+    return module._CarrySource(
+        path,
+        whole_text,
+        source_entry,
+        raw_h2,
+        section_body,
+        whole_text.index(section_body),
+    )
+
+
+def test_backlog_guard_carry_same_id_mismatch_is_positive_control():
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-002] continue", "- [T-002] (1)"
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _assert_violation(
+            root,
+            "[T-002]",
+            "entry (1) の次の一手に同じ ID がない",
+            "参照先 H2 docs/worklog.md:",
+            "参照先の次の一手に同じ ID を置くか、carry を正しい参照先へ直す",
+        )
+        assert "docs/worklog.md:" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_known_carry_id_mismatches_are_clean():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "carry 同一 ID 不一致" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_mismatch_ledger_entries_are_pinned_exactly():
+    assert check_docs.KNOWN_CARRY_ID_MISMATCHES == {
+        "6bc0dfb4679d3be38c2a97c7c81c595b62a2b033800e5b27d7f9a63b75c3814b": {
+            "34209a9f738fe90a9f3cd57531c3ef900085884b79fc6c1dd833fdf3c46ee45c": 1,
+            "f46fe17fc7831678f44471bf5c7c460be6bd65bac6a7e5a47cd0535c150a54a6": 1,
+            "f5e03b5bb559682274a1731a73e6d4dca0208c7846fabe312cad1834bc74c14e": 1,
+            "5e4a6cb7d118a27df5b710ca20351ea9e5e45ef764ed559b597dc9931140b666": 1,
+        },
+    }
+    assert check_docs.EXPECTED_KNOWN_CARRY_ID_MISMATCHES == 4
+    assert check_docs.MIN_EXPECTED_CARRY_REFERENCE_COUNT == 404_326
+    assert hashlib.sha256(_KNOWN_CARRY_SOURCE_H2.encode()).hexdigest() in (
+        check_docs.KNOWN_CARRY_ID_MISMATCHES
+    )
+
+
+def test_backlog_guard_known_carry_list_marker_rewrite_is_violation():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        rel = f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}"
+        text = _read(root, rel)
+        original = "- [T-208] 変わらず ((73) 参照)"
+        rewritten = "1. [T-208] 変わらず ((73) 参照)"
+        _write(root, rel, _replace_once(text, original, rewritten))
+        res = _assert_violation(
+            root,
+            "[T-208]",
+            "entry (73) の次の一手に同じ ID がない",
+            "expected=1, actual=0",
+        )
+        assert "carry 同一 ID 不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_item_digest_covers_marker_and_continuation():
+    raw_h2 = "## 2026-08-01 (2) — folded carry source"
+    section_body = "- [T-002] (1)\n  folded detail\n- [T-003] (1)\n"
+    whole_text = f"{raw_h2}\n\n### 次の一手\n{section_body}"
+    source = check_docs._CarrySource(
+        "docs/worklog.md",
+        whole_text,
+        2,
+        raw_h2,
+        section_body,
+        whole_text.index(section_body),
+    )
+    references = list(check_docs._iter_carry_references((source,)))
+    assert [reference.item_digest for reference in references] == [
+        hashlib.sha256(b"- [T-002] (1)\n  folded detail").hexdigest(),
+        hashlib.sha256(b"- [T-003] (1)").hexdigest(),
+    ]
+
+
+def test_backlog_guard_carry_mismatch_ledger_total_is_enforced():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        module = _load_fixture_checker(root)
+        module.EXPECTED_KNOWN_CARRY_ID_MISMATCHES = 5
+        res = _run_loaded_checker(module)
+        assert res.returncode == 1, res.stdout
+        assert (
+            "登録 occurrence 総数が不一致 — expected=5, actual=4"
+            in res.stdout
+        )
+        assert len(_finding_set(res)) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_registered_carry_mismatch_removal_is_violation():
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        rel = f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}"
+        text = _read(root, rel)
+        removed = "- [T-211] 変わらず ((73) 参照)\n"
+        assert text.count(removed) == 1
+        _write(root, rel, text.replace(removed, "", 1))
+        module = _load_fixture_checker(root)
+        module.MIN_EXPECTED_CARRY_REFERENCE_COUNT = 0
+        res = _run_loaded_checker(module)
+        assert res.returncode == 1, res.stdout
+        assert "expected=1, actual=0" in res.stdout
+        assert "凍結 archive を編集せず、復元するか裁定へ返す" in res.stdout
+        assert "5e4a6cb7d118a27d" in res.stdout
+        assert len(_finding_set(res)) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_same_target_and_id_from_new_source_is_violation(
+    monkeypatch,
+):
+    known_item = "[T-208] 変わらず ((73) 参照)"
+    source_digest = hashlib.sha256(_KNOWN_CARRY_SOURCE_H2.encode()).hexdigest()
+    item_digest = hashlib.sha256(f"- {known_item}".encode()).hexdigest()
+    monkeypatch.setattr(
+        check_docs,
+        "KNOWN_CARRY_ID_MISMATCHES",
+        {source_digest: {item_digest: 1}},
+    )
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 1)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 2)
+    sources = (
+        _direct_carry_source(
+            check_docs,
+            77,
+            (known_item,),
+            h2=_KNOWN_CARRY_SOURCE_H2,
+            path=f"docs/archive/{_KNOWN_CARRY_ID_MISMATCH_ARCHIVE_NAME}",
+        ),
+        _direct_carry_source(
+            check_docs,
+            78,
+            (known_item,),
+            h2="## 2026-08-01 (78) — new source",
+        ),
+    )
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {73: ["target.md:1"], 77: ["known.md:1"], 78: ["new.md:1"]},
+        {73: {"[T-193]"}, 77: set(), 78: set()},
+        sources,
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert any(
+        finding.startswith("docs/worklog.md:4: [T-208]")
+        and "entry (73) の次の一手に同じ ID がない" in finding
+        for finding in findings
+    )
+    assert any("参照先の次の一手に同じ ID を置くか" in finding
+               for finding in findings)
+    assert not any("expected=1, actual=0" in finding for finding in findings)
+    assert not any("母数" in finding for finding in findings)
+    assert not any("candidate" in finding for finding in findings)
+
+
+@pytest.mark.parametrize(
+    "invalid_item",
+    (
+        pytest.param("[T-999] (073)", id="leading-zero"),
+        pytest.param("[T-999] (73 )", id="trailing-space"),
+        pytest.param(
+            "[T-999] 変わらず ( (73) 参照)",
+            id="legacy-inner-space",
+        ),
+    ),
+)
+def test_backlog_guard_carry_candidate_parse_break_is_positive_control(
+    invalid_item: str,
+):
+    root = _build_min_repo()
+    try:
+        _enable_known_carry_mismatch_fixture(root)
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", "1. [T-999] carry"
+        ).replace(
+            "1. [T-002] continue", f"- {invalid_item}"
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _assert_violation(
+            root,
+            "carry 風 candidate",
+            "厳密 carry 文法に一致しない",
+            "candidate=5, parsed=4",
+            "正例: `- [T-1219] (953)`",
+        )
+        assert _violation_count(res) == 1, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("suffix", ("(D837)", "(Python 3)"))
+def test_backlog_guard_non_carry_parenthetical_item_is_clean(suffix: str):
+    root = _build_min_repo()
+    try:
+        item = f"[T-500] {suffix}"
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", f"1. {item}"
+        ).replace("1. [T-002] continue", f"- {item}")
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "carry 風 candidate" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_reference_population_floor_rejects_shrink(
+    monkeypatch,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 2)
+    source = _direct_carry_source(check_docs, 2, ("[T-002] (1)",))
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        {1: {"[T-002]"}, 2: set()},
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert findings == [
+        "carry 参照母数が粗い下限を下回る — minimum=2, actual=1"
+    ]
+
+
+def test_backlog_guard_entry_universe_and_index_must_match(monkeypatch):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 0)
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"]},
+        {},
+        (),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert any("universe にあるが次の一手索引 key が不在" in f for f in findings)
+    assert any("universe / index 集合不一致" in f for f in findings)
+
+
+@pytest.mark.parametrize(
+    (
+        "kind",
+        "target_value",
+        "category_label",
+        "detail",
+        "absent_labels",
+        "absent_details",
+    ),
+    (
+        pytest.param(
+            "missing",
+            "missing",
+            "索引 key 不在",
+            "key 不在",
+            ("索引値 None", "索引値空集合"),
+            ("値 None (section 抽出対象外)", "空集合 (次の一手が空)"),
+            id="index-key-missing",
+        ),
+        pytest.param(
+            "none",
+            None,
+            "索引値 None",
+            "値 None (section 抽出対象外)",
+            ("索引 key 不在", "索引値空集合"),
+            ("key 不在", "空集合 (次の一手が空)"),
+            id="index-value-none",
+        ),
+        pytest.param(
+            "empty",
+            set(),
+            "索引値空集合",
+            "空集合 (次の一手が空)",
+            ("索引 key 不在", "索引値 None"),
+            ("key 不在", "値 None (section 抽出対象外)"),
+            id="index-value-empty",
+        ),
+    ),
+)
+def test_backlog_guard_carry_target_index_states_are_distinct(
+    monkeypatch,
+    kind,
+    target_value,
+    category_label,
+    detail,
+    absent_labels,
+    absent_details,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 1)
+    source = _direct_carry_source(check_docs, 2, ("[T-002] (1)",))
+    index = {2: set()}
+    if kind != "missing":
+        index[1] = target_value
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        index,
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    assert any(category_label in finding for finding in findings), findings
+    assert any(
+        finding.startswith("docs/worklog.md:4: [T-002]")
+        and "entry (1)" in finding
+        and detail in finding
+        for finding in findings
+    ), findings
+    for forbidden in (*absent_labels, *absent_details):
+        assert not any(forbidden in finding for finding in findings), findings
+
+
+def test_backlog_guard_incomplete_numbered_archive_stops_carry_validation(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        check_docs,
+        "KNOWN_CARRY_ID_MISMATCHES",
+        {"source": {"item": 1}},
+    )
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 9)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 9)
+    source = _direct_carry_source(check_docs, 2, ("[T-002] (1)",))
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        {1: set(), 2: set()},
+        (source,),
+        findings,
+        numbered_archive_input_complete=False,
+    )
+    assert findings == [
+        "docs/archive: 番号付き archive 入力が不完全 — "
+        "carry 参照先の実在検査を停止"
+    ]
+
+
+def test_backlog_guard_fold_shape_carry_chain_is_clean():
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", "1. [T-002] carry"
+        ).replace("1. [T-002] continue", "- [T-002] (1)")
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_carry_references_are_streamed(monkeypatch):
+    sources = (
+        _direct_carry_source(
+            check_docs,
+            10,
+            ("[T-1219] (953)", "[T-1220] (954)"),
+        ),
+        _direct_carry_source(
+            check_docs,
+            11,
+            ("[T-193] 変わらず ((73) 参照)",),
+        ),
+    )
+    source_consumed: list[int] = []
+    item_consumed: list[str] = []
+
+    def source_generator():
+        for source in sources:
+            source_consumed.append(source.source_entry)
+            yield source
+
+    original_top_level_items = check_docs._top_level_items
+
+    def item_generator(body: str):
+        for item in original_top_level_items(body):
+            item_consumed.append(item[0])
+            yield item
+
+    monkeypatch.setattr(check_docs, "_top_level_items", item_generator)
+    scan = check_docs._CarryScanStats()
+    references = check_docs._iter_carry_references(source_generator(), scan)
+    assert iter(references) is references
+    assert source_consumed == []
+    assert item_consumed == []
+    first = next(references)
+    assert first.task_id == "[T-1219]"
+    assert scan.candidate_count == scan.parsed_count == 1
+    assert source_consumed == [10]
+    assert item_consumed == ["[T-1219] (953)"]
+    actual = [first, *references]
+    assert [item.source_entry for item in actual] == [10, 10, 11]
+    assert [item.task_id for item in actual] == [
+        "[T-1219]",
+        "[T-1220]",
+        "[T-193]",
+    ]
+    assert [item.target_entry for item in actual] == [953, 954, 73]
+    assert [item.line for item in actual] == [4, 5, 4]
+    assert scan.candidate_count == scan.parsed_count == 3
+    assert source_consumed == [10, 11]
+
+
+def test_backlog_guard_carry_findings_are_sampled_without_early_stop(
+    monkeypatch,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 25)
+    items = tuple(f"[T-{number:03d}] (1)" for number in range(300, 325))
+    source = _direct_carry_source(check_docs, 2, items)
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        {1: ["target.md:1"], 2: ["source.md:1"]},
+        {1: {"[T-001]"}, 2: set()},
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    mismatch_details = [
+        finding for finding in findings
+        if "参照先 entry (1) の次の一手に同じ ID がない" in finding
+    ]
+    assert len(mismatch_details) == 20
+    assert "carry 同一 ID 不一致: 他 5 件を抑止" in findings
+    assert (
+        "carry 同一 ID 不一致: 上記の 5 件は target 数でなく "
+        "carry occurrence 数"
+    ) in findings
+    assert not any("母数" in finding for finding in findings)
+
+
+@pytest.mark.parametrize(
+    ("kind", "category", "detail"),
+    (
+        pytest.param(
+            "missing",
+            "参照先不在",
+            "全域番号 universe に実在しない",
+            id="target-missing",
+        ),
+        pytest.param(
+            "key",
+            "索引 key 不在",
+            "次の一手索引が key 不在",
+            id="index-key-missing",
+        ),
+        pytest.param(
+            "none",
+            "索引値 None",
+            "値 None (section 抽出対象外)",
+            id="index-value-none",
+        ),
+        pytest.param(
+            "empty",
+            "索引値空集合",
+            "空集合 (次の一手が空)",
+            id="index-value-empty",
+        ),
+    ),
+)
+def test_backlog_guard_carry_index_failures_count_every_occurrence(
+    monkeypatch,
+    kind: str,
+    category: str,
+    detail: str,
+):
+    monkeypatch.setattr(check_docs, "KNOWN_CARRY_ID_MISMATCHES", {})
+    monkeypatch.setattr(check_docs, "EXPECTED_KNOWN_CARRY_ID_MISMATCHES", 0)
+    monkeypatch.setattr(check_docs, "MIN_EXPECTED_CARRY_REFERENCE_COUNT", 25)
+    source = _direct_carry_source(
+        check_docs,
+        2,
+        tuple("[T-300] (1)" for _ in range(25)),
+    )
+    locations = {2: ["source.md:1"]}
+    index: dict[int, set[str] | None] = {2: set()}
+    if kind != "missing":
+        locations[1] = ["target.md:1"]
+    if kind == "none":
+        index[1] = None
+    elif kind == "empty":
+        index[1] = set()
+    findings: list[str] = []
+    check_docs._validate_entry_universe(
+        locations,
+        index,
+        (source,),
+        findings,
+        numbered_archive_input_complete=True,
+    )
+    samples = [finding for finding in findings if detail in finding]
+    assert len(samples) == 20, findings
+    assert f"carry {category}: 他 5 件を抑止" in findings
+    assert (
+        f"carry {category}: 上記の 5 件は target 数でなく "
+        "carry occurrence 数"
+    ) in findings
+    assert not any("母数" in finding for finding in findings)
+
+
 @pytest.mark.parametrize(
     "carry_item",
     (
@@ -10633,7 +11577,9 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
 def test_backlog_guard_carry_reference_existing_in_current_is_clean(carry_item: str):
     root = _build_min_repo()
     try:
-        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", carry_item)
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-001] carry", "1. [T-002] carry"
+        ).replace("1. [T-002] continue", carry_item)
         _write_backlog_docs(root, worklog_text=worklog)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout + res.stderr
@@ -10679,12 +11625,19 @@ def test_backlog_guard_numbered_archive_entry_is_carry_target():
     root = _build_min_repo()
     try:
         name = "worklog-phase3-0730-1000.md"
-        _write(root, f"docs/archive/{name}", _archive_with_entries(("2026-07-30", "1000")))
+        archive = _archive_with_entries(("2026-07-30", "1000")).replace(
+            "### 次の一手\n",
+            "### 次の一手\n- [T-001] carry target\n",
+            1,
+        )
+        _write(root, f"docs/archive/{name}", archive)
         _write_archive_index(
             root,
             _numbered_archive_claim_line(name, "2026-07-30", 1000),
         )
-        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", "- [T-002] (1000)")
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-002] continue", "- [T-001] (1000)"
+        )
         _write_backlog_docs(root, worklog_text=worklog)
         res = _run_check(root)
         assert res.returncode == 0, res.stdout + res.stderr

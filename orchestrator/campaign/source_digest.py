@@ -98,6 +98,7 @@ ALLOWLIST = frozenset({
 STOCK = "stock"        # 後方互換: working-tree==HEAD baseline のときの src トークン
 SOURCE_EVIDENCE_SCHEMA = "source-evidence/v1"
 EMPTY_TRACKED_DIFF_SHA256 = hashlib.sha256(b"").hexdigest()
+SOURCE_BINDING_DIRECTORY = "source-bindings"
 
 
 def _is_sha256(value: object) -> bool:
@@ -1813,10 +1814,23 @@ def _git_show(ccbench_dir: str, commit: str, rel: str) -> str:
     return r.stdout
 
 
+def _canonical_preimage_bytes(parts: Iterable[str]) -> bytes:
+    """Return the historical digest preimage: ordered UTF-8 parts joined by NUL."""
+    return "\x00".join(parts).encode("utf-8")
+
+
 def _digest(parts: Iterable[str]) -> str:
-    h = hashlib.sha256()
-    h.update("\x00".join(parts).encode("utf-8"))
-    return h.hexdigest()
+    return hashlib.sha256(_canonical_preimage_bytes(parts)).hexdigest()
+
+
+def source_preimage_artifact_relative_path(proposal_sha256: str) -> str:
+    """Return the proposal-byte-addressed campaign artifact path."""
+    if not _is_sha256(proposal_sha256):
+        raise ValueError(
+            "proposal_sha256 は exact lowercase SHA-256 でなければならない: "
+            f"{proposal_sha256!r}"
+        )
+    return f"{SOURCE_BINDING_DIRECTORY}/{proposal_sha256}.preimage"
 
 
 def _assert_source_protocols_exact() -> None:
@@ -1889,6 +1903,23 @@ def _head_defines(sub: str, genome: Genome, ccbench_commit: str,
     )
 
 
+def canonical_source_preimage_bytes(
+    genome: Genome, ccbench_dir: str = "", cxx: str = "g++-13",
+) -> bytes:
+    """Return the exact normalized bytes hashed for working-tree source identity.
+
+    Source order, context normalization, the NUL delimiter, and UTF-8 encoding are
+    the pre-existing ``_digest(parts)`` contract.  Exposing those bytes lets a
+    later consumer rederive the digest without the mutable checkout or compiler.
+    """
+    sub = ccbench_dir or _ccbench_dir()
+    parts = []
+    for rel in EVOLVE_BLOCK_SOURCES:
+        defines = _worktree_defines(sub, genome, rel)
+        parts.append(_normalize_contexts(_read(os.path.join(sub, rel)), defines, cxx))
+    return _canonical_preimage_bytes(parts)
+
+
 def compute(genome: Genome, ccbench_dir: str = "", cxx: str = "g++-13") -> str:
     """working-tree の EVOLVE-BLOCK ソースを genome の defines で正規化した digest。
 
@@ -1896,12 +1927,9 @@ def compute(genome: Genome, ccbench_dir: str = "", cxx: str = "g++-13") -> str:
     identity に乗せる。defines は実 TU 供給集合まで絞る (_worktree_defines)。baseline と
     同一の文脈列・同一の絞り方を使うため stock (working-tree==HEAD) の src_token 正規化 =
     silo 8 golden id は不変。"""
-    sub = ccbench_dir or _ccbench_dir()
-    parts = []
-    for rel in EVOLVE_BLOCK_SOURCES:
-        defines = _worktree_defines(sub, genome, rel)
-        parts.append(_normalize_contexts(_read(os.path.join(sub, rel)), defines, cxx))
-    return _digest(parts)
+    return hashlib.sha256(
+        canonical_source_preimage_bytes(genome, ccbench_dir, cxx)
+    ).hexdigest()
 
 
 def assert_includes_match_head(genome: Genome, ccbench_commit: str,

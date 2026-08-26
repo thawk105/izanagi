@@ -868,10 +868,10 @@ _PRE_T822_ACTIVATION_REPORT_DIGEST_SHA256 = (
 )
 
 
-def _project_t822_receipt_v3_to_v1(
+def _project_t1749_receipt_v4_to_v1(
     bundle: dict[str, object],
 ) -> dict[str, object]:
-    """Validate and consume receipt-v3 additions before the frozen view."""
+    """Validate and consume receipt-v4 additions before the frozen view."""
 
     projected = copy.deepcopy(bundle)
     acceptance = projected["acceptance"]
@@ -880,7 +880,7 @@ def _project_t822_receipt_v3_to_v1(
     assert type(acceptance) is dict
     assert type(reports) is list
     assert type(journals) is list
-    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v3"
+    assert acceptance["schema_version"] == "p3-8c-trial-acceptance-receipt/v4"
     assert acceptance["certifying"] is False
     assert acceptance["non_certifying_reason_codes"] == [
         "no-build",
@@ -961,7 +961,7 @@ def _project_t822_receipt_v3_to_v1(
         }
     assert hashlib.sha256(
         _canonical({
-            "schema_version": "p3-8c-cross-binding-receipt/v1",
+            "schema_version": "p3-8c-cross-binding-receipt/v2",
             "trials": sorted(leaf_rows, key=lambda row: row["trial_id"]),
         })
     ).hexdigest() == aggregate
@@ -1062,7 +1062,7 @@ def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, 
     """Consume each adjudicated addition explicitly, then expose the old view."""
 
     projected = _project_t1185_generation_binding_to_generation_one(bundle)
-    projected = _project_t822_receipt_v3_to_v1(projected)
+    projected = _project_t1749_receipt_v4_to_v1(projected)
     projected = _project_t1311_arm_authority_to_pre_wave(projected)
     for report in projected["reports"]:
         assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
@@ -1163,7 +1163,7 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
         "content_digest_sha256"
     ] = "f" * 64
     with pytest.raises(AssertionError):
-        _project_t822_receipt_v3_to_v1(receipt_binding_mutant)
+        _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)
     run_start_mutant = copy.deepcopy(omitted)
     start = next(
         event for event in run_start_mutant["journals"][0]
@@ -1171,7 +1171,7 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
     )
     start["arm_execution"]["content_digest_sha256"] = "e" * 64
     with pytest.raises(AssertionError):
-        _project_t822_receipt_v3_to_v1(run_start_mutant)
+        _project_t1749_receipt_v4_to_v1(run_start_mutant)
     input_schema_mutant = copy.deepcopy(omitted)
     receipt_trial = input_schema_mutant["acceptance"]["trials"][0]
     trial_id = receipt_trial["trial_id"]
