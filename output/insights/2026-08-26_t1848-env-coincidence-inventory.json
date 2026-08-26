@@ -1,0 +1,2622 @@
+{
+ "schema": "izanagi-env-coincidence-inventory/v1",
+ "base_commit": "b0c1a8bd",
+ "predicate_p1": "call の .join(<数値>) / .wait(<数値>) の第 1 位置引数、または timeout=<数値>。真偽値は数値として数えない。",
+ "predicate_p2": "P1 に加えて deadline_s=<数値> と termination_grace_s=<数値>。",
+ "provisional_class_source": "段 2 プランの群分類。sol レンズの抽出監査で 5 件中 3 件が非 H と判定されたため、H の分類は暫定である。",
+ "confirmed_misclassified_as_H": [
+  "test_check_ai_provenance.py:6359",
+  "test_run_tests_preflight.py:2049",
+  "test_dev_waves_receipt.py:220",
+  "test_env_contract_activation.py:2451"
+ ],
+ "counts": {
+  "total_p2": 260,
+  "total_p1": 243,
+  "in_scope": 206,
+  "deferred": 54,
+  "with_provisional_class": 159
+ },
+ "rows": [
+  {
+   "file": "_dev_waves_serve_child.py",
+   "line": 122,
+   "kind": "join(positional)",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "conftest.py",
+   "line": 177,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-overthrottle-grid",
+   "provisional_class": null
+  },
+  {
+   "file": "real_repo_receipt_memo.py",
+   "line": 122,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "sort_swo_oracle_receipt_memo.py",
+   "line": 114,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_acceptance_schedule_order.py",
+   "line": 673,
+   "kind": "timeout=",
+   "bound": 300.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_artifact_admission.py",
+   "line": 345,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1629-ratification-broker",
+   "provisional_class": null
+  },
+  {
+   "file": "test_artifact_admission.py",
+   "line": 822,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1629-ratification-broker",
+   "provisional_class": null
+  },
+  {
+   "file": "test_artifact_admission.py",
+   "line": 1566,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1629-ratification-broker",
+   "provisional_class": null
+  },
+  {
+   "file": "test_bench_first_real_wal.py",
+   "line": 144,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_buildcache_v2.py",
+   "line": 2491,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_buildcache_v2.py",
+   "line": 3293,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_calibrator.py",
+   "line": 869,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_calibrator.py",
+   "line": 928,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 1859,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 1860,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 1864,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2744,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2745,
+   "kind": "wait(positional)",
+   "bound": 0.05,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2748,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2771,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2772,
+   "kind": "wait(positional)",
+   "bound": 0.05,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2775,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2873,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 2876,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 10467,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 10468,
+   "kind": "wait(positional)",
+   "bound": 0.05,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign.py",
+   "line": 10471,
+   "kind": "join(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_campaign_claim.py",
+   "line": 165,
+   "kind": "timeout=",
+   "bound": 180.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_campaign_claim.py",
+   "line": 317,
+   "kind": "timeout=",
+   "bound": 180.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_campaign_claim.py",
+   "line": 552,
+   "kind": "timeout=",
+   "bound": 180.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_campaign_lock_codec.py",
+   "line": 313,
+   "kind": "timeout=",
+   "bound": 15.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_ai_provenance.py",
+   "line": 6359,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_docs.py",
+   "line": 5975,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1732-condition18-two-points",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_docs.py",
+   "line": 5992,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1732-condition18-two-points",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_docs.py",
+   "line": 6018,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1732-condition18-two-points",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_docs.py",
+   "line": 6033,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1732-condition18-two-points",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_docs.py",
+   "line": 6088,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1732-condition18-two-points",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_docs.py",
+   "line": 6153,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1732-condition18-two-points",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 148,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 151,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1674,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1678,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1681,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1734,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1737,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1765,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1785,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_check_worktree_occupancy.py",
+   "line": 1788,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_reasoning_ab.py",
+   "line": 2649,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_reasoning_ab.py",
+   "line": 2677,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_reasoning_ab.py",
+   "line": 2680,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_reasoning_ab.py",
+   "line": 2683,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_reasoning_ab.py",
+   "line": 2714,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 1131,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 1158,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 1213,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 2201,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 2260,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 2848,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "D"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 3379,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 3388,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 3398,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 4099,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 4192,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 4613,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 4628,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 5498,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 5864,
+   "kind": "wait(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 5904,
+   "kind": "wait(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 5906,
+   "kind": "wait(positional)",
+   "bound": 0.2,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "C"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 5908,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 5909,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6034,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6107,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6156,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6171,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6184,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6240,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6285,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6320,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6342,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6345,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6373,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6392,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6592,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6954,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6991,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 6999,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 7018,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch.py",
+   "line": 7034,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_codex_worker_launch_budget.py",
+   "line": 266,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_wave_cleanup.py",
+   "line": 919,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_wave_land.py",
+   "line": 6774,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1889-worktree-registration-race",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_wave_land.py",
+   "line": 9653,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1889-worktree-registration-race",
+   "provisional_class": "T"
+  },
+  {
+   "file": "test_dev_wave_wait.py",
+   "line": 5001,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_wave_wait.py",
+   "line": 5007,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_wave_wait.py",
+   "line": 5009,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_wave_wait.py",
+   "line": 5042,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_wave_wait.py",
+   "line": 5045,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 95,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 324,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 362,
+   "kind": "timeout=",
+   "bound": 240.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 717,
+   "kind": "join(positional)",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 865,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 878,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 900,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 914,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 939,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 958,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 983,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 1012,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 2153,
+   "kind": "wait(positional)",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 2159,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_integration.py",
+   "line": 2164,
+   "kind": "join(positional)",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_protocol.py",
+   "line": 174,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_protocol.py",
+   "line": 248,
+   "kind": "deadline_s=",
+   "bound": 0.02,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_protocol.py",
+   "line": 273,
+   "kind": "deadline_s=",
+   "bound": 0.04,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_protocol.py",
+   "line": 278,
+   "kind": "join(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_protocol.py",
+   "line": 292,
+   "kind": "deadline_s=",
+   "bound": 1.0,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_protocol.py",
+   "line": 311,
+   "kind": "join(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_receipt.py",
+   "line": 220,
+   "kind": "wait(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_receipt.py",
+   "line": 225,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_receipt.py",
+   "line": 232,
+   "kind": "join(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 118,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 152,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 183,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 287,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 288,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 307,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 338,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 397,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "T"
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 397,
+   "kind": "timeout=",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 407,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "T"
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 407,
+   "kind": "timeout=",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 420,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 436,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 446,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 457,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 486,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_dev_waves_worker.py",
+   "line": 526,
+   "kind": "termination_grace_s=",
+   "bound": 0.05,
+   "predicate": "P2",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_enforcement_source_ratification.py",
+   "line": 44,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 387,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 476,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 2378,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 2451,
+   "kind": "wait(positional)",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 2455,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 2481,
+   "kind": "join(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_env_contract_activation.py",
+   "line": 2496,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_execution_guard.py",
+   "line": 168,
+   "kind": "wait(positional)",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_execution_guard.py",
+   "line": 172,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_execution_guard.py",
+   "line": 199,
+   "kind": "join(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_flaky_test_holds_contract.py",
+   "line": 513,
+   "kind": "timeout=",
+   "bound": 300.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_flaky_test_holds_contract.py",
+   "line": 564,
+   "kind": "timeout=",
+   "bound": 300.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_flaky_test_holds_contract.py",
+   "line": 614,
+   "kind": "timeout=",
+   "bound": 300.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_flaky_test_holds_contract.py",
+   "line": 659,
+   "kind": "timeout=",
+   "bound": 300.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_growth_test_holds_contract.py",
+   "line": 2009,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_hooks.py",
+   "line": 3460,
+   "kind": "timeout=",
+   "bound": 3.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_hooks.py",
+   "line": 3478,
+   "kind": "timeout=",
+   "bound": 3.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_hooks.py",
+   "line": 3562,
+   "kind": "timeout=",
+   "bound": 3.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_hooks.py",
+   "line": 3602,
+   "kind": "timeout=",
+   "bound": 3.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_hooks.py",
+   "line": 3699,
+   "kind": "timeout=",
+   "bound": 3.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-b10-backoff-shape-orthogonal",
+   "provisional_class": null
+  },
+  {
+   "file": "test_mutation_harness.py",
+   "line": 1941,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_mutation_harness.py",
+   "line": 2003,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_mutation_harness.py",
+   "line": 2096,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_mutation_worktree.py",
+   "line": 588,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_mutation_worktree.py",
+   "line": 604,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_mutation_worktree.py",
+   "line": 1050,
+   "kind": "timeout=",
+   "bound": 15.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_mutation_worktree.py",
+   "line": 1057,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 3247,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 3253,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5391,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5411,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5414,
+   "kind": "join(positional)",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5415,
+   "kind": "join(positional)",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5454,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5480,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5482,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5485,
+   "kind": "join(positional)",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_dispatch_compute.py",
+   "line": 5486,
+   "kind": "join(positional)",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_pegasus_floor_tools.py",
+   "line": 359,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_pytest_collection_config.py",
+   "line": 142,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_pytest_collection_config.py",
+   "line": 380,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_pytest_collection_config.py",
+   "line": 403,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_pytest_collection_config.py",
+   "line": 1124,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_pytest_failure_digest.py",
+   "line": 358,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_pytest_failure_digest.py",
+   "line": 504,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_pytest_failure_digest.py",
+   "line": 510,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_pytest_failure_digest.py",
+   "line": 602,
+   "kind": "timeout=",
+   "bound": 12.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_pytest_failure_digest.py",
+   "line": 730,
+   "kind": "timeout=",
+   "bound": 15.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_queue_state.py",
+   "line": 201,
+   "kind": "timeout=",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_real_repo_serialization.py",
+   "line": 1668,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_real_repo_serialization.py",
+   "line": 1684,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_real_repo_serialization.py",
+   "line": 1687,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_real_repo_serialization.py",
+   "line": 1692,
+   "kind": "join(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_reflux_origin_ledger.py",
+   "line": 953,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_reflux_origin_ledger.py",
+   "line": 966,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_reflux_origin_ledger.py",
+   "line": 971,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_reflux_origin_ledger.py",
+   "line": 1015,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_reflux_origin_ledger.py",
+   "line": 1545,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_reflux_origin_ledger.py",
+   "line": 1556,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_resume_gate_acceptance_boundary.py",
+   "line": 53,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_resume_gate_acceptance_boundary.py",
+   "line": 60,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_resume_gate_acceptance_boundary.py",
+   "line": 232,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_resume_gate_acceptance_boundary.py",
+   "line": 238,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_resume_gate_acceptance_boundary.py",
+   "line": 379,
+   "kind": "timeout=",
+   "bound": 45.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_run_tests_nproc.py",
+   "line": 406,
+   "kind": "timeout=",
+   "bound": 120.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_preflight.py",
+   "line": 869,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_run_tests_preflight.py",
+   "line": 2049,
+   "kind": "wait(positional)",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1114,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1116,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1145,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1147,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1149,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1216,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1218,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1270,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_run_tests_shards.py",
+   "line": 1272,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s6_sort_sweep.py",
+   "line": 606,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8a_trigger_sweep.py",
+   "line": 815,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8b_attempt_registry.py",
+   "line": 1501,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8b_floor_campaign.py",
+   "line": 7980,
+   "kind": "timeout=",
+   "bound": 180.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8b_holdout_freeze.py",
+   "line": 1547,
+   "kind": "timeout=",
+   "bound": 3.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8b_oracle_driver.py",
+   "line": 3557,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-flaky-holds-20260826",
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8c_acceptance_receipt_v2.py",
+   "line": 360,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8c_budget.py",
+   "line": 150,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8c_budget.py",
+   "line": 164,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8c_budget.py",
+   "line": 168,
+   "kind": "join(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8c_preregistration_core.py",
+   "line": 125,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8c_preregistration_core.py",
+   "line": 456,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8c_preregistration_core.py",
+   "line": 2009,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_s8c_preregistration_predicates.py",
+   "line": 99,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8c_preregistration_predicates.py",
+   "line": 2715,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_s8c_preregistration_predicates.py",
+   "line": 3887,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_ss2pl_lock_study.py",
+   "line": 1187,
+   "kind": "timeout=",
+   "bound": 1.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 910,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 4093,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 4094,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 4396,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 4562,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 4638,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t126_pegasus_tools.py",
+   "line": 6018,
+   "kind": "timeout=",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t126_qualification_driver.py",
+   "line": 850,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t126_qualification_driver.py",
+   "line": 860,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t139_approval_payload.py",
+   "line": 382,
+   "kind": "timeout=",
+   "bound": 15.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t139_r4_env_probe.py",
+   "line": 851,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t139_r4_env_probe.py",
+   "line": 855,
+   "kind": "timeout=",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_t139_r4_env_probe.py",
+   "line": 931,
+   "kind": "timeout=",
+   "bound": 10.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t152_write_intent_coverage.py",
+   "line": 453,
+   "kind": "timeout=",
+   "bound": 15.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t152_write_intent_coverage.py",
+   "line": 771,
+   "kind": "timeout=",
+   "bound": 15.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t244_p3_liveness_probe.py",
+   "line": 18,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_t671_source_binding.py",
+   "line": 87,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1629-ratification-broker",
+   "provisional_class": null
+  },
+  {
+   "file": "test_t810_coordinator.py",
+   "line": 988,
+   "kind": "timeout=",
+   "bound": 30.0,
+   "predicate": "P1",
+   "status": "deferred",
+   "owning_wave": "dev-wave-t1889-worktree-registration-race",
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_task_run_aggregate.py",
+   "line": 318,
+   "kind": "wait(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_task_run_aggregate.py",
+   "line": 321,
+   "kind": "join(positional)",
+   "bound": 5.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_task_run_ledger.py",
+   "line": 387,
+   "kind": "join(positional)",
+   "bound": 20.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_trial_registry.py",
+   "line": 4445,
+   "kind": "timeout=",
+   "bound": 60.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": null
+  },
+  {
+   "file": "test_trial_registry.py",
+   "line": 7346,
+   "kind": "wait(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_trial_registry.py",
+   "line": 7347,
+   "kind": "wait(positional)",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  },
+  {
+   "file": "test_trial_registry.py",
+   "line": 7348,
+   "kind": "wait(positional)",
+   "bound": 0.1,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "C"
+  },
+  {
+   "file": "test_trial_registry.py",
+   "line": 7368,
+   "kind": "timeout=",
+   "bound": 2.0,
+   "predicate": "P1",
+   "status": "in_scope",
+   "owning_wave": null,
+   "provisional_class": "H"
+  }
+ ]
+}
