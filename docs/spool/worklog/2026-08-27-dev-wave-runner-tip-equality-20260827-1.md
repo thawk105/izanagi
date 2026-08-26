@@ -81,30 +81,63 @@ title: 受入の実行器 tip 等値要求は単独では外せない — 受入
   実行器だけを編集した wave は捕まるが実行器と dispatcher の両方を編集した wave は捕まらない。
   よって等値を外す時期は Q-early / Q-late の二択になり、前者は規律 2 の残余を一定期間受け入れる
   判断、後者は D388 の land 権威に例外を作る判断で、どちらも親が単独で決めない。裁定へ返した。
+- **ユーザーの再指示「codex に相談してどちらも判断してください」を受け、相談 2 本 (判断役・反対役) を
+  投入して親が決定した。決定は「P に着手する」「Q-early」。**
+  判断役は `P: 着手すべき` / `Q: early`、反対役は「三段ブリッジに致命的欠陥あり」で戻ったが、
+  内容は「実装前に潰すべき 4 件」であって放棄勧告ではなく、判断役の条件と一致した。
+- **決定の土台になった母集団を親が独立に実測した。** dispatcher 導入日 2026-07-30 以降、
+  main 上で実行器を触った commit は 24 件、dispatcher を触ったのは 22 件、
+  **両方を触ったのは 6 件 (実行器を触った commit の 25.0%)** である
+  (`16df3e4e` `532635b4` `9e81501f` `a34266d2` `d26b345c` `fee55899`、codex の列挙と SHA 完全一致)。
+  したがって「同時編集は稀だから tip 側執行で足りる」は成立せず、
+  **申告を main 束縛コードが要求する形 (仮説 H) は任意ではなく必須**である。
+- **Q-late は選好ではなく実行不能だから落ちた。** land は受領証を必須引数とし、その検証は
+  `already-landed` と merge の双方より前に走る。D388 は flag・環境変数・互換 bypass を
+  逐語で禁じている。手動 ff-only は受領証だけでなく provenance・fold・postcondition も
+  まとめて迂回する。
+- **反対役が出した「launcher に dispatcher の main/tip 等値検査を足す」案は親が不採用にした。**
+  D838 の代償を別 file へ移すだけであり、上記実測どおり dispatcher も同程度に触られている。
+  仮説 H が成立すれば等値検査なしで同じ保護が得られる。
 - 逐語・実測表・選択肢は `output/insights/2026-08-27_runner-tip-equality-dispatch/`。
 
 ## 次の一手差分
 
 ### 更新
 
-- [T-1932] **P1・ユーザー裁定待ち**: 受入の実行器束縛をどうするか。本 wave の実測で、
-  等値要求を単独で外すと「実行元を tested main の blob に固定する保護」が
-  実行器を編集する wave について消えることが分かった。3 択 — (A) 依頼どおり等値だけ外し
-  dispatch 側の穴を残余として受容する、(B) 等値の撤去と dispatch 束縛を 1 wave に載せ、
-  その wave だけ実行器編集 wave の land を明示的に一度だけ認める (親の推奨)、
-  (C) 等値を維持し既定 shard 数の変更は別経路で解く。
-  A と B の差は、実行器を触る wave が 1 本でも通る窓を開けるかどうかである。
-  根拠と連鎖の実測は `output/insights/2026-08-27_runner-tip-equality-dispatch/`。
+- [T-1932] **P1・裁定済み・段階 R で解く**: 受入の既定 shard 数 2→3 は、実行器を編集する
+  wave が受入を通せるようになった後、段階 R ({{T:runner-and-dispatcher-authority-to-main}}) で
+  入れる。本 wave の実測で「等値要求を単独で外すと実行元の main 束縛が消える」ことが分かり、
+  ユーザーは「推奨 B で進めて。ただし codex の賛成が条件」と裁定した。codex は B に反対し
+  (一度きりの land 認可が現行機構に存在しない)、代わりに三段ブリッジ P → Q → R が採られた。
+  ユーザーの再指示「codex に相談してどちらも判断してください」により、親が
+  **P 着手・Q-early** を決定した。根拠と連鎖の実測は
+  `output/insights/2026-08-27_runner-tip-equality-dispatch/`。
   base: 81b6b70730da35199f644ef44872112d1f85d96ca648936082650187217e565f
 
 ### 新規
 
-- {{T:dispatch-child-main-blob-binding}} **P1・新規**: 計算ノード側の子の実行 bytes も
-  tested main の blob へ束縛する。現状は `dispatch_compute` が `[python, <repo_root> の実行器, *argv]`
-  を pathname で起動するため、受入の pytest を実際に駆動するのは tip 側の作業ツリー file である。
-  claim 後の内部 merge が実行器を変えた main を取り込んだ場合も、受領証は古い claim main の
-  実行器 digest を載せたままになる。**[T-1932] の裁定が A か B のときだけ着手できる**。
-  B なら同じ変更単位、A なら直後の wave。
+- {{T:dispatch-child-main-blob-binding}} **P1・新規・次の wave (段階 P)**: 計算ノード側の子の
+  実行 bytes を tested main の blob へ束縛する。**実行器を 1 byte も変えずに実装する**ので
+  通常の受入・land で着地でき、一度きりの認可を要しない。確定した設計は 6 点。
+  (i) **執行は launcher、機構は dispatcher**。main 束縛の launcher が全 shard の申告を無条件に
+  要求し、dispatcher は launcher 所有の manifest がある走行にだけ束縛を適用する。これで P 自身の
+  受入 (旧 launcher が動くので申告を要求しない) が落ちず、恒久的な暗黙 fallback も作らない。
+  (ii) **同一 buffer 束縛**。hash する bytes と子の stdin へ渡す bytes を不可分にする。
+  期待 digest の転記は恒真になる。(iii) launcher が session nonce と exact K を所有し、
+  `0..K-1` の完全一致を要求する。(iv) dispatch しない authoritative 受入は R まで fail-closed
+  (bounded local 経路も作業ツリーの実行器を pathname 再実行するため)。(v) 申告は既存の repo 外
+  shard artifact 経路に載せる (作業ツリーの無変更要求に触れない)。(vi) 欠落・不一致・転記変異・
+  非 dispatch 走の negative control を launcher のテストへ置く。
+  **dispatcher の main/tip 等値検査は採らない** — D838 の代償を別 file へ移すだけで、
+  実測では dispatcher も同程度 (22 commit) 触られている。
+- {{T:runner-equality-removal-after-binding}} **P1・新規・段階 Q**: {{T:dispatch-child-main-blob-binding}}
+  が main へ入った後、launcher と land の実行器 main/tip 等値要求だけを外す。Q も実行器を
+  触らないので通常経路で着地できる。**Q 自身の受入が新機構の production activation control になる**
+  — Q の受入は P の main launcher が動くので、申告検査が実際に発火した証拠が受領証として残る。
+  段 2 のプラン (`verbatim/s2-plan.md`) がそのまま使える。
+- {{T:runner-and-dispatcher-authority-to-main}} **P2・新規・段階 R**: 実行器を初めて編集し、
+  (i) bounded local 再入も main blob 実行へ移す、(ii) 外側の dispatcher import を main 側へ束縛する、
+  (iii) [T-1932] の既定 shard 数 2→3 を入れる。R の受入は P/Q の main 束縛 launcher が判定する。
 - {{T:acceptance-runner-binding-detection-power}} **P2・新規**: 実行器束縛の検出力不足 3 件を閉じる。
   (i) blob 読取の revision 指定を殺すテストが無い — unit test は reader を差し替えるので通らず、
   実 Git を通す E2E 2 本は main と tip の実行器が同一なので `HEAD` へ変えても通る。

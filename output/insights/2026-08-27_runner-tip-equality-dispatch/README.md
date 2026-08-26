@@ -167,3 +167,58 @@ D387 の事故モデルの下では前者が現実的な母集団なので P に
 この二択はユーザー裁定に返す。前者は規律 2 に対する残余を一定期間受け入れる判断、
 後者は D388 の land 権威に例外を作る判断であり、どちらも親が単独で決める種類ではない。
 **P はどの経路でも必要で、実行器を触らないので通常の受入・land で着地でき、後戻りしない。**
+
+## 決定 (2026-08-27) — P に着手する / Q-early
+
+ユーザーの再指示「codex に相談してどちらも判断してください」を受け、相談 2 本
+(判断役 `verbatim/s4d-consultC.md`、反対役 `verbatim/s4d-consultD.md`) を投入し、親が決定した。
+判断役は `P: 着手すべき` / `Q: early`。反対役は「三段ブリッジに致命的欠陥あり」で戻ったが、
+中身は実装前に潰すべき 4 件であって放棄勧告ではなく、判断役の条件と一致した。
+
+### 決定の土台 — 同時編集の母集団 (親が独立実測)
+
+dispatcher 導入日 2026-07-30 以降、main 上で
+
+| 対象 | commit 数 |
+|---|---|
+| 実行器を触った | 24 |
+| dispatcher を触った | 22 |
+| **両方を触った** | **6 (実行器を触った commit の 25.0%)** |
+
+該当 6 件は `16df3e4e` `532635b4` `9e81501f` `a34266d2` `d26b345c` `fee55899` で、
+codex の列挙と SHA が完全一致した。したがって「実行器と dispatcher を同時に編集する wave は
+稀だから tip 側執行で足りる」は**成立しない**。申告 (attestation) を main 束縛コードが要求する
+形 (仮説 H) は任意ではなく**必須**である。
+
+### 段階 P の確定設計 (6 点)
+
+1. **執行は launcher、機構は dispatcher。** main 束縛の launcher が全 shard の申告を無条件に
+   要求し、dispatcher は launcher 所有の manifest がある走行にだけ束縛を適用する。
+   これで P 自身の受入 (旧 launcher が動く) は落ちず、恒久的な暗黙 fallback も作らない。
+   反対役が挙げた「初回だけ binding 不在」「非受入 caller が壊れる」の 2 件は、この配置で同時に解ける。
+2. **同一 buffer 束縛。** hash する bytes と子の stdin へ渡す bytes を不可分にする。
+   期待 digest の転記では pathname 起動へ戻す変異を殺せず恒真になる。
+3. **launcher が session nonce と exact K を所有し、`0..K-1` の完全一致を要求する。**
+   K を決められない走行は受け付けない。
+4. **dispatch しない authoritative 受入は R まで fail-closed。** bounded local 経路も
+   作業ツリーの実行器を pathname 再実行するため、ここを開けたままでは束縛が意味を失う。
+5. **申告は既存の repo 外 shard artifact 経路に載せる。** 作業ツリーへ file を作らないので、
+   走行前後の無変更要求に触れない。
+6. **negative control 4 種** (申告欠落、digest 不一致、転記変異、非 dispatch 走) を
+   launcher のテストへ置く。P 自身の受入では新機構が発火しないので、
+   これらと Q の実受入が activation control になる。
+
+**反対役の「launcher に dispatcher の main/tip 等値検査を足す」案は不採用**とした。
+D838 の代償を別 file へ移すだけであり、上表のとおり dispatcher も同程度に触られている。
+仮説 H が成立すれば等値検査なしで同じ保護が得られる。
+
+### Q-early を採る理由
+
+Q-late は選好ではなく**実行不能**である。land は受領証を必須引数とし、その検証は
+`already-landed` と merge の双方より前に走る。D388 は flag・環境変数・互換 bypass を
+逐語で禁じている。手動 ff-only は受領証だけでなく provenance・fold・postcondition も
+まとめて迂回するので、Q-early の限定残余より侵害面が広い。
+
+Q は P の直後に置く。**Q 自身の受入が新機構の production activation control になる** —
+Q の受入は P の main launcher が動くので、申告検査が実際に発火した証拠が受領証として残る。
+その緑を見てから等値を外す。仮説 H を上記の形で実装できなければ P を land せず、Q へも進まない。
