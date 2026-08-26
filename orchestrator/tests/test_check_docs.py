@@ -165,9 +165,9 @@ _PRE_WAVE_SELF_ROUTING_SECTION = """## routing
 """
 _SYNTHETIC_DW_O18_SECTION = """## DW-O18 — テスト cwd と非帰属赤の着地
 
-cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走は`from tests import`確立後に限り、未確立赤も偽赤。
+cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走は`from tests import`確立後に限り未確立赤も偽赤。
 
-受入赤返却時が判定主体の境界。待ち手は赤返却だけ。人・AIが判定し根拠をworklogへ残す。assertion本文・差分実体で判定し署名一致は禁止。非帰属赤の着地5分超禁止、悩まない(D690)。自分起因は直す。N走完全一致はflakeでも非帰属の証拠でもない。差分到達不能は単独再走1回、非再現なら同一tipの受入再走1回だけ。再赤/決定的赤はmain既存Fを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本=同file)。F不在・判定不能・原因未理解は登録も除外もせず裁定へ送り停止。停止条件外は治すかhold登録後だけ投げ直しwaveを止めない。受理は`child-green`だけ、赤の受領証は禁止。
+受入赤返却時が判定主体の境界。待ち手は赤返却だけ。人・AIが判定し根拠をworklogへ残す。assertion本文・差分実体で判定、署名一致禁止。非帰属赤の着地5分超禁止、悩まない(D690)。自分起因は直す。N走完全一致はflakeでも非帰属の証拠でもない。差分到達不能は単独再走、非再現なら受入再走。同一tipで各1回だけ。再赤/決定的赤はmain既存Fを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本=同file)。F不在は登録せず裁定送り、判定不能・原因未理解は除外せず共に停止。停止条件外は治すかhold登録後だけ投げ直しwaveを止めない。受理は`child-green`だけ、赤の受領証禁止。
 
 """
 _SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance 関門
@@ -9345,7 +9345,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_C01_SECTION_LITERAL == (
         _SYNTHETIC_DW_C01_SECTION
     )
-    assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 998
+    assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 997
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 946
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
@@ -9442,7 +9442,7 @@ def test_non_attributable_landing_contract_mutations_have_one_finding(case):
             )
             expected = o18_finding
         elif case == "M2":
-            needle = "F不在・判定不能・原因未理解は"
+            needle = "F不在は登録せず裁定送り、"
             assert text.count(needle) == 1
             changed = text.replace(needle, "", 1)
             expected = o18_finding
@@ -9456,7 +9456,7 @@ def test_non_attributable_landing_contract_mutations_have_one_finding(case):
             )
             expected = o18_finding
         elif case == "M4":
-            needle = "登録も除外もせず裁定へ送り停止。"
+            needle = "判定不能・原因未理解は除外せず共に停止。"
             assert text.count(needle) == 1
             changed = text.replace(needle, "", 1)
             expected = o18_finding
