@@ -21,6 +21,10 @@ from pathlib import Path
 from typing import Callable, Iterable, Mapping, Sequence
 
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 _WAITER_SOURCE_CHUNK_BYTES = 1024 * 1024
 _SHA256_TEXT_RE = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -310,6 +314,9 @@ _DISPATCH_RELAY_ABORT = re.compile(
 )
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
+_ACCEPTANCE_SHARDS_ENV = "IZANAGI_ACCEPTANCE_SHARDS"
+# 実測で acceptance wall が 285.52 秒から 160.92 秒へ短縮したため K=3 とする。
+_PEGASUS_ACCEPTANCE_SHARDS = "3"
 _PYTEST_ENV_KEYS = ("PYTEST_ADDOPTS", "PYTEST_PLUGINS")
 _GIT_EXE = "/usr/bin/git"
 _GIT_AUTHORITY_CONFIG = (
@@ -811,6 +818,33 @@ def _launcher_process_argv(
         )
 
 
+def _acceptance_launcher_environment() -> dict[str, str] | None:
+    """Pegasus LOGIN の acceptance launcher にだけ shard 指定を足す。"""
+
+    if os.environ.get(_ACCEPTANCE_SHARDS_ENV) not in {None, ""}:
+        return None
+    try:
+        from orchestrator.campaign import queue_state, site_policy
+
+        if not site_policy.is_pegasus_login(site_policy.current_site()):
+            return None
+        queue_result = queue_state.dispatch_possible()
+    except Exception:
+        return None
+    if not (
+        type(queue_result) is tuple
+        and len(queue_result) == 2
+        and queue_result[0] is True
+        and type(queue_result[1]) is str
+        and "ENA=ENA" in queue_result[1]
+        and "STS=ACT" in queue_result[1]
+    ):
+        return None
+    environment = dict(os.environ)
+    environment[_ACCEPTANCE_SHARDS_ENV] = _PEGASUS_ACCEPTANCE_SHARDS
+    return environment
+
+
 def _default_launch_launcher(
     argv: Sequence[str], cwd: Path, source: bytes
 ) -> _LauncherSession:
@@ -821,12 +855,15 @@ def _default_launch_launcher(
         actual_argv = _launcher_process_argv(
             argv, outcome_write, completion_read
         )
+        environment = _acceptance_launcher_environment()
+        environment_kwargs = {} if environment is None else {"env": environment}
         process = subprocess.Popen(
             actual_argv,
             cwd=cwd,
             shell=False,
             stdin=subprocess.PIPE,
             pass_fds=(outcome_write, completion_read),
+            **environment_kwargs,
         )
         os.close(outcome_write)
         outcome_write = -1
