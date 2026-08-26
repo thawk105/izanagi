@@ -33,9 +33,10 @@ from .s8b_sort_swo_receipt import (
     SortSwoReceiptError,
     validate_portable_sort_swo_pass_receipt,
 )
+from . import s8b_compiler_input
 
 
-RECEIPT_SCHEMA = "s8b-binary-admission/v1"
+RECEIPT_SCHEMA = "s8b-binary-admission/v2"
 
 PORTABLE_BUILT_KEYS = frozenset({
     "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
@@ -44,7 +45,12 @@ PORTABLE_BUILT_KEYS = frozenset({
 })
 PORTABLE_SORT_BEST_BUILT_KEYS = PORTABLE_BUILT_KEYS | {"sort_swo_oracle"}
 
-_RECEIPT_KEYS = frozenset({"schema", "admission", "subject", "receipt_sha256"})
+_RECEIPT_KEYS = frozenset({
+    "schema", "admission", "subject", "proof", "receipt_sha256",
+})
+_PROOF_KEYS = frozenset({
+    "compiler_input_manifest", "materialization_binding",
+})
 _ADMISSION_KEYS = frozenset({
     "schema", "class", "policy_sha256", "review_id", "input_sha256", "source",
 })
@@ -55,6 +61,8 @@ _SOURCE_KEYS = frozenset({
 _SUBJECT_KEYS = frozenset({
     "cell_id", "holdout_id", "configuration_id", "entry_sha256",
     "binding_sha256", "binary_sha256", "contract_sha256", "trace",
+    "source_snapshot_sha256", "compiler_input_manifest_sha256",
+    "expected_materialization_sha256",
 })
 _BINDING_KEYS = frozenset({
     "genome_canonical", "src_token", "variant_id", "entry_sha256", "binding_sha256",
@@ -177,6 +185,9 @@ def issue_binary_admission_receipt(
     source: SourceEvidence, cell_id: str, holdout_id: str,
     configuration_id: str, binding: Mapping, binary: Path | str,
     binary_sha256: str, contract_sha256: str, trace: bool,
+    source_snapshot_sha256: str, expected_materialization_sha256: str,
+    compiler_input_manifest: Mapping,
+    compiler_input_manifest_sha256: str,
 ) -> dict[str, object]:
     """完全検証した sealed admission から root 非依存 receipt を発行する。"""
 
@@ -206,6 +217,25 @@ def issue_binary_admission_receipt(
         raise BinaryAdmissionError("source genome が binding と不一致")
     if source_body["src_token"] != checked_binding["src_token"]:
         raise BinaryAdmissionError("source src_token が binding と不一致")
+    if (not _is_sha256(source_snapshot_sha256)
+            or not _is_sha256(expected_materialization_sha256)):
+        raise BinaryAdmissionError(
+            "source snapshot/expected materialization SHA が不正"
+        )
+    if source_snapshot_sha256 != expected_materialization_sha256:
+        raise BinaryAdmissionError(
+            "source snapshot SHA が expected materialization と不一致"
+        )
+    try:
+        checked_manifest = s8b_compiler_input.validate_compiler_input_manifest(
+            compiler_input_manifest,
+            compiler_input_manifest_sha256,
+            snapshot_root=source.source_root,
+        )
+    except s8b_compiler_input.CompilerInputError as exc:
+        raise BinaryAdmissionError(
+            f"compiler input manifest の完全検証に失敗: {exc}"
+        ) from exc
     if not _is_sha256(binary_sha256) or not _is_sha256(contract_sha256):
         raise BinaryAdmissionError("binary/contract SHA が不正")
     if type(trace) is not bool or trace is not False:
@@ -236,6 +266,13 @@ def issue_binary_admission_receipt(
             "binary_sha256": binary_sha256,
             "contract_sha256": contract_sha256,
             "trace": trace,
+            "source_snapshot_sha256": source_snapshot_sha256,
+            "compiler_input_manifest_sha256": compiler_input_manifest_sha256,
+            "expected_materialization_sha256": expected_materialization_sha256,
+        },
+        "proof": {
+            "compiler_input_manifest": checked_manifest,
+            "materialization_binding": dict(checked_binding),
         },
     }
     body["receipt_sha256"] = _sha256_map(body)
@@ -295,6 +332,8 @@ def validate_portable_binary_record(
     subject = _exact_mapping(receipt["subject"], _SUBJECT_KEYS, "receipt subject")
     for key in (
         "entry_sha256", "binding_sha256", "binary_sha256", "contract_sha256",
+        "source_snapshot_sha256", "compiler_input_manifest_sha256",
+        "expected_materialization_sha256",
     ):
         if not _is_sha256(subject[key]):
             raise BinaryAdmissionError(f"receipt subject.{key} が SHA-256 でない")
@@ -312,6 +351,35 @@ def validate_portable_binary_record(
         raise BinaryAdmissionError("receipt source genome が record binding と不一致")
     if source["src_token"] != binding["src_token"]:
         raise BinaryAdmissionError("receipt source src_token が record binding と不一致")
+    proof = _exact_mapping(receipt["proof"], _PROOF_KEYS, "receipt proof")
+    materialization_binding = _validate_binding(
+        proof["materialization_binding"]
+    )
+    if materialization_binding != binding:
+        raise BinaryAdmissionError(
+            "receipt materialization binding が record binding と不一致"
+        )
+    try:
+        compiler_input_manifest = s8b_compiler_input._normalized_manifest(
+            proof["compiler_input_manifest"], target=None,
+        )
+    except s8b_compiler_input.CompilerInputError as exc:
+        raise BinaryAdmissionError(
+            f"receipt compiler input manifest が不正: {exc}"
+        ) from exc
+    recomputed_manifest_sha256 = s8b_compiler_input.manifest_sha256(
+        compiler_input_manifest
+    )
+    if (subject["compiler_input_manifest_sha256"]
+            != recomputed_manifest_sha256):
+        raise BinaryAdmissionError(
+            "receipt subject compiler input manifest SHA が proof 再計算値と不一致"
+        )
+    if (subject["source_snapshot_sha256"]
+            != subject["expected_materialization_sha256"]):
+        raise BinaryAdmissionError(
+            "receipt subject source snapshot SHA が expected materialization と不一致"
+        )
     if expected_ccbench_pin is not None and source["ccbench_commit"] != expected_ccbench_pin:
         raise BinaryAdmissionError("receipt source ccbench pin が外部期待値と不一致")
     if (expected_contract_sha256 is not None

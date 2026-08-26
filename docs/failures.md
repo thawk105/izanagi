@@ -7126,6 +7126,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   L1.5 unique footprint が 9,605 bytes となり予算 9,566 bytes を超える。編集は復元した。
   恒久対応は依然として機械強制されておらず、prompt 生成側の検査を
   [T-1829] として起票した。
+
+- **再発: 2026-08-26** ([T-1629] wave)。段 2 の plan 子が 2 回連続で
+  `evidence_status=invalid` / `accepted=false` / `launcher_rc=1` になり、
+  1290 秒 / 34 model call と 1521 秒 / 45 model call、あわせて約 47 分と約 9M token を失った。
+  成果物は 38,497 / 30,414 bytes で完全 (`check_codex_output.py` rc=0、`## 総括` あり) だった。
+  **親は最初 F540 (原因未特定の 3 つ目の型) と誤判定した。** 簡易 probe が重複キーを
+  88 件報告していたのに、自作 probe の入れ子誤検出だと切り捨てたためである。
+  真因は F217 そのもので、launcher と同じ strict parser を 1 行ずつ replay して確定した:
+  `INVALID line 81: JSON key が重複: 'id'`。落ちた行は `type` が `item.started` の event で、
+  その `item` object が `id` を 2 回持っていた (`item_42` と `exec-...`) 。
+  `type` は `web_search` である。
+  web_search 行は 1 回目 8 件・2 回目 6 件で、検索クエリは
+  `https://www.rfc-editor.org/rfc/rfc8032` / `'TEST 1023'` /
+  `'MESSAGE (length 1023 bytes)'` だった。
+  **引き金は親の prompt が RFC との照合を子に求めたことである。**
+  `DW-C01` の「子は Web 検索禁止」は**子の prompt には自動で入らない**ため、
+  親が毎回書き写す必要があり、本 wave では書き落としていた。
+  対応は 2 つ。全 prompt の先頭へ禁止を明記し、
+  **検索したくなる動機そのものを消した** (RFC の実測結果を親が materials として与えた)。
+  3 回目は web_search 0 件で成功した。
+  **F540 の「receipt からは発火条件を特定できない」は、10 行の replay script で特定できる。**
+  script を `materials/parent-diagnose-evidence-invalid.py` として保存した。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -14855,6 +14877,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   再現せず、代わりに F577 の型が出た)。
 - **supersede: 2026-08-25** — 3 つ目の型の発火条件を特定した。子が読んだ repo の行に生の U+2028 / U+2029 が含まれると、codex CLI がその byte を JSONL event の `aggregated_output` へそのまま出し、`tools/codex_worker_launch.py` が JSONL を `str.splitlines()` で切る (6 箇所) ため 1 event 行が複数断片に割れて `stdout_invalid` が立つ。JSON はこの 2 文字を文字列内に生で許すが Python の `splitlines()` は改行として扱う、という不一致が原因である。追跡 14,208 file の全数検査で該当は 5 file (`orchestrator/campaign/p3_autonomous_workload_trial.py:2213` の sanitizer 正規表現、`orchestrator/tests/test_p3_autonomous_workload_trial.py:2837`、insight 3 件)。診断手順は events.jsonl の各行を `json.loads` し、割れた行の前後で当該 2 文字を探す。回避は当該行域を「読むな」と prompt へ明記することで、[T-525] では invalid が再発しなかった。恒久対応の候補は JSONL 分割を `split("\n")` へ変えることで、tool の出力契約に触れるため裁定パッケージへ回す。
 - **supersede: 2026-08-26** — 「根本原因: 特定できていない」は F609 が特定し、本 wave が恒久修理した。当時は読み取り時点の pending 系条件が疑われたが、実際は完成した stdout の 1 event が U+2028 / U+2029 で 2 行に割られ、`Unterminated string` になって `stdout_invalid` が立っていた。`_evidence_status()` がどの条件で invalid を返したかを receipt へ記録する改修は、本 wave の scope 外として引き続き裁定パッケージにある。
+- **supersede: 2026-08-27** — 「receipt からは発火条件を特定できない」は事後に特定できる。launcher と同じ strict parser を `attempt-*.events.jsonl` の各行へ replay すれば落ちる行が出る ([T-1629] wave で実測、真因は F217 だった)。invalid を見たら再発検知手順にこれを足す。
 ### F541. ログインノードの重い処理防壁が shell 変数の間接で発火しない [権限逸脱]
 
 - 事象: 床値 pilot の停止点を局所再現するため、ログインノードで gflags と glog を
@@ -16744,6 +16767,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 1 の前提実測で、投入・実行を伴う依頼は実行器の tracked file を全数検索で確かめる。
   検索が 0 件なら「投入だけが残る」という要約を根拠にしない。
 
+
+- **再発: 2026-08-27** — [T-1721] の実装 wave が段 1 で投入器の実在を再検査し、
+  `tools/pegasus/submit_*.sh` が 8 本あるのに A-1 用は 0 本、
+  `paper-story-a1-paired-submission/v1` を書く実装が tracked file に 0 件であることを再確認した。
+  F634 の恒久対応 (段 1 の前提実測で実行器の tracked file を全数検索する) は**発火し、
+  着手前に検出した**。本 wave は別の理由 (非認証成果物型が作れない) で停止したため
+  投入器は実装していないが、契約の全数調査は完了して insight へ保全した。
 ### F635. canonical JSONL 検査が `splitlines()` のため CR を畳み、bytes と行の 1 対 1 性が成立していなかった [誤前提]
 
 - 事象: 批准台帳の行検査 `_load_rows` は、各行が canonical JSON の bytes と完全一致することと
@@ -18000,3 +18030,208 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (負例が実際に落ちる形にしてあり、述語は恒真でない)。加えて
   `test_b10_job_exit_trap_removes_worktree_on_normal_and_abnormal_exit` が
   正常系と異常系の両方で後始末が走ることを固定する。
+
+### F694. OpenSSL の一括署名は標準入力から読めず、回収コードは一度も動いていなかった [テスト代表性]
+
+- 事象: 段 5 の broker で `openssl pkeyutl -sign -rawin` が rc=1 で落ち続けた。
+  実装子は失敗 digest に混ざっていた `subprocess.run` の docstring を真因と判定したが誤りだった。
+- 根本原因: この機体の OpenSSL 3.0.2 では `pkeyutl -sign -rawin` が**標準入力から読めない**。
+  Ed25519 の一括署名がサイズの確定した実 file を要求するためで、親が手で再現した。
+
+  ```text
+  $ openssl pkeyutl -sign -rawin -inkey k.pem -in msg.bin -out sig.bin   -> rc=0, 64 bytes
+  $ printf 'hello' | openssl pkeyutl -sign -rawin -inkey k.pem           -> rc=1
+    Error: unable to determine file size for oneshot operation
+    Public Key operation error
+  ```
+
+  `-in <path>` が必須である。**回収した元の実装も標準入力へ流す形だった。
+  つまりあの broker は一度も緑になっていない。**
+- 恒久対応: 署名対象を private な一時 file へ mode 0600 で書き、`-in <path>` で渡す。
+  例外経路でも削除する。生成署名は 64 bytes の長さ検査だけでなく、
+  捕捉済みの公開鍵で**実際に検証してから** transaction へ進む。
+- 再発検知: 外部 command の入出力規約に依存する実装は、静的レビュー通過を closed と数えない。
+  親が実機で 1 回動かすまで確かめる (`DW-O16`)。
+
+### F695. `/dev/tty` を `r+` かつバッファ付きで開くと Python が拒否する [テスト代表性]
+
+- 事象: 承認プロンプトが常に `cannot open /dev/tty` で失敗し、broker のテスト 4 件が赤だった。
+  テスト側の PTY の張り方 (`os.setsid()` + `TIOCSCTTY`) を疑ったが、そちらは正しかった。
+- 根本原因: `open("/dev/tty", "r+", buffering=1)` は `BufferedRandom` を作り、
+  これは seekable を要求する。tty はシークできない。親が実機で再現した。
+
+  ```text
+  CHILD: cannot open /dev/tty: File or stream is not seekable.
+  ```
+
+  読み取り専用 (`"rb"`) なら `setsid`+`TIOCSCTTY` 方式でも `pty.fork()` 方式でも成功する
+  (親が両方式で実測)。
+- 恒久対応: `getpass.unix_getpass` と同じ形にする。
+  `os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)` で得た fd を `io.FileIO(fd, "w+")` で包み、
+  さらに `io.TextIOWrapper` を被せる。生の `FileIO` は seekable を要求しない。
+- 再発検知: file の open mode と buffering に依存する実装は実機で開くまで確かめる。
+  上記 2 件は同じ型 (実行環境に依存する実装を静的レビューだけで closed にしない) である。
+
+### F696. 書き手が検証子の規則を持たないと、不正な 1 行で gate が永久に閉じる [恒真ゲート]
+
+- 事象: 段 6 の敵対レビュー 2 本が別々に 3 つの所見を出したが、帰結は同一だった。
+  broker は「検証子なら拒否する行」を台帳へ commit できた。台帳は 1 行でも検証に落ちると
+  全体が拒否されるので、**不正な行を 1 行足しただけで批准 gate が永久に閉じる。**
+- 根本原因: 書き手 (broker) と読み手 (検証子) で規則が二重管理されていた。具体的には
+  broker 側だけ Git hardening (replace refs / commit-graph / ambient 環境の無効化) が無く、
+  40 桁以外の object ID を署名でき、現在 blob しか見ずに履歴の不正を検出しなかった。
+- 恒久対応: **書き手は、これから書く行が読み手に受理されることを、読み手と同じ規則で
+  確かめてから commit する。** 検証子の検査関数を import して再利用し、規則を書き直さない。
+- 再発検知: 「書いた内容を後で厳格に検証する」機構を作るときは、
+  書き手が読み手の規則を持っているかを設計時に確かめる。持っていなければ、
+  書き手は必ず読み手が拒否する物を書ける。
+
+### F697. 共有 fixture の `importorskip` が約 1,102 node を黙って skip させる [恒真ゲート]
+
+- 事象: 段 6 のレビューが、共有 fixture `ratified_enforcement_source` の
+  暗号ライブラリ取得を `pytest.importorskip` にしていた点を指摘した。
+  Git 不在は `pytest.fail` なのに、暗号ライブラリ不在だけ skip になっていた。
+- 根本原因: 共有 fixture の依存欠落を skip にすると、依存が欠けた環境で
+  **焦点走が大量 skip のまま rc=0 で完了しうる**。静的展開で該当 node は約 1,102 件。
+  「批准 gate の回帰を検査せずに緑を報告する」形になる。
+- 恒久対応: 直接 import か明示的な `pytest.fail` にする。
+  失敗文言に「この fixture は batch で skip してはならない」理由を書く。
+- 再発検知: 共有 fixture に `importorskip` を書かない。
+  同 fixture 内の他の依存 (Git 等) がどう扱われているかと揃っているかを見る。
+
+### F698. 親が書いた probe を insight へ入れると実装面と判定され受入が赤になる [手順漏れ]
+
+- 事象: 受入全走が `check_ai_provenance` で赤になった。
+  `9e6e4ee93ca1 ...: 実装面に Codex role=author がない —
+  paths=output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`
+- 根本原因: **`output/insights/` 配下でも `.py` は実装面と判定される。** 親が書いた
+  照合 probe を「一次資料の保全」のつもりで insight へ入れたが、実装面は D95 により
+  Codex `role=author` を要求する。親が書いた probe にはその trailer を付けられない。
+  逐語 `.md` と結果 `.json` は実装面でないので同じ問題を起こさない。
+- 恒久対応: **親が書いた probe は repo へ入れない。** 手順は散文で README へ書き、
+  再現に要る値 (入力 path、判定式、期待値) を逐語で残す。
+  実装面として残す価値があるなら Codex `role=author` に書かせて `tools/` か
+  `orchestrator/tests/` へ置く (`DW-O17` の実装面 path 判定と同じ境界)。
+- 再発検知: insight を作ったら `git ls-files <insight dir> | grep '\.py$'` が空であることを
+  受入投入前に確かめる。既存 insight には `.py` を含むものがあるが、
+  それらは Codex が書いた harness であり本件とは出所が違う。
+
+### F699. 昇格禁止 marker と use class が 1 つも発火しておらず、恒真な保証だった [恒真ゲート] [誤前提]
+
+- 事象: A-1 の campaign config は `promotion_prohibited=True` を持ち、`declared_use_class` も
+  複数 module で使われている。裁定要約と作業依頼はこれらを「非認証であることの表明」として
+  扱っていた。ところが read-only probe で、**この 2 つの値を保ったまま certified 受入の
+  gate を E1 で通せた**。marker は 1 箇所も判定に効いていない。
+- 根本原因: `declared_use_class` は保存先 root と build 材料の選択にしか使われず、
+  campaign 同一性にも consumer 境界にも入っていない。official と exploration で campaign id が
+  同一になることを固定した既存テストがある。`promotion_prohibited` は campaign config の
+  `search_config` に載るが、lock の identity 検査は exact 5 key と型しか見ず中身を読まない。
+  どちらも「宣言はあるが読む者がいない」型である。
+- 恒久対応: D1131 が、宣言を同一性へ入れるだけでは
+  不十分であることを決定として固定した。実効化は
+  D1133 が定める再開 wave の
+  1 land 単位に含める。恒真な marker を据え置かない。
+- 再発検知: 「この値は昇格を防ぐ」と要約された field を見たら、その値を**保ったまま**
+  certified 経路を通せるかを read-only probe で 1 回試す。通るなら marker は恒真である。
+
+### F700. 批准 gate の適用範囲を producer 側の 1 呼び出しだけと測り、lock だけで epoch を決める consumer 経路を見落とした [誤前提] [手順漏れ]
+
+- 事象: 段 1 の前提実測で、批准検査の production 呼び手を
+  `ident.py` の `_capture_current_loader_binding` 1 箇所と数え、そこを分岐させれば非認証型の
+  座は足りると provisional に裁定した (親 brief の P2)。実際には、campaign lock だけを読んで
+  certified epoch を出す consumer 経路が別にあり、**そこは批准台帳を 1 度も参照しない**。
+  未批准の closure から作った lock がその経路を E1 で通る。
+- 根本原因: 「gate を課す側の呼び手」を全数で数えたが、「gate を課さずに同じ判定を出す側」を
+  数えていなかった。producer 側の座と consumer 側の座は別の集合であり、前者の全数は
+  後者の不在を含意しない。
+- 恒久対応: D1131 が lock-only 経路を
+  閉じるべき対象として名指しした。段 1 の実測表はこの見落としを含んだまま insight へ保全し、
+  訂正を同 insight の訂正節に書いた。
+- 再発検知: 受理集合を広げる wave で「gate の呼び手は N 箇所」と測ったら、**同じ判定結果を
+  gate 抜きで出す経路**を別に探す。呼び手の全数検索はそれを見つけない。
+
+### F701. 切り詰められた failure digest を主因判定の根拠にした [手順漏れ]
+
+- 事象: 焦点走が 118 件の赤を返し、親は描画された excerpt だけを見て
+  `configuration-mismatch` を主因と判定した。修正後の赤は 117 件で、ほぼ減らなかった。
+  同じ誤りを 2 度繰り返した。真因は 1 nodeid の単独走で全文を採って初めて判明した。
+- 根本原因: 焦点走の failure digest は byte 予算 (49152) で切り詰められ、
+  117 件中 10 件しか描画しない。母集合と描画数の差を確認せずに分布を読んだ。
+  `-q -rf` は 1 件あたりの excerpt が大きく、描画率がとくに低い。
+- 恒久対応: 主因判定は**切り詰められていない出力**で行う。
+  `--tb=line` へ切り替えると 1 件あたりが小さくなり描画が 10 件 → 44 件へ増える。
+  それでも足りなければ 1 nodeid の単独走で全文を採る。
+  digest の `omitted_failures` を必ず読み、0 でなければ分布を主因の根拠にしない。
+- 再発検知: 「n 件中 m 件しか描画されていない」を報告に書かせる。
+  既存 memory「道具の絞り込み後の値を総量として引用しない」と同型。
+
+### F702. S8b 固有の証拠要求を共有部品の必須引数にした [権限逸脱]
+
+- 事象: 実装子が 2 度、異なる部品で同じ誤りを犯した。単位 A は S8b の関門を共有
+  `prepare_cell` へ無条件に入れ、S1 の 57 テストを落とした。単位 B は
+  `source_snapshot_sha256` を共有 `build_v2` の既定値なし必須引数にし、
+  `pipeline` 4 箇所と `b10_backoff_shape_sweep` 1 箇所を呼出し時点で TypeError にした。
+- 根本原因: 実装子 prompt が「証拠の要求はその主張が立つ境界に置く」を書いていなかった。
+  新しい証拠を「必須にする」方向が既定で正しいと見え、共有部品の受理集合を全利用者に対して
+  狭めることの意味 (受理集合の縮小ではなく他 campaign の可用性喪失) が指示に無かった。
+- 恒久対応: 実装子 prompt に定型として入れる —
+  「証拠の要求は主張が立つ境界に置く。共有部品の受理集合を変えない。
+  共有部品へ足す引数は既定値ありにし、既定時は変更前と厳密に同じ挙動 (cache identity の
+  preimage に key を足さないことを含む) にする」。
+- 再発検知: 共有部品へ引数を足す変更では、未指定時の digest が変更前と一致することを
+  機械で固定するテストを要求する。本 wave では固定 digest の一致で確認した。
+
+### F703. 実 I/O を要する関門を fake で駆動される経路へ置いた [テスト代表性]
+
+- 事象: 関門の設置場所を 4 度変えた。共有実体化器 (57 件が落ちる) →
+  identity 合成器 (下流 117 件) → campaign の build 経路 (同) →
+  build 実装の内側 (解消)。設置場所を変えるたびに焦点走を回し直し、
+  118 → 117 → 161 → 222 → 3 と推移した。
+- 根本原因: 単体テストは実 build を注入で差し替える。実 CCBench repo と実 pin を要求する処理を
+  campaign コードへ置くと、それらのテストは必ず落ちる。
+  段 1・段 4 の時点で「関門候補の経路を fake で駆動する既存テストが何件あるか」を数えていなかった。
+- 恒久対応: 関門は**その主張が立つ最小の場所**へ置き、identity 合成器や共有 wrapper へ置かない。
+  判定材料は「その経路は既に実 I/O を行っているか」「その経路を fake で駆動するテストが何件あるか」。
+  テストが実 build を飛ばすとき関門も一緒に飛ぶのが正しい対応関係である。
+- 再発検知: 関門を新設する wave では、段 4 の裁定に関門候補ごとの
+  「fake 駆動テスト件数」を書かせる。
+
+### F704. 編集面の重複測定が main 側の前進を編集中と誤認した [手順漏れ]
+
+- 事象: 依頼が「稼働 wave が対象 file を編集中」と告げ、重複測定でも 14 の worktree が
+  `s8b_floor_campaign.py` を触っていると出た。未 commit 差分だけで測り直すと、生きた編集は
+  test 2 file だけで、production file には 1 件も無かった。誤った所有制約のまま進めば、
+  編集できる面を編集できないと誤認して wave が着地不能になるところだった。
+- 根本原因: 重複測定が `git diff --name-only main` を使っており、これは **worktree が main から
+  遅れている分** (main 側が進めた file) も差分として返す。古い worktree ほど多くの file が
+  「編集中」に見える。
+- 恒久対応: 編集面の重複は**未 commit 差分** (`git diff` と `git diff --cached`) で確定する。
+  branch tip との三点比較は所有の判定に使わない。
+- 再発検知: 重複を根拠に所有を分ける裁定では、測り方を根拠と併記する。
+
+### F705. 走行を kill しても計算ノード job が残り、以後の投入を全部止めた [手順漏れ]
+
+- 事象: 焦点走を `pkill` したところ、投入ラッパーだけが死に計算ノード job が残った。
+  その worktree に orphan hold が作られ、次の焦点走が rc=16 で弾かれた。
+  hold の解除手順は「対象の不在または終端を `qstat` で確認してから手動削除」であり、
+  手動 `qdel` は投入禁止フラグを立てるため使えない。
+  さらに変異 harness でも、前走の container が残っている間は所有を拒否された。
+- 根本原因: 「再投入は新しい path で」という規律は `--out` / `--attempt-out` について
+  明文化されているが、**kill が queue を空にしないこと**と **scratch root も再走ごとに
+  新しくすること**が書かれていなかった。
+- 恒久対応: 走行を止めたら、次の投入前に対象 job の終端を `qstat` で確認する。
+  再走は `.done` / 出力 / scratch root をすべて新 path にする。`qdel` は使わない。
+- 再発検知: 投入が rc=16 で戻ったら、まず orphan hold の有無と `qstat` を見る。
+
+### F706. 待ち手だけが先に落ち、完了通知が出た [手順漏れ]
+
+- 事象: 本 wave で 3 回、`tools/dev_wave_wait.py producer` の待ち手が完了として戻ったが、
+  `.done` も成果物も存在せず、producer は生きたままだった。
+  そのまま完了と扱えば、未完了の成果物を読もうとして「成果物が無い」と誤認するか、
+  途中状態を最終結果として扱うところだった。
+- 根本原因: 待ち手 process 自身の異常終了と、producer の正常完了が、
+  呼び手から見て同じ「完了通知」に見える。
+- 恒久対応: 既存規律どおり**完了は `.done` と exit code だけで判定する**。
+  通知は判定にしない。`.done` が無ければ producer の生存を `pgrep` で確かめ、
+  生きていれば待ち手を張り直す。落ちていれば未完了として扱う。
+- 再発検知: 完了通知を受けたら、まず `.done` の有無を見る手順を報告に残す。

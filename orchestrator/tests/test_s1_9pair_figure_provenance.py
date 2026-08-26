@@ -87,7 +87,7 @@ FROZEN_E0_EPOCH = {
     "state": "E0",
     "reason_code": "v1-authority-absent",
     "identity_scope": (
-        "enforcement source closure (exact 25 path; witness gate、S8C 判定器、"
+        "enforcement source closure (exact 27 path; witness gate、S8C 判定器、"
         "批准比較、receipt 発行・検証面を含む)"
     ),
     "excluded_scope": (
@@ -98,7 +98,7 @@ FROZEN_E0_EPOCH = {
 }
 ADMISSION_VALIDATOR_IDENTITY = "orchestrator.campaign.artifact_admission"
 FROZEN_ADMISSION_VALIDATOR_SHA256 = (
-    "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+    "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
 )
 EXPECTED_TOP_KEYS = {
     "schema", "generated_utc", "generator", "generator_source", "outputs",

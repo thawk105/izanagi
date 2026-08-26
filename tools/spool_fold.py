@@ -1599,12 +1599,14 @@ def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = No
     )
 
     def substantive_digest(task_id: str, ordinal: int, trail: frozenset[int]) -> str:
+        current_ordinal = ordinal
+        visited = set(trail)
         while True:
-            if ordinal in trail:
+            if current_ordinal in visited:
                 raise SpoolValidationError([Issue("docs/worklog.md", 1, "carry-cycle", f"{task_id} の carry 参照が循環")])
-            item = items_for(ordinal).get(task_id)
+            item = items_for(current_ordinal).get(task_id)
             if item is None:
-                raise SpoolValidationError([Issue("docs/worklog.md", 1, "carry-reference", f"{task_id} の参照先 entry ({ordinal}) に item がない")])
+                raise SpoolValidationError([Issue("docs/worklog.md", 1, "carry-reference", f"{task_id} の参照先 entry ({current_ordinal}) に item がない")])
             carry = carry_re.fullmatch(item.block)
             if carry is None:
                 return _task_item_digest(item.block)
@@ -1623,10 +1625,10 @@ def _extract_latest_active(worklog: str, archives: Mapping[str, str] | None = No
             referenced = int(
                 legacy_ordinal if legacy_ordinal is not None else compact_ordinal
             )
-            if referenced >= ordinal:
+            if referenced >= current_ordinal:
                 raise SpoolValidationError([Issue("docs/worklog.md", 1, "carry-reference", f"{task_id} の carry 参照が過去 entry を指さない")])
-            trail = trail | {ordinal}
-            ordinal = referenced
+            visited.add(current_ordinal)
+            current_ordinal = referenced
 
     latest_items = list(items_for(latest_ordinal).values())
     return latest_ordinal, [
