@@ -29,7 +29,18 @@ _PRODUCTION_DIRS = (
 
 _GATEWAY = Counter({("calibrator/runner.py", "<module>.run_once"): 1})
 
+# Direct clients of the bounded run_once gateway are a separate exact
+# inventory from the subprocess site itself.  This keeps measurement callers
+# visible without misclassifying them as additional raw process launch sites.
+_BOUNDED_RUN_ONCE_CLIENTS = Counter({
+    ("campaign/b10_backoff_shape_sweep.py", "<module>.measure_performance_cell"): 1,
+    ("campaign/backoff_overthrottle.py", "<module>.measure"): 1,
+})
+
 _DIRECT_SAFE_ALLOWLIST = Counter({
+    # Fixed probe binary argv, required measurement-site admission, and a
+    # bounded timeout; the probe harness does not accept YCSB ratio flags.
+    ("campaign/b10_backoff_shape_sweep.py", "<module>._measure_probe_binary"): 1,
     # Production passes CALIBRATION_FLAGS, whose frozen read ratio is rr95.
     ("campaign/s1_verify_extime_calibration.py", "<module>._run_once"): 1,
     # Production passes the module-level S2_FLAGS, fixed at rr50.
@@ -64,6 +75,13 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("calibrator/tsc.py", "<module>._build_helper"): 1,
     ("calibrator/tsc.py", "<module>.measure_tsc"): 1,
     ("campaign/artifact_admission.py", "<module>._git_snapshot_sha256"): 1,
+    # Fixed Git argv with a sanitized environment; these probes only bind the
+    # registered B10 preregistration/current repository state.
+    ("campaign/b10_backoff_shape_sweep.py", "<module>._git"): 1,
+    ("campaign/b10_backoff_shape_sweep.py", "<module>.load_preregistration"): 1,
+    # Builds and identifies the standalone probe harness/toolchain only; the
+    # realized-wait measurement binary is launched at the reviewed site above.
+    ("campaign/b10_backoff_shape_sweep.py", "<module>._run_probe_command"): 1,
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
     ("campaign/buildcache.py", "<module>._assert_no_trace_symbols"): 1,
     ("campaign/buildcache.py", "<module>._run"): 1,
@@ -291,6 +309,56 @@ def _process_launch_sites(
     return sites
 
 
+class _BoundedRunOnceClientVisitor(ast.NodeVisitor):
+    """Enumerate direct clients of calibrator.runner.run_once."""
+
+    def __init__(self, relative_path: str):
+        self.relative_path = relative_path
+        self.aliases: set[str] = set()
+        self.scopes = ["<module>"]
+        self.sites: Counter[tuple[str, str]] = Counter()
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module not in {"calibrator.runner", "orchestrator.calibrator.runner"}:
+            return
+        for alias in node.names:
+            if alias.name == "run_once":
+                self.aliases.add(alias.asname or alias.name)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.scopes.append(node.name)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    def _visit_function(self, node) -> None:
+        self.scopes.append(node.name)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    visit_FunctionDef = _visit_function
+    visit_AsyncFunctionDef = _visit_function
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if isinstance(node.func, ast.Name) and node.func.id in self.aliases:
+            self.sites[(self.relative_path, ".".join(self.scopes))] += 1
+        self.generic_visit(node)
+
+
+def _bounded_run_once_client_sites(
+    directories: tuple[Path, ...] = _PRODUCTION_DIRS,
+    *, orchestrator_root: Path = _ROOT / "orchestrator",
+) -> Counter[tuple[str, str]]:
+    sites: Counter[tuple[str, str]] = Counter()
+    for directory in directories:
+        for path in sorted(directory.rglob("*.py")):
+            relative = path.relative_to(orchestrator_root).as_posix()
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            visitor = _BoundedRunOnceClientVisitor(relative)
+            visitor.visit(tree)
+            sites.update(visitor.sites)
+    return sites
+
+
 _CALIBRATION_ISSUER_MODULE = "orchestrator.holdout_observation"
 _CALIBRATION_ISSUER_NAME = (
     "_issue_calibration_observation_capability_from_receipt"
@@ -429,6 +497,7 @@ def test_reviewed_ccbench_measurement_launches_use_bounded_sites():
         - _DIRECT_CCBENCH_DIAGNOSTIC_SITES
     )
     assert observed == _GATEWAY + _DIRECT_SAFE_ALLOWLIST
+    assert _bounded_run_once_client_sites() == _BOUNDED_RUN_ONCE_CLIENTS
 
 
 def test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes(

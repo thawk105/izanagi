@@ -321,7 +321,8 @@ _DRIVER_CONTRACTS = {
         without_opt_in_argv_factory=_empty_argv,
         build_spy_argv_factory=_coder_argv,
         routing_argv_factory=_coder_argv,
-        ast_layout_calls=6,
+        # B-4 authoritative gate, preflight, and consume-time rebuild add 3 calls.
+        ast_layout_calls=9,
         ast_run_campaign_calls=1,
         runtime_run_campaign_calls=1,
         derive_expected_campaign_ids=_single_expected_campaign_id,
