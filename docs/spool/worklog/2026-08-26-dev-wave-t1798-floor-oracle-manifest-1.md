@@ -64,6 +64,12 @@ title: [T-1798] 床値 SWO oracle の依存材料を規則で導出した canoni
   伝播せず skip した。**受入全走でも同じ理由で skip される。** 対策は稼働中の別 wave と編集面が
   重なるため実施せず起票した。{{T:dispatch-env-allowlist-for-real-root}}。
   generator から post-oracle build の cache miss/hit までの系列と phase marker は親が実走して緑を確認した。
+- **段 8 の自己改善は候補を 3 件記録し、1 件は docs に既出、2 件は予算で入らず撤回した。**
+  `--reasoning` の段別制約は `DW-C01` に既に書いてあり、親の読み落としだった (docs の欠落ではない)。
+  隔離 session の cwd 回復と変異 harness の argv 制約は今回実測した新知見だが、
+  `DW-C01` へ足すと単節予算 1000 bytes に対し 1246 bytes になり、同節は exact 契約で pin されている。
+  安全義務を削って入れることは禁じられているので編集を撤回し、裁定パッケージへ送った。
+  {{T:dev-wave-l2-section-budget}}。
 - 段 3 敵対 2 レンズで所見 15 件、段 6 敵対 2 レンズで所見 8 件。fix は 2 巡。
   段 6 レビューの初回投入は親の argv 誤り (`--reasoning` は review/focus/author/fix 段で指定不可) で
   2 本とも rc=2 になり子が起動しなかった。別名で投入し直した。
@@ -106,6 +112,12 @@ title: [T-1798] 床値 SWO oracle の依存材料を規則で導出した canoni
   任意の pin 適合 root を受理する production 入口をどう扱うか決める。floor は明示引数を渡すので
   floor には影響しないが、`p3_s4_loop_sort` の quarantine と floor 以外の `s1_direct_comparison`
   呼び手は ambient を受理する。
+- {{T:dev-wave-l2-section-budget}} **P3・新規・ユーザー裁定待ち**: dev-wave reference の L2 単節予算を
+  上げるか、実測知見の別の置き場を設けるかを決める。`DW-C01` は「実測で是正した作法」を溜める節だが、
+  単節予算 1000 bytes に対し既にほぼ満杯で、かつ節全体が exact 契約で pin されている。本 wave で
+  実測した 2 件 (隔離 session の cwd が共有 checkout へ落ちると `cd` で戻せないこと、変異 harness の
+  runner argv 制約) は、足すと 1246 bytes になり入らなかった。安全義務を削って入れることは
+  禁じられているため撤回した。予算値の変更は独立審査に属するのでユーザーへ返す。
 - {{T:dispatch-env-allowlist-for-real-root}} **P2・新規**: `IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT` を
   dispatch の tests task env allowlist へ足し、実 masstree を要する opt-in node を計算ノードでも
   走らせられるようにするか決める。現在この env は伝播せず、当該 node は親の単独走でも受入全走でも
