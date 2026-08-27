@@ -1,0 +1,120 @@
+{
+ "estimated_run_seconds": 1500,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "",
+     "old": "        \"certification_composition\": document[\"certification_composition\"],\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "    if False:\n        raise CertificationError(\"group request IDs must be distinct\")\n",
+     "old": "    if len(set(request_ids)) != len(request_ids):\n        raise CertificationError(\"group request IDs must be distinct\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "    if False:\n        raise CertificationError(\"group workload order differs from policy\")\n",
+     "old": "    if [binding.get(\"workload\") for binding in bindings] != list(expected_workloads):\n        raise CertificationError(\"group workload order differs from policy\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[stale-raw]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "        requested_raw.mkdir(mode=0o700, exist_ok=True)\n",
+     "old": "        requested_raw.mkdir(mode=0o700, exist_ok=False)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "        if False:\n            raise CertificationError(\n                \"job-local raw directory inventory is not closed\")\n",
+     "old": "        if ({entry.name for entry in entries} != expected_names\n                or any(entry.is_symlink()\n                       or not entry.is_file(follow_symlinks=False)\n                       for entry in entries)):\n            raise CertificationError(\n                \"job-local raw directory inventory is not closed\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M6",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "    if False:\n        raise CertificationError(\n            \"campaign claim protocol digest differs from campaign config\")\n    if (_normalize_request_id(claim.get(\"job_id\")) != request_id\n",
+     "old": "    if claim.get(\"protocol_digest\") != expected_protocol_digest:\n        raise CertificationError(\n            \"campaign claim protocol digest differs from campaign config\")\n    if (_normalize_request_id(claim.get(\"job_id\")) != request_id\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a2_certification.py",
+     "new": "    all_drivers_succeeded = any(\n        binding[\"driver_rc\"] == 0 for binding in job_bindings)\n",
+     "old": "    all_drivers_succeeded = all(\n        binding[\"driver_rc\"] == 0 for binding in job_bindings)\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}

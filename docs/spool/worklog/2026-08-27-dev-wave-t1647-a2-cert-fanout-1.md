@@ -61,6 +61,20 @@ title: [T-1647] A-2 certification の投入を workload 単位の独立 job へ�
   `git worktree prune` を怠った、計算ノード投入が受領証を出さず fail-closed 停止) で、
   erratum として insight に残した。
 
+- **段 8 の後、作業中に前提が覆った。** main が 93 commit 進み、**D1139 (ユーザー裁定) で
+  批准機構そのものが撤去されていた**。`enforcement_source_ratification.py` は削除され、
+  `verify_ratified_contract_loader_binding` も無い。D1139 は D905 / D1039 / D1070 / D1071 を
+  明示的に上書きし、D905 が命じた執行主体は「今後も作らない」と定めている。
+  **したがって着手時に実測した終端はもう発火せず、「A-2 は D905 の着地待ち」という
+  本 wave の当初の結論は無効である。** 段 4 で採用した login 側の批准 precheck は呼び先を失い、
+  追随して撤去した。撤去したのは批准集合との照合だけで、D1139 が残すと定めた 3 検査には
+  触れていない (保護対象 5 file と `hooks/` の差分ゼロを親が実測)。
+  `ratified_qsub` は `exact_qsub` へ改名し、qsub argv の exact 検査は残した。
+  **分割そのものは D1139 の影響を受けない。**
+  変異は M7 (批准 precheck を外す) を撤回して 7 変異で回し直し、
+  **baseline PASSED・7/7 KILLED・SURVIVED 0・MISMATCH 0** を得た。
+  撤回理由は「殺せなかったから」ではなく、変異させる行が廃止で消えたためである。
+
 - **ユーザーへ返す裁定候補が 1 件ある。** 新設 login-side 実行体の admission 分類について、
   runbook は「grandfather は当該 4 本限りで、他 entry を `local-ok` にするには実測が要る」と
   書くが、B-10 の 2 本は実測なしに `local-ok` + `static login-side submitter classification` で
@@ -71,21 +85,21 @@ title: [T-1647] A-2 certification の投入を workload 単位の独立 job へ�
 
 ### 更新
 
-- [T-1647] **P1・AI 側の作業待ち (D905 の着地待ち)**: A-2 の 4-cell certification 実走。
+- [T-1647] **P1・実走可能。次 wave で実機投入する**: A-2 の 4-cell certification 実走。
   **投入側の分割は本 wave で着地した** — workload ごとの独立 job、job 所有 subtree、
-  exact 2-job group receipt、`finish-group` producer、login 側の批准 precheck。
-  残るのは (1) D905 の執行主体 (T-1629 の broker) の main 着地と、その主体による現行 closure
-  digest `a14a2612…` の批准、(2) D646 に従う実機初回検証 wave である。
-  **(2) は (1) と独立に着手できる** — registry が main に載れば、未批准のままでも
-  「submitter が qsub を 1 件も出さずに批准エラーで止まる」ことを実機で確かめられる。
+  exact 2-job group receipt、`finish-group` producer。
+  **批准の壁は D1139 で撤廃されたので、残る制約は D646 だけである** —
+  新設 login-side 実行体は registry の追加が main へ land するまで起動できない。
+  本 wave が land すれば次 wave で実機投入でき、そこで初めて 4 cell の実測が取れる。
+  枠は 06:00:00 のまま据え置いた (全工程の所要が未実測のため)。
   base: 5cacd20e9c07364c0f0262f92358d3b3742cf021ff035e49e026042c235c9732
 
 ### 新規
 
-- {{T:a2-fanout-first-live-verification}} **P1・新規**: A-2 fan-out submitter の実機初回検証。
-  D646 に従い、registry の追加が main へ land した後に別 wave で行う。未批准のままでも
-  「批准 precheck が発火し qsub が 0 件である」ことを実機で確認でき、批准後は
-  そのまま 2 job の fan-out と `finish-group` の実測へ続けられる。
+- {{T:a2-fanout-first-live-verification}} **P1・新規**: A-2 fan-out submitter の実機初回検証と
+  4-cell certification の実走。D646 に従い、registry の追加が main へ land した後に別 wave で行う。
+  **D1139 で批准の壁が消えたため、配線確認だけでなく実測そのものへ進める。**
+  rr5 / rr50 を 2 job へ fan-out し、両 job の終端後に login 側から `finish-group` を 1 回走らせる。
 - {{T:login-side-admission-rule-vs-precedent}} **P2・ユーザー裁定待ち**: 新設 login-side 実行体の
   admission 分類について、runbook の「grandfather は 4 本限り、他は実測が要る」という規則と、
   B-10 の 2 本が実測なしに `local-ok` で登録されている先例が食い違う。どちらが正かを裁定する。

@@ -165,12 +165,57 @@ registry entry は本 wave の commit にあるが hook は primary checkout の
    「rc≠0 なのに落ちた node を抽出できない」を fail-closed で停止した。`--resume` で M4 から
    再開し、8/8 が完走した。**M1〜M3 の判定は resume を跨いで保存されている。**
 
+## 作業中に前提が覆った — D1139 で批准機構が廃止された
+
+**本 wave の段 8 が終わった時点で、main が 93 commit 進み、批准機構そのものが撤去されていた。**
+
+**D1139 (2026-08-27、ユーザー裁定)「enforcement source closure の批准突き合わせを廃止する」。**
+逐語は「なんかその突き合わせ？廃止でいいよ。私何度も言ってなかったっけ？トップジャーナルで
+『この文字列で実行したプログラムで測った性能です。』なんて厳密な束縛見たことないって。…
+一定時間以降誰にも性能測定ができなくなってしまうルールに囚われている？不必要だねそんなものは」。
+
+実測した main の状態は次のとおり。
+
+- `orchestrator/campaign/enforcement_source_ratification.py` は **削除済み**。
+- `contract_loader_binding.verify_ratified_contract_loader_binding` は **存在しない**
+  (`capture_contract_loader_binding` は残る)。
+- D1139 は **D905 / D1039 / D1070 / D1071 を明示的に上書き**している。
+  D905 が命じた執行主体は「今後も作らない」と明記された。
+
+本 wave への影響は 2 つある。
+
+1. **着手時に実測した終端 `enforcement-source-closure-unratified` は、main ではもう発火しない。**
+   「A-2 は D905 の着地待ち」という本 wave の当初の結論は無効になった。
+2. **段 4 で採用した R8 (login 側の批准 precheck) は呼び先を失った。** 追随して撤去した。
+   撤去したのは批准集合との照合だけで、D1139 が「残す」と定めた検査 (disk bytes と記録
+   commit blob の自己整合、記録 commit blob と記録 digest の照合、activation tuple の真正性)
+   には触れていない。`ratified_qsub` は `exact_qsub` へ改名し、**qsub argv の exact 検査は残した**。
+   保護対象 5 file (`contract_loader_binding.py` / `artifact_admission.py` / `ident.py` /
+   `campaign_lock.py` / `buildcache.py`) と `hooks/` の差分がゼロであることを親が実測した。
+
+**分割そのものは D1139 の影響を受けない。** workload 単位の独立 job、job 所有 subtree、
+exact 2-job group receipt、raw manifest の交差束縛、`finish-group` はいずれも不変である。
+
+### 変異台帳 v2 (main 取り込み + 批准撤去の後)
+
+- spec: `mutation-spec-v2.json` (M7 を撤回した 7 変異)
+- spec SHA-256: `9604fc332b616a6636547e602fe695fdcf58fef5d0ac9cd9db3233e7d245c534`
+- repo head: `8b169bec6be6014620d7de4fcc131cfc8cdab1b3`
+- baseline: `PASSED`
+- 集計: **`KILLED 7 / SURVIVED 0 / MISMATCH 0 / TIMEOUT 0 / PARSE_ERROR 0`**
+- 結果 digest: `mutation-result-digest-v2.json`
+
+**M7 の撤回理由は「殺せなかったから」ではない。** 対象の機構が D1139 で廃止され、
+変異させる行が存在しなくなったためである。撤回前の走行 (8/8 KILLED) の記録は
+`mutation-spec.json` と `mutation-result-digest.json` にそのまま残す。
+
 ## 残る障壁 (本 wave では解かない)
 
-1. **D905 の執行主体が main へ未着地。** A-2 の実走は、これが着地し、その主体が現行 closure
-   digest `a14a2612…` を批准するまで開かない。
+1. ~~**D905 の執行主体が main へ未着地。**~~ **解消した。** D1139 が批准機構ごと廃止し、
+   D905 を明示的に上書きした。A-2 の実走を塞いでいた批准の壁は無い。
 2. **実機初回検証は次 wave。** D646 により、registry の追加が main へ land するまで
-   新 submitter を起動できない。
+   新 submitter を起動できない。**批准の壁が消えたため、次 wave は
+   「配線の確認」ではなく 4 cell certification の実走そのものに進める。**
 3. **新設 login-side 実行体の admission 分類は規則と先例が食い違う。** runbook は
    「grandfather は当該 4 本限りで、他 entry を `local-ok` にするには実測が要る」と書くが、
    B-10 の 2 本は実測なしに `local-ok` + `static login-side submitter classification` で

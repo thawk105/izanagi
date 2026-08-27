@@ -76,6 +76,11 @@ seq: 1
   明記しており、非認証経路で回しても certified を名乗れない (絶対規律 2)。
   解除に要るのは D905 の執行主体 (branch `worktree-dev-wave-t1629-ratification-broker` に実装が
   存在、main 未着地) の着地と、その主体による現行 digest の批准である。
-  本 wave は login 側 entry point の先頭へ批准 precheck を置き、**未批准なら qsub を 1 件も
-  出さずに終える**形にした (D1070 の dispatch 側を A-2 について先に満たす)。
-  計算ノードの枠を消費してから 16 秒で死ぬ経路は、これで塞がっている。
+  **同日中に前提が覆った。** 本 wave の段 8 完了時点で main が 93 commit 進み、
+  **D1139 (ユーザー裁定) が批准突き合わせを廃止**して
+  `enforcement_source_ratification.py` を削除、`verify_ratified_contract_loader_binding` も
+  消えた。D1139 は D905 / D1039 / D1070 / D1071 を明示的に上書きしている。
+  **したがって本エントリが記録してきた終端は、2026-08-27 の main 以降は発火しない。**
+  本 wave が段 4 で採用した login 側の批准 precheck も呼び先を失い、追随して撤去した
+  (撤去したのは批准集合との照合だけで、D1139 が残すと定めた自己整合検査・記録 digest 照合・
+  activation tuple 真正性検査には触れていない)。
