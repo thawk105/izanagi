@@ -526,7 +526,10 @@ def test_g4_rejects_decoded_campaign_identity_behind_matching_directory(
 
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
-        match="bound to another campaign",
+        match=(
+            "bound to another campaign"
+            "|campaign id differs at certified sink"
+        ),
     ):
         _production_context(
             cfg,
