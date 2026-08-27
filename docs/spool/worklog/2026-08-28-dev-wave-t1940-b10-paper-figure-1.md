@@ -16,7 +16,7 @@ title: [T-1940] B-10 拡張格子の有効 28 点を論文図へ変換する (�
 - plan の「既存 generator を改訂」は既存 fig2b の source hash pin を壊すため棄却し、既存 bytes 不変の専用 generator 純増へ変更した。review の rootless closure・receipt semantic・CI 恒真化・caption所見を全て閉じ、focus は GO / 新規所見なし。
 - 親焦点走は新規 38 passed、既存 fig2b 回帰・meta-testを含む関連走は 156 passed。D1163 追随後の fig2b / fig2c 40 node も passed。`check_codex_agents.py` と `check_docs.py` も通過した。
 - 変異本走は最終固定 commit `ecd8f5fac`、計算ノード dispatch。baseline PASSED、8/8 KILLED、全 failure node完全一致、SURVIVED / MISMATCH / TIMEOUT 0。raw result SHA-256=`a9b15a92645335426f82c0f0f966d9c77ed4099701c16c05c6e79fcd82c48839`。
-- mutation wrapper は並行 main land の共有木事後検査で2回停止し、land lease取得後の同一matrix再走で rc=0 まで閉じた。collection timeout時に result無しでも無効なresume commandを示す改善候補は段8へ送る。
+- mutation wrapper は並行 main land の共有木事後検査で2回停止し、land lease取得後の同一matrix再走で rc=0 まで閉じた。段8裁定で共有木変化はF618、collection前停止と無効resume案内はF619の再発としてroutingし、改善実装は追加していない。
 - commit後 provenance監査は新規違反0。履歴の既知違反54件は緑と読み替えていない。
 - 受入全走1回目は18349 passed / 62 skipped / 2 failed。main D1163 による helper 前進を生成時hashの破損と誤読した自分起因で、既存 fig2b と同じ生成時hash契約へ直した。
 - scope外: T-2018 の意味gate・1000符号化修正・D1094の新floor計測は実装せず、D1092に従い ADD_ANALYSIS 診断値も図から外した。
