@@ -233,7 +233,31 @@ def _assert_bijection(records: Sequence[Mapping[str, Any]], whiteboard: Sequence
                 raise Layer3ReportError("%s の source_ref が一次配置を参照しない" % section)
 
 
+def _validate_certifying_prerequisites(report: Mapping[str, Any]) -> None:
+    certifying_input = report.get("certifying_input", False)
+    acceptance_receipt = report.get("acceptance_receipt")
+    if (certifying_input is True) != (acceptance_receipt is not None):
+        raise Layer3ReportError(
+            "certifying_input=true と acceptance_receipt 非 null は同値必須"
+        )
+    admission_decision = report.get("admission_decision")
+    if certifying_input is True and (
+        not isinstance(admission_decision, Mapping)
+        or admission_decision.get("admission_status") != "admitted"
+    ):
+        raise Layer3ReportError(
+            "certifying_input=true には admission_status=admitted が必須"
+        )
+
+
 def _validate_schema(report: Mapping[str, Any]) -> None:
+    campaign_verifier_epoch = report.get("campaign_verifier_epoch")
+    if (
+        report.get("certifying_input") is True
+        and isinstance(campaign_verifier_epoch, Mapping)
+        and "verifier_assessment_basis" in campaign_verifier_epoch
+    ):
+        _validate_certifying_prerequisites(report)
     schema = _read_json(_SCHEMA_PATH)
     if report.get("schema_version") == LEGACY_SCHEMA_VERSION:
         # A v2 artifact is immutable historical evidence.  Derive its reader
@@ -260,30 +284,23 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
             raise Layer3ReportError(
                 "layer3 perf observation 共有検証に失敗"
             ) from exc
-    certifying_input = report.get("certifying_input", False)
-    acceptance_receipt = report.get("acceptance_receipt")
-    if (certifying_input is True) != (acceptance_receipt is not None):
-        raise Layer3ReportError(
-            "certifying_input=true と acceptance_receipt 非 null は同値必須"
-        )
-    admission_decision = report.get("admission_decision")
-    if certifying_input is True and (
-        not isinstance(admission_decision, Mapping)
-        or admission_decision.get("admission_status") != "admitted"
-    ):
-        raise Layer3ReportError(
-            "certifying_input=true には admission_status=admitted が必須"
-        )
+    _validate_certifying_prerequisites(report)
 
 
-def _epoch_projection(epoch: CampaignVerifierEpoch) -> Dict[str, str]:
-    return {
+def _epoch_projection(
+        epoch: CampaignVerifierEpoch, *,
+        verifier_assessment_basis: str | None = None,
+) -> Dict[str, str]:
+    projection = {
         "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
         "state": epoch.state,
         "reason_code": epoch.reason_code,
         "identity_scope": epoch.identity_scope,
         "excluded_scope": epoch.excluded_scope,
     }
+    if verifier_assessment_basis is not None:
+        projection["verifier_assessment_basis"] = verifier_assessment_basis
+    return projection
 
 
 def _variant_rows(records: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -589,7 +606,10 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
         "campaign_verifier_epoch": _epoch_projection(
-            admitted_campaign.campaign_verifier_epoch
+            admitted_campaign.campaign_verifier_epoch,
+            verifier_assessment_basis=(
+                admitted_campaign.verifier_assessment_basis
+            ),
         ),
         "acceptance_receipt": None,
         "certifying_input": False,

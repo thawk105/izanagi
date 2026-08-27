@@ -88,6 +88,10 @@ _CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
     "campaign_verifier_epoch", "state", "reason_code", "identity_scope",
     "excluded_scope",
 })
+_HISTORICAL_CAMPAIGN_VERIFIER_EPOCH_KEYS = (
+    _CAMPAIGN_VERIFIER_EPOCH_KEYS | {"verifier_assessment_basis"}
+)
+_VERIFIER_ASSESSMENT_BASIS = "recorded-at-original-verifier-epoch"
 _CELL_ADMISSION_FAILURE_SCHEMA = (
     "p3-autonomous-workload-trial-cell-admission-failure/v1"
 )
@@ -4682,18 +4686,27 @@ def _fresh_layer3_for_comparison(
 
 def _layer3_comparison_projection(
     report: Mapping[str, Any], *, include_epoch: bool,
+    include_verifier_assessment_basis: bool,
 ) -> dict[str, Any]:
-    """Normalize volatile fields and the one allowed legacy schema omission.
+    """Normalize volatile fields and the allowed legacy schema omissions.
 
     Layer3 v3 documents written before T-817 have no
     ``campaign_verifier_epoch``.  They remain readable, while a document that
     does carry the field must compare it exactly with the fresh rebuild.
+    Historical documents written before D1163 have an exact five-key epoch;
+    only their fresh-side assessment marker is omitted for compatibility.
     """
     normalized = dict(report)
     normalized.setdefault("acceptance_receipt", None)
     normalized.setdefault("certifying_input", False)
     if not include_epoch:
         normalized.pop("campaign_verifier_epoch", None)
+    elif not include_verifier_assessment_basis:
+        epoch = normalized.get("campaign_verifier_epoch")
+        if isinstance(epoch, Mapping):
+            normalized_epoch = dict(epoch)
+            normalized_epoch.pop("verifier_assessment_basis", None)
+            normalized["campaign_verifier_epoch"] = normalized_epoch
     meta = _mapping(
         report.get("meta"), gate="campaign-chain", label="layer3 report.meta",
     )
@@ -4703,14 +4716,19 @@ def _layer3_comparison_projection(
     return normalized
 
 
-def _epoch_projection(epoch: Any) -> dict[str, Any]:
-    return {
+def _epoch_projection(
+    epoch: Any, *, verifier_assessment_basis: str | None = None,
+) -> dict[str, Any]:
+    projection = {
         "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
         "state": epoch.state,
         "reason_code": epoch.reason_code,
         "identity_scope": epoch.identity_scope,
         "excluded_scope": epoch.excluded_scope,
     }
+    if verifier_assessment_basis is not None:
+        projection["verifier_assessment_basis"] = verifier_assessment_basis
+    return projection
 
 
 def _require_compatible_layer3_epoch(
@@ -4723,7 +4741,11 @@ def _require_compatible_layer3_epoch(
         report.get("campaign_verifier_epoch"), gate="campaign-chain",
         label=f"{label}.campaign_verifier_epoch",
     )
-    if set(epoch) != _CAMPAIGN_VERIFIER_EPOCH_KEYS:
+    epoch_keys = frozenset(epoch)
+    accepted_keys = {_CAMPAIGN_VERIFIER_EPOCH_KEYS}
+    if report.get("certifying_input", False) is not True:
+        accepted_keys.add(_HISTORICAL_CAMPAIGN_VERIFIER_EPOCH_KEYS)
+    if epoch_keys not in accepted_keys:
         _fail("campaign-chain", f"{label} campaign verifier epoch exact keys differ")
     if _canonical_bytes(epoch) != _canonical_bytes(expected):
         _fail("campaign-chain", f"{label} campaign verifier epoch differs from validator")
@@ -4950,9 +4972,21 @@ def assert_campaign_layer3_chain(
             {"admission_decision": cell.get("admission_decision")},
             expected=expected_decision, label=f"cells[{index}]",
         )
+        persisted_epoch: Mapping[str, Any] = {}
         if "campaign_verifier_epoch" in persisted:
+            persisted_epoch = _mapping(
+                persisted.get("campaign_verifier_epoch"), gate="campaign-chain",
+                label="persisted layer3 report.campaign_verifier_epoch",
+            )
+            include_verifier_assessment_basis = (
+                "verifier_assessment_basis" in persisted_epoch
+            )
             expected_epoch = _epoch_projection(
-                certified_view.campaign_verifier_epoch
+                certified_view.campaign_verifier_epoch,
+                verifier_assessment_basis=(
+                    _VERIFIER_ASSESSMENT_BASIS
+                    if include_verifier_assessment_basis else None
+                ),
             )
             _require_compatible_layer3_epoch(
                 persisted,
@@ -4966,10 +5000,20 @@ def assert_campaign_layer3_chain(
             output_root=output_root,
         )
         include_epoch = "campaign_verifier_epoch" in persisted
+        include_verifier_assessment_basis = (
+            include_epoch
+            and "verifier_assessment_basis" in persisted_epoch
+        )
         if _canonical_bytes(_layer3_comparison_projection(
             persisted, include_epoch=include_epoch,
+            include_verifier_assessment_basis=(
+                include_verifier_assessment_basis
+            ),
         )) != _canonical_bytes(_layer3_comparison_projection(
             fresh, include_epoch=include_epoch,
+            include_verifier_assessment_basis=(
+                include_verifier_assessment_basis
+            ),
         )):
             _fail("campaign-chain", "persisted layer3 report differs from fresh rebuild")
 

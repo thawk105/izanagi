@@ -365,9 +365,45 @@ def test_real_e0_p2_report_provenance_names_historical_epoch():
     )
     provenance = p2_2_report._epoch_provenance(view)
     assert provenance["read_purpose"] == "HISTORICAL_RAW"
+    assert provenance["verifier_assessment_basis"] == (
+        "recorded-at-original-verifier-epoch"
+    )
     assert provenance["campaign_verifier_epoch"] == "E0"
     assert provenance["campaign_verifier_epoch_state"] == "E0"
     assert "certified" not in repr(provenance).lower()
+
+
+def test_p2_summary_serializes_and_requires_historical_marker(tmp_path):
+    view = require_admitted_campaign(
+        _REAL_E0_CAMPAIGN, purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    ranked = p2_2_report._ranked(p2_2_report._collect(view))
+    winner = p2_2_report._winner(ranked)
+    result = {
+        "tag": "read-heavy",
+        "winner": winner,
+        "ranked": ranked,
+        "verdicts": {},
+        "report": str(tmp_path / "detail.md"),
+        **p2_2_report._epoch_provenance(view),
+    }
+    summary = tmp_path / "summary.md"
+
+    p2_2_report.write_summary([result], str(summary))
+
+    text = summary.read_text(encoding="utf-8")
+    assert "`HISTORICAL_RAW`" in text
+    assert "`recorded-at-original-verifier-epoch`" in text
+    assert "| read-heavy |" in text
+
+    missing_marker = dict(result)
+    del missing_marker["verifier_assessment_basis"]
+    with pytest.raises(ValueError, match="lacks exact historical verifier"):
+        p2_2_report.write_summary([missing_marker], str(summary))
+
+    certified_label = dict(result, read_purpose="CERTIFIED_ACCEPTANCE")
+    with pytest.raises(ValueError, match="is not HISTORICAL_RAW"):
+        p2_2_report.write_summary([certified_label], str(summary))
 
 
 def test_p2_report_declares_historical_purpose(monkeypatch):
