@@ -83,7 +83,7 @@ def _git(repo: Path, *args: str) -> GitResult:
 
 
 def _git_raw(repo: Path, *args: str) -> GitResult:
-    """NUL 区切りを壊さず、許可した読み取り専用 git command を実行する。"""
+    """stdout を正規化せず、許可した読み取り専用 git command を実行する。"""
     return _run_git(repo, *args, strip_stdout=False)
 
 
@@ -206,7 +206,7 @@ def _check_main_divergence_measurable(
     repo: Path,
 ) -> tuple[list[str], str | None]:
     """raw commit graph 上の main 乖離を canonical な件数として測定する。"""
-    result = _git(repo, "rev-list", "--count", f"HEAD..{_MAIN_REF}")
+    result = _git_raw(repo, "rev-list", "--count", f"HEAD..{_MAIN_REF}")
     if result.returncode != 0:
         return (
             [
@@ -215,9 +215,11 @@ def _check_main_divergence_measurable(
             ],
             None,
         )
-    count = result.stdout
+    raw_count = result.stdout
+    count = raw_count[:-1] if raw_count.endswith("\n") else raw_count
     if (
-        not count
+        not raw_count.endswith("\n")
+        or not count
         or not count.isascii()
         or not count.isdecimal()
         or (count != "0" and count.startswith("0"))
@@ -659,8 +661,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "(gate の実測値; これは関門ではない)",
                 flush=True,
             )
-        clean_tree_failures = _check_clean_tree(repo)
-        if not clean_tree_failures:
+        try:
+            clean_tree_failures = _check_clean_tree(repo)
+        except Exception:
+            clean_tree_failures = None
+        if clean_tree_failures == []:
             print(
                 "NOTE: working tree is clean "
                 "(midflight は clean tree を検査しない)",

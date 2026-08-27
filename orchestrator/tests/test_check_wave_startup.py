@@ -1043,6 +1043,63 @@ def test_midflight_check_sequence_is_exact(
     ]
 
 
+@pytest.mark.parametrize("mode", ["fresh", "resume"])
+@pytest.mark.parametrize("handoff_kind", ["none", "forbid", "external"])
+def test_fresh_and_resume_check_sequences_are_exact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    handoff_kind: str,
+) -> None:
+    calls: list[str] = []
+
+    def check(name: str):
+        def record(repo: Path) -> list[str]:
+            calls.append(name)
+            return []
+
+        return record
+
+    def check_external(repo: Path, handoff: Path) -> list[str]:
+        calls.append("external-handoff")
+        return []
+
+    monkeypatch.setattr(CWS, "_check_head_matches_main", check("head-matches-main"))
+    monkeypatch.setattr(CWS, "_check_head_contains_main", check("head-contains-main"))
+    monkeypatch.setattr(CWS, "_check_main_is_direct_ref", check("direct-main"))
+    monkeypatch.setattr(CWS, "_check_fresh_branch", check("branch"))
+    monkeypatch.setattr(CWS, "_check_no_operation_in_progress", check("operation"))
+    monkeypatch.setattr(CWS, "_check_clean_tree", check("clean"))
+    monkeypatch.setattr(CWS, "_check_submodule_marker", check("submodule"))
+    monkeypatch.setattr(CWS, "_check_worktree_handoff", check("worktree-handoff"))
+    monkeypatch.setattr(CWS, "_check_external_handoff_file", check_external)
+    monkeypatch.setattr(
+        CWS,
+        "_check_main_divergence_measurable",
+        lambda repo: pytest.fail("fresh / resume must not use midflight measurement"),
+    )
+
+    kwargs: dict[str, object] = {}
+    expected_handoff_calls: list[str] = []
+    if handoff_kind == "forbid":
+        kwargs["forbid_worktree_handoff"] = True
+        expected_handoff_calls = ["worktree-handoff"]
+    elif handoff_kind == "external":
+        kwargs["external_handoff"] = tmp_path / "handoff.md"
+        expected_handoff_calls = ["worktree-handoff", "external-handoff"]
+
+    assert CWS.check_repository(tmp_path, mode=mode, **kwargs) == []
+    assert calls == [
+        "head-matches-main" if mode == "fresh" else "head-contains-main",
+        "direct-main",
+        "branch",
+        "operation",
+        "clean",
+        "submodule",
+        *expected_handoff_calls,
+    ]
+
+
 @pytest.mark.parametrize("count", ["0", "1", "343", "123456789012345678901234567890"])
 def test_midflight_divergence_measurement_accepts_any_canonical_count(
     tmp_path: Path,
@@ -1051,11 +1108,11 @@ def test_midflight_divergence_measurement_accepts_any_canonical_count(
 ) -> None:
     calls: list[tuple[str, ...]] = []
 
-    def fake_git(repo: Path, *args: str) -> CWS.GitResult:
+    def fake_git_raw(repo: Path, *args: str) -> CWS.GitResult:
         calls.append(args)
-        return CWS.GitResult(0, count, "")
+        return CWS.GitResult(0, f"{count}\n", "")
 
-    monkeypatch.setattr(CWS, "_git", fake_git)
+    monkeypatch.setattr(CWS, "_git_raw", fake_git_raw)
     failures, observation = CWS._check_main_divergence_measurable(tmp_path)
     assert failures == []
     assert observation == count
@@ -1065,13 +1122,14 @@ def test_midflight_divergence_measurement_accepts_any_canonical_count(
 @pytest.mark.parametrize(
     ("returncode", "stdout", "stderr", "expected"),
     [
-        pytest.param(1, "0", "forced failure", "git の読み取りに失敗", id="rc"),
+        pytest.param(1, "0\n", "forced failure", "git の読み取りに失敗", id="rc"),
         pytest.param(0, "", "", "ASCII 整数でない", id="empty"),
-        pytest.param(0, "+0", "", "ASCII 整数でない", id="plus-signed"),
-        pytest.param(0, "-1", "", "ASCII 整数でない", id="minus-signed"),
-        pytest.param(0, "０", "", "ASCII 整数でない", id="full-width"),
-        pytest.param(0, "0 0", "", "ASCII 整数でない", id="multiple-tokens"),
-        pytest.param(0, "00", "", "ASCII 整数でない", id="leading-zero"),
+        pytest.param(0, "0", "", "ASCII 整数でない", id="missing-newline"),
+        pytest.param(0, "+0\n", "", "ASCII 整数でない", id="plus-signed"),
+        pytest.param(0, "-1\n", "", "ASCII 整数でない", id="minus-signed"),
+        pytest.param(0, "０\n", "", "ASCII 整数でない", id="full-width"),
+        pytest.param(0, "0 0\n", "", "ASCII 整数でない", id="multiple-tokens"),
+        pytest.param(0, "00\n", "", "ASCII 整数でない", id="leading-zero"),
     ],
 )
 def test_midflight_divergence_measurement_fails_closed_for_invalid_rev_list(
@@ -1084,16 +1142,47 @@ def test_midflight_divergence_measurement_fails_closed_for_invalid_rev_list(
 ) -> None:
     calls: list[tuple[str, ...]] = []
 
-    def fake_git(repo: Path, *args: str) -> CWS.GitResult:
+    def fake_git_raw(repo: Path, *args: str) -> CWS.GitResult:
         calls.append(args)
         return CWS.GitResult(returncode, stdout, stderr)
 
-    monkeypatch.setattr(CWS, "_git", fake_git)
+    monkeypatch.setattr(CWS, "_git_raw", fake_git_raw)
     failures, observation = CWS._check_main_divergence_measurable(tmp_path)
     assert len(failures) == 1
     assert expected in failures[0]
     assert observation is None
     assert calls == [("rev-list", "--count", "HEAD..refs/heads/main")]
+
+
+@pytest.mark.parametrize(
+    "raw_stdout",
+    [
+        pytest.param(" 343\n", id="leading-ascii-space"),
+        pytest.param("343 \n", id="trailing-ascii-space"),
+        pytest.param("\n343\n", id="leading-newline"),
+        pytest.param("343\n\n", id="extra-terminating-newline"),
+        pytest.param("\u00a0343\n", id="leading-non-ascii-space"),
+        pytest.param("343\u00a0\n", id="trailing-non-ascii-space"),
+    ],
+)
+def test_midflight_integrated_gate_rejects_noncanonical_raw_rev_list_stdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    raw_stdout: str,
+) -> None:
+    repo = _repo(tmp_path)
+    real_run = CWS.subprocess.run
+
+    def noncanonical_rev_list(argv, **kwargs):
+        if argv[-3:] == ["rev-list", "--count", "HEAD..refs/heads/main"]:
+            return subprocess.CompletedProcess(argv, 0, raw_stdout, "")
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(CWS.subprocess, "run", noncanonical_rev_list)
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "divergence measurement" in failures[0]
+    assert "canonical な非負の ASCII 整数でない" in failures[0]
 
 
 def test_midflight_integrated_gate_rejects_unborn_work_branch(
@@ -1308,6 +1397,46 @@ def test_midflight_accepts_self_commit_behind_main_and_dirty_tree_while_fresh_an
     assert captured.err == ""
 
 
+@pytest.mark.parametrize("dirty_kind", ["tracked", "untracked"])
+def test_midflight_accepts_dirty_only(
+    tmp_path: Path,
+    dirty_kind: str,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    if dirty_kind == "tracked":
+        (repo / "base.txt").write_text("tracked dirt\n", encoding="utf-8")
+    else:
+        (repo / "untracked-midflight.txt").write_text(
+            "untracked dirt\n", encoding="utf-8"
+        )
+
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "0"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "1"
+    assert _git(repo, "status", "--porcelain") != ""
+    assert CWS.check_repository(repo, mode="midflight") == []
+
+
+def test_midflight_accepts_behind_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    _advance_main(repo, 1)
+
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "1"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "1"
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS.check_repository(repo, mode="midflight") == []
+
+
+def test_midflight_accepts_zero_self_commit_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "0"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "0"
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS.check_repository(repo, mode="midflight") == []
+
+
 def test_midflight_does_not_require_wave_commit(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -1338,6 +1467,34 @@ def test_midflight_scope_notes_are_shown_when_gate_rejects(
     assert "branch is main" in captured.err
 
 
+@pytest.mark.parametrize("gate_result", ["accepted", "rejected"])
+def test_midflight_cleanliness_note_exception_does_not_change_gate_rc(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    gate_result: str,
+) -> None:
+    repo = _repo(tmp_path)
+    if gate_result == "rejected":
+        _git(repo, "checkout", "-q", "main")
+
+    def raise_unexpected(repo: Path) -> list[str]:
+        raise RuntimeError("unexpected cleanliness observation failure")
+
+    monkeypatch.setattr(CWS, "_check_clean_tree", raise_unexpected)
+    assert _run(repo, "--mode", "midflight") == (
+        0 if gate_result == "accepted" else 1
+    )
+    captured = capsys.readouterr()
+    assert "cleanliness could not be observed" in captured.out
+    if gate_result == "accepted":
+        assert "OK: wave startup checks passed (midflight;" in captured.out
+        assert captured.err == ""
+    else:
+        assert "OK: wave startup checks passed" not in captured.out
+        assert "branch is main" in captured.err
+
+
 def test_midflight_main_reports_gate_measurement_not_info_measurement(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1345,14 +1502,20 @@ def test_midflight_main_reports_gate_measurement_not_info_measurement(
 ) -> None:
     repo = _repo(tmp_path)
     real_git = CWS._git
-    counts = iter(("0", "343"))
+    real_git_raw = CWS._git_raw
 
-    def staged_rev_list(repo: Path, *args: str) -> CWS.GitResult:
+    def info_rev_list(repo: Path, *args: str) -> CWS.GitResult:
         if args == ("rev-list", "--count", "HEAD..refs/heads/main"):
-            return CWS.GitResult(0, next(counts), "")
+            return CWS.GitResult(0, "0", "")
         return real_git(repo, *args)
 
-    monkeypatch.setattr(CWS, "_git", staged_rev_list)
+    def gate_rev_list(repo: Path, *args: str) -> CWS.GitResult:
+        if args == ("rev-list", "--count", "HEAD..refs/heads/main"):
+            return CWS.GitResult(0, "343\n", "")
+        return real_git_raw(repo, *args)
+
+    monkeypatch.setattr(CWS, "_git", info_rev_list)
+    monkeypatch.setattr(CWS, "_git_raw", gate_rev_list)
     assert _run(repo, "--mode", "midflight") == 0
     captured = capsys.readouterr()
     assert "INFO: local main との乖離なし (0 commit" in captured.out
