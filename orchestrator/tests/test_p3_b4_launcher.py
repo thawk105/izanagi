@@ -378,9 +378,13 @@ def test_production_validator_requires_exact_campaign_and_arm():
         )
 
 
-@pytest.mark.parametrize("raw", (b"\xff", b"{}"))
+@pytest.mark.parametrize("raw", (
+    b"\xff",
+    b"{}",
+    b'{"search_config":{"b4_protocol":"p3-b4-reflux-ablation/v1"}}',
+))
 def test_existing_unclassifiable_lock_rejects_commit(tmp_path, raw):
-    """F4: invalid UTF-8 and invalid lock schema both fail closed."""
+    """F4: unreadable or incomplete existing lock shapes all fail closed."""
     layout = CampaignLayout(str(tmp_path / "invalid-lock")).ensure()
     Path(layout.lock_file).write_bytes(raw)
     with pytest.raises(

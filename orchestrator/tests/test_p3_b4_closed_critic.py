@@ -155,6 +155,14 @@ def _production_launch_context(
         )
 
 
+def _marked_driver_configs(driver_kind="base"):
+    """Build the same marker-bearing pair as the production launcher."""
+    config_context = B4L.create_b4_launch_context_for_test(
+        driver_kind=driver_kind,
+    )
+    return B4L._driver_configs(driver_kind, config_context)
+
+
 def _raises(error_type, callable_, *, contains: str | None = None):
     try:
         callable_()
@@ -602,6 +610,9 @@ def _independent_projection_sha256(
         "orchestrator/campaign/p3_b4_launcher.py": (
             repository_root / "orchestrator/campaign/p3_b4_launcher.py"
         ),
+        "orchestrator/campaign/p3_b4_protocol.py": (
+            repository_root / "orchestrator/campaign/p3_b4_protocol.py"
+        ),
         "orchestrator/critic/digest.py": (
             repository_root / "orchestrator/critic/digest.py"
         ),
@@ -755,8 +766,7 @@ def _committed_admission_fixture(
 @contextlib.contextmanager
 def _certified_environment(admission: _AdmissionFixture):
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-certified-pair-"))
-    on_cfg = L.default_cfg(reflux=True)
-    off_cfg = L.default_cfg(reflux=False)
+    on_cfg, off_cfg = _marked_driver_configs()
     on_id = str(ident.campaign_id(on_cfg))
     off_id = str(ident.campaign_id(off_cfg))
     layouts = {
@@ -939,8 +949,7 @@ def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():
     assert not hasattr(C, "_CERTIFIED_WHICH")
     injected_runner, _calls = _fake_runner_factory()
     rejected_root = parent / "rejected"
-    on_cfg = L.default_cfg(reflux=True)
-    off_cfg = L.default_cfg(reflux=False)
+    on_cfg, off_cfg = _marked_driver_configs()
     launch_context = _production_launch_context(on_cfg, admission=admission)
     error = _raises(
         TypeError,
@@ -967,8 +976,7 @@ def test_m5_certified_factory_has_no_runner_seam_and_binds_subprocess_run():
 def test_admission_keyword_and_binding_failures_precede_executable_artifact_provider():
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-admission-order-"))
     missing_root = parent / "missing-keyword"
-    on_cfg = L.default_cfg(reflux=True)
-    off_cfg = L.default_cfg(reflux=False)
+    on_cfg, off_cfg = _marked_driver_configs()
     launch_context = _production_launch_context(on_cfg)
     error = _raises(
         TypeError,
@@ -1693,6 +1701,9 @@ def test_m15_m20_projection_manifest_exactly_hashes_all_independent_sources():
         "orchestrator/campaign/p3_b4_launcher.py": (
             repository_root / "orchestrator/campaign/p3_b4_launcher.py"
         ),
+        "orchestrator/campaign/p3_b4_protocol.py": (
+            repository_root / "orchestrator/campaign/p3_b4_protocol.py"
+        ),
         "orchestrator/critic/digest.py": (
             repository_root / "orchestrator/critic/digest.py"
         ),
@@ -1987,8 +1998,7 @@ def test_m18_certified_factory_has_no_executable_seam_and_resolves_fixed_claude(
     assert "which" not in signature.parameters
     decoy = str(Path("/bin/sh").resolve())
     rejected_root = parent / "rejected"
-    on_cfg = L.default_cfg(reflux=True)
-    off_cfg = L.default_cfg(reflux=False)
+    on_cfg, off_cfg = _marked_driver_configs()
     launch_context = _production_launch_context(on_cfg, admission=admission)
     error = _raises(
         TypeError,

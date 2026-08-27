@@ -436,18 +436,43 @@ def _has_exact_b4_protocol_marker(decoded) -> bool:
     """Classify one already validated campaign lock."""
     if decoded is None:
         return False
-    search_config = decoded.identity["search_config"]
+    _identity, search_config = _b4_classification_fields(decoded)
     return (
         search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE
     )
 
 
+def _b4_classification_fields(decoded):
+    """Extract required lock fields without leaking raw shape errors."""
+    try:
+        identity = decoded.identity
+        search_config = identity["search_config"]
+    except (AttributeError, KeyError, TypeError) as exc:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        ) from exc
+    if type(identity) is not dict or type(search_config) is not dict:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        )
+    return identity, search_config
+
+
 def _b4_driver_kind_from_lock(decoded):
-    identity = decoded.identity
-    search_config = identity["search_config"]
+    identity, search_config = _b4_classification_fields(decoded)
+    try:
+        search_tag = identity["search_tag"]
+        trial = identity["trial"]
+    except KeyError as exc:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        ) from exc
     driver_kind = driver_kind_from_identity(
-        search_tag=identity["search_tag"],
-        trial=identity["trial"],
+        search_tag=search_tag,
+        trial=trial,
         axis=search_config.get("axis"),
     )
     if driver_kind is None:

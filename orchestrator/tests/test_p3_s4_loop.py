@@ -2771,7 +2771,7 @@ def test_production_context_does_not_weaken_six_receipt_rejections(
                 if terminal is not None
                 else None
             ),
-            _b4_launch_context=_b4_production_context(cfg),
+            _b4_launch_context=_b4_production_context(marked),
         )
     assert runner.call_count == 0
 

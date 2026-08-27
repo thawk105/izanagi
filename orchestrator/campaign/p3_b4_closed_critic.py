@@ -105,6 +105,9 @@ ADMISSION_VALIDATOR_FILE = (
 LAUNCHER_FILE = (
     REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_b4_launcher.py"
 )
+PROTOCOL_FILE = (
+    REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_b4_protocol.py"
+)
 MODULE_FILE = Path(__file__).resolve()
 
 MEDIATED_CRITIC_CONTRACT = """
@@ -636,6 +639,7 @@ def projection_closure_manifest(
             ADMISSION_VALIDATOR_FILE,
         ),
         ("orchestrator/campaign/p3_b4_launcher.py", LAUNCHER_FILE),
+        ("orchestrator/campaign/p3_b4_protocol.py", PROTOCOL_FILE),
         ("orchestrator/critic/digest.py", DIGEST_FILE),
         (
             "orchestrator/critic/identity_projection.py",
