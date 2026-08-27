@@ -8,6 +8,7 @@ a human decision, and never authorizes deletion.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import fnmatch
 import hashlib
@@ -16,11 +17,13 @@ import math
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Iterator, Sequence
 
 
 SCHEMA = "izanagi-branch-rescue-v1"
@@ -33,15 +36,12 @@ DEFAULT_MAX_DELETION_LOSS_COMMITS = 4096
 DEFAULT_MAX_ASSESSMENTS = 64
 COMMAND_TIMEOUT_SECONDS = 8.0
 OID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
-BRANCH_RE = re.compile(
-    r"(?!-)(?!.*\.\.)(?!.*(?:^|/)\.lock(?:/|$))[A-Za-z0-9._/-]+\Z"
-)
 PRIVATE_REF_PREFIXES = ("refs/bisect/", "refs/worktree/", "refs/rewritten/")
 PSEUDOREFS = (
     "ORIG_HEAD", "FETCH_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",
 )
 GIT_COMMAND_ALLOWLIST = frozenset({
-    "cat-file", "config", "count-objects", "for-each-ref", "ls-files",
+    "cat-file", "check-ref-format", "config", "count-objects", "for-each-ref", "ls-files",
     "rev-list", "rev-parse", "verify-pack", "version", "worktree",
 })
 GIT_CONFIG_BASE = (
@@ -53,6 +53,11 @@ GIT_CONFIG_BASE = (
 AUTO_MAINTENANCE_OFF = (
     "-c", "maintenance.auto=false",
     "-c", "gc.auto=0",
+)
+LANDED_CHECKER_PATH = Path(__file__).with_name("check_branch_landed.py")
+AUDIT_TOOL_PATH = Path(__file__).with_name("audit_dangling_commits.py")
+NEVER_LOSS_FLOOR = dt.datetime.max.replace(
+    hour=23, minute=59, second=59, microsecond=0, tzinfo=dt.timezone.utc,
 )
 COVERAGE_BOUNDARY = {
     "guarantee": "/cleanup-branches dispatcher cleanup visualization",
@@ -79,8 +84,11 @@ LEDGER_FIELDS: dict[str, object] = {
     "loss_possible_not_before": str,
     "lower_bound_basis": str,
     "gc_auto_threshold": (int, type(None)),
+    "gc_auto_sample_fanout": str,
+    "gc_auto_sample_count": (int, type(None)),
+    "gc_auto_sample_threshold": (int, type(None)),
+    "gc_auto_heuristic_version": str,
     "loose_count_at_loss": (int, type(None)),
-    "gc_headroom_at_loss": (int, type(None)),
     "status": str,
     "resolved_at": (str, type(None)),
     "rescue_ref": (str, type(None)),
@@ -109,12 +117,16 @@ class CliParser(argparse.ArgumentParser):
 @dataclass(frozen=True)
 class Worktree:
     path: Path
-    head: str
+    head: str | None
     branch: str | None
     detached: bool
+    bare: bool
+    locked: bool
+    locked_reason: str | None
     prunable: bool
     prunable_reason: str | None
     admin_dir: Path | None
+    unknown_fields: tuple[str, ...]
 
 
 @dataclass
@@ -153,6 +165,10 @@ def _parse_now(value: str) -> dt.datetime:
     return parsed
 
 
+def _current_assessment_time() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
 def _bounded_float(low: float, high: float):
     def parse(value: str) -> float:
         try:
@@ -178,15 +194,55 @@ def _bounded_int(low: int, high: int):
 
 
 def _issue(code: str, phase: str, message: str, *, scope: str = "repository",
-           subject: str | None = None) -> dict[str, Any]:
+           subject: str | None = None,
+           affects_completeness: bool = True) -> dict[str, Any]:
     return {
         "code": code,
         "phase": phase,
         "scope": scope,
         "subject": subject,
         "message": message,
-        "affects_completeness": True,
+        "affects_completeness": affects_completeness,
     }
+
+
+def _child_env() -> dict[str, str]:
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "GIT_NO_LAZY_FETCH": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_LITERAL_PATHSPECS": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+        "LC_ALL": "C",
+    }
+    for key in (
+        "HOME", "XDG_CONFIG_HOME", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
+        "GIT_CONFIG_NOSYSTEM", "IZANAGI_DEV_WAVE_JOBS_DIR",
+    ):
+        if key in os.environ:
+            env[key] = os.environ[key]
+    return env
+
+
+@contextlib.contextmanager
+def _no_lazy_fetch_child_env() -> Iterator[dict[str, str]]:
+    env = _child_env()
+    real_git = shutil.which("git", path=env["PATH"])
+    if real_git is None:
+        raise OSError("git executable is unavailable")
+    with tempfile.TemporaryDirectory(prefix="izanagi-branch-rescue-git-") as directory:
+        wrapper = Path(directory) / "git"
+        wrapper.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os\n"
+            "import sys\n"
+            "os.environ['GIT_NO_LAZY_FETCH'] = '1'\n"
+            f"os.execv({str(real_git)!r}, [{str(real_git)!r}, *sys.argv[1:]])\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o700)
+        env["PATH"] = directory + os.pathsep + env["PATH"]
+        yield env
 
 
 class Git:
@@ -213,15 +269,7 @@ class Git:
         remaining = self.remaining()
         if remaining <= 0:
             raise RescueError("assessment-timeout", "overall assessment deadline expired")
-        env = {
-            "PATH": os.environ.get("PATH", ""),
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_OPTIONAL_LOCKS": "0",
-            "GIT_LITERAL_PATHSPECS": "1",
-            "GIT_TERMINAL_PROMPT": "0",
-            "LC_ALL": "C",
-        }
+        env = _child_env()
         if extra_env:
             env.update(extra_env)
         observation_overrides = () if args[0] == "config" else AUTO_MAINTENANCE_OFF
@@ -257,9 +305,10 @@ def _strict_text(raw: bytes, code: str) -> str:
 
 
 def _one_path(raw: bytes, base: Path, code: str) -> Path:
-    text = _strict_text(raw, code).strip()
-    if not text or "\n" in text:
+    value = raw[:-1] if raw.endswith(b"\n") else raw
+    if not value or b"\n" in value:
         raise RescueError(code, "Git returned an invalid path")
+    text = os.fsdecode(value)
     path = Path(text)
     return (base / path).resolve() if not path.is_absolute() else path.resolve()
 
@@ -307,11 +356,12 @@ def _parse_refs(git: Git) -> list[dict[str, str]]:
     refs: list[dict[str, str]] = []
     for offset in range(0, len(fields), 4):
         try:
-            name, oid, object_type, symref = (
-                field.decode("utf-8") for field in fields[offset:offset + 4]
-            )
+            name = os.fsdecode(fields[offset])
+            oid = fields[offset + 1].decode("ascii")
+            object_type = fields[offset + 2].decode("ascii")
+            symref = os.fsdecode(fields[offset + 3])
         except UnicodeDecodeError as exc:
-            raise RescueError("ref-list-parse-error", "ref inventory is not UTF-8") from exc
+            raise RescueError("ref-list-parse-error", "ref inventory has invalid ASCII fields") from exc
         name = name.lstrip("\n")
         if not name.startswith("refs/") or OID_RE.fullmatch(oid) is None:
             raise RescueError("ref-list-parse-error", "ref inventory has invalid fields")
@@ -319,30 +369,81 @@ def _parse_refs(git: Git) -> list[dict[str, str]]:
     return sorted(refs, key=lambda item: item["name"])
 
 
+def _decode_git_quoted_path(raw: bytes) -> str:
+    if not raw.startswith(b'"'):
+        return os.fsdecode(raw)
+    if len(raw) < 2 or not raw.endswith(b'"'):
+        raise RescueError("worktree-list-parse-error", "unterminated C-quoted worktree path")
+    decoded = bytearray()
+    index = 1
+    escapes = {
+        ord("a"): 7, ord("b"): 8, ord("t"): 9, ord("n"): 10,
+        ord("v"): 11, ord("f"): 12, ord("r"): 13,
+        ord('"'): 34, ord("\\"): 92,
+    }
+    while index < len(raw) - 1:
+        value = raw[index]
+        if value != 92:
+            decoded.append(value)
+            index += 1
+            continue
+        index += 1
+        if index >= len(raw) - 1:
+            raise RescueError("worktree-list-parse-error", "invalid C-quoted worktree path")
+        value = raw[index]
+        if value in escapes:
+            decoded.append(escapes[value])
+            index += 1
+            continue
+        if 48 <= value <= 55:
+            end = index
+            while end < min(index + 3, len(raw) - 1) and 48 <= raw[end] <= 55:
+                end += 1
+            decoded.append(int(raw[index:end], 8))
+            index = end
+            continue
+        raise RescueError("worktree-list-parse-error", "invalid C escape in worktree path")
+    return os.fsdecode(bytes(decoded))
+
+
 def _parse_worktrees(git: Git, common: Path, root: Path) -> list[Worktree]:
-    text = _strict_text(
-        git.run(["worktree", "list", "--porcelain"]).stdout,
-        "worktree-list-parse-error",
-    )
-    blocks = [block for block in text.split("\n\n") if block.strip()]
+    raw = git.run(["worktree", "list", "--porcelain"]).stdout
+    blocks = [block for block in raw.split(b"\n\n") if block.strip()]
     result: list[Worktree] = []
     for block in blocks:
         fields: dict[str, str] = {}
         detached = False
-        for line in block.splitlines():
-            key, separator, value = line.partition(" ")
+        bare = False
+        unknown_fields: list[str] = []
+        for raw_line in block.splitlines():
+            raw_key, separator, raw_value = raw_line.partition(b" ")
+            try:
+                key = raw_key.decode("ascii")
+            except UnicodeDecodeError:
+                key = os.fsdecode(raw_key)
+                unknown_fields.append(key)
+                continue
             if key == "detached" and not separator:
                 detached = True
-            elif key in {"worktree", "HEAD", "branch", "prunable"}:
+            elif key == "bare" and not separator:
+                bare = True
+            elif key in {"worktree", "HEAD", "branch", "locked", "prunable"}:
                 if key in fields:
                     raise RescueError("worktree-list-parse-error", "duplicate worktree field")
-                fields[key] = value
+                if key in {"worktree", "HEAD", "branch"} and not separator:
+                    raise RescueError("worktree-list-parse-error", f"{key} field has no value")
+                fields[key] = (
+                    _decode_git_quoted_path(raw_value) if key == "worktree"
+                    else os.fsdecode(raw_value)
+                )
             else:
-                raise RescueError("worktree-list-parse-error", f"unknown worktree field: {key}")
-        if "worktree" not in fields or "HEAD" not in fields:
+                unknown_fields.append(key)
+        if "worktree" not in fields or ("HEAD" not in fields and not bare):
             raise RescueError("worktree-list-parse-error", "worktree record is incomplete")
         path = Path(fields["worktree"])
-        if not path.is_absolute() or OID_RE.fullmatch(fields["HEAD"]) is None:
+        if (not path.is_absolute()
+                or ("HEAD" in fields and OID_RE.fullmatch(fields["HEAD"]) is None)
+                or (bare and "HEAD" in fields)):
             raise RescueError("worktree-list-parse-error", "worktree record has invalid fields")
         path = path.resolve()
         admin_dir: Path | None = None
@@ -366,12 +467,16 @@ def _parse_worktrees(git: Git, common: Path, root: Path) -> list[Worktree]:
                     break
         result.append(Worktree(
             path=path,
-            head=fields["HEAD"],
+            head=fields.get("HEAD"),
             branch=fields.get("branch"),
             detached=detached,
+            bare=bare,
+            locked="locked" in fields,
+            locked_reason=fields.get("locked"),
             prunable="prunable" in fields,
             prunable_reason=fields.get("prunable"),
             admin_dir=admin_dir,
+            unknown_fields=tuple(sorted(set(unknown_fields))),
         ))
     return sorted(result, key=lambda item: str(item.path))
 
@@ -550,9 +655,9 @@ def _scoped_reflog_config(git: Git) -> list[dict[str, str]]:
     return values
 
 
-def _reflog_expiry(refname: str, timestamp: int, now: dt.datetime,
+def _reflog_expiry(refname: str, timestamp: dt.datetime, now: dt.datetime,
                     config: dict[str, dict[str, Any]],
-                    scoped: Sequence[dict[str, str]]) -> tuple[str, str, str, bool]:
+                    scoped: Sequence[dict[str, str]]) -> tuple[str, str, str, str]:
     unreachable = {
         "effective": str(config["gc_reflog_expire_unreachable"]["effective"]),
         "source": str(config["gc_reflog_expire_unreachable"]["source"]),
@@ -569,27 +674,21 @@ def _reflog_expiry(refname: str, timestamp: int, now: dt.datetime,
     }
     candidates = []
     for item in (ordinary, unreachable):
+        if item["effective"].strip().lower() == "never":
+            continue
         span = _duration(item["effective"])
         if span is None:
-            return _utc_text(now), item["name"], item["source"], False
+            return _utc_text(now), item["name"], item["source"], "indeterminate"
         candidates.append((span, item))
+    if not candidates:
+        return _utc_text(NEVER_LOSS_FLOOR), "gc.reflogExpire=never", "effective-config", "determinate"
     span, chosen = min(candidates, key=lambda pair: pair[0])
-    raw_deadline = dt.datetime.fromtimestamp(timestamp, tz=dt.timezone.utc) + span
-    return _utc_text(max(now, raw_deadline)), chosen["name"], chosen["source"], True
+    raw_deadline = timestamp + span
+    return _utc_text(max(now, raw_deadline)), chosen["name"], chosen["source"], "determinate"
 
 
-def _worktree_expiry(worktree: Worktree, now: dt.datetime,
-                     config: dict[str, dict[str, Any]]) -> tuple[str, bool]:
-    span = _duration(str(config["gc_worktree_prune_expire"]["effective"]))
-    if span is None or worktree.admin_dir is None:
-        return _utc_text(now), False
-    try:
-        administrative_mtime = dt.datetime.fromtimestamp(
-            worktree.admin_dir.stat().st_mtime, tz=dt.timezone.utc,
-        )
-    except OSError:
-        return _utc_text(now), False
-    return _utc_text(max(now, administrative_mtime + span)), True
+def _worktree_expiry(now: dt.datetime) -> tuple[str, str]:
+    return _utc_text(now), "conservative-floor"
 
 
 def _read_reflog(path: Path, name: str, now: dt.datetime,
@@ -617,8 +716,15 @@ def _read_reflog(path: Path, name: str, now: dt.datetime,
                 or re.fullmatch(r"[+-][0-9]{4}", timezone) is None):
             raise RescueError("reflog-parse-error", "reflog record has invalid ids/timezone",
                               subject=f"{path}:{line_number}")
-        deadline, setting, source, parsed = _reflog_expiry(
-            name, timestamp, now, config, scoped,
+        try:
+            timestamp_value = dt.datetime.fromtimestamp(timestamp, tz=dt.timezone.utc)
+        except (ValueError, OverflowError, OSError) as exc:
+            raise RescueError(
+                "reflog-parse-error", "reflog timestamp is outside the supported range",
+                subject=f"{path}:{line_number}",
+            ) from exc
+        deadline, setting, source, deadline_status = _reflog_expiry(
+            name, timestamp_value, now, config, scoped,
         )
         for kind, oid in (("reflog-old", old), ("reflog-new", new)):
             if set(oid) == {"0"}:
@@ -628,14 +734,12 @@ def _read_reflog(path: Path, name: str, now: dt.datetime,
                 "name": name,
                 "oid": oid,
                 "worktree": None,
-                "reflog_timestamp": _utc_text(dt.datetime.fromtimestamp(
-                    timestamp, tz=dt.timezone.utc
-                )),
+                "reflog_timestamp": _utc_text(timestamp_value),
                 "classification": "time-limited",
                 "loss_possible_not_before": deadline,
                 "expiry_setting": setting,
                 "expiry_source": source,
-                "deadline_status": "determinate" if parsed else "indeterminate",
+                "deadline_status": deadline_status,
             })
     return roots
 
@@ -761,28 +865,61 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
         )
         if checked_out_name in candidate_map:
             candidate_map[checked_out_name]["checked_out_worktrees"].append(str(worktree.path))
-        try:
-            index_oids, index_commits = _parse_index(git, worktree)
-            inspection_complete = True
-        except RescueError as exc:
-            index_oids, index_commits, inspection_complete = [], [], False
-            issues.append(_issue(exc.code, "root-snapshot", exc.message,
-                                 subject=str(worktree.path)))
+        if worktree.unknown_fields:
+            issues.append(_issue(
+                "worktree-record-unknown-field", "root-snapshot",
+                "worktree record contains unknown fields: "
+                + ", ".join(worktree.unknown_fields),
+                subject=str(worktree.path),
+                affects_completeness=is_retired,
+            ))
+        if worktree.bare:
+            index_oids, index_commits = [], []
+            inspection_complete = not worktree.unknown_fields
+        else:
+            try:
+                index_oids, index_commits = _parse_index(git, worktree)
+                inspection_complete = not worktree.unknown_fields
+            except RescueError as exc:
+                index_oids, index_commits, inspection_complete = [], [], False
+                issues.append(_issue(exc.code, "root-snapshot", exc.message,
+                                     subject=str(worktree.path)))
         all_index_oids.update(index_oids)
         all_index_commits.update(index_commits)
         classification = (
-            "removed" if is_retired else "time-limited" if worktree.prunable else "permanent"
+            "permanent" if worktree.unknown_fields else
+            "removed" if is_retired else
+            "time-limited" if worktree.prunable else "permanent"
         )
         worktree_rows.append({
             "path": str(worktree.path), "head": worktree.head,
             "branch": worktree.branch, "detached": worktree.detached,
-            "prunable": worktree.prunable, "retired": is_retired,
+            "bare": worktree.bare,
+            "locked": worktree.locked, "locked_reason": worktree.locked_reason,
+            "prunable": worktree.prunable, "prunable_reason": worktree.prunable_reason,
+            "retired": is_retired, "unknown_fields": list(worktree.unknown_fields),
             "root_classification": classification,
             "index_object_count": len(index_oids),
             "index_commit_root_count": len(index_commits),
             "inspection_complete": inspection_complete,
         })
-        if is_retired:
+        if worktree.bare:
+            continue
+        assert worktree.head is not None
+        if worktree.unknown_fields:
+            for kind, oid in [
+                ("worktree-head", worktree.head),
+                *[("index-commit", value) for value in index_commits],
+            ]:
+                permanent_oids.add(oid)
+                roots.append({
+                    "kind": kind, "name": str(worktree.path), "oid": oid,
+                    "worktree": str(worktree.path), "reflog_timestamp": None,
+                    "classification": "permanent", "loss_possible_not_before": None,
+                    "expiry_setting": None, "expiry_source": None,
+                    "deadline_status": "not-applicable",
+                })
+        elif is_retired:
             removed_source_oids.append((f"worktree:{worktree.path}", worktree.head))
             removed_source_oids.extend(
                 (f"worktree-index:{worktree.path}", oid) for oid in index_commits
@@ -800,7 +937,7 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
                 "wrong_inclusion_bias": "under-report",
             } for oid in index_commits)
         elif worktree.prunable:
-            deadline, parsed = _worktree_expiry(worktree, now, config)
+            deadline, deadline_status = _worktree_expiry(now)
             for kind, oid in [("worktree-head", worktree.head), *[("index-commit", value) for value in index_commits]]:
                 entry = {
                     "kind": kind, "name": str(worktree.path), "oid": oid,
@@ -809,13 +946,10 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
                     "loss_possible_not_before": deadline,
                     "expiry_setting": "gc.worktreePruneExpire",
                     "expiry_source": config["gc_worktree_prune_expire"]["source"],
-                    "deadline_status": "determinate" if parsed else "indeterminate",
+                    "deadline_status": deadline_status,
                 }
                 roots.append(entry)
                 temporary_roots.append(entry)
-            if not parsed:
-                issues.append(_issue("worktree-expiry-indeterminate", "root-snapshot",
-                                     "cannot parse gc.worktreePruneExpire", subject=str(worktree.path)))
         else:
             for kind, oid in [("worktree-head", worktree.head), *[("index-commit", value) for value in index_commits]]:
                 permanent_oids.add(oid)
@@ -846,11 +980,22 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
             refname = "refs/" + path.relative_to(logs_refs).as_posix()
             if refname in branch_refnames:
                 excluded_candidate_file_count += 1
-                excluded.append({
-                    "kind": "candidate-reflog", "name": refname, "oid": None,
-                    "reason": "candidate branch reflog is removed with its ref",
-                    "wrong_inclusion_bias": "under-report",
-                })
+                try:
+                    entries = _read_reflog(path, refname, now, config, scoped)
+                    types = _cat_types(git, (entry["oid"] for entry in entries))
+                except RescueError as exc:
+                    issues.append(_issue(exc.code, "root-snapshot", exc.message,
+                                         subject=exc.subject))
+                    continue
+                for entry in entries:
+                    oid = entry["oid"]
+                    excluded.append({
+                        "kind": "candidate-reflog", "name": refname, "oid": oid,
+                        "reason": "candidate branch reflog is removed with its ref",
+                        "wrong_inclusion_bias": "under-report",
+                    })
+                    if types.get(oid) == "commit":
+                        removed_source_oids.append((f"candidate-reflog:{refname}", oid))
                 continue
             reflog_file_count += 1
             try:
@@ -868,6 +1013,8 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
             reflog_root_count += len(entries)
 
     for worktree in worktrees:
+        if worktree.bare:
+            continue
         head_log = (
             worktree.admin_dir / "logs" / "HEAD" if worktree.admin_dir is not None
             else common / "logs" / "HEAD"
@@ -885,8 +1032,10 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
         for entry in entries:
             entry["worktree"] = str(worktree.path)
         if worktree.path in retired:
+            types = _cat_types(git, (entry["oid"] for entry in entries))
             for entry in entries:
-                removed_source_oids.append((f"worktree-reflog:{worktree.path}", entry["oid"]))
+                if types.get(entry["oid"]) == "commit":
+                    removed_source_oids.append((f"worktree-reflog:{worktree.path}", entry["oid"]))
                 excluded.append({
                     "kind": "retired-worktree-reflog", "name": entry["name"],
                     "oid": entry["oid"],
@@ -895,15 +1044,11 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
                 })
             continue
         if worktree.prunable:
-            worktree_deadline, parsed = _worktree_expiry(worktree, now, config)
+            worktree_deadline, worktree_status = _worktree_expiry(now)
             for entry in entries:
-                if entry["deadline_status"] != "determinate" or not parsed:
-                    entry["loss_possible_not_before"] = _utc_text(now)
-                    entry["deadline_status"] = "indeterminate"
-                    entry["expiry_setting"] = "gc.worktreePruneExpire"
-                    entry["expiry_source"] = config["gc_worktree_prune_expire"]["source"]
-                elif worktree_deadline <= entry["loss_possible_not_before"]:
+                if worktree_deadline <= entry["loss_possible_not_before"]:
                     entry["loss_possible_not_before"] = worktree_deadline
+                    entry["deadline_status"] = worktree_status
                     entry["expiry_setting"] = "gc.worktreePruneExpire"
                     entry["expiry_source"] = config["gc_worktree_prune_expire"]["source"]
         if any(entry["deadline_status"] == "indeterminate" for entry in entries):
@@ -966,7 +1111,7 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
         temporary_roots=temporary_roots,
         removed_source_oids=removed_source_oids,
         candidates=[candidate_map[name] for name in branches if name in candidate_map],
-        complete=not issues,
+        complete=not any(item["affects_completeness"] for item in issues),
         issues=issues,
         reflog_summary={
             "included_file_count": reflog_file_count,
@@ -1174,24 +1319,40 @@ def _retention(git: Git, oid: str, now: dt.datetime, objects: Path,
             pack_mtime = dt.datetime.fromtimestamp(pack.stat().st_mtime, tz=dt.timezone.utc)
         except OSError:
             pack_mtime = None
-    span = _duration(str(prune_config["effective"]))
-    if storage == "loose" and loose_mtime is not None and span is not None:
+    prune_value = str(prune_config["effective"]).strip().lower()
+    span = _duration(prune_value)
+    lower_bound: dt.datetime | None
+    if object_type != "commit" or storage in {"missing", "indeterminate"}:
+        lower_bound = None
+        basis = "unavailable"
+        status = "indeterminate"
+        reason = (
+            "cat-file did not classify the object as a commit" if object_type != "commit"
+            else "object storage could not be classified"
+        )
+    elif storage == "loose" and loose_mtime is not None and prune_value == "never":
+        lower_bound = NEVER_LOSS_FLOOR
+        basis = "gc-prune-expire-never"
+        status = "determinate"
+        reason = "gc.pruneExpire=never makes the storage lower bound unbounded"
+    elif storage == "loose" and loose_mtime is not None and span is not None:
         lower_bound = max(now, loose_mtime + span)
         basis = "loose-object-mtime-plus-prune-expire"
         status = "determinate"
         reason = "loose object mtime and gc.pruneExpire provide a lower bound"
     else:
         lower_bound = now
-        basis = "assessment-time-conservative-floor"
-        status = "indeterminate"
+        basis = (
+            "alternate-object-database-assessment-time-conservative-floor"
+            if storage == "alternate" else "assessment-time-conservative-floor"
+        )
+        status = "conservative-floor"
         reason = {
             "packed": "pack mtime is not an object-specific unreachable time",
             "loose-and-packed": "packed copy prevents a determinate object-specific deadline",
             "alternate": "alternate object retention is controlled outside this repository",
-            "missing": "commit object is missing",
-            "indeterminate": "object storage could not be classified",
             "loose": "gc.pruneExpire could not be parsed",
-        }.get(storage, "object retention is indeterminate")
+        }.get(storage, "object-specific retention cannot be observed")
     additional = [
         {
             "kind": item["kind"], "name": item["name"], "oid": item["oid"],
@@ -1202,23 +1363,20 @@ def _retention(git: Git, oid: str, now: dt.datetime, objects: Path,
         }
         for item in temporary_roots if item["oid"] == oid
     ]
-    additional_determinate = all(
-        item["deadline_status"] == "determinate" for item in additional
-    )
-    if additional and additional_determinate:
+    usable_additional = [
+        item for item in additional
+        if item["deadline_status"] != "indeterminate"
+        and item["loss_possible_not_before"] is not None
+    ]
+    if lower_bound is not None and usable_additional:
         source_floor = max(
             dt.datetime.fromisoformat(
                 item["loss_possible_not_before"][:-1] + "+00:00"
             )
-            for item in additional
+            for item in usable_additional
         )
         lower_bound = max(lower_bound, source_floor)
-    elif not additional_determinate:
-        lower_bound = now
-        status = "indeterminate"
-        basis = "assessment-time-conservative-floor"
-        reason = "a time-limited root has an indeterminate expiry lower bound"
-    complete = status == "determinate" and additional_determinate
+    complete = status != "indeterminate"
     return {
         "storage_kind": storage,
         "cat_file_type": object_type if object_type == "commit" else None,
@@ -1226,7 +1384,7 @@ def _retention(git: Git, oid: str, now: dt.datetime, objects: Path,
         "loose_mtime": _utc_text(loose_mtime) if loose_mtime else None,
         "pack_path": str(pack) if pack is not None else None,
         "pack_mtime_observed": _utc_text(pack_mtime) if pack_mtime else None,
-        "loss_possible_not_before": _utc_text(lower_bound),
+        "loss_possible_not_before": _utc_text(lower_bound) if lower_bound is not None else None,
         "lower_bound_basis": basis,
         "deadline_status": status,
         "reason": reason,
@@ -1244,7 +1402,6 @@ def _empty_landed(reason: str, elapsed: float = 0.0) -> dict[str, Any]:
         "elapsed_seconds": round(elapsed, 6),
         "corpus_bytes_read": None,
         "report_sha256": None,
-        "branch_delete_authorized": False,
         "manual_review_required": True,
         "complete": False,
     }
@@ -1255,28 +1412,23 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
     started = time.monotonic()
     if overall_remaining <= 0:
         return _empty_landed("overall-timeout")
-    env = {
-        "PATH": os.environ.get("PATH", ""),
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_OPTIONAL_LOCKS": "0",
-        "GIT_TERMINAL_PROMPT": "0",
-        "LC_ALL": "C",
-    }
     try:
-        result = subprocess.run(
-            [sys.executable, str(checker), "--repo", str(repo),
-             "--timeout-seconds", str(timeout), oid],
-            cwd=repo,
-            env=env,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=min(timeout, overall_remaining),
-            check=False,
-        )
+        with _no_lazy_fetch_child_env() as env:
+            result = subprocess.run(
+                [sys.executable, str(checker), "--repo", str(repo),
+                 "--timeout-seconds", str(timeout), oid],
+                cwd=repo,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=min(timeout, overall_remaining),
+                check=False,
+            )
     except subprocess.TimeoutExpired:
         return _empty_landed("checker-timeout", time.monotonic() - started)
+    except OSError:
+        return _empty_landed("checker-launch-error", time.monotonic() - started)
     elapsed = time.monotonic() - started
     if result.returncode not in {0, 1, 2} or result.stdout.count(b"\n") != 1:
         return _empty_landed("checker-contract-invalid", elapsed)
@@ -1306,7 +1458,6 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
         "elapsed_seconds": round(elapsed, 6),
         "corpus_bytes_read": corpus.get("bytes_read") if isinstance(corpus, dict) else None,
         "report_sha256": hashlib.sha256(result.stdout).hexdigest(),
-        "branch_delete_authorized": False,
         "manual_review_required": payload.get("manual_review_required") is not False,
         "complete": verdict != "indeterminate",
     }
@@ -1338,7 +1489,10 @@ def _valid_timestamp(value: object) -> bool:
 def _validate_ledger_entry(entry: object) -> tuple[bool, str]:
     if not isinstance(entry, dict) or set(entry) != set(LEDGER_FIELDS):
         return False, "ledger-entry-fields-invalid"
-    integer_fields = {"gc_auto_threshold", "loose_count_at_loss", "gc_headroom_at_loss"}
+    integer_fields = {
+        "gc_auto_threshold", "gc_auto_sample_count", "gc_auto_sample_threshold",
+        "loose_count_at_loss",
+    }
     for field, expected in LEDGER_FIELDS.items():
         if field in integer_fields:
             valid_type = entry[field] is None or type(entry[field]) is int
@@ -1360,6 +1514,15 @@ def _validate_ledger_entry(entry: object) -> tuple[bool, str]:
         return False, "ledger-entry-status-invalid"
     if entry["object_retention_provided"] is not False:
         return False, "ledger-entry-retention-claim-invalid"
+    auto = entry["gc_auto_threshold"]
+    sample_threshold = entry["gc_auto_sample_threshold"]
+    if ((auto is None) != (sample_threshold is None)
+            or (auto is not None and sample_threshold != (auto + 255) // 256)):
+        return False, "ledger-entry-gc-sample-threshold-invalid"
+    if entry["gc_auto_sample_fanout"] != "17":
+        return False, "ledger-entry-gc-sample-fanout-invalid"
+    if entry["gc_auto_heuristic_version"] != "git-2.34.1-fanout-17-sample":
+        return False, "ledger-entry-gc-heuristic-version-invalid"
     if OID_RE.fullmatch(str(entry["object_oid"])) is None:
         return False, "ledger-entry-oid-invalid"
     if not all(isinstance(value, str) for value in entry["source_refs"]):
@@ -1415,14 +1578,7 @@ def _read_ledger(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]
 
 
 def _audit(repo: Path, audit_tool: Path, timeout: float) -> tuple[list[str], dict[str, Any], list[dict[str, Any]]]:
-    env = {
-        **os.environ,
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_OPTIONAL_LOCKS": "0",
-        "GIT_TERMINAL_PROMPT": "0",
-        "LC_ALL": "C",
-    }
+    env = _child_env()
     try:
         result = subprocess.run(
             [sys.executable, str(audit_tool), "--repo", str(repo)],
@@ -1449,10 +1605,18 @@ def _audit(repo: Path, audit_tool: Path, timeout: float) -> tuple[list[str], dic
         0 if len(zero_summaries) == 1 and not summaries else None
     )
     expected_rc = 0 if reported_count == 0 else 1 if reported_count is not None else None
+    terminal_pattern = re.compile(
+        r"audit_dangling_commits: elapsed_seconds=(?:[0-9]+(?:\.[0-9]+)?)"
+    )
+    output_lines = stdout.splitlines()
+    terminal_lines = [line for line in output_lines if terminal_pattern.fullmatch(line)]
     complete = (
         result.returncode == expected_rc
         and reported_count is not None
         and reported_count == len(commits)
+        and len(terminal_lines) == 1
+        and bool(output_lines)
+        and terminal_pattern.fullmatch(output_lines[-1]) is not None
     )
     issues = [] if complete else [
         _issue("audit-contract-invalid", "ledger",
@@ -1566,10 +1730,31 @@ def _base_payload(repo: Path, now: dt.datetime, args: argparse.Namespace) -> dic
     }
 
 
-def assess(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
+def assess(
+    args: argparse.Namespace,
+    *,
+    assessment_time: dt.datetime | None = None,
+    landed_checker: Path = LANDED_CHECKER_PATH,
+    audit_tool: Path = AUDIT_TOOL_PATH,
+) -> tuple[int, dict[str, Any]]:
     started = time.monotonic()
-    now = args.now or dt.datetime.now(dt.timezone.utc)
+    assessment_time_error: str | None = None
+    try:
+        now = assessment_time or _current_assessment_time()
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("assessment time must be timezone-aware")
+        now = now.astimezone(dt.timezone.utc)
+    except (OSError, OverflowError, RuntimeError, ValueError) as exc:
+        now = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
+        assessment_time_error = str(exc)
     payload = _base_payload(args.repo, now, args)
+    if assessment_time_error is not None:
+        payload["issues"].append(_issue(
+            "assessment-time-indeterminate", "assessment",
+            "assessment time could not be established: " + assessment_time_error,
+        ))
+        payload["timing"]["total_elapsed_seconds"] = round(time.monotonic() - started, 6)
+        return 2, payload
     git = Git(args.repo.resolve(), started + args.timeout_seconds)
     technical_incomplete = False
     notification_due = False
@@ -1647,7 +1832,7 @@ def assess(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                     ))
                 else:
                     assessment = _landed_assessment(
-                        root, args.landed_checker, commit["oid"],
+                        root, landed_checker, commit["oid"],
                         args.assessment_timeout_seconds, git.remaining(),
                     )
                     commit["landed_assessment"] = assessment
@@ -1693,7 +1878,7 @@ def assess(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
 
         if args.ledger_check:
             ledger, ledger_issues, notification_due = _ledger_check(
-                root, ledger_path, args.audit_tool, now, git.remaining(),
+                root, ledger_path, audit_tool, now, git.remaining(),
             )
             payload["ledger"] = ledger
             payload["issues"].extend(ledger_issues)
@@ -1748,13 +1933,6 @@ def _parser() -> CliParser:
                         default=DEFAULT_MAX_DELETION_LOSS_COMMITS)
     parser.add_argument("--max-assessments", type=_bounded_int(1, 4096),
                         default=DEFAULT_MAX_ASSESSMENTS)
-    parser.add_argument("--now", type=_parse_now, help=argparse.SUPPRESS)
-    parser.add_argument("--landed-checker", type=Path,
-                        default=Path(__file__).with_name("check_branch_landed.py"),
-                        help=argparse.SUPPRESS)
-    parser.add_argument("--audit-tool", type=Path,
-                        default=Path(__file__).with_name("audit_dangling_commits.py"),
-                        help=argparse.SUPPRESS)
     return parser
 
 
@@ -1763,9 +1941,18 @@ def _validate_cli(parser: CliParser, args: argparse.Namespace) -> None:
         parser.error("at least one --branch, --retire-worktree, or --ledger-check is required")
     if len(args.branch) != len(set(args.branch)):
         parser.error("duplicate --branch input")
-    if any(not name or BRANCH_RE.fullmatch(name) is None or name.endswith(("/", "."))
-           for name in args.branch):
-        parser.error("invalid local branch name")
+    for name in args.branch:
+        if not name:
+            parser.error("invalid local branch name")
+        result = subprocess.run(
+            ["git", *GIT_CONFIG_BASE, "check-ref-format", "--branch", name],
+            cwd=args.repo if args.repo.is_dir() else None,
+            env=_child_env(), stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            check=False, timeout=COMMAND_TIMEOUT_SECONDS,
+        )
+        if result.returncode != 0:
+            parser.error("invalid local branch name")
     normalized: list[Path] = []
     for path in args.retire_worktree:
         if not path.is_absolute():
@@ -1782,7 +1969,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     _validate_cli(parser, args)
     rc, payload = assess(args)
     sys.stdout.write(json.dumps(
-        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
     ) + "\n")
     return rc
 

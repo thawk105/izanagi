@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -109,10 +110,11 @@ raise SystemExit({rc})
 
 
 def _make_fake_audit(path: Path, commits: list[str]) -> Path:
-    rows = "".join(f"  commit {oid} (fixture)\\n" for oid in commits)
+    rows = "".join(f"  commit {oid} (fixture)\n" for oid in commits)
     body = f"""#!/usr/bin/env python3
 print("audit_dangling_commits: 要確認の到達不能変更 {len(commits)} commit")
 print({rows!r}, end="")
+print("audit_dangling_commits: elapsed_seconds=0.001")
 raise SystemExit({1 if commits else 0})
 """
     path.write_text(body, encoding="utf-8")
@@ -125,15 +127,39 @@ def _run_tool(
     timeout: float = 60,
     env: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, Any], subprocess.CompletedProcess[str]]:
-    result = subprocess.run(
-        [sys.executable, str(TOOL_PATH), "--repo", str(repo), *extra],
-        cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env={**os.environ, **(env or {})}, timeout=timeout, check=False,
+    del timeout
+    cli: list[str] = ["--repo", str(repo)]
+    now: dt.datetime | None = None
+    landed_checker = TOOL.LANDED_CHECKER_PATH
+    audit_tool = TOOL.AUDIT_TOOL_PATH
+    index = 0
+    while index < len(extra):
+        if extra[index] == "--now":
+            now = TOOL._parse_now(extra[index + 1])
+            index += 2
+        elif extra[index] == "--landed-checker":
+            landed_checker = Path(extra[index + 1])
+            index += 2
+        elif extra[index] == "--audit-tool":
+            audit_tool = Path(extra[index + 1])
+            index += 2
+        else:
+            cli.append(extra[index])
+            index += 1
+    parser = TOOL._parser()
+    args = parser.parse_args(cli)
+    with mock.patch.dict(os.environ, env or {}, clear=False):
+        TOOL._validate_cli(parser, args)
+        rc, payload = TOOL.assess(
+            args, assessment_time=now,
+            landed_checker=landed_checker, audit_tool=audit_tool,
+        )
+    stdout = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n"
+    result = subprocess.CompletedProcess(
+        [sys.executable, str(TOOL_PATH), *cli], rc, stdout=stdout, stderr="",
     )
-    assert result.stdout.count("\n") == 1, result.stdout + result.stderr
-    payload = json.loads(result.stdout)
     assert payload["schema"] == "izanagi-branch-rescue-v1"
-    return result.returncode, payload, result
+    return rc, payload, result
 
 
 def _topic_with_file(repo: Path, name: str = "topic", content: str = "topic\n") -> str:
@@ -167,6 +193,14 @@ def _all_key_values(value: Any, key: str) -> list[Any]:
     return result
 
 
+def _repository_control_bytes(repo: Path) -> dict[str, bytes]:
+    git_dir = repo / ".git"
+    return {
+        str(path.relative_to(repo)): path.read_bytes()
+        for path in git_dir.rglob("*") if path.is_file()
+    }
+
+
 def _ledger_entry(oid: str, *, retained: bool = False) -> dict[str, Any]:
     return {
         "schema": "izanagi-unreachable-object-ledger-v1",
@@ -184,9 +218,12 @@ def _ledger_entry(oid: str, *, retained: bool = False) -> dict[str, Any]:
         "object_mtime": "2030-01-01T00:00:00Z",
         "loss_possible_not_before": "2030-02-01T00:00:00Z",
         "lower_bound_basis": "loose-object-mtime-plus-prune-expire",
-        "gc_auto_threshold": 27,
+        "gc_auto_threshold": 6700,
+        "gc_auto_sample_fanout": "17",
+        "gc_auto_sample_count": 12,
+        "gc_auto_sample_threshold": 27,
+        "gc_auto_heuristic_version": "git-2.34.1-fanout-17-sample",
         "loose_count_at_loss": 12,
-        "gc_headroom_at_loss": 15,
         "status": "pending",
         "resolved_at": None,
         "rescue_ref": None,
@@ -300,10 +337,11 @@ def test_m02_nonretired_detached_worktree_head_is_permanent_root(tmp_path: Path)
     }]
 
 
-def test_m03_candidate_reflog_is_not_a_post_cleanup_root(tmp_path: Path):
+def test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root(tmp_path: Path):
     repo = _init_repo(tmp_path)
     topic = _empty_child(repo)
     _git(repo, "branch", "topic", topic)
+    _git(repo, "branch", "-f", "topic", "main")
     checker = _make_fake_landed(tmp_path / "landed.py")
 
     rc, payload, process = _run_tool(
@@ -314,6 +352,7 @@ def test_m03_candidate_reflog_is_not_a_post_cleanup_root(tmp_path: Path):
     excluded = [item for item in payload["root_snapshot"]["excluded"]
                 if item["kind"] == "candidate-reflog"]
     assert excluded and excluded[0]["name"] == "refs/heads/topic"
+    assert topic in payload["deletion_loss_closure"]["stdin_positive_oids"]
     assert topic not in payload["deletion_loss_closure"]["stdin_negative_oids"]
 
 
@@ -361,7 +400,6 @@ def test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line(
     parser = TOOL._parser()
     args = parser.parse_args([
         "--repo", str(repo), "--branch", "topic",
-        "--landed-checker", str(checker),
     ])
     TOOL._validate_cli(parser, args)
     original = TOOL.Git.run
@@ -373,7 +411,7 @@ def test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line(
         return original(git, command, **kwargs)
 
     monkeypatch.setattr(TOOL.Git, "run", recording)
-    rc, payload = TOOL.assess(args)
+    rc, payload = TOOL.assess(args, landed_checker=checker)
     assert rc == 0, payload["issues"]
     assert topic in closure_stdin
     assert any(line.startswith("^") for line in closure_stdin)
@@ -424,7 +462,7 @@ def test_m09_loose_deadline_uses_object_mtime_not_now(tmp_path: Path):
     assert retention["loss_possible_not_before"] != "2030-01-29T00:00:00Z"
 
 
-def test_m10_m11_packed_mtime_never_becomes_determinate_deadline(tmp_path: Path):
+def test_m10_m26_packed_mtime_never_becomes_determinate_deadline(tmp_path: Path):
     repo = _init_repo(tmp_path)
     topic = _empty_child(repo)
     _git(repo, "branch", "topic", topic)
@@ -432,20 +470,39 @@ def test_m10_m11_packed_mtime_never_becomes_determinate_deadline(tmp_path: Path)
     loose = repo / ".git" / "objects" / topic[:2] / topic[2:]
     assert not loose.exists()
     for pack in (repo / ".git" / "objects" / "pack").glob("*.pack"):
-        os.utime(pack, (946684800, 946684800))
+        future = dt.datetime(2040, 1, 1, tzinfo=dt.timezone.utc).timestamp()
+        os.utime(pack, (future, future))
     checker = _make_fake_landed(tmp_path / "landed.py")
 
     rc, payload, _ = _run_tool(
         repo, "--branch", "topic", "--landed-checker", str(checker),
         "--now", "2030-01-15T00:00:00Z",
     )
-    assert rc == 2
+    assert rc == 0
     retention = _commit_row(payload, topic)["retention"]
     assert retention["storage_kind"] == "packed"
-    assert retention["pack_mtime_observed"] == "2000-01-01T00:00:00Z"
+    assert retention["pack_mtime_observed"] > payload["generated_at"]
     assert retention["loss_possible_not_before"] == "2030-01-15T00:00:00Z"
     assert retention["lower_bound_basis"] == "assessment-time-conservative-floor"
-    assert retention["deadline_status"] == "indeterminate"
+    assert retention["deadline_status"] == "conservative-floor"
+
+
+def test_m11_m28_p07_packed_conservative_floor_is_complete_rc0(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    topic = _empty_child(repo)
+    _git(repo, "branch", "topic", topic)
+    _git(repo, "repack", "-a", "-d")
+    checker = _make_fake_landed(tmp_path / "landed.py")
+
+    rc, payload, process = _run_tool(
+        repo, "--branch", "topic", "--landed-checker", str(checker),
+        "--now", "2030-01-15T00:00:00Z",
+    )
+    assert rc == 0, process.stdout + process.stderr
+    retention = _commit_row(payload, topic)["retention"]
+    assert retention["deadline_status"] == "conservative-floor"
+    assert retention["loss_possible_not_before"] == payload["generated_at"]
+    assert payload["decision_inputs"]["visualization_complete"] is True
 
 
 def test_m12_gc_auto_uses_fanout_sample_not_total_count(tmp_path: Path):
@@ -509,7 +566,7 @@ def test_m14_unledgered_audit_finding_returns_rc3(tmp_path: Path):
     }]
 
 
-def test_m15_retention_claim_is_fixed_false_and_true_entry_is_rejected(tmp_path: Path):
+def test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed(tmp_path: Path):
     repo = _init_repo(tmp_path)
     oid = _git(repo, "rev-parse", "main").stdout.strip()
     audit = _make_fake_audit(tmp_path / "audit.py", [])
@@ -525,6 +582,7 @@ def test_m15_retention_claim_is_fixed_false_and_true_entry_is_rejected(tmp_path:
     assert _all_key_values(payload, "object_retention_provided")
     assert set(_all_key_values(payload, "object_retention_provided")) == {False}
     assert not _all_key_values(payload, "deletion_authorized")
+    assert not _all_key_values(payload, "branch_delete_authorized")
 
     ledger.write_text("# Ledger\n\n- " + json.dumps(_ledger_entry(oid, retained=True)) + "\n",
                       encoding="utf-8")
@@ -541,25 +599,39 @@ def test_m16_git_allowlist_rejects_forbidden_command_before_spawn(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ):
     repo = _init_repo(tmp_path)
-    _git(repo, "branch", "topic", "main")
+    _topic_with_file(repo)
+    checker = _make_fake_landed(tmp_path / "landed.py")
+    audit = _make_fake_audit(tmp_path / "audit.py", [])
     parser = TOOL._parser()
-    args = parser.parse_args(["--repo", str(repo), "--branch", "topic"])
-    TOOL._validate_cli(parser, args)
+    args = parser.parse_args([
+        "--repo", str(repo), "--branch", "topic", "--ledger-check",
+    ])
     real_spawn = TOOL.subprocess.run
     spawned: list[list[str]] = []
+    child_envs: list[dict[str, str]] = []
 
     def recording_spawn(argv: Any, *positional: Any, **kwargs: Any):
         spawned.append(list(argv))
+        child_envs.append(dict(kwargs["env"]))
         return real_spawn(argv, *positional, **kwargs)
 
+    before = _repository_control_bytes(repo)
     monkeypatch.setattr(TOOL.subprocess, "run", recording_spawn)
-    rc, payload = TOOL.assess(args)
+    TOOL._validate_cli(parser, args)
+    rc, payload = TOOL.assess(
+        args, landed_checker=checker, audit_tool=audit,
+    )
+    after = _repository_control_bytes(repo)
     assert rc == 0, payload["issues"]
     assert spawned
-    assert all(argv[0] == "git" for argv in spawned)
+    assert after == before
+    assert any(argv[:2] == [sys.executable, str(checker)] for argv in spawned)
+    assert any(argv[:2] == [sys.executable, str(audit)] for argv in spawned)
+    assert all(env["GIT_NO_LAZY_FETCH"] == "1" for env in child_envs)
+    git_argv = [argv for argv in spawned if argv[0] == "git"]
     observed_commands = {
         next(token for token in argv[1:] if token in TOOL.GIT_COMMAND_ALLOWLIST)
-        for argv in spawned
+        for argv in git_argv
     }
     assert observed_commands <= TOOL.GIT_COMMAND_ALLOWLIST
     assert not {"gc", "prune", "update-ref", "checkout", "reset"} & observed_commands
@@ -631,7 +703,7 @@ def test_surviving_index_commit_is_root_but_blob_is_not_commit_root(tmp_path: Pa
     assert topic in payload["deletion_loss_closure"]["stdin_negative_oids"]
 
 
-def test_prunable_worktree_roots_are_time_limited_not_negative(tmp_path: Path):
+def test_m21_p08_prunable_worktree_roots_use_conservative_floor(tmp_path: Path):
     repo = _init_repo(tmp_path)
     topic = _topic_with_file(repo)
     original = tmp_path / "prunable"
@@ -652,6 +724,10 @@ def test_prunable_worktree_roots_are_time_limited_not_negative(tmp_path: Path):
     assert roots
     assert {root["classification"] for root in roots} == {"time-limited"}
     assert all(root["expiry_setting"] == "gc.worktreePruneExpire" for root in roots)
+    assert {root["deadline_status"] for root in roots} == {"conservative-floor"}
+    assert {root["loss_possible_not_before"] for root in roots} == {
+        "2030-01-15T00:00:00Z"
+    }
     assert topic not in payload["deletion_loss_closure"]["stdin_negative_oids"]
 
 
@@ -670,7 +746,7 @@ def test_private_ref_presence_is_reported_and_never_used_as_negative_root(tmp_pa
                    for root in payload["root_snapshot"]["roots"])
 
 
-def test_alternate_only_commit_has_indeterminate_external_retention(tmp_path: Path):
+def test_m29_p09_alternate_only_commit_has_conservative_external_retention(tmp_path: Path):
     source = _init_repo(tmp_path / "source")
     external = _topic_with_file(source, "external", "external\n")
     repo = _init_repo(tmp_path / "target")
@@ -684,28 +760,27 @@ def test_alternate_only_commit_has_indeterminate_external_retention(tmp_path: Pa
         repo, "--branch", "topic", "--landed-checker", str(checker),
         "--now", "2030-01-15T00:00:00Z",
     )
-    assert rc == 2
+    assert rc == 0
     retention = _commit_row(payload, external)["retention"]
     assert retention["storage_kind"] == "alternate"
-    assert retention["deadline_status"] == "indeterminate"
+    assert retention["deadline_status"] == "conservative-floor"
     assert retention["loss_possible_not_before"] == "2030-01-15T00:00:00Z"
+    assert retention["lower_bound_basis"].startswith("alternate-object-database-")
     assert payload["root_snapshot"]["alternates"]["alternate_refs_used_as_roots"] is False
 
 
 def test_normal_preview_preserves_repository_control_bytes(tmp_path: Path):
     repo = _init_repo(tmp_path)
-    _git(repo, "branch", "topic", "main")
+    _topic_with_file(repo)
+    checker = _make_fake_landed(tmp_path / "landed.py")
+    audit = _make_fake_audit(tmp_path / "audit.py", [])
 
-    def control_bytes() -> dict[str, bytes]:
-        paths = [repo / ".git" / "index"]
-        for relative in ("refs", "logs", "objects"):
-            root = repo / ".git" / relative
-            paths.extend(path for path in root.rglob("*") if path.is_file())
-        return {str(path.relative_to(repo)): path.read_bytes() for path in paths}
-
-    before = control_bytes()
-    rc, payload, process = _run_tool(repo, "--branch", "topic")
-    after = control_bytes()
+    before = _repository_control_bytes(repo)
+    rc, payload, process = _run_tool(
+        repo, "--branch", "topic", "--ledger-check",
+        "--landed-checker", str(checker), "--audit-tool", str(audit),
+    )
+    after = _repository_control_bytes(repo)
     assert rc == 0, process.stdout + process.stderr
     assert after == before
     assert payload["root_snapshot"]["stable"] is True
@@ -758,6 +833,285 @@ def test_usage_rc64_and_fixed_coverage_boundary(tmp_path: Path):
         "D978 unenacted deletion paths",
     ]
     assert not _all_key_values(payload, "deletion_authorized")
+
+
+def test_a1_retired_worktree_reflog_only_commit_is_a_positive_root(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    topic = _empty_child(repo)
+    retired = tmp_path / "retired"
+    _git(repo, "worktree", "add", "--detach", str(retired), topic)
+    _git(retired, "switch", "--detach", "main")
+    checker = _make_fake_landed(tmp_path / "landed.py")
+
+    rc, payload, process = _run_tool(
+        repo, "--retire-worktree", str(retired),
+        "--landed-checker", str(checker),
+    )
+    assert rc == 0, process.stdout + process.stderr
+    assert topic in _closure_oids(payload)
+    assert topic in payload["deletion_loss_closure"]["stdin_positive_oids"]
+    assert any(
+        item["kind"] == "retired-worktree-reflog" and item["oid"] == topic
+        for item in payload["root_snapshot"]["excluded"]
+    )
+
+
+def test_a1_candidate_reflog_parse_failure_is_rc2(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    _git(repo, "branch", "topic", "main")
+    log = repo / ".git" / "logs" / "refs" / "heads" / "topic"
+    log.write_bytes(b"malformed reflog\n")
+
+    rc, payload, _ = _run_tool(repo, "--branch", "topic")
+    assert rc == 2
+    assert any(issue["code"] == "reflog-parse-error" for issue in payload["issues"])
+
+
+def test_a2_a6_production_cli_rejects_child_path_and_time_injection(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    _git(repo, "branch", "topic", "main")
+    for option, value in (
+        ("--now", "2099-01-01T00:00:00Z"),
+        ("--landed-checker", str(tmp_path / "landed.py")),
+        ("--audit-tool", str(tmp_path / "audit.py")),
+    ):
+        result = subprocess.run(
+            [sys.executable, str(TOOL_PATH), "--repo", str(repo),
+             "--branch", "topic", option, value],
+            cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            check=False,
+        )
+        assert result.returncode == 64
+        assert result.stdout == ""
+
+
+def test_m20_a4_effective_global_prune_config_is_observed(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    topic = _empty_child(repo)
+    _git(repo, "branch", "topic", topic)
+    _git(repo, "config", "--unset", "gc.pruneExpire")
+    object_path = repo / ".git" / "objects" / topic[:2] / topic[2:]
+    mtime = dt.datetime(2030, 1, 14, tzinfo=dt.timezone.utc).timestamp()
+    os.utime(object_path, (mtime, mtime))
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".gitconfig").write_text("[gc]\n\tpruneExpire = now\n", encoding="utf-8")
+    checker = _make_fake_landed(tmp_path / "landed.py")
+
+    rc, payload, process = _run_tool(
+        repo, "--branch", "topic", "--landed-checker", str(checker),
+        "--now", "2030-01-15T00:00:00Z", env={"HOME": str(home)},
+    )
+    assert rc == 0, process.stdout + process.stderr
+    retention = _commit_row(payload, topic)["retention"]
+    assert retention["loss_possible_not_before"] == "2030-01-15T00:00:00Z"
+    assert payload["gc"]["config"]["gc_prune_expire"]["source"].startswith("file:")
+
+
+def test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path(tmp_path: Path):
+    oid = "a" * 40
+    plain = tmp_path / "plain"
+    reason = tmp_path / "reason"
+    quoted = str(tmp_path / "quoted\npath").replace("\n", "\\012")
+    bare = tmp_path / "bare.git"
+    porcelain = (
+        f"worktree {plain}\nHEAD {oid}\ndetached\nlocked\n\n"
+        f"worktree {reason}\nHEAD {oid}\nbranch refs/heads/topic\nlocked maintenance\n\n"
+        f"worktree \"{quoted}\"\nHEAD {oid}\ndetached\nprunable\n\n"
+        f"worktree {bare}\nbare\n\n"
+    ).encode("ascii")
+
+    class FakeGit:
+        def run(self, _args: Any):
+            return subprocess.CompletedProcess([], 0, stdout=porcelain, stderr=b"")
+
+    rows = TOOL._parse_worktrees(FakeGit(), tmp_path / "common", plain)
+    assert len(rows) == 4
+    assert next(row for row in rows if row.path == plain).locked_reason == ""
+    assert next(row for row in rows if row.path == reason).locked_reason == "maintenance"
+    assert next(row for row in rows if "\n" in str(row.path)).prunable_reason == ""
+    bare_row = next(row for row in rows if row.path == bare)
+    assert bare_row.bare is True and bare_row.head is None
+
+    repo = _init_repo(tmp_path / "live")
+    _git(repo, "branch", "topic", "main")
+    standalone = tmp_path / "locked-standalone"
+    with_reason = tmp_path / "locked-reason"
+    _git(repo, "worktree", "add", "--detach", str(standalone), "main")
+    _git(repo, "worktree", "add", "--detach", str(with_reason), "main")
+    _git(repo, "worktree", "lock", str(standalone))
+    _git(repo, "worktree", "lock", "--reason", "maintenance", str(with_reason))
+    rc, payload, process = _run_tool(repo, "--branch", "topic")
+    assert rc == 0, process.stdout + process.stderr
+    live_rows = {row["path"]: row for row in payload["root_snapshot"]["worktrees"]}
+    assert live_rows[str(standalone)]["locked"] is True
+    assert live_rows[str(with_reason)]["locked_reason"] == "maintenance"
+
+
+def test_m19_unknown_worktree_field_keeps_record_as_permanent_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+):
+    repo = _init_repo(tmp_path)
+    _git(repo, "branch", "topic", "main")
+    original = TOOL.Git.run
+
+    def inject_unknown(git: Any, args: Any, **kwargs: Any):
+        result = original(git, args, **kwargs)
+        if args == ["worktree", "list", "--porcelain"]:
+            result = subprocess.CompletedProcess(
+                result.args, result.returncode,
+                stdout=result.stdout.replace(b"\n\n", b"\nfuture-field fixture\n\n", 1),
+                stderr=result.stderr,
+            )
+        return result
+
+    monkeypatch.setattr(TOOL.Git, "run", inject_unknown)
+    rc, payload, process = _run_tool(repo, "--branch", "topic")
+    assert rc == 0, process.stdout + process.stderr
+    row = next(item for item in payload["root_snapshot"]["worktrees"]
+               if item["path"] == str(repo))
+    assert row["inspection_complete"] is False
+    assert row["root_classification"] == "permanent"
+    issue = next(item for item in payload["issues"]
+                 if item["code"] == "worktree-record-unknown-field")
+    assert issue["affects_completeness"] is False
+
+
+def test_a8_git_ref_rules_and_non_utf8_ref_are_reversible(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    _git(repo, "branch", "topic+rescue", "main")
+    raw_name = b"refs/tags/nonutf8-\xff"
+
+    class FakeGit:
+        def run(self, _args: Any):
+            row = raw_name + b"\0" + b"a" * 40 + b"\0commit\0\0\n"
+            return subprocess.CompletedProcess([], 0, stdout=row, stderr=b"")
+
+    refs = TOOL._parse_refs(FakeGit())
+    assert os.fsencode(refs[0]["name"]) == raw_name
+    assert json.loads(json.dumps(refs, ensure_ascii=True))[0]["name"] == refs[0]["name"]
+
+    rc, payload, process = _run_tool(repo, "--branch", "topic+rescue")
+    assert rc == 0, process.stdout + process.stderr
+    assert payload["candidates"][0]["input"] == "topic+rescue"
+
+
+def test_a9_out_of_range_reflog_timestamp_is_defined_rc2(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    oid = _git(repo, "rev-parse", "main").stdout.strip()
+    _git(repo, "branch", "topic", "main")
+    log = repo / ".git" / "logs" / "refs" / "heads" / "topic"
+    log.write_text(
+        f"{oid} {oid} Test <test@example.invalid> 253402300800 +0000\tfixture\n",
+        encoding="ascii",
+    )
+
+    rc, payload, _ = _run_tool(repo, "--branch", "topic")
+    assert rc == 2
+    assert any(issue["code"] == "reflog-parse-error" for issue in payload["issues"])
+
+
+def test_a10_ledger_rejects_sample_threshold_not_derived_from_gc_auto() -> None:
+    entry = _ledger_entry("a" * 40)
+    entry["gc_auto_sample_threshold"] = 26
+    valid, reason = TOOL._validate_ledger_entry(entry)
+    assert valid is False
+    assert reason == "ledger-entry-gc-sample-threshold-invalid"
+
+
+def test_m22_audit_requires_one_final_elapsed_seconds_line(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    audit = tmp_path / "audit.py"
+    audit.write_text(
+        "print('audit_dangling_commits: 要確認 0 件')\n",
+        encoding="utf-8",
+    )
+
+    rc, payload, _ = _run_tool(
+        repo, "--ledger-check", "--audit-tool", str(audit),
+    )
+    assert rc == 2
+    assert payload["ledger"]["audit"]["complete"] is False
+    assert any(issue["code"] == "audit-contract-invalid" for issue in payload["issues"])
+
+
+def test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+):
+    repo = _init_repo(tmp_path)
+    _topic_with_file(repo)
+    _git(repo, "remote", "add", "origin", ".")
+    _git(repo, "config", "remote.origin.promisor", "true")
+    _git(repo, "config", "extensions.partialClone", "origin")
+    checker = _make_fake_landed(tmp_path / "landed.py")
+    real_spawn = TOOL.subprocess.run
+    observed_envs: list[dict[str, str]] = []
+
+    def recording_spawn(argv: Any, *positional: Any, **kwargs: Any):
+        observed_envs.append(dict(kwargs["env"]))
+        return real_spawn(argv, *positional, **kwargs)
+
+    before = _repository_control_bytes(repo)
+    monkeypatch.setattr(TOOL.subprocess, "run", recording_spawn)
+    rc, payload, _ = _run_tool(
+        repo, "--branch", "topic", "--landed-checker", str(checker),
+    )
+    after = _repository_control_bytes(repo)
+    assert rc == 0, payload["issues"]
+    assert observed_envs
+    assert all(env.get("GIT_NO_LAZY_FETCH") == "1" for env in observed_envs)
+    assert after == before
+
+
+def test_m27_unclassified_storage_has_null_indeterminate_floor(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+):
+    oid = "a" * 40
+    objects = tmp_path / "objects"
+    objects.mkdir()
+    monkeypatch.setattr(TOOL, "_cat_types", lambda _git, _oids: {oid: None})
+    retention, complete = TOOL._retention(
+        None, oid, dt.datetime(2030, 1, 15, tzinfo=dt.timezone.utc),
+        objects, [], {}, {"effective": "14.days.ago"}, [],
+    )
+    assert complete is False
+    assert retention["deadline_status"] == "indeterminate"
+    assert retention["loss_possible_not_before"] is None
+
+
+def test_deadline_contract_assessment_time_failure_is_defined_rc2(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+):
+    repo = _init_repo(tmp_path)
+    parser = TOOL._parser()
+    args = parser.parse_args(["--repo", str(repo), "--ledger-check"])
+
+    def unavailable_clock() -> dt.datetime:
+        raise RuntimeError("clock unavailable")
+
+    monkeypatch.setattr(TOOL, "_current_assessment_time", unavailable_clock)
+    rc, payload = TOOL.assess(args)
+    assert rc == 2
+    assert payload["generated_at"] == "1970-01-01T00:00:00Z"
+    assert payload["issues"][0]["code"] == "assessment-time-indeterminate"
+
+
+def test_m30_gc_prune_expire_never_is_determinate(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    topic = _empty_child(repo)
+    _git(repo, "branch", "topic", topic)
+    _git(repo, "config", "gc.pruneExpire", "never")
+    checker = _make_fake_landed(tmp_path / "landed.py")
+
+    rc, payload, process = _run_tool(
+        repo, "--branch", "topic", "--landed-checker", str(checker),
+        "--now", "2030-01-15T00:00:00Z",
+    )
+    assert rc == 0, process.stdout + process.stderr
+    retention = _commit_row(payload, topic)["retention"]
+    assert retention["deadline_status"] == "determinate"
+    assert retention["lower_bound_basis"] == "gc-prune-expire-never"
+    assert retention["loss_possible_not_before"] == "9999-12-31T23:59:59Z"
 
 
 if __name__ == "__main__":

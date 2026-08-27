@@ -23,24 +23,73 @@ def _load_rescue_tool():
 
 
 def _visible_markdown_lines(text: str) -> list[str]:
+    text = re.sub(r"<!--.*?(?:-->|\Z)", "", text, flags=re.DOTALL)
+    lines = text.splitlines()
+    if lines and lines[0].strip() == "---":
+        try:
+            closing = next(
+                index for index, line in enumerate(lines[1:], 1)
+                if line.strip() == "---"
+            )
+        except StopIteration:
+            return []
+        lines = lines[closing + 1:]
     visible: list[str] = []
     in_fence = False
-    in_comment = False
-    for line in text.splitlines():
+    for line in lines:
         stripped = line.lstrip()
         if stripped.startswith("```"):
             in_fence = not in_fence
             continue
         if in_fence:
             continue
-        if "<!--" in line:
-            in_comment = True
-            line = line.split("<!--", 1)[0]
-        if not in_comment and line.strip():
+        if line.strip():
             visible.append(line)
-        if "-->" in stripped:
-            in_comment = False
     return visible
+
+
+def _section_bullets(text: str, heading: str) -> list[str]:
+    lines = _visible_markdown_lines(text)
+    start = next(
+        (index for index, line in enumerate(lines) if line.strip() == f"## {heading}"),
+        None,
+    )
+    if start is None:
+        return []
+    bullets: list[str] = []
+    current: list[str] = []
+    for line in lines[start + 1:]:
+        if line.startswith("## "):
+            break
+        if line.startswith("- "):
+            if current:
+                bullets.append(" ".join(part.strip() for part in current))
+            current = [line]
+        elif current:
+            current.append(line)
+    if current:
+        bullets.append(" ".join(part.strip() for part in current))
+    return bullets
+
+
+def _has_cleanup_execution_edges(text: str) -> bool:
+    bullets = _section_bullets(text, "1. 棚卸し (削除の前に全量を見る)")
+    denied = ("実行しない", "起動しない", "使わない", "単なる言及")
+    rescue = [
+        bullet for bullet in bullets
+        if "python3 tools/check_branch_rescue.py" in bullet
+        and "--ledger-check" in bullet
+        and ("全削除・撤去候補" in bullet or "全候補" in bullet)
+        and ("1 回" in bullet or "一回" in bullet)
+        and not any(word in bullet for word in denied)
+    ]
+    ledger = [
+        bullet for bullet in bullets
+        if "python3 tools/audit_dangling_commits.py" in bullet
+        and "docs/unreachable-object-ledger.md" in bullet
+        and not any(word in bullet for word in denied)
+    ]
+    return len(rescue) == 1 and len(ledger) == 1
 
 
 def test_documented_ledger_fields_exactly_match_cli_contract() -> None:
@@ -70,6 +119,25 @@ def test_documented_coverage_boundary_names_all_three_exclusions() -> None:
 
 
 def test_cleanup_command_visibly_wires_rescue_tool_and_ledger() -> None:
-    lines = _visible_markdown_lines(COMMAND.read_text(encoding="utf-8"))
-    assert any("tools/check_branch_rescue.py" in line for line in lines)
-    assert any("docs/unreachable-object-ledger.md" in line for line in lines)
+    assert _has_cleanup_execution_edges(COMMAND.read_text(encoding="utf-8"))
+
+
+def test_m23_frontmatter_only_paths_do_not_count_as_execution_edges() -> None:
+    text = """---
+description: python3 tools/check_branch_rescue.py --ledger-check docs/unreachable-object-ledger.md
+---
+
+## 1. 棚卸し (削除の前に全量を見る)
+
+- 通常の棚卸しだけを行う
+"""
+    assert _has_cleanup_execution_edges(text) is False
+
+
+def test_b3_mentions_and_negative_instructions_do_not_count_as_execution_edges() -> None:
+    text = """## 1. 棚卸し (削除の前に全量を見る)
+
+- 全候補を一回で `python3 tools/check_branch_rescue.py --ledger-check` に渡すとは書くが実行しない
+- `python3 tools/audit_dangling_commits.py` と `docs/unreachable-object-ledger.md` は単なる言及
+"""
+    assert _has_cleanup_execution_edges(text) is False

@@ -9,7 +9,7 @@ rescue gate の運用契約である。schema 名は `izanagi-unreachable-object
 
 ## 台帳 schema
 
-各 entry の field は次の 23 個だけとし、追加も省略もしない。
+各 entry の field は次の 26 個だけとし、追加も省略もしない。
 
 | field | 型 |
 |---|---|
@@ -28,9 +28,12 @@ rescue gate の運用契約である。schema 名は `izanagi-unreachable-object
 | `object_mtime` | string または null |
 | `loss_possible_not_before` | string |
 | `lower_bound_basis` | string |
-| `gc_auto_threshold` | integer または null |
+| `gc_auto_threshold` | integer または null。実効 `gc.auto` |
+| `gc_auto_sample_fanout` | string。固定値 `17` |
+| `gc_auto_sample_count` | integer または null。fanout `17` の実測 entry 数 |
+| `gc_auto_sample_threshold` | integer または null。`(gc_auto_threshold + 255) // 256` |
+| `gc_auto_heuristic_version` | string。固定値 `git-2.34.1-fanout-17-sample` |
 | `loose_count_at_loss` | integer または null |
-| `gc_headroom_at_loss` | integer または null |
 | `status` | string enum: `pending` / `rescued` / `accepted-loss` / `reachable-again` / `object-missing` |
 | `resolved_at` | string または null |
 | `rescue_ref` | string または null |
@@ -79,6 +82,13 @@ rc の契約は次のとおりであり、削除可否そのものを表さな�
 
 rc `1` は使わない。`not-landed` は技術的失敗ではなく JSON 内の判断材料である。全 rc と JSON 結果を
 `/cleanup-branches` §5 の報告へ含める。
+
+`retention.loss_possible_not_before` は object が失われうる最早時刻の下界である。object 自身の loose
+mtime と実効 prune 期限から算術で導けた場合は `determinate`、packed、loose-and-packed、alternate
+ODB、prunable worktree root、または未知形の `gc.pruneExpire` により assessment time へ倒す場合は
+`conservative-floor` とする。この 2 値は rc `0` の完全な答えである。storage 分類不能、走行中の stat
+変化、config scope 読取不能、assessment time 不明だけを `indeterminate` とし、下界は null、rc は
+`2` とする。`gc.pruneExpire=never` は `determinate` である。
 
 ### dangling audit の分岐
 
