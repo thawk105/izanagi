@@ -645,7 +645,7 @@ DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 - 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
 - merge/`add`/commitは親、子は競合解決だけ。
 - 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
-- 子はWeb検索禁止。成果物が全損する。
+- Web検索は必要な段だけ明示して使う。
 """
 DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
     (".claude/commands/dev-wave.md", "入力と開始"):

@@ -20,6 +20,7 @@ import stat
 import subprocess
 import sys
 import time
+import unicodedata
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
@@ -40,7 +41,9 @@ if os.fspath(_ROOT) not in sys.path:
 
 from orchestrator.codex_roles.events import (  # noqa: E402
     EventValidationError,
+    STDOUT_CONSUMED_EVENT_TYPES,
     parse_jsonl,
+    parse_jsonl_allowing_duplicate_keys,
     strict_json_loads,
 )
 from tools import check_codex_hooks as _hook_checker  # noqa: E402
@@ -142,6 +145,30 @@ _ATTEMPT_FIELDS = frozenset(
 _ATTEMPT_FIELDS_WITH_FAILURE_CLASS = _ATTEMPT_FIELDS | frozenset(
     {"failure_class"}
 )
+_ATTEMPT_FIELDS_V5 = _ATTEMPT_FIELDS_WITH_FAILURE_CLASS | frozenset(
+    {"evidence_issues"}
+)
+_EVIDENCE_ISSUE_FIELDS = frozenset(
+    {"source", "reason", "count", "first_line", "detail"}
+)
+_EVIDENCE_ISSUE_REASONS = frozenset(
+    {
+        "duplicate_key",
+        "event_invalid",
+        "thread_id_invalid",
+        "terminal_usage_invalid",
+        "rollout_ambiguous",
+        "session_meta_invalid",
+        "recorded_cwd_invalid",
+        "turn_context_invalid",
+        "usage_invalid",
+        "trailing_partial_line",
+        "session_meta_count_invalid",
+        "turn_context_missing",
+        "observer_failed",
+    }
+)
+_NONFATAL_EVIDENCE_ISSUE_REASONS = frozenset({"duplicate_key"})
 _ROLLOUT_FIELDS = frozenset(
     {"session_id", "path", "sha256", "bytes"}
 )
@@ -191,6 +218,11 @@ _RECEIPT_V2_ONLY_FIELDS = frozenset(
 _RECEIPT_FIELDS_V1 = _RECEIPT_FIELDS_V2 - _RECEIPT_V2_ONLY_FIELDS
 _RECORDED_VALUES_SEMANTICS = (
     "Codex CLI rollout の記録値であり served model の attest ではない"
+)
+_RECORDED_VALUES_SEMANTICS_V5 = (
+    _RECORDED_VALUES_SEMANTICS
+    + "。evidence_status=complete は致命的異常が無いことを表し、異常が無いことを"
+    "表さない。異常ゼロを要求する読み手は attempts[].evidence_issues を確認する"
 )
 _AUTHORITY_SNAPSHOT_FIELDS = frozenset(
     {"authority_commit", "sections", "digest"}
@@ -245,6 +277,7 @@ _RECEIPT_FIELDS_V3 = frozenset(
 # V1-V3 の closed top-level schema は変更しない。V4 は nested field の
 # 世代選択を独立させるため、同じ top-level 名でも別定数として扱う。
 _RECEIPT_FIELDS_V4 = frozenset(_RECEIPT_FIELDS_V3)
+_RECEIPT_FIELDS_V5 = frozenset(_RECEIPT_FIELDS_V4)
 _LIMIT_FIELDS = frozenset(
     {
         "wall_clock_admission_bound_s",
@@ -373,6 +406,7 @@ class RolloutState:
     incomplete_usage: bool = False
     nonmonotonic_usage: bool = False
     invalid: bool = False
+    line_number: int = 0
 
 
 @dataclass
@@ -387,10 +421,91 @@ class AttemptState:
     stdout_offset: int = 0
     stdout_pending: bytes = b""
     stdout_invalid: bool = False
+    stdout_line_number: int = 0
     terminal_usage: dict[str, int] | None = None
     limit_trigger: str | None = None
     evidence_forced_stop: bool = False
     manifested_session_ids: set[str] = field(default_factory=set)
+    evidence_issues: dict[tuple[str, str], dict[str, Any]] = field(
+        default_factory=dict
+    )
+
+
+def _record_evidence_issue(
+    state: AttemptState,
+    *,
+    source: str,
+    reason: str,
+    line: int | None = None,
+    detail: str | None = None,
+) -> None:
+    """同じ source/reason を決定的な receipt record へ集約する。"""
+
+    if reason not in _EVIDENCE_ISSUE_REASONS:
+        raise LaunchError(f"未定義の evidence issue reason: {reason}")
+    key = (source, reason)
+    current = state.evidence_issues.get(key)
+    if current is None:
+        state.evidence_issues[key] = {
+            "source": source,
+            "reason": reason,
+            "count": 1,
+            "first_line": line,
+            "detail": detail,
+        }
+        return
+    current["count"] += 1
+
+
+def _canonical_evidence_issues(state: AttemptState) -> list[dict[str, Any]]:
+    """明示 issue と最終 state predicate を canonical 配列へ閉じる。"""
+
+    issues = {key: dict(value) for key, value in state.evidence_issues.items()}
+
+    def ensure(source: str, reason: str, line: int | None = None) -> None:
+        issues.setdefault(
+            (source, reason),
+            {
+                "source": source,
+                "reason": reason,
+                "count": 1,
+                "first_line": line,
+                "detail": None,
+            },
+        )
+
+    stdout_has_fatal = any(
+        source == "stdout"
+        and reason not in _NONFATAL_EVIDENCE_ISSUE_REASONS
+        for source, reason in issues
+    )
+    if state.stdout_invalid and not stdout_has_fatal:
+        ensure("stdout", "event_invalid")
+    if state.stdout_pending:
+        ensure("stdout", "trailing_partial_line")
+    for rollout in state.rollouts.values():
+        source = rollout.session_id
+        source_has_fatal = any(
+            issue_source == source
+            and reason not in _NONFATAL_EVIDENCE_ISSUE_REASONS
+            for issue_source, reason in issues
+        )
+        if rollout.invalid and not source_has_fatal:
+            ensure(source, "event_invalid")
+        if rollout.pending:
+            ensure(source, "trailing_partial_line")
+        if rollout.session_meta_count != 1:
+            ensure(source, "session_meta_count_invalid")
+        if rollout.context_count < 1:
+            ensure(source, "turn_context_missing")
+    return [issues[key] for key in sorted(issues)]
+
+
+def _has_fatal_evidence_issue(issues: Sequence[Mapping[str, Any]]) -> bool:
+    return any(
+        issue["reason"] not in _NONFATAL_EVIDENCE_ISSUE_REASONS
+        for issue in issues
+    )
 
 
 def _elapsed_s(now_ns: int, started_ns: int) -> Decimal:
@@ -1234,8 +1349,15 @@ def _usage(
     return result
 
 
-def _consume_stdout_event(state: AttemptState, event: Mapping[str, Any]) -> None:
+def _consume_stdout_event(
+    state: AttemptState, event: Mapping[str, Any], *, line: int | None = None
+) -> None:
     event_type = event.get("type")
+    if (
+        not isinstance(event_type, str)
+        or event_type not in STDOUT_CONSUMED_EVENT_TYPES
+    ):
+        return
     if event_type == "thread.started":
         try:
             session_id = _canonical_uuid(
@@ -1243,6 +1365,12 @@ def _consume_stdout_event(state: AttemptState, event: Mapping[str, Any]) -> None
             )
         except LaunchError:
             state.stdout_invalid = True
+            _record_evidence_issue(
+                state,
+                source="stdout",
+                reason="thread_id_invalid",
+                line=line,
+            )
             return
         if session_id not in state.session_ids:
             state.session_ids.append(session_id)
@@ -1255,6 +1383,14 @@ def _consume_stdout_event(state: AttemptState, event: Mapping[str, Any]) -> None
             )
         except LaunchError:
             state.stdout_invalid = True
+            _record_evidence_issue(
+                state,
+                source="stdout",
+                reason="terminal_usage_invalid",
+                line=line,
+            )
+    else:  # pragma: no cover - 定数と consumer の同時更新を強制する
+        raise AssertionError(f"未実装の stdout 消費 event: {event_type!r}")
 
 
 def _drain_stdout(state: AttemptState) -> None:
@@ -1271,20 +1407,39 @@ def _drain_stdout(state: AttemptState) -> None:
         return
     state.stdout_pending = pending
     for raw_line in complete.split(b"\n"):
+        state.stdout_line_number += 1
         if not raw_line.strip():
             continue
         try:
-            events = parse_jsonl(
+            parsed = parse_jsonl_allowing_duplicate_keys(
                 raw_line + b"\n",
                 max_bytes=_MAX_EVENT_LINE_BYTES,
                 max_line_bytes=_MAX_EVENT_LINE_BYTES,
             )
-            if len(events) != 1:
+            if parsed.duplicate_key_lines:
+                if parsed.events or parsed.duplicate_key_lines != (1,):
+                    raise EventValidationError("1 行の issue 集約が不正")
+                _record_evidence_issue(
+                    state,
+                    source="stdout",
+                    reason="duplicate_key",
+                    line=state.stdout_line_number,
+                )
+                continue
+            if len(parsed.events) != 1:
                 raise EventValidationError("1 行に event が 1 件でない")
         except EventValidationError:
             state.stdout_invalid = True
+            _record_evidence_issue(
+                state,
+                source="stdout",
+                reason="event_invalid",
+                line=state.stdout_line_number,
+            )
             continue
-        _consume_stdout_event(state, events[0])
+        _consume_stdout_event(
+            state, parsed.events[0], line=state.stdout_line_number
+        )
 
 
 def _discover_rollouts(state: AttemptState, sessions_root: Path) -> None:
@@ -1298,6 +1453,10 @@ def _discover_rollouts(state: AttemptState, sessions_root: Path) -> None:
         )
         if len(matches) > 1:
             state.stdout_invalid = True
+            if ("stdout", "rollout_ambiguous") not in state.evidence_issues:
+                _record_evidence_issue(
+                    state, source="stdout", reason="rollout_ambiguous"
+                )
             continue
         if len(matches) == 1:
             state.rollouts[session_id] = RolloutState(
@@ -1307,12 +1466,14 @@ def _discover_rollouts(state: AttemptState, sessions_root: Path) -> None:
 
 
 def _consume_rollout_event(
+    state: AttemptState,
     rollout: RolloutState,
     event: Mapping[str, Any],
     *,
     model: str,
     reasoning: str,
     cwd: str,
+    line: int | None = None,
 ) -> None:
     item_type = event.get("type")
     payload = event.get("payload")
@@ -1326,14 +1487,32 @@ def _consume_rollout_event(
             )
         except LaunchError:
             rollout.invalid = True
+            _record_evidence_issue(
+                state,
+                source=rollout.session_id,
+                reason="session_meta_invalid",
+                line=line,
+            )
             return
         if meta_id != rollout.session_id:
             rollout.invalid = True
+            _record_evidence_issue(
+                state,
+                source=rollout.session_id,
+                reason="session_meta_invalid",
+                line=line,
+            )
         else:
             rollout.session_meta_correlated = True
         recorded_cwd = payload.get("cwd")
         if not isinstance(recorded_cwd, str) or recorded_cwd != cwd:
             rollout.invalid = True
+            _record_evidence_issue(
+                state,
+                source=rollout.session_id,
+                reason="recorded_cwd_invalid",
+                line=line,
+            )
         else:
             rollout.recorded_cwd = recorded_cwd
     elif item_type == "turn_context":
@@ -1353,6 +1532,12 @@ def _consume_rollout_event(
             or context_reasoning != reasoning
         ):
             rollout.invalid = True
+            _record_evidence_issue(
+                state,
+                source=rollout.session_id,
+                reason="turn_context_invalid",
+                line=line,
+            )
     elif item_type == "event_msg" and payload.get("type") == "token_count":
         rollout.model_calls += 1
         info = payload.get("info")
@@ -1368,6 +1553,12 @@ def _consume_rollout_event(
         except LaunchError:
             rollout.invalid = True
             rollout.incomplete_usage = True
+            _record_evidence_issue(
+                state,
+                source=rollout.session_id,
+                reason="usage_invalid",
+                line=line,
+            )
             return
         previous = rollout.latest_usage
         if previous is not None and (
@@ -1388,7 +1579,12 @@ def _consume_rollout_event(
 
 
 def _tail_rollout(
-    rollout: RolloutState, *, model: str, reasoning: str, cwd: str
+    state: AttemptState,
+    rollout: RolloutState,
+    *,
+    model: str,
+    reasoning: str,
+    cwd: str,
 ) -> None:
     with rollout.path.open("rb") as stream:
         stream.seek(rollout.offset)
@@ -1404,6 +1600,7 @@ def _tail_rollout(
         return
     rollout.pending = pending
     for raw_line in complete.split(b"\n"):
+        rollout.line_number += 1
         if not raw_line.strip():
             continue
         try:
@@ -1416,9 +1613,21 @@ def _tail_rollout(
                 raise EventValidationError("rollout event が object でない")
         except (UnicodeDecodeError, EventValidationError):
             rollout.invalid = True
+            _record_evidence_issue(
+                state,
+                source=rollout.session_id,
+                reason="event_invalid",
+                line=rollout.line_number,
+            )
             continue
         _consume_rollout_event(
-            rollout, event, model=model, reasoning=reasoning, cwd=cwd
+            state,
+            rollout,
+            event,
+            model=model,
+            reasoning=reasoning,
+            cwd=cwd,
+            line=rollout.line_number,
         )
 
 
@@ -1465,21 +1674,17 @@ def _metering_status(state: AttemptState) -> str:
 
 
 def _evidence_status(state: AttemptState) -> str:
+    """致命的異常の有無と evidence 欠落を分類する。
+
+    ``complete`` は致命的異常が無いことを表し、異常が無いことは表さない。
+    異常ゼロを要求する読み手は receipt の ``evidence_issues`` を確認する。
+    """
+
     if not state.session_ids or any(
         session_id not in state.rollouts for session_id in state.session_ids
     ):
         return "missing"
-    if (
-        state.stdout_invalid
-        or state.stdout_pending
-        or any(
-            rollout.invalid
-            or rollout.pending
-            or rollout.session_meta_count != 1
-            or rollout.context_count < 1
-            for rollout in state.rollouts.values()
-        )
-    ):
+    if _has_fatal_evidence_issue(_canonical_evidence_issues(state)):
         return "invalid"
     return "complete"
 
@@ -1749,6 +1954,7 @@ def _seal_attempt(
             None,
         )
     actuals = _rollout_actuals(state)
+    evidence_issues = _canonical_evidence_issues(state)
     evidence_status = _evidence_status(state)
     metering_status = _metering_status(state)
     _record_limit_conditions(
@@ -1805,6 +2011,7 @@ def _seal_attempt(
             process.returncode, output_bytes, validator_failures
         ),
         "evidence_status": evidence_status,
+        "evidence_issues": evidence_issues,
         "metering_status": metering_status,
         "limit_trigger": state.limit_trigger,
         "wall_clock_s": wall_clock_s,
@@ -1895,6 +2102,7 @@ def _attempt_loop(
         _discover_rollouts(state, args.sessions_root)
         for rollout in state.rollouts.values():
             _tail_rollout(
+                state,
                 rollout,
                 model=requirement.model,
                 reasoning=requirement.effort,
@@ -2182,6 +2390,9 @@ def _attempt_loop(
                 observe(register_manifest=False)
             except BaseException:
                 state.stdout_invalid = True
+                _record_evidence_issue(
+                    state, source="stdout", reason="observer_failed"
+                )
             if attempt_diagnostics is not None:
                 attempt_diagnostics.note_boundary(
                     "final_drain_completed", _monotonic_ns()
@@ -2423,7 +2634,7 @@ def _receipt(
     )
     requirement: LaunchRequirement = args.launch_requirement
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "job_id": args.job_id,
         "stage": requirement.stage,
         "lane": requirement.lane,
@@ -2434,7 +2645,7 @@ def _receipt(
         "recorded_model": recorded_model,
         "recorded_effort": recorded_effort,
         "recorded_turn_context_count": context_count,
-        "recorded_values_semantics": _RECORDED_VALUES_SEMANTICS,
+        "recorded_values_semantics": _RECORDED_VALUES_SEMANTICS_V5,
         "sandbox": args.sandbox,
         "requested_cwd": os.fspath(args.cwd),
         "recorded_cwd": recorded_cwd,
@@ -3506,8 +3717,64 @@ def _run(args: argparse.Namespace) -> int:
         )
 
 
+def _validate_evidence_issues(value: Any, *, index: int) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or len(value) > 2048:
+        raise LaunchError(f"attempts[{index}].evidence_issues が不正")
+    result: list[dict[str, Any]] = []
+    keys: list[tuple[str, str]] = []
+    for issue_index, raw_issue in enumerate(value):
+        issue = dict(
+            _closed_object(
+                raw_issue,
+                _EVIDENCE_ISSUE_FIELDS,
+                label=f"attempts[{index}].evidence_issues[{issue_index}]",
+            )
+        )
+        source = issue["source"]
+        if source != "stdout":
+            _canonical_uuid(source, label="attempt.evidence_issues[].source")
+        reason = issue["reason"]
+        if (
+            not isinstance(reason, str)
+            or reason not in _EVIDENCE_ISSUE_REASONS
+        ):
+            raise LaunchError("attempt.evidence_issues[].reason が不正")
+        _strict_int(
+            issue["count"],
+            label="attempt.evidence_issues[].count",
+            minimum=1,
+        )
+        first_line = issue["first_line"]
+        if first_line is not None:
+            _strict_int(
+                first_line,
+                label="attempt.evidence_issues[].first_line",
+                minimum=1,
+            )
+        detail = issue["detail"]
+        if detail is not None:
+            if not isinstance(detail, str):
+                raise LaunchError("attempt.evidence_issues[].detail が不正")
+            try:
+                encoded = detail.encode("utf-8", errors="strict")
+            except UnicodeEncodeError as exc:
+                raise LaunchError(
+                    "attempt.evidence_issues[].detail が UTF-8 化できない"
+                ) from exc
+            if (
+                len(encoded) > 1024
+                or unicodedata.normalize("NFC", detail) != detail
+            ):
+                raise LaunchError("attempt.evidence_issues[].detail が不正")
+        keys.append((source, reason))
+        result.append(issue)
+    if keys != sorted(keys) or len(keys) != len(set(keys)):
+        raise LaunchError("attempt.evidence_issues が非 canonical")
+    return result
+
+
 def _validate_attempt(
-    value: Any, *, index: int, schema_version: int = 4
+    value: Any, *, index: int, schema_version: int = 5
 ) -> dict[str, Any]:
     # V4 は failure_class を必須にする。V1-V3 は main 親の旧形式と、
     # wave 親が failure_class を追加して生成した形式の両方だけを受理する。
@@ -3515,7 +3782,9 @@ def _validate_attempt(
         isinstance(value, Mapping) and "failure_class" in value
     )
     attempt_fields = (
-        _ATTEMPT_FIELDS_WITH_FAILURE_CLASS
+        _ATTEMPT_FIELDS_V5
+        if schema_version == 5
+        else _ATTEMPT_FIELDS_WITH_FAILURE_CLASS
         if schema_version == 4 or has_failure_class
         else _ATTEMPT_FIELDS
     )
@@ -3532,6 +3801,12 @@ def _validate_attempt(
         raise LaunchError("attempt.accepted が bool ではない")
     if attempt["evidence_status"] not in ("complete", "missing", "invalid"):
         raise LaunchError("attempt.evidence_status が不正")
+    has_fatal_issue = False
+    if schema_version == 5:
+        attempt["evidence_issues"] = _validate_evidence_issues(
+            attempt["evidence_issues"], index=index
+        )
+        has_fatal_issue = _has_fatal_evidence_issue(attempt["evidence_issues"])
     if attempt["metering_status"] not in (
         "complete",
         "missing",
@@ -3578,6 +3853,26 @@ def _validate_attempt(
         _strict_int(rollout["bytes"], label="attempt.rollout.bytes")
     if len(set(rollout_ids)) != len(rollout_ids):
         raise LaunchError("attempt.rollouts session_id が重複")
+    if schema_version == 5 and any(
+        issue["source"] != "stdout" and issue["source"] not in rollout_ids
+        for issue in attempt["evidence_issues"]
+    ):
+        raise LaunchError("attempt.evidence_issues source が rollout 外")
+    if schema_version == 5:
+        evidence_missing = not normalized_ids or any(
+            session_id not in rollout_ids for session_id in normalized_ids
+        )
+        expected_evidence_status = (
+            "missing"
+            if evidence_missing
+            else "invalid"
+            if has_fatal_issue
+            else "complete"
+        )
+        if attempt["evidence_status"] != expected_evidence_status:
+            raise LaunchError(
+                "attempt.evidence_status/evidence_issues binding が不正"
+            )
     for field_name in (
         "stdout_path",
         "stderr_path",
@@ -3666,7 +3961,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if (
         isinstance(schema_version, bool)
         or not isinstance(schema_version, int)
-        or schema_version not in (1, 2, 3, 4)
+        or schema_version not in (1, 2, 3, 4, 5)
     ):
         raise LaunchError("receipt.schema_version が不正")
     actual_fields = frozenset(value)
@@ -3683,8 +3978,10 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         expected_fields = _RECEIPT_FIELDS_V2
     elif schema_version == 3:
         expected_fields = _RECEIPT_FIELDS_V3
-    else:
+    elif schema_version == 4:
         expected_fields = _RECEIPT_FIELDS_V4
+    else:
+        expected_fields = _RECEIPT_FIELDS_V5
     receipt = dict(_closed_object(value, expected_fields, label="receipt"))
     if (
         not isinstance(receipt["job_id"], str)
@@ -3696,7 +3993,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         or _SHA256_RE.fullmatch(receipt["prompt_sha256"]) is None
     ):
         raise LaunchError("receipt.prompt_sha256 が不正")
-    if schema_version in (3, 4):
+    if schema_version in (3, 4, 5):
         if receipt["stage"] not in STAGES:
             raise LaunchError("receipt.stage が不正")
         if (receipt["stage"] == "consult") != (
@@ -3726,7 +4023,12 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             receipt["recorded_turn_context_count"],
             label="receipt.recorded_turn_context_count",
         )
-        if receipt["recorded_values_semantics"] != _RECORDED_VALUES_SEMANTICS:
+        expected_semantics = (
+            _RECORDED_VALUES_SEMANTICS_V5
+            if schema_version == 5
+            else _RECORDED_VALUES_SEMANTICS
+        )
+        if receipt["recorded_values_semantics"] != expected_semantics:
             raise LaunchError("receipt.recorded_values_semantics が不正")
     else:
         model_field = "model"
@@ -3742,11 +4044,11 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         "artifact_dir",
         "output_path",
         "manifest_path",
-        *(('receipt_path',) if schema_version in (3, 4) else ()),
+        *(('receipt_path',) if schema_version in (3, 4, 5) else ()),
         "codex_executable_path",
     ):
         _absolute_path(receipt[field_name], label=f"receipt.{field_name}")
-    if schema_version in (3, 4):
+    if schema_version in (3, 4, 5):
         for field_name in ("repo_root", "sessions_root"):
             _absolute_path(receipt[field_name], label=f"receipt.{field_name}")
         if (
@@ -3763,7 +4065,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         or _COMMIT_RE.fullmatch(receipt["manifest_base_commit"]) is None
     ):
         raise LaunchError("receipt.manifest_base_commit が不正")
-    if schema_version in (3, 4):
+    if schema_version in (3, 4, 5):
         snapshot = _closed_object(
             receipt["authority_snapshot"],
             _AUTHORITY_SNAPSHOT_FIELDS,
@@ -3831,7 +4133,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if "wall_clock_scope" in receipt:
         expected_wall_scope = (
             "launcher_start_to_receipt_fields_finalized"
-            if schema_version in (2, 3, 4)
+            if schema_version in (2, 3, 4, 5)
             else "launcher_process"
         )
         if receipt["wall_clock_scope"] != expected_wall_scope:
@@ -3840,14 +4142,16 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         raise LaunchError("receipt.retry_classification が不正")
     if receipt["escaped_process_containment"] != "not_attempted":
         raise LaunchError("receipt.escaped_process_containment が不正")
-    limit_fields = _LIMIT_FIELDS_V4 if schema_version == 4 else _LIMIT_FIELDS
+    limit_fields = (
+        _LIMIT_FIELDS_V4 if schema_version in (4, 5) else _LIMIT_FIELDS
+    )
     limits = _closed_object(receipt["limits"], limit_fields, label="limits")
     _strict_number(
         limits["wall_clock_admission_bound_s"],
         label="limits.wall_clock_admission_bound_s",
         positive=True,
     )
-    if schema_version == 4:
+    if schema_version in (4, 5):
         for field_name in (
             "preparation_admission_bound_s",
             "finalization_admission_bound_s",
@@ -3863,12 +4167,14 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         "max_attempts",
     ):
         _strict_int(limits[field_name], label=f"limits.{field_name}", minimum=1)
-    actual_fields = _ACTUAL_FIELDS_V4 if schema_version == 4 else _ACTUAL_FIELDS
+    actual_fields = (
+        _ACTUAL_FIELDS_V4 if schema_version in (4, 5) else _ACTUAL_FIELDS
+    )
     actuals = _closed_object(receipt["actuals"], actual_fields, label="actuals")
     _strict_number(actuals["wall_clock_s"], label="actuals.wall_clock_s")
     for field_name in _ACTUAL_FIELDS - {"wall_clock_s"}:
         _strict_int(actuals[field_name], label=f"actuals.{field_name}")
-    if schema_version == 4:
+    if schema_version in (4, 5):
         for field_name in (
             "preparation_wall_clock_s",
             "finalization_wall_clock_s",
@@ -3914,17 +4220,19 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         "launcher_error",
     ):
         raise LaunchError("receipt.outcome が不正")
-    stop_reasons = _STOP_REASONS_V4 if schema_version == 4 else _STOP_REASONS
+    stop_reasons = (
+        _STOP_REASONS_V4 if schema_version in (4, 5) else _STOP_REASONS
+    )
     if receipt["stop_reason"] not in stop_reasons:
         raise LaunchError("receipt.stop_reason が不正")
     if receipt["launcher_rc"] not in (0, 1, 2):
         raise LaunchError("receipt.launcher_rc が不正")
     preparation_stop = bool(
-        schema_version == 4
+        schema_version in (4, 5)
         and receipt["stop_reason"] == _PREPARATION_STOP_REASON
     )
     finalization_stop = bool(
-        schema_version == 4
+        schema_version in (4, 5)
         and receipt["stop_reason"] == _FINALIZATION_STOP_REASON
     )
     if (
@@ -3937,7 +4245,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     # Checker-side truth table: writer の _writer_truth から独立に閉じる。
     accepted_count = sum(bool(item["accepted"]) for item in attempts)
     authority_retry_rejected = bool(
-        schema_version in (3, 4)
+        schema_version in (3, 4, 5)
         and attempts
         and attempts[-1]["accepted"]
         and any(item["evidence_status"] != "complete" for item in attempts)
@@ -3948,7 +4256,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         if item["limit_trigger"] is not None
     ]
     admission_wall_clock_s = Decimal(actuals["wall_clock_s"])
-    if schema_version == 4:
+    if schema_version in (4, 5):
         admission_wall_clock_s -= Decimal(
             actuals["preparation_wall_clock_s"]
         ) + Decimal(actuals["finalization_wall_clock_s"])
@@ -3964,7 +4272,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             <= limits["max_cli_reported_tokens"]
             and actuals["attempt_count"] <= limits["max_attempts"]
         )
-        if schema_version == 4:
+        if schema_version in (4, 5):
             within_limits = bool(
                 within_limits
                 and Decimal(actuals["preparation_wall_clock_s"])
@@ -4008,7 +4316,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         else:
             expected_stop = triggered[0] if triggered else "max_attempts"
             attempt_wall_truth = True
-            if schema_version == 4:
+            if schema_version in (4, 5):
                 attempt_wall_truth = (
                     admission_wall_clock_s
                     >= Decimal(limits["wall_clock_admission_bound_s"])
@@ -4029,14 +4337,14 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             and accepted_count == 0
             and receipt["output_sha256"] is None
             and (
-                schema_version != 4
+                schema_version not in (4, 5)
                 or not attempts
                 or attempt_wall_within_limit
             )
         )
     if not valid_truth:
         raise LaunchError("receipt truth table が不正")
-    if schema_version in (3, 4) and receipt["outcome"] == "accepted":
+    if schema_version in (3, 4, 5) and receipt["outcome"] == "accepted":
         if not (
             receipt["recorded_model"] == receipt["requested_model"]
             and receipt["recorded_effort"] == receipt["requested_effort"]
@@ -4076,10 +4384,17 @@ def _sealed_file_matches(
 def _recompute_attempt_metering(
     attempt: Mapping[str, Any],
     *,
+    schema_version: int,
     model: str,
     reasoning: str,
     cwd: str,
-) -> tuple[str, str, dict[str, int], dict[str, str | None]]:
+) -> tuple[
+    str,
+    str,
+    list[dict[str, Any]],
+    dict[str, int],
+    dict[str, str | None],
+]:
     state = AttemptState(
         attempt_index=attempt["attempt_index"],
         started_ns=0,
@@ -4094,19 +4409,49 @@ def _recompute_attempt_metering(
         closed = stdout_raw[: -len(state.stdout_pending)]
     else:
         closed = stdout_raw
-    for raw_line in closed.split(b"\n"):
+    for line_number, raw_line in enumerate(closed.split(b"\n"), 1):
+        state.stdout_line_number = line_number
         if not raw_line.strip():
             continue
         try:
-            parsed = parse_jsonl(
-                raw_line + b"\n",
-                max_bytes=_MAX_EVENT_LINE_BYTES,
-                max_line_bytes=_MAX_EVENT_LINE_BYTES,
-            )
+            if schema_version == 5:
+                parsed_with_issues = parse_jsonl_allowing_duplicate_keys(
+                    raw_line + b"\n",
+                    max_bytes=_MAX_EVENT_LINE_BYTES,
+                    max_line_bytes=_MAX_EVENT_LINE_BYTES,
+                )
+                if parsed_with_issues.duplicate_key_lines:
+                    if (
+                        parsed_with_issues.events
+                        or parsed_with_issues.duplicate_key_lines != (1,)
+                    ):
+                        raise EventValidationError("1 行の issue 集約が不正")
+                    _record_evidence_issue(
+                        state,
+                        source="stdout",
+                        reason="duplicate_key",
+                        line=line_number,
+                    )
+                    continue
+                parsed = parsed_with_issues.events
+            else:
+                parsed = parse_jsonl(
+                    raw_line + b"\n",
+                    max_bytes=_MAX_EVENT_LINE_BYTES,
+                    max_line_bytes=_MAX_EVENT_LINE_BYTES,
+                )
+            if len(parsed) != 1:
+                raise EventValidationError("1 行に event が 1 件でない")
         except EventValidationError:
             state.stdout_invalid = True
+            _record_evidence_issue(
+                state,
+                source="stdout",
+                reason="event_invalid",
+                line=line_number,
+            )
             continue
-        _consume_stdout_event(state, parsed[0])
+        _consume_stdout_event(state, parsed[0], line=line_number)
     for rollout_record in attempt["rollouts"]:
         path = Path(rollout_record["path"])
         raw = path.read_bytes()[: rollout_record["bytes"]]
@@ -4116,7 +4461,13 @@ def _recompute_attempt_metering(
             offset=len(raw),
         )
         state.rollouts[rollout.session_id] = rollout
-        for raw_line in raw.split(b"\n"):
+        if raw and not raw.endswith(b"\n"):
+            rollout.pending = raw.rsplit(b"\n", 1)[-1]
+            rollout_closed = raw[: -len(rollout.pending)]
+        else:
+            rollout_closed = raw
+        for line_number, raw_line in enumerate(rollout_closed.split(b"\n"), 1):
+            rollout.line_number = line_number
             if not raw_line.strip():
                 continue
             try:
@@ -4129,13 +4480,21 @@ def _recompute_attempt_metering(
                     raise EventValidationError("rollout event が object でない")
             except (UnicodeDecodeError, EventValidationError):
                 rollout.invalid = True
+                _record_evidence_issue(
+                    state,
+                    source=rollout.session_id,
+                    reason="event_invalid",
+                    line=line_number,
+                )
                 continue
             _consume_rollout_event(
+                state,
                 rollout,
                 event,
                 model=model,
                 reasoning=reasoning,
                 cwd=cwd,
+                line=line_number,
             )
     state.session_ids = list(attempt["session_ids"])
     recorded_cwds = {
@@ -4145,6 +4504,7 @@ def _recompute_attempt_metering(
     return (
         _evidence_status(state),
         _metering_status(state),
+        _canonical_evidence_issues(state),
         _rollout_actuals(state),
         recorded_cwds,
     )
@@ -4153,7 +4513,7 @@ def _recompute_attempt_metering(
 def _check_external_expectations(
     receipt: Mapping[str, Any], expectations: Mapping[str, Any]
 ) -> list[str]:
-    modern = receipt["schema_version"] in (3, 4)
+    modern = receipt["schema_version"] in (3, 4, 5)
     direct = {
         "prompt_sha256": "prompt_sha256",
         "job_id": "job_id",
@@ -4183,7 +4543,7 @@ def _check_external_expectations(
             "max_cli_reported_tokens",
             "max_attempts",
         )
-        if receipt["schema_version"] == 4
+        if receipt["schema_version"] in (4, 5)
         else (
             "wall_clock_admission_bound_s",
             "max_model_calls",
@@ -4235,7 +4595,7 @@ def _audit_receipt_value(
     executable bytes の hash だけを再束縛する。
     """
     receipt = _validate_receipt(receipt_value)
-    modern = receipt["schema_version"] in (3, 4)
+    modern = receipt["schema_version"] in (3, 4, 5)
     requested_model = (
         receipt["requested_model"] if modern else receipt["model"]
     )
@@ -4280,7 +4640,7 @@ def _audit_receipt_value(
             raise LaunchError("receipt と manifest の wave_id が不一致")
         if modern:
             if manifest["schema_version"] != 2:
-                raise LaunchError("receipt v3/v4 には manifest v2 が必要")
+                raise LaunchError("receipt v3-v5 には manifest v2 が必要")
         else:
             if manifest["schema_version"] != 1:
                 raise LaunchError("receipt v1/v2 には manifest v1 が必要")
@@ -4337,15 +4697,23 @@ def _audit_receipt_value(
                 raise LaunchError("attempt rollout seal が不一致")
             if rollout_path.stat().st_size > rollout["bytes"]:
                 rollout_grew = True
-        evidence, metering, actuals, recorded_cwds = _recompute_attempt_metering(
-            attempt,
-            model=requested_model,
-            reasoning=requested_effort,
-            cwd=requested_cwd,
+        evidence, metering, issues, actuals, recorded_cwds = (
+            _recompute_attempt_metering(
+                attempt,
+                schema_version=receipt["schema_version"],
+                model=requested_model,
+                reasoning=requested_effort,
+                cwd=requested_cwd,
+            )
         )
         recomputed_attempts.append(actuals)
         if evidence != attempt["evidence_status"]:
             raise LaunchError("attempt evidence_status 再計算が不一致")
+        if (
+            receipt["schema_version"] == 5
+            and issues != attempt["evidence_issues"]
+        ):
+            raise LaunchError("attempt evidence_issues 再計算が不一致")
         if metering != attempt["metering_status"]:
             raise LaunchError("attempt metering_status 再計算が不一致")
         for field_name, expected in actuals.items():
@@ -4386,11 +4754,11 @@ def _audit_receipt_value(
                     "authority_digest": receipt["authority_snapshot"]["digest"],
                 }
                 if len(matching) != 1:
-                    raise LaunchError("receipt v3/v4 session が manifest v2 に一意でない")
+                    raise LaunchError("receipt v3-v5 session が manifest v2 に一意でない")
                 for field_name in expected_entry:
                     if matching[0][field_name] != expected_entry[field_name]:
                         raise LaunchError(
-                            f"receipt v3/v4 と manifest v2 の {field_name} が不一致"
+                            f"receipt v3-v5 と manifest v2 の {field_name} が不一致"
                         )
     for field_name in _ACTUAL_FIELDS - {"wall_clock_s", "attempt_count"}:
         recomputed = sum(item[field_name] for item in recomputed_attempts)

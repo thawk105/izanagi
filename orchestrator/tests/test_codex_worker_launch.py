@@ -1298,8 +1298,18 @@ def emit(value):
     sys.stdout.flush()
     os.fsync(sys.stdout.fileno())
 
+def emit_raw(value):
+    sys.stdout.write(value + "\n")
+    sys.stdout.flush()
+    os.fsync(sys.stdout.fileno())
+
 def write_line(stream, value):
     stream.write(json.dumps(value, separators=(",", ":")) + "\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+
+def write_raw(stream, value):
+    stream.write(value + "\n")
     stream.flush()
     os.fsync(stream.fileno())
 
@@ -1337,6 +1347,12 @@ def create_rollout(session_id):
                 "type": "turn_context",
                 "payload": {"model": model, "effort": reasoning},
             })
+        if mode == "rollout_duplicate_key":
+            write_raw(
+                stream,
+                '{"type":"event_msg","payload":{"type":"ignored",'
+                '"id":"first","id":"second"}}',
+            )
     return path
 
 def append_token(path, total_usage):
@@ -1401,6 +1417,13 @@ emit({
         "status": "in_progress",
     },
 })
+if mode == "web_search_duplicate_stdout":
+    emit_raw(
+        '{"type":"item.started","item":{"id":"item_40",'
+        '"type":"web_search",'
+        '"id":"exec-f3ed5b5c-aa7d-4450-a1d8-44232d49c1e9",'
+        '"query":"","action":{"type":"other"}}}'
+    )
 
 if mode == "no_rollout":
     terminal(usage())
@@ -2527,6 +2550,7 @@ def _write_legacy_v2_evidence(
     receipt_v2["attempts"] = []
     for raw_attempt in receipt_v3["attempts"]:
         attempt = dict(raw_attempt)
+        attempt.pop("evidence_issues", None)
         if not include_failure_class:
             attempt.pop("failure_class")
         receipt_v2["attempts"].append(attempt)
@@ -3154,7 +3178,7 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert receipt["stop_reason"] == "completed"
     assert receipt["launcher_rc"] == 0
     assert receipt["model_calls_semantics"] == "observed_token_count_events"
-    assert receipt["schema_version"] == 4
+    assert receipt["schema_version"] == 5
     assert receipt["limits_assertion"] == "self_asserted"
     assert (
         receipt["wall_clock_scope"]
@@ -4082,6 +4106,20 @@ def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
     assert [entry["session_id"] for entry in manifest["sessions"]] == (
         receipt["attempts"][0]["session_ids"]
+    )
+
+
+def test_invalid_evidence_reason_is_recorded(tmp_path: Path) -> None:
+    _completed, receipt, _paths = _run_case(
+        tmp_path, "payload_decoy", expected_returncode=1
+    )
+    assert receipt is not None
+    issues = receipt["attempts"][0]["evidence_issues"]
+    assert any(
+        issue["reason"] == "turn_context_invalid"
+        and issue["count"] == 1
+        and issue["source"] != "stdout"
+        for issue in issues
     )
 
 
@@ -6410,10 +6448,13 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     )
     assert receipt is not None
     receipt["schema_version"] = 3
+    receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
     receipt["limits"].pop("preparation_admission_bound_s")
     receipt["limits"].pop("finalization_admission_bound_s")
     receipt["actuals"].pop("preparation_wall_clock_s")
     receipt["actuals"].pop("finalization_wall_clock_s")
+    for attempt in receipt["attempts"]:
+        attempt.pop("evidence_issues")
     if not include_failure_class:
         for attempt in receipt["attempts"]:
             attempt.pop("failure_class")
@@ -6430,6 +6471,63 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     assert checked.returncode == 0, checked.stderr
     assert json.loads(checked.stdout)["schema_version"] == 3
     assert paths["receipt"].read_bytes() == before
+
+
+def test_check_receipt_reads_v4_without_evidence_issues(tmp_path: Path) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0
+    )
+    assert receipt is not None
+    receipt["schema_version"] = 4
+    receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
+    for attempt in receipt["attempts"]:
+        attempt.pop("evidence_issues")
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = paths["receipt"].read_bytes()
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+
+    assert checked.returncode == 0, checked.stderr
+    assert json.loads(checked.stdout)["schema_version"] == 4
+    assert paths["receipt"].read_bytes() == before
+
+
+def test_recompute_attempt_missing_precedes_fatal_stdout_issue_for_all_schemas(
+    tmp_path: Path,
+) -> None:
+    stdout_path = tmp_path / "stdout.jsonl"
+    stderr_path = tmp_path / "stderr.txt"
+    output_path = tmp_path / "output.md"
+    stdout_path.write_bytes(b"not-json\n")
+    stderr_path.write_bytes(b"")
+    output_path.write_bytes(b"")
+    attempt = {
+        "attempt_index": 1,
+        "stdout_path": os.fspath(stdout_path),
+        "stderr_path": os.fspath(stderr_path),
+        "output_path": os.fspath(output_path),
+        "session_ids": [],
+        "rollouts": [],
+    }
+
+    for schema_version in (4, 5):
+        evidence, _metering, issues, _actuals, _recorded_cwds = (
+            LAUNCHER._recompute_attempt_metering(
+                attempt,
+                schema_version=schema_version,
+                model="test-model",
+                reasoning="high",
+                cwd=os.fspath(tmp_path),
+            )
+        )
+
+        assert issues[0]["reason"] == "event_invalid"
+        assert evidence == "missing"
 
 
 def test_check_receipt_external_limit_detects_self_asserted_limit_tampering(
@@ -6960,6 +7058,90 @@ def test_fake_stdout_matches_observed_cli_event_shape(tmp_path: Path) -> None:
     }
     terminal = [event for event in events if event["type"] == "turn.completed"]
     assert terminal[0]["usage"]["cache_write_input_tokens"] == 0
+
+
+def test_web_search_duplicate_stdout_is_accepted_and_auditable(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "web_search_duplicate_stdout", expected_returncode=0
+    )
+    assert receipt is not None
+    raw_line = (
+        b'{"type":"item.started","item":{"id":"item_40",'
+        b'"type":"web_search",'
+        b'"id":"exec-f3ed5b5c-aa7d-4450-a1d8-44232d49c1e9",'
+        b'"query":"","action":{"type":"other"}}}'
+    )
+    stdout = Path(receipt["attempts"][0]["stdout_path"]).read_bytes()
+    assert raw_line + b"\n" in stdout
+    attempt = receipt["attempts"][0]
+    assert receipt["schema_version"] == 5
+    assert attempt["evidence_status"] == "complete"
+    assert attempt["accepted"] is True
+    assert attempt["failure_class"] is None
+    assert attempt["evidence_issues"] == [
+        {
+            "source": "stdout",
+            "reason": "duplicate_key",
+            "count": 1,
+            "first_line": 4,
+            "detail": None,
+        }
+    ]
+    assert receipt["outcome"] == "accepted"
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 0, checked.stderr
+
+
+def test_check_receipt_rejects_non_string_evidence_issue_reason_with_rc2(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0
+    )
+    assert receipt is not None
+    receipt["attempts"][0]["evidence_issues"] = [
+        {
+            "source": "stdout",
+            "reason": ["event_invalid"],
+            "count": 1,
+            "first_line": 1,
+            "detail": None,
+        }
+    ]
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+
+    assert checked.returncode == 2
+    assert "attempt.evidence_issues[].reason が不正" in checked.stderr
+
+
+def test_rollout_duplicate_key_remains_invalid(tmp_path: Path) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "rollout_duplicate_key", expected_returncode=1
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    assert attempt["evidence_status"] == "invalid"
+    assert attempt["accepted"] is False
+    assert any(
+        issue["reason"] == "event_invalid"
+        and issue["source"] != "stdout"
+        for issue in attempt["evidence_issues"]
+    )
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 1, checked.stderr
 
 
 def test_rollout_missing_after_grace_is_stopped_and_not_accepted(

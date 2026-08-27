@@ -26,6 +26,7 @@ from orchestrator.codex_roles.events import (
     canonical_json,
     encode_jsonl,
     enveloped_output_schema,
+    parse_jsonl_allowing_duplicate_keys,
     strict_json_loads,
     validate_schema_instance,
     validate_event_stream,
@@ -97,7 +98,7 @@ def test_jsonl_exposed_tool_or_unknown_item_is_rejected(item_type):
     "natural-language", "duplicate-thread", "bad-thread", "uppercase-thread",
     "unknown-event",
     "after-complete", "missing-message", "digest-mismatch", "schema-mismatch",
-    "duplicate-result-key", "result-bom", "result-cr", "result-non-nfc",
+    "result-bom", "result-cr", "result-non-nfc",
 ])
 def test_event_stream_never_accepts_success_text_or_malformed_evidence(mutation):
     events = _valid_events()
@@ -123,8 +124,6 @@ def test_event_stream_never_accepts_success_text_or_malformed_evidence(mutation)
             envelope["runtime"]["input_digest"] = "d" * 64
         elif mutation == "schema-mismatch":
             envelope["result_json"] = '{"verdict":"maybe"}'
-        elif mutation == "duplicate-result-key":
-            envelope["result_json"] = '{"verdict":"pass","verdict":"reject"}'
         elif mutation == "result-bom":
             envelope["result_json"] = '\ufeff{"verdict":"pass"}'
         elif mutation == "result-cr":
@@ -134,6 +133,95 @@ def test_event_stream_never_accepts_success_text_or_malformed_evidence(mutation)
         events[2]["item"]["text"] = canonical_json(envelope)
     with pytest.raises(EventValidationError):
         validate_event_stream(encode_jsonl(events), IDENTITY, RESULT_SCHEMA)
+
+
+def test_outer_event_duplicate_key_remains_rejected():
+    """外側 parse_jsonl だけを緩めても通る正常 envelope の負例。"""
+
+    events = _valid_events()
+    lines = [canonical_json(event) for event in events]
+    lines[1] = '{"type":"turn.started","type":"turn.started"}'
+    raw = ("\n".join(lines) + "\n").encode("utf-8")
+    with pytest.raises(EventValidationError, match="重複"):
+        validate_event_stream(raw, IDENTITY, RESULT_SCHEMA)
+
+
+def test_child_result_json_duplicate_key_remains_rejected():
+    """外側 event は正常なまま内側 strict_json_loads を通る負例。"""
+
+    events = _valid_events()
+    envelope = json.loads(events[2]["item"]["text"])
+    envelope["result_json"] = '{"verdict":"pass","verdict":"reject"}'
+    events[2]["item"]["text"] = canonical_json(envelope)
+    with pytest.raises(
+        EventValidationError,
+        match=r"^JSON key が重複: 'verdict'$",
+    ):
+        validate_event_stream(encode_jsonl(events), IDENTITY, RESULT_SCHEMA)
+
+
+def test_cli_stdout_top_level_duplicate_is_rejected():
+    raw = (
+        '{"type":"item.started","type":"item.started",'
+        '"item":{"id":"first","id":"second"}}\n'
+    )
+    with pytest.raises(EventValidationError, match="top-level"):
+        parse_jsonl_allowing_duplicate_keys(raw)
+
+
+def test_cli_stdout_consumed_event_nested_duplicate_is_rejected():
+    raw = (
+        '{"type":"turn.completed",'
+        '"usage":{"input_tokens":1,"input_tokens":2}}\n'
+    )
+    with pytest.raises(EventValidationError, match="消費対象"):
+        parse_jsonl_allowing_duplicate_keys(raw)
+
+
+def test_cli_stdout_discarded_duplicate_value_still_gets_domain_validation():
+    deep = "[" * 129 + "0" + "]" * 129
+    raw = (
+        '{"type":"item.started","item":{"shadow":'
+        + deep
+        + ',"shadow":0}}\n'
+    )
+    with pytest.raises(EventValidationError, match="nesting"):
+        parse_jsonl_allowing_duplicate_keys(raw)
+
+
+@pytest.mark.parametrize(
+    ("raw", "kwargs", "match"),
+    [
+        (
+            '{"type":"item.started","item":{"id":"a","id":"b"}}\r\n',
+            {},
+            "LF のみ",
+        ),
+        (
+            '{"type":"item.started","item":{"id":"a","id":"b",'
+            '"value":NaN}}\n',
+            {},
+            "非有限数",
+        ),
+        (
+            '{"type":"item.started","item":{"id":"a","id":"b"}}\n',
+            {"max_line_bytes": 16},
+            "上限",
+        ),
+    ],
+    ids=("cr", "nonfinite", "line-limit"),
+)
+def test_cli_stdout_duplicate_only_policy_rejects_coincident_invalidity(
+    raw, kwargs, match
+):
+    """nonfinite は冗長 gate であり単独変異の証拠には数えない。
+
+    nonfinite は JSON parse と domain の双方が拒否する。CR と line-limit は
+    それぞれ独立した拒否境界を固定する。
+    """
+
+    with pytest.raises(EventValidationError, match=match):
+        parse_jsonl_allowing_duplicate_keys(raw, **kwargs)
 
 
 def test_jsonl_duplicate_key_and_size_limits_are_fail_closed():

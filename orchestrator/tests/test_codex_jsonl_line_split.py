@@ -192,8 +192,9 @@ def test_tail_rollout_rejects_crlf_terminated_event(tmp_path: Path) -> None:
     crlf_path = tmp_path / "crlf-rollout.jsonl"
     crlf_path.write_bytes(_jsonl(event, ending=b"\r\n"))
     crlf = RolloutState(session_id=str(uuid.uuid4()), path=crlf_path)
+    state = _attempt_state(tmp_path, b"")
 
-    _tail_rollout(crlf, model=MODEL, reasoning=REASONING, cwd=CWD)
+    _tail_rollout(state, crlf, model=MODEL, reasoning=REASONING, cwd=CWD)
 
     assert crlf.invalid is True
     assert crlf.context_count == 0
@@ -202,7 +203,7 @@ def test_tail_rollout_rejects_crlf_terminated_event(tmp_path: Path) -> None:
     lf_path.write_bytes(_jsonl(event))
     lf = RolloutState(session_id=str(uuid.uuid4()), path=lf_path)
 
-    _tail_rollout(lf, model=MODEL, reasoning=REASONING, cwd=CWD)
+    _tail_rollout(state, lf, model=MODEL, reasoning=REASONING, cwd=CWD)
 
     assert lf.invalid is False
     assert lf.context_count == 1
@@ -233,8 +234,9 @@ def test_recorded_summary_skips_crlf_terminated_event(tmp_path: Path) -> None:
 def test_recompute_metering_stdout_rejects_crlf_terminated_event(
     tmp_path: Path,
 ) -> None:
-    invalid, _, _, _ = _recompute_attempt_metering(
+    invalid, _, _, _, _ = _recompute_attempt_metering(
         _sealed_attempt(tmp_path, stdout_ending=b"\r\n", rollout_ending=b"\n"),
+        schema_version=5,
         model=MODEL,
         reasoning=REASONING,
         cwd=CWD,
@@ -243,10 +245,11 @@ def test_recompute_metering_stdout_rejects_crlf_terminated_event(
 
     complete_path = tmp_path / "complete"
     complete_path.mkdir()
-    complete, _, _, _ = _recompute_attempt_metering(
+    complete, _, _, _, _ = _recompute_attempt_metering(
         _sealed_attempt(
             complete_path, stdout_ending=b"\n", rollout_ending=b"\n"
         ),
+        schema_version=5,
         model=MODEL,
         reasoning=REASONING,
         cwd=CWD,
@@ -271,8 +274,9 @@ def test_recompute_metering_rollout_rejects_crlf_terminated_event(
     rollout_path.write_bytes(rollout_raw)
     rollout_record["bytes"] = len(rollout_raw)
 
-    invalid, _, _, _ = _recompute_attempt_metering(
+    invalid, _, _, _, _ = _recompute_attempt_metering(
         invalid_attempt,
+        schema_version=5,
         model=MODEL,
         reasoning=REASONING,
         cwd=CWD,
@@ -281,10 +285,11 @@ def test_recompute_metering_rollout_rejects_crlf_terminated_event(
 
     complete_path = tmp_path / "complete"
     complete_path.mkdir()
-    complete, _, _, _ = _recompute_attempt_metering(
+    complete, _, _, _, _ = _recompute_attempt_metering(
         _sealed_attempt(
             complete_path, stdout_ending=b"\n", rollout_ending=b"\n"
         ),
+        schema_version=5,
         model=MODEL,
         reasoning=REASONING,
         cwd=CWD,
