@@ -58,13 +58,13 @@
  "second_pass_digest": null,
  "second_pass_note": "契約 §7.1 の 2 走一致は複数窓にまたがった枝への要求である。本枝は 1 走が中断なく完了しているため必須ではない。値がある場合は追加証拠である",
  "completion": {
-  "1_interpreted_query_match": true,
+  "1_interpreted_query_match": false,
   "2_page_continuity": true,
   "3_declared_vs_actual": true,
   "4_primary_key_unique": true,
   "5_unique_equals_total": true,
   "6_normal_termination": true,
-  "complete": true
+  "complete": false
  },
  "duplicate_primary_key_count": 0,
  "failure": [],
