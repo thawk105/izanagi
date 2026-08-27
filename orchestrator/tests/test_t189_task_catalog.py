@@ -381,6 +381,35 @@ def test_mut3_v4_is_a_candidate_and_other_schema_is_excluded(tmp_path: Path) -> 
     assert old["reason_codes"] == ["unsupported-receipt-schema"]
 
 
+def test_v5_receipt_with_evidence_issues_is_a_candidate(tmp_path: Path) -> None:
+    paths = _materialize_fixture(tmp_path)
+    jobs_root, _repo_root, _classification = paths
+    receipt_path = jobs_root / "wave-a" / "job-author" / "receipt.json"
+    receipt = json.loads(receipt_path.read_bytes())
+    receipt["schema_version"] = 5
+    receipt["attempts"] = [
+        {
+            "evidence_issues": [
+                {
+                    "source": "stdout",
+                    "reason": "duplicate_key",
+                    "count": 1,
+                    "first_line": 4,
+                    "detail": None,
+                }
+            ]
+        }
+    ]
+    receipt_path.write_bytes(_json_bytes(receipt))
+
+    artifact = _build(paths)
+
+    assert _candidate(artifact, "wave-a", "author")[
+        "receipt_schema_version"
+    ] == 5
+    validate_task_catalog(artifact)
+
+
 def test_mut4_prompt_sha_mismatch_never_supplies_a_candidate(tmp_path: Path) -> None:
     artifact = _build(_materialize_fixture(tmp_path))
 

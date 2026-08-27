@@ -39620,3 +39620,157 @@ flag・環境変数・「manifest 無しなら申告を要求しない」とい�
   **`.pth` 経由でしか入らない依存が将来要求されたとき、同じ無言 rc=16 が再発する。**
 - `tools/run_tests.py` は repository root 挿入より前に `packaging.version` を import するため、
   **root 挿入前に import される module だけは user site から来うる。**
+
+## D1188. Codex CLI stdout の重複 key を許容する条件を 4 つの述語で閉じる (2026-08-27)
+
+**決定:** D1149 が要求した「Codex CLI 自身が吐く stdout event 行の重複 key を異常として記録し
+attempt を落とさない」を、`orchestrator/codex_roles/events.py` の**名前で opt-in する別入口**
+(`parse_jsonl_allowing_duplicate_keys`) として実装する。既存の `strict_json_loads` と
+`parse_jsonl` は署名も挙動も変えない。
+
+許容するのは次の T1〜T4 を**すべて**満たす行に限る。1 つでも欠ければ従来どおり拒否する。
+
+- **T1**: event object の top-level key が一意であること。重複は top-level より下でだけ許す。
+- **T2**: その event の `type` が `STDOUT_CONSUMED_EVENT_TYPES` に含まれないこと。
+  この定数は 1 箇所だけに置き、許容述語と `_consume_stdout_event` の**両方が参照する**。
+- **T3**: last-wins で捨てられる側を含む元 tree 全体が、既存の domain 検査
+  (UTF-8 / NFC / 有限数 / 深さ / key 型) を通ること。
+- **T4**: 重複 key 以外の拒否理由が 1 つも無いこと。
+
+許容した行は評価に一切寄与させず読み飛ばし、行番号を issue として記録する。
+
+**理由:**
+
+- **T1 と T2 が無いと D68 (4) の隠蔽が成立する。** last-wins 正規化だけでは
+  `{"type":"thread.started","thread_id":"不正","thread_id":"正当"}` のように
+  **先の値の不正を後の値で隠せる**。同型で `turn.completed` の `usage` も騙せ、
+  `{"type":"error","type":"thread.started",...}` は event 種そのものを化けさせられる。
+  段 3 の敵対レンズが 3 反例を構成し、親が経路で確認した。
+- **境界を key 名や `web_search` に結び付けない。** `id` を名指しで許すと CLI の次版で
+  別 key が重複したとき同じ全損が再発し、逆に「重複なら何でも許す」と T4 が崩れる。
+  境界は producer 固有入口と**意味射影**で閉じる。
+- **T2 を定数の共有で書く。** `_consume_stdout_event` が消費する型と許容述語が参照する型が
+  ずれると、将来 consume 対象が増えたときに隠蔽経路が開く。片方だけ拡張すると壊れる形にした。
+- **T3 は捨てられる側も検査する。** last-wins で消える値に domain 違反を置けば、
+  検査を通り抜けた不正値が「あったこと」自体が記録から消える。
+- 成果物側 (外側 event、最終 agent message、内側 `result_json`、rollout の 3 経路) の
+  重複 key 拒否は 1 bit も緩めない。規律 2 の面である。
+
+**却下した選択肢:**
+
+- **既存入口へ `allow_duplicates` 引数を足す** — 既定値の取り違えで全 consumer が緩む。
+  `strict_json_loads` は probe / launcher / run_codex_role の consumer を持つ。
+- **許容を `id` の重複だけに限る** — CLI の版に依存し、次版の別 key で再発する。
+- **重複 key の拒否そのものを外す** — D1149 が却下済み。成果物側の健全性検査に触れる。
+- **rollout 側も同じ入口へ寄せる** — 実測した attempt の rollout に重複 key は無く、
+  緩める必要が無い。evidence payload 境界の内側である。
+
+## D1189. evidence_status の complete は「致命的異常なし」であって「異常なし」ではない (2026-08-27)
+
+**決定:** codex worker receipt を schema v5 へ上げ、attempt へ `evidence_issues` を追加する。
+`evidence_status` の 3 値 (`complete` / `missing` / `invalid`) は変えないが、
+**`complete` の意味を「致命的異常が無い」へ改める。** 異常ゼロを要求する読み手は
+`evidence_issues` を読む。この規約を `_evidence_status` の docstring に書く。
+
+`missing` と `invalid` の判定順序は**従来どおり `missing` を先に置く**。
+
+v1〜v4 の receipt は従来の field 集合で読み、`evidence_issues` を要求しない。
+再計算時の照合も v5 のときだけ `evidence_issues` を比較する。
+
+**理由:**
+
+- D1149 と既裁定 [T-981] が「`evidence_status=invalid` の理由を receipt へ記録する」を要求する。
+  理由を残す場所が要り、既存 field は流用できない — `failure_class` は accepted 時に
+  `None` 必須で束縛されており、意味を壊す。
+- **前方非互換は version を上げても上げなくても避けられない。** attempt の field 集合は
+  `_closed_object` が完全一致 (`set(value) != fields`) を要求するので、field を 1 つ足せば
+  旧 reader は必ず拒否する。version を上げない利点が無いため上げる (診断が正確になる)。
+  この限界は主張せず記録する。
+- **判定順序を変えてはならない。** 致命的 issue を `missing` より先に判定すると、
+  session 欠落と stdout 異常を同時に持つ既存 v1〜v4 receipt が `missing` から `invalid` へ
+  再計算され、`check-receipt` が過去の正当な receipt を拒否する。
+  親が旧実装と新実装へ同一状態を与えて実測した。`missing` は既に fail-closed であり、
+  順序を戻しても受理集合は広がらない。
+- 理由の記録が無ければ、同じ `invalid` が重複 key 由来か非 NFC 由来かを次の走行が
+  推定でしか辿れない。本 wave 自身がその 2 種を 1 日で両方踏んだ。
+
+**却下した選択肢:**
+
+- **receipt へ新 field を足さず既存 field を流用する** (親の当初案) — 段 3 の 2 レンズが
+  独立に反対した。accepted な attempt の異常を意味を壊さずに書ける既存 field が無い。
+- **`evidence_status` に第 4 の値を足す** — 値を読む全 consumer の分岐が増え、
+  旧 receipt との意味互換も壊れる。
+- **schema を上げず optional field にする** — `_closed_object` の完全一致により
+  旧 reader の拒否は同じで、拒否理由の診断だけが不正確になる。
+
+## D1190. 予約の一回性は測定世代へ置き換える — 効果 key は座標として残す (2026-08-27)
+
+**決定 (D1124 の実装):** 過去の観測を理由に予約を拒否する関門を撤去し、
+**予約ごとに発行する測定世代 (measurement generation)** へ置き換える。
+
+1. **cell の効果 key は不変のまま残す。** `freeze_sha256` / `freeze_holdout_key` /
+   `configuration_id` / `ccbench_pin` / `env_tag` / `observation_role` の 6 field で、
+   D434 のとおり protocol hash を含めない。key は**座標**であって予約の可否を決めない。
+2. **測定世代 ID は決定的に導出する。**
+   `sha256({observation_role, campaign_run_id})` だけを入力とし、時刻・乱数・PID・host・
+   絶対 path・環境変数を含めない。`campaign_run_id` は fresh では開始時刻と protocol hash から
+   作られ、resume では元 run と同じ値になるため、**resume は自動的に同じ世代へ戻り、
+   別 run は必ず別世代になる。**
+3. **`O_EXCL` と attempt 一回性を世代の内側へ限定する。** 同一世代の同一 attempt の
+   二重消費は引き続き拒否する。別世代からは同じ論理 attempt を消費できる。
+4. **名前空間を分ける。** 新世代は `measurement-generation-claims/` と
+   `measurement-generation-consumed/` へ書き、旧 `claims/` / `consumed/` と混ぜない。
+   旧 v1/v2 の exact reader は **read-only の historical decoder として温存**する。
+5. **承認 flag を撤去する。** 不可逆な消費が無くなるので承認すべき対象が無い。
+
+**理由:**
+
+- **乱数発行では 3 つが同時に壊れる。** 実測で確認した — 成果物の決定性テストが落ち、
+  resume が元の世代へ戻れず、世代 claim の `O_EXCL` が通常経路で衝突しないため恒真になる。
+  決定的導出はこの 3 つを同時に解き、**`O_EXCL` を実際に発火する防壁へ戻す。**
+- **旧 reader を消すと proof chain の受理集合が狭まる。** ratified 側の consumer は
+  選択済み floor source の bytes を live inspector で再検証する。台帳には旧 claim 36 件・
+  marker 228 件・ledger 36 行が現存しており、読めなくすることは撤去ではなく破壊である。
+- **識別子は namespace 付きにする** (D197)。無修飾の `generation` は既に却下されており、
+  同 repo に `activation_generation` が実在する。
+
+**この決定が変えないもの:** 同一世代の attempt 二重消費の拒否、resume の run identity 照合、
+未知 `observation_role` の fail-closed 拒否、freeze 由来 signature の exact 集合一致、
+gflags 型意味論と間接 flag 拒否、保護比率の admission 要求、canonical JSON bytes 検査。
+**正しさゲート (規律 2) と観測者効果の分離 (規律 1) には触れていない。**
+
+**却下した選択肢:**
+
+- **拒否する 1 行だけを外す** — finalize 側の効果 key 一意化と旧 claim の run identity 照合でも
+  止まる。さらに台帳には旧 attempt marker が 96 件あり、予約が通っても最初の attempt 消費で
+  同じ inode に当たる。実測で棄却した。
+- **attempt 一回性ごと撤去する** — 同一世代の二重実行を許すことになる。
+  D1124 が撤去を命じたのは測定の反復を拒否する関門であって、二重実行の防壁ではない。
+- **旧 claim を新予約で再利用する** — 旧 claim は `campaign_run_id`・`run_relpath`・mode・
+  protocol・attempt 集合まで含むため、別 run が再利用すると identity 照合と矛盾する。
+- **世代 ID を乱数で発行する** — 上記のとおり決定性・resume・防壁の 3 つを同時に壊す。
+
+## D1191. R33 事前登録が pin する file の identifier 撤去は見送り、裁定へ返す (2026-08-27)
+
+**決定:** `--confirm-irreversible-pilot-holdout` の identifier 撤去のうち、
+`orchestrator/campaign/s8b_oracle_n_pilot.py`、`tools/pegasus/oracle_n_pilot.sh`、
+`tools/pegasus/submit_oracle_n_pilot.sh` からの撤去は**行わず、ユーザー裁定へ返す**。
+承認**要求**そのものは admission 側で撤去済みであり、これらに残るのは
+**何も gate しない引数**である。True でも False でも admission の挙動が exact に同じであることを
+テストで固定した。
+
+**理由:**
+
+- R33 事前登録 protocol が `source.driver_sha256` と `source.job_script_sha256` で
+  前 2 file の bytes を pin しており、**現在の bytes と exact に一致している**。
+- **R33 campaign は未実行である** (共有台帳に該当 role の claim が 0 件)。
+  したがってこの pin は歴史記録ではなく、これから走る campaign への生きた束縛である。
+- 1 byte でも変えると `load_inputs()` が hash 不一致で拒否し、回復には
+  **successor 事前登録の発行**が要る。事前登録の再発行は D1124 が命じていない新しい設計行為であり、
+  事前登録という機構の趣旨からしてユーザー裁定に属する。
+
+**却下した選択肢:**
+
+- **既存 protocol の pin を書き換える** — 事前登録文書の上書きであり、事前登録の意味が消える。
+- **successor 事前登録を wave の判断で発行する** — 上記のとおりユーザー裁定事項である。
+- **admission 側の引数を消して呼び手を壊す** — pin 対象 file の編集を強制する。

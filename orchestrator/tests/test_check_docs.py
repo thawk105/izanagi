@@ -207,7 +207,7 @@ _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 - 段6fixも受理・拒否の含意を2文に分け、通る正例を添える。
 - merge/`add`/commitは親、子は競合解決だけ。
 - 子の成果物はrepo内に書かせ、親が実行後repo外へ退避。
-- 子はWeb検索禁止。成果物が全損する。
+- Web検索は必要な段だけ明示して使う。
 """
 
 _SYNTHETIC_OPERATION_SECTION_IDS = (
@@ -9350,6 +9350,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 946
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 995
+    assert len("- Web検索は必要な段だけ明示して使う。\n".encode("utf-8")) == 54
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
         (".claude/commands/dev-wave.md", "入力と開始"):
             _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,

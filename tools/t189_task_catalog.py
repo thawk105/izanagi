@@ -38,7 +38,7 @@ CLASSIFICATION_CRITERIA_DOCUMENT = (
     "docs/phase3-t189-task-catalog-classification.md"
 )
 CLASSIFICATION_CRITERIA_VERSION = "t189-task-type/v1"
-SUPPORTED_RECEIPT_SCHEMAS = frozenset({3, 4})
+SUPPORTED_RECEIPT_SCHEMAS = frozenset({3, 4, 5})
 DEV_WAVE_STAGES = ("plan", "author")
 TASK_TYPES = ("new-mechanism", "bug-fix", "check-or-test", "docs")
 RULE_TASK_TYPES: dict[str, str | None] = {
