@@ -196,6 +196,28 @@ class SourceEvidence:
             tracked_paths=tuple(paths),
         )
 
+
+@dataclass(frozen=True, slots=True)
+class EffectiveDefineResolution:
+    """Source-owner-aware CMake cache-to-TU define resolution.
+
+    This is a static rederivation from captured CMake source. It is not a
+    post-configure compiler command and does not claim exact build input.
+    """
+
+    source_rel: str
+    owner_protocol: str
+    supplied_macros: frozenset[str]
+    bare_macros: frozenset[str]
+    cache_by_tu_macro: tuple[tuple[str, str], ...]
+    effective_values: tuple[tuple[str, str], ...]
+
+    def cache_name(self, macro: str) -> str | None:
+        return dict(self.cache_by_tu_macro).get(macro)
+
+    def effective_value(self, macro: str) -> str | None:
+        return dict(self.effective_values).get(macro)
+
 # TU 注入マクロ (T-148): -D でなく取り込み側 TU の #define で供給されるマクロ。単体 preprocess の
 # 素文脈では常に未定義 = 条件枝が dead になり、枝内編集が digest に不可視 (stock 偽 alias) になる。
 # ここに登録したマクロは compute/baseline/_trace_pair_diff が「素 + define」の両文脈で preprocess し
@@ -1872,6 +1894,55 @@ def _protocol_cmake_rel(protocol: str) -> str:
             f"source_digest: protocol が不正: {protocol!r} → fails-closed (T-1437)"
         )
     return _PROTOCOL_CMAKE.format(protocol=protocol)
+
+
+def resolve_effective_defines_from_cmake_sources(
+    source_rel: str,
+    genome: Genome,
+    *,
+    options_text: str,
+    protocol_cmake_text: str,
+) -> EffectiveDefineResolution:
+    """Rederive effective TU values from captured owner-specific CMake source.
+
+    ``genome.flags`` models the caller's ``CCBENCH_<name>`` cache overrides.
+    Each TU macro then receives the value of the cache variable named on the
+    right-hand side of its CMake mapping. This intentionally does not use the
+    older digest shortcut that lets a left-hand genome flag bypass a wrong
+    cache mapping: a wrong RHS must remain observable to supply consumers.
+
+    ``protocol_cmake_text`` is caller-supplied captured text. This generic
+    adapter derives ``owner_protocol`` from ``source_rel`` but does not attest
+    that the caller obtained those bytes from that owner's path. Consumers
+    claiming path provenance must bind and verify that capture themselves.
+    """
+    if type(source_rel) is not str or not source_rel:
+        raise ValueError("source_rel must be a non-empty exact string")
+    if type(options_text) is not str or type(protocol_cmake_text) is not str:
+        raise TypeError("captured CMake inputs must be exact strings")
+    owner = _source_protocol(source_rel, genome)
+    supplied, bare_names, cache_names = _parse_supplied_macro_details(
+        options_text, protocol_cmake_text,
+    )
+    cache_values = parse_options_defaults(options_text)
+    cache_values.update({name: str(value) for name, value in genome.flags.items()})
+    effective: Dict[str, str] = {}
+    for macro in supplied:
+        if macro in bare_names:
+            effective[macro] = "1"
+            continue
+        cache_name = cache_names.get(macro)
+        if cache_name is not None and cache_name in cache_values:
+            effective[macro] = cache_values[cache_name]
+    effective.update(PLATFORM_MACROS)
+    return EffectiveDefineResolution(
+        source_rel=source_rel,
+        owner_protocol=owner,
+        supplied_macros=supplied,
+        bare_macros=bare_names,
+        cache_by_tu_macro=tuple(sorted(cache_names.items())),
+        effective_values=tuple(sorted(effective.items())),
+    )
 
 
 def _worktree_defines(sub: str, genome: Genome, source_rel: str | None = None) -> Dict[str, str]:

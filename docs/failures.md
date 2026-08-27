@@ -1675,6 +1675,8 @@
   対象に含めず、親の段6 focused run も同様に対象外だった。恒久対応 (DW-S05-C の指示文言) は
   存在するが、対象 meta-test 発見の実効性までは担保しなかった。fix 2件 (両登録先へ1行ずつ)
   で解消、340 passed 確認。
+
+- **再発: 2026-08-28** — 新production process site `condition_meaning_gate._run_process` を実装したが、親の焦点走は新test・直接consumer・plain-runner/duration metaまでで、repo-wide `test_ccbench_spawn_sites.py` のreviewed inventoryを落とした。最終受入で18,326 passed / 61 skipped後に2赤となり露出し、explicit non-CCBench siteへexact 1件を追加して2 node緑を確認した。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -1737,6 +1739,8 @@
   今回も prose 追記はしない — 親検収で拾えており実害は子 1 本の再投入に留まる (near-miss)。
   併せて実測: 停止時に launcher script の process group へ `kill -TERM` を送っても
   **codex 本体は孤児として生き残り**、本体 pid を直接 kill するまで走り続けた。
+
+- **再発: 2026-08-28** — 段5 Codex authorがコードと有効な最終報告を残してexit 0だったが、fence外のexact `## 総括` が無くvalidator rc=1 / failure_class=f43_fragmentになった。差分と未受理報告を保全し、別authorが同じdirty treeを再監査してaccepted outputを発行するまで採用しなかった。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -14885,6 +14889,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   共有木観測の走行が 0 本であることを確かめ、撤去は削除でなく退避とする 5 点検査を記録する。
   再発検知: `shared_snapshot_matches=false` は既に `MUT_RC=125` で fails-closed に落ちるが、
   それは被害が出た後の検知である。事前の防壁は本エントリと当該 memory だけで、機械検査は持たない。
+
+- **再発: 2026-08-28** — 変異finalを共有primaryのwave worktreeから2回走らせ、childは両回baseline PASSED・8/8 KILLEDだったが、primaryの `.codex/worktrees/` untracked集合変動でwrapperがshared_snapshot_matches=false / rc125に倒れた。結果を不受理にし、既存手順どおり独立common-dir cloneへ切り替えてrc0を取り直した。
 ### F538. 停止 wave の棚卸しを 20 分前のスナップショットで提示し、6 件すべてが空振りになった [観測] [手順漏れ]
 
 - 事象: 死んだ codex の worktree を巻き取る作業で、親が停止中の wave を棚卸しし、
@@ -16591,6 +16597,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-08-28** — 固定 commit の変異 matrix が全件完走した後、並行 session の main land により共有木事後検査が2回 rc=125。land lease取得後の同一matrix再走で閉じた。
+
+- **再発: 2026-08-28** — 共有checkoutを観測rootに含むfinal変異1走目が並行landでrc125になった。terminal ledgerとteardown完了を確認しても8/8を採用せず、local submodule sourceをno-fetchで初期化した独立cloneをsource-repoに使い、shared_snapshot_matches=trueを再取得した。
 ### F619. 収集段で落ちた変異走行が resume も fresh 走も塞ぐ [手順漏れ]
 
 - 事象: 変異本走が収集段で `rc=16` (`receipt scheduler_logs.stdout.path がない`、

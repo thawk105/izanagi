@@ -14,6 +14,7 @@ import sys
 
 import pytest
 
+from orchestrator.campaign import evolve_block as EB
 from orchestrator.campaign import sort_swo_oracle as O
 from orchestrator.tests import sort_swo_masstree_fixture as masstree_fixture
 from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle_environment_memo
@@ -1062,6 +1063,37 @@ def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(
     attempt = O.attempt_record(result)
     assert attempt["classification"] == "pass"
     assert attempt["oracle_receipt"] == result.receipt.as_dict()
+
+
+def test_shared_evolve_block_parser_preserves_public_wrapper_bytes():
+    statement = "  " + _CLEAN_IMPL + "\n"
+    source = _materialized(statement)
+    shared = EB.extract_materialized_evolve_block(source, "silo-writeset-sort")
+    assert shared.hole == statement + "\n"
+    assert O.extract_materialized_hole(source, "silo-writeset-sort") == shared.hole
+    assert shared.conditional.startswith("#if ")
+    assert shared.conditional.endswith("#endif\n")
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("", "materialized marker boundary is not unique"),
+        (
+            _materialized(_CLEAN_IMPL) + _materialized(_CLEAN_IMPL),
+            "materialized marker boundary is not unique",
+        ),
+        (
+            _materialized(_CLEAN_IMPL).replace("#else", "#elif 1"),
+            "materialized marker does not contain one #if/#else/#endif",
+        ),
+    ],
+)
+def test_shared_evolve_block_parser_preserves_public_wrapper_rejections(source, message):
+    with pytest.raises(ValueError, match=message):
+        EB.extract_materialized_evolve_block(source, "silo-writeset-sort")
+    with pytest.raises(ValueError, match=message):
+        O.extract_materialized_hole(source, "silo-writeset-sort")
 
 
 @pytest.mark.parametrize(
