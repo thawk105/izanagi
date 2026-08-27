@@ -198,21 +198,17 @@ def test_receipt_rejects_changed_lock_and_changed_payload_without_write(tmp_path
     assert Path(layout2.wal_file).read_bytes() == b""
 
 
-def test_wal_append_accepts_issuer_bound_receipt_without_physical_lock(tmp_path: Path):
+def test_wal_append_rejects_issuer_bound_receipt_after_physical_lock_removed(
+        tmp_path: Path,
+):
     layout = _v1_layout(tmp_path)
     payload = {"fitness_tps": 2.0}
     receipt = receipt_support.campaign_receipt(layout, "v", payload)
-    lock_identity = campaign_lock_sha256(layout)
     Path(layout.lock_file).unlink()
 
-    wal.append(layout, _record(payload), commit_receipt=receipt)
-
-    rows = wal.read_records(layout)
-    assert len(rows) == 1
-    assert (
-        rows[0].payload["commit_verification_receipt"]["lock_identity_sha256"]
-        == lock_identity
-    )
+    with pytest.raises(CommitReceiptError, match="binding mismatch"):
+        wal.append(layout, _record(payload), commit_receipt=receipt)
+    assert Path(layout.wal_file).read_bytes() == b""
 
 
 @pytest.mark.parametrize("fixture", ["r1_write_skew", "r2_lost_update"])

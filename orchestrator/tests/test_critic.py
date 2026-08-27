@@ -62,6 +62,7 @@ from orchestrator.campaign.source_digest import (                              #
     SourceEvidence,
 )
 from orchestrator.critic import digest as critic_digest                       # noqa: E402
+from orchestrator.critic import online_digest as critic_online_digest         # noqa: E402
 from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E402
                            IdentityProjection, LivenessRejection,
                            Rejection, VerifyAbortSignal,
@@ -645,6 +646,12 @@ def test_load_sorts_by_throughput_and_marginal_back_off():
     d = build_digest("balanced", {"ycsb_rratio": "50"}, _view(lay))
     assert len(d.genomes) == 2
     assert d.fastest.flags["BACK_OFF"] == 0           # throughput 降順
+    positional = critic_digest.WorkloadDigest(
+        d.tag, d.workload, d.genomes, d.axes,
+        d.campaign_verifier_epoch, d.read_purpose, d.fastest,
+    )
+    assert positional.fastest is d.fastest
+    assert positional.verifier_assessment_basis is None
     bo = next(e for e in d.axes if e.axis == "BACK_OFF")
     assert bo.means["throughput_tps"] == {"0": 8_000_000, "1": 4_000_000}
     assert abs(bo.rel_throughput - (-0.5)) < 1e-9     # 0→1 で -50%
@@ -797,9 +804,10 @@ def test_render_text_has_axes_and_indicators():
     assert "BACK_OFF" in txt and "no_wait" in txt and "WAL" in txt
     assert "throughput_tps" in txt and "abort_rate" in txt
     assert "限界効果" in txt
+    assert "verifier_assessment_basis" not in txt
 
 
-def test_historical_p2_digest_keeps_e0_and_names_raw_purpose():
+def test_historical_p2_digest_keeps_e0_and_names_raw_purpose(monkeypatch):
     campaign = (
         Path(__file__).resolve().parents[2]
         / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
@@ -809,8 +817,27 @@ def test_historical_p2_digest_keeps_e0_and_names_raw_purpose():
     )
     text = render_text([build_digest("read-heavy", {}, view)])
     assert "read_purpose: `HISTORICAL_RAW`" in text
+    assert (
+        "verifier_assessment_basis: "
+        "`recorded-at-original-verifier-epoch`" in text
+    )
     assert "campaign_verifier_epoch: `E0` (state=E0)" in text
     assert "certified E0" not in text
+
+    def historical_only(_layout, *, purpose):
+        assert purpose is CampaignReadPurpose.HISTORICAL_RAW
+        return view
+
+    monkeypatch.setattr(
+        critic_online_digest, "require_admitted_campaign", historical_only,
+    )
+    online_text = critic_online_digest.online_digest_text(
+        view.layout, "read-heavy", {}, iterations=999,
+    )
+    assert (
+        "verifier_assessment_basis: "
+        "`recorded-at-original-verifier-epoch`" in online_text
+    )
 
 
 def test_phase3_cli_declares_certified_purpose(monkeypatch):

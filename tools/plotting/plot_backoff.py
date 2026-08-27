@@ -351,6 +351,8 @@ def load_campaign(cdir):
             "reason_code":historical_view.campaign_verifier_epoch.reason_code,
             "identity_scope":historical_view.campaign_verifier_epoch.identity_scope,
             "excluded_scope":historical_view.campaign_verifier_epoch.excluded_scope,
+            "verifier_assessment_basis":(
+                historical_view.verifier_assessment_basis),
         },
     }
 

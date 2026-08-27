@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
 from orchestrator.campaign import p3_b4_closed_critic as B4_CLOSED                # noqa: E402
+from orchestrator.campaign import p3_b4_launcher as B4_LAUNCHER                   # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
 from orchestrator.campaign import site_policy                                    # noqa: E402
@@ -63,6 +64,21 @@ from orchestrator.campaign.trigger_gate_binding import (                        
     expected_predicate_sha256,
 )
 from campaign_lock_test_support import build_v2_lock                # noqa: E402
+from test_p3_b4_closed_critic import (                              # noqa: E402
+    _production_launch_context as _verified_b4_context,
+)
+
+
+_B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
+    driver_kind="trigger"
+)
+def _b4_production_context(cfg, *, arm="on", site=None):
+    return _verified_b4_context(
+        cfg,
+        driver_kind="trigger",
+        arm=arm,
+        trigger_site=site,
+    )
 
 _AUTHORITY_PARSER = argparse.ArgumentParser()
 add_coder_build_authority_argument(_AUTHORITY_PARSER)
@@ -2680,7 +2696,10 @@ def test_b4_trigger_marker_is_opt_in_and_ordinary_contract_digest_is_unchanged(
     explicit_false = T.default_cfg(
         reflux=True, b4_reflux_ablation=False,
     )
-    marked = T.default_cfg(reflux=True, b4_reflux_ablation=True)
+    marked = T.default_cfg(
+        reflux=True, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     assert inspect.signature(T.default_cfg).parameters[
         "b4_reflux_ablation"
     ].kind is inspect.Parameter.KEYWORD_ONLY
@@ -2724,9 +2743,131 @@ def test_b4_trigger_marker_is_opt_in_and_ordinary_contract_digest_is_unchanged(
     ) == "ordinary-trigger-digest"
 
 
+def test_m03_b4_trigger_default_cfg_rejects_unsealed_marker_creation():
+    """M03: the real trigger default_cfg cannot mint a marker without G1."""
+    with pytest.raises(
+        B4_LAUNCHER.B4LauncherAuthorizationError,
+        match="trigger marker creation",
+    ):
+        T.default_cfg(b4_reflux_ablation=True)
+
+
+def test_m06_b4_trigger_resolved_iteration_requires_launcher(tmp_path):
+    """M06: the real resolved trigger iteration rejects before side effects."""
+    raw_cfg = T.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
+    site = site_policy.OTHER
+    contract = T._admit_env_contract(site)
+    cfg = T._campaign_cfg_for_site(raw_cfg, site, _contract=contract)
+    root = tmp_path / "m06-campaign"
+    state = L.LoopState()
+    with pytest.raises(
+        B4_LAUNCHER.B4LauncherAuthorizationError,
+        match="trigger resolved run_one_iteration",
+    ):
+        T._run_one_iteration_resolved(
+            cfg,
+            T.default_perf(),
+            _planner(),
+            T.CoderProposalTriggerGating(T.MARKER_ID, _CLEAN_WIRE),
+            AuditorVerdict("pass", "a" * 64),
+            state,
+            "unused",
+            False,
+            CampaignLayout(str(root)),
+            contract,
+            site,
+            build_context=_CODER_CONTEXT,
+        )
+    assert not root.exists()
+    assert state.iteration == 0 and state.whiteboard == []
+
+
+def test_m07_b4_trigger_public_iteration_requires_launcher(
+    tmp_path, monkeypatch,
+):
+    """M07: the real public trigger iteration rejects before site resolution."""
+    cfg = T.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
+    site_spy = mock.Mock(side_effect=AssertionError("site resolution reached"))
+    monkeypatch.setattr(T, "_current_site", site_spy)
+    root = tmp_path / "m07-campaign"
+    state = L.LoopState()
+    with pytest.raises(
+        B4_LAUNCHER.B4LauncherAuthorizationError,
+        match="trigger public run_one_iteration",
+    ):
+        T.run_one_iteration(
+            cfg,
+            T.default_perf(),
+            _planner(),
+            T.CoderProposalTriggerGating(T.MARKER_ID, _CLEAN_WIRE),
+            AuditorVerdict("pass", "a" * 64),
+            state,
+            "unused",
+            False,
+            layout=CampaignLayout(str(root)),
+        )
+    assert site_spy.call_count == 0
+    assert not root.exists()
+    assert state.iteration == 0 and state.whiteboard == []
+
+
+def test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress(
+    tmp_path, monkeypatch,
+):
+    """M10: G3 precedes root creation and iteration-1 handoff to real G2."""
+    raw_cfg = T.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
+    site = site_policy.OTHER
+    contract = T._admit_env_contract(site)
+    root = tmp_path / "m10-campaign"
+    layout = CampaignLayout(str(root))
+    observed_iterations = []
+    real_run_one_iteration = T._run_one_iteration_resolved
+
+    def observing_run_one_iteration(*args, **kwargs):
+        observed_iterations.append(args[5].iteration)
+        return real_run_one_iteration(*args, **kwargs)
+
+    monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(
+        T, "_run_one_iteration_resolved", observing_run_one_iteration,
+    )
+    with pytest.raises(B4_LAUNCHER.B4LauncherAuthorizationError) as caught:
+        T.drive_iteration(
+            raw_cfg,
+            T.default_perf(),
+            _planner(),
+            T.CoderProposalTriggerGating(T.MARKER_ID, _CLEAN_WIRE),
+            AuditorVerdict("pass", "a" * 64),
+            None,
+            "unused",
+            True,
+            layout=layout,
+            build_context=_CODER_CONTEXT,
+            _resolved_site=site,
+            _contract=contract,
+        )
+    # A G3 deletion reaches G2; kill it on effects before pinning the G3 message.
+    assert observed_iterations == []
+    assert not root.exists()
+    assert "trigger drive_iteration" in str(caught.value)
+
+
 def test_b4_trigger_certified_receipt_advances_through_shared_gate(
         tmp_path, monkeypatch):
-    raw_cfg = T.default_cfg(reflux=False, b4_reflux_ablation=True)
+    raw_cfg = T.default_cfg(
+        reflux=False, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     site = site_policy.OTHER
     contract = T._admit_env_contract(site)
     campaign_cfg = T._campaign_cfg_for_site(
@@ -2788,6 +2929,9 @@ def test_b4_trigger_certified_receipt_advances_through_shared_gate(
         b4_proposal_receipt_sha256=receipt_sha256,
         _resolved_site=site,
         _contract=contract,
+        _b4_launch_context=_b4_production_context(
+            campaign_cfg, arm="off", site=site,
+        ),
     )
     assert out["ran"] is True and out["iteration"] == 2
     assert out["campaign_id"] == receipt.campaign_id
@@ -2818,7 +2962,10 @@ def test_b4_trigger_proposal_rejects_unbound_hash_and_self_reported_reverse():
 
 def test_b4_trigger_gate_gets_site_resolved_cfg_and_failure_is_write_free_m17(
         tmp_path, monkeypatch):
-    raw_cfg = T.default_cfg(reflux=True, b4_reflux_ablation=True)
+    raw_cfg = T.default_cfg(
+        reflux=True, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     site = site_policy.PEGASUS_COMPUTE
     contract = T._admit_env_contract(site)
     expected_cfg = T._campaign_cfg_for_site(
@@ -2862,6 +3009,9 @@ def test_b4_trigger_gate_gets_site_resolved_cfg_and_failure_is_write_free_m17(
             ).hexdigest(),
             _resolved_site=site,
             _contract=contract,
+            _b4_launch_context=_b4_production_context(
+                expected_cfg, site=site,
+            ),
         )
     assert observed_ids == [expected_id]
     assert fold_spy.call_count == 0
@@ -2873,7 +3023,10 @@ def test_b4_trigger_gate_gets_site_resolved_cfg_and_failure_is_write_free_m17(
 
 def test_b4_trigger_no_build_and_fixture_routes_are_write_free(
         tmp_path, monkeypatch):
-    cfg = T.default_cfg(b4_reflux_ablation=True)
+    cfg = T.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     layout = CampaignLayout(root=str(tmp_path / "no-build-trigger")).ensure()
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
@@ -2885,6 +3038,7 @@ def test_b4_trigger_no_build_and_fixture_routes_are_write_free(
             T.CoderProposalTriggerGating(T.MARKER_ID, _CLEAN_WIRE),
             AuditorVerdict("pass", "a" * 64), None,
             sub="unused", do_build=False, layout=layout,
+            _b4_launch_context=_b4_production_context(cfg),
         )
     assert _b4_file_tree_bytes(layout.root) == before
 

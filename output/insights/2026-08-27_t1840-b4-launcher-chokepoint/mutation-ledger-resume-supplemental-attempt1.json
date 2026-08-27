@@ -1,0 +1,304 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/0e80eb072961c16732a8534ddb31cd6b/izdw-0e80eb0729.o953853",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/0e80eb072961c16732a8534ddb31cd6b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n3 passed in 4.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "c42f0e4731e7ec9dc263b111447f0af8cb55d00057feca239a0d18d3ef765995"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ee6d8617fe7373c98a9b43345504fd39e3e4f5aa5a8855319e16dbae315231e8",
+    "duration_s": 32.299,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "17ad072a3d10fab8b18a9769ab6648fb820ceb07b087108e4e7f5047a24b7f4e",
+    "repo_head": "2442db3bfdfb95ffdb920ca8575fdb9051b796e4",
+    "runner_sha256": "a22317b48620517e1b6626baf73c045dce7c6b6e6d0e2592c0161af77bd11abc",
+    "spec_sha256": "00f105d7443f5105d0de7770924674094419e4388e3353ca648fef630c62d76c",
+    "status": "PASSED",
+    "test_output_sha256": "c42f0e4731e7ec9dc263b111447f0af8cb55d00057feca239a0d18d3ef765995",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "b099edc4a45b0eca6ade7e4fe6c9cc8886234c3a05c5c66336107d2a630c38ef"
+  },
+  "date": "2026-08-27T17:43:20.777118+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/2c77708f00d4ce1454049987fba916a2/izdw-2c77708f00.o953855",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/2c77708f00d4ce1454049987fba916a2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F.                                                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n_______ test_commit_receipt_uses_same_lock_snapshot_as_b4_classification _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_commit_receipt_uses_same_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1515db2d6650>\n\n    def test_commit_receipt_uses_same_lock_snapshot_as_b4_classification(\n        tmp_path, monkeypatch,\n    ):\n        \"\"\"A markerless classification cannot borrow a later marked lock hash.\"\"\"\n        _cfg, layout = _marked_layout(tmp_path)\n        marked_lock = Path(layout.lock_file).read_bytes()\n        record = _commit_record()\n        receipt = commit_receipt_support.campaign_receipt(\n            layout,\n            record.variant,\n            record.payload,\n        )\n        markerless_identity = json.loads(marked_lock)\n        markerless_identity[\"search_config\"].pop(B4P.B4_PROTOCOL_KEY)\n        Path(layout.lock_file).write_bytes(\n            B4L._canonical_json_bytes(markerless_identity)\n        )\n        real_classifier = wal._has_exact_b4_protocol_marker\n    \n        def replace_lock_after_classification(decoded):\n            marked = real_classifier(decoded)\n            assert marked is False\n            replacement = Path(layout.root) / \"campaign.lock.replacement\"\n            replacement.write_bytes(marked_lock)\n            replacement.replace(layout.lock_file)\n            return marked\n    \n        monkeypatch.setattr(\n            wal,\n            \"_has_exact_b4_protocol_marker\",\n            replace_lock_after_classification,\n        )\n>       with pytest.raises(CommitReceiptError, match=\"binding mismatch\"):\nE       Failed: DID NOT RAISE CommitReceiptError\n\norchestrator/tests/test_p3_b4_launcher.py:576: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification\n1 failed, 2 passed in 4.44s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1664 retained_bytes=1664 omitted_bytes=0 rendered_excerpt_bytes=1747 sha256=034d9af88d429923e126d8122410cccff87be9a7e16597276fc3551bf4037ba4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_commit_receipt_uses_same_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1515db2d6650>\n> \n>     def test_commit_receipt_uses_same_lock_snapshot_as_b4_classification(\n>         tmp_path, monkeypatch,\n>     ):\n>         \"\"\"A markerless classification cannot borrow a later marked lock hash.\"\"\"\n>         _cfg, layout = _marked_layout(tmp_path)\n>         marked_lock = Path(layout.lock_file).read_bytes()\n>         record = _commit_record()\n>         receipt = commit_receipt_support.campaign_receipt(\n>             layout,\n>             record.variant,\n>             record.payload,\n>         )\n>         markerless_identity = json.loads(marked_lock)\n>         markerless_identity[\"search_config\"].pop(B4P.B4_PROTOCOL_KEY)\n>         Path(layout.lock_file).write_bytes(\n>             B4L._canonical_json_bytes(markerless_identity)\n>         )\n>         real_classifier = wal._has_exact_b4_protocol_marker\n>     \n>         def replace_lock_after_classification(decoded):\n>             marked = real_classifier(decoded)\n>             assert marked is False\n>             replacement = Path(layout.root) / \"campaign.lock.replacement\"\n>             replacement.write_bytes(marked_lock)\n>             replacement.replace(layout.lock_file)\n>             return marked\n>     \n>         monkeypatch.setattr(\n>             wal,\n>             \"_has_exact_b4_protocol_marker\",\n>             replace_lock_after_classification,\n>         )\n> >       with pytest.raises(CommitReceiptError, match=\"binding mismatch\"):\n> E       Failed: DID NOT RAISE CommitReceiptError\n> \n> orchestrator/tests/test_p3_b4_launcher.py:576: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1664 retained_bytes=1664 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2482 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4777830ed18bb8d16f1fb70adc430a1296d9f5508a78b05a26e6431b21031534"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ee6d8617fe7373c98a9b43345504fd39e3e4f5aa5a8855319e16dbae315231e8",
+      "duration_s": 27.285,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification"
+      ],
+      "hang_risk": false,
+      "id": "M19",
+      "injection_diff_sha256": "06edc444ab66ef5138c6985bf95358b073c9ccfa960134cb17e12fe64dda165f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f58d5c8e9a970434ccffdcf517a5ce80b7c426190bb3307a5652ca70111b8cf7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "                    campaign_lock_bytes_sha256(\n                        _decode_lock_for_b4_classification(layout)[0]\n                    )\n",
+          "old": "                    campaign_lock_bytes_sha256(lock_snapshot)\n"
+        }
+      ],
+      "repo_head": "2442db3bfdfb95ffdb920ca8575fdb9051b796e4",
+      "runner_sha256": "a22317b48620517e1b6626baf73c045dce7c6b6e6d0e2592c0161af77bd11abc",
+      "spec_sha256": "00f105d7443f5105d0de7770924674094419e4388e3353ca648fef630c62d76c",
+      "status": "KILLED",
+      "test_output_sha256": "4777830ed18bb8d16f1fb70adc430a1296d9f5508a78b05a26e6431b21031534",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b099edc4a45b0eca6ade7e4fe6c9cc8886234c3a05c5c66336107d2a630c38ef"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/69e2c99fdcbb41dedff56f6637a839fd/izdw-69e2c99fdc.o953857",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/69e2c99fdcbb41dedff56f6637a839fd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F                                                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n_____ test_g4_rejects_decoded_campaign_identity_behind_matching_directory ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_g4_rejects_decoded_campai0')\n\n    def test_g4_rejects_decoded_campaign_identity_behind_matching_directory(\n        tmp_path,\n    ):\n        \"\"\"G4 derives campaign id from lock identity, not the layout basename.\"\"\"\n        cfg, layout = _marked_layout(tmp_path)\n        identity = json.loads(Path(layout.lock_file).read_bytes())\n        identity[\"search_config\"][\"records\"] += 1\n        Path(layout.lock_file).write_bytes(B4L._canonical_json_bytes(identity))\n    \n        with pytest.raises(\n            B4L.B4LauncherAuthorizationError,\n            match=(\n                \"bound to another campaign\"\n                \"|campaign id differs at certified sink\"\n            ),\n        ):\n>           _production_context(\n                cfg,\n                layout=layout,\n                action=lambda _context, launch_layout: wal.append(\n                    launch_layout, _commit_record()\n                ),\n            )\n\norchestrator/tests/test_p3_b4_launcher.py:534: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_p3_b4_launcher.py:66: in _production_context\n    return _verified_b4_context(\norchestrator/tests/test_p3_b4_closed_critic.py:150: in _production_launch_context\n    return B4L.launch_bootstrap(\norchestrator/campaign/p3_b4_launcher.py:545: in launch_bootstrap_impl\n    return DRIVER_REGISTRY[driver_kind](\norchestrator/tests/test_p3_b4_closed_critic.py:134: in capture_driver\n    return action(_b4_launch_context, selected_layout)\norchestrator/tests/test_p3_b4_launcher.py:537: in <lambda>\n    action=lambda _context, launch_layout: wal.append(\norchestrator/campaign/wal.py:575: in append\n    serialized_receipt = validate_live_campaign_wal_receipt(\norchestrator/verifier/commit_receipt.py:372: in validate_live_campaign_wal_receipt\n    record = _live_receipt_record(receipt)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreceipt = None\n\n    def _live_receipt_record(receipt: object) -> dict[str, Any]:\n        \"\"\"Return an immutable capability's projection after process-seal checks.\"\"\"\n        if (type(receipt) is not CommitReceipt\n                or receipt._token is not _RECEIPT_TOKEN\n                or receipt._pid != os.getpid()\n                or receipt._process_seal is not _PROCESS_SEAL):\n>           raise CommitReceiptError(\"exact live CommitReceipt capability required\")\nE           orchestrator.verifier.commit_receipt.CommitReceiptError: exact live CommitReceipt capability required\n\norchestrator/verifier/commit_receipt.py:364: CommitReceiptError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory\n1 failed, 2 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=2688 retained_bytes=2688 omitted_bytes=0 rendered_excerpt_bytes=2805 sha256=dfcfc5907f4e696fd9a0530daee4eb7a2a6c56f9ae4e7a064cff748d2df2bacd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_g4_rejects_decoded_campai0')\n> \n>     def test_g4_rejects_decoded_campaign_identity_behind_matching_directory(\n>         tmp_path,\n>     ):\n>         \"\"\"G4 derives campaign id from lock identity, not the layout basename.\"\"\"\n>         cfg, layout = _marked_layout(tmp_path)\n>         identity = json.loads(Path(layout.lock_file).read_bytes())\n>         identity[\"search_config\"][\"records\"] += 1\n>         Path(layout.lock_file).write_bytes(B4L._canonical_json_bytes(identity))\n>     \n>         with pytest.raises(\n>             B4L.B4LauncherAuthorizationError,\n>             match=(\n>                 \"bound to another campaign\"\n>                 \"|campaign id differs at certified sink\"\n>             ),\n>         ):\n> >           _production_context(\n>                 cfg,\n>                 layout=layout,\n>                 action=lambda _context, launch_layout: wal.append(\n>                     launch_layout, _commit_record()\n>                 ),\n>             )\n> \n> orchestrator/tests/test_p3_b4_launcher.py:534: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_p3_b4_launcher.py:66: in _production_context\n>     return _verified_b4_context(\n> orchestrator/tests/test_p3_b4_closed_critic.py:150: in _production_launch_context\n>     return B4L.launch_bootstrap(\n> orchestrator/campaign/p3_b4_launcher.py:545: in launch_bootstrap_impl\n>     return DRIVER_REGISTRY[driver_kind](\n> orchestrator/tests/test_p3_b4_closed_critic.py:134: in capture_driver\n>     return action(_b4_launch_context, selected_layout)\n> orchestrator/tests/test_p3_b4_launcher.py:537: in <lambda>\n>     action=lambda _context, launch_layout: wal.append(\n> orchestrator/campaign/wal.py:575: in append\n>     serialized_receipt = validate_live_campaign_wal_receipt(\n> orchestrator/verifier/commit_receipt.py:372: in validate_live_campaign_wal_receipt\n>     record = _live_receipt_record(receipt)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> receipt = None\n> \n>     def _live_receipt_record(receipt: object) -> dict[str, Any]:\n>         \"\"\"Return an immutable capability's projection after process-seal checks.\"\"\"\n>         if (type(receipt) is not CommitReceipt\n>                 or receipt._token is not _RECEIPT_TOKEN\n>                 or receipt._pid != os.getpid()\n>                 or receipt._process_seal is not _PROCESS_SEAL):\n> >           raise CommitReceiptError(\"exact live CommitReceipt capability required\")\n> E           orchestrator.verifier.commit_receipt.CommitReceiptError: exact live CommitReceipt capability required\n> \n> orchestrator/verifier/commit_receipt.py:364: CommitReceiptError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2688 retained_bytes=2688 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3543 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ffd5a8a0ad43a1e517fbd5a5dbb0c1a02ff7415beacba7a4c0980b03cbbdd043"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ee6d8617fe7373c98a9b43345504fd39e3e4f5aa5a8855319e16dbae315231e8",
+      "duration_s": 27.263,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory"
+      ],
+      "hang_risk": false,
+      "id": "M20",
+      "injection_diff_sha256": "86e075a904ebd6b2b1f0f541699e7bdddf0a85ba7e905b5ee19d23b69b8281ff",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ba3fd4875a895d9d42f41b5aebb968bd78022b4ffa80544203c39de9a81499ad",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "new": "                expected_campaign_id=os.path.basename(layout.root),\n",
+          "old": "                expected_campaign_id=_b4_campaign_id_from_lock(decoded_lock),\n"
+        }
+      ],
+      "repo_head": "2442db3bfdfb95ffdb920ca8575fdb9051b796e4",
+      "runner_sha256": "a22317b48620517e1b6626baf73c045dce7c6b6e6d0e2592c0161af77bd11abc",
+      "spec_sha256": "00f105d7443f5105d0de7770924674094419e4388e3353ca648fef630c62d76c",
+      "status": "KILLED",
+      "test_output_sha256": "ffd5a8a0ad43a1e517fbd5a5dbb0c1a02ff7415beacba7a4c0980b03cbbdd043",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b099edc4a45b0eca6ade7e4fe6c9cc8886234c3a05c5c66336107d2a630c38ef"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/e3242062bd0dfd0544969ce8aa79584e/izdw-e3242062bd.o953859",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/e3242062bd0dfd0544969ce8aa79584e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n3 passed in 4.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "381d8589bce39cadea38a7270a3185f3b5e7af9da6fe70a534778352e9293db1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ee6d8617fe7373c98a9b43345504fd39e3e4f5aa5a8855319e16dbae315231e8",
+      "duration_s": 27.491,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M21",
+      "injection_diff_sha256": "d0a1e9217834d26f51201f2d01ee2bff6e3af2889afd4d26c877a5c398d609c7",
+      "matches_expectation": false,
+      "rc": 0,
+      "registration_sha256": "e7b3640949f4ddb22087962155bb617e3d00d5dbc7ba1d7a8149dae83fd41422",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/commit_receipt.py",
+          "new": "    actual_lock_identity = (\n        _receipt_core(record)[\"lock_identity_sha256\"]\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n",
+          "old": "    actual_lock_identity = (\n        CAMPAIGN_LOCK_ABSENT_SHA256\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n"
+        }
+      ],
+      "repo_head": "2442db3bfdfb95ffdb920ca8575fdb9051b796e4",
+      "runner_sha256": "a22317b48620517e1b6626baf73c045dce7c6b6e6d0e2592c0161af77bd11abc",
+      "spec_sha256": "00f105d7443f5105d0de7770924674094419e4388e3353ca648fef630c62d76c",
+      "status": "SURVIVED",
+      "test_output_sha256": "381d8589bce39cadea38a7270a3185f3b5e7af9da6fe70a534778352e9293db1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b099edc4a45b0eca6ade7e4fe6c9cc8886234c3a05c5c66336107d2a630c38ef"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/df639bbd77eb40870c7f664a5e7e4a5e/izdw-df639bbd77.o953852",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/output/pegasus-dispatch/df639bbd77eb40870c7f664a5e7e4a5e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification\norchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory\norchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt\nIZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n3 tests collected in 0.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "b77abdcc3cb65daf1337e8cd68479ce8f9316b9d99e87e47d92b92ae1f475533"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory",
+        "orchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt"
+      ],
+      "duration_s": 26.933,
+      "rc": 0,
+      "repo_head": "2442db3bfdfb95ffdb920ca8575fdb9051b796e4",
+      "runner_sha256": "a22317b48620517e1b6626baf73c045dce7c6b6e6d0e2592c0161af77bd11abc",
+      "spec_sha256": "00f105d7443f5105d0de7770924674094419e4388e3353ca648fef630c62d76c",
+      "status": "PASSED",
+      "tool_sha256": "b099edc4a45b0eca6ade7e4fe6c9cc8886234c3a05c5c66336107d2a630c38ef"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M19": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "06edc444ab66ef5138c6985bf95358b073c9ccfa960134cb17e12fe64dda165f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "                    campaign_lock_bytes_sha256(\n                        _decode_lock_for_b4_classification(layout)[0]\n                    )\n",
+            "old": "                    campaign_lock_bytes_sha256(lock_snapshot)\n"
+          }
+        ]
+      },
+      "M20": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "86e075a904ebd6b2b1f0f541699e7bdddf0a85ba7e905b5ee19d23b69b8281ff",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/wal.py",
+            "new": "                expected_campaign_id=os.path.basename(layout.root),\n",
+            "old": "                expected_campaign_id=_b4_campaign_id_from_lock(decoded_lock),\n"
+          }
+        ]
+      },
+      "M21": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0a1e9217834d26f51201f2d01ee2bff6e3af2889afd4d26c877a5c398d609c7",
+        "replacements": [
+          {
+            "file": "orchestrator/verifier/commit_receipt.py",
+            "new": "    actual_lock_identity = (\n        _receipt_core(record)[\"lock_identity_sha256\"]\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n",
+            "old": "    actual_lock_identity = (\n        CAMPAIGN_LOCK_ABSENT_SHA256\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "17ad072a3d10fab8b18a9769ab6648fb820ceb07b087108e4e7f5047a24b7f4e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification",
+      "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory",
+      "orchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 7200.0
+  },
+  "repo_head": "2442db3bfdfb95ffdb920ca8575fdb9051b796e4",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification",
+      "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory",
+      "orchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "48a6906b1d4f31df10c6262cd055b233b61ce734",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "a22317b48620517e1b6626baf73c045dce7c6b6e6d0e2592c0161af77bd11abc",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "00f105d7443f5105d0de7770924674094419e4388e3353ca648fef630c62d76c",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 2,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1840-final/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "b099edc4a45b0eca6ade7e4fe6c9cc8886234c3a05c5c66336107d2a630c38ef",
+  "updated_at": "2026-08-27T17:45:33.683164+00:00"
+}

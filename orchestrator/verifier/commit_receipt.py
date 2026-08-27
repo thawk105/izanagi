@@ -20,6 +20,9 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _RECEIPT_TOKEN = object()
 _PROCESS_SEAL = secrets.token_bytes(32)
 _PROCESS_SEAL_SHA256 = hashlib.sha256(_PROCESS_SEAL).hexdigest()
+CAMPAIGN_LOCK_ABSENT_SHA256 = hashlib.sha256(
+    b"izanagi-campaign-lock-absent-snapshot-v1"
+).hexdigest()
 
 
 class CommitReceiptError(ValueError):
@@ -69,6 +72,13 @@ def terminal_payload_sha256(payload: Mapping[str, Any]) -> str:
     return _domain_digest(b"izanagi-commit-terminal-payload-v1", payload)
 
 
+def campaign_lock_bytes_sha256(raw: object) -> str:
+    """Hash one caller-owned, non-empty campaign.lock byte snapshot."""
+    if type(raw) is not bytes or not raw:
+        raise CommitReceiptError("campaign.lock byte snapshot is empty or invalid")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def campaign_lock_sha256(layout: object) -> str:
     path = getattr(layout, "lock_file", None)
     if type(path) is not str or not path:
@@ -80,7 +90,17 @@ def campaign_lock_sha256(layout: object) -> str:
         raise CommitReceiptError("campaign.lock is unavailable") from exc
     if not raw:
         raise CommitReceiptError("campaign.lock is empty")
-    return hashlib.sha256(raw).hexdigest()
+    return campaign_lock_bytes_sha256(raw)
+
+
+def campaign_lock_sha256_or_absent(layout: object) -> str:
+    """Hash one observed lock, or bind an explicitly absent snapshot."""
+    path = getattr(layout, "lock_file", None)
+    if type(path) is not str or not path:
+        raise CommitReceiptError("campaign layout has no exact lock path")
+    if not os.path.lexists(path):
+        return CAMPAIGN_LOCK_ABSENT_SHA256
+    return campaign_lock_sha256(layout)
 
 
 class CommitReceipt:
@@ -348,11 +368,10 @@ def _live_receipt_record(receipt: object) -> dict[str, Any]:
 def validate_live_campaign_wal_receipt(
         receipt: object, *, lock_identity_sha256: str | None, variant: str,
         terminal_payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate against the sink-observed raw lock, or issuer binding if lockless."""
+    """Validate against the sink-observed lock or explicit absence binding."""
     record = _live_receipt_record(receipt)
-    core = _receipt_core(record)
     actual_lock_identity = (
-        core["lock_identity_sha256"]
+        CAMPAIGN_LOCK_ABSENT_SHA256
         if lock_identity_sha256 is None
         else lock_identity_sha256
     )
