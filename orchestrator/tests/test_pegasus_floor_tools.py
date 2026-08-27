@@ -33,6 +33,7 @@ from orchestrator.qualification import artifacts
 TOOL_DIR = REPO / "tools" / "pegasus"
 SUBMIT = TOOL_DIR / "submit_floor.sh"
 JOB = TOOL_DIR / "floor_campaign.sh"
+PEGASUS_README = TOOL_DIR / "README.md"
 GENERATOR = TOOL_DIR / "generate_floor_masstree_payload_policy.py"
 SHARED_POLICY = TOOL_DIR / "policy.json"
 FLOOR_POLICY = TOOL_DIR / "policies" / "floor_v1.json"
@@ -129,6 +130,22 @@ def _pbs_directives(path: Path) -> dict[str, str]:
 def _hms_seconds(value: str) -> int:
     hours, minutes, seconds = (int(part) for part in value.split(":"))
     return hours * 3600 + minutes * 60 + seconds
+
+
+def _derived_floor_reservation_budget() -> tuple[int, int]:
+    protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
+    freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"]
+    )
+    schedule = s8b_floor_campaign.build_schedule(
+        cells=cells,
+        master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    return s8b_floor_campaign._floor_reservation_budget(
+        protocol=protocol, cells=cells, schedule=schedule
+    )
 
 
 def _git_env(repo: Path) -> dict[str, str]:
@@ -798,23 +815,78 @@ def test_floor_pbs_directives_match_shared_and_floor_policies() -> None:
 
 def test_floor_policy_covers_derived_reservation_envelope() -> None:
     floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
-    protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
-    freeze = json.loads(FREEZE.read_text(encoding="utf-8"))
-    cells = s8b_floor_campaign.enumerate_cells(
-        freeze, stock_configuration=protocol["stock_configuration"]
-    )
-    schedule = s8b_floor_campaign.build_schedule(
-        cells=cells,
-        master_seed=protocol["master_seed"],
-        n_sessions=protocol["n_sessions"],
-    )
-    required_s, finalize_s = s8b_floor_campaign._floor_reservation_budget(
-        protocol=protocol, cells=cells, schedule=schedule
-    )
+    required_s, finalize_s = _derived_floor_reservation_budget()
     assert floor_policy["floor_walltime_s"] > required_s + finalize_s
     assert (
         _hms_seconds(floor_policy["floor_walltime"])
         == floor_policy["floor_walltime_s"]
+    )
+
+
+def test_floor_job_budget_comments_preserve_m1_m2_labeled_relationships() -> None:
+    source = JOB.read_text(encoding="utf-8")
+    block_start = source.index("# 12-cell subtotal")
+    block_end = source.index("\nset -Eeuo pipefail", block_start)
+    budget_block = source[block_start:block_end]
+    subtotal = 12 * (900 + (8 + 2) * (5 * 5 + 120))
+    prebuild = 900 + 900
+    required_s, finalize_s = _derived_floor_reservation_budget()
+    assert subtotal == 28200
+    assert subtotal + prebuild == required_s
+    minimum = required_s + finalize_s
+    floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
+    request = floor_policy["floor_walltime_s"]
+    raw = request - minimum
+    prologue = 900
+    residual = raw - prologue
+    assert residual == 4500
+    assert re.fullmatch(
+        rf"# 12-cell subtotal\s*=\s*"
+        rf"12 \* \(900 \+ \(8\+2\) \* \(5\*5 \+ 120\)\) = {subtotal}\n"
+        rf"# shared dependency prebuild\s*=\s*900 \+ 900 = {prebuild}\n"
+        rf"# driver required_s\s*=\s*{subtotal} \+ {prebuild} = {required_s}\n"
+        rf"# driver finalize reserve\s*=\s*{finalize_s}\n"
+        rf"# driver preflight minimum envelope\s*=\s*"
+        rf"{required_s} \+ {finalize_s} = {minimum}\n"
+        rf"# PBS request\s*=\s*{request}\s+"
+        rf"\(= {re.escape(floor_policy['floor_walltime'])},[^\n]*\)\n"
+        rf"# raw headroom\s*=\s*{request} - {minimum} = {raw}\n"
+        rf"# job prologue \([^\n]*\) 見積\s*≈\s*{prologue}\n"
+        rf"# estimated residual headroom\s*≈\s*"
+        rf"{raw} - {prologue} = {residual} \(保証値・実測値ではない\)",
+        budget_block,
+    )
+
+
+def test_floor_readme_section_5_preserves_m3_labeled_envelope() -> None:
+    source = PEGASUS_README.read_text(encoding="utf-8")
+    section_match = re.search(
+        r"(?ms)^## 5\..*?(?=^## \d|\Z)",
+        source,
+    )
+    assert section_match is not None
+    bullet_match = re.search(
+        r"(?ms)^- scheduler への walltime 要求宣言.*?(?=^- |\Z)",
+        section_match.group(0),
+    )
+    assert bullet_match is not None
+    required_s, finalize_s = _derived_floor_reservation_budget()
+    floor_policy = json.loads(FLOOR_POLICY.read_text(encoding="utf-8"))
+    request = floor_policy["floor_walltime_s"]
+    subtotal = 12 * (900 + (8 + 2) * (5 * 5 + 120))
+    prebuild = 900 + 900
+    assert subtotal + prebuild == required_s
+    minimum = required_s + finalize_s
+    assert re.fullmatch(
+        rf"- scheduler への walltime 要求宣言は job script の "
+        rf"`{re.escape(floor_policy['floor_walltime'])}` \({request} 秒\)。"
+        rf"policy の\s+`floor_walltime_s={request}` は期待値・submit receipt 値で、"
+        rf"job は qstat の実効\s+`\(Per-Req\) Elapse Time Limit` との一致を "
+        rf"fail-closed で検査する。現行 driver の\s+minimum envelope は "
+        rf"required {required_s} \(12-cell subtotal {subtotal} \+ "
+        rf"shared prebuild {prebuild}\) \+\s+finalize reserve {finalize_s} = "
+        rf"{minimum} 秒である。",
+        bullet_match.group(0).strip(),
     )
 
 
