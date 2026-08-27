@@ -329,6 +329,25 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   Codex 側も `.codex/hooks.json` は配線済みだが (「Codex へ配線済」節)、`output/s8b-freeze` への Bash
   直接書き込みが防護ツリー外である点は Claude と同じで、ここは開いたままである。AI 偽装を脅威モデル内で
   塞ぐには allowlist 鍵署名への再裁定が要る (C1-11 の should-fix、F6 代替案 b)。
+- **`tools/ratification_broker.py` は参照実装であり、repo 内の copy を運用に使ってはならない**。
+  この道具は enforcement closure の批准 receipt に署名して台帳へ追記する。署名鍵は repo の外に
+  置き、**AI が到達できない host** から運用 copy を起動する前提でだけ意味を持つ。
+  repo 内の copy を人間がそのまま実行すると、repo を編集できる主体が
+  「人間に見せる差分」と「実際に署名する対象」を食い違わせられるため、鍵が安全でも内容束縛が壊れる。
+  - broker が書く先 (`hooks/enforcement-source-ratification-trust-root.v1.json` と
+    `hooks/enforcement-source-ratification-receipts.v2.jsonl`) は上記の subtree 拒否対象だが、
+    **その拒否は AI の Write/Edit/Bash だけを見る**。broker は ssh 越しの remote shell で書くため、
+    この経路は hook の観測面の外である。`git add -- hooks/<file>` も拒否されない (実測)。
+  - 信頼根と空台帳の設置は**人間の一度きりの bootstrap** であり、broker は生成経路を持たない。
+    不在なら fail-closed で停止し、人間が打つ手順を表示するだけである。
+  - **判定器 (`enforcement_source_ratification_receipt.py`) とその呼び出し元は、判定対象の
+    closure の内側にある。** 呼び出し前に「今動いている判定器の bytes が以前に批准された
+    bytes と同じか」を確かめる外側の実行器は存在しない。したがって repo を編集できる主体は
+    鍵を持たなくても判定器を書き換えて gate を無効化できる。これは v1 から存在する構造であり、
+    署名の追加で塞がるものではない。閉じるには repo の外に固定された実行器が要る。
+  - **主張してよい上限は「現在の committed 信頼根の鍵で検証できる署名 receipt の集合と、
+    要求された closure digest を比較する」まで**である (D526)。
+    「人間が批准したことの機械的証明」とは書けない。
 - **hook 自身は保護対象だが、封じられるのは直接操作だけ** ([T-956])。`hooks/` 配下は subtree 全体が
   guard_write (Write/Edit/MultiEdit/NotebookEdit/apply_patch の全 directive) と guard_bash
   (書き込み・削除・移動) の拒否対象である。拡張子の列挙ではなく subtree 全体なので、

@@ -460,6 +460,26 @@ def _make_emitter_build():
         binary.write_bytes(payload)
         sha = _sha(payload)
         source_root = ccbench_dir or _fixed_prepare.ccbench_dir
+        compiler_input_rel = "fixture.txt"
+        compiler_input = Path(source_root) / compiler_input_rel
+        compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": f"ycsb_{genome.protocol}.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": compiler_input_rel,
+                "sha256": _sha(compiler_input.read_bytes()),
+            }],
+        }
+        compiler_input_manifest_sha256 = _sha(json.dumps(
+            compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8"))
+        expected_materialization_sha256 = _sha(
+            f"fixture-expected-materialization\0{ccbench_commit}\0"
+            f"{genome.canonical()}\0{src_token}".encode("utf-8")
+        )
         return SimpleNamespace(
             genome=genome, trace=False, binary=str(binary), bin_sha256=sha,
             bin_hash=sha[:16], build_dir=str(cell_dir), cached=False,
@@ -467,6 +487,10 @@ def _make_emitter_build():
             build_argv=["cmake", "--build", str(cell_dir)],
             cache_root=str(cache_root), ccbench_root=str(source_root),
             contract_sha256=contract.contract_sha256,
+            compiler_input_manifest=compiler_input_manifest,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+            source_snapshot_sha256=expected_materialization_sha256,
+            expected_materialization_sha256=expected_materialization_sha256,
         )
     return build
 

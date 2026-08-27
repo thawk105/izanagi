@@ -1,0 +1,242 @@
+親が 2026-08-26 に本セッションで実測した値 (一次資料)。
+
+[M1] main HEAD = e29084e02d626d812281be6f97f45bb2dde3a843
+  closure member count = 25
+  live closure digest (working tree) = dabeada30868a5f790b25b86a9f0a34fafb24946f0e73de48fb90d97d9332eb9
+  HEAD closure digest (commit blobs) = dabeada30868a5f790b25b86a9f0a34fafb24946f0e73de48fb90d97d9332eb9
+  live == HEAD: True
+  _committed_ratification_digests() = ['db511c3d841128bfdbf5ba7c6bbdb2ce4da1fe0fdefe8d52aaacb0906ddeea44']
+  elapsed = 0.43 s
+  live digest ratified: False
+
+[M2] 回収 broker の CLOSURE_PATHS は 27 path。main の CONTRACT_LOADER_RELATIVE_PATHS は 25 path。
+  差分 2 = orchestrator/campaign/ed25519_verify.py,
+           orchestrator/campaign/enforcement_source_ratification_receipt.py
+
+[M3] git merge-base --is-ancestor 9885a156 9463bcbc -> NOT ancestor
+     git merge-base --is-ancestor 9c1d49ef 9463bcbc -> NOT ancestor
+  (9885a156 "fix(t1759,t1742): 批准台帳の履歴検査を DAG として読み直す",
+   9c1d49ef "fix(t1759,t1742): git 出力を query へ束縛し、変異で殺せる負例を足す")
+  回収物 base = 9463bcbc。よって回収物は DAG 修正より前の世界で書かれている。
+
+[M4] DW-G01 生死確認。回収 7 file を wave worktree へ一時配置し
+  python3 tools/run_tests.py <3 test file> -q -p no:randomly
+  結果: 4 failed, 95 passed in 5.17s
+
+  赤の本文 (逐語):
+
+  (a) orchestrator/tests/test_ratification_broker.py::test_broker_computes_digest_and_ignores_remote_claim
+      orchestrator/tests/test_ratification_broker.py::test_approved_receipt_is_canonical_and_signature_verifies
+      orchestrator/tests/test_ratification_broker.py::test_private_key_bytes_never_leave_client
+      いずれも
+        AssertionError: ratification broker: ratification declined
+        assert 1 == 0
+      stdout の末尾は 'ratify? [y/N] \n' で、承認プロンプトまでは到達している。
+      原因 (親が特定): テストの ssh/openssl stub が 79 行目で sys.stdin.buffer.read() を
+      呼んでおり、broker の _run(argv, data=None) が subprocess.run(input=None) を使うため
+      子 process が親の stdin を継承して "y\n" を食う。結果 input() が EOF を受け
+      answer="" となり declined。
+
+  (b) orchestrator/tests/test_enforcement_source_ratification_receipt.py::
+      test_unchanged_ledger_blob_at_merge_commit_is_not_counted_as_a_version
+        AssertionError: assert 'd736b45f52040a99cd0b506dd2e74967c5131f38' in
+          ['6c5bf9f73fe65ad830c1ffcebe441a5f2db9382a', '8f7082b900ce01ad3a74dc03d5dd5b0e1a28f5d5',
+           '4af94cda36d3aaffea3f4ab297b2d424cdc792a7', '283d18c7cb743bca91189a8674a33007c3d9fbc7']
+        at orchestrator/tests/test_enforcement_source_ratification_receipt.py:309
+      すなわちテストの前提 assert (merge commit が
+      `git log --format=%H --reverse --full-history HEAD -- <ledger>` に現れること) が偽。
+      git は blob が両親と同一な merge を prune するため、production の
+      `if previous_raw is not None and blob.stdout == previous_raw: continue`
+      には到達していない。
+
+[M5] hooks/ subtree は AI の Write/Edit/apply_patch と Bash 書込・削除・移動が機械拒否される
+  (例外は exact hooks/README.md)。`git add -- hooks/<file>` は止まらない。
+  (前 wave dev-wave-t1629-ratification-execution の段 1 実測 M3。本セッションでは再測していない。)
+
+[M6] この機体の実在: python 3.10.12, cryptography 3.4.8, PyNaCl 1.5.0,
+  /usr/bin/openssl (OpenSSL 3.0.2), /usr/bin/ssh-keygen。ecdsa は不在。
+
+[M7] closure path の exact 逐語 tuple pin:
+  orchestrator/tests/test_t671_source_binding.py の 185, 369, 529, 604 行
+  呼び出し回数 pin: 同 744 行 ("verify_ratified_contract_loader_binding"): 1
+  orchestrator/tests/conftest.py:194 の ratified_enforcement_source fixture は v1 専用。
+
+[M8] require_ratified_closure の生きた消費者は
+  orchestrator/campaign/contract_loader_binding.py:396 経由で
+  orchestrator/campaign/ident.py:239 の 1 本だけ。
+
+[M9] hooks/ 書込遮断を現行 main で再測 (前 wave からの持ち越しでなく本セッションの実測)。
+  hooks/guard_write.py:155 _protected_hooks は lexical path と canonical path の
+  どちらかが <root>/hooks 配下なら True を返し、さらに inode index による alias も捕まえる。
+  拒否文: "hooks/ subtree への直接書き込みは拒否。exact hooks/README.md は regular
+  non-symlink かつ st_nlink == 1 の場合だけ Write 系ツールで更新可能"
+  => hooks/ 配下への新規 file 作成は AI に不可能。信頼根の置き場所として成立する。
+
+[M10] conftest.py の ratified_enforcement_source fixture の消費者は
+  22 test file / 112 箇所 (conftest.py 自身を除く)。
+  v1 -> v2 へ切り替えると、この 112 箇所すべてが署名付き receipt を必要とする。
+  fixture 1 本の改訂で覆えるが、爆心地は大きい。
+
+[M11] 回収した pure-Python Ed25519 検証子の独立監査 (親が repo 外で実行、1.54 秒)。
+  script = materials/parent-audit-ed25519.py, 出力 = materials/parent-audit-ed25519-output.txt
+  - RFC 8032 section 7.1 の 4 ベクタ (msglen 0 / 1 / 2 / 1023) を全部受理
+  - 各ベクタで message 改竄・signature 改竄を全部拒否
+  - cryptography と PyNaCl との差分照合: 有効署名 40 件で三者一致 (全部受理)
+  - 1 bit 破壊した署名 200 件で cryptography と完全一致 (不一致 0 件)
+  - 可鍛性: S+L 変形を拒否
+  - 低位数 / 単位元 公開鍵 5 種をすべて拒否
+  - 型規律: bytearray 鍵・31 byte 鍵・63 byte 署名をすべて拒否
+  結論: 実装の正しさに関する所見は 0 件。(P4) の「自前実装を維持する」を支持する実測。
+  ただし本監査は「実装が RFC 準拠か」を測っただけであり、
+  「自前実装を持つこと自体の設計判断」を正当化するものではない。
+
+[M12] DW-O09 / DW-O10 の凍結 bytes 閉包。
+  tracked な campaign.lock は 32 件。そのうち contract_loader_blob_sha256s
+  (= closure map) を持つものは 0 件。
+  output/ 配下で同定数名に hit する 14 file はすべて insights (歴史記録) であり、
+  codec の consumer ではない。
+  => closure を 25 -> 27 path へ広げても、既存の凍結 artifact は 1 件も壊れない。
+     pin は test 側の exact 逐語 literal (M7) だけである。
+  参考: artifact_admission.py:231 が E1 verifier epoch の blob map に対して
+  set(...) != set(CONTRACT_LOADER_RELATIVE_PATHS) を exact 検査している。
+  ここは live な生成経路であり、閉包を広げれば同時に広がる。
+
+[M13] (P2) の裏取り。hooks/guard_bash.py の decide() を副作用なしに静的評価した
+  (script = /home/SFC/tanab/.claude/jobs/9261d3a8/tmp/t1629/probe_guard.py)。
+  次はすべて ALLOW である。
+
+    ALLOW  python3 tools/ratification_broker.py --target host:/srv/izanagi
+    ALLOW  printf 'y\n' | python3 tools/ratification_broker.py --target host:/srv/izanagi
+    ALLOW  openssl genpkey -algorithm ed25519 -out ~/.config/izanagi/ratification-ed25519.key
+    ALLOW  ssh-keygen -t ed25519 -f /home/SFC/tanab/.config/izanagi/k
+    ALLOW  git add -- hooks/enforcement-source-ratification-trust-root.v1.json
+
+  したがって回収したままの broker では、AI が
+  (1) 自分の Ed25519 鍵を生成し、
+  (2) broker を起動し (信頼根が不在なら initial 経路が AI の公開鍵を信頼根として書く)、
+  (3) 承認プロンプトへ y を流し込み (input() は tty を要求していない)、
+  (4) 生成された信頼根と receipt を git add して commit する
+  という操作列を、hook に 1 度も止められずに完遂できる。
+
+  **重要:** broker は信頼根と台帳を ssh 越しの shell redirect で書く。
+  guard_write.py の hooks/ subtree 拒否は AI の Write/Edit/Bash が対象であり、
+  subprocess 内の ssh が書く先は見ていない。
+  すなわち回収したままの broker は、AI に hooks/ への正規の書込経路を新設してしまう。
+  これは D906 が名指しした「署名が増えただけの恒真な関門」そのものである。
+
+[M14] M7 の pin 棚卸しは網羅ではなかった。親が追加で実測し実在を確認した pin:
+  - orchestrator/tests/test_artifact_admission.py:46 `_EXPECTED_E1_CLOSURE_PATHS`
+    = production tuple とは独立した golden tuple (384 / 390 / 409 で使用)
+  - orchestrator/tests/test_artifact_admission.py:1134
+    `assert len(decoded.authority.contract_loader_blob_sha256s) == 25` (独立件数 pin)
+  - orchestrator/tests/test_t671_source_binding.py:55-56
+    `_RATIFICATION_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[17:20]`
+    `_RECEIPT_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[20:]`
+    **位置スライスである。** 末尾へ 2 path 足すと `_RECEIPT_IMPLEMENTATION_PATHS` が
+    5 -> 7 path へ黙って変わる。197 / 202 / 346 が逐語期待を持つ。
+  - test 名の逐語 `twenty_five`: test_t671_source_binding.py:181, 336, 349, 357
+  - production の docstring / コメントの逐語 "exact 25 path":
+    campaign_lock.py:27, contract_loader_binding.py:2/58/61,
+    artifact_admission.py:67/157/789/874
+
+  教訓: 識別子 grep だけでは独立 golden と位置スライスを取り落とす。
+
+[M15] **M12 の訂正。** M12 は tracked file だけを見ており「影響ゼロ」は範囲不足だった。
+  official output root は repo 外が必須 (layout.py:422、_validate_external_output_root、
+  reject_worktree_container=True) なので、repo 外を走査し直した。
+
+    repo の output/ を除く campaign.lock: 1536 件
+    そのうち authority closure map を持つもの: 36 件
+    その 36 件が記録している map の path 数: 8 path が 28 件、12 path が 8 件
+    25 path (= 現行閉包) を記録しているもの: **0 件**
+
+  すなわち 36 件はいずれも T1207 / T1287 より前の epoch の遺物で、
+  **現行の 25 path 閉包に対して既に E1-stale である**。
+  したがって閉包を 25 -> 27 へ広げても、**現在 certified として有効な campaign は
+  repo 内外あわせて 1 件も失われない**。
+  D956 が挙げる代償 (「既存 campaign はすべて E1-stale として certified 受入から外れる」) は
+  本件では発生しない。
+
+  scan script: /home/SFC/tanab/.claude/jobs/9261d3a8/tmp/t1629/count_authority_locks.py
+              /home/SFC/tanab/.claude/jobs/9261d3a8/tmp/t1629/inspect_authority_locks.py
+
+[M16] **M4 の一般化を撤回する** (段 3 luna 所見 5 が正しい)。
+  「機構は端から端まで動く」は 95 pass から導けない。95 件が保証するのは
+  回収 component の単体経路と、pure-Python 検証子が test 側 signer の署名を検証できること
+  までである。`contract_loader_binding` / `ident.py:239` / 新規 campaign.lock /
+  Layer 3 certified consumer はその 95 件に含まれない。
+  正しい表現は「component 生死確認は成立、E2E 生死確認は未成立」である。
+
+[M17] 段 5 単位 A の実装子が、親の M11 監査の範囲外を突いて実欠陥を 1 件出した。
+  回収した検証子は **R が単位元の署名を受理**する。親が独立検算した結果:
+
+    recovered verifier accepts: True
+    cryptography accepts:       True
+    PyNaCl accepts:             False
+
+  これは回収コード固有の欠陥ではなく、cofactor 付き検証と厳格検証の既知の分岐である。
+  **この署名の生成には秘密鍵が要る**ので、鍵を持たない主体の偽造経路ではない。
+  親は厳格側 (R にも素数位数部分群の検査) を裁定した。受理集合は広がらず、
+  本番の openssl 署名者は単位元 R を作らないので正当な署名は 1 件も落ちない。
+  fix 後、親の独立監査は全項目通過し `recovered verifier accepts: False` になった。
+  probe: /home/SFC/tanab/.claude/jobs/9261d3a8/tmp/t1629/check_low_order_r.py
+
+[M18] 段 5 の実測 (親が login node で実走。子は 2 度とも rc=16 の投入基盤障害で走れなかった)。
+
+  単位 A: orchestrator/tests/test_ed25519_verify.py -> 37 passed in 3.78s
+  単位 B: orchestrator/tests/test_enforcement_source_ratification_receipt.py -> 39 passed in 3.81s
+
+[M19] R11 (計算量を O(M*N) から O(M+N) へ) の効果を親が実測した。
+  script: materials/parent-measure-r11.py (合成 repo に 27 closure blob を置き、
+  署名 receipt を 1 commit 1 行で積んで require_signed_ratification を 1 回呼ぶ)
+
+    ledger rows | gate seconds
+              1 | 0.023
+              5 | 0.059
+             10 | 0.100
+             20 | 0.190
+
+  1 行あたり約 0.009 秒 + 定数約 0.014 秒で、**明確に線形**である。
+  段 3 luna 所見 7 が二乗版に対して見積もった値は 10 行で約 0.33 秒だった。
+  受入全走を壊す懸念は解消した。
+
+[M20] **codex 子は本 repo で pytest を実走できない (構造的制約)。**
+  `tools/run_tests.py` は起動時に実行場所を自動判定し、その preflight が
+  `qstat -Q` を叩く。codex の隔離環境は socket を拒否するため必ず
+  `rc=16` / `qstat -Q preflight rc=1` / `child_started=false` になる。
+  段 5 の 4 子すべてがこれに当たった (単位 C fix1 の子は 12 回試して 12 回とも失敗)。
+  **以後、テストは親が毎回実走し、赤の本文と原因を実測して子の prompt へ貼る運用にした。**
+  子には「pytest を走らせようとするな」と明記する。
+  代わりに、子が走らせられる検証 (plain `python3 <script>`) を prompt で具体的に指定する。
+
+[M21] 段 5 単位 C (broker) で、**実機でしか出ない本番欠陥を 2 件**特定した。
+  どちらも回収コードに元からあり、**回収コードは一度も緑になっていない**。
+
+  (a) OpenSSL 3.0.2 の `pkeyutl -sign -rawin` は標準入力から読めない。
+      親が手で再現:
+        $ openssl pkeyutl -sign -rawin -inkey k.pem -in msg.bin -out sig.bin   -> rc=0, 64 bytes
+        $ printf 'hello' | openssl pkeyutl -sign -rawin -inkey k.pem           -> rc=1
+          Error: unable to determine file size for oneshot operation
+          Public Key operation error
+      Ed25519 の一括署名はサイズが分かる実 file を要求する。`-in <path>` が必須。
+
+  (b) `open("/dev/tty", "r+", buffering=1)` は Python が拒否する。
+      親が手で再現 (probe_tty.py):
+        CHILD: cannot open /dev/tty: File or stream is not seekable.
+      `BufferedRandom` が seekable を要求し、tty はシークできない。
+      読み取り専用 (`"rb"`) なら `setsid`+`TIOCSCTTY` 方式でも `pty.fork()` 方式でも成功する
+      (親が両方式で実測)。修正は `getpass.unix_getpass` と同じ
+      `io.FileIO(fd, "w+")` を `io.TextIOWrapper` で包む形。
+
+  **どちらも静的レビューでは出ない型である。** 1 巡目の fix 子は
+  失敗 digest に紛れていた `subprocess.run` の docstring を真因と誤判定した。
+  親が実走して初めて本当の原因が出た。
+
+[M22] 段 5 の焦点走 (親が login node で実走)。
+
+  単位 A: test_ed25519_verify.py                         -> 37 passed
+  単位 B: test_enforcement_source_ratification_receipt.py -> 39 passed
+  単位 C: test_ratification_broker.py                     -> 25 passed
+  3 file 合計                                             -> 101 passed in 5.33s
+
+  単位 C の推移: 8 failed/16 passed -> 4 failed/21 passed -> 25 passed (fix 3 巡)

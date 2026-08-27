@@ -234,6 +234,26 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
         binary_rel = f"fixture-binaries/{cell['cell_id'].replace('::', '--')}"
         binary_path = root / binary_rel
         _write(root, binary_rel, binary_raw)
+        compiler_input_rel = "fixture.txt"
+        compiler_input_raw = (
+            root / "external/ccbench" / compiler_input_rel
+        ).read_bytes()
+        compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": "ycsb_fixture.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": compiler_input_rel,
+                "sha256": hashlib.sha256(compiler_input_raw).hexdigest(),
+            }],
+        }
+        compiler_input_manifest_sha256 = hashlib.sha256(
+            json.dumps(
+                compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
         source = SourceEvidence(
             schema_version=SOURCE_EVIDENCE_SCHEMA,
             source_root=str((root / "external/ccbench").resolve()),
@@ -261,6 +281,14 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
             configuration_id=cell["configuration_id"], binding=binding,
             binary=binary_path, binary_sha256=sha256,
             contract_sha256=protocol["contract_sha256"], trace=False,
+            source_snapshot_sha256=hashlib.sha256(
+                f"expected-materialization:{cell['cell_id']}".encode("utf-8")
+            ).hexdigest(),
+            expected_materialization_sha256=hashlib.sha256(
+                f"expected-materialization:{cell['cell_id']}".encode("utf-8")
+            ).hexdigest(),
+            compiler_input_manifest=compiler_input_manifest,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
         )
         record = {
             "cell_id": cell["cell_id"],

@@ -43,7 +43,6 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/campaign/s8c_generation_projection.py",
     "orchestrator/campaign/campaign_lock.py",
     "orchestrator/campaign/contract_loader_binding.py",
-    "orchestrator/campaign/enforcement_source_ratification.py",
     "orchestrator/campaign/guided.py",
     "orchestrator/campaign/replay.py",
     "orchestrator/qualification/artifacts.py",
@@ -52,8 +51,8 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
 )
 _PRE_T1287_ENFORCEMENT_SOURCE_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[:14]
 _S8C_DECIDER_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[14:17]
-_RATIFICATION_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[17:20]
-_RECEIPT_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[20:]
+_SOURCE_BINDING_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[17:19]
+_RECEIPT_IMPLEMENTATION_PATHS = _EXPECTED_ENFORCEMENT_SOURCE_PATHS[19:]
 _GIT_ENV_ALLOWLIST = (
     "LANG",
     "LC_ALL",
@@ -178,7 +177,7 @@ def _canonical_json(value: object) -> str:
     )
 
 
-def test_enforcement_source_closure_is_the_independent_exact_twenty_five_paths() -> None:
+def test_enforcement_source_closure_is_the_independent_exact_twenty_four_paths() -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
     from orchestrator.campaign import s8c_preregistration
 
@@ -194,10 +193,9 @@ def test_enforcement_source_closure_is_the_independent_exact_twenty_five_paths()
         s8c_preregistration.EVALUATOR_MODULE_PATH,
         s8c_preregistration.PROJECTION_MODULE_PATH,
     )
-    assert _RATIFICATION_IMPLEMENTATION_PATHS == (
+    assert _SOURCE_BINDING_IMPLEMENTATION_PATHS == (
         "orchestrator/campaign/campaign_lock.py",
         "orchestrator/campaign/contract_loader_binding.py",
-        "orchestrator/campaign/enforcement_source_ratification.py",
     )
     assert _RECEIPT_IMPLEMENTATION_PATHS == (
         "orchestrator/campaign/guided.py",
@@ -333,7 +331,7 @@ def _assert_pre_t1287_exact_fourteen_misses_new_face(
     _S8C_DECIDER_PATHS,
     ids=lambda path: f"s8c-{Path(path).name}",
 )
-def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_s8c_face(
+def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_four_rejects_s8c_face(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutated_path: str,
 ) -> None:
     _assert_pre_t1287_exact_fourteen_misses_new_face(
@@ -346,7 +344,7 @@ def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_s8c_face(
     _RECEIPT_IMPLEMENTATION_PATHS,
     ids=lambda path: f"receipt-{Path(path).name}",
 )
-def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_receipt_face(
+def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_four_rejects_receipt_face(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutated_path: str,
 ) -> None:
     _assert_pre_t1287_exact_fourteen_misses_new_face(
@@ -354,7 +352,7 @@ def test_pre_t1287_exact_fourteen_misses_but_exact_twenty_five_rejects_receipt_f
     )
 
 
-def test_exact_twenty_five_clean_closure_capture_and_live_verify(
+def test_exact_twenty_four_clean_closure_capture_and_live_verify(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
@@ -423,71 +421,25 @@ def test_contract_loader_binding_ignores_fake_git_at_front_of_path(
     assert not marker.exists()
 
 
-def _commit_closure_ratification(
-        repo: Path, blob_sha256s: dict[str, str],
-) -> None:
-    from orchestrator.campaign import enforcement_source_ratification as ratification
-
-    digest = ratification.closure_digest_sha256(blob_sha256s)
-    ledger = repo / ratification.RATIFICATION_LEDGER_RELATIVE_PATH
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    ledger.write_text(
-        _canonical_json({
-            "schema_version": 1,
-            "closure_digest_sha256": digest,
-        }) + "\n",
-        encoding="ascii",
-    )
-    _git(repo, "add", "--", ratification.RATIFICATION_LEDGER_RELATIVE_PATH)
-    _git(
-        repo,
-        "-c", "user.email=t1287-fixture@example.invalid",
-        "-c", "user.name=T1287 fixture",
-        "commit", "-q", "-m", "record closure ratification fixture",
-    )
-
-
-def test_new_certified_lock_rejects_unratified_closure_digest(
+def test_new_certified_lock_accepts_unratified_closure_and_records_provenance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from orchestrator.campaign import contract_loader_binding
-    from orchestrator.campaign import enforcement_source_ratification as ratification
+    from orchestrator.campaign import campaign_lock, contract_loader_binding
 
-    repo, _commit, _blob_sha256s = _committed_loader_repo(
+    repo, commit, blob_sha256s = _committed_loader_repo(
         tmp_path, copy_current_loaders=True,
     )
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
-    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
     cfg, policy, _authorization = _bound_config()
     layout = CampaignLayout(root=str(tmp_path / "unratified-campaign")).ensure()
-
-    with pytest.raises(ident.IdentityMismatch) as caught:
-        ident.ensure_campaign_identity(cfg, layout, admission_policy=policy)
-
-    assert caught.value.reason == "contract-loader-drift"
-    assert "enforcement-source-closure-unratified" in str(caught.value)
-    assert not Path(layout.lock_file).exists()
-
-
-def test_new_certified_lock_accepts_ratified_closure_digest(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from orchestrator.campaign import contract_loader_binding
-    from orchestrator.campaign import enforcement_source_ratification as ratification
-
-    repo, _commit, blob_sha256s = _committed_loader_repo(
-        tmp_path, copy_current_loaders=True,
-    )
-    _commit_closure_ratification(repo, blob_sha256s)
-    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
-    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
-    cfg, policy, _authorization = _bound_config()
-    layout = CampaignLayout(root=str(tmp_path / "ratified-campaign")).ensure()
 
     assert ident.ensure_campaign_identity(
         cfg, layout, admission_policy=policy,
     ) is True
-    assert Path(layout.lock_file).is_file()
+    decoded = campaign_lock.decode_campaign_lock(Path(layout.lock_file).read_text())
+    assert decoded.authority is not None
+    assert decoded.authority.contract_loader_commit == commit
+    assert decoded.authority.contract_loader_blob_sha256s == blob_sha256s
 
 
 def test_verifier_package_module_census_requires_ruling_for_new_modules() -> None:
@@ -740,8 +692,6 @@ def test_production_contract_loader_binding_call_sites_are_exact() -> None:
          "capture_contract_loader_binding"): 1,
         ("ident.py", "_capture_current_loader_binding",
          "verify_live_contract_loader_binding"): 1,
-        ("ident.py", "_capture_current_loader_binding",
-         "verify_ratified_contract_loader_binding"): 1,
         ("ident.py", "_binding_from_lock", "binding_from_authority"): 1,
         ("ident.py", "verify_against_lock",
          "verify_live_contract_loader_binding"): 1,
