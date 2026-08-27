@@ -7380,6 +7380,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   で rc=2 拒否された。追加事実は、**merge 由来だけでなく親自身の docs 編集でも同じ拒否が起きる**
   点である。段 6 は「親が docs を直す」と「子に実装を直させる」が同じ段に同居するため、
   この順序衝突は構造的に起きる。回避は docs 編集を統合 commit にしてから子を投げること。
+
+- **再発: 2026-08-27** — 親が `docs/dev-wave/workers.md` と `docs/dev-wave/operations.md` を
+  編集した未 commit 状態で段 6 の敵対レビュー子 2 本を同時に投げ、両方が
+  `NG: docs/dev-wave/operations.md: working tree が authority commit と異なる` の rc=2 で
+  即死した。2026-08-24 の再発と同型で、merge 由来でなく親自身の docs 編集が原因である点も同じ。
+  追加事実は 2 つある。(1) **子が rc=2 で即死しても待ち手は producer-files rc=70 を返す** —
+  待ち手の失敗理由 (`/proc/<pid>/stat` を読めない) だけを見ると子の起動失敗と区別できず、
+  log 本文を読むまで原因に到達しない。(2) 再投入では `.done` と `-o` を新 path にする必要が
+  あるため、同じ prompt でも成果物 path を作り直す手間が掛かる。回避は変わらず、docs 編集を
+  統合 commit にしてから子を投げること。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
