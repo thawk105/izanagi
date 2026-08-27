@@ -11,6 +11,7 @@ pytest でも 素の `python3 orchestrator/tests/test_p3_s4_loop.py` でも走�
 from __future__ import annotations
 
 import ast
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from decimal import Decimal
 import hashlib
@@ -22,7 +23,9 @@ import re
 import sys
 import tempfile
 import textwrap
+import threading
 import time
+from types import SimpleNamespace
 import unittest.mock
 
 import pytest
@@ -32,7 +35,11 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
-from orchestrator.campaign import ident, p3_s4_loop as L                        # noqa: E402
+from orchestrator.campaign import (                                            # noqa: E402
+    ident,
+    p3_b4_closed_critic as B4_CLOSED,
+    p3_s4_loop as L,
+)
 from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
@@ -49,6 +56,7 @@ from orchestrator.campaign.build_admission import (                             
 )
 from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
 from orchestrator.campaign.artifact_admission import (                         # noqa: E402
+    ArtifactAdmissionError,
     CampaignReadPurpose,
     require_admitted_campaign,
 )
@@ -2406,6 +2414,887 @@ def test_sanctioned_cli_stdout_omits_red_detail_fields(
     assert all(sentinel not in stdout for sentinel in sentinels.values())
 
 
+_B4_PRIOR_ABSENT = object()
+
+
+def _b4_proposal_document(
+    receipt_sha256=None,
+    *,
+    prior_marker=_B4_PRIOR_ABSENT,
+):
+    document = {
+        "planner": {
+            "axis": L.MARKER_ID,
+            "direction": "increase",
+            "magnitude": "small",
+        },
+        "coder": {
+            "axis": L.MARKER_ID,
+            "value": 20.0,
+            "implementation": "double now_backoff = 20.0;",
+        },
+    }
+    if receipt_sha256 is not None:
+        document[L.B4_PROPOSAL_RECEIPT_SHA256_KEY] = receipt_sha256
+    if prior_marker is not _B4_PRIOR_ABSENT:
+        document["prior_critic_reverse"] = prior_marker
+    return document
+
+
+def _b4_fake_receipt(cfg, *, reverse_recommended=True):
+    return SimpleNamespace(
+        campaign_id=str(ident.campaign_id(cfg)),
+        arm=cfg.search_config["reflux"],
+        iteration=1,
+        pair_id="b4-pair-test",
+        decision_sha256="d" * 64,
+        decision_reverse_recommended=reverse_recommended,
+    )
+
+
+def _file_tree_bytes(root):
+    root = Path(root)
+    return {
+        str(path.relative_to(root)): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _seed_b4_continuation(layout):
+    state = L.LoopState(iteration=1, start_wall=time.time())
+    state.whiteboard.append(L.WhiteboardEntry(
+        iteration=1,
+        direction="increase",
+        magnitude="small",
+        result="rejected",
+        delta_pct=None,
+    ))
+    L.save_loop_state(layout, state)
+
+
+def _seed_b4_admitted_history(layout, cfg):
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    trigger_history = (
+        cfg.search_config.get("axis") == TRIGGER_LOOP.MARKER_ID
+    )
+    if trigger_history:
+        mask = 0
+        predicate = emit_predicate(TriggerGateIR(mask))
+        sub = _mk_template_dir(TRIGGER_LOOP.SOURCE_REL)
+        source_path = Path(sub, TRIGGER_LOOP.SOURCE_REL)
+        source_path.write_text(
+            source_path.read_text(encoding="utf-8").replace(
+                L.MARKER_ID, TRIGGER_LOOP.MARKER_ID,
+            ),
+            encoding="utf-8",
+        )
+        machine, _base, _edited, working_diff = L.quarantine(
+            sub,
+            predicate,
+            marker_id=TRIGGER_LOOP.MARKER_ID,
+            source_rel=TRIGGER_LOOP.SOURCE_REL,
+            write=False,
+        )
+        assert machine.passed
+        auditor = TRIGGER_LOOP.AuditorVerdict(
+            verdict="reject",
+            diff_digest=TRIGGER_LOOP.compute_diff_digest(working_diff),
+            violations=[{"type": 1}],
+        )
+        result = TRIGGER_LOOP.apply_mandatory_deny_only_veto(
+            machine,
+            auditor,
+            working_diff,
+            diff_region=TRIGGER_LOOP.SOURCE_REL,
+            template_diff_id=TRIGGER_LOOP.MARKER_ID,
+        )
+        assert not result.passed
+        binding = trigger_gate_binding.TriggerGateBinding(
+            mask=mask,
+            predicate_sha256=(
+                trigger_gate_binding.expected_predicate_sha256(mask)
+            ),
+            nonce="b" * 64,
+            source=None,
+        )
+        contract = TRIGGER_LOOP._admit_env_contract(site_policy.OTHER)
+        variant = TRIGGER_LOOP._record_diff_reject_admitted(
+            layout,
+            Genome("silo", dict(TRIGGER_LOOP._BASE)),
+            predicate,
+            result,
+            contract,
+            binding,
+        )
+        TRIGGER_LOOP._write_provenance_header(layout)
+        provenance_entry = {
+            "proposal_path": "b4-history-fixture",
+            "auditor_diff_digest": auditor.diff_digest,
+            "outcome": "rejected",
+            "trigger_gate_binding_commitment": (
+                trigger_gate_binding.commitment(binding)
+            ),
+        }
+        provenance_entry.update(
+            TRIGGER_LOOP._wal_attempt_provenance(layout, variant)
+        )
+        TRIGGER_LOOP._append_provenance_entry(
+            layout, 1, provenance_entry,
+        )
+        expected_record_count = 3
+    else:
+        implementation = "#define B4_HISTORY 1\ndouble now_backoff = 20.0;"
+        result, *_ = L.quarantine(
+            _mk_template_dir(), implementation,
+            source_rel=_SRC_REL, write=False,
+        )
+        assert not result.passed
+        L.record_diff_reject(layout, _G, implementation, result)
+        expected_record_count = 2
+    admitted = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    assert len(admitted.records) == expected_record_count
+
+
+def _seed_b4_empty_admitted_history(layout, cfg):
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    Path(layout.wal_file).touch()
+    admitted = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    assert len(admitted.records) == 0
+
+
+def _b4_history_call_names(driver):
+    tree = ast.parse(textwrap.dedent(inspect.getsource(driver.drive_iteration)))
+    return [
+        (
+            node.func.id
+            if isinstance(node.func, ast.Name)
+            else node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else ""
+        )
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    ]
+
+
+def test_b4_base_driver_calls_shared_bootstrap_history_gate():
+    assert _b4_history_call_names(L).count(
+        "require_b4_bootstrap_history_empty"
+    ) == 1
+
+
+def test_b4_sort_driver_calls_shared_bootstrap_history_gate():
+    assert _b4_history_call_names(SORT_LOOP).count(
+        "require_b4_bootstrap_history_empty"
+    ) == 1
+
+
+def test_b4_trigger_driver_calls_shared_bootstrap_history_gate():
+    assert _b4_history_call_names(TRIGGER_LOOP).count(
+        "require_b4_bootstrap_history_empty"
+    ) == 1
+
+
+def test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1(tmp_path):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_admitted_history(layout, cfg)
+    with pytest.raises(L.B4ProtocolError) as caught:
+        L.require_b4_bootstrap_history_empty(layout, L.LoopState())
+    assert type(caught.value) is L.B4ProtocolError
+    assert str(caught.value) == (
+        "B-4 bootstrap conflicts with non-empty admitted campaign history"
+    )
+
+
+def test_b4_nonempty_admitted_history_allows_valid_continuation(tmp_path):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_admitted_history(layout, cfg)
+    state = L.LoopState(iteration=1, start_wall=time.time())
+
+    assert L.b4_bootstrap(state) is False
+    L.require_b4_bootstrap_history_empty(layout, state)
+
+
+def test_b4_nonempty_truncated_wal_rejects_false_bootstrap(tmp_path):
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    Path(layout.wal_file).write_bytes(b'{"variant":"truncated"')
+    assert wal.read_records(layout) == []
+
+    with pytest.raises(L.B4ProtocolError) as caught:
+        L.require_b4_bootstrap_history_empty(layout, L.LoopState())
+
+    assert type(caught.value) is L.B4ProtocolError
+    assert str(caught.value) == (
+        "B-4 bootstrap conflicts with non-empty campaign WAL bytes"
+    )
+
+
+def test_b4_bootstrap_history_gate_preserves_wal_symlink_rejection(tmp_path):
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    target = tmp_path / "wal-target.jsonl"
+    target.write_bytes(b"target bytes")
+    os.symlink(target, layout.wal_file)
+
+    with pytest.raises(OSError, match="symlink or non-regular"):
+        L.require_b4_bootstrap_history_empty(layout, L.LoopState())
+
+
+def test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    fresh_layout = CampaignLayout(root=str(tmp_path / "fresh-campaign")).ensure()
+    fresh_state = L.LoopState()
+    L.require_b4_bootstrap_history_empty(fresh_layout, fresh_state)
+    Path(fresh_layout.wal_file).touch()
+    L.require_b4_bootstrap_history_empty(fresh_layout, fresh_state)
+
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_empty_admitted_history(layout, cfg)
+    state = L.LoopState()
+    L.require_b4_bootstrap_history_empty(layout, state)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    authorization = L.require_b4_iteration_authorization(
+        cfg,
+        layout,
+        state,
+        do_build=True,
+        terminal_receipt_path=None,
+    )
+    assert authorization == L.B4IterationAuthorization(
+        receipt=None,
+        terminal_receipt_sha256=None,
+    )
+
+
+def _exercise_b4_history_driver(
+    driver_name, checkpoint_mode, tmp_path, monkeypatch, *, true_bootstrap=False,
+):
+    layout = (
+        CampaignLayout(
+            root=str(tmp_path / f"{driver_name}-{checkpoint_mode}")
+        ).ensure()
+        if driver_name != "trigger"
+        else None
+    )
+    common = {
+        "sub": "unused-by-history-gate-test",
+        "do_build": True,
+        "layout": layout,
+        "b4_closed_critic_receipt": None,
+        "b4_proposal_receipt_sha256": None,
+    }
+
+    if driver_name == "base":
+        cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+        proposal_path = tmp_path / f"base-{checkpoint_mode}.json"
+        proposal_path.write_text(
+            json.dumps(_b4_proposal_document()), encoding="utf-8",
+        )
+        planner, coder, prior = L.load_proposal_file(
+            str(proposal_path), b4_reflux_ablation=True,
+        )
+        run_spy = unittest.mock.Mock(
+            return_value={"outcome": "dry-pass", "variant": None}
+        )
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        monkeypatch.setattr(L, "run_one_iteration", run_spy)
+
+        def invoke():
+            return L.drive_iteration(
+                cfg, L.default_perf(), planner, coder, prior,
+                build_context=build_context, **common,
+            )
+
+        admitted_cfg = cfg
+    elif driver_name == "sort":
+        cfg = SORT_LOOP.default_cfg(reflux=True, b4_reflux_ablation=True)
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+        proposal_path = tmp_path / f"sort-{checkpoint_mode}.json"
+        proposal_path.write_text(json.dumps({
+            "planner": {
+                "axis": SORT_LOOP.MARKER_ID,
+                "direction": "increase",
+                "magnitude": "small",
+            },
+            "coder": {
+                "axis": SORT_LOOP.MARKER_ID,
+                "implementation": "int harmless = 1;",
+            },
+            "auditor": {
+                "verdict": "pass",
+                "diff_digest": "a" * 64,
+            },
+        }), encoding="utf-8")
+        planner, coder, auditor, prior = SORT_LOOP.load_proposal_file(
+            str(proposal_path), b4_reflux_ablation=True,
+        )
+        run_spy = unittest.mock.Mock(
+            return_value={"outcome": "dry-pass", "variant": None}
+        )
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        monkeypatch.setattr(SORT_LOOP, "run_one_iteration", run_spy)
+
+        def invoke():
+            return SORT_LOOP.drive_iteration(
+                cfg, SORT_LOOP.default_perf(), planner, coder, auditor, prior,
+                build_context=build_context, **common,
+            )
+
+        admitted_cfg = cfg
+    else:
+        assert driver_name == "trigger"
+        cfg = TRIGGER_LOOP.default_cfg(
+            reflux=True, b4_reflux_ablation=True,
+        )
+        build_context = build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP
+        )
+        contract = TRIGGER_LOOP._admit_env_contract(site_policy.OTHER)
+        admitted_cfg = TRIGGER_LOOP._campaign_cfg_for_site(
+            cfg, site_policy.OTHER, _contract=contract,
+        )
+        admitted_cfg = ident.bind_admission_policy(
+            admitted_cfg, build_context.policy,
+        )
+        layout = CampaignLayout(
+            root=str(tmp_path / str(ident.campaign_id(admitted_cfg)))
+        ).ensure()
+        common["layout"] = layout
+        proposal_path = tmp_path / f"trigger-{checkpoint_mode}.json"
+        proposal_path.write_text(json.dumps({
+            "planner": {
+                "axis": TRIGGER_LOOP.MARKER_ID,
+                "direction": "increase",
+                "magnitude": "small",
+            },
+            "coder": {
+                "axis": TRIGGER_LOOP.MARKER_ID,
+                "wire": "00000",
+            },
+            "auditor": {
+                "verdict": "pass",
+                "diff_digest": "a" * 64,
+            },
+        }), encoding="utf-8")
+        planner, coder, auditor, prior = TRIGGER_LOOP.load_proposal_file(
+            str(proposal_path), b4_reflux_ablation=True,
+        )
+        run_spy = unittest.mock.Mock(
+            return_value={"outcome": "dry-pass", "variant": None}
+        )
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        monkeypatch.setattr(
+            TRIGGER_LOOP, "exploration_campaign_layout", lambda _id: layout,
+        )
+        monkeypatch.setattr(
+            TRIGGER_LOOP, "_run_one_iteration_resolved", run_spy,
+        )
+
+        def invoke():
+            return TRIGGER_LOOP.drive_iteration(
+                cfg, TRIGGER_LOOP.default_perf(), planner, coder, auditor, prior,
+                build_context=build_context,
+                _resolved_site=site_policy.OTHER,
+                _contract=contract,
+                **common,
+            )
+
+    if true_bootstrap:
+        wal.write_lock(
+            layout, build_v2_lock(ident.canonical_preimage(admitted_cfg)),
+        )
+        if checkpoint_mode == "zero-byte":
+            Path(layout.wal_file).touch()
+        else:
+            assert checkpoint_mode == "missing"
+            assert not Path(layout.wal_file).exists()
+        assert wal.wal_bytes_present(layout) is False
+
+        try:
+            out = invoke()
+        except L.B4ProtocolError as exc:
+            pytest.fail(
+                "true bootstrap was rejected by "
+                "require_b4_bootstrap_history_empty: "
+                f"driver={driver_name} history_mode={checkpoint_mode}: {exc}"
+            )
+        except ArtifactAdmissionError as exc:
+            assert driver_name == "sort"
+            assert checkpoint_mode == "missing"
+            assert type(exc) is ArtifactAdmissionError
+            assert str(exc) == (
+                "campaign requires a directory, campaign.lock, and WAL"
+            )
+            run_spy.assert_called_once()
+            return
+
+        assert out["ran"] is True
+        run_spy.assert_called_once()
+        return
+
+    _seed_b4_admitted_history(layout, admitted_cfg)
+    _seed_b4_continuation(layout)
+    if checkpoint_mode == "zero":
+        L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
+    else:
+        assert checkpoint_mode == "deleted"
+        Path(L.loop_state_path(layout)).unlink()
+        assert not Path(L.loop_state_path(layout)).exists()
+
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError) as caught:
+        invoke()
+    assert type(caught.value) is L.B4ProtocolError
+    assert str(caught.value) == (
+        "B-4 bootstrap conflicts with non-empty admitted campaign history"
+    )
+    assert _file_tree_bytes(layout.root) == before
+    run_spy.assert_not_called()
+
+    monkeypatch.setattr(L, "require_b4_bootstrap_history_empty", lambda *_a: None)
+    assert invoke()["ran"] is True
+    run_spy.assert_called_once()
+
+
+@pytest.mark.parametrize("checkpoint_mode", ("deleted", "zero"))
+@pytest.mark.parametrize("driver_name", ("base", "sort", "trigger"))
+def test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history(
+    driver_name, checkpoint_mode, tmp_path, monkeypatch,
+):
+    _exercise_b4_history_driver(
+        driver_name, checkpoint_mode, tmp_path, monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("history_mode", ("missing", "zero-byte"))
+@pytest.mark.parametrize("driver_name", ("base", "sort", "trigger"))
+def test_b4_true_bootstrap_reaches_synthesis_for_all_drivers(
+    driver_name, history_mode, tmp_path, monkeypatch,
+):
+    _exercise_b4_history_driver(
+        driver_name,
+        history_mode,
+        tmp_path,
+        monkeypatch,
+        true_bootstrap=True,
+    )
+
+
+def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
+    ordinary = L.default_cfg(reflux=True)
+    explicit_false = L.default_cfg(
+        reflux=True,
+        b4_reflux_ablation=False,
+    )
+    marked = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    assert ordinary == explicit_false
+    assert str(ident.campaign_id(ordinary)) == (
+        "p3-s4-loop-s4-autonomous-2cd75697"
+    )
+    assert str(ident.campaign_id(L.default_cfg(reflux=False))) == (
+        "p3-s4-loop-s4-autonomous-9f43a5b8"
+    )
+    assert L.B4_PROTOCOL_KEY not in ordinary.search_config
+    assert L.b4_reflux_ablation_mode(ordinary) is False
+    assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
+    assert L.b4_reflux_ablation_mode(marked) is True
+    assert ident.canonical_preimage(ordinary) != ident.canonical_preimage(marked)
+    assert ident.campaign_id(ordinary) != ident.campaign_id(marked)
+
+    for invalid in (None, "", "p3-b4-closed-critic-receipt/v3", "unknown"):
+        bad = replace(
+            ordinary,
+            search_config={**ordinary.search_config, L.B4_PROTOCOL_KEY: invalid},
+        )
+        with pytest.raises(L.B4ProtocolError, match="unrecognized value"):
+            L.b4_reflux_ablation_mode(bad)
+
+
+def test_b4_proposal_accepts_exact_terminal_receipt_hash(tmp_path):
+    receipt_sha256 = "a" * 64
+    positive = tmp_path / "positive.json"
+    positive.write_text(json.dumps(
+        _b4_proposal_document(receipt_sha256)
+    ), encoding="utf-8")
+    _planner, _coder, prior = L.load_proposal_file(
+        str(positive),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    assert prior is None
+
+
+def test_b4_proposal_rejects_terminal_receipt_hash_mismatch_m9(tmp_path):
+    receipt_sha256 = "a" * 64
+    mismatch = tmp_path / "mismatch.json"
+    mismatch.write_text(json.dumps(
+        _b4_proposal_document("b" * 64)
+    ), encoding="utf-8")
+    with pytest.raises(L.B4ProtocolError, match="differs from terminal"):
+        L.load_proposal_file(
+            str(mismatch),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_b4_proposal_rejects_self_reported_prior_reverse_m10(tmp_path):
+    receipt_sha256 = "a" * 64
+    self_report = tmp_path / "self-report.json"
+    self_report.write_text(json.dumps(
+        _b4_proposal_document(receipt_sha256, prior_marker=False)
+    ), encoding="utf-8")
+    with pytest.raises(L.B4ProtocolError, match="must not self-report"):
+        L.load_proposal_file(
+            str(self_report),
+            b4_reflux_ablation=True,
+            b4_closed_critic_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_b4_bound_decision_reaches_synthesis_and_writes_exact_consumption(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"certified":"receipt"}')
+    receipt_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    proposal_path = tmp_path / "proposal.json"
+    proposal_path.write_text(json.dumps(
+        _b4_proposal_document(receipt_sha256)
+    ), encoding="utf-8")
+    planner, coder, prior = L.load_proposal_file(
+        str(proposal_path),
+        b4_reflux_ablation=True,
+        b4_closed_critic_receipt_sha256=receipt_sha256,
+    )
+    receipt = _b4_fake_receipt(cfg, reverse_recommended=True)
+    observed_reverse = []
+
+    def fake_run(_cfg, _perf, planner, _coder, state, *_args, **_kwargs):
+        observed_reverse.append(state.reverse_recommendations)
+        L.project_whiteboard(state, planner, "fail")
+        return {"outcome": "dry-pass", "variant": None}
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(
+        B4_CLOSED,
+        "require_b4_closed_critic_receipt",
+        lambda *_a, **_k: receipt,
+    )
+    out = L.drive_iteration(
+        cfg,
+        L.default_perf(),
+        planner,
+        coder,
+        prior,
+        sub="unused-by-fake-synthesis",
+        do_build=True,
+        layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        b4_closed_critic_receipt=receipt_path,
+        b4_proposal_receipt_sha256=receipt_sha256,
+    )
+    assert out["ran"] is True
+    assert observed_reverse == [1]
+    records = list(Path(layout.root).glob("b4_closed_critic_consumption_*.json"))
+    assert len(records) == 1
+    assert json.loads(records[0].read_bytes()) == {
+        "terminal_receipt_sha256": receipt_sha256,
+        "campaign_id": receipt.campaign_id,
+        "arm": receipt.arm,
+        "iteration": receipt.iteration,
+        "pair_id": receipt.pair_id,
+        "decision_sha256": receipt.decision_sha256,
+    }
+
+
+def test_b4_same_terminal_receipt_hash_is_consumed_at_most_once(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=False, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"receipt":"same"}')
+    receipt_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    receipt = _b4_fake_receipt(cfg, reverse_recommended=False)
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+
+    def fake_run(_cfg, _perf, planner, _coder, state, *_args, **_kwargs):
+        L.project_whiteboard(state, planner, "fail")
+        return {"outcome": "dry-pass", "variant": None}
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    monkeypatch.setattr(L, "run_one_iteration", fake_run)
+    monkeypatch.setattr(
+        B4_CLOSED,
+        "require_b4_closed_critic_receipt",
+        lambda *_a, **_k: receipt,
+    )
+    kwargs = dict(
+        cfg=cfg,
+        perf=L.default_perf(),
+        planner=planner,
+        coder=coder,
+        prior_critic_reverse=None,
+        sub="unused",
+        do_build=True,
+        layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+        b4_closed_critic_receipt=receipt_path,
+        b4_proposal_receipt_sha256=receipt_sha256,
+    )
+    assert L.drive_iteration(**kwargs)["ran"] is True
+    checkpoint_before = Path(L.loop_state_path(layout)).read_bytes()
+    with pytest.raises(L.B4ProtocolError, match="already consumed"):
+        L.drive_iteration(**kwargs)
+    assert Path(L.loop_state_path(layout)).read_bytes() == checkpoint_before
+
+
+def test_b4_consumption_publish_allows_only_one_concurrent_writer(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "concurrent-campaign")).ensure()
+    receipt = _b4_fake_receipt(cfg)
+    receipt_sha256 = "a" * 64
+    authorization = L.B4IterationAuthorization(
+        receipt=receipt,
+        terminal_receipt_sha256=receipt_sha256,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    original_write = L._write_b4_consumption_temp
+    both_temps_ready = threading.Barrier(2)
+
+    def aligned_write(path, data):
+        original_write(path, data)
+        both_temps_ready.wait()
+
+    monkeypatch.setattr(L, "_write_b4_consumption_temp", aligned_write)
+
+    def consume_once():
+        try:
+            return ("published", L.consume_b4_iteration_authorization(
+                authorization
+            ))
+        except L.B4ProtocolError as exc:
+            return ("rejected", str(exc))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _index: consume_once(), range(2)))
+    assert [status for status, _value in results].count("published") == 1
+    assert [status for status, _value in results].count("rejected") == 1
+    assert any("already consumed" in str(value) for _status, value in results)
+    assert len(list(Path(layout.root).glob(
+        "b4_closed_critic_consumption_*.json"
+    ))) == 1
+    assert not list(Path(layout.root).glob(".*.tmp-*"))
+
+
+def test_b4_consumption_write_failure_leaves_no_poisoned_record(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=False, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "write-failure-campaign")).ensure()
+    authorization = L.B4IterationAuthorization(
+        receipt=_b4_fake_receipt(cfg),
+        terminal_receipt_sha256="b" * 64,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+
+    def fail_after_partial_write(path, data):
+        path.write_bytes(data[:7])
+        raise OSError("injected consumption write failure")
+
+    monkeypatch.setattr(
+        L, "_write_b4_consumption_temp", fail_after_partial_write,
+    )
+    with pytest.raises(L.B4ProtocolError, match="record write failed"):
+        L.consume_b4_iteration_authorization(authorization)
+    assert not list(Path(layout.root).glob(
+        "b4_closed_critic_consumption_*.json"
+    ))
+    assert not list(Path(layout.root).glob(".*.tmp-*"))
+
+
+def test_b4_bootstrap_rejects_receipt_but_allows_none_to_reach_synthesis(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    receipt_path = tmp_path / "unexpected-terminal.json"
+    receipt_path.write_bytes(b"unexpected")
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L.ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    run_spy = unittest.mock.Mock(
+        return_value={"outcome": "dry-pass", "variant": None}
+    )
+    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    common = dict(
+        cfg=cfg,
+        perf=L.default_perf(),
+        planner=planner,
+        coder=coder,
+        prior_critic_reverse=None,
+        sub="unused",
+        do_build=True,
+        layout=layout,
+        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+    )
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="bootstrap rejects"):
+        L.drive_iteration(
+            **common,
+            b4_closed_critic_receipt=receipt_path,
+        )
+    assert _file_tree_bytes(layout.root) == before
+    assert run_spy.call_count == 0
+    assert L.drive_iteration(**common)["ran"] is True
+    assert run_spy.call_count == 1
+
+
+def test_b4_no_build_stops_before_artifact_change_m12(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError, match="forbids --no-build"):
+        L.drive_iteration(
+            cfg,
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            sub="unused",
+            do_build=False,
+            layout=layout,
+        )
+    assert _file_tree_bytes(layout.root) == before
+
+
+def test_b4_fixture_main_rejects_run_one_iteration_bypass_m13(monkeypatch):
+    from orchestrator.campaign import p2_2, patchharness
+
+    run_spy = unittest.mock.Mock(
+        side_effect=AssertionError("fixture reached build boundary")
+    )
+    pinned_spy = unittest.mock.Mock()
+    single_tenant_spy = unittest.mock.Mock()
+    monkeypatch.setattr(L, "run_one_iteration", run_spy)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
+    monkeypatch.setattr(p2_2, "_assert_single_tenant", single_tenant_spy)
+    with pytest.raises(L.B4ProtocolError, match="fixture run_one_iteration"):
+        L.main([
+            "--b4-reflux-ablation",
+            "--allow-coder-derived-build",
+        ])
+    assert run_spy.call_count == 0
+    assert pinned_spy.call_count == 0
+    assert single_tenant_spy.call_count == 0
+
+
+def test_b4_cli_receipt_is_run_iteration_only_and_marker_bound(tmp_path):
+    receipt = tmp_path / "terminal.json"
+    with pytest.raises(L.B4ProtocolError, match="requires --run-iteration"):
+        L.main(["--b4-closed-critic-receipt", str(receipt)])
+    with pytest.raises(L.B4ProtocolError, match="requires --b4-reflux-ablation"):
+        L.main([
+            "--run-iteration", str(tmp_path / "proposal.json"),
+            "--b4-closed-critic-receipt", str(receipt),
+        ])
+
+
+def test_b4_receipt_gate_precedes_fold_iteration_and_artifact_mutation(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_continuation(layout)
+    receipt_path = tmp_path / "terminal.json"
+    receipt_path.write_bytes(b'{"receipt":"rejected"}')
+    planner = L.PlannerProposal(L.MARKER_ID, "increase", "small")
+    coder = L.CoderProposal(
+        L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    fold_spy = unittest.mock.Mock(wraps=L._fold_critic_reverse)
+    monkeypatch.setattr(L, "_fold_critic_reverse", fold_spy)
+    monkeypatch.setattr(
+        B4_CLOSED,
+        "require_b4_closed_critic_receipt",
+        unittest.mock.Mock(side_effect=B4_CLOSED.B4ReceiptError("gate sentinel")),
+    )
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(B4_CLOSED.B4ReceiptError, match="gate sentinel"):
+        L.drive_iteration(
+            cfg,
+            L.default_perf(),
+            planner,
+            coder,
+            None,
+            sub="unused",
+            do_build=True,
+            layout=layout,
+            build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
+            b4_closed_critic_receipt=receipt_path,
+            b4_proposal_receipt_sha256=hashlib.sha256(
+                receipt_path.read_bytes()
+            ).hexdigest(),
+        )
+    assert fold_spy.call_count == 0
+    assert L.load_loop_state(layout).iteration == 1
+    assert _file_tree_bytes(layout.root) == before
+
+
+def test_marker_absent_keeps_legacy_proposal_and_receipt_contract(tmp_path):
+    ordinary = L.default_cfg(reflux=False)
+    assert L.B4_PROTOCOL_KEY not in ordinary.search_config
+    proposal = tmp_path / "legacy-proposal.json"
+    proposal.write_text(json.dumps(
+        _b4_proposal_document(prior_marker=True)
+    ), encoding="utf-8")
+    _planner, _coder, prior = L.load_proposal_file(str(proposal))
+    assert prior is True
+    with pytest.raises(L.B4ProtocolError, match="requires the exact protocol"):
+        L.require_b4_iteration_authorization(
+            ordinary,
+            CampaignLayout(root=str(tmp_path / "ordinary")),
+            L.LoopState(),
+            do_build=True,
+            terminal_receipt_path=tmp_path / "receipt.json",
+        )
+
+
 def _log_projection_start(lay, source_tag, attempt, *, stock=False):
     """admission API と wal API で正規の terminal attempt を組む。"""
     src_token = (
@@ -2685,7 +3574,7 @@ def test_all_p3_loop_campaign_reads_declare_certified_purpose():
             )
             if name == "require_admitted_campaign":
                 calls.append((path.name, node.lineno, node))
-    assert len(calls) == 7, calls
+    assert len(calls) == 8, calls
     for path, line, call in calls:
         purposes = [
             keyword.value for keyword in call.keywords

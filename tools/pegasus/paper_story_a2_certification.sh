@@ -10,7 +10,7 @@ required_env=(
   PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR
   IZANAGI_A2_REPO_ROOT IZANAGI_A2_EXPECTED_HEAD IZANAGI_A2_CURRENT_PIN
   IZANAGI_A2_CCBENCH_ROOT IZANAGI_A2_ATTEMPT_ROOT
-  IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE
+  IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE IZANAGI_A2_WORKLOAD
 )
 for name in "${required_env[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -18,6 +18,13 @@ for name in "${required_env[@]}"; do
     exit 2
   fi
 done
+case "$IZANAGI_A2_WORKLOAD" in
+  rr5|rr50) ;;
+  *)
+    echo "IZANAGI_A2_WORKLOAD must be rr5 or rr50" >&2
+    exit 2
+    ;;
+esac
 
 host=$(hostname 2>/dev/null || true)
 if [[ ! "$host" =~ ^bnode[0-9]+([.].*)?$ ]]; then
@@ -27,14 +34,23 @@ fi
 
 repo=$IZANAGI_A2_REPO_ROOT
 attempt=$IZANAGI_A2_ATTEMPT_ROOT
-raw_root=$attempt/raw
+workload=$IZANAGI_A2_WORKLOAD
+job_root=$attempt/jobs/$workload
+raw_root=$job_root/raw
+campaign_root=$job_root/campaigns
+cache_root=$job_root/cache
+scheduler_root=$job_root/scheduler
 dependency_source=$IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE
 ccbench_root=$IZANAGI_A2_CCBENCH_ROOT
-if [[ ! -d "$repo" || -L "$repo" || ! -d "$attempt" || -L "$attempt" ]]; then
-  echo "repo or durable attempt root is unavailable" >&2
+if [[ ! -d "$repo" || -L "$repo" || ! -d "$attempt" || -L "$attempt" \
+   || ! -d "$job_root" || -L "$job_root" \
+   || ! -d "$campaign_root" || -L "$campaign_root" \
+   || ! -d "$cache_root" || -L "$cache_root" \
+   || ! -d "$scheduler_root" || -L "$scheduler_root" ]]; then
+  echo "repo or durable workload job root is unavailable" >&2
   exit 2
 fi
-result=$attempt/compute-result.json
+result=$job_root/compute-result.json
 if [[ -e "$result" || -L "$result" ]]; then
   echo "compute result already exists" >&2
   exit 2
@@ -43,16 +59,16 @@ pbs_jobid_path_component=${PBS_JOBID//:/_}
 finish() {
   rc=$?
   trap - EXIT
-  tmp=$attempt/.compute-result.${pbs_jobid_path_component}.tmp
-  printf '{"schema_version":"paper-story-a2-compute-result/v1","driver_rc":%s,"pbs_jobid":"%s","current_pin":"%s"}\n' \
-    "$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN" >"$tmp"
+  tmp=$job_root/.compute-result.${pbs_jobid_path_component}.tmp
+  printf '{"schema_version":"paper-story-a2-compute-result/v2","workload":"%s","driver_rc":%s,"pbs_jobid":"%s","current_pin":"%s"}\n' \
+    "$workload" "$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN" >"$tmp"
   sync "$tmp"
   if ! ln "$tmp" "$result"; then
     rm "$tmp"
     exit 2
   fi
   rm "$tmp"
-  sync "$attempt"
+  sync "$job_root"
   exit "$rc"
 }
 trap finish EXIT
@@ -86,8 +102,8 @@ resolve_python() {
 resolve_python || exit 2
 
 qstat_jobid=${PBS_JOBID#0:}
-allocation_qstat_stdout=$attempt/scheduler/allocation-qstat.stdout
-allocation_qstat_stderr=$attempt/scheduler/allocation-qstat.stderr
+allocation_qstat_stdout=$scheduler_root/allocation-qstat.stdout
+allocation_qstat_stderr=$scheduler_root/allocation-qstat.stderr
 if [[ -e "$allocation_qstat_stdout" || -L "$allocation_qstat_stdout" \
    || -e "$allocation_qstat_stderr" || -L "$allocation_qstat_stderr" ]]; then
   echo "allocation qstat evidence is not fresh" >&2
@@ -149,7 +165,7 @@ export IZANAGI_RESERVATION_HOST="$host"
 export IZANAGI_RESERVATION_BOOT_ID="$boot_id"
 export IZANAGI_RESERVATION_SCRIPT_SHA256="$script_sha256"
 export IZANAGI_RESERVATION_NONCE="$PBS_JOBID"
-reservation_result=$attempt/reservation.json
+reservation_result=$job_root/reservation.json
 if [[ -e "$reservation_result" || -L "$reservation_result" ]]; then
   echo "reservation result is not fresh" >&2
   exit 2
@@ -190,7 +206,7 @@ with open(destination, "x", encoding="utf-8") as stream:
     stream.flush()
     os.fsync(stream.fileno())
 PY
-sync "$attempt"
+sync "$job_root"
 
 cd "$repo"
 observed_head=$(git rev-parse HEAD)
@@ -234,6 +250,7 @@ cp -a "$dependency_source"/. "$dependency_prefix"/
 export PYTHONDONTWRITEBYTECODE=1
 "$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
   compute-preflight \
+  --workload "$workload" \
   --attempt-root "$attempt" \
   --raw-root "$raw_root" \
   --expected-head "$IZANAGI_A2_EXPECTED_HEAD" \
@@ -242,23 +259,9 @@ export PYTHONDONTWRITEBYTECODE=1
 
 "$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
   run-workload \
-  --workload rr5 \
+  --workload "$workload" \
   --attempt-root "$attempt" \
   --raw-root "$raw_root" \
   --current-pin "$IZANAGI_A2_CURRENT_PIN" \
   --dependency-prefix "$dependency_prefix" \
   --ccbench-dir "$ccbench_root"
-
-"$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
-  run-workload \
-  --workload rr50 \
-  --attempt-root "$attempt" \
-  --raw-root "$raw_root" \
-  --current-pin "$IZANAGI_A2_CURRENT_PIN" \
-  --dependency-prefix "$dependency_prefix" \
-  --ccbench-dir "$ccbench_root"
-
-"$PY" -B -m orchestrator.campaign.paper_story_a2_certification \
-  finalize-raw \
-  --attempt-root "$attempt" \
-  --current-pin "$IZANAGI_A2_CURRENT_PIN"

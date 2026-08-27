@@ -1,0 +1,6 @@
+IZANAGI_ACCEPTANCE_SHARD_ARTIFACTS_V1 {"session_root":"/work/1/SFC/tanab/.izanagi-acceptance-shards/40fc419debb24c1345a03f83238d0d98","shard_count":3}
+collected 17455 items
+17391 passed, 64 skipped
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+arm2 rc=0

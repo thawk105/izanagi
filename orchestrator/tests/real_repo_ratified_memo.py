@@ -30,6 +30,10 @@ receipt 解決 ([T-057]) と同じく **commit を積むほど遅くなる**構�
   最終 ``@real-repo`` suffix も保持し、単一 worker = 単一 process に居るので process memo で
   足りる。それ以外の real-repo resource node は suffix を外して worker 間へ分散する。
   receipt memo が session cache を要したのは consumer が 50〜75 node・多 worker に散るため。
+  長寿命 fixture の ``s8c-preregistration-candidate``、``s8c-predicate-snapshot``、
+  ``campaign-repository-scan`` はこの process memo 群へ統合しない。各 fixture の既存寿命を
+  一 worker に閉じる別 loadgroup とし、resource 衝突は shard component の明示辺で同一 shard
+  へ置く。したがって 4 node という process memo の exact 集合は変わらない。
 - **正規注入 seam を使えないことの確認 (D78 / DW-O14)**: `gate_check` には
   `ratified=` / `ratified_error=` 引数があるが、`ratified_error` を渡す枝は
   `_make_gate_decision` で早期 return し `_gate_check_core` の floor/budget/manifest

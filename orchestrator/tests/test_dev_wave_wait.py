@@ -1045,6 +1045,33 @@ def _write_exact_runner(repo: Path, source: str) -> None:
     (repo / "tools" / "run_tests.py").write_text(
         "def main(argv):\n"
         "    del argv\n"
+        "    import hashlib as _binding_hashlib\n"
+        "    import json as _binding_json\n"
+        "    import os as _binding_os\n"
+        "    _binding_fd = _binding_os.environ.get(\n"
+        "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD')\n"
+        "    _binding_nonce = _binding_os.environ.get(\n"
+        "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE')\n"
+        "    _binding_main = _binding_os.environ.get(\n"
+        "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN')\n"
+        "    _binding_k = _binding_os.environ.get('IZANAGI_ACCEPTANCE_SHARDS')\n"
+        "    if all((_binding_fd, _binding_nonce, _binding_main, _binding_k)):\n"
+        "        _binding_source = __import__('pathlib').Path(__file__).read_bytes()\n"
+        "        _binding_digest = _binding_hashlib.sha256(\n"
+        "            _binding_source).hexdigest()\n"
+        "        for _binding_index in range(int(_binding_k)):\n"
+        "            _binding_report = {\n"
+        "                'schema_version': 'dev-wave-runner-binding-report/v1',\n"
+        "                'tested_main': _binding_main,\n"
+        "                'nonce': _binding_nonce,\n"
+        "                'runner_executed_sha256': _binding_digest,\n"
+        "                'shard_count': int(_binding_k),\n"
+        "                'shard_index': _binding_index,\n"
+        "            }\n"
+        "            _binding_line = (_binding_json.dumps(\n"
+        "                _binding_report, ensure_ascii=True, sort_keys=True,\n"
+        "                separators=(',', ':')) + '\\n').encode('ascii')\n"
+        "            _binding_os.write(int(_binding_fd), _binding_line)\n"
         f"{body}"
         "    return 0\n",
         encoding="utf-8",
@@ -1088,6 +1115,7 @@ def _real_waiter_repo(
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
         "PYTHONDONTWRITEBYTECODE": "1",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> None:
@@ -3261,6 +3289,332 @@ def test_launcher_argv_and_runner_tail_are_exact() -> None:
     )
     assert "--launcher-executed-sha256" not in base
     assert '"--launcher-executed-sha256"' in DW._LAUNCHER_BOOTSTRAP
+
+
+class _CapturedLauncherProcess:
+    class _Stdin:
+        def __init__(self) -> None:
+            self.content = bytearray()
+            self.closed = False
+
+        def write(self, content: bytes) -> int:
+            self.content.extend(content)
+            return len(content)
+
+        def close(self) -> None:
+            self.closed = True
+
+    def __init__(self) -> None:
+        self.stdin = self._Stdin()
+        self.returncode = 0
+
+    def poll(self) -> int:
+        return self.returncode
+
+    def wait(self, timeout: object = None) -> int:
+        del timeout
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.returncode = -signal.SIGTERM
+
+    def kill(self) -> None:
+        self.returncode = -signal.SIGKILL
+
+
+def _capture_default_launcher_start(
+    monkeypatch: pytest.MonkeyPatch,
+    current_site: object,
+    queue_result: object = (
+        True,
+        "キュー gen_S は ENA=ENA、STS=ACT、待ち数=0、実行数=0で、現在利用できます。",
+    ),
+) -> tuple[
+    tuple[str, ...],
+    dict[str, object],
+    _CapturedLauncherProcess,
+]:
+    from orchestrator.campaign import queue_state, site_policy
+
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+    process = _CapturedLauncherProcess()
+
+    def recording_popen(
+        argv: tuple[str, ...], **kwargs: object
+    ) -> _CapturedLauncherProcess:
+        calls.append((argv, kwargs))
+        return process
+
+    if isinstance(current_site, BaseException):
+        def resolve_site() -> str:
+            raise current_site
+    else:
+        def resolve_site() -> str:
+            assert isinstance(current_site, str)
+            return current_site
+
+    monkeypatch.setattr(site_policy, "current_site", resolve_site)
+
+    def resolve_queue() -> object:
+        if isinstance(queue_result, BaseException):
+            raise queue_result
+        return queue_result
+
+    monkeypatch.setattr(queue_state, "dispatch_possible", resolve_queue)
+    monkeypatch.setattr(DW.subprocess, "Popen", recording_popen)
+    launcher_argv = ("python3", "launcher.py", "--fixed")
+    session = DW._default_launch_launcher(
+        launcher_argv,
+        _REPO,
+        _LAUNCHER_SOURCE,
+    )
+    session.abort()
+
+    assert len(calls) == 1
+    actual_argv, kwargs = calls[0]
+    outcome_fd = int(actual_argv[-6])
+    completion_fd = int(actual_argv[-4])
+    assert actual_argv == (
+        *launcher_argv,
+        "--outcome-fd",
+        str(outcome_fd),
+        "--completion-fd",
+        str(completion_fd),
+        "--",
+        "python3",
+        "tools/run_tests.py",
+    )
+    assert process.stdin.content == _LAUNCHER_SOURCE
+    assert process.stdin.closed is True
+    return actual_argv, kwargs, process
+
+
+def test_pegasus_login_acceptance_launcher_adds_three_shards_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import site_policy
+
+    monkeypatch.delenv(DW._ACCEPTANCE_SHARDS_ENV, raising=False)
+    monkeypatch.setenv("IZANAGI_EXISTING_ENV_SENTINEL", "preserved")
+    parent_environment = dict(os.environ)
+
+    _argv, kwargs, _process = _capture_default_launcher_start(
+        monkeypatch,
+        site_policy.PEGASUS_LOGIN,
+    )
+
+    assert kwargs["env"] == {
+        **parent_environment,
+        DW._ACCEPTANCE_SHARDS_ENV: "3",
+    }
+    assert kwargs["env"]["IZANAGI_EXISTING_ENV_SENTINEL"] == "preserved"
+
+
+def test_standalone_waiter_sys_path_resolves_shard_injection(
+    tmp_path: Path,
+) -> None:
+    probe = r'''
+import importlib.util
+import os
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+tool = Path(sys.argv[2]).resolve()
+test_dir = Path(sys.argv[3]).resolve()
+tools = root / "tools"
+cwd = Path.cwd().resolve()
+blocked = {root, cwd, test_dir}
+clean = []
+for entry in sys.path:
+    if not entry:
+        continue
+    resolved = Path(entry).resolve()
+    if resolved in blocked or resolved == tools:
+        continue
+    clean.append(entry)
+sys.path[:] = [str(tools), *clean]
+assert Path(sys.path[0]).resolve() == tools
+assert all(Path(entry).resolve() not in blocked for entry in sys.path)
+
+spec = importlib.util.spec_from_file_location("standalone_waiter_probe", tool)
+assert spec is not None and spec.loader is not None
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+
+assert root in {Path(entry).resolve() for entry in sys.path}
+from orchestrator.campaign import queue_state, site_policy
+site_policy.current_site = lambda: site_policy.PEGASUS_LOGIN
+queue_state.dispatch_possible = lambda: (
+    True,
+    "キュー gen_S は ENA=ENA、STS=ACT、待ち数=0、実行数=0で、現在利用できます。",
+)
+os.environ.pop("IZANAGI_ACCEPTANCE_SHARDS", None)
+environment = module._acceptance_launcher_environment()
+assert environment is not None
+assert environment["IZANAGI_ACCEPTANCE_SHARDS"] == "3"
+'''.strip()
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            probe,
+            str(_ROOT),
+            str(_TOOL),
+            str(Path(__file__).resolve().parent),
+        ],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_empty_acceptance_shard_request_is_injected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import site_policy
+
+    monkeypatch.setenv(DW._ACCEPTANCE_SHARDS_ENV, "")
+
+    _argv, kwargs, _process = _capture_default_launcher_start(
+        monkeypatch,
+        site_policy.PEGASUS_LOGIN,
+    )
+
+    assert kwargs["env"][DW._ACCEPTANCE_SHARDS_ENV] == "3"
+
+
+@pytest.mark.parametrize(
+    "queue_result",
+    [
+        pytest.param((False, "queue unavailable"), id="unavailable"),
+        pytest.param(RuntimeError("queue observation failed"), id="exception"),
+        pytest.param(True, id="contract-drift"),
+        pytest.param(
+            (
+                True,
+                "キュー gen_S は ENA=不明、STS=不明、待ち数=不明、"
+                "実行数=不明です（観測不能のため可用扱い）。",
+            ),
+            id="observation-unavailable-fail-open",
+        ),
+    ],
+)
+def test_acceptance_launcher_queue_not_confirmed_keeps_inherited_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    queue_result: object,
+) -> None:
+    from orchestrator.campaign import site_policy
+
+    monkeypatch.delenv(DW._ACCEPTANCE_SHARDS_ENV, raising=False)
+
+    _argv, kwargs, process = _capture_default_launcher_start(
+        monkeypatch,
+        site_policy.PEGASUS_LOGIN,
+        queue_result,
+    )
+
+    assert "env" not in kwargs
+    assert process.returncode == 0
+
+
+def test_non_pegasus_acceptance_launcher_does_not_inject_shards(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import site_policy
+
+    monkeypatch.delenv(DW._ACCEPTANCE_SHARDS_ENV, raising=False)
+
+    _argv, kwargs, _process = _capture_default_launcher_start(
+        monkeypatch,
+        site_policy.OTHER,
+    )
+
+    assert "env" not in kwargs
+
+
+def test_acceptance_launcher_preserves_explicit_shard_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import site_policy
+
+    monkeypatch.setenv(DW._ACCEPTANCE_SHARDS_ENV, "1")
+
+    _argv, kwargs, _process = _capture_default_launcher_start(
+        monkeypatch,
+        site_policy.PEGASUS_LOGIN,
+    )
+
+    assert "env" not in kwargs
+    assert os.environ[DW._ACCEPTANCE_SHARDS_ENV] == "1"
+
+
+def test_acceptance_launcher_site_error_keeps_inherited_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(DW._ACCEPTANCE_SHARDS_ENV, raising=False)
+
+    _argv, kwargs, process = _capture_default_launcher_start(
+        monkeypatch,
+        RuntimeError("site unavailable"),
+    )
+
+    assert "env" not in kwargs
+    assert process.returncode == 0
+
+
+def test_acceptance_shards_are_not_injected_into_other_subprocess_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import site_policy
+
+    popen_calls: list[tuple[list[str], dict[str, object]]] = []
+    run_calls: list[tuple[list[str], dict[str, object]]] = []
+
+    class Process:
+        returncode = 0
+
+        def communicate(self, timeout: object = None) -> tuple[str, str]:
+            del timeout
+            return "", ""
+
+    def recording_popen(argv: list[str], **kwargs: object) -> Process:
+        popen_calls.append((argv, kwargs))
+        return Process()
+
+    def recording_run(
+        argv: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        run_calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.delenv(DW._ACCEPTANCE_SHARDS_ENV, raising=False)
+    monkeypatch.setattr(
+        site_policy,
+        "current_site",
+        lambda: site_policy.PEGASUS_LOGIN,
+    )
+    monkeypatch.setattr(DW.subprocess, "Popen", recording_popen)
+    monkeypatch.setattr(DW.subprocess, "run", recording_run)
+
+    DW._default_run(("git", "status"), _REPO, True)
+    DW._default_run(_history_provenance_argv(), _REPO, True)
+    DW._default_run(_helper("release"), _REPO, True)
+    DW._default_run_unbounded(("plain-command",), _REPO, False)
+
+    assert len(popen_calls) == 3
+    assert len(run_calls) == 1
+    for _argv, kwargs in [*popen_calls, *run_calls]:
+        environment = kwargs.get("env")
+        assert environment is None or DW._ACCEPTANCE_SHARDS_ENV not in environment
 
 
 def test_acceptance_receipt_detail_is_printed_to_stdout_and_stderr(
@@ -8628,6 +8982,7 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     waiter_env = {
         **git_env,
         "IZANAGI_WAVE_LEASE_DIR": str(lease),
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
     }
 
@@ -8744,6 +9099,7 @@ def _run_runtime_waiter_bytes_case(
     }
 
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["IZANAGI_ACCEPTANCE_SHARDS"] = "1"
 
     def git(repo: Path, *args: str) -> str:
         return subprocess.run(
@@ -8886,6 +9242,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> str:
@@ -8998,6 +9355,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> None:
@@ -9078,6 +9436,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> None:

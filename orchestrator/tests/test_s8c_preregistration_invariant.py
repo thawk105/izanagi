@@ -358,21 +358,42 @@ def _assert_machine_contract_function_pins(
     assert missing == frozenset()
 
 
-@pytest.fixture(scope="session")
-def repository_candidate_commit(tmp_path_factory: pytest.TempPathFactory) -> str:
-    """実 repository の候補 commit を session 内で一度だけ合成する。"""
-    return _candidate_commit(tmp_path_factory.mktemp("s8c-candidate"))
+@pytest.fixture(scope="module")
+def repository_candidate_commit(
+    tmp_path_factory: pytest.TempPathFactory,
+    real_repo_fixture_lock,
+) -> str:
+    """候補生成を parent EX、その全 consumer 寿命を parent SH で覆う。"""
+    with real_repo_fixture_lock("write", None):
+        candidate = _candidate_commit(tmp_path_factory.mktemp("s8c-candidate"))
+    with real_repo_fixture_lock("read", None):
+        yield candidate
+
+
+@pytest.fixture(scope="module")
+def candidate_activation_report(
+    repository_candidate_commit: str,
+) -> prereg.ActivationReport:
+    return prereg.activation_report_at(ROOT, repository_candidate_commit)
+
+
+@pytest.fixture(scope="module")
+def candidate_commit_paths(
+    repository_candidate_commit: str,
+) -> frozenset[str]:
+    return frozenset(_commit_paths(repository_candidate_commit))
 
 
 @CANDIDATE_XDIST_GROUP
 def test_candidate_freeze_matches_contract_and_generation_chain(
     repository_candidate_commit: str,
+    candidate_commit_paths: frozenset[str],
 ) -> None:
     """g1 発行前は意図的に赤。未 commit 差分を含む同じ履歴性質を検査する。"""
 
     candidate = repository_candidate_commit
     validation = prereg.validate_condition_freeze_at(ROOT, candidate)
-    head_paths = _commit_paths(candidate)
+    head_paths = candidate_commit_paths
     legacy_prefix = "output/s8c-preregistration/condition-freeze.v1.g"
     assert not any(path.startswith(legacy_prefix) for path in head_paths)
     generation_numbers = sorted(
@@ -426,9 +447,10 @@ def test_candidate_freeze_batch_is_bounded_by_frozen_touch_points(
 @CANDIDATE_XDIST_GROUP
 def test_repository_tip_binds_current_decider_version_without_activation(
     repository_candidate_commit: str,
+    candidate_activation_report: prereg.ActivationReport,
 ) -> None:
     candidate = repository_candidate_commit
-    report = prereg.activation_report_at(ROOT, candidate)
+    report = candidate_activation_report
     assert report.commit == candidate
     assert report.condition_freeze_valid is True
     assert report.freeze_reason_code == "valid"
@@ -579,9 +601,10 @@ def test_candidate_commit_observes_uncommitted_worktree_delta(tmp_path: Path) ->
 @CANDIDATE_XDIST_GROUP
 def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(
     repository_candidate_commit: str,
+    candidate_activation_report: prereg.ActivationReport,
 ) -> None:
     candidate = repository_candidate_commit
-    report = prereg.activation_report_at(ROOT, candidate)
+    report = candidate_activation_report
     assert report.commit == candidate
     assert report.effective is False
     assert len(report.predicates) == len(prereg.PREDICATE_IDS) == 12
@@ -595,9 +618,10 @@ def test_candidate_is_not_effective_and_has_zero_satisfied_predicates(
 @CANDIDATE_XDIST_GROUP
 def test_wave_files_do_not_contaminate_production_holdout_scan(
     repository_candidate_commit: str,
+    candidate_commit_paths: frozenset[str],
 ) -> None:
     candidate = repository_candidate_commit
-    head_paths = _commit_paths(candidate)
+    head_paths = set(candidate_commit_paths)
     assert WAVE_REQUIRED_PATHS <= head_paths
     wave_paths = _wave_paths(head_paths)
     assert any(path.startswith(f"{prereg.FREEZE_DIR}/") for path in wave_paths)

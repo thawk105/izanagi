@@ -741,7 +741,9 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   5 箇所はいずれも探索・デモ・sweep 系で認証経路ではなく、移行は受理集合を変えて凍結証拠の
   再束縛を招く。再訪条件 = 当該経路の出力が認証材料へ入るようになったとき。
 
-- [T-1378] **批准台帳の外部 trust root と署名の新設** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 現状維持): [T-868] (承認 receipt の署名と trust root は設けない) および 2026-08-12 の粗い provenance 方針と同型であり、覆す新事実がない。`hooks/` 配置による AI 追記の機械的遮断を維持し、自己発行可能な性質は機械可読な限界宣言で明示したまま受容する。再訪条件 = 外部公開時 ([T-868] と同じ)。
+- [T-1378] **批准台帳の外部 trust root と署名の新設** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 現状維持): [T-868] (承認 receipt の署名と trust root は設けない) および 2026-08-12 の粗い provenance 方針と同型であり、覆す新事実がない。`hooks/` 配置による AI 追記の機械的遮断を維持し、自己発行可能な性質は機械可読な限界宣言で明示したまま受容する。再訪条件 = 外部公開時 ([T-868] と同じ)。**発火記録: 2026-08-27。D905 (2026-08-25、ユーザー裁定) が
+  この見送りを覆した** — 批准の執行経路は「AI が成りすませない実行主体の新設」だけを採ると定めたため、
+  外部 trust root と署名を設けない側の前提が失効した。[T-1629] の wave で実装済み。
 - [T-1558] **撤去 tool への同一 invocation 所有権証明 (lease / capability)** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 現状維持): 実害の観測がなく防御的堅牢化に当たる (2026-08-12 ユーザー方針・D205 と同基準)。現行の 5 条件 (common git-dir 一致・branch↔tip 束縛・占有 rc=0・clean・ancestry) で代替する。再訪条件 = 別セッションによる誤撤去の実害 1 件。
 
 ### 研究・計測系
@@ -753,7 +755,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-025] **calibration 下限 K 感度** (B-015, 出所 `docs/archive/worklog-phase1-2.md`) — 裁定 2026-07-19: K=4 を設計定数として明示承認し、感度主張は行わず終了。論文の機序図または K=4 依存主張の凍結直前に再評価、証拠・述語の正本 = `output/insights/2026-07-19_backlog-triage.md` (裁定の正本 = worklog 2026-07-19 (7))。
 - [T-026] **thread 数変更時の再 calibration** (B-016, 出所 `docs/archive/worklog-phase1-2.md`) — 承認 performance thread に qualifying calibration が無く live floor carrier も無い時。裁定 2026-07-19 保留承認、between-run floor は現行チェックポイントの floor 実測工程が部分的に運ぶ。述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - [T-027] **Threats to Validity の集約** (B-017, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 対外 claim set の凍結直前に限界索引が未集約の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
-- [T-028] **backoff +38%/+11% の別 boot 再現** (B-018, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 当該値を対外主張へ採り別 boot 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
+- [T-028] **backoff +38%/+11% の別 boot 再現** (B-018, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — 当該値を対外主張へ採り別 boot 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。 2026-08-26 の /rulings 全件で発火条件の成立を確認した (論文素材 2026-08-26 版で 2 値とも採用済み、参照する一次資料は旧環境の sweep で別 boot 証拠を持たない)。ユーザー裁定 = 別 boot で取り直す (D1100)。既存の走査手順をそのまま 1 回回す形でよい。
 - [T-029] **critic 軸提案の再現率測定** (B-019, 出所 `docs/archive/worklog-phase3-0702-0713.md`) — critic 提案の再現性を claim / gate に使い replay report が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - [T-030] **backoff 再現の rounds≥3** (B-020, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — cross-round 再現性を主張し qualifying round が 3 未満の時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
 - [T-031] **stock 第2・3位 base 上の fix5/fix10 一般性** (B-021, 出所 `output/insights/2026-06-22_p2-case-study-backoff-synthesis.md`) — stock base 横断の改善を主張し第2・3位 base 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。

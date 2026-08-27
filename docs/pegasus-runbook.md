@@ -290,6 +290,9 @@ node ごとに H100 1 枚が割り当てられる (§1 の構成から導かれ�
 `/scr` に置いた必要な結果は、ジョブが終了する前に `/work/SFC/<user>` などの永続領域へ戻す。
 最終成果物や唯一のコピーを `/scr` に置かない。計算ノードでは `/work` 配下が `/work/1/SFC/<user>`
 のような実体パスで見えることがあるが、`$PBS_O_WORKDIR` を経由すれば意識しなくてよい (実測)。
+**この 2 つはログインノードでも同じ木である** — `/work/SFC/<user>` は `/work/1/SFC/<user>` へ
+解決される (2026-08-27 実測)。file system を走査する道具へ両方を別々の探索根として渡すと、
+同じ file を二度走査する。走査根を列挙するときは `readlink -f` で畳んでから渡す。
 
 quota とポイント残高は次で確認する。
 
@@ -487,6 +490,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 |---|---|---|
 | `tools/claude_session_ledger.py` | `unknown` | `compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB` |
 | `tools/pegasus/acceptance_nproc_study.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/b10_backoff_grid.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/b10_backoff_shape_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
@@ -528,10 +533,13 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/silo_ladder_rung1.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/ss2pl_lock_study.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/smoke_probe.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/submit_b10_backoff_grid.sh` | `local-ok` | `static login-side submitter classification` |
+| `tools/pegasus/submit_b10_backoff_shape.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_mocc_trace.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_oracle_n_pilot.sh` | `local-ok` | `login-side submitter; compute work stays in job body (未実測)` |
+| `tools/pegasus/submit_paper_story_a2_certification.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
@@ -935,8 +943,21 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   launcher source は `tested_main` にあればそれを使い、無いときだけ `tested-tip-bootstrap` を
   名乗る。land は `tested_main` と `locked_main` の双方で launcher 不在を要求するので、
   launcher が main へ入った後は bootstrap を名乗れない。
-  **閉じていない残余**: 改変された tip 側待ち手は launcher を起動せず受領証を自作でき、
-  bounded / dispatch の内側の子は pathname を読み直すため実行 bytes の束縛外にある。
+  **dispatch した `tests` 子は main の blob を実行する ([T-1974] 段階 P)。** launcher が
+  session nonce と exact K を所有し、継承 write-fd で全 shard の申告を**無条件に**要求する。
+  dispatcher は launcher 所有の manifest がある走行にだけ束縛を適用し、manifest が無ければ
+  従来の pathname 起動のままとする。計算ノード側は `tested_main` の blob を 1 回読んで
+  同じ buffer を hash と子の stdin に使い、その digest を申告する。launcher は自分が読んだ
+  main blob の digest と照合し、受領証を書く**前**に fail-closed する。
+  **この結果、dispatch しない authoritative 受入は受領証を作れない。** queue が停止していて
+  ログインノードに余裕がある場合、従前はログインノードで suite を走らせて受領証を出していたが、
+  段階 P 以降その経路は申告 0 件で拒否される。復旧は段階 R ([T-1976]) が bounded local を
+  main blob 実行へ移すまで待つ。
+  **閉じていない残余**: 改変された tip 側待ち手は launcher を起動せず受領証を自作できる。
+  束縛が及ぶのは dispatch された `tests` 子 1 層だけで、login 側の dispatcher import、
+  job script、login の collect-only pytest、bounded local の pathname runner、
+  計算ノードの pytest controller と xdist worker は束縛外である。
+  **dispatcher 自身は tip 側 bytes なので、dispatcher を編集した wave は段階 P では捕まらない。**
   land verifier 自身も候補コードである。いずれも [T-696] の協調境界に残る。
 - **`tools/run_tests.py` を変更した wave は、どの verdict でも受入を通せない (D838)。**
   launcher は suite 起動前に、land は verdict によらず共通に、

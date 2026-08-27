@@ -141,6 +141,15 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
   (Best-of-N と選択的報告になるため)。role 応答の schema 違反は再試行しない。
 - **wall budget**: `--max-wall-seconds` は hard wall ではない (時刻検査は workload と generation の
   先頭だけ)。予算の強制手段として使わず、予算判定は累積秒の台帳で行う。
+- **arm の outcome 単位**: generation/search 実験で 1 arm の outcome とするのは
+  **`G=2` の最終世代の canonical variant** である (2026-08-27 のユーザー裁定 D1066。正本は
+  `docs/phase3-8b-descriptor-design.md` の同裁定による再凍結節であり、判定 3 条件の読み替えも
+  そこが定める。本書で条件の列・成立条件・判定不能条件を書き換えない)。8c 固有の補足は次の 2 点である。
+  (i) 最終世代は世代番号の列が厳密に `[1, 2]` であることを実走成果物で確認したうえで採り、
+  列が欠落・重複・順序不正の cell は補完せず判定不能として報告する。
+  (ii) **outcome 単位は報告母集団ではない。** 全 proposal・全 attempt・全 reject・全 screen 棄却は
+  上の「報告母集団は 6 cell に縮約しない」がそのまま支配する。outcome 単位を理由に
+  提案 universe の行を落とす報告を作らない。
 
 ### §5 の記入規約と欄別の解除条件 (規範。§5 の値セルには書かない)
 

@@ -9,6 +9,7 @@ import inspect
 import json
 import math
 import os
+import queue
 import re
 import signal
 import shutil
@@ -1297,8 +1298,18 @@ def emit(value):
     sys.stdout.flush()
     os.fsync(sys.stdout.fileno())
 
+def emit_raw(value):
+    sys.stdout.write(value + "\n")
+    sys.stdout.flush()
+    os.fsync(sys.stdout.fileno())
+
 def write_line(stream, value):
     stream.write(json.dumps(value, separators=(",", ":")) + "\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+
+def write_raw(stream, value):
+    stream.write(value + "\n")
     stream.flush()
     os.fsync(stream.fileno())
 
@@ -1336,6 +1347,12 @@ def create_rollout(session_id):
                 "type": "turn_context",
                 "payload": {"model": model, "effort": reasoning},
             })
+        if mode == "rollout_duplicate_key":
+            write_raw(
+                stream,
+                '{"type":"event_msg","payload":{"type":"ignored",'
+                '"id":"first","id":"second"}}',
+            )
     return path
 
 def append_token(path, total_usage):
@@ -1400,6 +1417,13 @@ emit({
         "status": "in_progress",
     },
 })
+if mode == "web_search_duplicate_stdout":
+    emit_raw(
+        '{"type":"item.started","item":{"id":"item_40",'
+        '"type":"web_search",'
+        '"id":"exec-f3ed5b5c-aa7d-4450-a1d8-44232d49c1e9",'
+        '"query":"","action":{"type":"other"}}}'
+    )
 
 if mode == "no_rollout":
     terminal(usage())
@@ -2526,6 +2550,7 @@ def _write_legacy_v2_evidence(
     receipt_v2["attempts"] = []
     for raw_attempt in receipt_v3["attempts"]:
         attempt = dict(raw_attempt)
+        attempt.pop("evidence_issues", None)
         if not include_failure_class:
             attempt.pop("failure_class")
         receipt_v2["attempts"].append(attempt)
@@ -3153,7 +3178,7 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert receipt["stop_reason"] == "completed"
     assert receipt["launcher_rc"] == 0
     assert receipt["model_calls_semantics"] == "observed_token_count_events"
-    assert receipt["schema_version"] == 4
+    assert receipt["schema_version"] == 5
     assert receipt["limits_assertion"] == "self_asserted"
     assert (
         receipt["wall_clock_scope"]
@@ -4084,6 +4109,20 @@ def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
     )
 
 
+def test_invalid_evidence_reason_is_recorded(tmp_path: Path) -> None:
+    _completed, receipt, _paths = _run_case(
+        tmp_path, "payload_decoy", expected_returncode=1
+    )
+    assert receipt is not None
+    issues = receipt["attempts"][0]["evidence_issues"]
+    assert any(
+        issue["reason"] == "turn_context_invalid"
+        and issue["count"] == 1
+        and issue["source"] != "stdout"
+        for issue in issues
+    )
+
+
 def test_correlated_authority_invalid_session_uses_nullable_manifest_value(
     tmp_path: Path,
 ) -> None:
@@ -4352,25 +4391,17 @@ def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
         stderr=subprocess.PIPE,
     )
     child_pid_path = paths["pid_dir"] / "child.pid"
-    deadline = time.monotonic() + 2
-    while (
-        not child_pid_path.exists()
-        and process.poll() is None
-        and time.monotonic() < deadline
-    ):
-        time.sleep(0.005)
-    child_pid_registered = child_pid_path.exists()
     stdout, stderr = _communicate_launcher(
         process,
         paths=paths,
         expected_returncode=1,
         label="sigterm-ignoring launcher",
     )
+    assert child_pid_path.exists(), (
+        f"child.pid was not registered before launcher exit; stderr={stderr!r}"
+    )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
 
-    assert child_pid_registered, (
-        f"child.pid was not registered before deadline; stderr={stderr!r}"
-    )
     assert receipt["stop_reason"] == "wall_clock_admission_bound_s"
     assert receipt["actuals"]["attempt_count"] == 1
     assert receipt["attempts"][0]["limit_trigger"] == "wall_clock_admission_bound_s"
@@ -4380,6 +4411,42 @@ def test_sigterm_ignoring_child_is_killed(tmp_path: Path) -> None:
     _assert_pid_gone(child_pid)
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def _uses_post_exit_child_pid_evidence(source: str) -> bool:
+    launcher_exit = source.find("_communicate_launcher(")
+    registration_check = source.find("assert child_pid_path.exists()")
+    diagnostic = source.find("stderr={stderr!r}", registration_check)
+    return (
+        launcher_exit >= 0
+        and registration_check > launcher_exit
+        and diagnostic > registration_check
+        and "deadline" not in source
+        and "time.monotonic" not in source
+    )
+
+
+def test_sigterm_child_pid_registration_regression_detector() -> None:
+    """Do not restore an absolute-time deadline for child.pid registration."""
+    absolute_deadline_old_way = """
+deadline = time.monotonic() + 2
+while not child_pid_path.exists() and time.monotonic() < deadline:
+    time.sleep(0.005)
+child_pid_registered = child_pid_path.exists()
+stdout, stderr = _communicate_launcher(process)
+assert child_pid_registered, f"child.pid was not registered; stderr={stderr!r}"
+"""
+    post_exit_positive = """
+stdout, stderr = _communicate_launcher(process)
+assert child_pid_path.exists(), (
+    f"child.pid was not registered before launcher exit; stderr={stderr!r}"
+)
+"""
+    current = inspect.getsource(test_sigterm_ignoring_child_is_killed)
+
+    assert not _uses_post_exit_child_pid_evidence(absolute_deadline_old_way)
+    assert _uses_post_exit_child_pid_evidence(post_exit_positive)
+    assert _uses_post_exit_child_pid_evidence(current)
 
 
 def test_group_member_count_reports_identity_missing_source() -> None:
@@ -5852,18 +5919,64 @@ def test_manifest_v1_cannot_receive_new_stage_bound_session(
 
 def test_manifest_lock_covers_load_replace_critical_section(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The contender fd must conflict before the critical-order guard proceeds."""
     manifest_path = tmp_path / "manifest.json"
     first_inside = threading.Event()
     release_first = threading.Event()
+    second_lock_conflict_observed = threading.Event()
+    second_inside = threading.Event()
     second_done = threading.Event()
     errors: list[BaseException] = []
+    second_thread_ids: set[int] = set()
+    causal_trace: list[str] = []
+    coordination: queue.SimpleQueue[str] = queue.SimpleQueue()
+    original_flock = LAUNCHER.fcntl.flock
+
+    def observe_flock(fd: int, operation: int) -> None:
+        if (
+            threading.get_ident() in second_thread_ids
+            and operation == LAUNCHER.fcntl.LOCK_EX
+        ):
+            try:
+                original_flock(fd, operation | LAUNCHER.fcntl.LOCK_NB)
+            except BlockingIOError:
+                pass
+            else:
+                original_flock(fd, LAUNCHER.fcntl.LOCK_UN)
+                raise AssertionError(
+                    "job-b manifest contender fd did not conflict with job-a"
+                )
+            causal_trace.append("second-lock-attempt")
+            second_lock_conflict_observed.set()
+            coordination.put("second-lock-attempt")
+        original_flock(fd, operation)
+
+    def wait_for_coordination(reason: str) -> str:
+        # Two seconds matches the existing wait/join watchdogs and only bounds
+        # failure recovery; it is not a scheduling expectation.
+        try:
+            return coordination.get(timeout=2)
+        except queue.Empty:
+            pytest.fail(f"timed out waiting for {reason}", pytrace=False)
 
     def first_hook() -> None:
+        causal_trace.append("first-critical-enter")
         first_inside.set()
-        assert release_first.wait(2)
+        assert release_first.wait(2), (
+            "job-a timed out waiting for the manifest conflict probe to finish"
+        )
+        causal_trace.append("first-critical-exit")
+
+    def second_hook() -> None:
+        causal_trace.append("second-critical-enter")
+        second_inside.set()
+        coordination.put("second-critical-enter")
 
     def append(job_id: str, session_id: str, hook: Any = None) -> None:
+        if job_id == "job-b":
+            second_thread_ids.add(threading.get_ident())
         try:
             snapshot = LAUNCHER.snapshot_authority(_ROOT)
             LAUNCHER._append_manifest(
@@ -5891,6 +6004,7 @@ def test_manifest_lock_covers_load_replace_critical_section(
         finally:
             if job_id == "job-b":
                 second_done.set()
+                coordination.put("second-done")
 
     first = threading.Thread(
         target=append,
@@ -5898,17 +6012,47 @@ def test_manifest_lock_covers_load_replace_critical_section(
     )
     second = threading.Thread(
         target=append,
-        args=("job-b", "bbbbbbbb-0000-4000-8000-000000000002"),
+        args=(
+            "job-b",
+            "bbbbbbbb-0000-4000-8000-000000000002",
+            second_hook,
+        ),
     )
+    monkeypatch.setattr(LAUNCHER.fcntl, "flock", observe_flock)
     first.start()
-    assert first_inside.wait(2)
+    assert first_inside.wait(2), "job-a did not enter the manifest critical section"
     second.start()
-    assert not second_done.wait(0.2)
+    assert wait_for_coordination(
+        "job-b manifest fd to observe a real lock conflict"
+    ) == "second-lock-attempt"
+    assert second_lock_conflict_observed.is_set()
+    probe_fd = os.open(
+        manifest_path.with_name(manifest_path.name + ".lock"),
+        os.O_RDWR | os.O_CREAT,
+        0o600,
+    )
+    try:
+        with pytest.raises(BlockingIOError):
+            fcntl.flock(probe_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    finally:
+        os.close(probe_fd)
+    assert causal_trace == ["first-critical-enter", "second-lock-attempt"]
+    assert not second_inside.is_set()
+    assert not second_done.is_set()
     release_first.set()
     first.join(2)
     second.join(2)
 
+    assert not first.is_alive(), "job-a did not leave the manifest critical section"
+    assert not second.is_alive(), "job-b did not finish after the manifest lock release"
     assert errors == []
+    assert causal_trace == [
+        "first-critical-enter",
+        "second-lock-attempt",
+        "first-critical-exit",
+        "second-critical-enter",
+    ]
+    assert second_inside.is_set()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert [item["job_id"] for item in manifest["sessions"]] == [
         "job-a",
@@ -6304,10 +6448,13 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     )
     assert receipt is not None
     receipt["schema_version"] = 3
+    receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
     receipt["limits"].pop("preparation_admission_bound_s")
     receipt["limits"].pop("finalization_admission_bound_s")
     receipt["actuals"].pop("preparation_wall_clock_s")
     receipt["actuals"].pop("finalization_wall_clock_s")
+    for attempt in receipt["attempts"]:
+        attempt.pop("evidence_issues")
     if not include_failure_class:
         for attempt in receipt["attempts"]:
             attempt.pop("failure_class")
@@ -6324,6 +6471,63 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     assert checked.returncode == 0, checked.stderr
     assert json.loads(checked.stdout)["schema_version"] == 3
     assert paths["receipt"].read_bytes() == before
+
+
+def test_check_receipt_reads_v4_without_evidence_issues(tmp_path: Path) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0
+    )
+    assert receipt is not None
+    receipt["schema_version"] = 4
+    receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
+    for attempt in receipt["attempts"]:
+        attempt.pop("evidence_issues")
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    before = paths["receipt"].read_bytes()
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+
+    assert checked.returncode == 0, checked.stderr
+    assert json.loads(checked.stdout)["schema_version"] == 4
+    assert paths["receipt"].read_bytes() == before
+
+
+def test_recompute_attempt_missing_precedes_fatal_stdout_issue_for_all_schemas(
+    tmp_path: Path,
+) -> None:
+    stdout_path = tmp_path / "stdout.jsonl"
+    stderr_path = tmp_path / "stderr.txt"
+    output_path = tmp_path / "output.md"
+    stdout_path.write_bytes(b"not-json\n")
+    stderr_path.write_bytes(b"")
+    output_path.write_bytes(b"")
+    attempt = {
+        "attempt_index": 1,
+        "stdout_path": os.fspath(stdout_path),
+        "stderr_path": os.fspath(stderr_path),
+        "output_path": os.fspath(output_path),
+        "session_ids": [],
+        "rollouts": [],
+    }
+
+    for schema_version in (4, 5):
+        evidence, _metering, issues, _actuals, _recorded_cwds = (
+            LAUNCHER._recompute_attempt_metering(
+                attempt,
+                schema_version=schema_version,
+                model="test-model",
+                reasoning="high",
+                cwd=os.fspath(tmp_path),
+            )
+        )
+
+        assert issues[0]["reason"] == "event_invalid"
+        assert evidence == "missing"
 
 
 def test_check_receipt_external_limit_detects_self_asserted_limit_tampering(
@@ -6854,6 +7058,90 @@ def test_fake_stdout_matches_observed_cli_event_shape(tmp_path: Path) -> None:
     }
     terminal = [event for event in events if event["type"] == "turn.completed"]
     assert terminal[0]["usage"]["cache_write_input_tokens"] == 0
+
+
+def test_web_search_duplicate_stdout_is_accepted_and_auditable(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "web_search_duplicate_stdout", expected_returncode=0
+    )
+    assert receipt is not None
+    raw_line = (
+        b'{"type":"item.started","item":{"id":"item_40",'
+        b'"type":"web_search",'
+        b'"id":"exec-f3ed5b5c-aa7d-4450-a1d8-44232d49c1e9",'
+        b'"query":"","action":{"type":"other"}}}'
+    )
+    stdout = Path(receipt["attempts"][0]["stdout_path"]).read_bytes()
+    assert raw_line + b"\n" in stdout
+    attempt = receipt["attempts"][0]
+    assert receipt["schema_version"] == 5
+    assert attempt["evidence_status"] == "complete"
+    assert attempt["accepted"] is True
+    assert attempt["failure_class"] is None
+    assert attempt["evidence_issues"] == [
+        {
+            "source": "stdout",
+            "reason": "duplicate_key",
+            "count": 1,
+            "first_line": 4,
+            "detail": None,
+        }
+    ]
+    assert receipt["outcome"] == "accepted"
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 0, checked.stderr
+
+
+def test_check_receipt_rejects_non_string_evidence_issue_reason_with_rc2(
+    tmp_path: Path,
+) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0
+    )
+    assert receipt is not None
+    receipt["attempts"][0]["evidence_issues"] = [
+        {
+            "source": "stdout",
+            "reason": ["event_invalid"],
+            "count": 1,
+            "first_line": 1,
+            "detail": None,
+        }
+    ]
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+
+    assert checked.returncode == 2
+    assert "attempt.evidence_issues[].reason が不正" in checked.stderr
+
+
+def test_rollout_duplicate_key_remains_invalid(tmp_path: Path) -> None:
+    _completed, receipt, paths = _run_case(
+        tmp_path, "rollout_duplicate_key", expected_returncode=1
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    assert attempt["evidence_status"] == "invalid"
+    assert attempt["accepted"] is False
+    assert any(
+        issue["reason"] == "event_invalid"
+        and issue["source"] != "stdout"
+        for issue in attempt["evidence_issues"]
+    )
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 1, checked.stderr
 
 
 def test_rollout_missing_after_grace_is_stopped_and_not_accepted(

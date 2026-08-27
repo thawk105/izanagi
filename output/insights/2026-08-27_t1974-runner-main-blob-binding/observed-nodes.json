@@ -1,0 +1,46 @@
+{
+  "M1-count": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_reports_reject_extra_count",
+    "orchestrator/tests/test_acceptance_launcher.py::test_launcher_owns_k_from_environment_not_reports"
+  ],
+  "M10-request-omit": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_binding_report_preserves_intent_shard_index",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_manifest_present_adds_runner_binding_to_request"
+  ],
+  "M11-partial-manifest": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_partial_manifest_environment_fails_closed"
+  ],
+  "M12-task-scope": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_binding_applies_only_to_tests_task"
+  ],
+  "M13-canonical-form": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_report_writer_output_parses_in_launcher"
+  ],
+  "M2-digest": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_enforcement_precedes_receipt",
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_report_digest_mismatch_is_rejected"
+  ],
+  "M3-nonce": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_report_nonce_mismatch_is_rejected"
+  ],
+  "M4-index": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_reports_require_exact_index_multiset[dup]"
+  ],
+  "M5-order": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_binding_enforcement_precedes_receipt",
+    "orchestrator/tests/test_acceptance_launcher.py::test_launcher_owns_k_from_environment_not_reports"
+  ],
+  "M6-k-authority": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_launcher_owns_k_from_environment_not_reports"
+  ],
+  "M7-unset-default": [
+    "orchestrator/tests/test_acceptance_launcher.py::test_empty_and_invalid_shard_env_fail_closed",
+    "orchestrator/tests/test_acceptance_launcher.py::test_unset_shard_env_fails_closed_before_runner"
+  ],
+  "M8-pathname-exec": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_bound_child_executes_main_blob_not_worktree"
+  ],
+  "M9-hash-reread": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_bound_child_reports_digest_of_executed_buffer"
+  ]
+}

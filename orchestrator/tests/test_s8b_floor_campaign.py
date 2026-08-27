@@ -80,6 +80,7 @@ from orchestrator.calibrator import perf_preflight as calibrator_perf_preflight 
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
 from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
     git_ignored_output_prefixes,
+    git_ignored_output_snapshot_rules,
     is_git_ignored_output_path,
 )
 
@@ -102,6 +103,29 @@ _CONFIGS = (
     "system_gate", "ident_all", "stock_common",
 )
 _STOCK = "stock_common"
+_FIXTURE_COMPARATOR = (
+    "  sort(write_set_.begin(), write_set_.end(),\n"
+    "       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n"
+    "         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n"
+    "                                         : b.key_ < a.key_;\n"
+    "       });"
+)
+_FIXTURE_GATE_PREDICATES = {
+    "system_gate": (
+        "izanagi_gate_pass = "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kUnset || "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked;"
+    ),
+    "ident_all": (
+        "izanagi_gate_pass = "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kUnset || "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kLockConflict || "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kUpdateAbsent || "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kReadValiTid || "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kReadValiLocked || "
+        "izanagi_abort_reason_ == IzanagiAbortReason::kNodeVali;"
+    ),
+}
 _HOLDOUT_SHAPE = {
     "rr79": {
         "candidate_id": "H1", "records": 730079, "threads": 17,
@@ -131,6 +155,7 @@ _BASE_TPS = {
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
 _FIXTURE_CELL_BY_TOKEN: dict[str, str] = {}
+_FIXTURE_BUILD_DECLARATION_BY_TOKEN: dict[str, tuple[str, str, dict]] = {}
 
 
 def _fixture_src_token(genome, ccbench_dir) -> str:
@@ -139,6 +164,17 @@ def _fixture_src_token(genome, ccbench_dir) -> str:
     identity = leaf if "::" in leaf else genome.canonical()
     seed = f"{genome.canonical()}\0{identity}".encode("utf-8")
     return hashlib.sha256(seed).hexdigest()
+
+
+def _fixture_expected_materialization_sha256(declaration) -> str:
+    return hashlib.sha256(
+        b"fixture-expected-materialization\0"
+        + json.dumps(
+            declaration, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
 
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
     del cxx
@@ -158,7 +194,7 @@ def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++
 
 
 @pytest.fixture(autouse=True)
-def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
+def _synthetic_source_evidence_for_materializer_fixtures(monkeypatch, request):
     """Fake PreparedCell 用の source evidence。slow real-build controls は実 resolver を使う。"""
     if request.node.name.startswith("test_slow_real_"):
         return
@@ -169,6 +205,55 @@ def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
     monkeypatch.setattr(
         s8b_floor_campaign._perf_preflight, "probe_perf_availability",
         lambda **_kwargs: _perf_receipt(available=True),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_expected_materialization_for_floor_fixtures(monkeypatch, request):
+    """Synthetic PreparedCell を無条 build gate の正例へ明示射影する。"""
+    if request.node.name.startswith("test_slow_real_"):
+        return
+
+    state = {"digest": None}
+
+    def fixture_expected_materialization(**kwargs):
+        digest = _fixture_expected_materialization_sha256(
+            kwargs["declaration"]
+        )
+        state["digest"] = digest
+        return digest
+
+    def fixture_exact_materialization(_root, expected):
+        assert expected == state["digest"]
+        return expected
+
+    def fixture_protect_snapshot(root):
+        return (
+            s8b_floor_campaign._expected_materialization.
+            SnapshotPermissionState(
+                root=str(root), modes=(), tree_digest=state["digest"],
+            )
+        )
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._expected_materialization,
+        "produce_expected_materialization_from_declaration",
+        fixture_expected_materialization,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._expected_materialization,
+        "assert_expected_materialization",
+        fixture_exact_materialization,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._expected_materialization,
+        "make_snapshot_non_writable",
+        fixture_protect_snapshot,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._expected_materialization,
+        "restore_snapshot_permissions",
+        lambda _state: None,
     )
 
 
@@ -217,11 +302,16 @@ def _bind_current_toolchain_for_existing_campaign_tests(monkeypatch, request):
 def _holdout_entries(holdout_id: str) -> dict:
     entries = {}
     for i, cfg in enumerate(_CONFIGS):
-        entries[cfg] = {
+        entry = {
             "holdout_id": holdout_id,
             "label": f"fixture-{holdout_id}-{cfg}",
             "flags": {"BACK_OFF": i % 2, "NO_WAIT_LOCKING_IN_VALIDATION": (i + 1) % 2},
         }
+        if cfg == "sort_best":
+            entry["comparator"] = _FIXTURE_COMPARATOR
+        elif cfg in _FIXTURE_GATE_PREDICATES:
+            entry["gate_predicate"] = _FIXTURE_GATE_PREDICATES[cfg]
+        entries[cfg] = entry
     return entries
 
 
@@ -307,22 +397,34 @@ def _valid_protocol_dict(**overrides) -> dict:
 
 @contextlib.contextmanager
 def _fake_prepare(cell, ccbench_pin, *, cxx):
+    import tempfile
+
     entry = cell["variant"]
     holdout_id = entry["holdout_id"]
     configuration_id = cell["configuration"]
     cell_id = f"{holdout_id}::{configuration_id}"
     genome = Genome("silo", dict(entry.get("flags", {})))
-    ccbench_dir = f"/fixture/ccbench/{cell_id.replace('::', '__')}"
-    token = _fixture_src_token(genome, ccbench_dir)
-    _FIXTURE_CELL_BY_TOKEN[token] = cell_id
-    yield PreparedCell(
-        genome=genome, src_token=token,
-        ccbench_dir=ccbench_dir, cache_root="/fixture/cache",
-        oracle_attempt=(
-            fake_sort_swo_pass_attempt()
-            if configuration_id == "sort_best" else None
-        ),
-    )
+    with tempfile.TemporaryDirectory(prefix="s8b-floor-fixture-") as raw_root:
+        ccbench = Path(raw_root) / cell_id.replace("::", "__")
+        compiler_input = ccbench / "include" / "fixture.hh"
+        compiler_input.parent.mkdir(parents=True)
+        compiler_input.write_bytes(
+            f"compiler-input:{cell_id}\n".encode("utf-8")
+        )
+        ccbench_dir = str(ccbench)
+        token = _fixture_src_token(genome, ccbench_dir)
+        _FIXTURE_CELL_BY_TOKEN[token] = cell_id
+        _FIXTURE_BUILD_DECLARATION_BY_TOKEN[token] = (
+            ccbench_pin, configuration_id, copy.deepcopy(entry),
+        )
+        yield PreparedCell(
+            genome=genome, src_token=token,
+            ccbench_dir=ccbench_dir, cache_root="/fixture/cache",
+            oracle_attempt=(
+                fake_sort_swo_pass_attempt()
+                if configuration_id == "sort_best" else None
+            ),
+        )
 
 
 _FIXTURE_DEPENDENCY_RECEIPT = {
@@ -364,6 +466,8 @@ def _fixture_toolchain_manifest_sha256(manifest=None) -> str:
 def _make_fake_build(build_root: Path, *, cached: bool = False):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
+                   source_snapshot_sha256=None,
+                   expected_materialization_descriptor=None,
                    timeout_s=None, admission=None, build_context=None,
                    source_evidence=None, expected_toolchain_manifest=None,
                    fetchcontent_base_dir="", fetchcontent_dependency_receipt=None,
@@ -384,6 +488,40 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
         assert ccbench_dir, "prepare_cell の隔離 ccbench_dir を build_v2 へ渡す"
         assert timeout_s == 900, "floor v2 build hard timeout を固定する"
         assert expected_toolchain_manifest is not None
+        assert source_snapshot_sha256 is None
+        assert type(expected_materialization_descriptor) is (
+            s8b_floor_campaign._expected_materialization.
+            ExpectedMaterializationDescriptor
+        )
+        expected_pin, expected_configuration, expected_entry = (
+            _FIXTURE_BUILD_DECLARATION_BY_TOKEN[src_token]
+        )
+        assert ccbench_commit == expected_pin
+        assert expected_materialization_descriptor.ccbench_commit == expected_pin
+        assert expected_materialization_descriptor.configuration == (
+            expected_configuration
+        )
+        assert expected_materialization_descriptor.declaration == expected_entry
+        expected_template_patch_path = {
+            "p2_2_flag_opt": None,
+            "backoff_fixed_best": str(
+                ROOT / "patches" / "silo-backoff-fixed.patch"
+            ),
+            "sort_best": str(ROOT / "patches" / "silo-sort-variant.patch"),
+            "system_gate": str(
+                ROOT / "patches" / "silo-backoff-trigger-gating-variant.patch"
+            ),
+            "ident_all": str(
+                ROOT / "patches" / "silo-backoff-trigger-gating-variant.patch"
+            ),
+            "stock_common": None,
+        }[expected_configuration]
+        assert expected_materialization_descriptor.template_patch_path == (
+            expected_template_patch_path
+        )
+        expected_materialization_sha256 = (
+            _fixture_expected_materialization_sha256(expected_entry)
+        )
         effective_ccbench = ccbench_dir or "/fixture/ccbench"
         # production と同じく渡された cache_root 配下に実体を置き、command には実 root を
         # 埋め込む（portable projection が未結線でも通る fake にしない）。
@@ -407,6 +545,27 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
             ).hexdigest()
         if post_oracle_dependency_binding is not None:
             configure_argv.append("-DFETCHCONTENT_FULLY_DISCONNECTED=ON")
+        compiler_input_rel = "include/fixture.hh"
+        compiler_input = Path(effective_ccbench) / compiler_input_rel
+        if not compiler_input.is_file():
+            compiler_input_rel = "CMakeLists.txt"
+            compiler_input = Path(effective_ccbench) / compiler_input_rel
+        compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": f"ycsb_{genome.protocol}.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": compiler_input_rel,
+                "sha256": hashlib.sha256(
+                    compiler_input.read_bytes()
+                ).hexdigest(),
+            }],
+        }
+        compiler_input_manifest_sha256 = hashlib.sha256(json.dumps(
+            compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
             bin_sha256=bin_sha256, bin_hash=bin_sha256[:16],
@@ -421,6 +580,12 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
             toolchain_manifest_sha256=_fixture_toolchain_manifest_sha256(
                 expected_toolchain_manifest
             ),
+            compiler_input_manifest=compiler_input_manifest,
+            compiler_input_manifest_sha256=(
+                compiler_input_manifest_sha256
+            ),
+            source_snapshot_sha256=expected_materialization_sha256,
+            expected_materialization_sha256=expected_materialization_sha256,
             fetchcontent_base_dir=fetchcontent_base_dir,
             masstree_source_root_sha256=masstree_source_root_sha256,
         )
@@ -1489,7 +1654,7 @@ def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
     """
     if not output.exists():
         return ()
-    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    ignored_prefixes, _ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
     entries = [
         entry for entry in _walk_entries(output)
         if not is_git_ignored_output_path(entry[1], ignored_prefixes)
@@ -1514,7 +1679,7 @@ def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
     """最適化版の独立 oracle として保持する ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
-    ignored_prefixes = git_ignored_output_prefixes(ROOT)
+    ignored_prefixes, _ignored_ancestors = git_ignored_output_snapshot_rules(ROOT)
     snapshot = []
     for path in sorted(output.rglob("*"), key=lambda item: item.as_posix()):
         rel = path.relative_to(output).as_posix()
@@ -1573,10 +1738,10 @@ def test_real_output_snapshot_detects_git_visible_real_output_changes(tmp_path):
 def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path):
     ignored_prefixes = git_ignored_output_prefixes(ROOT)
     assert "runs" in ignored_prefixes
-    ignored_parent = tmp_path / "runs"
-    ignored_parent.mkdir()
     before = _real_output_snapshot(tmp_path)
     before_reference = _real_output_snapshot_reference(tmp_path)
+    ignored_parent = tmp_path / "runs"
+    ignored_parent.mkdir()
     control = ignored_parent / "snapshot-ignored-floor"
     control.mkdir()
     (control / "nested").mkdir()
@@ -1586,6 +1751,17 @@ def test_real_output_snapshot_excludes_git_ignored_real_output_changes(tmp_path)
 
     assert _real_output_snapshot(tmp_path) == before
     assert _real_output_snapshot_reference(tmp_path) == before_reference
+
+    assert not is_git_ignored_output_path("runs-visible", ignored_prefixes)
+    visible_before = _real_output_snapshot(tmp_path)
+    visible_before_reference = _real_output_snapshot_reference(tmp_path)
+    visible = tmp_path / "runs-visible" / "nested"
+    visible.mkdir(parents=True)
+    (visible / "payload.bin").write_bytes(b"git-visible runs prefix control")
+    assert _real_output_snapshot(tmp_path) != visible_before, (
+        "rule-derived ignore prefix 'runs' must not hide Git-visible 'runs-visible'"
+    )
+    assert _real_output_snapshot_reference(tmp_path) != visible_before_reference
 
 
 def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
@@ -1851,6 +2027,10 @@ def _make_real_freeze_prepare(
         cell_id = f"{holdout_id}::{configuration}"
         assert cell_id in expected_cell_ids
         calls.append((cell_id, observed_ccbench_pin))
+        _FIXTURE_CELL_BY_TOKEN[cell_id] = cell_id
+        _FIXTURE_BUILD_DECLARATION_BY_TOKEN[cell_id] = (
+            observed_ccbench_pin, configuration, copy.deepcopy(entry),
+        )
         yield PreparedCell(
             genome=Genome("silo", dict(entry.get("flags", {}))),
             src_token=cell_id,
@@ -2469,6 +2649,24 @@ def test_real_floor_prepare_material_oracle_and_capability_series_when_configure
         binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
         expected_manifest = dict(kwargs["expected_toolchain_manifest"])
         base = Path(capability["fetchcontent_base_dir"])
+        compiler_input = Path(kwargs["ccbench_dir"]) / "CMakeLists.txt"
+        compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": f"ycsb_{genome.protocol}.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": "CMakeLists.txt",
+                "sha256": hashlib.sha256(
+                    compiler_input.read_bytes()
+                ).hexdigest(),
+            }],
+        }
+        expected_materialization_sha256 = (
+            _fixture_expected_materialization_sha256(
+                kwargs["expected_materialization_descriptor"].declaration
+            )
+        )
         return SimpleNamespace(
             genome=genome,
             trace=False,
@@ -2493,6 +2691,13 @@ def test_real_floor_prepare_material_oracle_and_capability_series_when_configure
                     expected_manifest
                 )
             ),
+            compiler_input_manifest=compiler_input_manifest,
+            compiler_input_manifest_sha256=hashlib.sha256(json.dumps(
+                compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")).hexdigest(),
+            source_snapshot_sha256=expected_materialization_sha256,
+            expected_materialization_sha256=expected_materialization_sha256,
             fetchcontent_base_dir=str(base),
             masstree_source_root_sha256=hashlib.sha256(
                 str(source).encode("utf-8")
@@ -5230,9 +5435,16 @@ def _deterministic_official_artifacts(base: Path) -> dict:
         configuration_id = cell["configuration"]
         cell_id = f"{holdout_id}::{configuration_id}"
         genome = Genome("silo", dict(entry.get("flags", {})))
-        ccbench_dir = str(base / "prepared trees Ω" / cell_id.replace("::", "__"))
+        ccbench = base / "prepared trees Ω" / cell_id.replace("::", "__")
+        compiler_input = ccbench / "include" / "fixture.hh"
+        compiler_input.parent.mkdir(parents=True)
+        compiler_input.write_bytes(f"compiler-input:{cell_id}\n".encode("utf-8"))
+        ccbench_dir = str(ccbench)
         token = _fixture_src_token(genome, ccbench_dir)
         _FIXTURE_CELL_BY_TOKEN[token] = cell_id
+        _FIXTURE_BUILD_DECLARATION_BY_TOKEN[token] = (
+            ccbench_pin, configuration_id, copy.deepcopy(entry),
+        )
         yield PreparedCell(
             genome=genome, src_token=token,
             ccbench_dir=ccbench_dir,
@@ -5241,6 +5453,27 @@ def _deterministic_official_artifacts(base: Path) -> dict:
                 fake_sort_swo_pass_attempt()
                 if configuration_id == "sort_best" else None
             ),
+        )
+
+    gate_state = {"digest": None}
+
+    def fixture_expected_materialization(**kwargs):
+        digest = _fixture_expected_materialization_sha256(
+            kwargs["declaration"]
+        )
+        gate_state["digest"] = digest
+        return digest
+
+    def fixture_exact_materialization(_root, expected):
+        assert expected == gate_state["digest"]
+        return expected
+
+    def fixture_protect_snapshot(root):
+        return (
+            s8b_floor_campaign._expected_materialization.
+            SnapshotPermissionState(
+                root=str(root), modes=(), tree_digest=gate_state["digest"],
+            )
         )
 
     with mock.patch.object(
@@ -5253,6 +5486,26 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             mock.patch.object(
                 s8b_floor_campaign.source_digest, "resolve_evidence",
                 _fixture_source_evidence,
+            ), \
+            mock.patch.object(
+                s8b_floor_campaign._expected_materialization,
+                "produce_expected_materialization_from_declaration",
+                fixture_expected_materialization,
+            ), \
+            mock.patch.object(
+                s8b_floor_campaign._expected_materialization,
+                "assert_expected_materialization",
+                fixture_exact_materialization,
+            ), \
+            mock.patch.object(
+                s8b_floor_campaign._expected_materialization,
+                "make_snapshot_non_writable",
+                fixture_protect_snapshot,
+            ), \
+            mock.patch.object(
+                s8b_floor_campaign._expected_materialization,
+                "restore_snapshot_permissions",
+                lambda _state: None,
             ), \
             mock.patch.object(
                 s8b_floor_campaign._perf_preflight, "probe_perf_availability",
@@ -6037,12 +6290,15 @@ def test_run_campaign_core_rejects_official_with_zero_side_effects(tmp_path):
 def test_materializer_registry_covers_all_python_build_launches():
     """Direct CMake は deny registry、buildcache caller は U1/U2 gateway 引数を必須化する。"""
     campaign_root = ROOT / "orchestrator/campaign"
-    direct_cmake: set[str] = set()
+    direct_cmake: set[str] = {
+        "orchestrator/campaign/s8b_expected_materialization.py:"
+        "produce_expected_materialization_sha256",
+    }
     missing_admission: list[str] = []
     seen_gateways: set[str] = set()
     admitted_gateways = {
         "orchestrator/campaign/pipeline.py:evaluate",
-        "orchestrator/campaign/s8b_floor_campaign.py:build_cells",
+        "orchestrator/campaign/s8b_floor_campaign.py:invoke_build",
     }
 
     def static_keyword_names(call, owner) -> set[str]:
@@ -6068,9 +6324,11 @@ def test_materializer_registry_covers_all_python_build_launches():
                 continue
             keys = bindings[0].keys
             if all(
-                    isinstance(key, ast.Constant) and isinstance(key.value, str)
+                    key is None
+                    or (isinstance(key, ast.Constant)
+                        and isinstance(key.value, str))
                     for key in keys):
-                names.update(key.value for key in keys)
+                names.update(key.value for key in keys if key is not None)
         return names
 
     for path in sorted(campaign_root.rglob("*.py")):
@@ -6113,7 +6371,7 @@ def test_materializer_registry_covers_all_python_build_launches():
             )
             is_floor_materializer_call = (
                 qualified == "build_fn"
-                and site == "orchestrator/campaign/s8b_floor_campaign.py:build_cells"
+                and site == "orchestrator/campaign/s8b_floor_campaign.py:invoke_build"
             )
             if not is_buildcache_call and not is_floor_materializer_call:
                 continue
@@ -10481,6 +10739,23 @@ def _honest_portable_built_record(
     ).encode("utf-8")).hexdigest()
     source_root = tmp_path / "portable-source"
     source_root.mkdir()
+    compiler_input = source_root / "include" / "fixture.hh"
+    compiler_input.parent.mkdir()
+    compiler_input.write_bytes(b"portable compiler input\n")
+    compiler_input_manifest = {
+        "schema_version": "s8b-compiler-input/v1",
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": "ycsb_fixture.exe",
+        "depfile_count": 1,
+        "inputs": [{
+            "path": "include/fixture.hh",
+            "sha256": hashlib.sha256(compiler_input.read_bytes()).hexdigest(),
+        }],
+    }
+    compiler_input_manifest_sha256 = hashlib.sha256(json.dumps(
+        compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
     source = SourceEvidence(
         schema_version="source-evidence/v1",
         source_root=str(source_root.resolve()), ccbench_commit="1" * 40,
@@ -10501,6 +10776,14 @@ def _honest_portable_built_record(
         cell_id="cell", holdout_id="holdout", configuration_id=configuration_id,
         binding=binding, binary=binary, binary_sha256=sha,
         contract_sha256="2" * 64, trace=False,
+        source_snapshot_sha256=hashlib.sha256(
+            b"portable-expected-materialization"
+        ).hexdigest(),
+        expected_materialization_sha256=hashlib.sha256(
+            b"portable-expected-materialization"
+        ).hexdigest(),
+        compiler_input_manifest=compiler_input_manifest,
+        compiler_input_manifest_sha256=compiler_input_manifest_sha256,
     )
     record = {
             "cell_id": "cell", "holdout_id": "holdout",

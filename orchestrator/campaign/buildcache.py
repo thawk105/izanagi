@@ -12,6 +12,7 @@ wrapper の実体だけを束縛すると背後の実 compiler 差替えを見�
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -21,11 +22,17 @@ import socket
 import stat
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
-from . import site_policy, sort_swo_dependency_material, source_digest
+from . import (
+    s8b_compiler_input,
+    s8b_expected_materialization,
+    site_policy,
+    sort_swo_dependency_material,
+    source_digest,
+)
 from .build_admission import (
     BuildAdmission,
     BuildRunContext,
@@ -666,6 +673,12 @@ class BuildResult:
     toolchain: Optional[Dict[str, Dict[str, str]]] = None
     toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None
     toolchain_manifest_sha256: Optional[str] = None
+    # v2 compiler-input proof。legacy build() は additive default None。
+    compiler_input_manifest: Optional[Dict[str, Any]] = None
+    compiler_input_manifest_sha256: Optional[str] = None
+    # Declaration gate output.  Descriptor-less callers retain None exactly.
+    source_snapshot_sha256: Optional[str] = None
+    expected_materialization_sha256: Optional[str] = None
     # floor sort_best 専用の runtime 診断。空の既定 caller は従来どおり。
     fetchcontent_base_dir: str = ""
     masstree_source_root_sha256: str = ""
@@ -1028,9 +1041,11 @@ def _assert_fetchcontent_fully_disconnected_effective(build_dir: str) -> None:
 def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
     """cache 入力と生成済み build system から masstree root を読む。
 
-    この形は CMake 3.25.0、CCBench pin
+    この cache / DependInfo の形は CMake 3.22.1 と 3.25.0、CCBench pin
     ``511c9538e4e8efa54b45cda62e72389ed3b706ec``、Unix Makefiles 生成器で
-    実測された。CCBench pin 更新時は生成物の形を再実測すること。
+    同一と実測された。base-only では空値の
+    ``FETCHCONTENT_SOURCE_DIR_MASSTREE`` 行が常に 1 行存在する。
+    CCBench pin 更新時は生成物の形を再実測すること。
     """
     cache = os.path.join(build_dir, "CMakeCache.txt")
     cache_keys = (
@@ -1068,7 +1083,8 @@ def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
         raise BuildCacheError(
             "CMakeCache.txt の FetchContent masstree 解決 key が一意でない"
         )
-    if matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"]:
+    if (matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"]
+            and matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"][0] != ""):
         selected_key = "FETCHCONTENT_SOURCE_DIR_MASSTREE"
         recorded = matches[selected_key][0]
         cache_root = recorded
@@ -1271,15 +1287,20 @@ def toolchain_compilers_from_manifest(
 def _v2_identity(
         genome: Genome, ccbench_commit: str, trace: bool, src_token: str,
         cc: str, cxx: str, toolchain: Dict[str, Dict[str, str]],
-        *, site: str, dependency_prefix: List[str],
+        *, source_snapshot_sha256: Optional[str] = None, site: str,
+        dependency_prefix: List[str],
         admission: Dict[str, Any],
         fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
         fetchcontent_archive_sha256: Optional[object] = None,
         fetchcontent_transport_mode: Optional[str] = None,
         fetchcontent_population_policy: Optional[str] = None,
         fetchcontent_dependency_manifest_sha256: Optional[object] = None,
+        compiler_input_policy: Optional[str] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
+    if (source_snapshot_sha256 is not None
+            and not is_full_sha256(source_snapshot_sha256)):
+        raise BuildCacheError("source snapshot sha256 が不正")
     toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
     preimage: Dict[str, Any] = {
         "genome_canonical": genome.canonical(),
@@ -1293,6 +1314,16 @@ def _v2_identity(
         "dependency_prefix": dependency_prefix,
         "admission": admission,
     }
+    if source_snapshot_sha256 is not None:
+        preimage["source_snapshot_sha256"] = source_snapshot_sha256
+    if compiler_input_policy is not None:
+        if compiler_input_policy != "snapshot-and-external-hashes/v1":
+            raise BuildCacheError("compiler input policy が不正")
+        if source_snapshot_sha256 is None:
+            raise BuildCacheError(
+                "compiler input policy は source snapshot と同時指定必須"
+            )
+        preimage["compiler_input_policy"] = compiler_input_policy
     receipt = _validate_fetchcontent_dependency_receipt(
         fetchcontent_dependency_receipt,
     )
@@ -1335,6 +1366,74 @@ def _v2_identity(
             "FetchContent dependency manifest sha256 は population policy と同時指定必須"
         )
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
+
+
+def _assert_source_snapshot_sha256(
+        snapshot_root: str, expected_sha256: str) -> None:
+    """Require one exact Unit-A tree digest without reinterpreting exclusions."""
+    if not is_full_sha256(expected_sha256):
+        raise BuildCacheError("source snapshot sha256 が不正")
+    try:
+        actual = s8b_expected_materialization.snapshot_tree_digest(
+            os.path.realpath(snapshot_root),
+        )
+    except s8b_expected_materialization.ExpectedMaterializationError as exc:
+        raise BuildCacheError(
+            f"source snapshot tree digest を検証できない: {exc}"
+        ) from exc
+    if actual != expected_sha256:
+        raise BuildCacheError(
+            "source snapshot tree digest が build request と不一致"
+        )
+
+
+def _collect_compiler_inputs(
+        build_dir: str, snapshot_root: str, *, target: str,
+        allow_external_inputs: bool,
+        expected_evolve_block_sources: Optional[Mapping[str, str]],
+) -> s8b_compiler_input.CompilerInputManifest:
+    """Call the production collector with the descriptor-bound policy.
+
+    Older unit fakes expose only the legacy ``target`` keyword.  They remain a
+    test seam when no EVOLVE-BLOCK source proof is expected; a real descriptor
+    source can never silently lose its independent bytes check.
+    """
+    collector = s8b_compiler_input.collect_compiler_input_manifest
+    kwargs: Dict[str, Any] = {"target": target}
+    try:
+        parameters = inspect.signature(collector).parameters
+    except (TypeError, ValueError):
+        parameters = {}
+    supports_policy = (
+        (
+            "allow_external_inputs" in parameters
+            and "expected_evolve_block_sources" in parameters
+        )
+        or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        )
+    )
+    if supports_policy:
+        kwargs.update({
+            "allow_external_inputs": allow_external_inputs,
+            "expected_evolve_block_sources": expected_evolve_block_sources,
+        })
+    elif expected_evolve_block_sources:
+        raise BuildCacheError(
+            "compiler input collector does not expose EVOLVE-BLOCK bytes proof"
+        )
+    result = collector(build_dir, snapshot_root, **kwargs)
+    if allow_external_inputs and not supports_policy:
+        if type(result) is not s8b_compiler_input.CompilerInputManifest:
+            return result
+        manifest = dict(result.manifest)
+        manifest["input_policy"] = "snapshot-and-external-hashes/v1"
+        return s8b_compiler_input.CompilerInputManifest(
+            manifest=manifest,
+            manifest_sha256=s8b_compiler_input.manifest_sha256(manifest),
+        )
+    return result
 
 
 def _fsync_dir(path: str) -> None:
@@ -1487,10 +1586,15 @@ def _validate_v2_entry(
         toolchain: Dict[str, Dict[str, str]], binary_relpath: str,
         contract_sha256: str, admission: Dict[str, Any],
         build_context: BuildRunContext, source_evidence: SourceEvidence,
+        source_snapshot_root: Optional[str] = None,
+        compiler_target: Optional[str] = None,
+        expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         complete_toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         complete_toolchain_manifest_sha256: Optional[str] = None,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
-) -> tuple[str, str, int, str]:
+) -> tuple[
+        str, str, int, str, Optional[Dict[str, Any]], Optional[str],
+]:
     """完成 entry の host metadata と binary を held fd beneath-only で検証する。
 
     cache contract は ``binary + host-generated metadata`` である。旧実装が発行した
@@ -1512,6 +1616,11 @@ def _validate_v2_entry(
             "schema_version", "completion_marker", "full_build_digest",
             "contract_sha256", "preimage", "toolchain", "binary", "admission",
         }
+        snapshot_bound = "source_snapshot_sha256" in preimage
+        if snapshot_bound:
+            expected_keys.update({
+                "compiler_input_manifest", "compiler_input_manifest_sha256",
+            })
         dependency_receipt = preimage.get("fetchcontent_dependency_receipt")
         dependency_archive_sha256 = preimage.get(
             "fetchcontent_archive_sha256"
@@ -1568,6 +1677,37 @@ def _validate_v2_entry(
         if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
                 preimage["toolchain_manifest_sha256"]:
             raise BuildCacheError(f"v2 toolchain manifest sha256 不一致: {manifest_path}")
+        compiler_input_manifest = None
+        compiler_input_manifest_sha256 = None
+        if snapshot_bound:
+            if source_snapshot_root is None or compiler_target is None:
+                raise BuildCacheError(
+                    f"v2 compiler input manifest の検証 context がない: {manifest_path}"
+                )
+            try:
+                compiler_input_manifest = (
+                    s8b_compiler_input.validate_compiler_input_manifest(
+                        manifest["compiler_input_manifest"],
+                        manifest["compiler_input_manifest_sha256"],
+                        snapshot_root=source_snapshot_root,
+                        target=compiler_target,
+                        expected_evolve_block_sources=(
+                            expected_evolve_block_sources
+                        ),
+                    )
+                )
+                if compiler_input_manifest.get("input_policy") != preimage.get(
+                        "compiler_input_policy"):
+                    raise s8b_compiler_input.CompilerInputError(
+                        "compiler input policy differs from cache preimage"
+                    )
+            except s8b_compiler_input.CompilerInputError as exc:
+                raise BuildCacheError(
+                    f"v2 compiler input manifest 検証失敗: {manifest_path}: {exc}"
+                ) from exc
+            compiler_input_manifest_sha256 = manifest[
+                "compiler_input_manifest_sha256"
+            ]
         if complete_toolchain_manifest is not None:
             if manifest.get("complete_toolchain_manifest") != complete_toolchain_manifest:
                 raise BuildCacheError(
@@ -1618,7 +1758,11 @@ def _validate_v2_entry(
             )
         result_fd = binary_fd
         binary_fd = -1
-        return binary, binary_record["sha256"], result_fd, source_root_sha256
+        return (
+            binary, binary_record["sha256"], result_fd,
+            source_root_sha256, compiler_input_manifest,
+            compiler_input_manifest_sha256,
+        )
     finally:
         try:
             _close_fds_best_effort([binary_fd, bdir_fd])
@@ -1861,6 +2005,8 @@ def _v2_result(
         masstree_source_root_sha256: str = "",
         toolchain_manifest: Optional[Dict[str, Dict[str, str]]] = None,
         toolchain_manifest_sha256: Optional[str] = None,
+        compiler_input_manifest: Optional[Dict[str, Any]] = None,
+        compiler_input_manifest_sha256: Optional[str] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
@@ -1882,6 +2028,8 @@ def _v2_result(
         toolchain=toolchain,
         toolchain_manifest=toolchain_manifest,
         toolchain_manifest_sha256=toolchain_manifest_sha256,
+        compiler_input_manifest=compiler_input_manifest,
+        compiler_input_manifest_sha256=compiler_input_manifest_sha256,
         fetchcontent_base_dir=fetchcontent_base_dir,
         masstree_source_root_sha256=masstree_source_root_sha256,
     )
@@ -1997,9 +2145,12 @@ def _release_v2_claim(claim: str, parent: str, *, parent_fd: int) -> None:
             os.close(claim_fd)
 
 
-def build_v2(
+def _build_v2_impl(
         genome: Genome, *, admission: BuildAdmission,
         build_context: BuildRunContext, source_evidence: SourceEvidence,
+        source_snapshot_sha256: Optional[str] = None,
+        allow_external_compiler_inputs: bool = False,
+        expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         contract: ExecutionEnvironmentContract,
         ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
@@ -2039,6 +2190,27 @@ def build_v2(
     ``official`` のときは expected の省略を build 前に拒否する。その他の caller では
     既定 ``None`` の受理集合と実行順を変えない。
 
+    ``source_snapshot_sha256`` が指定されたときは Unit A の snapshot tree digest として
+    build 前後で ``ccbench_dir`` の実体と exact 照合する。fresh build の成功直後、staging
+    を破棄する前に compiler-input manifest を採取し、completion へ本文と digest を保存
+    する。hit 側でも同じ validator を通す。未指定時は共有 API の従来 caller のため、
+    preimage と completion に field を足さず、manifest の採取・照合も行わない。
+
+    Declaration descriptor 経路は compiler-input policy を preimage に固定する。
+    snapshot 内 input は snapshot entry bytes と一致必須、snapshot 外 input は
+    absolute path と bytes hash を記録して snapshot 在籍を要求しない。選択された
+    EVOLVE-BLOCK source がある configuration では、build 前に捕えた snapshot entry
+    hash を build 後の source bytes と比較する。target dependency list への在籍だけを
+    保証にはしない。
+
+    この条件分岐は S8b の検査を外せる knob ではない。S8b 境界の receipt 発行器が
+    compiler-input manifest を無条件に要求するため、snapshot 無しの binary には receipt
+    を発行できない。共有 build 器が証拠を渡された場合に全検査する「条件付き検査」と、
+    S8b 境界から検査を外す「検査除去」は異なる。ただし正式 S8b 経路では admission
+    preimage が絶対 ``source_root`` を含み、materializer が毎回一意な worktree を作る
+    ため cache hit は起きない。hit validator は proof 付き completion に proof が無ければ
+    必ず拒否するために置く。
+
     ``post_oracle_dependency_binding`` の存在だけが post-oracle capability である。
     指定時は oracle receipt の manifest authority と HEAD/config/archive を configure
     前後で再照合し、configure の実効 disconnected 値を build 前に要求する。既存の
@@ -2066,6 +2238,21 @@ def build_v2(
     src_token = source_evidence.src_token
     if not isinstance(contract, ExecutionEnvironmentContract):
         raise TypeError("contract は ExecutionEnvironmentContract の必須引数 (None/fallback 不可)")
+    if (source_snapshot_sha256 is not None
+            and not is_full_sha256(source_snapshot_sha256)):
+        raise BuildCacheError(
+            "source_snapshot_sha256 は None または exact lowercase SHA-256"
+        )
+    if type(allow_external_compiler_inputs) is not bool:
+        raise TypeError("allow_external_compiler_inputs は exact bool が必要")
+    if allow_external_compiler_inputs and source_snapshot_sha256 is None:
+        raise BuildCacheError(
+            "external compiler input policy は source snapshot と同時指定必須"
+        )
+    if expected_evolve_block_sources is not None:
+        if not isinstance(expected_evolve_block_sources, Mapping):
+            raise TypeError("expected_evolve_block_sources は Mapping が必要")
+        expected_evolve_block_sources = dict(expected_evolve_block_sources)
     if type(trace) is not bool:
         raise TypeError(f"trace は bool でなければならない: {trace!r}")
     if declared_use_class == "official" and expected_toolchain_manifest is None:
@@ -2179,6 +2366,8 @@ def build_v2(
         )
     sub = ccbench_dir or _ccbench_dir()
     _validate_request_evidence(genome, ccbench_commit, sub, source_evidence)
+    if source_snapshot_sha256 is not None:
+        _assert_source_snapshot_sha256(sub, source_snapshot_sha256)
     _verify_ccbench_commit(sub, ccbench_commit)
     source_digest.assert_worktree_within_allowlist(sub)
     toolchain = _toolchain_manifest(cc, cxx)
@@ -2212,6 +2401,7 @@ def build_v2(
         ).hexdigest()
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
+        source_snapshot_sha256=source_snapshot_sha256,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
         fetchcontent_dependency_receipt=dependency_receipt,
@@ -2224,6 +2414,10 @@ def build_v2(
         fetchcontent_dependency_manifest_sha256=(
             post_oracle_binding["dependency_manifest_sha256"]
             if post_oracle_binding is not None else None
+        ),
+        compiler_input_policy=(
+            "snapshot-and-external-hashes/v1"
+            if allow_external_compiler_inputs else None
         ),
     )
     parent = os.path.join(root, "contracts", contract_sha256)
@@ -2242,11 +2436,24 @@ def build_v2(
                 f"v2 build claim が既に存在する: {claim} — build 中または stale; 手動回収が必要"
             )
         if _entry_lexists_at(parent_fd, bdir_name):
-            binary, bin_sha256, binary_fd, masstree_source_root_sha256 = _validate_v2_entry(
+            (
+                binary, bin_sha256, binary_fd,
+                masstree_source_root_sha256,
+                compiler_input_manifest,
+                compiler_input_manifest_sha256,
+            ) = _validate_v2_entry(
                 bdir, preimage=preimage, digest=digest, toolchain=toolchain,
                 binary_relpath=binary_relpath, contract_sha256=contract_sha256,
                 admission=admission_identity,
                 build_context=build_context, source_evidence=source_evidence,
+                source_snapshot_root=(
+                    sub if source_snapshot_sha256 is not None else None
+                ),
+                compiler_target=(
+                    f"ycsb_{genome.protocol}.exe"
+                    if source_snapshot_sha256 is not None else None
+                ),
+                expected_evolve_block_sources=expected_evolve_block_sources,
                 complete_toolchain_manifest=complete_toolchain_manifest,
                 complete_toolchain_manifest_sha256=complete_toolchain_manifest_sha256,
                 parent_fd=parent_fd, bdir_name=bdir_name,
@@ -2277,6 +2484,10 @@ def build_v2(
                         raise BuildCacheError(
                             "FetchContent dependency archive が cache hit 中に変化した"
                         )
+                if source_snapshot_sha256 is not None:
+                    _assert_source_snapshot_sha256(
+                        sub, source_snapshot_sha256,
+                    )
             finally:
                 os.close(binary_fd)
             return _v2_result(
@@ -2288,6 +2499,7 @@ def build_v2(
                 source_dirs.get("googletest") if source_dirs else None,
                 masstree_source_root_sha256,
                 complete_toolchain_manifest, complete_toolchain_manifest_sha256,
+                compiler_input_manifest, compiler_input_manifest_sha256,
                 post_oracle_binding,
             )
 
@@ -2359,6 +2571,53 @@ def build_v2(
             except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
                 raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
 
+            compiler_input_manifest = None
+            compiler_input_manifest_sha256 = None
+            if source_snapshot_sha256 is not None:
+                # .o.d は staging 破棄後に失われる。build 成功と同じ lifetime 内で
+                # strict metadata を採り、snapshot bytes へ束縛する。
+                try:
+                    compiler_inputs = _collect_compiler_inputs(
+                        staging, sub,
+                        target=f"ycsb_{genome.protocol}.exe",
+                        allow_external_inputs=allow_external_compiler_inputs,
+                        expected_evolve_block_sources=(
+                            expected_evolve_block_sources
+                        ),
+                    )
+                    if type(compiler_inputs) is not (
+                            s8b_compiler_input.CompilerInputManifest):
+                        raise s8b_compiler_input.CompilerInputError(
+                            "compiler input collector returned an invalid value"
+                        )
+                    compiler_input_manifest = (
+                        s8b_compiler_input.validate_compiler_input_manifest(
+                            compiler_inputs.manifest,
+                            compiler_inputs.manifest_sha256,
+                            snapshot_root=sub,
+                            target=f"ycsb_{genome.protocol}.exe",
+                            expected_evolve_block_sources=(
+                                expected_evolve_block_sources
+                            ),
+                        )
+                    )
+                    if compiler_input_manifest.get(
+                            "input_policy") != preimage.get(
+                                "compiler_input_policy"):
+                        raise s8b_compiler_input.CompilerInputError(
+                            "compiler input policy differs from cache preimage"
+                        )
+                except s8b_compiler_input.CompilerInputError as exc:
+                    raise BuildCacheError(
+                        f"v2 compiler input manifest 採取失敗: {exc}"
+                    ) from exc
+                compiler_input_manifest_sha256 = (
+                    compiler_inputs.manifest_sha256
+                )
+                _assert_source_snapshot_sha256(
+                    sub, source_snapshot_sha256,
+                )
+
             if post_oracle_binding is not None:
                 _assert_post_oracle_dependency_material(post_oracle_binding)
 
@@ -2428,6 +2687,11 @@ def build_v2(
                 "toolchain": toolchain,
                 "binary": {"relative_path": binary_relpath, "sha256": bin_sha256},
             }
+            if source_snapshot_sha256 is not None:
+                completion["compiler_input_manifest"] = compiler_input_manifest
+                completion["compiler_input_manifest_sha256"] = (
+                    compiler_input_manifest_sha256
+                )
             if complete_toolchain_manifest is not None:
                 completion["complete_toolchain_manifest"] = complete_toolchain_manifest
                 completion["complete_toolchain_manifest_sha256"] = (
@@ -2489,10 +2753,167 @@ def build_v2(
             source_dirs.get("googletest") if source_dirs else None,
             masstree_source_root_sha256,
             complete_toolchain_manifest, complete_toolchain_manifest_sha256,
+            compiler_input_manifest, compiler_input_manifest_sha256,
             post_oracle_binding,
         )
     finally:
         os.close(parent_fd)
+
+
+def build_v2(
+        genome: Genome, *, admission: BuildAdmission,
+        build_context: BuildRunContext, source_evidence: SourceEvidence,
+        source_snapshot_sha256: Optional[str] = None,
+        expected_materialization_descriptor: Optional[
+            s8b_expected_materialization.ExpectedMaterializationDescriptor
+        ] = None,
+        contract: ExecutionEnvironmentContract,
+        ccbench_commit: str, trace: bool, src_token: Optional[str] = None,
+        cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
+        timeout_s: Optional[int] = None, site: Optional[str] = None,
+        dependency_prefix: str = "",
+        expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
+        declared_use_class: Optional[str] = None,
+        fetchcontent_base_dir: str = "",
+        masstree_source_dir: Optional[object] = None,
+        mimalloc_source_dir: Optional[object] = None,
+        googletest_source_dir: Optional[object] = None,
+        fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
+        fetchcontent_archive_sha256: Optional[object] = None,
+        post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
+) -> BuildResult:
+    """Build through the declaration gate only at the real compiler boundary.
+
+    When ``expected_materialization_descriptor`` is present, this function
+    performs, in fixed order, declaration replay, exact tree comparison,
+    non-writable protection, evidence rederivation from that protected
+    snapshot, and exact equality with ``source_evidence``.  Only then does it
+    enter the existing snapshot-bound cache/build path.  Protection remains in
+    force until that path returns or raises.
+
+    The descriptor is optional so generic ``build_v2`` callers keep the exact
+    pre-existing behavior and cache schema.  This is not an S8b bypass: the
+    binary-admission receipt issuer unconditionally requires both a compiler
+    input manifest and an expected-materialization digest.  A floor/oracle
+    binary built without this descriptor therefore cannot receive an S8b
+    receipt.  The correctness gate is unconditional at the receipt boundary.
+
+    ``source_snapshot_sha256`` remains the Unit-B compatibility input.  It can
+    bind compiler-input collection for non-S8b callers, but it supplies no
+    expected-materialization digest and therefore cannot substitute for the
+    declaration descriptor at the receipt boundary.
+    """
+    common = {
+        "admission": admission,
+        "build_context": build_context,
+        "source_evidence": source_evidence,
+        "contract": contract,
+        "ccbench_commit": ccbench_commit,
+        "trace": trace,
+        "src_token": src_token,
+        "cc": cc,
+        "cxx": cxx,
+        "cache_root": cache_root,
+        "ccbench_dir": ccbench_dir,
+        "timeout_s": timeout_s,
+        "site": site,
+        "dependency_prefix": dependency_prefix,
+        "expected_toolchain_manifest": expected_toolchain_manifest,
+        "declared_use_class": declared_use_class,
+        "fetchcontent_base_dir": fetchcontent_base_dir,
+        "masstree_source_dir": masstree_source_dir,
+        "mimalloc_source_dir": mimalloc_source_dir,
+        "googletest_source_dir": googletest_source_dir,
+        "fetchcontent_dependency_receipt": fetchcontent_dependency_receipt,
+        "fetchcontent_archive_sha256": fetchcontent_archive_sha256,
+        "post_oracle_dependency_binding": post_oracle_dependency_binding,
+    }
+    if expected_materialization_descriptor is None:
+        return _build_v2_impl(
+            genome,
+            source_snapshot_sha256=source_snapshot_sha256,
+            **common,
+        )
+    if type(expected_materialization_descriptor) is not (
+            s8b_expected_materialization.ExpectedMaterializationDescriptor):
+        raise TypeError(
+            "expected_materialization_descriptor は declaration factory "
+            "由来の exact value が必要"
+        )
+    if source_snapshot_sha256 is not None:
+        raise BuildCacheError(
+            "declaration descriptor と caller-supplied source snapshot SHA "
+            "は同時指定できない"
+        )
+    if type(source_evidence) is not SourceEvidence:
+        raise TypeError("source_evidence は resolve_evidence() 由来の exact value が必要")
+    if type(admission) is not BuildAdmission:
+        raise TypeError("admission は derive_build_admission() 由来の exact value が必要")
+    descriptor = expected_materialization_descriptor
+    declaration = descriptor.declaration
+    if descriptor.ccbench_commit != ccbench_commit:
+        raise BuildCacheError(
+            "declaration descriptor の CCBench pin が build request と不一致"
+        )
+    try:
+        expected_patch = (
+            s8b_expected_materialization.template_patch_path_from_declaration(
+                configuration=descriptor.configuration,
+                declaration=declaration,
+            )
+        )
+    except s8b_expected_materialization.ExpectedMaterializationError as exc:
+        raise BuildCacheError(
+            f"declaration descriptor を検証できない: {exc}"
+        ) from exc
+    if descriptor.template_patch_path != expected_patch:
+        raise BuildCacheError(
+            "declaration descriptor の template patch path が宣言と不一致"
+        )
+    if admission.as_cache_identity().get("input_sha256") != (
+            descriptor.declaration_sha256):
+        raise BuildCacheError(
+            "declaration descriptor の freeze entry が build admission と不一致"
+        )
+
+    sub = ccbench_dir or _ccbench_dir()
+    try:
+        with s8b_expected_materialization.admitted_build_snapshot(
+                ccbench_commit=descriptor.ccbench_commit,
+                configuration=descriptor.configuration,
+                declaration=declaration,
+                snapshot_root=sub,
+                genome=genome,
+                prepared_src_token=source_evidence.src_token,
+                cxx=cxx,
+        ) as admitted:
+            if admitted.source_evidence != source_evidence:
+                raise BuildCacheError(
+                    "non-writable snapshot から再導出した SourceEvidence が "
+                    "build request と不一致"
+                )
+            result = _build_v2_impl(
+                genome,
+                source_snapshot_sha256=admitted.source_snapshot_sha256,
+                allow_external_compiler_inputs=True,
+                expected_evolve_block_sources=(
+                    dict(admitted.evolve_block_sources)
+                    if admitted.evolve_block_sources else None
+                ),
+                **common,
+            )
+            return replace(
+                result,
+                source_snapshot_sha256=admitted.source_snapshot_sha256,
+                expected_materialization_sha256=(
+                    admitted.expected_materialization_sha256
+                ),
+            )
+    except s8b_expected_materialization.ExpectedMaterializationError as exc:
+        raise BuildCacheError(
+            "S8b build source snapshot を宣言へ束縛できない: "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,

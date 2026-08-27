@@ -2024,6 +2024,37 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
             repo.main / "tools",
         )
         (repo.main / "tools" / "run_tests.py").write_text(
+            "import hashlib\n"
+            "import json\n"
+            "import os\n"
+            "from pathlib import Path\n"
+            "\n"
+            "binding_k = int(os.environ['IZANAGI_ACCEPTANCE_SHARDS'])\n"
+            "binding_source = Path(__file__).read_bytes()\n"
+            "binding_report = {\n"
+            "    'schema_version': 'dev-wave-runner-binding-report/v1',\n"
+            "    'tested_main': os.environ[\n"
+            "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN'\n"
+            "    ],\n"
+            "    'nonce': os.environ[\n"
+            "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE'\n"
+            "    ],\n"
+            "    'runner_executed_sha256': hashlib.sha256(\n"
+            "        binding_source\n"
+            "    ).hexdigest(),\n"
+            "    'shard_count': binding_k,\n"
+            "    'shard_index': 0,\n"
+            "}\n"
+            "binding_line = (json.dumps(\n"
+            "    binding_report,\n"
+            "    ensure_ascii=True,\n"
+            "    sort_keys=True,\n"
+            "    separators=(',', ':'),\n"
+            ") + '\\n').encode('ascii')\n"
+            "os.write(\n"
+            "    int(os.environ['IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD']),\n"
+            "    binding_line,\n"
+            ")\n"
             "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
             "{\"effective_scheduler\":\"serial\"}')\n"
             "raise SystemExit(0)\n",
@@ -2059,6 +2090,7 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         env.pop("IZANAGI_TASK_RUN_ID", None)
         env.pop("IZANAGI_TASK_RUNS_ROOT", None)
         env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env["IZANAGI_ACCEPTANCE_SHARDS"] = "1"
 
         waiter = subprocess.run(
             [
@@ -2109,6 +2141,37 @@ def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         (repo.main / "tools" / "run_tests.py").write_text(
+            "import hashlib\n"
+            "import json\n"
+            "import os\n"
+            "from pathlib import Path\n"
+            "\n"
+            "binding_k = int(os.environ['IZANAGI_ACCEPTANCE_SHARDS'])\n"
+            "binding_source = Path(__file__).read_bytes()\n"
+            "binding_report = {\n"
+            "    'schema_version': 'dev-wave-runner-binding-report/v1',\n"
+            "    'tested_main': os.environ[\n"
+            "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN'\n"
+            "    ],\n"
+            "    'nonce': os.environ[\n"
+            "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE'\n"
+            "    ],\n"
+            "    'runner_executed_sha256': hashlib.sha256(\n"
+            "        binding_source\n"
+            "    ).hexdigest(),\n"
+            "    'shard_count': binding_k,\n"
+            "    'shard_index': 0,\n"
+            "}\n"
+            "binding_line = (json.dumps(\n"
+            "    binding_report,\n"
+            "    ensure_ascii=True,\n"
+            "    sort_keys=True,\n"
+            "    separators=(',', ':'),\n"
+            ") + '\\n').encode('ascii')\n"
+            "os.write(\n"
+            "    int(os.environ['IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD']),\n"
+            "    binding_line,\n"
+            ")\n"
             "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
             "{\"effective_scheduler\":\"serial\"}')\n"
             "raise SystemExit(0)\n",
@@ -2151,6 +2214,7 @@ def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
         ):
             env.pop(name, None)
         env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env["IZANAGI_ACCEPTANCE_SHARDS"] = "1"
 
         waiter = subprocess.run(
             [
@@ -8947,13 +9011,14 @@ def test_fold_gate_real_argv_environment_create_junit_in_gitless_tree() -> None:
     assert "PYTHONOPTIMIZE" not in child_env
     assert child_env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
 
-    counts = LAND._execute_fold_gate(
-        Repository(),
-        Plan(),
-        selection,
-        tip,
-        LAND._fold_gate_budgets(),
-    )
+    with _patched_land_attr("_registered_worktree_paths", lambda _repo: (ROOT,)):
+        counts = LAND._execute_fold_gate(
+            Repository(),
+            Plan(),
+            selection,
+            tip,
+            LAND._fold_gate_budgets(),
+        )
 
     assert counts == LAND._FoldGateJUnitCounts(1, 1, 0, 0, 0)
 

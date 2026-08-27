@@ -1,0 +1,75 @@
+{
+ "schema": "izanagi-axis1-search-evidence/v1",
+ "query_id": "AX1-Q1@arxiv",
+ "pass_number": 2,
+ "window_number": 1,
+ "request": [
+  "https://export.arxiv.org/api/query?search_query=%28abs%3A%22concurrency+control%22+OR+abs%3A%22transaction+processing%22+OR+abs%3A%22serializability%22+OR+abs%3A%22isolation+level%22+OR+abs%3A%22two-phase+locking%22+OR+abs%3A%22optimistic+concurrency+control%22+OR+abs%3A%22multi-version+concurrency+control%22+OR+abs%3A%22snapshot+isolation%22+OR+abs%3A%22transactional+memory%22+OR+abs%3A%22lock+manager%22+OR+abs%3A%22conflict+detection%22+OR+abs%3A%22OLTP%22%29+AND+%28abs%3A%22program+synthesis%22+OR+abs%3A%22automatic+generation%22+OR+abs%3A%22code+generation%22+OR+abs%3A%22evolutionary+search%22+OR+abs%3A%22genetic+programming%22+OR+abs%3A%22large+language+model%22+OR+abs%3A%22LLM+agent%22+OR+abs%3A%22reinforcement+learning%22+OR+abs%3A%22learned%22+OR+abs%3A%22auto-tuning%22+OR+abs%3A%22compiler+injection%22+OR+abs%3A%22superoptimization%22%29+AND+%28abs%3A%22protocol%22+OR+abs%3A%22algorithm%22+OR+abs%3A%22policy%22+OR+abs%3A%22source+code%22+OR+abs%3A%22implementation%22+OR+abs%3A%22intermediate+representation%22+OR+abs%3A%22action+space%22+OR+abs%3A%22design+space%22+OR+abs%3A%22variant%22%29+AND+submittedDate%3A%5B199101010000+TO+202612312359%5D&start=0&max_results=200"
+ ],
+ "normalized_request": {
+  "endpoint": "https://export.arxiv.org/api/query",
+  "search_field": "abs (per-term prefix) + submittedDate",
+  "filter_body": "(abs:\"concurrency control\" OR abs:\"transaction processing\" OR abs:\"serializability\" OR abs:\"isolation level\" OR abs:\"two-phase locking\" OR abs:\"optimistic concurrency control\" OR abs:\"multi-version concurrency control\" OR abs:\"snapshot isolation\" OR abs:\"transactional memory\" OR abs:\"lock manager\" OR abs:\"conflict detection\" OR abs:\"OLTP\") AND (abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND submittedDate:[199101010000 TO 202612312359]",
+  "sort": "index default (no sort parameter sent)",
+  "page_size": 200,
+  "position_transition": "start += max_results, from 0, until start >= totalResults",
+  "field_projection": "full Atom entry (no projection parameter exists)"
+ },
+ "interpreted_query": [
+  "arXiv Query: search_query=(abs:\"concurrency control\" OR abs:\"transaction processing\" OR abs:\"serializability\" OR abs:\"isolation level\" OR abs:\"two-phase locking\" OR abs:\"optimistic concurrency control\" OR abs:\"multi-version concurrency control\" OR abs:\"snapshot isolation\" OR abs:\"transactional memory\" OR abs:\"lock manager\" OR abs:\"conflict detection\" OR abs:\"OLTP\") AND (abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND submittedDate:\"199101010000 TO 202612312359\"&id_list=&start=0&max_results=200"
+ ],
+ "expected_interpreted_query": "arXiv Query: search_query=(abs:\"concurrency control\" OR abs:\"transaction processing\" OR abs:\"serializability\" OR abs:\"isolation level\" OR abs:\"two-phase locking\" OR abs:\"optimistic concurrency control\" OR abs:\"multi-version concurrency control\" OR abs:\"snapshot isolation\" OR abs:\"transactional memory\" OR abs:\"lock manager\" OR abs:\"conflict detection\" OR abs:\"OLTP\") AND (abs:\"program synthesis\" OR abs:\"automatic generation\" OR abs:\"code generation\" OR abs:\"evolutionary search\" OR abs:\"genetic programming\" OR abs:\"large language model\" OR abs:\"LLM agent\" OR abs:\"reinforcement learning\" OR abs:\"learned\" OR abs:\"auto-tuning\" OR abs:\"compiler injection\" OR abs:\"superoptimization\") AND (abs:\"protocol\" OR abs:\"algorithm\" OR abs:\"policy\" OR abs:\"source code\" OR abs:\"implementation\" OR abs:\"intermediate representation\" OR abs:\"action space\" OR abs:\"design space\" OR abs:\"variant\") AND submittedDate:\"199101010000 TO 202612312359\"&id_list=&start=0&max_results=200",
+ "retrieved_at": {
+  "start": {
+   "utc": "2026-08-27T01:51:47.335966+00:00",
+   "jst": "2026-08-27T10:51:47.335966+09:00"
+  },
+  "end": {
+   "utc": "2026-08-27T01:51:47.372259+00:00",
+   "jst": "2026-08-27T10:51:47.372259+09:00"
+  }
+ },
+ "api_identification": {
+  "endpoint": "https://export.arxiv.org/api/query",
+  "version": null,
+  "note": "3 索引とも API の版番号を返さない。応答に実在した必須 field 名で代用する",
+  "required_fields_present": [
+   "opensearch:totalResults",
+   "opensearch:itemsPerPage",
+   "opensearch:startIndex",
+   "feed>title"
+  ]
+ },
+ "declared_total": 64,
+ "declared_total_per_page": [
+  64
+ ],
+ "declared_total_stable": true,
+ "pages": {
+  "count": 1,
+  "file": "queries/AX1-Q1_at_arxiv.pass2.pages.json.gz"
+ },
+ "returned_record_count": 64,
+ "retrieved_unique": 64,
+ "primary_key_digest": "39376a898881378b12024b5343c021acacabc12667b7ae39ec0bd36b0f54be5f",
+ "second_pass_digest": "39376a898881378b12024b5343c021acacabc12667b7ae39ec0bd36b0f54be5f",
+ "second_pass_note": "契約 §7.1 の 2 走一致は複数窓にまたがった枝への要求である。本枝は 1 走が中断なく完了しているため必須ではない。値がある場合は追加証拠である",
+ "completion": {
+  "1_interpreted_query_match": true,
+  "2_page_continuity": true,
+  "3_declared_vs_actual": false,
+  "4_primary_key_unique": true,
+  "5_unique_equals_total": true,
+  "6_normal_termination": true,
+  "complete": false
+ },
+ "duplicate_primary_key_count": 0,
+ "failure": [],
+ "records": {
+  "file": "queries/AX1-Q1_at_arxiv.pass2.records.jsonl.gz",
+  "line_count": 64
+ },
+ "classification_executed": false,
+ "classification_basis": null,
+ "classification_note": "本走行は record ごとの `検出` / `近傍` / `除外` / `要裁定` の個別判定を 1 件も行っていない。record 行に判定欄は無い。取得状態を判定済み件数へ変換してはならない"
+}

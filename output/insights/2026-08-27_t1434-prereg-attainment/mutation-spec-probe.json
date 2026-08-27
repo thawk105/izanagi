@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/acceptance_duration_ledger.json",
+          "old": "    \"orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding@real-repo\": 0.19,\n",
+          "new": "    \"orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding\": 0.19,\n    \"orchestrator/tests/test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding@real-repo\": 0.19,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/acceptance_duration_ledger.json",
+          "old": "test_real_patchharness_checkout_and_resolver_use_explicit_binding@real-repo\": 0.19,\n",
+          "new": "test_real_patchharness_checkout_and_resolver_use_explicit_binding@real-repo\": 0.37,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/acceptance_duration_ledger.json",
+          "old": "  \"nodeid_count\": 17730,\n",
+          "new": "  \"nodeid_count\": 17729,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

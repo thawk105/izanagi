@@ -43,6 +43,10 @@ _ALLOWED_EVENT_TYPES = frozenset({
 })
 _ALLOWED_ITEM_TYPES = frozenset({"reasoning", "agent_message"})
 
+# Codex CLI stdout のうち worker metering が correctness 証拠として消費する
+# event type。stdout 専用 parser と worker consumer は必ずこの同じ集合を参照する。
+STDOUT_CONSUMED_EVENT_TYPES = frozenset({"thread.started", "turn.completed"})
+
 
 class EventValidationError(ValueError):
     """runtime evidence が成功条件を満たさない。"""
@@ -83,6 +87,21 @@ class ValidatedEventStream:
     envelope: Mapping[str, Any]
     events: tuple[Mapping[str, Any], ...]
     event_digest: str
+
+
+@dataclass(frozen=True)
+class ParsedJsonlWithIssues:
+    """stdout 専用入口が返す非 issue event と許容済み物理行番号。"""
+
+    events: tuple[Mapping[str, Any], ...]
+    duplicate_key_lines: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class _ObjectPairs:
+    """重複と上書き前の値を失わない JSON object の中間表現。"""
+
+    pairs: tuple[tuple[str, Any], ...]
 
 
 def canonical_json(value: Any) -> str:
@@ -206,6 +225,10 @@ def _pairs_without_duplicates(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any
     return value
 
 
+def _preserve_object_pairs(pairs: Iterable[tuple[str, Any]]) -> _ObjectPairs:
+    return _ObjectPairs(tuple(pairs))
+
+
 def _reject_constant(value: str) -> None:
     raise EventValidationError(f"JSONの非有限数は禁止: {value}")
 
@@ -270,6 +293,83 @@ def _validate_json_domain(value: Any, *, label: str) -> None:
         )
 
 
+def _validate_preserved_json_domain(value: Any, *, label: str) -> None:
+    """上書き前の全 object pair を既存 JSON domain と同じ条件で検査する。"""
+
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    while stack:
+        item, depth = stack.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise EventValidationError(
+                f"{label} のnestingが上限を超過 (max={MAX_JSON_DEPTH})"
+            )
+        if item is None or isinstance(item, bool):
+            continue
+        if isinstance(item, str):
+            try:
+                item.encode("utf-8", errors="strict")
+            except UnicodeEncodeError as exc:
+                raise EventValidationError(
+                    f"{label} にUTF-8化できない文字列がある"
+                ) from exc
+            if unicodedata.normalize("NFC", item) != item:
+                raise EventValidationError(f"{label} の文字列がUnicode NFCでない")
+            continue
+        if isinstance(item, int):
+            continue
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                raise EventValidationError(f"{label} の非有限数は禁止")
+            continue
+        if isinstance(item, list):
+            stack.extend((child, depth + 1) for child in item)
+            continue
+        if isinstance(item, _ObjectPairs):
+            for key, child in item.pairs:
+                if not isinstance(key, str):
+                    raise EventValidationError(f"{label} のobject keyが文字列でない")
+                try:
+                    key.encode("utf-8", errors="strict")
+                except UnicodeEncodeError as exc:
+                    raise EventValidationError(
+                        f"{label} にUTF-8化できないobject keyがある"
+                    ) from exc
+                if unicodedata.normalize("NFC", key) != key:
+                    raise EventValidationError(
+                        f"{label} のobject keyがUnicode NFCでない"
+                    )
+                stack.append((child, depth + 1))
+            continue
+        raise EventValidationError(
+            f"{label} にJSON domain外の型がある: {type(item).__name__}"
+        )
+
+
+def _normalize_preserved_json(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_normalize_preserved_json(item) for item in value]
+    if isinstance(value, _ObjectPairs):
+        normalized: dict[str, Any] = {}
+        for key, item in value.pairs:
+            normalized[key] = _normalize_preserved_json(item)
+        return normalized
+    return value
+
+
+def _object_has_duplicate_key(value: Any) -> bool:
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, list):
+            stack.extend(item)
+        elif isinstance(item, _ObjectPairs):
+            keys = [key for key, _child in item.pairs]
+            if len(keys) != len(set(keys)):
+                return True
+            stack.extend(child for _key, child in item.pairs)
+    return False
+
+
 def strict_json_loads(text: str, *, label: str,
                       max_bytes: int = MAX_RESULT_JSON_BYTES) -> Any:
     """duplicate key/BOM/NUL/CR/non-NFC/非有限数を拒否するJSON parser。"""
@@ -330,6 +430,84 @@ def parse_jsonl(raw: bytes | str, *, max_bytes: int = MAX_JSONL_BYTES,
     if not events:
         raise EventValidationError("JSONL に event object がない")
     return tuple(events)
+
+
+def parse_jsonl_allowing_duplicate_keys(
+    raw: bytes | str,
+    *,
+    max_bytes: int = MAX_JSONL_BYTES,
+    max_line_bytes: int = MAX_JSONL_LINE_BYTES,
+) -> ParsedJsonlWithIssues:
+    """Codex CLI stdout の安全な nested duplicate だけを issue として除外する。
+
+    厳格入口は変更せず、この名前を明示した caller だけが opt-in する。重複行は
+    correctness 証拠へ一切渡さず、その物理行番号だけを返す。
+    """
+
+    text, _ = _decode_jsonl(raw, max_bytes=max_bytes)
+    events: list[Mapping[str, Any]] = []
+    duplicate_key_lines: list[int] = []
+    for lineno, line in enumerate(text.split("\n"), 1):
+        if not line.strip():
+            continue
+        if len(line.encode("utf-8")) > max_line_bytes:
+            raise EventValidationError(f"JSONL:{lineno}: 1行の上限を超過")
+        label = f"JSONL:{lineno}"
+        try:
+            preserved = json.loads(
+                line,
+                object_pairs_hook=_preserve_object_pairs,
+                parse_constant=_reject_constant,
+                parse_float=_parse_finite_float,
+            )
+        except EventValidationError:
+            raise
+        except (
+            json.JSONDecodeError,
+            ValueError,
+            OverflowError,
+            RecursionError,
+        ) as exc:
+            raise EventValidationError(f"{label} のJSON parse失敗: {exc}") from exc
+
+        # T3: last-wins で失われる値を含む元 tree 全体を先に検査する。
+        _validate_preserved_json_domain(preserved, label=label)
+        if not isinstance(preserved, _ObjectPairs):
+            raise EventValidationError(
+                f"{label}: event は object でなければならない"
+            )
+        has_duplicate = _object_has_duplicate_key(preserved)
+        if not has_duplicate:
+            event = _normalize_preserved_json(preserved)
+            if not isinstance(event, dict):  # pragma: no cover - 上の型検査に従う
+                raise EventValidationError(
+                    f"{label}: event は object でなければならない"
+                )
+            events.append(event)
+            continue
+
+        top_keys = [key for key, _item in preserved.pairs]
+        # T1: top-level duplicate は semantic projection を曖昧にするため拒否する。
+        if len(top_keys) != len(set(top_keys)):
+            raise EventValidationError(f"{label}: top-level JSON key が重複")
+        event = _normalize_preserved_json(preserved)
+        # T2: worker が読む event は issue-bearing 行から証拠を採らない。
+        event_type = event.get("type")
+        if (
+            isinstance(event_type, str)
+            and event_type in STDOUT_CONSUMED_EVENT_TYPES
+        ):
+            raise EventValidationError(
+                f"{label}: 消費対象 event の nested JSON key が重複"
+            )
+        # T4 は decode、行長、parse、domain、object 検査を全て通過したこの位置で
+        # 初めて成立する。許容行は events へ加えず、評価から完全に除外する。
+        duplicate_key_lines.append(lineno)
+    if not events and not duplicate_key_lines:
+        raise EventValidationError("JSONL に event object がない")
+    return ParsedJsonlWithIssues(
+        events=tuple(events), duplicate_key_lines=tuple(duplicate_key_lines)
+    )
 
 
 def _valid_thread_id(value: Any) -> str:

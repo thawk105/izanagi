@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import difflib
+import hashlib
 import json
 import math
 import os
@@ -111,6 +112,20 @@ MAX_ITER = 10
 MAX_WALLTIME_S = 3600
 CONVERGE_STREAK = 3                   # 同一方向・magnitude=small が N 連続 → 収束
 REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改善なし → 枯渇
+
+B4_PROTOCOL_KEY = "b4_protocol"
+B4_PROTOCOL_VALUE = "p3-b4-reflux-ablation/v1"
+B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
+
+
+class B4ProtocolError(RuntimeError):
+    """An exact B-4 continuation contract was not satisfied."""
+
+
+@dataclass(frozen=True)
+class B4IterationAuthorization:
+    receipt: Any | None
+    terminal_receipt_sha256: str | None
 
 
 # ==== 提案・状態の型 (LLM 出力と harness 状態) =================================
@@ -874,9 +889,18 @@ def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(here))
 
 
-def default_cfg(reflux: bool = True) -> CampaignConfig:
+def default_cfg(
+    reflux: bool = True,
+    *,
+    b4_reflux_ablation: bool = False,
+) -> CampaignConfig:
     """段 4 自律ループの campaign 設定。reflux (還流 on/off) は search_config に焼き、
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
+    search_config = {"scale": "silo", "axis": MARKER_ID,
+                     "reflux": "on" if reflux else "off",
+                     "records": 100_000, "threads": 4}
+    if b4_reflux_ablation:
+        search_config[B4_PROTOCOL_KEY] = B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s4-loop", search_tag="s4-autonomous",
         spec_content=("P3 後続段 4: coder 自律ループ。planner が方向 (値なし) を提案し "
@@ -884,9 +908,7 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
                       "hole 変異のみ build/verify/bench に進む。critic 帰属を次 iteration に "
                       "還流 (LLM ablation の on アーム)。fixture red を正系列に混ぜない"),
         ccbench_commit=PIN,
-        search_config={"scale": "silo", "axis": MARKER_ID,
-                       "reflux": "on" if reflux else "off",
-                       "records": 100_000, "threads": 4},
+        search_config=search_config,
         trial="p3-s4-loop")
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     cfg = ident.bind_admission_policy(cfg, context.policy)
@@ -1162,6 +1184,191 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
 
 # ==== 段 4b 駆動口 (実 planner/coder proposal を受けて 1 iteration を継続) =========
 
+def b4_reflux_ablation_mode(cfg: CampaignConfig) -> bool:
+    """Classify only the absent or exact protocol marker; reject every alias."""
+    if B4_PROTOCOL_KEY not in cfg.search_config:
+        return False
+    marker = cfg.search_config[B4_PROTOCOL_KEY]
+    if marker != B4_PROTOCOL_VALUE:
+        raise B4ProtocolError("B-4 protocol marker has an unrecognized value")
+    return True
+
+
+def b4_bootstrap(state: LoopState) -> bool:
+    """The only B-4 synthesis that has no preceding critic decision."""
+    return state.iteration == 0 and not state.whiteboard
+
+
+def require_b4_bootstrap_history_empty(
+    layout: CampaignLayout,
+    state: LoopState,
+) -> None:
+    """Reject checkpoint bootstrap claims that contradict admitted history."""
+    if not b4_bootstrap(state):
+        return
+    if not wal.wal_bytes_present(layout):
+        return
+    records = wal.read_records(layout)
+    if not records:
+        raise B4ProtocolError(
+            "B-4 bootstrap conflicts with non-empty campaign WAL bytes"
+        )
+    history = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    if history.records:
+        raise B4ProtocolError(
+            "B-4 bootstrap conflicts with non-empty admitted campaign history"
+        )
+
+
+def b4_terminal_receipt_sha256(path: str | os.PathLike[str]) -> str:
+    try:
+        receipt_bytes = Path(path).read_bytes()
+    except (TypeError, OSError) as exc:
+        raise B4ProtocolError("B-4 terminal receipt bytes are unavailable") from exc
+    return hashlib.sha256(receipt_bytes).hexdigest()
+
+
+def require_b4_iteration_authorization(
+    cfg: CampaignConfig,
+    layout: CampaignLayout,
+    state: LoopState,
+    *,
+    do_build: bool,
+    terminal_receipt_path: str | os.PathLike[str] | None,
+) -> B4IterationAuthorization | None:
+    """Apply the shared B-4 mode, bootstrap, no-build, layout, and receipt gate."""
+    if not b4_reflux_ablation_mode(cfg):
+        if terminal_receipt_path is not None:
+            raise B4ProtocolError("a B-4 receipt requires the exact protocol marker")
+        return None
+    if not do_build:
+        raise B4ProtocolError("B-4 protocol forbids --no-build")
+    authoritative = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    if Path(layout.root).resolve() != Path(authoritative.root).resolve():
+        raise B4ProtocolError("B-4 driver layout is not authoritative for live cfg")
+    if b4_bootstrap(state):
+        if terminal_receipt_path is not None:
+            raise B4ProtocolError("B-4 bootstrap rejects a closed critic receipt")
+        return B4IterationAuthorization(receipt=None, terminal_receipt_sha256=None)
+    if terminal_receipt_path is None:
+        raise B4ProtocolError("B-4 continuation requires a closed critic receipt")
+
+    before_sha256 = b4_terminal_receipt_sha256(terminal_receipt_path)
+    # Local import avoids p3_s4_loop <-> p3_b4_closed_critic import recursion.
+    from .p3_b4_closed_critic import require_b4_closed_critic_receipt
+    receipt = require_b4_closed_critic_receipt(
+        terminal_receipt_path,
+        cfg=cfg,
+        layout=layout,
+    )
+    after_sha256 = b4_terminal_receipt_sha256(terminal_receipt_path)
+    if before_sha256 != after_sha256:
+        raise B4ProtocolError("B-4 terminal receipt changed during verification")
+    return B4IterationAuthorization(
+        receipt=receipt,
+        terminal_receipt_sha256=after_sha256,
+    )
+
+
+def consume_b4_iteration_authorization(
+    authorization: B4IterationAuthorization,
+) -> Path | None:
+    """Atomically publish the at-most-once record in the rebuilt live layout."""
+    if authorization.receipt is None:
+        return None
+    receipt = authorization.receipt
+    receipt_sha256 = authorization.terminal_receipt_sha256
+    if type(receipt_sha256) is not str:
+        raise B4ProtocolError("B-4 authorization has no terminal receipt hash")
+    record = {
+        "terminal_receipt_sha256": receipt_sha256,
+        "campaign_id": receipt.campaign_id,
+        "arm": receipt.arm,
+        "iteration": receipt.iteration,
+        "pair_id": receipt.pair_id,
+        "decision_sha256": receipt.decision_sha256,
+    }
+    from .s8b_prediction_runner import _canonical_json_bytes
+    record_bytes = _canonical_json_bytes(record)
+    authoritative_layout = exploration_campaign_layout(receipt.campaign_id)
+    record_root = Path(authoritative_layout.root)
+    record_path = record_root / (
+        f"b4_closed_critic_consumption_{receipt_sha256}.json"
+    )
+    temp_path = record_root / (
+        f".{record_path.name}.tmp-{os.getpid()}-{os.urandom(16).hex()}"
+    )
+    published = False
+    complete = False
+    try:
+        _write_b4_consumption_temp(temp_path, record_bytes)
+        try:
+            os.link(temp_path, record_path, follow_symlinks=False)
+            published = True
+        except FileExistsError as exc:
+            raise B4ProtocolError(
+                "B-4 terminal receipt was already consumed"
+            ) from exc
+        except OSError as exc:
+            raise B4ProtocolError(
+                "B-4 receipt consumption record publish failed"
+            ) from exc
+        _fsync_b4_consumption_directory(record_root)
+        temp_path.unlink()
+        _fsync_b4_consumption_directory(record_root)
+        complete = True
+    except B4ProtocolError:
+        raise
+    except OSError as exc:
+        raise B4ProtocolError(
+            "B-4 receipt consumption record write failed"
+        ) from exc
+    finally:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        if published and not complete:
+            try:
+                record_path.unlink(missing_ok=True)
+                _fsync_b4_consumption_directory(record_root)
+            except OSError:
+                pass
+    return record_path
+
+
+def _write_b4_consumption_temp(path: Path, data: bytes) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
+def _fsync_b4_consumption_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def _fold_critic_reverse(state: LoopState, prior_critic_reverse: Optional[bool]) -> None:
     """前 iteration の critic feedback (逆方向推奨だったか) を reverse_recommendations に畳む。
 
@@ -1175,7 +1382,12 @@ def _fold_critic_reverse(state: LoopState, prior_critic_reverse: Optional[bool])
         state.reverse_recommendations = 0
 
 
-def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
+def load_proposal_file(
+    path: str,
+    *,
+    b4_reflux_ablation: bool = False,
+    b4_closed_critic_receipt_sha256: str | None = None,
+) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
     """メインセッションが spawn した planner/coder の構造化出力 (+ 前 critic の逆方向 bool) を
     JSON ファイルから読む。schema:
 
@@ -1188,8 +1400,30 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
     構築時、value↔literal 整合は run_one_iteration が機械強制する (D39 決定7)。"""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
+    schema_document = d
+    if b4_reflux_ablation:
+        if "prior_critic_reverse" in d:
+            raise B4ProtocolError(
+                "B-4 proposal must not self-report prior_critic_reverse"
+            )
+        has_receipt_binding = B4_PROPOSAL_RECEIPT_SHA256_KEY in d
+        if b4_closed_critic_receipt_sha256 is None:
+            if has_receipt_binding:
+                raise B4ProtocolError(
+                    "B-4 bootstrap proposal must not claim a critic receipt"
+                )
+        else:
+            claimed = d.get(B4_PROPOSAL_RECEIPT_SHA256_KEY)
+            if type(claimed) is not str or claimed != b4_closed_critic_receipt_sha256:
+                raise B4ProtocolError(
+                    "B-4 proposal receipt hash differs from terminal receipt bytes"
+                )
+        schema_document = dict(d)
+        schema_document.pop(B4_PROPOSAL_RECEIPT_SHA256_KEY, None)
+    elif b4_closed_critic_receipt_sha256 is not None:
+        raise B4ProtocolError("proposal receipt binding requires B-4 mode")
     assert_closed_proposal_schema(
-        d, require_auditor=False, require_coder_value=True,
+        schema_document, require_auditor=False, require_coder_value=True,
     )
     p, c = d["planner"], d["coder"]
     planner = PlannerProposal(
@@ -1202,7 +1436,7 @@ def load_proposal_file(path: str) -> Tuple[PlannerProposal, CoderProposal, Optio
     # _fold_critic_reverse の `is True`/`is False` で黙って no-op し reverse-exhausted の停止
     # フィードバックが fail-open する — planner/coder の必須キーと同じく fail-closed にする
     # (schema 検証を片方だけ緩めない、規律2、監査 2026-07-08)。
-    prior = d.get("prior_critic_reverse")
+    prior = None if b4_reflux_ablation else d.get("prior_critic_reverse")
     if prior is not None and not isinstance(prior, bool):
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
@@ -1215,7 +1449,9 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     prior_critic_reverse: Optional[bool], sub: str, do_build: bool,
                     layout: Optional[CampaignLayout] = None, log=print,
                     cache_root: str = "",
-                    build_context: Optional[BuildRunContext] = None) -> Dict:
+                    build_context: Optional[BuildRunContext] = None,
+                    b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
+                    b4_proposal_receipt_sha256: str | None = None) -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -1236,13 +1472,48 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     if layout is None:
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
+    b4_mode = b4_reflux_ablation_mode(cfg)
+    if b4_mode:
+        state = load_loop_state(layout)
+        if state is None:
+            state = LoopState(start_wall=time.time())
+        require_b4_bootstrap_history_empty(layout, state)
+        authorization = require_b4_iteration_authorization(
+            cfg,
+            layout,
+            state,
+            do_build=do_build,
+            terminal_receipt_path=b4_closed_critic_receipt,
+        )
+        assert authorization is not None
+        if prior_critic_reverse is not None:
+            raise B4ProtocolError(
+                "B-4 driver rejects self-reported prior_critic_reverse"
+            )
+        if authorization.terminal_receipt_sha256 != b4_proposal_receipt_sha256:
+            raise B4ProtocolError(
+                "B-4 proposal is not bound to the verified terminal receipt"
+            )
+        if authorization.receipt is not None:
+            prior_critic_reverse = (
+                authorization.receipt.decision_reverse_recommended
+            )
+        consume_b4_iteration_authorization(authorization)
+    else:
+        if (
+            b4_closed_critic_receipt is not None
+            or b4_proposal_receipt_sha256 is not None
+        ):
+            raise B4ProtocolError("B-4 receipt inputs require the exact protocol marker")
+        state = None
     layout.ensure()
     ident.ensure_resumable_attempts(
         cfg, layout, admission_policy=build_context.policy,
     )
-    state = load_loop_state(layout)
     if state is None:
-        state = LoopState(start_wall=time.time())
+        state = load_loop_state(layout)
+        if state is None:
+            state = LoopState(start_wall=time.time())
     _fold_critic_reverse(state, prior_critic_reverse)
 
     pre = check_stop(state)
@@ -1303,6 +1574,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="fixture の backoff 値 (coder proposal の代わり)")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
+    ap.add_argument("--b4-reflux-ablation", action="store_true",
+                    help="exact B-4 protocol marker を campaign identity に焼く")
+    ap.add_argument("--b4-closed-critic-receipt", type=Path, metavar="PATH",
+                    help="B-4 continuation の certified terminal receipt")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",
                     help="段 4b 駆動: 実 planner/coder proposal (JSON) を受けて checkpoint 継続で "
                          "1 iteration を回す (メインセッションが毎 iteration これを呼ぶ)")
@@ -1314,8 +1589,32 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="段5 git worktree 隔離: 共有 external/ccbench でなく使い捨て "
                          "worktree で apply/build/verify する (既定 OFF = 既存動作と完全互換)")
     a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+    if a.b4_closed_critic_receipt is not None and not a.run_iteration:
+        raise B4ProtocolError(
+            "--b4-closed-critic-receipt requires --run-iteration"
+        )
+    if a.b4_closed_critic_receipt is not None and not a.b4_reflux_ablation:
+        raise B4ProtocolError(
+            "--b4-closed-critic-receipt requires --b4-reflux-ablation"
+        )
+    if a.b4_reflux_ablation and a.no_build:
+        raise B4ProtocolError("B-4 protocol forbids --no-build")
+    if (
+        a.b4_reflux_ablation
+        and not a.run_iteration
+        and not a.emit_planner_context
+    ):
+        raise B4ProtocolError(
+            "B-4 protocol forbids the fixture run_one_iteration route"
+        )
     if a.emit_planner_context:
-        cfg = default_cfg(reflux=(a.reflux == "on"))
+        if a.b4_reflux_ablation:
+            cfg = default_cfg(
+                reflux=(a.reflux == "on"),
+                b4_reflux_ablation=True,
+            )
+        else:
+            cfg = default_cfg(reflux=(a.reflux == "on"))
         if a.policy_hint is not None:
             cfg = replace(
                 cfg,
@@ -1345,7 +1644,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         _assert_single_tenant()
     patchharness.assert_pinned_clean(fixed_sub, PIN)
 
-    cfg = default_cfg(reflux=(a.reflux == "on"))
+    if a.b4_reflux_ablation:
+        cfg = default_cfg(
+            reflux=(a.reflux == "on"),
+            b4_reflux_ablation=True,
+        )
+    else:
+        cfg = default_cfg(reflux=(a.reflux == "on"))
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
     perf = default_perf()
@@ -1363,14 +1668,43 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # === 段 4b 駆動口: 実 proposal を受けて checkpoint 継続で 1 iteration ===
     if a.run_iteration:
-        planner, coder, prior_rev = load_proposal_file(a.run_iteration)
+        proposal_receipt_sha256 = None
+        if a.b4_reflux_ablation:
+            preflight_layout = exploration_campaign_layout(
+                str(ident.campaign_id(cfg))
+            )
+            preflight_state = load_loop_state(preflight_layout)
+            if preflight_state is None:
+                preflight_state = LoopState(start_wall=time.time())
+            preflight_authorization = require_b4_iteration_authorization(
+                cfg,
+                preflight_layout,
+                preflight_state,
+                do_build=not a.no_build,
+                terminal_receipt_path=a.b4_closed_critic_receipt,
+            )
+            assert preflight_authorization is not None
+            proposal_receipt_sha256 = (
+                preflight_authorization.terminal_receipt_sha256
+            )
+        planner, coder, prior_rev = load_proposal_file(
+            a.run_iteration,
+            b4_reflux_ablation=a.b4_reflux_ablation,
+            b4_closed_critic_receipt_sha256=proposal_receipt_sha256,
+        )
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
               f"isolate_worktree={a.isolate_worktree}) ===")
         with wt_cm as sub:
             out = drive_iteration(cfg, perf, planner, coder, prior_rev, sub,
                                   do_build=not a.no_build, cache_root=cache_root,
-                                  build_context=build_context)
+                                  build_context=build_context,
+                                  b4_closed_critic_receipt=(
+                                      a.b4_closed_critic_receipt
+                                  ),
+                                  b4_proposal_receipt_sha256=(
+                                      proposal_receipt_sha256
+                                  ))
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")

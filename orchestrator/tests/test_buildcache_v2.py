@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import ctypes
 import hashlib
 import json
 import os
+import platform
 import shutil
 import stat
 import subprocess
@@ -73,6 +76,29 @@ def _admission_bundle(genome: Genome, commit: str, source_root: str):
     )
     admission = derive_build_admission(
         context, evidence, generator_receipt=receipt,
+    )
+    return context, evidence, admission
+
+
+def _review_admission_bundle(
+        genome: Genome, commit: str, source_root: str, *, input_sha256: str):
+    context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+    evidence = _source_evidence(genome, commit, source_root)
+    unsigned = {
+        "schema": "source-review/v1",
+        "review_id": ReviewId.S8B_FLOOR.value,
+        "source": evidence.as_receipt(),
+        "input_sha256": input_sha256,
+    }
+    body = dict(unsigned)
+    body["receipt_sha256"] = hashlib.sha256(json.dumps(
+        unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    review = verify_review_receipt(
+        ReviewId.S8B_FLOOR, evidence, receipt=body,
+    )
+    admission = derive_build_admission(
+        context, evidence, review_receipt=review,
     )
     return context, evidence, admission
 
@@ -235,6 +261,30 @@ def _fake_build_environment(
     )
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", lambda *a, **k: None)
 
+    def fake_compiler_inputs(_build_dir, snapshot_root, *, target):
+        source = Path(snapshot_root).resolve() / "compiler-input.hh"
+        payload = source.read_bytes()
+        manifest = {
+            "schema_version": buildcache.s8b_compiler_input.MANIFEST_SCHEMA,
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": target,
+            "depfile_count": 1,
+            "inputs": [{
+                "path": "compiler-input.hh",
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            }],
+        }
+        return buildcache.s8b_compiler_input.CompilerInputManifest(
+            manifest,
+            buildcache.s8b_compiler_input.manifest_sha256(manifest),
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        fake_compiler_inputs,
+    )
+
     def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
         if what == "configure":
             base_tokens = [
@@ -252,12 +302,7 @@ def _fake_build_environment(
                 assert len(masstree_tokens) <= 1
                 cache_lines = [
                     "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n",
-                    f"FETCHCONTENT_BASE_DIR:PATH={base}\n",
                 ]
-                if "-DFETCHCONTENT_FULLY_DISCONNECTED=ON" in cmd:
-                    cache_lines.append(
-                        "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON\n"
-                    )
                 if masstree_tokens:
                     configured_root = Path(
                         masstree_tokens[0].split("=", 1)[1]
@@ -268,6 +313,14 @@ def _fake_build_environment(
                     )
                 else:
                     configured_root = base / "masstree-src"
+                    cache_lines.append(
+                        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=\n"
+                    )
+                cache_lines.append(f"FETCHCONTENT_BASE_DIR:PATH={base}\n")
+                if "-DFETCHCONTENT_FULLY_DISCONNECTED=ON" in cmd:
+                    cache_lines.append(
+                        "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON\n"
+                    )
                 (bdir / "CMakeCache.txt").write_text(
                     "".join(cache_lines),
                     encoding="utf-8",
@@ -295,6 +348,8 @@ def _fake_build_environment(
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
+           source_snapshot_sha256: str | None = None,
+           bind_source_snapshot: bool = False,
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
            fetchcontent_dependency_receipt=None, declared_use_class=None,
@@ -304,6 +359,22 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            googletest_source_dir=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
+    if bind_source_snapshot or source_snapshot_sha256 is not None:
+        source_path = Path(source_root)
+        source_path.mkdir(parents=True, exist_ok=True)
+        snapshot_input = source_path / "compiler-input.hh"
+        if not snapshot_input.exists():
+            snapshot_input.write_bytes(b"compiler input fixture\n")
+        if bind_source_snapshot:
+            if source_snapshot_sha256 is not None:
+                raise ValueError(
+                    "bind_source_snapshot and source_snapshot_sha256 are exclusive"
+                )
+            source_snapshot_sha256 = (
+                buildcache.s8b_expected_materialization.snapshot_tree_digest(
+                    source_path.resolve(),
+                )
+            )
     context, evidence, admission = _admission_bundle(
         genome, "a" * 40, source_root,
     )
@@ -321,6 +392,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         ccbench_dir=ccbench_dir,
         timeout_s=timeout_s,
     )
+    if source_snapshot_sha256 is not None:
+        kwargs["source_snapshot_sha256"] = source_snapshot_sha256
     if dependency_prefix:
         kwargs["dependency_prefix"] = dependency_prefix
     if site is not None:
@@ -539,6 +612,202 @@ def test_masstree_source_root_accepts_base_only_shape(tmp_path):
     ) == str(root.resolve())
 
 
+def test_masstree_source_root_accepts_observed_empty_source_dir_base_shape(
+        tmp_path):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    cache_lines = (build_dir / "CMakeCache.txt").read_text(
+        encoding="utf-8",
+    ).splitlines()
+    assert cache_lines.count("FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=") == 1
+    assert buildcache._masstree_source_root_from_cmake_cache(
+        str(build_dir)
+    ) == str(root.resolve())
+
+
+@pytest.mark.parametrize(
+    "invalid_source",
+    (" ", "\t", '""'),
+    ids=("space", "tab", "quoted-empty"),
+)
+def test_masstree_source_root_nonempty_empty_like_source_does_not_fallback(
+        tmp_path, invalid_source):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={invalid_source}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="FETCHCONTENT_SOURCE_DIR_MASSTREE .* NUL なし絶対 path"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+def test_masstree_source_root_prefers_nonempty_source_over_base(tmp_path):
+    build_dir = tmp_path / "build"
+    source_root = tmp_path / "source-root"
+    base = tmp_path / "fetchcontent"
+    base_root = base / "masstree-src"
+    assert source_root.resolve() != base_root.resolve()
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={source_root}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((source_root / "config.h"),
+          (source_root / "libkohler_masstree_json.a")),),
+    )
+
+    assert buildcache._masstree_source_root_from_cmake_cache(
+        str(build_dir)
+    ) == str(source_root.resolve())
+
+
+def test_masstree_source_root_rejects_base_depend_info_when_source_nonempty(
+        tmp_path):
+    build_dir = tmp_path / "build"
+    source_root = tmp_path / "source-root"
+    base = tmp_path / "fetchcontent"
+    base_root = base / "masstree-src"
+    assert source_root.resolve() != base_root.resolve()
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={source_root}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((base_root / "config.h"),
+          (base_root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="source root が一致しない"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "base_kind",
+    ("missing", "empty", "relative", "nul"),
+    ids=("missing", "empty", "relative", "nul"),
+)
+def test_masstree_source_root_empty_source_requires_valid_base(
+        tmp_path, base_kind):
+    build_dir = tmp_path / "build"
+    root = tmp_path / "expected" / "masstree-src"
+    cache_entries = ["FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH="]
+    if base_kind == "empty":
+        cache_entries.append("FETCHCONTENT_BASE_DIR:PATH=")
+    elif base_kind == "relative":
+        cache_entries.append("FETCHCONTENT_BASE_DIR:PATH=relative")
+    elif base_kind == "nul":
+        cache_entries.append(
+            f"FETCHCONTENT_BASE_DIR:PATH={tmp_path / 'base'}\0bad"
+        )
+    elif base_kind != "missing":  # pragma: no cover - parametrization contract
+        raise AssertionError(base_kind)
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        *cache_entries,
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    match = (
+        "解決 key がない"
+        if base_kind == "missing"
+        else "FETCHCONTENT_BASE_DIR .* NUL なし絶対 path"
+    )
+    with pytest.raises(buildcache.BuildCacheError, match=match):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "cache_entries",
+    (
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={root}",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+            "FETCHCONTENT_BASE_DIR:PATH={other_base}",
+        ),
+    ),
+    ids=("double-empty-source", "mixed-source", "double-base"),
+)
+def test_masstree_source_root_empty_source_preserves_duplicate_rejection(
+        tmp_path, cache_entries):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    values = {
+        "base": base,
+        "root": root,
+        "other_base": tmp_path / "other-fetchcontent",
+    }
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        *(entry.format(**values) for entry in cache_entries),
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="解決 key が一意"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+def test_masstree_source_root_empty_source_rejects_depend_info_mismatch(
+        tmp_path):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent-a"
+    other_root = tmp_path / "fetchcontent-b" / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((other_root / "config.h"),
+          (other_root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="source root が一致しない"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
 @pytest.mark.parametrize(
     "generator_lines",
     (
@@ -704,10 +973,10 @@ def test_masstree_source_root_relative_path_is_single_reason(
 
 @pytest.mark.parametrize(
     "invalid_source",
-    ("", "relative/masstree-src", "/invalid/masstree-src\0bad"),
-    ids=("empty", "relative", "nul"),
+    ("relative/masstree-src", "/invalid/masstree-src\0bad"),
+    ids=("relative", "nul"),
 )
-def test_masstree_source_root_invalid_source_does_not_fallback(
+def test_masstree_source_root_nonempty_invalid_source_does_not_fallback(
         tmp_path, invalid_source):
     build_dir = tmp_path / "build"
     base = tmp_path / "fetchcontent"
@@ -2325,6 +2594,395 @@ def test_v2_preimage_binds_exact_admission(tmp_path):
     assert len(digests) == 4
 
 
+def test_v2_identity_optional_snapshot_preserves_legacy_digest_and_separates_proof():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {
+            "requested": role,
+            "realpath": f"/tool/{role}",
+            "version_first_line": "v1",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    common = dict(
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+    )
+    legacy = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **common,
+    )
+    explicit_none = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        source_snapshot_sha256=None, **common,
+    )
+    first = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        source_snapshot_sha256="1" * 64, **common,
+    )
+    second = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        source_snapshot_sha256="2" * 64, **common,
+    )
+    assert legacy == explicit_none
+    assert "source_snapshot_sha256" not in legacy[0]
+    assert legacy[1] == (
+        "e65e196014c1b0f6bac649bc33b07ad201388a7d9f4ef637a7a5bf03fdcb0c88"
+    )
+    assert first[0]["source_snapshot_sha256"] == "1" * 64
+    assert first[1] != second[1]
+
+
+def test_descriptor_compiler_input_policy_has_distinct_v2_identity():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {
+            "requested": role,
+            "realpath": f"/tool/{role}",
+            "version_first_line": "v1",
+        }
+        for role in ("cc", "cxx", "cmake")
+    }
+    common = dict(
+        source_snapshot_sha256="1" * 64,
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+    )
+    legacy_snapshot = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        **common,
+    )
+    descriptor_snapshot = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        compiler_input_policy="snapshot-and-external-hashes/v1", **common,
+    )
+
+    assert descriptor_snapshot[0]["compiler_input_policy"] == (
+        "snapshot-and-external-hashes/v1"
+    )
+    assert descriptor_snapshot[1] != legacy_snapshot[1]
+
+
+def test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manifest(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    collector_calls = []
+    snapshot_checks = []
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        lambda *args, **kwargs: collector_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        buildcache,
+        "_assert_source_snapshot_sha256",
+        lambda *args, **kwargs: snapshot_checks.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        lambda **_kwargs: pytest.fail(
+            "descriptor-less build must not enter the declaration gate"
+        ),
+    )
+
+    fresh = _build(tmp_path, _contract(1))
+    hit = _build(tmp_path, _contract(1))
+    completion = json.loads(
+        (Path(fresh.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+
+    assert not fresh.cached and hit.cached
+    assert "source_snapshot_sha256" not in completion["preimage"]
+    assert "compiler_input_manifest" not in completion
+    assert "compiler_input_manifest_sha256" not in completion
+    assert fresh.compiler_input_manifest is None
+    assert fresh.compiler_input_manifest_sha256 is None
+    assert hit.compiler_input_manifest is None
+    assert hit.compiler_input_manifest_sha256 is None
+    assert fresh.source_snapshot_sha256 is None
+    assert fresh.expected_materialization_sha256 is None
+    assert hit.source_snapshot_sha256 is None
+    assert hit.expected_materialization_sha256 is None
+    assert collector_calls == []
+    assert snapshot_checks == []
+
+
+def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(
+        b"compiler input fixture\n"
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    declaration = {
+        "configuration": "stock_common",
+        "flags": {"BACK_OFF": 1},
+    }
+    descriptor = (
+        buildcache.s8b_expected_materialization.
+        expected_materialization_descriptor(
+            ccbench_commit="a" * 40,
+            configuration="stock_common",
+            declaration=declaration,
+        )
+    )
+    context, evidence, admission = _review_admission_bundle(
+        genome, "a" * 40, str(source_root),
+        input_sha256=descriptor.declaration_sha256,
+    )
+    digest = buildcache.s8b_expected_materialization.snapshot_tree_digest(
+        source_root
+    )
+    events = []
+
+    @contextlib.contextmanager
+    def fake_gate(**kwargs):
+        assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
+        assert kwargs["configuration"] == descriptor.configuration
+        assert kwargs["declaration"] == descriptor.declaration
+        events.append("gate-enter")
+        yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
+            source_snapshot_sha256=digest,
+            expected_materialization_sha256=digest,
+            source_evidence=evidence,
+        )
+        events.append("gate-exit")
+
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        fake_gate,
+    )
+    kwargs = dict(
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+        expected_materialization_descriptor=descriptor,
+        contract=_contract(1),
+        ccbench_commit="a" * 40,
+        trace=False,
+        src_token="stock",
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(source_root),
+    )
+    fresh = buildcache.build_v2(genome, **kwargs)
+    hit = buildcache.build_v2(genome, **kwargs)
+
+    assert not fresh.cached and hit.cached
+    assert fresh.source_snapshot_sha256 == digest
+    assert fresh.expected_materialization_sha256 == digest
+    assert hit.source_snapshot_sha256 == digest
+    assert hit.expected_materialization_sha256 == digest
+    assert events == ["gate-enter", "gate-exit", "gate-enter", "gate-exit"]
+
+
+def test_v2_descriptor_rejects_rederived_evidence_before_build(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(
+        b"compiler input fixture\n"
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    descriptor = (
+        buildcache.s8b_expected_materialization.
+        expected_materialization_descriptor(
+            ccbench_commit="a" * 40,
+            configuration="stock_common",
+            declaration={
+                "configuration": "stock_common",
+                "flags": {"BACK_OFF": 1},
+            },
+        )
+    )
+    context, evidence, admission = _review_admission_bundle(
+        genome, "a" * 40, str(source_root),
+        input_sha256=descriptor.declaration_sha256,
+    )
+    digest = buildcache.s8b_expected_materialization.snapshot_tree_digest(
+        source_root
+    )
+    different = _dirty_evidence(genome, "a" * 40, str(source_root))
+
+    @contextlib.contextmanager
+    def fake_gate(**_kwargs):
+        yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
+            source_snapshot_sha256=digest,
+            expected_materialization_sha256=digest,
+            source_evidence=different,
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        fake_gate,
+    )
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="SourceEvidence"):
+        buildcache.build_v2(
+            genome,
+            admission=admission,
+            build_context=context,
+            source_evidence=evidence,
+            expected_materialization_descriptor=descriptor,
+            contract=_contract(1),
+            ccbench_commit="a" * 40,
+            trace=False,
+            src_token="stock",
+            cc="test-cc",
+            cxx="test-cxx",
+            cache_root=str(tmp_path / "cache"),
+            ccbench_dir=str(source_root),
+        )
+    assert calls == []
+
+
+def test_v2_fresh_completion_and_result_expose_compiler_input_manifest(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+
+    result = _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    completion = json.loads(
+        (Path(result.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+
+    assert result.compiler_input_manifest == completion["compiler_input_manifest"]
+    assert result.compiler_input_manifest_sha256 == completion[
+        "compiler_input_manifest_sha256"
+    ]
+    assert result.compiler_input_manifest_sha256 == (
+        buildcache.s8b_compiler_input.manifest_sha256(
+            result.compiler_input_manifest
+        )
+    )
+    assert completion["preimage"]["source_snapshot_sha256"] == (
+        buildcache.s8b_expected_materialization.snapshot_tree_digest(
+            tmp_path / "ccbench"
+        )
+    )
+
+
+def test_v2_collects_manifest_before_staging_discard(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    events = []
+    original_collect = (
+        buildcache.s8b_compiler_input.collect_compiler_input_manifest
+    )
+    original_discard = buildcache._discard_build_dir
+
+    def observe_collect(build_dir, snapshot_root, *, target):
+        assert Path(build_dir).is_dir()
+        events.append("collect")
+        return original_collect(build_dir, snapshot_root, target=target)
+
+    def observe_discard(path):
+        if ".staging-" in str(path):
+            events.append("discard")
+        return original_discard(path)
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        observe_collect,
+    )
+    monkeypatch.setattr(buildcache, "_discard_build_dir", observe_discard)
+
+    _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert events == ["collect", "discard"]
+
+
+def test_v2_hit_revalidates_compiler_input_bytes_without_rebuilding(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    completion_path = Path(result.build_dir) / "completion.json"
+    completion = json.loads(completion_path.read_text(encoding="utf-8"))
+    completion["compiler_input_manifest"]["inputs"][0]["sha256"] = "0" * 64
+    completion["compiler_input_manifest_sha256"] = (
+        buildcache.s8b_compiler_input.manifest_sha256(
+            completion["compiler_input_manifest"]
+        )
+    )
+    completion_path.write_text(json.dumps(completion), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="compiler input manifest"):
+        _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert calls == []
+
+
+def test_v2_hit_rejects_completion_without_compiler_input_proof(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    completion_path = Path(result.build_dir) / "completion.json"
+    completion = json.loads(completion_path.read_text(encoding="utf-8"))
+    completion.pop("compiler_input_manifest")
+    completion.pop("compiler_input_manifest_sha256")
+    completion_path.write_text(json.dumps(completion), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="field 集合"):
+        _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert calls == []
+
+
+def test_v2_rejects_source_snapshot_digest_mismatch_before_build(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="tree digest"):
+        _build(
+            tmp_path, _contract(1), source_snapshot_sha256="0" * 64,
+        )
+    assert calls == []
+
+
+def test_v2_rejects_snapshot_changed_during_build(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    original_run = buildcache._run
+
+    def mutate_after_build(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "build":
+            (tmp_path / "ccbench" / "compiler-input.hh").write_bytes(
+                b"mutated during build\n"
+            )
+
+    monkeypatch.setattr(buildcache, "_run", mutate_after_build)
+    with pytest.raises(buildcache.BuildCacheError, match="tree digest"):
+        _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
+
+
 def test_completion_manifest_rejects_missing_receipt(tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
@@ -2870,159 +3528,499 @@ def test_secure_copyout_environment_contract_accepts_delegate_wrappers(
     buildcache._require_secure_fs_contract()
 
 
-def test_close_fds_best_effort_closes_all_and_reraises_first_error(monkeypatch):
-    """F-1: later fd closes run even when earlier close calls report errors."""
-    baseline = len(os.listdir("/proc/self/fd"))
-    fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(3)]
-    real_close = buildcache.os.close
-    calls = []
+_KCMP_FILE = 0
+_KCMP_SYSCALL_BY_MACHINE = {
+    "aarch64": 272,
+    "arm64": 272,
+    "armv7l": 378,
+    "i386": 349,
+    "i686": 349,
+    "ppc64": 354,
+    "ppc64le": 354,
+    "riscv64": 272,
+    "s390x": 343,
+    "x86_64": 312,
+}
 
-    def close_then_report_error(fd):
-        real_close(fd)
-        calls.append(fd)
-        if len(calls) in {1, 2}:
-            raise OSError(f"injected-close-{len(calls)}")
 
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-close-1"):
-        buildcache._close_fds_best_effort(fds)
-    assert calls == fds
-    assert len(os.listdir("/proc/self/fd")) == baseline
+def _fd_kernel_identities(
+        *, exclude: frozenset[int] = frozenset(),
+) -> tuple[tuple[int, int, int, int, int], ...]:
+    """Enumerate live fds, or explicitly reject an unusable procfs view."""
+    try:
+        names = os.listdir("/proc/self/fd")
+    except OSError as exc:
+        raise RuntimeError(
+            "fd open-description guard unavailable: cannot enumerate "
+            "/proc/self/fd"
+        ) from exc
+    identities = []
+    for name in names:
+        if not name.isdecimal():
+            continue
+        fd = int(name)
+        if fd in exclude:
+            continue
+        try:
+            info = os.fstat(fd)
+        except OSError:
+            continue
+        identities.append((
+            fd,
+            info.st_dev,
+            info.st_ino,
+            stat.S_IFMT(info.st_mode),
+            info.st_rdev,
+        ))
+    if not identities:
+        raise RuntimeError(
+            "fd open-description guard unavailable: /proc/self/fd exposed "
+            "no live descriptors"
+        )
+    return tuple(sorted(identities))
+
+
+def _same_open_description(left_fd: int, right_fd: int) -> bool:
+    machine = platform.machine().lower()
+    syscall_number = _KCMP_SYSCALL_BY_MACHINE.get(machine)
+    if syscall_number is None:
+        raise RuntimeError(
+            "fd open-description guard unavailable: no kcmp syscall number "
+            f"for architecture {machine!r}"
+        )
+    syscall = ctypes.CDLL(None, use_errno=True).syscall
+    syscall.restype = ctypes.c_long
+    ctypes.set_errno(0)
+    result = syscall(
+        syscall_number,
+        os.getpid(),
+        os.getpid(),
+        _KCMP_FILE,
+        left_fd,
+        right_fd,
+    )
+    if result < 0:
+        error_number = ctypes.get_errno()
+        raise RuntimeError(
+            "fd open-description guard unavailable: "
+            f"kcmp(KCMP_FILE) failed with errno {error_number} "
+            f"({os.strerror(error_number)})"
+        )
+    return result == 0
+
+
+def _capture_fd_description_snapshot():
+    """Keep one duplicate of every baseline open description for comparison."""
+    kernel_identities = _fd_kernel_identities()
+    keepers: dict[int, int] = {}
+    try:
+        for identity in kernel_identities:
+            fd = identity[0]
+            keepers[fd] = os.dup(fd)
+        for fd, keeper_fd in keepers.items():
+            if not _same_open_description(fd, keeper_fd):
+                raise RuntimeError(
+                    "fd open-description guard unavailable: dup did not retain "
+                    f"open description for fd {fd}"
+                )
+    except BaseException:
+        for keeper_fd in keepers.values():
+            os.close(keeper_fd)
+        raise
+    before = tuple((*identity, 0) for identity in kernel_identities)
+    return before, keepers
+
+
+def _fd_identities_against_snapshot(before, keepers):
+    """Assign generation 0 only to fds retaining their baseline description."""
+    before_by_fd = {identity[0]: identity for identity in before}
+    after = []
+    for identity in _fd_kernel_identities(
+            exclude=frozenset(keepers.values()),
+    ):
+        fd = identity[0]
+        generation = 1
+        if fd in before_by_fd and _same_open_description(fd, keepers[fd]):
+            generation = 0
+        after.append((*identity, generation))
+    return tuple(after)
+
+
+def _close_fd_description_snapshot(keepers) -> None:
+    for keeper_fd in keepers.values():
+        os.close(keeper_fd)
+
+
+def _fd_identity_delta(before, after):
+    before_set = set(map(tuple, before))
+    after_set = set(map(tuple, after))
+    return (
+        tuple(sorted(before_set - after_set)),
+        tuple(sorted(after_set - before_set)),
+    )
+
+
+def _same_inode_open_description_swap_probe() -> dict[str, object]:
+    """Replace /dev/null at the same fd number and expose the generation change."""
+    target_fd = os.open(os.devnull, os.O_RDONLY)
+    before = ()
+    keepers = {}
+    replacement_fd = None
+    try:
+        before, keepers = _capture_fd_description_snapshot()
+        os.close(target_fd)
+        replacement_fd = os.open(os.devnull, os.O_RDONLY)
+        if replacement_fd != target_fd:
+            raise AssertionError(
+                "same-inode swap probe did not reuse the closed fd number"
+            )
+        after = _fd_identities_against_snapshot(before, keepers)
+        before_identity = next(row for row in before if row[0] == target_fd)
+        after_identity = next(row for row in after if row[0] == target_fd)
+        removed, added = _fd_identity_delta(before, after)
+        return {
+            "before_count": len(before),
+            "after_count": len(after),
+            "before_identity": before_identity,
+            "after_identity": after_identity,
+            "removed": removed,
+            "added": added,
+        }
+    finally:
+        if replacement_fd is not None:
+            os.close(replacement_fd)
+        elif not keepers:
+            os.close(target_fd)
+        _close_fd_description_snapshot(keepers)
+
+
+def _exception_record(action):
+    try:
+        action()
+    except BaseException as exc:
+        return {"type": type(exc).__name__, "message": str(exc)}
+    return None
+
+
+def _proc_unavailable_guard_probe() -> dict[str, str] | None:
+    """Prove that an unavailable procfs view is diagnosed instead of ignored."""
+    patch = pytest.MonkeyPatch()
+    original_listdir = os.listdir
+
+    def deny_proc_fd(path):
+        if os.fspath(path) == "/proc/self/fd":
+            raise PermissionError("injected procfs denial")
+        return original_listdir(path)
+
+    try:
+        patch.setattr(os, "listdir", deny_proc_fd)
+        return _exception_record(_capture_fd_description_snapshot)
+    finally:
+        patch.undo()
+
+
+def _clean_fd_identity_case(case: str, tmp_path: Path) -> dict[str, object]:
+    """Run one fd-ownership fault in a fresh interpreter and report its full delta."""
+    patch = pytest.MonkeyPatch()
+    report: dict[str, object] = {}
+    cleanup_fds: list[int] = []
+    before = ()
+    keepers = {}
+    try:
+        if case == "close-fds-best-effort":
+            before, keepers = _capture_fd_description_snapshot()
+            fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(3)]
+            cleanup_fds.extend(fds)
+            real_close = buildcache.os.close
+            calls = []
+
+            def close_then_report_error(fd):
+                real_close(fd)
+                calls.append(fd)
+                if len(calls) in {1, 2}:
+                    raise OSError(f"injected-close-{len(calls)}")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(
+                lambda: buildcache._close_fds_best_effort(fds)
+            )
+            report.update(error=error, calls=calls, expected=fds)
+        elif case == "copied-binary":
+            before, keepers = _capture_fd_description_snapshot()
+            source_fd = os.open(os.devnull, os.O_RDONLY)
+            destination_fd = os.open(os.devnull, os.O_RDONLY)
+            first_dir_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            cleanup_fds.extend((
+                source_fd, destination_fd, first_dir_fd, parent_fd,
+            ))
+            copied = buildcache._CopiedBinary(
+                source_fd=source_fd,
+                destination_fd=destination_fd,
+                destination_parent_fd=parent_fd,
+                destination_name="unused",
+                directory_fds=[first_dir_fd, parent_fd],
+                destination_path="unused",
+            )
+            expected = copied._owned_fds()
+            real_close = buildcache.os.close
+            calls = []
+
+            def close_then_report_error(fd):
+                real_close(fd)
+                calls.append(fd)
+                if len(calls) == 1:
+                    raise OSError("injected-copied-close")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(copied.close)
+            report.update(error=error, calls=calls, expected=expected)
+        elif case == "directory-traversal":
+            before, keepers = _capture_fd_description_snapshot()
+            real_close = buildcache.os.close
+            injected = False
+
+            def close_then_report_error(fd):
+                nonlocal injected
+                real_close(fd)
+                if not injected:
+                    injected = True
+                    raise OSError("injected-traversal-close")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(
+                lambda: buildcache._open_or_create_directory_path(
+                    str(tmp_path / "child")
+                )
+            )
+            report.update(error=error, injected=injected)
+        elif case.startswith("leaf:"):
+            opener_name = case.partition(":")[2]
+            leaf = tmp_path / "leaf"
+            leaf.write_bytes(b"leaf")
+            root_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            cleanup_fds.append(root_fd)
+            before, keepers = _capture_fd_description_snapshot()
+            real_close = buildcache.os.close
+            injected = False
+
+            def close_then_report_error(fd):
+                nonlocal injected
+                real_close(fd)
+                if not injected:
+                    injected = True
+                    raise OSError("injected-leaf-parent-close")
+
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            opener = getattr(buildcache, opener_name)
+            error = _exception_record(
+                lambda: opener(root_fd, "leaf", label="test leaf")
+            )
+            report.update(error=error, injected=injected)
+        elif case == "v2-validation":
+            _install_toolchain(tmp_path, patch)
+            _fake_build_environment(patch, tmp_path)
+            first = _call_copyout_api(tmp_path, "v2")
+            bdir_identity = buildcache._stat_identity(os.stat(first.build_dir))
+            before, keepers = _capture_fd_description_snapshot()
+            real_open_regular = buildcache._open_regular_at
+            real_close = buildcache.os.close
+            binary_opened = False
+            injected = False
+
+            def observe_binary_open(root_fd, relpath, *, label):
+                nonlocal binary_opened
+                result = real_open_regular(root_fd, relpath, label=label)
+                if label.startswith("v2 cached binary "):
+                    binary_opened = True
+                return result
+
+            def close_then_report_error(fd):
+                nonlocal injected
+                is_bdir = buildcache._stat_identity(os.fstat(fd)) == bdir_identity
+                real_close(fd)
+                if binary_opened and is_bdir and not injected:
+                    injected = True
+                    raise OSError("injected-v2-bdir-close")
+
+            patch.setattr(buildcache, "_open_regular_at", observe_binary_open)
+            patch.setattr(buildcache.os, "close", close_then_report_error)
+            error = _exception_record(
+                lambda: _call_copyout_api(tmp_path, "v2")
+            )
+            report.update(
+                error=error,
+                binary_opened=binary_opened,
+                injected=injected,
+            )
+        elif case == "mkdir-open-at":
+            parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+            cleanup_fds.append(parent_fd)
+            before, keepers = _capture_fd_description_snapshot()
+
+            def fail_fchmod(fd, mode):
+                raise OSError("injected-fchmod")
+
+            patch.setattr(buildcache.os, "fchmod", fail_fchmod)
+            error = _exception_record(
+                lambda: buildcache._mkdir_open_at(
+                    parent_fd, "half-created", label="test directory"
+                )
+            )
+            report.update(
+                error=error,
+                entry_exists=(tmp_path / "half-created").exists(),
+            )
+        else:
+            raise AssertionError(f"unknown clean fd identity case: {case}")
+    finally:
+        patch.undo()
+    try:
+        after = _fd_identities_against_snapshot(before, keepers)
+        removed, added = _fd_identity_delta(before, after)
+        report.update(
+            before=before,
+            after=after,
+            removed=removed,
+            added=added,
+            same_inode_swap=_same_inode_open_description_swap_probe(),
+            proc_unavailable=_proc_unavailable_guard_probe(),
+        )
+        return report
+    finally:
+        _close_fd_description_snapshot(keepers)
+        for fd in cleanup_fds:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+def _run_clean_fd_identity_case(case: str, tmp_path: Path) -> dict[str, object]:
+    environment = dict(os.environ)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, sys; from pathlib import Path; "
+                "from orchestrator.tests import test_buildcache_v2 as tests; "
+                "print(json.dumps(tests._clean_fd_identity_case("
+                "sys.argv[1], Path(sys.argv[2])), sort_keys=True))"
+            ),
+            case,
+            str(tmp_path),
+        ],
+        cwd=_ORCH.parent,
+        env=environment,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stderr == ""
+    return json.loads(completed.stdout)
+
+
+def _assert_full_fd_identity_guard(probe: dict[str, object]) -> None:
+    """Accept equality and reject a same-fd, same-inode description swap."""
+    before = probe["before"]
+    after = probe["after"]
+    assert before
+    assert _fd_identity_delta(before, before) == ((), ())
+    swap = probe["same_inode_swap"]
+    assert swap["before_count"] == swap["after_count"]
+    assert swap["before_identity"][:5] == swap["after_identity"][:5]
+    assert swap["before_identity"][5] == 0
+    assert swap["after_identity"][5] == 1
+    assert swap["removed"] == [swap["before_identity"]]
+    assert swap["added"] == [swap["after_identity"]]
+    assert probe["proc_unavailable"] == {
+        "type": "RuntimeError",
+        "message": (
+            "fd open-description guard unavailable: cannot enumerate "
+            "/proc/self/fd"
+        ),
+    }
+    assert _fd_identity_delta(before, after) == ((), ())
+
+
+def test_close_fds_best_effort_closes_all_and_reraises_first_error(
+        tmp_path, monkeypatch):
+    """Returning to parent-process fd counts misses a count-preserving leaked identity."""
+    probe = _run_clean_fd_identity_case("close-fds-best-effort", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-close-1",
+    }
+    assert probe["calls"] == probe["expected"]
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_copied_binary_close_error_does_not_leak_later_fds(tmp_path, monkeypatch):
-    """F-1: _CopiedBinary.close owns every fd until all close attempts finish."""
-    baseline = len(os.listdir("/proc/self/fd"))
-    source_fd = os.open(os.devnull, os.O_RDONLY)
-    destination_fd = os.open(os.devnull, os.O_RDONLY)
-    first_dir_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    copied = buildcache._CopiedBinary(
-        source_fd=source_fd,
-        destination_fd=destination_fd,
-        destination_parent_fd=parent_fd,
-        destination_name="unused",
-        directory_fds=[first_dir_fd, parent_fd],
-        destination_path="unused",
-    )
-    expected = copied._owned_fds()
-    real_close = buildcache.os.close
-    calls = []
-
-    def close_then_report_error(fd):
-        real_close(fd)
-        calls.append(fd)
-        if len(calls) == 1:
-            raise OSError("injected-copied-close")
-
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-copied-close"):
-        copied.close()
-    assert calls == expected
-    assert len(os.listdir("/proc/self/fd")) == baseline
+    """Returning to parent-process fd counts misses a count-preserving copied-fd leak."""
+    probe = _run_clean_fd_identity_case("copied-binary", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-copied-close",
+    }
+    assert probe["calls"] == probe["expected"]
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_directory_traversal_close_error_does_not_lose_child_fd(tmp_path, monkeypatch):
-    """F-1: child ownership is registered before its parent close can fail."""
-    baseline = len(os.listdir("/proc/self/fd"))
-    real_close = buildcache.os.close
-    injected = False
-
-    def close_then_report_error(fd):
-        nonlocal injected
-        real_close(fd)
-        if not injected:
-            injected = True
-            raise OSError("injected-traversal-close")
-
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-traversal-close"):
-        buildcache._open_or_create_directory_path(str(tmp_path / "child"))
-    assert len(os.listdir("/proc/self/fd")) == baseline
+    """Returning to parent-process fd counts misses a count-preserving traversal leak."""
+    probe = _run_clean_fd_identity_case("directory-traversal", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-traversal-close",
+    }
+    assert probe["injected"] is True
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 @pytest.mark.parametrize("opener_name", ["_open_regular_at", "_open_source_regular_at"])
 def test_leaf_open_parent_close_error_does_not_lose_leaf_fd(
         tmp_path, monkeypatch, opener_name):
-    """G-1: leaf ownership transfers only after auxiliary parent fds close."""
-    leaf = tmp_path / "leaf"
-    leaf.write_bytes(b"leaf")
-    root_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    baseline = len(os.listdir("/proc/self/fd"))
-    real_close = buildcache.os.close
-    injected = False
-
-    def close_then_report_error(fd):
-        nonlocal injected
-        real_close(fd)
-        if not injected:
-            injected = True
-            raise OSError("injected-leaf-parent-close")
-
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    try:
-        opener = getattr(buildcache, opener_name)
-        with pytest.raises(OSError, match="injected-leaf-parent-close"):
-            opener(root_fd, "leaf", label="test leaf")
-        assert injected
-        assert len(os.listdir("/proc/self/fd")) == baseline
-    finally:
-        real_close(root_fd)
+    """Returning to parent-process fd counts misses a count-preserving leaf-fd leak."""
+    probe = _run_clean_fd_identity_case(f"leaf:{opener_name}", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-leaf-parent-close",
+    }
+    assert probe["injected"] is True
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_v2_validation_parent_close_error_does_not_lose_result_fd(
         tmp_path, monkeypatch):
-    """G-1: a planned v2-hit result fd returns to cleanup if bdir close fails."""
-    _install_toolchain(tmp_path, monkeypatch)
-    _fake_build_environment(monkeypatch, tmp_path)
-    first = _call_copyout_api(tmp_path, "v2")
-    bdir_identity = buildcache._stat_identity(os.stat(first.build_dir))
-    baseline = len(os.listdir("/proc/self/fd"))
-    real_open_regular = buildcache._open_regular_at
-    real_close = buildcache.os.close
-    binary_opened = False
-    injected = False
-
-    def observe_binary_open(root_fd, relpath, *, label):
-        nonlocal binary_opened
-        result = real_open_regular(root_fd, relpath, label=label)
-        if label.startswith("v2 cached binary "):
-            binary_opened = True
-        return result
-
-    def close_then_report_error(fd):
-        nonlocal injected
-        is_bdir = buildcache._stat_identity(os.fstat(fd)) == bdir_identity
-        real_close(fd)
-        if binary_opened and is_bdir and not injected:
-            injected = True
-            raise OSError("injected-v2-bdir-close")
-
-    monkeypatch.setattr(buildcache, "_open_regular_at", observe_binary_open)
-    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
-    with pytest.raises(OSError, match="injected-v2-bdir-close"):
-        _call_copyout_api(tmp_path, "v2")
-    assert injected
-    assert len(os.listdir("/proc/self/fd")) == baseline
+    """Returning to parent-process fd counts misses a count-preserving v2 result leak."""
+    probe = _run_clean_fd_identity_case("v2-validation", tmp_path)
+    assert probe["error"] == {
+        "type": "OSError",
+        "message": "injected-v2-bdir-close",
+    }
+    assert probe["binary_opened"] is True
+    assert probe["injected"] is True
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_mkdir_open_at_removes_created_entry_when_post_mkdir_step_fails(
         tmp_path, monkeypatch):
-    """F-6: caller never loses cleanup ownership of a half-created directory."""
-    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
-    baseline = len(os.listdir("/proc/self/fd"))
-
-    def fail_fchmod(fd, mode):
-        raise OSError("injected-fchmod")
-
-    monkeypatch.setattr(buildcache.os, "fchmod", fail_fchmod)
-    try:
-        with pytest.raises(buildcache.BuildCacheError, match="injected-fchmod"):
-            buildcache._mkdir_open_at(parent_fd, "half-created", label="test directory")
-        assert not (tmp_path / "half-created").exists()
-        assert len(os.listdir("/proc/self/fd")) == baseline
-    finally:
-        os.close(parent_fd)
+    """Returning to parent-process fd counts misses a count-preserving mkdir-fd leak."""
+    probe = _run_clean_fd_identity_case("mkdir-open-at", tmp_path)
+    assert probe["error"]["type"] == "BuildCacheError"
+    assert "injected-fchmod" in probe["error"]["message"]
+    assert probe["entry_exists"] is False
+    _assert_full_fd_identity_guard(probe)
+    assert probe["after"] == probe["before"]
 
 
 def test_mkdir_open_at_reports_original_and_rmdir_cleanup_failures(

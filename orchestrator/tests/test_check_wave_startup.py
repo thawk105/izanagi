@@ -157,6 +157,22 @@ def test_resume_rejects_rebase_or_merge_state(
     assert "rebase/merge in progress" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("state", ["rebase-merge", "rebase-apply", "MERGE_HEAD"])
+def test_fresh_rejects_rebase_or_merge_state(
+    tmp_path: Path, state: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    git_dir = Path(_git(repo, "rev-parse", "--absolute-git-dir"))
+    path = git_dir / state
+    if state == "MERGE_HEAD":
+        path.write_text(_git(repo, "rev-parse", "HEAD") + "\n", encoding="ascii")
+    else:
+        path.mkdir()
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo) == 1
+    assert "rebase/merge in progress" in capsys.readouterr().err
+
+
 def test_fresh_rejects_dirty_tree(tmp_path: Path) -> None:
     """V7: clean-tree 検査を恒真化するとこの負例が通って赤になる。"""
     repo = _repo(tmp_path)
@@ -245,6 +261,42 @@ def test_resume_requires_non_symlink_submodule_git_entry(
         "--worktree <path> を実行し再検査する"
         in diagnostic
     )
+
+
+@pytest.mark.parametrize("invalid_marker", ["missing", "directory", "symlink"])
+def test_fresh_rejects_invalid_submodule_marker(
+    tmp_path: Path,
+    invalid_marker: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    marker = repo / "external" / "ccbench" / "CMakeLists.txt"
+    marker.unlink()
+    if invalid_marker == "symlink":
+        marker.symlink_to(repo / "base.txt")
+    _commit_all(repo, f"fresh invalid marker {invalid_marker}")
+    if invalid_marker == "directory":
+        marker.mkdir()
+    _git(repo, "branch", "-f", "main", "HEAD")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo) == 1
+    assert "submodule is not initialized" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("invalid_git_entry", ["missing", "symlink"])
+def test_fresh_requires_non_symlink_submodule_git_entry(
+    tmp_path: Path,
+    invalid_git_entry: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    git_entry = repo / "external" / "ccbench" / ".git"
+    git_entry.unlink()
+    if invalid_git_entry == "symlink":
+        git_entry.symlink_to(repo / ".git")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo) == 1
+    assert "submodule is not initialized" in capsys.readouterr().err
 
 
 def test_worktree_handoff_gate_is_opt_in(
@@ -707,13 +759,14 @@ def test_check_repository_rejects_unknown_mode(tmp_path: Path) -> None:
     assert _git(repo, "status", "--porcelain") == ""
     failures = CWS.check_repository(repo, mode="unsafe")
     assert failures == [
-        "unsupported startup mode 'unsafe': fresh または resume を明示する"
+        "unsupported startup mode 'unsafe': "
+        "fresh / resume / midflight のいずれかを明示する"
     ]
 
 
 def test_mode_parser_contract_is_exact(capsys: pytest.CaptureFixture[str]) -> None:
     mode_action = next(action for action in CWS._parser()._actions if action.dest == "mode")
-    assert mode_action.choices == ("fresh", "resume")
+    assert mode_action.choices == ("fresh", "resume", "midflight")
     assert mode_action.default == "fresh"
     with pytest.raises(SystemExit) as raised:
         CWS.main(["--mode", "unsafe"])
@@ -740,6 +793,20 @@ def test_default_mode_remains_fresh_despite_resume_environment_and_config(
     monkeypatch.setenv("CLAUDECODE", "resume")
     assert CWS.main(["--repo", str(repo)]) == 1
     assert CWS.main(["--repo", str(repo), "--mode", "resume"]) == 0
+
+
+def test_default_mode_does_not_follow_midflight_environment_or_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    _git(repo, "config", "check-wave-startup.mode", "midflight")
+    monkeypatch.setenv("CHECK_WAVE_STARTUP_MODE", "midflight")
+    monkeypatch.setenv("IZANAGI_WAVE_STARTUP_MODE", "midflight")
+    monkeypatch.setenv("CLAUDECODE", "midflight")
+    assert CWS.main(["--repo", str(repo)]) == 1
+    assert CWS.main(["--repo", str(repo), "--mode", "midflight"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -915,6 +982,546 @@ def _advance_work(repo: Path, name: str = "work-ahead.txt") -> None:
         "-c", "user.email=test@example.invalid",
         "commit", "-qm", "work ahead",
     )
+
+
+def test_midflight_check_sequence_is_exact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def check(name: str):
+        def record(repo: Path) -> list[str]:
+            calls.append(name)
+            return []
+
+        return record
+
+    def measure(repo: Path) -> tuple[list[str], str | None]:
+        calls.append("measure")
+        return [], "7"
+
+    monkeypatch.setattr(CWS, "_check_no_grafts", check("grafts"))
+    monkeypatch.setattr(CWS, "_check_main_divergence_measurable", measure)
+    monkeypatch.setattr(CWS, "_check_main_is_direct_ref", check("direct-main"))
+    monkeypatch.setattr(CWS, "_check_fresh_branch", check("branch"))
+    monkeypatch.setattr(CWS, "_check_no_operation_in_progress", check("operation"))
+    monkeypatch.setattr(CWS, "_check_submodule_marker", check("submodule"))
+    monkeypatch.setattr(
+        CWS,
+        "_check_head_matches_main",
+        lambda repo: pytest.fail("midflight must not check HEAD==main"),
+    )
+    monkeypatch.setattr(
+        CWS,
+        "_check_head_contains_main",
+        lambda repo: pytest.fail("midflight must not check main containment"),
+    )
+    monkeypatch.setattr(
+        CWS,
+        "_check_clean_tree",
+        lambda repo: pytest.fail("Python API midflight must not gate on clean tree"),
+    )
+    monkeypatch.setattr(
+        CWS,
+        "_check_worktree_handoff",
+        lambda repo: pytest.fail("midflight must not inspect worktree handoff"),
+    )
+    monkeypatch.setattr(
+        CWS,
+        "_check_external_handoff_file",
+        lambda repo, handoff: pytest.fail("midflight must not inspect external handoff"),
+    )
+
+    assert CWS.check_repository(tmp_path, mode="midflight") == []
+    assert calls == [
+        "grafts",
+        "measure",
+        "direct-main",
+        "branch",
+        "operation",
+        "submodule",
+    ]
+
+
+@pytest.mark.parametrize("mode", ["fresh", "resume"])
+@pytest.mark.parametrize("handoff_kind", ["none", "forbid", "external"])
+def test_fresh_and_resume_check_sequences_are_exact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    handoff_kind: str,
+) -> None:
+    calls: list[str] = []
+
+    def check(name: str):
+        def record(repo: Path) -> list[str]:
+            calls.append(name)
+            return []
+
+        return record
+
+    def check_external(repo: Path, handoff: Path) -> list[str]:
+        calls.append("external-handoff")
+        return []
+
+    monkeypatch.setattr(CWS, "_check_head_matches_main", check("head-matches-main"))
+    monkeypatch.setattr(CWS, "_check_head_contains_main", check("head-contains-main"))
+    monkeypatch.setattr(CWS, "_check_main_is_direct_ref", check("direct-main"))
+    monkeypatch.setattr(CWS, "_check_fresh_branch", check("branch"))
+    monkeypatch.setattr(CWS, "_check_no_operation_in_progress", check("operation"))
+    monkeypatch.setattr(CWS, "_check_clean_tree", check("clean"))
+    monkeypatch.setattr(CWS, "_check_submodule_marker", check("submodule"))
+    monkeypatch.setattr(CWS, "_check_worktree_handoff", check("worktree-handoff"))
+    monkeypatch.setattr(CWS, "_check_external_handoff_file", check_external)
+    monkeypatch.setattr(
+        CWS,
+        "_check_main_divergence_measurable",
+        lambda repo: pytest.fail("fresh / resume must not use midflight measurement"),
+    )
+
+    kwargs: dict[str, object] = {}
+    expected_handoff_calls: list[str] = []
+    if handoff_kind == "forbid":
+        kwargs["forbid_worktree_handoff"] = True
+        expected_handoff_calls = ["worktree-handoff"]
+    elif handoff_kind == "external":
+        kwargs["external_handoff"] = tmp_path / "handoff.md"
+        expected_handoff_calls = ["worktree-handoff", "external-handoff"]
+
+    assert CWS.check_repository(tmp_path, mode=mode, **kwargs) == []
+    assert calls == [
+        "head-matches-main" if mode == "fresh" else "head-contains-main",
+        "direct-main",
+        "branch",
+        "operation",
+        "clean",
+        "submodule",
+        *expected_handoff_calls,
+    ]
+
+
+@pytest.mark.parametrize("count", ["0", "1", "343", "123456789012345678901234567890"])
+def test_midflight_divergence_measurement_accepts_any_canonical_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    count: str,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_git_raw(repo: Path, *args: str) -> CWS.GitResult:
+        calls.append(args)
+        return CWS.GitResult(0, f"{count}\n", "")
+
+    monkeypatch.setattr(CWS, "_git_raw", fake_git_raw)
+    failures, observation = CWS._check_main_divergence_measurable(tmp_path)
+    assert failures == []
+    assert observation == count
+    assert calls == [("rev-list", "--count", "HEAD..refs/heads/main")]
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "stderr", "expected"),
+    [
+        pytest.param(1, "0\n", "forced failure", "git の読み取りに失敗", id="rc"),
+        pytest.param(0, "", "", "ASCII 整数でない", id="empty"),
+        pytest.param(0, "0", "", "ASCII 整数でない", id="missing-newline"),
+        pytest.param(0, "+0\n", "", "ASCII 整数でない", id="plus-signed"),
+        pytest.param(0, "-1\n", "", "ASCII 整数でない", id="minus-signed"),
+        pytest.param(0, "０\n", "", "ASCII 整数でない", id="full-width"),
+        pytest.param(0, "0 0\n", "", "ASCII 整数でない", id="multiple-tokens"),
+        pytest.param(0, "00\n", "", "ASCII 整数でない", id="leading-zero"),
+    ],
+)
+def test_midflight_divergence_measurement_fails_closed_for_invalid_rev_list(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    returncode: int,
+    stdout: str,
+    stderr: str,
+    expected: str,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_git_raw(repo: Path, *args: str) -> CWS.GitResult:
+        calls.append(args)
+        return CWS.GitResult(returncode, stdout, stderr)
+
+    monkeypatch.setattr(CWS, "_git_raw", fake_git_raw)
+    failures, observation = CWS._check_main_divergence_measurable(tmp_path)
+    assert len(failures) == 1
+    assert expected in failures[0]
+    assert observation is None
+    assert calls == [("rev-list", "--count", "HEAD..refs/heads/main")]
+
+
+@pytest.mark.parametrize(
+    "raw_stdout",
+    [
+        pytest.param(" 343\n", id="leading-ascii-space"),
+        pytest.param("343 \n", id="trailing-ascii-space"),
+        pytest.param("\n343\n", id="leading-newline"),
+        pytest.param("343\n\n", id="extra-terminating-newline"),
+        pytest.param("\u00a0343\n", id="leading-non-ascii-space"),
+        pytest.param("343\u00a0\n", id="trailing-non-ascii-space"),
+    ],
+)
+def test_midflight_integrated_gate_rejects_noncanonical_raw_rev_list_stdout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    raw_stdout: str,
+) -> None:
+    repo = _repo(tmp_path)
+    real_run = CWS.subprocess.run
+
+    def noncanonical_rev_list(argv, **kwargs):
+        if argv[-3:] == ["rev-list", "--count", "HEAD..refs/heads/main"]:
+            return subprocess.CompletedProcess(argv, 0, raw_stdout, "")
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(CWS.subprocess, "run", noncanonical_rev_list)
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "divergence measurement" in failures[0]
+    assert "canonical な非負の ASCII 整数でない" in failures[0]
+
+
+def test_midflight_integrated_gate_rejects_unborn_work_branch(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "unborn"
+    _git(tmp_path, "init", "-q", "-b", "work", str(repo))
+    empty_tree = _git(repo, "hash-object", "-t", "tree", "-w", "/dev/null")
+    main_commit = _git(
+        repo,
+        "-c", "user.name=Test",
+        "-c", "user.email=test@example.invalid",
+        "commit-tree", empty_tree, "-m", "main base",
+    )
+    _git(repo, "update-ref", "refs/heads/main", main_commit)
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.write_text("external/\ndocs/\n", encoding="ascii")
+    marker = repo / "external" / "ccbench" / "CMakeLists.txt"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("# fixture\n", encoding="utf-8")
+    (marker.parent / ".git").write_text("gitdir: fixture\n", encoding="utf-8")
+    handoff = repo / "docs" / "handoff"
+    handoff.mkdir(parents=True)
+    (handoff / "README.md").write_text("# handoff\n", encoding="utf-8")
+
+    assert _git(repo, "symbolic-ref", "--short", "HEAD") == "work"
+    assert CWS._git(repo, "symbolic-ref", "--quiet", "refs/heads/main").returncode == 1
+    assert _git(repo, "status", "--porcelain") == ""
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "HEAD/local main divergence measurement: git の読み取りに失敗" in failures[0]
+
+
+@pytest.mark.parametrize("state", ["main", "detached"])
+def test_midflight_rejects_main_or_detached_branch(
+    tmp_path: Path,
+    state: str,
+) -> None:
+    repo = _repo(tmp_path)
+    if state == "main":
+        _git(repo, "checkout", "-q", "main")
+    else:
+        _git(repo, "checkout", "-q", "--detach")
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    expected = "branch is main" if state == "main" else "detached HEAD"
+    assert expected in failures[0]
+
+
+@pytest.mark.parametrize("state", ["rebase-merge", "rebase-apply", "MERGE_HEAD"])
+def test_midflight_rejects_rebase_or_merge_state(
+    tmp_path: Path,
+    state: str,
+) -> None:
+    repo = _repo(tmp_path)
+    git_dir = Path(_git(repo, "rev-parse", "--absolute-git-dir"))
+    path = git_dir / state
+    if state == "MERGE_HEAD":
+        path.write_text(_git(repo, "rev-parse", "HEAD") + "\n", encoding="ascii")
+    else:
+        path.mkdir()
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "rebase/merge in progress" in failures[0]
+
+
+@pytest.mark.parametrize("invalid_marker", ["missing", "directory", "symlink"])
+def test_midflight_rejects_invalid_submodule_marker(
+    tmp_path: Path,
+    invalid_marker: str,
+) -> None:
+    repo = _repo(tmp_path)
+    marker = repo / "external" / "ccbench" / "CMakeLists.txt"
+    marker.unlink()
+    if invalid_marker == "symlink":
+        marker.symlink_to(repo / "base.txt")
+    _commit_all(repo, f"midflight invalid marker {invalid_marker}")
+    if invalid_marker == "directory":
+        marker.mkdir()
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "submodule is not initialized" in failures[0]
+
+
+@pytest.mark.parametrize("invalid_git_entry", ["missing", "symlink"])
+def test_midflight_requires_non_symlink_submodule_git_entry(
+    tmp_path: Path,
+    invalid_git_entry: str,
+) -> None:
+    repo = _repo(tmp_path)
+    git_entry = repo / "external" / "ccbench" / ".git"
+    git_entry.unlink()
+    if invalid_git_entry == "symlink":
+        git_entry.symlink_to(repo / ".git")
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "submodule is not initialized" in failures[0]
+
+
+def test_midflight_rejects_symbolic_main(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _git(repo, "symbolic-ref", "refs/heads/main", "refs/heads/work")
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "local main is a symbolic ref" in failures[0]
+
+
+@pytest.mark.parametrize("kind", ["file", "dangling-symlink"])
+def test_midflight_rejects_legacy_graft_metadata(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    repo = _repo(tmp_path)
+    grafts = Path(
+        _git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/grafts")
+    )
+    grafts.parent.mkdir(parents=True, exist_ok=True)
+    if kind == "file":
+        _advance_main(repo, 1)
+        _advance_work(repo)
+        head = _git(repo, "rev-parse", "HEAD")
+        main = _git(repo, "rev-parse", "refs/heads/main")
+        grafts.write_text(f"{head} {main}\n", encoding="ascii")
+    else:
+        grafts.symlink_to(tmp_path / "missing-grafts-target")
+    failures = CWS.check_repository(repo, mode="midflight")
+    assert len(failures) == 1
+    assert "legacy graft metadata exists" in failures[0]
+
+
+@pytest.mark.parametrize("option", ["forbid_worktree_handoff", "external_handoff"])
+def test_midflight_rejects_handoff_options_in_python_api_before_repo_checks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    option: str,
+) -> None:
+    calls: list[str] = []
+
+    def unexpected(repo: Path) -> list[str]:
+        calls.append("repository check")
+        return []
+
+    for name in (
+        "_check_no_grafts",
+        "_check_main_is_direct_ref",
+        "_check_fresh_branch",
+        "_check_no_operation_in_progress",
+        "_check_submodule_marker",
+    ):
+        monkeypatch.setattr(CWS, name, unexpected)
+
+    def unexpected_measurement(repo: Path) -> tuple[list[str], str | None]:
+        calls.append("repository measurement")
+        return [], "0"
+
+    monkeypatch.setattr(
+        CWS, "_check_main_divergence_measurable", unexpected_measurement
+    )
+
+    kwargs = {option: True if option == "forbid_worktree_handoff" else tmp_path / "handoff"}
+    failures = CWS.check_repository(tmp_path / "not-a-repo", mode="midflight", **kwargs)
+    assert failures == [
+        "midflight mode does not accept --forbid-worktree-handoff / "
+        "--external-handoff; 開始 gate には fresh / resume を使う"
+    ]
+    assert calls == []
+
+
+@pytest.mark.parametrize("option", ["forbid-worktree-handoff", "external-handoff"])
+def test_midflight_rejects_handoff_options_in_cli(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    option: str,
+) -> None:
+    repo = _repo(tmp_path)
+    argv = ["--repo", str(repo), "--mode", "midflight", f"--{option}"]
+    if option == "external-handoff":
+        argv.append(str(tmp_path / "handoff.md"))
+    with pytest.raises(SystemExit) as raised:
+        CWS.main(argv)
+    assert raised.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "--mode midflight does not accept" in captured.err
+
+
+@pytest.mark.parametrize("dirty_kind", ["tracked", "untracked"])
+def test_midflight_accepts_self_commit_behind_main_and_dirty_tree_while_fresh_and_resume_reject(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    dirty_kind: str,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    _advance_main(repo, 1)
+    if dirty_kind == "tracked":
+        (repo / "base.txt").write_text("tracked dirt\n", encoding="utf-8")
+    else:
+        (repo / "untracked-midflight.txt").write_text("untracked dirt\n", encoding="utf-8")
+
+    fresh_failures = CWS.check_repository(repo, mode="fresh")
+    resume_failures = CWS.check_repository(repo, mode="resume")
+    assert any("HEAD != local main" in failure for failure in fresh_failures)
+    assert any("working tree is not clean" in failure for failure in fresh_failures)
+    assert any("HEAD does not contain local main" in failure for failure in resume_failures)
+    assert any("working tree is not clean" in failure for failure in resume_failures)
+    assert _run(repo, "--mode", "midflight") == 0
+    captured = capsys.readouterr()
+    assert "OK: wave startup checks passed (midflight;" in captured.out
+    assert "NOTE: local main より 1 commit 遅れている (gate の実測値; これは関門ではない)" in captured.out
+    assert "NOTE: working tree is not clean (midflight は clean tree を検査しない)" in captured.out
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize("dirty_kind", ["tracked", "untracked"])
+def test_midflight_accepts_dirty_only(
+    tmp_path: Path,
+    dirty_kind: str,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    if dirty_kind == "tracked":
+        (repo / "base.txt").write_text("tracked dirt\n", encoding="utf-8")
+    else:
+        (repo / "untracked-midflight.txt").write_text(
+            "untracked dirt\n", encoding="utf-8"
+        )
+
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "0"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "1"
+    assert _git(repo, "status", "--porcelain") != ""
+    assert CWS.check_repository(repo, mode="midflight") == []
+
+
+def test_midflight_accepts_behind_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    _advance_main(repo, 1)
+
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "1"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "1"
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS.check_repository(repo, mode="midflight") == []
+
+
+def test_midflight_accepts_zero_self_commit_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "0"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "0"
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS.check_repository(repo, mode="midflight") == []
+
+
+def test_midflight_does_not_require_wave_commit(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 3)
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "0"
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "3"
+    assert _run(repo, "--mode", "midflight") == 0
+    captured = capsys.readouterr()
+    assert "NOTE: local main より 3 commit 遅れている (gate の実測値; これは関門ではない)" in captured.out
+    assert "NOTE: working tree is clean (midflight は clean tree を検査しない)" in captured.out
+    assert captured.err == ""
+
+
+def test_midflight_scope_notes_are_shown_when_gate_rejects(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    _git(repo, "checkout", "-q", "main")
+    assert _run(repo, "--mode", "midflight") == 1
+    captured = capsys.readouterr()
+    assert "開始 gate (fresh / resume) の代用ではない" in captured.out
+    assert "HEAD/main 関係・clean tree・handoff を検査しない" in captured.out
+    assert "NOTE: local main より 0 commit 遅れている (gate の実測値; これは関門ではない)" in captured.out
+    assert "NOTE: working tree is clean (midflight は clean tree を検査しない)" in captured.out
+    assert "branch is main" in captured.err
+
+
+@pytest.mark.parametrize("gate_result", ["accepted", "rejected"])
+def test_midflight_cleanliness_note_exception_does_not_change_gate_rc(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    gate_result: str,
+) -> None:
+    repo = _repo(tmp_path)
+    if gate_result == "rejected":
+        _git(repo, "checkout", "-q", "main")
+
+    def raise_unexpected(repo: Path) -> list[str]:
+        raise RuntimeError("unexpected cleanliness observation failure")
+
+    monkeypatch.setattr(CWS, "_check_clean_tree", raise_unexpected)
+    assert _run(repo, "--mode", "midflight") == (
+        0 if gate_result == "accepted" else 1
+    )
+    captured = capsys.readouterr()
+    assert "cleanliness could not be observed" in captured.out
+    if gate_result == "accepted":
+        assert "OK: wave startup checks passed (midflight;" in captured.out
+        assert captured.err == ""
+    else:
+        assert "OK: wave startup checks passed" not in captured.out
+        assert "branch is main" in captured.err
+
+
+def test_midflight_main_reports_gate_measurement_not_info_measurement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    real_git = CWS._git
+    real_git_raw = CWS._git_raw
+
+    def info_rev_list(repo: Path, *args: str) -> CWS.GitResult:
+        if args == ("rev-list", "--count", "HEAD..refs/heads/main"):
+            return CWS.GitResult(0, "0", "")
+        return real_git(repo, *args)
+
+    def gate_rev_list(repo: Path, *args: str) -> CWS.GitResult:
+        if args == ("rev-list", "--count", "HEAD..refs/heads/main"):
+            return CWS.GitResult(0, "343\n", "")
+        return real_git_raw(repo, *args)
+
+    monkeypatch.setattr(CWS, "_git", info_rev_list)
+    monkeypatch.setattr(CWS, "_git_raw", gate_rev_list)
+    assert _run(repo, "--mode", "midflight") == 0
+    captured = capsys.readouterr()
+    assert "INFO: local main との乖離なし (0 commit" in captured.out
+    assert "NOTE: local main より 343 commit 遅れている (gate の実測値; これは関門ではない)" in captured.out
+    assert "NOTE: local main より 0 commit 遅れている" not in captured.out
+    assert captured.err == ""
 
 
 def test_resume_rejects_head_behind_local_main(
@@ -1225,6 +1832,21 @@ def test_help_discloses_qsub_is_out_of_scope(capsys: pytest.CaptureFixture[str])
     assert "branch 所有" in out
     assert "--repo" in out
     assert "同一性は認証しない" in out
+
+
+def test_help_discloses_midflight_scope_and_non_guarantees(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as raised:
+        CWS.main(["--help"])
+    assert raised.value.code == 0
+    out = capsys.readouterr().out
+    assert "midflight は段 5 実装子 dispatch" in out
+    assert "直前専用で、開始 gate" in out
+    assert "開始 gate (fresh / resume) の代用ではない" in out
+    assert "HEAD/main" in out
+    assert "関係・clean tree・handoff を検査せず" in out
+    assert "main 乖離量は関門でない" in out
 
 
 def test_ok_reports_resolved_repo_and_non_guarantees(

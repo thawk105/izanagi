@@ -1,0 +1,459 @@
+{
+  "workload": {
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "0"
+  },
+  "tag": "balanced",
+  "threads": 48,
+  "records": 1000000,
+  "site": "PEGASUS_COMPUTE",
+  "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+  "calibration_ref": "output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json",
+  "calibration_sha256": "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
+  "hostname": "bnode125",
+  "pbs_jobid": null,
+  "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "gflags_pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+  "glog_pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+  "dependency_prefix": "/scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix",
+  "build_cache_root": "/scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/ccbench-cache",
+  "dependency_build_log": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-balanced-profile/output/insights/2026-08-26_b10-balanced-profile/job-logs/b10bal-20260827-06",
+  "perf_executable": "/usr/lib/linux-tools-5.15.0-135/perf",
+  "clocks_per_us": 2100,
+  "env_tag": "pegasus",
+  "use_perf": true,
+  "diagnostic_only": true,
+  "headline_eligible": false,
+  "diagnostic_notice": "BACKOFF_NOINLINE=1 diagnostic only; headline throughput に使用不可。",
+  "backoff_time_live_verified": false,
+  "backoff_time_notice": "requested us は contract-calibrated であり実時間は未検証。",
+  "dependency_prefix_cache_identity_bound": false,
+  "dependency_identity_notice": "legacy buildcache.build は dependency prefix を cache identity へ束縛しない。job 専用 cache root で既存 cache の継承を避ける緩和に留まる。",
+  "comparison": {
+    "path": "output/env/linux-baremetal/profile/backoff_profile_t48_skew0p9_rr5.json",
+    "sha256": "e99932213a571561c87f5ac253e19f59a81382718bb0cf08a9c64ea64281d184"
+  },
+  "comparison_confounds": [
+    "environment",
+    "ccbench_commit"
+  ],
+  "preregistered_decision": {
+    "evaluation_band": "backoff_us <= 10",
+    "evaluation_band_source": "existing write-heavy profile",
+    "spread_definition": "(max - min) / mean",
+    "replication_bar": 0.044,
+    "claim_condition": "spread(useful_ipc,S) <= spread(total_ipc,S) and spread(useful_ipc,S) <= 0.044",
+    "inconclusive_if_condition_not_met": true,
+    "headline_gain_explained": false
+  },
+  "decision": {
+    "status": "condition-met",
+    "inconclusive_reason": null,
+    "useful_ipc_spread": 0.04344587794794435,
+    "total_ipc_spread": 0.5700159731452176,
+    "spin_dilution_condition_met": true,
+    "headline_gain_explained": false
+  },
+  "remaining_limitations": [
+    "既存 +11.3% は別環境かつ別 ccbench source の値である。",
+    "BACKOFF_NOINLINE=1 の診断 build は headline に使えない。",
+    "同一 env/source の stock-inline 対照をこの wave では取らない。",
+    "requested us は contract-calibrated であり実時間は未検証。",
+    "legacy buildcache.build は dependency prefix を cache identity へ束縛しない。job 専用 cache root で既存 cache の継承を避ける緩和に留まる。"
+  ],
+  "rows": [
+    {
+      "backoff_us": 0,
+      "is_none": true,
+      "genome": "silo|BACKOFF_FIXED=-1,BACKOFF_NOINLINE=1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 4044953.0,
+      "abort": 0.6688,
+      "total_ipc": 1.933024855584851,
+      "useful_ipc": 1.933024855584851,
+      "spin_cyc_pct": 0.0,
+      "spin_instr_pct": 0.0,
+      "k_total": 6318088.620386636,
+      "k_useful": 6318088.620386636,
+      "tps_all": [
+        4042780.0,
+        4044953.0,
+        4094810.0
+      ],
+      "reps": [
+        {
+          "tps": 4042780.0,
+          "abort": 0.67,
+          "cycles": 454001327075,
+          "instructions": 878397302279,
+          "spin_cyc_pct": 0.0,
+          "spin_instr_pct": 0.0,
+          "total_ipc": 1.934790164465512,
+          "useful_ipc": 1.934790164465512,
+          "k_total": 6331874.489465784,
+          "k_useful": 6331874.489465784
+        },
+        {
+          "tps": 4044953.0,
+          "abort": 0.6688,
+          "cycles": 455007920746,
+          "instructions": 879541620290,
+          "spin_cyc_pct": 0.0,
+          "spin_instr_pct": 0.0,
+          "total_ipc": 1.933024855584851,
+          "useful_ipc": 1.933024855584851,
+          "k_total": 6318088.620386636,
+          "k_useful": 6318088.620386636
+        },
+        {
+          "tps": 4094810.0,
+          "abort": 0.6662,
+          "cycles": 453313765877,
+          "instructions": 887489865613,
+          "spin_cyc_pct": 0.0,
+          "spin_instr_pct": 0.0,
+          "total_ipc": 1.9577827377380093,
+          "useful_ipc": 1.9577827377380093,
+          "k_total": 6265892.330828722,
+          "k_useful": 6265892.330828722
+        }
+      ]
+    },
+    {
+      "backoff_us": 2,
+      "is_none": false,
+      "genome": "silo|BACKOFF_FIXED=2,BACKOFF_NOINLINE=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 4510108.0,
+      "abort": 0.5457,
+      "total_ipc": 1.6070663802739604,
+      "useful_ipc": 2.019054855650922,
+      "spin_cyc_pct": 22.57,
+      "spin_instr_pct": 2.72,
+      "k_total": 6177466.3604743825,
+      "k_useful": 4916953.333588934,
+      "tps_all": [
+        4510108.0,
+        4521790.0,
+        4461449.0
+      ],
+      "reps": [
+        {
+          "tps": 4510108.0,
+          "abort": 0.5457,
+          "cycles": 453625204408,
+          "instructions": 729005815249,
+          "spin_cyc_pct": 22.57,
+          "spin_instr_pct": 2.72,
+          "total_ipc": 1.6070663802739604,
+          "useful_ipc": 2.019054855650922,
+          "k_total": 6177466.3604743825,
+          "k_useful": 4916953.333588934
+        },
+        {
+          "tps": 4521790.0,
+          "abort": 0.5453,
+          "cycles": 459511280734,
+          "instructions": 726877694706,
+          "spin_cyc_pct": 22.23,
+          "spin_instr_pct": 2.8,
+          "total_ipc": 1.581849510951989,
+          "useful_ipc": 1.9770576374506017,
+          "k_total": 6286664.301388529,
+          "k_useful": 5029978.217273518
+        },
+        {
+          "tps": 4461449.0,
+          "abort": 0.5484,
+          "cycles": 456079619044,
+          "instructions": 728366070868,
+          "spin_cyc_pct": 22.56,
+          "spin_instr_pct": 2.76,
+          "total_ipc": 1.5970151711553051,
+          "useful_ipc": 2.005342913780241,
+          "k_total": 6186043.330802494,
+          "k_useful": 4926441.747607416
+        }
+      ]
+    },
+    {
+      "backoff_us": 5,
+      "is_none": false,
+      "genome": "silo|BACKOFF_FIXED=5,BACKOFF_NOINLINE=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 4336086.0,
+      "abort": 0.4564,
+      "total_ipc": 1.3218833682896605,
+      "useful_ipc": 2.0015639084482073,
+      "spin_cyc_pct": 37.57,
+      "spin_instr_pct": 5.47,
+      "k_total": 6034277.811778024,
+      "k_useful": 3985189.503748039,
+      "tps_all": [
+        4300135.0,
+        4337839.0,
+        4336086.0
+      ],
+      "reps": [
+        {
+          "tps": 4300135.0,
+          "abort": 0.46,
+          "cycles": 453874019260,
+          "instructions": 596539597162,
+          "spin_cyc_pct": 37.82,
+          "spin_instr_pct": 5.54,
+          "total_ipc": 1.3143285842503238,
+          "useful_ipc": 1.9966464790653844,
+          "k_total": 6058768.757209277,
+          "k_useful": 3988293.8950166507
+        },
+        {
+          "tps": 4337839.0,
+          "abort": 0.4565,
+          "cycles": 454833614776,
+          "instructions": 601184858780,
+          "spin_cyc_pct": 37.62,
+          "spin_instr_pct": 5.44,
+          "total_ipc": 1.3217687507025535,
+          "useful_ipc": 2.003630219083576,
+          "k_total": 6038351.643263939,
+          "k_useful": 3983421.9067978477
+        },
+        {
+          "tps": 4336086.0,
+          "abort": 0.4564,
+          "cycles": 453734042551,
+          "instructions": 599783484475,
+          "spin_cyc_pct": 37.57,
+          "spin_instr_pct": 5.47,
+          "total_ipc": 1.3218833682896605,
+          "useful_ipc": 2.0015639084482073,
+          "k_total": 6034277.811778024,
+          "k_useful": 3985189.503748039
+        }
+      ]
+    },
+    {
+      "backoff_us": 10,
+      "is_none": false,
+      "genome": "silo|BACKOFF_FIXED=10,BACKOFF_NOINLINE=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 3859665.0,
+      "abort": 0.3849,
+      "total_ipc": 1.0854877239158278,
+      "useful_ipc": 1.967015750500646,
+      "spin_cyc_pct": 49.6,
+      "spin_instr_pct": 8.67,
+      "k_total": 5780680.525866938,
+      "k_useful": 3190039.4011134747,
+      "tps_all": [
+        3853715.0,
+        3862340.0,
+        3859665.0
+      ],
+      "reps": [
+        {
+          "tps": 3853715.0,
+          "abort": 0.3844,
+          "cycles": 454879839344,
+          "instructions": 495094122116,
+          "spin_cyc_pct": 49.23,
+          "spin_instr_pct": 8.63,
+          "total_ipc": 1.08840638624476,
+          "useful_ipc": 1.9587884875159285,
+          "k_total": 5751616.235048189,
+          "k_useful": 3195901.896173762
+        },
+        {
+          "tps": 3862340.0,
+          "abort": 0.385,
+          "cycles": 453768413562,
+          "instructions": 495358182517,
+          "spin_cyc_pct": 49.63,
+          "spin_instr_pct": 8.62,
+          "total_ipc": 1.0916541736092378,
+          "useful_ipc": 1.9804518241892424,
+          "k_total": 5752946.1198436795,
+          "k_useful": 3171108.5145165916
+        },
+        {
+          "tps": 3859665.0,
+          "abort": 0.3849,
+          "cycles": 453594391777,
+          "instructions": 492371143911,
+          "spin_cyc_pct": 49.6,
+          "spin_instr_pct": 8.67,
+          "total_ipc": 1.0854877239158278,
+          "useful_ipc": 1.967015750500646,
+          "k_total": 5780680.525866938,
+          "k_useful": 3190039.4011134747
+        }
+      ]
+    },
+    {
+      "backoff_us": 25,
+      "is_none": false,
+      "genome": "silo|BACKOFF_FIXED=25,BACKOFF_NOINLINE=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 3022782.0,
+      "abort": 0.2924,
+      "total_ipc": 0.8021069021361009,
+      "useful_ipc": 1.865947017342619,
+      "spin_cyc_pct": 63.47,
+      "spin_instr_pct": 15.02,
+      "k_total": 5325823.255745455,
+      "k_useful": 2289389.544979777,
+      "tps_all": [
+        3017331.0,
+        3030583.0,
+        3022782.0
+      ],
+      "reps": [
+        {
+          "tps": 3017331.0,
+          "abort": 0.2926,
+          "cycles": 454962141309,
+          "instructions": 366366780034,
+          "spin_cyc_pct": 63.75,
+          "spin_instr_pct": 14.95,
+          "total_ipc": 0.8052687174803232,
+          "useful_ipc": 1.889327018529696,
+          "k_total": 5296842.639976931,
+          "k_useful": 2257619.5849401974
+        },
+        {
+          "tps": 3030583.0,
+          "abort": 0.2917,
+          "cycles": 453764194608,
+          "instructions": 366602617457,
+          "spin_cyc_pct": 63.9,
+          "spin_instr_pct": 14.93,
+          "total_ipc": 0.8079143789070938,
+          "useful_ipc": 1.9038580668594594,
+          "k_total": 5295946.672815173,
+          "k_useful": 2247368.9301590184
+        },
+        {
+          "tps": 3022782.0,
+          "abort": 0.2924,
+          "cycles": 455694368689,
+          "instructions": 365515598390,
+          "spin_cyc_pct": 63.47,
+          "spin_instr_pct": 15.02,
+          "total_ipc": 0.8021069021361009,
+          "useful_ipc": 1.865947017342619,
+          "k_total": 5325823.255745455,
+          "k_useful": 2289389.544979777
+        }
+      ]
+    },
+    {
+      "backoff_us": 50,
+      "is_none": false,
+      "genome": "silo|BACKOFF_FIXED=50,BACKOFF_NOINLINE=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 2382936.0,
+      "abort": 0.2291,
+      "total_ipc": 0.6498168241482786,
+      "useful_ipc": 1.8582646034504293,
+      "spin_cyc_pct": 72.35,
+      "spin_instr_pct": 20.93,
+      "k_total": 4756892.986449154,
+      "k_useful": 1663438.612309588,
+      "tps_all": [
+        2387716.0,
+        2380586.0,
+        2382936.0
+      ],
+      "reps": [
+        {
+          "tps": 2387716.0,
+          "abort": 0.2287,
+          "cycles": 454474361885,
+          "instructions": 291653247048,
+          "spin_cyc_pct": 72.17,
+          "spin_instr_pct": 21.29,
+          "total_ipc": 0.6417375137253613,
+          "useful_ipc": 1.8149895690019113,
+          "k_total": 4823940.14960439,
+          "k_useful": 1705631.4872759518
+        },
+        {
+          "tps": 2380586.0,
+          "abort": 0.2293,
+          "cycles": 455615166365,
+          "instructions": 293127751618,
+          "spin_cyc_pct": 72.1,
+          "spin_instr_pct": 21.16,
+          "total_ipc": 0.6433669755917893,
+          "useful_ipc": 1.8180305503819594,
+          "k_total": 4801088.9439864345,
+          "k_useful": 1699015.4938764784
+        },
+        {
+          "tps": 2382936.0,
+          "abort": 0.2291,
+          "cycles": 453965914003,
+          "instructions": 294994688509,
+          "spin_cyc_pct": 72.35,
+          "spin_instr_pct": 20.93,
+          "total_ipc": 0.6498168241482786,
+          "useful_ipc": 1.8582646034504293,
+          "k_total": 4756892.986449154,
+          "k_useful": 1663438.612309588
+        }
+      ]
+    },
+    {
+      "backoff_us": 100,
+      "is_none": false,
+      "genome": "silo|BACKOFF_FIXED=100,BACKOFF_NOINLINE=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+      "tps_median": 1829445.0,
+      "abort": 0.1748,
+      "total_ipc": 0.5200694853667933,
+      "useful_ipc": 1.7478548177541542,
+      "spin_cyc_pct": 78.77,
+      "spin_instr_pct": 28.65,
+      "k_total": 4262837.381574931,
+      "k_useful": 1268395.76188978,
+      "tps_all": [
+        1831126.0,
+        1829445.0,
+        1825391.0
+      ],
+      "reps": [
+        {
+          "tps": 1831126.0,
+          "abort": 0.1746,
+          "cycles": 453400936703,
+          "instructions": 236904077162,
+          "spin_cyc_pct": 79.27,
+          "spin_instr_pct": 28.59,
+          "total_ipc": 0.5225046046104308,
+          "useful_ipc": 1.799906117473751,
+          "k_total": 4245840.179717049,
+          "k_useful": 1232548.1994893495
+        },
+        {
+          "tps": 1829445.0,
+          "abort": 0.1748,
+          "cycles": 455238908274,
+          "instructions": 236755864745,
+          "spin_cyc_pct": 78.77,
+          "spin_instr_pct": 28.65,
+          "total_ipc": 0.5200694853667933,
+          "useful_ipc": 1.7478548177541542,
+          "k_total": 4262837.381574931,
+          "k_useful": 1268395.76188978
+        },
+        {
+          "tps": 1825391.0,
+          "abort": 0.1751,
+          "cycles": 457809127673,
+          "instructions": 237720743798,
+          "spin_cyc_pct": 78.5,
+          "spin_instr_pct": 28.56,
+          "total_ipc": 0.5192573267516788,
+          "useful_ipc": 1.7253834150297644,
+          "k_total": 4261592.977844143,
+          "k_useful": 1282534.2808461518
+        }
+      ]
+    }
+  ]
+}

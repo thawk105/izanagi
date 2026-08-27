@@ -14,10 +14,12 @@ import subprocess
 import sys
 import threading
 import time
+import types
 from pathlib import Path
 from unittest import mock
 
 import pytest
+from packaging.version import Version
 
 _REPO = Path(__file__).resolve().parents[2]
 if str(_REPO) not in sys.path:
@@ -29,6 +31,15 @@ from orchestrator import scheduler_nqsv as NQSV
 
 _JOB_ID = "0:424242.nqsv"
 
+# These thread bounds recover hangs; they are not pass/fail latency budgets.
+# Thirty seconds is a conservative recovery window at nearly 3x the 10.015s
+# deterministic pre-injection floor.  That parent sample was three compute-node
+# standalone-file runs, not the acceptance full-suite regime.  Event waits use
+# the same bound because a 5s thread-start deadline is not a property under 48-way
+# parallelism.  The parent will measure and finalize the post-injection runtime
+# in stage 6.
+_THREAD_COORDINATION_WATCHDOG_S = 30.0
+
 
 class _Clock:
     def __init__(self):
@@ -39,6 +50,27 @@ class _Clock:
 
     def sleep(self, seconds):
         self.now += seconds
+
+
+class _RecordingClock:
+    """Record injected clock reads and sleeps without consulting wall time."""
+
+    def __init__(self):
+        self._clock = _Clock()
+        self.read_calls = 0
+        self.sleep_calls = []
+
+    @property
+    def now(self):
+        return self._clock.now
+
+    def __call__(self):
+        self.read_calls += 1
+        return self._clock()
+
+    def sleep(self, seconds):
+        self.sleep_calls.append(seconds)
+        self._clock.sleep(seconds)
 
 
 class _Scheduler:
@@ -119,9 +151,11 @@ class _Scheduler:
             + accounting,
         )
         request_sha256 = self.result_request_sha256
+        request_payload = None
         if request_sha256 is None:
             request_path = cwd / "request.json"
             if request_path.is_file():
+                request_payload = json.loads(request_path.read_text(encoding="utf-8"))
                 request_sha256 = hashlib.sha256(
                     request_path.read_bytes(),
                 ).hexdigest()
@@ -136,6 +170,12 @@ class _Scheduler:
         }
         if request_sha256 is not None:
             result["request_sha256"] = request_sha256
+        if request_payload is not None and "runner_binding" in request_payload:
+            result["runner_binding"] = {
+                "schema_version": DC._RUNNER_BINDING_REPORT_SCHEMA,
+                **request_payload["runner_binding"],
+                "runner_executed_sha256": "a" * 64,
+            }
         (cwd / "result.json").write_text(
             json.dumps(result) + "\n",
             encoding="utf-8",
@@ -232,16 +272,20 @@ def _dispatch(
 ):
     clock = _Clock()
     run_command = kwargs.pop("run_command", scheduler)
-    rc = DC.dispatch(
-        ["orchestrator/tests/test_sample.py", "-q"],
-        repo_root=_REPO,
-        output_root=tmp_path / "dispatch",
-        environ={
+    environ = kwargs.pop(
+        "environ",
+        {
             "PATH": os.environ.get("PATH", ""),
             "IZANAGI_TASK_RUN_ID": "must-not-propagate",
             "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
             "PYTEST_ADDOPTS": "-q",
         },
+    )
+    rc = DC.dispatch(
+        ["orchestrator/tests/test_sample.py", "-q"],
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        environ=environ,
         run_command=run_command,
         clock=clock,
         sleep=clock.sleep,
@@ -4037,6 +4081,782 @@ def _job_run_with_mocked_child(
     return rc, calls
 
 
+def _binding_environment(write_fd: int, *, shard_count: str = "1") -> dict[str, str]:
+    return {
+        "PATH": os.environ.get("PATH", ""),
+        DC._ACCEPTANCE_SHARDS_ENV: shard_count,
+        DC._RUNNER_BINDING_FD_ENV: str(write_fd),
+        DC._RUNNER_BINDING_NONCE_ENV: "1" * 64,
+        DC._RUNNER_BINDING_TESTED_MAIN_ENV: "a" * 40,
+    }
+
+
+def test_bound_child_executes_main_blob_not_worktree(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    marker = tmp_path / "executed.txt"
+    main_source = (
+        "from pathlib import Path\n"
+        "def main(argv):\n"
+        "    Path(argv[0]).write_text('main\\n', encoding='ascii')\n"
+        "    return 0\n"
+    ).encode("ascii")
+    tip_source = (
+        "from pathlib import Path\n"
+        "def main(argv):\n"
+        "    Path(argv[0]).write_text('tip\\n', encoding='ascii')\n"
+        "    return 0\n"
+    ).encode("ascii")
+    runner_path = tools / "run_tests.py"
+    runner_path.write_bytes(main_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "main runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_path.write_bytes(tip_source)
+
+    binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    original_read_bytes = Path.read_bytes
+
+    def main_bytes_for_digest(path: Path) -> bytes:
+        if path == runner_path:
+            return main_source
+        return original_read_bytes(path)
+
+    # M8 owns the execution-source distinction. M9 separately owns pathname
+    # re-hashing, so keep that independent mutation from changing this fixture.
+    with mock.patch.object(Path, "read_bytes", main_bytes_for_digest):
+        rc, digest = DC._run_bound_tests_child(
+            repo,
+            [str(marker)],
+            {
+                "PATH": os.environ.get("PATH", ""),
+                "PYTHONDONTWRITEBYTECODE": "1",
+            },
+            binding,
+            tmp_path,
+        )
+
+    assert rc == 0
+    assert digest == hashlib.sha256(main_source).hexdigest()
+    assert marker.read_text(encoding="ascii") == "main\n"
+    assert runner_path.read_bytes() == tip_source
+
+
+def test_bound_child_reports_digest_of_executed_buffer(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    main_source = b"def main(argv):\n    del argv\n    return 0\n"
+    tip_source = b"# tip-only comment\n" + main_source
+    runner_path = tools / "run_tests.py"
+    runner_path.write_bytes(main_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "main runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_path.write_bytes(tip_source)
+
+    binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    rc, digest = DC._run_bound_tests_child(
+        repo,
+        [],
+        {"PATH": os.environ.get("PATH", ""), "PYTHONDONTWRITEBYTECODE": "1"},
+        binding,
+        tmp_path,
+    )
+
+    assert rc == 0
+    assert hashlib.sha256(main_source).digest() != hashlib.sha256(
+        tip_source
+    ).digest()
+    assert digest == hashlib.sha256(main_source).hexdigest()
+
+
+def _make_bound_xdist_case(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    marker = tmp_path / "bound-xdist.json"
+    runner_poison_marker = tmp_path / "runner-pathname-poison"
+    import_poison_marker = tmp_path / "worktree-import-poison"
+    pth_marker = tmp_path / "pth-executed"
+    usercustomize_marker = tmp_path / "usercustomize-executed"
+    stdlib_shadow_marker = tmp_path / "stdlib-shadowed"
+    version = "3.8.0"
+    user_base = tmp_path / "synthetic-userbase"
+    site_root = (
+        user_base
+        / "lib"
+        / f"python{sys.version_info.major}.{sys.version_info.minor}"
+        / "site-packages"
+    )
+    xdist_package = site_root / "xdist"
+    xdist_package.mkdir(parents=True)
+    (xdist_package / "__init__.py").write_text(
+        f"__version__ = {version!r}\n", encoding="ascii"
+    )
+    dist_info = site_root / f"pytest_xdist-{version}.dist-info"
+    dist_info.mkdir()
+    (dist_info / "METADATA").write_text(
+        "Metadata-Version: 2.1\n"
+        "Name: pytest-xdist\n"
+        f"Version: {version}\n",
+        encoding="ascii",
+    )
+    (site_root / "startup-probe.pth").write_text(
+        "import pathlib; "
+        f"pathlib.Path({str(pth_marker)!r}).write_text('pth', encoding='ascii')\n",
+        encoding="ascii",
+    )
+    (site_root / "usercustomize.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(usercustomize_marker)!r}).write_text("
+        "'usercustomize', encoding='ascii')\n",
+        encoding="ascii",
+    )
+    (site_root / "json.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(stdlib_shadow_marker)!r}).write_text("
+        "'shadowed', encoding='ascii')\n"
+        "raise RuntimeError('synthetic json must not shadow stdlib')\n",
+        encoding="ascii",
+    )
+
+    main_source = (
+        "import importlib.metadata\n"
+        "import json\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "import xdist\n"
+        "def main(argv):\n"
+        "    distribution = importlib.metadata.distribution('pytest-xdist')\n"
+        "    payload = {\n"
+        "        'xdist_file': xdist.__file__,\n"
+        "        'distribution_root': str(distribution.locate_file('')),\n"
+        "        'version': distribution.version,\n"
+        "        'isolated': sys.flags.isolated,\n"
+        "        'ignore_environment': sys.flags.ignore_environment,\n"
+        "        'no_user_site': sys.flags.no_user_site,\n"
+        "    }\n"
+        "    Path(argv[0]).write_text(json.dumps(payload), encoding='utf-8')\n"
+        "    return 0\n"
+    ).encode("ascii")
+    runner_path = tools / "run_tests.py"
+    runner_path.write_bytes(main_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "synthetic xdist runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_path.write_text(
+        "from pathlib import Path\n"
+        f"Path({str(runner_poison_marker)!r}).write_text("
+        "'pathname', encoding='ascii')\n"
+        "raise SystemExit(91)\n",
+        encoding="ascii",
+    )
+    worktree_xdist = repo / "xdist"
+    worktree_xdist.mkdir()
+    (worktree_xdist / "__init__.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(import_poison_marker)!r}).write_text("
+        "'worktree', encoding='ascii')\n"
+        "raise RuntimeError('worktree xdist must not be imported')\n",
+        encoding="ascii",
+    )
+    binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    request_payload = {
+        "schema_version": DC._REQUEST_SCHEMA,
+        "repo_root": str(repo.resolve()),
+        "task": "tests",
+        "args": [str(marker)],
+        "environment": {},
+        "request_binding": DC._REQUEST_BINDING,
+        "runner_binding": binding,
+    }
+    submission = tmp_path / "submission"
+    submission.mkdir()
+    request_path = submission / "request.json"
+    request_path.write_text(
+        DC._canonical_json_text(request_payload), encoding="utf-8"
+    )
+    request_sha256 = hashlib.sha256(request_path.read_bytes()).hexdigest()
+    probe_path = submission / "interpreter_probe.py"
+    probe_path.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    (submission / "dispatch.sh").write_text(
+        DC._job_script(
+            repo_root=repo,
+            submission_dir=submission,
+            request_path=request_path,
+            probe_path=probe_path,
+            request_sha256=request_sha256,
+            walltime="00:30:00",
+            task="tests",
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "repo": repo,
+        "marker": marker,
+        "runner_poison_marker": runner_poison_marker,
+        "import_poison_marker": import_poison_marker,
+        "pth_marker": pth_marker,
+        "usercustomize_marker": usercustomize_marker,
+        "stdlib_shadow_marker": stdlib_shadow_marker,
+        "version": version,
+        "user_base": user_base,
+        "site_root": site_root,
+        "xdist_file": xdist_package / "__init__.py",
+        "main_source": main_source,
+        "binding": binding,
+        "request_path": request_path,
+        "request_sha256": request_sha256,
+        "submission": submission,
+    }
+
+
+def _run_synthetic_bound_child(case, *, child_env=None):
+    environment = {
+        "PATH": os.environ.get("PATH", ""),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    if child_env is not None:
+        environment.update(child_env)
+    return DC._run_bound_tests_child(
+        case["repo"],
+        [str(case["marker"])],
+        environment,
+        case["binding"],
+        case["site_root"],
+    )
+
+
+def _write_poison_xdist(root: Path, marker: Path, version: str) -> None:
+    package = root / "xdist"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('poison', encoding='ascii')\n"
+        "raise RuntimeError('hostile xdist imported')\n",
+        encoding="ascii",
+    )
+    dist_info = root / f"pytest_xdist-{version}.dist-info"
+    dist_info.mkdir()
+    (dist_info / "METADATA").write_text(
+        "Metadata-Version: 2.1\n"
+        "Name: pytest-xdist\n"
+        f"Version: {version}\n",
+        encoding="ascii",
+    )
+
+
+def test_bound_child_imports_xdist_from_validated_appended_root(tmp_path):
+    case = _make_bound_xdist_case(tmp_path)
+    imported_xdist = types.ModuleType("xdist")
+    imported_xdist.__file__ = str(case["xdist_file"])
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+    original_cwd = Path.cwd()
+    try:
+        with mock.patch.dict(
+            DC.os.environ,
+            {
+                "PBS_JOBID": _JOB_ID,
+                "PYTHONUSERBASE": str(case["user_base"]),
+            },
+        ), mock.patch.object(
+            DC.os, "uname", return_value=fake_uname
+        ), mock.patch.object(
+            sys, "path", [str(case["site_root"]), *sys.path]
+        ), mock.patch.dict(
+            sys.modules, {"xdist": imported_xdist}
+        ):
+            rc = DC._job_run(case["request_path"], case["request_sha256"])
+    finally:
+        os.chdir(original_cwd)
+
+    result = json.loads(
+        (case["submission"] / "result.json").read_text(encoding="utf-8")
+    )
+    marker = json.loads(case["marker"].read_text(encoding="utf-8"))
+    expected_root = case["site_root"].resolve()
+    assert rc == 0
+    assert result["error"] is None
+    assert result[DC._BOUND_XDIST_ROOT_RESULT_FIELD] == str(expected_root)
+    assert Path(marker["xdist_file"]).resolve().is_relative_to(expected_root)
+    assert Path(marker["distribution_root"]).resolve() == expected_root
+    assert Version(marker["version"]) >= Version("2.5")
+    assert marker["isolated"] == 1
+    assert marker["ignore_environment"] == 1
+    assert marker["no_user_site"] == 1
+    assert result["runner_binding"]["runner_executed_sha256"] == (
+        hashlib.sha256(case["main_source"]).hexdigest()
+    )
+    for poison_marker in (
+        case["runner_poison_marker"],
+        case["import_poison_marker"],
+        case["pth_marker"],
+        case["usercustomize_marker"],
+        case["stdlib_shadow_marker"],
+    ):
+        assert not poison_marker.exists()
+
+
+def test_bound_child_fails_without_dependency_path_injection(tmp_path):
+    case = _make_bound_xdist_case(tmp_path)
+    injection = "sys.path.append(sys.argv[2])\n"
+    bootstrap_without_injection = DC._BOUND_RUNNER_BOOTSTRAP.replace(
+        injection, ""
+    )
+    assert bootstrap_without_injection != DC._BOUND_RUNNER_BOOTSTRAP
+    with mock.patch.object(
+        DC, "_BOUND_RUNNER_BOOTSTRAP", bootstrap_without_injection
+    ):
+        rc, digest = _run_synthetic_bound_child(case)
+
+    assert rc != 0
+    assert not case["marker"].exists()
+    assert digest == hashlib.sha256(case["main_source"]).hexdigest()
+
+
+def test_bound_child_does_not_run_pth_or_usercustomize(tmp_path):
+    case = _make_bound_xdist_case(tmp_path)
+    rc, _ = _run_synthetic_bound_child(
+        case,
+        child_env={"PYTHONUSERBASE": str(case["user_base"])},
+    )
+
+    assert rc == 0
+    assert case["marker"].is_file()
+    assert not case["pth_marker"].exists()
+    assert not case["usercustomize_marker"].exists()
+    assert not case["stdlib_shadow_marker"].exists()
+
+
+def test_bound_child_ignores_hostile_python_paths(tmp_path):
+    case = _make_bound_xdist_case(tmp_path)
+    pythonpath_root = tmp_path / "hostile-pythonpath"
+    pythonpath_marker = tmp_path / "pythonpath-xdist-imported"
+    _write_poison_xdist(pythonpath_root, pythonpath_marker, "99.0.0")
+    hostile_user_base = tmp_path / "hostile-userbase"
+    hostile_user_site = (
+        hostile_user_base
+        / "lib"
+        / f"python{sys.version_info.major}.{sys.version_info.minor}"
+        / "site-packages"
+    )
+    userbase_marker = tmp_path / "userbase-xdist-imported"
+    _write_poison_xdist(hostile_user_site, userbase_marker, "98.0.0")
+
+    rc, _ = _run_synthetic_bound_child(
+        case,
+        child_env={
+            "PYTHONPATH": str(pythonpath_root),
+            "PYTHONUSERBASE": str(hostile_user_base),
+        },
+    )
+
+    marker = json.loads(case["marker"].read_text(encoding="utf-8"))
+    expected_root = case["site_root"].resolve()
+    assert rc == 0
+    assert Path(marker["xdist_file"]).resolve().is_relative_to(expected_root)
+    assert Path(marker["distribution_root"]).resolve() == expected_root
+    assert not pythonpath_marker.exists()
+    assert not userbase_marker.exists()
+
+
+def test_bound_bootstrap_uses_positional_tail_append_before_compile():
+    source = DC._BOUND_RUNNER_BOOTSTRAP
+    append = "sys.path.append(sys.argv[2])"
+    assert append in source
+    assert source.index(append) < source.index("compile(")
+    assert "sys.path.insert" not in source
+    assert "addsitedir" not in source
+    assert "getusersitepackages" not in source
+    assert "import os" not in source
+    assert "os.environ" not in source
+    assert "os.getenv" not in source
+    assert "import site" not in source
+
+
+@pytest.mark.parametrize(
+    "invalid_root",
+    ["relative", "outside-import"],
+    ids=["relative-root", "xdist-outside-root"],
+)
+def test_bound_xdist_root_validation_fails_closed(tmp_path, invalid_root):
+    root = tmp_path / "distribution-root"
+    root.mkdir()
+    inside = root / "xdist" / "__init__.py"
+    inside.parent.mkdir()
+    inside.write_text("", encoding="ascii")
+    outside = tmp_path / "outside" / "xdist" / "__init__.py"
+    outside.parent.mkdir(parents=True)
+    outside.write_text("", encoding="ascii")
+    imported_xdist = types.ModuleType("xdist")
+    if invalid_root == "relative":
+        located = Path(root.name)
+        imported_xdist.__file__ = str(inside)
+    else:
+        located = root
+        imported_xdist.__file__ = str(outside)
+    distribution = mock.Mock()
+    distribution.locate_file.return_value = located
+    original_cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+        with mock.patch.object(
+            DC.importlib.metadata, "distribution", return_value=distribution
+        ), mock.patch.dict(sys.modules, {"xdist": imported_xdist}):
+            with pytest.raises(DC.DispatchError):
+                DC._resolve_xdist_distribution_root()
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_job_run_emits_exact_runner_binding_report_for_bound_request(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    runner_source = b"def main(argv):\n    del argv\n    return 0\n"
+    (tools / "run_tests.py").write_bytes(runner_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "bound runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    request_payload = {
+        "schema_version": DC._REQUEST_SCHEMA,
+        "repo_root": str(repo.resolve()),
+        "task": "tests",
+        "args": [],
+        "environment": {},
+        "request_binding": DC._REQUEST_BINDING,
+        "runner_binding": runner_binding,
+    }
+    submission = tmp_path / "submission"
+    submission.mkdir()
+    request_path = submission / "request.json"
+    request_path.write_text(
+        DC._canonical_json_text(request_payload), encoding="utf-8"
+    )
+    request_sha256 = hashlib.sha256(request_path.read_bytes()).hexdigest()
+    probe_path = submission / "interpreter_probe.py"
+    probe_path.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    (submission / "dispatch.sh").write_text(
+        DC._job_script(
+            repo_root=repo,
+            submission_dir=submission,
+            request_path=request_path,
+            probe_path=probe_path,
+            request_sha256=request_sha256,
+            walltime="00:30:00",
+            task="tests",
+        ),
+        encoding="utf-8",
+    )
+
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+    original_cwd = Path.cwd()
+    try:
+        with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
+                mock.patch.object(DC.os, "uname", return_value=fake_uname), \
+                mock.patch.object(DC, "_import_probe_modules"), \
+                mock.patch.object(
+                    DC, "_resolve_xdist_distribution_root", return_value=tmp_path
+                ):
+            rc = DC._job_run(request_path, request_sha256)
+    finally:
+        os.chdir(original_cwd)
+
+    result = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == 0
+    assert result["error"] is None
+    assert result["runner_binding"] == {
+        "schema_version": DC._RUNNER_BINDING_REPORT_SCHEMA,
+        **runner_binding,
+        "runner_executed_sha256": hashlib.sha256(runner_source).hexdigest(),
+    }
+
+
+def test_manifest_present_adds_runner_binding_to_request(tmp_path):
+    read_fd, write_fd = os.pipe()
+    scheduler = _Scheduler()
+    try:
+        rc, submission = _dispatch(
+            tmp_path,
+            scheduler,
+            environ=_binding_environment(write_fd, shard_count="1"),
+        )
+    finally:
+        os.close(write_fd)
+    try:
+        raw_report = os.read(read_fd, 65536)
+    finally:
+        os.close(read_fd)
+
+    assert rc == 0
+    request = json.loads((submission / "request.json").read_text(encoding="utf-8"))
+    assert request["runner_binding"] == {
+        "tested_main": "a" * 40,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    assert "source" not in request["runner_binding"]
+    assert "runner_source_b64" not in request["runner_binding"]
+    assert set(request["environment"]).isdisjoint(DC._RUNNER_BINDING_ENV_KEYS)
+    report = json.loads(raw_report.decode("ascii"))
+    assert report["tested_main"] == "a" * 40
+    assert report["runner_executed_sha256"] == "a" * 64
+
+
+def test_binding_report_writer_requires_live_pipe_fd(tmp_path):
+    report = {
+        "schema_version": DC._RUNNER_BINDING_REPORT_SCHEMA,
+        "tested_main": "a" * 40,
+        "nonce": "1" * 64,
+        "runner_executed_sha256": "b" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    regular_fd = os.open(
+        tmp_path / "not-a-pipe",
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o600,
+    )
+    try:
+        with pytest.raises(DC.DispatchError, match="not a pipe"):
+            DC._write_runner_binding_report(regular_fd, report)
+    finally:
+        os.close(regular_fd)
+
+    read_fd, closed_write_fd = os.pipe()
+    os.close(closed_write_fd)
+    try:
+        with pytest.raises(DC.DispatchError, match="cannot inspect"):
+            DC._write_runner_binding_report(closed_write_fd, report)
+    finally:
+        os.close(read_fd)
+
+
+def test_binding_report_preserves_intent_shard_index(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    artifact = tmp_path / "session" / "shard-1" / "dispatch"
+    control = repo / "output" / "pegasus-dispatch"
+    registry = tmp_path / "session" / "dispatch-intents"
+    read_fd, write_fd = os.pipe()
+    scheduler = _Scheduler()
+    clock = _Clock()
+    try:
+        rc = DC.dispatch(
+            ["--izanagi-acceptance-shard-index=0"],
+            task="tests",
+            repo_root=repo,
+            environ=_binding_environment(write_fd, shard_count="3"),
+            artifact_root=artifact,
+            control_root=control,
+            intent_registry_root=registry,
+            intent_group_id="session",
+            intent_shard_index=1,
+            run_command=scheduler,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=5,
+            queue_wait_timeout_s=20,
+            accounting_grace_s=0,
+            nonce="binding-index-one",
+        )
+    finally:
+        os.close(write_fd)
+    try:
+        report = json.loads(os.read(read_fd, 65536).decode("ascii"))
+    finally:
+        os.close(read_fd)
+
+    request = json.loads(
+        (artifact / "binding-index-one" / "request.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert rc == 0
+    assert request["args"] == ["--izanagi-acceptance-shard-index=0"]
+    assert request["runner_binding"]["shard_index"] == 1
+    assert report["shard_index"] == 1
+
+
+def test_partial_manifest_environment_fails_closed(tmp_path):
+    scheduler = _Scheduler()
+    with pytest.raises(ValueError):
+        DC._dispatch_impl(
+            [],
+            repo_root=_REPO,
+            output_root=tmp_path / "dispatch",
+            environ={DC._RUNNER_BINDING_NONCE_ENV: "1" * 64},
+            run_command=scheduler,
+            nonce="partial-binding",
+        )
+    assert scheduler.commands == []
+
+
+def test_binding_applies_only_to_tests_task(tmp_path):
+    read_fd, write_fd = os.pipe()
+    scheduler = _Scheduler()
+    try:
+        rc, submission = _dispatch(
+            tmp_path,
+            scheduler,
+            task="provenance",
+            environ=_binding_environment(write_fd),
+        )
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
+
+    assert rc == 0
+    request = json.loads((submission / "request.json").read_text(encoding="utf-8"))
+    assert request["task"] == "provenance"
+    assert "runner_binding" not in request
+
+
+def test_unbound_tests_request_keeps_pathname_execution(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": DC._REQUEST_SCHEMA,
+                "repo_root": str(_REPO),
+                "task": "tests",
+                "args": ["orchestrator/tests/test_sample.py"],
+                "environment": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    assert len(calls) == 1
+    argv, kwargs = calls[0]
+    assert argv == [
+        sys.executable,
+        str(_REPO / "tools" / "run_tests.py"),
+        "orchestrator/tests/test_sample.py",
+    ]
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    dispatch_rc, submission = _dispatch(
+        tmp_path / "parent",
+        _Scheduler(),
+    )
+    assert dispatch_rc == 0
+    assert (submission / "receipt.json").is_file()
+
+
 def test_job_run_rejects_allowlist_external_environment_before_child(tmp_path):
     request = tmp_path / "request.json"
     request.write_text(
@@ -5384,20 +6204,27 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
     qsub_entered = threading.Event()
     release_qsub = threading.Event()
     results = {}
+    clocks = {}
+    poll_interval_s = 5
 
     def blocking_first(command, **kwargs):
         if list(command)[0] == "qsub":
             qsub_entered.set()
-            assert release_qsub.wait(5)
+            assert release_qsub.wait(_THREAD_COORDINATION_WATCHDOG_S)
         return first_scheduler(command, **kwargs)
 
     def invoke(label, artifact, runner):
+        clock = _RecordingClock()
+        clocks[label] = clock
         results[label] = DC.dispatch(
             [],
             repo_root=repo,
             artifact_root=artifact,
             control_root=control,
             run_command=runner,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=poll_interval_s,
             nonce=label,
         )
 
@@ -5408,13 +6235,16 @@ def test_control_lock_serializes_latch_check_through_immediate_visibility(tmp_pa
         target=invoke, args=("second", tmp_path / "artifact-second", second_scheduler),
     )
     first.start()
-    assert qsub_entered.wait(5)
+    assert qsub_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     second.start()
     release_qsub.set()
-    first.join(10)
-    second.join(10)
+    first.join(_THREAD_COORDINATION_WATCHDOG_S)
+    second.join(_THREAD_COORDINATION_WATCHDOG_S)
 
     assert not first.is_alive() and not second.is_alive()
+    first_clock = clocks["first"]
+    # This scenario never polls, so removing sleep= is an equivalent mutation.
+    assert first_clock.read_calls > 0
     assert results == {"first": DC.INFRA_RC, "second": DC.INFRA_RC}
     qsubs = [
         command
@@ -5439,6 +6269,8 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
     release_qsub = threading.Event()
     second_acquire_entered = threading.Event()
     results = {}
+    clocks = {}
+    poll_interval_s = 5
     real_acquire = DC._acquire_control_lock
 
     def observe_control_acquire(output_root):
@@ -5451,10 +6283,12 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
     def blocking_first(command, **kwargs):
         if list(command)[0] == "qsub":
             qsub_entered.set()
-            assert release_qsub.wait(5)
+            assert release_qsub.wait(_THREAD_COORDINATION_WATCHDOG_S)
         return first_scheduler(command, **kwargs)
 
     def invoke(label, artifact, runner):
+        clock = _RecordingClock()
+        clocks[label] = clock
         results[label] = DC.dispatch(
             [],
             repo_root=repo,
@@ -5464,6 +6298,9 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
             intent_group_id=label,
             intent_shard_index=0,
             run_command=runner,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=poll_interval_s,
             nonce="shard-0",
         )
 
@@ -5477,15 +6314,23 @@ def test_control_lock_allows_peer_after_pending_hold_is_durably_released(
         name="second-dispatch",
     )
     first.start()
-    assert qsub_entered.wait(5)
+    assert qsub_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     second.start()
-    assert second_acquire_entered.wait(5)
+    assert second_acquire_entered.wait(_THREAD_COORDINATION_WATCHDOG_S)
     release_qsub.set()
-    # 60s is over 4x the measured 13.94s standalone run, but still bounds deadlocks.
-    first.join(60)
-    second.join(60)
+    first.join(_THREAD_COORDINATION_WATCHDOG_S)
+    second.join(_THREAD_COORDINATION_WATCHDOG_S)
 
     assert not first.is_alive() and not second.is_alive()
+    for label, scheduler in (
+        ("first", first_scheduler),
+        ("second", second_scheduler),
+    ):
+        clock = clocks[label]
+        minimum_poll_transitions = scheduler.states.index("DONE")
+        assert clock.sleep_calls
+        assert clock.now >= poll_interval_s * minimum_poll_transitions
+        assert clock.read_calls > 0
     assert results == {"first": 0, "second": 0}
     assert sum(
         command[0] == "qsub"

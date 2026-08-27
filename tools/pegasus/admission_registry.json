@@ -13,6 +13,18 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/b10_backoff_grid.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS B-10 extended backoff measurement job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/b10_backoff_shape_campaign.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS B10 backoff-shape measurement campaign job body",
+      "primary_gate": "PBS allocation and job-body compute-host preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",
       "reason": "PBS calibration job body",
@@ -253,6 +265,18 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/submit_b10_backoff_grid.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS B-10 three-workload submitter",
+      "primary_gate": "qsub submission; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
+    },
+    "tools/pegasus/submit_b10_backoff_shape.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS B10 backoff-shape campaign submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
+    },
     "tools/pegasus/submit_certify.sh": {
       "class": "local-ok",
       "reason": "login-side PBS certification submitter",
@@ -276,6 +300,12 @@
       "reason": "login-side PBS oracle n pilot submitter",
       "primary_gate": "qsub submission; compute work stays in job body",
       "evidence": "login-side submitter; compute work stays in job body (未実測)"
+    },
+    "tools/pegasus/submit_paper_story_a2_certification.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS paper-story A-2 two-workload submitter and finisher",
+      "primary_gate": "ratification precheck then qsub fan-out; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_silo_ladder_rung1.sh": {
       "class": "local-ok",
