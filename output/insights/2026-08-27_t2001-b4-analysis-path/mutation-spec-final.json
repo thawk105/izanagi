@@ -1,0 +1,229 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "X01",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_adapter.py::test_decimal_lexical_is_read_exactly_not_via_float"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_adapter.py",
+          "old": "            parse_float=Fraction,\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "X02",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_adapter.py::test_decimal_lexical_is_read_exactly_not_via_float",
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_certified_gain_boundary_is_inclusive_tie",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_rank_and_threshold_verification_probe_exports_no_analysis_result",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_behavior_probes_react_only_to_their_owned_mutation",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_current_document_contract_literals_match_implementation",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_selection_and_violation_order_behavior_mutations_are_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "        if gain_difference <= exact_floor:\n",
+          "new": "        if gain_difference < exact_floor:\n"
+        }
+      ]
+    },
+    {
+      "id": "X03",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_missing_against_missing_has_exact_half_score"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "        if block.off.status is B4BlockStatus.MISSING:\n            return Fraction(1, 2)\n",
+          "new": "        if block.off.status is B4BlockStatus.MISSING:\n            return Fraction(1)\n"
+        }
+      ]
+    },
+    {
+      "id": "X04",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_every_valid_input_reaches_one_verdict",
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_protocol_violation_precedes_contamination",
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_registry_violation_count_forces_protocol_violation",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_assignment_followed_is_derived_from_raw_slots",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_positive_violation_count_cannot_return_established",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_protocol_failure_precedes_contamination_in_combined_case",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_registry_violation_cannot_be_washed_by_manifest_filter"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "        verdict = B4Verdict.PROTOCOL_VIOLATION\n",
+          "new": "        verdict = B4Verdict.INDETERMINATE\n"
+        }
+      ]
+    },
+    {
+      "id": "X05",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_evaluate_analysis_establishes_below_a_min_when_p_on_is_significant",
+        "orchestrator/tests/test_p3_b4_analysis_contract.py::test_every_valid_input_reaches_one_verdict",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_assignment_followed_is_derived_from_raw_slots",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_caller_declared_hash_is_not_accepted",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_loader_failure_is_returned_as_analysis_invalid_not_raised",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_manifest_and_registry_hashes_are_recomputed_from_bytes",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_manifest_post_generation_add_delete_reorder_each_fail_exact_regeneration",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_positive_violation_count_cannot_return_established",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_protocol_failure_precedes_contamination_in_combined_case",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_rank_and_threshold_verification_probe_exports_no_analysis_result",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_registry_violation_cannot_be_washed_by_manifest_filter",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_source_artifact_digest_swap_between_arms_is_rejected",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_source_artifact_mapping_rejects_an_extra_record",
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_source_artifact_mapping_rejects_duplicate_bytes",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_behavior_probes_react_only_to_their_owned_mutation",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_current_document_contract_literals_match_implementation",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_first_n_and_violation_order_source_mutations_are_rejected",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_receipt_public_route_cannot_run_before_consumer_success",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_selection_and_violation_order_behavior_mutations_are_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "    elif p_values.p_on <= ONE_SIDED_ALPHA:\n",
+          "new": "    elif p_values.p_on <= ONE_SIDED_ALPHA and a_hat.value >= A_MIN:\n"
+        }
+      ]
+    },
+    {
+      "id": "X06",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_batch_seal_is_permutation_invariant"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    return tuple(sorted(attempts, key=lambda item: (item.registry_ordinal, item.attempt_id)))\n",
+          "new": "    return tuple(attempts)\n"
+        }
+      ]
+    },
+    {
+      "id": "X07",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_is_deterministic_from_seed_and_block_id",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[bootstrap_membership]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[calibrated_workload]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[eligible_red_class]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[rejected_whiteboard]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[scheduled_reason]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[uncontaminated_precursor]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_each_reachable_eligibility_predicate_excludes_a_precutoff_row[unique_reference]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_manifest_selects_first_201_eligible_rows_only",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_behavior_probes_react_only_to_their_owned_mutation",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_current_document_contract_literals_match_implementation",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_first_n_and_violation_order_source_mutations_are_rejected",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_receipt_public_route_cannot_run_before_consumer_success",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_selection_and_violation_order_behavior_mutations_are_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    selected = eligible[:EXPECTED_BLOCK_COUNT]\n",
+          "new": "    selected = eligible[-EXPECTED_BLOCK_COUNT:]\n"
+        }
+      ]
+    },
+    {
+      "id": "X09",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-003-4b8917fb898ef2bb49873d8cec329af13d957987de57567be496e2482efedf83-off-first]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_assignment_matches_independent_fixed_hmac_vectors[vector-block-007-057f8b8cf83b4ec702be45e6d88f96458ecf85f6a096ecb282add7fa1a8649fa-off-first]",
+        "orchestrator/tests/test_p3_b4_analysis_ledgers.py::test_fixed_assignment_vectors_are_concretely_nonconstant"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    if bit == 0:\n        return B4AssignmentArmOrder.ON_FIRST\n    return B4AssignmentArmOrder.OFF_FIRST\n",
+          "new": "    del bit\n    return B4AssignmentArmOrder.ON_FIRST\n"
+        }
+      ]
+    },
+    {
+      "id": "X10",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_formatting_equivalent_raw_byte_changes_are_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_prereg_consumer.py",
+          "old": "    if raw_sha256 != PREREGISTRATION_SECTION_5_1_1_SHA256:\n        _fail(\"section 5.1.1 exact raw sha256 pin mismatches\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "X11",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_source_artifact_digest_swap_between_arms_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_path.py",
+          "old": "        and declared == observed\n",
+          "new": "        and sorted(declared) == sorted(observed)\n"
+        }
+      ]
+    },
+    {
+      "id": "X12",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_analysis_path.py::test_private_closure_assembler_is_stable_and_binds_consumer_result",
+        "orchestrator/tests/test_p3_b4_analysis_prereg_consumer.py::test_current_document_contract_literals_match_implementation"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_path.py",
+          "old": "        \"consumer_result\": consumer_result,\n        \"consumer_result_sha256\": consumer_result_sha256,\n",
+          "new": ""
+        }
+      ]
+    }
+  ]
+}
