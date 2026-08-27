@@ -198,7 +198,7 @@ class CampaignVerifierEpoch:
 
 
 class CampaignVerifierEpochRejected(CampaignNotAdmitted):
-    """Certified use cannot prove the recorded enforcement closure is current."""
+    """Certified use cannot satisfy its recorded-epoch or closure prerequisites."""
 
     def __init__(self, epoch: CampaignVerifierEpoch):
         self.campaign_verifier_epoch = epoch.campaign_verifier_epoch
@@ -323,7 +323,7 @@ class AdmittedCampaign:
 @final
 @dataclass(frozen=True, slots=True, init=False)
 class CertifiedCampaignView(AdmittedCampaign):
-    """E1 と current exact map equality を証明した certified 専用 view。"""
+    """記録 commit に束縛した E1 と current closure 可用性を持つ専用 view。"""
 
     _replay_admission_capability: object = field(
         repr=False,
@@ -368,7 +368,7 @@ class CertifiedCampaignView(AdmittedCampaign):
 @final
 @dataclass(frozen=True, slots=True)
 class HistoricalCampaignView(AdmittedCampaign):
-    """現在 bytes を参照せず、記録 epoch だけを保持する historical view。"""
+    """現在 bytes を参照せず、記録当時の判定だけを保持する historical view。"""
 
     def __post_init__(self) -> None:
         AdmittedCampaign.__post_init__(self)
@@ -378,6 +378,10 @@ class HistoricalCampaignView(AdmittedCampaign):
     @property
     def read_purpose(self) -> CampaignReadPurpose:
         return CampaignReadPurpose.HISTORICAL_RAW
+
+    @property
+    def verifier_assessment_basis(self) -> str:
+        return "recorded-at-original-verifier-epoch"
 
 
 def _is_sha256(value: object) -> bool:
@@ -851,17 +855,13 @@ def _require_verifier_epoch_for_purpose(
     if recorded.diagnostic.state == "E0":
         raise CampaignVerifierEpochRejected(recorded.diagnostic)
     try:
-        current = contract_loader_binding.capture_contract_loader_binding()
+        # D1163 keeps only the availability prerequisite here.  A clean
+        # committed current closure may differ from the recorded closure.
+        contract_loader_binding.capture_contract_loader_binding()
     except contract_loader_binding.ContractLoaderBindingError as exc:
         raise CampaignVerifierEpochRejected(_stale_epoch(
             recorded, reason_code="current-closure-unavailable",
         )) from exc
-    if dict(recorded.blob_sha256s or {}) != dict(
-        current.contract_loader_blob_sha256s
-    ):
-        raise CampaignVerifierEpochRejected(_stale_epoch(
-            recorded, reason_code="recorded-current-closure-mismatch",
-        ))
     return recorded.diagnostic
 
 

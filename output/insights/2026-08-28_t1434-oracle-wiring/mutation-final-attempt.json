@@ -1,0 +1,170 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "a760e5993e597256db26556098a5809e4625d1a111a70918785afe4f33264cee",
+      "finished_at": "2026-08-27T19:00:54.281495+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6af5f8258e6968dd69d50fcad6579431/izdw-6af5f8258e.o954064",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6af5f8258e6968dd69d50fcad6579431/receipt.json",
+        "request_id": "954064.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6af5f8258e6968dd69d50fcad6579431"
+      },
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-08-27T19:00:32.464068+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "76b6eb474204f5d2c3740ce38d185b64dfba065c4b98d574680dbe8804b994e1",
+      "finished_at": "2026-08-27T19:01:26.764557+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de4a74a4e5a994fe23694747cf4c6096/izdw-de4a74a4e5.o954066",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de4a74a4e5a994fe23694747cf4c6096/receipt.json",
+        "request_id": "954066.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de4a74a4e5a994fe23694747cf4c6096"
+      },
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-08-27T19:00:59.058216+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "f1d64a10bb204b90570043cd676e3a9ea01594c35b3154faa183cb1ad2ef2ea5",
+      "finished_at": "2026-08-27T19:02:06.494267+00:00",
+      "mutation_id": "OR-M1",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74a60f958dc92fbf6f9717cb06d536ff/izdw-74a60f958d.o954068",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74a60f958dc92fbf6f9717cb06d536ff/receipt.json",
+        "request_id": "954068.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74a60f958dc92fbf6f9717cb06d536ff"
+      },
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-08-27T19:01:39.084092+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "d9c689062a55f1adf46e7c3020702c28de362fa4c520e2f2a6d93da7917f9b91",
+      "finished_at": "2026-08-27T19:05:20.643780+00:00",
+      "mutation_id": "OR-M2",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6b49a7be09c07ea8399ae64cc46cae38/izdw-6b49a7be09.o954069",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6b49a7be09c07ea8399ae64cc46cae38/receipt.json",
+        "request_id": "954069.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6b49a7be09c07ea8399ae64cc46cae38"
+      },
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-08-27T19:02:10.372832+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "a5e141748d96932fe7471d03dbba6a8ad033253b90edc2ba5475464d4af8c688",
+      "finished_at": "2026-08-27T19:05:56.189565+00:00",
+      "mutation_id": "OR-M3",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b0ac166bed57370f623e27027d7dc09/izdw-3b0ac166be.o954076",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b0ac166bed57370f623e27027d7dc09/receipt.json",
+        "request_id": "954076.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b0ac166bed57370f623e27027d7dc09"
+      },
+      "run_attempt_ordinal": 5,
+      "started_at": "2026-08-27T19:05:24.051912+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "8b95ea63c7611643847e97b3e93e6cde5d8dd7a6d90066a723d65c9ba7cf6d3a",
+      "finished_at": "2026-08-27T19:06:25.289308+00:00",
+      "mutation_id": "OR-M4",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38175156f4d7e3d194e029875cc5b6de/izdw-38175156f4.o954078",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38175156f4d7e3d194e029875cc5b6de/receipt.json",
+        "request_id": "954078.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38175156f4d7e3d194e029875cc5b6de"
+      },
+      "run_attempt_ordinal": 6,
+      "started_at": "2026-08-27T19:05:58.367167+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "2b5cbefa114e5f25335ffa07ab80f7f3a8d516ebd6b258913fb9bde5400fdfbb",
+      "finished_at": "2026-08-27T19:06:55.409515+00:00",
+      "mutation_id": "OR-M5",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe76b711e1088870c3f7ff40c400f843/izdw-fe76b711e1.o954080",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe76b711e1088870c3f7ff40c400f843/receipt.json",
+        "request_id": "954080.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe76b711e1088870c3f7ff40c400f843"
+      },
+      "run_attempt_ordinal": 7,
+      "started_at": "2026-08-27T19:06:28.148468+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "b4a0624a3e54f415988440854494b969c677613f8dd8d7dd1eda069da899e5ef",
+      "finished_at": "2026-08-27T19:07:26.714555+00:00",
+      "mutation_id": "OR-M6",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e7727dbd190932cfa2e721d2561b87c/izdw-3e7727dbd1.o954081",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e7727dbd190932cfa2e721d2561b87c/receipt.json",
+        "request_id": "954081.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e7727dbd190932cfa2e721d2561b87c"
+      },
+      "run_attempt_ordinal": 8,
+      "started_at": "2026-08-27T19:06:59.484086+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    }
+  ],
+  "expected_initial_requests": 8,
+  "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+  "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+  "schema": "izanagi-dev-wave-mutation-attempts/v1",
+  "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+  "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+}
