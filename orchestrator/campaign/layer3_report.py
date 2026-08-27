@@ -276,14 +276,20 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         )
 
 
-def _epoch_projection(epoch: CampaignVerifierEpoch) -> Dict[str, str]:
-    return {
+def _epoch_projection(
+        epoch: CampaignVerifierEpoch, *,
+        verifier_assessment_basis: str | None = None,
+) -> Dict[str, str]:
+    projection = {
         "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
         "state": epoch.state,
         "reason_code": epoch.reason_code,
         "identity_scope": epoch.identity_scope,
         "excluded_scope": epoch.excluded_scope,
     }
+    if verifier_assessment_basis is not None:
+        projection["verifier_assessment_basis"] = verifier_assessment_basis
+    return projection
 
 
 def _variant_rows(records: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -589,7 +595,10 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
         "campaign_verifier_epoch": _epoch_projection(
-            admitted_campaign.campaign_verifier_epoch
+            admitted_campaign.campaign_verifier_epoch,
+            verifier_assessment_basis=(
+                admitted_campaign.verifier_assessment_basis
+            ),
         ),
         "acceptance_receipt": None,
         "certifying_input": False,

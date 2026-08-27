@@ -106,6 +106,7 @@ class WorkloadDigest:
     campaign_verifier_epoch: CampaignVerifierEpoch
     read_purpose: CampaignReadPurpose
     fastest: Optional[GenomeLI] = None
+    verifier_assessment_basis: Optional[str] = None
 
 
 @dataclass
@@ -1163,7 +1164,11 @@ def build_digest(tag: str, workload: Dict[str, str],
     return WorkloadDigest(tag=tag, workload=workload, genomes=genomes,
                           axes=axes, fastest=fastest,
                           campaign_verifier_epoch=view.campaign_verifier_epoch,
-                          read_purpose=view.read_purpose)
+                          read_purpose=view.read_purpose,
+                          verifier_assessment_basis=(
+                              view.verifier_assessment_basis
+                              if type(view) is HistoricalCampaignView else None
+                          ))
 
 
 def _fmt(ind: str, v: Optional[float]) -> str:
@@ -1203,6 +1208,11 @@ def render_text(digests: List[WorkloadDigest]) -> str:
         L.append("")
         epoch = d.campaign_verifier_epoch
         L.append(f"- read_purpose: `{d.read_purpose.value}`")
+        if d.verifier_assessment_basis is not None:
+            L.append(
+                "- verifier_assessment_basis: "
+                f"`{d.verifier_assessment_basis}`"
+            )
         L.append(
             f"- campaign_verifier_epoch: `{epoch.campaign_verifier_epoch}` "
             f"(state={epoch.state})"

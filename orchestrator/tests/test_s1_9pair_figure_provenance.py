@@ -43,6 +43,9 @@ OUT_PREFIX_REL = Path(
     "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison")
 README_REL = Path("docs/paper-story/figures/README.md")
 GENERATOR_REL = Path("tools/plotting/plot_s1_9pair.py")
+FIG4_GENERATION_TIME_GENERATOR_SHA256 = (
+    "4a76d59c854cf8021a711cb27ebeb7aad599c4dda448dd9ee6f15c80ab7d772c"
+)
 ADMISSION_VALIDATOR_REL = Path("orchestrator/campaign/artifact_admission.py")
 REPORT_REL = Path("output/reports/s1_direct_comparison/report.json")
 FREEZE_REL = Path("output/s1-freeze/measurement_freeze.json")
@@ -119,6 +122,7 @@ EXPECTED_SELF_TEST_NAMES = frozenset({
     "test_p6_production_ignores_unknown_build_fields_as_data",
     "test_p7_production_load_campaign_pins_admission_calls_and_receipts",
     "test_p8_production_caption_matches_independent_parent_text",
+    "test_p9_production_provenance_keeps_historical_marker_for_every_campaign",
     "test_n1_rejects_relative_median_value_drift",
     "test_n2_rejects_real_effect_sign_flip",
     "test_n3_production_strict_floor_rejects_exact_boundary",
@@ -671,7 +675,7 @@ def validate_real_provenance(provenance: Mapping) -> None:
         _reject("generator name differs")
     source = provenance.get("generator_source")
     if (not isinstance(source, Mapping) or source.get("path") != GENERATOR_REL.as_posix()
-            or source.get("sha256") != _sha256(ROOT / GENERATOR_REL)):
+            or source.get("sha256") != FIG4_GENERATION_TIME_GENERATOR_SHA256):
         _reject("generator source bytes differ")
     outputs = provenance.get("outputs")
     expected_output_paths = [
@@ -846,7 +850,17 @@ def test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain():
     if not (ROOT / PROVENANCE_REL).is_file():
         raise AssertionError(
             "new provenance is absent (parent figure generation/docs landing pending)")
-    validate_real_provenance(_strict_json(ROOT / PROVENANCE_REL))
+    provenance = _strict_json(ROOT / PROVENANCE_REL)
+    validate_real_provenance(provenance)
+    mutated = json.loads(json.dumps(provenance))
+    digest = mutated["generator_source"]["sha256"]
+    mutated["generator_source"]["sha256"] = (
+        ("0" if digest[0] != "0" else "1") + digest[1:]
+    )
+    _expect_rejected(
+        lambda: validate_real_provenance(mutated),
+        "generator source bytes differ",
+    )
 
 
 def test_p4_frozen_manifest_remains_23_and_excludes_new_figure():
@@ -878,6 +892,7 @@ def test_p5_test_module_does_not_import_generator_for_expected_values():
         "test_p6_production_ignores_unknown_build_fields_as_data",
         "test_p7_production_load_campaign_pins_admission_calls_and_receipts",
         "test_p8_production_caption_matches_independent_parent_text",
+        "test_p9_production_provenance_keeps_historical_marker_for_every_campaign",
         "test_n3_production_strict_floor_rejects_exact_boundary",
         "test_n4_production_collection_retains_unstable_eighth_sample",
         "test_n10_production_stops_judgment_gate_disagreement_and_marker_uses_report",
@@ -960,6 +975,7 @@ def test_p7_production_load_campaign_pins_admission_calls_and_receipts():
             records=view.records,
             campaign_verifier_epoch=view.campaign_verifier_epoch,
             read_purpose=view.read_purpose,
+            verifier_assessment_basis=view.verifier_assessment_basis,
             decision=ExactReceiptDecision(receipt),
         )
 
@@ -984,6 +1000,12 @@ def test_p7_production_load_campaign_pins_admission_calls_and_receipts():
             raise AssertionError(f"production admission purpose differs: {role}")
         if loaded[role]["admission_decision"] is not returned_receipts[role]:
             raise AssertionError(f"production receipt lost admission return identity: {role}")
+        if loaded[role]["campaign_verifier_epoch"].get(
+                "verifier_assessment_basis"
+        ) != "recorded-at-original-verifier-epoch":
+            raise AssertionError(
+                f"historical verifier assessment marker missing: {role}"
+            )
 
 
 def test_p8_production_caption_matches_independent_parent_text():
@@ -1005,6 +1027,56 @@ def test_p8_production_caption_matches_independent_parent_text():
     wanted = _expected_caption(report, expected)
     if observed != wanted:
         raise AssertionError("production caption differs from independent parent text")
+
+
+def test_p9_production_provenance_keeps_historical_marker_for_every_campaign():
+    generator = _load_generator_for_production_tests()
+    campaigns = {
+        role: generator.load_campaign(
+            role, ROOT / "output" / "campaigns" / CAMPAIGNS[role]
+        )
+        for role in ROLES
+    }
+    report = _strict_json(ROOT / REPORT_REL)
+    data = {
+        "report_path": REPORT_REL.as_posix(),
+        "report_sha256": _sha256(ROOT / REPORT_REL),
+        "report": report,
+        "campaigns": campaigns,
+        "facts": {
+            "freeze_proof": {
+                "current_freeze_sha256": _sha256(ROOT / FREEZE_REL),
+            },
+        },
+        "caption": "fixture caption",
+    }
+    with tempfile.TemporaryDirectory(
+        prefix=".s1-current-provenance-", dir=ROOT,
+    ) as temp:
+        prefix = Path(temp) / "figure"
+        Path(f"{prefix}.png").write_bytes(b"fixture-png")
+        Path(f"{prefix}.pdf").write_bytes(b"fixture-pdf")
+        provenance = generator.build_provenance(
+            data, prefix, ["python3", GENERATOR_REL.as_posix()],
+        )
+
+    if provenance["generator_source"] != {
+        "path": GENERATOR_REL.as_posix(),
+        "sha256": _sha256(ROOT / GENERATOR_REL),
+    }:
+        raise AssertionError("new provenance did not record current generator SHA")
+    campaign_inputs = [
+        row for row in provenance["inputs"] if row.get("kind") == "campaign"
+    ]
+    if [row.get("role") for row in campaign_inputs] != list(ROLES):
+        raise AssertionError("final provenance campaign order/set differs")
+    for row in campaign_inputs:
+        if row["campaign_verifier_epoch"].get(
+            "verifier_assessment_basis"
+        ) != "recorded-at-original-verifier-epoch":
+            raise AssertionError(
+                f"final provenance historical marker missing: {row.get('role')}"
+            )
 
 
 def test_n1_rejects_relative_median_value_drift():

@@ -3,6 +3,21 @@
   "title": "Izanagi Layer 3 material report",
   "type": "object",
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": ["certifying_input"],
+        "properties": {"certifying_input": {"const": true}}
+      },
+      "then": {
+        "properties": {
+          "campaign_verifier_epoch": {
+            "not": {"required": ["verifier_assessment_basis"]}
+          }
+        }
+      }
+    }
+  ],
   "required": ["schema_version", "meta", "workload", "variants", "runs", "verifications", "rejects", "aborts", "noise_floor", "env_tags", "whiteboard", "whiteboard_provenance", "artifact_refs", "source_refs", "admission_decision", "mechanism_hypotheses"],
   "properties": {
     "schema_version": {"const": "layer3-material-report/v3"},
@@ -219,7 +234,8 @@
         "state": {"enum": ["E0", "E1", "E1-stale"]},
         "reason_code": {"enum": ["v1-authority-absent", "recorded-closure", "recorded-current-closure-mismatch", "current-closure-unavailable"]},
         "identity_scope": {"type": "string", "minLength": 1},
-        "excluded_scope": {"type": "string", "minLength": 1}
+        "excluded_scope": {"type": "string", "minLength": 1},
+        "verifier_assessment_basis": {"const": "recorded-at-original-verifier-epoch"}
       }
     },
     "acceptance_receipt": {
