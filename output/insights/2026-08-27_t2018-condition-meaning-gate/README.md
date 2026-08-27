@@ -72,6 +72,11 @@ final は fixed commit `13f9c1b50`、baseline PASSED、KILLED 8、SURVIVED 0、M
 TIMEOUT 0、expected node完全一致 8/8。最終 wrapper は独立 common-dir の local cloneを
 sourceに使い、`shared_snapshot_matches=true`、`teardown_completed=true`、child rc=0。
 
+受入でprocess inventoryのtest-only fixを入れたため、DW-M07に従いfix commit
+`16685229a989c7910599c7475b4524621616d09a` でも同じmatrixを再走した。postfixも
+baseline PASSED、KILLED 8、SURVIVED 0、MISMATCH 0、TIMEOUT 0、expected完全一致8/8、
+wrapper child rc0 / shared snapshot一致 / teardown完了である。
+
 最初の final 2走は child 自体が8/8 KILLEDだったが、共有 primary checkout の
 `.codex/worktrees/` 集合/並行 landで wrapper事後検査が rc125 となり不受理。結果を採用せず、
 F537/F618 の既存手順どおり独立 cloneへ切り替えた。
@@ -83,6 +88,7 @@ F537/F618 の既存手順どおり独立 cloneへ切り替えた。
 - `mutation-spec-probe.json`, `mutation-probe-report.json`: erratum probe
 - `mutation-spec-final.json`, `mutation-final-report.json`: 最終 matrix
 - `mutation-final-wrapper-receipt.json`, `mutation-final-attempts.json`: 採用 wrapper / scheduler証拠
+- `mutation-postfix-{report,wrapper-receipt,attempts}.json`: acceptance fix後の再走証拠
 - `mutation-final-race{1,2}-wrapper-receipt.json`: 不受理にした共有木race
 - `verbatim/acceptance-inventory-fix.md`: 最終受入が露出したprocess inventory fix
 

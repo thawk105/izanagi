@@ -34,6 +34,8 @@ title: [T-2018] 要求した define の供給と実行側の意味を独立 gate
   `condition_meaning_gate._run_process` のreviewed inventory登録漏れで、本件由来と判定した。
   Codex fixでexplicit non-CCBench siteをexact 1件追加し、当該2 nodeは2 passed / 6.57s。
   先行のbinding report不足はqueue-wait-timeout/signal abortのinfra赤でtest child判定ではない。
+- acceptance fix後のcommit 16685229aでも変異を再走し、baseline PASSED、KILLED 8、
+  SURVIVED 0、MISMATCH 0、TIMEOUT 0、expected node完全一致8/8、wrapper child rc0 / shared snapshot一致。
 
 ## 次の一手差分
 
