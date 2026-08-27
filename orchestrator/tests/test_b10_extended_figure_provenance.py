@@ -59,6 +59,17 @@ CLAIMS = {
 }
 PLOT_BACKOFF_SHA256 = (
     "bdb3c223192835379661e6ba3b288d871e36da9201e89438c41fd10840c0bf5e")
+FIG2C_GENERATOR_SHA256 = (
+    "04db851a4a6bb502852fecdd53d9b64f56c0b7b7c3fb94e0526de651cc14216a")
+REAL_GENERATOR = {
+    "path": "tools/plotting/plot_b10_extended_backoff.py",
+    "sha256": FIG2C_GENERATOR_SHA256,
+}
+REAL_DEPENDENCIES = [{
+    "role": "admitted-wal-conditions-t95-ci-style",
+    "path": "tools/plotting/plot_backoff.py",
+    "sha256": PLOT_BACKOFF_SHA256,
+}]
 T95_DF4 = 2.7764451051977987
 SPECS = (
     ("write-heavy", "951689", "bnode007", 5,
@@ -277,7 +288,9 @@ def test_canonical_full_hashes_are_independent_constants_and_match_inputs():
 
 
 def test_frozen_plot_backoff_dependency_bytes_are_independently_pinned():
-    assert _sha256(REPO / "tools/plotting/plot_backoff.py") == PLOT_BACKOFF_SHA256
+    provenance = json.loads(
+        (REPO / REAL_PROVENANCE).read_text(encoding="utf-8"))
+    assert provenance.get("dependencies") == REAL_DEPENDENCIES
 
 
 def test_external_layer_is_explicitly_skipped_only_when_root_is_omitted():
@@ -768,25 +781,60 @@ def test_conditions_and_f718_ruling_authority_are_semantic_requirements():
         "F718/D1106 canonical ruling authority mismatch")
 
 
+def _validate_real_fig2c_repo_closure(provenance: dict) -> None:
+    plot = _load_module()
+    plot.validate_provenance_semantics(provenance)
+    if provenance.get("generator") != REAL_GENERATOR:
+        raise AssertionError("generation-time generator record mismatch")
+    if provenance.get("dependencies") != REAL_DEPENDENCIES:
+        raise AssertionError("generation-time dependency record mismatch")
+    outputs = provenance.get("outputs", [])
+    if [row.get("path") for row in outputs] != list(REAL_OUTPUTS):
+        raise AssertionError("real fig2c output path mismatch")
+    if not all((REPO / relative).is_file() for relative in REAL_OUTPUTS):
+        raise AssertionError("real fig2c output is missing")
+    provenance_output_hashes = {
+        row["path"]: row.get("sha256") for row in outputs
+    }
+    if provenance_output_hashes != REAL_OUTPUT_SHA256:
+        raise AssertionError("real fig2c recorded output hash mismatch")
+    if {
+        relative: _sha256(REPO / relative) for relative in REAL_OUTPUTS
+    } != REAL_OUTPUT_SHA256:
+        raise AssertionError("real fig2c output byte hash mismatch")
+    assert plot.validate_external_sources(provenance, None)["status"] == "skipped"
+
+
 def test_real_fig2c_repo_closure_is_complete():
-    """Parent lands the real PNG/PDF/provenance; absence is the planned red."""
+    """Admit immutable generation-time source records plus current outputs."""
     provenance_path = REPO / REAL_PROVENANCE
     assert provenance_path.is_file(), (
         f"parent must generate the real fig2c artifact: {REAL_PROVENANCE}")
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-    assert [row.get("path") for row in provenance.get("outputs", [])] == list(
-        REAL_OUTPUTS)
-    assert all((REPO / relative).is_file() for relative in REAL_OUTPUTS)
-    provenance_output_hashes = {
-        row["path"]: row.get("sha256") for row in provenance["outputs"]
-    }
-    assert provenance_output_hashes == REAL_OUTPUT_SHA256
-    assert {
-        relative: _sha256(REPO / relative) for relative in REAL_OUTPUTS
-    } == REAL_OUTPUT_SHA256
-    plot = _load_module()
-    plot.validate_repo_closure(provenance, REPO)
-    assert plot.validate_external_sources(provenance, None)["status"] == "skipped"
+    _validate_real_fig2c_repo_closure(provenance)
+
+
+def test_real_fig2c_generation_time_source_hash_drift_is_rejected():
+    provenance = json.loads(
+        (REPO / REAL_PROVENANCE).read_text(encoding="utf-8"))
+    cases = (
+        (("generator", "sha256"), "generation-time generator record mismatch"),
+        (("dependencies", 0, "sha256"),
+         "generation-time dependency record mismatch"),
+    )
+    for path, reason in cases:
+        mutated = copy.deepcopy(provenance)
+        row = mutated
+        for key in path[:-1]:
+            row = row[key]
+        digest = row[path[-1]]
+        row[path[-1]] = ("0" if digest[0] != "0" else "1") + digest[1:]
+        try:
+            _validate_real_fig2c_repo_closure(mutated)
+        except AssertionError as exc:
+            assert reason in str(exc), str(exc)
+        else:
+            raise AssertionError(f"changed recorded source digest was accepted: {path}")
 
 
 def _run() -> int:
