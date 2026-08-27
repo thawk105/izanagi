@@ -102,4 +102,14 @@ evidence bundle へ意図的に退避されていた。**決定は覆らない**
 - `verbatim/s4-adjudication.md` — 段 4 裁定 (11 節 + 変異事前登録)
 - `verbatim/s5-author-a.md` / `verbatim/s5-author-b.md` — 段 5 実装子 2 本
 - `verbatim/s6-review-sol.md` / `verbatim/s6-review-luna.md` — 段 6 敵対レビュー 2 本
-- `mutation-spec-final.json` / `mutation-final-result.json` / `mutation-probe-result.json`
+- `mutation-spec-final.json` — 変異 spec (本走)
+
+**変異の走行結果 JSON は repo 外へ退避した。**
+`mutation-final-result.json` と `mutation-probe-result.json` は失敗 node の本文に holdout の
+workload 条件 (`rr20`) を含み、`test_wave_files_do_not_contaminate_production_holdout_scan` の
+holdout clean-scan を汚染する (実測: 受入全走で 41 件の赤。うち 39 件は oracle gate が
+scan hit で追加の拒否理由を出し、拒否理由の exact 一致を固定するテスト群が落ちたもの)。
+所在は
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1981-holdout-oneshot-removal/mutation-final-result.json`
+と同 directory の `mutation-probe-result.json`。
+**変異結果を repo の insight へそのまま置いてはならない。**
