@@ -438,7 +438,26 @@ def _has_exact_b4_protocol_marker(decoded) -> bool:
     """Classify one already validated campaign lock."""
     if decoded is None:
         return False
-    _identity, search_config = _b4_classification_fields(decoded)
+    try:
+        identity = decoded.identity
+    except (AttributeError, KeyError, TypeError) as exc:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        ) from exc
+    if type(identity) is not dict:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        )
+    if "search_config" not in identity:
+        return False
+    search_config = identity["search_config"]
+    if type(search_config) is not dict:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        )
     return (
         search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE
     )

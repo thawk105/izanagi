@@ -633,6 +633,70 @@ def test_markerless_commit_accepts_matching_live_receipt(tmp_path, monkeypatch):
     assert gate_spy.call_count == 0
 
 
+def test_non_b4_commit_without_search_config_accepts_matching_live_receipt(
+    tmp_path, monkeypatch,
+):
+    ordinary = L.default_cfg()
+    identity = json.loads(ident.canonical_preimage(ordinary))
+    identity.pop("search_config")
+    layout = CampaignLayout(str(tmp_path / "non-b4-campaign")).ensure()
+    wal.write_lock(
+        layout,
+        json.dumps(
+            identity,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+    gate_spy = mock.Mock(
+        side_effect=AssertionError("non-B-4 COMMIT reached the B-4 gate")
+    )
+    monkeypatch.setattr(B4L, "verify_b4_launch_context", gate_spy)
+
+    committed = _commit_with_live_receipt(layout)
+
+    assert wal.read_records(layout) == [committed]
+    assert gate_spy.call_count == 0
+
+
+@pytest.mark.parametrize("search_config", (None, [], "legacy"))
+def test_commit_rejects_non_mapping_search_config(tmp_path, search_config):
+    ordinary = L.default_cfg()
+    identity = json.loads(ident.canonical_preimage(ordinary))
+    identity["search_config"] = search_config
+    layout = CampaignLayout(str(tmp_path / "malformed-search-config")).ensure()
+    wal.write_lock(
+        layout,
+        json.dumps(
+            identity,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+
+    with pytest.raises(
+        B4L.B4LauncherAuthorizationError,
+        match="cannot classify",
+    ):
+        wal.append(layout, _commit_record())
+    assert not Path(layout.wal_file).exists()
+
+
+@pytest.mark.parametrize(
+    "decoded",
+    (object(), mock.Mock(identity=[])),
+    ids=("missing-identity", "non-dict-identity"),
+)
+def test_classifier_rejects_malformed_decoded_or_identity(decoded):
+    with pytest.raises(
+        B4L.B4LauncherAuthorizationError,
+        match="cannot classify",
+    ):
+        wal._has_exact_b4_protocol_marker(decoded)
+
+
 def test_lockless_commit_accepts_explicit_absence_binding(tmp_path):
     layout = CampaignLayout(str(tmp_path / "lockless-campaign")).ensure()
 
@@ -669,7 +733,7 @@ def test_production_validator_requires_exact_campaign_and_arm():
 
 @pytest.mark.parametrize("raw", (
     b"\xff",
-    b"{}",
+    b"[]",
     b'{"search_config":{"b4_protocol":"p3-b4-reflux-ablation/v1"}}',
 ))
 def test_existing_unclassifiable_lock_rejects_commit(tmp_path, raw):
@@ -755,3 +819,11 @@ def test_context_is_not_persisted_in_campaign_identity():
     }
     assert all(value is not context for value in marked.search_config.values())
     assert not hasattr(marked, "b4_launch_context")
+
+
+def _run():
+    return pytest.main([__file__])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())

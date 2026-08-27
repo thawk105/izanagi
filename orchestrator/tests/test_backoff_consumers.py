@@ -73,7 +73,6 @@ def _fixture_layout(tmp_path):
             {"median_tps": 123456.0, "tps": [123456.0, 123457.0]})
     receipt_support.log_receipted_commit(
         layout, "v-certified", "test", {"fitness_tps": 123456.0},
-        lock_identity_sha256="0" * 64,
     )
     dat = os.path.join(layout.reports_dir, "fixture.dat")
     with open(dat, "w", encoding="utf-8") as f:
