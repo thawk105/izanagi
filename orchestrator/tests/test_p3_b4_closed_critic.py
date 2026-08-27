@@ -102,35 +102,57 @@ emit Markdown or extra keys.
 
 
 def _production_launch_context(
-    cfg,
+    cfg=None,
     *,
     driver_kind="base",
     arm="on",
     admission=None,
+    action=None,
+    layout=None,
+    trigger_site=None,
 ):
+    """Capture a production context only through the real admission verifier."""
     if admission is None:
-        verified = A.VerifiedB4AdmissionRecord(
-            admission_record_repository_path="admission.json",
-            admission_record_sha256="1" * 64,
-            admission_record_commit="2" * 40,
-            preregistration_repository_path=_PREREGISTRATION_REPOSITORY_PATH,
-            preregistration_content_commit="3" * 40,
-            preregistration_content_sha256="4" * 64,
-            expected_claude_model_snapshot=_ADMISSION_MODEL,
-            expected_effective_critic_prompt_sha256="5" * 64,
-            expected_closed_critic_projection_closure_sha256="6" * 64,
+        admission = _committed_admission_fixture(driver_kind=driver_kind)
+    parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-context-capture-"))
+    layouts = {}
+
+    def layout_for(campaign_id):
+        if layout is not None:
+            return layout
+        return layouts.setdefault(
+            campaign_id,
+            CampaignLayout(str(parent / campaign_id)),
         )
-    else:
-        verified = A.verify_b4_admission_record(
-            admission.record_path,
-            repository_root=admission.repository,
+
+    def capture_driver(_argv, *, _b4_launch_context):
+        if cfg is not None:
+            assert _b4_launch_context.campaign_id == str(ident.campaign_id(cfg))
+        selected_layout = layout_for(_b4_launch_context.campaign_id)
+        if action is None:
+            return _b4_launch_context
+        return action(_b4_launch_context, selected_layout)
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(unittest.mock.patch.object(
+            C, "REPOSITORY_ROOT", admission.repository,
+        ))
+        stack.enter_context(unittest.mock.patch.object(
+            B4L, "exploration_campaign_layout", side_effect=layout_for,
+        ))
+        stack.enter_context(unittest.mock.patch.dict(
+            B4L.DRIVER_REGISTRY, {driver_kind: capture_driver},
+        ))
+        if trigger_site is not None:
+            stack.enter_context(unittest.mock.patch.object(
+                TRIGGER_LOOP, "_current_site", return_value=trigger_site,
+            ))
+        return B4L.launch_bootstrap(
+            driver_kind=driver_kind,
+            arm=arm,
+            admission_record_path=admission.record_path,
+            proposal_path=parent / "unused-proposal.json",
         )
-    context = B4L._create_b4_production_context(
-        verified,
-        driver_kind=driver_kind,
-        arm=arm,
-    )
-    return B4L._bind_b4_campaign(context, str(ident.campaign_id(cfg)))
 
 
 def _raises(error_type, callable_, *, contains: str | None = None):
@@ -474,29 +496,14 @@ def _capture_certified_pair_construction(
     ) as which_mock, unittest.mock.patch.object(
         C, "B4ClosedCriticController", CapturingController
     ):
-        config_factory = C.B4_DRIVER_CONFIG_FACTORIES[driver_kind]
-        verified = A.verify_b4_admission_record(
-            admission.record_path,
-            repository_root=admission.repository,
-        )
-        config_context = B4L._create_b4_production_context(
-            verified,
+        config_context = B4L.create_b4_launch_context_for_test(
             driver_kind=driver_kind,
-            arm="on",
         )
-        on_cfg = config_factory(
-            reflux=True,
-            b4_reflux_ablation=True,
-            _b4_launch_context=config_context,
-        )
-        off_cfg = config_factory(
-            reflux=False,
-            b4_reflux_ablation=True,
-            _b4_launch_context=config_context,
-        )
-        launch_context = B4L._bind_b4_campaign(
-            config_context,
-            str(ident.campaign_id(on_cfg)),
+        on_cfg, off_cfg = B4L._driver_configs(driver_kind, config_context)
+        launch_context = _production_launch_context(
+            on_cfg,
+            admission=admission,
+            driver_kind=driver_kind,
         )
         pair = C.create_b4_closed_critic_pair(
             on_cfg=on_cfg,
@@ -2341,22 +2348,25 @@ def test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc():
 def test_launcher_positive_uses_real_factory_and_real_base_main_for_commit(
     monkeypatch,
 ):
-    """Actual launcher, factory, and main complete one routed COMMIT.
+    """Route one COMMIT while leaving factory, driver main, and WAL unpatched.
 
-    The synthesis body is a fixture so this is routing evidence; it is not a
-    substitute for any M01-M18 negative, all of which call their real target.
+    Replaced targets: ``C.REPOSITORY_ROOT``, ``C.ROLE_FILE``,
+    ``C.shutil.which``, ``C.B4ClosedCriticController.__init__`` and its runner,
+    ``C.exploration_campaign_layout``, ``C._load_stable_snapshot``,
+    ``C.require_admitted_campaign``, ``C.make_critic_digest``,
+    ``C.make_critic_identity_projection``, ``B4L.exploration_campaign_layout``,
+    ``L.exploration_campaign_layout``, ``L.ident.ensure_resumable_attempts``,
+    ``patchharness.assert_pinned_clean``, ``p2_2._assert_single_tenant``,
+    ``L.run_one_iteration``, ``L.require_admitted_campaign``,
+    ``L.make_critic_identity_projection``, and ``L.make_critic_digest``.
+    This positive proves routing, not the substance of the scientific work.
+    It is not a substitute for any M01-M18 negative.
     """
     from orchestrator.campaign import p2_2, patchharness
 
     admission = _committed_admission_fixture()
-    verified = A.verify_b4_admission_record(
-        admission.record_path,
-        repository_root=admission.repository,
-    )
-    config_context = B4L._create_b4_production_context(
-        verified,
+    config_context = B4L.create_b4_launch_context_for_test(
         driver_kind="base",
-        arm="on",
     )
     on_cfg, off_cfg = B4L._driver_configs("base", config_context)
     parent = Path(tempfile.mkdtemp(prefix="izanagi-b4-launch-positive-"))

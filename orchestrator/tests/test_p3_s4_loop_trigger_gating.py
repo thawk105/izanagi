@@ -30,7 +30,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
-from orchestrator.campaign import p3_b4_admission_record as B4_ADMISSION          # noqa: E402
 from orchestrator.campaign import p3_b4_closed_critic as B4_CLOSED                # noqa: E402
 from orchestrator.campaign import p3_b4_launcher as B4_LAUNCHER                   # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
@@ -65,27 +64,20 @@ from orchestrator.campaign.trigger_gate_binding import (                        
     expected_predicate_sha256,
 )
 from campaign_lock_test_support import build_v2_lock                # noqa: E402
+from test_p3_b4_closed_critic import (                              # noqa: E402
+    _production_launch_context as _verified_b4_context,
+)
 
 
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
     driver_kind="trigger"
 )
-_B4_VERIFIED = B4_ADMISSION.VerifiedB4AdmissionRecord(
-    "admission.json", "1" * 64, "2" * 40,
-    "docs/preregistration.md", "3" * 40, "4" * 64,
-    "fixture-model", "5" * 64, "6" * 64,
-)
-
-
-def _b4_production_context(cfg, *, arm="on"):
-    context = B4_LAUNCHER._create_b4_production_context(
-        _B4_VERIFIED,
+def _b4_production_context(cfg, *, arm="on", site=None):
+    return _verified_b4_context(
+        cfg,
         driver_kind="trigger",
         arm=arm,
-    )
-    return B4_LAUNCHER._bind_b4_campaign(
-        context,
-        str(ident.campaign_id(cfg)),
+        trigger_site=site,
     )
 
 _AUTHORITY_PARSER = argparse.ArgumentParser()
@@ -2828,7 +2820,7 @@ def test_m07_b4_trigger_public_iteration_requires_launcher(
 def test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress(
     tmp_path, monkeypatch,
 ):
-    """M10: G3 owns rejection by absence of root and loop-state progress."""
+    """M10: G3 precedes root creation and iteration-1 handoff to real G2."""
     raw_cfg = T.default_cfg(
         b4_reflux_ablation=True,
         _b4_launch_context=_B4_TEST_CONTEXT,
@@ -2837,7 +2829,18 @@ def test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress(
     contract = T._admit_env_contract(site)
     root = tmp_path / "m10-campaign"
     layout = CampaignLayout(str(root))
+    observed_iterations = []
+    real_run_one_iteration = T._run_one_iteration_resolved
+
+    def observing_run_one_iteration(*args, **kwargs):
+        observed_iterations.append(args[5].iteration)
+        return real_run_one_iteration(*args, **kwargs)
+
     monkeypatch.setattr(T, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(
+        T, "_run_one_iteration_resolved", observing_run_one_iteration,
+    )
     with pytest.raises(
         B4_LAUNCHER.B4LauncherAuthorizationError,
         match="trigger drive_iteration",
@@ -2857,7 +2860,7 @@ def test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress(
             _contract=contract,
         )
     assert not root.exists()
-    assert not Path(L.loop_state_path(layout)).exists()
+    assert observed_iterations == []
 
 
 def test_b4_trigger_certified_receipt_advances_through_shared_gate(
@@ -2928,7 +2931,7 @@ def test_b4_trigger_certified_receipt_advances_through_shared_gate(
         _resolved_site=site,
         _contract=contract,
         _b4_launch_context=_b4_production_context(
-            campaign_cfg, arm="off",
+            campaign_cfg, arm="off", site=site,
         ),
     )
     assert out["ran"] is True and out["iteration"] == 2
@@ -3007,7 +3010,9 @@ def test_b4_trigger_gate_gets_site_resolved_cfg_and_failure_is_write_free_m17(
             ).hexdigest(),
             _resolved_site=site,
             _contract=contract,
-            _b4_launch_context=_b4_production_context(expected_cfg),
+            _b4_launch_context=_b4_production_context(
+                expected_cfg, site=site,
+            ),
         )
     assert observed_ids == [expected_id]
     assert fold_spy.call_count == 0

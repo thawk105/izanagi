@@ -37,7 +37,6 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import backoff_hole_grammar as BHG                    # noqa: E402
 from orchestrator.campaign import (                                            # noqa: E402
     ident,
-    p3_b4_admission_record as B4_ADMISSION,
     p3_b4_closed_critic as B4_CLOSED,
     p3_b4_launcher as B4_LAUNCHER,
     p3_s4_loop as L,
@@ -82,33 +81,19 @@ from orchestrator.critic.digest import (DIFF_QUARANTINE_REASON,                 
                            load_liveness_rejections, render_rejections)
 from campaign_lock_test_support import build_v2_lock               # noqa: E402
 import commit_receipt_support                                     # noqa: E402
+from test_p3_b4_closed_critic import (                             # noqa: E402
+    _production_launch_context as _verified_b4_context,
+)
 
 
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
     driver_kind="base"
 )
-_B4_VERIFIED = B4_ADMISSION.VerifiedB4AdmissionRecord(
-    admission_record_repository_path="admission.json",
-    admission_record_sha256="1" * 64,
-    admission_record_commit="2" * 40,
-    preregistration_repository_path="docs/preregistration.md",
-    preregistration_content_commit="3" * 40,
-    preregistration_content_sha256="4" * 64,
-    expected_claude_model_snapshot="fixture-model",
-    expected_effective_critic_prompt_sha256="5" * 64,
-    expected_closed_critic_projection_closure_sha256="6" * 64,
-)
-
-
 def _b4_production_context(cfg, *, arm="on"):
-    context = B4_LAUNCHER._create_b4_production_context(
-        _B4_VERIFIED,
+    return _verified_b4_context(
+        cfg,
         driver_kind="base",
         arm=arm,
-    )
-    return B4_LAUNCHER._bind_b4_campaign(
-        context,
-        str(ident.campaign_id(cfg)),
     )
 
 # 実 backoff.hh の EVOLVE-BLOCK 骨格を写した fixture (test_diff_quarantine と同型)。
@@ -2578,9 +2563,9 @@ def test_m04_b4_marked_run_one_iteration_direct_call_requires_launcher(
 
 
 def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
-    tmp_path,
+    tmp_path, monkeypatch,
 ):
-    """M08: G3 owns rejection by absence of root and loop-state progress."""
+    """M08: G3 precedes root creation and iteration-1 handoff to real G2."""
     cfg = L.default_cfg(
         b4_reflux_ablation=True,
         _b4_launch_context=_B4_TEST_CONTEXT,
@@ -2591,6 +2576,15 @@ def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
     coder = L.CoderProposal(
         L.MARKER_ID, 20.0, "double now_backoff = 20.0;"
     )
+    observed_iterations = []
+    real_run_one_iteration = L.run_one_iteration
+
+    def observing_run_one_iteration(*args, **kwargs):
+        observed_iterations.append(args[4].iteration)
+        return real_run_one_iteration(*args, **kwargs)
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "run_one_iteration", observing_run_one_iteration)
     with pytest.raises(
         B4_LAUNCHER.B4LauncherAuthorizationError,
         match="base drive_iteration",
@@ -2609,7 +2603,7 @@ def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
             ),
         )
     assert not root.exists()
-    assert not Path(L.loop_state_path(layout)).exists()
+    assert observed_iterations == []
 
 
 @pytest.mark.parametrize(
@@ -3097,8 +3091,8 @@ def test_b4_fixture_main_rejects_run_one_iteration_bypass_m13(monkeypatch):
     monkeypatch.setattr(patchharness, "assert_pinned_clean", pinned_spy)
     monkeypatch.setattr(p2_2, "_assert_single_tenant", single_tenant_spy)
     with pytest.raises(
-        B4_LAUNCHER.B4LauncherAuthorizationError,
-        match="marker creation",
+        L.B4ProtocolError,
+        match="fixture run_one_iteration",
     ):
         L.main([
             "--b4-reflux-ablation",

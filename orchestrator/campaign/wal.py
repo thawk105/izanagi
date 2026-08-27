@@ -36,6 +36,11 @@ from .build_admission import (
 from . import campaign_lock as campaign_lock_codec
 from . import env_contract
 from .layout import CampaignLayout
+from .p3_b4_protocol import (
+    B4_PROTOCOL_KEY,
+    B4_PROTOCOL_VALUE,
+    driver_kind_from_identity,
+)
 from .model import (
     COMMIT_CONTRACT_SHA256_KEY,
     INCOMPLETE_ATTEMPT_RECOVERY_REASON,
@@ -408,20 +413,49 @@ def _consumed_commit_receipt_ids(fd: int, size: int) -> set[str]:
     return consumed
 
 
-def _has_exact_b4_protocol_marker(layout: CampaignLayout) -> bool:
-    """Classify a valid lock without importing the higher B-4 modules."""
+def _decode_lock_for_b4_classification(layout: CampaignLayout):
+    """Return one decoded lock, rejecting an existing unreadable lock."""
     if not os.path.lexists(layout.lock_file):
-        return False
+        return None
     try:
-        with open(layout.lock_file, encoding="utf-8") as stream:
-            decoded = campaign_lock_codec.decode_campaign_lock(stream.read())
-    except (OSError, campaign_lock_codec.CampaignLockCodecError):
+        with open(layout.lock_file, "rb") as stream:
+            raw = stream.read()
+        return campaign_lock_codec.decode_campaign_lock(raw.decode("utf-8"))
+    except (
+        OSError,
+        UnicodeDecodeError,
+        campaign_lock_codec.CampaignLockCodecError,
+    ) as exc:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "existing campaign lock cannot classify the B-4 protocol"
+        ) from exc
+
+
+def _has_exact_b4_protocol_marker(decoded) -> bool:
+    """Classify one already validated campaign lock."""
+    if decoded is None:
         return False
     search_config = decoded.identity["search_config"]
     return (
-        search_config.get("b4_protocol")
-        == "p3-b4-reflux-ablation/v1"
+        search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE
     )
+
+
+def _b4_driver_kind_from_lock(decoded):
+    identity = decoded.identity
+    search_config = identity["search_config"]
+    driver_kind = driver_kind_from_identity(
+        search_tag=identity["search_tag"],
+        trial=identity["trial"],
+        axis=search_config.get("axis"),
+    )
+    if driver_kind is None:
+        from .p3_b4_launcher import B4LauncherAuthorizationError
+        raise B4LauncherAuthorizationError(
+            "B-4 campaign lock driver kind is invalid"
+        )
+    return driver_kind
 
 
 def append(
@@ -431,9 +465,19 @@ def append(
     # 拒否された record で directory/file 側の効果を起こさない。
     if record.stage != STAGE_COMMIT and commit_receipt is not None:
         raise CommitReceiptError("commit receipt supplied for non-COMMIT record")
-    if record.stage == STAGE_COMMIT and _has_exact_b4_protocol_marker(layout):
-        from .p3_b4_launcher import verify_b4_launch_context
-        verify_b4_launch_context(layout)
+    if record.stage == STAGE_COMMIT:
+        decoded_lock = _decode_lock_for_b4_classification(layout)
+        if _has_exact_b4_protocol_marker(decoded_lock):
+            from .p3_b4_launcher import verify_b4_launch_context
+            search_config = decoded_lock.identity["search_config"]
+            verify_b4_launch_context(
+                layout,
+                expected_driver_kind=_b4_driver_kind_from_lock(decoded_lock),
+                expected_campaign_id=os.path.basename(
+                    os.path.normpath(layout.root)
+                ),
+                expected_arm=search_config.get("reflux"),
+            )
     line = _record_to_line(record) + "\n"
     parse_line(line)
     encoded = line.encode("utf-8")

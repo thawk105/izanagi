@@ -28,7 +28,6 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import ident, p3_s4_loop as L                         # noqa: E402
-from orchestrator.campaign import p3_b4_admission_record as B4_ADMISSION          # noqa: E402
 from orchestrator.campaign import p3_b4_closed_critic as B4_CLOSED                # noqa: E402
 from orchestrator.campaign import p3_b4_launcher as B4_LAUNCHER                   # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as S                           # noqa: E402
@@ -45,27 +44,19 @@ from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             
 from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from orchestrator.critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
+from test_p3_b4_closed_critic import (                               # noqa: E402
+    _production_launch_context as _verified_b4_context,
+)
 
 
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
     driver_kind="sort"
 )
-_B4_VERIFIED = B4_ADMISSION.VerifiedB4AdmissionRecord(
-    "admission.json", "1" * 64, "2" * 40,
-    "docs/preregistration.md", "3" * 40, "4" * 64,
-    "fixture-model", "5" * 64, "6" * 64,
-)
-
-
 def _b4_production_context(cfg, *, arm="on"):
-    context = B4_LAUNCHER._create_b4_production_context(
-        _B4_VERIFIED,
+    return _verified_b4_context(
+        cfg,
         driver_kind="sort",
         arm=arm,
-    )
-    return B4_LAUNCHER._bind_b4_campaign(
-        context,
-        str(ident.campaign_id(cfg)),
     )
 
 
@@ -966,14 +957,25 @@ def test_m05_b4_sort_run_one_iteration_direct_call_requires_launcher(tmp_path):
     assert state.iteration == 0 and state.whiteboard == []
 
 
-def test_m09_b4_sort_drive_rejects_before_layout_and_state_progress(tmp_path):
-    """M09: G3 owns rejection by absence of root and loop-state progress."""
+def test_m09_b4_sort_drive_rejects_before_layout_and_state_progress(
+    tmp_path, monkeypatch,
+):
+    """M09: G3 precedes root creation and iteration-1 handoff to real G2."""
     cfg = S.default_cfg(
         b4_reflux_ablation=True,
         _b4_launch_context=_B4_TEST_CONTEXT,
     )
     root = tmp_path / "m09-campaign"
     layout = CampaignLayout(str(root))
+    observed_iterations = []
+    real_run_one_iteration = S.run_one_iteration
+
+    def observing_run_one_iteration(*args, **kwargs):
+        observed_iterations.append(args[5].iteration)
+        return real_run_one_iteration(*args, **kwargs)
+
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(S, "run_one_iteration", observing_run_one_iteration)
     with pytest.raises(
         B4_LAUNCHER.B4LauncherAuthorizationError,
         match="sort drive_iteration",
@@ -993,7 +995,7 @@ def test_m09_b4_sort_drive_rejects_before_layout_and_state_progress(tmp_path):
             ),
         )
     assert not root.exists()
-    assert not Path(L.loop_state_path(layout)).exists()
+    assert observed_iterations == []
 
 
 def test_b4_sort_certified_receipt_advances_through_shared_gate(

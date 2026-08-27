@@ -68,6 +68,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import env_contract, ident, pin, wal                # noqa: E402
 from . import p3_s4_loop as L                              # noqa: E402
+from .p3_b4_protocol import (  # noqa: E402
+    B4_PROTOCOL_KEY,
+    B4_PROTOCOL_VALUE,
+    driver_kind_from_identity as b4_driver_kind_from_identity,
+)
 from .artifact_admission import (                         # noqa: E402
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -275,7 +280,7 @@ def default_cfg(
             expected_driver_kind="sort",
             boundary="sort marker creation",
         )
-        search_config[L.B4_PROTOCOL_KEY] = L.B4_PROTOCOL_VALUE
+        search_config[B4_PROTOCOL_KEY] = B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s5-sort-loop", search_tag="s5-sort-autonomous",
         spec_content=("P3 後続段 5: sort-strategy (write_set 施錠順序 comparator) coder "
@@ -316,13 +321,18 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     dry/実 build いずれの経路でも通す (`_quarantine_and_audit` に factoring — backoff 版は
     dry/build で quarantine 呼び出しを重複させていたが、本 driver は auditor gate が
     増えた分ここで共通化した)。"""
-    if cfg.search_config.get(L.B4_PROTOCOL_KEY) == L.B4_PROTOCOL_VALUE:
+    if cfg.search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE:
         from .p3_b4_launcher import require_b4_production_context
         require_b4_production_context(
             _b4_launch_context,
-            expected_driver_kind="sort",
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=cfg.search_tag,
+                trial=cfg.trial,
+                axis=cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(cfg)),
+            expected_arm=cfg.search_config.get("reflux"),
             boundary="sort run_one_iteration",
-            require_campaign_binding=True,
         )
     from .patchharness import applied
     if build_context is None and not do_build:
@@ -463,9 +473,14 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         from .p3_b4_launcher import require_b4_production_context
         require_b4_production_context(
             _b4_launch_context,
-            expected_driver_kind="sort",
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=cfg.search_tag,
+                trial=cfg.trial,
+                axis=cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(cfg)),
+            expected_arm=cfg.search_config.get("reflux"),
             boundary="sort drive_iteration",
-            require_campaign_binding=True,
         )
         state = L.load_loop_state(layout)
         if state is None:

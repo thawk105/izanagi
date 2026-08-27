@@ -25,10 +25,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import ident
 from .layout import CampaignLayout, exploration_campaign_layout
-from .p3_b4_admission_record import (
-    VerifiedB4AdmissionRecord,
-    verify_b4_admission_record,
-)
+from .p3_b4_admission_record import verify_b4_admission_record
 from . import p3_s4_loop
 from . import p3_s4_loop_sort
 from . import p3_s4_loop_trigger_gating
@@ -41,11 +38,7 @@ Arm = Literal["on", "off"]
 B4_LAUNCH_SIDECAR = "b4_launch_context.json"
 B4_LAUNCH_SIDECAR_SCHEMA = "p3-b4-launch-context/v1"
 
-_B4_PRODUCTION_CONTEXT_SEAL = object()
 _B4_TEST_CONTEXT_SEAL = object()
-_ACTIVE_B4_LAUNCH_CONTEXT: contextvars.ContextVar[
-    "B4LaunchContext | None"
-] = contextvars.ContextVar("active_b4_launch_context", default=None)
 
 
 class B4LauncherAuthorizationError(RuntimeError):
@@ -164,71 +157,6 @@ def _validate_context_shape(context: object) -> B4LaunchContext:
     return context
 
 
-def require_b4_any_context(
-    context: object,
-    *,
-    expected_driver_kind: DriverKind,
-    boundary: str,
-) -> B4LaunchContext:
-    """Accept either exact seal for config construction only."""
-    if type(context) is not B4LaunchContext:
-        raise B4LauncherAuthorizationError(
-            f"B-4 {boundary} requires a sealed launch context"
-        )
-    context = _validate_context_shape(context)
-    valid_seal = (
-        context._seal is _B4_PRODUCTION_CONTEXT_SEAL
-        and context.evidence_class == "production"
-    ) or (
-        context._seal is _B4_TEST_CONTEXT_SEAL
-        and context.evidence_class == "test-only"
-    )
-    if not valid_seal:
-        raise B4LauncherAuthorizationError(
-            f"B-4 {boundary} requires a sealed launch context"
-        )
-    if context.driver_kind != expected_driver_kind:
-        raise B4LauncherAuthorizationError(
-            f"B-4 launch context driver kind differs at {boundary}"
-        )
-    return context
-
-
-def require_b4_production_context(
-    context: object,
-    *,
-    expected_driver_kind: DriverKind,
-    boundary: str,
-    require_campaign_binding: bool = False,
-) -> B4LaunchContext:
-    """Require the production seal, exact kind, digest, and optional binding."""
-    if type(context) is not B4LaunchContext:
-        raise B4LauncherAuthorizationError(
-            f"B-4 {boundary} requires a production launch context"
-        )
-    context = _validate_context_shape(context)
-    if context._seal is _B4_TEST_CONTEXT_SEAL:
-        raise B4LauncherAuthorizationError(
-            f"test-only B-4 launch context cannot authorize {boundary}"
-        )
-    if (
-        context._seal is not _B4_PRODUCTION_CONTEXT_SEAL
-        or context.evidence_class != "production"
-    ):
-        raise B4LauncherAuthorizationError(
-            f"B-4 {boundary} requires a production launch context"
-        )
-    if context.driver_kind != expected_driver_kind:
-        raise B4LauncherAuthorizationError(
-            f"B-4 launch context driver kind differs at {boundary}"
-        )
-    if require_campaign_binding and context.campaign_id is None:
-        raise B4LauncherAuthorizationError(
-            f"B-4 {boundary} requires a campaign-bound launch context"
-        )
-    return context
-
-
 def create_b4_launch_context_for_test(
     *,
     driver_kind: DriverKind,
@@ -243,165 +171,6 @@ def create_b4_launch_context_for_test(
         admission_record_sha256="0" * 64,
         admission_record_commit="0" * 40,
     )
-
-
-def _create_b4_production_context(
-    verified: VerifiedB4AdmissionRecord,
-    *,
-    driver_kind: DriverKind,
-    arm: Arm,
-) -> B4LaunchContext:
-    if type(verified) is not VerifiedB4AdmissionRecord:
-        raise B4LauncherAuthorizationError(
-            "production B-4 context requires a verified admission record"
-        )
-    return _new_context(
-        seal=_B4_PRODUCTION_CONTEXT_SEAL,
-        evidence_class="production",
-        driver_kind=driver_kind,
-        arm=arm,
-        admission_record_sha256=verified.admission_record_sha256,
-        admission_record_commit=verified.admission_record_commit,
-    )
-
-
-def _bind_b4_campaign(
-    context: B4LaunchContext,
-    campaign_id: str,
-) -> B4LaunchContext:
-    context = require_b4_production_context(
-        context,
-        expected_driver_kind=context.driver_kind,
-        boundary="campaign binding",
-    )
-    if type(campaign_id) is not str or not campaign_id:
-        raise B4LauncherAuthorizationError("B-4 campaign binding is invalid")
-    values = _context_value(
-        evidence_class=context.evidence_class,
-        driver_kind=context.driver_kind,
-        arm=context.arm,
-        admission_record_sha256=context.admission_record_sha256,
-        admission_record_commit=context.admission_record_commit,
-        campaign_id=campaign_id,
-    )
-    return replace(
-        context,
-        campaign_id=campaign_id,
-        context_sha256=_context_sha256(**values),
-    )
-
-
-def _sidecar_value(context: B4LaunchContext) -> dict[str, str]:
-    context = require_b4_production_context(
-        context,
-        expected_driver_kind=context.driver_kind,
-        boundary="launch sidecar",
-        require_campaign_binding=True,
-    )
-    assert context.campaign_id is not None
-    return {
-        "schema_version": B4_LAUNCH_SIDECAR_SCHEMA,
-        "campaign_id": context.campaign_id,
-        "arm": context.arm,
-        "driver_kind": context.driver_kind,
-        "admission_record_sha256": context.admission_record_sha256,
-        "launch_context_sha256": context.context_sha256,
-    }
-
-
-def _write_b4_launch_sidecar(
-    layout: CampaignLayout,
-    context: B4LaunchContext,
-) -> Path:
-    """Atomically replace the launch record so a campaign can be remeasured."""
-    expected = _sidecar_value(context)
-    if Path(layout.root).name != expected["campaign_id"]:
-        raise B4LauncherAuthorizationError(
-            "B-4 launch sidecar layout differs from campaign binding"
-        )
-    layout.ensure()
-    target = Path(layout.root) / B4_LAUNCH_SIDECAR
-    temporary = target.with_name(
-        f".{target.name}.tmp-{os.getpid()}-{os.urandom(16).hex()}"
-    )
-    try:
-        with temporary.open("xb") as stream:
-            stream.write(_canonical_json_bytes(expected))
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, target)
-        directory_fd = os.open(layout.root, os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
-    finally:
-        temporary.unlink(missing_ok=True)
-    return target
-
-
-@contextlib.contextmanager
-def _activate_b4_launch_context(
-    context: B4LaunchContext,
-) -> Iterator[B4LaunchContext]:
-    context = require_b4_production_context(
-        context,
-        expected_driver_kind=context.driver_kind,
-        boundary="process activation",
-        require_campaign_binding=True,
-    )
-    token = _ACTIVE_B4_LAUNCH_CONTEXT.set(context)
-    try:
-        yield context
-    finally:
-        _ACTIVE_B4_LAUNCH_CONTEXT.reset(token)
-
-
-def verify_b4_launch_context(layout: CampaignLayout) -> B4LaunchContext:
-    """G4: bind a marked COMMIT to the sidecar and live process context."""
-    sidecar_path = Path(layout.root) / B4_LAUNCH_SIDECAR
-    try:
-        raw = sidecar_path.read_bytes()
-    except OSError as exc:
-        raise B4LauncherAuthorizationError(
-            "B-4 COMMIT requires b4_launch_context.json"
-        ) from exc
-    try:
-        value = json.loads(raw)
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid") from exc
-    if type(value) is not dict or set(value) != {
-        "schema_version",
-        "campaign_id",
-        "arm",
-        "driver_kind",
-        "admission_record_sha256",
-        "launch_context_sha256",
-    }:
-        raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid")
-    if value.get("schema_version") != B4_LAUNCH_SIDECAR_SCHEMA:
-        raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid")
-    campaign_id = Path(layout.root).name
-    if value.get("campaign_id") != campaign_id:
-        raise B4LauncherAuthorizationError(
-            "B-4 launch sidecar is bound to another campaign"
-        )
-    context = _ACTIVE_B4_LAUNCH_CONTEXT.get()
-    if type(context) is not B4LaunchContext:
-        raise B4LauncherAuthorizationError(
-            "B-4 COMMIT requires the live launch context"
-        )
-    context = require_b4_production_context(
-        context,
-        expected_driver_kind=context.driver_kind,
-        boundary="certified sink",
-        require_campaign_binding=True,
-    )
-    if context.campaign_id != campaign_id or value != _sidecar_value(context):
-        raise B4LauncherAuthorizationError(
-            "B-4 launch sidecar differs from the live launch context"
-        )
-    return context
 
 
 DRIVER_REGISTRY = {
@@ -460,104 +229,364 @@ def _driver_argv(
     return argv
 
 
-def _prepare_launch(
-    *,
-    driver_kind: DriverKind,
-    arm: Arm,
-    admission_record_path: Path,
-) -> tuple[B4LaunchContext, Any, Any]:
-    verified = verify_b4_admission_record(
-        admission_record_path,
-        repository_root=p3_b4_closed_critic.REPOSITORY_ROOT,
+def _build_launcher_closure():
+    """Close production issuance and activation over an unreachable seal."""
+    production_seal = object()
+    active_context: contextvars.ContextVar[B4LaunchContext | None] = (
+        contextvars.ContextVar("active_b4_launch_context", default=None)
     )
-    context = _create_b4_production_context(
-        verified,
-        driver_kind=driver_kind,
-        arm=arm,
-    )
-    on_cfg, off_cfg = _driver_configs(driver_kind, context)
-    selected_cfg = on_cfg if arm == "on" else off_cfg
-    context = _bind_b4_campaign(context, str(ident.campaign_id(selected_cfg)))
-    return context, on_cfg, off_cfg
 
+    def require_production_seal(
+        context: object, *, boundary: str,
+    ) -> B4LaunchContext:
+        if type(context) is not B4LaunchContext:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} requires a production launch context"
+            )
+        context = _validate_context_shape(context)
+        if context._seal is _B4_TEST_CONTEXT_SEAL:
+            raise B4LauncherAuthorizationError(
+                f"test-only B-4 launch context cannot authorize {boundary}"
+            )
+        if (
+            context._seal is not production_seal
+            or context.evidence_class != "production"
+        ):
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} requires a production launch context"
+            )
+        return context
 
-def launch_bootstrap(
-    *,
-    driver_kind: DriverKind,
-    arm: Arm,
-    admission_record_path: Path,
-    proposal_path: Path,
-) -> int:
-    """Verify admission before touching the real driver, then run bootstrap."""
-    context, on_cfg, off_cfg = _prepare_launch(
-        driver_kind=driver_kind,
-        arm=arm,
-        admission_record_path=admission_record_path,
-    )
-    selected_cfg = on_cfg if arm == "on" else off_cfg
-    layout = exploration_campaign_layout(str(ident.campaign_id(selected_cfg)))
-    _write_b4_launch_sidecar(layout, context)
-    with _activate_b4_launch_context(context):
-        return DRIVER_REGISTRY[driver_kind](
-            _driver_argv(
-                arm=arm,
-                proposal_path=proposal_path,
-                terminal_receipt_path=None,
-            ),
-            _b4_launch_context=context,
+    def require_any_context(
+        context: object,
+        *,
+        expected_driver_kind: DriverKind,
+        boundary: str,
+    ) -> B4LaunchContext:
+        """Accept either exact seal for config construction only."""
+        if type(context) is not B4LaunchContext:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} requires a sealed launch context"
+            )
+        context = _validate_context_shape(context)
+        valid_seal = (
+            context._seal is production_seal
+            and context.evidence_class == "production"
+        ) or (
+            context._seal is _B4_TEST_CONTEXT_SEAL
+            and context.evidence_class == "test-only"
+        )
+        if not valid_seal:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} requires a sealed launch context"
+            )
+        if context.driver_kind != expected_driver_kind:
+            raise B4LauncherAuthorizationError(
+                f"B-4 launch context driver kind differs at {boundary}"
+            )
+        return context
+
+    def require_production_context(
+        context: object,
+        *,
+        expected_driver_kind: DriverKind,
+        expected_campaign_id: str,
+        expected_arm: Arm,
+        boundary: str,
+    ) -> B4LaunchContext:
+        """Require exact production kind, campaign, arm, seal, and digest."""
+        context = require_production_seal(context, boundary=boundary)
+        if context.driver_kind != expected_driver_kind:
+            raise B4LauncherAuthorizationError(
+                f"B-4 launch context driver kind differs at {boundary}"
+            )
+        if type(expected_campaign_id) is not str or not expected_campaign_id:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} expected campaign id is invalid"
+            )
+        if context.campaign_id != expected_campaign_id:
+            raise B4LauncherAuthorizationError(
+                f"B-4 launch context campaign id differs at {boundary}"
+            )
+        if expected_arm not in {"on", "off"}:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} expected arm is invalid"
+            )
+        if context.arm != expected_arm:
+            raise B4LauncherAuthorizationError(
+                f"B-4 launch context arm differs at {boundary}"
+            )
+        return context
+
+    def issue_context(
+        admission_record_path: Path,
+        *,
+        driver_kind: DriverKind,
+        arm: Arm,
+    ) -> B4LaunchContext:
+        verified = verify_b4_admission_record(
+            admission_record_path,
+            repository_root=p3_b4_closed_critic.REPOSITORY_ROOT,
+        )
+        return _new_context(
+            seal=production_seal,
+            evidence_class="production",
+            driver_kind=driver_kind,
+            arm=arm,
+            admission_record_sha256=verified.admission_record_sha256,
+            admission_record_commit=verified.admission_record_commit,
         )
 
+    def bind_campaign(
+        context: B4LaunchContext,
+        campaign_id: str,
+    ) -> B4LaunchContext:
+        context = require_production_seal(context, boundary="campaign binding")
+        if type(campaign_id) is not str or not campaign_id:
+            raise B4LauncherAuthorizationError("B-4 campaign binding is invalid")
+        values = _context_value(
+            evidence_class=context.evidence_class,
+            driver_kind=context.driver_kind,
+            arm=context.arm,
+            admission_record_sha256=context.admission_record_sha256,
+            admission_record_commit=context.admission_record_commit,
+            campaign_id=campaign_id,
+        )
+        return replace(
+            context,
+            campaign_id=campaign_id,
+            context_sha256=_context_sha256(**values),
+        )
 
-def launch_continuation(
-    *,
-    driver_kind: DriverKind,
-    arm: Arm,
-    admission_record_path: Path,
-    artifact_root: Path,
-    proposal_path: Path,
-    stdin=sys.stdin,
-    stdout=sys.stdout,
-) -> int:
-    """Mint a certified pair, emit its receipt, wait one line, then continue."""
-    context, on_cfg, off_cfg = _prepare_launch(
-        driver_kind=driver_kind,
-        arm=arm,
-        admission_record_path=admission_record_path,
-    )
-    with p3_b4_closed_critic.create_b4_closed_critic_pair(
-        on_cfg=on_cfg,
-        off_cfg=off_cfg,
-        artifact_root=artifact_root,
-        admission_record_path=admission_record_path,
-        expected_driver_kind=driver_kind,
-        _b4_launch_context=context,
-    ) as pair:
-        on = pair.on.invoke(invocation_id="b4-on")
-        off = pair.off.invoke(invocation_id="b4-off")
-        p3_b4_closed_critic.assert_b4_certified_arm_pair(
-            pair,
-            on.terminal_receipt_path,
-            off.terminal_receipt_path,
+    def sidecar_value(context: B4LaunchContext) -> dict[str, str]:
+        context = require_production_seal(context, boundary="launch sidecar")
+        if context.campaign_id is None:
+            raise B4LauncherAuthorizationError(
+                "B-4 launch sidecar requires a campaign-bound launch context"
+            )
+        return {
+            "schema_version": B4_LAUNCH_SIDECAR_SCHEMA,
+            "campaign_id": context.campaign_id,
+            "arm": context.arm,
+            "driver_kind": context.driver_kind,
+            "admission_record_sha256": context.admission_record_sha256,
+            "launch_context_sha256": context.context_sha256,
+        }
+
+    def write_sidecar(
+        layout: CampaignLayout,
+        context: B4LaunchContext,
+    ) -> Path:
+        """Atomically replace the launch record so a campaign can be remeasured."""
+        expected = sidecar_value(context)
+        if Path(layout.root).name != expected["campaign_id"]:
+            raise B4LauncherAuthorizationError(
+                "B-4 launch sidecar layout differs from campaign binding"
+            )
+        layout.ensure()
+        target = Path(layout.root) / B4_LAUNCH_SIDECAR
+        temporary = target.with_name(
+            f".{target.name}.tmp-{os.getpid()}-{os.urandom(16).hex()}"
+        )
+        try:
+            with temporary.open("xb") as stream:
+                stream.write(_canonical_json_bytes(expected))
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, target)
+            directory_fd = os.open(layout.root, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return target
+
+    @contextlib.contextmanager
+    def activate_context(
+        context: B4LaunchContext,
+    ) -> Iterator[B4LaunchContext]:
+        context = require_production_seal(context, boundary="process activation")
+        if context.campaign_id is None:
+            raise B4LauncherAuthorizationError(
+                "B-4 process activation requires a campaign-bound launch context"
+            )
+        token = active_context.set(context)
+        try:
+            yield context
+        finally:
+            active_context.reset(token)
+
+    def verify_launch_context(
+        layout: CampaignLayout,
+        *,
+        expected_driver_kind: DriverKind,
+        expected_campaign_id: str,
+        expected_arm: Arm,
+    ) -> B4LaunchContext:
+        """G4: bind a marked COMMIT to lock-derived exact expectations."""
+        sidecar_path = Path(layout.root) / B4_LAUNCH_SIDECAR
+        try:
+            raw = sidecar_path.read_bytes()
+        except OSError as exc:
+            raise B4LauncherAuthorizationError(
+                "B-4 COMMIT requires b4_launch_context.json"
+            ) from exc
+        try:
+            value = json.loads(raw)
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise B4LauncherAuthorizationError(
+                "B-4 launch sidecar is invalid"
+            ) from exc
+        if type(value) is not dict or set(value) != {
+            "schema_version",
+            "campaign_id",
+            "arm",
+            "driver_kind",
+            "admission_record_sha256",
+            "launch_context_sha256",
+        }:
+            raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid")
+        if value.get("schema_version") != B4_LAUNCH_SIDECAR_SCHEMA:
+            raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid")
+        if (
+            Path(layout.root).name != expected_campaign_id
+            or value.get("campaign_id") != expected_campaign_id
+        ):
+            raise B4LauncherAuthorizationError(
+                "B-4 launch sidecar is bound to another campaign"
+            )
+        context = active_context.get()
+        if type(context) is not B4LaunchContext:
+            raise B4LauncherAuthorizationError(
+                "B-4 COMMIT requires the live launch context"
+            )
+        context = require_production_context(
+            context,
+            expected_driver_kind=expected_driver_kind,
+            expected_campaign_id=expected_campaign_id,
+            expected_arm=expected_arm,
+            boundary="certified sink",
+        )
+        if value != sidecar_value(context):
+            raise B4LauncherAuthorizationError(
+                "B-4 launch sidecar differs from the live launch context"
+            )
+        return context
+
+    def prepare_launch(
+        *,
+        driver_kind: DriverKind,
+        arm: Arm,
+        admission_record_path: Path,
+    ) -> tuple[B4LaunchContext, Any, Any]:
+        context = issue_context(
+            admission_record_path,
+            driver_kind=driver_kind,
+            arm=arm,
+        )
+        on_cfg, off_cfg = _driver_configs(driver_kind, context)
+        selected_cfg = on_cfg if arm == "on" else off_cfg
+        context = bind_campaign(context, str(ident.campaign_id(selected_cfg)))
+        return context, on_cfg, off_cfg
+
+    def launch_bootstrap_impl(
+        *,
+        driver_kind: DriverKind,
+        arm: Arm,
+        admission_record_path: Path,
+        proposal_path: Path,
+    ) -> int:
+        """Verify admission before touching the real driver, then run bootstrap."""
+        context, on_cfg, off_cfg = prepare_launch(
+            driver_kind=driver_kind,
+            arm=arm,
             admission_record_path=admission_record_path,
         )
-        selected = on if arm == "on" else off
-        print(str(selected.terminal_receipt_path), file=stdout, flush=True)
-        if stdin.readline() == "":
-            raise B4LauncherAuthorizationError(
-                "B-4 continuation requires one ready-signal line"
-            )
         selected_cfg = on_cfg if arm == "on" else off_cfg
         layout = exploration_campaign_layout(str(ident.campaign_id(selected_cfg)))
-        _write_b4_launch_sidecar(layout, context)
-        with _activate_b4_launch_context(context):
+        write_sidecar(layout, context)
+        with activate_context(context):
             return DRIVER_REGISTRY[driver_kind](
                 _driver_argv(
                     arm=arm,
                     proposal_path=proposal_path,
-                    terminal_receipt_path=selected.terminal_receipt_path,
+                    terminal_receipt_path=None,
                 ),
                 _b4_launch_context=context,
             )
+
+    def launch_continuation_impl(
+        *,
+        driver_kind: DriverKind,
+        arm: Arm,
+        admission_record_path: Path,
+        artifact_root: Path,
+        proposal_path: Path,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+    ) -> int:
+        """Mint a certified pair, emit its receipt, wait one line, then continue."""
+        context, on_cfg, off_cfg = prepare_launch(
+            driver_kind=driver_kind,
+            arm=arm,
+            admission_record_path=admission_record_path,
+        )
+        with p3_b4_closed_critic.create_b4_closed_critic_pair(
+            on_cfg=on_cfg,
+            off_cfg=off_cfg,
+            artifact_root=artifact_root,
+            admission_record_path=admission_record_path,
+            expected_driver_kind=driver_kind,
+            _b4_launch_context=context,
+        ) as pair:
+            on = pair.on.invoke(invocation_id="b4-on")
+            off = pair.off.invoke(invocation_id="b4-off")
+            p3_b4_closed_critic.assert_b4_certified_arm_pair(
+                pair,
+                on.terminal_receipt_path,
+                off.terminal_receipt_path,
+                admission_record_path=admission_record_path,
+            )
+            selected = on if arm == "on" else off
+            print(str(selected.terminal_receipt_path), file=stdout, flush=True)
+            if stdin.readline() == "":
+                raise B4LauncherAuthorizationError(
+                    "B-4 continuation requires one ready-signal line"
+                )
+            selected_cfg = on_cfg if arm == "on" else off_cfg
+            layout = exploration_campaign_layout(
+                str(ident.campaign_id(selected_cfg))
+            )
+            write_sidecar(layout, context)
+            with activate_context(context):
+                return DRIVER_REGISTRY[driver_kind](
+                    _driver_argv(
+                        arm=arm,
+                        proposal_path=proposal_path,
+                        terminal_receipt_path=selected.terminal_receipt_path,
+                    ),
+                    _b4_launch_context=context,
+                )
+
+    return (
+        require_any_context,
+        require_production_context,
+        verify_launch_context,
+        launch_bootstrap_impl,
+        launch_continuation_impl,
+    )
+
+
+(
+    require_b4_any_context,
+    require_b4_production_context,
+    verify_b4_launch_context,
+    launch_bootstrap,
+    launch_continuation,
+) = _build_launcher_closure()
+del _build_launcher_closure
 
 
 def main(argv: list[str] | None = None) -> int:

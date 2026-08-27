@@ -44,9 +44,8 @@ from .artifact_admission import (  # noqa: E402
 from .claude_projected_provider import ClaudeProjectedRoleProvider  # noqa: E402
 from .layout import CampaignLayout, exploration_campaign_layout  # noqa: E402
 from .model import CampaignConfig  # noqa: E402
+from .p3_b4_protocol import B4_PROTOCOL_KEY, B4_PROTOCOL_VALUE  # noqa: E402
 from .p3_s4_loop import (  # noqa: E402
-    B4_PROTOCOL_KEY,
-    B4_PROTOCOL_VALUE,
     WhiteboardEntry,
     default_cfg,
     loop_state_path,
@@ -1203,19 +1202,31 @@ def create_b4_closed_critic_pair(
         B4LauncherAuthorizationError,
         require_b4_production_context,
     )
-    launch_context = require_b4_production_context(
-        _b4_launch_context,
-        expected_driver_kind=expected_driver_kind,
-        boundary="production pair factory",
-        require_campaign_binding=True,
-    )
+    on_driver_kind = _driver_kind_from_cfg(on_cfg)
+    off_driver_kind = _driver_kind_from_cfg(off_cfg)
     if (
-        _driver_kind_from_cfg(on_cfg) != expected_driver_kind
-        or _driver_kind_from_cfg(off_cfg) != expected_driver_kind
+        on_driver_kind != expected_driver_kind
+        or off_driver_kind != expected_driver_kind
     ):
         raise B4LauncherAuthorizationError(
             "B-4 production pair configs differ from expected driver kind"
         )
+    on_campaign_id = str(ident.campaign_id(on_cfg))
+    off_campaign_id = str(ident.campaign_id(off_cfg))
+    supplied_campaign_id = getattr(_b4_launch_context, "campaign_id", None)
+    if supplied_campaign_id == off_campaign_id:
+        selected_campaign_id = off_campaign_id
+        selected_arm: Arm = "off"
+    else:
+        selected_campaign_id = on_campaign_id
+        selected_arm = "on"
+    launch_context = require_b4_production_context(
+        _b4_launch_context,
+        expected_driver_kind=on_driver_kind,
+        expected_campaign_id=selected_campaign_id,
+        expected_arm=selected_arm,
+        boundary="production pair factory",
+    )
     trusted_root = _resolve_repository_root(repository_root)
     verified_admission = verify_b4_admission_record(
         admission_record_path,

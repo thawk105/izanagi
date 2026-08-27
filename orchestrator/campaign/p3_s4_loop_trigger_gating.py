@@ -56,6 +56,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from . import (buildcache, env_contract, execution_guard, ident, site_policy,  # noqa: E402
                source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
+from .p3_b4_protocol import (  # noqa: E402
+    B4_PROTOCOL_KEY,
+    B4_PROTOCOL_VALUE,
+    driver_kind_from_identity as b4_driver_kind_from_identity,
+)
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
@@ -570,7 +575,7 @@ def default_cfg(
             expected_driver_kind="trigger",
             boundary="trigger marker creation",
         )
-        search_config[L.B4_PROTOCOL_KEY] = L.B4_PROTOCOL_VALUE
+        search_config[B4_PROTOCOL_KEY] = B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s8a-trigger-loop", search_tag="s8a-trigger-autonomous",
         spec_content=("P3 段 8a E 段: silo-backoff-trigger-gating (abort 要因別 backoff "
@@ -709,13 +714,18 @@ def _run_one_iteration_resolved(
         _b4_launch_context=None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
-    if campaign_cfg.search_config.get(L.B4_PROTOCOL_KEY) == L.B4_PROTOCOL_VALUE:
+    if campaign_cfg.search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE:
         from .p3_b4_launcher import require_b4_production_context
         require_b4_production_context(
             _b4_launch_context,
-            expected_driver_kind="trigger",
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=campaign_cfg.search_tag,
+                trial=campaign_cfg.trial,
+                axis=campaign_cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(campaign_cfg)),
+            expected_arm=campaign_cfg.search_config.get("reflux"),
             boundary="trigger resolved run_one_iteration",
-            require_campaign_binding=True,
         )
     from .patchharness import applied
     _assert_trigger_proposal_contract(planner, coder)
@@ -819,13 +829,18 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
 
     provenance は書かない (機械部)。実 LLM 駆動と fixture main の funnel は
     `drive_iteration` で、そちらが記録義務を担う。"""
-    if cfg.search_config.get(L.B4_PROTOCOL_KEY) == L.B4_PROTOCOL_VALUE:
+    if cfg.search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE:
         from .p3_b4_launcher import require_b4_production_context
         require_b4_production_context(
             _b4_launch_context,
-            expected_driver_kind="trigger",
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=cfg.search_tag,
+                trial=cfg.trial,
+                axis=cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(cfg)),
+            expected_arm=cfg.search_config.get("reflux"),
             boundary="trigger public run_one_iteration",
-            require_campaign_binding=True,
         )
     _assert_trigger_proposal_contract(planner, coder)
     resolved_site = _current_site()
@@ -984,9 +999,14 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         from .p3_b4_launcher import require_b4_production_context
         require_b4_production_context(
             _b4_launch_context,
-            expected_driver_kind="trigger",
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=campaign_cfg.search_tag,
+                trial=campaign_cfg.trial,
+                axis=campaign_cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(campaign_cfg)),
+            expected_arm=campaign_cfg.search_config.get("reflux"),
             boundary="trigger drive_iteration",
-            require_campaign_binding=True,
         )
         state = L.load_loop_state(layout)
         if state is None:
