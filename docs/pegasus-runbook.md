@@ -931,9 +931,10 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   待ち手は launcher の source を Git blob から取り、`python3 -I -c` の stdin へ渡して実行する。
   launcher は `tested_main:tools/run_tests.py` の blob bytes を同じ形で exec して runner の rc を
   観測し、canonical な v5 receipt を待ち手が渡した一時 path へ書く (D838)。実行前に
-  `tested_tip:tools/run_tests.py` の bytes も別に読み、**一致しなければ suite を一度も起動せずに**
-  rc=70 で止まる。実行器に `tested-tip-bootstrap` 相当の例外は無く、`tested_main` 側の欠落も
-  fail-closed である。待ち手は保管と publish
+  `tested_tip:tools/run_tests.py` も blob として別に読み、欠落・読取不能なら suite を一度も起動せず
+  rc=70 で止まるが、tested main との bytes 等値は要求しない。実行 bytes は常に tested main から
+  取得し、実行後の独立再読と全 shard の binding report も同じ main digest へ照合する。
+  実行器に `tested-tip-bootstrap` 相当の例外は無く、`tested_main` 側の欠落も fail-closed である。待ち手は保管と publish
   だけを担い、launcher が非 0 で終われば receipt を publish しない。
   **この形は runner が `main(argv)` を公開していることを要求する** (pathname から import
   しないため)。v5 は `launcher_source_revision` / `launcher_blob_sha` /
@@ -959,15 +960,13 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   計算ノードの pytest controller と xdist worker は束縛外である。
   **dispatcher 自身は tip 側 bytes なので、dispatcher を編集した wave は段階 P では捕まらない。**
   land verifier 自身も候補コードである。いずれも [T-696] の協調境界に残る。
-- **`tools/run_tests.py` を変更した wave は、どの verdict でも受入を通せない (D838)。**
-  launcher は suite 起動前に、land は verdict によらず共通に、
-  `tested_main:tools/run_tests.py` と `tested_tip:tools/run_tests.py` の object type が `blob`
-  であることと blob SHA の等値を要求する。受領証の `runner_executed_sha256` の照合先も
-  `tested_main` 側の blob である。実行器を触る wave は受入そのものが通らないので、
-  **実行器の変更と他の変更を同じ wave に載せない**こと。
-  この等値は、claim 後・待ち手の内部 merge 前に**別の wave が実行器の変更を main へ land した**
-  場合にも破れる。実行器を触っていない wave が一度拒否され、受入をやり直すことになる。
-  そのときは新しい main を取り込んでから再投入する。
+- **`tools/run_tests.py` を変更した wave も受入を通せる。** launcher と land は
+  `tested_main:tools/run_tests.py` と `tested_tip:tools/run_tests.py` が双方 blob として実在することを
+  要求するが、両者の blob SHA / bytes 等値は要求しない。実行する runner、全 shard の binding report、
+  受領証の `runner_executed_sha256` の照合先は常に tested main 側の blob である。
+  受入後に clean な forward-main merge を足して同じ受領証を再利用するとき、land は最後に取り込んだ
+  main と tested main の runner blob を比較する。最終着地物の runner が変わっていれば再利用を拒否し、
+  新しい main を基準に受入をやり直させる。runner が同じ main 取り込みは再走させない (D987)。
 - **`tools/check_acceptance_reds.py` を変更した wave は経路 (ii) だけ使えない。**
   経路 (ii) の受領証は、待ち手と land の双方が判定器の main/tip 等値を要求する。
   こちらを触る wave は**完全に緑の走行 (child-green) でしか land できない**ので、

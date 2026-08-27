@@ -20,6 +20,7 @@ from pathlib import Path
 
 
 SCHEMA = "izanagi-backoff-figure-provenance/v2"
+GENERATOR_REL = Path("tools/plotting/plot_backoff.py")
 BASELINE_BY_GENOME = {
     ("0", "-1"): ("no-backoff", "no backoff"),
     ("1", "-1"): ("stock-adaptive", "stock adaptive"),
@@ -41,6 +42,9 @@ T_975 = {
 }
 REAL_PROVENANCE = Path(
     "docs/paper-story/figures/fig2b_backoff_sweep_3workload.provenance.json")
+FIG2B_GENERATION_TIME_GENERATOR_SHA256 = (
+    "bdb3c223192835379661e6ba3b288d871e36da9201e89438c41fd10840c0bf5e"
+)
 
 
 class ProvenanceValidationError(ValueError):
@@ -348,9 +352,10 @@ def _same_number(observed: object, expected: object) -> bool:
 
 
 def validate_figure_provenance(
-    provenance: Mapping, repo_root: Path, expected_baselines: Sequence[str]
+    provenance: Mapping, repo_root: Path, expected_baselines: Sequence[str], *,
+    generation_time_generator_sha256: str | None = None,
 ) -> None:
-    """v2 provenance を現在 bytes と期待する描画 baseline 集合に対して検査する。"""
+    """v2 provenance の記録 bytes と描画 baseline 集合を検査する。"""
     repo_root = Path(repo_root)
     if provenance.get("schema") != SCHEMA:
         _reject(f"unsupported schema: {provenance.get('schema')}")
@@ -358,8 +363,15 @@ def validate_figure_provenance(
     generator = provenance.get("generator_source")
     if not isinstance(generator, Mapping):
         _reject("generator_source is missing")
+    if generator.get("path") != GENERATOR_REL.as_posix():
+        _reject("generator source path differs")
     generator_path = _resolve(repo_root, generator.get("path"), repo_relative=True)
-    if generator.get("sha256") != _sha256(generator_path):
+    expected_generator_sha256 = (
+        _sha256(generator_path)
+        if generation_time_generator_sha256 is None
+        else generation_time_generator_sha256
+    )
+    if generator.get("sha256") != expected_generator_sha256:
         _reject("generator SHA256 mismatch")
 
     outputs = provenance.get("outputs")
@@ -659,7 +671,29 @@ def test_real_fig2b_provenance_is_admitted_with_no_backoff_only():
     repo_root = Path(__file__).resolve().parents[2]
     provenance_path = repo_root / REAL_PROVENANCE
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-    validate_figure_provenance(provenance, repo_root, ("no-backoff",))
+    validate_figure_provenance(
+        provenance, repo_root, ("no-backoff",),
+        generation_time_generator_sha256=(
+            FIG2B_GENERATION_TIME_GENERATOR_SHA256
+        ),
+    )
+    mutated = json.loads(json.dumps(provenance))
+    digest = mutated["generator_source"]["sha256"]
+    mutated["generator_source"]["sha256"] = (
+        ("0" if digest[0] != "0" else "1") + digest[1:]
+    )
+    try:
+        validate_figure_provenance(
+            mutated, repo_root, ("no-backoff",),
+            generation_time_generator_sha256=(
+                FIG2B_GENERATION_TIME_GENERATOR_SHA256
+            ),
+        )
+    except ProvenanceValidationError as exc:
+        if "generator SHA256 mismatch" not in str(exc):
+            raise AssertionError(f"wrong recorded-generator rejection: {exc}") from exc
+    else:
+        raise AssertionError("changed recorded generator digest was accepted")
 
 
 def test_n1_rejects_input_byte_change():

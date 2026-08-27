@@ -172,13 +172,13 @@ def _unreachable(*_args, **_kwargs):
     raise AssertionError("unreachable callback was called")
 
 
-def test_matching_main_and_tip_runner_blobs_execute_tested_main_source():
+def test_main_tip_runner_blob_mismatch_executes_and_receipts_tested_main():
     with tempfile.TemporaryDirectory() as raw_root:
         root = Path(raw_root).resolve()
         config = _config(root)
         _touch_empty(config.receipt_file)
         main_source = bytes(bytearray(_SOURCE))
-        tip_source = bytes(bytearray(_SOURCE))
+        tip_source = b"raise SystemExit(91)\n"
         refreshed_main_source = bytes(bytearray(_SOURCE))
         assert main_source is not tip_source
         sources = iter((main_source, tip_source, refreshed_main_source))
@@ -216,35 +216,42 @@ def test_matching_main_and_tip_runner_blobs_execute_tested_main_source():
         assert executed_sources[0] is main_source
         assert len(outcomes) == 1
         assert completion_calls == [True]
-        assert config.receipt_file.read_bytes()
+        expected_digest = hashlib.sha256(main_source).hexdigest()
+        assert json.loads(outcomes[0])["runner_executed_sha256"] == expected_digest
+        receipt = json.loads(config.receipt_file.read_bytes())
+        assert receipt["runner_executed_sha256"] == expected_digest
+        assert receipt["runner_executed_sha256"] != hashlib.sha256(
+            tip_source
+        ).hexdigest()
 
 
-def test_main_tip_runner_blob_mismatch_is_rejected_before_execution():
+def test_main_tip_runner_blob_mismatch_rejects_tip_digest_binding_report():
     with tempfile.TemporaryDirectory() as raw_root:
         root = Path(raw_root).resolve()
         config = _config(root)
         _touch_empty(config.receipt_file)
+        tip_source = b"raise SystemExit(91)\n"
+        sources = iter((_SOURCE, tip_source, _SOURCE))
         revisions = []
 
         def read_blob(_repo, revision):
             revisions.append(revision)
-            return _SOURCE if revision == _SHA1_A else _SOURCE + b"# tip\n"
+            return next(sources)
 
-        try:
-            launcher._launch(
+        with pytest.raises(launcher.LauncherFailure, match="digest mismatch"):
+            _launch_with_reports(
                 config,
                 ("python3", "tools/run_tests.py"),
                 blob_reader=read_blob,
-                blob_runner=_unreachable,
-                outcome_writer=_unreachable,
-                completion_reader=_unreachable,
+                blob_runner=_successful_blob_runner,
+                report_options={
+                    "digest": hashlib.sha256(tip_source).hexdigest(),
+                },
+                outcome_writer=lambda _value: None,
+                completion_reader=_completion,
             )
-        except launcher.LauncherFailure as exc:
-            assert str(exc) == "tested-main and tested-tip runner blobs differ"
-        else:
-            raise AssertionError("runner blob divergence was accepted")
 
-        assert revisions == [_SHA1_A, _SHA1_B]
+        assert revisions == [_SHA1_A, _SHA1_B, _SHA1_A]
         assert config.receipt_file.read_bytes() == b""
 
 
@@ -325,7 +332,9 @@ def test_m3_runner_digest_mismatch_is_rejected():
         )
         assert config.receipt_file.read_bytes()
         config.receipt_file.write_bytes(b"")
-        sources = iter((_SOURCE, _SOURCE, _SOURCE + b"# drift\n"))
+        sources = iter(
+            (_SOURCE, b"raise SystemExit(91)\n", _SOURCE + b"# drift\n")
+        )
         revisions = []
 
         def read_blob(_repo, revision):

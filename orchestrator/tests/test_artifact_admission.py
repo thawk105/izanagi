@@ -1150,6 +1150,7 @@ def test_certified_acceptance_admits_exact_e1_fixture(
         == _expected_fixture_epoch()
     )
     assert view.read_purpose is CERTIFIED
+    assert not hasattr(view, "verifier_assessment_basis")
     assert A.require_certified_campaign_view(view) is view
 
 
@@ -1169,15 +1170,16 @@ def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
         "commit", "-q", "-m", "record closure B",
     )
 
-    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
-        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    view = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
 
-    assert excinfo.value.epoch_state == "E1-stale"
+    assert type(view) is A.CertifiedCampaignView
+    assert view.read_purpose is CERTIFIED
+    assert view.campaign_verifier_epoch.state == "E1"
+    assert view.campaign_verifier_epoch.reason_code == "recorded-closure"
     assert (
-        excinfo.value.reason_code
-        == "recorded-current-closure-mismatch"
+        view.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_fixture_epoch()
     )
-    assert excinfo.value.campaign_verifier_epoch == _expected_fixture_epoch()
 
 
 @pytest.mark.parametrize(
@@ -1224,14 +1226,15 @@ def test_certified_acceptance_rejects_each_verifier_drift_fail_closed(
             "-c", "user.name=epoch fixture",
             "commit", "-q", "-m", "record verifier drift",
         )
-        with pytest.raises(A.CampaignVerifierEpochRejected) as committed:
-            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
-        assert committed.value.epoch_state == "E1-stale"
+        committed = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert type(committed) is A.CertifiedCampaignView
+        assert committed.read_purpose is CERTIFIED
+        assert committed.campaign_verifier_epoch.state == "E1"
+        assert committed.campaign_verifier_epoch.reason_code == "recorded-closure"
         assert (
-            committed.value.reason_code
-            == "recorded-current-closure-mismatch"
+            committed.campaign_verifier_epoch.campaign_verifier_epoch
+            == expected_epoch
         )
-        assert committed.value.campaign_verifier_epoch == expected_epoch
     finally:
         assert lock_path.read_bytes() == before_lock
         assert wal_path.read_bytes() == before_wal
@@ -1256,6 +1259,18 @@ def test_certified_acceptance_distinguishes_current_closure_unavailable(
     assert excinfo.value.reason_code == "current-closure-unavailable"
 
 
+def test_legacy_recorded_current_closure_mismatch_diagnostic_remains_readable(
+) -> None:
+    epoch = A.CampaignVerifierEpoch(
+        campaign_verifier_epoch=f"E1:{'a' * 64}",
+        state="E1-stale",
+        reason_code="recorded-current-closure-mismatch",
+    )
+
+    assert epoch.state == "E1-stale"
+    assert epoch.reason_code == "recorded-current-closure-mismatch"
+
+
 def test_historical_epoch_display_is_independent_of_live_closure_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1276,6 +1291,13 @@ def test_historical_epoch_display_is_independent_of_live_closure_bytes(
         == _expected_fixture_epoch()
     )
     assert before.campaign_verifier_epoch == after.campaign_verifier_epoch
+    assert (
+        before.verifier_assessment_basis
+        == after.verifier_assessment_basis
+        == "recorded-at-original-verifier-epoch"
+    )
+    with pytest.raises((FrozenInstanceError, AttributeError, TypeError)):
+        before.verifier_assessment_basis = "current-verifier-revalidated"
 
 
 def test_historical_view_cannot_cross_certified_type_boundary(
