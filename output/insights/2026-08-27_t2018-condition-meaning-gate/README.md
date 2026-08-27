@@ -51,6 +51,17 @@ Codex author 初回の最終 message は内容が有効だったが `## 総括` 
 - commit 前 provenance: 6718 commits、新規違反なし
 - commit 後 provenance: 6719 commits、新規違反なし、Pegasus request `953723.nqsv`、child rc=0
 
+### 受入で露出した consumer 取り残し
+
+最初の全走は shard 1 の queue-wait-timeout と shard 2 の signal abortでbinding reportが2/3となり、
+test childの判定前にinfra赤。per-request/generic orphan holdをrequest不存在・source clean確認後に
+recoveryした。generic holdを消し忘れた再投入は3 shardともchild未起動であり、結果に数えない。
+
+次の実全走は18,389 collected、18,326 passed、61 skipped、2 failed。新しい
+`condition_meaning_gate._run_process` がcross-cutting process inventoryへ未登録だった。
+Codex fixがexplicit non-CCBench siteへexact 1件を追加し、当該2 nodeは親実走で2 passed / 6.57s。
+production gateの受理集合は変えていない。
+
 ## 変異 matrix
 
 段4の初版登録はmask/過剰決定があり、probeを全件 SURVIVED 期待で走らせて失敗 node の
@@ -73,6 +84,7 @@ F537/F618 の既存手順どおり独立 cloneへ切り替えた。
 - `mutation-spec-final.json`, `mutation-final-report.json`: 最終 matrix
 - `mutation-final-wrapper-receipt.json`, `mutation-final-attempts.json`: 採用 wrapper / scheduler証拠
 - `mutation-final-race{1,2}-wrapper-receipt.json`: 不受理にした共有木race
+- `verbatim/acceptance-inventory-fix.md`: 最終受入が露出したprocess inventory fix
 
 ### 逐語末尾空白の可逆正規化
 

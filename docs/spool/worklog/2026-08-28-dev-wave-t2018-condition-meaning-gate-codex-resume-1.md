@@ -30,6 +30,10 @@ title: [T-2018] 要求した define の供給と実行側の意味を独立 gate
   共有primaryのraceでrc125になった2走は不受理とし、独立clone sourceで
   shared_snapshot_matches=true / teardown_completed=true / child rc=0を取り直した。
 - 実装commitは13f9c1b5067bda82b19861127a53d90b79a9e207。pushは行っていない。
+- 最終受入の実test走は18,326 passed / 61 skipped / 2 failed。2赤は新process site
+  `condition_meaning_gate._run_process` のreviewed inventory登録漏れで、本件由来と判定した。
+  Codex fixでexplicit non-CCBench siteをexact 1件追加し、当該2 nodeは2 passed / 6.57s。
+  先行のbinding report不足はqueue-wait-timeout/signal abortのinfra赤でtest child判定ではない。
 
 ## 次の一手差分
 
