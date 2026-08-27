@@ -92,7 +92,7 @@ title: [T-1647] A-2 certification の投入を workload 単位の独立 job へ�
   新設 login-side 実行体は registry の追加が main へ land するまで起動できない。
   本 wave が land すれば次 wave で実機投入でき、そこで初めて 4 cell の実測が取れる。
   枠は 06:00:00 のまま据え置いた (全工程の所要が未実測のため)。
-  base: 5cacd20e9c07364c0f0262f92358d3b3742cf021ff035e49e026042c235c9732
+  base: 14f1c974b9bec8161352f247afacd51d9944cdb2336c98bc54444430b49bb49c
 
 ### 新規
 
