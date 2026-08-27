@@ -229,9 +229,11 @@ tools/pegasus/submit_floor.sh             # 床値 pilot を実際に走らせ�
 - dry-run でも submission staging と `output/claims` (mode 0700) を作る。副作用ゼロではない。
 - 生成物: `output/env/pegasus/floor/attempts/submissions/<nonce>/` (pre-submit / submit-receipt) と
   `output/env/pegasus/floor/job-staging/<PBS_JOBID>/` (reservation・qstat raw・job-result・failure)。
-- walltime は policy の `floor_walltime_s` (36000 = 10:00:00)。driver が導出する envelope
-  (required 28200 + finalize 600 = 28800) を上回る値であり、job は qstat の
-  `(Per-Req) Elapse Time Limit` と policy の一致を fail-closed で検査する。
+- scheduler への walltime 要求宣言は job script の `10:00:00` (36000 秒)。policy の
+  `floor_walltime_s=36000` は期待値・submit receipt 値で、job は qstat の実効
+  `(Per-Req) Elapse Time Limit` との一致を fail-closed で検査する。現行 driver の
+  minimum envelope は required 30000 (12-cell subtotal 28200 + shared prebuild 1800) +
+  finalize reserve 600 = 30600 秒である。
 - job は gflags/glog を pin + clean 検査つきで build し `CMAKE_PREFIX_PATH` を export してから
   driver を起動する。floor driver の build 経路は `-DCMAKE_PREFIX_PATH` を渡さないため、
   この環境変数が依存を渡す唯一の seam である。
