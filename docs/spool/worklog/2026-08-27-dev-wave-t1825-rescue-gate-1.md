@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1825-rescue-gate
 seq: 1
-title: [T-1825] 掃除で失われる commit を掃除の前に可視化する道具を作った (コード + docs、branch worktree-dev-wave-t1825-rescue-gate、変異 matrix = baseline PASSED・9/9 KILLED・SURVIVED 0・MISMATCH 0)
+title: [T-1825] 掃除で失われる commit を掃除の前に可視化する道具を作った (コード + docs、Codex resume 監査済み、変異 matrix = baseline PASSED・14/14 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -71,6 +71,13 @@ title: [T-1825] 掃除で失われる commit を掃除の前に可視化する�
   いずれも `gpt-5.6-sol` / `reasoning=xhigh`。うち fix 2 本は成果物ゼロで正しく停止した。
   子は sandbox の制約 (`qstat -Q` rc=1 → dispatch rc=16) で pytest を一度も実走できず、
   全 test は親が実走した。
+- **Codex resume 監査で 3 件を追加修正した。** scoped ordinary reflog expiry の欠落、landed report の
+  対象 OID 未束縛、ledger 解決 status/field と audit 再報告通知の不整合を Codex author が直した。
+  最終焦点 review は先行 3 所見も含め closed / blocker 0 / GO。関連 3 file は 677 passed / 3 skipped。
+  final merged tip `d269408cb` の変異は既存 9/9 と新規 5/5 がすべて KILLED、SURVIVED 0、最終
+  MISMATCH 0。新規 M34 の初回だけ期待 node 1 件漏れで MISMATCH となり、初回を残して期待完全集合を
+  2 node へ訂正し再走した。実 repo dogfood は非空閉包 (10 commit、および別入力 1 commit / landed 1)
+  を得たが、共有 repo の root が走行中に動いたため `root-snapshot-moved` / rc=2 で正しく停止した。
 
 ## 次の一手差分
 

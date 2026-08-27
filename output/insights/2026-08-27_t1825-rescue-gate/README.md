@@ -69,6 +69,27 @@ worktree も畳む前提では 12 commit を失う。`/cleanup-branches` §3 は
   (anchor は `9f8646e06` に束縛)
 - 実 repo dogfood: rc=0 / 閉包 1 commit / issues 空 / repo control bytes 不変
 
+## Codex resume 監査 (2026-08-28)
+
+Claude 中断後、foreign/locked な元 worktree は編集せず、tip `7048282f9` から専用 Codex resume
+worktree を作った。main 未到達 8 commit を固定 diff と独立 Codex review で再監査し、次の 3 件を
+scope 内の real blocker として追加修正した。
+
+- scoped `gc.<pattern>.reflogExpire` を無視すると喪失期限の下界を未来へ出せる。
+- child landed report が対象 OID に束縛されず、別 commit の判定を誤帰属できる。
+- ledger の解決 field と status が不整合でも受理し、解決済み object の audit 再報告を通知しない。
+
+修正後の焦点 review は先行所見を含め blocker 0 / GO。関連 3 file は **677 passed, 3 skipped**。
+変異は既存 9 件を final merged tip `d269408cb` で再走して 9/9 KILLED。新規 M31〜M35 は初回
+4 KILLED / M34 MISMATCH (期待 node 1 件漏れ) だったため結果を残し、期待完全集合を 2 node へ
+訂正した M34 を再走して KILLED とした。したがって最終 matrix は baseline PASSED、
+**14/14 KILLED、SURVIVED 0、MISMATCH 0**。一次資料は `mutation-resume-*.json`。
+
+final tip の実 repo dogfood は、元/resume 両 branch と両 worktree の仮想撤去で閉包 10 commit、
+単一 branch `worktree-cleanup-branches-20260825` で閉包 1 commit / landed 1 を得た。ただし共有 repo の
+ref/worktree が走行中に動き、いずれも `root-snapshot-moved` で rc=2。古い根で完全な絵を主張せず
+fail-closed に停止した。元 worktree/branch と resume worktree/branch は削除していない。
+
 ## 覆わない範囲 (成果物へ固定した)
 
 1. 手で打つ `git branch -d`
