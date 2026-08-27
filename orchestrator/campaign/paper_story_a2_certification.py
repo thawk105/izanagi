@@ -333,10 +333,11 @@ def load_policy(path: Path | str = POLICY_PATH) -> Policy:
     )
     for key in ("records", "threads", "extime", "reps"):
         _positive_int(common[key], f"performance_common.{key}")
-    if (common["wal"] != 0 or common["base"] != "L-W0"
-            or type(common["ccbench_protocol"]) is not str
-            or not common["ccbench_protocol"]):
+    if (common["wal"] != 0 or common["base"] != "L-W0"):
         raise CertificationError("policy must use L-W0 with WAL disabled")
+    if common["ccbench_protocol"] != "silo":
+        raise CertificationError(
+            "performance_common.ccbench_protocol must be exact lowercase silo")
     for key in ("skew", "rmw", "max_ope"):
         if type(common[key]) is not str or not common[key]:
             raise CertificationError(f"performance_common.{key} must be a string")

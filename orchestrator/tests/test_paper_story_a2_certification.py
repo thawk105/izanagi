@@ -163,7 +163,7 @@ def _positive_results(policy, attempt_root, *, adopted_gain=1.1):
         for cell_index, cell in enumerate(cells):
             build_dir = attempt_root / "build" / cell.cell_id
             binary = (
-                build_dir / "cc" / "SILO" / "ycsb_SILO.exe")
+                build_dir / "cc" / "silo" / "ycsb_silo.exe")
             binary.parent.mkdir(parents=True)
             binary.write_bytes(("binary:" + cell.cell_id).encode("ascii"))
             perf_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -460,6 +460,7 @@ def _write_receipt_bundle(
 
 def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     policy = _policy(tmp_path)
+    assert policy.document["performance_common"]["ccbench_protocol"] == "silo"
     assert [(cell.cell_id, cell.workload_id, cell.role, dict(cell.genome))
             for cell in policy.cells] == [
         ("rr5-stock", "rr5", "stock", {"BACK_OFF": 0, "BACKOFF_FIXED": -1}),
@@ -528,6 +529,51 @@ def test_policy_is_the_exact_literal_four_cell_protocol(tmp_path):
     decorative_changed.pop("certification_composition")
     assert hashlib.sha256(A2._canonical_json(decorative_original)).hexdigest() == \
         hashlib.sha256(A2._canonical_json(decorative_changed)).hexdigest()
+
+
+def test_production_policy_protocol_maps_to_real_silo_layout_and_artifacts(
+        tmp_path):
+    policy = A2.load_policy()
+    genome = A2._genome_for_cell(policy, policy.cells[0])
+    repo_root = A2.POLICY_PATH.parents[2]
+    ccbench_root = repo_root / "external" / "ccbench"
+    source_relative = Path(
+        buildcache.source_digest._protocol_cmake_rel(genome.protocol))
+    protocol_source = ccbench_root / source_relative
+
+    assert genome.protocol == "silo"
+    assert source_relative == Path("cc/silo/CMakeLists.txt")
+    assert protocol_source.is_file()
+    assert "ccbench_add_protocol(silo" in protocol_source.read_text(
+        encoding="utf-8")
+
+    build_dir = tmp_path / "build"
+    toolchain = {
+        "cc": {"realpath": "/usr/bin/gcc"},
+        "cxx": {"realpath": "/usr/bin/g++"},
+        "cmake": {"realpath": "/usr/bin/cmake"},
+    }
+    _configure, build = buildcache._v2_commands(
+        genome, False, str(ccbench_root), str(build_dir), toolchain, jobs=48,
+        dependency_prefix="/pinned/dependencies",
+    )
+    assert build == [
+        "/usr/bin/cmake", "--build", str(build_dir),
+        "--target", "ycsb_silo.exe", "-j", "48",
+    ]
+    assert build_dir / "cc" / genome.protocol / f"ycsb_{genome.protocol}.exe" \
+        == build_dir / "cc" / "silo" / "ycsb_silo.exe"
+
+
+def test_uppercase_silo_protocol_is_rejected_by_policy_loader(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["performance_common"]["ccbench_protocol"] = "SILO"
+    path = tmp_path / "uppercase-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+            A2.CertificationError, match="must be exact lowercase silo"):
+        A2.load_policy(path)
 
 
 def test_m1_closed_verify_mode_wires_performance_and_rejects_unknown():
