@@ -1,0 +1,32 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1350.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 600.0,
+ "mutations": [
+  {
+   "id": "M36",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "            python_env = {\n                **child_env,\n                \"PYTHONDONTWRITEBYTECODE\": \"1\",\n            }\n",
+    "new": "            python_env = {**child_env}\n"
+   }],
+   "expected_nodes": ["orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M37",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "    python_env = {\n        **_child_env(),\n        \"PYTHONDONTWRITEBYTECODE\": \"1\",\n    }\n",
+    "new": "    python_env = _child_env()\n"
+   }],
+   "expected_nodes": ["orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
