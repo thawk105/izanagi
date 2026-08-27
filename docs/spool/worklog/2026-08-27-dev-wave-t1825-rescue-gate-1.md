@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1825-rescue-gate
 seq: 1
-title: [T-1825] 掃除で失われる commit を掃除の前に可視化する道具を作った (コード + docs、Codex resume 監査済み、変異 matrix = baseline PASSED・14/14 KILLED・SURVIVED 0・MISMATCH 0)
+title: [T-1825] 掃除で失われる commit を掃除の前に可視化する道具を作った (コード + docs、Codex resume 監査済み、変異 matrix = baseline PASSED・16/16 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
@@ -78,6 +78,10 @@ title: [T-1825] 掃除で失われる commit を掃除の前に可視化する�
   MISMATCH 0。新規 M34 の初回だけ期待 node 1 件漏れで MISMATCH となり、初回を残して期待完全集合を
   2 node へ訂正し再走した。実 repo dogfood は非空閉包 (10 commit、および別入力 1 commit / landed 1)
   を得たが、共有 repo の root が走行中に動いたため `root-snapshot-moved` / rc=2 で正しく停止した。
+- 受入全走の初回は 18,289 passed / 61 skipped / 3 failed。growth-hold node は同一 tip 単独再走で pass。
+  残る 2 件は T-1825 帰属で、Python child 2 経路の `PYTHONDONTWRITEBYTECODE=1` 欠落と、pytest
+  fixture/parametrize 依存の ledger test が pytest-only allowlist に無かったことだった。Codex author と
+  docs-only 追随で閉じ、焦点 110 test は全 pass。追加変異 M36/M37 も個別 KILLED とした。
 
 ## 次の一手差分
 

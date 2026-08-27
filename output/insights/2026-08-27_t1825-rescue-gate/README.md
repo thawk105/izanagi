@@ -82,8 +82,10 @@ scope 内の real blocker として追加修正した。
 修正後の焦点 review は先行所見を含め blocker 0 / GO。関連 3 file は **677 passed, 3 skipped**。
 変異は既存 9 件を final merged tip `d269408cb` で再走して 9/9 KILLED。新規 M31〜M35 は初回
 4 KILLED / M34 MISMATCH (期待 node 1 件漏れ) だったため結果を残し、期待完全集合を 2 node へ
-訂正した M34 を再走して KILLED とした。したがって最終 matrix は baseline PASSED、
-**14/14 KILLED、SURVIVED 0、MISMATCH 0**。一次資料は `mutation-resume-*.json`。
+訂正した M34 を再走して KILLED とした。受入全走が露出した Python child の bytecode 無効化 env と
+pytest-only ledger test の runner 契約も追加修正し、env 2 経路を M36/M37 で個別に KILL した。
+したがって最終 matrix は baseline PASSED、**16/16 KILLED、SURVIVED 0、MISMATCH 0**。
+一次資料は `mutation-resume-*.json`。
 
 final tip の実 repo dogfood は、元/resume 両 branch と両 worktree の仮想撤去で閉包 10 commit、
 単一 branch `worktree-cleanup-branches-20260825` で閉包 1 commit / landed 1 を得た。ただし共有 repo の
