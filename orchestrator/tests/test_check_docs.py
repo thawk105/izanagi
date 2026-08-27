@@ -165,9 +165,9 @@ _PRE_WAVE_SELF_ROUTING_SECTION = """## routing
 """
 _SYNTHETIC_DW_O18_SECTION = """## DW-O18 — テスト cwd と非帰属赤の着地
 
-cwd=repo root。nested subprocessのimport path偽赤は回帰にしない。file選択走は`from tests import`確立後に走らせ、未確立の赤も偽赤。
+cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走は`from tests import`確立後に限り未確立赤も偽赤。
 
-受入が赤で戻った時点が判定主体の境界。待ち手は受領証を出さず赤を返すだけで帰属を判定しない。以後は人・AIが判定し根拠をworklogへ残す。判定はassertion本文と差分実体で行い署名一致で決めない。非帰属赤の着地に5分超を使わず悩まない(D690)。自分起因は直す。差分到達しえない赤は単独再走し、非再現なら受入を1回再走。反復しない。再赤と決定的赤はmain既存のFを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本は同file)。F不在なら登録せず裁定へ送り停止。判定不能・原因未理解も除外せず停止。受理は`child-green`だけ。赤で受領証を作らない。
+受入赤返却時が判定主体の境界。待ち手は赤返却だけ。人・AIが判定し根拠をworklogへ残す。assertion本文・差分実体で判定、署名一致禁止。非帰属赤の着地5分超禁止、悩まない(D690)。自分起因は直す。N走完全一致はflakeでも非帰属の証拠でもない。差分到達不能は単独再走、非再現なら受入再走。同一tipで各1回だけ。再赤/決定的赤はmain既存Fを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本=同file)。F不在は登録せず裁定送り、判定不能・原因未理解は除外せず共に停止。停止条件外は治すかhold登録後だけ投げ直しwaveを止めない。受理は`child-green`だけ、赤の受領証禁止。
 
 """
 _SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance 関門
@@ -9345,7 +9345,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert check_docs.DEV_WAVE_DW_C01_SECTION_LITERAL == (
         _SYNTHETIC_DW_C01_SECTION
     )
-    assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 998
+    assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 997
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 946
     assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 983
@@ -9410,9 +9410,15 @@ def test_dw_o26_exact_section_pin_accepts_synthetic_fixture():
         shutil.rmtree(root, ignore_errors=True)
 
 
-@pytest.mark.parametrize("case", ("M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"))
+@pytest.mark.parametrize(
+    "case",
+    (
+        "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8",
+        "M10", "M11", "M12",
+    ),
+)
 def test_non_attributable_landing_contract_mutations_have_one_finding(case):
-    """段 4 の M1〜M8 は、それぞれ対応する単一理由だけで拒否する。"""
+    """段 4 の M1〜M8・M10〜M12 は対応する単一理由だけで拒否する。"""
 
     root = _build_min_repo()
     try:
@@ -9427,24 +9433,32 @@ def test_non_attributable_landing_contract_mutations_have_one_finding(case):
             "節全体が exact 契約と不一致 — sections=1"
         )
         if case == "M1":
+            needle = "非帰属赤の着地5分超禁止、悩まない(D690)。"
+            assert text.count(needle) == 1
             changed = text.replace(
-                "非帰属赤の着地に5分超を使わず悩まない(D690)。",
+                needle,
                 "5分を目安にする。",
                 1,
             )
             expected = o18_finding
         elif case == "M2":
-            changed = text.replace("F不在なら登録せず裁定へ送り停止。", "", 1)
+            needle = "F不在は登録せず裁定送り、"
+            assert text.count(needle) == 1
+            changed = text.replace(needle, "", 1)
             expected = o18_finding
         elif case == "M3":
+            needle = "受理は`child-green`だけ、"
+            assert text.count(needle) == 1
             changed = text.replace(
-                "受理は`child-green`だけ。",
+                needle,
                 "",
                 1,
             )
             expected = o18_finding
         elif case == "M4":
-            changed = text.replace("判定不能・原因未理解も除外せず停止。", "", 1)
+            needle = "判定不能・原因未理解は除外せず共に停止。"
+            assert text.count(needle) == 1
+            changed = text.replace(needle, "", 1)
             expected = o18_finding
         elif case == "M5":
             changed = _append_reference_section_body(
@@ -9479,6 +9493,21 @@ def test_non_attributable_landing_contract_mutations_have_one_finding(case):
                 1,
             )
             expected = o26_finding
+        elif case == "M10":
+            needle = "N走完全一致はflakeでも非帰属の証拠でもない。"
+            assert text.count(needle) == 1
+            changed = text.replace(needle, "", 1)
+            expected = o18_finding
+        elif case == "M11":
+            needle = "停止条件外は治すかhold登録後だけ投げ直しwaveを止めない。"
+            assert text.count(needle) == 1
+            changed = text.replace(needle, "", 1)
+            expected = o18_finding
+        elif case == "M12":
+            needle = "未確立赤も偽赤。"
+            assert text.count(needle) == 1
+            changed = text.replace(needle, "", 1)
+            expected = o18_finding
         else:  # pragma: no cover - parameter 集合を上で固定する
             raise AssertionError(case)
         assert changed != text
