@@ -1,6 +1,6 @@
 # dev-wave worker 契約
 
-codex plan、敵対相談、実装、レビュー・fix worker の正本。
+codex plan、敵対相談、実装、レビュー・fix worker の正本。入口が指定する leaf 節を worker 起動前に読む。
 
 ## DW-S02 — 段 2 プラン起草
 
@@ -19,8 +19,8 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 
 編集 path 所有が素集合の単位に分け各単位を別 worktree へ置く。依存先を完了させ、所有 path 限定 patch
 （`git add -A`→`git diff --cached --output=<f> -- <所有パス>`→`git apply`。隔離 session は `git -C` 不可）だけ展開し並列投入。
-各投入先で直前に `tools/check_wave_startup.py --mode midflight`。rc 非 0 で停止。
-乖離量は非関門なので出力の遅れは anchor を読み直す。
+各投入先 root を cwd にし直前に `tools/check_wave_startup.py --repo . --mode midflight`。rc 非 0 で停止。
+乖離量は非関門。fail-open の INFO でなく gate 実測値の NOTE が非 0 なら anchor を読み直す。
 codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
