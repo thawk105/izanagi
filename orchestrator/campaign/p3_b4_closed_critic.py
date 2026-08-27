@@ -44,9 +44,8 @@ from .artifact_admission import (  # noqa: E402
 from .claude_projected_provider import ClaudeProjectedRoleProvider  # noqa: E402
 from .layout import CampaignLayout, exploration_campaign_layout  # noqa: E402
 from .model import CampaignConfig  # noqa: E402
+from .p3_b4_protocol import B4_PROTOCOL_KEY, B4_PROTOCOL_VALUE  # noqa: E402
 from .p3_s4_loop import (  # noqa: E402
-    B4_PROTOCOL_KEY,
-    B4_PROTOCOL_VALUE,
     WhiteboardEntry,
     default_cfg,
     loop_state_path,
@@ -102,6 +101,12 @@ ROLE_SESSION_ISOLATION_FILE = (
 )
 ADMISSION_VALIDATOR_FILE = (
     REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_b4_admission_record.py"
+)
+LAUNCHER_FILE = (
+    REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_b4_launcher.py"
+)
+PROTOCOL_FILE = (
+    REPOSITORY_ROOT / "orchestrator" / "campaign" / "p3_b4_protocol.py"
 )
 MODULE_FILE = Path(__file__).resolve()
 
@@ -633,6 +638,8 @@ def projection_closure_manifest(
             "orchestrator/campaign/p3_b4_admission_record.py",
             ADMISSION_VALIDATOR_FILE,
         ),
+        ("orchestrator/campaign/p3_b4_launcher.py", LAUNCHER_FILE),
+        ("orchestrator/campaign/p3_b4_protocol.py", PROTOCOL_FILE),
         ("orchestrator/critic/digest.py", DIGEST_FILE),
         (
             "orchestrator/critic/identity_projection.py",
@@ -1189,15 +1196,55 @@ def create_b4_closed_critic_pair(
     off_cfg: CampaignConfig,
     artifact_root: Path,
     admission_record_path: Path,
+    expected_driver_kind: DriverKind,
+    _b4_launch_context,
     repository_root: Path | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> B4ClosedCriticPair:
     """Create a certified pair with no runner or executable injection seam."""
+    from .p3_b4_launcher import (
+        B4LauncherAuthorizationError,
+        require_b4_production_context,
+    )
+    on_driver_kind = _driver_kind_from_cfg(on_cfg)
+    off_driver_kind = _driver_kind_from_cfg(off_cfg)
+    if (
+        on_driver_kind != expected_driver_kind
+        or off_driver_kind != expected_driver_kind
+    ):
+        raise B4LauncherAuthorizationError(
+            "B-4 production pair configs differ from expected driver kind"
+        )
+    on_campaign_id = str(ident.campaign_id(on_cfg))
+    off_campaign_id = str(ident.campaign_id(off_cfg))
+    supplied_campaign_id = getattr(_b4_launch_context, "campaign_id", None)
+    if supplied_campaign_id == off_campaign_id:
+        selected_campaign_id = off_campaign_id
+        selected_arm: Arm = "off"
+    else:
+        selected_campaign_id = on_campaign_id
+        selected_arm = "on"
+    launch_context = require_b4_production_context(
+        _b4_launch_context,
+        expected_driver_kind=on_driver_kind,
+        expected_campaign_id=selected_campaign_id,
+        expected_arm=selected_arm,
+        boundary="production pair factory",
+    )
     trusted_root = _resolve_repository_root(repository_root)
     verified_admission = verify_b4_admission_record(
         admission_record_path,
         repository_root=trusted_root,
     )
+    if (
+        launch_context.admission_record_sha256
+        != verified_admission.admission_record_sha256
+        or launch_context.admission_record_commit
+        != verified_admission.admission_record_commit
+    ):
+        raise B4LauncherAuthorizationError(
+            "B-4 production pair admission differs from launch context"
+        )
     resolved = shutil.which("claude")
     if resolved is None:
         raise B4TrustRootError("certified executable name claude is not on PATH")
@@ -1891,33 +1938,36 @@ def assert_b4_certified_arm_pair(
 
 
 def _base_driver_config(
-    *, reflux: bool, b4_reflux_ablation: bool,
+    *, reflux: bool, b4_reflux_ablation: bool, _b4_launch_context=None,
 ) -> CampaignConfig:
     return default_cfg(
         reflux=reflux,
         b4_reflux_ablation=b4_reflux_ablation,
+        _b4_launch_context=_b4_launch_context,
     )
 
 
 def _sort_driver_config(
-    *, reflux: bool, b4_reflux_ablation: bool,
+    *, reflux: bool, b4_reflux_ablation: bool, _b4_launch_context=None,
 ) -> CampaignConfig:
     from . import p3_s4_loop_sort
 
     return p3_s4_loop_sort.default_cfg(
         reflux=reflux,
         b4_reflux_ablation=b4_reflux_ablation,
+        _b4_launch_context=_b4_launch_context,
     )
 
 
 def _trigger_driver_config(
-    *, reflux: bool, b4_reflux_ablation: bool,
+    *, reflux: bool, b4_reflux_ablation: bool, _b4_launch_context=None,
 ) -> CampaignConfig:
     from . import p3_s4_loop_trigger_gating
 
     cfg = p3_s4_loop_trigger_gating.default_cfg(
         reflux=reflux,
         b4_reflux_ablation=b4_reflux_ablation,
+        _b4_launch_context=_b4_launch_context,
     )
     site = p3_s4_loop_trigger_gating._current_site()
     contract = p3_s4_loop_trigger_gating._admit_env_contract(site)
@@ -1943,57 +1993,11 @@ def main(
     *,
     pair_factory: Callable[..., B4ClosedCriticPair] | None = None,
 ) -> int:
-    """Invoke a closed pair for one fixed, internally constructed B-4 driver."""
-    parser = argparse.ArgumentParser(description="P3 B-4 closed critic pair invocation")
-    parser.add_argument(
-        "--driver",
-        choices=tuple(B4_DRIVER_CONFIG_FACTORIES),
-        default="base",
+    """Reject the retired receipt-only CLI; use the exclusive launcher."""
+    from .p3_b4_launcher import B4LauncherAuthorizationError
+    raise B4LauncherAuthorizationError(
+        "B-4 production runs require orchestrator.campaign.p3_b4_launcher"
     )
-    parser.add_argument("--artifact-root", required=True, type=Path)
-    parser.add_argument("--admission-record", required=True, type=Path)
-    parser.add_argument("--on-invocation-id", required=True)
-    parser.add_argument("--off-invocation-id", required=True)
-    args = parser.parse_args(argv)
-    factory = create_b4_closed_critic_pair if pair_factory is None else pair_factory
-    config_factory = B4_DRIVER_CONFIG_FACTORIES[args.driver]
-    try:
-        with factory(
-            on_cfg=config_factory(reflux=True, b4_reflux_ablation=True),
-            off_cfg=config_factory(reflux=False, b4_reflux_ablation=True),
-            artifact_root=args.artifact_root,
-            admission_record_path=args.admission_record,
-        ) as pair:
-            on = pair.on.invoke(invocation_id=args.on_invocation_id)
-            off = pair.off.invoke(invocation_id=args.off_invocation_id)
-            comparison = assert_b4_certified_arm_pair(
-                pair,
-                on.terminal_receipt_path,
-                off.terminal_receipt_path,
-                admission_record_path=args.admission_record,
-            )
-            admission_sidecar_path = pair.admission_sidecar_path
-            admission_sidecar_sha256 = pair.admission_sidecar_sha256
-        print(_canonical_json_bytes({
-            "schema_version": "p3-b4-closed-critic-cli/v1",
-            "on_terminal_receipt": str(on.terminal_receipt_path),
-            "off_terminal_receipt": str(off.terminal_receipt_path),
-            "admission_sidecar": str(admission_sidecar_path),
-            "admission_sidecar_sha256": admission_sidecar_sha256,
-            "pair_comparison": asdict(comparison),
-        }).decode("utf-8"))
-        return 0
-    except (
-        B4AdmissionRecordError,
-        B4ClosedCriticError,
-        PredictionRunnerError,
-    ) as exc:
-        print(
-            "B-4 closed critic invocation failed: "
-            f"{type(exc).__name__}: {_closed_error_signature(exc)}",
-            file=sys.stderr,
-        )
-        return 1
 
 
 if __name__ == "__main__":

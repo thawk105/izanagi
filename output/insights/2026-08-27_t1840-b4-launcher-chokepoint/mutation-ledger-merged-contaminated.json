@@ -1,0 +1,448 @@
+{
+ "label": "main-at-merged-tip-before-excluding-the-clean-tree-probe",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "abdc50850f53269f6e9b09d1b1463f2c3903cb642a54004194563865f90844f0",
+ "repo_head": "ff10013b11c2fb5f83ac3da6d0faf74a0ab54477",
+ "runner_sha256": "a55fb9446d4e5b0a7f88b0c4dee503139f2660e4975194418b1744218a6faa2b",
+ "tool_sha256": "8d132522bba1ef3ada8b8e67afd22c5113187b39352cbff4c8ba99371e55fdf1",
+ "date": "2026-08-27T11:09:42.486591+00:00",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_p3_b4_launcher.py",
+   "orchestrator/tests/test_p3_b4_closed_critic.py",
+   "orchestrator/tests/test_p3_b4_wiring_probe.py",
+   "orchestrator/tests/test_p3_s4_loop.py",
+   "orchestrator/tests/test_p3_s4_loop_sort.py",
+   "orchestrator/tests/test_p3_s4_loop_trigger_gating.py",
+   "orchestrator/tests/test_campaign_lock_wal_consumers.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1840-b4-launcher/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "ceb19bca61a57fe2b92ec9cc341623dd19f0194f088ac35de7452a1d030387e1",
+  "dispatch_head_blob_sha256": "ceb19bca61a57fe2b92ec9cc341623dd19f0194f088ac35de7452a1d030387e1",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1840-b4-launcher/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "a40dc095847860a04f4cb34b545ac693b665be40",
+  "runner_mode": "dispatch"
+ },
+ "baseline": {
+  "status": "PASSED",
+  "failed_nodes": [],
+  "duration_s": 98.684
+ },
+ "summary": {
+  "KILLED": 0,
+  "MISMATCH": 18,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 18,
+  "matching": 0,
+  "recorded": 18,
+  "registered": 18
+ },
+ "mutations": [
+  {
+   "id": "M01",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_m01_b4_default_cfg_rejects_unsealed_marker_creation"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop.py::test_m01_b4_default_cfg_rejects_unsealed_marker_creation"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "9dea5cba74a624c5f933c8ba2420aa0b8bfd6409cdc5c3fb414d368ade54ebf6",
+   "duration_s": 103.88,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop.py"
+   ]
+  },
+  {
+   "id": "M02",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_m02_b4_sort_default_cfg_rejects_unsealed_marker_creation"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_m02_b4_sort_default_cfg_rejects_unsealed_marker_creation"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "66735cc072957c8c3b33adc1c207bfb1f071d71f058359ff2930bd75a0952f8f",
+   "duration_s": 103.892,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_sort.py"
+   ]
+  },
+  {
+   "id": "M03",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m03_b4_trigger_default_cfg_rejects_unsealed_marker_creation"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m03_b4_trigger_default_cfg_rejects_unsealed_marker_creation"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "b03a13caa23eca4bb84652fe09d038c4bd7d8a63766f0348279609128f573702",
+   "duration_s": 98.88,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+   ]
+  },
+  {
+   "id": "M04",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_m04_b4_marked_run_one_iteration_direct_call_requires_launcher"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop.py::test_m04_b4_marked_run_one_iteration_direct_call_requires_launcher"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "b6cb7de2849d7c5d88152f4b276b5a29a64e8a1f4af6a440478ce4765f76ba52",
+   "duration_s": 103.855,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop.py"
+   ]
+  },
+  {
+   "id": "M05",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_m05_b4_sort_run_one_iteration_direct_call_requires_launcher"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_m05_b4_sort_run_one_iteration_direct_call_requires_launcher"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "d60090cd2f45b79841ec9bad3a1958f287e5edfaddf52f96ab2d63c3591c0263",
+   "duration_s": 98.688,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_sort.py"
+   ]
+  },
+  {
+   "id": "M06",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m06_b4_trigger_resolved_iteration_requires_launcher"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m06_b4_trigger_resolved_iteration_requires_launcher"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "1a23fce5c23a10a8091ba8be1c02ef004530985cccb139b67f97b1ea3b0a000a",
+   "duration_s": 165.166,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+   ]
+  },
+  {
+   "id": "M07",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m07_b4_trigger_public_iteration_requires_launcher"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m07_b4_trigger_public_iteration_requires_launcher"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "2395c8ff917fb39c891c08fc3b4d9ba1fd0a5f6266869af0c7d1ccfb7a06fe4f",
+   "duration_s": 98.424,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+   ]
+  },
+  {
+   "id": "M08",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop.py::test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop.py::test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "64e5a9b9909e01beab2db0d48c5cbf1e18d8c1476fdbdf638d3d822d6b9a7c30",
+   "duration_s": 103.807,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop.py"
+   ]
+  },
+  {
+   "id": "M09",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_m09_b4_sort_drive_rejects_before_layout_and_state_progress"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_sort.py::test_m09_b4_sort_drive_rejects_before_layout_and_state_progress"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "c755f394b8b957a4940015fd6ecaf55b7277d7e267fcef991221cfe20cf5f03c",
+   "duration_s": 108.985,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_sort.py"
+   ]
+  },
+  {
+   "id": "M10",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+    "orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "ab90e5fe6dfd8e138db2dcd3bbd042f72025bbcdafbd6b211d5908c7f7287571",
+   "duration_s": 103.749,
+   "files": [
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+   ]
+  },
+  {
+   "id": "M11",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m11_real_wal_commit_requires_launch_sidecar"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m11_real_wal_commit_requires_launch_sidecar",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "2bdcc0b257b16ff7323950a5b229df6cf296d4b8efe64d4388e1dbabc2414291",
+   "duration_s": 103.791,
+   "files": [
+    "orchestrator/campaign/p3_b4_launcher.py"
+   ]
+  },
+  {
+   "id": "M12",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m12_real_wal_commit_rejects_sidecar_for_another_campaign"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m12_real_wal_commit_rejects_sidecar_for_another_campaign",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "0a2b22c4e0784f75551271762ccdcf83c8945b46ca59f8b506cbe876ca0dfcd1",
+   "duration_s": 103.766,
+   "files": [
+    "orchestrator/campaign/p3_b4_launcher.py"
+   ]
+  },
+  {
+   "id": "M13",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m13_real_wal_commit_rejects_sidecar_for_other_live_context"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m13_real_wal_commit_rejects_sidecar_for_other_live_context",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "c997a68ac023bc179684e42709efe56fa54ecb2fb2c764593106c99b3694740b",
+   "duration_s": 103.806,
+   "files": [
+    "orchestrator/campaign/p3_b4_launcher.py"
+   ]
+  },
+  {
+   "id": "M14",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m14_real_production_pair_factory_requires_launch_context",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m15_real_production_pair_factory_rejects_cross_driver_context",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m16_test_seal_cannot_be_promoted_by_evidence_class"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m14_real_production_pair_factory_requires_launch_context",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m15_real_production_pair_factory_rejects_cross_driver_context",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m16_test_seal_cannot_be_promoted_by_evidence_class",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "516c2edd514ff994165cd939df9bf1c0078bba1dfdc8d026de09fb2f8a922928",
+   "duration_s": 104.04,
+   "files": [
+    "orchestrator/campaign/p3_b4_closed_critic.py"
+   ]
+  },
+  {
+   "id": "M15",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_g4_uses_decoded_lock_expectations[driver-driver kind differs]",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m15_real_production_pair_factory_rejects_cross_driver_context"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_g4_uses_decoded_lock_expectations[driver-driver kind differs]",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m15_real_production_pair_factory_rejects_cross_driver_context",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "31e68635eaa3230b31142b345b54927b8a7429771887baf70fe8bb8c4618dee2",
+   "duration_s": 109.465,
+   "files": [
+    "orchestrator/campaign/p3_b4_launcher.py"
+   ]
+  },
+  {
+   "id": "M16",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m16_test_seal_cannot_be_promoted_by_evidence_class",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_module_attributes_cannot_mint_a_production_context"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m16_test_seal_cannot_be_promoted_by_evidence_class",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_module_attributes_cannot_mint_a_production_context",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "a860eb60ccce6b367b6c1f698dfbc8181ed19fb658e13709a75feb70d668b2ed",
+   "duration_s": 170.69,
+   "files": [
+    "orchestrator/campaign/p3_b4_launcher.py"
+   ]
+  },
+  {
+   "id": "M17",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_closed_critic_cli_constructs_only_fixed_marked_base_configs",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m17_real_legacy_cli_hard_fails_before_factory"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_closed_critic_cli_constructs_only_fixed_marked_base_configs",
+    "orchestrator/tests/test_p3_b4_closed_critic.py::test_r7_a10_thin_cli_drives_factory_both_arms_pair_gate_and_failure_rc",
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m17_real_legacy_cli_hard_fails_before_factory",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "b5c607081cc9510ffcc0d4a4d4d93dbb2ad05d3c2b2fbd94509f236421785453",
+   "duration_s": 109.246,
+   "files": [
+    "orchestrator/campaign/p3_b4_closed_critic.py"
+   ]
+  },
+  {
+   "id": "M18",
+   "status": "MISMATCH",
+   "expected_status": "KILLED",
+   "matches_expectation": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m18_driver_registry_uses_real_main_object_identity"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_b4_launcher.py::test_m18_driver_registry_uses_real_main_object_identity",
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "anchor_counts": {
+    "0": 1
+   },
+   "injection_diff_sha256": "0b44f31fa7a9b9f7672c2c25205ba1d71a5c30f9bc825802d43fc45711755ab7",
+   "duration_s": 103.894,
+   "files": [
+    "orchestrator/campaign/p3_b4_launcher.py"
+   ]
+  }
+ ]
+}
