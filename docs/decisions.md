@@ -38891,3 +38891,242 @@ D799 が記録するとおり、現行の正例・負例対は定数 verdict 二
 - **「hash は正しさの関門に使わない」と一般化する** — 8c 事前登録は結果前の文書を hash で
   束縛しており、これは正当である。hash が不適なのは意味的な正しさの証明であって、
   完全性と束縛の証明ではない。
+
+## D1164. 独立 oracle 台帳の不在は、装置側の task 別 oracle 束縛の実装を止めない (2026-08-27)
+
+**決定:** `tools/codex_reasoning_ab.py` の adjudication 層が task ごとの oracle 契約
+(`known_finding_ids` と `oracle_kind`) を束縛する機構は、事前登録 §8 の独立 oracle ledger が
+未作成であっても実装する。両者は別の対象である — ledger は人手で作る finding の**内容**、
+束縛は装置の**機構**である。
+
+ただし、この実装をもって §8 が閉じたとは記録しない。事前登録 §5.2 の到達度は `実装済み` ではなく
+`部分実装` とし、閉じていない面 (ledger の作成・凍結、その固有 hash 契約、finding schema、
+task 固有 acceptance、§8 の記述的 coverage の集計) を名指しする。
+
+**あわせて、機構の存在と機構の発火を書き分ける。** 組込み `TASK_MANIFEST` は POS/NEG の双方へ
+同じ `known_finding_ids` を入れるため、task 別集合と manifest 全体 union が同一集合になる。
+したがってこの束縛は組込み manifest の入力では 1 度も union より狭い受理集合を作らない。
+到達度に「機構は着地」と書くとき、それは存在の主張であって発火の主張ではない。
+
+**理由:**
+- §8 の逐語は ledger を実験開始前に作ることとその内容を要求するが、generic な consumer の実装前に
+  ledger が存在しなければならないとは書いていない。段 3 の敵対レンズが §8 本文から独立に
+  同じ結論へ達した。
+- 同じ文書の §5.3 が既に「着地したのは現行 task manifest の中にある oracle 契約、すなわち
+  `oracle_kind` と `known_finding_ids` とその consumer であって機構は着地」と記録しており、
+  `_aggregate_verified` は同じ per-task 検査を実装済みだった。adjudication 層だけが union の
+  ままである状態は、文書の中で整合していなかった。
+- 束縛の実装は受理集合を**狭める**向きである。task 別集合は manifest 全体 union の部分集合であり、
+  広げる経路を含まない。D931 が「交換できる対象には verdict の受理集合 (`known_finding_ids`) と
+  positive/negative の分類が含まれる。これは正しさゲートの受理集合そのもの」と書いた向きと
+  同じ側である。
+- 発火の有無を書き分けないと、「機構は着地」という記録が「この実験の入力でその機構が働いている」と
+  誤読される。実際には現行の組込み入力では 1 度も働かない。
+
+**却下した選択肢:**
+- ledger が揃うまで adjudication を union のまま残す — その間、外部 v3 manifest を使う経路は
+  task A の finding ID を task B の verdict へ書いても受理し続ける。ledger の完成時期は
+  §13 の lock 手続きが power simulation の段で停止しているため未定である。
+- 到達度を `実装済み` と書く — 独立 ledger と acceptance が存在しないまま、certified report の
+  参照元があるかのように読める。§5.2 の語彙規定は `部分実装` に「閉じていない面を必ず名指しする」
+  ことを課しており、名指しできるので `部分実装` が正しい語である。
+- 本 wave で §8 の ledger 本体を作る — 台帳の内容は task の acceptance criteria、再現可能な bug、
+  固定された最終状態、独立 reviewer の確認から作るものであって、装置の実装で代替できない。
+- 組込み `TASK_MANIFEST` の POS/NEG へ異なる `known_finding_ids` を入れて発火させる —
+  manifest の canonical bytes を変えると `task_manifest_sha256` の連鎖が動く。凍結された
+  T-181 の provenance 値を、機構を発火させたいという理由で書き換えてはならない。
+
+## D1165. oracle 分類は combined verdict の hash へ入れ、集計側の再照合は独立ゲートと呼ばない (2026-08-27)
+
+**決定:** adjudication が返す combined verdict へ、schedule 由来の `oracle_kind` を
+`combined_verdict_sha256` の計算**前**に入れる。あわせて `_aggregate_verified` が
+verdict 側の `oracle_kind` を schedule 由来の値と exact 比較し、値の不一致と欠落の双方を拒否する。
+ただし、この比較を「第 2 の独立ゲート」と呼ばない。**in-memory handoff の冗長 invariant** と記述する。
+
+分類と集計の authority は引き続き schedule と manifest 由来の値であり、verdict 側の値を
+authority にしない。
+
+**理由:**
+- hash より前に入れることで、記録済み judgment 行がその slot の oracle 分類へ束縛される。
+  後から足すと `judgments[].combined_verdict_sha256` が oracle 分類を覆わない。
+- live 経路では adjudication が schedule 由来の値を verdict へ入れ、集計側が同じ slots と
+  同じ manifest から再導出する。**同一の authority の再計算**であって、独立した情報源の照合ではない。
+  段 6 のレビューが実コードでこれを示した。保証の参照数を水増ししないため、記述を正した。
+- それでも比較を残すのは、`_aggregate_verified` が内部 API として replay 以外の caller からも
+  呼ばれうるためである。verdict を直接組み立てて渡す負例がこの層を実効 gate にする。
+- 既存の凍結成果物を 1 つも壊さない。`output/` に `judgments` / `combined_verdict_sha256` を持つ
+  生成済み material manifest は 1 件も存在しないことを実測した。
+
+**却下した選択肢:**
+- `oracle_kind` を hash の外に置く — 束縛が記録へ残らず、謳うだけで発火しない保証になる。
+- 集計側の比較を省く — 内部 API 経路が無検査のまま残る。
+- 集計側の比較を「独立照合」と記録する — 同じ authority の再計算を独立と数えることになり、
+  実際の保証より強い主張になる。
+
+## D1166. real-repo lock key は資源ごとの Git common-dir から導く (2026-08-27)
+
+**決定:** D1008 が定めた「lock file の path は repo root の realpath から決定的に導出する」を、
+**資源ごとの Git common-dir realpath から導出する**へ改める。保証の射程 (同一 host・同一
+filesystem まで、cross-host 排他は主張しない) は変えない。
+
+移行のあいだは、旧 (worktree root) key と新 (common-dir) key の**両方を、常に旧・新の固定順で
+同じ mode により取得する**。順序を固定するのは deadlock を作らないためである。
+Git 解決に失敗したときに worktree root の key へ落ちる fallback は作らない。
+
+**理由:**
+- 同じ Git common-dir を共有する sibling worktree は、object database と linked-worktree registry を
+  共有しているのに、repo root 由来の key では別の lock file を取っていた。**排他が成立していない。**
+  izanagi は日常的に 10 本以上の linked worktree を並行させるため、これは仮想の穴ではない。
+- 切り替えるだけだと、移行のあいだ旧コードの session と新コードの session が別 lock file を取り、
+  互いを排他しない。両取りにすればどちらの世代とも排他できる。
+- fallback を作ると、Git 解決が失敗した session だけが他と排他されない状態を静かに作る。
+
+**却下した選択肢:**
+- 新 key への一括切り替え — 移行期に排他が消える窓を作る。
+- 旧 key の即時廃止 — 同上。旧世代の稼働 session を止められる保証がない。
+- lock 取得より前に common-dir を解決する形 — 解決の `git rev-parse` 自体が無保護な実 repo 読取りになる。
+  旧 key を取ってから解決する。
+
+## D1167. 衝突する loadgroup は同一 shard へ寄せ、group は分けたまま残す (2026-08-27)
+
+**決定:** 実 repo / 実 submodule の同じ資源へ触れ、少なくとも一方が writer である loadgroup の対を
+**独立した exact な集合として宣言し、shard 割付の連結成分を union する。**
+runtime の loadgroup 名は分けたまま残し、同一 shard 内では従来どおり別 worker で並行に走らせる。
+
+宣言した衝突辺の集合は、production の行列と**独立に書いた golden との完全一致**を先に検査してから
+連結成分の検査へ進む。行列自身から golden を導出してはならない。
+
+**理由:**
+- shard は別 process・別 host で走りうるため、`/tmp` の flock は shard を跨いで効かない。
+  衝突する仕事が別 shard へ行くと、どの機構でも排他されない。
+- 一方、衝突する node を 1 つの loadgroup へ統合すると単一 worker 上の直列鎖になる。
+  実測では 83.5 秒と 52.0 秒の 2 group が並行に走っているものが 135.6 秒の鎖になり、
+  5 分の絶対上限に対する余裕を半分近く失う。**排他の細分化を選んだ既裁定と逆向きである。**
+- shard 割付は file と group 名しか union しないので、資源の衝突はこの層から見えない。
+  見えないものは明示的に宣言するしかない。
+- 行列から golden を導出すると、辺を消す変異が検査対象ごと消えて必ず生存する。
+
+**却下した選択肢:**
+- 全衝突 node を canonical group へ統合する — 上記の直列鎖を作る。
+- shard を跨ぐ排他を filesystem lock で作る — 保証の射程を広げる設計変更であり、別裁定が要る。
+- 衝突辺を持たず「同じ file にあるから同じ成分」に頼る — file 境界と資源境界は一致しない。
+
+## D1168. real-repo lock は資源ごとに 1 process 1 fd とし、同一 process 内では昇格する (2026-08-27)
+
+**決定:** real-repo の flock は、資源 (および移行期の旧・新 key) ごとに **1 process 1 fd** を共有し、
+参照 count と mode の優越 (共有 < 排他) を持つ manager が管理する。同一 process 内で
+共有を保持したまま排他が要求されたら、**同じ fd の上で排他へ昇格**し、内側が終わったら
+**同じ fd の上で共有へ降格**する。全保持者が抜けたときだけ解錠して fd を閉じる。
+
+**理由:**
+- 別 fd を開くと、同じ process が同じ資源へ共有と排他を取ろうとした時点で自分自身と競合し、
+  deadline (245 秒) いっぱい待って落ちる。module scope の共有 fixture を保持したまま
+  同じ module の function scope の排他 fixture へ入る経路が実在した。
+- `flock` は同じ fd に対しては再入し、昇格・降格が解錠を挟まずに行える。
+  したがって別 process に対する排他は 1 bit も弱まらない。
+- 有効 mode を保持者の最大値にすれば、内側の排他が終わるまで外側の共有保証は排他に強められるだけで、
+  弱まる向きの遷移が起こらない。
+
+**却下した選択肢:**
+- 衝突する fixture を別 module へ移す — nodeid が変わり、逐語 pin を持つ consumer を巻き込む。
+  かつ「同じ process に載らない保証」は scheduler の実装依存で、契約として書けない。
+- 共有の保持期間を縮めて `yield` を覆わない形 — consumer が実行中に実 repo を読み直すため、
+  保護の穴を作る。
+- 再入を許す独自の再帰 lock を作る — flock の意味論から離れ、別 process との相互作用の検証面が増える。
+
+## D1169. A-2 の外側 certification は workload 単位 campaign の論理積とし、規則を protocol hash へ入れる (2026-08-27)
+
+**決定:** A-2 の 4 cell を 1 本の job で直列に取る形をやめ、**workload ごとの独立 job へ分割する**。
+これに伴い受理集合が「単一 request の 4 cell」から「2 request・2 host・2 時刻の workload 対」へ
+広がるため、**「各 workload は独立に環境契約された campaign であり、外側の certification は
+その論理積である」規則を policy へ明記する**。ただし文言を policy に足すだけでは足りない。
+**規則は `_protocol_preimage` の対象に入れ、`protocol_sha256` が規則の変更に追随することを
+負例で示す。**
+
+**理由:**
+- 分割そのものは既定の規範である。`docs/pegasus-runbook.md` の 2026-08-11 ユーザー裁定が
+  「独立なら既定で並行投入する。同じ protocol を別 workload で回すのは fan-out してよい典型」と
+  定めており、A-2 の単一 job 直列がその逸脱だった。
+- 受理集合を広げる以上、それを許す規則が protocol 側に無ければ「気づかないうちに広がった」形になる。
+- `_protocol_preimage` は `scheduler` を含まない。policy に書き足すだけでは `protocol_sha256` が
+  動かず、**書いただけで発火しない飾り**になる。過去に繰り返し警戒してきた型である。
+
+**却下した選択肢:**
+- **cell 単位へ分割する** — `run_workload` が要求する stock → adopted の対照条件を壊す。
+- **反復 5 回を別 job へ割る** — 各反復を別 campaign・別 lock へ束縛し直すことになり proof chain を
+  変える。実行時間のために正しさ検証の構造を変えることになり、D1059 の向きにも反する。
+- **規則を policy へ書くだけで hash 対象に入れない** — 恒真な保証を 1 つ増やす。
+
+## D1170. 共有親の走査禁止は、1 job だけが所有する directory の closure 検査を禁じない (2026-08-27)
+
+**決定:** 並行投入の独立条件 1 が禁じる「親 directory を検査する consumer の共有」は、
+**2 つ以上の job が共有する親**の走査を指す。**1 つの job だけが所有する
+`jobs/<workload>/raw/` の closure 検査 (regular file ちょうど 2 件、余分な entry と symlink を
+拒否) は、この禁止に当たらない。** 分割にあたって旧版の closure 検査を落とさず、job-local で
+同じ厳密さを保つ。
+
+**理由:**
+- 禁止の目的は「job どうしが互いの成果物を観測して独立でなくなること」を防ぐことであって、
+  自分の成果物の完全性検査を捨てることではない。
+- 旧版は `raw/` の regular file 集合がちょうど 4 cell であることを検査していた。exact path を
+  直接開く形に変えただけでは、`jobs/rr5/raw/decoy.json` のような余分 file が受理される。
+  これは論理積以外の受理集合拡大にあたる。
+- 段 6 のレビューはこれを「受理集合を広げない」と「親を走査しない」の衝突として裁定へ返したが、
+  所有単位を見れば衝突ではない。
+
+**却下した選択肢:**
+- **exact path を開くだけで closure を見ない** — 余分 file を受理し、受理集合が広がる。
+- **共有親 `jobs/` を走査して全体を検査する** — 独立条件 1 を壊す。
+
+## D1171. 非標本 probe の生成遮断は権威点からの逆到達閉包で導き、完全性は主張しない (2026-08-27)
+
+**決定:** B-4 §5.1 (ii) の配線 probe が「outcome を生成しない」ことを保証する遮断集合は、
+手書きの列挙ではなく**名前を付けた権威点からの逆到達閉包**として導出する。権威点は 3 つとする —
+certified writer authorization、loop state の永続化、whiteboard 射影。
+**完全性は主張しない。** 3 権威点のいずれにも到達しない生成器はこの層では覆わないと証拠へ明記し、
+閲覧側は隔離層 (保護領域の read/write 拒否) が受け持つと役割を分ける。
+
+**理由:**
+- 手書きの列挙は、新しい生成器が足されたときに静かに逃がす。
+- 単一の権威点では、その権威点を通らない生成器 (state 永続化と結果射影) を落とす。実測で確認した。
+- 「新しい生成器は自動的に全部入る」と書くと、閉包の候補集合が固定 module 集合である以上、
+  自分で定義した集合との一致にすぎず恒真になる。書ける範囲まで主張を狭める。
+
+**却下した選択肢:**
+- 権威点と独立な生成器・閲覧者の完全目録を定義する — 射程が無限に広がり、B-4 全体が止まる。
+- module 属性の差し替えで遮断する — import 時に束縛済みの参照を漏らす。
+
+## D1172. probe が承認台帳を読む事実は迂回せず開示する (2026-08-27)
+
+**決定:** 非標本 probe は critic digest を作るために承認経路を通り、その過程で deny-only の
+legacy 承認台帳を読む。**この読みを迂回しない。** 読んだ台帳の path と sha256 を証拠へ記録し、
+それ以外の実 campaign 成果物を 1 件も読まないことを ledger で示し、事前登録 §10 へ
+名前付きの未閉鎖として書く。
+
+**理由:**
+- digest 生成関数は承認経路が発行する exact な型しか受け取らない。迂回はその型検査を緩めることに
+  等しく、規律 2 に反する。
+- 台帳が持つのは legacy campaign 3 件の承認 metadata であって B-4 の primary / secondary outcome
+  ではない。その 3 件の既知性は事前登録 §9 が既に開示している。
+- 黙らせるより開示するほうが、後から probe の非標本性を検証できる (規律 3)。
+
+**却下した選択肢:**
+- 承認経路を通らずに digest を作る — 正しさゲートの緩和になる。
+- 台帳を読む事実を記録しない — 非標本性の検証可能性が失われる。
+
+## D1173. 到達不能な多重防御は生存として登録し、発火する保証に数えない (2026-08-27)
+
+**決定:** 変異が生存し、遮蔽候補を同時に外す両層同時変異でも生存する場合、その assert は
+**到達不能な多重防御**として生存のまま登録する。到達不能である理由を実装で示し、
+台帳と事前登録の両方へ書く。**発火する保証としては数えない。**
+
+**理由:**
+- 生存の原因は「他層による遮蔽」と「そもそも到達しない」で意味が違う。前者は両層同時変異で
+  発火させられるが、後者は発火させられない。両者を区別せずに扱うと、
+  片方を「効いている」と誤認するか、もう片方を不要に削ることになる。
+- 到達不能な assert を残すこと自体は将来の改修に対する防御として妥当である。
+  誤りは、それを発火する保証として数えることにある。
+
+**却下した選択肢:**
+- 到達不能な assert を削除する — 将来の改修に対する多重防御を失う。
+- 生存を報告せず件数から外す — 変異台帳が実態を表さなくなる。

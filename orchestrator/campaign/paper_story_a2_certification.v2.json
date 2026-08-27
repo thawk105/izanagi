@@ -1,5 +1,5 @@
 {
-  "schema_version": "paper-story-a2-certification-policy/v1",
+  "schema_version": "paper-story-a2-certification-policy/v2",
   "study": "paper-story-a2-certification",
   "historical_reference": {
     "ccbench_commit": "6656e93",
@@ -116,6 +116,10 @@
       }
     }
   ],
+  "certification_composition": {
+    "campaign_unit": "one independently environment-contracted campaign per workload",
+    "outer_certification": "logical conjunction in policy workload order"
+  },
   "scheduler": {
     "project": "SFC",
     "queue": "gen_S",

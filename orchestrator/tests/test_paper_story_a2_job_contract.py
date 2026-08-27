@@ -14,6 +14,7 @@ from orchestrator.campaign import paper_story_a2_certification as A2
 
 REPO = Path(__file__).resolve().parents[2]
 JOB = REPO / "tools/pegasus/paper_story_a2_certification.sh"
+SUBMITTER = REPO / "tools/pegasus/submit_paper_story_a2_certification.sh"
 REGISTRY = REPO / "tools/pegasus/admission_registry.json"
 
 
@@ -36,6 +37,9 @@ def _assert_static_job_contract(source):
         "scheduler-start": 'qstat -f "$qstat_jobid"',
         "reservation-result": "paper-story-a2-reservation-result/v1",
         "dependency-source": "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE",
+        "workload-input": "IZANAGI_A2_WORKLOAD",
+        "workload-enum": "rr5|rr50",
+        "job-root": 'job_root=$attempt/jobs/$workload',
         "dependency-stage": "cp -a \"$dependency_source\"/. \"$dependency_prefix\"/",
         "fresh-raw": "if [[ -e \"$raw_root\" || -L \"$raw_root\" ]]",
         "preflight": "compute-preflight",
@@ -60,20 +64,34 @@ def _assert_static_job_contract(source):
         raise AssertionError("both inline Python launches must use the selected path")
     driver_launch = (
         '"$PY" -B -m orchestrator.campaign.paper_story_a2_certification')
-    if source.count(driver_launch) != 4:
-        raise AssertionError("all four driver launches must use the selected path")
+    if source.count(driver_launch) != 2:
+        raise AssertionError("both driver launches must use the selected path")
     resolver_call = source.index("resolve_python || exit 2")
     first_python_use = source.index('"$PY" - "')
     if resolver_call >= first_python_use:
         raise AssertionError("interpreter resolution must precede Python use")
-    rr5 = source.index("--workload rr5")
-    rr50 = source.index("--workload rr50")
-    if rr5 >= rr50:
-        raise AssertionError("workload order must be rr5 then rr50")
+    if source.count('--workload "$workload"') != 2:
+        raise AssertionError("preflight and run must use the selected workload")
+    if "finalize-raw" in source:
+        raise AssertionError("compute body must not finalize the group manifest")
 
 
 def test_job_body_is_compute_only_sequential_and_never_submits():
     _assert_static_job_contract(JOB.read_text(encoding="utf-8"))
+    submitter = SUBMITTER.read_text(encoding="utf-8")
+    assert "WORKLOADS=(rr5 rr50)" in submitter
+    assert "IZANAGI_A2_WORKLOAD=$workload" in submitter
+    assert "exact-qsub -- qsub" in submitter
+    assert "finish-group" in submitter
+    assert "submission-precheck" not in submitter
+    finish_start = submitter.index('if [[ "$MODE" == finish-group ]]')
+    finish_exit = submitter.index("  exit 0", finish_start)
+    for submit_only_gate in (
+            "for command_name in git qsub", "check_quota >/dev/null",
+            "QUEUE_STATE=$(qstat -Q)",
+            'git status --porcelain --untracked-files=no'):
+        assert finish_exit < submitter.index(submit_only_gate)
+    assert not hasattr(A2, "submission_ratification_precheck")
 
 
 def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
@@ -91,7 +109,7 @@ def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
     assert all(f"export {fragment}" in source for fragment in expected)
     assert "IZANAGI_RESERVATION_DEADLINE=" not in source
     assert 'qstat_jobid=${PBS_JOBID#0:}' in source
-    assert '"$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN"' in source
+    assert '"$workload" "$rc" "$PBS_JOBID" "$IZANAGI_A2_CURRENT_PIN"' in source
 
 
 def _resolver_snippet(source):
@@ -220,6 +238,15 @@ def test_job_body_is_registered_only_as_dispatch_required():
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification",
     }
+    assert registry["tools/pegasus/submit_paper_story_a2_certification.sh"] == {
+        "class": "local-ok",
+        "reason": (
+            "login-side PBS paper-story A-2 two-workload submitter and finisher"),
+        "primary_gate": (
+            "ratification precheck then qsub fan-out; compute work stays in "
+            "independent job bodies"),
+        "evidence": "static login-side submitter classification",
+    }
 
 
 def _completed(command, stdout="", returncode=0):
@@ -248,7 +275,7 @@ def _reservation_environment(repo, *, job_id="123.nqsv"):
 def test_compute_preflight_accepts_exact_compute_head_and_fresh_raw(
         tmp_path, monkeypatch):
     policy = _policy(tmp_path)
-    attempt = A2.create_attempt_root(policy, "compute-positive")
+    attempt = A2.preregister_attempt(policy, "compute-positive", "1" * 40)
     dependency = tmp_path / "dependency-prefix"
     dependency.mkdir()
     repo = REPO
@@ -265,11 +292,13 @@ def test_compute_preflight_accepts_exact_compute_head_and_fresh_raw(
     monkeypatch.setattr(A2.subprocess, "run", run)
     environment = _reservation_environment(repo)
     raw = A2.compute_preflight(
-        policy, attempt_root=attempt, raw_root=attempt / "raw",
+        policy, workload_id="rr5", attempt_root=attempt,
+        raw_root=attempt / "jobs" / "rr5" / "raw",
         expected_head="head-1", repo_root=repo,
         dependency_prefix=dependency, environ=environment,
         hostname="bnode001")
-    assert raw == attempt / "raw"
+    assert raw == attempt / "jobs" / "rr5" / "raw"
+    assert (attempt / "jobs" / "rr50").is_dir()
     assert raw.is_dir()
     assert calls == [
         ["git", "rev-parse", "HEAD"],
@@ -280,12 +309,21 @@ def test_compute_preflight_accepts_exact_compute_head_and_fresh_raw(
 @pytest.mark.parametrize("mutation", ("login-host", "wrong-head", "dirty", "stale-raw"))
 def test_compute_preflight_rejects_each_m7_boundary(tmp_path, monkeypatch, mutation):
     policy = _policy(tmp_path)
-    attempt = A2.create_attempt_root(policy, "compute-" + mutation)
+    attempt = A2.preregister_attempt(
+        policy, "compute-" + mutation, "1" * 40)
     dependency = tmp_path / ("deps-" + mutation)
     dependency.mkdir()
     repo = REPO
+    race_target = attempt / "jobs" / "rr5" / "raw"
     if mutation == "stale-raw":
-        (attempt / "raw").mkdir()
+        original_mkdir = Path.mkdir
+
+        def racing_mkdir(path, *args, **kwargs):
+            if path == race_target:
+                original_mkdir(path, mode=0o700)
+            return original_mkdir(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "mkdir", racing_mkdir)
 
     def run(command, **kwargs):
         if command[:3] == ["git", "rev-parse", "HEAD"]:
@@ -297,18 +335,22 @@ def test_compute_preflight_rejects_each_m7_boundary(tmp_path, monkeypatch, mutat
 
     monkeypatch.setattr(A2.subprocess, "run", run)
     environment = _reservation_environment(repo)
-    with pytest.raises(A2.CertificationError):
+    with pytest.raises(A2.CertificationError) as error:
         A2.compute_preflight(
-            policy, attempt_root=attempt, raw_root=attempt / "raw",
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=attempt / "jobs" / "rr5" / "raw",
             expected_head="head-1", repo_root=repo,
             dependency_prefix=dependency, environ=environment,
             hostname="pegasus01" if mutation == "login-host" else "bnode001")
+    if mutation == "stale-raw":
+        assert isinstance(error.value.__cause__, FileExistsError)
+        assert race_target.is_dir()
 
 
 def test_compute_preflight_requires_real_pbs_and_reservation_bindings(
         tmp_path, monkeypatch):
     policy = _policy(tmp_path)
-    attempt = A2.create_attempt_root(policy, "compute-env")
+    attempt = A2.preregister_attempt(policy, "compute-env", "1" * 40)
     dependency = tmp_path / "deps-env"
     dependency.mkdir()
     repo = REPO
@@ -318,13 +360,15 @@ def test_compute_preflight_requires_real_pbs_and_reservation_bindings(
     )
     with pytest.raises(A2.CertificationError, match="PBS environment"):
         A2.compute_preflight(
-            policy, attempt_root=attempt, raw_root=attempt / "raw",
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=attempt / "jobs" / "rr5" / "raw",
             expected_head="head-1", repo_root=repo,
             dependency_prefix=dependency, environ={}, hostname="bnode001")
 
 
 def test_job_body_mode_is_executable():
     assert os.stat(JOB).st_mode & 0o111
+    assert os.stat(SUBMITTER).st_mode & 0o111
 
 
 def _run() -> int:
