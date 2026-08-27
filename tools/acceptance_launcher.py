@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import signal
 import stat
 import subprocess
@@ -30,6 +31,22 @@ _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
 _MAX_COMPLETION_BYTES = 1024 * 1024
+_MAX_BINDING_REPORT_BYTES = 1024 * 1024
+_ACCEPTANCE_SHARDS_ENV = "IZANAGI_ACCEPTANCE_SHARDS"
+_BINDING_FD_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD"
+_BINDING_NONCE_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE"
+_BINDING_TESTED_MAIN_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN"
+_BINDING_REPORT_SCHEMA = "dev-wave-runner-binding-report/v1"
+_BINDING_REPORT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "tested_main",
+        "nonce",
+        "runner_executed_sha256",
+        "shard_count",
+        "shard_index",
+    }
+)
 _FINGERPRINT_FIELDS = frozenset(
     {"digest", "head_sha", "status_bytes", "diff_bytes", "submodule_status_bytes"}
 )
@@ -86,6 +103,15 @@ class _Config:
     env_projection: Mapping[str, object]
 
 
+@dataclass(frozen=True)
+class _BindingReport:
+    tested_main: str
+    nonce: str
+    runner_executed_sha256: str
+    shard_count: int
+    shard_index: int
+
+
 def _canonical_json_bytes(value: object) -> bytes:
     try:
         return (
@@ -105,6 +131,15 @@ def _normalize_child_rc(returncode: int) -> int:
     if returncode >= 0:
         return returncode
     return 128 + (-returncode)
+
+
+def _resolve_binding_shard_count(environ: Mapping[str, str]) -> int:
+    raw = environ.get(_ACCEPTANCE_SHARDS_ENV)
+    if raw not in {"1", "2", "3"}:
+        raise LauncherFailure(
+            "IZANAGI_ACCEPTANCE_SHARDS must be explicitly set to 1, 2, or 3"
+        )
+    return int(raw)
 
 
 def _validate_fingerprint(value: Mapping[str, object], label: str) -> None:
@@ -200,6 +235,9 @@ def _run_blob(
     source: bytes,
     canonical_runner_path: Path,
     log_file: Path,
+    *,
+    environment: Mapping[str, str],
+    pass_fds: Sequence[int],
 ) -> int:
     def forward_to_waiter(signum: int, _frame: object) -> None:
         os.kill(os.getppid(), signum)
@@ -224,6 +262,8 @@ def _run_blob(
                 stderr=subprocess.STDOUT,
                 input=source,
                 cwd=canonical_runner_path.parent.parent,
+                env=environment,
+                pass_fds=tuple(pass_fds),
             )
     except OSError as exc:
         raise LauncherFailure("cannot execute runner blob") from exc
@@ -231,6 +271,95 @@ def _run_blob(
         for signum, previous in previous_handlers.items():
             signal.signal(signum, previous)
     return _normalize_child_rc(result.returncode)
+
+
+def _read_binding_channel(fd: int) -> bytes:
+    chunks: list[bytes] = []
+    size = 0
+    while True:
+        try:
+            chunk = os.read(fd, min(65536, _MAX_BINDING_REPORT_BYTES + 1 - size))
+        except OSError as exc:
+            raise LauncherFailure("cannot read runner binding reports") from exc
+        if not chunk:
+            break
+        chunks.append(chunk)
+        size += len(chunk)
+        if size > _MAX_BINDING_REPORT_BYTES:
+            raise LauncherFailure("runner binding reports are too large")
+    return b"".join(chunks)
+
+
+def _parse_binding_reports(raw: bytes) -> list[_BindingReport]:
+    if raw and not raw.endswith(b"\n"):
+        raise LauncherFailure("runner binding report is not newline terminated")
+    reports: list[_BindingReport] = []
+    for line in raw.splitlines(keepends=True):
+        try:
+            value = json.loads(line.decode("ascii"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise LauncherFailure("invalid runner binding report JSON") from exc
+        if (
+            not isinstance(value, dict)
+            or set(value) != _BINDING_REPORT_FIELDS
+            or _canonical_json_bytes(value) != line
+        ):
+            raise LauncherFailure("runner binding report is not canonical")
+        if value["schema_version"] != _BINDING_REPORT_SCHEMA:
+            raise LauncherFailure("invalid runner binding report schema")
+        tested_main = value["tested_main"]
+        nonce = value["nonce"]
+        digest = value["runner_executed_sha256"]
+        shard_count = value["shard_count"]
+        shard_index = value["shard_index"]
+        if (
+            not isinstance(tested_main, str)
+            or _SHA1_RE.fullmatch(tested_main) is None
+            or not isinstance(nonce, str)
+            or _SHA256_RE.fullmatch(nonce) is None
+            or not isinstance(digest, str)
+            or _SHA256_RE.fullmatch(digest) is None
+            or type(shard_count) is not int
+            or shard_count not in {1, 2, 3}
+            or type(shard_index) is not int
+            or shard_index < 0
+        ):
+            raise LauncherFailure("invalid runner binding report value")
+        reports.append(
+            _BindingReport(
+                tested_main=tested_main,
+                nonce=nonce,
+                runner_executed_sha256=digest,
+                shard_count=shard_count,
+                shard_index=shard_index,
+            )
+        )
+    return reports
+
+
+def _enforce_binding_reports(
+    reports: Sequence[_BindingReport],
+    expected_k: int,
+    expected_nonce: str,
+    expected_main: str,
+    expected_digest: str,
+) -> None:
+    if len(reports) != expected_k:
+        raise LauncherFailure("runner binding report count mismatch")
+    if (
+        len(reports) == expected_k
+        and sorted(report.shard_index for report in reports)
+        != list(range(expected_k))
+    ):
+        raise LauncherFailure("runner binding report shard indexes mismatch")
+    if any(report.nonce != expected_nonce for report in reports):
+        raise LauncherFailure("runner binding report nonce mismatch")
+    if any(report.tested_main != expected_main for report in reports):
+        raise LauncherFailure("runner binding report tested-main mismatch")
+    if any(
+        report.runner_executed_sha256 != expected_digest for report in reports
+    ):
+        raise LauncherFailure("runner binding report digest mismatch")
 
 
 def _write_fd(fd: int, payload: bytes) -> None:
@@ -427,7 +556,7 @@ def _launch(
     runner_argv: Sequence[str],
     *,
     blob_reader: Callable[[Path, str], bytes] = _read_runner_blob,
-    blob_runner: Callable[[bytes, Path, Path], int] = _run_blob,
+    blob_runner: Callable[..., int] = _run_blob,
     outcome_writer: Callable[[bytes], None] | None = None,
     completion_reader: Callable[[], Mapping[str, object]] | None = None,
 ) -> None:
@@ -438,11 +567,35 @@ def _launch(
     if source != tip_source:
         raise LauncherFailure("tested-main and tested-tip runner blobs differ")
     runner_executed_sha256 = hashlib.sha256(source).hexdigest()
-    child_rc = blob_runner(source, canonical_runner_path, config.log_file)
+    expected_k = _resolve_binding_shard_count(os.environ)
+    binding_nonce = secrets.token_hex(32)
+    binding_environment = dict(os.environ)
+    read_fd, write_fd = os.pipe()
+    binding_environment.update(
+        {
+            _BINDING_FD_ENV: str(write_fd),
+            _BINDING_NONCE_ENV: binding_nonce,
+            _BINDING_TESTED_MAIN_ENV: config.tested_main,
+        }
+    )
+    try:
+        try:
+            child_rc = blob_runner(
+                source,
+                canonical_runner_path,
+                config.log_file,
+                environment=binding_environment,
+                pass_fds=(write_fd,),
+            )
+        finally:
+            os.close(write_fd)
+        raw_binding_reports = _read_binding_channel(read_fd)
+    finally:
+        os.close(read_fd)
 
     # Fetch the immutable tested-main blob independently after execution. This is
-    # intentionally not derived from the executed buffer: M3 must fail closed if
-    # the observed main content and the bytes handed to compile/exec ever differ.
+    # intentionally not derived from the executed buffer: the launcher fails closed
+    # if the observed main content and the bytes handed to compile/exec ever differ.
     main_source = blob_reader(config.repo_root, config.tested_main)
     main_content_sha256 = hashlib.sha256(main_source).hexdigest()
     if runner_executed_sha256 != main_content_sha256:
@@ -459,6 +612,14 @@ def _launch(
         }
     )
     (outcome_writer or (lambda value: _write_fd(config.outcome_fd, value)))(outcome)
+    reports = _parse_binding_reports(raw_binding_reports)
+    _enforce_binding_reports(
+        reports,
+        expected_k,
+        binding_nonce,
+        config.tested_main,
+        runner_executed_sha256,
+    )
     if child_rc not in {0, 1}:
         raise LauncherFailure("runner result is not receiptable")
     completion = (
