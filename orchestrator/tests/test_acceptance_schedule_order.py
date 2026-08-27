@@ -717,9 +717,9 @@ def test_g5_real_ledger_covers_at_least_90_percent_of_real_collection(
     )
 
 
-# G6: marker closure remains common while runtime scheduler scopes are split.
+# G6: resource nodes split; process memo and each long-lived fixture retain scopes.
 def test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order():
-    """Historical name: only the four process-memo nodes remain one work unit."""
+    """Historical name: process memo and fixture groups stay distinct work units."""
     from orchestrator.tests import test_real_repo_serialization as real_gate
 
     report = real_gate._collect_xdist_group_report(real_gate.HERE, cwd=real_gate.ROOT)
@@ -800,6 +800,21 @@ def test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order():
     ]
     assert {canonical_by_identity[id(item)] for item in memo_items} == set(
         CONF.REAL_REPO_PROCESS_MEMO_NODES
+    )
+    fixture_groups = {
+        group: {
+            entry["canonical_node"]
+            for entry in report
+            if entry["marks"] and entry["marks"][0]["args"] == [group]
+        }
+        for group in real_gate._LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN
+    }
+    assert fixture_groups == {
+        group: set(nodes)
+        for group, nodes in real_gate._LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN.items()
+    }
+    assert set().union(*fixture_groups.values()).isdisjoint(
+        CONF.REAL_REPO_RESOURCE_NODES
     )
     assert all(
         CONF._acceptance_loadgroup_scope(item.nodeid) != "real-repo"
