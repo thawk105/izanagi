@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1647-a2-cert-fanout
 seq: 1
-title: [T-1647] A-2 certification の投入を workload 単位の独立 job へ分割し、未批准では qsub を 1 件も出さない形にした。実走は D905 待ちで未了 (コード + docs、branch worktree-dev-wave-t1647-a2-cert-fanout、変異 matrix = baseline PASSED・8/8 KILLED・SURVIVED 0・MISMATCH 0)
+title: [T-1647] A-2 certification の投入を workload 単位の独立 job へ分割した。作業中に D1139 が批准機構ごと撤去して実走の壁は消え、実機投入は D646 により次 wave となる (コード + docs、branch worktree-dev-wave-t1647-a2-cert-fanout、変異 matrix = baseline PASSED・7/7 KILLED・SURVIVED 0・MISMATCH 0)
 ---
 
 ## 本文
