@@ -14294,6 +14294,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   isolated mode で import graph 全体が解決できるかを先に実測する。**
   焦点走の緑は受入 launcher 配下の緑を含意しない。
 
+
+- **再発: 2026-08-28** — B-10の初回compute jobが `python3 -I -B -m orchestrator...` でrepo rootをimport pathから外し、envelope全通過後にprobe 0 cellで停止した。既に実走済みのA-2は `-B -m` だった。commit `8df4fa25d` でmodule起動だけを修理し、exact job contract testと `-I` 復帰変異1/1 KILLEDで再発検知を固定した。
 ### F511. 裁定本文を行範囲で切り出して子へ渡し、実装条件の後半が欠けたまま段 3 を走らせた [手順漏れ]
 
 - 事象: 親が `docs/decisions.md` の裁定を `sed -n '<開始>,<終了>p'` で job dir へ切り出し、
