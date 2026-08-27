@@ -3005,6 +3005,83 @@ def _rename_noreplace(source: Path, destination: Path) -> None:
         raise OSError(error_number, os.strerror(error_number), str(destination))
 
 
+def _rename_flags_zero(source: Path, destination: Path) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(libc, "renameat2", None)
+    if renameat2 is None:
+        raise CertificationError("renameat2(flags=0) is unavailable")
+    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p,
+                          ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    renameat2.restype = ctypes.c_int
+    at_fdcwd = -100
+    rc = renameat2(
+        at_fdcwd, os.fsencode(source), at_fdcwd, os.fsencode(destination), 0,
+    )
+    if rc != 0:
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number), str(destination))
+
+
+def _release_materialization_publish_claim(
+        claim: Path, identity: tuple[int, int]) -> None:
+    try:
+        info = claim.lstat()
+    except OSError as exc:
+        raise CertificationError(
+            f"fallback materialization publish claim stat failed: {exc}"
+        ) from exc
+    if (not stat.S_ISREG(info.st_mode)
+            or (info.st_dev, info.st_ino) != identity):
+        raise CertificationError(
+            "fallback materialization publish claim identity differs")
+    try:
+        claim.unlink()
+        _fsync_dir(claim.parent)
+    except OSError as exc:
+        raise CertificationError(
+            f"fallback materialization publish claim cleanup failed: {exc}"
+        ) from exc
+
+
+def _publish_staging_after_einval(staging: Path, destination: Path) -> None:
+    """Publish for cooperating A-2 writers after RENAME_NOREPLACE is EINVAL.
+
+    The exclusive sibling claim serializes cooperating A-2 publishers.  This
+    fallback is not atomic no-replace against a non-cooperating writer: an
+    empty type-compatible destination created after the existence check can be
+    replaced by the flags-zero renameat2 call.
+    """
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        claim_fd = os.open(claim, flags, 0o600)
+    except OSError as exc:
+        raise CertificationError(
+            f"exclusive fallback materialization publish claim failed: {exc}"
+        ) from exc
+    claim_identity = os.fstat(claim_fd)
+    try:
+        os.fsync(claim_fd)
+        _fsync_dir(destination.parent)
+        if os.path.lexists(destination):
+            raise CertificationError(
+                "fallback materialization publish refused: "
+                "destination already exists")
+        try:
+            _rename_flags_zero(staging, destination)
+        except OSError as exc:
+            raise CertificationError(
+                f"fallback materialization publish failed: {exc.strerror}"
+            ) from exc
+        _fsync_dir(destination.parent)
+    finally:
+        os.close(claim_fd)
+        _release_materialization_publish_claim(
+            claim, (claim_identity.st_dev, claim_identity.st_ino))
+
+
 _CERTIFICATION_RESULT_COMMON_KEYS = {
     "schema_version", "study", "protocol_schema", "protocol_sha256",
     "policy_sha256", "policy_bytes_base64", "attempt_id", "request_ids",
@@ -3142,7 +3219,12 @@ def materialize(policy: Policy, report: Mapping[str, Any], evidence: Mapping[str
         }
         _write_bytes_x(stage / "COMPLETE.json", _canonical_json(marker))
         _fsync_dir(stage)
-        _rename_noreplace(stage, destination)
+        try:
+            _rename_noreplace(stage, destination)
+        except OSError as exc:
+            if exc.errno != errno.EINVAL:
+                raise
+            _publish_staging_after_einval(stage, destination)
         published = True
         _fsync_dir(parent)
         return destination

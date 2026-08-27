@@ -1,8 +1,10 @@
 import base64
 import copy
+import errno
 import hashlib
 import inspect
 import json
+import os
 import socket
 import subprocess
 import time
@@ -1347,6 +1349,149 @@ def test_m11_materializer_stages_marker_before_single_noreplace_rename(
     with pytest.raises(A2.CertificationError, match="identity differ"):
         A2.materialize(policy, v2_report, evidence, repo_root=v2_repo)
     assert not (v2_repo / policy.tracked_destination).exists()
+
+
+def _materialization_case(tmp_path, attempt_id):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(policy, attempt_id, CURRENT_PIN)
+    acquisition, _ = _write_receipt_bundle(policy, root)
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    report = A2.collect_results(
+        policy, evidence["raw_results"], attempt_id=root.name,
+        current_pin=CURRENT_PIN, request_ids=evidence["request_ids"],
+        frozen_files=evidence["raw_files"], attempt_root=root)
+    report["source_commit"] = evidence["source_commit"]
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    return policy, report, evidence, repo
+
+
+def test_materialize_einval_uses_exclusive_claim_and_flags_zero_rename(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-positive")
+    destination = repo / policy.tracked_destination
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    rename_calls = []
+    fsync_calls = []
+    original_flags_zero = A2._rename_flags_zero
+    original_fsync_dir = A2._fsync_dir
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    def observed_flags_zero(source, target):
+        rename_calls.append((source, target))
+        assert claim.is_file() and not claim.is_symlink()
+        assert not target.exists()
+        original_flags_zero(source, target)
+
+    def observed_fsync(path):
+        fsync_calls.append(path)
+        original_fsync_dir(path)
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    monkeypatch.setattr(A2, "_rename_flags_zero", observed_flags_zero)
+    monkeypatch.setattr(A2, "_fsync_dir", observed_fsync)
+
+    assert A2.materialize(
+        policy, report, evidence, repo_root=repo) == destination
+    assert len(rename_calls) == 1
+    assert not claim.exists()
+    assert (destination / "COMPLETE.json").is_file()
+    assert fsync_calls.count(destination.parent) == 4
+
+
+def test_materialize_einval_refuses_destination_created_before_recheck(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-destination")
+    destination = repo / policy.tracked_destination
+    claim = destination.parent / f".{destination.name}.publish-claim"
+
+    def destination_race(_source, target):
+        target.mkdir()
+        (target / "non-cooperating-writer").write_text(
+            "preserve\n", encoding="utf-8")
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", destination_race)
+    with pytest.raises(
+            A2.CertificationError, match="destination already exists"):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert (destination / "non-cooperating-writer").read_text(
+        encoding="utf-8") == "preserve\n"
+    assert not claim.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_einval_fails_closed_on_publish_claim_collision(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-einval-claim-collision")
+    destination = repo / policy.tracked_destination
+    destination.parent.mkdir(parents=True)
+    claim = destination.parent / f".{destination.name}.publish-claim"
+    claim.write_text("other cooperating publisher\n", encoding="utf-8")
+
+    def unsupported_noreplace(_source, _destination):
+        raise OSError(errno.EINVAL, "unsupported no-replace")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", unsupported_noreplace)
+    with pytest.raises(
+            A2.CertificationError, match="exclusive fallback.*claim failed"):
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert claim.read_text(encoding="utf-8") == "other cooperating publisher\n"
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_non_einval_publish_error_does_not_enter_fallback(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-non-einval")
+    destination = repo / policy.tracked_destination
+
+    def failed_noreplace(_source, _destination):
+        raise OSError(errno.EIO, "I/O failure")
+
+    def forbidden_fallback(_source, _destination):
+        raise AssertionError("non-EINVAL entered fallback")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", failed_noreplace)
+    monkeypatch.setattr(A2, "_publish_staging_after_einval", forbidden_fallback)
+    with pytest.raises(OSError) as raised:
+        A2.materialize(policy, report, evidence, repo_root=repo)
+
+    assert raised.value.errno == errno.EIO
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.stage-*"))
+
+
+def test_materialize_noreplace_success_does_not_enter_fallback(
+        tmp_path, monkeypatch):
+    policy, report, evidence, repo = _materialization_case(
+        tmp_path, "materialize-noreplace-success")
+    destination = repo / policy.tracked_destination
+    rename_calls = []
+
+    def successful_noreplace(source, target):
+        rename_calls.append((source, target))
+        os.rename(source, target)
+
+    def forbidden_fallback(_source, _destination):
+        raise AssertionError("successful RENAME_NOREPLACE entered fallback")
+
+    monkeypatch.setattr(A2, "_rename_noreplace", successful_noreplace)
+    monkeypatch.setattr(A2, "_publish_staging_after_einval", forbidden_fallback)
+
+    assert A2.materialize(
+        policy, report, evidence, repo_root=repo) == destination
+    assert len(rename_calls) == 1
+    assert (destination / "COMPLETE.json").is_file()
 
 
 def test_m12_attempt_root_must_be_direct_child_of_pinned_durable_base(tmp_path):
