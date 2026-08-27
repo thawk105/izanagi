@@ -78,6 +78,7 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
 `output/` 配下の一括削除は `git ls-files -- <path>` の空を確認してから行う。`git status` は
 tracked 無変更を出さず不在証明にならない。理解だけの `rm -rf` は別 wave の tracked file を消す。
+変異 scratch は `rm -rf` の後 `git worktree prune` まで行う。登録残置で次走が共有木検査で止まる。
 
 ## DW-O12 — 裁定手順と実行手順の差
 

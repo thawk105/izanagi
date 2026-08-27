@@ -48,6 +48,20 @@ seq: 1
 
 ## 再発
 
+### F283
+
+- **再発: 2026-08-27** — A-2 の投入分割 wave で、段 6 のレビュー子 2 本が同じ gate
+  (`tools/pegasus/admission_registry.json: working bytes が HEAD blob から drift`) で
+  launcher_error になった。**既載の恒久対応「レビュー投入前に統合 commit を作る」を
+  親が実行しなかったことが唯一の原因**であり、新しい引き金ではない。
+  さらに再投入で既載のもう 1 点 (`NG: 既存の完全な receipt は上書きできない`) も踏み、
+  `--artifact-root` を分けて 3 度目で起動した。**恒久対応は既に書かれていた** —
+  本再発が示すのは、registry を触る wave で親が段 6 へ進む前に commit する手順が
+  実行時に思い出されていないことである。本件そのものは既載の恒久対応で足りるため
+  reference は変更していない。同 wave で別に踏んだ「変異 scratch を `rm -rf` した後
+  `git worktree prune` を怠ると次走が共有木検査で止まる」は `DW-O19` が予算満杯のため
+  同じ話題を扱う `DW-O11` へ 1 行で収容した。
+
 ### F498
 
 - **再発: 2026-08-27** — A-2 の 4-cell certification の投入を分割する wave で、着手前に同じ終端を
