@@ -585,6 +585,51 @@ def test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed(tmp_path
     assert not _all_key_values(payload, "deletion_authorized")
     assert not _all_key_values(payload, "branch_delete_authorized")
 
+    nonempty_tip = _empty_child(repo)
+    _git(repo, "branch", "nonempty-topic", nonempty_tip)
+    checker = _make_fake_landed(tmp_path / "landed.py")
+    nonempty_rc, nonempty_payload, nonempty_process = _run_tool(
+        repo, "--branch", "nonempty-topic", "--landed-checker", str(checker),
+    )
+    assert nonempty_rc == 0, nonempty_process.stdout + nonempty_process.stderr
+    assert nonempty_payload["deletion_loss_closure"]["commit_count"] > 0
+    nonempty_branch_claims = _all_key_values(
+        nonempty_payload, "branch_delete_authorized",
+    )
+    nonempty_deletion_claims = _all_key_values(
+        nonempty_payload, "deletion_authorized",
+    )
+    assert not nonempty_branch_claims, (
+        "non-empty closure contains branch_delete_authorized values: "
+        f"{nonempty_branch_claims!r}"
+    )
+    assert not nonempty_deletion_claims, (
+        "non-empty closure contains deletion_authorized values: "
+        f"{nonempty_deletion_claims!r}"
+    )
+
+    empty_rc, empty_payload, empty_process = _run_tool(
+        repo, "--branch", "missing-topic", "--landed-checker", str(checker),
+    )
+    assert empty_rc == 2, empty_process.stdout + empty_process.stderr
+    assert empty_payload["deletion_loss_closure"]["commit_count"] == 0
+    assert any(issue["code"] == "candidate-ref-missing"
+               for issue in empty_payload["issues"])
+    empty_branch_claims = _all_key_values(
+        empty_payload, "branch_delete_authorized",
+    )
+    empty_deletion_claims = _all_key_values(
+        empty_payload, "deletion_authorized",
+    )
+    assert not empty_branch_claims, (
+        "empty closure contains branch_delete_authorized values: "
+        f"{empty_branch_claims!r}"
+    )
+    assert not empty_deletion_claims, (
+        "empty closure contains deletion_authorized values: "
+        f"{empty_deletion_claims!r}"
+    )
+
     ledger.write_text("# Ledger\n\n- " + json.dumps(_ledger_entry(oid, retained=True)) + "\n",
                       encoding="utf-8")
     invalid_rc, invalid, _ = _run_tool(
