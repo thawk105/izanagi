@@ -1,0 +1,190 @@
+{
+  "estimated_run_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M1-count",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    if False:\n        raise LauncherFailure(\"runner binding report count mismatch\")\n",
+          "old": "    if len(reports) != expected_k:\n        raise LauncherFailure(\"runner binding report count mismatch\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M2-digest",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    if any(\n        report.runner_executed_sha256 != expected_digest for report in []\n    ):\n",
+          "old": "    if any(\n        report.runner_executed_sha256 != expected_digest for report in reports\n    ):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M3-nonce",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    if any(report.nonce != expected_nonce for report in []):\n",
+          "old": "    if any(report.nonce != expected_nonce for report in reports):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M4-index",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    if False:\n        raise LauncherFailure(\"runner binding report shard indexes mismatch\")\n",
+          "old": "    if (\n        len(reports) == expected_k\n        and sorted(report.shard_index for report in reports)\n        != list(range(expected_k))\n    ):\n        raise LauncherFailure(\"runner binding report shard indexes mismatch\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M5-order",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    _deferred_enforcement = lambda: _enforce_binding_reports(\n        reports,\n        expected_k,\n        binding_nonce,\n        config.tested_main,\n        runner_executed_sha256,\n    )\n",
+          "old": "    _enforce_binding_reports(\n        reports,\n        expected_k,\n        binding_nonce,\n        config.tested_main,\n        runner_executed_sha256,\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M6-k-authority",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    reports = _parse_binding_reports(raw_binding_reports)\n    expected_k = reports[0].shard_count if reports else expected_k\n",
+          "old": "    reports = _parse_binding_reports(raw_binding_reports)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M7-unset-default",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "new": "    raw = environ.get(_ACCEPTANCE_SHARDS_ENV)\n    if raw is None or raw == \"\":\n        return 2\n    if raw not in {\"1\", \"2\", \"3\"}:\n",
+          "old": "    raw = environ.get(_ACCEPTANCE_SHARDS_ENV)\n    if raw not in {\"1\", \"2\", \"3\"}:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M8-pathname-exec",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "    completed = subprocess.run(\n        [sys.executable, str(canonical_runner_path), *argv],\n        check=False,\n        cwd=str(repo_root),\n        env=child_env,\n        shell=False,\n    )\n",
+          "old": "    completed = subprocess.run(\n        child_argv,\n        check=False,\n        cwd=str(repo_root),\n        env=child_env,\n        input=source,\n        shell=False,\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M9-hash-reread",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "    source = blob.stdout\n    actual_digest = hashlib.sha256(\n        canonical_runner_path.read_bytes()\n    ).hexdigest()\n",
+          "old": "    source = blob.stdout\n    actual_digest = hashlib.sha256(source).hexdigest()\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M10-request-omit",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "    if False:\n        request_payload[\"runner_binding\"] = runner_binding\n",
+          "old": "    if runner_binding is not None:\n        request_payload[\"runner_binding\"] = runner_binding\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M11-partial-manifest",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "    if present != _RUNNER_BINDING_ENV_KEYS:\n        return None, None\n",
+          "old": "    if present != _RUNNER_BINDING_ENV_KEYS:\n        raise ValueError(\"runner binding environment is incomplete\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M12-task-scope",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "    if task not in TASKS:\n        return None, None\n",
+          "old": "    if task != \"tests\":\n        return None, None\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M13-canonical-form",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "new": "            json.dumps(\n                report,\n                ensure_ascii=True,\n                sort_keys=True,\n                indent=2,\n            )\n",
+          "old": "            json.dumps(\n                report,\n                ensure_ascii=True,\n                sort_keys=True,\n                separators=(\",\", \":\"),\n            )\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

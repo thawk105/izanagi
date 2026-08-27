@@ -1,0 +1,108 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "MU-1",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes"
+      ],
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "old": "    if _freeze._canonical_bytes(approval) != raw:\n        raise _freeze.FreezeError(\"budget approval raw bytes が canonical JSON でない\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MU-2",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "old": "    if approval.get(\"scope\") != _freeze.BUDGET_APPROVAL_SCOPE:\n        raise _freeze.FreezeError(\"budget approval.scope が固定値と不一致\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MU-3",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]"
+      ],
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "old": "        holdout_ids=_active_v1_holdout_ids(),\n",
+          "new": "        holdout_ids=tuple(sorted((approval.get(\"budget\") or {}).get(\"per_holdout_bench_s\", {}))),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MU-4",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal"
+      ],
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "old": "    if _is_within(normalized, repo_root):\n        raise PreflightError(\"--out は repository の外を指定すること\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MU-5",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values"
+      ],
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "old": "        \"status\": \"draft-not-an-approval\",\n",
+          "new": "        \"approver\": \"\",\n        \"status\": \"draft-not-an-approval\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "MU-6",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes"
+      ],
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "old": "    return hashlib.sha256(raw).hexdigest()\n",
+          "new": "    _emitted = _REPO_ROOT / _freeze.BUDGET_APPROVAL_REL\n    _emitted.parent.mkdir(parents=True, exist_ok=True)\n    _emitted.write_bytes(raw)\n    return hashlib.sha256(raw).hexdigest()\n"
+        }
+      ]
+    }
+  ]
+}

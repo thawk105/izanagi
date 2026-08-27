@@ -5,11 +5,14 @@ from pathlib import Path
 import sys
 import tempfile
 
+import pytest
+
 _REPO = Path(__file__).resolve().parents[2]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from tools import acceptance_launcher as launcher
+from tools.pegasus import dispatch_compute as dispatcher
 
 
 _SHA1_A = "a" * 40
@@ -80,6 +83,91 @@ def _successful_blob_runner(source: bytes, canonical_path: Path, log_file: Path)
     return 0
 
 
+def _binding_report(
+    index: int,
+    *,
+    nonce: str,
+    tested_main: str,
+    digest: str,
+    shard_count: int,
+) -> dict[str, object]:
+    return {
+        "schema_version": launcher._BINDING_REPORT_SCHEMA,
+        "tested_main": tested_main,
+        "nonce": nonce,
+        "runner_executed_sha256": digest,
+        "shard_count": shard_count,
+        "shard_index": index,
+    }
+
+
+def _emit_binding_reports(
+    source: bytes,
+    environment: dict[str, str],
+    pass_fds: tuple[int, ...],
+    *,
+    indexes: tuple[int, ...] | None = None,
+    nonce: str | None = None,
+    tested_main: str | None = None,
+    digest: str | None = None,
+    self_reported_k: int | None = None,
+) -> None:
+    assert pass_fds == (int(environment[launcher._BINDING_FD_ENV]),)
+    shard_count = int(environment[launcher._ACCEPTANCE_SHARDS_ENV])
+    report_k = shard_count if self_reported_k is None else self_reported_k
+    report_indexes = tuple(range(shard_count)) if indexes is None else indexes
+    for index in report_indexes:
+        payload = _binding_report(
+            index,
+            nonce=environment[launcher._BINDING_NONCE_ENV] if nonce is None else nonce,
+            tested_main=(
+                environment[launcher._BINDING_TESTED_MAIN_ENV]
+                if tested_main is None else tested_main
+            ),
+            digest=hashlib.sha256(source).hexdigest() if digest is None else digest,
+            shard_count=report_k,
+        )
+        os.write(pass_fds[0], launcher._canonical_json_bytes(payload))
+
+
+def _launch_with_reports(
+    config: launcher._Config,
+    runner_argv: tuple[str, ...],
+    *,
+    blob_reader,
+    blob_runner,
+    shard_count: str = "1",
+    report_options: dict[str, object] | None = None,
+    **kwargs,
+) -> None:
+    previous = os.environ.get(launcher._ACCEPTANCE_SHARDS_ENV)
+    os.environ[launcher._ACCEPTANCE_SHARDS_ENV] = shard_count
+
+    def run_bound(source, canonical_path, log_file, *, environment, pass_fds):
+        rc = blob_runner(source, canonical_path, log_file)
+        _emit_binding_reports(
+            source,
+            environment,
+            pass_fds,
+            **({} if report_options is None else report_options),
+        )
+        return rc
+
+    try:
+        launcher._launch(
+            config,
+            runner_argv,
+            blob_reader=blob_reader,
+            blob_runner=run_bound,
+            **kwargs,
+        )
+    finally:
+        if previous is None:
+            os.environ.pop(launcher._ACCEPTANCE_SHARDS_ENV, None)
+        else:
+            os.environ[launcher._ACCEPTANCE_SHARDS_ENV] = previous
+
+
 def _unreachable(*_args, **_kwargs):
     raise AssertionError("unreachable callback was called")
 
@@ -113,11 +201,12 @@ def test_matching_main_and_tip_runner_blobs_execute_tested_main_source():
             completion_calls.append(True)
             return _completion()
 
-        launcher._launch(
+        _launch_with_reports(
             config,
             ("python3", "tools/run_tests.py"),
             blob_reader=read_blob,
             blob_runner=run_blob,
+            shard_count="3",
             outcome_writer=outcomes.append,
             completion_reader=read_completion,
         )
@@ -226,7 +315,7 @@ def test_m3_runner_digest_mismatch_is_rejected():
         root = Path(raw_root).resolve()
         config = _config(root)
         _touch_empty(config.receipt_file)
-        launcher._launch(
+        _launch_with_reports(
             config,
             ("python3", "tools/run_tests.py"),
             blob_reader=lambda _repo, _tip: _SOURCE,
@@ -244,7 +333,7 @@ def test_m3_runner_digest_mismatch_is_rejected():
             return next(sources)
 
         try:
-            launcher._launch(
+            _launch_with_reports(
                 config,
                 ("python3", "tools/run_tests.py"),
                 blob_reader=read_blob,
@@ -312,7 +401,233 @@ def test_blob_bootstrap_uses_canonical_file_without_pathname_reload():
             "    return 0 if __file__ == expected and argv == [] else 9\n"
         ).encode("ascii")
         log_file = root / "runner.log"
-        assert launcher._run_blob(source, canonical_path, log_file) == 0
+        assert launcher._run_blob(
+            source,
+            canonical_path,
+            log_file,
+            environment=dict(os.environ),
+            pass_fds=(),
+        ) == 0
+
+
+def test_binding_reports_k3_positive_creates_receipt():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        previous = os.environ.get(launcher._ACCEPTANCE_SHARDS_ENV)
+        os.environ[launcher._ACCEPTANCE_SHARDS_ENV] = "3"
+        inherited = dict(os.environ)
+
+        def run_blob(source, canonical_path, log_file, *, environment, pass_fds):
+            assert canonical_path == root / "tools/run_tests.py"
+            assert environment[launcher._ACCEPTANCE_SHARDS_ENV] == "3"
+            assert {
+                key: environment[key]
+                for key in inherited
+            } == inherited
+            assert set(environment) - set(inherited) == {
+                launcher._BINDING_FD_ENV,
+                launcher._BINDING_NONCE_ENV,
+                launcher._BINDING_TESTED_MAIN_ENV,
+            }
+            _emit_binding_reports(source, environment, pass_fds)
+            log_file.write_bytes(b"runner output\n")
+            return 0
+
+        try:
+            launcher._launch(
+                config,
+                ("python3", "tools/run_tests.py"),
+                blob_reader=lambda _repo, _revision: _SOURCE,
+                blob_runner=run_blob,
+                outcome_writer=lambda _payload: None,
+                completion_reader=_completion,
+            )
+        finally:
+            if previous is None:
+                os.environ.pop(launcher._ACCEPTANCE_SHARDS_ENV, None)
+            else:
+                os.environ[launcher._ACCEPTANCE_SHARDS_ENV] = previous
+
+        assert config.receipt_file.read_bytes()
+
+
+def _report_object(
+    index: int,
+    *,
+    nonce: str = "1" * 64,
+    tested_main: str = _SHA1_A,
+    digest: str = _SHA256_E,
+    shard_count: int = 3,
+) -> launcher._BindingReport:
+    return launcher._BindingReport(
+        tested_main=tested_main,
+        nonce=nonce,
+        runner_executed_sha256=digest,
+        shard_count=shard_count,
+        shard_index=index,
+    )
+
+
+def test_binding_reports_reject_extra_count():
+    reports = [_report_object(index) for index in (0, 1, 2, 0)]
+    with pytest.raises(launcher.LauncherFailure, match="count mismatch"):
+        launcher._enforce_binding_reports(
+            reports, 3, "1" * 64, _SHA1_A, _SHA256_E
+        )
+
+
+def test_binding_report_digest_mismatch_is_rejected():
+    reports = [
+        _report_object(index, digest=("2" * 64 if index == 1 else _SHA256_E))
+        for index in range(3)
+    ]
+    with pytest.raises(launcher.LauncherFailure, match="digest mismatch"):
+        launcher._enforce_binding_reports(
+            reports, 3, "1" * 64, _SHA1_A, _SHA256_E
+        )
+
+
+def test_binding_report_nonce_mismatch_is_rejected():
+    reports = [
+        _report_object(index, nonce=("2" * 64 if index == 1 else "1" * 64))
+        for index in range(3)
+    ]
+    with pytest.raises(launcher.LauncherFailure, match="nonce mismatch"):
+        launcher._enforce_binding_reports(
+            reports, 3, "1" * 64, _SHA1_A, _SHA256_E
+        )
+
+
+@pytest.mark.parametrize("case", ["dup"], ids=("dup",))
+def test_binding_reports_require_exact_index_multiset(case: str):
+    assert case == "dup"
+    reports = [_report_object(index) for index in (0, 0, 2)]
+    with pytest.raises(launcher.LauncherFailure, match="indexes mismatch"):
+        launcher._enforce_binding_reports(
+            reports, 3, "1" * 64, _SHA1_A, _SHA256_E
+        )
+
+
+def test_binding_enforcement_precedes_receipt():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        outcomes: list[bytes] = []
+        with pytest.raises(launcher.LauncherFailure, match="digest mismatch"):
+            _launch_with_reports(
+                config,
+                ("python3", "tools/run_tests.py"),
+                blob_reader=lambda _repo, _revision: _SOURCE,
+                blob_runner=_successful_blob_runner,
+                report_options={"digest": "2" * 64},
+                outcome_writer=outcomes.append,
+                completion_reader=_completion,
+            )
+        assert len(outcomes) == 1
+        assert config.receipt_file.read_bytes() == b""
+
+
+def test_launcher_owns_k_from_environment_not_reports():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        with pytest.raises(launcher.LauncherFailure, match="count mismatch"):
+            _launch_with_reports(
+                config,
+                ("python3", "tools/run_tests.py"),
+                blob_reader=lambda _repo, _revision: _SOURCE,
+                blob_runner=_successful_blob_runner,
+                shard_count="3",
+                report_options={
+                    "indexes": (0, 1),
+                    "self_reported_k": 2,
+                },
+                outcome_writer=lambda _payload: None,
+                completion_reader=_completion,
+            )
+        assert config.receipt_file.read_bytes() == b""
+
+
+def test_unset_shard_env_fails_closed_before_runner():
+    with tempfile.TemporaryDirectory() as raw_root:
+        root = Path(raw_root).resolve()
+        config = _config(root)
+        _touch_empty(config.receipt_file)
+        runner_calls: list[bool] = []
+
+        def run_blob(*_args, **_kwargs):
+            runner_calls.append(True)
+            return 0
+
+        previous = os.environ.pop(launcher._ACCEPTANCE_SHARDS_ENV, None)
+        try:
+            with pytest.raises(launcher.LauncherFailure):
+                launcher._launch(
+                    config,
+                    ("python3", "tools/run_tests.py"),
+                    blob_reader=lambda _repo, _revision: _SOURCE,
+                    blob_runner=run_blob,
+                    outcome_writer=lambda _payload: None,
+                    completion_reader=_unreachable,
+                )
+        finally:
+            if previous is not None:
+                os.environ[launcher._ACCEPTANCE_SHARDS_ENV] = previous
+        assert runner_calls == []
+        assert config.log_file.exists() is False
+        assert config.receipt_file.read_bytes() == b""
+
+
+def test_empty_and_invalid_shard_env_fail_closed():
+    for value in ("", "0", "4", "03", "x"):
+        with pytest.raises(launcher.LauncherFailure, match="explicitly set"):
+            launcher._resolve_binding_shard_count(
+                {launcher._ACCEPTANCE_SHARDS_ENV: value}
+            )
+
+
+def test_binding_report_tested_main_mismatch_is_rejected():
+    reports = [
+        _report_object(index, tested_main=(_SHA1_B if index == 1 else _SHA1_A))
+        for index in range(3)
+    ]
+    with pytest.raises(launcher.LauncherFailure, match="tested-main mismatch"):
+        launcher._enforce_binding_reports(
+            reports, 3, "1" * 64, _SHA1_A, _SHA256_E
+        )
+
+
+def test_binding_report_writer_output_parses_in_launcher():
+    payload = _binding_report(
+        0,
+        nonce="1" * 64,
+        tested_main=_SHA1_A,
+        digest=_SHA256_E,
+        shard_count=1,
+    )
+    read_fd, write_fd = os.pipe()
+    try:
+        dispatcher._write_runner_binding_report(write_fd, payload)
+    finally:
+        os.close(write_fd)
+    try:
+        raw = os.read(read_fd, 65536)
+    finally:
+        os.close(read_fd)
+
+    assert launcher._parse_binding_reports(raw) == [
+        launcher._BindingReport(
+            tested_main=_SHA1_A,
+            nonce="1" * 64,
+            runner_executed_sha256=_SHA256_E,
+            shard_count=1,
+            shard_index=0,
+        )
+    ]
 
 
 def test_receipt_is_exact_canonical_json_bytes():
@@ -326,7 +641,7 @@ def test_receipt_is_exact_canonical_json_bytes():
         config = _config(root)
         _touch_empty(config.receipt_file)
         outcomes = []
-        launcher._launch(
+        _launch_with_reports(
             config,
             ("python3", "tools/run_tests.py"),
             blob_reader=lambda _repo, _tip: _SOURCE,

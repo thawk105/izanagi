@@ -67,6 +67,23 @@ _REPORT_FIELDS = frozenset({
 _TERMINAL_COUNT_KEYS = frozenset({
     "passed", "failed", "error", "skipped", "xfailed", "xpassed",
 })
+_GIT_ENV_ALLOWLIST = (
+    "LANG", "LC_ALL", "LC_CTYPE", "PATH", "SYSTEMROOT", "TMPDIR", "TZ",
+)
+
+# Different runtime loadgroups stay separate, but every pair below touches a
+# common mutable real-repo resource with at least one writer.  Shard processes
+# may run on different hosts, so their local flock files cannot close this edge.
+REAL_REPO_GROUP_CONFLICT_EDGES = frozenset({
+    ("campaign-repository-scan", "real-repo"),
+    ("campaign-repository-scan", "s8c-predicate-snapshot"),
+    ("campaign-repository-scan", "s8c-preregistration-candidate"),
+    ("real-repo", "s8c-predicate-snapshot"),
+    ("real-repo", "s8c-preregistration-candidate"),
+    ("s8c-predicate-snapshot", "s8c-preregistration-candidate"),
+})
+if any(left >= right for left, right in REAL_REPO_GROUP_CONFLICT_EDGES):
+    raise RuntimeError("real-repo conflict edges must be canonical distinct pairs")
 
 
 class ShardError(ValueError):
@@ -146,6 +163,21 @@ def _is_within(path: Path, parent: Path) -> bool:
     return True
 
 
+def _closed_git_environment() -> dict[str, str]:
+    env = {
+        key: os.environ[key]
+        for key in _GIT_ENV_ALLOWLIST
+        if key in os.environ
+    }
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
+    return env
+
+
 def _git_common_dir(repo: Path) -> Path:
     try:
         result = subprocess.run(
@@ -159,6 +191,7 @@ def _git_common_dir(repo: Path) -> Path:
             text=True,
             timeout=10.0,
             check=False,
+            env=_closed_git_environment(),
         )
     except (OSError, subprocess.TimeoutExpired):
         raise ShardError("git-common-dir") from None
@@ -293,6 +326,10 @@ def _components(records: Sequence[ItemRecord]) -> tuple[dict[str, Any], ...]:
     for record in records:
         if record.group is not None:
             union.union(f"f:{record.file}", f"g:{record.group}")
+    active_groups = set(groups)
+    for left, right in sorted(REAL_REPO_GROUP_CONFLICT_EDGES):
+        if left in active_groups and right in active_groups:
+            union.union(f"g:{left}", f"g:{right}")
     buckets: dict[str, dict[str, set[str]]] = {}
     for record in records:
         root = union.find(f"f:{record.file}")
@@ -320,6 +357,23 @@ def _components(records: Sequence[ItemRecord]) -> tuple[dict[str, Any], ...]:
     ))
 
 
+def _groups_form_declared_conflict_component(groups: Sequence[str]) -> bool:
+    pending = set(groups)
+    if len(pending) < 2:
+        return True
+    reached = {min(pending)}
+    while True:
+        expanded = reached | {
+            right if left in reached else left
+            for left, right in REAL_REPO_GROUP_CONFLICT_EDGES
+            if left in pending and right in pending
+            and (left in reached or right in reached)
+        }
+        if expanded == reached:
+            return reached == pending
+        reached = expanded
+
+
 def allocate(records: Sequence[ItemRecord], shard_count: int) -> Assignment:
     """file/group 連結成分を group 優先、残り LPT で決定的に割り付ける。"""
 
@@ -338,7 +392,10 @@ def allocate(records: Sequence[ItemRecord], shard_count: int) -> Assignment:
     loads = [0] * shard_count
 
     if shard_count >= len(group_names):
-        if any(len(component["groups"]) != 1 for component in grouped):
+        if any(
+            not _groups_form_declared_conflict_component(component["groups"])
+            for component in grouped
+        ):
             raise ShardError("connected-exclusive-groups")
         grouped.sort(key=lambda item: item["groups"])
         for shard_index, component in enumerate(grouped):
@@ -405,9 +462,15 @@ def assignment_closure_gate(
         file_shards[record.file].add(shard)
         if record.group is not None:
             group_shards[record.group].add(shard)
-    return (
-        all(len(shards) == 1 for shards in file_shards.values())
-        and all(len(shards) == 1 for shards in group_shards.values())
+    if not all(len(shards) == 1 for shards in file_shards.values()):
+        return False
+    if not all(len(shards) == 1 for shards in group_shards.values()):
+        return False
+    active_groups = set(group_shards)
+    return all(
+        group_shards[left] == group_shards[right]
+        for left, right in REAL_REPO_GROUP_CONFLICT_EDGES
+        if left in active_groups and right in active_groups
     )
 
 

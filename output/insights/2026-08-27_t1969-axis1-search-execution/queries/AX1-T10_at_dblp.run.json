@@ -1,0 +1,79 @@
+{
+ "schema": "izanagi-axis1-search-evidence/v1",
+ "query_id": "AX1-T10@dblp",
+ "pass_number": 1,
+ "window_number": 1,
+ "request": [
+  "https://dblp.org/search/publ/api?q=lock+manager&format=json&h=100&f=0"
+ ],
+ "normalized_request": {
+  "endpoint": "https://dblp.org/search/publ/api",
+  "search_field": "q (title/author/venue; DBLP does not index abstracts)",
+  "filter_body": "q=lock manager ; format=json",
+  "sort": "index default (no sort parameter sent)",
+  "page_size": 100,
+  "position_transition": "f += h, from 0, until f >= result.hits.@total",
+  "field_projection": "full hit info (no projection parameter exists)"
+ },
+ "interpreted_query": [
+  "lock* manager*"
+ ],
+ "expected_interpreted_query": {
+  "whitespace_reading": "lock* manager*",
+  "dblp_tokenized_reading": "lock* manager*"
+ },
+ "retrieved_at": {
+  "start": {
+   "utc": "2026-08-27T02:18:31.727784+00:00",
+   "jst": "2026-08-27T11:18:31.727784+09:00"
+  },
+  "end": {
+   "utc": "2026-08-27T02:18:33.051652+00:00",
+   "jst": "2026-08-27T11:18:33.051652+09:00"
+  }
+ },
+ "api_identification": {
+  "endpoint": "https://dblp.org/search/publ/api",
+  "version": null,
+  "note": "3 索引とも API の版番号を返さない。応答に実在した必須 field 名で代用する",
+  "required_fields_present": [
+   "result.hits.@total",
+   "result.hits.@sent",
+   "result.hits.@first",
+   "result.query"
+  ]
+ },
+ "declared_total": 27,
+ "declared_total_per_page": [
+  27
+ ],
+ "declared_total_stable": true,
+ "pages": {
+  "count": 1,
+  "file": "queries/AX1-T10_at_dblp.pages.json.gz"
+ },
+ "returned_record_count": 27,
+ "retrieved_unique": 27,
+ "primary_key_digest": "b0b79fc80df04a374b398ce8ce8bdbf5859bed47dc9b2b36a0be1a0ea2478555",
+ "second_pass_digest": null,
+ "second_pass_note": "契約 §7.1 の 2 走一致は複数窓にまたがった枝への要求である。本枝は 1 走が中断なく完了しているため必須ではない。値がある場合は追加証拠である",
+ "completion": {
+  "1_interpreted_query_match": true,
+  "2_page_continuity": true,
+  "3_declared_vs_actual": true,
+  "4_primary_key_unique": true,
+  "5_unique_equals_total": true,
+  "6_normal_termination": true,
+  "complete": true
+ },
+ "duplicate_primary_key_count": 0,
+ "failure": [],
+ "records": {
+  "file": "queries/AX1-T10_at_dblp.records.jsonl.gz",
+  "line_count": 27
+ },
+ "classification_executed": false,
+ "classification_basis": null,
+ "classification_note": "本走行は record ごとの `検出` / `近傍` / `除外` / `要裁定` の個別判定を 1 件も行っていない。record 行に判定欄は無い。取得状態を判定済み件数へ変換してはならない",
+ "interpreted_query_reading": "whitespace"
+}

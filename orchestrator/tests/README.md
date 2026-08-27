@@ -156,6 +156,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s6_sort_sweep.py
 - test_s8a_trigger_sweep.py
 - test_s8b_budget.py
+- test_s8b_budget_approval_preflight.py
 - test_s8b_descriptor.py
 - test_s8b_floor_campaign.py
 - test_s8b_floor_stats.py
@@ -241,6 +242,25 @@ gnuplot / submodule / C++ toolchain 候補が無い環境では、
 
 テストの後半だけが依存物を要する場合 (前半で実検証が完了している場合) は
 skip でなく return で打ち切る (その旨コメントを付ける)。
+
+## real-repo 排他と loadgroup
+
+`REAL_REPO_ACCESS_BY_NODE` の resource node は shard では `real-repo` group に閉じるが、
+実行時は process memo 4 node だけが `@real-repo` を保持し、それ以外は suffix を外して
+node ごとの work unit にする。親 repo と CCBench は別の reader/writer lock を取り、各 lock は
+移行中の worktree-root key を先に取得してから Git common-dir を解決し、新 key を同じ mode で
+取得する。process 内は key ごとに 1 fd と参照 count を共有し、SH 中の同一 thread の EX は同じ
+fd を昇格、終了時に SH へ降格する。これにより sibling worktree と旧 session のどちらとも
+同一 host/filesystem 上で排他しつつ、長寿命 fixture の入れ子による自己競合を避ける。
+
+長寿命 fixture は node protocol へ登録しない。`s8c-preregistration-candidate`、
+`s8c-predicate-snapshot`、`campaign-repository-scan` を別 loadgroup のまま保持し、fixture 自身が
+setup と `yield` の全寿命を対応 lock で覆う。異なる group の resource 衝突は
+`tools/acceptance_shards.py` の独立した衝突辺で同じ shard component へ union するため、
+別 host の shard 間で `/tmp` flock に依存せず、同一 shard 内では別 worker の並列性を保つ。
+controller prewarm 2 系統も実 resolver 呼出しだけを parent SH 内で行う。
+suite 全体を subprocess collect する 3 node は inner collection が node protocol を通らないため、
+外側 node 自身を parent SH reader として登録する。
 
 ## 条件付き未実走 (repo 内で満たせるが開けていない)
 

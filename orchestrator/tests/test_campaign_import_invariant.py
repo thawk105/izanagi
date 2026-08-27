@@ -36,6 +36,7 @@ RELATIVE_RULE = "campaign-absolute-sibling-import"
 KNOWN_RULES = frozenset(
     {LEGACY_RULE, PATH_RULE, BOOTSTRAP_RULE, DOCS_RULE, RELATIVE_RULE}
 )
+REPOSITORY_SCAN_XDIST_GROUP = pytest.mark.xdist_group("campaign-repository-scan")
 
 DIRECT_BOOTSTRAP = '''if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -1070,11 +1071,13 @@ def _assert_rule_ledger_matches(repository_scan: RepositoryScan, rule: str) -> N
     _assert_ledger_matches(actual, expected)
 
 
-@pytest.fixture(scope="session")
-def repository_scan() -> RepositoryScan:
-    return scan_repository(REPOSITORY)
+@pytest.fixture(scope="module")
+def repository_scan(real_repo_fixture_lock) -> RepositoryScan:
+    with real_repo_fixture_lock("read", "read"):
+        yield scan_repository(REPOSITORY)
 
 
+@REPOSITORY_SCAN_XDIST_GROUP
 def test_repository_scan_set_is_nonempty_and_contains_sentinels(repository_scan: RepositoryScan):
     assert repository_scan.operational_paths, "operational source の走査数が 0"
     assert SENTINELS <= repository_scan.operational_paths
@@ -1215,23 +1218,28 @@ def test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end():
     assert "docs/guide.md" in actual.sources
 
 
+@REPOSITORY_SCAN_XDIST_GROUP
 def test_real_repository_legacy_namespace_matches_exception_ledger(repository_scan: RepositoryScan):
     _assert_rule_ledger_matches(repository_scan, LEGACY_RULE)
 
 
+@REPOSITORY_SCAN_XDIST_GROUP
 def test_real_campaign_package_has_canonical_direct_bootstrap(repository_scan: RepositoryScan):
     for rule in (PATH_RULE, BOOTSTRAP_RULE):
         _assert_rule_ledger_matches(repository_scan, rule)
 
 
+@REPOSITORY_SCAN_XDIST_GROUP
 def test_real_current_docs_have_no_legacy_module_command(repository_scan: RepositoryScan):
     _assert_rule_ledger_matches(repository_scan, DOCS_RULE)
 
 
+@REPOSITORY_SCAN_XDIST_GROUP
 def test_real_campaign_package_uses_relative_sibling_imports(repository_scan: RepositoryScan):
     _assert_rule_ledger_matches(repository_scan, RELATIVE_RULE)
 
 
+@REPOSITORY_SCAN_XDIST_GROUP
 def test_known_exception_ledger_is_unique_rationalized_and_commented(repository_scan: RepositoryScan):
     assert len(KNOWN_EXCEPTIONS) == EXPECTED_EXCEPTION_COUNT
     rule_counts = {
