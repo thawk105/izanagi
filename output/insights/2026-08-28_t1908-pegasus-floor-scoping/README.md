@@ -1,6 +1,6 @@
 # [T-1908] Pegasus write-heavy / balanced floor scoping 再取得
 
-authority: none  
+authority: none
 default_effect: no-state-change
 
 ## 結論
