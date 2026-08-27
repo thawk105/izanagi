@@ -24,6 +24,8 @@ seq: 1
 
 - 事象: 2 巡目 author は absence sentinel の import と分岐を変更したと報告したが、親が `rg` と `git diff` で
   再読すると import 無し・`else None` のままだった。validator receipt と成果物は accepted だった。
+- 根本原因: Codex output validator と receipt は最終メッセージの構造・来歴を検査するが、報告した各
+  anchor が working bytes に実在することまでは検査しない。親も採用前の literal 照合を初回は省いた。
 - 恒久対応: author の結論を採用する前に報告した exact anchor を working bytes と diff の双方で再読する。
   本件は 3 巡目を WAL 1 file / 2 anchor に限定して閉じた。
 - 再発検知: 報告の file:line と `git diff --name-only` / literal hit の積を親が照合し、片方でも欠ければ未実装。
@@ -33,9 +35,22 @@ seq: 1
 - 事象: resume 初回 M19〜M21 は狙った node に加え最大 124 node が落ちた。`wal.py` /
   `commit_receipt.py` は contract-loader の HEAD blob 束縛 24 path に含まれ、working bytes を変えた時点で
   runner の多くが drift 拒否した。gate の検出力ではない。
+- 根本原因: 変異対象と `CONTRACT_LOADER_RELATIVE_PATHS` の交差を事前登録時に確認せず、closure bytes の
+  同一性を要求する broad consumer と working-tree mutation を同じ runner に入れた。
 - 恒久対応: 元 M01〜M18 は broad runner、closure file を触る supplemental M19〜M21 は対象 3 node だけの
   runner に分ける。初回 21 件は erratum として残し、期待集合へ drift node を追加しない。
 - 再発検知: 変異対象を `CONTRACT_LOADER_RELATIVE_PATHS` と交差し、hit があれば broad runner を使わない。
+
+### {{F:non-b4-lock-misclassified-as-malformed}}. valid non-B4 lock を分類不能として全 COMMIT を拒否した [過剰拒否] [テスト代表性]
+
+- 事象: pre-record 全走で s8b oracle driver 20 件が `unknown-abort-reason` / `error` へ倒れた。fake evaluate
+  を instrument すると、正規 codec を通った non-B4 lock の identity に `search_config` が無いことを
+  B4 classifier が `existing campaign lock cannot classify` と拒否していた。
+- 根本原因: 「marker 付き lock の必要 field 欠落は fail-closed」と「valid non-B4 schema は B-4 field を
+  持たない」を区別せず、`_b4_classification_fields` を marker 有無の判定前に要求した。
+- 恒久対応: exact dict identity で key 自体が無ければ非 B-4、key が存在して非 dict なら拒否と分けた。
+  valid non-B4 lock + matching receipt の正例、非 mapping 3 値と malformed decoded / identity の負例を追加。
+- 再発検知: conditional protocol marker の classifier は、marker 不在の各 valid sibling schema を正例に含める。
 
 ### {{F:clean-tree-assert-poisons-mutation}}. 作業ツリーの clean を assert する検査が全変異の観測を一様に汚染した [恒真ゲート] [手順漏れ]
 
@@ -59,6 +74,13 @@ seq: 1
   検査かどうかを最初に見る。
 
 ## 再発
+
+### F662
+
+- **再発: 2026-08-28** — pre-record 全走で s1 / s8b の official output root が一括 red 化した。
+  `/tmp/.git` は空 directory・無効 repository と確認でき、既定手順の `rmdir` 後に s1 24 passed。
+  計算ノードの node-local `/tmp` には login sweeper が届かないため、repo 外の明示 TMPDIR を runner へ渡し、
+  s8b 127 passed / 6 skipped、最終全走 18,240 passed / 61 skipped を得た。production gate は緩めていない。
 
 ### F644
 

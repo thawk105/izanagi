@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1840-b4-launcher
 seq: 1
-title: B-4 の専用起動器を Claude 中断 wave から Codex resume し、独立監査の blocker を閉じた (コード + docs、中間 checkpoint、最終変異・受入は未実施)
+title: B-4 の専用起動器を Claude 中断 wave から Codex resume し、独立監査の blocker と受入赤を閉じた (コード + docs、branch worktree-dev-wave-t1840-b4-launcher-codex-resume、変異 = broad 18/18 + supplemental 3/3 KILLED)
 ---
 
 ## 本文
@@ -113,14 +113,33 @@ title: B-4 の専用起動器を Claude 中断 wave から Codex resume し、�
   main を branch へ取り込み、合成を再監査する。
 - **scope 外は不変:** D1042 / D1043 / D1050 と正式 B-4 実走は実装・実走せず、記録だけを返す。
 
+**最終検証。** current main `254b0f506` を競合ゼロで取り込み、incoming は B-4 分析経路 5 module + tests の
+純増で、launcher / WAL / 3 driver の合成 hunk は 0 件だった。新分析経路 + wiring probe は 211 passed。
+
+- 変異は固定 `035e97129` で再走した。broad M01〜M18 は baseline PASSED・18/18 KILLED・MISMATCH 0・
+  SURVIVED 0・TIMEOUT 0。supplemental M19〜M21 は closure drift を混ぜない対象 3 node runner で
+  baseline PASSED・3/3 KILLED・MISMATCH 0・SURVIVED 0・TIMEOUT 0。M21 は WAL と validator の冗長層を
+  同時に外す両層変異で、absence-to-marked 負例 1 node だけが赤になった。
+- pre-record 全走初回は 42 failed。backoff / s1 fixture の fake zero receipt 21 件、B-4 test の self-run
+  meta 契約 1 件、valid non-B4 lock の `search_config` 欠落を分類不能にした 20 件へ分解した。
+  D95 author が fixture、self-run harness、non-B4 分類を修正。`/tmp/.git` の空 directory による F662 偽赤は
+  空・無効 repo を確認して `rmdir` し、明示外部 TMPDIR を使った。s1 は 24 passed、s8b は 127 passed /
+  6 skipped、B-4 / non-B4 境界は 12 passed。
+- 全走 2 回目は 18,237 passed / 61 skipped / 3 failed。3 件は `codex_worker_launch` 2件と growth-hold
+  contract 1件で、同 tip の 2-file 単独走は 278 passed。規定の 1 回だけ全走再走し、**18,240 passed /
+  61 skipped / 0 failed** で閉じた。growth / freeze holds は解除していない。
+- current main はその後も進んだが、merge-base `254b0f506` 以降の T-1840 source/test/runner overlap は 0 件。
+  最終 acceptance は記録 commit 後の post-claim merge で再照合する。
+
 ## 次の一手差分
 
-### 継続中
+### 完了
 
 - [T-1840] D1033 に従い専用起動器と B-4 識別子を支配点として置いた。識別語の鋳造は封印を要求し、
   certified sink の合流点で起動記録と生きた context の一致を要求する。
-  Codex resume の blocker fix と焦点 540 passed まで完了した。初回変異の MISMATCH は erratum として保存した。
-  remaining: current main 取り込み、broad 18 + supplemental 3 の最終変異、受入全走、land
+  Codex resume の独立 blocker、親実機赤、変異汚染を閉じた。変異は broad 18/18 + supplemental 3/3
+  KILLED、pre-record 全走は 18,240 passed / 61 skipped / 0 failed である。
+  remaining: none
   base: 3814fde85f6722932d4c17a922e16179278fb0d66f8098d360bb014d74d95145
 
 ### 新規

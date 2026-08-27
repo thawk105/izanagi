@@ -86,3 +86,26 @@ production 限定にはしない。
 
 - 内省経路も閉じたと書く — 実際には閉じられず、謳うだけの保証になる。
 - 素直な経路も非保証で済ませる — 実際に塞げるものを塞がない理由がない。
+
+## {{D:b4-lock-snapshot-and-explicit-absence}}. B-4 分類と receipt は同一 lock snapshot へ束縛し、不在は明示 digest で表す
+
+**決定 (親裁定):** COMMIT sink は campaign.lock の同じ raw bytes snapshot を B-4 分類と receipt hash
+検証に使う。lock 不在は receipt 自身の digest を fallback 権威にせず、issuer / sink 共通の固定
+absence digest へ束縛する。decoded identity が exact dict で `search_config` key 自体を持たない valid lock は
+非 B-4 と分類し、key が存在して型不正なら fail-closed にする。
+
+**理由:** 独立 Codex focus が、分類時 markerless / 検証時 marked の二重読取、分類時 lock 不在 / 検証時
+marked の fallback、decoded lock と directory basename の campaign id 差をそれぞれ実行可能な負例で示した。
+同じ path を二度読むことも、receipt が自己申告した digest を sink observation の代用にすることも、
+D1033 の支配点を構成しない。
+
+**受理集合:** 最初から lockless + explicit absence receipt、valid markerless lock + exact receipt、valid non-B4
+lock (`search_config` 無し) + exact receipt は受理する。**physical lock に束縛した receipt を発行後に lock を
+消す旧経路だけを拒否へ狭める。** 同経路を残すと marked receipt を退避・復元して G4 を迂回できるため、
+規律2と両立しない。
+
+**却下した選択肢:** receipt 内 digest fallback の維持 — absence-to-marked bypass を再開する。
+全 non-B4 lock の `search_config` 欠落を分類不能として拒否 — marker 無し通常走の受理集合を壊す。
+
+**scope 外:** D1042 の一回性 token、D1043 の payload snapshot、D1050 の受理記録配置、COMMIT 後 relabel
+(D1223) の実装、正式 B-4 実走。

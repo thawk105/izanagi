@@ -335,6 +335,11 @@
    "category": "negative",
    "replacements": [
     {
+     "file": "orchestrator/campaign/wal.py",
+     "old": "                    else CAMPAIGN_LOCK_ABSENT_SHA256\n",
+     "new": "                    else None\n"
+    },
+    {
      "file": "orchestrator/verifier/commit_receipt.py",
      "old": "    actual_lock_identity = (\n        CAMPAIGN_LOCK_ABSENT_SHA256\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n",
      "new": "    actual_lock_identity = (\n        _receipt_core(record)[\"lock_identity_sha256\"]\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n"
