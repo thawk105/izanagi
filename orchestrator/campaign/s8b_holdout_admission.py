@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""8b floor holdout admission backed by a worktree-shared durable ledger.
+"""8b holdout admission backed by a worktree-shared durable ledger.
 
-The cell claim, not the JSONL evidence row, is the one-shot authority.  Claims
-and attempt-consumption markers use ``O_EXCL`` under a root derived only from
-Git's common directory, so linked worktrees contend on the same inodes.
+Each reservation records a fresh measurement generation while the six-field
+cell effect key remains stable.  Attempt-consumption markers are single-use
+within that measurement generation.  Historical v1/v2 claims and markers are
+retained as read-only evidence and never decide whether a fresh reservation is
+admitted.
 
 保証境界: read-only inspector は現在状態だけを見る。
 台帳を削除して同一 bytes を再構成する攻撃は検出できない。全 field は公開かつ決定的で、
@@ -84,6 +86,8 @@ _ROOT_REL = Path("izanagi") / "s8b-holdout-admission-v1"
 _LOCK_NAME = "ledger.lock"
 _LEDGER_NAME = "ledger.jsonl"
 _ATTEMPT_LEDGER_NAME = "attempt-ledger.jsonl"
+_MEASUREMENT_GENERATION_CLAIM_DIR = "measurement-generation-claims"
+_MEASUREMENT_GENERATION_CONSUMED_DIR = "measurement-generation-consumed"
 
 
 def _verified_scheduler_accounting_authority_policy_literal() -> str:
@@ -112,11 +116,23 @@ _R33_RECEIPT_DIR = "receipts"
 _R33_MANIFEST_DIR = "manifests"
 _R33_QUARANTINE_DIR = "transaction-quarantine"
 _R33_CLAIM_SCHEMA = "s8b-n-pilot-r33-cell-claim/v1"
+_R33_MEASUREMENT_GENERATION_CLAIM_SCHEMA = (
+    "s8b-n-pilot-r33-measurement-generation-cell-claim/v1"
+)
 _CLAIM_SCHEMA_V1 = "s8b-holdout-cell-claim/v1"
 _CLAIM_SCHEMA_V2 = "s8b-holdout-cell-claim/v2"
 _CLAIM_SCHEMA = _CLAIM_SCHEMA_V2
 _LEDGER_SCHEMA = "s8b-holdout-observation-ledger/v1"
 _ATTEMPT_SCHEMA = "s8b-holdout-attempt-consumption/v1"
+_MEASUREMENT_GENERATION_CLAIM_SCHEMA = (
+    "s8b-holdout-measurement-generation-cell-claim/v1"
+)
+_MEASUREMENT_GENERATION_LEDGER_SCHEMA = (
+    "s8b-holdout-measurement-generation-ledger/v1"
+)
+_MEASUREMENT_GENERATION_ATTEMPT_SCHEMA = (
+    "s8b-holdout-measurement-generation-attempt-consumption/v1"
+)
 _LEDGER_PROJECTION_SCHEMA = "s8b-floor-admission-ledger-projection/v1"
 _REFREEZE_DISQUALIFICATION_SCHEMA = "s8b-refreeze-disqualification/v1"
 _REFREEZE_DISQUALIFICATION_DIR = "refreeze-disqualifications"
@@ -142,7 +158,7 @@ _OBSERVATION_ROLES = {
 
 
 class HoldoutAdmissionError(RuntimeError):
-    """The fixed authority or durable one-shot admission cannot be proven."""
+    """The fixed authority or durable attempt-scoped admission cannot be proven."""
 
 
 def _neutral_holdouts_from_signatures(
@@ -212,6 +228,7 @@ class FloorHoldoutReservation:
     run_relpath: str
     protocol_sha256: str
     freeze_sha256: str
+    measurement_generation_digest: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -367,7 +384,6 @@ class _ReservationState:
     run_dir: Path
     manifest_sha256: str
     protocol_reps: int
-    irreversible_pilot_approved: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,7 +391,9 @@ class _CellState:
     token: CellHoldoutAdmission
     root: Path
     row: dict[str, Any]
-    claim_digest: str
+    cell_effect_digest: str
+    measurement_generation_digest: str | None
+    measurement_generation_claim_digest: str | None
     attempt_ids: frozenset[str]
     run_dir: Path
     schedule: tuple[dict[str, Any], ...]
@@ -390,7 +408,9 @@ class _OracleCellState:
     token: OracleCellHoldoutAdmission
     root: Path
     row: dict[str, Any]
-    claim_digest: str
+    cell_effect_digest: str
+    measurement_generation_digest: str
+    measurement_generation_claim_digest: str
     attempt_ids_by_schedule_index: Mapping[int, str]
     verified_freeze: dict[str, Any]
     neutral_holdouts: Mapping[str, Mapping[str, object]]
@@ -402,7 +422,9 @@ class _NPilotCellState:
     token: NPilotCellHoldoutAdmission
     root: Path
     row: dict[str, Any]
-    claim_digest: str
+    cell_effect_digest: str
+    measurement_generation_digest: str
+    measurement_generation_claim_digest: str
     attempt_ids_by_schedule_index: Mapping[int, str]
     verified_freeze: dict[str, Any]
     neutral_holdouts: Mapping[str, Mapping[str, object]]
@@ -550,7 +572,8 @@ def provision_shared_admission_root(repo_root: Path) -> Path:
     root = shared_admission_root(repo_root)
     _ensure_private_directory(root)
     for name in (
-        "claims", "consumed", _REFREEZE_DISQUALIFICATION_DIR,
+        "claims", "consumed", _MEASUREMENT_GENERATION_CLAIM_DIR,
+        _MEASUREMENT_GENERATION_CONSUMED_DIR, _REFREEZE_DISQUALIFICATION_DIR,
         _R33_TRANSACTION_DIR, _R33_RECEIPT_DIR, _R33_MANIFEST_DIR,
         _R33_QUARANTINE_DIR,
     ):
@@ -754,6 +777,216 @@ def _claim_digest(key: Mapping[str, str]) -> str:
 
 def _claim_path(root: Path, digest: str) -> Path:
     return root / "claims" / f"{digest}.claim"
+
+
+def _new_measurement_generation(
+    *, observation_role: str, campaign_run_id: str,
+) -> tuple[str, str]:
+    """Derive one campaign-run-scoped measurement identity and its digest."""
+
+    role = _require_text(observation_role, "observation_role")
+    if role not in _OBSERVATION_ROLES:
+        raise HoldoutAdmissionError(
+            f"observation_role is not recognized: {role}"
+        )
+    campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
+    identifier = _sha256({
+        "observation_role": role,
+        "campaign_run_id": campaign_run_id,
+    })
+    digest = _sha256({
+        "measurement_generation_id": identifier,
+        "observation_role": role,
+        "campaign_run_id": campaign_run_id,
+    })
+    return identifier, digest
+
+
+def _measurement_generation_claim_digest(
+    *, measurement_generation_digest: object, cell_effect_digest: object,
+) -> str:
+    return _sha256({
+        "measurement_generation_digest": _require_sha256(
+            measurement_generation_digest, "measurement_generation_digest",
+        ),
+        "cell_effect_digest": _require_sha256(
+            cell_effect_digest, "cell_effect_digest",
+        ),
+    })
+
+
+def _measurement_generation_claim_path(root: Path, digest: object) -> Path:
+    claim_digest = _require_sha256(
+        digest, "measurement_generation_claim_digest",
+    )
+    return root / _MEASUREMENT_GENERATION_CLAIM_DIR / f"{claim_digest}.claim"
+
+
+def _measurement_generation_campaign_run_id(
+    document: Mapping[str, object], *, observation_role: str,
+) -> str:
+    if observation_role == OBSERVATION_ROLE_ORACLE_DRIVER:
+        campaign_id = _require_text(document.get("campaign_id"), "campaign_id")
+        block_id = _require_text(document.get("block_id"), "block_id")
+        return f"{campaign_id}::{block_id}"
+    return _require_text(document.get("campaign_run_id"), "campaign_run_id")
+
+
+def _measurement_generation_identity_digest(
+    document: Mapping[str, object], *, observation_role: str,
+    expected_transaction_id: str | None = None,
+) -> str:
+    identifier = _require_sha256(
+        document.get("measurement_generation_id"),
+        "measurement_generation_id",
+    )
+    if (
+        expected_transaction_id is not None
+        and identifier
+        != _require_sha256(expected_transaction_id, "transaction_id")
+    ):
+        raise HoldoutAdmissionError(
+            "measurement generation transaction identity mismatch"
+        )
+    expected_identifier, expected_digest = _new_measurement_generation(
+        observation_role=observation_role,
+        campaign_run_id=_measurement_generation_campaign_run_id(
+            document, observation_role=observation_role,
+        ),
+    )
+    if (
+        identifier != expected_identifier
+        or document.get("measurement_generation_digest") != expected_digest
+    ):
+        raise HoldoutAdmissionError(
+            "measurement generation identity digest is invalid"
+        )
+    return expected_digest
+
+
+def _measurement_generation_claim_identity(
+    document: Mapping[str, object], *,
+    expected_transaction_id: str | None = None,
+) -> str:
+    """Validate one current claim's role-specific exact shape and identity."""
+
+    if not isinstance(document, Mapping):
+        raise HoldoutAdmissionError(
+            "measurement generation claim exact shape is invalid"
+        )
+    key = document.get("key")
+    if not isinstance(key, Mapping):
+        raise HoldoutAdmissionError("measurement generation claim key is invalid")
+    observation_role = key.get("observation_role")
+    expected_keys = _MEASUREMENT_GENERATION_CLAIM_KEYS_BY_ROLE.get(
+        observation_role
+    )
+    expected_schema = (
+        _R33_MEASUREMENT_GENERATION_CLAIM_SCHEMA
+        if observation_role == OBSERVATION_ROLE_N_PILOT_R33
+        else _MEASUREMENT_GENERATION_CLAIM_SCHEMA
+    )
+    if (
+        expected_keys is None
+        or set(document) != set(expected_keys)
+        or document.get("schema_version") != expected_schema
+        or document.get("event") != "claim"
+    ):
+        raise HoldoutAdmissionError(
+            "measurement generation claim exact shape is invalid"
+        )
+    try:
+        normalized_key = _key_fields(
+            freeze_sha256=key["freeze_sha256"],
+            freeze_holdout_key=key["freeze_holdout_key"],
+            configuration_id=key["configuration_id"],
+            ccbench_pin=key["ccbench_pin"],
+            env_tag=key["env_tag"],
+            observation_role=key["observation_role"],
+        )
+    except (KeyError, HoldoutAdmissionError) as exc:
+        raise HoldoutAdmissionError(
+            "measurement generation claim key is invalid"
+        ) from exc
+    if dict(key) != normalized_key:
+        raise HoldoutAdmissionError(
+            "measurement generation claim key is invalid"
+        )
+    cell_effect_digest = _claim_digest(normalized_key)
+    if document.get("cell_effect_digest") != cell_effect_digest:
+        raise HoldoutAdmissionError(
+            "measurement generation claim effect digest is invalid"
+        )
+    measurement_generation_digest = _measurement_generation_identity_digest(
+        document,
+        observation_role=str(observation_role),
+        expected_transaction_id=expected_transaction_id,
+    )
+    claim_digest = _measurement_generation_claim_digest(
+        measurement_generation_digest=measurement_generation_digest,
+        cell_effect_digest=cell_effect_digest,
+    )
+    if document.get("measurement_generation_claim_digest") != claim_digest:
+        raise HoldoutAdmissionError(
+            "measurement generation claim digest is invalid"
+        )
+    return claim_digest
+
+
+def _measurement_generation_ledger_claim_digest(
+    row: Mapping[str, object], *, expected_transaction_id: str | None = None,
+) -> str:
+    """Validate the common identity projection of one current ledger row."""
+
+    if not isinstance(row, Mapping):
+        raise HoldoutAdmissionError(
+            "measurement generation ledger row exact shape is invalid"
+        )
+    observation_role = row.get("observation_role")
+    expected_keys = _MEASUREMENT_GENERATION_LEDGER_KEYS_BY_ROLE.get(
+        observation_role
+    )
+    if (
+        expected_keys is None
+        or set(row) != set(expected_keys)
+        or row.get("schema_version")
+        != _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+        or row.get("event") != "admit"
+    ):
+        raise HoldoutAdmissionError(
+            "measurement generation ledger row exact shape is invalid"
+        )
+    try:
+        key = _key_fields(
+            freeze_sha256=row["freeze_sha256"],
+            freeze_holdout_key=row["freeze_holdout_key"],
+            configuration_id=row["configuration_id"],
+            ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
+            observation_role=row["observation_role"],
+        )
+    except (KeyError, HoldoutAdmissionError) as exc:
+        raise HoldoutAdmissionError(
+            "measurement generation ledger row key is invalid"
+        ) from exc
+    measurement_generation_digest = _measurement_generation_identity_digest(
+        row,
+        observation_role=str(observation_role),
+        expected_transaction_id=expected_transaction_id,
+    )
+    cell_effect_digest = _claim_digest(key)
+    if row.get("cell_effect_digest") != cell_effect_digest:
+        raise HoldoutAdmissionError(
+            "measurement generation ledger effect digest is invalid"
+        )
+    claim_digest = _measurement_generation_claim_digest(
+        measurement_generation_digest=measurement_generation_digest,
+        cell_effect_digest=cell_effect_digest,
+    )
+    if row.get("measurement_generation_claim_digest") != claim_digest:
+        raise HoldoutAdmissionError(
+            "measurement generation ledger claim digest is invalid"
+        )
+    return claim_digest
 
 
 def _refreeze_disqualification_name(campaign_run_id: str) -> str:
@@ -1208,7 +1441,6 @@ def reserve_floor_holdout_observations(
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     campaign_run_id: str, out_root: Path, run_dir: Path, run_relpath: str,
     mode: str, resume: bool, nondefault_seams: list[str],
-    irreversible_pilot_approved: bool,
 ) -> FloorHoldoutReservation:
     """Production reservation entrypoint with the fixed neutral signature table."""
 
@@ -1219,7 +1451,6 @@ def reserve_floor_holdout_observations(
         campaign_run_id=campaign_run_id, out_root=out_root, run_dir=run_dir,
         run_relpath=run_relpath, mode=mode, resume=resume,
         nondefault_seams=nondefault_seams,
-        irreversible_pilot_approved=irreversible_pilot_approved,
     )
 
 
@@ -1229,33 +1460,23 @@ def _reserve_floor_holdout_observations_core(
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     campaign_run_id: str, out_root: Path, run_dir: Path, run_relpath: str,
     mode: str, resume: bool, nondefault_seams: list[str],
-    irreversible_pilot_approved: bool,
     _neutral_holdouts: Mapping[str, Mapping[str, object]] | None = None,
 ) -> FloorHoldoutReservation:
     """Verify fixed authority and atomically reserve every frozen cell.
 
     Callers cannot summarize resume state: this boundary reads the actual
-    canonical manifest and journal bytes itself.  A pilot claim also records
-    the explicit acknowledgement that it irreversibly consumes the same
-    one-shot key a future official run would need.
+    canonical manifest and journal bytes itself.  A fresh invocation records
+    a new measurement generation; an exact resume reuses its durable one.
     """
 
     if type(resume) is not bool:
         raise HoldoutAdmissionError("resume must be an exact bool")
-    if type(irreversible_pilot_approved) is not bool:
-        raise HoldoutAdmissionError(
-            "irreversible_pilot_approved must be an exact bool"
-        )
     campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
     run_relpath = _portable_run_relpath(run_relpath)
     mode = _require_text(mode, "mode")
     if mode not in {"pilot", "official"}:
         raise HoldoutAdmissionError("mode is not pilot or official")
     nondefault_seams = _canonical_nondefault_seams(nondefault_seams)
-    if mode == "pilot" and not irreversible_pilot_approved:
-        raise HoldoutAdmissionError(
-            "pilot holdout observation requires irreversible one-shot approval"
-        )
     root = provision_shared_admission_root(Path(repo_root))
     measurement_head, protocol_sha256, fixed_protocol, fixed_freeze = _authority(
         Path(repo_root), protocol, verified_freeze_document, freeze_sha256,
@@ -1269,6 +1490,12 @@ def _reserve_floor_holdout_observations_core(
             campaign_run_id=campaign_run_id, resume=resume,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
             protocol_reps=protocol_reps,
+        )
+    )
+    measurement_generation_id, measurement_generation_digest = (
+        _new_measurement_generation(
+            observation_role=OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+            campaign_run_id=campaign_run_id,
         )
     )
     try:
@@ -1343,17 +1570,31 @@ def _reserve_floor_holdout_observations_core(
             env_tag=fixed_protocol["env_tag"],
             observation_role=OBSERVATION_ROLE_FLOOR_CAMPAIGN,
         )
+        cell_effect_digest = _claim_digest(key)
+        measurement_generation_claim_digest = (
+            _measurement_generation_claim_digest(
+                measurement_generation_digest=measurement_generation_digest,
+                cell_effect_digest=cell_effect_digest,
+            )
+        )
         attempts = _attempt_ids(
             cell_id=cell_id, schedule=normalized_schedule, retry_slots=retry_slots,
         )
         if len(attempts) != fixed_protocol["n_sessions"] + retry_slots:
             raise HoldoutAdmissionError("frozen attempt count is inconsistent")
         claims.append({
-            "schema_version": _CLAIM_SCHEMA_V2,
+            "schema_version": _MEASUREMENT_GENERATION_CLAIM_SCHEMA,
             "event": "claim",
             "key": key,
+            "cell_effect_digest": cell_effect_digest,
+            "measurement_generation_id": measurement_generation_id,
+            "measurement_generation_digest": measurement_generation_digest,
+            "measurement_generation_claim_digest": (
+                measurement_generation_claim_digest
+            ),
             "measurement_head": measurement_head,
             "protocol_sha256": protocol_sha256,
+            "manifest_sha256": manifest_sha256,
             "freeze_candidate_id": signature.freeze_candidate_id,
             "trial_workload_name": signature.trial_workload_name,
             "cell_id": cell_id,
@@ -1365,7 +1606,6 @@ def _reserve_floor_holdout_observations_core(
             "mode": mode,
             "entry_kind": "resume" if resume else "fresh",
             "nondefault_seams": nondefault_seams,
-            "irreversible_pilot_approved": irreversible_pilot_approved,
             "attempt_ids": list(attempts),
         })
 
@@ -1375,79 +1615,10 @@ def _reserve_floor_holdout_observations_core(
     )
     marker_path = _refreeze_disqualification_path(root, campaign_run_id)
 
-    # Run-wide fresh/resume transition table.  Every claim-count decision and
-    # immutable-schema compatibility branch is made under the same ledger lock.
+    # Historical effect-key claims are intentionally not consulted here.  The
+    # lock only keeps this reservation's durable writes and resume marker
+    # transition in one ordered critical section.
     with _locked(root):
-        existing: dict[str, dict[str, Any]] = {}
-        for claim in claims:
-            digest = _claim_digest(claim["key"])
-            path = _claim_path(root, digest)
-            if path.exists():
-                existing[digest] = _read_canonical_document(path)
-
-        existing_schemas = {
-            document.get("schema_version") for document in existing.values()
-        }
-        if not resume and existing:
-            raise HoldoutAdmissionError(
-                "holdout cell key was already consumed by another fresh run"
-            )
-        if resume and not existing_schemas.issubset(
-            {_CLAIM_SCHEMA_V1, _CLAIM_SCHEMA_V2}
-        ):
-            raise HoldoutAdmissionError("resume cell claim schema is unknown")
-        if resume and len(existing_schemas) > 1:
-            raise HoldoutAdmissionError(
-                "resume cell claims mix incompatible schema generations"
-            )
-        create_schema = (
-            _CLAIM_SCHEMA_V1
-            if existing_schemas == {_CLAIM_SCHEMA_V1}
-            else _CLAIM_SCHEMA_V2
-        )
-
-        existing_v2_basis: tuple[str, list[str]] | None = None
-
-        for claim in claims:
-            digest = _claim_digest(claim["key"])
-            path = _claim_path(root, digest)
-            prior = existing.get(digest)
-            if prior is not None:
-                expected = dict(claim)
-                if prior.get("schema_version") == _CLAIM_SCHEMA_V1:
-                    expected["schema_version"] = _CLAIM_SCHEMA_V1
-                    expected.pop("entry_kind")
-                    expected.pop("nondefault_seams")
-                else:
-                    prior_entry_kind = prior.get("entry_kind")
-                    if prior_entry_kind not in {"fresh", "resume"}:
-                        raise HoldoutAdmissionError(
-                            "resume v2 cell claim entry_kind is invalid"
-                        )
-                    try:
-                        prior_nondefault_seams = _canonical_nondefault_seams(
-                            prior.get("nondefault_seams")
-                        )
-                    except HoldoutAdmissionError as exc:
-                        raise HoldoutAdmissionError(
-                            "resume v2 cell claim nondefault_seams is invalid"
-                        ) from exc
-                    prior_basis = (
-                        prior_entry_kind, prior_nondefault_seams,
-                    )
-                    if existing_v2_basis is None:
-                        existing_v2_basis = prior_basis
-                    elif existing_v2_basis != prior_basis:
-                        raise HoldoutAdmissionError(
-                            "resume v2 cell claims mix incompatible eligibility basis"
-                        )
-                    expected["entry_kind"] = prior_entry_kind
-                    expected["nondefault_seams"] = prior_nondefault_seams
-                if prior != expected:
-                    raise HoldoutAdmissionError(
-                        "resume cell claim does not match the same run identity"
-                    )
-
         markers = _read_refreeze_markers_for_write(root)
         prior_marker = markers.get(campaign_run_id)
         if resume:
@@ -1462,38 +1633,50 @@ def _reserve_floor_holdout_observations_core(
                 "fresh reservation has a resume disqualification marker"
             )
 
+        effective_claims: list[dict[str, Any]] = []
         for claim in claims:
-            digest = _claim_digest(claim["key"])
-            path = _claim_path(root, digest)
-            if digest in existing:
-                continue
-            if resume and measurement_started:
-                raise HoldoutAdmissionError(
-                    "cannot backfill a missing cell claim after measurement started"
-                )
-            document = dict(claim)
-            if create_schema == _CLAIM_SCHEMA_V1:
-                document["schema_version"] = _CLAIM_SCHEMA_V1
-                document.pop("entry_kind")
-                document.pop("nondefault_seams")
-            try:
-                _write_exclusive(path, document)
-            except FileExistsError as exc:  # pragma: no cover - lock invariant
-                raise HoldoutAdmissionError(
-                    "claim appeared while the ledger lock was held"
-                ) from exc
-        effective_claims = [
-            _read_canonical_document(
-                _claim_path(root, _claim_digest(claim["key"]))
+            path = _measurement_generation_claim_path(
+                root, claim["measurement_generation_claim_digest"],
             )
-            for claim in claims
-        ]
+            try:
+                _write_exclusive(path, claim)
+            except FileExistsError as exc:
+                if not resume:
+                    raise HoldoutAdmissionError(
+                        "measurement generation claim identity was unexpectedly reused"
+                    ) from exc
+                existing = _read_canonical_document(path)
+                _measurement_generation_claim_identity(existing)
+                prior_entry_kind = existing.get("entry_kind")
+                if prior_entry_kind not in {"fresh", "resume"}:
+                    raise HoldoutAdmissionError(
+                        "resume measurement generation claim entry_kind is invalid"
+                    )
+                try:
+                    prior_nondefault_seams = _canonical_nondefault_seams(
+                        existing.get("nondefault_seams")
+                    )
+                except HoldoutAdmissionError as identity_exc:
+                    raise HoldoutAdmissionError(
+                        "resume measurement generation claim nondefault_seams is invalid"
+                    ) from identity_exc
+                expected = dict(claim)
+                expected["entry_kind"] = prior_entry_kind
+                expected["nondefault_seams"] = prior_nondefault_seams
+                if existing != expected:
+                    raise HoldoutAdmissionError(
+                        "resume cell claim does not match the same run identity"
+                    )
+            effective = _read_canonical_document(path)
+            _measurement_generation_claim_identity(effective)
+            effective_claims.append(effective)
 
     token = FloorHoldoutReservation(
         campaign_run_id=campaign_run_id,
         run_relpath=run_relpath,
         protocol_sha256=protocol_sha256,
         freeze_sha256=freeze_sha256,
+        measurement_generation_digest=measurement_generation_digest,
     )
     state = _ReservationState(
         token=token, root=root, measurement_head=measurement_head,
@@ -1504,7 +1687,6 @@ def _reserve_floor_holdout_observations_core(
         resume=resume, measurement_started=measurement_started,
         run_dir=canonical_run_dir, manifest_sha256=manifest_sha256,
         protocol_reps=protocol_reps,
-        irreversible_pilot_approved=irreversible_pilot_approved,
     )
     with _state_lock:
         _reservation_states[id(token)] = state
@@ -1530,9 +1712,17 @@ def finalize_floor_holdout_admissions(
     for claim in state.claims:
         key = dict(claim["key"])
         expected_rows.append({
-            "schema_version": _LEDGER_SCHEMA,
+            "schema_version": _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
             "event": "admit",
             **key,
+            "cell_effect_digest": claim["cell_effect_digest"],
+            "measurement_generation_id": claim["measurement_generation_id"],
+            "measurement_generation_digest": (
+                claim["measurement_generation_digest"]
+            ),
+            "measurement_generation_claim_digest": (
+                claim["measurement_generation_claim_digest"]
+            ),
             "measurement_head": state.measurement_head,
             "protocol_sha256": state.token.protocol_sha256,
             "manifest_sha256": manifest_sha256,
@@ -1545,19 +1735,21 @@ def finalize_floor_holdout_admissions(
             "campaign_run_id": state.token.campaign_run_id,
             "run_relpath": state.token.run_relpath,
             "mode": state.mode,
-            "irreversible_pilot_approved": state.irreversible_pilot_approved,
             "attempt_ids": claim["attempt_ids"],
             "attempt_count": len(claim["attempt_ids"]),
         })
 
     with _locked(state.root):
         rows = _read_ledger(state.root / _LEDGER_NAME)
-        by_key: dict[str, dict[str, Any]] = {}
+        by_measurement_generation_claim: dict[str, dict[str, Any]] = {}
         for row in rows:
-            if row.get("schema_version") != _LEDGER_SCHEMA or row.get("event") != "admit":
+            schema = row.get("schema_version")
+            if schema not in {
+                _LEDGER_SCHEMA, _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
+            } or row.get("event") != "admit":
                 raise HoldoutAdmissionError("admission ledger contains an unknown row")
             try:
-                digest = _claim_digest(_key_fields(
+                cell_effect_digest = _claim_digest(_key_fields(
                     freeze_sha256=row["freeze_sha256"],
                     freeze_holdout_key=row["freeze_holdout_key"],
                     configuration_id=row["configuration_id"],
@@ -1566,21 +1758,21 @@ def finalize_floor_holdout_admissions(
                 ))
             except (KeyError, HoldoutAdmissionError) as exc:
                 raise HoldoutAdmissionError("admission ledger row key is invalid") from exc
-            if digest in by_key:
-                raise HoldoutAdmissionError("admission ledger has a duplicate cell key")
-            by_key[digest] = row
+            if schema == _LEDGER_SCHEMA:
+                continue
+            claim_digest = _measurement_generation_ledger_claim_digest(row)
+            if claim_digest in by_measurement_generation_claim:
+                raise HoldoutAdmissionError(
+                    "admission ledger has a duplicate measurement generation claim"
+                )
+            by_measurement_generation_claim[claim_digest] = row
         missing = []
         for expected in expected_rows:
-            key = _key_fields(
-                freeze_sha256=expected["freeze_sha256"],
-                freeze_holdout_key=expected["freeze_holdout_key"],
-                configuration_id=expected["configuration_id"],
-                ccbench_pin=expected["ccbench_pin"], env_tag=expected["env_tag"],
-                observation_role=expected["observation_role"],
+            claim_digest = expected["measurement_generation_claim_digest"]
+            claim = _read_canonical_document(
+                _measurement_generation_claim_path(state.root, claim_digest)
             )
-            digest = _claim_digest(key)
-            claim = _read_canonical_document(_claim_path(state.root, digest))
-            matching = by_key.get(digest)
+            matching = by_measurement_generation_claim.get(claim_digest)
             if matching is not None:
                 if not state.resume:
                     raise HoldoutAdmissionError(
@@ -1609,13 +1801,13 @@ def finalize_floor_holdout_admissions(
         )
         cell_state = _CellState(
             token=token, root=state.root, row=row,
-            claim_digest=_claim_digest(_key_fields(
-                freeze_sha256=row["freeze_sha256"],
-                freeze_holdout_key=row["freeze_holdout_key"],
-                configuration_id=row["configuration_id"],
-                ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
-                observation_role=row["observation_role"],
-            )),
+            cell_effect_digest=row["cell_effect_digest"],
+            measurement_generation_digest=row[
+                "measurement_generation_digest"
+            ],
+            measurement_generation_claim_digest=row[
+                "measurement_generation_claim_digest"
+            ],
             attempt_ids=frozenset(row["attempt_ids"]),
             run_dir=state.run_dir, schedule=state.schedule,
             verified_freeze=state.freeze, neutral_holdouts=state.neutral_holdouts,
@@ -1689,6 +1881,12 @@ def reserve_oracle_holdout_observations(
     )
     campaign_id = _require_text(block.get("campaign_id"), "campaign_id")
     block_id = _require_text(block.get("block_id"), "block_id")
+    measurement_generation_id, measurement_generation_digest = (
+        _new_measurement_generation(
+            observation_role=OBSERVATION_ROLE_ORACLE_DRIVER,
+            campaign_run_id=f"{campaign_id}::{block_id}",
+        )
+    )
     schedule = block.get("schedule")
     if not isinstance(schedule, Sequence) or isinstance(
         schedule, (str, bytes, bytearray),
@@ -1741,10 +1939,23 @@ def reserve_oracle_holdout_observations(
             f"{campaign_id}::{block_id}::schedule{row['schedule_index']}"
             for row in cell_rows
         ]
+        cell_effect_digest = _claim_digest(key)
+        measurement_generation_claim_digest = (
+            _measurement_generation_claim_digest(
+                measurement_generation_digest=measurement_generation_digest,
+                cell_effect_digest=cell_effect_digest,
+            )
+        )
         claim = {
-            "schema_version": _CLAIM_SCHEMA_V1,
+            "schema_version": _MEASUREMENT_GENERATION_CLAIM_SCHEMA,
             "event": "claim",
             "key": key,
+            "cell_effect_digest": cell_effect_digest,
+            "measurement_generation_id": measurement_generation_id,
+            "measurement_generation_digest": measurement_generation_digest,
+            "measurement_generation_claim_digest": (
+                measurement_generation_claim_digest
+            ),
             "manifest_sha256": manifest_sha256,
             "schedule_sha256": schedule_sha256,
             "freeze_candidate_id": signature.freeze_candidate_id,
@@ -1760,9 +1971,15 @@ def reserve_oracle_holdout_observations(
         }
         claims.append(claim)
         ledger_rows.append({
-            "schema_version": _LEDGER_SCHEMA,
+            "schema_version": _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
             "event": "admit",
             **key,
+            "cell_effect_digest": cell_effect_digest,
+            "measurement_generation_id": measurement_generation_id,
+            "measurement_generation_digest": measurement_generation_digest,
+            "measurement_generation_claim_digest": (
+                measurement_generation_claim_digest
+            ),
             "manifest_sha256": manifest_sha256,
             "schedule_sha256": schedule_sha256,
             "freeze_candidate_id": signature.freeze_candidate_id,
@@ -1777,12 +1994,23 @@ def reserve_oracle_holdout_observations(
             "attempt_ids": attempt_ids,
             "attempt_count": len(attempt_ids),
         })
+        if (
+            _measurement_generation_claim_identity(claim)
+            != measurement_generation_claim_digest
+            or _measurement_generation_ledger_claim_digest(ledger_rows[-1])
+            != measurement_generation_claim_digest
+        ):  # pragma: no cover - source invariant
+            raise HoldoutAdmissionError(
+                "oracle measurement generation source identity is inconsistent"
+            )
 
     root = provision_shared_admission_root(Path(repo_root))
     with _locked(root):
         indexed: dict[str, dict[str, Any]] = {}
         for row in _read_ledger(root / _LEDGER_NAME):
-            if row.get("schema_version") != _LEDGER_SCHEMA or row.get("event") != "admit":
+            if row.get("schema_version") not in {
+                _LEDGER_SCHEMA, _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
+            } or row.get("event") != "admit":
                 raise HoldoutAdmissionError("admission ledger contains an unknown row")
             try:
                 key = _key_fields(
@@ -1795,21 +2023,27 @@ def reserve_oracle_holdout_observations(
                 )
             except (KeyError, HoldoutAdmissionError) as exc:
                 raise HoldoutAdmissionError("admission ledger row key is invalid") from exc
-            digest = _claim_digest(key)
+            if row.get("schema_version") == _LEDGER_SCHEMA:
+                continue
+            digest = _measurement_generation_ledger_claim_digest(row)
             if digest in indexed:
-                raise HoldoutAdmissionError("admission ledger has a duplicate cell key")
+                raise HoldoutAdmissionError(
+                    "admission ledger has a duplicate measurement generation claim"
+                )
             indexed[digest] = row
         for claim in claims:
-            digest = _claim_digest(claim["key"])
+            digest = claim["measurement_generation_claim_digest"]
             try:
-                _write_exclusive(_claim_path(root, digest), claim)
+                _write_exclusive(
+                    _measurement_generation_claim_path(root, digest), claim,
+                )
             except FileExistsError as exc:
                 raise HoldoutAdmissionError(
-                    "oracle holdout cell key was already consumed"
+                    "oracle measurement generation claim identity was reused"
                 ) from exc
             if digest in indexed:
                 raise HoldoutAdmissionError(
-                    "oracle ledger evidence existed without its durable claim"
+                    "oracle measurement generation ledger evidence already existed"
                 )
         _append_ledger(root / _LEDGER_NAME, ledger_rows)
 
@@ -1829,7 +2063,13 @@ def reserve_oracle_holdout_observations(
             token=token,
             root=root,
             row=row,
-            claim_digest=_claim_digest(claim["key"]),
+            cell_effect_digest=claim["cell_effect_digest"],
+            measurement_generation_digest=claim[
+                "measurement_generation_digest"
+            ],
+            measurement_generation_claim_digest=claim[
+                "measurement_generation_claim_digest"
+            ],
             attempt_ids_by_schedule_index=attempt_ids_by_schedule_index,
             verified_freeze=fixed_freeze,
             neutral_holdouts=neutral_holdouts,
@@ -1866,9 +2106,13 @@ def consume_oracle_attempt_ticket(
             "schedule_index is not in the oracle manifest ticket set"
         )
     marker = {
-        "schema_version": _ATTEMPT_SCHEMA,
+        "schema_version": _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA,
         "event": "consume",
-        "claim_digest": state.claim_digest,
+        "cell_effect_digest": state.cell_effect_digest,
+        "measurement_generation_digest": state.measurement_generation_digest,
+        "measurement_generation_claim_digest": (
+            state.measurement_generation_claim_digest
+        ),
         "attempt_id": attempt_id,
         "manifest_sha256": state.row["manifest_sha256"],
         "campaign_id": state.row["campaign_id"],
@@ -1880,7 +2124,10 @@ def consume_oracle_attempt_ticket(
         "observation_role": OBSERVATION_ROLE_ORACLE_DRIVER,
     }
     marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
-    path = state.root / "consumed" / f"{state.claim_digest}-{marker_digest}.json"
+    path = (
+        state.root / _MEASUREMENT_GENERATION_CONSUMED_DIR
+        / f"{state.measurement_generation_claim_digest}-{marker_digest}.json"
+    )
     with _locked(state.root):
         try:
             _write_exclusive(path, marker)
@@ -2083,6 +2330,7 @@ def _r33_claim_and_ledger_documents(
     *, cells_by_id: Mapping[str, Mapping[str, object]], signatures: Sequence[MinimalHoldoutSignature],
     protocol_sha256: str, freeze_sha256: str, schedule_sha256: str,
     ccbench_pin: str, env_tag: str, campaign_run_id: str, pilot_reps: int,
+    measurement_generation_id: str, measurement_generation_digest: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     signature_by_key = {item.freeze_holdout_key: item for item in signatures}
     claims: list[dict[str, Any]] = []
@@ -2107,7 +2355,20 @@ def _r33_claim_and_ledger_documents(
             env_tag=env_tag,
             observation_role=OBSERVATION_ROLE_N_PILOT_R33,
         )
+        cell_effect_digest = _claim_digest(key)
+        measurement_generation_claim_digest = (
+            _measurement_generation_claim_digest(
+                measurement_generation_digest=measurement_generation_digest,
+                cell_effect_digest=cell_effect_digest,
+            )
+        )
         common = {
+            "cell_effect_digest": cell_effect_digest,
+            "measurement_generation_id": measurement_generation_id,
+            "measurement_generation_digest": measurement_generation_digest,
+            "measurement_generation_claim_digest": (
+                measurement_generation_claim_digest
+            ),
             "protocol_sha256": protocol_sha256,
             "freeze_sha256": freeze_sha256,
             "schedule_sha256": schedule_sha256,
@@ -2118,19 +2379,18 @@ def _r33_claim_and_ledger_documents(
             "threads": cell["threads"],
             "workload": dict(cell["workload"]),
             "campaign_run_id": campaign_run_id,
-            "irreversible_pilot_approved": True,
             "schedule_indexes": schedule_indexes,
             "attempt_ids": attempt_ids,
             "attempt_count": len(attempt_ids),
         }
         claims.append({
-            "schema_version": _R33_CLAIM_SCHEMA,
+            "schema_version": _R33_MEASUREMENT_GENERATION_CLAIM_SCHEMA,
             "event": "claim",
             "key": key,
             **common,
         })
         ledger_rows.append({
-            "schema_version": _LEDGER_SCHEMA,
+            "schema_version": _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
             "event": "admit",
             **key,
             **common,
@@ -2221,38 +2481,28 @@ def _r33_staged_bytes_sha256(transaction_root: Path) -> str:
     return digest.hexdigest()
 
 
-def _r33_claim_key_digest(document: Mapping[str, object]) -> str:
+def _r33_claim_key_digest(
+    document: Mapping[str, object], *, expected_transaction_id: str | None = None,
+) -> str:
     key = document.get("key")
-    if not isinstance(key, Mapping):
-        raise HoldoutAdmissionError("R33 claim key is unavailable")
-    normalized = _key_fields(
-        freeze_sha256=key.get("freeze_sha256"),
-        freeze_holdout_key=key.get("freeze_holdout_key"),
-        configuration_id=key.get("configuration_id"),
-        ccbench_pin=key.get("ccbench_pin"),
-        env_tag=key.get("env_tag"),
-        observation_role=key.get("observation_role"),
+    if (
+        not isinstance(key, Mapping)
+        or key.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33
+    ):
+        raise HoldoutAdmissionError("R33 claim identity is not n_pilot_r33")
+    return _measurement_generation_claim_identity(
+        document, expected_transaction_id=expected_transaction_id,
     )
-    if normalized["observation_role"] != OBSERVATION_ROLE_N_PILOT_R33:
-        raise HoldoutAdmissionError("R33 transaction contains a non-R33 claim")
-    return _claim_digest(normalized)
 
 
-def _r33_ledger_key_digest(row: Mapping[str, object]) -> str:
-    try:
-        key = _key_fields(
-            freeze_sha256=row["freeze_sha256"],
-            freeze_holdout_key=row["freeze_holdout_key"],
-            configuration_id=row["configuration_id"],
-            ccbench_pin=row["ccbench_pin"],
-            env_tag=row["env_tag"],
-            observation_role=row["observation_role"],
-        )
-    except (KeyError, HoldoutAdmissionError) as exc:
-        raise HoldoutAdmissionError("R33 ledger row key is invalid") from exc
-    if key["observation_role"] != OBSERVATION_ROLE_N_PILOT_R33:
+def _r33_ledger_key_digest(
+    row: Mapping[str, object], *, expected_transaction_id: str | None = None,
+) -> str:
+    if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
         raise HoldoutAdmissionError("R33 ledger identity is not n_pilot_r33")
-    return _claim_digest(key)
+    return _measurement_generation_ledger_claim_digest(
+        row, expected_transaction_id=expected_transaction_id,
+    )
 
 
 def _r33_read_staged_claims(transaction_root: Path) -> list[tuple[str, dict[str, Any], bytes]]:
@@ -2267,7 +2517,9 @@ def _r33_read_staged_claims(transaction_root: Path) -> list[tuple[str, dict[str,
             raise HoldoutAdmissionError("R33 staged claim filename is noncanonical")
         raw = _r33_raw(path)
         document = _read_canonical_document(path)
-        digest = _r33_claim_key_digest(document)
+        digest = _r33_claim_key_digest(
+            document, expected_transaction_id=transaction_root.name,
+        )
         if path.stem != digest:
             raise HoldoutAdmissionError("R33 staged claim filename does not bind its key")
         claims.append((digest, document, raw))
@@ -2288,6 +2540,10 @@ def _r33_read_staged_transaction(
     append_rows = _r33_line_rows(append_raw, "staged ledger append")
     if len(append_rows) != 12:
         raise HoldoutAdmissionError("R33 transaction must stage exactly 12 ledger rows")
+    for row in append_rows:
+        _r33_ledger_key_digest(
+            row, expected_transaction_id=transaction_id,
+        )
     receipt_path = staged / "receipt.json"
     receipt_raw = _r33_raw(receipt_path)
     receipt = _read_canonical_json_bytes(receipt_path)
@@ -2492,7 +2748,7 @@ def _r33_validate_commit(
     expected_claim_files = [
         {
             "claim_digest": digest,
-            "path": f"claims/{digest}.claim",
+            "path": f"{_MEASUREMENT_GENERATION_CLAIM_DIR}/{digest}.claim",
             "sha256": hashlib.sha256(raw).hexdigest(),
         }
         for digest, _claim, raw in claims
@@ -2502,7 +2758,9 @@ def _r33_validate_commit(
     claim_by_digest = {digest: claim for digest, claim, _raw in claims}
     row_by_digest: dict[str, dict[str, Any]] = {}
     for row in append_rows:
-        digest = _r33_ledger_key_digest(row)
+        digest = _r33_ledger_key_digest(
+            row, expected_transaction_id=transaction_id,
+        )
         if digest in row_by_digest or digest not in claim_by_digest:
             raise HoldoutAdmissionError("R33 transaction ledger identity is invalid")
         row_by_digest[digest] = row
@@ -2511,6 +2769,15 @@ def _r33_validate_commit(
     for digest, claim, raw in claims:
         row = row_by_digest[digest]
         if (
+            claim.get("measurement_generation_id") != transaction_id
+            or row.get("measurement_generation_id") != transaction_id
+            or claim.get("measurement_generation_id")
+            != row.get("measurement_generation_id")
+            or claim.get("measurement_generation_digest")
+            != row.get("measurement_generation_digest")
+            or claim.get("measurement_generation_claim_digest")
+            != row.get("measurement_generation_claim_digest")
+            or
             claim.get("campaign_run_id") != receipt["campaign_run_id"]
             or row.get("campaign_run_id") != receipt["campaign_run_id"]
             or claim.get("protocol_sha256") != receipt["protocol_sha256"]
@@ -2555,7 +2822,10 @@ def _r33_transaction_visible_publish(
         root / _R33_RECEIPT_DIR / f"{receipt_sha256}.json"
     ).exists():
         return True
-    if any((root / "claims" / f"{digest}.claim").exists() for digest in claim_digests):
+    if any(
+        _measurement_generation_claim_path(root, digest).exists()
+        for digest in claim_digests
+    ):
         return True
     receipts_root = root / _R33_RECEIPT_DIR
     if receipts_root.is_dir() and not receipts_root.is_symlink():
@@ -2573,7 +2843,11 @@ def _r33_transaction_visible_publish(
     ledger_path = root / _LEDGER_NAME
     if ledger_path.exists():
         for row in _read_ledger(ledger_path):
-            if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+            if (
+                row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33
+                or row.get("schema_version")
+                != _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+            ):
                 continue
             try:
                 if _r33_ledger_key_digest(row) in claim_digests:
@@ -2727,9 +3001,15 @@ def _r33_apply_committed_transaction_locked(root: Path, transaction_id: str) -> 
         )
     current_by_digest: dict[str, dict[str, Any]] = {}
     for row in current_rows:
-        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+        if (
+            row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33
+            or row.get("schema_version")
+            != _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+        ):
             continue
         digest = _r33_ledger_key_digest(row)
+        if row.get("measurement_generation_id") != transaction_id:
+            continue
         if digest in current_by_digest:
             if current_by_digest[digest] != row:
                 raise HoldoutAdmissionError("R33 ledger identity has conflicting rows")
@@ -2739,7 +3019,12 @@ def _r33_apply_committed_transaction_locked(root: Path, transaction_id: str) -> 
     base_r33_digests = {
         _r33_ledger_key_digest(row)
         for row in base_rows
-        if row.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
+        if (
+            row.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
+            and row.get("schema_version")
+            == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+            and row.get("measurement_generation_id") == transaction_id
+        )
     }
     append_by_digest: dict[str, dict[str, Any]] = {}
     for row in append_rows:
@@ -2763,7 +3048,7 @@ def _r33_apply_committed_transaction_locked(root: Path, transaction_id: str) -> 
 
     for digest, _claim, raw in claims:
         _r33_publish_exact(
-            root / "claims" / f"{digest}.claim", raw,
+            _measurement_generation_claim_path(root, digest), raw,
             logical_name=f"{digest}.claim", guarded=False,
         )
     receipt_raw = _r33_raw(transaction_root / "staged" / "receipt.json")
@@ -2910,10 +3195,14 @@ def _r33_build_receipt(
     claims: Sequence[Mapping[str, object]], ledger_rows: Sequence[Mapping[str, object]],
 ) -> tuple[dict[str, object], str, dict[str, object]]:
     row_by_digest = {
-        _r33_ledger_key_digest(row): row for row in ledger_rows
+        _r33_ledger_key_digest(
+            row, expected_transaction_id=transaction_id,
+        ): row for row in ledger_rows
     }
     claim_by_digest = {
-        _r33_claim_key_digest(claim): claim for claim in claims
+        _r33_claim_key_digest(
+            claim, expected_transaction_id=transaction_id,
+        ): claim for claim in claims
     }
     if set(row_by_digest) != set(claim_by_digest) or len(claims) != 12:
         raise HoldoutAdmissionError("R33 receipt claim/ledger coverage is incomplete")
@@ -2968,11 +3257,12 @@ def _r33_build_receipt(
 
 
 def _r33_stage_and_commit(
-    *, root: Path, campaign_run_id: str, protocol_sha256: str,
+    *, root: Path, transaction_id: str, campaign_run_id: str,
+    protocol_sha256: str,
     freeze_sha256: str, freeze_canonical_sha256: str, schedule_sha256: str,
     claims: Sequence[Mapping[str, object]], ledger_rows: Sequence[Mapping[str, object]],
 ) -> NPilotReservationReceipt:
-    transaction_id = secrets.token_hex(32)
+    transaction_id = _require_sha256(transaction_id, "transaction_id")
     transaction_root = root / _R33_TRANSACTION_DIR / transaction_id
     staged = transaction_root / "staged"
     _ensure_private_directory(transaction_root)
@@ -2981,26 +3271,41 @@ def _r33_stage_and_commit(
     current_raw, current_rows = _r33_existing_ledger_rows(root)
     current_r33: dict[str, dict[str, Any]] = {}
     for row in current_rows:
-        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+        if (
+            row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33
+            or row.get("schema_version")
+            != _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+        ):
             continue
         digest = _r33_ledger_key_digest(row)
         if digest in current_r33:
             raise HoldoutAdmissionError("R33 admission ledger has a duplicate cell key")
         current_r33[digest] = row
-    claim_digests = [_r33_claim_key_digest(claim) for claim in claims]
+    claim_digests = [
+        _r33_claim_key_digest(
+            claim, expected_transaction_id=transaction_id,
+        )
+        for claim in claims
+    ]
     if len(set(claim_digests)) != len(claim_digests):
         raise HoldoutAdmissionError("R33 claim key is duplicated")
     if set(current_r33).intersection(claim_digests):
-        raise HoldoutAdmissionError("n pilot R33 holdout cell key was already consumed")
+        raise HoldoutAdmissionError(
+            "n pilot R33 measurement generation claim already exists"
+        )
     for digest in claim_digests:
-        if (root / "claims" / f"{digest}.claim").exists():
-            raise HoldoutAdmissionError("n pilot R33 durable claim was already published")
+        if _measurement_generation_claim_path(root, digest).exists():
+            raise HoldoutAdmissionError(
+                "n pilot R33 measurement generation claim was already published"
+            )
 
     _r33_create_raw(staged / "base-ledger.jsonl", current_raw)
     append_raw = b"".join(_canonical_line(dict(row)) for row in ledger_rows)
     _r33_create_raw(staged / "ledger-append.jsonl", append_raw)
     for claim in claims:
-        digest = _r33_claim_key_digest(claim)
+        digest = _r33_claim_key_digest(
+            claim, expected_transaction_id=transaction_id,
+        )
         _r33_create_raw(
             staged / "claims" / f"{digest}.claim", _canonical_line(dict(claim))
         )
@@ -3032,7 +3337,7 @@ def _r33_stage_and_commit(
         "claim_files": [
             {
                 "claim_digest": digest,
-                "path": f"claims/{digest}.claim",
+                "path": f"{_MEASUREMENT_GENERATION_CLAIM_DIR}/{digest}.claim",
                 "sha256": hashlib.sha256(_canonical_line(dict(claim))).hexdigest(),
             }
             for digest, claim in sorted(
@@ -3055,11 +3360,15 @@ def _reserve_n_pilot_r33_holdout_observations(
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
     campaign_run_id: str, irreversible_pilot_approved: bool,
 ) -> NPilotReservationReceipt:
-    if irreversible_pilot_approved is not True:
-        raise HoldoutAdmissionError(
-            "n pilot holdout observation requires irreversible one-shot approval"
-        )
+    del irreversible_pilot_approved
     campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
+    transaction_id, measurement_generation_digest = (
+        _new_measurement_generation(
+            observation_role=OBSERVATION_ROLE_N_PILOT_R33,
+            campaign_run_id=campaign_run_id,
+        )
+    )
+    measurement_generation_id = transaction_id
     (
         protocol_document, protocol_sha256, freeze_document, freeze_sha256,
         freeze_canonical_sha256, ccbench_pin, env_tag, pilot_reps,
@@ -3082,13 +3391,16 @@ def _reserve_n_pilot_r33_holdout_observations(
         protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
         schedule_sha256=schedule_sha256, ccbench_pin=ccbench_pin, env_tag=env_tag,
         campaign_run_id=campaign_run_id, pilot_reps=pilot_reps,
+        measurement_generation_id=measurement_generation_id,
+        measurement_generation_digest=measurement_generation_digest,
     )
     root = provision_shared_admission_root(Path(repo_root))
     with _locked(root):
         _recover_n_pilot_transactions_locked(root)
         _recover_n_pilot_attempt_ledger_locked(root)
         return _r33_stage_and_commit(
-            root=root, campaign_run_id=campaign_run_id,
+            root=root, transaction_id=transaction_id,
+            campaign_run_id=campaign_run_id,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
             freeze_canonical_sha256=freeze_canonical_sha256,
             schedule_sha256=schedule_sha256, claims=claims, ledger_rows=ledger_rows,
@@ -3118,11 +3430,14 @@ def reserve_n_pilot_holdout_observations(
             irreversible_pilot_approved=irreversible_pilot_approved,
         )
 
-    if irreversible_pilot_approved is not True:
-        raise HoldoutAdmissionError(
-            "n pilot holdout observation requires irreversible one-shot approval"
-        )
+    del irreversible_pilot_approved
     campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
+    measurement_generation_id, measurement_generation_digest = (
+        _new_measurement_generation(
+            observation_role=OBSERVATION_ROLE_N_PILOT,
+            campaign_run_id=campaign_run_id,
+        )
+    )
     protocol_sha256 = _require_sha256(protocol_sha256, "protocol_sha256")
     protocol_document = _mutable_json_tree(protocol)
     if not isinstance(protocol_document, dict):
@@ -3253,10 +3568,23 @@ def reserve_n_pilot_holdout_observations(
             env_tag=env_tag,
             observation_role=OBSERVATION_ROLE_N_PILOT,
         )
+        cell_effect_digest = _claim_digest(key)
+        measurement_generation_claim_digest = (
+            _measurement_generation_claim_digest(
+                measurement_generation_digest=measurement_generation_digest,
+                cell_effect_digest=cell_effect_digest,
+            )
+        )
         claim = {
-            "schema_version": _CLAIM_SCHEMA_V1,
+            "schema_version": _MEASUREMENT_GENERATION_CLAIM_SCHEMA,
             "event": "claim",
             "key": key,
+            "cell_effect_digest": cell_effect_digest,
+            "measurement_generation_id": measurement_generation_id,
+            "measurement_generation_digest": measurement_generation_digest,
+            "measurement_generation_claim_digest": (
+                measurement_generation_claim_digest
+            ),
             "protocol_sha256": protocol_sha256,
             "schedule_sha256": schedule_sha256,
             "freeze_candidate_id": signature.freeze_candidate_id,
@@ -3266,15 +3594,20 @@ def reserve_n_pilot_holdout_observations(
             "threads": cell["threads"],
             "workload": dict(cell["workload"]),
             "campaign_run_id": campaign_run_id,
-            "irreversible_pilot_approved": True,
             "schedule_indexes": schedule_indexes,
             "attempt_ids": attempt_ids,
         }
         claims.append(claim)
         ledger_rows.append({
-            "schema_version": _LEDGER_SCHEMA,
+            "schema_version": _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
             "event": "admit",
             **key,
+            "cell_effect_digest": cell_effect_digest,
+            "measurement_generation_id": measurement_generation_id,
+            "measurement_generation_digest": measurement_generation_digest,
+            "measurement_generation_claim_digest": (
+                measurement_generation_claim_digest
+            ),
             "protocol_sha256": protocol_sha256,
             "schedule_sha256": schedule_sha256,
             "freeze_candidate_id": signature.freeze_candidate_id,
@@ -3284,18 +3617,28 @@ def reserve_n_pilot_holdout_observations(
             "threads": cell["threads"],
             "workload": dict(cell["workload"]),
             "campaign_run_id": campaign_run_id,
-            "irreversible_pilot_approved": True,
             "reps": pilot_reps,
             "schedule_indexes": schedule_indexes,
             "attempt_ids": attempt_ids,
             "attempt_count": len(attempt_ids),
         })
+        if (
+            _measurement_generation_claim_identity(claim)
+            != measurement_generation_claim_digest
+            or _measurement_generation_ledger_claim_digest(ledger_rows[-1])
+            != measurement_generation_claim_digest
+        ):  # pragma: no cover - source invariant
+            raise HoldoutAdmissionError(
+                "n pilot measurement generation source identity is inconsistent"
+            )
 
     root = provision_shared_admission_root(Path(repo_root))
     with _locked(root):
         indexed: dict[str, dict[str, Any]] = {}
         for row in _read_ledger(root / _LEDGER_NAME):
-            if row.get("schema_version") != _LEDGER_SCHEMA or row.get("event") != "admit":
+            if row.get("schema_version") not in {
+                _LEDGER_SCHEMA, _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
+            } or row.get("event") != "admit":
                 raise HoldoutAdmissionError("admission ledger contains an unknown row")
             try:
                 key = _key_fields(
@@ -3308,21 +3651,27 @@ def reserve_n_pilot_holdout_observations(
                 )
             except (KeyError, HoldoutAdmissionError) as exc:
                 raise HoldoutAdmissionError("admission ledger row key is invalid") from exc
-            digest = _claim_digest(key)
+            if row.get("schema_version") == _LEDGER_SCHEMA:
+                continue
+            digest = _measurement_generation_ledger_claim_digest(row)
             if digest in indexed:
-                raise HoldoutAdmissionError("admission ledger has a duplicate cell key")
+                raise HoldoutAdmissionError(
+                    "admission ledger has a duplicate measurement generation claim"
+                )
             indexed[digest] = row
         for claim in claims:
-            digest = _claim_digest(claim["key"])
+            digest = claim["measurement_generation_claim_digest"]
             try:
-                _write_exclusive(_claim_path(root, digest), claim)
+                _write_exclusive(
+                    _measurement_generation_claim_path(root, digest), claim,
+                )
             except FileExistsError as exc:
                 raise HoldoutAdmissionError(
-                    "n pilot holdout cell key was already consumed"
+                    "n pilot measurement generation claim identity was reused"
                 ) from exc
             if digest in indexed:
                 raise HoldoutAdmissionError(
-                    "n pilot ledger evidence existed without its durable claim"
+                    "n pilot measurement generation ledger evidence already existed"
                 )
         _append_ledger(root / _LEDGER_NAME, ledger_rows)
 
@@ -3339,7 +3688,13 @@ def reserve_n_pilot_holdout_observations(
             token=token,
             root=root,
             row=row,
-            claim_digest=_claim_digest(claim["key"]),
+            cell_effect_digest=claim["cell_effect_digest"],
+            measurement_generation_digest=claim[
+                "measurement_generation_digest"
+            ],
+            measurement_generation_claim_digest=claim[
+                "measurement_generation_claim_digest"
+            ],
             attempt_ids_by_schedule_index=dict(zip(
                 row["schedule_indexes"], row["attempt_ids"], strict=True,
             )),
@@ -3358,6 +3713,7 @@ def reserve_n_pilot_holdout_observations(
 
 _R33_ATTEMPT_MARKER_KEYS = frozenset({
     "schema_version", "event", "claim_digest", "attempt_id",
+    "measurement_generation_digest",
     "protocol_sha256", "freeze_sha256", "schedule_sha256",
     "campaign_run_id", "schedule_index", "cell_id", "freeze_holdout_key",
     "configuration_id", "observation_role",
@@ -3368,7 +3724,10 @@ def _r33_canonical_marker_path(root: Path, marker: Mapping[str, object]) -> Path
     marker_raw = _canonical_line(dict(marker))
     marker_digest = hashlib.sha256(marker_raw).hexdigest()
     claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
-    return root / "consumed" / f"{claim_digest}-{marker_digest}.json"
+    return (
+        root / _MEASUREMENT_GENERATION_CONSUMED_DIR
+        / f"{claim_digest}-{marker_digest}.json"
+    )
 
 
 def _canonical_n_pilot_attempt_ledger_row(
@@ -3380,7 +3739,11 @@ def _canonical_n_pilot_attempt_ledger_row(
 
     if not isinstance(marker, Mapping) or set(marker) != set(_R33_ATTEMPT_MARKER_KEYS):
         raise HoldoutAdmissionError("R33 consume marker schema is invalid")
-    if marker.get("schema_version") != _ATTEMPT_SCHEMA or marker.get("event") != "consume":
+    if (
+        marker.get("schema_version")
+        != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA
+        or marker.get("event") != "consume"
+    ):
         raise HoldoutAdmissionError("R33 consume marker version is invalid")
     if marker.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
         raise HoldoutAdmissionError("R33 consume marker role is invalid")
@@ -3389,9 +3752,13 @@ def _canonical_n_pilot_attempt_ledger_row(
     schedule_index = marker.get("schedule_index")
     if type(schedule_index) is not int or not 0 <= schedule_index < 396:
         raise HoldoutAdmissionError("R33 consume marker schedule index is invalid")
-    claim_path = _claim_path(root, claim_digest)
+    claim_path = _measurement_generation_claim_path(root, claim_digest)
     claim = _read_canonical_document(claim_path)
-    if claim.get("schema_version") != _R33_CLAIM_SCHEMA or claim.get("event") != "claim":
+    if (
+        claim.get("schema_version")
+        != _R33_MEASUREMENT_GENERATION_CLAIM_SCHEMA
+        or claim.get("event") != "claim"
+    ):
         raise HoldoutAdmissionError("R33 consume claim schema is invalid")
     if _r33_claim_key_digest(claim) != claim_digest:
         raise HoldoutAdmissionError("R33 consume claim digest mismatch")
@@ -3411,10 +3778,13 @@ def _canonical_n_pilot_attempt_ledger_row(
     if not isinstance(key, Mapping):
         raise HoldoutAdmissionError("R33 consume claim key is invalid")
     expected = {
-        "schema_version": _ATTEMPT_SCHEMA,
+        "schema_version": _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA,
         "event": "consume",
         "claim_digest": claim_digest,
         "attempt_id": attempt_id,
+        "measurement_generation_digest": claim[
+            "measurement_generation_digest"
+        ],
         "protocol_sha256": claim["protocol_sha256"],
         "freeze_sha256": claim["freeze_sha256"],
         "schedule_sha256": claim["schedule_sha256"],
@@ -3437,7 +3807,11 @@ def _recover_n_pilot_attempt_ledger_locked(root: Path) -> None:
     existing_rows = _read_ledger(attempt_path)
     by_identity: dict[tuple[str, str], dict[str, Any]] = {}
     for row in existing_rows:
-        if row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33:
+        if (
+            row.get("observation_role") != OBSERVATION_ROLE_N_PILOT_R33
+            or row.get("schema_version")
+            != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA
+        ):
             continue
         expected = _canonical_n_pilot_attempt_ledger_row(root=root, marker=row)
         identity = (str(row["claim_digest"]), str(row["attempt_id"]))
@@ -3447,7 +3821,7 @@ def _recover_n_pilot_attempt_ledger_locked(root: Path) -> None:
             raise HoldoutAdmissionError("R33 attempt ledger row differs from canonical marker row")
         by_identity[identity] = row
 
-    consumed = root / "consumed"
+    consumed = root / _MEASUREMENT_GENERATION_CONSUMED_DIR
     try:
         paths = sorted(consumed.iterdir(), key=lambda path: path.name)
     except OSError as exc:
@@ -3566,17 +3940,27 @@ def _consume_n_pilot_r33_attempt_ticket(
     with _locked(root):
         _recover_n_pilot_transactions_locked(root)
         _recover_n_pilot_attempt_ledger_locked(root)
-        claim_path = _claim_path(root, claim_digest)
+        claim_path = _measurement_generation_claim_path(root, claim_digest)
         claim = _read_canonical_document(claim_path)
         claim_raw = _r33_raw(claim_path)
         if hashlib.sha256(claim_raw).hexdigest() != cell["claim_file_sha256"]:
             raise HoldoutAdmissionError("R33 claim file hash is not receipt-bound")
-        if _r33_claim_key_digest(claim) != claim_digest:
+        if _r33_claim_key_digest(
+            claim,
+            expected_transaction_id=receipt_document["transaction_id"],
+        ) != claim_digest:
             raise HoldoutAdmissionError("R33 claim digest is not receipt-bound")
         row_candidates = [
             row for row in _read_ledger(root / _LEDGER_NAME)
             if row.get("observation_role") == OBSERVATION_ROLE_N_PILOT_R33
-            and _r33_ledger_key_digest(row) == claim_digest
+            and row.get("schema_version")
+            == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+            and row.get("measurement_generation_digest")
+            == claim.get("measurement_generation_digest")
+            and _r33_ledger_key_digest(
+                row,
+                expected_transaction_id=receipt_document["transaction_id"],
+            ) == claim_digest
         ]
         if len(row_candidates) != 1:
             raise HoldoutAdmissionError("R33 claim has no unique durable ledger row")
@@ -3590,16 +3974,27 @@ def _consume_n_pilot_r33_attempt_ticket(
             or row.get("protocol_sha256") != claim.get("protocol_sha256")
             or row.get("freeze_sha256") != claim.get("freeze_sha256")
             or row.get("schedule_sha256") != claim.get("schedule_sha256")
+            or claim.get("measurement_generation_id")
+            != receipt_document["transaction_id"]
+            or row.get("measurement_generation_id")
+            != receipt_document["transaction_id"]
+            or claim.get("measurement_generation_digest")
+            != row.get("measurement_generation_digest")
+            or claim.get("measurement_generation_claim_digest")
+            != row.get("measurement_generation_claim_digest")
             or claim.get("campaign_run_id") != receipt_document["campaign_run_id"]
             or row.get("campaign_run_id") != receipt_document["campaign_run_id"]
             or row.get("reps") is None
         ):
             raise HoldoutAdmissionError("R33 claim/ledger receipt binding is invalid")
         marker = {
-            "schema_version": _ATTEMPT_SCHEMA,
+            "schema_version": _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA,
             "event": "consume",
             "claim_digest": claim_digest,
             "attempt_id": claim["attempt_ids"][claim["schedule_indexes"].index(global_schedule_index)],
+            "measurement_generation_digest": claim[
+                "measurement_generation_digest"
+            ],
             "protocol_sha256": claim["protocol_sha256"],
             "freeze_sha256": claim["freeze_sha256"],
             "schedule_sha256": claim["schedule_sha256"],
@@ -3703,9 +4098,13 @@ def consume_n_pilot_attempt_ticket(
     if attempt_id is None:
         raise HoldoutAdmissionError("schedule_index is not in the n pilot ticket set")
     marker = {
-        "schema_version": _ATTEMPT_SCHEMA,
+        "schema_version": _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA,
         "event": "consume",
-        "claim_digest": state.claim_digest,
+        "cell_effect_digest": state.cell_effect_digest,
+        "measurement_generation_digest": state.measurement_generation_digest,
+        "measurement_generation_claim_digest": (
+            state.measurement_generation_claim_digest
+        ),
         "attempt_id": attempt_id,
         "protocol_sha256": state.row["protocol_sha256"],
         "freeze_sha256": state.row["freeze_sha256"],
@@ -3718,7 +4117,10 @@ def consume_n_pilot_attempt_ticket(
         "observation_role": OBSERVATION_ROLE_N_PILOT,
     }
     marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
-    path = state.root / "consumed" / f"{state.claim_digest}-{marker_digest}.json"
+    path = (
+        state.root / _MEASUREMENT_GENERATION_CONSUMED_DIR
+        / f"{state.measurement_generation_claim_digest}-{marker_digest}.json"
+    )
     with _locked(state.root):
         try:
             _write_exclusive(path, marker)
@@ -3872,8 +4274,25 @@ def consume_attempt_ticket(
 def _floor_attempt_document_for_state(
     state: _CellState, *, attempt_id: str,
 ) -> dict[str, object]:
-    return _canonical_floor_attempt_document(
-        claim_digest=state.claim_digest, attempt_id=attempt_id,
+    if (
+        state.measurement_generation_digest is None
+        or state.measurement_generation_claim_digest is None
+    ):
+        return _canonical_floor_attempt_document(
+            claim_digest=state.cell_effect_digest, attempt_id=attempt_id,
+            campaign_run_id=state.row["campaign_run_id"],
+            manifest_sha256=state.row["manifest_sha256"],
+            run_relpath=state.row["run_relpath"], cell_id=state.row["cell_id"],
+            freeze_holdout_key=state.row["freeze_holdout_key"],
+            configuration_id=state.row["configuration_id"],
+        )
+    return _canonical_measurement_generation_floor_attempt_document(
+        cell_effect_digest=state.cell_effect_digest,
+        measurement_generation_digest=state.measurement_generation_digest,
+        measurement_generation_claim_digest=(
+            state.measurement_generation_claim_digest
+        ),
+        attempt_id=attempt_id,
         campaign_run_id=state.row["campaign_run_id"],
         manifest_sha256=state.row["manifest_sha256"],
         run_relpath=state.row["run_relpath"], cell_id=state.row["cell_id"],
@@ -3928,6 +4347,146 @@ _FLOOR_ATTEMPT_KEYS = frozenset({
     "manifest_sha256", "run_relpath", "cell_id", "freeze_holdout_key",
     "configuration_id", "observation_role",
 })
+_MEASUREMENT_GENERATION_CLAIM_KEYS = frozenset({
+    "schema_version", "event", "key", "cell_effect_digest",
+    "measurement_generation_id", "measurement_generation_digest",
+    "measurement_generation_claim_digest", "measurement_head",
+    "protocol_sha256", "manifest_sha256", "freeze_candidate_id",
+    "trial_workload_name",
+    "cell_id", "records", "threads", "workload", "campaign_run_id",
+    "run_relpath", "mode", "entry_kind", "nondefault_seams", "attempt_ids",
+})
+_MEASUREMENT_GENERATION_LEDGER_KEYS = frozenset({
+    "schema_version", "event", "freeze_sha256", "freeze_holdout_key",
+    "configuration_id", "ccbench_pin", "env_tag", "observation_role",
+    "cell_effect_digest", "measurement_generation_id",
+    "measurement_generation_digest", "measurement_generation_claim_digest",
+    "measurement_head", "protocol_sha256", "manifest_sha256",
+    "freeze_candidate_id", "trial_workload_name", "cell_id", "records",
+    "threads", "workload", "campaign_run_id", "run_relpath", "mode",
+    "attempt_ids", "attempt_count",
+})
+_ORACLE_MEASUREMENT_GENERATION_CLAIM_KEYS = frozenset({
+    "schema_version", "event", "key", "cell_effect_digest",
+    "measurement_generation_id", "measurement_generation_digest",
+    "measurement_generation_claim_digest", "manifest_sha256",
+    "schedule_sha256", "freeze_candidate_id", "trial_workload_name",
+    "cell_id", "records", "threads", "workload", "campaign_id", "block_id",
+    "schedule_indexes", "attempt_ids",
+})
+_ORACLE_MEASUREMENT_GENERATION_LEDGER_KEYS = frozenset({
+    "schema_version", "event", "freeze_sha256", "freeze_holdout_key",
+    "configuration_id", "ccbench_pin", "env_tag", "observation_role",
+    "cell_effect_digest", "measurement_generation_id",
+    "measurement_generation_digest", "measurement_generation_claim_digest",
+    "manifest_sha256", "schedule_sha256", "freeze_candidate_id",
+    "trial_workload_name", "cell_id", "records", "threads", "workload",
+    "campaign_id", "block_id", "schedule_indexes", "attempt_ids",
+    "attempt_count",
+})
+_N_PILOT_MEASUREMENT_GENERATION_CLAIM_KEYS = frozenset({
+    "schema_version", "event", "key", "cell_effect_digest",
+    "measurement_generation_id", "measurement_generation_digest",
+    "measurement_generation_claim_digest", "protocol_sha256",
+    "schedule_sha256", "freeze_candidate_id", "trial_workload_name",
+    "cell_id", "records", "threads", "workload", "campaign_run_id",
+    "schedule_indexes", "attempt_ids",
+})
+_N_PILOT_MEASUREMENT_GENERATION_LEDGER_KEYS = frozenset({
+    "schema_version", "event", "freeze_sha256", "freeze_holdout_key",
+    "configuration_id", "ccbench_pin", "env_tag", "observation_role",
+    "cell_effect_digest", "measurement_generation_id",
+    "measurement_generation_digest", "measurement_generation_claim_digest",
+    "protocol_sha256", "schedule_sha256", "freeze_candidate_id",
+    "trial_workload_name", "cell_id", "records", "threads", "workload",
+    "campaign_run_id", "reps", "schedule_indexes", "attempt_ids",
+    "attempt_count",
+})
+_R33_MEASUREMENT_GENERATION_CLAIM_KEYS = frozenset({
+    "schema_version", "event", "key", "cell_effect_digest",
+    "measurement_generation_id", "measurement_generation_digest",
+    "measurement_generation_claim_digest", "protocol_sha256", "freeze_sha256",
+    "schedule_sha256", "freeze_candidate_id", "trial_workload_name",
+    "cell_id", "records", "threads", "workload", "campaign_run_id",
+    "schedule_indexes", "attempt_ids", "attempt_count",
+})
+_R33_MEASUREMENT_GENERATION_LEDGER_KEYS = frozenset({
+    "schema_version", "event", "freeze_sha256", "freeze_holdout_key",
+    "configuration_id", "ccbench_pin", "env_tag", "observation_role",
+    "cell_effect_digest", "measurement_generation_id",
+    "measurement_generation_digest", "measurement_generation_claim_digest",
+    "protocol_sha256", "schedule_sha256", "freeze_candidate_id",
+    "trial_workload_name", "cell_id", "records", "threads", "workload",
+    "campaign_run_id", "schedule_indexes", "attempt_ids", "attempt_count",
+    "reps",
+})
+_MEASUREMENT_GENERATION_CLAIM_KEYS_BY_ROLE = {
+    OBSERVATION_ROLE_FLOOR_CAMPAIGN: _MEASUREMENT_GENERATION_CLAIM_KEYS,
+    OBSERVATION_ROLE_ORACLE_DRIVER: _ORACLE_MEASUREMENT_GENERATION_CLAIM_KEYS,
+    OBSERVATION_ROLE_N_PILOT: _N_PILOT_MEASUREMENT_GENERATION_CLAIM_KEYS,
+    OBSERVATION_ROLE_N_PILOT_R33: _R33_MEASUREMENT_GENERATION_CLAIM_KEYS,
+}
+_MEASUREMENT_GENERATION_LEDGER_KEYS_BY_ROLE = {
+    OBSERVATION_ROLE_FLOOR_CAMPAIGN: _MEASUREMENT_GENERATION_LEDGER_KEYS,
+    OBSERVATION_ROLE_ORACLE_DRIVER: _ORACLE_MEASUREMENT_GENERATION_LEDGER_KEYS,
+    OBSERVATION_ROLE_N_PILOT: _N_PILOT_MEASUREMENT_GENERATION_LEDGER_KEYS,
+    OBSERVATION_ROLE_N_PILOT_R33: _R33_MEASUREMENT_GENERATION_LEDGER_KEYS,
+}
+_MEASUREMENT_GENERATION_FLOOR_ATTEMPT_KEYS = frozenset({
+    "schema_version", "event", "cell_effect_digest",
+    "measurement_generation_digest", "measurement_generation_claim_digest",
+    "attempt_id", "campaign_run_id", "manifest_sha256", "run_relpath",
+    "cell_id", "freeze_holdout_key", "configuration_id", "observation_role",
+})
+
+
+def _canonical_measurement_generation_floor_attempt_document(
+    *, cell_effect_digest: object, measurement_generation_digest: object,
+    measurement_generation_claim_digest: object, attempt_id: object,
+    campaign_run_id: object, manifest_sha256: object, run_relpath: object,
+    cell_id: object, freeze_holdout_key: object, configuration_id: object,
+) -> dict[str, object]:
+    """Construct a floor attempt projection scoped to one measurement generation."""
+
+    effect_digest = _require_sha256(cell_effect_digest, "cell_effect_digest")
+    measurement_digest = _require_sha256(
+        measurement_generation_digest, "measurement_generation_digest",
+    )
+    claim_digest = _measurement_generation_claim_digest(
+        measurement_generation_digest=measurement_digest,
+        cell_effect_digest=effect_digest,
+    )
+    if claim_digest != _require_sha256(
+        measurement_generation_claim_digest,
+        "measurement_generation_claim_digest",
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim digest is invalid"
+        )
+    document = {
+        "schema_version": _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA,
+        "event": "consume",
+        "cell_effect_digest": effect_digest,
+        "measurement_generation_digest": measurement_digest,
+        "measurement_generation_claim_digest": claim_digest,
+        "attempt_id": _require_text(attempt_id, "attempt_id"),
+        "campaign_run_id": _require_text(campaign_run_id, "campaign_run_id"),
+        "manifest_sha256": _require_sha256(manifest_sha256, "manifest_sha256"),
+        "run_relpath": _portable_run_relpath(run_relpath),
+        "cell_id": _require_text(cell_id, "cell_id"),
+        "freeze_holdout_key": _require_text(
+            freeze_holdout_key, "freeze_holdout_key",
+        ),
+        "configuration_id": _require_text(configuration_id, "configuration_id"),
+        "observation_role": OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    }
+    if set(document) != set(  # pragma: no cover - source invariant
+        _MEASUREMENT_GENERATION_FLOOR_ATTEMPT_KEYS
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation attempt source is inconsistent"
+        )
+    return document
 
 
 def _canonical_floor_attempt_document(
@@ -3962,7 +4521,24 @@ def _floor_canonical_marker_path(
 ) -> Path:
     """Return the sole canonical floor marker path for one exact document."""
 
-    if not isinstance(marker, Mapping) or set(marker) != set(_FLOOR_ATTEMPT_KEYS):
+    if not isinstance(marker, Mapping):
+        raise HoldoutAdmissionError("floor consume marker exact shape is invalid")
+    if marker.get("schema_version") == _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:
+        if set(marker) != set(_MEASUREMENT_GENERATION_FLOOR_ATTEMPT_KEYS):
+            raise HoldoutAdmissionError(
+                "floor measurement generation marker exact shape is invalid"
+            )
+        claim_digest = _require_sha256(
+            marker.get("measurement_generation_claim_digest"),
+            "measurement_generation_claim_digest",
+        )
+        attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+        marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
+        return (
+            root / _MEASUREMENT_GENERATION_CONSUMED_DIR
+            / f"{claim_digest}-{marker_digest}.json"
+        )
+    if set(marker) != set(_FLOOR_ATTEMPT_KEYS):
         raise HoldoutAdmissionError("floor consume marker exact shape is invalid")
     claim_digest = _require_sha256(marker.get("claim_digest"), "claim_digest")
     attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
@@ -3975,6 +4551,10 @@ def _canonical_floor_attempt_ledger_row(
 ) -> dict[str, object]:
     """Completely rederive one floor attempt projection from claim and L."""
 
+    if marker.get("schema_version") == _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA:
+        return _canonical_measurement_generation_floor_attempt_ledger_row(
+            root=root, marker=marker,
+        )
     # T-1670 extends this single exact key source and this helper.
     if not isinstance(marker, Mapping) or set(marker) != set(_FLOOR_ATTEMPT_KEYS):
         raise HoldoutAdmissionError("floor consume marker exact shape is invalid")
@@ -4092,6 +4672,158 @@ def _canonical_floor_attempt_ledger_row(
     return expected
 
 
+def _canonical_measurement_generation_floor_attempt_ledger_row(
+    *, root: Path, marker: Mapping[str, object],
+) -> dict[str, object]:
+    """Rederive one current floor attempt from its versioned claim and row."""
+
+    if (
+        not isinstance(marker, Mapping)
+        or set(marker) != set(_MEASUREMENT_GENERATION_FLOOR_ATTEMPT_KEYS)
+        or marker.get("schema_version")
+        != _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA
+        or marker.get("event") != "consume"
+        or marker.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation marker exact shape is invalid"
+        )
+    claim_digest = _require_sha256(
+        marker.get("measurement_generation_claim_digest"),
+        "measurement_generation_claim_digest",
+    )
+    attempt_id = _require_text(marker.get("attempt_id"), "attempt_id")
+    claim = _read_canonical_document(
+        _measurement_generation_claim_path(root, claim_digest)
+    )
+    if (
+        set(claim) != set(_MEASUREMENT_GENERATION_CLAIM_KEYS)
+        or claim.get("schema_version") != _MEASUREMENT_GENERATION_CLAIM_SCHEMA
+        or claim.get("event") != "claim"
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim exact shape is invalid"
+        )
+    key = claim.get("key")
+    if not isinstance(key, Mapping):
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim key is invalid"
+        )
+    try:
+        canonical_key = _key_fields(
+            freeze_sha256=key["freeze_sha256"],
+            freeze_holdout_key=key["freeze_holdout_key"],
+            configuration_id=key["configuration_id"],
+            ccbench_pin=key["ccbench_pin"], env_tag=key["env_tag"],
+            observation_role=key["observation_role"],
+        )
+    except (KeyError, HoldoutAdmissionError) as exc:
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim key is invalid"
+        ) from exc
+    cell_effect_digest = _claim_digest(canonical_key)
+    if (
+        dict(key) != canonical_key
+        or claim.get("cell_effect_digest") != cell_effect_digest
+        or claim.get("measurement_generation_claim_digest")
+        != _measurement_generation_claim_digest(
+            measurement_generation_digest=claim.get(
+                "measurement_generation_digest"
+            ),
+            cell_effect_digest=cell_effect_digest,
+        )
+        or claim.get("measurement_generation_claim_digest") != claim_digest
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim identity is invalid"
+        )
+    if claim.get("entry_kind") not in {"fresh", "resume"}:
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim entry kind is invalid"
+        )
+    if _canonical_nondefault_seams(claim.get("nondefault_seams")) != claim.get(
+        "nondefault_seams"
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim seam list is invalid"
+        )
+    attempt_ids = claim.get("attempt_ids")
+    if (
+        not isinstance(attempt_ids, list)
+        or any(type(item) is not str or not item for item in attempt_ids)
+        or len(attempt_ids) != len(set(attempt_ids))
+        or attempt_id not in attempt_ids
+    ):
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim attempt coverage is invalid"
+        )
+
+    matching_main = [
+        row for row in _read_ledger(root / _LEDGER_NAME)
+        if row.get("schema_version") == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+        and row.get("observation_role") == OBSERVATION_ROLE_FLOOR_CAMPAIGN
+        and row.get("measurement_generation_claim_digest") == claim_digest
+    ]
+    if len(matching_main) != 1:
+        raise HoldoutAdmissionError(
+            "floor measurement generation claim requires one ledger row"
+        )
+    main = matching_main[0]
+    if set(main) != set(_MEASUREMENT_GENERATION_LEDGER_KEYS):
+        raise HoldoutAdmissionError(
+            "floor measurement generation ledger row shape is invalid"
+        )
+    manifest_sha256 = _require_sha256(
+        claim.get("manifest_sha256"), "manifest_sha256",
+    )
+    expected_main = {
+        "schema_version": _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
+        "event": "admit",
+        **canonical_key,
+        "cell_effect_digest": cell_effect_digest,
+        "measurement_generation_id": claim["measurement_generation_id"],
+        "measurement_generation_digest": claim[
+            "measurement_generation_digest"
+        ],
+        "measurement_generation_claim_digest": claim_digest,
+        "measurement_head": claim["measurement_head"],
+        "protocol_sha256": claim["protocol_sha256"],
+        "manifest_sha256": manifest_sha256,
+        "freeze_candidate_id": claim["freeze_candidate_id"],
+        "trial_workload_name": claim["trial_workload_name"],
+        "cell_id": claim["cell_id"],
+        "records": claim["records"],
+        "threads": claim["threads"],
+        "workload": claim["workload"],
+        "campaign_run_id": claim["campaign_run_id"],
+        "run_relpath": claim["run_relpath"],
+        "mode": claim["mode"],
+        "attempt_ids": attempt_ids,
+        "attempt_count": len(attempt_ids),
+    }
+    if main != expected_main:
+        raise HoldoutAdmissionError(
+            "floor measurement generation ledger differs from its claim"
+        )
+    expected = _canonical_measurement_generation_floor_attempt_document(
+        cell_effect_digest=cell_effect_digest,
+        measurement_generation_digest=claim["measurement_generation_digest"],
+        measurement_generation_claim_digest=claim_digest,
+        attempt_id=attempt_id,
+        campaign_run_id=claim["campaign_run_id"],
+        manifest_sha256=manifest_sha256,
+        run_relpath=claim["run_relpath"],
+        cell_id=claim["cell_id"],
+        freeze_holdout_key=canonical_key["freeze_holdout_key"],
+        configuration_id=canonical_key["configuration_id"],
+    )
+    if dict(marker) != expected:
+        raise HoldoutAdmissionError(
+            "floor measurement generation marker differs from claim and ledger"
+        )
+    return expected
+
+
 def _floor_attempt_recovery_candidate_locked(
     root: Path, *, expected_marker: Mapping[str, object],
     completed_attempt: bool,
@@ -4101,12 +4833,22 @@ def _floor_attempt_recovery_candidate_locked(
     canonical_target = _canonical_floor_attempt_ledger_row(
         root=root, marker=expected_marker,
     )
+    target_schema = canonical_target["schema_version"]
+    identity_field = (
+        "measurement_generation_claim_digest"
+        if target_schema == _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA
+        else "claim_digest"
+    )
     target_identity = (
-        str(canonical_target["claim_digest"]),
+        str(canonical_target[identity_field]),
         str(canonical_target["attempt_id"]),
     )
     marker_by_identity: dict[tuple[str, str], dict[str, object]] = {}
-    consumed = root / "consumed"
+    consumed = root / (
+        _MEASUREMENT_GENERATION_CONSUMED_DIR
+        if target_schema == _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA
+        else "consumed"
+    )
     try:
         marker_paths = sorted(consumed.iterdir(), key=lambda item: item.name)
     except OSError as exc:
@@ -4117,22 +4859,32 @@ def _floor_attempt_recovery_candidate_locked(
                 "floor consumed marker directory contains an unsafe entry"
             )
         marker = _read_canonical_document(path)
-        if marker.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN:
+        if (
+            marker.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN
+            or marker.get("schema_version") != target_schema
+        ):
             continue
         canonical = _canonical_floor_attempt_ledger_row(root=root, marker=marker)
         if path != _floor_canonical_marker_path(root, canonical):
             raise HoldoutAdmissionError("floor consume marker filename is not canonical")
-        identity = (str(canonical["claim_digest"]), str(canonical["attempt_id"]))
+        identity = (
+            str(canonical[identity_field]), str(canonical["attempt_id"]),
+        )
         if identity in marker_by_identity:
             raise HoldoutAdmissionError("floor consume marker identity is duplicated")
         marker_by_identity[identity] = canonical
 
     ledger_by_identity: dict[tuple[str, str], dict[str, object]] = {}
     for row in _read_ledger(root / _ATTEMPT_LEDGER_NAME):
-        if row.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN:
+        if (
+            row.get("observation_role") != OBSERVATION_ROLE_FLOOR_CAMPAIGN
+            or row.get("schema_version") != target_schema
+        ):
             continue
         canonical = _canonical_floor_attempt_ledger_row(root=root, marker=row)
-        identity = (str(canonical["claim_digest"]), str(canonical["attempt_id"]))
+        identity = (
+            str(canonical[identity_field]), str(canonical["attempt_id"]),
+        )
         if identity in ledger_by_identity:
             raise HoldoutAdmissionError("floor attempt ledger has a duplicate identity")
         if identity not in marker_by_identity:
@@ -4499,8 +5251,15 @@ def _assert_floor_recovery_trigger_marker_locked(
         or trigger_start.get("round") != retry_start.get("round")
     ):
         raise HoldoutAdmissionError("registry recovery trigger cell or round differs")
-    path = state.root / "consumed" / (
-        f"{state.claim_digest}-"
+    marker_claim_digest = (
+        state.measurement_generation_claim_digest or state.cell_effect_digest
+    )
+    path = state.root / (
+        _MEASUREMENT_GENERATION_CONSUMED_DIR
+        if state.measurement_generation_claim_digest is not None
+        else "consumed"
+    ) / (
+        f"{marker_claim_digest}-"
         f"{hashlib.sha256(trigger.encode('utf-8')).hexdigest()}.json"
     )
     try:
@@ -4511,7 +5270,11 @@ def _assert_floor_recovery_trigger_marker_locked(
     canonical = _canonical_floor_attempt_ledger_row(root=state.root, marker=marker)
     if (
         path != _floor_canonical_marker_path(state.root, canonical)
-        or canonical.get("claim_digest") != state.claim_digest
+        or (
+            canonical.get("measurement_generation_claim_digest")
+            if state.measurement_generation_claim_digest is not None
+            else canonical.get("claim_digest")
+        ) != marker_claim_digest
         or canonical.get("attempt_id") != trigger
         or canonical.get("cell_id") != state.row["cell_id"]
     ):
@@ -4755,13 +5518,19 @@ def _portable_admission_projection_row(
     受理集合も変わらない。測定 commit の権威的束縛は本 wave の保証範囲外である。
     """
 
-    if set(row) != set(_FLOOR_LEDGER_KEYS):
+    schema = row.get("schema_version")
+    expected_keys = (
+        _MEASUREMENT_GENERATION_LEDGER_KEYS
+        if schema == _MEASUREMENT_GENERATION_LEDGER_SCHEMA
+        else _FLOOR_LEDGER_KEYS
+    )
+    if set(row) != set(expected_keys):
         raise FloorHoldoutEvidenceError(
             category="mismatch", reason="main-ledger-shape-mismatch",
         )
     return {
         key: row[key]
-        for key in sorted(_FLOOR_LEDGER_KEYS - {"measurement_head"})
+        for key in sorted(expected_keys - {"measurement_head"})
     }
 
 
@@ -4969,6 +5738,7 @@ def inspect_floor_holdout_admission_evidence(
         raise FloorHoldoutEvidenceError(category="mismatch", reason="freeze-holdouts-invalid")
     cell_by_id: dict[str, dict[str, object]] = {}
     claim_identities: dict[str, str] = {}
+    cell_effect_identities: dict[str, str] = {}
     expected_claims: dict[str, dict[str, object]] = {}
     expected_attempt_ids: dict[str, frozenset[str]] = {}
     for raw_cell in cells:
@@ -5000,6 +5770,7 @@ def inspect_floor_holdout_admission_evidence(
             cell_id=cell_id, schedule=schedule, retry_slots=retry_slots,
         )
         claim_identities[cell_id] = digest
+        cell_effect_identities[cell_id] = digest
         expected_attempt_ids[cell_id] = frozenset(attempt_ids)
         cell_by_id[cell_id] = dict(raw_cell)
         expected_claims[cell_id] = {
@@ -5030,7 +5801,14 @@ def inspect_floor_holdout_admission_evidence(
 
     with _locked_readonly(root):
         try:
-            if not any(claims_root.iterdir()):
+            current_claims_root = root / _MEASUREMENT_GENERATION_CLAIM_DIR
+            historical_claims_present = any(claims_root.iterdir())
+            current_claims_present = (
+                current_claims_root.is_dir()
+                and not current_claims_root.is_symlink()
+                and any(current_claims_root.iterdir())
+            )
+            if not historical_claims_present and not current_claims_present:
                 raise FloorHoldoutEvidenceError(
                     category="unverifiable", reason="claims-empty",
                 )
@@ -5064,9 +5842,33 @@ def inspect_floor_holdout_admission_evidence(
             raise FloorHoldoutEvidenceError(
                 category="mismatch", reason="main-ledger-campaign-missing",
             )
+        selected_main_schemas = {
+            row.get("schema_version") for row in selected_main
+        }
+        if selected_main_schemas == {_MEASUREMENT_GENERATION_LEDGER_SCHEMA}:
+            current_measurement_generation = True
+            selected_measurement_generation_digest = selected_main[-1].get(
+                "measurement_generation_digest"
+            )
+            selected_main = [
+                row for row in selected_main
+                if row.get("measurement_generation_digest")
+                == selected_measurement_generation_digest
+            ]
+        elif selected_main_schemas == {_LEDGER_SCHEMA}:
+            current_measurement_generation = False
+        else:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="main-ledger-shape-mismatch",
+            )
         main_by_cell: dict[str, dict[str, Any]] = {}
         for row in selected_main:
-            if set(row) != set(_FLOOR_LEDGER_KEYS):
+            expected_ledger_keys = (
+                _MEASUREMENT_GENERATION_LEDGER_KEYS
+                if current_measurement_generation
+                else _FLOOR_LEDGER_KEYS
+            )
+            if set(row) != set(expected_ledger_keys):
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="main-ledger-shape-mismatch",
                 )
@@ -5092,6 +5894,140 @@ def inspect_floor_holdout_admission_evidence(
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="main-ledger-claim-identity-mismatch",
                 )
+            if current_measurement_generation:
+                measurement_head = row.get("measurement_head")
+                if (
+                    type(measurement_head) is not str
+                    or len(measurement_head) != 40
+                    or any(char not in _HEX64 for char in measurement_head)
+                ):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch",
+                        reason="main-ledger-run-authority-mismatch",
+                    )
+                try:
+                    (
+                        measurement_generation_id,
+                        measurement_generation_digest,
+                    ) = (
+                        _new_measurement_generation(
+                            observation_role=OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+                            campaign_run_id=campaign_run_id,
+                        )
+                    )
+                    measurement_generation_claim_digest = (
+                        _measurement_generation_claim_digest(
+                            measurement_generation_digest=(
+                                measurement_generation_digest
+                            ),
+                            cell_effect_digest=digest,
+                        )
+                    )
+                except HoldoutAdmissionError as exc:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch",
+                        reason="main-ledger-measurement-generation-mismatch",
+                    ) from exc
+                if (
+                    row.get("cell_effect_digest") != digest
+                    or row.get("measurement_generation_digest")
+                    != measurement_generation_digest
+                    or row.get("measurement_generation_claim_digest")
+                    != measurement_generation_claim_digest
+                ):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch",
+                        reason="main-ledger-measurement-generation-mismatch",
+                    )
+                expected_row = {
+                    "schema_version": _MEASUREMENT_GENERATION_LEDGER_SCHEMA,
+                    "event": "admit",
+                    **expected["key"],
+                    "cell_effect_digest": digest,
+                    "measurement_generation_id": measurement_generation_id,
+                    "measurement_generation_digest": (
+                        measurement_generation_digest
+                    ),
+                    "measurement_generation_claim_digest": (
+                        measurement_generation_claim_digest
+                    ),
+                    "measurement_head": measurement_head,
+                    "protocol_sha256": protocol_sha256,
+                    "manifest_sha256": manifest_sha256,
+                    "freeze_candidate_id": expected["freeze_candidate_id"],
+                    "trial_workload_name": expected["trial_workload_name"],
+                    "cell_id": cell_id,
+                    "records": cell.get("records"),
+                    "threads": cell.get("threads"),
+                    "workload": expected["workload"],
+                    "campaign_run_id": campaign_run_id,
+                    "run_relpath": run_relpath,
+                    "mode": mode,
+                    "attempt_ids": expected["attempt_ids"],
+                    "attempt_count": len(expected["attempt_ids"]),
+                }
+                if row != expected_row:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="main-ledger-row-mismatch",
+                    )
+                claim = _read_evidence_document(
+                    _measurement_generation_claim_path(
+                        root, measurement_generation_claim_digest,
+                    ),
+                    missing_reason="claim-file-missing",
+                    malformed_reason="claim-file-mismatch",
+                )
+                entry_kind = claim.get("entry_kind")
+                try:
+                    seams = _canonical_nondefault_seams(
+                        claim.get("nondefault_seams")
+                    )
+                except HoldoutAdmissionError as exc:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch",
+                        reason="claim-nondefault-seams-invalid",
+                    ) from exc
+                expected_claim = {
+                    "schema_version": _MEASUREMENT_GENERATION_CLAIM_SCHEMA,
+                    "event": "claim",
+                    "key": expected["key"],
+                    "cell_effect_digest": digest,
+                    "measurement_generation_id": measurement_generation_id,
+                    "measurement_generation_digest": (
+                        measurement_generation_digest
+                    ),
+                    "measurement_generation_claim_digest": (
+                        measurement_generation_claim_digest
+                    ),
+                    "measurement_head": measurement_head,
+                    "protocol_sha256": protocol_sha256,
+                    "manifest_sha256": manifest_sha256,
+                    "freeze_candidate_id": expected["freeze_candidate_id"],
+                    "trial_workload_name": expected["trial_workload_name"],
+                    "cell_id": cell_id,
+                    "records": cell.get("records"),
+                    "threads": cell.get("threads"),
+                    "workload": expected["workload"],
+                    "campaign_run_id": campaign_run_id,
+                    "run_relpath": run_relpath,
+                    "mode": mode,
+                    "entry_kind": entry_kind,
+                    "nondefault_seams": seams,
+                    "attempt_ids": expected["attempt_ids"],
+                }
+                if (
+                    set(claim) != set(_MEASUREMENT_GENERATION_CLAIM_KEYS)
+                    or entry_kind not in {"fresh", "resume"}
+                    or claim != expected_claim
+                ):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="claim-file-mismatch",
+                    )
+                claim_identities[cell_id] = measurement_generation_claim_digest
+                claim_schemas.add(_MEASUREMENT_GENERATION_CLAIM_SCHEMA)
+                claim_entry_kinds.add(str(entry_kind))
+                claim_seam_lists.add(tuple(seams))
+                continue
             measurement_head = row.get("measurement_head")
             approval = row.get("irreversible_pilot_approved")
             if (
@@ -5207,7 +6143,9 @@ def inspect_floor_holdout_admission_evidence(
             raise FloorHoldoutEvidenceError(
                 category="mismatch", reason="claim-basis-cell-mismatch",
             )
-        if claim_schemas == {_CLAIM_SCHEMA_V2}:
+        if claim_schemas in (
+            {_CLAIM_SCHEMA_V2}, {_MEASUREMENT_GENERATION_CLAIM_SCHEMA},
+        ):
             if len(claim_seam_lists) != 1:
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="claim-basis-cell-mismatch",
@@ -5224,7 +6162,9 @@ def inspect_floor_holdout_admission_evidence(
                 )
 
         derived_eligible_for_refreeze = (
-            claim_schemas == {_CLAIM_SCHEMA_V2}
+            claim_schemas in (
+                {_CLAIM_SCHEMA_V2}, {_MEASUREMENT_GENERATION_CLAIM_SCHEMA},
+            )
             and mode == "official"
             and claim_entry_kinds == {"fresh"}
             and claim_seam_lists == {()}
@@ -5295,7 +6235,15 @@ def inspect_floor_holdout_admission_evidence(
             )
             inspection_states[cell_id] = _CellState(
                 token=token, root=root, row=row,
-                claim_digest=claim_identities[cell_id],
+                cell_effect_digest=cell_effect_identities[cell_id],
+                measurement_generation_digest=(
+                    str(row["measurement_generation_digest"])
+                    if current_measurement_generation else None
+                ),
+                measurement_generation_claim_digest=(
+                    claim_identities[cell_id]
+                    if current_measurement_generation else None
+                ),
                 attempt_ids=expected_attempt_ids[cell_id],
                 run_dir=Path(repo_root).joinpath(*PurePosixPath(run_relpath).parts),
                 schedule=tuple(dict(item) for item in schedule),
@@ -5321,8 +6269,24 @@ def inspect_floor_holdout_admission_evidence(
             cell = cell_by_id[cell_id]
             digest = claim_identities[cell_id]
             for attempt_id in attempt_ids:
-                frozen_markers[(digest, attempt_id)] = (
-                    _canonical_floor_attempt_document(
+                if current_measurement_generation:
+                    expected_marker = (
+                        _canonical_measurement_generation_floor_attempt_document(
+                            cell_effect_digest=cell_effect_identities[cell_id],
+                            measurement_generation_digest=main_by_cell[cell_id][
+                                "measurement_generation_digest"
+                            ],
+                            measurement_generation_claim_digest=digest,
+                            attempt_id=attempt_id,
+                            campaign_run_id=campaign_run_id,
+                            manifest_sha256=manifest_sha256,
+                            run_relpath=run_relpath, cell_id=cell_id,
+                            freeze_holdout_key=cell["holdout_id"],
+                            configuration_id=cell["configuration_id"],
+                        )
+                    )
+                else:
+                    expected_marker = _canonical_floor_attempt_document(
                         claim_digest=digest, attempt_id=attempt_id,
                         campaign_run_id=campaign_run_id,
                         manifest_sha256=manifest_sha256,
@@ -5330,7 +6294,7 @@ def inspect_floor_holdout_admission_evidence(
                         freeze_holdout_key=cell["holdout_id"],
                         configuration_id=cell["configuration_id"],
                     )
-                )
+                frozen_markers[(digest, attempt_id)] = expected_marker
 
         expected_attempt_rows: dict[tuple[str, str], dict[str, object]] = {}
         for key, expected_marker in frozen_markers.items():
@@ -5381,12 +6345,27 @@ def inspect_floor_holdout_admission_evidence(
             row for row in attempt_rows if row.get("campaign_run_id") == campaign_run_id
         ]
         actual_attempt_rows: dict[tuple[str, str], dict[str, Any]] = {}
+        expected_attempt_schema = (
+            _MEASUREMENT_GENERATION_ATTEMPT_SCHEMA
+            if current_measurement_generation else _ATTEMPT_SCHEMA
+        )
+        attempt_identity_field = (
+            "measurement_generation_claim_digest"
+            if current_measurement_generation else "claim_digest"
+        )
         for row in selected_attempts:
-            if set(row) != set(_FLOOR_ATTEMPT_KEYS):
+            expected_attempt_keys = (
+                _MEASUREMENT_GENERATION_FLOOR_ATTEMPT_KEYS
+                if current_measurement_generation else _FLOOR_ATTEMPT_KEYS
+            )
+            if (
+                row.get("schema_version") != expected_attempt_schema
+                or set(row) != set(expected_attempt_keys)
+            ):
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="attempt-ledger-shape-mismatch",
                 )
-            key = (row.get("claim_digest"), row.get("attempt_id"))
+            key = (row.get(attempt_identity_field), row.get("attempt_id"))
             if not all(type(item) is str for item in key) or key in actual_attempt_rows:
                 raise FloorHoldoutEvidenceError(
                     category="mismatch", reason="attempt-ledger-row-duplicate",
@@ -5408,7 +6387,10 @@ def inspect_floor_holdout_admission_evidence(
         )
         sorted_attempts = sorted(
             selected_attempts,
-            key=lambda row: (row["cell_id"], row["attempt_id"], row["claim_digest"]),
+            key=lambda row: (
+                row["cell_id"], row["attempt_id"],
+                row[attempt_identity_field],
+            ),
         )
         projection = {
             "schema": _LEDGER_PROJECTION_SCHEMA,

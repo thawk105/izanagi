@@ -539,7 +539,6 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
                 approved_roots=(tmp_path.resolve(),), forbidden_roots=()),
             _holdout_repo_root=authority,
             _holdout_signature_source=holdouts,
-            confirm_irreversible_pilot_holdout=True,
         )
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)

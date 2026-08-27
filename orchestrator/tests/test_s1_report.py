@@ -120,7 +120,6 @@ def _write_session(layout, item, role: str, *, fitness: float,
                 f"s1-{role}-{item.schedule_index}-{item.lap}-{item.freeze_cell_id}"
             ),
             tags=tuple(verify_configs),
-            lock_identity_sha256="0" * 64,
         )
     else:
         wal.log(layout, variant, "bench_done", driver.ENV_TAG,

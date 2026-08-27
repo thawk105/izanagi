@@ -2535,6 +2535,8 @@ def _isolated_oracle_admission_root(tmp_path: Path):
     ))
     (admission_root / "claims").mkdir()
     (admission_root / "consumed").mkdir()
+    (admission_root / "measurement-generation-claims").mkdir()
+    (admission_root / "measurement-generation-consumed").mkdir()
     (admission_root / "ledger.lock").write_bytes(b"")
     with mock.patch.object(
             driver._holdout_admission,
@@ -4536,6 +4538,8 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
     admission_root.mkdir()
     (admission_root / "claims").mkdir()
     (admission_root / "consumed").mkdir()
+    (admission_root / "measurement-generation-claims").mkdir()
+    (admission_root / "measurement-generation-consumed").mkdir()
     (admission_root / "ledger.lock").write_bytes(b"")
 
     # 全行 binding-refused を CLI 経路で再現するため、driver.prepare_cell を
@@ -5736,14 +5740,108 @@ def test_oracle_admission_uses_verified_manifest_schedule_and_reps(tmp_path):
         assert {row["observation_role"] for row in rows} == {
             api.OBSERVATION_ROLE_ORACLE_DRIVER,
         }
-        with pytest.raises(
-                api.HoldoutAdmissionError, match="already consumed"):
-            api.reserve_oracle_holdout_observations(
-                repo_root=ROOT,
-                verified_manifest=verified_manifest,
-                launch_validated=launch_validated,
-                block_id="b0",
+
+
+def test_oracle_repeated_reservation_is_admitted(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    first_campaign_id = "s8b-oracle-fixture-repeat-a"
+    second_campaign_id = "s8b-oracle-fixture-repeat-b"
+    first_manifest_path, _first_document = _write_manifest(
+        tmp_path, freeze_path, _prepare_factory(),
+        name="oracle-manifest-repeat-a.json", campaign_id=first_campaign_id,
+    )
+    second_manifest_path, _second_document = _write_manifest(
+        tmp_path, freeze_path, _prepare_factory(),
+        name="oracle-manifest-repeat-b.json", campaign_id=second_campaign_id,
+    )
+    verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
+    first_verified_manifest = _verify_manifest(
+        first_manifest_path, root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
+    )
+    second_verified_manifest = _verify_manifest(
+        second_manifest_path, root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
+    )
+    launch_validated = _fake_launch_validated(freeze_path)
+    api = driver._holdout_admission
+    with _isolated_oracle_admission_root(tmp_path) as admission_root:
+        first = api.reserve_oracle_holdout_observations(
+            repo_root=ROOT, verified_manifest=first_verified_manifest,
+            launch_validated=launch_validated, block_id="b0",
+        )
+        second = api.reserve_oracle_holdout_observations(
+            repo_root=ROOT, verified_manifest=second_verified_manifest,
+            launch_validated=launch_validated, block_id="b0",
+        )
+        assert set(first) == set(second)
+        first_state = api._oracle_cell_state(first[min(first)])
+        second_state = api._oracle_cell_state(second[min(second)])
+        assert first_state.cell_effect_digest == second_state.cell_effect_digest
+        assert first_state.measurement_generation_digest != (
+            second_state.measurement_generation_digest
+        )
+        rows = api._read_ledger(admission_root / "ledger.jsonl")
+        assert len(rows) == 24
+
+
+def test_oracle_attempt_single_use_is_scoped_to_measurement_generation(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    first_campaign_id = "s8b-oracle-fixture-attempt-a"
+    second_campaign_id = "s8b-oracle-fixture-attempt-b"
+    first_manifest_path, document = _write_manifest(
+        tmp_path, freeze_path, _prepare_factory(),
+        name="oracle-manifest-attempt-a.json", campaign_id=first_campaign_id,
+    )
+    second_manifest_path, _second_document = _write_manifest(
+        tmp_path, freeze_path, _prepare_factory(),
+        name="oracle-manifest-attempt-b.json", campaign_id=second_campaign_id,
+    )
+    verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
+    first_verified_manifest = _verify_manifest(
+        first_manifest_path, root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
+    )
+    second_verified_manifest = _verify_manifest(
+        second_manifest_path, root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
+    )
+    launch_validated = _fake_launch_validated(freeze_path)
+    api = driver._holdout_admission
+    with _isolated_oracle_admission_root(tmp_path) as admission_root:
+        first = api.reserve_oracle_holdout_observations(
+            repo_root=ROOT, verified_manifest=first_verified_manifest,
+            launch_validated=launch_validated, block_id="b0",
+        )
+        second = api.reserve_oracle_holdout_observations(
+            repo_root=ROOT, verified_manifest=second_verified_manifest,
+            launch_validated=launch_validated, block_id="b0",
+        )
+        schedule_index = min(
+            row["schedule_index"] for row in document["schedule"]["rows"]
+        )
+        first_token = api.consume_oracle_attempt_ticket(
+            first[schedule_index], schedule_index=schedule_index,
+        )
+        second_token = api.consume_oracle_attempt_ticket(
+            second[schedule_index], schedule_index=schedule_index,
+        )
+        assert first_token.attempt_id.removeprefix(
+            f"{first_campaign_id}::"
+        ) == second_token.attempt_id.removeprefix(
+            f"{second_campaign_id}::"
+        )
+        with pytest.raises(api.HoldoutAdmissionError, match="already consumed"):
+            api.consume_oracle_attempt_ticket(
+                first[schedule_index], schedule_index=schedule_index,
             )
+        assert len(list((
+            admission_root / "measurement-generation-consumed"
+        ).iterdir())) == 2
 
 
 def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path):

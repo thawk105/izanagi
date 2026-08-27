@@ -740,7 +740,6 @@ def _private_run_campaign(protocol, freeze_doc, **kwargs):
         protocol, freeze_doc,
         _holdout_repo_root=authority,
         _holdout_signature_source=freeze_doc.document["holdouts"],
-        confirm_irreversible_pilot_holdout=True,
         **kwargs,
     )
 
@@ -767,7 +766,6 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         Path(out_root), protocol, freeze_doc,
     )
     kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
-    kwargs["confirm_irreversible_pilot_holdout"] = True
     if mode == "official":
         official_preflight = (
             perf_preflight_fn or (lambda **_kwargs: _perf_receipt(available=True))
@@ -5271,7 +5269,6 @@ def _floor_claim_subprocess_worker(
                 durable_root_policy=_durable_policy(shared_out),
                 _holdout_repo_root=ROOT,
                 _holdout_signature_source=ctx["freeze"]["holdouts"],
-                confirm_irreversible_pilot_holdout=True,
             )
     except s8b_floor_campaign.FloorCampaignError:
         return 1
@@ -6460,10 +6457,7 @@ def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
 
 
 def test_refreeze_seam_classifier_covers_and_classifies_every_core_seam():
-    excluded = {
-        "out_root", "mode", "resume_dir",
-        "confirm_irreversible_pilot_holdout",
-    }
+    excluded = {"out_root", "mode", "resume_dir"}
     core_keyword_only = {
         name for name, parameter in inspect.signature(
             s8b_floor_campaign._run_campaign_core,
@@ -6515,7 +6509,6 @@ def test_run_campaign_forwards_fetchcontent_base_dir_to_core(tmp_path, monkeypat
     outcome = s8b_floor_campaign.run_campaign(
         {}, {}, out_root=tmp_path / "out", mode="pilot",
         fetchcontent_base_dir=fetchcontent_base_dir,
-        confirm_irreversible_pilot_holdout=True,
     )
     assert outcome == {"status": "completed"}
     assert core.call_args.kwargs["fetchcontent_base_dir"] == fetchcontent_base_dir
@@ -6598,6 +6591,11 @@ def test_captured_refreeze_seams_are_forwarded_to_claim_reservation_canonically(
         and node.func.attr == "_reserve_floor_holdout_observations_core"
     ]
     assert len(reservation_calls) == 1
+    keyword_names = {
+        item.arg for item in reservation_calls[0].keywords
+        if item.arg is not None
+    }
+    assert "irreversible_pilot_approved" not in keyword_names
     keyword = next(
         item for item in reservation_calls[0].keywords
         if item.arg == "nondefault_seams"
@@ -6705,7 +6703,7 @@ def test_core_derives_refreeze_eligibility_at_entry_and_finalizes_without_args()
     assert finalizer.args.vararg is None
     assert finalizer.args.kwarg is None
     assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
-        "if type(confirm_irreversible_pilot_holdout) is not bool:"
+        "    _assert_official_permitted(mode)"
     )
     assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
         "    try:\n        runner.run()"
@@ -6832,15 +6830,14 @@ def test_holdout_signature_source_seam_is_private_core_only():
         assert "_neutral_holdouts" not in inspect.signature(public_leaf).parameters
 
 
-def test_public_pilot_requires_irreversible_holdout_approval_before_effects(tmp_path):
-    freeze = _freeze_document()
-    out_root = tmp_path / "out"
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="一回性 key"):
-        s8b_floor_campaign.run_campaign(
-            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
-            out_root=out_root, mode="pilot",
-        )
-    assert not out_root.exists()
+def test_public_entrypoints_have_no_removed_confirmation_parameter():
+    removed = "confirm_irreversible_pilot_holdout"
+    assert removed not in inspect.signature(
+        s8b_floor_campaign.run_campaign,
+    ).parameters
+    assert removed not in inspect.signature(
+        s8b_floor_campaign._run_campaign_core,
+    ).parameters
 
 
 def test_public_campaign_rejects_noncurrent_supplied_protocol_before_all_effects(
@@ -6893,7 +6890,6 @@ def test_public_campaign_rejects_noncurrent_supplied_protocol_before_all_effects
         s8b_floor_campaign.run_campaign(
             legacy_protocol, verified, out_root=out_root, mode="pilot",
             repo_root=authority, protocol_path=supplied_path,
-            confirm_irreversible_pilot_holdout=True,
         )
 
     message = str(exc_info.value)
@@ -6922,19 +6918,19 @@ def test_public_campaign_current_supplied_protocol_reaches_core(
     outcome = s8b_floor_campaign.run_campaign(
         protocol, verified, out_root=out_root, mode="pilot",
         repo_root=authority, protocol_path=supplied_path,
-        confirm_irreversible_pilot_holdout=True,
     )
 
     assert outcome == expected
     core.assert_called_once()
 
 
-def test_cli_exposes_dedicated_irreversible_pilot_holdout_flag():
-    parsed = s8b_floor_campaign._parser().parse_args([
-        "--mode", "pilot", "--protocol", "protocol.json",
-        "--confirm-irreversible-pilot-holdout",
-    ])
-    assert parsed.confirm_irreversible_pilot_holdout is True
+def test_floor_driver_rejects_removed_confirmation_option():
+    with pytest.raises(SystemExit) as exc_info:
+        s8b_floor_campaign._parser().parse_args([
+            "--mode", "pilot", "--protocol", "protocol.json",
+            "--confirm-irreversible-pilot-holdout",
+        ])
+    assert exc_info.value.code == 2
 
 
 def test_private_core_claims_only_after_nonmeasurement_preflight(tmp_path):
@@ -6949,19 +6945,23 @@ def test_private_core_claims_only_after_nonmeasurement_preflight(tmp_path):
 
     def perf_preflight(**_kwargs):
         order.append("perf")
-        assert not (shared / "claims").exists()
+        assert not (shared / "measurement-generation-claims").exists()
         return _perf_receipt()
 
     def probe():
         order.append("probe")
-        assert len(list((shared / "claims").iterdir())) == 12
+        assert len(list((
+            shared / "measurement-generation-claims"
+        ).iterdir())) == 12
         return (1, "", "")
 
     measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
 
     def ordered_measure(*args):
         order.append("measure")
-        assert len(list((shared / "claims").iterdir())) == 12
+        assert len(list((
+            shared / "measurement-generation-claims"
+        ).iterdir())) == 12
         return measure(*args)
 
     _private_run_campaign(
@@ -6997,11 +6997,15 @@ def test_private_signature_source_keeps_real_claim_ledger_and_tickets(tmp_path):
         durable_root_policy=_durable_policy(out_root),
     )
 
-    assert len(list((shared / "claims").iterdir())) == 12
+    assert len(list((
+        shared / "measurement-generation-claims"
+    ).iterdir())) == 12
     assert len(s8b_floor_campaign._holdout_admission._read_ledger(
         shared / "ledger.jsonl",
     )) == 12
-    assert len(list((shared / "consumed").iterdir())) == 12 * 8
+    assert len(list((
+        shared / "measurement-generation-consumed"
+    ).iterdir())) == 12 * 8
     assert len(s8b_floor_campaign._holdout_admission._read_ledger(
         shared / "attempt-ledger.jsonl",
     )) == 12 * 8

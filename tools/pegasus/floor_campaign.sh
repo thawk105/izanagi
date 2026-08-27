@@ -6,12 +6,15 @@
 #PBS --accept-sigterm=yes
 # 出典: certify_calibration.sh:1-5 @ e9b6f69
 
-# driver required_s                    = 12 * (900 + (8+2) * (5*5 + 120)) = 28200
+# 12-cell subtotal                     = 12 * (900 + (8+2) * (5*5 + 120)) = 28200
+# shared dependency prebuild           = 900 + 900 = 1800
+# driver required_s                    = 28200 + 1800 = 30000
 # driver finalize reserve              =   600
-# driver が要求する capacity           = 28800
-# job prologue (gflags/glog build・qstat・git・hash) 見積          ≈  900
-# driver 定数が hard cap でないことへの余裕 (B-02)                 ≈ 6300
+# driver preflight minimum envelope    = 30000 + 600 = 30600
 # PBS request                          = 36000  (= 10:00:00, gen_S 上限 86400 の範囲内)
+# raw headroom                         = 36000 - 30600 = 5400
+# job prologue (gflags/glog build・qstat・git・hash) 見積          ≈  900
+# estimated residual headroom          ≈ 5400 - 900 = 4500 (保証値・実測値ではない)
 set -Eeuo pipefail
 umask 077
 
@@ -545,13 +548,6 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
     || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[0-9a-f]{32}$ ]]; then
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE must be 32 lowercase hex"
   exit 2
-fi
-if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]; then
-  if [[ "$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" != "$IZANAGI_SUBMISSION_NONCE" ]]; then
-    write_failure 2 submit_binding \
-      "pilot holdout confirmation must exactly match submission nonce"
-    exit 2
-  fi
 fi
 SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE"
 SUBMIT_SOURCE="$SUBMISSION_DIR/submit-receipt.json"
@@ -1233,9 +1229,6 @@ driver_argv=(
   --protocol "$REPO_ROOT/$PROTOCOL_PATH"
 )
 driver_argv+=(--fetchcontent-base-dir "$FETCHCONTENT_STAGING")
-if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]; then
-  driver_argv+=(--confirm-irreversible-pilot-holdout)
-fi
 driver_rc=0
 "${driver_argv[@]}" \
   >&"$DRIVER_STDOUT_FD" 2>&"$DRIVER_STDERR_FD" || driver_rc=$?

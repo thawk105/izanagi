@@ -1,0 +1,186 @@
+{
+  "estimated_run_seconds": 120,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_real_waiter_executes_main_when_tip_runner_differs_and_land_accepts",
+        "orchestrator/tests/test_acceptance_launcher.py::test_main_tip_runner_blob_mismatch_executes_and_receipts_tested_main",
+        "orchestrator/tests/test_acceptance_launcher.py::test_main_tip_runner_blob_mismatch_rejects_tip_digest_binding_report",
+        "orchestrator/tests/test_acceptance_launcher.py::test_m3_runner_digest_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1-launch-equality-restore",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "old": "    tip_source = blob_reader(config.repo_root, config.tested_tip)\n    runner_executed_sha256 = hashlib.sha256(source).hexdigest()\n",
+          "new": "    tip_source = blob_reader(config.repo_root, config.tested_tip)\n    if source != tip_source:\n        raise LauncherFailure(\"tested-main and tested-tip runner blobs differ\")\n    runner_executed_sha256 = hashlib.sha256(source).hexdigest()\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_real_waiter_executes_main_when_tip_runner_differs_and_land_accepts",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_child_green_tip_runner_change_with_main_digest",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_tip_runner_divergence_reaches_retryable_checker_lookup_failure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2-land-equality-restore",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        or _SHA_RE.fullmatch(tip_runner_entry[1]) is None\n        or receipt.get(\"runner_executed_sha256\")\n",
+          "new": "        or _SHA_RE.fullmatch(tip_runner_entry[1]) is None\n        or main_runner_entry[1] != tip_runner_entry[1]\n        or receipt.get(\"runner_executed_sha256\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_active_forward_fold_d987_rejection_retains_lease_and_main",
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_two_stage_chain_rejects_change_only_in_last_main",
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_rejects_final_runner_change_before_provenance_rc16"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3-d987-disable",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        or final_main_entry[1] != tested_main_entry[1]\n",
+          "new": "        or False\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_two_stage_chain_accepts_final_net_runner_restore",
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_two_stage_chain_rejects_change_only_in_last_main"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4-d987-first-merge",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        forward_main_merges[-1].incorporated_main_sha,\n",
+          "new": "        forward_main_merges[0].incorporated_main_sha,\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_two_stage_chain_accepts_final_net_runner_restore",
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_rejects_final_runner_change_before_provenance_rc16"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5-d987-any-interval",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    tested_main_entry = _runner_tree_entry(repository, tested_main)\n    if (\n",
+          "new": "    tested_main_entry = _runner_tree_entry(repository, tested_main)\n    if any(\n        _runner_tree_entry(repository, merge.prior_main_sha)\n        != _runner_tree_entry(repository, merge.incorporated_main_sha)\n        for merge in forward_main_merges\n    ):\n        raise _acceptance_rejected()\n    if (\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_receipt_survives_clean_forward_main_merge_chain[multiple]",
+        "orchestrator/tests/test_dev_wave_land.py::test_d987_post_provenance_recheck_rejects_after_second_preflight",
+        "orchestrator/tests/test_dev_wave_land.py::test_receipt_survives_clean_forward_main_merge_chain[one]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6-d987-post-recheck-drop",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "                _verify_provenance_receipt(repository, receipt, landing_tip)\n                if preflight.forward_main_merges:\n                    _verify_forward_main_runner_blob(\n                        repository,\n                        tested_main,\n                        preflight.forward_main_merges,\n                    )\n                main_before = preflight.locked_main\n",
+          "new": "                _verify_provenance_receipt(repository, receipt, landing_tip)\n                main_before = preflight.locked_main\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_real_waiter_executes_main_when_tip_runner_differs_and_land_accepts",
+        "orchestrator/tests/test_acceptance_launcher.py::test_main_tip_runner_blob_mismatch_executes_and_receipts_tested_main",
+        "orchestrator/tests/test_acceptance_launcher.py::test_main_tip_runner_blob_mismatch_rejects_tip_digest_binding_report",
+        "orchestrator/tests/test_acceptance_launcher.py::test_m3_runner_digest_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M7-launch-tip-execution",
+      "replacements": [
+        {
+          "file": "tools/acceptance_launcher.py",
+          "old": "            child_rc = blob_runner(\n                source,\n                canonical_runner_path,\n",
+          "new": "            child_rc = blob_runner(\n                tip_source,\n                canonical_runner_path,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_real_waiter_executes_main_when_tip_runner_differs_and_land_accepts",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_runner_gate_uses_tested_main_after_main_reaches_tip",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_child_green_tip_runner_change_with_main_digest",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_tip_runner_divergence_reaches_retryable_checker_lookup_failure",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_rejects_tip_runner_digest_instead_of_tested_main_digest"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M8-land-tip-digest",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        != _acceptance_blob_content_sha256(repository, main_runner_entry[1])\n",
+          "new": "        != _acceptance_blob_content_sha256(repository, tip_runner_entry[1])\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_runner_entry_shape_is_permanent_rejection[main-blob-tip-missing]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M9-tip-existence-guard-drop",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    if tip_runner_entry is None or main_runner_entry is None:\n",
+          "new": "    if main_runner_entry is None:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_runner_entry_shape_is_permanent_rejection[main-blob-tip-tree]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-tip-type-guard-drop",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        or tip_runner_entry[0] != \"blob\"\n",
+          "new": "        or False\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

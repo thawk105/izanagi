@@ -63,6 +63,27 @@ campaign を複数指定するとその順で横並び (workload 比較) にな�
   `abort_ipc` を reps ベースに変える)。
 - backoff 以外の軸 (sort-strategy 等) は genome パースを差し替えれば流用可能。
 
+## B-10 extended backoff figure
+
+`plot_b10_extended_backoff.py` は、完走済み B-10 拡張格子専用の生成器である。既存 fig2b が
+source hash を pin するため `plot_backoff.py` 自体は変更せず、その WAL admission、style、
+campaign condition 抽出を依存として再利用する。
+
+```
+python3 tools/plotting/plot_b10_extended_backoff.py OUT_PREFIX MEASUREMENT_ROOT
+```
+
+- 3 workload の raw 29 点を検査し、F718 の 1000 µs だけを除外して有効 28 点を描く。
+- static 0 µs を保持するため x 軸は symlog。表示 tick は疎だが全 28 点を artist に持つ。
+- 上段は WAL 5 反復の mean + t95 CI、下段は dat の abort fraction。latency は描かない。
+- y 軸は workload-local。パネル間の高さ・傾きを比較しない文を図と provenance に持つ。
+- provenance v1 は外部入力 22 file、receipt chain、campaign identity、測定条件、除外値、
+  generator/dependency/output hash、D1107 の記述的 claim 境界を記録する。
+- `IZANAGI_B10_MEASUREMENT_ROOT` で検査時の canonical root を差し替えられる。
+
+論文図の再現コマンド、caption、job/campaign 表は
+`docs/paper-story/figures/README.md` の fig2c 節を正本とする。
+
 ## S-1a 9 対 (失敗報告図) command example
 
 `plot_s1_9pair.py` は、縮小主張 S' の登録 9 対を凍結 report と admission 済み WAL から描く。
