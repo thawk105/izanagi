@@ -96,7 +96,7 @@ title: [T-1825] 掃除で失われる commit を掃除の前に可視化する�
   台帳が永久に空でも検出できる。ただし通知が gc の窓に間に合う保証は作れておらず、
   高頻度な発火点の選定を新規項目として起票する。
   remaining: none
-  base: dcd02863e441a12576ff6ad71c4b1de3a2204598a75c9bed3243398800c6baa2
+  base: e09f6b452775b4677215c40f8841b23d5ed7aeb0c7384b37abffcfc75145ccc4
 
 ### 新規
 
