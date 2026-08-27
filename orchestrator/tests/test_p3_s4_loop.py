@@ -90,6 +90,12 @@ from test_p3_b4_closed_critic import (                             # noqa: E402
 _B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
     driver_kind="base"
 )
+_B4_SORT_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
+    driver_kind="sort"
+)
+_B4_TRIGGER_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
+    driver_kind="trigger"
+)
 def _b4_production_context(cfg, *, arm="on"):
     return _verified_b4_context(
         cfg,
@@ -2618,7 +2624,11 @@ def test_b4_trigger_driver_calls_shared_bootstrap_history_gate():
 
 
 def test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1(tmp_path):
-    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    cfg = L.default_cfg(
+        reflux=True,
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
     _seed_b4_admitted_history(layout, cfg)
     with pytest.raises(L.B4ProtocolError) as caught:
@@ -2630,7 +2640,11 @@ def test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1(tmp_path):
 
 
 def test_b4_nonempty_admitted_history_allows_valid_continuation(tmp_path):
-    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    cfg = L.default_cfg(
+        reflux=True,
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
     _seed_b4_admitted_history(layout, cfg)
     state = L.LoopState(iteration=1, start_wall=time.time())
@@ -2666,7 +2680,11 @@ def test_b4_bootstrap_history_gate_preserves_wal_symlink_rejection(tmp_path):
 def test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2(
     tmp_path, monkeypatch,
 ):
-    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    cfg = L.default_cfg(
+        reflux=True,
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     fresh_layout = CampaignLayout(root=str(tmp_path / "fresh-campaign")).ensure()
     fresh_state = L.LoopState()
     L.require_b4_bootstrap_history_empty(fresh_layout, fresh_state)
@@ -2710,7 +2728,11 @@ def _exercise_b4_history_driver(
     }
 
     if driver_name == "base":
-        cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+        cfg = L.default_cfg(
+            reflux=True,
+            b4_reflux_ablation=True,
+            _b4_launch_context=_B4_TEST_CONTEXT,
+        )
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
         proposal_path = tmp_path / f"base-{checkpoint_mode}.json"
         proposal_path.write_text(
@@ -2732,8 +2754,16 @@ def _exercise_b4_history_driver(
             )
 
         admitted_cfg = cfg
+        production_context = _verified_b4_context(
+            admitted_cfg,
+            driver_kind="base",
+        )
     elif driver_name == "sort":
-        cfg = SORT_LOOP.default_cfg(reflux=True, b4_reflux_ablation=True)
+        cfg = SORT_LOOP.default_cfg(
+            reflux=True,
+            b4_reflux_ablation=True,
+            _b4_launch_context=_B4_SORT_TEST_CONTEXT,
+        )
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
         proposal_path = tmp_path / f"sort-{checkpoint_mode}.json"
         proposal_path.write_text(json.dumps({
@@ -2767,10 +2797,16 @@ def _exercise_b4_history_driver(
             )
 
         admitted_cfg = cfg
+        production_context = _verified_b4_context(
+            admitted_cfg,
+            driver_kind="sort",
+        )
     else:
         assert driver_name == "trigger"
         cfg = TRIGGER_LOOP.default_cfg(
-            reflux=True, b4_reflux_ablation=True,
+            reflux=True,
+            b4_reflux_ablation=True,
+            _b4_launch_context=_B4_TRIGGER_TEST_CONTEXT,
         )
         build_context = build_run_context(
             generator_id=GeneratorId.S8A_TRIGGER_SWEEP
@@ -2825,6 +2861,13 @@ def _exercise_b4_history_driver(
                 **common,
             )
 
+        production_context = _verified_b4_context(
+            admitted_cfg,
+            driver_kind="trigger",
+            trigger_site=site_policy.OTHER,
+        )
+
+    common["_b4_launch_context"] = production_context
     if true_bootstrap:
         wal.write_lock(
             layout, build_v2_lock(ident.canonical_preimage(admitted_cfg)),
