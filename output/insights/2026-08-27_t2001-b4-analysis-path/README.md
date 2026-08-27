@@ -126,3 +126,31 @@ DW-M01 / DW-M02 に従い、**登録を取り下げて実効 gate へ再照準�
   fix 2 本、段 6 のレビュー 2 本と fix 3 本、焦点再レビュー、親の実測記録
 - `mutation-spec-final.json` / `mutation-final-report.json` — 本走
 - `mutation-spec-probe.json` / `mutation-probe2-report.json` — 観測 node 収集の probe
+
+## erratum — 逐語 1 箇所の可逆 defang (D88 / DW-S07)
+
+`verbatim/s2-plan.md` の 1 箇所を、原文のまま commit できないため置換した。
+
+- **理由**: 段 2 プランの一覧検査の表が、`orchestrator/campaign/login_headroom.py` にだけ
+  出現してよいと pin されている数値 literal を**そのまま引用していた**。
+  `orchestrator/tests/test_login_headroom.py::test_ceiling_numeric_literal_occurs_only_in_login_headroom_module`
+  は tracked / untracked の全 text を読み、**空白を全除去してから**照合するため、
+  整形では回避できない。原文のまま置くと同検査が赤になる。
+- **置換**: 当該 literal 1 箇所を `<login-headroom-ceiling-literal>` へ置換した。
+  **置換は 1 箇所のみで、可視文字の他の変更は無い。**
+- **原文 sha256**: `42bb85063ff82dca036ffccca2543158f93859747bae5fdc188e7f2d12eaf898` (57131 bytes)
+- **置換後 sha256**: `c0057a0c8a3308b19368f431bc599cb25a010b4be53735116f1976f918dd7379` (57153 bytes)
+- **復元法**: `<login-headroom-ceiling-literal>` を、上記検査が pin している
+  compact な数値 literal へ戻すと原文 sha256 に一致する。
+
+**発見の経緯**: 受入全走でだけ発火した。同検査は growth hold の下にあり通常走では skip される。
+親は段 7 の凍結前走査で三軸語と placeholder は見たが、**この gate の検出語を見ていなかった**。
+DW-S07 は「全 gate の検出語」を機械走査せよと定めており、親の適用が不足していた。
+
+## erratum — 受入全走で発火した 2 件目 (production の識別子衝突)
+
+`orchestrator/campaign/p3_b4_analysis_prereg_consumer.py` の local 変数名 `evaluate` が、
+repo 全体を AST 走査する certified-writer の caller 検査で
+`campaign.pipeline.evaluate` へ解決され、未解決参照として拒否された。
+**実際に同 API を呼んではおらず、名前の衝突だけである。** 改名で解消した。
+これも growth hold のため受入全走でだけ発火した。

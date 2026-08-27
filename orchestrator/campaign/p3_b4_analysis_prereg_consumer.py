@@ -607,8 +607,8 @@ def _enum_literals(tree: ast.Module, class_name: str) -> tuple[object, ...]:
 
 
 def _assert_contract_function_shapes(tree: ast.Module) -> None:
-    evaluate = _function(tree, "evaluate_analysis", "contract")
-    evaluate_ifs = [node for node in evaluate.body if isinstance(node, ast.If)]
+    contract_eval_fn = _function(tree, "evaluate_analysis", "contract")
+    evaluate_ifs = [node for node in contract_eval_fn.body if isinstance(node, ast.If)]
     if (
         len(evaluate_ifs) != 1
         or "B4AnalysisInvalid" not in ast.unparse(evaluate_ifs[0].test)
@@ -737,10 +737,10 @@ def _assert_source_closure_shapes(
         _fail("registry violation derivation no longer precedes eligibility filtering")
 
     path_tree = _parse_source(path_source_bytes, "analysis path")
-    evaluate = _function(path_tree, "evaluate_b4_artifacts", "analysis path")
-    derive_lines = _call_lines(evaluate, "derive_registry_violation_count")
-    adapt_lines = _call_lines(evaluate, "adapt_raw_blocks")
-    evaluate_lines = _call_lines(evaluate, "evaluate_analysis")
+    path_eval_fn = _function(path_tree, "evaluate_b4_artifacts", "analysis path")
+    derive_lines = _call_lines(path_eval_fn, "derive_registry_violation_count")
+    adapt_lines = _call_lines(path_eval_fn, "adapt_raw_blocks")
+    evaluate_lines = _call_lines(path_eval_fn, "evaluate_analysis")
     if (
         len(derive_lines) != 1
         or len(adapt_lines) != 1
