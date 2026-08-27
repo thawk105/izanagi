@@ -1,0 +1,21 @@
+# T-1975 + T-1978 段階 Q brief
+
+- scope: `tools/acceptance_launcher.py` の tested-main/tested-tip runner bytes 等値と、`tools/dev_wave_land.py` の同 runner blob ID 等値の2述語だけを撤去する。
+- scope: 同じ変更単位で D987 を実装し、forward-main が runner を変えた場合だけ既存 receipt の再利用を拒否する。
+- 確定済み裁定: 今回の直接指示を D1196 の再裁定として、段階 Q の実装開始を承認したものとして扱う。
+- 不変条件: 実行 runner は tested main bytes。tip runner の実在/blob確認、実行後 main 再読、全 shard binding report、receipt main digest は維持する。
+- 不変条件: checker main-tip 等値、waiter 束縛、launcher/land 自身の束縛、schema v5、既存 canonical field は維持する。
+- 不変条件: 規律2を緩めず、異常 variant の reject と correctness signal は不変。
+- scope外: 段階R、bounded local/non-dispatch receipt、既定 shard 数3、一般 receipt 再設計、schema拡張。
+- scope外: `tools/run_tests.py`、`tools/dev_wave_wait.py`、dispatcher、checker、hooks、supervisor。
+- 成果物影響: Qを実装しないと runnerを変更する正当な tipを永続的に受入不能とする。
+- 成果物影響: D987を実装しないと古い runner receiptで新runnerを含むforward-main landing tipを受理しうる。
+- 成果物: production 2ファイル、直接consumer test 2ファイル、必要な運用docs、変異matrix、台帳fragment、insight。
+- 正例: tipだけrunner変更、receiptはtested-main digest、forward-mainはrunner不変なら受理する。
+- 負例: receiptがtip digestを名乗る、またはforward-mainがrunnerを変更したら拒否する。
+- 分割: accepted planを現mainでread-only再検証し、異なる2レンズで敵対相談する。
+- 分割: 実装面は単一のD95 Codex author workerへ委ね、親はdocs・統合・検査・記録だけを担う。
+- 受入環境: Pegasus loginから `tools/run_tests.py` と受入dispatcherを使い、直接pytest/buildは起動しない。
+- freeze/proof-chain条件: 既存receipt proof chainを変更するが凍結成果物bytes・schema・producer出力種は変えない。段階Rへ広げない。
+- (P1) D987の比較対象は最後のforward-main incorporated mainのrunner entryとtested mainのrunner entryで十分、とする親のprovisional裁定。攻撃対象。
+- (P2) main-tip等値撤去後も片側runnerの欠落/非blobは従来どおり拒否する親のprovisional裁定。攻撃対象。

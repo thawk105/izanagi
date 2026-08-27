@@ -353,7 +353,7 @@ class _Repo:
             ),
             "runner_executed_sha256": _receipt_blob_sha256(
                 wave,
-                runner_digest_revision or tested_tip,
+                runner_digest_revision or tested_main,
                 "tools/run_tests.py",
             ),
             "env_projection": {
@@ -677,7 +677,7 @@ def _assert_v5_binding_baseline(
     runner_blob = _git(
         request.wave_worktree,
         "rev-parse",
-        f"{request.tested_wave_tip_sha}:tools/run_tests.py",
+        f"{request.tested_main_sha}:tools/run_tests.py",
     )
     assert _git(
         request.wave_worktree,
@@ -687,7 +687,7 @@ def _assert_v5_binding_baseline(
     ) == "blob"
     assert payload["runner_executed_sha256"] == _git_blob_sha256(
         request.wave_worktree,
-        request.tested_wave_tip_sha,
+        request.tested_main_sha,
         "tools/run_tests.py",
     )
 
@@ -1520,7 +1520,7 @@ def test_land_accepts_mixed_red_and_flake_nodeids_without_merging_sets() -> None
         assert result.as_json()["acceptance_flake_nodeids"] == [flake]
 
 
-def test_land_rejects_child_green_runner_blob_divergence() -> None:
+def test_land_accepts_child_green_tip_runner_change_with_main_digest() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(
@@ -1554,18 +1554,16 @@ def test_land_rejects_child_green_runner_blob_divergence() -> None:
             lookups.append(revision)
             return real_runner_tree_entry(repository, revision)
 
-        before = _git(repo.main, "rev-parse", "HEAD")
-
         with _patched_land_attr("_runner_tree_entry", spy_runner_tree_entry):
             result = _land(request)
 
         assert lookups == [tip, repo.base]
-        assert result.rc == LAND.RC_AUDIT
-        assert result.reason == "acceptance-receipt-rejected"
-        assert _git(repo.main, "rev-parse", "HEAD") == before
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_verdict == "child-green"
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
-def test_land_accepts_child_green_matching_main_and_tip_runner_blobs() -> None:
+def test_d987_rejects_final_runner_change_before_provenance_rc16() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tested_main = repo.base
@@ -1610,16 +1608,90 @@ def test_land_accepts_child_green_matching_main_and_tip_runner_blobs() -> None:
             lookups.append(revision)
             return real_runner_tree_entry(repository, revision)
 
-        with _patched_land_attr("_runner_tree_entry", spy_runner_tree_entry):
+        provenance_calls = []
+
+        def provenance_rc16(*args):
+            provenance_calls.append(args)
+            return subprocess.CompletedProcess([], 16, b"", b"")
+
+        with (
+            _patched_land_attr("_runner_tree_entry", spy_runner_tree_entry),
+            _patched_land_attr("_run_provenance_checker", provenance_rc16),
+        ):
             result = _land(request)
 
-        assert lookups == [tip, tested_main]
-        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
-        assert result.acceptance_verdict == "child-green"
-        assert _git(repo.main, "rev-parse", "HEAD") == landing_tip
+        assert lookups == [locked_main, tested_main]
+        assert provenance_calls == []
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == "acceptance-receipt-rejected"
+        assert (result.release_safe, result.retryable_same_request) == (
+            True,
+            False,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == locked_main
 
 
-def test_land_rejects_non_attributable_runner_blob_divergence() -> None:
+def test_d987_post_provenance_recheck_rejects_after_second_preflight() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, incorporated, _merge_commits = _forward_merge_request(
+            repo,
+            wave,
+            count=1,
+        )
+        main_before = _git(repo.main, "rev-parse", "HEAD")
+        assert main_before == incorporated[-1]
+        events = []
+        d987_calls = 0
+        real_preflight = LAND._locked_preflight
+        real_provenance = LAND._audit_provenance_history
+        real_d987 = LAND._verify_forward_main_runner_blob
+
+        def spy_preflight(*args, **kwargs):
+            events.append("preflight")
+            return real_preflight(*args, **kwargs)
+
+        def spy_provenance(*args, **kwargs):
+            events.append("provenance")
+            return real_provenance(*args, **kwargs)
+
+        def reject_only_after_provenance(repository, tested_main, merges):
+            nonlocal d987_calls
+            d987_calls += 1
+            events.append("d987")
+            if d987_calls == 1:
+                return real_d987(repository, tested_main, merges)
+            raise LAND._acceptance_rejected()
+
+        with (
+            _patched_land_attr("_locked_preflight", spy_preflight),
+            _patched_land_attr("_audit_provenance_history", spy_provenance),
+            _patched_land_attr(
+                "_verify_forward_main_runner_blob",
+                reject_only_after_provenance,
+            ),
+        ):
+            result = _land(request)
+
+        assert events == [
+            "preflight",
+            "d987",
+            "provenance",
+            "preflight",
+            "d987",
+        ]
+        assert d987_calls == 2
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == "acceptance-receipt-rejected"
+        assert result.incorporated_main_shas == incorporated
+        assert (result.release_safe, result.retryable_same_request) == (
+            True,
+            False,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == main_before
+
+
+def test_land_rejects_tip_runner_digest_instead_of_tested_main_digest() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(
@@ -1632,18 +1704,20 @@ def test_land_rejects_non_attributable_runner_blob_divergence() -> None:
             tip=tip,
             runner_digest_revision=tip,
         )
-        payload = _non_attributable_payload(request)
-        _write_receipt(request.acceptance_receipt, payload)
         before = _git(repo.main, "rev-parse", "HEAD")
 
         result = _land(request)
 
         assert result.rc == LAND.RC_AUDIT
         assert result.reason == "acceptance-receipt-rejected"
+        assert (result.release_safe, result.retryable_same_request) == (
+            True,
+            False,
+        )
         assert _git(repo.main, "rev-parse", "HEAD") == before
 
 
-def test_land_runner_divergence_precedes_checker_lookup_process_failure() -> None:
+def test_main_tip_runner_divergence_reaches_retryable_checker_lookup_failure() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(
@@ -1677,12 +1751,15 @@ def test_land_runner_divergence_precedes_checker_lookup_process_failure() -> Non
         with _patched_land_attr("_git", fail_checker_lookup):
             result = _land(request)
 
-        assert checker_lookups == []
+        assert checker_lookups == [
+            f"{repo.base}:tools/check_acceptance_reds.py",
+            f"{tip}:tools/check_acceptance_reds.py",
+        ]
         assert result.rc == LAND.RC_AUDIT
         assert result.reason == "acceptance-receipt-rejected"
         assert (result.release_safe, result.retryable_same_request) == (
-            True,
             False,
+            True,
         )
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
@@ -1747,6 +1824,66 @@ def test_land_child_green_runner_path_absence_is_permanent_rejection() -> None:
             False,
         )
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+_RUNNER_ENTRY_SHAPE_CASES = (
+    "main-blob-tip-tree",
+    "main-tree-tip-blob",
+    "main-blob-tip-missing",
+)
+
+
+@pytest.mark.parametrize(
+    "case",
+    _RUNNER_ENTRY_SHAPE_CASES,
+    ids=_RUNNER_ENTRY_SHAPE_CASES,
+)
+def test_land_runner_entry_shape_is_permanent_rejection(case: str) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        if case == "main-tree-tip-blob":
+            main_runner = repo.main / "tools/run_tests.py"
+            main_runner.unlink()
+            main_runner.mkdir()
+            (main_runner / "entry").write_text("tree object\n", encoding="utf-8")
+            _git(repo.main, "add", "-A", "tools/run_tests.py")
+            _git(repo.main, "commit", "-qm", "replace main runner with tree")
+            repo.base = _git(repo.main, "rev-parse", "HEAD")
+            _git(wave, "merge", "--ff-only", "main")
+            shutil.rmtree(wave / "tools/run_tests.py")
+            (wave / "tools/run_tests.py").write_text(
+                "raise SystemExit(0)\n",
+                encoding="utf-8",
+            )
+            _git(wave, "add", "-A", "tools/run_tests.py")
+            _git(wave, "commit", "-qm", "restore tip runner blob")
+        elif case == "main-blob-tip-tree":
+            tip_runner = wave / "tools/run_tests.py"
+            tip_runner.unlink()
+            tip_runner.mkdir()
+            (tip_runner / "entry").write_text("tree object\n", encoding="utf-8")
+            _git(wave, "add", "-A", "tools/run_tests.py")
+            _git(wave, "commit", "-qm", "replace tip runner with tree")
+        else:
+            _git(wave, "rm", "tools/run_tests.py")
+            _git(wave, "commit", "-qm", "remove tip runner")
+        tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, base=repo.base, tip=tip)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == "acceptance-receipt-rejected"
+        assert (result.release_safe, result.retryable_same_request) == (
+            True,
+            False,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+test_land_runner_entry_shape_is_permanent_rejection._plain_cases = tuple(
+    (case,) for case in _RUNNER_ENTRY_SHAPE_CASES
+)
 
 
 def test_land_runner_lookup_process_failure_is_retryable() -> None:
@@ -2136,18 +2273,18 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
-def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
-    """Exercise a tested-main runner through the real waiter and real land."""
+def test_real_waiter_executes_main_when_tip_runner_differs_and_land_accepts() -> None:
+    """Real waiter/launcher executes tested main, then real land consumes it."""
     with _repo() as repo:
         wave = repo.waves["one"]
         (repo.main / "tools" / "run_tests.py").write_text(
             "import hashlib\n"
             "import json\n"
             "import os\n"
-            "from pathlib import Path\n"
+            "import sys\n"
             "\n"
             "binding_k = int(os.environ['IZANAGI_ACCEPTANCE_SHARDS'])\n"
-            "binding_source = Path(__file__).read_bytes()\n"
+            "binding_source = sys._getframe(1).f_locals['source']\n"
             "binding_report = {\n"
             "    'schema_version': 'dev-wave-runner-binding-report/v1',\n"
             "    'tested_main': os.environ[\n"
@@ -2192,14 +2329,29 @@ def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
         _git(wave, "merge", "--ff-only", "main")
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
         shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
+        (wave / "tools" / "run_tests.py").write_text(
+            "raise SystemExit(97)\n",
+            encoding="utf-8",
+        )
         _git(
             wave,
             "add",
             "tools/dev_wave_wait.py",
             "tools/wave_land_window.py",
+            "tools/run_tests.py",
         )
-        _git(wave, "commit", "-qm", "install real acceptance integrity tools")
+        _git(
+            wave,
+            "commit",
+            "-qm",
+            "install waiter and divergent failing tip runner",
+        )
         tip = _git(wave, "rev-parse", "HEAD")
+        assert _git(
+            wave,
+            "rev-parse",
+            f"{repo.base}:tools/run_tests.py",
+        ) != _git(wave, "rev-parse", f"{tip}:tools/run_tests.py")
         lease_dir = repo.root / "lease-green-inherited"
         lease_dir.mkdir()
         receipt_path = repo.root / "real-green-inherited-receipt.json"
@@ -2248,6 +2400,16 @@ def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
         assert payload["child_rc"] == 0
         assert payload["red_nodeids"] == []
         assert payload["flake_nodeids"] == []
+        assert payload["runner_executed_sha256"] == _git_blob_sha256(
+            wave,
+            repo.base,
+            "tools/run_tests.py",
+        )
+        assert payload["runner_executed_sha256"] != _git_blob_sha256(
+            wave,
+            tip,
+            "tools/run_tests.py",
+        )
         request = repo.request(
             wave,
             base=repo.base,
@@ -2255,6 +2417,7 @@ def test_real_child_green_waiter_receipt_passes_real_land_end_to_end() -> None:
             acceptance_wave=acceptance_wave,
             acceptance_receipt=receipt_path,
         )
+        _assert_v5_binding_baseline(request, payload)
 
         result = _land(request)
 
@@ -6912,10 +7075,26 @@ def test_receipt_survives_clean_forward_main_merge_chain(count: int) -> None:
         receipt_before = request.acceptance_receipt.read_bytes()
         parsed = LAND._parser().parse_args(_land_cli_argv(request)[2:])
         assert parsed.landing_wave_tip_sha == request.landing_wave_tip_sha
+        d987_calls = []
+        real_d987 = LAND._verify_forward_main_runner_blob
 
-        result = _land(request)
+        def spy_d987(repository, tested_main, merges):
+            d987_calls.append(
+                (
+                    tested_main,
+                    tuple(merge.incorporated_main_sha for merge in merges),
+                )
+            )
+            return real_d987(repository, tested_main, merges)
+
+        with _patched_land_attr("_verify_forward_main_runner_blob", spy_d987):
+            result = _land(request)
 
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert d987_calls == [
+            (request.tested_main_sha, incorporated),
+            (request.tested_main_sha, incorporated),
+        ]
         assert result.tested_tip_sha == request.tested_wave_tip_sha
         assert result.landing_tip_sha == request.landing_wave_tip_sha
         assert result.incorporated_main_shas == incorporated
@@ -6926,6 +7105,123 @@ def test_receipt_survives_clean_forward_main_merge_chain(count: int) -> None:
             _git(wave, "show", "-s", "--format=%P", commit).split()[1]
             for commit in merge_commits
         ) == incorporated
+
+
+def test_d987_two_stage_chain_rejects_change_only_in_last_main() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_main = repo.base
+        tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+        first_main = repo.commit(repo.main, "main-1.txt", "first main\n")
+        _git(wave, "merge", "--no-ff", "--no-edit", first_main)
+        first_merge = _git(wave, "rev-parse", "HEAD")
+        second_main = repo.commit(
+            repo.main,
+            "tools/run_tests.py",
+            "raise SystemExit(27)\n",
+        )
+        _git(wave, "merge", "--no-ff", "--no-edit", second_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert first_merge != landing_tip
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == "acceptance-receipt-rejected"
+        assert result.incorporated_main_shas == (first_main, second_main)
+        assert (result.release_safe, result.retryable_same_request) == (
+            True,
+            False,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == second_main
+
+
+def test_d987_two_stage_chain_accepts_final_net_runner_restore() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_main = repo.base
+        tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+        first_main = repo.commit(
+            repo.main,
+            "tools/run_tests.py",
+            "raise SystemExit(31)\n",
+        )
+        _git(wave, "merge", "--no-ff", "--no-edit", first_main)
+        _git(
+            repo.main,
+            "checkout",
+            tested_main,
+            "--",
+            "tools/run_tests.py",
+        )
+        _git(repo.main, "commit", "-qm", "restore tested-main runner")
+        second_main = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--no-ff", "--no-edit", second_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        assert _git(
+            wave,
+            "rev-parse",
+            f"{first_main}:tools/run_tests.py",
+        ) != _git(wave, "rev-parse", f"{tested_main}:tools/run_tests.py")
+        assert _git(
+            wave,
+            "rev-parse",
+            f"{second_main}:tools/run_tests.py",
+        ) == _git(wave, "rev-parse", f"{tested_main}:tools/run_tests.py")
+
+        result = _land(dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        ))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.incorporated_main_shas == (first_main, second_main)
+        assert result.acceptance_verdict == "child-green"
+        assert _git(repo.main, "rev-parse", "HEAD") == landing_tip
+
+
+def test_d987_runner_lookup_process_failure_is_retryable() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request, incorporated, _merge_commits = _forward_merge_request(
+            repo,
+            wave,
+            count=1,
+        )
+        real_git = LAND._git
+
+        def fail_final_main_runner_lookup(
+            repo_path: Path,
+            *args: str,
+            **kwargs,
+        ):
+            if (
+                args[:3] == ("ls-tree", "-z", "--full-tree")
+                and args[3] == incorporated[-1]
+                and args[-2:] == ("--", "tools/run_tests.py")
+            ):
+                return LAND._GitResult(
+                    128,
+                    b"",
+                    b"synthetic final-main runner lookup failure",
+                )
+            return real_git(repo_path, *args, **kwargs)
+
+        with _patched_land_attr("_git", fail_final_main_runner_lookup):
+            result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == "acceptance-receipt-rejected"
+        assert (result.release_safe, result.retryable_same_request) == (
+            False,
+            True,
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == incorporated[-1]
 
 
 def test_first_forward_main_must_descend_from_tested_main_only_by_origin_gate() -> None:
@@ -7518,6 +7814,76 @@ def test_forward_merge_fold_recovery_uses_landing_tip_state_boundary() -> None:
         assert recovered.main_after == fold_commit
         assert recovered.incorporated_main_shas == (incorporated_main,)
         assert module.events == ["verify", "mark", "finalize"]
+
+
+def test_active_forward_fold_d987_rejection_retains_lease_and_main() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tested_main = repo.base
+        tested_tip = repo.commit(wave, "wave.txt", "accepted wave\n")
+        request = repo.request(wave, base=tested_main, tip=tested_tip)
+        incorporated_main = repo.commit(
+            repo.main,
+            "tools/run_tests.py",
+            "raise SystemExit(41)\n",
+        )
+        _git(wave, "merge", "--no-ff", "--no-edit", incorporated_main)
+        landing_tip = _git(wave, "rev-parse", "HEAD")
+        request = dataclasses.replace(
+            request,
+            landing_wave_tip_sha=landing_tip,
+        )
+        assert _git(
+            wave,
+            "rev-parse",
+            f"{incorporated_main}:tools/run_tests.py",
+        ) != _git(
+            wave,
+            "rev-parse",
+            f"{tested_main}:tools/run_tests.py",
+        )
+        module = _FakeFoldModule(
+            _FakeFoldPlan("docs/spool/worklog/synthetic-active.md"),
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("D987 rejection must not resume the fold")
+            ),
+            active=True,
+        )
+        provenance_calls = []
+        d987_calls = []
+        main_before = _git(repo.main, "rev-parse", "HEAD")
+        assert main_before == incorporated_main
+        real_d987 = LAND._verify_forward_main_runner_blob
+
+        def forbidden_provenance(*args):
+            provenance_calls.append(args)
+            raise AssertionError("active-fold D987 rejection must precede provenance")
+
+        def spy_d987(repository, observed_tested_main, merges):
+            d987_calls.append((
+                observed_tested_main,
+                tuple(merge.incorporated_main_sha for merge in merges),
+            ))
+            return real_d987(repository, observed_tested_main, merges)
+
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_audit_provenance_history", forbidden_provenance),
+            _patched_land_attr("_verify_forward_main_runner_blob", spy_d987),
+        ):
+            result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
+        assert result.reason == "acceptance-receipt-rejected"
+        assert result.incorporated_main_shas == (incorporated_main,)
+        assert (result.release_safe, result.retryable_same_request) == (
+            False,
+            False,
+        )
+        assert provenance_calls == []
+        assert d987_calls == [(tested_main, (incorporated_main,))]
+        assert module.events == []
+        assert _git(repo.main, "rev-parse", "HEAD") == main_before
 
 
 def test_same_base_two_wave_winner_stale_resync_loser_land_e2e() -> None:

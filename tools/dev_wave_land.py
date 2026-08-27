@@ -848,6 +848,32 @@ def _runner_tree_entry(
         raise _acceptance_rejected() from None
 
 
+def _verify_forward_main_runner_blob(
+    repository: _Repository,
+    tested_main: str,
+    forward_main_merges: Sequence[_ForwardMainMerge],
+) -> None:
+    """D987: final incorporated main must retain the tested-main runner blob."""
+
+    if not forward_main_merges:
+        return
+    final_main_entry = _runner_tree_entry(
+        repository,
+        forward_main_merges[-1].incorporated_main_sha,
+    )
+    tested_main_entry = _runner_tree_entry(repository, tested_main)
+    if (
+        final_main_entry is None
+        or tested_main_entry is None
+        or final_main_entry[0] != "blob"
+        or tested_main_entry[0] != "blob"
+        or _SHA_RE.fullmatch(final_main_entry[1]) is None
+        or _SHA_RE.fullmatch(tested_main_entry[1]) is None
+        or final_main_entry[1] != tested_main_entry[1]
+    ):
+        raise _acceptance_rejected()
+
+
 def _acceptance_tree_entry(
     repository: _Repository,
     revision: str,
@@ -1081,7 +1107,6 @@ def _verify_acceptance_receipt(
         or tip_runner_entry[0] != "blob"
         or _SHA_RE.fullmatch(main_runner_entry[1]) is None
         or _SHA_RE.fullmatch(tip_runner_entry[1]) is None
-        or main_runner_entry[1] != tip_runner_entry[1]
         or receipt.get("runner_executed_sha256")
         != _acceptance_blob_content_sha256(repository, main_runner_entry[1])
     ):
@@ -4949,6 +4974,13 @@ def land(request: LandRequest) -> LandResult:
             if isinstance(preflight, LandResult):
                 return finish(preflight)
             main_before = preflight.locked_main
+            quiescent_rejection = preflight.active_plan is None
+            if preflight.forward_main_merges:
+                _verify_forward_main_runner_blob(
+                    repository,
+                    tested_main,
+                    preflight.forward_main_merges,
+                )
             if preflight.locked_main != landing_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
                 receipt, acquired, waited = _run_outside_land_lock(
@@ -5029,7 +5061,14 @@ def land(request: LandRequest) -> LandResult:
                 )
                 if isinstance(preflight, LandResult):
                     return finish(preflight)
+                quiescent_rejection = preflight.active_plan is None
                 _verify_provenance_receipt(repository, receipt, landing_tip)
+                if preflight.forward_main_merges:
+                    _verify_forward_main_runner_blob(
+                        repository,
+                        tested_main,
+                        preflight.forward_main_merges,
+                    )
                 main_before = preflight.locked_main
             quiescent_rejection = preflight.active_plan is None
             acceptance_verification = _verify_acceptance_receipt(
