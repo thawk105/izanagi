@@ -75,7 +75,7 @@ except BaseException:
 
 _WIRING_SLICE_TOOL_PATH = Path(__file__).with_name("t189_oracle_wiring_slice.py")
 _WIRING_SLICE_TOOL_SHA256 = (
-    "30b12be68ae67f0c78faefce77cdd27aa23fa63f9dc0bfd9e3473a2590817577"
+    "5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469"
 )
 WIRING_SLICE_PROFILE = "t189-oracle-wiring-slice-v1"
 _WIRING_SLICE_MANIFEST_KIND = "t189-task-oracle-wiring-slice"

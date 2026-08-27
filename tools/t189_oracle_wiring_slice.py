@@ -695,8 +695,6 @@ def _rooted_regular_bytes(
         with os.fdopen(os.dup(final_fd), "rb") as stream:
             raw = stream.read()
         after = os.fstat(final_fd)
-        if _full_identity(before) != _full_identity(after):
-            return _fail(label, "file changed while reading")
         for parent_fd, name, opened_fd, expected in links:
             current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
             if (
@@ -704,6 +702,8 @@ def _rooted_regular_bytes(
                 or _link_identity(os.fstat(opened_fd)) != expected
             ):
                 return _fail(label, "path changed while reading")
+        if _full_identity(before) != _full_identity(after):
+            return _fail(label, "file changed while reading")
         return raw
     except OSError as exc:
         raise WiringSliceError(f"{label}: file is unavailable") from exc
