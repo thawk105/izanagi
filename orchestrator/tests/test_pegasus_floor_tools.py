@@ -826,7 +826,7 @@ def test_floor_policy_covers_derived_reservation_envelope() -> None:
 def test_floor_job_budget_comments_preserve_m1_m2_labeled_relationships() -> None:
     source = JOB.read_text(encoding="utf-8")
     block_start = source.index("# 12-cell subtotal")
-    block_end = source.index("\n\n", block_start)
+    block_end = source.index("\nset -Eeuo pipefail", block_start)
     budget_block = source[block_start:block_end]
     subtotal = 12 * (900 + (8 + 2) * (5 * 5 + 120))
     prebuild = 900 + 900
