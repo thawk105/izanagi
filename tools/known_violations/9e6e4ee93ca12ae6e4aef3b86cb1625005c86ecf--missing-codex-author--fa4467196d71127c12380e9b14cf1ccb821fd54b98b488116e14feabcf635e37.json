@@ -1,0 +1,7 @@
+{
+  "sha": "9e6e4ee93ca12ae6e4aef3b86cb1625005c86ecf",
+  "kind": "missing-codex-author",
+  "value": "",
+  "ruling": "2026-08-27 本セッション内でのユーザー直接裁定 (known-violation 登録して commit し裁定送り、後続 dev-wave で解除・修理)",
+  "note": "違反 path は `output/insights/2026-08-27_t1629-ratification-broker/verbatim/parent-check-ledger-pins.py`。同 file は親が書いた照合 probe で、Codex `role=author` を付けられない。後続 commit `f87a06cf7` で削除済み。逐語 `.md` と結果 `.json` は実装面ではなく、同型の違反を起こさない。"
+}
