@@ -33,6 +33,11 @@ title: [T-1934] 受入のwall−最遅worker残差は4成分へ識別不能と�
   同waveへ持ち込んでいない。
 - Codex子は3本 (plan 1、敵対consult 2)。全て`gpt-5.6-sol` / `reasoning=xhigh` / read-only、
   launcher rc=0、`check_codex_output.py` rc=0。本waveでpytest/buildを直接起動していない。
+- **段7でF333を再発させた。** commitとfull-history provenanceを同じ短い前景commandへ繋ぎ、
+  dispatch親だけを打ち切ってrequest `953513.nqsv`とorphan holdを残した。qdelせず終端を待ち、
+  child未起動のqueue-wait-timeoutとsource clean/HEAD不変を確認した。holdは回復処理が解除し、
+  full-history監査を単独commandで再走して6717件・新規違反なしを得た。同型と恒久対応はF333に
+  既記録なのでreference/入口は変更せず、再発だけをfailures fragmentへ追記する。
 - 最終受入はD838とDW-O12に従い、本記録commitを含むtipで通常lease経路から1回行う。その結果値は
   tested tip一致を壊す後追いcommitを避けるため本entryへ含めず、専用handoffと最終報告へ残す。
 
