@@ -100,10 +100,15 @@
 
 ## 変異 matrix
 
-`b93861570` 固定、`--runner-mode dispatch`、使い捨て worktree
-(`/work/1/SFC/tanab/mutation-scratch-t1974`)。
+`--runner-mode dispatch`、使い捨て worktree (`/work/1/SFC/tanab/mutation-scratch-t1974`)。
 
 **baseline PASSED / KILLED 13 / SURVIVED 0 / MISMATCH 0 / TIMEOUT 0。**
+
+本走は 2 回ある。1 回目は統合 commit `b93861570` で、受入全走の後に bytecode guard の回帰を
+1 行で直したため、DW-M07 に従い**最終 commit `17d42cdf6` で再走した**。
+再走前にアンカー 13 件の一意性を再検証し、spec の内容 hash が不変であることを確かめている
+(`58655ae2e8d554929dd0b239c14c5cbec788baaec37aaba0a8c61b03071df45b`)。
+両走とも結果は同一で、台帳 (`mutation-final-out.json`) は再走 (`repo_head` = `17d42cdf6...`) の分である。
 
 対象テストは 5 file
 (`test_acceptance_launcher.py`、`test_pegasus_dispatch_compute.py`、`test_dev_wave_land.py`、
