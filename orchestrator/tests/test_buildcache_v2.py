@@ -302,12 +302,7 @@ def _fake_build_environment(
                 assert len(masstree_tokens) <= 1
                 cache_lines = [
                     "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n",
-                    f"FETCHCONTENT_BASE_DIR:PATH={base}\n",
                 ]
-                if "-DFETCHCONTENT_FULLY_DISCONNECTED=ON" in cmd:
-                    cache_lines.append(
-                        "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON\n"
-                    )
                 if masstree_tokens:
                     configured_root = Path(
                         masstree_tokens[0].split("=", 1)[1]
@@ -318,6 +313,14 @@ def _fake_build_environment(
                     )
                 else:
                     configured_root = base / "masstree-src"
+                    cache_lines.append(
+                        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=\n"
+                    )
+                cache_lines.append(f"FETCHCONTENT_BASE_DIR:PATH={base}\n")
+                if "-DFETCHCONTENT_FULLY_DISCONNECTED=ON" in cmd:
+                    cache_lines.append(
+                        "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON\n"
+                    )
                 (bdir / "CMakeCache.txt").write_text(
                     "".join(cache_lines),
                     encoding="utf-8",
@@ -609,6 +612,202 @@ def test_masstree_source_root_accepts_base_only_shape(tmp_path):
     ) == str(root.resolve())
 
 
+def test_masstree_source_root_accepts_observed_empty_source_dir_base_shape(
+        tmp_path):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    cache_lines = (build_dir / "CMakeCache.txt").read_text(
+        encoding="utf-8",
+    ).splitlines()
+    assert cache_lines.count("FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=") == 1
+    assert buildcache._masstree_source_root_from_cmake_cache(
+        str(build_dir)
+    ) == str(root.resolve())
+
+
+@pytest.mark.parametrize(
+    "invalid_source",
+    (" ", "\t", '""'),
+    ids=("space", "tab", "quoted-empty"),
+)
+def test_masstree_source_root_nonempty_empty_like_source_does_not_fallback(
+        tmp_path, invalid_source):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={invalid_source}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="FETCHCONTENT_SOURCE_DIR_MASSTREE .* NUL なし絶対 path"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+def test_masstree_source_root_prefers_nonempty_source_over_base(tmp_path):
+    build_dir = tmp_path / "build"
+    source_root = tmp_path / "source-root"
+    base = tmp_path / "fetchcontent"
+    base_root = base / "masstree-src"
+    assert source_root.resolve() != base_root.resolve()
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={source_root}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((source_root / "config.h"),
+          (source_root / "libkohler_masstree_json.a")),),
+    )
+
+    assert buildcache._masstree_source_root_from_cmake_cache(
+        str(build_dir)
+    ) == str(source_root.resolve())
+
+
+def test_masstree_source_root_rejects_base_depend_info_when_source_nonempty(
+        tmp_path):
+    build_dir = tmp_path / "build"
+    source_root = tmp_path / "source-root"
+    base = tmp_path / "fetchcontent"
+    base_root = base / "masstree-src"
+    assert source_root.resolve() != base_root.resolve()
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        f"FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={source_root}",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((base_root / "config.h"),
+          (base_root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="source root が一致しない"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "base_kind",
+    ("missing", "empty", "relative", "nul"),
+    ids=("missing", "empty", "relative", "nul"),
+)
+def test_masstree_source_root_empty_source_requires_valid_base(
+        tmp_path, base_kind):
+    build_dir = tmp_path / "build"
+    root = tmp_path / "expected" / "masstree-src"
+    cache_entries = ["FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH="]
+    if base_kind == "empty":
+        cache_entries.append("FETCHCONTENT_BASE_DIR:PATH=")
+    elif base_kind == "relative":
+        cache_entries.append("FETCHCONTENT_BASE_DIR:PATH=relative")
+    elif base_kind == "nul":
+        cache_entries.append(
+            f"FETCHCONTENT_BASE_DIR:PATH={tmp_path / 'base'}\0bad"
+        )
+    elif base_kind != "missing":  # pragma: no cover - parametrization contract
+        raise AssertionError(base_kind)
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        *cache_entries,
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    match = (
+        "解決 key がない"
+        if base_kind == "missing"
+        else "FETCHCONTENT_BASE_DIR .* NUL なし絶対 path"
+    )
+    with pytest.raises(buildcache.BuildCacheError, match=match):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+@pytest.mark.parametrize(
+    "cache_entries",
+    (
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH={root}",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+        ),
+        (
+            "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+            "FETCHCONTENT_BASE_DIR:PATH={base}",
+            "FETCHCONTENT_BASE_DIR:PATH={other_base}",
+        ),
+    ),
+    ids=("double-empty-source", "mixed-source", "double-base"),
+)
+def test_masstree_source_root_empty_source_preserves_duplicate_rejection(
+        tmp_path, cache_entries):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent"
+    root = base / "masstree-src"
+    values = {
+        "base": base,
+        "root": root,
+        "other_base": tmp_path / "other-fetchcontent",
+    }
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        *(entry.format(**values) for entry in cache_entries),
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((root / "config.h"), (root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="解決 key が一意"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
+def test_masstree_source_root_empty_source_rejects_depend_info_mismatch(
+        tmp_path):
+    build_dir = tmp_path / "build"
+    base = tmp_path / "fetchcontent-a"
+    other_root = tmp_path / "fetchcontent-b" / "masstree-src"
+    _write_cmake_cache(build_dir, (
+        "CMAKE_GENERATOR:INTERNAL=Unix Makefiles",
+        "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=",
+        f"FETCHCONTENT_BASE_DIR:PATH={base}",
+    ))
+    _write_masstree_depend_info(
+        build_dir,
+        (((other_root / "config.h"),
+          (other_root / "libkohler_masstree_json.a")),),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="source root が一致しない"):
+        buildcache._masstree_source_root_from_cmake_cache(str(build_dir))
+
+
 @pytest.mark.parametrize(
     "generator_lines",
     (
@@ -774,10 +973,10 @@ def test_masstree_source_root_relative_path_is_single_reason(
 
 @pytest.mark.parametrize(
     "invalid_source",
-    ("", "relative/masstree-src", "/invalid/masstree-src\0bad"),
-    ids=("empty", "relative", "nul"),
+    ("relative/masstree-src", "/invalid/masstree-src\0bad"),
+    ids=("relative", "nul"),
 )
-def test_masstree_source_root_invalid_source_does_not_fallback(
+def test_masstree_source_root_nonempty_invalid_source_does_not_fallback(
         tmp_path, invalid_source):
     build_dir = tmp_path / "build"
     base = tmp_path / "fetchcontent"

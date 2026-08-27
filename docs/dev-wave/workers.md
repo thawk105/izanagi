@@ -17,9 +17,10 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 
 ## DW-S05-A — 段 5 所有と投入
 
-実装単位は編集ファイル所有が素集合になるよう分割し worktree を分ける。依存があれば先行単位を
-完了させ、所有パス限定 patch
-（`git add -A` 後 `git diff --cached --output=<f> -- <所有パス>` で作り `git apply`。隔離 session は `git -C` 不可）だけを展開してから並列投入する。
+編集 path 所有が素集合の単位に分け各単位を別 worktree へ置く。依存先を完了させ、所有 path 限定 patch
+（`git add -A`→`git diff --cached --output=<f> -- <所有パス>`→`git apply`。隔離 session は `git -C` 不可）だけ展開し並列投入。
+各投入先 root を cwd にし直前に `tools/check_wave_startup.py --repo . --mode midflight`。rc 非 0 で停止。
+乖離量は非関門。fail-open の INFO でなく gate 実測値の NOTE が非 0 なら anchor を読み直す。
 codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
@@ -46,7 +47,7 @@ codex は `reasoning=xhigh`、`sandbox=workspace-write` とする。
 
 実装 wave は異なるレンズの敵対レビューを `reasoning=xhigh` で必ず 2 本並列で行う。
 実装面に Codex `role=author` のないハンクがあればレビューで代替せず停止する。
-所見ゼロは変異で裏取りするまで緑と数えない。
+所見ゼロの扱いは `DW-M02`。
 
 ## DW-S06-B — 段 6 fix の分割と継承
 
