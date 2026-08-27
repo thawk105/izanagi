@@ -15,13 +15,15 @@ consumer 側の例外契約 (OracleDriverError / FloorCampaignError) への変�
 review capability は canonical body と内部一貫性を証明するだけで、人間の真正な review 行為を
 認証しない。S8b binary receipt は発行時に検証した admission を保存から oracle 実走直前まで
 連続束縛するが、gateway が発行したことの証明でも暗号学的保証でもない。
+
+``prepared_binding`` は実 filesystem を検査しない identity 合成器である。測定対象
+binary の source snapshot 関門は、それぞれの build 経路が所有する。
 """
 from __future__ import annotations
 
 import contextlib
 import hashlib
 import json
-from pathlib import Path
 from typing import Mapping
 
 from . import pipeline  # noqa: E402

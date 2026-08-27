@@ -58,16 +58,6 @@ except ModuleNotFoundError as exc:
     _SELECTION_CONTRACT = None
 
 
-_RATIFICATION_GIT_ENV_ALLOWLIST = (
-    "LANG",
-    "LC_ALL",
-    "LC_CTYPE",
-    "PATH",
-    "SYSTEMROOT",
-    "TMPDIR",
-    "TZ",
-)
-
 try:
     from orchestrator.tests.growth_test_holds import (
         GROWTH_TEST_HOLDS,
@@ -160,81 +150,9 @@ def _detect_site_under_test():
     """Allow site-policy unit tests to exercise the real detector explicitly."""
 
 
-def _ratification_fixture_git(repo: Path, *args: str) -> bytes:
-    executable = shutil.which("git")
-    if executable is None:
-        pytest.fail("ratified enforcement-source fixture requires git")
-    env = {
-        key: os.environ[key]
-        for key in _RATIFICATION_GIT_ENV_ALLOWLIST
-        if key in os.environ
-    }
-    env.update({
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_NO_REPLACE_OBJECTS": "1",
-        "GIT_OPTIONAL_LOCKS": "0",
-    })
-    completed = subprocess.run(
-        [executable, "-C", str(repo), *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-        env=env,
-        timeout=30,
-    )
-    if completed.returncode != 0:
-        pytest.fail(
-            "ratified enforcement-source fixture git failed: "
-            f"args={args!r} "
-            f"stderr={completed.stderr.decode(errors='replace')!r}"
-        )
-    return completed.stdout
-
-
 @pytest.fixture
-def ratified_enforcement_source(
-    tmp_path_factory: pytest.TempPathFactory,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Opt in to a committed temporary ledger for the current exact closure."""
-    from orchestrator.campaign import contract_loader_binding
-    from orchestrator.campaign import enforcement_source_ratification as ratification
-
-    binding = contract_loader_binding.capture_contract_loader_binding()
-    digest = ratification.closure_digest_sha256(
-        binding.contract_loader_blob_sha256s
-    )
-    repo = tmp_path_factory.mktemp("ratified-enforcement-source") / "repo"
-    repo.mkdir()
-    _ratification_fixture_git(repo, "init", "-q")
-    marker = repo / "marker"
-    marker.write_text("ratification fixture\n", encoding="ascii")
-    _ratification_fixture_git(repo, "add", "--", "marker")
-    identity = (
-        "-c", "user.email=ratification-fixture@example.invalid",
-        "-c", "user.name=Ratification fixture",
-    )
-    _ratification_fixture_git(
-        repo, *identity, "commit", "-q", "-m", "initialize fixture",
-    )
-    ledger = repo / ratification.RATIFICATION_LEDGER_RELATIVE_PATH
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    ledger.write_bytes(
-        json.dumps(
-            {"schema_version": 1, "closure_digest_sha256": digest},
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("ascii") + b"\n"
-    )
-    _ratification_fixture_git(
-        repo, "add", "--", ratification.RATIFICATION_LEDGER_RELATIVE_PATH,
-    )
-    _ratification_fixture_git(
-        repo, *identity, "commit", "-q", "-m", "record ratification",
-    )
-    monkeypatch.setattr(ratification, "_REPO_ROOT", repo)
-    return digest
+def ratified_enforcement_source() -> None:
+    """Compatibility fixture: closure ratification has been retired."""
 
 
 @pytest.fixture
@@ -1004,6 +922,15 @@ _REAL_REPO_LOCK_TIMEOUT_S = 245.0
 _REAL_REPO_LOCK_RETRY_INTERVAL_S = 0.05
 _REAL_REPO_LOCK_RESOURCES = ("parent", "ccbench")
 _REAL_REPO_LOCK_MODE_RANK = {"read": 0, "write": 1}
+_REAL_REPO_GIT_ENV_ALLOWLIST = (
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "PATH",
+    "SYSTEMROOT",
+    "TMPDIR",
+    "TZ",
+)
 
 
 @dataclass
@@ -1024,7 +951,7 @@ def _real_repo_git_environment() -> dict[str, str]:
     """Return a closed, read-only Git environment for lock identity probes."""
     env = {
         key: os.environ[key]
-        for key in _RATIFICATION_GIT_ENV_ALLOWLIST
+        for key in _REAL_REPO_GIT_ENV_ALLOWLIST
         if key in os.environ
     }
     env.update({

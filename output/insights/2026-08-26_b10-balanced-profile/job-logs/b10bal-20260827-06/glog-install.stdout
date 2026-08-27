@@ -1,0 +1,14 @@
+-- Install configuration: "Release"
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/libglog.a
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/include/glog/export.h
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/include/glog/logging.h
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/include/glog/raw_logging.h
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/include/glog/stl_logging.h
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/include/glog/vlog_is_on.h
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/include/glog/log_severity.h
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/pkgconfig/libglog.pc
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/cmake/glog/glog-modules.cmake
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/cmake/glog/glog-config.cmake
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/cmake/glog/glog-config-version.cmake
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/cmake/glog/glog-targets.cmake
+-- Installing: /scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix/lib/cmake/glog/glog-targets-release.cmake

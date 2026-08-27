@@ -1,0 +1,11 @@
+
+=== backoff profile  workload=balanced  ({'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '50', 'ycsb_rmw': '0'}) ===
+      pt            tps   abort  spin_cyc  tot_ipc  use_ipc     K_useful
+  backoff=   0us  tps=   4,044,953  abort= 66.9%  spin_cyc=  0.0%  total_ipc=1.933  useful_ipc=1.933  K_useful=6,318,089
+  backoff=   2us  tps=   4,510,108  abort= 54.6%  spin_cyc= 22.6%  total_ipc=1.607  useful_ipc=2.019  K_useful=4,916,953
+  backoff=   5us  tps=   4,336,086  abort= 45.6%  spin_cyc= 37.6%  total_ipc=1.322  useful_ipc=2.002  K_useful=3,985,190
+  backoff=  10us  tps=   3,859,665  abort= 38.5%  spin_cyc= 49.6%  total_ipc=1.085  useful_ipc=1.967  K_useful=3,190,039
+  backoff=  25us  tps=   3,022,782  abort= 29.2%  spin_cyc= 63.5%  total_ipc=0.802  useful_ipc=1.866  K_useful=2,289,390
+  backoff=  50us  tps=   2,382,936  abort= 22.9%  spin_cyc= 72.3%  total_ipc=0.650  useful_ipc=1.858  K_useful=1,663,439
+  backoff= 100us  tps=   1,829,445  abort= 17.5%  spin_cyc= 78.8%  total_ipc=0.520  useful_ipc=1.748  K_useful=1,268,396
+  wrote /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-balanced-profile/output/env/pegasus/profile/backoff_profile_t48_skew0p9_rr50.json / .md  (useful_ipc 散布 14.2% vs total_ipc 124.9%)

@@ -86,6 +86,12 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             "exploratory oracle n pilot builds are ineligible for certified selection",
             DELEGATING_MATERIALIZER,
         ),
+    "orchestrator.campaign.s8b_expected_materialization.produce_expected_materialization_sha256":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "reference materialization only derives the expected tree digest and never "
+            "builds or produces a certified binary",
+        ),
     "orchestrator.campaign.t152_write_intent_coverage._build":
         MaterializerRegistration(
             NON_ADMISSIBLE,
