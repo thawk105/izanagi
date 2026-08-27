@@ -1,0 +1,345 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/239dcf2519fd84952056feb8676e0ad3/izdw-239dcf2519.o953781",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/239dcf2519fd84952056feb8676e0ad3/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [107 items]\n\n........................................................................ [ 67%]\n...................................                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n============================= 107 passed in 4.12s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "0083409e95f1c0bc90049d5e21fadbe7ed00855ca455e921e003c405eae6ef97"
+    },
+    "artifact_error": null,
+    "collection_sha256": "9c25e08f6569cbf2e36bf4e449dc79d6f4a7f92329d0e44af355a9e81b531d49",
+    "duration_s": 103.526,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "32c3723fb76b5971504afff8dcccbf16668f00cddad254d78d8ef417eec60344",
+    "repo_head": "f82b67f674d60c45d03b2d28de7d610c5ede7785",
+    "runner_sha256": "7bd4c4f56093a16f3b468c585400a0b6155dd6ff9324186d29436df50d181a33",
+    "spec_sha256": "ed6f7d794c4cb72d9d896dd496abc79fa9915d0559a05297ebf0e1d309a5a35a",
+    "status": "PASSED",
+    "test_output_sha256": "0083409e95f1c0bc90049d5e21fadbe7ed00855ca455e921e003c405eae6ef97",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6cc85bd35cc93abfc0d40c5b103eae8a1cf9075f767de151378b7288bfcd43af"
+  },
+  "date": "2026-08-27T17:25:23.414642+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/ae619968bf149cb2c779e3b225cc7b36/izdw-ae619968bf.o953788",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/ae619968bf149cb2c779e3b225cc7b36/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [107 items]\n\n........................................................................ [ 67%]\n................F..................                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________ test_m16_git_allowlist_rejects_forbidden_command_before_spawn _________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cd2592d420>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_m16_git_allowlist_rejects0')\n\n    def test_m16_git_allowlist_rejects_forbidden_command_before_spawn(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n    ):\n        repo = _init_repo(tmp_path)\n        _topic_with_file(repo)\n        checker = _make_fake_landed(tmp_path / \"landed.py\")\n        audit = _make_fake_audit(tmp_path / \"audit.py\", [])\n        parser = TOOL._parser()\n        args = parser.parse_args([\n            \"--repo\", str(repo), \"--branch\", \"topic\", \"--ledger-check\",\n        ])\n        real_spawn = TOOL.subprocess.run\n        spawned: list[list[str]] = []\n        child_envs: list[dict[str, str]] = []\n    \n        def recording_spawn(argv: Any, *positional: Any, **kwargs: Any):\n            spawned.append(list(argv))\n            child_envs.append(dict(kwargs[\"env\"]))\n            return real_spawn(argv, *positional, **kwargs)\n    \n        before = _repository_control_bytes(repo)\n        monkeypatch.setattr(TOOL.subprocess, \"run\", recording_spawn)\n        TOOL._validate_cli(parser, args)\n        rc, payload = TOOL.assess(\n            args, landed_checker=checker, audit_tool=audit,\n        )\n        after = _repository_control_bytes(repo)\n        assert rc == 0, payload[\"issues\"]\n        assert spawned\n        assert after == before\n        assert any(argv[:2] == [sys.executable, str(checker)] for argv in spawned)\n        assert any(argv[:2] == [sys.executable, str(audit)] for argv in spawned)\n        assert all(env[\"GIT_NO_LAZY_FETCH\"] == \"1\" for env in child_envs)\n        python_child_envs = [\n            env for argv, env in zip(spawned, child_envs)\n            if argv[0] == sys.executable\n        ]\n        assert len(python_child_envs) == 2\n>       assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\n\norchestrator/tests/test_check_branch_rescue.py:1026: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n.0 = <list_iterator object at 0x14cd2592de70>\n\n>   assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\nE   KeyError: 'PYTHONDONTWRITEBYTECODE'\n\norchestrator/tests/test_check_branch_rescue.py:1026: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn\n======================== 1 failed, 106 passed in 4.18s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2332 retained_bytes=2332 omitted_bytes=0 rendered_excerpt_bytes=2441 sha256=a96146dd2b2c1da16720914d8f3bd6685de841ef86da98c0993825cb4567db3a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cd2592d420>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_m16_git_allowlist_rejects0')\n> \n>     def test_m16_git_allowlist_rejects_forbidden_command_before_spawn(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n>     ):\n>         repo = _init_repo(tmp_path)\n>         _topic_with_file(repo)\n>         checker = _make_fake_landed(tmp_path / \"landed.py\")\n>         audit = _make_fake_audit(tmp_path / \"audit.py\", [])\n>         parser = TOOL._parser()\n>         args = parser.parse_args([\n>             \"--repo\", str(repo), \"--branch\", \"topic\", \"--ledger-check\",\n>         ])\n>         real_spawn = TOOL.subprocess.run\n>         spawned: list[list[str]] = []\n>         child_envs: list[dict[str, str]] = []\n>     \n>         def recording_spawn(argv: Any, *positional: Any, **kwargs: Any):\n>             spawned.append(list(argv))\n>             child_envs.append(dict(kwargs[\"env\"]))\n>             return real_spawn(argv, *positional, **kwargs)\n>     \n>         before = _repository_control_bytes(repo)\n>         monkeypatch.setattr(TOOL.subprocess, \"run\", recording_spawn)\n>         TOOL._validate_cli(parser, args)\n>         rc, payload = TOOL.assess(\n>             args, landed_checker=checker, audit_tool=audit,\n>         )\n>         after = _repository_control_bytes(repo)\n>         assert rc == 0, payload[\"issues\"]\n>         assert spawned\n>         assert after == before\n>         assert any(argv[:2] == [sys.executable, str(checker)] for argv in spawned)\n>         assert any(argv[:2] == [sys.executable, str(audit)] for argv in spawned)\n>         assert all(env[\"GIT_NO_LAZY_FETCH\"] == \"1\" for env in child_envs)\n>         python_child_envs = [\n>             env for argv, env in zip(spawned, child_envs)\n>             if argv[0] == sys.executable\n>         ]\n>         assert len(python_child_envs) == 2\n> >       assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\n> \n> orchestrator/tests/test_check_branch_rescue.py:1026: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> .0 = <list_iterator object at 0x14cd2592de70>\n> \n> >   assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\n> E   KeyError: 'PYTHONDONTWRITEBYTECODE'\n> \n> orchestrator/tests/test_check_branch_rescue.py:1026: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2332 retained_bytes=2332 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3178 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d2caedafc20e578dc75d8cee447d39e8f761b969495b78b38880a0dcf7dc5bee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9c25e08f6569cbf2e36bf4e449dc79d6f4a7f92329d0e44af355a9e81b531d49",
+      "duration_s": 26.973,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"
+      ],
+      "hang_risk": false,
+      "id": "M36",
+      "injection_diff_sha256": "0bb884bd257c2d87af16bf3dc80d98e4361d2676f15f2e5b179d320f9bb84355",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "538fd82a1e927455bfe7fece498f5246d35546f92942b85093eb76230fc627a7",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "            python_env = {**child_env}\n",
+          "old": "            python_env = {\n                **child_env,\n                \"PYTHONDONTWRITEBYTECODE\": \"1\",\n            }\n"
+        }
+      ],
+      "repo_head": "f82b67f674d60c45d03b2d28de7d610c5ede7785",
+      "runner_sha256": "7bd4c4f56093a16f3b468c585400a0b6155dd6ff9324186d29436df50d181a33",
+      "spec_sha256": "ed6f7d794c4cb72d9d896dd496abc79fa9915d0559a05297ebf0e1d309a5a35a",
+      "status": "KILLED",
+      "test_output_sha256": "d2caedafc20e578dc75d8cee447d39e8f761b969495b78b38880a0dcf7dc5bee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6cc85bd35cc93abfc0d40c5b103eae8a1cf9075f767de151378b7288bfcd43af"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/4fcb5db0e46b7f89dc3e69933004bec3/izdw-4fcb5db0e4.o953789",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/4fcb5db0e46b7f89dc3e69933004bec3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [107 items]\n\n........................................................................ [ 67%]\n.....................F.............                                      [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________ test_m16_git_allowlist_rejects_forbidden_command_before_spawn _________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e27f841450>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_m16_git_allowlist_rejects0')\n\n    def test_m16_git_allowlist_rejects_forbidden_command_before_spawn(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n    ):\n        repo = _init_repo(tmp_path)\n        _topic_with_file(repo)\n        checker = _make_fake_landed(tmp_path / \"landed.py\")\n        audit = _make_fake_audit(tmp_path / \"audit.py\", [])\n        parser = TOOL._parser()\n        args = parser.parse_args([\n            \"--repo\", str(repo), \"--branch\", \"topic\", \"--ledger-check\",\n        ])\n        real_spawn = TOOL.subprocess.run\n        spawned: list[list[str]] = []\n        child_envs: list[dict[str, str]] = []\n    \n        def recording_spawn(argv: Any, *positional: Any, **kwargs: Any):\n            spawned.append(list(argv))\n            child_envs.append(dict(kwargs[\"env\"]))\n            return real_spawn(argv, *positional, **kwargs)\n    \n        before = _repository_control_bytes(repo)\n        monkeypatch.setattr(TOOL.subprocess, \"run\", recording_spawn)\n        TOOL._validate_cli(parser, args)\n        rc, payload = TOOL.assess(\n            args, landed_checker=checker, audit_tool=audit,\n        )\n        after = _repository_control_bytes(repo)\n        assert rc == 0, payload[\"issues\"]\n        assert spawned\n        assert after == before\n        assert any(argv[:2] == [sys.executable, str(checker)] for argv in spawned)\n        assert any(argv[:2] == [sys.executable, str(audit)] for argv in spawned)\n        assert all(env[\"GIT_NO_LAZY_FETCH\"] == \"1\" for env in child_envs)\n        python_child_envs = [\n            env for argv, env in zip(spawned, child_envs)\n            if argv[0] == sys.executable\n        ]\n        assert len(python_child_envs) == 2\n>       assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\n\norchestrator/tests/test_check_branch_rescue.py:1026: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n.0 = <list_iterator object at 0x14e27f841fc0>\n\n>   assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\nE   KeyError: 'PYTHONDONTWRITEBYTECODE'\n\norchestrator/tests/test_check_branch_rescue.py:1026: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn\n======================== 1 failed, 106 passed in 4.17s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2332 retained_bytes=2332 omitted_bytes=0 rendered_excerpt_bytes=2441 sha256=4aa9c0b520594c8159b19027f9143aced65a35eb43f3e45bc3d6ed3b3f370d8f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e27f841450>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_m16_git_allowlist_rejects0')\n> \n>     def test_m16_git_allowlist_rejects_forbidden_command_before_spawn(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n>     ):\n>         repo = _init_repo(tmp_path)\n>         _topic_with_file(repo)\n>         checker = _make_fake_landed(tmp_path / \"landed.py\")\n>         audit = _make_fake_audit(tmp_path / \"audit.py\", [])\n>         parser = TOOL._parser()\n>         args = parser.parse_args([\n>             \"--repo\", str(repo), \"--branch\", \"topic\", \"--ledger-check\",\n>         ])\n>         real_spawn = TOOL.subprocess.run\n>         spawned: list[list[str]] = []\n>         child_envs: list[dict[str, str]] = []\n>     \n>         def recording_spawn(argv: Any, *positional: Any, **kwargs: Any):\n>             spawned.append(list(argv))\n>             child_envs.append(dict(kwargs[\"env\"]))\n>             return real_spawn(argv, *positional, **kwargs)\n>     \n>         before = _repository_control_bytes(repo)\n>         monkeypatch.setattr(TOOL.subprocess, \"run\", recording_spawn)\n>         TOOL._validate_cli(parser, args)\n>         rc, payload = TOOL.assess(\n>             args, landed_checker=checker, audit_tool=audit,\n>         )\n>         after = _repository_control_bytes(repo)\n>         assert rc == 0, payload[\"issues\"]\n>         assert spawned\n>         assert after == before\n>         assert any(argv[:2] == [sys.executable, str(checker)] for argv in spawned)\n>         assert any(argv[:2] == [sys.executable, str(audit)] for argv in spawned)\n>         assert all(env[\"GIT_NO_LAZY_FETCH\"] == \"1\" for env in child_envs)\n>         python_child_envs = [\n>             env for argv, env in zip(spawned, child_envs)\n>             if argv[0] == sys.executable\n>         ]\n>         assert len(python_child_envs) == 2\n> >       assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\n> \n> orchestrator/tests/test_check_branch_rescue.py:1026: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> .0 = <list_iterator object at 0x14e27f841fc0>\n> \n> >   assert all(env[\"PYTHONDONTWRITEBYTECODE\"] == \"1\" for env in python_child_envs)\n> E   KeyError: 'PYTHONDONTWRITEBYTECODE'\n> \n> orchestrator/tests/test_check_branch_rescue.py:1026: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2332 retained_bytes=2332 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3178 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "70d64a968b0af8745fffefb98a2fc88c13b3d6802807ed89f10f9d65dd72e3a1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9c25e08f6569cbf2e36bf4e449dc79d6f4a7f92329d0e44af355a9e81b531d49",
+      "duration_s": 27.235,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"
+      ],
+      "hang_risk": false,
+      "id": "M37",
+      "injection_diff_sha256": "0bc3002bee25a976ea5e6b90d5efec3979d1e33910c9e3ebd112d768b04814fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cab97b5f533b32f8a56968ee966b8e395d50c1ab4b441122884f6dbadc93f676",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "    python_env = _child_env()\n",
+          "old": "    python_env = {\n        **_child_env(),\n        \"PYTHONDONTWRITEBYTECODE\": \"1\",\n    }\n"
+        }
+      ],
+      "repo_head": "f82b67f674d60c45d03b2d28de7d610c5ede7785",
+      "runner_sha256": "7bd4c4f56093a16f3b468c585400a0b6155dd6ff9324186d29436df50d181a33",
+      "spec_sha256": "ed6f7d794c4cb72d9d896dd496abc79fa9915d0559a05297ebf0e1d309a5a35a",
+      "status": "KILLED",
+      "test_output_sha256": "70d64a968b0af8745fffefb98a2fc88c13b3d6802807ed89f10f9d65dd72e3a1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6cc85bd35cc93abfc0d40c5b103eae8a1cf9075f767de151378b7288bfcd43af"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/e14d456f3e6adbcf6ef855aa80b60c3b/izdw-e14d456f3e.o953780",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/output/pegasus-dispatch/e14d456f3e6adbcf6ef855aa80b60c3b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_branch_rescue.py::test_p01_empty_closure_is_complete_rc0\norchestrator/tests/test_check_branch_rescue.py::test_p02_real_checker_landed_and_loose_deadline_is_rc0\norchestrator/tests/test_check_branch_rescue.py::test_p03_real_checker_not_landed_is_still_rc0\norchestrator/tests/test_check_branch_rescue.py::test_p04_missing_ledger_and_real_audit_zero_is_rc0\norchestrator/tests/test_check_branch_rescue.py::test_m01_surviving_reflog_is_time_limited_not_negative_root\norchestrator/tests/test_check_branch_rescue.py::test_m02_nonretired_detached_worktree_head_is_permanent_root\norchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root\norchestrator/tests/test_check_branch_rescue.py::test_m04_remote_ref_is_in_full_refs_namespace_root_set\norchestrator/tests/test_check_branch_rescue.py::test_m05_all_candidates_are_subtracted_in_one_closure\norchestrator/tests/test_check_branch_rescue.py::test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line\norchestrator/tests/test_check_branch_rescue.py::test_m07_indeterminate_assessment_forces_rc2\norchestrator/tests/test_check_branch_rescue.py::test_m08_not_landed_is_content_not_technical_failure\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-branch]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-input]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-tip]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-input]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-tip]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[landed-False]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[not-landed-False]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[indeterminate-True]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[array]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[object]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[bool]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[null]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[number]\norchestrator/tests/test_check_branch_rescue.py::test_m09_loose_deadline_uses_object_mtime_not_now\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[5.days.ago-30.days.ago-2030-01-06T00:00:00Z-gc.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[90.days.ago-4.days.ago-2030-01-05T00:00:00Z-gc.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-6.days.ago-2030-01-07T00:00:00Z-gc.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[6.days.ago-never-2030-01-07T00:00:00Z-gc.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-8.days.ago-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-8.days.ago-2030-01-09T00:00:00Z-gc.refs/heads/*.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-never-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/tags/topic-1.days.ago-2.days.ago-2030-01-31T00:00:00Z-gc.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_scoped_reflog_config_reads_ordinary_and_unreachable\norchestrator/tests/test_check_branch_rescue.py::test_m10_m26_packed_mtime_never_becomes_determinate_deadline\norchestrator/tests/test_check_branch_rescue.py::test_m11_m28_p07_packed_conservative_floor_is_complete_rc0\norchestrator/tests/test_check_branch_rescue.py::test_m12_gc_auto_uses_fanout_sample_not_total_count\norchestrator/tests/test_check_branch_rescue.py::test_m13_closure_limit_keeps_the_over_limit_observation\norchestrator/tests/test_check_branch_rescue.py::test_m14_unledgered_audit_finding_returns_rc3\norchestrator/tests/test_check_branch_rescue.py::test_audit_re_report_notifies_stale_resolutions_except_accepted_loss\norchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed\norchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn\norchestrator/tests/test_check_branch_rescue.py::test_m17_root_digest_movement_forces_rc2\norchestrator/tests/test_check_branch_rescue.py::test_retiring_one_of_two_same_detached_heads_keeps_the_other_root\norchestrator/tests/test_check_branch_rescue.py::test_surviving_index_commit_is_root_but_blob_is_not_commit_root\norchestrator/tests/test_check_branch_rescue.py::test_m21_p08_prunable_worktree_roots_use_conservative_floor\norchestrator/tests/test_check_branch_rescue.py::test_private_ref_presence_is_reported_and_never_used_as_negative_root\norchestrator/tests/test_check_branch_rescue.py::test_m29_p09_alternate_only_commit_has_conservative_external_retention\norchestrator/tests/test_check_branch_rescue.py::test_normal_preview_preserves_repository_control_bytes\norchestrator/tests/test_check_branch_rescue.py::test_assessment_limit_marks_every_unrun_commit\norchestrator/tests/test_check_branch_rescue.py::test_usage_rc64_and_fixed_coverage_boundary\norchestrator/tests/test_check_branch_rescue.py::test_a1_retired_worktree_reflog_only_commit_is_a_positive_root\norchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_parse_failure_is_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_missing_object_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a2_a6_production_cli_rejects_child_path_and_time_injection\norchestrator/tests/test_check_branch_rescue.py::test_m20_a4_effective_global_prune_config_is_observed\norchestrator/tests/test_check_branch_rescue.py::test_a4_absolute_prune_expiry_is_determinate\norchestrator/tests/test_check_branch_rescue.py::test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path\norchestrator/tests/test_check_branch_rescue.py::test_m19_unknown_worktree_field_keeps_record_as_permanent_root\norchestrator/tests/test_check_branch_rescue.py::test_a8_git_ref_rules_and_non_utf8_ref_are_reversible\norchestrator/tests/test_check_branch_rescue.py::test_a8_non_utf8_ref_is_stable_in_snapshot_digest\norchestrator/tests/test_check_branch_rescue.py::test_a9_out_of_range_reflog_timestamp_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a9_reflog_expiry_addition_overflow_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a10_ledger_rejects_sample_threshold_not_derived_from_gc_auto\norchestrator/tests/test_check_branch_rescue.py::test_m22_audit_requires_one_final_elapsed_seconds_line\norchestrator/tests/test_check_branch_rescue.py::test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child\norchestrator/tests/test_check_branch_rescue.py::test_m27_unclassified_storage_has_null_indeterminate_floor\norchestrator/tests/test_check_branch_rescue.py::test_deadline_contract_assessment_time_failure_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_m30_gc_prune_expire_never_is_determinate\norchestrator/tests/test_branch_rescue_ledger.py::test_documented_ledger_fields_exactly_match_cli_contract\norchestrator/tests/test_branch_rescue_ledger.py::test_documented_resolution_and_stale_notification_contracts_are_visible\norchestrator/tests/test_branch_rescue_ledger.py::test_hidden_ledger_contract_prose_does_not_satisfy_consumer[<!----->]\norchestrator/tests/test_branch_rescue_ledger.py::test_hidden_ledger_contract_prose_does_not_satisfy_consumer[```text-```]\norchestrator/tests/test_branch_rescue_ledger.py::test_hidden_ledger_contract_prose_does_not_satisfy_consumer[~~~text-~~~]\norchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[pending]\norchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[rescued]\norchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[accepted-loss]\norchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[reachable-again]\norchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[object-missing]\norchestrator/tests/test_branch_rescue_ledger.py::test_pending_ledger_entry_requires_all_resolution_fields_to_be_null\norchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[resolved_at-None]\norchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[rescue_ref-None]\norchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[rescue_ref-heads/rescue/e-1]\norchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[rescue_ref-refs/heads/rescue bad]\norchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[resolution_note-None]\norchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[resolution_note-   ]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolved_at-None-accepted-loss]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolved_at-None-reachable-again]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolved_at-None-object-missing]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[rescue_ref-refs/heads/rescue/e-1-accepted-loss]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[rescue_ref-refs/heads/rescue/e-1-reachable-again]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[rescue_ref-refs/heads/rescue/e-1-object-missing]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note-None-accepted-loss]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note-None-reachable-again]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note-None-object-missing]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note--accepted-loss]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note--reachable-again]\norchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note--object-missing]\norchestrator/tests/test_branch_rescue_ledger.py::test_documented_schema_and_retention_claim_are_fixed\norchestrator/tests/test_branch_rescue_ledger.py::test_documented_coverage_boundary_names_all_three_exclusions\norchestrator/tests/test_branch_rescue_ledger.py::test_cleanup_command_visibly_wires_rescue_tool_and_ledger\norchestrator/tests/test_branch_rescue_ledger.py::test_m23_frontmatter_only_paths_do_not_count_as_execution_edges\norchestrator/tests/test_branch_rescue_ledger.py::test_b3_mentions_and_negative_instructions_do_not_count_as_execution_edges\norchestrator/tests/test_branch_rescue_ledger.py::test_b3_tilde_fence_bullets_do_not_count_as_execution_edges\nIZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n107 tests collected in 0.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ff631b13aadabe42fb749109c065de3410fc789a74cb1f87e2a75351bb81292f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_p01_empty_closure_is_complete_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p02_real_checker_landed_and_loose_deadline_is_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p03_real_checker_not_landed_is_still_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p04_missing_ledger_and_real_audit_zero_is_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m01_surviving_reflog_is_time_limited_not_negative_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m02_nonretired_detached_worktree_head_is_permanent_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m04_remote_ref_is_in_full_refs_namespace_root_set",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m05_all_candidates_are_subtracted_in_one_closure",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m07_indeterminate_assessment_forces_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m08_not_landed_is_content_not_technical_failure",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-branch]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-input]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-tip]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-input]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-tip]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[landed-False]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[not-landed-False]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[indeterminate-True]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[array]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[object]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[bool]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[null]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[number]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m09_loose_deadline_uses_object_mtime_not_now",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[5.days.ago-30.days.ago-2030-01-06T00:00:00Z-gc.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[90.days.ago-4.days.ago-2030-01-05T00:00:00Z-gc.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-6.days.ago-2030-01-07T00:00:00Z-gc.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[6.days.ago-never-2030-01-07T00:00:00Z-gc.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-8.days.ago-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-8.days.ago-2030-01-09T00:00:00Z-gc.refs/heads/*.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-never-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/tags/topic-1.days.ago-2.days.ago-2030-01-31T00:00:00Z-gc.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_scoped_reflog_config_reads_ordinary_and_unreachable",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m10_m26_packed_mtime_never_becomes_determinate_deadline",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m11_m28_p07_packed_conservative_floor_is_complete_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m12_gc_auto_uses_fanout_sample_not_total_count",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m13_closure_limit_keeps_the_over_limit_observation",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m14_unledgered_audit_finding_returns_rc3",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_re_report_notifies_stale_resolutions_except_accepted_loss",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m17_root_digest_movement_forces_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_retiring_one_of_two_same_detached_heads_keeps_the_other_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_surviving_index_commit_is_root_but_blob_is_not_commit_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m21_p08_prunable_worktree_roots_use_conservative_floor",
+        "orchestrator/tests/test_check_branch_rescue.py::test_private_ref_presence_is_reported_and_never_used_as_negative_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m29_p09_alternate_only_commit_has_conservative_external_retention",
+        "orchestrator/tests/test_check_branch_rescue.py::test_normal_preview_preserves_repository_control_bytes",
+        "orchestrator/tests/test_check_branch_rescue.py::test_assessment_limit_marks_every_unrun_commit",
+        "orchestrator/tests/test_check_branch_rescue.py::test_usage_rc64_and_fixed_coverage_boundary",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a1_retired_worktree_reflog_only_commit_is_a_positive_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_parse_failure_is_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_missing_object_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a2_a6_production_cli_rejects_child_path_and_time_injection",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m20_a4_effective_global_prune_config_is_observed",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a4_absolute_prune_expiry_is_determinate",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m19_unknown_worktree_field_keeps_record_as_permanent_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a8_git_ref_rules_and_non_utf8_ref_are_reversible",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a8_non_utf8_ref_is_stable_in_snapshot_digest",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a9_out_of_range_reflog_timestamp_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a9_reflog_expiry_addition_overflow_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a10_ledger_rejects_sample_threshold_not_derived_from_gc_auto",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m22_audit_requires_one_final_elapsed_seconds_line",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m27_unclassified_storage_has_null_indeterminate_floor",
+        "orchestrator/tests/test_check_branch_rescue.py::test_deadline_contract_assessment_time_failure_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m30_gc_prune_expire_never_is_determinate",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_documented_ledger_fields_exactly_match_cli_contract",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_documented_resolution_and_stale_notification_contracts_are_visible",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_hidden_ledger_contract_prose_does_not_satisfy_consumer[<!----->]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_hidden_ledger_contract_prose_does_not_satisfy_consumer[```text-```]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_hidden_ledger_contract_prose_does_not_satisfy_consumer[~~~text-~~~]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[pending]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[rescued]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[accepted-loss]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[reachable-again]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[object-missing]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_pending_ledger_entry_requires_all_resolution_fields_to_be_null",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[resolved_at-None]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[rescue_ref-None]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[rescue_ref-heads/rescue/e-1]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[rescue_ref-refs/heads/rescue bad]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[resolution_note-None]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_rescued_ledger_entry_requires_timestamp_full_ref_and_note[resolution_note-   ]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolved_at-None-accepted-loss]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolved_at-None-reachable-again]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolved_at-None-object-missing]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[rescue_ref-refs/heads/rescue/e-1-accepted-loss]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[rescue_ref-refs/heads/rescue/e-1-reachable-again]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[rescue_ref-refs/heads/rescue/e-1-object-missing]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note-None-accepted-loss]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note-None-reachable-again]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note-None-object-missing]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note--accepted-loss]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note--reachable-again]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_non_rescue_resolutions_require_timestamp_note_and_null_rescue_ref[resolution_note--object-missing]",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_documented_schema_and_retention_claim_are_fixed",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_documented_coverage_boundary_names_all_three_exclusions",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_cleanup_command_visibly_wires_rescue_tool_and_ledger",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_m23_frontmatter_only_paths_do_not_count_as_execution_edges",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_b3_mentions_and_negative_instructions_do_not_count_as_execution_edges",
+        "orchestrator/tests/test_branch_rescue_ledger.py::test_b3_tilde_fence_bullets_do_not_count_as_execution_edges"
+      ],
+      "duration_s": 21.884,
+      "rc": 0,
+      "repo_head": "f82b67f674d60c45d03b2d28de7d610c5ede7785",
+      "runner_sha256": "7bd4c4f56093a16f3b468c585400a0b6155dd6ff9324186d29436df50d181a33",
+      "spec_sha256": "ed6f7d794c4cb72d9d896dd496abc79fa9915d0559a05297ebf0e1d309a5a35a",
+      "status": "PASSED",
+      "tool_sha256": "6cc85bd35cc93abfc0d40c5b103eae8a1cf9075f767de151378b7288bfcd43af"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M36": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0bb884bd257c2d87af16bf3dc80d98e4361d2676f15f2e5b179d320f9bb84355",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "            python_env = {**child_env}\n",
+            "old": "            python_env = {\n                **child_env,\n                \"PYTHONDONTWRITEBYTECODE\": \"1\",\n            }\n"
+          }
+        ]
+      },
+      "M37": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0bc3002bee25a976ea5e6b90d5efec3979d1e33910c9e3ebd112d768b04814fe",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "    python_env = _child_env()\n",
+            "old": "    python_env = {\n        **_child_env(),\n        \"PYTHONDONTWRITEBYTECODE\": \"1\",\n    }\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "32c3723fb76b5971504afff8dcccbf16668f00cddad254d78d8ef417eec60344",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_branch_rescue.py",
+      "orchestrator/tests/test_branch_rescue_ledger.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "f82b67f674d60c45d03b2d28de7d610c5ede7785",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_check_branch_rescue.py",
+      "orchestrator/tests/test_branch_rescue_ledger.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c02b07e335c2460de8896954d2292c2b63a0f43e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "7bd4c4f56093a16f3b468c585400a0b6155dd6ff9324186d29436df50d181a33",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ed6f7d794c4cb72d9d896dd496abc79fa9915d0559a05297ebf0e1d309a5a35a",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1825-rescue-gate-resume/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "6cc85bd35cc93abfc0d40c5b103eae8a1cf9075f767de151378b7288bfcd43af",
+  "updated_at": "2026-08-27T17:28:11.220864+00:00"
+}

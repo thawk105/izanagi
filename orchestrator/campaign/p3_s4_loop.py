@@ -61,6 +61,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from . import (backoff_hole_grammar, coder_effect_gate, env_contract, ident,  # noqa: E402
                trigger_gate_binding, wal)
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
+from .p3_b4_protocol import (  # noqa: E402
+    B4_PROTOCOL_KEY,
+    B4_PROTOCOL_VALUE,
+    driver_kind_from_identity as b4_driver_kind_from_identity,
+)
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
@@ -113,8 +118,6 @@ MAX_WALLTIME_S = 3600
 CONVERGE_STREAK = 3                   # 同一方向・magnitude=small が N 連続 → 収束
 REVERSE_STREAK = 2                    # critic が逆方向を N 回推奨 + 改善なし → 枯渇
 
-B4_PROTOCOL_KEY = "b4_protocol"
-B4_PROTOCOL_VALUE = "p3-b4-reflux-ablation/v1"
 B4_PROPOSAL_RECEIPT_SHA256_KEY = "b4_closed_critic_receipt_sha256"
 
 
@@ -893,6 +896,7 @@ def default_cfg(
     reflux: bool = True,
     *,
     b4_reflux_ablation: bool = False,
+    _b4_launch_context=None,
 ) -> CampaignConfig:
     """段 4 自律ループの campaign 設定。reflux (還流 on/off) は search_config に焼き、
     LLM ablation の対照を identity で分離する (別 campaign = 別 output dir、混ざらない)。"""
@@ -900,6 +904,12 @@ def default_cfg(
                      "reflux": "on" if reflux else "off",
                      "records": 100_000, "threads": 4}
     if b4_reflux_ablation:
+        from .p3_b4_launcher import require_b4_any_context
+        require_b4_any_context(
+            _b4_launch_context,
+            expected_driver_kind="base",
+            boundary="base marker creation",
+        )
         search_config[B4_PROTOCOL_KEY] = B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s4-loop", search_tag="s4-autonomous",
@@ -1068,7 +1078,8 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
                       state: LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
                       cache_root: str = "",
-                      build_context: Optional[BuildRunContext] = None) -> Dict:
+                      build_context: Optional[BuildRunContext] = None,
+                      _b4_launch_context=None) -> Dict:
     """1 iteration の機械部分を回す (LLM proposal は引数で受け取る)。
 
     do_build=True: applied(TEMPLATE_PATCH) 下で挿入→検疫→(pass なら)run_campaign。
@@ -1086,6 +1097,19 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
 
     Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
     """
+    if cfg.search_config.get(B4_PROTOCOL_KEY) == B4_PROTOCOL_VALUE:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=cfg.search_tag,
+                trial=cfg.trial,
+                axis=cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(cfg)),
+            expected_arm=cfg.search_config.get("reflux"),
+            boundary="base run_one_iteration",
+        )
     from .patchharness import applied
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -1451,7 +1475,8 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     cache_root: str = "",
                     build_context: Optional[BuildRunContext] = None,
                     b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
-                    b4_proposal_receipt_sha256: str | None = None) -> Dict:
+                    b4_proposal_receipt_sha256: str | None = None,
+                    _b4_launch_context=None) -> Dict:
     """段 4b の 1 iteration をメインセッション駆動で回す (checkpoint 経由の cross-process 継続)。
 
     手順: checkpoint 復元 (無ければ start_wall 付き初期化) → 前 critic feedback 畳込み →
@@ -1474,6 +1499,18 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     b4_mode = b4_reflux_ablation_mode(cfg)
     if b4_mode:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind=b4_driver_kind_from_identity(
+                search_tag=cfg.search_tag,
+                trial=cfg.trial,
+                axis=cfg.search_config.get("axis"),
+            ),
+            expected_campaign_id=str(ident.campaign_id(cfg)),
+            expected_arm=cfg.search_config.get("reflux"),
+            boundary="base drive_iteration",
+        )
         state = load_loop_state(layout)
         if state is None:
             state = LoopState(start_wall=time.time())
@@ -1526,9 +1563,13 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     state.iteration += 1
     # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
     # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
+    iteration_kwargs = {}
+    if b4_mode:
+        iteration_kwargs["_b4_launch_context"] = _b4_launch_context
     out = run_one_iteration(cfg, perf, planner, coder, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root, build_context=build_context)
+                            cache_root=cache_root, build_context=build_context,
+                            **iteration_kwargs)
     save_loop_state(layout, state)
 
     if do_build and out["outcome"] != "dry-pass":
@@ -1556,7 +1597,11 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     return out
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(
+    argv: Optional[List[str]] = None,
+    *,
+    _b4_launch_context=None,
+) -> int:
     """fixture proposal で 1 iteration の機械 E2E を実走する (配線実証)。
 
     実 LLM (planner/coder/critic) はメインセッションが spawn する — 本 main は harness
@@ -1612,6 +1657,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             cfg = default_cfg(
                 reflux=(a.reflux == "on"),
                 b4_reflux_ablation=True,
+                _b4_launch_context=_b4_launch_context,
             )
         else:
             cfg = default_cfg(reflux=(a.reflux == "on"))
@@ -1648,6 +1694,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         cfg = default_cfg(
             reflux=(a.reflux == "on"),
             b4_reflux_ablation=True,
+            _b4_launch_context=_b4_launch_context,
         )
     else:
         cfg = default_cfg(reflux=(a.reflux == "on"))
@@ -1704,7 +1751,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   ),
                                   b4_proposal_receipt_sha256=(
                                       proposal_receipt_sha256
-                                  ))
+                                  ),
+                                  _b4_launch_context=_b4_launch_context)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")

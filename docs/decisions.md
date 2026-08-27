@@ -40481,3 +40481,314 @@ NFC に保つ**。証拠の健全性検査は 1 つも緩めない。運用上�
 - 混雑を避けるために必要以上の job を先回り投入する — 本裁定は必要な投入を認めるだけで、乱発を認めない。
 
 **適用外:** キュー停止・利用不能、資源契約違反、task 固有の安全停止は従来どおり停止理由である。
+
+## D1228. B-4 分析契約の 3 つの読みを固定し、文面の不整合は裁定へ返す (2026-08-28)
+
+**決定:** 事前登録 §5.1.1 を実装するにあたり、次の 3 点を実装側の読みとして固定する。
+**文面そのものは 1 byte も変えない。**
+
+1. **`analysis_invalid` の理由は 12 member とする。** 箇条書きは 11 項だが、1 項が
+   `duplicate_block_id` と `unknown_block_id` を同居させており、意味も別 (id の重複 /
+   期待側に無い id) である。両方を別 member にする。受理集合は変わらない。
+2. **純関数の中で照合するのは 4 入力に観測側がある項に限る。** block ごとの
+   `reference_tps` / 2 つの reference hash / `block_id`、block 数、違反件数は関数の中で照合する。
+   `manifest_sha256` と `registry_sha256` は**観測側が 4 入力のどこにも無い**ため、
+   実 bytes を持つ統合層が再計算して照合する。**どちらの検査も省かない。**
+3. **`missing` 同士は tie (score `1/2`) とする。** 文面の「この 2 つの間だけが常に tie」は、
+   異なる status の組で常時 tie になるのが `rejected`/`aborted` だけという意味であり、
+   「`missing` は tie ではない」はその二者との比較を指す。同順位どうしはどちらも上位でない。
+
+**理由:**
+- 12 member 説は識別子の数と意味の分離から直接出る。11 に畳むと、レポートの invalid 理由が
+  凍結文面と別集合になる。
+- 台帳 2 hash の観測側は 4 入力に存在しないので、純関数だけでは文面の「観測側と exact 一致」を
+  実装できない。層を分けて**両方の検査を必ず走らせる**のが、どちらも省かない唯一の形である。
+- `missing` 同士を非 tie にすると、同順位の一方を恣意的に上位と決めることになる。
+  block score は 3 段の順位から決まる量であり、同順位は tie 以外に読めない。
+  この読みは段 6 の 2 レビューが独立に支持した。
+
+**却下した選択肢:**
+- 文面を直す — 凍結済みであり、並行 wave が同 file の別節を編集している。
+- 台帳 hash の照合を省く — 差し替えた台帳が certified 選択へ流れる。
+- 台帳 hash の観測側を純関数の第 5 入力にする — 凍結文面の入力列挙を変えることになる。
+
+**ユーザー裁定へ返す (本 wave では実装しない):** 文面には次の不整合が実在する。
+(a) 理由 enum は 11 名か 12 名か。(b) 420 行の「入力は上の 3 つだけ」は 4 つの誤記か。
+(c) 台帳 2 hash の観測側を純関数の入力に加えるか、統合層での照合を正式に許すか。
+
+## D1229. 凍結した文面の節は byte 単位で pin する (2026-08-28)
+
+**決定:** 実装が凍結文面と一致することを検査する consumer は、対象節の
+**生 bytes の sha256 一致を無条件に要求する**。正規化後の hash も併せて要求してよいが、
+**生 bytes の不一致を正規化後の一致で救ってはならない。**
+
+**理由:**
+- 論理和にすると、空白・強調・段落改行だけの改変が素通しになる。凍結した節でそれを許すと、
+  変更後の節 hash を持つ closure receipt を発行できてしまう。
+- 「無害な字句変更で赤にならない」ことは、凍結節に対しては利点ではない。
+  凍結節は変わらないことが要件であり、変わったなら止まるのが正しい。
+- 段 5 の親指示が「無害な変更では赤にしない」と書いていたが、これは段 4 裁定の
+  「exact section bytes hash」と矛盾していた。**親が段 5 指示を撤回した。**
+
+**受理集合:** 新たに拒否するのは「対象節の生 bytes が pin と異なる入力」だけである。
+意味変更の拒否は従来どおり。正規化後の hash は診断の分解にだけ使う。
+
+**却下した選択肢:**
+- 正規化後の hash だけを pin する — 生 bytes の改変を検出できない。
+- 生 hash を pin しつつ、formatting 変更を allowlist する — allowlist の維持が新しい裁量になる。
+
+## D1230. 同じ値域の判定は 1 module に正本を置き、他は委譲する (2026-08-28)
+
+**決定:** 複数 module が同じ値域 (型の受理集合) を判定する場合、**判定の正本を型の所有者に
+1 つだけ置いて公開し、他の module は import して使う**。同じ述語を再実装しない。
+
+**理由:**
+- 本 wave で、契約型・adapter・統合経路の 3 module が exact 有理数の値域を別々に実装し、
+  **契約型が受理する値を adapter が拒否する**食い違いが出た。統合経路のテスト 9 件が
+  全滅し、真因は一括例外捕捉に潰されて repo 外 probe でしか切り分けられなかった。
+- 重複実装がある限り、片方だけを直しても同型の欠陥が再発する。
+- 是正の向きは**型の所有者の受理集合を正本とし、他方の過剰拒否を是正する**方向に限る。
+  逆向き (所有者を緩める) は規律 2 に触れる。
+
+**受理集合:** 委譲側の受理集合は「所有者が受理する値を拒否していた」分だけ広がる。
+これは過剰拒否の是正であり、緩和ではない。所有者の受理集合は 1 bit も変えない。
+
+**却下した選択肢:**
+- 各 module が独自に判定し、テストで一致を確かめる — 一致検査自体が新しい重複になる。
+- 委譲側に合わせて所有者を狭める — 型の定義を実装の都合で変えることになる。
+
+## D1231. 掃除の可視化は削除の可否ではなく絵の完全さを返す (2026-08-28)
+
+**決定:** 掃除で到達不能になる commit を出す道具は、`branch` の削除と `worktree` の撤去を
+**ひとつの操作**として受け、rc は「削除してよいか」ではなく「**完全な絵を描けたか**」だけを表す。
+配線先は `/cleanup-branches` の §1 (棚卸し) と §5 (ユーザーへの報告) とし、
+§2 (削除条件) には置かない。`deletion_authorized` に類する field を出力へ作らない。
+
+rc は `0` = 可視化が完全、`2` = 技術的に不完全 (timeout・上限超過・root の移動・
+壊れた administrative entry・下界を立てられない・台帳 parse 不能)、`3` = 未記帳の通知あり、
+`64` = usage error とする。`not-landed` は可視化の内容であって技術的失敗ではないので `0` に含む。
+
+**理由:**
+- **§2 へ置くと構造的に一度も発火しない。** 現行 §2 は `ahead=0` (main へ取り込み済み) の
+  branch だけを削除対象にする。`ahead=0` は定義上 `rev-list <b> ^main` が空なので、
+  喪失閉包も必ず空になる。述語がその候補集合に含意されており、保護と数えられない。
+- **判断するのはユーザーである。** branch 削除はユーザー指示があるときだけ行う運用なので、
+  道具の仕事は「消すな」と言うことではなく、消す判断の前に材料を出すことである。
+- **削除の可否を表す field は、呼び手を持たないまま残る。**
+  `tools/check_branch_landed.py` の `branch_delete_authorized` は無条件定数 `False` のまま
+  production の呼び手ゼロで存在している (本 wave の実測: `git grep` 全件 7 hit がすべて
+  自身の test と台帳の記述)。同じ形をもう 1 つ作らない。
+- **掃除操作の単位でモデルにしないと、安全だと誤って報告する。** 実測で
+  `worktree-dev-wave-t1629-ratification-broker` は branch だけ消す前提で喪失 0 件、
+  その worktree も畳む前提で 12 commit 失われた。`/cleanup-branches` §3 は worktree を
+  撤去するので、branch 削除だけをモデルにすると「失われるものは無い」と報告した直後に失う。
+
+**却下した選択肢:**
+- **§2 の削除条件へ閉包検査を置く** — 上記のとおり恒真になる。この gate の阻止側が
+  意味を持つのは D978 (内容着地済みの非祖先 branch を CAS つきで削除対象へ入れる) の
+  施行後であり、それは別裁定である。
+- **`indeterminate` があっても rc=0 を返す** — ユーザーの要求は
+  「判定できないものが残る間は通さない」であり、これに反する。
+- **候補を 1 本ずつ判定して和を取る** — 同じ commit を指す候補どうしが互いを隠して
+  0 件になる。実測で、同じ commit を指す 2 つの detached worktree が互いを隠していた。
+
+## D1232. 「今すぐ失われうる」は不完全ではなく最も切迫した完全な答え (2026-08-28)
+
+**決定:** 到達不能になりうる object の喪失期限は、常に**下界**として出す。
+`deadline_status` を 3 値にする。
+
+- `determinate` — その object 自身の mtime と実効 prune 期限から下界を導けた。rc へ影響しない。
+- `conservative-floor` — 下界は立つが object 固有の保持期間を観測できない。
+  下界は評価時刻とし「いつ失われてもおかしくない」と読む。**rc=0 のまま**とする。
+- `indeterminate` — **下界そのものを立てられない**。ここだけが rc=2 へ倒れる唯一の経路。
+
+`conservative-floor` へ倒す事由は次の 4 つに限る。object が packed または loose-and-packed、
+alternate ODB にしか存在しない、prunable worktree が保持する root の期限、
+`gc.pruneExpire` を安全に解釈できない。
+
+**理由:**
+- **実データの過半数が packed である。** 本 wave の実測で、喪失閉包に入る commit 39 件のうち
+  23 件 (59%) が packed だった。packed を判定不能として rc=2 にすると、実 repo の
+  過半数の branch で道具が「絵を描けない」と返る。常に止まる関門は迂回される。
+- **fail-closed の向きは「何も言えない」ではなく「今すぐ失われうる」である。**
+  評価時刻を下界とする答えは、判断に使える最も切迫した答えであって、情報の欠落ではない。
+- pack の mtime は object 個別の到達不能時刻ではないので、`determinate` にしてはならない。
+  この禁止は 3 値化のあとも変わらない。
+
+**却下した選択肢:**
+- **保守的下界を `indeterminate` として rc=2 にする** (実装の初版) — 上記のとおり過半数で止まる。
+- **prunable worktree の期限を git の `should_prune_worktree` と同じ判定で再現する** —
+  保守負債が大きい。`conservative-floor` へ倒すほうが安全側で単純である。
+- **総 loose 数と `gc.auto` の比較で余裕を出す** — git 2.34.1 の判定は fanout 1 個の標本であり、
+  総数との差は発火までに作れる object 数ではない。実測で総数由来の余裕は 432、
+  標本由来の余裕は 5 だった。台帳 schema からも総数由来の field を削り、
+  標本の fanout・件数・閾値・heuristic の版に置き換えた。
+
+## D1233. 削除される ref の reflog は引き算側でなく足し算側である (2026-08-28)
+
+**決定:** 掃除で消える ref (候補 branch、撤去対象 worktree の HEAD) の reflog が持つ
+old/new OID のうち commit 型のものは、喪失閉包の**正側**へ入れる。
+負側から外すだけでは足りない。reflog を読めない・parse できない・
+object が missing のときは `rc=2` とし、空として扱わない。
+
+**理由:**
+- git 2.34.1 の `git branch -d` は ref と `logs/refs/heads/<name>` の両方を消す。
+  したがって候補 reflog にしか残っていない commit は、削除によって**失われる側**である。
+- 負側から外すだけの実装では、その commit は閉包に現れず、道具は「絵は完全だ」と言いながら
+  対象を丸ごと落とす。これは本 wave が防ごうとした事故そのものである。
+- 期限のある root (残存 reflog、prunable worktree) は逆に負側へ入れてはならない。
+  入れると、そこにしか支えられていない commit が閉包からも台帳からも消える。
+  期限を長く見積もる誤りではなく、報告そのものが消える誤りになる。
+  これらは閉包に残し、種別と失効の下界を retention に記録する。
+
+**却下した選択肢:**
+- **候補 reflog を単に負 root から外す** — 上記のとおり喪失を見落とす。
+- **検証できない worktree-private ref を負 root へ入れる** — gc が root として honor する範囲を
+  起動側の ref store と同一視できない。入れる向きが過小報告になるので、
+  存在を検出したら `issues` へ出して rc=2 にする。
+
+## D1234. tested-main実行束縛を残してmain-tip runner等値だけを外す (2026-08-28)
+
+**決定:** 今回の直接ユーザー指示をD1196が要求した再裁定として確定する。launcher/landのtested-main / tested-tip runner blob等値2述語だけを外し、tested-main bytes実行、実行後再読、全shard binding report、receipt main digest、waiter/checker束縛は維持する。D987は最終incorporated mainとtested mainのrunner blob net差で判定し、変わった場合だけ旧receipt再利用を拒否する。
+
+**理由:**
+- D1151が残した材料運搬は着地済みで、tested-main実行とshard申告を保ったままtip側runner変更をproduction経路で検査できる。
+- 保証対象は最終着地物である。main履歴の途中でrunnerを変更後に同じblobへ戻した場合、最終保証対象は変わらず再受入の増分が無い。
+- D987をprovenance前と再preflight後に検査すると、恒久的な再受入要求が先行infrastructure赤でretryableへ隠れることとTOCTOUの両方を防げる。
+
+**却下した選択肢:**
+- tested-main実行束縛も外す — D1151が維持したproof chainを弱める。
+- forward-mainの各区間で一度でもrunnerが変われば拒否する — 最終blobが同じ正例まで過剰拒否する。
+- schema拡張・一般receipt再設計・段階Rを同時に行う — 今回のexact 2述語とD987の変更単位を越える。
+
+## D1235. task-specific oracle の実発火は限定 wiring slice と明示 profile で束縛する (2026-08-28)
+
+**決定:** T-189 の task-specific oracle 束縛を実データで発火させる最小単位は、既存 task catalog の
+実在 plan 2 行を持つ1つの wiring slice とする。slice は明示 CLI profileでだけ受理し、canonical bytes、
+verifier tool bytes、manifest kind、許可 verb、catalog/evidence join、finding projectionをpinする。
+組込みT-181 manifestは変更せず、従来の受理集合を維持する。
+
+slice は§8の独立oracle ledger本体ではない。`oracle_content_review_status=not-established`、
+`section8_complete=false`、task acceptance `unbound`、routing evidence `inconclusive`を固定する。
+機械整合性、full CLIの`valid`、test緑を意味的受理へ射影しない。
+
+**理由:**
+- 組込みPOS/NEGは同じknown finding集合を持ち、task別集合とmanifest unionが同一なので、既存束縛は
+  unionより狭い受理集合を一度も作らなかった。
+- task catalogの実在2行はprompt、receipt、base commit、分類、fixed-state worklogへjoinでき、
+  互いに素なfinding集合でaccept/cross-task rejectを作れる。
+- profileをmanifest内fieldから推測すると、field削除によるdowngradeと、既存T-181拡張manifestの
+  過剰拒否が同時に生じる。呼出側の明示profileなら両者を分離できる。
+- D674の電力・外部custodian・署名見送りと、D767のacceptance unboundを動かさずに発火だけを示せる。
+
+**却下した選択肢:**
+- 組込みPOS/NEGのfinding集合を書き換える — 凍結されたT-181 provenanceとdigest連鎖を、発火目的で
+  改変することになる。
+- optionalな別verifierだけを置く — verifierを通さずmanifestとdownstream digestを再生成できる。
+- 2 artifactの汎用generatorを新設する — finding内容の二重正本と生成順序の循環を増やす。
+- sliceを§8 ledger完成またはtask acceptanceと扱う — 独立content reviewと意味的受理が未成立である。
+- served-model attest、署名、汎用oracle platformまで広げる — 今回の発火確認に不要でD674の境界を越える。
+
+## D1236. B-4 の支配点は certified sink の合流点に置く (2026-08-28)
+
+**決定 (親裁定):** D1033 が命じる「専用起動器と B-4 識別子による支配点」は、鋳造の 1 点だけでは
+成立しない。**鋳造と、certified sink での消費の 2 点**で成立させる。sink 側の関門は
+`orchestrator/campaign/wal.py` の COMMIT 分岐に置く。
+
+**理由:**
+
+- 段 3 の 2 レンズが独立に、`loop.run_campaign` と `pipeline.evaluate` が公開 API として
+  関門の下にあることを file:line で示した。`CampaignConfig` は frozen だが `search_config` は
+  可変の dict なので、通常の設定に識別語を後付けして直接 certified な成果物を作れた。
+- COMMIT 分岐は、この 2 つの公開入口が**必ず通る唯一の合流点**である。入口ごとに関門を置くと、
+  次に見つかる producer で同じ話を繰り返す。
+- campaign lock が識別内容を持つため、cfg を受け取らない `wal.append` でも layout だけから
+  B-4 かどうかを判定できる。
+- 先例がある。certified sink の支配点を `wal.append` に置いた前例と同じ骨格である。
+
+**発火条件:** lock が存在し、その識別内容が exact な識別語を持つときだけ。lock が無い campaign では
+関門の本体を 1 行も実行しない。**識別語を持たない通常の測定の受理集合は 1 bit も変わらない。**
+
+**却下した選択肢:**
+
+- 鋳造の 1 点だけを支配点とする — 識別語を後付けした設定が別の producer から certified になる。
+- 公開入口ごとに関門を置く — 次の producer で同じ穴が開く。
+
+## D1237. B-4 の起動記録は上書き可能にする (2026-08-28)
+
+**決定 (親裁定):** 起動器が書く起動記録は、**同じ campaign に対して何度でも書き直せる**形にする。
+一度しか書けない形は採らない。関門が要求するのは内容の一致であって、書かれた回数ではない。
+
+**理由:**
+
+- D1125 が「不可逆承認の token を測定の前提条件として新設しない」と定めている。
+- D1124 が「同じ cell を何度でも測ってよい」「途中死した run の復旧に専用機構を要求しない」と
+  定めている。一度しか書けない起動記録は、途中で落ちた走の測り直しを構造的に禁じる。
+- 段 3 のレビューは一度限りの記録を薦めたが、上位の裁定と正面から衝突するため採らなかった。
+
+**却下した選択肢:**
+
+- 一度だけ書ける起動記録 — D1124 / D1125 と衝突する。
+
+## D1238. 識別語の鋳造口は試験用の封印も受理する (2026-08-28)
+
+**決定 (親裁定):** 識別語を作る入口は、production の封印と**試験用の封印の両方**を受理する。
+production 限定にはしない。
+
+**理由:**
+
+- 標本を生む境界 (反復・駆動・certified sink・production factory) はすべて production の封印を
+  要求する。試験用の封印で作った識別語付きの設定は、certified な標本を 1 つも作れない。
+  **標本の受理集合は変わらない。**
+- 鋳造口を production 限定にすると、campaign identity の golden を固定する検査すべてが
+  実際に commit された受理記録を用意する必要があり、費用が跳ね上がる割に受理集合が変わらない。
+- 段 6 のレビュー 2 本のうち 1 本は production 限定を薦め、もう 1 本は「意図的なら
+  事前登録の文言をそう改めればよい」と代案を出した。後者を採った。
+
+**帰結:** 事前登録の文言は「起動器だけが鋳造できる」ではなく
+**「封印されていない識別語の作成を閉じた」**と書く。
+
+**却下した選択肢:**
+
+- 鋳造口を production 限定にする — 受理集合を変えずに検査費用だけを上げる。
+
+## D1239. closure 内省による到達は非保証として明記する (2026-08-28)
+
+**決定 (親裁定):** 起動器の封印と発行者へ、closure の内省を辿って到達できることは
+**閉じられない**。閉じたと書かず、**非保証として明記する**。
+内省を要しない素直な経路 (任意の封印を受け取る生成関数が module の属性として見えていた) は塞ぐ。
+
+**理由:**
+
+- Python では `__closure__` の走査を塞げない。module 属性を隠しても必ず辿れる。
+- 同一 process からの属性書換えへの耐性は、既に隣接 module が非保証として列挙している。
+  同じ枠に入る性質であり、新しく保証を謳うと恒真な保証になる。
+- 塞げる経路と塞げない経路を分けずに「閉じた」と書くと、事前登録の正直さ要件に反する。
+
+**却下した選択肢:**
+
+- 内省経路も閉じたと書く — 実際には閉じられず、謳うだけの保証になる。
+- 素直な経路も非保証で済ませる — 実際に塞げるものを塞がない理由がない。
+
+## D1240. B-4 分類と receipt は同一 lock snapshot へ束縛し、不在は明示 digest で表す (2026-08-28)
+
+**決定 (親裁定):** COMMIT sink は campaign.lock の同じ raw bytes snapshot を B-4 分類と receipt hash
+検証に使う。lock 不在は receipt 自身の digest を fallback 権威にせず、issuer / sink 共通の固定
+absence digest へ束縛する。decoded identity が exact dict で `search_config` key 自体を持たない valid lock は
+非 B-4 と分類し、key が存在して型不正なら fail-closed にする。
+
+**理由:** 独立 Codex focus が、分類時 markerless / 検証時 marked の二重読取、分類時 lock 不在 / 検証時
+marked の fallback、decoded lock と directory basename の campaign id 差をそれぞれ実行可能な負例で示した。
+同じ path を二度読むことも、receipt が自己申告した digest を sink observation の代用にすることも、
+D1033 の支配点を構成しない。
+
+**受理集合:** 最初から lockless + explicit absence receipt、valid markerless lock + exact receipt、valid non-B4
+lock (`search_config` 無し) + exact receipt は受理する。**physical lock に束縛した receipt を発行後に lock を
+消す旧経路だけを拒否へ狭める。** 同経路を残すと marked receipt を退避・復元して G4 を迂回できるため、
+規律2と両立しない。
+
+**却下した選択肢:** receipt 内 digest fallback の維持 — absence-to-marked bypass を再開する。
+全 non-B4 lock の `search_config` 欠落を分類不能として拒否 — marker 無し通常走の受理集合を壊す。
+
+**scope 外:** D1042 の一回性 token、D1043 の payload snapshot、D1050 の受理記録配置、COMMIT 後 relabel
+(D1223) の実装、正式 B-4 実走。

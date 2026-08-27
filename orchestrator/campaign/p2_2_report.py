@@ -101,6 +101,7 @@ def _epoch_provenance(view: HistoricalCampaignView) -> dict:
     epoch = view.campaign_verifier_epoch
     return {
         "read_purpose": view.read_purpose.value,
+        "verifier_assessment_basis": view.verifier_assessment_basis,
         "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
         "campaign_verifier_epoch_state": epoch.state,
         "campaign_verifier_epoch_scope": epoch.identity_scope,
@@ -254,11 +255,24 @@ def write_summary(results: list, path: str) -> None:
          f"clocks_per_us={CLK} / skew0.9 / 採否 floor = between-run "
          f"{BETWEEN_RUN_CV * 100:.1f}% (within-run {WITHIN_RUN_CV * 100:.2f}%)",
          "",
-         "| workload | verifier epoch | 最速 genome | median tps | CV | 2位との差 |",
-         "|---|---|---|---:|---:|---|"]
+         "| workload | read purpose | verifier assessment basis | verifier epoch | "
+         "最速 genome | median tps | CV | 2位との差 |",
+         "|---|---|---|---|---|---:|---:|---|"]
     for r in results:
         if not r:
             continue
+        if r.get("read_purpose") != CampaignReadPurpose.HISTORICAL_RAW.value:
+            raise ValueError(
+                f"P2-2 summary row is not HISTORICAL_RAW: {r.get('tag')!r}"
+            )
+        if (
+            r.get("verifier_assessment_basis")
+            != "recorded-at-original-verifier-epoch"
+        ):
+            raise ValueError(
+                "P2-2 summary row lacks exact historical verifier assessment "
+                f"basis: {r.get('tag')!r}"
+            )
         win = r["winner"]
         ranked = r["ranked"]
         second = next((g for g in ranked if g.variant != win.variant), None)
@@ -266,7 +280,9 @@ def write_summary(results: list, path: str) -> None:
         if second is not None:
             c = r["verdicts"].get(second.variant)
             gap = _verdict_str(c) if c else "—"
-        L.append(f"| {r['tag']} | `{r['campaign_verifier_epoch']}` | "
+        L.append(f"| {r['tag']} | `{r['read_purpose']}` | "
+                 f"`{r['verifier_assessment_basis']}` | "
+                 f"`{r['campaign_verifier_epoch']}` | "
                  f"`{win.label}` ({win.genome.split('|',1)[1]}) | "
                  f"{win.median:,.0f} | {win.cv * 100:.2f}% | {gap} |")
     L += ["", "## 各 workload の詳細レポート", ""]
