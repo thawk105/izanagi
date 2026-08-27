@@ -26,8 +26,10 @@
 
 | 日付 | ファイル | 中身 |
 |---|---|---|
-| 2026-08-26 | `2026-08-26-inventory.md` | 5 つの主張軸 × 検索記録の成熟度の初回棚卸し。軸 1 の分類 pilot、軸 1 の主張履歴を含む |
+| 2026-08-26 | `2026-08-26-inventory.md` | 5 つの主張軸 × 検索記録の成熟度の初回棚卸し。軸 1 の分類 pilot、軸 1 の主張履歴を含む。**§3.1 の 29 行の現行値と C/D 欄の由来は `2026-08-27-axis1-pilot-cd-provenance.md` が持つ** |
 | 2026-08-26 | `2026-08-26-correction-5-audit.md` | Polyjuice / CCaaLF→NeurCC の特徴づけについて、paper-story 最新版・`docs/related-work/README.md` 7.1・`docs/related-work/literature-map/` の Markdown と CSV の四者を突き合わせた監査 |
 | 2026-08-26 | `2026-08-26-cir-cvn-adjudication.md` | `2604.09318` (CIR+CVN) の `要裁定` を一次資料で解いた記録。軸 1 への接地判定と、`docs/paper-story/` §3 の 1 が落としてはならない 2 つの限定 |
 | 2026-08-27 | `2026-08-27-axis1-search-preregistration.md` | 軸 1 の 7.7.4 事前登録。索引 3 つの実測、共有の暦境界による cutoff、6 枝 × 3 索引の query catalog、完走述語、停止条件、母集合の外。**登録であって実行ではない** |
 | 2026-08-27 | `2026-08-27-axis1-adjudication-3.md` | 軸 1 分類 pilot に残る `要裁定` 3 件 (`2404.13359` / `2512.18746` / `2605.22721`) を一次資料で解いた記録。A の読み方の明示、件数保存則、`docs/paper-story/` §3 の 1 が落としてはならない 3 つの限定 |
+| 2026-08-27 | `2026-08-27-axis1-pilot-cd-provenance.md` | 軸 1 分類 pilot 29 行の**現行値の統合表示**と、C/D 欄の証拠階層 (一次資料 4 行 / 監査前要約 25 行)。集計と行間比較の恒久禁止 (D1156)。新しい判定はしていない |
+| 2026-08-27 | `2026-08-27-axis1-search-execution.md` | 事前登録した軸 1 検索の**実行記録**。枝ごとの完走判定、control、未完走の理由の分類、`AX1-Q6@dblp` の宣言的除外 (D1155)。生証拠は `output/insights/2026-08-27_t1969-axis1-search-execution/`。**軸 1 は `未完走` であり成熟度は `RW1` のまま** |
