@@ -252,6 +252,7 @@ def _run_blob(
             result = subprocess.run(
                 (
                     "python3",
+                    "-B",
                     "-I",
                     "-c",
                     _RUNNER_BOOTSTRAP,
