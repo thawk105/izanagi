@@ -113,9 +113,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/paper_story_a2_certification.py", "<module>.finish_group"): 1,
     # Exact scheduler submission argv; CCBench remains compute-job-owned.
     ("campaign/paper_story_a2_certification.py", "<module>.exact_qsub"): 1,
-    # Read-only Git HEAD/status probes bind the delegated CCBench source tree;
-    # measurement itself remains owned by run_campaign().
-    ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 2,
+    # Read-only Git HEAD resolve, canonical pin resolve, and tracked-status
+    # probes bind the delegated source tree; none executes CCBench.
+    ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 3,
     # Fixed Git executable and fixed allow-list environment run read-only
     # repository-binding queries; argv never names or executes CCBench.
     ("campaign/p3_b4_admission_record.py", "<module>._git_call"): 1,
