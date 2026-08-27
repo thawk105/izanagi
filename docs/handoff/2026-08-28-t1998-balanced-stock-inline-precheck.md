@@ -101,4 +101,8 @@
 - `python3 tools/check_codex_agents.py`: rc=0
 - `python3 tools/check_docs.py`: rc=0 (`check_docs: 違反なし`)
 - `python3 tools/spool_fold.py --dry-run --show-diff`: rc=0 (`status=planned`)
-- pytest / build / benchmark / formal measurement: 未実走。コード変更が無いため緑とは報告しない。
+- 受入 attempt 1 (`tools/dev_wave_wait.py acceptance -- python3 tools/run_tests.py`):
+  `child-green`, raw/normalized child rc=0、tested main `5b6a5ec4fefad5596279b106a47c1561e96e0fee`、
+  tested tip `37d10391b19ada493171dceffe92437964c319c6`、effective scheduler `loadgroup`。
+  lease は未取得のため release 対象なし。
+- build / benchmark / formal measurement: 未実走。T-1998 の性能値は新規取得していない。

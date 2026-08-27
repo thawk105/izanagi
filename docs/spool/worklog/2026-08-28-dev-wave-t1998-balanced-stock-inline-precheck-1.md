@@ -29,6 +29,9 @@ title: [T-1998] balanced stock-inline 正式測定の実装差分ゼロ precheck
   source 行範囲へ射影を狭めた再試行は出力検査を通過した。敵対 consult 2 本も出力検査を通過し、
   prereg を作らず停止する結論を支持しつつ、親の「全重複ゼロ」「human auth 不在」の過大断定を狭めた。
 - エージェント工数: Codex subprocess 4 本 (plan 2、うち1本不受理 / consult 2)。実装 worker は 0。
+- 記録 commit 後の受入 attempt 1 は `tools/dev_wave_wait.py acceptance -- python3 tools/run_tests.py` で
+  `child-green` (raw/normalized rc=0)。tested main `5b6a5ec4f`、tested tip `37d10391b`、
+  effective scheduler `loadgroup`。lease は未取得で release 対象なし。性能 build / benchmark は未実走。
 
 ## 次の一手差分
 
