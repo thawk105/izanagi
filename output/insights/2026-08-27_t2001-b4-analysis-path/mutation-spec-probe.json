@@ -1,0 +1,162 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "X01",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_adapter.py",
+          "old": "            parse_float=Fraction,\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "X02",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "        if gain_difference <= exact_floor:\n",
+          "new": "        if gain_difference < exact_floor:\n"
+        }
+      ]
+    },
+    {
+      "id": "X03",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "        if block.off.status is B4BlockStatus.MISSING:\n            return Fraction(1, 2)\n",
+          "new": "        if block.off.status is B4BlockStatus.MISSING:\n            return Fraction(1)\n"
+        }
+      ]
+    },
+    {
+      "id": "X04",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "        verdict = B4Verdict.PROTOCOL_VIOLATION\n",
+          "new": "        verdict = B4Verdict.INDETERMINATE\n"
+        }
+      ]
+    },
+    {
+      "id": "X05",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_contract.py",
+          "old": "    elif p_values.p_on <= ONE_SIDED_ALPHA:\n",
+          "new": "    elif p_values.p_on <= ONE_SIDED_ALPHA and a_hat.value >= A_MIN:\n"
+        }
+      ]
+    },
+    {
+      "id": "X06",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    return tuple(sorted(attempts, key=lambda item: (item.registry_ordinal, item.attempt_id)))\n",
+          "new": "    return tuple(attempts)\n"
+        }
+      ]
+    },
+    {
+      "id": "X07",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    selected = eligible[:EXPECTED_BLOCK_COUNT]\n",
+          "new": "    selected = eligible[-EXPECTED_BLOCK_COUNT:]\n"
+        }
+      ]
+    },
+    {
+      "id": "X09",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+          "old": "    if bit == 0:\n        return B4AssignmentArmOrder.ON_FIRST\n    return B4AssignmentArmOrder.OFF_FIRST\n",
+          "new": "    del bit\n    return B4AssignmentArmOrder.ON_FIRST\n"
+        }
+      ]
+    },
+    {
+      "id": "X10",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_prereg_consumer.py",
+          "old": "    if raw_sha256 != PREREGISTRATION_SECTION_5_1_1_SHA256:\n        _fail(\"section 5.1.1 exact raw sha256 pin mismatches\")\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "X11",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_path.py",
+          "old": "        and declared == observed\n",
+          "new": "        and sorted(declared) == sorted(observed)\n"
+        }
+      ]
+    },
+    {
+      "id": "X12",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_analysis_path.py",
+          "old": "        \"consumer_result\": consumer_result,\n        \"consumer_result_sha256\": consumer_result_sha256,\n",
+          "new": ""
+        }
+      ]
+    }
+  ]
+}

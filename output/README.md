@@ -26,7 +26,7 @@ output/
 │   ├── namespace.json            namespace marker (exact bytes)。official report が exploration root を拒否する唯一の根拠であり、hooks が改変・削除を拒否する
 │   ├── campaigns/<campaign-id>/  s4 driver 族 (p3_s4_loop / _sort / _trigger_gating / p3_s4_red / p3_kickoff / 8c build) の**新規** campaign。構造は campaigns/ と同一で、WAL と campaign.lock は同じく hooks の保護対象
 │   └── autonomous-trials/<trial-id>/ 段 8c bounded supervisor の試行 journal (D106)。attempt journal・role payload/envelope・proposal・terminal report。**探索の運用記録であって正式 proof chain ではない** — 実 build 時の WAL / campaign report の正本は exploration/campaigns/<campaign-id>/ 側
-├── t189-routing-preregistration/ T-189 model 経路事前登録の**素材** (docs/phase3-t189-model-routing-preregistration.md が正本)。事前選別の候補台帳 task-catalog-v1.json、その task type 分類 task-type-classification-v1.json (基準は docs/phase3-t189-task-catalog-classification.md)、price-snapshot-v1.json と手を加えていない byte 同一抜粋 price-standard-table-excerpt.html。**採用した held-out task の集合ではなく、実験装置もまだこれを読まない** (同書 §13)
+├── t189-routing-preregistration/ T-189 model 経路事前登録の**素材** (docs/phase3-t189-model-routing-preregistration.md が正本)。事前選別の候補台帳 task-catalog-v1.json、その task type 分類 task-type-classification-v1.json (基準は docs/phase3-t189-task-catalog-classification.md)、price-snapshot-v1.json と byte 同一抜粋 price-standard-table-excerpt.html、task-specific 束縛を実データで発火させる限定 task-oracle-wiring-slice-v1.json。**採用した held-out task の集合でも§8 ledger本体でもない** (同書 §§8.3, 13)
 ├── t080-migration/               一回限りの移行契約 receipt (D78。hooks 保護外・4 状態機械と履歴検証が正 — 発効は人間 R commit のみ)
 ├── task-runs/                    AI 開発作業の統計記録 (開発プロセス観測。証拠ではない — D66、詳細 task-runs/README.md)
 ├── dev-wave-supervisor/          bounded dev-wave supervisor の運用契約 (README.md) と private runtime (runtime/ は gitignored、control WAL・raw child 出力。[T-076]、D74)

@@ -1,0 +1,260 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1400,
+ "timeout_seconds": 7200,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        from .p3_b4_launcher import require_b4_any_context\n        require_b4_any_context(\n            _b4_launch_context,\n            expected_driver_kind=\"base\",\n            boundary=\"base marker creation\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+     "old": "        from .p3_b4_launcher import require_b4_any_context\n        require_b4_any_context(\n            _b4_launch_context,\n            expected_driver_kind=\"sort\",\n            boundary=\"sort marker creation\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+     "old": "        from .p3_b4_launcher import require_b4_any_context\n        require_b4_any_context(\n            _b4_launch_context,\n            expected_driver_kind=\"trigger\",\n            boundary=\"trigger marker creation\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=cfg.search_tag,\n                trial=cfg.trial,\n                axis=cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(cfg)),\n            expected_arm=cfg.search_config.get(\"reflux\"),\n            boundary=\"base run_one_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=cfg.search_tag,\n                trial=cfg.trial,\n                axis=cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(cfg)),\n            expected_arm=cfg.search_config.get(\"reflux\"),\n            boundary=\"sort run_one_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=campaign_cfg.search_tag,\n                trial=campaign_cfg.trial,\n                axis=campaign_cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(campaign_cfg)),\n            expected_arm=campaign_cfg.search_config.get(\"reflux\"),\n            boundary=\"trigger resolved run_one_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M07",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=cfg.search_tag,\n                trial=cfg.trial,\n                axis=cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(cfg)),\n            expected_arm=cfg.search_config.get(\"reflux\"),\n            boundary=\"trigger public run_one_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M08",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=cfg.search_tag,\n                trial=cfg.trial,\n                axis=cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(cfg)),\n            expected_arm=cfg.search_config.get(\"reflux\"),\n            boundary=\"base drive_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M09",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=cfg.search_tag,\n                trial=cfg.trial,\n                axis=cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(cfg)),\n            expected_arm=cfg.search_config.get(\"reflux\"),\n            boundary=\"sort drive_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+     "old": "        from .p3_b4_launcher import require_b4_production_context\n        require_b4_production_context(\n            _b4_launch_context,\n            expected_driver_kind=b4_driver_kind_from_identity(\n                search_tag=campaign_cfg.search_tag,\n                trial=campaign_cfg.trial,\n                axis=campaign_cfg.search_config.get(\"axis\"),\n            ),\n            expected_campaign_id=str(ident.campaign_id(campaign_cfg)),\n            expected_arm=campaign_cfg.search_config.get(\"reflux\"),\n            boundary=\"trigger drive_iteration\",\n        )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_launcher.py",
+     "old": "        try:\n            raw = sidecar_path.read_bytes()\n        except OSError as exc:\n            raise B4LauncherAuthorizationError(\n                \"B-4 COMMIT requires b4_launch_context.json\"\n            ) from exc\n",
+     "new": "        try:\n            raw = sidecar_path.read_bytes()\n        except OSError:\n            raw = _canonical_json_bytes(\n                sidecar_value(active_context.get())\n            )\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_launcher.py",
+     "old": "        if (\n            Path(layout.root).name != expected_campaign_id\n            or value.get(\"campaign_id\") != expected_campaign_id\n        ):\n            raise B4LauncherAuthorizationError(\n                \"B-4 launch sidecar is bound to another campaign\"\n            )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_launcher.py",
+     "old": "        expected_sidecar = sidecar_value(context)\n        if any(\n            value[key] != expected_sidecar[key]\n            for key in expected_sidecar\n            if key != \"campaign_id\"\n        ):\n            raise B4LauncherAuthorizationError(\n                \"B-4 launch sidecar differs from the live launch context\"\n            )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "old": "    launch_context = require_b4_production_context(\n        _b4_launch_context,\n        expected_driver_kind=on_driver_kind,\n        expected_campaign_id=selected_campaign_id,\n        expected_arm=selected_arm,\n        boundary=\"production pair factory\",\n    )\n",
+     "new": "    launch_context = _b4_launch_context\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_launcher.py",
+     "old": "        context = require_production_seal(context, boundary=boundary)\n        if context.driver_kind != expected_driver_kind:\n            raise B4LauncherAuthorizationError(\n                f\"B-4 launch context driver kind differs at {boundary}\"\n            )\n",
+     "new": "        context = require_production_seal(context, boundary=boundary)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M16",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_launcher.py",
+     "old": "        if context._seal is _B4_TEST_CONTEXT_SEAL:\n            raise B4LauncherAuthorizationError(\n                f\"test-only B-4 launch context cannot authorize {boundary}\"\n            )\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M17",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_closed_critic.py",
+     "old": "    from .p3_b4_launcher import B4LauncherAuthorizationError\n    raise B4LauncherAuthorizationError(\n        \"B-4 production runs require orchestrator.campaign.p3_b4_launcher\"\n    )\n",
+     "new": "    return 0\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M18",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_launcher.py",
+     "old": "    \"sort\": p3_s4_loop_sort.main,\n",
+     "new": "    \"sort\": (lambda *a, **k: 0),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

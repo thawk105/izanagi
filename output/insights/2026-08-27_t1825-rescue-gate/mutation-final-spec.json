@@ -1,0 +1,190 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 270.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 600.0,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "                    \"classification\": \"time-limited\",\n",
+     "new": "                    \"classification\": \"permanent\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m21_p08_prunable_worktree_roots_use_conservative_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "        else:\n            for kind, oid in [(\"worktree-head\", worktree.head), *[(\"index-commit\", value) for value in index_commits]]:\n                permanent_oids.add(oid)\n",
+     "new": "        else:\n            for kind, oid in [(\"worktree-head\", worktree.head), *[(\"index-commit\", value) for value in index_commits]]:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m02_nonretired_detached_worktree_head_is_permanent_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_retiring_one_of_two_same_detached_heads_keeps_the_other_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_surviving_index_commit_is_root_but_blob_is_not_commit_root"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "                    elif object_type == \"commit\":\n                        removed_source_oids.append((f\"candidate-reflog:{refname}\", oid))\n",
+     "new": "                    elif False:\n                        removed_source_oids.append((f\"candidate-reflog:{refname}\", oid))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "    stdin_lines = [*positive, *(f\"^{oid}\" for oid in sorted(snapshot.permanent_oids))]\n",
+     "new": "    stdin_lines = [*positive[:1], *(f\"^{oid}\" for oid in sorted(snapshot.permanent_oids))]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_a1_retired_worktree_reflog_only_commit_is_a_positive_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "    stdin_lines = [*positive, *(f\"^{oid}\" for oid in sorted(snapshot.permanent_oids))]\n",
+     "new": "    stdin_lines = [*positive, \"--not\", *sorted(snapshot.permanent_oids)]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_a1_retired_worktree_reflog_only_commit_is_a_positive_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_a4_absolute_prune_expiry_is_determinate",
+    "orchestrator/tests/test_check_branch_rescue.py::test_a8_git_ref_rules_and_non_utf8_ref_are_reversible",
+    "orchestrator/tests/test_check_branch_rescue.py::test_a8_non_utf8_ref_is_stable_in_snapshot_digest",
+    "orchestrator/tests/test_check_branch_rescue.py::test_assessment_limit_marks_every_unrun_commit",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m01_surviving_reflog_is_time_limited_not_negative_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m02_nonretired_detached_worktree_head_is_permanent_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m04_remote_ref_is_in_full_refs_namespace_root_set",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m05_all_candidates_are_subtracted_in_one_closure",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m07_indeterminate_assessment_forces_rc2",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m08_not_landed_is_content_not_technical_failure",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m09_loose_deadline_uses_object_mtime_not_now",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m10_m26_packed_mtime_never_becomes_determinate_deadline",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m11_m28_p07_packed_conservative_floor_is_complete_rc0",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m12_gc_auto_uses_fanout_sample_not_total_count",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m13_closure_limit_keeps_the_over_limit_observation",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m17_root_digest_movement_forces_rc2",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m19_unknown_worktree_field_keeps_record_as_permanent_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m20_a4_effective_global_prune_config_is_observed",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m21_p08_prunable_worktree_roots_use_conservative_floor",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m29_p09_alternate_only_commit_has_conservative_external_retention",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m30_gc_prune_expire_never_is_determinate",
+    "orchestrator/tests/test_check_branch_rescue.py::test_normal_preview_preserves_repository_control_bytes",
+    "orchestrator/tests/test_check_branch_rescue.py::test_p01_empty_closure_is_complete_rc0",
+    "orchestrator/tests/test_check_branch_rescue.py::test_p02_real_checker_landed_and_loose_deadline_is_rc0",
+    "orchestrator/tests/test_check_branch_rescue.py::test_p03_real_checker_not_landed_is_still_rc0",
+    "orchestrator/tests/test_check_branch_rescue.py::test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path",
+    "orchestrator/tests/test_check_branch_rescue.py::test_retiring_one_of_two_same_detached_heads_keeps_the_other_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_surviving_index_commit_is_root_but_blob_is_not_commit_root",
+    "orchestrator/tests/test_check_branch_rescue.py::test_usage_rc64_and_fixed_coverage_boundary"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "    complete = len(commits) <= limit\n",
+     "new": "    complete = True\n    commits = commits[:limit]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m13_closure_limit_keeps_the_over_limit_observation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M24",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "        \"definition\": \"reachable-from-all-candidate-tips-minus-post-delete-gc-commit-roots\",\n        \"complete\": complete,\n",
+     "new": "        \"definition\": \"reachable-from-all-candidate-tips-minus-post-delete-gc-commit-roots\",\n        \"branch_delete_authorized\": False,\n        \"complete\": complete,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M25",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "        \"GIT_NO_LAZY_FETCH\": \"1\",\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn",
+    "orchestrator/tests/test_check_branch_rescue.py::test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "    sample_path = objects / \"17\"\n",
+     "new": "    sample_path = objects / \"00\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_m12_gc_auto_uses_fanout_sample_not_total_count"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

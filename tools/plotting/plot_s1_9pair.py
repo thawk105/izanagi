@@ -527,14 +527,19 @@ def _project_segment(role: str, segment: Sequence[object]) -> tuple[dict, dict |
     return evidence, bench_projection
 
 
-def _epoch_projection(epoch: object) -> dict[str, Any]:
-    return {
+def _epoch_projection(
+        epoch: object, *, verifier_assessment_basis: str | None = None,
+) -> dict[str, Any]:
+    projection = {
         "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
         "state": epoch.state,
         "reason_code": epoch.reason_code,
         "identity_scope": epoch.identity_scope,
         "excluded_scope": epoch.excluded_scope,
     }
+    if verifier_assessment_basis is not None:
+        projection["verifier_assessment_basis"] = verifier_assessment_basis
+    return projection
 
 
 def _campaign_lock_commit(path: Path) -> str:
@@ -577,7 +582,10 @@ def load_campaign(role: str, campaign_dir: os.PathLike[str] | str) -> dict[str, 
     rows.sort(key=lambda row: row["schedule_index"])
     if len(rows) != EXPECTED_COUNTS[role]:
         _fail(f"campaign projected sample count differs: {role}:{len(rows)}")
-    epoch = _epoch_projection(view.campaign_verifier_epoch)
+    epoch = _epoch_projection(
+        view.campaign_verifier_epoch,
+        verifier_assessment_basis=view.verifier_assessment_basis,
+    )
     if (view.read_purpose is not CampaignReadPurpose.HISTORICAL_RAW
             or epoch["state"] != "E0"
             or epoch["reason_code"] != "v1-authority-absent"):
