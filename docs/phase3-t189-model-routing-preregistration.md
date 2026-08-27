@@ -194,7 +194,7 @@ schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数�
 | `collect_run` (`:8004`) | `expected_model=MODEL` 既定値を廃し slot 由来を検査 | **部分実装**。内部 API と material replay は期待 model を必須引数として受け取り検査する。served model とは呼ばない。**閉じていない面**: standalone の `collect-run` verb は `--expected-model` の既定値が `MODEL` のままで、未指定時は schedule 由来にならない |
 | task-specific 入力処理層 | POS/NEG 固定処理を task manifest 経由へ | **部分実装**。`render-prompt` は外部 manifest から task を選び、source session・rollout・prompt-source pin を入力決定に使い、prompt が参照する untracked artifact 集合を task の `snapshot.artifact_names` と照合する。**閉じていない面**: `new_root` と snapshot oracle は CLI 引数であって manifest が決めるものではなく、standalone `verify-snapshot` は `--task-manifest` を持たない |
 | `validate_nullable_dimensions` (`:2819`)、`_slot_dimensions` (`:8998`)、`_validate_schedule` (`:9097`) | POS/NEG × max/high の固定検査を task・cache・model・price の paired schema へ | **実装済み**。task・stage・`requested_model` の検査に加え、**price version の凍結束縛は 2026-08-25 に接続した** (§10)。`cache_condition` は §9 の実測により非 null を拒否したままである |
-| `_load_adjudication` (`:9238`) | adjudication 層を task-specific oracle へ対応 | **部分実装**。2026-08-27 に、mapping reveal 後の `packet_id -> run_id -> slot` の join を確定させ、その slot の task 自身の `known_finding_ids` で parent と second-reader の**両方の raw verdict 行**の `equivalent_to` を検査する経路を接続した。blind 追記時点の manifest 全体 union 検査は残してある (`append_verdicts` / `freeze_verdicts` / `reveal_mapping` は task を知らないままである)。同じ join から得た `oracle_kind` を combined verdict へ `combined_verdict_sha256` の計算**前**に入れ、`_aggregate_verified` が schedule 由来の値と exact 比較する (欠落も拒否する)。dimension join に失敗した packet は reason を付けて `joined` から除外する。**閉じていない面**: §8 の独立 oracle ledger は未作成で、その固有 hash 契約、severity・must-fix・根拠 artifact・検出条件・canonical identity の schema、task 固有 acceptance はいずれも未登録である (acceptance は `unbound` のまま)。§8 の記述的 coverage (numerator / denominator / negative control の分母除外 / false-finding rate) も装置に存在しない。**さらに、組込み `TASK_MANIFEST` は POS/NEG が同一の `known_finding_ids` を持つため、この narrowing は組込み manifest 上では 1 度も発火しない** — 差が出るのは task ごとに集合が異なる外部 v3 manifest だけである |
+| `_load_adjudication` (`:9238`) | adjudication 層を task-specific oracle へ対応 | **部分実装**。2026-08-27 に、mapping reveal 後の `packet_id -> run_id -> slot` の join を確定させ、その slot の task 自身の `known_finding_ids` で parent と second-reader の**両方の raw verdict 行**の `equivalent_to` を検査する経路を接続した。blind 追記時点の manifest 全体 union 検査は残してある (`append_verdicts` / `freeze_verdicts` / `reveal_mapping` は task を知らないままである)。同じ join から得た `oracle_kind` を combined verdict へ `combined_verdict_sha256` の計算**前**に入れ、`_aggregate_verified` が schedule 由来の値と exact 比較する (欠落も拒否する)。dimension join に失敗した packet は reason を付けて `joined` から除外する。**2026-08-28 に、既存 task catalog の実在 plan 2 行を使う限定 wiring slice (§8.3) を explicit profile・canonical digest・tool bytes pin へ束縛し、互いに素な finding 集合で accept と cross-task reject の full CLI 発火を実走した。** 組込み `TASK_MANIFEST` は従来どおり POS/NEG が同一集合なので発火しない。**閉じていない面**: §8 の独立 oracle ledger 本体、その content review、task 固有 acceptance (依然 `unbound`)、記述的 coverage (numerator / denominator / negative control の分母除外 / false-finding rate) は未登録・未実装である |
 | `_aggregate_verified` (`:10078`)、`_replay_manifest` (`:10738`) | task・stage・model・cache 別の集計 | **実装済み**。task・stage・`requested_model`・cache・price version を軸として集計する。**2026-08-25 に部分正規化 cost の計算器も接続した** — material に schedule descriptor があり全 slot が凍結 price version を持つ場合に、観測可能な token 数から run/attempt ごとと軸別の値を Decimal で生成する。ただし cache 書込は未計上で、`coverage_status` は `partial`、`certification_status` は `not-certified` である (§10、D932) |
 | `make_packets` (`:11285`) | 10 slot 固定を廃し、public packet に model・stage・task_id・price version を出さない | **実装済み**。非 null price が実在する schedule では、凍結 version の文字列が本文にあれば packet 公開前に fail-closed で止める。schedule descriptor を持たない経路自体は残るが、**この経路も packet-source manifest の task manifest digest を必須とするため、digest を持たない既存 artifact との byte 単位の後方互換は無く、利用には再生成が要る。** scheduleless 経路は price 束縛も一様性検査も通らない (uncertified) |
 | `append_verdicts` (`:11528`)、`freeze_verdicts` (`:11608`)、`reveal_mapping` (`:11697`) | T-181 と同じ順序で再利用し、oracle finding ID と cache/price の欠測も束縛 | **acceptance 未束縛**。順序の再利用に加え、各 artifact と verdict 行を task manifest digest へ束縛する。finding ID は blind verdict 時には manifest 全体の union、mapping reveal 後は task ごとの集合として検査する (2026-08-27 以降は集計だけでなく adjudication の join 後にも task 別に検査する。§5.2 の `_load_adjudication` 行)。**この 3 つの blind operation 自身は task を知らないままである** — 盲検性を壊さないため意図してそうしてある。**閉じていない面**: 独立 oracle ledger と task 固有 acceptance は未登録であり、意味的な受理条件は依然 §8 待ちである |
@@ -245,28 +245,33 @@ schema 定数)。同じ陳腐化を繰り返さないため、**本表は関数�
   段3所見 B7)。task ごとの oracle finding ID、positive/negative control、reader agreement、
   task-stage-model 別 numerator/denominator を schema 化し、`_validate_schedule`、
   `_load_adjudication`、`_aggregate_verified` 全体で hash と件数を束縛する。
-  - **到達度 (2026-08-27 実測):** 着地したのは**現行 task manifest の中にある oracle 契約**、
+  - **到達度 (2026-08-28 実測):** 着地したのは**現行 task manifest の中にある oracle 契約**、
     すなわち `oracle_kind` と `known_finding_ids` とその consumer であって、**機構は着地**である。
     `oracle_kind` は正規化した schedule と、reveal 後の集計の軸・resource 台帳へ反映される
     (raw の launch receipt や supervisor の attempt 台帳には保存しない)。
     `known_finding_ids` は blind verdict の時点では manifest 全体の union、mapping reveal 後の
     集計では task ごとの集合として検査され、いずれも task manifest digest で同一 manifest に
     束縛される。
-    一方、**独立した oracle manifest そのものは存在しない。** 独立 oracle ledger、
-    その固有 hash 契約、task 固有 acceptance は **task 固有契約は未登録**であり、
+    2026-08-28 に、catalog の実在 plan 2 行へ限定した
+    `task-oracle-wiring-slice-v1.json` を接続した。これは §8 field shape と互いに素な finding 集合を
+    task manifest へ運び、explicit profile と canonical digest で既存 adjudication consumer へ
+    束縛する**発火確認用 slice**である。独立 oracle ledger 本体ではなく、
+    `oracle_content_review_status=not-established` と `section8_complete=false` を固定する。
+    したがって独立 oracle ledger、その完全な固有 hash 契約、task 固有 acceptance は
+    **task 固有契約は未登録**であり、
     acceptance は **acceptance 未束縛**のままである。
     **§8 が要求する独立 oracle 機構の全体を実装済みとは呼ばない。**
     `_load_adjudication` の task-specific oracle 対応は、**2026-08-27 に「未実装」から
     「部分実装」へ進んだ** (§5.2 の表)。装置は mapping reveal 後に task を同定し、その task 自身の
-    `known_finding_ids` と `oracle_kind` を束縛するようになった。**独立 oracle manifest そのものは
-    依然として存在しない**ので、この節の到達度 (`task 固有契約は未登録` / `acceptance 未束縛`) は
-    動かない。
+    `known_finding_ids` と `oracle_kind` を束縛するようになった。wiring slice の追加後も、
+    この節の到達度 (`task 固有契約は未登録` / `acceptance 未束縛`) は動かない。
   - **「機構は着地」は存在の主張であって、発火の主張ではない。** 組込み `TASK_MANIFEST` は
     `_manifest_task_entry` が POS/NEG の双方へ同じ `known_finding_ids` を入れるため、
     task 別集合と manifest 全体 union が同一集合になる。したがって `_load_adjudication` の
     新しい narrowing も、既に着地していた `_aggregate_verified` の task 別検査も、
     **組込み manifest の入力では 1 度も union より狭い受理集合を作らない。**
-    差が出るのは task ごとに `known_finding_ids` が異なる外部 v3 manifest だけである。
+    2026-08-28 の wiring slice は task ごとに集合が異なる外部 profile の実データ経路を作り、
+    blind union は通るが reveal 後に別 task の finding を拒否する差を full CLI で発火させた (§8.3)。
 - task catalog と task type 層別器 — **機構は着地**。事前選別の候補台帳と公開基準による分類まで
   作成済み (§6.1、§6.2)。ただし oracle 件数と stage 境界が未確立のため、held-out として
   採用する契約は **task 固有契約は未登録**である。
@@ -557,6 +562,26 @@ finding coverage は、両 reader が同じ oracle finding を検出したと一
 ```
 
 oracle finding が0件の negative control は分母から除き、false finding rate として別集計する。
+
+### 8.3 task-specific 束縛の wiring slice (2026-08-28)
+
+`output/t189-routing-preregistration/task-oracle-wiring-slice-v1.json` は、§8 ledger 全体ではなく、
+task-specific 束縛の発火を実データで確認する限定 slice である。既存 task catalog の
+`T-1222-population-closure:plan:0` と
+`dev-wave-t1393-finish-trial-indeterminate:plan:0` を exact join し、各 task に互いに素な
+finding ID を1件ずつ持つ。finding は §8.1 の field shapeを持つが、独立 content review は未成立で、
+`status=provisional-wiring-only` とする。
+
+装置は slice の canonical bytes、verifier tool bytes、manifest kind、明示 profile、許可 verb 6件、
+finding projectionをpinする。portable verifierはcatalog・分類・worklog・commitを照合し、
+physical modeはjobs rootのprompt/receipt bytesも照合する。accept caseでは各task自身のIDが通り、
+cross-task caseではblind時のmanifest unionを通過したT-1222のIDが、mapping reveal後のT-1393集合で
+拒否される。full `verify` / `aggregate` の正負例と関連consumerは焦点走で緑を確認した。
+
+このsliceは `task_acceptance_status=unbound`、`fix_gate_eligible=false`、
+`routing_evidence_eligible=false`、`routing_evidence_status=inconclusive`、
+`section8_complete=false` を固定する。held-out task採用、zero-finding negative control、coverage集計、
+§8 ledgerの作成・凍結を成立させず、それらの代用にしない。
 
 ## 9. Cache 条件の分離 (段4裁定 B5 反映)
 
@@ -959,7 +984,8 @@ schedule) で lock する。
   (`power_threshold = 0.80` に対する判定結果、§11.4)
 - randomization seed (§6.3 schedule 生成用、power simulation の seed とは別管理)
 - schedule bytes
-- oracle ledger
+- oracle ledger (**未作成・未凍結**。§8.3 の wiring slice は発火確認用であり、
+  content review・task acceptance・coverageを持つ本項の代用ではない)
 - apparatus pin
 - cache protocol (制御可能性の実測結果。制御不能なら resource gate を `not-applicable` 固定)
 - price snapshot (**取得・検証済み、装置へ接続済み**:
@@ -1020,14 +1046,15 @@ run 開始後は、oracle、margin、task 除外規則、判定表を変更し�
   解消されない限り、盲検性・cache 分離の一部は T-181/T-182 と同水準の限界を引き継ぐ。
 - T-181 装置の model 軸拡張は横断的 refactor に相当し (§5.2)、段2/段5 downstream replayer・
   task-specific oracle schema (§5.3) を含め、実装コストは当初想定より大きい。
-  **2026-08-27 時点では一部が着地している** — price version の束縛は完了し、
+  **2026-08-28 時点では一部が着地している** — price version の束縛は完了し、
   task manifest は 10 verb の CLI へ接続され、部分正規化費用の計算器も接続した。
   両 replayer は機構が着地して acceptance 未束縛である。
   **model 軸の配線は「完了」ではない** — schedule が `requested_model` を省略すると `MODEL` へ
   既定化され、`collect-run` verb の `--expected-model` も既定値が `MODEL` のままである。
-  adjudication の oracle 対応は 2026-08-27 に、mapping reveal 後の task 別束縛
-  (`known_finding_ids` と `oracle_kind`) まで着地した。**ただし §8 の独立 oracle ledger と
-  記述的 coverage の集計は依然として存在せず、組込み manifest 上ではこの束縛は発火しない。**
+  adjudication の oracle 対応は 2026-08-27 にmapping reveal後のtask別束縛まで着地し、
+  **2026-08-28 にcatalog実在2行のwiring sliceでaccept/cross-task rejectを発火させた。**
+  ただし §8 の独立 oracle ledger と記述的 coverage の集計は依然として存在せず、
+  組込み manifest 上ではこの束縛は発火しない。
   残余は §8 の独立 oracle ledger と coverage 集計、model 既定化の 2 経路、
   schema v2 互換経路・v3 cardinality の自己導出・standalone `verify-snapshot` の未接続、
   sol/luna 各 1 回を固定しない block 検査、キャッシュ書込数量を保存する receipt 項目である。
@@ -1087,7 +1114,9 @@ token・wall-clock 比、fix 巡回数、task-binary な false finding rate で�
   **これは §8 の独立 oracle ledger の代わりではない。** 残るのは §8 の ledger 本体
   (作成・凍結・固有 hash 契約・finding schema)、task 固有 acceptance (`unbound` のまま)、
   §8 の記述的 coverage の集計である。**組込み manifest では POS/NEG の
-  `known_finding_ids` が同一のため、この束縛は発火しない**、
+  `known_finding_ids` が同一のため、この束縛は発火しない。2026-08-28 に、catalog実在2行の
+  限定wiring sliceでacceptとcross-task rejectのfull CLI発火を確認したが、
+  `section8_complete=false` / acceptance `unbound` のままである**、
   (c) キャッシュ書込数量を保存する receipt 項目 (これが無い限り費用の被覆は partial に留まる)、
   (d) model 既定化の 2 経路 (`_slot_dimensions` の slot 省略時と `collect-run` verb の
   `--expected-model`) と、sol/luna 各 1 回を固定しない block 検査。

@@ -1363,8 +1363,31 @@ def test_historical_build_report_displays_e0_without_rejection(
         "reason_code": "v1-authority-absent",
         "identity_scope": e0.identity_scope,
         "excluded_scope": e0.excluded_scope,
+        "verifier_assessment_basis": (
+            "recorded-at-original-verifier-epoch"
+        ),
     }
     assert report["certifying_input"] is False
+
+
+def test_historical_layer3_schema_accepts_legacy_recorded_current_closure_mismatch(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["campaign_verifier_epoch"] = {
+        "campaign_verifier_epoch": f"E1:{'a' * 64}",
+        "state": "E1-stale",
+        "reason_code": "recorded-current-closure-mismatch",
+        "identity_scope": "legacy recorded identity scope",
+        "excluded_scope": "legacy recorded excluded scope",
+    }
+
+    layer3_report._validate_schema(report)
 
 
 def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_refs(
@@ -1499,6 +1522,7 @@ def test_existing_v3_missing_new_admission_fields_remains_readable(
     assert report["acceptance_receipt"] is None
     del report["acceptance_receipt"]
     del report["certifying_input"]
+    del report["campaign_verifier_epoch"]["verifier_assessment_basis"]
     layer3_report._validate_schema(report)
 
 
@@ -1589,6 +1613,29 @@ def test_reader_rejects_acceptance_receipt_without_certifying_input(
     with pytest.raises(
         layer3_report.Layer3ReportError,
         match="certifying_input=true と acceptance_receipt 非 null は同値必須$",
+    ):
+        layer3_report._validate_schema(report)
+
+
+def test_reader_rejects_historical_marker_on_certifying_input(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["acceptance_receipt"] = {
+        "path": "acceptance/fixture.json",
+        "sha256": "a" * 64,
+    }
+    report["certifying_input"] = True
+    report["admission_decision"]["admission_status"] = "admitted"
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="layer3 schema 検証に失敗$",
     ):
         layer3_report._validate_schema(report)
 
@@ -1748,6 +1795,10 @@ def test_accepted_report_requires_e1_and_records_epoch(
     assert report["campaign_verifier_epoch"][
         "campaign_verifier_epoch"
     ].startswith("E1:")
+    assert (
+        "verifier_assessment_basis"
+        not in report["campaign_verifier_epoch"]
+    )
     assert report["acceptance_receipt"] == {
         "path": verified.relative_path,
         "sha256": verified.sha256,

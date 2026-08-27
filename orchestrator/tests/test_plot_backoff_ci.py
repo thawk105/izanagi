@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import math
@@ -13,6 +14,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -235,6 +237,9 @@ def _figure_campaign(name, workload, scale):
             "reason_code": "fixture",
             "identity_scope": [],
             "excluded_scope": [],
+            "verifier_assessment_basis": (
+                "recorded-at-original-verifier-epoch"
+            ),
         },
     }
 
@@ -260,6 +265,9 @@ def test_actual_panel_artists_match_serialized_baseline_records():
             top_axes = figure.axes[:len(campaigns)]
             assert len(provenance["inputs"]) == len(top_axes)
             for axis, input_row in zip(top_axes, provenance["inputs"]):
+                assert input_row["campaign_verifier_epoch"][
+                    "verifier_assessment_basis"
+                ] == "recorded-at-original-verifier-epoch"
                 rows = input_row["baselines"]
                 labels = {row["label"] for row in rows}
                 baseline_texts = [text for text in axis.texts if text.get_text() in labels]
@@ -291,6 +299,93 @@ def test_figure_epoch_label_keeps_exact_recorded_epochs():
         {"campaign_verifier_epoch": {"campaign_verifier_epoch": e1}},
     ]
     assert plot._figure_epoch_label(camps) == f"E0, {e1}"
+
+
+def test_load_campaign_projects_historical_verifier_assessment_basis():
+    plot = _load_plot_module(need_numpy=False)
+    marker = "recorded-at-original-verifier-epoch"
+    original = plot.require_admitted_campaign
+    try:
+        with tempfile.TemporaryDirectory(prefix="backoff-historical-marker-") as temp:
+            campaign = Path(temp) / "campaign"
+            wal_path = campaign / "runs" / "wal.jsonl"
+            dat_path = campaign / "reports" / "fixture.dat"
+            lock_path = campaign / "campaign.lock"
+            wal_path.parent.mkdir(parents=True)
+            dat_path.parent.mkdir(parents=True)
+            wal_path.write_text("", encoding="utf-8")
+            dat_path.write_text("# workload: fixture\n", encoding="utf-8")
+            lock_path.write_text("{}\n", encoding="utf-8")
+            view = SimpleNamespace(
+                wal_file=str(wal_path),
+                records=(),
+                read_purpose=plot.CampaignReadPurpose.HISTORICAL_RAW,
+                verifier_assessment_basis=marker,
+                campaign_verifier_epoch=SimpleNamespace(
+                    campaign_verifier_epoch="E0",
+                    state="E0",
+                    reason_code="v1-authority-absent",
+                    identity_scope="fixture identity scope",
+                    excluded_scope="fixture excluded scope",
+                ),
+            )
+
+            def historical_only(cdir, *, purpose):
+                assert Path(cdir) == campaign
+                assert purpose is plot.CampaignReadPurpose.HISTORICAL_RAW
+                return view
+
+            plot.require_admitted_campaign = historical_only
+            projected = plot.load_campaign(campaign)
+    finally:
+        plot.require_admitted_campaign = original
+
+    assert projected["campaign_verifier_epoch"][
+        "verifier_assessment_basis"
+    ] == marker
+
+
+def test_production_provenance_records_current_generator_source_sha():
+    plot = _load_plot_module(need_numpy=False)
+    campaign = _figure_campaign("fixture", "read-heavy", 1.0)
+    original_load = plot.load_campaign
+    original_make = plot.make_figure
+
+    def load_fixture(_campaign_dir):
+        return campaign
+
+    def make_fixture(_campaigns, out_prefix):
+        Path(f"{out_prefix}.png").write_bytes(b"fixture-png")
+        Path(f"{out_prefix}.pdf").write_bytes(b"fixture-pdf")
+        return ({
+            "read-heavy": {
+                "best_M": 1.0,
+                "best_bf": 1,
+                "none_M": 1.0,
+                "adapt_M": 1.0,
+                "n_reps": 1,
+            },
+        }, [[]])
+
+    plot.load_campaign = load_fixture
+    plot.make_figure = make_fixture
+    try:
+        with tempfile.TemporaryDirectory(prefix="backoff-current-generator-") as temp:
+            prefix = str(Path(temp) / "figure")
+            assert plot.main(["plot_backoff.py", prefix, "fixture"]) == 0
+            provenance = json.loads(
+                Path(f"{prefix}.provenance.json").read_text(encoding="utf-8")
+            )
+    finally:
+        plot.load_campaign = original_load
+        plot.make_figure = original_make
+
+    generator_path = Path(plot.__file__).resolve()
+    expected_sha256 = hashlib.sha256(generator_path.read_bytes()).hexdigest()
+    assert provenance["generator_source"] == {
+        "path": "tools/plotting/plot_backoff.py",
+        "sha256": expected_sha256,
+    }
 
 
 # ---- 素の runner (pytest 無しでも) ----
