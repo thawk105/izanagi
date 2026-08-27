@@ -17,6 +17,7 @@ title: [T-2044] holdout 値の事後選択防壁を限定監査し、守られ�
 - D893 は同一試行識別子の複製を対象とし、異なる fresh A/B は D1124 の禁止面である。T-469 は未実装なので防壁に数えない。
 - 主張上限は {{D:t2044-holdout-selection-claim-cap}}。測定前固定の既存 proof が示されない floor-backed candidate・再凍結・主張は advisory / non-certifying。狭い floor 数値非干渉だけを別に維持する。
 - 関連 test 6 file は `tools/run_tests.py` 経由で 621 passed / 2 skipped、rc=0、677.74 秒。skip 2 件は explicit-user-command-only growth hold。floor / oracle / 8c 本走と性能測定は 0 件で、未実走を緑と書いていない。
+- full acceptance 1 は `tools/dev_wave_wait.py acceptance --lease-optional` 経由で 18,033 passed / 61 skipped、赤 0、`child-green`。tested main は `f34e19be94a3608099773ac6c1a12a98ae992048`、tested tip は `eeb6207a3545041f65dec61c6fa3ac17f9c4a07d`。
 - read-only Codex は plan 1 本・敵対相談 2 本、全て output 検査 rc=0。実装面差分 0 のため段 5・6・変異 matrix を免除した。証拠索引は `output/insights/2026-08-28_t2044-holdout-selection-audit/README.md`。
 
 ## 次の一手差分

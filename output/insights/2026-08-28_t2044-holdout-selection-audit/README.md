@@ -96,6 +96,7 @@ D1124 は新しい fresh 測定を繰り返すことを許すが、値を見て 
 - 静的: `rg` / source 再読 / AST により上記件数、def-use、call closure、0 edge を確認した。
 - read-only Codex: plan 1 本、敵対相談 2 本。すべて `check_codex_output.py` rc=0。逐語は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2044-holdout-selection-audit/`。
 - 関連 test 6 file: `tools/run_tests.py` 経由、621 passed / 2 skipped、rc=0、677.74 秒、bounded local peak 2,949,328,896 bytes。skip 2 件は explicit-user-command-only の tracked-files growth hold。
+- full acceptance 1: `tools/dev_wave_wait.py acceptance --lease-optional` 経由、18,033 passed / 61 skipped、赤 0、`child-green`、tested main `f34e19be94a3608099773ac6c1a12a98ae992048`、tested tip `eeb6207a3545041f65dec61c6fa3ac17f9c4a07d`、log sha256 `28bfb085a7b99b32c1db20aaa190c12591450e335d0245835ae2f224e663d264`。
 - floor / oracle / 8c の本走と性能測定は 0 件。未実走を緑と扱っていない。
 
 ## scope 外
