@@ -1,0 +1,21 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1350.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 600.0,
+ "mutations": [{
+  "id": "M34",
+  "category": "negative",
+  "replacements": [{
+   "file": "tools/check_branch_rescue.py",
+   "old": "    if status == \"pending\":\n",
+   "new": "    if False:\n"
+  }],
+  "expected_nodes": [
+   "orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[pending]",
+   "orchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed"
+  ],
+  "expected_status": "KILLED",
+  "hang_risk": false
+ }]
+}

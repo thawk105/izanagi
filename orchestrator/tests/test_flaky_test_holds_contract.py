@@ -48,6 +48,13 @@ _LAZY_LOAD_MARKER_PREFIX = "IZANAGI_FLAKY_REGISTRY_LAZY_LOAD_V1 "
 _EMPTY_REGISTRY_SHA256 = (
     "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 )
+_LIVE_HELD_NODE = (
+    "orchestrator/tests/test_dev_wave_land.py::"
+    "test_exploration_external_root_keeps_wave_clean"
+)
+_LIVE_REGISTRY_SHA256 = (
+    "ed7b4d7e4e5eafe836f11397da6b596d2c04d227996a8a217aa5970b6e117be2"
+)
 
 
 def _synthetic_valid_hold() -> REG.FlakyTestHold:
@@ -284,17 +291,23 @@ def _expected_flaky_summary_line(
     )
 
 
-def test_live_registry_is_empty_and_exports_empty_digest() -> None:
-    assert REG._FLAKY_TEST_HOLD_ROWS == ()
-    assert dict(REG.FLAKY_TEST_HOLDS) == {}
-    assert _HELD_NODE not in dict(REG._FLAKY_TEST_HOLD_ROWS)
+def test_live_registry_exports_exact_registered_hold_and_digest() -> None:
+    assert len(REG._FLAKY_TEST_HOLD_ROWS) == 1
+    assert tuple(node_id for node_id, _ in REG._FLAKY_TEST_HOLD_ROWS) == (
+        _LIVE_HELD_NODE,
+    )
+    assert tuple(REG.FLAKY_TEST_HOLDS) == (_LIVE_HELD_NODE,)
+    hold = REG.FLAKY_TEST_HOLDS[_LIVE_HELD_NODE]
+    assert hold.known_failure_node_ids == frozenset({_LIVE_HELD_NODE})
+    assert hold.evidence_id == "F57"
+    assert hold.reintroduction_task_id == "t-1079"
     assert _HELD_NODE not in REG.FLAKY_TEST_HOLDS
-    assert _HELD_NODE not in REG.FLAKY_TEST_HOLD_NODE_IDS
+    assert _SIBLING_NODE not in REG.FLAKY_TEST_HOLDS
     assert REG.FLAKY_TEST_HOLD_NODE_IDS == frozenset(REG.FLAKY_TEST_HOLDS)
     assert REG.FLAKY_TEST_HOLDS_SHA256 == (
         REG.flaky_test_hold_registry_sha256(REG.FLAKY_TEST_HOLDS)
     )
-    assert REG.FLAKY_TEST_HOLDS_SHA256 == _EMPTY_REGISTRY_SHA256
+    assert REG.FLAKY_TEST_HOLDS_SHA256 == _LIVE_REGISTRY_SHA256
 
 
 def test_empty_and_nonempty_registries_validate_immutably() -> None:
@@ -973,7 +986,7 @@ def test_empty_synthetic_flaky_summary_has_literal_contract(
     }
 
 
-def test_live_empty_flaky_summary_derives_count_and_digest_from_registry() -> None:
+def test_live_flaky_summary_derives_exact_count_and_digest_from_registry() -> None:
     lines: list[str] = []
 
     class Terminal:
@@ -985,8 +998,8 @@ def test_live_empty_flaky_summary_derives_count_and_digest_from_registry() -> No
         pluginmanager=SimpleNamespace(
             get_plugin=lambda name: Terminal() if name == "terminalreporter" else None
         ),
-        _izanagi_collected_flaky_hold_ids={_HELD_NODE},
-        _izanagi_skipped_flaky_hold_ids={_HELD_NODE},
+        _izanagi_collected_flaky_hold_ids={_LIVE_HELD_NODE},
+        _izanagi_skipped_flaky_hold_ids={_LIVE_HELD_NODE},
     )
 
     CONF.pytest_sessionfinish(SimpleNamespace(config=config), 0)
@@ -996,10 +1009,10 @@ def test_live_empty_flaky_summary_derives_count_and_digest_from_registry() -> No
     assert len(summary_lines) == 1
     payload = json.loads(summary_lines[0].split(" ", 1)[1])
     expected_payload = {
-        "registered_node_count": 0,
-        "matched_node_count": 0,
-        "skipped_node_count": 0,
-        "registry_sha256": _EMPTY_REGISTRY_SHA256,
+        "registered_node_count": 1,
+        "matched_node_count": 1,
+        "skipped_node_count": 1,
+        "registry_sha256": _LIVE_REGISTRY_SHA256,
     }
     assert set(payload) == set(expected_payload)
     assert {key: type(payload[key]) for key in payload} == {

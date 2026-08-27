@@ -40556,3 +40556,135 @@ NFC に保つ**。証拠の健全性検査は 1 つも緩めない。運用上�
 **却下した選択肢:**
 - 各 module が独自に判定し、テストで一致を確かめる — 一致検査自体が新しい重複になる。
 - 委譲側に合わせて所有者を狭める — 型の定義を実装の都合で変えることになる。
+
+## D1231. 掃除の可視化は削除の可否ではなく絵の完全さを返す (2026-08-28)
+
+**決定:** 掃除で到達不能になる commit を出す道具は、`branch` の削除と `worktree` の撤去を
+**ひとつの操作**として受け、rc は「削除してよいか」ではなく「**完全な絵を描けたか**」だけを表す。
+配線先は `/cleanup-branches` の §1 (棚卸し) と §5 (ユーザーへの報告) とし、
+§2 (削除条件) には置かない。`deletion_authorized` に類する field を出力へ作らない。
+
+rc は `0` = 可視化が完全、`2` = 技術的に不完全 (timeout・上限超過・root の移動・
+壊れた administrative entry・下界を立てられない・台帳 parse 不能)、`3` = 未記帳の通知あり、
+`64` = usage error とする。`not-landed` は可視化の内容であって技術的失敗ではないので `0` に含む。
+
+**理由:**
+- **§2 へ置くと構造的に一度も発火しない。** 現行 §2 は `ahead=0` (main へ取り込み済み) の
+  branch だけを削除対象にする。`ahead=0` は定義上 `rev-list <b> ^main` が空なので、
+  喪失閉包も必ず空になる。述語がその候補集合に含意されており、保護と数えられない。
+- **判断するのはユーザーである。** branch 削除はユーザー指示があるときだけ行う運用なので、
+  道具の仕事は「消すな」と言うことではなく、消す判断の前に材料を出すことである。
+- **削除の可否を表す field は、呼び手を持たないまま残る。**
+  `tools/check_branch_landed.py` の `branch_delete_authorized` は無条件定数 `False` のまま
+  production の呼び手ゼロで存在している (本 wave の実測: `git grep` 全件 7 hit がすべて
+  自身の test と台帳の記述)。同じ形をもう 1 つ作らない。
+- **掃除操作の単位でモデルにしないと、安全だと誤って報告する。** 実測で
+  `worktree-dev-wave-t1629-ratification-broker` は branch だけ消す前提で喪失 0 件、
+  その worktree も畳む前提で 12 commit 失われた。`/cleanup-branches` §3 は worktree を
+  撤去するので、branch 削除だけをモデルにすると「失われるものは無い」と報告した直後に失う。
+
+**却下した選択肢:**
+- **§2 の削除条件へ閉包検査を置く** — 上記のとおり恒真になる。この gate の阻止側が
+  意味を持つのは D978 (内容着地済みの非祖先 branch を CAS つきで削除対象へ入れる) の
+  施行後であり、それは別裁定である。
+- **`indeterminate` があっても rc=0 を返す** — ユーザーの要求は
+  「判定できないものが残る間は通さない」であり、これに反する。
+- **候補を 1 本ずつ判定して和を取る** — 同じ commit を指す候補どうしが互いを隠して
+  0 件になる。実測で、同じ commit を指す 2 つの detached worktree が互いを隠していた。
+
+## D1232. 「今すぐ失われうる」は不完全ではなく最も切迫した完全な答え (2026-08-28)
+
+**決定:** 到達不能になりうる object の喪失期限は、常に**下界**として出す。
+`deadline_status` を 3 値にする。
+
+- `determinate` — その object 自身の mtime と実効 prune 期限から下界を導けた。rc へ影響しない。
+- `conservative-floor` — 下界は立つが object 固有の保持期間を観測できない。
+  下界は評価時刻とし「いつ失われてもおかしくない」と読む。**rc=0 のまま**とする。
+- `indeterminate` — **下界そのものを立てられない**。ここだけが rc=2 へ倒れる唯一の経路。
+
+`conservative-floor` へ倒す事由は次の 4 つに限る。object が packed または loose-and-packed、
+alternate ODB にしか存在しない、prunable worktree が保持する root の期限、
+`gc.pruneExpire` を安全に解釈できない。
+
+**理由:**
+- **実データの過半数が packed である。** 本 wave の実測で、喪失閉包に入る commit 39 件のうち
+  23 件 (59%) が packed だった。packed を判定不能として rc=2 にすると、実 repo の
+  過半数の branch で道具が「絵を描けない」と返る。常に止まる関門は迂回される。
+- **fail-closed の向きは「何も言えない」ではなく「今すぐ失われうる」である。**
+  評価時刻を下界とする答えは、判断に使える最も切迫した答えであって、情報の欠落ではない。
+- pack の mtime は object 個別の到達不能時刻ではないので、`determinate` にしてはならない。
+  この禁止は 3 値化のあとも変わらない。
+
+**却下した選択肢:**
+- **保守的下界を `indeterminate` として rc=2 にする** (実装の初版) — 上記のとおり過半数で止まる。
+- **prunable worktree の期限を git の `should_prune_worktree` と同じ判定で再現する** —
+  保守負債が大きい。`conservative-floor` へ倒すほうが安全側で単純である。
+- **総 loose 数と `gc.auto` の比較で余裕を出す** — git 2.34.1 の判定は fanout 1 個の標本であり、
+  総数との差は発火までに作れる object 数ではない。実測で総数由来の余裕は 432、
+  標本由来の余裕は 5 だった。台帳 schema からも総数由来の field を削り、
+  標本の fanout・件数・閾値・heuristic の版に置き換えた。
+
+## D1233. 削除される ref の reflog は引き算側でなく足し算側である (2026-08-28)
+
+**決定:** 掃除で消える ref (候補 branch、撤去対象 worktree の HEAD) の reflog が持つ
+old/new OID のうち commit 型のものは、喪失閉包の**正側**へ入れる。
+負側から外すだけでは足りない。reflog を読めない・parse できない・
+object が missing のときは `rc=2` とし、空として扱わない。
+
+**理由:**
+- git 2.34.1 の `git branch -d` は ref と `logs/refs/heads/<name>` の両方を消す。
+  したがって候補 reflog にしか残っていない commit は、削除によって**失われる側**である。
+- 負側から外すだけの実装では、その commit は閉包に現れず、道具は「絵は完全だ」と言いながら
+  対象を丸ごと落とす。これは本 wave が防ごうとした事故そのものである。
+- 期限のある root (残存 reflog、prunable worktree) は逆に負側へ入れてはならない。
+  入れると、そこにしか支えられていない commit が閉包からも台帳からも消える。
+  期限を長く見積もる誤りではなく、報告そのものが消える誤りになる。
+  これらは閉包に残し、種別と失効の下界を retention に記録する。
+
+**却下した選択肢:**
+- **候補 reflog を単に負 root から外す** — 上記のとおり喪失を見落とす。
+- **検証できない worktree-private ref を負 root へ入れる** — gc が root として honor する範囲を
+  起動側の ref store と同一視できない。入れる向きが過小報告になるので、
+  存在を検出したら `issues` へ出して rc=2 にする。
+
+## D1234. tested-main実行束縛を残してmain-tip runner等値だけを外す (2026-08-28)
+
+**決定:** 今回の直接ユーザー指示をD1196が要求した再裁定として確定する。launcher/landのtested-main / tested-tip runner blob等値2述語だけを外し、tested-main bytes実行、実行後再読、全shard binding report、receipt main digest、waiter/checker束縛は維持する。D987は最終incorporated mainとtested mainのrunner blob net差で判定し、変わった場合だけ旧receipt再利用を拒否する。
+
+**理由:**
+- D1151が残した材料運搬は着地済みで、tested-main実行とshard申告を保ったままtip側runner変更をproduction経路で検査できる。
+- 保証対象は最終着地物である。main履歴の途中でrunnerを変更後に同じblobへ戻した場合、最終保証対象は変わらず再受入の増分が無い。
+- D987をprovenance前と再preflight後に検査すると、恒久的な再受入要求が先行infrastructure赤でretryableへ隠れることとTOCTOUの両方を防げる。
+
+**却下した選択肢:**
+- tested-main実行束縛も外す — D1151が維持したproof chainを弱める。
+- forward-mainの各区間で一度でもrunnerが変われば拒否する — 最終blobが同じ正例まで過剰拒否する。
+- schema拡張・一般receipt再設計・段階Rを同時に行う — 今回のexact 2述語とD987の変更単位を越える。
+
+## D1235. task-specific oracle の実発火は限定 wiring slice と明示 profile で束縛する (2026-08-28)
+
+**決定:** T-189 の task-specific oracle 束縛を実データで発火させる最小単位は、既存 task catalog の
+実在 plan 2 行を持つ1つの wiring slice とする。slice は明示 CLI profileでだけ受理し、canonical bytes、
+verifier tool bytes、manifest kind、許可 verb、catalog/evidence join、finding projectionをpinする。
+組込みT-181 manifestは変更せず、従来の受理集合を維持する。
+
+slice は§8の独立oracle ledger本体ではない。`oracle_content_review_status=not-established`、
+`section8_complete=false`、task acceptance `unbound`、routing evidence `inconclusive`を固定する。
+機械整合性、full CLIの`valid`、test緑を意味的受理へ射影しない。
+
+**理由:**
+- 組込みPOS/NEGは同じknown finding集合を持ち、task別集合とmanifest unionが同一なので、既存束縛は
+  unionより狭い受理集合を一度も作らなかった。
+- task catalogの実在2行はprompt、receipt、base commit、分類、fixed-state worklogへjoinでき、
+  互いに素なfinding集合でaccept/cross-task rejectを作れる。
+- profileをmanifest内fieldから推測すると、field削除によるdowngradeと、既存T-181拡張manifestの
+  過剰拒否が同時に生じる。呼出側の明示profileなら両者を分離できる。
+- D674の電力・外部custodian・署名見送りと、D767のacceptance unboundを動かさずに発火だけを示せる。
+
+**却下した選択肢:**
+- 組込みPOS/NEGのfinding集合を書き換える — 凍結されたT-181 provenanceとdigest連鎖を、発火目的で
+  改変することになる。
+- optionalな別verifierだけを置く — verifierを通さずmanifestとdownstream digestを再生成できる。
+- 2 artifactの汎用generatorを新設する — finding内容の二重正本と生成順序の循環を増やす。
+- sliceを§8 ledger完成またはtask acceptanceと扱う — 独立content reviewと意味的受理が未成立である。
+- served-model attest、署名、汎用oracle platformまで広げる — 今回の発火確認に不要でD674の境界を越える。

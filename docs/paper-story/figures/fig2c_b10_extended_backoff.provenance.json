@@ -1,0 +1,5708 @@
+{
+  "schema": "izanagi-b10-extended-backoff-figure-provenance/v1",
+  "generated_utc": "2026-08-27T17:46:57.358174+00:00",
+  "generator": {
+    "path": "tools/plotting/plot_b10_extended_backoff.py",
+    "sha256": "04db851a4a6bb502852fecdd53d9b64f56c0b7b7c3fb94e0526de651cc14216a"
+  },
+  "dependencies": [
+    {
+      "role": "admitted-wal-conditions-t95-ci-style",
+      "path": "tools/plotting/plot_backoff.py",
+      "sha256": "bdb3c223192835379661e6ba3b288d871e36da9201e89438c41fd10840c0bf5e"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "docs/paper-story/figures/fig2c_b10_extended_backoff.png",
+      "sha256": "2703fab70d412933bad52422dc91861b36db1283c40ef227f471409e12aaffd6"
+    },
+    {
+      "path": "docs/paper-story/figures/fig2c_b10_extended_backoff.pdf",
+      "sha256": "70d4b5e295a6a0c7a52313370806146f62efbc4cf4e0732e09ad3199b8195794"
+    }
+  ],
+  "external_source_locator": {
+    "root_at_generation": "/work/1/SFC/tanab/b10-backoff-grid-runs5",
+    "validation_key": "root-relative-path-plus-sha256"
+  },
+  "external_inputs": [
+    {
+      "role": "submit",
+      "workload": null,
+      "path": "b10-backoff-grid-20260826T234647Z-783837.submit.jsonl",
+      "sha256": "e97d2c5e08087debbea8d8506a5e2136e877d4331ed0cf12bce4feee64b15375"
+    },
+    {
+      "role": "completion",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/completion.json",
+      "sha256": "59e92658d304e6d75884890d249caab3eb2aa35724d558d9a72e7ffbd3374bf0"
+    },
+    {
+      "role": "reservation",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/reservation.json",
+      "sha256": "b57ddb10431ce363676d58eae9d884a7607dbf30179c31634de40fbd843a520c"
+    },
+    {
+      "role": "campaign_lock",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/campaign.lock",
+      "sha256": "6cd61ee3a9f1a155ddcc2163be11f7fb7952cb686064358a3bd453913c95b47b"
+    },
+    {
+      "role": "wal",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/runs/wal.jsonl",
+      "sha256": "19945f68e6828b3857befc67fa7b6d8c0c4ec5777dea82d631fa7ea93bcc7830"
+    },
+    {
+      "role": "dat",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/reports/b10-backoff-grid-write-heavy.dat",
+      "sha256": "ca49f4e7145152cc0d77658bc31dcd911d4db0227d30ade05f40905a286e12e8"
+    },
+    {
+      "role": "manifest",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/reports/b10-backoff-overthrottle-write-heavy.manifest.json",
+      "sha256": "e7cfe84c6797cfa847be7aa5d252a6febf0aca41459e3fe355a84258d6201de9"
+    },
+    {
+      "role": "verdict",
+      "workload": "write-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/reports/b10-backoff-grid-write-heavy_verdict.json",
+      "sha256": "36f17ca0d66c2f63957f5e48b6a35c92d671b7da43b31c0ecb47779425e3aa69"
+    },
+    {
+      "role": "completion",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/completion.json",
+      "sha256": "d7cf6ae2eb465ea9afda2c916f066ea81c2e97255398dd8f2816246ce8127351"
+    },
+    {
+      "role": "reservation",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/reservation.json",
+      "sha256": "5109f6212f3bd8319528356e57e8f0cd4294e1baf1870a538940620f7593cb49"
+    },
+    {
+      "role": "campaign_lock",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/campaign.lock",
+      "sha256": "618ce8fe76318f230efcabef69fa224a0be4558bfe74402b6d6b0a76d4ce3e2c"
+    },
+    {
+      "role": "wal",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/runs/wal.jsonl",
+      "sha256": "56c05900946f26817d87a365390bdff35cf84abc6295c1490176490a4e3fe502"
+    },
+    {
+      "role": "dat",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/reports/b10-backoff-grid-balanced.dat",
+      "sha256": "dae5cfa93288984b3145a755454f31a8b4f733bad4c72b703e3784a9d7f968d6"
+    },
+    {
+      "role": "manifest",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/reports/b10-backoff-overthrottle-balanced.manifest.json",
+      "sha256": "4b5ef338a80ad9e69795e5327912e42c4a3256450aac6f7a9508b9483103c57d"
+    },
+    {
+      "role": "verdict",
+      "workload": "balanced",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/reports/b10-backoff-grid-balanced_verdict.json",
+      "sha256": "29da3878a96b6c0f2a2e3fc72da16e13a36fa170308139ea7c2effba0b2f83c6"
+    },
+    {
+      "role": "completion",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/completion.json",
+      "sha256": "8d45030aea88d7fee61ca95b45774df37350a6b42109f306f89878a67a3ed172"
+    },
+    {
+      "role": "reservation",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/reservation.json",
+      "sha256": "0f8b4569b825c37dd2863fe294b46f183dc5e63a9540847b708823d2d08da751"
+    },
+    {
+      "role": "campaign_lock",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/campaign.lock",
+      "sha256": "2cd310205f49b62012aa90170b13aa196f4a9b85f0b9c2005ffb0e4b5fc4b6df"
+    },
+    {
+      "role": "wal",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/runs/wal.jsonl",
+      "sha256": "6006bbef7391da2bcba04b0000c7f72ec6c4c4304645040d5347fc7f393d49dc"
+    },
+    {
+      "role": "dat",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-grid-read-heavy.dat",
+      "sha256": "fd286c07c303e56dbbd10a75f0fcf4cecc8cf03d6a8a03b7fc99336eb6f093f9"
+    },
+    {
+      "role": "manifest",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-overthrottle-read-heavy.manifest.json",
+      "sha256": "fee1317c0ce5a6e8b384d4d51de70b7f4da62d4913bb08d8545911f485a4b482"
+    },
+    {
+      "role": "verdict",
+      "workload": "read-heavy",
+      "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-grid-read-heavy_verdict.json",
+      "sha256": "12fe9936fdf3743ff9be7e9252fff55f9f28aace4aee66b215db8dbf5d55bc81"
+    }
+  ],
+  "receipt_chain": {
+    "binding_kind": "scheduler_receipt_chain",
+    "submit": {
+      "path": "b10-backoff-grid-20260826T234647Z-783837.submit.jsonl",
+      "sha256": "e97d2c5e08087debbea8d8506a5e2136e877d4331ed0cf12bce4feee64b15375",
+      "group_id": "b10-backoff-grid-20260826T234647Z-783837",
+      "submission_nonce": "ef2fe956851ac4f1bec500fd7a2dbf0e",
+      "job_script_sha256": "9579690d44c49842eefc00fcf459f2717cda1dccc66857e1b0137ff5abbbeefb"
+    },
+    "workloads": [
+      {
+        "workload": "write-heavy",
+        "job_id": "951689",
+        "measurement_host": "bnode007",
+        "job_directory": "b10-backoff-grid-20260826T234647Z-783837-write-heavy",
+        "campaign_id": "b10-backoff-grid-silo-write-heavy-sweep-0a386b45",
+        "campaign_identity_sha256": "0a386b454829f7d3487ba016b81fe1360d6bf7c8a54666a9f33830dbfd196c7a",
+        "campaign_suffix": "0a386b45",
+        "repository_commit": "78c7a2c1408da05c9c6391451192d81963b84034",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "completion": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/completion.json",
+          "sha256": "59e92658d304e6d75884890d249caab3eb2aa35724d558d9a72e7ffbd3374bf0"
+        },
+        "reservation": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/reservation.json",
+          "sha256": "b57ddb10431ce363676d58eae9d884a7607dbf30179c31634de40fbd843a520c"
+        },
+        "campaign_lock": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/campaign.lock",
+          "sha256": "6cd61ee3a9f1a155ddcc2163be11f7fb7952cb686064358a3bd453913c95b47b"
+        },
+        "wal": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/runs/wal.jsonl",
+          "sha256": "19945f68e6828b3857befc67fa7b6d8c0c4ec5777dea82d631fa7ea93bcc7830"
+        },
+        "dat": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/reports/b10-backoff-grid-write-heavy.dat",
+          "sha256": "ca49f4e7145152cc0d77658bc31dcd911d4db0227d30ade05f40905a286e12e8"
+        },
+        "manifest": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/reports/b10-backoff-overthrottle-write-heavy.manifest.json",
+          "sha256": "e7cfe84c6797cfa847be7aa5d252a6febf0aca41459e3fe355a84258d6201de9"
+        },
+        "verdict": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-write-heavy/campaigns/b10-backoff-grid-silo-write-heavy-sweep-0a386b45/reports/b10-backoff-grid-write-heavy_verdict.json",
+          "sha256": "36f17ca0d66c2f63957f5e48b6a35c92d671b7da43b31c0ecb47779425e3aa69"
+        }
+      },
+      {
+        "workload": "balanced",
+        "job_id": "951690",
+        "measurement_host": "bnode009",
+        "job_directory": "b10-backoff-grid-20260826T234647Z-783837-balanced",
+        "campaign_id": "b10-backoff-grid-silo-balanced-sweep-9ded73c4",
+        "campaign_identity_sha256": "9ded73c4e7d0ffc7ef77d0f909194b3aa83823d72414872c137b7b419ddc86c8",
+        "campaign_suffix": "9ded73c4",
+        "repository_commit": "78c7a2c1408da05c9c6391451192d81963b84034",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "completion": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/completion.json",
+          "sha256": "d7cf6ae2eb465ea9afda2c916f066ea81c2e97255398dd8f2816246ce8127351"
+        },
+        "reservation": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/reservation.json",
+          "sha256": "5109f6212f3bd8319528356e57e8f0cd4294e1baf1870a538940620f7593cb49"
+        },
+        "campaign_lock": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/campaign.lock",
+          "sha256": "618ce8fe76318f230efcabef69fa224a0be4558bfe74402b6d6b0a76d4ce3e2c"
+        },
+        "wal": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/runs/wal.jsonl",
+          "sha256": "56c05900946f26817d87a365390bdff35cf84abc6295c1490176490a4e3fe502"
+        },
+        "dat": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/reports/b10-backoff-grid-balanced.dat",
+          "sha256": "dae5cfa93288984b3145a755454f31a8b4f733bad4c72b703e3784a9d7f968d6"
+        },
+        "manifest": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/reports/b10-backoff-overthrottle-balanced.manifest.json",
+          "sha256": "4b5ef338a80ad9e69795e5327912e42c4a3256450aac6f7a9508b9483103c57d"
+        },
+        "verdict": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-balanced/campaigns/b10-backoff-grid-silo-balanced-sweep-9ded73c4/reports/b10-backoff-grid-balanced_verdict.json",
+          "sha256": "29da3878a96b6c0f2a2e3fc72da16e13a36fa170308139ea7c2effba0b2f83c6"
+        }
+      },
+      {
+        "workload": "read-heavy",
+        "job_id": "951691",
+        "measurement_host": "bnode016",
+        "job_directory": "b10-backoff-grid-20260826T234647Z-783837-read-heavy",
+        "campaign_id": "b10-backoff-grid-silo-read-heavy-sweep-e2d75497",
+        "campaign_identity_sha256": "e2d75497facce68e80ee5468ac14070d51a96af7b0f9a297ac87bed8758e0c6a",
+        "campaign_suffix": "e2d75497",
+        "repository_commit": "78c7a2c1408da05c9c6391451192d81963b84034",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "completion": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/completion.json",
+          "sha256": "8d45030aea88d7fee61ca95b45774df37350a6b42109f306f89878a67a3ed172"
+        },
+        "reservation": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/reservation.json",
+          "sha256": "0f8b4569b825c37dd2863fe294b46f183dc5e63a9540847b708823d2d08da751"
+        },
+        "campaign_lock": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/campaign.lock",
+          "sha256": "2cd310205f49b62012aa90170b13aa196f4a9b85f0b9c2005ffb0e4b5fc4b6df"
+        },
+        "wal": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/runs/wal.jsonl",
+          "sha256": "6006bbef7391da2bcba04b0000c7f72ec6c4c4304645040d5347fc7f393d49dc"
+        },
+        "dat": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-grid-read-heavy.dat",
+          "sha256": "fd286c07c303e56dbbd10a75f0fcf4cecc8cf03d6a8a03b7fc99336eb6f093f9"
+        },
+        "manifest": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-overthrottle-read-heavy.manifest.json",
+          "sha256": "fee1317c0ce5a6e8b384d4d51de70b7f4da62d4913bb08d8545911f485a4b482"
+        },
+        "verdict": {
+          "path": "b10-backoff-grid-20260826T234647Z-783837-read-heavy/campaigns/b10-backoff-grid-silo-read-heavy-sweep-e2d75497/reports/b10-backoff-grid-read-heavy_verdict.json",
+          "sha256": "12fe9936fdf3743ff9be7e9252fff55f9f28aace4aee66b215db8dbf5d55bc81"
+        }
+      }
+    ]
+  },
+  "data": [
+    {
+      "workload": "write-heavy",
+      "campaign_id": "b10-backoff-grid-silo-write-heavy-sweep-0a386b45",
+      "job_id": "951689",
+      "raw_points": [
+        {
+          "backoff_us": 0,
+          "throughput_dat_tps": 2361787.0,
+          "abort_rate": 0.7896,
+          "latency_ns": 20323.594,
+          "cv": 0.029895127808541398,
+          "throughput_repetitions_tps": [
+            2521106.0,
+            2352958.0,
+            2361787.0,
+            2372677.0,
+            2360069.0
+          ],
+          "throughput_wal_mean_tps": 2393719.4,
+          "throughput_ci95_half_tps": 88854.15539930889,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.7896,
+            "latency_ns": 20323.594,
+            "cv": 0.029895127808541398
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1,
+          "throughput_dat_tps": 2973360.0,
+          "abort_rate": 0.7075,
+          "latency_ns": 16143.353,
+          "cv": 0.012564711350016078,
+          "throughput_repetitions_tps": [
+            3042754.0,
+            2973360.0,
+            2949305.0,
+            2955644.0,
+            2991447.0
+          ],
+          "throughput_wal_mean_tps": 2982502.0,
+          "throughput_ci95_half_tps": 46530.46027541618,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.7075,
+            "latency_ns": 16143.353,
+            "cv": 0.012564711350016078
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 2,
+          "throughput_dat_tps": 3424157.0,
+          "abort_rate": 0.6384,
+          "latency_ns": 14018.0488,
+          "cv": 0.03081670455370425,
+          "throughput_repetitions_tps": [
+            3496563.0,
+            3250493.0,
+            3285534.0,
+            3424157.0,
+            3426212.0
+          ],
+          "throughput_wal_mean_tps": 3376591.8,
+          "throughput_ci95_half_tps": 129201.8836066071,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6384,
+            "latency_ns": 14018.0488,
+            "cv": 0.03081670455370425
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 3,
+          "throughput_dat_tps": 3661200.0,
+          "abort_rate": 0.5879,
+          "latency_ns": 13110.4556,
+          "cv": 0.02963480467909562,
+          "throughput_repetitions_tps": [
+            3858377.0,
+            3661200.0,
+            3574022.0,
+            3616822.0,
+            3667246.0
+          ],
+          "throughput_wal_mean_tps": 3675533.4,
+          "throughput_ci95_half_tps": 135246.65472172035,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5879,
+            "latency_ns": 13110.4556,
+            "cv": 0.02963480467909562
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 4,
+          "throughput_dat_tps": 3879794.0,
+          "abort_rate": 0.5359,
+          "latency_ns": 12371.7909,
+          "cv": 0.015732112346285562,
+          "throughput_repetitions_tps": [
+            3916547.0,
+            3925032.0,
+            3822266.0,
+            3784443.0,
+            3879794.0
+          ],
+          "throughput_wal_mean_tps": 3865616.4,
+          "throughput_ci95_half_tps": 75510.94115571723,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5359,
+            "latency_ns": 12371.7909,
+            "cv": 0.015732112346285562
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 5,
+          "throughput_dat_tps": 3985109.0,
+          "abort_rate": 0.4975,
+          "latency_ns": 12044.8399,
+          "cv": 0.013827677749751454,
+          "throughput_repetitions_tps": [
+            4013319.0,
+            3985109.0,
+            4002165.0,
+            3876198.0,
+            3958010.0
+          ],
+          "throughput_wal_mean_tps": 3966960.2,
+          "throughput_ci95_half_tps": 68110.04734505813,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4975,
+            "latency_ns": 12044.8399,
+            "cv": 0.013827677749751454
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 6,
+          "throughput_dat_tps": 3980413.0,
+          "abort_rate": 0.4693,
+          "latency_ns": 12059.0502,
+          "cv": 0.00933378878226589,
+          "throughput_repetitions_tps": [
+            4029340.0,
+            4026524.0,
+            3944656.0,
+            3980413.0,
+            3967244.0
+          ],
+          "throughput_wal_mean_tps": 3989635.4,
+          "throughput_ci95_half_tps": 46237.598190138255,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4693,
+            "latency_ns": 12059.0502,
+            "cv": 0.00933378878226589
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 8,
+          "throughput_dat_tps": 3986564.0,
+          "abort_rate": 0.4216,
+          "latency_ns": 12040.4439,
+          "cv": 0.011987427675645644,
+          "throughput_repetitions_tps": [
+            4047804.0,
+            3994073.0,
+            3964123.0,
+            3916448.0,
+            3986564.0
+          ],
+          "throughput_wal_mean_tps": 3981802.4,
+          "throughput_ci95_half_tps": 59266.569921898554,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4216,
+            "latency_ns": 12040.4439,
+            "cv": 0.011987427675645644
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 10,
+          "throughput_dat_tps": 3933943.0,
+          "abort_rate": 0.3867,
+          "latency_ns": 12201.4986,
+          "cv": 0.0058652116126474444,
+          "throughput_repetitions_tps": [
+            3972204.0,
+            3933943.0,
+            3936559.0,
+            3910209.0,
+            3923633.0
+          ],
+          "throughput_wal_mean_tps": 3935309.6,
+          "throughput_ci95_half_tps": 28659.372668303884,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3867,
+            "latency_ns": 12201.4986,
+            "cv": 0.0058652116126474444
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 12,
+          "throughput_dat_tps": 3839273.0,
+          "abort_rate": 0.3615,
+          "latency_ns": 12502.367,
+          "cv": 0.005155799861160927,
+          "throughput_repetitions_tps": [
+            3875376.0,
+            3865993.0,
+            3839273.0,
+            3838158.0,
+            3829473.0
+          ],
+          "throughput_wal_mean_tps": 3849654.6,
+          "throughput_ci95_half_tps": 24644.60744603046,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3615,
+            "latency_ns": 12502.367,
+            "cv": 0.005155799861160927
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 15,
+          "throughput_dat_tps": 3768743.0,
+          "abort_rate": 0.3261,
+          "latency_ns": 12736.3421,
+          "cv": 0.0076687147349468075,
+          "throughput_repetitions_tps": [
+            3820362.0,
+            3760197.0,
+            3775366.0,
+            3742671.0,
+            3768743.0
+          ],
+          "throughput_wal_mean_tps": 3773467.8,
+          "throughput_ci95_half_tps": 35930.83586292949,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3261,
+            "latency_ns": 12736.3421,
+            "cv": 0.0076687147349468075
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 20,
+          "throughput_dat_tps": 3594252.0,
+          "abort_rate": 0.2891,
+          "latency_ns": 13354.6563,
+          "cv": 0.004706699897607509,
+          "throughput_repetitions_tps": [
+            3622926.0,
+            3600780.0,
+            3577073.0,
+            3594252.0,
+            3589557.0
+          ],
+          "throughput_wal_mean_tps": 3596917.6,
+          "throughput_ci95_half_tps": 21020.88935099072,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2891,
+            "latency_ns": 13354.6563,
+            "cv": 0.004706699897607509
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 25,
+          "throughput_dat_tps": 3445605.0,
+          "abort_rate": 0.2621,
+          "latency_ns": 13930.7901,
+          "cv": 0.005041958889312447,
+          "throughput_repetitions_tps": [
+            3463254.0,
+            3448452.0,
+            3416247.0,
+            3445605.0,
+            3436075.0
+          ],
+          "throughput_wal_mean_tps": 3441926.6,
+          "throughput_ci95_half_tps": 21547.90210941674,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2621,
+            "latency_ns": 13930.7901,
+            "cv": 0.005041958889312447
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 35,
+          "throughput_dat_tps": 3202626.0,
+          "abort_rate": 0.224,
+          "latency_ns": 14987.7007,
+          "cv": 0.0042863988205662645,
+          "throughput_repetitions_tps": [
+            3205455.0,
+            3188407.0,
+            3202626.0,
+            3181526.0,
+            3215731.0
+          ],
+          "throughput_wal_mean_tps": 3198749.0,
+          "throughput_ci95_half_tps": 17024.596555669796,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.224,
+            "latency_ns": 14987.7007,
+            "cv": 0.0042863988205662645
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 50,
+          "throughput_dat_tps": 2917623.0,
+          "abort_rate": 0.1905,
+          "latency_ns": 16451.7486,
+          "cv": 0.002689161947141638,
+          "throughput_repetitions_tps": [
+            2921531.0,
+            2903931.0,
+            2917623.0,
+            2920442.0,
+            2908207.0
+          ],
+          "throughput_wal_mean_tps": 2914346.8,
+          "throughput_ci95_half_tps": 9731.107643394324,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1905,
+            "latency_ns": 16451.7486,
+            "cv": 0.002689161947141638
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 75,
+          "throughput_dat_tps": 2582381.0,
+          "abort_rate": 0.1576,
+          "latency_ns": 18587.4974,
+          "cv": 0.0027433419269368713,
+          "throughput_repetitions_tps": [
+            2578677.0,
+            2572800.0,
+            2583834.0,
+            2592075.0,
+            2582381.0
+          ],
+          "throughput_wal_mean_tps": 2581953.4,
+          "throughput_ci95_half_tps": 8794.930859852277,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1576,
+            "latency_ns": 18587.4974,
+            "cv": 0.0027433419269368713
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 100,
+          "throughput_dat_tps": 2356553.0,
+          "abort_rate": 0.1373,
+          "latency_ns": 20368.7335,
+          "cv": 0.0024175291209982317,
+          "throughput_repetitions_tps": [
+            2352891.0,
+            2364012.0,
+            2356553.0,
+            2350791.0,
+            2362043.0
+          ],
+          "throughput_wal_mean_tps": 2357258.0,
+          "throughput_ci95_half_tps": 7075.920120167449,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1373,
+            "latency_ns": 20368.7335,
+            "cv": 0.0024175291209982317
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 150,
+          "throughput_dat_tps": 2048271.0,
+          "abort_rate": 0.1128,
+          "latency_ns": 23434.3991,
+          "cv": 0.0020508596414532208,
+          "throughput_repetitions_tps": [
+            2045741.0,
+            2053118.0,
+            2043956.0,
+            2053146.0,
+            2048271.0
+          ],
+          "throughput_wal_mean_tps": 2048846.4,
+          "throughput_ci95_half_tps": 5217.343475738793,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1128,
+            "latency_ns": 23434.3991,
+            "cv": 0.0020508596414532208
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 200,
+          "throughput_dat_tps": 1848960.0,
+          "abort_rate": 0.0976,
+          "latency_ns": 25960.54,
+          "cv": 0.001731668731029833,
+          "throughput_repetitions_tps": [
+            1847049.0,
+            1845541.0,
+            1848960.0,
+            1850277.0,
+            1853869.0
+          ],
+          "throughput_wal_mean_tps": 1849139.2,
+          "throughput_ci95_half_tps": 3975.927982509756,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0976,
+            "latency_ns": 25960.54,
+            "cv": 0.001731668731029833
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 250,
+          "throughput_dat_tps": 1706069.0,
+          "abort_rate": 0.0868,
+          "latency_ns": 28134.8527,
+          "cv": 0.003952138345150433,
+          "throughput_repetitions_tps": [
+            1715865.0,
+            1712509.0,
+            1703405.0,
+            1706069.0,
+            1699236.0
+          ],
+          "throughput_wal_mean_tps": 1707416.8,
+          "throughput_ci95_half_tps": 8378.683356341637,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0868,
+            "latency_ns": 28134.8527,
+            "cv": 0.003952138345150433
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 300,
+          "throughput_dat_tps": 1594451.0,
+          "abort_rate": 0.0794,
+          "latency_ns": 30104.4058,
+          "cv": 0.002623659010788887,
+          "throughput_repetitions_tps": [
+            1594451.0,
+            1590174.0,
+            1594988.0,
+            1585826.0,
+            1595698.0
+          ],
+          "throughput_wal_mean_tps": 1592227.4,
+          "throughput_ci95_half_tps": 5187.003877765006,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0794,
+            "latency_ns": 30104.4058,
+            "cv": 0.002623659010788887
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 400,
+          "throughput_dat_tps": 1428145.0,
+          "abort_rate": 0.0685,
+          "latency_ns": 33610.0326,
+          "cv": 0.0024418716562139816,
+          "throughput_repetitions_tps": [
+            1422429.0,
+            1426404.0,
+            1430860.0,
+            1428145.0,
+            1430695.0
+          ],
+          "throughput_wal_mean_tps": 1427706.6,
+          "throughput_ci95_half_tps": 4328.783744580382,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0685,
+            "latency_ns": 33610.0326,
+            "cv": 0.0024418716562139816
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 500,
+          "throughput_dat_tps": 1304759.0,
+          "abort_rate": 0.0612,
+          "latency_ns": 36788.4031,
+          "cv": 0.002542154911190884,
+          "throughput_repetitions_tps": [
+            1301524.0,
+            1304759.0,
+            1310486.0,
+            1307047.0,
+            1304687.0
+          ],
+          "throughput_wal_mean_tps": 1305700.6,
+          "throughput_ci95_half_tps": 4121.446857025908,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0612,
+            "latency_ns": 36788.4031,
+            "cv": 0.002542154911190884
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 560,
+          "throughput_dat_tps": 1252136.0,
+          "abort_rate": 0.0575,
+          "latency_ns": 38334.494,
+          "cv": 0.0026604245611936235,
+          "throughput_repetitions_tps": [
+            1254318.0,
+            1247323.0,
+            1252136.0,
+            1249079.0,
+            1255068.0
+          ],
+          "throughput_wal_mean_tps": 1251584.8,
+          "throughput_ci95_half_tps": 4134.426901428441,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0575,
+            "latency_ns": 38334.494,
+            "cv": 0.0026604245611936235
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 600,
+          "throughput_dat_tps": 1218351.0,
+          "abort_rate": 0.0555,
+          "latency_ns": 39397.5135,
+          "cv": 0.001118757595686545,
+          "throughput_repetitions_tps": [
+            1218351.0,
+            1218754.0,
+            1216825.0,
+            1216895.0,
+            1220073.0
+          ],
+          "throughput_wal_mean_tps": 1218179.6,
+          "throughput_ci95_half_tps": 1692.1988998011027,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0555,
+            "latency_ns": 39397.5135,
+            "cv": 0.001118757595686545
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 700,
+          "throughput_dat_tps": 1145115.0,
+          "abort_rate": 0.0512,
+          "latency_ns": 41917.1874,
+          "cv": 0.0020426097283433356,
+          "throughput_repetitions_tps": [
+            1143304.0,
+            1147840.0,
+            1142332.0,
+            1145115.0,
+            1146968.0
+          ],
+          "throughput_wal_mean_tps": 1145111.8,
+          "throughput_ci95_half_tps": 2904.272582632835,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0512,
+            "latency_ns": 41917.1874,
+            "cv": 0.0020426097283433356
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 800,
+          "throughput_dat_tps": 1083966.0,
+          "abort_rate": 0.0478,
+          "latency_ns": 44281.8317,
+          "cv": 0.003694633030757527,
+          "throughput_repetitions_tps": [
+            1083544.0,
+            1083966.0,
+            1081603.0,
+            1087564.0,
+            1091737.0
+          ],
+          "throughput_wal_mean_tps": 1085682.8,
+          "throughput_ci95_half_tps": 4980.562050737795,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0478,
+            "latency_ns": 44281.8317,
+            "cv": 0.003694633030757527
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 900,
+          "throughput_dat_tps": 1035161.0,
+          "abort_rate": 0.0449,
+          "latency_ns": 46369.5985,
+          "cv": 0.002242329991091079,
+          "throughput_repetitions_tps": [
+            1035070.0,
+            1031878.0,
+            1036432.0,
+            1035161.0,
+            1038217.0
+          ],
+          "throughput_wal_mean_tps": 1035351.6,
+          "throughput_ci95_half_tps": 2882.6470687018136,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0449,
+            "latency_ns": 46369.5985,
+            "cv": 0.002242329991091079
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1000,
+          "throughput_dat_tps": 2386090.0,
+          "abort_rate": 0.7847,
+          "latency_ns": 20116.5924,
+          "cv": 0.02548624530669115,
+          "throughput_repetitions_tps": [
+            2479523.0,
+            2343364.0,
+            2424829.0,
+            2386090.0,
+            2330817.0
+          ],
+          "throughput_wal_mean_tps": 2392924.6,
+          "throughput_ci95_half_tps": 75724.94425973772,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.7847,
+            "latency_ns": 20116.5924,
+            "cv": 0.02548624530669115
+          },
+          "included": false,
+          "exclusion": {
+            "reason_code": "F718",
+            "requested_backoff_us": 1000,
+            "encoded_mode": 1,
+            "encoded_amplitude_us": 0,
+            "not_pooled_with_0us": true
+          },
+          "encoding_authority": {
+            "authority_kind": "canonical_ruling",
+            "authority_ids": [
+              "F718",
+              "D1106"
+            ],
+            "assertion_kind": "backoff_encoding_interpretation",
+            "derivation_kind": "ruling_assertion_not_measurement_derived"
+          }
+        }
+      ],
+      "included_points": [
+        {
+          "backoff_us": 0,
+          "throughput_dat_tps": 2361787.0,
+          "abort_rate": 0.7896,
+          "latency_ns": 20323.594,
+          "cv": 0.029895127808541398,
+          "throughput_repetitions_tps": [
+            2521106.0,
+            2352958.0,
+            2361787.0,
+            2372677.0,
+            2360069.0
+          ],
+          "throughput_wal_mean_tps": 2393719.4,
+          "throughput_ci95_half_tps": 88854.15539930889,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.7896,
+            "latency_ns": 20323.594,
+            "cv": 0.029895127808541398
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1,
+          "throughput_dat_tps": 2973360.0,
+          "abort_rate": 0.7075,
+          "latency_ns": 16143.353,
+          "cv": 0.012564711350016078,
+          "throughput_repetitions_tps": [
+            3042754.0,
+            2973360.0,
+            2949305.0,
+            2955644.0,
+            2991447.0
+          ],
+          "throughput_wal_mean_tps": 2982502.0,
+          "throughput_ci95_half_tps": 46530.46027541618,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.7075,
+            "latency_ns": 16143.353,
+            "cv": 0.012564711350016078
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 2,
+          "throughput_dat_tps": 3424157.0,
+          "abort_rate": 0.6384,
+          "latency_ns": 14018.0488,
+          "cv": 0.03081670455370425,
+          "throughput_repetitions_tps": [
+            3496563.0,
+            3250493.0,
+            3285534.0,
+            3424157.0,
+            3426212.0
+          ],
+          "throughput_wal_mean_tps": 3376591.8,
+          "throughput_ci95_half_tps": 129201.8836066071,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6384,
+            "latency_ns": 14018.0488,
+            "cv": 0.03081670455370425
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 3,
+          "throughput_dat_tps": 3661200.0,
+          "abort_rate": 0.5879,
+          "latency_ns": 13110.4556,
+          "cv": 0.02963480467909562,
+          "throughput_repetitions_tps": [
+            3858377.0,
+            3661200.0,
+            3574022.0,
+            3616822.0,
+            3667246.0
+          ],
+          "throughput_wal_mean_tps": 3675533.4,
+          "throughput_ci95_half_tps": 135246.65472172035,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5879,
+            "latency_ns": 13110.4556,
+            "cv": 0.02963480467909562
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 4,
+          "throughput_dat_tps": 3879794.0,
+          "abort_rate": 0.5359,
+          "latency_ns": 12371.7909,
+          "cv": 0.015732112346285562,
+          "throughput_repetitions_tps": [
+            3916547.0,
+            3925032.0,
+            3822266.0,
+            3784443.0,
+            3879794.0
+          ],
+          "throughput_wal_mean_tps": 3865616.4,
+          "throughput_ci95_half_tps": 75510.94115571723,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5359,
+            "latency_ns": 12371.7909,
+            "cv": 0.015732112346285562
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 5,
+          "throughput_dat_tps": 3985109.0,
+          "abort_rate": 0.4975,
+          "latency_ns": 12044.8399,
+          "cv": 0.013827677749751454,
+          "throughput_repetitions_tps": [
+            4013319.0,
+            3985109.0,
+            4002165.0,
+            3876198.0,
+            3958010.0
+          ],
+          "throughput_wal_mean_tps": 3966960.2,
+          "throughput_ci95_half_tps": 68110.04734505813,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4975,
+            "latency_ns": 12044.8399,
+            "cv": 0.013827677749751454
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 6,
+          "throughput_dat_tps": 3980413.0,
+          "abort_rate": 0.4693,
+          "latency_ns": 12059.0502,
+          "cv": 0.00933378878226589,
+          "throughput_repetitions_tps": [
+            4029340.0,
+            4026524.0,
+            3944656.0,
+            3980413.0,
+            3967244.0
+          ],
+          "throughput_wal_mean_tps": 3989635.4,
+          "throughput_ci95_half_tps": 46237.598190138255,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4693,
+            "latency_ns": 12059.0502,
+            "cv": 0.00933378878226589
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 8,
+          "throughput_dat_tps": 3986564.0,
+          "abort_rate": 0.4216,
+          "latency_ns": 12040.4439,
+          "cv": 0.011987427675645644,
+          "throughput_repetitions_tps": [
+            4047804.0,
+            3994073.0,
+            3964123.0,
+            3916448.0,
+            3986564.0
+          ],
+          "throughput_wal_mean_tps": 3981802.4,
+          "throughput_ci95_half_tps": 59266.569921898554,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4216,
+            "latency_ns": 12040.4439,
+            "cv": 0.011987427675645644
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 10,
+          "throughput_dat_tps": 3933943.0,
+          "abort_rate": 0.3867,
+          "latency_ns": 12201.4986,
+          "cv": 0.0058652116126474444,
+          "throughput_repetitions_tps": [
+            3972204.0,
+            3933943.0,
+            3936559.0,
+            3910209.0,
+            3923633.0
+          ],
+          "throughput_wal_mean_tps": 3935309.6,
+          "throughput_ci95_half_tps": 28659.372668303884,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3867,
+            "latency_ns": 12201.4986,
+            "cv": 0.0058652116126474444
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 12,
+          "throughput_dat_tps": 3839273.0,
+          "abort_rate": 0.3615,
+          "latency_ns": 12502.367,
+          "cv": 0.005155799861160927,
+          "throughput_repetitions_tps": [
+            3875376.0,
+            3865993.0,
+            3839273.0,
+            3838158.0,
+            3829473.0
+          ],
+          "throughput_wal_mean_tps": 3849654.6,
+          "throughput_ci95_half_tps": 24644.60744603046,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3615,
+            "latency_ns": 12502.367,
+            "cv": 0.005155799861160927
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 15,
+          "throughput_dat_tps": 3768743.0,
+          "abort_rate": 0.3261,
+          "latency_ns": 12736.3421,
+          "cv": 0.0076687147349468075,
+          "throughput_repetitions_tps": [
+            3820362.0,
+            3760197.0,
+            3775366.0,
+            3742671.0,
+            3768743.0
+          ],
+          "throughput_wal_mean_tps": 3773467.8,
+          "throughput_ci95_half_tps": 35930.83586292949,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3261,
+            "latency_ns": 12736.3421,
+            "cv": 0.0076687147349468075
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 20,
+          "throughput_dat_tps": 3594252.0,
+          "abort_rate": 0.2891,
+          "latency_ns": 13354.6563,
+          "cv": 0.004706699897607509,
+          "throughput_repetitions_tps": [
+            3622926.0,
+            3600780.0,
+            3577073.0,
+            3594252.0,
+            3589557.0
+          ],
+          "throughput_wal_mean_tps": 3596917.6,
+          "throughput_ci95_half_tps": 21020.88935099072,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2891,
+            "latency_ns": 13354.6563,
+            "cv": 0.004706699897607509
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 25,
+          "throughput_dat_tps": 3445605.0,
+          "abort_rate": 0.2621,
+          "latency_ns": 13930.7901,
+          "cv": 0.005041958889312447,
+          "throughput_repetitions_tps": [
+            3463254.0,
+            3448452.0,
+            3416247.0,
+            3445605.0,
+            3436075.0
+          ],
+          "throughput_wal_mean_tps": 3441926.6,
+          "throughput_ci95_half_tps": 21547.90210941674,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2621,
+            "latency_ns": 13930.7901,
+            "cv": 0.005041958889312447
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 35,
+          "throughput_dat_tps": 3202626.0,
+          "abort_rate": 0.224,
+          "latency_ns": 14987.7007,
+          "cv": 0.0042863988205662645,
+          "throughput_repetitions_tps": [
+            3205455.0,
+            3188407.0,
+            3202626.0,
+            3181526.0,
+            3215731.0
+          ],
+          "throughput_wal_mean_tps": 3198749.0,
+          "throughput_ci95_half_tps": 17024.596555669796,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.224,
+            "latency_ns": 14987.7007,
+            "cv": 0.0042863988205662645
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 50,
+          "throughput_dat_tps": 2917623.0,
+          "abort_rate": 0.1905,
+          "latency_ns": 16451.7486,
+          "cv": 0.002689161947141638,
+          "throughput_repetitions_tps": [
+            2921531.0,
+            2903931.0,
+            2917623.0,
+            2920442.0,
+            2908207.0
+          ],
+          "throughput_wal_mean_tps": 2914346.8,
+          "throughput_ci95_half_tps": 9731.107643394324,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1905,
+            "latency_ns": 16451.7486,
+            "cv": 0.002689161947141638
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 75,
+          "throughput_dat_tps": 2582381.0,
+          "abort_rate": 0.1576,
+          "latency_ns": 18587.4974,
+          "cv": 0.0027433419269368713,
+          "throughput_repetitions_tps": [
+            2578677.0,
+            2572800.0,
+            2583834.0,
+            2592075.0,
+            2582381.0
+          ],
+          "throughput_wal_mean_tps": 2581953.4,
+          "throughput_ci95_half_tps": 8794.930859852277,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1576,
+            "latency_ns": 18587.4974,
+            "cv": 0.0027433419269368713
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 100,
+          "throughput_dat_tps": 2356553.0,
+          "abort_rate": 0.1373,
+          "latency_ns": 20368.7335,
+          "cv": 0.0024175291209982317,
+          "throughput_repetitions_tps": [
+            2352891.0,
+            2364012.0,
+            2356553.0,
+            2350791.0,
+            2362043.0
+          ],
+          "throughput_wal_mean_tps": 2357258.0,
+          "throughput_ci95_half_tps": 7075.920120167449,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1373,
+            "latency_ns": 20368.7335,
+            "cv": 0.0024175291209982317
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 150,
+          "throughput_dat_tps": 2048271.0,
+          "abort_rate": 0.1128,
+          "latency_ns": 23434.3991,
+          "cv": 0.0020508596414532208,
+          "throughput_repetitions_tps": [
+            2045741.0,
+            2053118.0,
+            2043956.0,
+            2053146.0,
+            2048271.0
+          ],
+          "throughput_wal_mean_tps": 2048846.4,
+          "throughput_ci95_half_tps": 5217.343475738793,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1128,
+            "latency_ns": 23434.3991,
+            "cv": 0.0020508596414532208
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 200,
+          "throughput_dat_tps": 1848960.0,
+          "abort_rate": 0.0976,
+          "latency_ns": 25960.54,
+          "cv": 0.001731668731029833,
+          "throughput_repetitions_tps": [
+            1847049.0,
+            1845541.0,
+            1848960.0,
+            1850277.0,
+            1853869.0
+          ],
+          "throughput_wal_mean_tps": 1849139.2,
+          "throughput_ci95_half_tps": 3975.927982509756,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0976,
+            "latency_ns": 25960.54,
+            "cv": 0.001731668731029833
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 250,
+          "throughput_dat_tps": 1706069.0,
+          "abort_rate": 0.0868,
+          "latency_ns": 28134.8527,
+          "cv": 0.003952138345150433,
+          "throughput_repetitions_tps": [
+            1715865.0,
+            1712509.0,
+            1703405.0,
+            1706069.0,
+            1699236.0
+          ],
+          "throughput_wal_mean_tps": 1707416.8,
+          "throughput_ci95_half_tps": 8378.683356341637,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0868,
+            "latency_ns": 28134.8527,
+            "cv": 0.003952138345150433
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 300,
+          "throughput_dat_tps": 1594451.0,
+          "abort_rate": 0.0794,
+          "latency_ns": 30104.4058,
+          "cv": 0.002623659010788887,
+          "throughput_repetitions_tps": [
+            1594451.0,
+            1590174.0,
+            1594988.0,
+            1585826.0,
+            1595698.0
+          ],
+          "throughput_wal_mean_tps": 1592227.4,
+          "throughput_ci95_half_tps": 5187.003877765006,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0794,
+            "latency_ns": 30104.4058,
+            "cv": 0.002623659010788887
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 400,
+          "throughput_dat_tps": 1428145.0,
+          "abort_rate": 0.0685,
+          "latency_ns": 33610.0326,
+          "cv": 0.0024418716562139816,
+          "throughput_repetitions_tps": [
+            1422429.0,
+            1426404.0,
+            1430860.0,
+            1428145.0,
+            1430695.0
+          ],
+          "throughput_wal_mean_tps": 1427706.6,
+          "throughput_ci95_half_tps": 4328.783744580382,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0685,
+            "latency_ns": 33610.0326,
+            "cv": 0.0024418716562139816
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 500,
+          "throughput_dat_tps": 1304759.0,
+          "abort_rate": 0.0612,
+          "latency_ns": 36788.4031,
+          "cv": 0.002542154911190884,
+          "throughput_repetitions_tps": [
+            1301524.0,
+            1304759.0,
+            1310486.0,
+            1307047.0,
+            1304687.0
+          ],
+          "throughput_wal_mean_tps": 1305700.6,
+          "throughput_ci95_half_tps": 4121.446857025908,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0612,
+            "latency_ns": 36788.4031,
+            "cv": 0.002542154911190884
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 560,
+          "throughput_dat_tps": 1252136.0,
+          "abort_rate": 0.0575,
+          "latency_ns": 38334.494,
+          "cv": 0.0026604245611936235,
+          "throughput_repetitions_tps": [
+            1254318.0,
+            1247323.0,
+            1252136.0,
+            1249079.0,
+            1255068.0
+          ],
+          "throughput_wal_mean_tps": 1251584.8,
+          "throughput_ci95_half_tps": 4134.426901428441,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0575,
+            "latency_ns": 38334.494,
+            "cv": 0.0026604245611936235
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 600,
+          "throughput_dat_tps": 1218351.0,
+          "abort_rate": 0.0555,
+          "latency_ns": 39397.5135,
+          "cv": 0.001118757595686545,
+          "throughput_repetitions_tps": [
+            1218351.0,
+            1218754.0,
+            1216825.0,
+            1216895.0,
+            1220073.0
+          ],
+          "throughput_wal_mean_tps": 1218179.6,
+          "throughput_ci95_half_tps": 1692.1988998011027,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0555,
+            "latency_ns": 39397.5135,
+            "cv": 0.001118757595686545
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 700,
+          "throughput_dat_tps": 1145115.0,
+          "abort_rate": 0.0512,
+          "latency_ns": 41917.1874,
+          "cv": 0.0020426097283433356,
+          "throughput_repetitions_tps": [
+            1143304.0,
+            1147840.0,
+            1142332.0,
+            1145115.0,
+            1146968.0
+          ],
+          "throughput_wal_mean_tps": 1145111.8,
+          "throughput_ci95_half_tps": 2904.272582632835,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0512,
+            "latency_ns": 41917.1874,
+            "cv": 0.0020426097283433356
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 800,
+          "throughput_dat_tps": 1083966.0,
+          "abort_rate": 0.0478,
+          "latency_ns": 44281.8317,
+          "cv": 0.003694633030757527,
+          "throughput_repetitions_tps": [
+            1083544.0,
+            1083966.0,
+            1081603.0,
+            1087564.0,
+            1091737.0
+          ],
+          "throughput_wal_mean_tps": 1085682.8,
+          "throughput_ci95_half_tps": 4980.562050737795,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0478,
+            "latency_ns": 44281.8317,
+            "cv": 0.003694633030757527
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 900,
+          "throughput_dat_tps": 1035161.0,
+          "abort_rate": 0.0449,
+          "latency_ns": 46369.5985,
+          "cv": 0.002242329991091079,
+          "throughput_repetitions_tps": [
+            1035070.0,
+            1031878.0,
+            1036432.0,
+            1035161.0,
+            1038217.0
+          ],
+          "throughput_wal_mean_tps": 1035351.6,
+          "throughput_ci95_half_tps": 2882.6470687018136,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0449,
+            "latency_ns": 46369.5985,
+            "cv": 0.002242329991091079
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        }
+      ],
+      "excluded_points": [
+        {
+          "backoff_us": 1000,
+          "throughput_dat_tps": 2386090.0,
+          "abort_rate": 0.7847,
+          "latency_ns": 20116.5924,
+          "cv": 0.02548624530669115,
+          "throughput_repetitions_tps": [
+            2479523.0,
+            2343364.0,
+            2424829.0,
+            2386090.0,
+            2330817.0
+          ],
+          "throughput_wal_mean_tps": 2392924.6,
+          "throughput_ci95_half_tps": 75724.94425973772,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.7847,
+            "latency_ns": 20116.5924,
+            "cv": 0.02548624530669115
+          },
+          "included": false,
+          "exclusion": {
+            "reason_code": "F718",
+            "requested_backoff_us": 1000,
+            "encoded_mode": 1,
+            "encoded_amplitude_us": 0,
+            "not_pooled_with_0us": true
+          },
+          "encoding_authority": {
+            "authority_kind": "canonical_ruling",
+            "authority_ids": [
+              "F718",
+              "D1106"
+            ],
+            "assertion_kind": "backoff_encoding_interpretation",
+            "derivation_kind": "ruling_assertion_not_measurement_derived"
+          }
+        }
+      ],
+      "conditions": {
+        "thread_num": 48,
+        "ycsb_tuple_num": 1000000,
+        "extime": 3,
+        "clocks_per_us": 2100,
+        "ycsb_zipf_skew": 0.9,
+        "ycsb_rratio": 5,
+        "ycsb_rmw": false,
+        "numactl_args": [],
+        "env": "pegasus",
+        "CCBENCH_TRACE": 0,
+        "ccbench_commit": "511c953",
+        "unresolved_fields": [],
+        "trace_disabled": true,
+        "repository_commit": "78c7a2c1408da05c9c6391451192d81963b84034",
+        "ccbench_gitlink_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "measurement_host": "bnode007"
+      },
+      "claim_boundary": {
+        "claim_scope": "descriptive_backoff_shape_only",
+        "estimand_matches_paper_headline": false,
+        "paper_gain_eligible": false,
+        "same_campaign_contrast": true,
+        "prereg_frozen_comparison_rule": false
+      },
+      "campaign_read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E1:dfbc6f7436669a305f31f4b652a51f01f398a239d351f970f295a814f2087e53",
+        "state": "E1",
+        "reason_code": "recorded-closure",
+        "identity_scope": "enforcement source closure (exact 24 path; witness gate、S8C 判定器、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      }
+    },
+    {
+      "workload": "balanced",
+      "campaign_id": "b10-backoff-grid-silo-balanced-sweep-9ded73c4",
+      "job_id": "951690",
+      "raw_points": [
+        {
+          "backoff_us": 0,
+          "throughput_dat_tps": 3850119.0,
+          "abort_rate": 0.6775,
+          "latency_ns": 12467.1471,
+          "cv": 0.025935701701690354,
+          "throughput_repetitions_tps": [
+            4063303.0,
+            3850119.0,
+            3883301.0,
+            3816724.0,
+            3829528.0
+          ],
+          "throughput_wal_mean_tps": 3888595.0,
+          "throughput_ci95_half_tps": 125226.08549170381,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6775,
+            "latency_ns": 12467.1471,
+            "cv": 0.025935701701690354
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1,
+          "throughput_dat_tps": 4194124.0,
+          "abort_rate": 0.6095,
+          "latency_ns": 11444.5829,
+          "cv": 0.028111798570242885,
+          "throughput_repetitions_tps": [
+            4439047.0,
+            4167504.0,
+            4194124.0,
+            4286248.0,
+            4149597.0
+          ],
+          "throughput_wal_mean_tps": 4247304.0,
+          "throughput_ci95_half_tps": 148253.87990953086,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6095,
+            "latency_ns": 11444.5829,
+            "cv": 0.028111798570242885
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 2,
+          "throughput_dat_tps": 4397922.0,
+          "abort_rate": 0.5549,
+          "latency_ns": 10914.2454,
+          "cv": 0.01715426872333086,
+          "throughput_repetitions_tps": [
+            4552792.0,
+            4397922.0,
+            4427263.0,
+            4359061.0,
+            4384675.0
+          ],
+          "throughput_wal_mean_tps": 4424342.6,
+          "throughput_ci95_half_tps": 94237.78014660382,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5549,
+            "latency_ns": 10914.2454,
+            "cv": 0.01715426872333086
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 3,
+          "throughput_dat_tps": 4405657.0,
+          "abort_rate": 0.5174,
+          "latency_ns": 10895.0833,
+          "cv": 0.012526794727070177,
+          "throughput_repetitions_tps": [
+            4490490.0,
+            4370737.0,
+            4347957.0,
+            4405657.0,
+            4427924.0
+          ],
+          "throughput_wal_mean_tps": 4408553.0,
+          "throughput_ci95_half_tps": 68570.94207309202,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5174,
+            "latency_ns": 10895.0833,
+            "cv": 0.012526794727070177
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 4,
+          "throughput_dat_tps": 4395014.0,
+          "abort_rate": 0.4838,
+          "latency_ns": 10921.4669,
+          "cv": 0.0045678238961338975,
+          "throughput_repetitions_tps": [
+            4410194.0,
+            4405583.0,
+            4368021.0,
+            4368777.0,
+            4395014.0
+          ],
+          "throughput_wal_mean_tps": 4389517.8,
+          "throughput_ci95_half_tps": 24896.039000886565,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4838,
+            "latency_ns": 10921.4669,
+            "cv": 0.0045678238961338975
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 5,
+          "throughput_dat_tps": 4286479.0,
+          "abort_rate": 0.4631,
+          "latency_ns": 11198.0019,
+          "cv": 0.008325924385153253,
+          "throughput_repetitions_tps": [
+            4351973.0,
+            4278799.0,
+            4255775.0,
+            4286479.0,
+            4295658.0
+          ],
+          "throughput_wal_mean_tps": 4293736.8,
+          "throughput_ci95_half_tps": 44388.6534463775,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4631,
+            "latency_ns": 11198.0019,
+            "cv": 0.008325924385153253
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 6,
+          "throughput_dat_tps": 4212463.0,
+          "abort_rate": 0.4417,
+          "latency_ns": 11394.7588,
+          "cv": 0.006123154805744711,
+          "throughput_repetitions_tps": [
+            4240305.0,
+            4238602.0,
+            4197699.0,
+            4212463.0,
+            4180866.0
+          ],
+          "throughput_wal_mean_tps": 4213987.0,
+          "throughput_ci95_half_tps": 32038.52546100735,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4417,
+            "latency_ns": 11394.7588,
+            "cv": 0.006123154805744711
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 8,
+          "throughput_dat_tps": 4032160.0,
+          "abort_rate": 0.4116,
+          "latency_ns": 11904.2895,
+          "cv": 0.006074131402146439,
+          "throughput_repetitions_tps": [
+            4084430.0,
+            4032160.0,
+            4032123.0,
+            4021767.0,
+            4046191.0
+          ],
+          "throughput_wal_mean_tps": 4043334.2,
+          "throughput_ci95_half_tps": 30494.948978280554,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4116,
+            "latency_ns": 11904.2895,
+            "cv": 0.006074131402146439
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 10,
+          "throughput_dat_tps": 3887106.0,
+          "abort_rate": 0.3858,
+          "latency_ns": 12348.5184,
+          "cv": 0.00467784383462715,
+          "throughput_repetitions_tps": [
+            3893703.0,
+            3905256.0,
+            3866948.0,
+            3887106.0,
+            3862135.0
+          ],
+          "throughput_wal_mean_tps": 3883029.6,
+          "throughput_ci95_half_tps": 22553.840738083098,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3858,
+            "latency_ns": 12348.5184,
+            "cv": 0.00467784383462715
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 12,
+          "throughput_dat_tps": 3735203.0,
+          "abort_rate": 0.3665,
+          "latency_ns": 12850.7072,
+          "cv": 0.00606277700927896,
+          "throughput_repetitions_tps": [
+            3769520.0,
+            3754203.0,
+            3726998.0,
+            3735203.0,
+            3711860.0
+          ],
+          "throughput_wal_mean_tps": 3739556.8,
+          "throughput_ci95_half_tps": 28151.12908199486,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3665,
+            "latency_ns": 12850.7072,
+            "cv": 0.00606277700927896
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 15,
+          "throughput_dat_tps": 3552648.0,
+          "abort_rate": 0.342,
+          "latency_ns": 13511.0487,
+          "cv": 0.0011939724901231794,
+          "throughput_repetitions_tps": [
+            3546109.0,
+            3556536.0,
+            3555519.0,
+            3550000.0,
+            3552648.0
+          ],
+          "throughput_wal_mean_tps": 3552162.4,
+          "throughput_ci95_half_tps": 5266.125713569342,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.342,
+            "latency_ns": 13511.0487,
+            "cv": 0.0011939724901231794
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 20,
+          "throughput_dat_tps": 3280555.0,
+          "abort_rate": 0.313,
+          "latency_ns": 14631.6706,
+          "cv": 0.004367622966419356,
+          "throughput_repetitions_tps": [
+            3288743.0,
+            3280555.0,
+            3264896.0,
+            3269067.0,
+            3299973.0
+          ],
+          "throughput_wal_mean_tps": 3280646.8,
+          "throughput_ci95_half_tps": 17791.341914171404,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.313,
+            "latency_ns": 14631.6706,
+            "cv": 0.004367622966419356
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 25,
+          "throughput_dat_tps": 3067533.0,
+          "abort_rate": 0.2905,
+          "latency_ns": 15647.7534,
+          "cv": 0.00513883859885411,
+          "throughput_repetitions_tps": [
+            3066924.0,
+            3057514.0,
+            3099123.0,
+            3076121.0,
+            3067533.0
+          ],
+          "throughput_wal_mean_tps": 3073443.0,
+          "throughput_ci95_half_tps": 19610.751191548014,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2905,
+            "latency_ns": 15647.7534,
+            "cv": 0.00513883859885411
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 35,
+          "throughput_dat_tps": 2755683.0,
+          "abort_rate": 0.2588,
+          "latency_ns": 17418.5492,
+          "cv": 0.0032782412960656584,
+          "throughput_repetitions_tps": [
+            2766126.0,
+            2745786.0,
+            2747307.0,
+            2762709.0,
+            2755683.0
+          ],
+          "throughput_wal_mean_tps": 2755522.2,
+          "throughput_ci95_half_tps": 11216.282008159598,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2588,
+            "latency_ns": 17418.5492,
+            "cv": 0.0032782412960656584
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 50,
+          "throughput_dat_tps": 2428247.0,
+          "abort_rate": 0.2274,
+          "latency_ns": 19767.3466,
+          "cv": 0.0020593180885697996,
+          "throughput_repetitions_tps": [
+            2420242.0,
+            2428247.0,
+            2423917.0,
+            2432605.0,
+            2430438.0
+          ],
+          "throughput_wal_mean_tps": 2427089.8,
+          "throughput_ci95_half_tps": 6206.0228228787255,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2274,
+            "latency_ns": 19767.3466,
+            "cv": 0.0020593180885697996
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 75,
+          "throughput_dat_tps": 2094746.0,
+          "abort_rate": 0.1935,
+          "latency_ns": 22914.4727,
+          "cv": 0.002930384001031414,
+          "throughput_repetitions_tps": [
+            2097278.0,
+            2094746.0,
+            2100433.0,
+            2086214.0,
+            2087687.0
+          ],
+          "throughput_wal_mean_tps": 2093271.6,
+          "throughput_ci95_half_tps": 7616.478226089134,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1935,
+            "latency_ns": 22914.4727,
+            "cv": 0.002930384001031414
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 100,
+          "throughput_dat_tps": 1866910.0,
+          "abort_rate": 0.1728,
+          "latency_ns": 25710.9341,
+          "cv": 0.003782992925376553,
+          "throughput_repetitions_tps": [
+            1854891.0,
+            1870702.0,
+            1866910.0,
+            1862390.0,
+            1872424.0
+          ],
+          "throughput_wal_mean_tps": 1865463.4,
+          "throughput_ci95_half_tps": 8762.466100794203,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1728,
+            "latency_ns": 25710.9341,
+            "cv": 0.003782992925376553
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 150,
+          "throughput_dat_tps": 1587609.0,
+          "abort_rate": 0.1454,
+          "latency_ns": 30234.1446,
+          "cv": 0.0031300470137235023,
+          "throughput_repetitions_tps": [
+            1587609.0,
+            1581572.0,
+            1592280.0,
+            1592712.0,
+            1583805.0
+          ],
+          "throughput_wal_mean_tps": 1587595.6,
+          "throughput_ci95_half_tps": 6170.137415996301,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1454,
+            "latency_ns": 30234.1446,
+            "cv": 0.0031300470137235023
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 200,
+          "throughput_dat_tps": 1410693.0,
+          "abort_rate": 0.1281,
+          "latency_ns": 34025.8299,
+          "cv": 0.0017229325734804083,
+          "throughput_repetitions_tps": [
+            1413469.0,
+            1409165.0,
+            1409230.0,
+            1414428.0,
+            1410693.0
+          ],
+          "throughput_wal_mean_tps": 1411397.0,
+          "throughput_ci95_half_tps": 3019.406327207604,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1281,
+            "latency_ns": 34025.8299,
+            "cv": 0.0017229325734804083
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 250,
+          "throughput_dat_tps": 1291251.0,
+          "abort_rate": 0.1153,
+          "latency_ns": 37173.2529,
+          "cv": 0.00265083801350051,
+          "throughput_repetitions_tps": [
+            1288437.0,
+            1288848.0,
+            1291512.0,
+            1291251.0,
+            1297017.0
+          ],
+          "throughput_wal_mean_tps": 1291413.0,
+          "throughput_ci95_half_tps": 4250.62148212796,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1153,
+            "latency_ns": 37173.2529,
+            "cv": 0.00265083801350051
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 300,
+          "throughput_dat_tps": 1194206.0,
+          "abort_rate": 0.1062,
+          "latency_ns": 40194.0704,
+          "cv": 0.0028324459805482986,
+          "throughput_repetitions_tps": [
+            1196031.0,
+            1189911.0,
+            1188460.0,
+            1194206.0,
+            1195262.0
+          ],
+          "throughput_wal_mean_tps": 1192774.0,
+          "throughput_ci95_half_tps": 4194.921987836815,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1062,
+            "latency_ns": 40194.0704,
+            "cv": 0.0028324459805482986
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 400,
+          "throughput_dat_tps": 1057571.0,
+          "abort_rate": 0.0927,
+          "latency_ns": 45387.0237,
+          "cv": 0.00331953625624797,
+          "throughput_repetitions_tps": [
+            1056151.0,
+            1056591.0,
+            1059734.0,
+            1057571.0,
+            1064739.0
+          ],
+          "throughput_wal_mean_tps": 1058957.2,
+          "throughput_ci95_half_tps": 4364.755420219361,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0927,
+            "latency_ns": 45387.0237,
+            "cv": 0.00331953625624797
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 500,
+          "throughput_dat_tps": 963541.0,
+          "abort_rate": 0.0831,
+          "latency_ns": 49816.2507,
+          "cv": 0.0019443677648955506,
+          "throughput_repetitions_tps": [
+            960618.0,
+            962908.0,
+            963822.0,
+            963541.0,
+            965823.0
+          ],
+          "throughput_wal_mean_tps": 963342.4,
+          "throughput_ci95_half_tps": 2325.7507888774835,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0831,
+            "latency_ns": 49816.2507,
+            "cv": 0.0019443677648955506
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 560,
+          "throughput_dat_tps": 919633.0,
+          "abort_rate": 0.0785,
+          "latency_ns": 52194.7342,
+          "cv": 0.002671118108797611,
+          "throughput_repetitions_tps": [
+            919633.0,
+            917576.0,
+            922028.0,
+            917870.0,
+            923083.0
+          ],
+          "throughput_wal_mean_tps": 920038.0,
+          "throughput_ci95_half_tps": 3051.4267273778396,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0785,
+            "latency_ns": 52194.7342,
+            "cv": 0.002671118108797611
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 600,
+          "throughput_dat_tps": 893408.0,
+          "abort_rate": 0.0759,
+          "latency_ns": 53726.8527,
+          "cv": 0.0037234964432912706,
+          "throughput_repetitions_tps": [
+            892510.0,
+            897520.0,
+            895285.0,
+            893408.0,
+            888607.0
+          ],
+          "throughput_wal_mean_tps": 893466.0,
+          "throughput_ci95_half_tps": 4130.789485069748,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0759,
+            "latency_ns": 53726.8527,
+            "cv": 0.0037234964432912706
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 700,
+          "throughput_dat_tps": 836713.0,
+          "abort_rate": 0.0703,
+          "latency_ns": 57367.341,
+          "cv": 0.0038139876654479698,
+          "throughput_repetitions_tps": [
+            837417.0,
+            832768.0,
+            832984.0,
+            840315.0,
+            836713.0
+          ],
+          "throughput_wal_mean_tps": 836039.4,
+          "throughput_ci95_half_tps": 3959.2244075123067,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0703,
+            "latency_ns": 57367.341,
+            "cv": 0.0038139876654479698
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 800,
+          "throughput_dat_tps": 789564.0,
+          "abort_rate": 0.0657,
+          "latency_ns": 60793.0453,
+          "cv": 0.003377273046565583,
+          "throughput_repetitions_tps": [
+            794060.0,
+            786864.0,
+            788986.0,
+            789564.0,
+            790994.0
+          ],
+          "throughput_wal_mean_tps": 790093.6,
+          "throughput_ci95_half_tps": 3313.2088055092418,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0657,
+            "latency_ns": 60793.0453,
+            "cv": 0.003377273046565583
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 900,
+          "throughput_dat_tps": 754341.0,
+          "abort_rate": 0.0617,
+          "latency_ns": 63631.6997,
+          "cv": 0.0013028966020037919,
+          "throughput_repetitions_tps": [
+            753939.0,
+            755159.0,
+            754341.0,
+            755258.0,
+            752859.0
+          ],
+          "throughput_wal_mean_tps": 754311.2,
+          "throughput_ci95_half_tps": 1220.2943391349907,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0617,
+            "latency_ns": 63631.6997,
+            "cv": 0.0013028966020037919
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1000,
+          "throughput_dat_tps": 3829076.0,
+          "abort_rate": 0.6783,
+          "latency_ns": 12535.6613,
+          "cv": 0.031861472029257154,
+          "throughput_repetitions_tps": [
+            4087189.0,
+            3849621.0,
+            3829076.0,
+            3828350.0,
+            3770238.0
+          ],
+          "throughput_wal_mean_tps": 3872894.8,
+          "throughput_ci95_half_tps": 153216.53132222238,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6783,
+            "latency_ns": 12535.6613,
+            "cv": 0.031861472029257154
+          },
+          "included": false,
+          "exclusion": {
+            "reason_code": "F718",
+            "requested_backoff_us": 1000,
+            "encoded_mode": 1,
+            "encoded_amplitude_us": 0,
+            "not_pooled_with_0us": true
+          },
+          "encoding_authority": {
+            "authority_kind": "canonical_ruling",
+            "authority_ids": [
+              "F718",
+              "D1106"
+            ],
+            "assertion_kind": "backoff_encoding_interpretation",
+            "derivation_kind": "ruling_assertion_not_measurement_derived"
+          }
+        }
+      ],
+      "included_points": [
+        {
+          "backoff_us": 0,
+          "throughput_dat_tps": 3850119.0,
+          "abort_rate": 0.6775,
+          "latency_ns": 12467.1471,
+          "cv": 0.025935701701690354,
+          "throughput_repetitions_tps": [
+            4063303.0,
+            3850119.0,
+            3883301.0,
+            3816724.0,
+            3829528.0
+          ],
+          "throughput_wal_mean_tps": 3888595.0,
+          "throughput_ci95_half_tps": 125226.08549170381,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6775,
+            "latency_ns": 12467.1471,
+            "cv": 0.025935701701690354
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1,
+          "throughput_dat_tps": 4194124.0,
+          "abort_rate": 0.6095,
+          "latency_ns": 11444.5829,
+          "cv": 0.028111798570242885,
+          "throughput_repetitions_tps": [
+            4439047.0,
+            4167504.0,
+            4194124.0,
+            4286248.0,
+            4149597.0
+          ],
+          "throughput_wal_mean_tps": 4247304.0,
+          "throughput_ci95_half_tps": 148253.87990953086,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6095,
+            "latency_ns": 11444.5829,
+            "cv": 0.028111798570242885
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 2,
+          "throughput_dat_tps": 4397922.0,
+          "abort_rate": 0.5549,
+          "latency_ns": 10914.2454,
+          "cv": 0.01715426872333086,
+          "throughput_repetitions_tps": [
+            4552792.0,
+            4397922.0,
+            4427263.0,
+            4359061.0,
+            4384675.0
+          ],
+          "throughput_wal_mean_tps": 4424342.6,
+          "throughput_ci95_half_tps": 94237.78014660382,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5549,
+            "latency_ns": 10914.2454,
+            "cv": 0.01715426872333086
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 3,
+          "throughput_dat_tps": 4405657.0,
+          "abort_rate": 0.5174,
+          "latency_ns": 10895.0833,
+          "cv": 0.012526794727070177,
+          "throughput_repetitions_tps": [
+            4490490.0,
+            4370737.0,
+            4347957.0,
+            4405657.0,
+            4427924.0
+          ],
+          "throughput_wal_mean_tps": 4408553.0,
+          "throughput_ci95_half_tps": 68570.94207309202,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.5174,
+            "latency_ns": 10895.0833,
+            "cv": 0.012526794727070177
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 4,
+          "throughput_dat_tps": 4395014.0,
+          "abort_rate": 0.4838,
+          "latency_ns": 10921.4669,
+          "cv": 0.0045678238961338975,
+          "throughput_repetitions_tps": [
+            4410194.0,
+            4405583.0,
+            4368021.0,
+            4368777.0,
+            4395014.0
+          ],
+          "throughput_wal_mean_tps": 4389517.8,
+          "throughput_ci95_half_tps": 24896.039000886565,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4838,
+            "latency_ns": 10921.4669,
+            "cv": 0.0045678238961338975
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 5,
+          "throughput_dat_tps": 4286479.0,
+          "abort_rate": 0.4631,
+          "latency_ns": 11198.0019,
+          "cv": 0.008325924385153253,
+          "throughput_repetitions_tps": [
+            4351973.0,
+            4278799.0,
+            4255775.0,
+            4286479.0,
+            4295658.0
+          ],
+          "throughput_wal_mean_tps": 4293736.8,
+          "throughput_ci95_half_tps": 44388.6534463775,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4631,
+            "latency_ns": 11198.0019,
+            "cv": 0.008325924385153253
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 6,
+          "throughput_dat_tps": 4212463.0,
+          "abort_rate": 0.4417,
+          "latency_ns": 11394.7588,
+          "cv": 0.006123154805744711,
+          "throughput_repetitions_tps": [
+            4240305.0,
+            4238602.0,
+            4197699.0,
+            4212463.0,
+            4180866.0
+          ],
+          "throughput_wal_mean_tps": 4213987.0,
+          "throughput_ci95_half_tps": 32038.52546100735,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4417,
+            "latency_ns": 11394.7588,
+            "cv": 0.006123154805744711
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 8,
+          "throughput_dat_tps": 4032160.0,
+          "abort_rate": 0.4116,
+          "latency_ns": 11904.2895,
+          "cv": 0.006074131402146439,
+          "throughput_repetitions_tps": [
+            4084430.0,
+            4032160.0,
+            4032123.0,
+            4021767.0,
+            4046191.0
+          ],
+          "throughput_wal_mean_tps": 4043334.2,
+          "throughput_ci95_half_tps": 30494.948978280554,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.4116,
+            "latency_ns": 11904.2895,
+            "cv": 0.006074131402146439
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 10,
+          "throughput_dat_tps": 3887106.0,
+          "abort_rate": 0.3858,
+          "latency_ns": 12348.5184,
+          "cv": 0.00467784383462715,
+          "throughput_repetitions_tps": [
+            3893703.0,
+            3905256.0,
+            3866948.0,
+            3887106.0,
+            3862135.0
+          ],
+          "throughput_wal_mean_tps": 3883029.6,
+          "throughput_ci95_half_tps": 22553.840738083098,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3858,
+            "latency_ns": 12348.5184,
+            "cv": 0.00467784383462715
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 12,
+          "throughput_dat_tps": 3735203.0,
+          "abort_rate": 0.3665,
+          "latency_ns": 12850.7072,
+          "cv": 0.00606277700927896,
+          "throughput_repetitions_tps": [
+            3769520.0,
+            3754203.0,
+            3726998.0,
+            3735203.0,
+            3711860.0
+          ],
+          "throughput_wal_mean_tps": 3739556.8,
+          "throughput_ci95_half_tps": 28151.12908199486,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.3665,
+            "latency_ns": 12850.7072,
+            "cv": 0.00606277700927896
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 15,
+          "throughput_dat_tps": 3552648.0,
+          "abort_rate": 0.342,
+          "latency_ns": 13511.0487,
+          "cv": 0.0011939724901231794,
+          "throughput_repetitions_tps": [
+            3546109.0,
+            3556536.0,
+            3555519.0,
+            3550000.0,
+            3552648.0
+          ],
+          "throughput_wal_mean_tps": 3552162.4,
+          "throughput_ci95_half_tps": 5266.125713569342,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.342,
+            "latency_ns": 13511.0487,
+            "cv": 0.0011939724901231794
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 20,
+          "throughput_dat_tps": 3280555.0,
+          "abort_rate": 0.313,
+          "latency_ns": 14631.6706,
+          "cv": 0.004367622966419356,
+          "throughput_repetitions_tps": [
+            3288743.0,
+            3280555.0,
+            3264896.0,
+            3269067.0,
+            3299973.0
+          ],
+          "throughput_wal_mean_tps": 3280646.8,
+          "throughput_ci95_half_tps": 17791.341914171404,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.313,
+            "latency_ns": 14631.6706,
+            "cv": 0.004367622966419356
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 25,
+          "throughput_dat_tps": 3067533.0,
+          "abort_rate": 0.2905,
+          "latency_ns": 15647.7534,
+          "cv": 0.00513883859885411,
+          "throughput_repetitions_tps": [
+            3066924.0,
+            3057514.0,
+            3099123.0,
+            3076121.0,
+            3067533.0
+          ],
+          "throughput_wal_mean_tps": 3073443.0,
+          "throughput_ci95_half_tps": 19610.751191548014,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2905,
+            "latency_ns": 15647.7534,
+            "cv": 0.00513883859885411
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 35,
+          "throughput_dat_tps": 2755683.0,
+          "abort_rate": 0.2588,
+          "latency_ns": 17418.5492,
+          "cv": 0.0032782412960656584,
+          "throughput_repetitions_tps": [
+            2766126.0,
+            2745786.0,
+            2747307.0,
+            2762709.0,
+            2755683.0
+          ],
+          "throughput_wal_mean_tps": 2755522.2,
+          "throughput_ci95_half_tps": 11216.282008159598,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2588,
+            "latency_ns": 17418.5492,
+            "cv": 0.0032782412960656584
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 50,
+          "throughput_dat_tps": 2428247.0,
+          "abort_rate": 0.2274,
+          "latency_ns": 19767.3466,
+          "cv": 0.0020593180885697996,
+          "throughput_repetitions_tps": [
+            2420242.0,
+            2428247.0,
+            2423917.0,
+            2432605.0,
+            2430438.0
+          ],
+          "throughput_wal_mean_tps": 2427089.8,
+          "throughput_ci95_half_tps": 6206.0228228787255,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.2274,
+            "latency_ns": 19767.3466,
+            "cv": 0.0020593180885697996
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 75,
+          "throughput_dat_tps": 2094746.0,
+          "abort_rate": 0.1935,
+          "latency_ns": 22914.4727,
+          "cv": 0.002930384001031414,
+          "throughput_repetitions_tps": [
+            2097278.0,
+            2094746.0,
+            2100433.0,
+            2086214.0,
+            2087687.0
+          ],
+          "throughput_wal_mean_tps": 2093271.6,
+          "throughput_ci95_half_tps": 7616.478226089134,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1935,
+            "latency_ns": 22914.4727,
+            "cv": 0.002930384001031414
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 100,
+          "throughput_dat_tps": 1866910.0,
+          "abort_rate": 0.1728,
+          "latency_ns": 25710.9341,
+          "cv": 0.003782992925376553,
+          "throughput_repetitions_tps": [
+            1854891.0,
+            1870702.0,
+            1866910.0,
+            1862390.0,
+            1872424.0
+          ],
+          "throughput_wal_mean_tps": 1865463.4,
+          "throughput_ci95_half_tps": 8762.466100794203,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1728,
+            "latency_ns": 25710.9341,
+            "cv": 0.003782992925376553
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 150,
+          "throughput_dat_tps": 1587609.0,
+          "abort_rate": 0.1454,
+          "latency_ns": 30234.1446,
+          "cv": 0.0031300470137235023,
+          "throughput_repetitions_tps": [
+            1587609.0,
+            1581572.0,
+            1592280.0,
+            1592712.0,
+            1583805.0
+          ],
+          "throughput_wal_mean_tps": 1587595.6,
+          "throughput_ci95_half_tps": 6170.137415996301,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1454,
+            "latency_ns": 30234.1446,
+            "cv": 0.0031300470137235023
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 200,
+          "throughput_dat_tps": 1410693.0,
+          "abort_rate": 0.1281,
+          "latency_ns": 34025.8299,
+          "cv": 0.0017229325734804083,
+          "throughput_repetitions_tps": [
+            1413469.0,
+            1409165.0,
+            1409230.0,
+            1414428.0,
+            1410693.0
+          ],
+          "throughput_wal_mean_tps": 1411397.0,
+          "throughput_ci95_half_tps": 3019.406327207604,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1281,
+            "latency_ns": 34025.8299,
+            "cv": 0.0017229325734804083
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 250,
+          "throughput_dat_tps": 1291251.0,
+          "abort_rate": 0.1153,
+          "latency_ns": 37173.2529,
+          "cv": 0.00265083801350051,
+          "throughput_repetitions_tps": [
+            1288437.0,
+            1288848.0,
+            1291512.0,
+            1291251.0,
+            1297017.0
+          ],
+          "throughput_wal_mean_tps": 1291413.0,
+          "throughput_ci95_half_tps": 4250.62148212796,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1153,
+            "latency_ns": 37173.2529,
+            "cv": 0.00265083801350051
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 300,
+          "throughput_dat_tps": 1194206.0,
+          "abort_rate": 0.1062,
+          "latency_ns": 40194.0704,
+          "cv": 0.0028324459805482986,
+          "throughput_repetitions_tps": [
+            1196031.0,
+            1189911.0,
+            1188460.0,
+            1194206.0,
+            1195262.0
+          ],
+          "throughput_wal_mean_tps": 1192774.0,
+          "throughput_ci95_half_tps": 4194.921987836815,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1062,
+            "latency_ns": 40194.0704,
+            "cv": 0.0028324459805482986
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 400,
+          "throughput_dat_tps": 1057571.0,
+          "abort_rate": 0.0927,
+          "latency_ns": 45387.0237,
+          "cv": 0.00331953625624797,
+          "throughput_repetitions_tps": [
+            1056151.0,
+            1056591.0,
+            1059734.0,
+            1057571.0,
+            1064739.0
+          ],
+          "throughput_wal_mean_tps": 1058957.2,
+          "throughput_ci95_half_tps": 4364.755420219361,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0927,
+            "latency_ns": 45387.0237,
+            "cv": 0.00331953625624797
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 500,
+          "throughput_dat_tps": 963541.0,
+          "abort_rate": 0.0831,
+          "latency_ns": 49816.2507,
+          "cv": 0.0019443677648955506,
+          "throughput_repetitions_tps": [
+            960618.0,
+            962908.0,
+            963822.0,
+            963541.0,
+            965823.0
+          ],
+          "throughput_wal_mean_tps": 963342.4,
+          "throughput_ci95_half_tps": 2325.7507888774835,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0831,
+            "latency_ns": 49816.2507,
+            "cv": 0.0019443677648955506
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 560,
+          "throughput_dat_tps": 919633.0,
+          "abort_rate": 0.0785,
+          "latency_ns": 52194.7342,
+          "cv": 0.002671118108797611,
+          "throughput_repetitions_tps": [
+            919633.0,
+            917576.0,
+            922028.0,
+            917870.0,
+            923083.0
+          ],
+          "throughput_wal_mean_tps": 920038.0,
+          "throughput_ci95_half_tps": 3051.4267273778396,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0785,
+            "latency_ns": 52194.7342,
+            "cv": 0.002671118108797611
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 600,
+          "throughput_dat_tps": 893408.0,
+          "abort_rate": 0.0759,
+          "latency_ns": 53726.8527,
+          "cv": 0.0037234964432912706,
+          "throughput_repetitions_tps": [
+            892510.0,
+            897520.0,
+            895285.0,
+            893408.0,
+            888607.0
+          ],
+          "throughput_wal_mean_tps": 893466.0,
+          "throughput_ci95_half_tps": 4130.789485069748,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0759,
+            "latency_ns": 53726.8527,
+            "cv": 0.0037234964432912706
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 700,
+          "throughput_dat_tps": 836713.0,
+          "abort_rate": 0.0703,
+          "latency_ns": 57367.341,
+          "cv": 0.0038139876654479698,
+          "throughput_repetitions_tps": [
+            837417.0,
+            832768.0,
+            832984.0,
+            840315.0,
+            836713.0
+          ],
+          "throughput_wal_mean_tps": 836039.4,
+          "throughput_ci95_half_tps": 3959.2244075123067,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0703,
+            "latency_ns": 57367.341,
+            "cv": 0.0038139876654479698
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 800,
+          "throughput_dat_tps": 789564.0,
+          "abort_rate": 0.0657,
+          "latency_ns": 60793.0453,
+          "cv": 0.003377273046565583,
+          "throughput_repetitions_tps": [
+            794060.0,
+            786864.0,
+            788986.0,
+            789564.0,
+            790994.0
+          ],
+          "throughput_wal_mean_tps": 790093.6,
+          "throughput_ci95_half_tps": 3313.2088055092418,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0657,
+            "latency_ns": 60793.0453,
+            "cv": 0.003377273046565583
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 900,
+          "throughput_dat_tps": 754341.0,
+          "abort_rate": 0.0617,
+          "latency_ns": 63631.6997,
+          "cv": 0.0013028966020037919,
+          "throughput_repetitions_tps": [
+            753939.0,
+            755159.0,
+            754341.0,
+            755258.0,
+            752859.0
+          ],
+          "throughput_wal_mean_tps": 754311.2,
+          "throughput_ci95_half_tps": 1220.2943391349907,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0617,
+            "latency_ns": 63631.6997,
+            "cv": 0.0013028966020037919
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        }
+      ],
+      "excluded_points": [
+        {
+          "backoff_us": 1000,
+          "throughput_dat_tps": 3829076.0,
+          "abort_rate": 0.6783,
+          "latency_ns": 12535.6613,
+          "cv": 0.031861472029257154,
+          "throughput_repetitions_tps": [
+            4087189.0,
+            3849621.0,
+            3829076.0,
+            3828350.0,
+            3770238.0
+          ],
+          "throughput_wal_mean_tps": 3872894.8,
+          "throughput_ci95_half_tps": 153216.53132222238,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.6783,
+            "latency_ns": 12535.6613,
+            "cv": 0.031861472029257154
+          },
+          "included": false,
+          "exclusion": {
+            "reason_code": "F718",
+            "requested_backoff_us": 1000,
+            "encoded_mode": 1,
+            "encoded_amplitude_us": 0,
+            "not_pooled_with_0us": true
+          },
+          "encoding_authority": {
+            "authority_kind": "canonical_ruling",
+            "authority_ids": [
+              "F718",
+              "D1106"
+            ],
+            "assertion_kind": "backoff_encoding_interpretation",
+            "derivation_kind": "ruling_assertion_not_measurement_derived"
+          }
+        }
+      ],
+      "conditions": {
+        "thread_num": 48,
+        "ycsb_tuple_num": 1000000,
+        "extime": 3,
+        "clocks_per_us": 2100,
+        "ycsb_zipf_skew": 0.9,
+        "ycsb_rratio": 50,
+        "ycsb_rmw": false,
+        "numactl_args": [],
+        "env": "pegasus",
+        "CCBENCH_TRACE": 0,
+        "ccbench_commit": "511c953",
+        "unresolved_fields": [],
+        "trace_disabled": true,
+        "repository_commit": "78c7a2c1408da05c9c6391451192d81963b84034",
+        "ccbench_gitlink_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "measurement_host": "bnode009"
+      },
+      "claim_boundary": {
+        "claim_scope": "descriptive_backoff_shape_only",
+        "estimand_matches_paper_headline": false,
+        "paper_gain_eligible": false,
+        "same_campaign_contrast": true,
+        "prereg_frozen_comparison_rule": false
+      },
+      "campaign_read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E1:dfbc6f7436669a305f31f4b652a51f01f398a239d351f970f295a814f2087e53",
+        "state": "E1",
+        "reason_code": "recorded-closure",
+        "identity_scope": "enforcement source closure (exact 24 path; witness gate、S8C 判定器、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      }
+    },
+    {
+      "workload": "read-heavy",
+      "campaign_id": "b10-backoff-grid-silo-read-heavy-sweep-e2d75497",
+      "job_id": "951691",
+      "raw_points": [
+        {
+          "backoff_us": 0,
+          "throughput_dat_tps": 10219045.0,
+          "abort_rate": 0.1536,
+          "latency_ns": 4697.1121,
+          "cv": 0.010653823464674585,
+          "throughput_repetitions_tps": [
+            10434211.0,
+            10243065.0,
+            10219045.0,
+            10192064.0,
+            10153035.0
+          ],
+          "throughput_wal_mean_tps": 10248284.0,
+          "throughput_ci95_half_tps": 135569.1076000043,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1536,
+            "latency_ns": 4697.1121,
+            "cv": 0.010653823464674585
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1,
+          "throughput_dat_tps": 9935536.0,
+          "abort_rate": 0.1495,
+          "latency_ns": 4831.1435,
+          "cv": 0.009514070766542397,
+          "throughput_repetitions_tps": [
+            10131011.0,
+            9951866.0,
+            9903539.0,
+            9905165.0,
+            9935536.0
+          ],
+          "throughput_wal_mean_tps": 9965423.4,
+          "throughput_ci95_half_tps": 117724.32844402574,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1495,
+            "latency_ns": 4831.1435,
+            "cv": 0.009514070766542397
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 2,
+          "throughput_dat_tps": 9720007.0,
+          "abort_rate": 0.1455,
+          "latency_ns": 4938.268,
+          "cv": 0.010561044335409855,
+          "throughput_repetitions_tps": [
+            9934417.0,
+            9720007.0,
+            9716966.0,
+            9734775.0,
+            9670223.0
+          ],
+          "throughput_wal_mean_tps": 9755277.6,
+          "throughput_ci95_half_tps": 127923.57479946312,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1455,
+            "latency_ns": 4938.268,
+            "cv": 0.010561044335409855
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 3,
+          "throughput_dat_tps": 9500303.0,
+          "abort_rate": 0.1407,
+          "latency_ns": 5052.4704,
+          "cv": 0.01178809712799711,
+          "throughput_repetitions_tps": [
+            9745266.0,
+            9511410.0,
+            9500303.0,
+            9483278.0,
+            9485008.0
+          ],
+          "throughput_wal_mean_tps": 9545053.0,
+          "throughput_ci95_half_tps": 139709.564470911,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1407,
+            "latency_ns": 5052.4704,
+            "cv": 0.01178809712799711
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 4,
+          "throughput_dat_tps": 9309537.0,
+          "abort_rate": 0.1378,
+          "latency_ns": 5156.0029,
+          "cv": 0.011831712159390568,
+          "throughput_repetitions_tps": [
+            9511708.0,
+            9309537.0,
+            9282999.0,
+            9218769.0,
+            9362417.0
+          ],
+          "throughput_wal_mean_tps": 9337086.0,
+          "throughput_ci95_half_tps": 137171.23337134154,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1378,
+            "latency_ns": 5156.0029,
+            "cv": 0.011831712159390568
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 5,
+          "throughput_dat_tps": 9132337.0,
+          "abort_rate": 0.1344,
+          "latency_ns": 5256.0478,
+          "cv": 0.009169721084043972,
+          "throughput_repetitions_tps": [
+            9286282.0,
+            9060502.0,
+            9159340.0,
+            9132337.0,
+            9115574.0
+          ],
+          "throughput_wal_mean_tps": 9150807.0,
+          "throughput_ci95_half_tps": 104188.45804421353,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1344,
+            "latency_ns": 5256.0478,
+            "cv": 0.009169721084043972
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 6,
+          "throughput_dat_tps": 8926853.0,
+          "abort_rate": 0.1321,
+          "latency_ns": 5377.0349,
+          "cv": 0.008085719436510154,
+          "throughput_repetitions_tps": [
+            9042896.0,
+            8847063.0,
+            8926853.0,
+            8920383.0,
+            8973972.0
+          ],
+          "throughput_wal_mean_tps": 8942233.4,
+          "throughput_ci95_half_tps": 89777.75848191962,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1321,
+            "latency_ns": 5377.0349,
+            "cv": 0.008085719436510154
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 8,
+          "throughput_dat_tps": 8624150.0,
+          "abort_rate": 0.1271,
+          "latency_ns": 5565.7659,
+          "cv": 0.011076883620023967,
+          "throughput_repetitions_tps": [
+            8760166.0,
+            8576084.0,
+            8624150.0,
+            8649180.0,
+            8501397.0
+          ],
+          "throughput_wal_mean_tps": 8622195.4,
+          "throughput_ci95_half_tps": 118587.671761642,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1271,
+            "latency_ns": 5565.7659,
+            "cv": 0.011076883620023967
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 10,
+          "throughput_dat_tps": 8341500.0,
+          "abort_rate": 0.122,
+          "latency_ns": 5754.3607,
+          "cv": 0.006605836134767541,
+          "throughput_repetitions_tps": [
+            8451346.0,
+            8324350.0,
+            8388440.0,
+            8320227.0,
+            8341500.0
+          ],
+          "throughput_wal_mean_tps": 8365172.6,
+          "throughput_ci95_half_tps": 68613.06050820395,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.122,
+            "latency_ns": 5754.3607,
+            "cv": 0.006605836134767541
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 12,
+          "throughput_dat_tps": 8055155.0,
+          "abort_rate": 0.1184,
+          "latency_ns": 5958.917,
+          "cv": 0.009596101245590204,
+          "throughput_repetitions_tps": [
+            8223097.0,
+            8119000.0,
+            8055155.0,
+            8053361.0,
+            8032908.0
+          ],
+          "throughput_wal_mean_tps": 8096704.2,
+          "throughput_ci95_half_tps": 96473.3109653274,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1184,
+            "latency_ns": 5958.917,
+            "cv": 0.009596101245590204
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 15,
+          "throughput_dat_tps": 7783372.0,
+          "abort_rate": 0.113,
+          "latency_ns": 6166.9929,
+          "cv": 0.002335442971982841,
+          "throughput_repetitions_tps": [
+            7798218.0,
+            7773485.0,
+            7783372.0,
+            7788298.0,
+            7750450.0
+          ],
+          "throughput_wal_mean_tps": 7778764.6,
+          "throughput_ci95_half_tps": 22557.13740783059,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.113,
+            "latency_ns": 6166.9929,
+            "cv": 0.002335442971982841
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 20,
+          "throughput_dat_tps": 7300806.0,
+          "abort_rate": 0.1057,
+          "latency_ns": 6574.6166,
+          "cv": 0.006499390242971603,
+          "throughput_repetitions_tps": [
+            7397279.0,
+            7308851.0,
+            7300806.0,
+            7277050.0,
+            7290671.0
+          ],
+          "throughput_wal_mean_tps": 7314931.4,
+          "throughput_ci95_half_tps": 59031.927064400894,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1057,
+            "latency_ns": 6574.6166,
+            "cv": 0.006499390242971603
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 25,
+          "throughput_dat_tps": 6928754.0,
+          "abort_rate": 0.1,
+          "latency_ns": 6927.6525,
+          "cv": 0.004338095669575322,
+          "throughput_repetitions_tps": [
+            6981485.0,
+            6928754.0,
+            6921207.0,
+            6929893.0,
+            6899790.0
+          ],
+          "throughput_wal_mean_tps": 6932225.8,
+          "throughput_ci95_half_tps": 37340.13766723631,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1,
+            "latency_ns": 6927.6525,
+            "cv": 0.004338095669575322
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 35,
+          "throughput_dat_tps": 6326571.0,
+          "abort_rate": 0.091,
+          "latency_ns": 7587.0483,
+          "cv": 0.0034208808436993828,
+          "throughput_repetitions_tps": [
+            6374685.0,
+            6346713.0,
+            6323669.0,
+            6326326.0,
+            6326571.0
+          ],
+          "throughput_wal_mean_tps": 6339592.8,
+          "throughput_ci95_half_tps": 26927.956657315965,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.091,
+            "latency_ns": 7587.0483,
+            "cv": 0.0034208808436993828
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 50,
+          "throughput_dat_tps": 5678558.0,
+          "abort_rate": 0.0813,
+          "latency_ns": 8452.8502,
+          "cv": 0.00254400254207164,
+          "throughput_repetitions_tps": [
+            5706174.0,
+            5677539.0,
+            5678558.0,
+            5681004.0,
+            5667210.0
+          ],
+          "throughput_wal_mean_tps": 5682097.0,
+          "throughput_ci95_half_tps": 17948.587365253297,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0813,
+            "latency_ns": 8452.8502,
+            "cv": 0.00254400254207164
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 75,
+          "throughput_dat_tps": 4954021.0,
+          "abort_rate": 0.071,
+          "latency_ns": 9689.099,
+          "cv": 0.002704994982492592,
+          "throughput_repetitions_tps": [
+            4954021.0,
+            4953429.0,
+            4964365.0,
+            4961730.0,
+            4930382.0
+          ],
+          "throughput_wal_mean_tps": 4952785.4,
+          "throughput_ci95_half_tps": 16634.894989893164,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.071,
+            "latency_ns": 9689.099,
+            "cv": 0.002704994982492592
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 100,
+          "throughput_dat_tps": 4464389.0,
+          "abort_rate": 0.0637,
+          "latency_ns": 10751.7512,
+          "cv": 0.0007905050529557486,
+          "throughput_repetitions_tps": [
+            4467538.0,
+            4469306.0,
+            4464389.0,
+            4461329.0,
+            4461666.0
+          ],
+          "throughput_wal_mean_tps": 4464845.6,
+          "throughput_ci95_half_tps": 4382.431982644029,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0637,
+            "latency_ns": 10751.7512,
+            "cv": 0.0007905050529557486
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 150,
+          "throughput_dat_tps": 3804934.0,
+          "abort_rate": 0.0547,
+          "latency_ns": 12615.1991,
+          "cv": 0.0011350818655394542,
+          "throughput_repetitions_tps": [
+            3804934.0,
+            3802889.0,
+            3803784.0,
+            3813677.0,
+            3805604.0
+          ],
+          "throughput_wal_mean_tps": 3806177.6,
+          "throughput_ci95_half_tps": 5364.389741766151,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0547,
+            "latency_ns": 12615.1991,
+            "cv": 0.0011350818655394542
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 200,
+          "throughput_dat_tps": 3396294.0,
+          "abort_rate": 0.0486,
+          "latency_ns": 14133.0521,
+          "cv": 0.0009177137628612748,
+          "throughput_repetitions_tps": [
+            3393987.0,
+            3395289.0,
+            3399459.0,
+            3401565.0,
+            3396294.0
+          ],
+          "throughput_wal_mean_tps": 3397318.8,
+          "throughput_ci95_half_tps": 3871.2180696774717,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0486,
+            "latency_ns": 14133.0521,
+            "cv": 0.0009177137628612748
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 250,
+          "throughput_dat_tps": 3101255.0,
+          "abort_rate": 0.0443,
+          "latency_ns": 15477.605,
+          "cv": 0.0007543739622482721,
+          "throughput_repetitions_tps": [
+            3101041.0,
+            3099354.0,
+            3101255.0,
+            3104911.0,
+            3104256.0
+          ],
+          "throughput_wal_mean_tps": 3102163.4,
+          "throughput_ci95_half_tps": 2905.731280655816,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0443,
+            "latency_ns": 15477.605,
+            "cv": 0.0007543739622482721
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 300,
+          "throughput_dat_tps": 2876923.0,
+          "abort_rate": 0.041,
+          "latency_ns": 16684.4924,
+          "cv": 0.0012822741665505575,
+          "throughput_repetitions_tps": [
+            2875397.0,
+            2876923.0,
+            2884169.0,
+            2879969.0,
+            2875652.0
+          ],
+          "throughput_wal_mean_tps": 2878422.0,
+          "throughput_ci95_half_tps": 4582.890146597008,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.041,
+            "latency_ns": 16684.4924,
+            "cv": 0.0012822741665505575
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 400,
+          "throughput_dat_tps": 2546890.0,
+          "abort_rate": 0.0361,
+          "latency_ns": 18846.5148,
+          "cv": 0.002341433613207887,
+          "throughput_repetitions_tps": [
+            2541768.0,
+            2536946.0,
+            2552502.0,
+            2547646.0,
+            2546890.0
+          ],
+          "throughput_wal_mean_tps": 2545150.4,
+          "throughput_ci95_half_tps": 7399.449130220474,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0361,
+            "latency_ns": 18846.5148,
+            "cv": 0.002341433613207887
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 500,
+          "throughput_dat_tps": 2308800.0,
+          "abort_rate": 0.0328,
+          "latency_ns": 20790.0208,
+          "cv": 0.00167657211452201,
+          "throughput_repetitions_tps": [
+            2308800.0,
+            2301852.0,
+            2311959.0,
+            2310238.0,
+            2307121.0
+          ],
+          "throughput_wal_mean_tps": 2307994.0,
+          "throughput_ci95_half_tps": 4804.641663931531,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0328,
+            "latency_ns": 20790.0208,
+            "cv": 0.00167657211452201
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 560,
+          "throughput_dat_tps": 2201086.0,
+          "abort_rate": 0.0311,
+          "latency_ns": 21807.4169,
+          "cv": 0.0022893649645238695,
+          "throughput_repetitions_tps": [
+            2200553.0,
+            2191939.0,
+            2203845.0,
+            2204590.0,
+            2201086.0
+          ],
+          "throughput_wal_mean_tps": 2200402.6,
+          "throughput_ci95_half_tps": 6254.912961075753,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0311,
+            "latency_ns": 21807.4169,
+            "cv": 0.0022893649645238695
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 600,
+          "throughput_dat_tps": 2132094.0,
+          "abort_rate": 0.0302,
+          "latency_ns": 22513.0787,
+          "cv": 0.002291017216472192,
+          "throughput_repetitions_tps": [
+            2142612.0,
+            2136100.0,
+            2131665.0,
+            2132094.0,
+            2130812.0
+          ],
+          "throughput_wal_mean_tps": 2134656.6,
+          "throughput_ci95_half_tps": 6072.401268593258,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0302,
+            "latency_ns": 22513.0787,
+            "cv": 0.002291017216472192
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 700,
+          "throughput_dat_tps": 1997086.0,
+          "abort_rate": 0.028,
+          "latency_ns": 24035.019,
+          "cv": 0.002190220529592601,
+          "throughput_repetitions_tps": [
+            1992734.0,
+            1994917.0,
+            1997086.0,
+            2004200.0,
+            1998967.0
+          ],
+          "throughput_wal_mean_tps": 1997580.8,
+          "throughput_ci95_half_tps": 5432.456901547297,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.028,
+            "latency_ns": 24035.019,
+            "cv": 0.002190220529592601
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 800,
+          "throughput_dat_tps": 1884199.0,
+          "abort_rate": 0.0263,
+          "latency_ns": 25475.0162,
+          "cv": 0.0016153809537447165,
+          "throughput_repetitions_tps": [
+            1884199.0,
+            1881073.0,
+            1889292.0,
+            1885536.0,
+            1883327.0
+          ],
+          "throughput_wal_mean_tps": 1884685.4,
+          "throughput_ci95_half_tps": 3780.2272921145845,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0263,
+            "latency_ns": 25475.0162,
+            "cv": 0.0016153809537447165
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 900,
+          "throughput_dat_tps": 1788473.0,
+          "abort_rate": 0.0249,
+          "latency_ns": 26838.5377,
+          "cv": 0.002693691693017472,
+          "throughput_repetitions_tps": [
+            1792963.0,
+            1788473.0,
+            1781007.0,
+            1784795.0,
+            1791051.0
+          ],
+          "throughput_wal_mean_tps": 1787657.8,
+          "throughput_ci95_half_tps": 5979.107532843723,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0249,
+            "latency_ns": 26838.5377,
+            "cv": 0.002693691693017472
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1000,
+          "throughput_dat_tps": 10233974.0,
+          "abort_rate": 0.1539,
+          "latency_ns": 4690.2601,
+          "cv": 0.011021656097636464,
+          "throughput_repetitions_tps": [
+            10475460.0,
+            10244889.0,
+            10233974.0,
+            10206762.0,
+            10212810.0
+          ],
+          "throughput_wal_mean_tps": 10274779.0,
+          "throughput_ci95_half_tps": 140612.33957608163,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1539,
+            "latency_ns": 4690.2601,
+            "cv": 0.011021656097636464
+          },
+          "included": false,
+          "exclusion": {
+            "reason_code": "F718",
+            "requested_backoff_us": 1000,
+            "encoded_mode": 1,
+            "encoded_amplitude_us": 0,
+            "not_pooled_with_0us": true
+          },
+          "encoding_authority": {
+            "authority_kind": "canonical_ruling",
+            "authority_ids": [
+              "F718",
+              "D1106"
+            ],
+            "assertion_kind": "backoff_encoding_interpretation",
+            "derivation_kind": "ruling_assertion_not_measurement_derived"
+          }
+        }
+      ],
+      "included_points": [
+        {
+          "backoff_us": 0,
+          "throughput_dat_tps": 10219045.0,
+          "abort_rate": 0.1536,
+          "latency_ns": 4697.1121,
+          "cv": 0.010653823464674585,
+          "throughput_repetitions_tps": [
+            10434211.0,
+            10243065.0,
+            10219045.0,
+            10192064.0,
+            10153035.0
+          ],
+          "throughput_wal_mean_tps": 10248284.0,
+          "throughput_ci95_half_tps": 135569.1076000043,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1536,
+            "latency_ns": 4697.1121,
+            "cv": 0.010653823464674585
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 1,
+          "throughput_dat_tps": 9935536.0,
+          "abort_rate": 0.1495,
+          "latency_ns": 4831.1435,
+          "cv": 0.009514070766542397,
+          "throughput_repetitions_tps": [
+            10131011.0,
+            9951866.0,
+            9903539.0,
+            9905165.0,
+            9935536.0
+          ],
+          "throughput_wal_mean_tps": 9965423.4,
+          "throughput_ci95_half_tps": 117724.32844402574,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1495,
+            "latency_ns": 4831.1435,
+            "cv": 0.009514070766542397
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 2,
+          "throughput_dat_tps": 9720007.0,
+          "abort_rate": 0.1455,
+          "latency_ns": 4938.268,
+          "cv": 0.010561044335409855,
+          "throughput_repetitions_tps": [
+            9934417.0,
+            9720007.0,
+            9716966.0,
+            9734775.0,
+            9670223.0
+          ],
+          "throughput_wal_mean_tps": 9755277.6,
+          "throughput_ci95_half_tps": 127923.57479946312,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1455,
+            "latency_ns": 4938.268,
+            "cv": 0.010561044335409855
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 3,
+          "throughput_dat_tps": 9500303.0,
+          "abort_rate": 0.1407,
+          "latency_ns": 5052.4704,
+          "cv": 0.01178809712799711,
+          "throughput_repetitions_tps": [
+            9745266.0,
+            9511410.0,
+            9500303.0,
+            9483278.0,
+            9485008.0
+          ],
+          "throughput_wal_mean_tps": 9545053.0,
+          "throughput_ci95_half_tps": 139709.564470911,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1407,
+            "latency_ns": 5052.4704,
+            "cv": 0.01178809712799711
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 4,
+          "throughput_dat_tps": 9309537.0,
+          "abort_rate": 0.1378,
+          "latency_ns": 5156.0029,
+          "cv": 0.011831712159390568,
+          "throughput_repetitions_tps": [
+            9511708.0,
+            9309537.0,
+            9282999.0,
+            9218769.0,
+            9362417.0
+          ],
+          "throughput_wal_mean_tps": 9337086.0,
+          "throughput_ci95_half_tps": 137171.23337134154,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1378,
+            "latency_ns": 5156.0029,
+            "cv": 0.011831712159390568
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 5,
+          "throughput_dat_tps": 9132337.0,
+          "abort_rate": 0.1344,
+          "latency_ns": 5256.0478,
+          "cv": 0.009169721084043972,
+          "throughput_repetitions_tps": [
+            9286282.0,
+            9060502.0,
+            9159340.0,
+            9132337.0,
+            9115574.0
+          ],
+          "throughput_wal_mean_tps": 9150807.0,
+          "throughput_ci95_half_tps": 104188.45804421353,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1344,
+            "latency_ns": 5256.0478,
+            "cv": 0.009169721084043972
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 6,
+          "throughput_dat_tps": 8926853.0,
+          "abort_rate": 0.1321,
+          "latency_ns": 5377.0349,
+          "cv": 0.008085719436510154,
+          "throughput_repetitions_tps": [
+            9042896.0,
+            8847063.0,
+            8926853.0,
+            8920383.0,
+            8973972.0
+          ],
+          "throughput_wal_mean_tps": 8942233.4,
+          "throughput_ci95_half_tps": 89777.75848191962,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1321,
+            "latency_ns": 5377.0349,
+            "cv": 0.008085719436510154
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 8,
+          "throughput_dat_tps": 8624150.0,
+          "abort_rate": 0.1271,
+          "latency_ns": 5565.7659,
+          "cv": 0.011076883620023967,
+          "throughput_repetitions_tps": [
+            8760166.0,
+            8576084.0,
+            8624150.0,
+            8649180.0,
+            8501397.0
+          ],
+          "throughput_wal_mean_tps": 8622195.4,
+          "throughput_ci95_half_tps": 118587.671761642,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1271,
+            "latency_ns": 5565.7659,
+            "cv": 0.011076883620023967
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 10,
+          "throughput_dat_tps": 8341500.0,
+          "abort_rate": 0.122,
+          "latency_ns": 5754.3607,
+          "cv": 0.006605836134767541,
+          "throughput_repetitions_tps": [
+            8451346.0,
+            8324350.0,
+            8388440.0,
+            8320227.0,
+            8341500.0
+          ],
+          "throughput_wal_mean_tps": 8365172.6,
+          "throughput_ci95_half_tps": 68613.06050820395,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.122,
+            "latency_ns": 5754.3607,
+            "cv": 0.006605836134767541
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 12,
+          "throughput_dat_tps": 8055155.0,
+          "abort_rate": 0.1184,
+          "latency_ns": 5958.917,
+          "cv": 0.009596101245590204,
+          "throughput_repetitions_tps": [
+            8223097.0,
+            8119000.0,
+            8055155.0,
+            8053361.0,
+            8032908.0
+          ],
+          "throughput_wal_mean_tps": 8096704.2,
+          "throughput_ci95_half_tps": 96473.3109653274,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1184,
+            "latency_ns": 5958.917,
+            "cv": 0.009596101245590204
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 15,
+          "throughput_dat_tps": 7783372.0,
+          "abort_rate": 0.113,
+          "latency_ns": 6166.9929,
+          "cv": 0.002335442971982841,
+          "throughput_repetitions_tps": [
+            7798218.0,
+            7773485.0,
+            7783372.0,
+            7788298.0,
+            7750450.0
+          ],
+          "throughput_wal_mean_tps": 7778764.6,
+          "throughput_ci95_half_tps": 22557.13740783059,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.113,
+            "latency_ns": 6166.9929,
+            "cv": 0.002335442971982841
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 20,
+          "throughput_dat_tps": 7300806.0,
+          "abort_rate": 0.1057,
+          "latency_ns": 6574.6166,
+          "cv": 0.006499390242971603,
+          "throughput_repetitions_tps": [
+            7397279.0,
+            7308851.0,
+            7300806.0,
+            7277050.0,
+            7290671.0
+          ],
+          "throughput_wal_mean_tps": 7314931.4,
+          "throughput_ci95_half_tps": 59031.927064400894,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1057,
+            "latency_ns": 6574.6166,
+            "cv": 0.006499390242971603
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 25,
+          "throughput_dat_tps": 6928754.0,
+          "abort_rate": 0.1,
+          "latency_ns": 6927.6525,
+          "cv": 0.004338095669575322,
+          "throughput_repetitions_tps": [
+            6981485.0,
+            6928754.0,
+            6921207.0,
+            6929893.0,
+            6899790.0
+          ],
+          "throughput_wal_mean_tps": 6932225.8,
+          "throughput_ci95_half_tps": 37340.13766723631,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1,
+            "latency_ns": 6927.6525,
+            "cv": 0.004338095669575322
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 35,
+          "throughput_dat_tps": 6326571.0,
+          "abort_rate": 0.091,
+          "latency_ns": 7587.0483,
+          "cv": 0.0034208808436993828,
+          "throughput_repetitions_tps": [
+            6374685.0,
+            6346713.0,
+            6323669.0,
+            6326326.0,
+            6326571.0
+          ],
+          "throughput_wal_mean_tps": 6339592.8,
+          "throughput_ci95_half_tps": 26927.956657315965,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.091,
+            "latency_ns": 7587.0483,
+            "cv": 0.0034208808436993828
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 50,
+          "throughput_dat_tps": 5678558.0,
+          "abort_rate": 0.0813,
+          "latency_ns": 8452.8502,
+          "cv": 0.00254400254207164,
+          "throughput_repetitions_tps": [
+            5706174.0,
+            5677539.0,
+            5678558.0,
+            5681004.0,
+            5667210.0
+          ],
+          "throughput_wal_mean_tps": 5682097.0,
+          "throughput_ci95_half_tps": 17948.587365253297,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0813,
+            "latency_ns": 8452.8502,
+            "cv": 0.00254400254207164
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 75,
+          "throughput_dat_tps": 4954021.0,
+          "abort_rate": 0.071,
+          "latency_ns": 9689.099,
+          "cv": 0.002704994982492592,
+          "throughput_repetitions_tps": [
+            4954021.0,
+            4953429.0,
+            4964365.0,
+            4961730.0,
+            4930382.0
+          ],
+          "throughput_wal_mean_tps": 4952785.4,
+          "throughput_ci95_half_tps": 16634.894989893164,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.071,
+            "latency_ns": 9689.099,
+            "cv": 0.002704994982492592
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 100,
+          "throughput_dat_tps": 4464389.0,
+          "abort_rate": 0.0637,
+          "latency_ns": 10751.7512,
+          "cv": 0.0007905050529557486,
+          "throughput_repetitions_tps": [
+            4467538.0,
+            4469306.0,
+            4464389.0,
+            4461329.0,
+            4461666.0
+          ],
+          "throughput_wal_mean_tps": 4464845.6,
+          "throughput_ci95_half_tps": 4382.431982644029,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0637,
+            "latency_ns": 10751.7512,
+            "cv": 0.0007905050529557486
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 150,
+          "throughput_dat_tps": 3804934.0,
+          "abort_rate": 0.0547,
+          "latency_ns": 12615.1991,
+          "cv": 0.0011350818655394542,
+          "throughput_repetitions_tps": [
+            3804934.0,
+            3802889.0,
+            3803784.0,
+            3813677.0,
+            3805604.0
+          ],
+          "throughput_wal_mean_tps": 3806177.6,
+          "throughput_ci95_half_tps": 5364.389741766151,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0547,
+            "latency_ns": 12615.1991,
+            "cv": 0.0011350818655394542
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 200,
+          "throughput_dat_tps": 3396294.0,
+          "abort_rate": 0.0486,
+          "latency_ns": 14133.0521,
+          "cv": 0.0009177137628612748,
+          "throughput_repetitions_tps": [
+            3393987.0,
+            3395289.0,
+            3399459.0,
+            3401565.0,
+            3396294.0
+          ],
+          "throughput_wal_mean_tps": 3397318.8,
+          "throughput_ci95_half_tps": 3871.2180696774717,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0486,
+            "latency_ns": 14133.0521,
+            "cv": 0.0009177137628612748
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 250,
+          "throughput_dat_tps": 3101255.0,
+          "abort_rate": 0.0443,
+          "latency_ns": 15477.605,
+          "cv": 0.0007543739622482721,
+          "throughput_repetitions_tps": [
+            3101041.0,
+            3099354.0,
+            3101255.0,
+            3104911.0,
+            3104256.0
+          ],
+          "throughput_wal_mean_tps": 3102163.4,
+          "throughput_ci95_half_tps": 2905.731280655816,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0443,
+            "latency_ns": 15477.605,
+            "cv": 0.0007543739622482721
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 300,
+          "throughput_dat_tps": 2876923.0,
+          "abort_rate": 0.041,
+          "latency_ns": 16684.4924,
+          "cv": 0.0012822741665505575,
+          "throughput_repetitions_tps": [
+            2875397.0,
+            2876923.0,
+            2884169.0,
+            2879969.0,
+            2875652.0
+          ],
+          "throughput_wal_mean_tps": 2878422.0,
+          "throughput_ci95_half_tps": 4582.890146597008,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.041,
+            "latency_ns": 16684.4924,
+            "cv": 0.0012822741665505575
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 400,
+          "throughput_dat_tps": 2546890.0,
+          "abort_rate": 0.0361,
+          "latency_ns": 18846.5148,
+          "cv": 0.002341433613207887,
+          "throughput_repetitions_tps": [
+            2541768.0,
+            2536946.0,
+            2552502.0,
+            2547646.0,
+            2546890.0
+          ],
+          "throughput_wal_mean_tps": 2545150.4,
+          "throughput_ci95_half_tps": 7399.449130220474,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0361,
+            "latency_ns": 18846.5148,
+            "cv": 0.002341433613207887
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 500,
+          "throughput_dat_tps": 2308800.0,
+          "abort_rate": 0.0328,
+          "latency_ns": 20790.0208,
+          "cv": 0.00167657211452201,
+          "throughput_repetitions_tps": [
+            2308800.0,
+            2301852.0,
+            2311959.0,
+            2310238.0,
+            2307121.0
+          ],
+          "throughput_wal_mean_tps": 2307994.0,
+          "throughput_ci95_half_tps": 4804.641663931531,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0328,
+            "latency_ns": 20790.0208,
+            "cv": 0.00167657211452201
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 560,
+          "throughput_dat_tps": 2201086.0,
+          "abort_rate": 0.0311,
+          "latency_ns": 21807.4169,
+          "cv": 0.0022893649645238695,
+          "throughput_repetitions_tps": [
+            2200553.0,
+            2191939.0,
+            2203845.0,
+            2204590.0,
+            2201086.0
+          ],
+          "throughput_wal_mean_tps": 2200402.6,
+          "throughput_ci95_half_tps": 6254.912961075753,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0311,
+            "latency_ns": 21807.4169,
+            "cv": 0.0022893649645238695
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 600,
+          "throughput_dat_tps": 2132094.0,
+          "abort_rate": 0.0302,
+          "latency_ns": 22513.0787,
+          "cv": 0.002291017216472192,
+          "throughput_repetitions_tps": [
+            2142612.0,
+            2136100.0,
+            2131665.0,
+            2132094.0,
+            2130812.0
+          ],
+          "throughput_wal_mean_tps": 2134656.6,
+          "throughput_ci95_half_tps": 6072.401268593258,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0302,
+            "latency_ns": 22513.0787,
+            "cv": 0.002291017216472192
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 700,
+          "throughput_dat_tps": 1997086.0,
+          "abort_rate": 0.028,
+          "latency_ns": 24035.019,
+          "cv": 0.002190220529592601,
+          "throughput_repetitions_tps": [
+            1992734.0,
+            1994917.0,
+            1997086.0,
+            2004200.0,
+            1998967.0
+          ],
+          "throughput_wal_mean_tps": 1997580.8,
+          "throughput_ci95_half_tps": 5432.456901547297,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.028,
+            "latency_ns": 24035.019,
+            "cv": 0.002190220529592601
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 800,
+          "throughput_dat_tps": 1884199.0,
+          "abort_rate": 0.0263,
+          "latency_ns": 25475.0162,
+          "cv": 0.0016153809537447165,
+          "throughput_repetitions_tps": [
+            1884199.0,
+            1881073.0,
+            1889292.0,
+            1885536.0,
+            1883327.0
+          ],
+          "throughput_wal_mean_tps": 1884685.4,
+          "throughput_ci95_half_tps": 3780.2272921145845,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0263,
+            "latency_ns": 25475.0162,
+            "cv": 0.0016153809537447165
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        },
+        {
+          "backoff_us": 900,
+          "throughput_dat_tps": 1788473.0,
+          "abort_rate": 0.0249,
+          "latency_ns": 26838.5377,
+          "cv": 0.002693691693017472,
+          "throughput_repetitions_tps": [
+            1792963.0,
+            1788473.0,
+            1781007.0,
+            1784795.0,
+            1791051.0
+          ],
+          "throughput_wal_mean_tps": 1787657.8,
+          "throughput_ci95_half_tps": 5979.107532843723,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.0249,
+            "latency_ns": 26838.5377,
+            "cv": 0.002693691693017472
+          },
+          "included": true,
+          "exclusion": null,
+          "encoding_authority": null
+        }
+      ],
+      "excluded_points": [
+        {
+          "backoff_us": 1000,
+          "throughput_dat_tps": 10233974.0,
+          "abort_rate": 0.1539,
+          "latency_ns": 4690.2601,
+          "cv": 0.011021656097636464,
+          "throughput_repetitions_tps": [
+            10475460.0,
+            10244889.0,
+            10233974.0,
+            10206762.0,
+            10212810.0
+          ],
+          "throughput_wal_mean_tps": 10274779.0,
+          "throughput_ci95_half_tps": 140612.33957608163,
+          "abort_ci95_half": null,
+          "wal_metrics": {
+            "abort_rate": 0.1539,
+            "latency_ns": 4690.2601,
+            "cv": 0.011021656097636464
+          },
+          "included": false,
+          "exclusion": {
+            "reason_code": "F718",
+            "requested_backoff_us": 1000,
+            "encoded_mode": 1,
+            "encoded_amplitude_us": 0,
+            "not_pooled_with_0us": true
+          },
+          "encoding_authority": {
+            "authority_kind": "canonical_ruling",
+            "authority_ids": [
+              "F718",
+              "D1106"
+            ],
+            "assertion_kind": "backoff_encoding_interpretation",
+            "derivation_kind": "ruling_assertion_not_measurement_derived"
+          }
+        }
+      ],
+      "conditions": {
+        "thread_num": 48,
+        "ycsb_tuple_num": 1000000,
+        "extime": 3,
+        "clocks_per_us": 2100,
+        "ycsb_zipf_skew": 0.9,
+        "ycsb_rratio": 95,
+        "ycsb_rmw": false,
+        "numactl_args": [],
+        "env": "pegasus",
+        "CCBENCH_TRACE": 0,
+        "ccbench_commit": "511c953",
+        "unresolved_fields": [],
+        "trace_disabled": true,
+        "repository_commit": "78c7a2c1408da05c9c6391451192d81963b84034",
+        "ccbench_gitlink_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "measurement_host": "bnode016"
+      },
+      "claim_boundary": {
+        "claim_scope": "descriptive_backoff_shape_only",
+        "estimand_matches_paper_headline": false,
+        "paper_gain_eligible": false,
+        "same_campaign_contrast": true,
+        "prereg_frozen_comparison_rule": false
+      },
+      "campaign_read_purpose": "HISTORICAL_RAW",
+      "campaign_verifier_epoch": {
+        "campaign_verifier_epoch": "E1:dfbc6f7436669a305f31f4b652a51f01f398a239d351f970f295a814f2087e53",
+        "state": "E1",
+        "reason_code": "recorded-closure",
+        "identity_scope": "enforcement source closure (exact 24 path; witness gate、S8C 判定器、receipt 発行・検証面を含む)",
+        "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
+      }
+    }
+  ],
+  "artist_series": [
+    {
+      "workload": "write-heavy",
+      "metric": "throughput_mean",
+      "kind": "line",
+      "label": "write-heavy throughput",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        2.3937193999999997,
+        2.982502,
+        3.3765918,
+        3.6755334,
+        3.8656164,
+        3.9669602000000004,
+        3.9896354,
+        3.9818024,
+        3.9353096,
+        3.8496546,
+        3.7734677999999997,
+        3.5969176000000003,
+        3.4419266,
+        3.198749,
+        2.9143467999999997,
+        2.5819533999999997,
+        2.357258,
+        2.0488464,
+        1.8491392,
+        1.7074168,
+        1.5922273999999998,
+        1.4277066,
+        1.3057006,
+        1.2515848,
+        1.2181796,
+        1.1451118,
+        1.0856828,
+        1.0353516
+      ],
+      "unit": "M tps"
+    },
+    {
+      "workload": "write-heavy",
+      "metric": "throughput_ci95",
+      "kind": "interval",
+      "label": "write-heavy throughput 95% CI",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        0.0888541553993089,
+        0.046530460275416186,
+        0.1292018836066071,
+        0.13524665472172034,
+        0.07551094115571723,
+        0.06811004734505813,
+        0.04623759819013826,
+        0.059266569921898556,
+        0.028659372668303883,
+        0.024644607446030458,
+        0.035930835862929486,
+        0.02102088935099072,
+        0.02154790210941674,
+        0.017024596555669794,
+        0.009731107643394323,
+        0.008794930859852277,
+        0.007075920120167448,
+        0.005217343475738793,
+        0.003975927982509756,
+        0.008378683356341636,
+        0.0051870038777650064,
+        0.004328783744580382,
+        0.004121446857025908,
+        0.004134426901428441,
+        0.0016921988998011028,
+        0.002904272582632835,
+        0.004980562050737795,
+        0.0028826470687018137
+      ],
+      "lower": [
+        2.3048652446006908,
+        2.935971539724584,
+        3.247389916393393,
+        3.5402867452782796,
+        3.7901054588442826,
+        3.8988501526549424,
+        3.9433978018098617,
+        3.9225358300781012,
+        3.906650227331696,
+        3.82500999255397,
+        3.73753696413707,
+        3.5758967106490096,
+        3.420378697890583,
+        3.18172440344433,
+        2.9046156923566055,
+        2.5731584691401475,
+        2.3501820798798323,
+        2.043629056524261,
+        1.8451632720174902,
+        1.6990381166436583,
+        1.5870403961222348,
+        1.4233778162554196,
+        1.3015791531429741,
+        1.2474503730985715,
+        1.216487401100199,
+        1.142207527417367,
+        1.0807022379492623,
+        1.0324689529312983
+      ],
+      "upper": [
+        2.4825735553993087,
+        3.0290324602754164,
+        3.505793683606607,
+        3.8107800547217203,
+        3.9411273411557173,
+        4.035070247345058,
+        4.035872998190138,
+        4.0410689699218985,
+        3.963968972668304,
+        3.8742992074460303,
+        3.8093986358629293,
+        3.617938489350991,
+        3.463474502109417,
+        3.2157735965556697,
+        2.924077907643394,
+        2.590748330859852,
+        2.3643339201201674,
+        2.054063743475739,
+        1.8531151279825098,
+        1.7157954833563418,
+        1.597414403877765,
+        1.4320353837445805,
+        1.3098220468570259,
+        1.2557192269014286,
+        1.2198717988998011,
+        1.148016072582633,
+        1.0906633620507378,
+        1.0382342470687018
+      ],
+      "unit": "M tps"
+    },
+    {
+      "workload": "write-heavy",
+      "metric": "abort_rate",
+      "kind": "line",
+      "label": "write-heavy abort rate",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        0.7896,
+        0.7075,
+        0.6384,
+        0.5879,
+        0.5359,
+        0.4975,
+        0.4693,
+        0.4216,
+        0.3867,
+        0.3615,
+        0.3261,
+        0.2891,
+        0.2621,
+        0.224,
+        0.1905,
+        0.1576,
+        0.1373,
+        0.1128,
+        0.0976,
+        0.0868,
+        0.0794,
+        0.0685,
+        0.0612,
+        0.0575,
+        0.0555,
+        0.0512,
+        0.0478,
+        0.0449
+      ],
+      "unit": "fraction",
+      "ci_artist": false
+    },
+    {
+      "workload": "balanced",
+      "metric": "throughput_mean",
+      "kind": "line",
+      "label": "balanced throughput",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        3.888595,
+        4.247304,
+        4.424342599999999,
+        4.408553,
+        4.3895178,
+        4.2937368,
+        4.213987,
+        4.0433342,
+        3.8830296,
+        3.7395568,
+        3.5521624,
+        3.2806468,
+        3.073443,
+        2.7555222,
+        2.4270897999999996,
+        2.0932716,
+        1.8654633999999999,
+        1.5875956,
+        1.411397,
+        1.291413,
+        1.192774,
+        1.0589572,
+        0.9633424,
+        0.920038,
+        0.893466,
+        0.8360394,
+        0.7900936,
+        0.7543112
+      ],
+      "unit": "M tps"
+    },
+    {
+      "workload": "balanced",
+      "metric": "throughput_ci95",
+      "kind": "interval",
+      "label": "balanced throughput 95% CI",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        0.1252260854917038,
+        0.14825387990953087,
+        0.09423778014660382,
+        0.06857094207309203,
+        0.024896039000886567,
+        0.044388653446377505,
+        0.03203852546100735,
+        0.030494948978280555,
+        0.022553840738083097,
+        0.02815112908199486,
+        0.0052661257135693425,
+        0.017791341914171404,
+        0.019610751191548013,
+        0.011216282008159599,
+        0.0062060228228787255,
+        0.007616478226089135,
+        0.008762466100794203,
+        0.006170137415996301,
+        0.003019406327207604,
+        0.00425062148212796,
+        0.004194921987836815,
+        0.004364755420219362,
+        0.0023257507888774834,
+        0.0030514267273778397,
+        0.0041307894850697476,
+        0.003959224407512307,
+        0.0033132088055092416,
+        0.0012202943391349907
+      ],
+      "lower": [
+        3.763368914508296,
+        4.099050120090469,
+        4.330104819853395,
+        4.339982057926909,
+        4.364621760999113,
+        4.249348146553622,
+        4.181948474538993,
+        4.0128392510217195,
+        3.860475759261917,
+        3.711405670918005,
+        3.5468962742864303,
+        3.2628554580858284,
+        3.053832248808452,
+        2.7443059179918405,
+        2.4208837771771208,
+        2.085655121773911,
+        1.8567009338992058,
+        1.5814254625840036,
+        1.4083775936727925,
+        1.2871623785178719,
+        1.1885790780121632,
+        1.0545924445797807,
+        0.9610166492111225,
+        0.9169865732726222,
+        0.8893352105149303,
+        0.8320801755924877,
+        0.7867803911944907,
+        0.753090905660865
+      ],
+      "upper": [
+        4.013821085491704,
+        4.39555787990953,
+        4.518580380146603,
+        4.477123942073092,
+        4.414413839000887,
+        4.338125453446377,
+        4.2460255254610075,
+        4.073829148978281,
+        3.905583440738083,
+        3.7677079290819946,
+        3.5574285257135694,
+        3.2984381419141715,
+        3.0930537511915484,
+        2.7667384820081597,
+        2.4332958228228785,
+        2.100888078226089,
+        1.874225866100794,
+        1.5937657374159964,
+        1.4144164063272076,
+        1.295663621482128,
+        1.1969689219878368,
+        1.0633219554202193,
+        0.9656681507888776,
+        0.9230894267273778,
+        0.8975967894850697,
+        0.8399986244075123,
+        0.7934068088055092,
+        0.7555314943391349
+      ],
+      "unit": "M tps"
+    },
+    {
+      "workload": "balanced",
+      "metric": "abort_rate",
+      "kind": "line",
+      "label": "balanced abort rate",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        0.6775,
+        0.6095,
+        0.5549,
+        0.5174,
+        0.4838,
+        0.4631,
+        0.4417,
+        0.4116,
+        0.3858,
+        0.3665,
+        0.342,
+        0.313,
+        0.2905,
+        0.2588,
+        0.2274,
+        0.1935,
+        0.1728,
+        0.1454,
+        0.1281,
+        0.1153,
+        0.1062,
+        0.0927,
+        0.0831,
+        0.0785,
+        0.0759,
+        0.0703,
+        0.0657,
+        0.0617
+      ],
+      "unit": "fraction",
+      "ci_artist": false
+    },
+    {
+      "workload": "read-heavy",
+      "metric": "throughput_mean",
+      "kind": "line",
+      "label": "read-heavy throughput",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        10.248284,
+        9.9654234,
+        9.7552776,
+        9.545053,
+        9.337086,
+        9.150807,
+        8.942233400000001,
+        8.6221954,
+        8.3651726,
+        8.0967042,
+        7.7787646,
+        7.314931400000001,
+        6.932225799999999,
+        6.3395928,
+        5.682097,
+        4.952785400000001,
+        4.464845599999999,
+        3.8061776000000003,
+        3.3973188,
+        3.1021634,
+        2.878422,
+        2.5451504,
+        2.307994,
+        2.2004026,
+        2.1346566,
+        1.9975808000000002,
+        1.8846854,
+        1.7876578
+      ],
+      "unit": "M tps"
+    },
+    {
+      "workload": "read-heavy",
+      "metric": "throughput_ci95",
+      "kind": "interval",
+      "label": "read-heavy throughput 95% CI",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        0.1355691076000043,
+        0.11772432844402574,
+        0.12792357479946312,
+        0.13970956447091099,
+        0.13717123337134154,
+        0.10418845804421353,
+        0.08977775848191961,
+        0.118587671761642,
+        0.06861306050820395,
+        0.0964733109653274,
+        0.02255713740783059,
+        0.05903192706440089,
+        0.03734013766723631,
+        0.026927956657315965,
+        0.0179485873652533,
+        0.016634894989893165,
+        0.004382431982644029,
+        0.005364389741766151,
+        0.0038712180696774717,
+        0.0029057312806558162,
+        0.004582890146597008,
+        0.007399449130220474,
+        0.004804641663931531,
+        0.0062549129610757525,
+        0.006072401268593258,
+        0.005432456901547297,
+        0.0037802272921145844,
+        0.005979107532843723
+      ],
+      "lower": [
+        10.112714892399996,
+        9.847699071555974,
+        9.627354025200537,
+        9.405343435529089,
+        9.199914766628657,
+        9.046618541955787,
+        8.852455641518082,
+        8.503607728238359,
+        8.296559539491795,
+        8.000230889034672,
+        7.756207462592169,
+        7.2558994729355994,
+        6.894885662332763,
+        6.312664843342684,
+        5.664148412634747,
+        4.936150505010107,
+        4.460463168017355,
+        3.800813210258234,
+        3.3934475819303223,
+        3.099257668719344,
+        2.873839109853403,
+        2.5377509508697793,
+        2.3031893583360685,
+        2.194147687038924,
+        2.128584198731407,
+        1.9921483430984528,
+        1.8809051727078854,
+        1.7816786924671564
+      ],
+      "upper": [
+        10.383853107600004,
+        10.083147728444027,
+        9.883201174799462,
+        9.68476256447091,
+        9.474257233371342,
+        9.254995458044213,
+        9.03201115848192,
+        8.740783071761642,
+        8.433785660508203,
+        8.193177510965327,
+        7.8013217374078305,
+        7.373963327064402,
+        6.969565937667236,
+        6.366520756657316,
+        5.700045587365253,
+        4.969420294989894,
+        4.469228031982643,
+        3.8115419897417664,
+        3.4011900180696775,
+        3.1050691312806555,
+        2.883004890146597,
+        2.5525498491302203,
+        2.3127986416639312,
+        2.2066575129610757,
+        2.140729001268593,
+        2.0030132569015473,
+        1.8884656272921145,
+        1.7936369075328438
+      ],
+      "unit": "M tps"
+    },
+    {
+      "workload": "read-heavy",
+      "metric": "abort_rate",
+      "kind": "line",
+      "label": "read-heavy abort rate",
+      "x": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        10,
+        12,
+        15,
+        20,
+        25,
+        35,
+        50,
+        75,
+        100,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        560,
+        600,
+        700,
+        800,
+        900
+      ],
+      "y": [
+        0.1536,
+        0.1495,
+        0.1455,
+        0.1407,
+        0.1378,
+        0.1344,
+        0.1321,
+        0.1271,
+        0.122,
+        0.1184,
+        0.113,
+        0.1057,
+        0.1,
+        0.091,
+        0.0813,
+        0.071,
+        0.0637,
+        0.0547,
+        0.0486,
+        0.0443,
+        0.041,
+        0.0361,
+        0.0328,
+        0.0311,
+        0.0302,
+        0.028,
+        0.0263,
+        0.0249
+      ],
+      "unit": "fraction",
+      "ci_artist": false
+    }
+  ],
+  "axis_contract": {
+    "layout": {
+      "rows": 2,
+      "columns": 3,
+      "workload_order": [
+        "write-heavy",
+        "balanced",
+        "read-heavy"
+      ],
+      "top_metric": "throughput_mean",
+      "bottom_metric": "abort_rate"
+    },
+    "x": {
+      "scale": "symlog",
+      "base": 10,
+      "linthresh": 1,
+      "linscale": 1,
+      "fixed_ticks": [
+        0,
+        1,
+        3,
+        10,
+        35,
+        100,
+        300,
+        900
+      ],
+      "includes_zero": true,
+      "includes_900": true
+    },
+    "y": {
+      "shared": false,
+      "scope": "workload-local",
+      "autoscale": true,
+      "throughput_unit": "M tps",
+      "abort_unit": "fraction"
+    },
+    "artist_series_count": 9,
+    "abort_ci_artist": false,
+    "bbox_overlap_policy": "fail-before-save-including-tick-labels"
+  },
+  "claim_boundary": {
+    "claim_scope": "descriptive_backoff_shape_only",
+    "estimand_matches_paper_headline": false,
+    "paper_gain_eligible": false,
+    "same_campaign_contrast": true,
+    "prereg_frozen_comparison_rule": false
+  },
+  "text_contract": {
+    "figure_body": "Panel heights and slopes use workload-local y scales and must not be compared across panels.",
+    "caption": "Extended static backoff under trace-disabled committed measurements (48 threads, 1,000,000 records, Zipf skew 0.9, read ratios 5/50/95%, read-modify-write (RMW) disabled, Pegasus hosts bnode007/bnode009/bnode016). Throughput is reported in M tps = million transactions per second and is the mean of five WAL repetitions with t-distribution 95% confidence intervals; abort rate is the dat fraction and has no repetition-level confidence interval. Static 0 µs means BACK_OFF=1 and BACKOFF_FIXED=0, not no backoff. The requested 1000 µs row is retained in provenance but excluded under the canonical F718/D1106 ruling, which asserts mode 1 and amplitude 0 as a ruling interpretation rather than a value derived from measurement artifacts. Latency is retained for provenance but is not drawn or treated as independent mechanism evidence: in this 48-thread closed-loop benchmark it is the reciprocal-throughput quantity. Panel heights and slopes use workload-local y scales and must not be compared across panels.",
+    "provenance": "Panel heights and slopes use workload-local y scales and must not be compared across panels.",
+    "comparison_warning": "Panel heights and slopes use workload-local y scales and must not be compared across panels.",
+    "latency_note": "Latency is retained for provenance but is not drawn or treated as independent mechanism evidence: in this 48-thread closed-loop benchmark it is the reciprocal-throughput quantity.",
+    "static_zero_is_no_backoff": false,
+    "add_analysis_drawn": false,
+    "legacy_three_percent_floor_drawn": false,
+    "noise_band_or_onset_drawn": false,
+    "no_backoff_or_adaptive_baseline_drawn": false
+  }
+}

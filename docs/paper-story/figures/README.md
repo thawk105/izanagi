@@ -15,6 +15,7 @@
 | `fig2_backoff_mechanism.png` | tracked に無い | 凍結。**baseline を誤って label している** (下記) |
 | `fig3_arc_status.png` | tracked に無い | 凍結。2026-07-10 版 (Phase 3 段 5 時点) の現況図 |
 | `fig2b_backoff_sweep_3workload.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_backoff.py` | `fig2_` の**後継図**。本 README が再現手順を持つ |
+| `fig2c_b10_extended_backoff.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_extended_backoff.py` | B-10 拡張格子の**記述図**。1000 µs を F718 により除外した有効 28 点 |
 | `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
 
 ## `fig2_backoff_mechanism.png` の何が誤っていたか
@@ -149,6 +150,58 @@ positive control と build 失敗) は、上記 insight の該当節にある。
 - 図中の label と実際に描いた線の一致 → `orchestrator/tests/test_plot_backoff_ci.py`
 - 利得率の一次資料と条件表 → `output/insights/2026-08-25_paper-story-a3-gain-unification/README.md`
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+---
+
+# `fig2c_b10_extended_backoff` — B-10 拡張格子
+
+適応 backoff の帯域を静的点で覆うために取得済みだった 3 workload の拡張格子を、
+新規計測なしで論文図へ変換した。上段は WAL の各 5 反復から再計算した標本平均 throughput と
+t 分布 95% 信頼区間、下段は dat の集約 abort rate である。
+
+## 入力と除外
+
+| job | workload | campaign id | identity SHA-256 |
+|---:|---|---|---|
+| 951689 | write-heavy | `b10-backoff-grid-silo-write-heavy-sweep-0a386b45` | `0a386b454829f7d3487ba016b81fe1360d6bf7c8a54666a9f33830dbfd196c7a` |
+| 951690 | balanced | `b10-backoff-grid-silo-balanced-sweep-9ded73c4` | `9ded73c4e7d0ffc7ef77d0f909194b3aa83823d72414872c137b7b419ddc86c8` |
+| 951691 | read-heavy | `b10-backoff-grid-silo-read-heavy-sweep-e2d75497` | `e2d75497facce68e80ee5468ac14070d51a96af7b0f9a297ac87bed8758e0c6a` |
+
+各 campaign は raw 29 点を持つ。要求値 1000 µs は符号化衝突により mode 1・振幅 0 と解釈され、
+実体は 0 µs の独立反復だった (F718)。その測定値は provenance に保持するが、格子点としては
+3 workload とも除外し、図には 0〜900 µs の有効 28 点だけを描く。static 0 µs は
+`BACK_OFF=1, BACKOFF_FIXED=0` であり、no backoff ではない (D1106)。
+
+## 再現
+
+repo root から、**計測機の外**で実行する。`MEASUREMENT_ROOT` は、provenance に記録された
+root-relative 22 入力を保持するディレクトリである。
+
+```
+python3 tools/plotting/plot_b10_extended_backoff.py docs/paper-story/figures/fig2c_b10_extended_backoff MEASUREMENT_ROOT
+```
+
+出力は `.png`、`.pdf`、`.provenance.json` の 3 点。入力 root を別の場所へ移した場合も、
+relative path と SHA-256 が一致すれば同じ入力として検証できる。外部 bytes が手元に無い場合でも、
+provenance の 22 入力、receipt chain、測定条件、claim 境界、図と生成器の repo closure は検査される。
+
+## キャプション正文
+
+> Extended static backoff under trace-disabled committed measurements (48 threads, 1,000,000 records, Zipf skew 0.9, read ratios 5/50/95%, read-modify-write (RMW) disabled, Pegasus hosts bnode007/bnode009/bnode016). Throughput is reported in M tps = million transactions per second and is the mean of five WAL repetitions with t-distribution 95% confidence intervals; abort rate is the dat fraction and has no repetition-level confidence interval. Static 0 µs means BACK_OFF=1 and BACKOFF_FIXED=0, not no backoff. The requested 1000 µs row is retained in provenance but excluded under the canonical F718/D1106 ruling, which asserts mode 1 and amplitude 0 as a ruling interpretation rather than a value derived from measurement artifacts. Latency is retained for provenance but is not drawn or treated as independent mechanism evidence: in this 48-thread closed-loop benchmark it is the reciprocal-throughput quantity. Panel heights and slopes use workload-local y scales and must not be compared across panels.
+
+旧 3% floor は現環境・workload 別に取り直す裁定 (D1094) の前なので、本図は noise band や
+over-throttling onset の判定を描かない。ADD_ANALYSIS の診断値も D1092 に従い図へ使わない。
+
+## proof chain
+
+- 描画 84 点 → provenance `data[*].included_points` (各 workload 28 点)
+- 除外 3 点 → `data[*].excluded_points` (1000 µs の値と F718 authority を保持)
+- throughput と CI → WAL の 5 反復から独立再計算
+- job / campaign / source 対応 → submit + completion + reservation + campaign lock
+- 入力・生成器・依存・PNG/PDF → provenance の full SHA-256
+- 着地 bytes → `orchestrator/tests/test_b10_extended_figure_provenance.py` の独立 PNG/PDF pin
+- 図中の9系列・軸・label → `orchestrator/tests/test_plot_b10_extended_backoff.py`
+- 作図規約 → `tools/plotting/FIGURE_CONVENTIONS.md`
 
 ---
 

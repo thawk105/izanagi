@@ -15,9 +15,9 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
   (rebase / cherry-pick は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
   (spool の不在は fold で正常)。未着地なら §5 で報告
 - `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>` を単独実行
-  (パイプ禁止・rc を直後に保存、F152)。rc0削除/1§5報告・救出判断/2実行不能・削除停止。
-  抑止行も rc0 で §5 へ。最終 `elapsed_seconds=` 欠落・未知 rc も削除停止。上限超過行は
-  rc・削除可否を変えず §5 へ報告 (上限の正本は tool `--help`)
+  (パイプ禁止、rc直後保存、F152)。分岐: `docs/unreachable-object-ledger.md`
+- 全削除・撤去候補を 1 回で `python3 tools/check_branch_rescue.py --ledger-check --branch <b>...
+  --retire-worktree <absolute-path>...` に渡す。rc0完全/2不完全/3通知/64usage・JSON は §5 へ
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
@@ -54,8 +54,8 @@ worktree の削除と prune をせず、detach → branch -d → unlock まで�
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-リモート branch の削除 (`git push origin --delete <b>`) と main の push は行わず、対象を列挙して
-ユーザーへ提示する。削除しなかったブランチ・worktree は理由 (ahead>0、dirty 等) と併せて報告する。
+リモート branch の削除 (`git push origin --delete <b>`) と main の push は行わず、対象をユーザーへ列挙。
+削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
 
 ## 6. スキル自己改善 (発火条件つき)
 

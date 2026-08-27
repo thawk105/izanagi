@@ -49,6 +49,9 @@ def _load_plot_module():
             records=tuple(records),
             read_purpose=CampaignReadPurpose.HISTORICAL_RAW,
             campaign_verifier_epoch=epoch,
+            verifier_assessment_basis=(
+                "recorded-at-original-verifier-epoch"
+            ),
         )
 
     # These parser fixtures intentionally contain no campaign.lock.  Keep their
