@@ -33,6 +33,10 @@ title: [T-1434] catalog-backed oracle wiring sliceでtask-specific束縛を実�
   SURVIVED/MISMATCH/PARSE_ERROR/TIMEOUT 0。OR-M1はdiagnostic sensitivity、OR-M2〜M6の5件を
   correctness/integrity killとして数える。artifactは
   `output/insights/2026-08-28_t1434-oracle-wiring/`。
+- 記録commit後の受入全走attempt 1は、実行時main `73a437e67`を取り込んだtip `0d4be4822`で
+  `child-green`、18,359 passed / 62 skipped、red/flake node 0件。receiptは
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/acceptance-receipt-1.json`。
+  本fragmentへ結果を追記したdocs-only commitを含むtipは、最終受入で再検査する。
 - mutationの最初の全file baselineはnested submodule未初期化の既存fixtureでPARSE_ERRORとなり、変異0件で停止。
   isolated cloneとmutation関連node限定へ切り替えた。probeはSURVIVED期待なので6 MISMATCHが正しい観測で、
   final matrixへ数えていない。旧scratchは削除せずretained directoryへ移し、Git worktree登録だけpruneした。
