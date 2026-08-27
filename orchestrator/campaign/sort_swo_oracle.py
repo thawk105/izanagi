@@ -38,6 +38,11 @@ from enum import Enum
 from pathlib import Path, PurePosixPath
 from typing import Callable, Mapping, Optional, Sequence
 
+if __package__:
+    from .evolve_block import extract_materialized_evolve_block
+else:  # Direct broker subprocess executes this file by absolute path.
+    from evolve_block import extract_materialized_evolve_block
+
 
 CORPUS_VERSION = 2
 PROTOCOL_VERSION = 3
@@ -491,23 +496,8 @@ def _sha256(text: str) -> str:
 
 
 def extract_materialized_hole(materialized_source: str, marker_id: str) -> str:
-    """Return exact post-materialization bytes between the marker's #if/#else."""
-    lines = materialized_source.splitlines(keepends=True)
-    begin = re.compile(r"EVOLVE-BLOCK-BEGIN\s+" + re.escape(marker_id) + r"\b")
-    end = re.compile(r"EVOLVE-BLOCK-END\s+" + re.escape(marker_id) + r"\b")
-    begins = [i for i, line in enumerate(lines) if begin.search(line)]
-    ends = [i for i, line in enumerate(lines) if end.search(line)]
-    if len(begins) != 1 or len(ends) != 1 or not begins[0] < ends[0]:
-        raise ValueError("materialized marker boundary is not unique")
-    body_range = range(begins[0] + 1, ends[0])
-    if_lines = [i for i in body_range if re.match(r"^\s*#\s*if(?:def|ndef)?\b", lines[i])]
-    else_lines = [i for i in body_range if re.match(r"^\s*#\s*else\b", lines[i])]
-    endif_lines = [i for i in body_range if re.match(r"^\s*#\s*endif\b", lines[i])]
-    if not (len(if_lines) == len(else_lines) == len(endif_lines) == 1):
-        raise ValueError("materialized marker does not contain one #if/#else/#endif")
-    if not if_lines[0] < else_lines[0] < endif_lines[0]:
-        raise ValueError("materialized marker branch ordering is invalid")
-    return "".join(lines[if_lines[0] + 1:else_lines[0]])
+    """Compatibility wrapper returning the former exact hole bytes."""
+    return extract_materialized_evolve_block(materialized_source, marker_id).hole
 
 
 def _raw_string_end(source: str, start: int) -> Optional[int]:

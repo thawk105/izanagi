@@ -1,0 +1,663 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3db82c182603d8aee5b7f676e63b82ab/izdw-3db82c1826.o953870",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3db82c182603d8aee5b7f676e63b82ab/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n...............                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n============================== 15 passed in 4.12s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "a2835f3ae8b60ff051fc89492532b7211251f7e35497119bbb4747d131f3551c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+    "duration_s": 424.874,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ae52e33ece906b54938e52ae8614a1480b1fac80ec5f04426d999355c6259b5e",
+    "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+    "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+    "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+    "status": "PASSED",
+    "test_output_sha256": "a2835f3ae8b60ff051fc89492532b7211251f7e35497119bbb4747d131f3551c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+  },
+  "date": "2026-08-27T17:51:24.571600+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8f45710cf43c7150950316fe594e2a20/izdw-8f45710cf4.o953895",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8f45710cf43c7150950316fe594e2a20/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n......F.FFF....                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n______________ test_wrong_cache_rhs_rejects_supply_value_mismatch ______________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_wrong_cache_rhs_rejects_s0')\n\n    def test_wrong_cache_rhs_rejects_supply_value_mismatch(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        options = root / G.OPTIONS_REL\n        text = options.read_text(encoding=\"utf-8\")\n        options.write_text(\n            text.replace(\n                \"BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\",\n                \"BACKOFF_FIXED=${CCBENCH_BACKOFF_NOINLINE}\",\n            ),\n            encoding=\"utf-8\",\n        )\n        captured = G.capture_backoff_fixed_inputs(root)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:162: Failed\n________________ test_bare_supply_is_value_mismatch_not_missing ________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_bare_supply_is_value_mism0')\n\n    def test_bare_supply_is_value_mismatch_not_missing(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        options = root / G.OPTIONS_REL\n        text = options.read_text(encoding=\"utf-8\")\n        options.write_text(\n            text.replace(\n                \"BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\",\n                \"BACKOFF_FIXED\",\n            ),\n            encoding=\"utf-8\",\n        )\n        captured = G.capture_backoff_fixed_inputs(root)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:211: Failed\n______ test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches ______\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_wrong_cache_rhs_is_reject0')\n\n    def test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        options = root / G.OPTIONS_REL\n        text = options.read_text(encoding=\"utf-8\")\n        text = text.replace(\n            \"set(CCBENCH_BACKOFF_NOINLINE 0 CACHE STRING\",\n            \"set(CCBENCH_BACKOFF_NOINLINE 5 CACHE STRING\",\n        )\n        text = text.replace(\n            \"BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\",\n            \"BACKOFF_FIXED=${CCBENCH_BACKOFF_NOINLINE}\",\n        )\n        options.write_text(text, encoding=\"utf-8\")\n        captured = G.capture_backoff_fixed_inputs(root)\n    \n        resolution = G.source_digest.resolve_effective_defines_from_cmake_sources(\n            G.SOURCE_REL,\n            G.Genome(G.PROTOCOL, {G.MACRO: 5}),\n            options_text=captured.options_text,\n            protocol_cmake_text=captured.protocol_cmake_text,\n        )\n        assert resolution.cache_name(G.MACRO) == \"BACKOFF_NOINLINE\"\n        assert resolution.effective_value(G.MACRO) == \"5\"\n    \n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:193: Failed\n______________ test_f707_missing_mapping_rejected_before_compiler ______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145a6c72f0d0>\n\n    def test_f707_missing_mapping_rejected_before_compiler(monkeypatch: pytest.MonkeyPatch):\n        assert _fixture_hole(_F707) == _fixture_hole(_SUPPLIED)\n        captured = G.capture_backoff_fixed_inputs(_F707)\n        supplied_names = G.source_digest.parse_supplied_macros(\n            captured.options_text, captured.protocol_cmake_text,\n        )\n        assert supplied_names == {\"BACKOFF_NOINLINE\"}\n        supplied_options = (_SUPPLIED / G.OPTIONS_REL).read_text(encoding=\"utf-8\")\n        assert captured.options_text == supplied_options.replace(\n            \"    BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\\n\", \"\",\n        )\n    \n        def forbidden(*args, **kwargs):\n            pytest.fail(\"compiler seam was reached before supply rejection\")\n    \n        monkeypatch.setattr(G, \"_resolve_compiler\", forbidden)\n        monkeypatch.setattr(G, \"_run_process\", forbidden)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:134: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler\n========================= 4 failed, 11 passed in 4.19s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 rendered_excerpt_bytes=1444 sha256=855f72aff183e450d3a5e8db8c2f9763bb12d4aa6bffefc574f102ad286638f3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_wrong_cache_rhs_is_reject0')\n> \n>     def test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         options = root / G.OPTIONS_REL\n>         text = options.read_text(encoding=\"utf-8\")\n>         text = text.replace(\n>             \"set(CCBENCH_BACKOFF_NOINLINE 0 CACHE STRING\",\n>             \"set(CCBENCH_BACKOFF_NOINLINE 5 CACHE STRING\",\n>         )\n>         text = text.replace(\n>             \"BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\",\n>             \"BACKOFF_FIXED=${CCBENCH_BACKOFF_NOINLINE}\",\n>         )\n>         options.write_text(text, encoding=\"utf-8\")\n>         captured = G.capture_backoff_fixed_inputs(root)\n>     \n>         resolution = G.source_digest.resolve_effective_defines_from_cmake_sources(\n>             G.SOURCE_REL,\n>             G.Genome(G.PROTOCOL, {G.MACRO: 5}),\n>             options_text=captured.options_text,\n>             protocol_cmake_text=captured.protocol_cmake_text,\n>         )\n>         assert resolution.cache_name(G.MACRO) == \"BACKOFF_NOINLINE\"\n>         assert resolution.effective_value(G.MACRO) == \"5\"\n>     \n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:193: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1184 retained_bytes=1184 omitted_bytes=0 rendered_excerpt_bytes=1238 sha256=d6c7a7630c4bd8f06ff8c6e2c797a6f9ef750fec76a1bb1dceb8579ac7e3031a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145a6c72f0d0>\n> \n>     def test_f707_missing_mapping_rejected_before_compiler(monkeypatch: pytest.MonkeyPatch):\n>         assert _fixture_hole(_F707) == _fixture_hole(_SUPPLIED)\n>         captured = G.capture_backoff_fixed_inputs(_F707)\n>         supplied_names = G.source_digest.parse_supplied_macros(\n>             captured.options_text, captured.protocol_cmake_text,\n>         )\n>         assert supplied_names == {\"BACKOFF_NOINLINE\"}\n>         supplied_options = (_SUPPLIED / G.OPTIONS_REL).read_text(encoding=\"utf-8\")\n>         assert captured.options_text == supplied_options.replace(\n>             \"    BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\\x5cn\", \"\",\n>         )\n>     \n>         def forbidden(*args, **kwargs):\n>             pytest.fail(\"compiler seam was reached before supply rejection\")\n>     \n>         monkeypatch.setattr(G, \"_resolve_compiler\", forbidden)\n>         monkeypatch.setattr(G, \"_run_process\", forbidden)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=820 retained_bytes=820 omitted_bytes=0 rendered_excerpt_bytes=861 sha256=a02641653e659c9274e306a42a554ad63649b3e9de40946bb486955028c27603\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_wrong_cache_rhs_rejects_s0')\n> \n>     def test_wrong_cache_rhs_rejects_supply_value_mismatch(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         options = root / G.OPTIONS_REL\n>         text = options.read_text(encoding=\"utf-8\")\n>         options.write_text(\n>             text.replace(\n>                 \"BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\",\n>                 \"BACKOFF_FIXED=${CCBENCH_BACKOFF_NOINLINE}\",\n>             ),\n>             encoding=\"utf-8\",\n>         )\n>         captured = G.capture_backoff_fixed_inputs(root)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:162: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=788 retained_bytes=788 omitted_bytes=0 rendered_excerpt_bytes=829 sha256=a047bef1a977154f5aa491c5e42a95c7517df54cb7092a3aa3863e77518b227c\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_bare_supply_is_value_mism0')\n> \n>     def test_bare_supply_is_value_mismatch_not_missing(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         options = root / G.OPTIONS_REL\n>         text = options.read_text(encoding=\"utf-8\")\n>         options.write_text(\n>             text.replace(\n>                 \"BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\",\n>                 \"BACKOFF_FIXED\",\n>             ),\n>             encoding=\"utf-8\",\n>         )\n>         captured = G.capture_backoff_fixed_inputs(root)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:211: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=4171 retained_bytes=4171 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6432 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "dd46c90595cfc45c40a57c60aef5c510d0792d93614c17653a878b5881809562"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 28.813,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.supply-all-guards",
+      "injection_diff_sha256": "bc0150dd7d4be26b20bb3f9c0354a856e0b62bf61f65216ba6d06b502682a6d0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fd82fb12f2d8becb78a4d1047e729f16b8dee672999259feca9701de66c687fa",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "        effective = resolution.effective_value(MACRO)\n",
+          "old": "        if MACRO not in resolution.supplied_macros:\n            raise ConditionMeaningGateError(\n                \"macro-not-supplied\", \"BACKOFF_FIXED cache-to-TU mapping is absent\",\n                define_value=value,\n            )\n        effective = resolution.effective_value(MACRO)\n        if cache_name != MACRO or effective != str(value):\n            route = \"bare define without a cache mapping\" if cache_name is None \\\n                else f\"CCBENCH_{cache_name}\"\n            if cache_name != MACRO:\n                route += f\", not CCBENCH_{MACRO}\"\n            raise ConditionMeaningGateError(\n                \"supply-value-mismatch\",\n                f\"BACKOFF_FIXED maps through {route}, to {effective!r}\",\n                define_value=value,\n                expected=str(value),\n                observed=effective,\n            )\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "dd46c90595cfc45c40a57c60aef5c510d0792d93614c17653a878b5881809562",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/da830637865bce86fe3f20381c4b9299/izdw-da83063786.o953898",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/da830637865bce86fe3f20381c4b9299/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n..............F                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n______________ test_duplicate_correct_marker_blocks_are_rejected _______________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_duplicate_correct_marker_0')\n\n    def test_duplicate_correct_marker_blocks_are_rejected(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        source = root / G.SOURCE_REL\n        text = source.read_text(encoding=\"utf-8\")\n        source.write_text(text + text, encoding=\"utf-8\")\n        captured = G.capture_backoff_fixed_inputs(root)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:241: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected\n========================= 1 failed, 14 passed in 4.12s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=645 retained_bytes=645 omitted_bytes=0 rendered_excerpt_bytes=674 sha256=92abac64bfc2b022976a4ad32a8e389023bbe50e92a382576b200a5104eaa9a5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_duplicate_correct_marker_0')\n> \n>     def test_duplicate_correct_marker_blocks_are_rejected(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         source = root / G.SOURCE_REL\n>         text = source.read_text(encoding=\"utf-8\")\n>         source.write_text(text + text, encoding=\"utf-8\")\n>         captured = G.capture_backoff_fixed_inputs(root)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:241: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=645 retained_bytes=645 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1397 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e8f5710aee5466c780601e5293a6bd79f829dede1f6948b82228beb3105b6d16"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 27.316,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.marker-unique",
+      "injection_diff_sha256": "11e1a96cc3a571600cecd1d9cd7d8de3cb0ffd576730d5caea06662fedb76d8c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "eb8f4e8e73538f4f5aecc1fb8045b4db00ae0ac4f97c180c16a308ed177b87f1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/evolve_block.py",
+          "new": "    if not begins or not ends or not begins[0] < ends[0]:\n        raise ValueError(\"materialized marker boundary is not unique\")\n",
+          "old": "    if len(begins) != 1 or len(ends) != 1 or not begins[0] < ends[0]:\n        raise ValueError(\"materialized marker boundary is not unique\")\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "e8f5710aee5466c780601e5293a6bd79f829dede1f6948b82228beb3105b6d16",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/35817dbc2c44e43229f6571944465619/izdw-35817dbc2c.o953900",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/35817dbc2c44e43229f6571944465619/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n..............F                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n_________________ test_result_identifier_must_be_exact_double __________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_result_identifier_must_be0')\n\n    def test_result_identifier_must_be_exact_double(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        _replace_source(\n            root,\n            B10.EXPECTED_HOLE_LINE,\n            \"    std::uint64_t now_backoff = 0x4014000000000000ULL;\",\n        )\n        captured = G.capture_backoff_fixed_inputs(root)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:284: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double\n========================= 1 failed, 14 passed in 4.09s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=654 retained_bytes=654 omitted_bytes=0 rendered_excerpt_bytes=687 sha256=046ba0e93ba9e4282c347016952bc9a537e45273b71b100eea08703c553c9cbd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_result_identifier_must_be0')\n> \n>     def test_result_identifier_must_be_exact_double(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         _replace_source(\n>             root,\n>             B10.EXPECTED_HOLE_LINE,\n>             \"    std::uint64_t now_backoff = 0x4014000000000000ULL;\",\n>         )\n>         captured = G.capture_backoff_fixed_inputs(root)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:284: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=654 retained_bytes=654 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1403 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "88c7edb711116d74bc71df7910256934a59ddab7df641171958ab29ec48d0f84"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 27.278,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.result-exact-double",
+      "injection_diff_sha256": "8899a0cc9f30a1e7aa648cbec8196e03e8ac09548db343334e6b3f151a5e087f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f0574f4ad350dece0b106452c3ab41ba518643c377177d23dc197ba0804d6bb5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "                \"    static_assert(true);\",\n",
+          "old": "                f\"    static_assert(std::is_same_v<decltype({RESULT_IDENTIFIER}), double>);\",\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "88c7edb711116d74bc71df7910256934a59ddab7df641171958ab29ec48d0f84",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2451adccb20ac491d238953168c056de/izdw-2451adccb2.o953903",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2451adccb20ac491d238953168c056de/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n............FFF                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________________________ test_f718_1000_decodes_to_zero ________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_f718_1000_decodes_to_zero():\n        captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n        supply = G.assert_backoff_fixed_supply(captured, [1000])\n        assert supply.driver_integration == \"none\"\n        assert supply.observations[0].effective_value == \"1000\"\n        assert supply.input_files == captured.input_files\n    \n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:225: Failed\n_________ test_formula_in_comment_with_changed_expression_is_rejected __________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_formula_in_comment_with_c0')\n\n    def test_formula_in_comment_with_changed_expression_is_rejected(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        formula = B10.EXPECTED_HOLE_LINE\n        replacement = (\n            f\"    // {formula.strip()}\\n\"\n            \"    double now_backoff = static_cast<double>(BACKOFF_FIXED + 1);\"\n        )\n        _replace_source(root, formula, replacement)\n        captured = G.capture_backoff_fixed_inputs(root)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:255: Failed\n____________________ test_uniform_shift_decoder_is_rejected ____________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_uniform_shift_decoder_is_0')\n\n    def test_uniform_shift_decoder_is_rejected(tmp_path: Path):\n        root = _copied_fixture(tmp_path)\n        _replace_source(\n            root,\n            B10.EXPECTED_HOLE_LINE,\n            \"    double now_backoff = static_cast<double>(BACKOFF_FIXED + 1);\",\n        )\n        captured = G.capture_backoff_fixed_inputs(root)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:268: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected\n========================= 3 failed, 12 passed in 4.10s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=759 retained_bytes=759 omitted_bytes=0 rendered_excerpt_bytes=797 sha256=58d893c1697092438d3f6cfc1fe3b8cf04c442d4e5fe5fdfdb7dca33b6471a09\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_formula_in_comment_with_c0')\n> \n>     def test_formula_in_comment_with_changed_expression_is_rejected(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         formula = B10.EXPECTED_HOLE_LINE\n>         replacement = (\n>             f\"    // {formula.strip()}\\x5cn\"\n>             \"    double now_backoff = static_cast<double>(BACKOFF_FIXED + 1);\"\n>         )\n>         _replace_source(root, formula, replacement)\n>         captured = G.capture_backoff_fixed_inputs(root)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:255: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=659 retained_bytes=659 omitted_bytes=0 rendered_excerpt_bytes=692 sha256=f9738f1f8a8caa7a1d1c7fd2815824e337f11ee7ba42d2c8edfcca9646674ea5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_uniform_shift_decoder_is_0')\n> \n>     def test_uniform_shift_decoder_is_rejected(tmp_path: Path):\n>         root = _copied_fixture(tmp_path)\n>         _replace_source(\n>             root,\n>             B10.EXPECTED_HOLE_LINE,\n>             \"    double now_backoff = static_cast<double>(BACKOFF_FIXED + 1);\",\n>         )\n>         captured = G.capture_backoff_fixed_inputs(root)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:268: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=578 retained_bytes=578 omitted_bytes=0 rendered_excerpt_bytes=605 sha256=953dca5f53161cee02bcc19322d6776f2d67e5f098be8acb58df172b13eb71ed\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_f718_1000_decodes_to_zero():\n>         captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n>         supply = G.assert_backoff_fixed_supply(captured, [1000])\n>         assert supply.driver_integration == \"none\"\n>         assert supply.observations[0].effective_value == \"1000\"\n>         assert supply.input_files == captured.input_files\n>     \n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:225: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1996 retained_bytes=1996 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3673 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e5cd52b326306a8f3c305c7fd6d7eb2f52a85763a176d768e8e6a95a958e73b3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 27.302,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.pointwise-meaning",
+      "injection_diff_sha256": "118d13e900480e9d635a83ffe08897f6618979836896b25a557b525485d3d32c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "138e30d702985cc149de97549cc1f51a93d5dc15fc6439cc3dd8fe121a2e3e9e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "            if False:\n",
+          "old": "            if observed_bits != expected_bits:\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "e5cd52b326306a8f3c305c7fd6d7eb2f52a85763a176d768e8e6a95a958e73b3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7764edb51c1a477c0e8dfb861ab647ab/izdw-7764edb51c.o953907",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7764edb51c1a477c0e8dfb861ab647ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n........F.F....                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n______________________ test_run_return_code_fails_closed _______________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_run_return_code_fails_clo0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14971f577190>\n\n    def test_run_return_code_fails_closed(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n>       _assert_process_phase_failure(\n            tmp_path, monkeypatch, target_phase=\"run\",\n            target_result=subprocess.CompletedProcess(\n                [\"x\"], 4, stdout=b\"\", stderr=b\"\",\n            ),\n            expected_reason=\"decoder-run-failed\",\n        )\n\norchestrator/tests/test_condition_meaning_gate.py:453: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_run_return_code_fails_clo0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14971f577190>\ntarget_phase = 'run'\ntarget_result = CompletedProcess(args=['x'], returncode=4, stdout=b'', stderr=b'')\nexpected_reason = 'decoder-run-failed'\n\n    def _assert_process_phase_failure(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        *,\n        target_phase: str,\n        target_result: subprocess.CompletedProcess[bytes] | None,\n        expected_reason: str,\n    ) -> None:\n        compiler = tmp_path / \"fixture-cxx\"\n        compiler.write_text(\"#!/bin/sh\\nexit 0\\n\", encoding=\"utf-8\")\n        compiler.chmod(0o755)\n        process_phases: list[str] = []\n        observed_timeouts: list[float] = []\n    \n        def run(argv, **kwargs):\n            assert kwargs[\"capture_output\"] is True\n            assert kwargs[\"check\"] is False\n            observed_timeouts.append(kwargs[\"timeout\"])\n            phase = _process_phase(argv)\n            process_phases.append(phase)\n            valid = _valid_process_result(argv, phase)\n            if phase != target_phase:\n                return valid\n            if target_result is None:\n                raise subprocess.TimeoutExpired(argv, kwargs[\"timeout\"])\n            stdout = valid.stdout if phase == \"run\" else target_result.stdout\n            return subprocess.CompletedProcess(\n                argv, target_result.returncode,\n                stdout=stdout, stderr=target_result.stderr,\n            )\n    \n        monkeypatch.setattr(G.subprocess, \"run\", run)\n        captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:404: Failed\n____________________ test_compile_return_code_fails_closed _____________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_compile_return_code_fails0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1542595a7040>\n\n    def test_compile_return_code_fails_closed(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n>       _assert_process_phase_failure(\n            tmp_path, monkeypatch, target_phase=\"compile\",\n            target_result=subprocess.CompletedProcess(\n                [\"x\"], 4, stdout=b\"\", stderr=b\"\",\n            ),\n            expected_reason=\"compiler-failed\",\n        )\n\norchestrator/tests/test_condition_meaning_gate.py:440: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_compile_return_code_fails0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1542595a7040>\ntarget_phase = 'compile'\ntarget_result = CompletedProcess(args=['x'], returncode=4, stdout=b'', stderr=b'')\nexpected_reason = 'compiler-failed'\n\n    def _assert_process_phase_failure(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        *,\n        target_phase: str,\n        target_result: subprocess.CompletedProcess[bytes] | None,\n        expected_reason: str,\n    ) -> None:\n        compiler = tmp_path / \"fixture-cxx\"\n        compiler.write_text(\"#!/bin/sh\\nexit 0\\n\", encoding=\"utf-8\")\n        compiler.chmod(0o755)\n        process_phases: list[str] = []\n        observed_timeouts: list[float] = []\n    \n        def run(argv, **kwargs):\n            assert kwargs[\"capture_output\"] is True\n            assert kwargs[\"check\"] is False\n            observed_timeouts.append(kwargs[\"timeout\"])\n            phase = _process_phase(argv)\n            process_phases.append(phase)\n            valid = _valid_process_result(argv, phase)\n            if phase != target_phase:\n                return valid\n            if target_result is None:\n                raise subprocess.TimeoutExpired(argv, kwargs[\"timeout\"])\n            stdout = valid.stdout if phase == \"run\" else target_result.stdout\n            return subprocess.CompletedProcess(\n                argv, target_result.returncode,\n                stdout=stdout, stderr=target_result.stderr,\n            )\n    \n        monkeypatch.setattr(G.subprocess, \"run\", run)\n        captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:404: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed\n========================= 2 failed, 13 passed in 4.11s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=2604 retained_bytes=2604 omitted_bytes=0 rendered_excerpt_bytes=2737 sha256=dd9171c940db5e75b43df1ced0a8e562823913a2101a98df66cbf36feec98669\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_compile_return_code_fails0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1542595a7040>\n> \n>     def test_compile_return_code_fails_closed(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n> >       _assert_process_phase_failure(\n>             tmp_path, monkeypatch, target_phase=\"compile\",\n>             target_result=subprocess.CompletedProcess(\n>                 [\"x\"], 4, stdout=b\"\", stderr=b\"\",\n>             ),\n>             expected_reason=\"compiler-failed\",\n>         )\n> \n> orchestrator/tests/test_condition_meaning_gate.py:440: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_compile_return_code_fails0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1542595a7040>\n> target_phase = 'compile'\n> target_result = CompletedProcess(args=['x'], returncode=4, stdout=b'', stderr=b'')\n> expected_reason = 'compiler-failed'\n> \n>     def _assert_process_phase_failure(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         *,\n>         target_phase: str,\n>         target_result: subprocess.CompletedProcess[bytes] | None,\n>         expected_reason: str,\n>     ) -> None:\n>         compiler = tmp_path / \"fixture-cxx\"\n>         compiler.write_text(\"#!/bin/sh\\x5cnexit 0\\x5cn\", encoding=\"utf-8\")\n>         compiler.chmod(0o755)\n>         process_phases: list[str] = []\n>         observed_timeouts: list[float] = []\n>     \n>         def run(argv, **kwargs):\n>             assert kwargs[\"capture_output\"] is True\n>             assert kwargs[\"check\"] is False\n>             observed_timeouts.append(kwargs[\"timeout\"])\n>             phase = _process_phase(argv)\n>             process_phases.append(phase)\n>             valid = _valid_process_result(argv, phase)\n>             if phase != target_phase:\n>                 return valid\n>             if target_result is None:\n>                 raise subprocess.TimeoutExpired(argv, kwargs[\"timeout\"])\n>             stdout = valid.stdout if phase == \"run\" else target_result.stdout\n>             return subprocess.CompletedProcess(\n>                 argv, target_result.returncode,\n>                 stdout=stdout, stderr=target_result.stderr,\n>             )\n>     \n>         monkeypatch.setattr(G.subprocess, \"run\", run)\n>         captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:404: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=2598 retained_bytes=2598 omitted_bytes=0 rendered_excerpt_bytes=2731 sha256=5e7bbeb33ee8bb183d25fd326fd57c978fb03947d42090cc796aaa4b4b415966\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_run_return_code_fails_clo0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14971f577190>\n> \n>     def test_run_return_code_fails_closed(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n> >       _assert_process_phase_failure(\n>             tmp_path, monkeypatch, target_phase=\"run\",\n>             target_result=subprocess.CompletedProcess(\n>                 [\"x\"], 4, stdout=b\"\", stderr=b\"\",\n>             ),\n>             expected_reason=\"decoder-run-failed\",\n>         )\n> \n> orchestrator/tests/test_condition_meaning_gate.py:453: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_run_return_code_fails_clo0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14971f577190>\n> target_phase = 'run'\n> target_result = CompletedProcess(args=['x'], returncode=4, stdout=b'', stderr=b'')\n> expected_reason = 'decoder-run-failed'\n> \n>     def _assert_process_phase_failure(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         *,\n>         target_phase: str,\n>         target_result: subprocess.CompletedProcess[bytes] | None,\n>         expected_reason: str,\n>     ) -> None:\n>         compiler = tmp_path / \"fixture-cxx\"\n>         compiler.write_text(\"#!/bin/sh\\x5cnexit 0\\x5cn\", encoding=\"utf-8\")\n>         compiler.chmod(0o755)\n>         process_phases: list[str] = []\n>         observed_timeouts: list[float] = []\n>     \n>         def run(argv, **kwargs):\n>             assert kwargs[\"capture_output\"] is True\n>             assert kwargs[\"check\"] is False\n>             observed_timeouts.append(kwargs[\"timeout\"])\n>             phase = _process_phase(argv)\n>             process_phases.append(phase)\n>             valid = _valid_process_result(argv, phase)\n>             if phase != target_phase:\n>                 return valid\n>             if target_result is None:\n>                 raise subprocess.TimeoutExpired(argv, kwargs[\"timeout\"])\n>             stdout = valid.stdout if phase == \"run\" else target_result.stdout\n>             return subprocess.CompletedProcess(\n>                 argv, target_result.returncode,\n>                 stdout=stdout, stderr=target_result.stderr,\n>             )\n>     \n>         monkeypatch.setattr(G.subprocess, \"run\", run)\n>         captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:404: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5202 retained_bytes=5202 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6607 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "661439695ffa861f5d2ce6922e77abe523122d6da8a80b1b1ade3997ea14115a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 27.379,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.process-return-code",
+      "injection_diff_sha256": "c31efe8753f44a7efbde7ac6406ee0e76c51e2b6cf33b0634d49a3b7f5e5cdf9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1d4d5d8f01ee1da1ee8e17d04c5661c02a9996b91fb47bbb8f40f3c37a3c6e56",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if False and completed.returncode != 0:\n",
+          "old": "    if completed.returncode != 0:\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "661439695ffa861f5d2ce6922e77abe523122d6da8a80b1b1ade3997ea14115a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d7c0e421c23f395825c0f7d4e11ebc42/izdw-d7c0e421c2.o953908",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d7c0e421c23f395825c0f7d4e11ebc42/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n.........F.....                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n____________ test_compiler_identity_drift_after_version_is_rejected ____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_compiler_identity_drift_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149b40ef4610>\n\n    def test_compiler_identity_drift_after_version_is_rejected(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n>       _assert_compiler_phase_drift_is_rejected(tmp_path, monkeypatch, \"after-version\")\n\norchestrator/tests/test_condition_meaning_gate.py:627: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_compiler_identity_drift_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149b40ef4610>\ndrift_phase = 'after-version'\n\n    def _assert_compiler_phase_drift_is_rejected(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        drift_phase: str,\n    ) -> None:\n        compiler = tmp_path / \"fixture-cxx\"\n        compiler.write_text(\"#!/bin/sh\\nexit 0\\n\", encoding=\"utf-8\")\n        compiler.chmod(0o755)\n        baseline = G.RegularFileIdentity(1, 2, 3, 4, 5)\n        drifted = replace(baseline, inode=baseline.inode + 1)\n        captured_phases: list[str] = []\n        process_phases: list[str] = []\n    \n        def capture_identity(path: Path, phase: str) -> G.CompilerFileEvidence:\n            assert path == compiler\n            captured_phases.append(phase)\n            identity = drifted if phase == drift_phase else baseline\n            return G.CompilerFileEvidence(phase, identity, \"a\" * 64)\n    \n        def run(argv, **kwargs):\n            assert kwargs == {\n                \"capture_output\": True,\n                \"timeout\": G.PROCESS_TIMEOUT_SECONDS,\n                \"check\": False,\n            }\n            phase = _process_phase(argv)\n            process_phases.append(phase)\n            return _valid_process_result(argv, phase)\n    \n        monkeypatch.setattr(G, \"_capture_compiler_identity\", capture_identity)\n        monkeypatch.setattr(G.subprocess, \"run\", run)\n        captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:589: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected\n========================= 1 failed, 14 passed in 4.11s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2310 retained_bytes=2310 omitted_bytes=0 rendered_excerpt_bytes=2425 sha256=8cbb6619c8a1d284a7808fe787282ce076be5052b1f16ae047e429e976fd9111\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_compiler_identity_drift_a0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149b40ef4610>\n> \n>     def test_compiler_identity_drift_after_version_is_rejected(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n> >       _assert_compiler_phase_drift_is_rejected(tmp_path, monkeypatch, \"after-version\")\n> \n> orchestrator/tests/test_condition_meaning_gate.py:627: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_compiler_identity_drift_a0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149b40ef4610>\n> drift_phase = 'after-version'\n> \n>     def _assert_compiler_phase_drift_is_rejected(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         drift_phase: str,\n>     ) -> None:\n>         compiler = tmp_path / \"fixture-cxx\"\n>         compiler.write_text(\"#!/bin/sh\\x5cnexit 0\\x5cn\", encoding=\"utf-8\")\n>         compiler.chmod(0o755)\n>         baseline = G.RegularFileIdentity(1, 2, 3, 4, 5)\n>         drifted = replace(baseline, inode=baseline.inode + 1)\n>         captured_phases: list[str] = []\n>         process_phases: list[str] = []\n>     \n>         def capture_identity(path: Path, phase: str) -> G.CompilerFileEvidence:\n>             assert path == compiler\n>             captured_phases.append(phase)\n>             identity = drifted if phase == drift_phase else baseline\n>             return G.CompilerFileEvidence(phase, identity, \"a\" * 64)\n>     \n>         def run(argv, **kwargs):\n>             assert kwargs == {\n>                 \"capture_output\": True,\n>                 \"timeout\": G.PROCESS_TIMEOUT_SECONDS,\n>                 \"check\": False,\n>             }\n>             phase = _process_phase(argv)\n>             process_phases.append(phase)\n>             return _valid_process_result(argv, phase)\n>     \n>         monkeypatch.setattr(G, \"_capture_compiler_identity\", capture_identity)\n>         monkeypatch.setattr(G.subprocess, \"run\", run)\n>         captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:589: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2310 retained_bytes=2310 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3158 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "934aba7c25fbb4fa7c0805b402374fb7ecb52821c2fd643a6d8e590422701f93"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 27.687,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.compiler-after-version",
+      "injection_diff_sha256": "11dd89dca3473ae3ec6e02c61a2ba05d58aaec56c2d8d00b078ddaa3cc6a20e0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "beccebd747189456522bfac59fa2708ae7e5f11006dfce1a0992d223de5875cb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    compiler_identities.append(_capture_compiler_identity(compiler, \"after-version\"))\n    try:\n",
+          "old": "    compiler_identities.append(_capture_compiler_identity(compiler, \"after-version\"))\n    _require_same_compiler(compiler_identities[0], compiler_identities[-1])\n    try:\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "934aba7c25fbb4fa7c0805b402374fb7ecb52821c2fd643a6d8e590422701f93",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/dee288567a7b699461d2b8ae9e7224fa/izdw-dee288567a.o953910",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/dee288567a7b699461d2b8ae9e7224fa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n.........F.....                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n____________ test_compiler_identity_drift_after_compile_is_rejected ____________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_compiler_identity_drift_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152a0431c4f0>\n\n    def test_compiler_identity_drift_after_compile_is_rejected(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n>       _assert_compiler_phase_drift_is_rejected(tmp_path, monkeypatch, \"after-compile\")\n\norchestrator/tests/test_condition_meaning_gate.py:634: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_compiler_identity_drift_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152a0431c4f0>\ndrift_phase = 'after-compile'\n\n    def _assert_compiler_phase_drift_is_rejected(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        drift_phase: str,\n    ) -> None:\n        compiler = tmp_path / \"fixture-cxx\"\n        compiler.write_text(\"#!/bin/sh\\nexit 0\\n\", encoding=\"utf-8\")\n        compiler.chmod(0o755)\n        baseline = G.RegularFileIdentity(1, 2, 3, 4, 5)\n        drifted = replace(baseline, inode=baseline.inode + 1)\n        captured_phases: list[str] = []\n        process_phases: list[str] = []\n    \n        def capture_identity(path: Path, phase: str) -> G.CompilerFileEvidence:\n            assert path == compiler\n            captured_phases.append(phase)\n            identity = drifted if phase == drift_phase else baseline\n            return G.CompilerFileEvidence(phase, identity, \"a\" * 64)\n    \n        def run(argv, **kwargs):\n            assert kwargs == {\n                \"capture_output\": True,\n                \"timeout\": G.PROCESS_TIMEOUT_SECONDS,\n                \"check\": False,\n            }\n            phase = _process_phase(argv)\n            process_phases.append(phase)\n            return _valid_process_result(argv, phase)\n    \n        monkeypatch.setattr(G, \"_capture_compiler_identity\", capture_identity)\n        monkeypatch.setattr(G.subprocess, \"run\", run)\n        captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:589: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected\n========================= 1 failed, 14 passed in 4.11s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2310 retained_bytes=2310 omitted_bytes=0 rendered_excerpt_bytes=2425 sha256=68a072b24b251d062706f590d4293441d6bb2cea55daeaad83b601820a9e1faf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_compiler_identity_drift_a0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152a0431c4f0>\n> \n>     def test_compiler_identity_drift_after_compile_is_rejected(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n> >       _assert_compiler_phase_drift_is_rejected(tmp_path, monkeypatch, \"after-compile\")\n> \n> orchestrator/tests/test_condition_meaning_gate.py:634: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_compiler_identity_drift_a0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152a0431c4f0>\n> drift_phase = 'after-compile'\n> \n>     def _assert_compiler_phase_drift_is_rejected(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         drift_phase: str,\n>     ) -> None:\n>         compiler = tmp_path / \"fixture-cxx\"\n>         compiler.write_text(\"#!/bin/sh\\x5cnexit 0\\x5cn\", encoding=\"utf-8\")\n>         compiler.chmod(0o755)\n>         baseline = G.RegularFileIdentity(1, 2, 3, 4, 5)\n>         drifted = replace(baseline, inode=baseline.inode + 1)\n>         captured_phases: list[str] = []\n>         process_phases: list[str] = []\n>     \n>         def capture_identity(path: Path, phase: str) -> G.CompilerFileEvidence:\n>             assert path == compiler\n>             captured_phases.append(phase)\n>             identity = drifted if phase == drift_phase else baseline\n>             return G.CompilerFileEvidence(phase, identity, \"a\" * 64)\n>     \n>         def run(argv, **kwargs):\n>             assert kwargs == {\n>                 \"capture_output\": True,\n>                 \"timeout\": G.PROCESS_TIMEOUT_SECONDS,\n>                 \"check\": False,\n>             }\n>             phase = _process_phase(argv)\n>             process_phases.append(phase)\n>             return _valid_process_result(argv, phase)\n>     \n>         monkeypatch.setattr(G, \"_capture_compiler_identity\", capture_identity)\n>         monkeypatch.setattr(G.subprocess, \"run\", run)\n>         captured = G.capture_backoff_fixed_inputs(_SUPPLIED)\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:589: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2310 retained_bytes=2310 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3158 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e794bcfaaffe66f03b69e4fffd88d1799ddc3a4ac4d2cb7b53233c12fc3c7b15"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 27.504,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.compiler-after-compile",
+      "injection_diff_sha256": "6367f2486c2e4b4627e6a1f3c430e4f9fe8d60db35a13df0e056005df9d41d1d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c7712dc56b4f7bb8b1ce2e8aff2691d3e9385d2c21bd1aa5d6a2f3c37b7ca9ce",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "        compiler_identities.append(_capture_compiler_identity(compiler, \"after-compile\"))\n        run_argv = (os.fspath(binary_path),)\n",
+          "old": "        compiler_identities.append(_capture_compiler_identity(compiler, \"after-compile\"))\n        _require_same_compiler(compiler_identities[0], compiler_identities[-1])\n        run_argv = (os.fspath(binary_path),)\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "e794bcfaaffe66f03b69e4fffd88d1799ddc3a4ac4d2cb7b53233c12fc3c7b15",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4081a9b5ba191802dc03951ad72018fa/izdw-4081a9b5ba.o953912",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4081a9b5ba191802dc03951ad72018fa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [15 items]\n\n.........F.....                                                          [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________________________ test_missing_rows_fail_closed _________________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_missing_rows_fail_closed():\n        valid = _bits(5).encode(\"ascii\")\n>       with pytest.raises(G.ConditionMeaningGateError) as raised:\nE       Failed: DID NOT RAISE ConditionMeaningGateError\n\norchestrator/tests/test_condition_meaning_gate.py:300: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed\n========================= 1 failed, 14 passed in 4.09s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=315 retained_bytes=315 omitted_bytes=0 rendered_excerpt_bytes=332 sha256=2bda051958d5ae4efa07730852a3f7ea0d6ec3b3b928f7ade43ded06f0667d3f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_missing_rows_fail_closed():\n>         valid = _bits(5).encode(\"ascii\")\n> >       with pytest.raises(G.ConditionMeaningGateError) as raised:\n> E       Failed: DID NOT RAISE ConditionMeaningGateError\n> \n> orchestrator/tests/test_condition_meaning_gate.py:300: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=315 retained_bytes=315 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1034 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a99c13f045d0a0c5ef0db8f41f7242035d2888c1959f9e0f2d974fc6f93117fe"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b0ad2bda5724a5687d93de5093ac907066dcaa804c34346a5fa20531d6d084ec",
+      "duration_s": 33.993,
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed"
+      ],
+      "hang_risk": false,
+      "id": "t2018.final.missing-rows",
+      "injection_diff_sha256": "246570b4fe1db01929b3acff494a72c19812cc9a20258331dd033fa339f2589c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7f741441c00d0dc617bc180a82e369dae32554e3c94d193771afa97eecf2f604",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "new": "    if False:\n",
+          "old": "    if set(observed) != expected_rows:\n"
+        }
+      ],
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "KILLED",
+      "test_output_sha256": "a99c13f045d0a0c5ef0db8f41f7242035d2888c1959f9e0f2d974fc6f93117fe",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/73bd72cfba6c488e675ae32fac3bc682/izdw-73bd72cfba.o953866",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/73bd72cfba6c488e675ae32fac3bc682/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches\norchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double\norchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero\norchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed\nIZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n15 tests collected in 0.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "fca267b31e18f44aa97e8b577b942193f9bf84c4fdee12ae876da7cd951ec8ca"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed"
+      ],
+      "duration_s": 190.56,
+      "rc": 0,
+      "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+      "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+      "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+      "status": "PASSED",
+      "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "t2018.final.compiler-after-compile": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6367f2486c2e4b4627e6a1f3c430e4f9fe8d60db35a13df0e056005df9d41d1d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "        compiler_identities.append(_capture_compiler_identity(compiler, \"after-compile\"))\n        run_argv = (os.fspath(binary_path),)\n",
+            "old": "        compiler_identities.append(_capture_compiler_identity(compiler, \"after-compile\"))\n        _require_same_compiler(compiler_identities[0], compiler_identities[-1])\n        run_argv = (os.fspath(binary_path),)\n"
+          }
+        ]
+      },
+      "t2018.final.compiler-after-version": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "11dd89dca3473ae3ec6e02c61a2ba05d58aaec56c2d8d00b078ddaa3cc6a20e0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    compiler_identities.append(_capture_compiler_identity(compiler, \"after-version\"))\n    try:\n",
+            "old": "    compiler_identities.append(_capture_compiler_identity(compiler, \"after-version\"))\n    _require_same_compiler(compiler_identities[0], compiler_identities[-1])\n    try:\n"
+          }
+        ]
+      },
+      "t2018.final.marker-unique": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "11e1a96cc3a571600cecd1d9cd7d8de3cb0ffd576730d5caea06662fedb76d8c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/evolve_block.py",
+            "new": "    if not begins or not ends or not begins[0] < ends[0]:\n        raise ValueError(\"materialized marker boundary is not unique\")\n",
+            "old": "    if len(begins) != 1 or len(ends) != 1 or not begins[0] < ends[0]:\n        raise ValueError(\"materialized marker boundary is not unique\")\n"
+          }
+        ]
+      },
+      "t2018.final.missing-rows": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "246570b4fe1db01929b3acff494a72c19812cc9a20258331dd033fa339f2589c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if False:\n",
+            "old": "    if set(observed) != expected_rows:\n"
+          }
+        ]
+      },
+      "t2018.final.pointwise-meaning": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "118d13e900480e9d635a83ffe08897f6618979836896b25a557b525485d3d32c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "            if False:\n",
+            "old": "            if observed_bits != expected_bits:\n"
+          }
+        ]
+      },
+      "t2018.final.process-return-code": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c31efe8753f44a7efbde7ac6406ee0e76c51e2b6cf33b0634d49a3b7f5e5cdf9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "    if False and completed.returncode != 0:\n",
+            "old": "    if completed.returncode != 0:\n"
+          }
+        ]
+      },
+      "t2018.final.result-exact-double": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8899a0cc9f30a1e7aa648cbec8196e03e8ac09548db343334e6b3f151a5e087f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "                \"    static_assert(true);\",\n",
+            "old": "                f\"    static_assert(std::is_same_v<decltype({RESULT_IDENTIFIER}), double>);\",\n"
+          }
+        ]
+      },
+      "t2018.final.supply-all-guards": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+          "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bc0150dd7d4be26b20bb3f9c0354a856e0b62bf61f65216ba6d06b502682a6d0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/condition_meaning_gate.py",
+            "new": "        effective = resolution.effective_value(MACRO)\n",
+            "old": "        if MACRO not in resolution.supplied_macros:\n            raise ConditionMeaningGateError(\n                \"macro-not-supplied\", \"BACKOFF_FIXED cache-to-TU mapping is absent\",\n                define_value=value,\n            )\n        effective = resolution.effective_value(MACRO)\n        if cache_name != MACRO or effective != str(value):\n            route = \"bare define without a cache mapping\" if cache_name is None \\\n                else f\"CCBENCH_{cache_name}\"\n            if cache_name != MACRO:\n                route += f\", not CCBENCH_{MACRO}\"\n            raise ConditionMeaningGateError(\n                \"supply-value-mismatch\",\n                f\"BACKOFF_FIXED maps through {route}, to {effective!r}\",\n                define_value=value,\n                expected=str(value),\n                observed=effective,\n            )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ae52e33ece906b54938e52ae8614a1480b1fac80ec5f04426d999355c6259b5e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1200.0
+  },
+  "repo_head": "13f9c1b5067bda82b19861127a53d90b79a9e207",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected",
+      "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e14d17f78530173796381edf182f34781542abbc",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "6c19e9992d3dbeb41ba5a966d40dc759a8767f2374d6eddc4dacb6b60a3f7d92",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d4b8ac59148dcf9ed48e0e3c98cb2d7fbd8652e6d5f0a5c152f0f25057018977",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "55e13ebb7a34f369cd086f3bf54b31d222bd78f84b750c0bea32f711cecaff7c",
+  "updated_at": "2026-08-27T18:02:56.431272+00:00"
+}

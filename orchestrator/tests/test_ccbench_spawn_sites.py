@@ -96,6 +96,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/buildcache.py", "<module>._verify_ccbench_commit"): 1,
     ("campaign/certified_writer_admission.py", "<module>._git"): 1,
     ("campaign/certified_writer_preflight.py", "<module>._committed_blob"): 1,
+    # Non-CCBench standalone condition-meaning compiler/decoder: fixed compiler
+    # argv or a generated decoder binary argv, no shell, 120-second timeout.
+    ("campaign/condition_meaning_gate.py", "<module>._run_process"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     ("campaign/layer3_report.py", "<module>._git_head"): 1,

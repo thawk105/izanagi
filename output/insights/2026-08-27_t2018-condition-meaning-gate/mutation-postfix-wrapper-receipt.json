@@ -1,0 +1,21 @@
+{
+  "child_rc": 0,
+  "container_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree",
+  "container_preserved": false,
+  "dispatch_evidence": {
+    "original_path": "/work/1/SFC/tanab/mutation-scratch-t2018/.izanagi-mutation-worktree/repo/output/pegasus-dispatch",
+    "rehydrated": false,
+    "relocated": true,
+    "relocated_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2018-condition-meaning-gate-codex-resume/mutation-postfix-out.json.dispatch-evidence"
+  },
+  "failure": null,
+  "lock_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2018-condition-meaning-gate-codex-resume/mutation-postfix-out.json.lock",
+  "resolved_commit": "16685229a989c7910599c7475b4524621616d09a",
+  "schema": "izanagi-mutation-worktree-wrapper/v1",
+  "scratch_root": "/work/1/SFC/tanab/mutation-scratch-t2018",
+  "shared_snapshot_matches": true,
+  "teardown_attempted": true,
+  "teardown_completed": true,
+  "terminal_ledger": true,
+  "wrapper_sha256": "0b39c3e35632b16a0a881e4b25c62b540ab361cae8aa8aa29446c2c00185f414"
+}
