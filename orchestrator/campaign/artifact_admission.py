@@ -64,8 +64,8 @@ _TRIGGER_PROVENANCE_BASENAME = "p3_s8a_trigger_loop_provenance.json"
 _CAMPAIGN_VERIFIER_EPOCH_DOMAIN = b"campaign-verifier-epoch/v1"
 _CERTIFIED_VIEW_TOKEN = object()
 CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
-    "enforcement source closure (exact 27 path; witness gate、S8C 判定器、"
-    "批准比較、receipt 発行・検証面を含む)"
+    "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
+    "receipt 発行・検証面を含む)"
 )
 CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
     "verifier package のうち orchestrator/verifier/__main__.py と "
@@ -154,8 +154,8 @@ class CampaignReadPurpose(str, Enum):
 class CampaignVerifierEpoch:
     """記録された enforcement source closure の epoch 診断。
 
-    ``campaign_verifier_epoch`` が束縛するのは exact 27 path の enforcement
-    source closure の同一性であり、witness gate、S8C 判定器、批准比較、receipt
+    ``campaign_verifier_epoch`` が束縛するのは exact 24 path の enforcement
+    source closure の同一性であり、witness gate、S8C 判定器、receipt
     発行・検証面を含む。
     verifier package の ``__main__.py`` と ``cli.py``、package 外の
     ``orchestrator/verify.py`` の implementation bytes は束縛しない。
@@ -786,7 +786,7 @@ def _recorded_campaign_verifier_epoch(
 ) -> _RecordedCampaignVerifierEpoch:
     """記録値だけから enforcement closure epoch を導出する。
 
-    束縛対象は exact 27 path（witness gate、S8C 判定器、批准比較、receipt
+    束縛対象は exact 24 path（witness gate、S8C 判定器、receipt
     発行・検証面を含む）である。
     verifier package の ``__main__.py`` と ``cli.py``、package 外の
     ``orchestrator/verify.py`` の implementation bytes は束縛しない。
@@ -871,8 +871,8 @@ def require_campaign_verifier_epoch(
 ) -> CampaignVerifierEpoch:
     """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
 
-    診断する同一性は enforcement source closure exact 27 path（witness gate、
-    S8C 判定器、批准比較、receipt 発行・検証面を含む）に限る。verifier package の
+    診断する同一性は enforcement source closure exact 24 path（witness gate、
+    S8C 判定器、receipt 発行・検証面を含む）に限る。verifier package の
     ``__main__.py`` と ``cli.py``、package 外の ``orchestrator/verify.py`` の
     implementation bytes は束縛しない。
     """

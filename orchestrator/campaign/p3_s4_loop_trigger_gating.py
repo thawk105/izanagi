@@ -957,6 +957,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         state = L.load_loop_state(layout)
         if state is None:
             state = L.LoopState(start_wall=time.time())
+        L.require_b4_bootstrap_history_empty(layout, state)
         authorization = L.require_b4_iteration_authorization(
             campaign_cfg,
             layout,

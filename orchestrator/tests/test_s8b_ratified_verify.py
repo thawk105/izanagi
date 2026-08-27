@@ -288,6 +288,26 @@ def _portable_binaries(
         binary_rel = f"output/fixture-bin/{binary_sha}/bench"
         _lwrite(root, binary_rel, binary_raw)
         binding = _binding(cell, freeze)
+        compiler_input_rel = "fixture.txt"
+        compiler_input_raw = (
+            root / "external/ccbench" / compiler_input_rel
+        ).read_bytes()
+        compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": "ycsb_fixture.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": compiler_input_rel,
+                "sha256": _lsha(compiler_input_raw),
+            }],
+        }
+        compiler_input_manifest_sha256 = _lsha(
+            json.dumps(
+                compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        )
         source = SourceEvidence(
             schema_version=SOURCE_EVIDENCE_SCHEMA,
             source_root=str((root / "external/ccbench").resolve()),
@@ -311,6 +331,14 @@ def _portable_binaries(
             configuration_id=cell["configuration_id"], binding=binding,
             binary=root / binary_rel, binary_sha256=binary_sha,
             contract_sha256=protocol["contract_sha256"], trace=False,
+            source_snapshot_sha256=_lsha(
+                ("expected-materialization:" + cell_id).encode()
+            ),
+            expected_materialization_sha256=_lsha(
+                ("expected-materialization:" + cell_id).encode()
+            ),
+            compiler_input_manifest=compiler_input_manifest,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
         )
         record = {
             "cell_id": cell_id,
