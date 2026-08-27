@@ -56,6 +56,7 @@ from orchestrator.campaign.build_admission import (                             
 )
 from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
 from orchestrator.campaign.artifact_admission import (                         # noqa: E402
+    ArtifactAdmissionError,
     CampaignReadPurpose,
     require_admitted_campaign,
 )
@@ -2472,6 +2473,424 @@ def _seed_b4_continuation(layout):
     L.save_loop_state(layout, state)
 
 
+def _seed_b4_admitted_history(layout, cfg):
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    trigger_history = (
+        cfg.search_config.get("axis") == TRIGGER_LOOP.MARKER_ID
+    )
+    if trigger_history:
+        mask = 0
+        predicate = emit_predicate(TriggerGateIR(mask))
+        sub = _mk_template_dir(TRIGGER_LOOP.SOURCE_REL)
+        source_path = Path(sub, TRIGGER_LOOP.SOURCE_REL)
+        source_path.write_text(
+            source_path.read_text(encoding="utf-8").replace(
+                L.MARKER_ID, TRIGGER_LOOP.MARKER_ID,
+            ),
+            encoding="utf-8",
+        )
+        machine, _base, _edited, working_diff = L.quarantine(
+            sub,
+            predicate,
+            marker_id=TRIGGER_LOOP.MARKER_ID,
+            source_rel=TRIGGER_LOOP.SOURCE_REL,
+            write=False,
+        )
+        assert machine.passed
+        auditor = TRIGGER_LOOP.AuditorVerdict(
+            verdict="reject",
+            diff_digest=TRIGGER_LOOP.compute_diff_digest(working_diff),
+            violations=[{"type": 1}],
+        )
+        result = TRIGGER_LOOP.apply_mandatory_deny_only_veto(
+            machine,
+            auditor,
+            working_diff,
+            diff_region=TRIGGER_LOOP.SOURCE_REL,
+            template_diff_id=TRIGGER_LOOP.MARKER_ID,
+        )
+        assert not result.passed
+        binding = trigger_gate_binding.TriggerGateBinding(
+            mask=mask,
+            predicate_sha256=(
+                trigger_gate_binding.expected_predicate_sha256(mask)
+            ),
+            nonce="b" * 64,
+            source=None,
+        )
+        contract = TRIGGER_LOOP._admit_env_contract(site_policy.OTHER)
+        variant = TRIGGER_LOOP._record_diff_reject_admitted(
+            layout,
+            Genome("silo", dict(TRIGGER_LOOP._BASE)),
+            predicate,
+            result,
+            contract,
+            binding,
+        )
+        TRIGGER_LOOP._write_provenance_header(layout)
+        provenance_entry = {
+            "proposal_path": "b4-history-fixture",
+            "auditor_diff_digest": auditor.diff_digest,
+            "outcome": "rejected",
+            "trigger_gate_binding_commitment": (
+                trigger_gate_binding.commitment(binding)
+            ),
+        }
+        provenance_entry.update(
+            TRIGGER_LOOP._wal_attempt_provenance(layout, variant)
+        )
+        TRIGGER_LOOP._append_provenance_entry(
+            layout, 1, provenance_entry,
+        )
+        expected_record_count = 3
+    else:
+        implementation = "#define B4_HISTORY 1\ndouble now_backoff = 20.0;"
+        result, *_ = L.quarantine(
+            _mk_template_dir(), implementation,
+            source_rel=_SRC_REL, write=False,
+        )
+        assert not result.passed
+        L.record_diff_reject(layout, _G, implementation, result)
+        expected_record_count = 2
+    admitted = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    assert len(admitted.records) == expected_record_count
+
+
+def _seed_b4_empty_admitted_history(layout, cfg):
+    wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
+    Path(layout.wal_file).touch()
+    admitted = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    assert len(admitted.records) == 0
+
+
+def _b4_history_call_names(driver):
+    tree = ast.parse(textwrap.dedent(inspect.getsource(driver.drive_iteration)))
+    return [
+        (
+            node.func.id
+            if isinstance(node.func, ast.Name)
+            else node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else ""
+        )
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    ]
+
+
+def test_b4_base_driver_calls_shared_bootstrap_history_gate():
+    assert _b4_history_call_names(L).count(
+        "require_b4_bootstrap_history_empty"
+    ) == 1
+
+
+def test_b4_sort_driver_calls_shared_bootstrap_history_gate():
+    assert _b4_history_call_names(SORT_LOOP).count(
+        "require_b4_bootstrap_history_empty"
+    ) == 1
+
+
+def test_b4_trigger_driver_calls_shared_bootstrap_history_gate():
+    assert _b4_history_call_names(TRIGGER_LOOP).count(
+        "require_b4_bootstrap_history_empty"
+    ) == 1
+
+
+def test_b4_nonempty_admitted_history_rejects_bootstrap_claim_m1(tmp_path):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_admitted_history(layout, cfg)
+    with pytest.raises(L.B4ProtocolError) as caught:
+        L.require_b4_bootstrap_history_empty(layout, L.LoopState())
+    assert type(caught.value) is L.B4ProtocolError
+    assert str(caught.value) == (
+        "B-4 bootstrap conflicts with non-empty admitted campaign history"
+    )
+
+
+def test_b4_nonempty_admitted_history_allows_valid_continuation(tmp_path):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_admitted_history(layout, cfg)
+    state = L.LoopState(iteration=1, start_wall=time.time())
+
+    assert L.b4_bootstrap(state) is False
+    L.require_b4_bootstrap_history_empty(layout, state)
+
+
+def test_b4_nonempty_truncated_wal_rejects_false_bootstrap(tmp_path):
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    Path(layout.wal_file).write_bytes(b'{"variant":"truncated"')
+    assert wal.read_records(layout) == []
+
+    with pytest.raises(L.B4ProtocolError) as caught:
+        L.require_b4_bootstrap_history_empty(layout, L.LoopState())
+
+    assert type(caught.value) is L.B4ProtocolError
+    assert str(caught.value) == (
+        "B-4 bootstrap conflicts with non-empty campaign WAL bytes"
+    )
+
+
+def test_b4_bootstrap_history_gate_preserves_wal_symlink_rejection(tmp_path):
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    target = tmp_path / "wal-target.jsonl"
+    target.write_bytes(b"target bytes")
+    os.symlink(target, layout.wal_file)
+
+    with pytest.raises(OSError, match="symlink or non-regular"):
+        L.require_b4_bootstrap_history_empty(layout, L.LoopState())
+
+
+def test_b4_empty_admitted_history_preserves_true_bootstrap_p1_m2(
+    tmp_path, monkeypatch,
+):
+    cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+    fresh_layout = CampaignLayout(root=str(tmp_path / "fresh-campaign")).ensure()
+    fresh_state = L.LoopState()
+    L.require_b4_bootstrap_history_empty(fresh_layout, fresh_state)
+    Path(fresh_layout.wal_file).touch()
+    L.require_b4_bootstrap_history_empty(fresh_layout, fresh_state)
+
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    _seed_b4_empty_admitted_history(layout, cfg)
+    state = L.LoopState()
+    L.require_b4_bootstrap_history_empty(layout, state)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    authorization = L.require_b4_iteration_authorization(
+        cfg,
+        layout,
+        state,
+        do_build=True,
+        terminal_receipt_path=None,
+    )
+    assert authorization == L.B4IterationAuthorization(
+        receipt=None,
+        terminal_receipt_sha256=None,
+    )
+
+
+def _exercise_b4_history_driver(
+    driver_name, checkpoint_mode, tmp_path, monkeypatch, *, true_bootstrap=False,
+):
+    layout = (
+        CampaignLayout(
+            root=str(tmp_path / f"{driver_name}-{checkpoint_mode}")
+        ).ensure()
+        if driver_name != "trigger"
+        else None
+    )
+    common = {
+        "sub": "unused-by-history-gate-test",
+        "do_build": True,
+        "layout": layout,
+        "b4_closed_critic_receipt": None,
+        "b4_proposal_receipt_sha256": None,
+    }
+
+    if driver_name == "base":
+        cfg = L.default_cfg(reflux=True, b4_reflux_ablation=True)
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+        proposal_path = tmp_path / f"base-{checkpoint_mode}.json"
+        proposal_path.write_text(
+            json.dumps(_b4_proposal_document()), encoding="utf-8",
+        )
+        planner, coder, prior = L.load_proposal_file(
+            str(proposal_path), b4_reflux_ablation=True,
+        )
+        run_spy = unittest.mock.Mock(
+            return_value={"outcome": "dry-pass", "variant": None}
+        )
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        monkeypatch.setattr(L, "run_one_iteration", run_spy)
+
+        def invoke():
+            return L.drive_iteration(
+                cfg, L.default_perf(), planner, coder, prior,
+                build_context=build_context, **common,
+            )
+
+        admitted_cfg = cfg
+    elif driver_name == "sort":
+        cfg = SORT_LOOP.default_cfg(reflux=True, b4_reflux_ablation=True)
+        build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
+        proposal_path = tmp_path / f"sort-{checkpoint_mode}.json"
+        proposal_path.write_text(json.dumps({
+            "planner": {
+                "axis": SORT_LOOP.MARKER_ID,
+                "direction": "increase",
+                "magnitude": "small",
+            },
+            "coder": {
+                "axis": SORT_LOOP.MARKER_ID,
+                "implementation": "int harmless = 1;",
+            },
+            "auditor": {
+                "verdict": "pass",
+                "diff_digest": "a" * 64,
+            },
+        }), encoding="utf-8")
+        planner, coder, auditor, prior = SORT_LOOP.load_proposal_file(
+            str(proposal_path), b4_reflux_ablation=True,
+        )
+        run_spy = unittest.mock.Mock(
+            return_value={"outcome": "dry-pass", "variant": None}
+        )
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        monkeypatch.setattr(SORT_LOOP, "run_one_iteration", run_spy)
+
+        def invoke():
+            return SORT_LOOP.drive_iteration(
+                cfg, SORT_LOOP.default_perf(), planner, coder, auditor, prior,
+                build_context=build_context, **common,
+            )
+
+        admitted_cfg = cfg
+    else:
+        assert driver_name == "trigger"
+        cfg = TRIGGER_LOOP.default_cfg(
+            reflux=True, b4_reflux_ablation=True,
+        )
+        build_context = build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP
+        )
+        contract = TRIGGER_LOOP._admit_env_contract(site_policy.OTHER)
+        admitted_cfg = TRIGGER_LOOP._campaign_cfg_for_site(
+            cfg, site_policy.OTHER, _contract=contract,
+        )
+        admitted_cfg = ident.bind_admission_policy(
+            admitted_cfg, build_context.policy,
+        )
+        layout = CampaignLayout(
+            root=str(tmp_path / str(ident.campaign_id(admitted_cfg)))
+        ).ensure()
+        common["layout"] = layout
+        proposal_path = tmp_path / f"trigger-{checkpoint_mode}.json"
+        proposal_path.write_text(json.dumps({
+            "planner": {
+                "axis": TRIGGER_LOOP.MARKER_ID,
+                "direction": "increase",
+                "magnitude": "small",
+            },
+            "coder": {
+                "axis": TRIGGER_LOOP.MARKER_ID,
+                "wire": "00000",
+            },
+            "auditor": {
+                "verdict": "pass",
+                "diff_digest": "a" * 64,
+            },
+        }), encoding="utf-8")
+        planner, coder, auditor, prior = TRIGGER_LOOP.load_proposal_file(
+            str(proposal_path), b4_reflux_ablation=True,
+        )
+        run_spy = unittest.mock.Mock(
+            return_value={"outcome": "dry-pass", "variant": None}
+        )
+        monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+        monkeypatch.setattr(
+            TRIGGER_LOOP, "exploration_campaign_layout", lambda _id: layout,
+        )
+        monkeypatch.setattr(
+            TRIGGER_LOOP, "_run_one_iteration_resolved", run_spy,
+        )
+
+        def invoke():
+            return TRIGGER_LOOP.drive_iteration(
+                cfg, TRIGGER_LOOP.default_perf(), planner, coder, auditor, prior,
+                build_context=build_context,
+                _resolved_site=site_policy.OTHER,
+                _contract=contract,
+                **common,
+            )
+
+    if true_bootstrap:
+        wal.write_lock(
+            layout, build_v2_lock(ident.canonical_preimage(admitted_cfg)),
+        )
+        if checkpoint_mode == "zero-byte":
+            Path(layout.wal_file).touch()
+        else:
+            assert checkpoint_mode == "missing"
+            assert not Path(layout.wal_file).exists()
+        assert wal.wal_bytes_present(layout) is False
+
+        try:
+            out = invoke()
+        except L.B4ProtocolError as exc:
+            pytest.fail(
+                "true bootstrap was rejected by "
+                "require_b4_bootstrap_history_empty: "
+                f"driver={driver_name} history_mode={checkpoint_mode}: {exc}"
+            )
+        except ArtifactAdmissionError as exc:
+            assert driver_name == "sort"
+            assert checkpoint_mode == "missing"
+            assert type(exc) is ArtifactAdmissionError
+            assert str(exc) == (
+                "campaign requires a directory, campaign.lock, and WAL"
+            )
+            run_spy.assert_called_once()
+            return
+
+        assert out["ran"] is True
+        run_spy.assert_called_once()
+        return
+
+    _seed_b4_admitted_history(layout, admitted_cfg)
+    _seed_b4_continuation(layout)
+    if checkpoint_mode == "zero":
+        L.save_loop_state(layout, L.LoopState(start_wall=time.time()))
+    else:
+        assert checkpoint_mode == "deleted"
+        Path(L.loop_state_path(layout)).unlink()
+        assert not Path(L.loop_state_path(layout)).exists()
+
+    before = _file_tree_bytes(layout.root)
+    with pytest.raises(L.B4ProtocolError) as caught:
+        invoke()
+    assert type(caught.value) is L.B4ProtocolError
+    assert str(caught.value) == (
+        "B-4 bootstrap conflicts with non-empty admitted campaign history"
+    )
+    assert _file_tree_bytes(layout.root) == before
+    run_spy.assert_not_called()
+
+    monkeypatch.setattr(L, "require_b4_bootstrap_history_empty", lambda *_a: None)
+    assert invoke()["ran"] is True
+    run_spy.assert_called_once()
+
+
+@pytest.mark.parametrize("checkpoint_mode", ("deleted", "zero"))
+@pytest.mark.parametrize("driver_name", ("base", "sort", "trigger"))
+def test_b4_driver_rejects_bootstrap_claim_over_nonempty_admitted_history(
+    driver_name, checkpoint_mode, tmp_path, monkeypatch,
+):
+    _exercise_b4_history_driver(
+        driver_name, checkpoint_mode, tmp_path, monkeypatch,
+    )
+
+
+@pytest.mark.parametrize("history_mode", ("missing", "zero-byte"))
+@pytest.mark.parametrize("driver_name", ("base", "sort", "trigger"))
+def test_b4_true_bootstrap_reaches_synthesis_for_all_drivers(
+    driver_name, history_mode, tmp_path, monkeypatch,
+):
+    _exercise_b4_history_driver(
+        driver_name,
+        history_mode,
+        tmp_path,
+        monkeypatch,
+        true_bootstrap=True,
+    )
+
+
 def test_b4_protocol_marker_is_exact_and_ordinary_identity_stays_unmarked():
     ordinary = L.default_cfg(reflux=True)
     explicit_false = L.default_cfg(
@@ -3155,7 +3574,7 @@ def test_all_p3_loop_campaign_reads_declare_certified_purpose():
             )
             if name == "require_admitted_campaign":
                 calls.append((path.name, node.lineno, node))
-    assert len(calls) == 7, calls
+    assert len(calls) == 8, calls
     for path, line, call in calls:
         purposes = [
             keyword.value for keyword in call.keywords

@@ -198,13 +198,15 @@ def _snapshot_current_commit(
 @pytest.fixture(scope="module")
 def current_commit_snapshot(
     tmp_path_factory: pytest.TempPathFactory,
+    real_repo_fixture_lock,
 ) -> _CurrentCommitSnapshot:
-    """Read-only snapshot shared by all current-tree equivalence checks."""
-    root, head, evaluated_head, evaluated_results = _snapshot_current_commit(
-        tmp_path_factory.mktemp("current-commit")
-    )
-    results = tuple(M.get_registry().evaluate_all(head, repo_root=root))
-    return root, head, results, evaluated_head, evaluated_results
+    """Read-only snapshot shared under parent SH for its full module lifetime."""
+    with real_repo_fixture_lock("read", None):
+        root, head, evaluated_head, evaluated_results = _snapshot_current_commit(
+            tmp_path_factory.mktemp("current-commit")
+        )
+        results = tuple(M.get_registry().evaluate_all(head, repo_root=root))
+        yield root, head, results, evaluated_head, evaluated_results
 
 
 def test_predicate_registry_is_exactly_c01_through_c12(tmp_path: Path) -> None:
@@ -3946,12 +3948,18 @@ def _candidate_commit_with_worktree(tmp_path: Path) -> str:
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def repository_candidate_commit(
     tmp_path_factory: pytest.TempPathFactory,
+    real_repo_fixture_lock,
 ) -> str:
-    """実 repo の index/worktree bytes を candidate commit へ合成する。"""
-    return _candidate_commit_with_worktree(tmp_path_factory.mktemp("c06-candidate"))
+    """候補生成を parent EX、consumer 実行を parent SH で覆う。"""
+    with real_repo_fixture_lock("write", None):
+        candidate = _candidate_commit_with_worktree(
+            tmp_path_factory.mktemp("c06-candidate")
+        )
+    with real_repo_fixture_lock("read", None):
+        yield candidate
 
 
 def _direct_c06_result(root: Path, commit: str) -> core.PredicateResult:

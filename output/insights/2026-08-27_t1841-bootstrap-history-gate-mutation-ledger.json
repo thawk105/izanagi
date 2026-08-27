@@ -1,0 +1,106 @@
+{
+  "wave": "2026-08-27 [T-1841] B-4 bootstrap 判定を authoritative history へ束縛する",
+  "branch": "worktree-dev-wave-t1841-proposal-causal-binding",
+  "repo_head": "1a1f6f6def1fcc41f18c6c51feaac49e957e84a6",
+  "gate_under_test": "orchestrator/campaign/p3_s4_loop.py::require_b4_bootstrap_history_empty と 3 driver からの呼出",
+  "note": "受理集合を縮小する wave。checkpoint を消すか zero state へ置換すると継続が bootstrap と誤認され、閉じた critic の受領証要求が丸ごと飛んでいた穴を塞ぐ。承認外の過剰拒否を検出する正例を必ず登録した。",
+  "harness": {
+    "tool": "tools/mutation_harness.py",
+    "tool_sha256": "ec60809be677ad17d5e9a541c4835c9915aed8bee6907765e56607ffd16c904d",
+    "runner_mode": "dispatch",
+    "runner_sha256": "13187d3667b8134d19411c22dbdac1a6b6dacbabc633950737a07a461521037a",
+    "collection_sha256": "ee010b3ae09c99c43efb06072c5e7e37f2dcec12da508811ebfaa0fc1efbca59",
+    "spec_sha256": "f2fed8ac8bcd494d3697187863acfc8285e61406f345701f54efe7417b9252f6",
+    "runner_argv": "python3 tools/run_tests.py orchestrator/tests/test_p3_s4_loop.py orchestrator/tests/test_p3_s4_loop_sort.py orchestrator/tests/test_p3_s4_loop_trigger_gating.py -q -rf --force-dispatch",
+    "run_date_utc": "2026-08-26T23:25:43.306644+00:00"
+  },
+  "baseline": {
+    "status": "PASSED",
+    "rc": 0,
+    "duration_s": 37.667,
+    "test_output_sha256": "b356fd091a105feb690f30f3c39b334d6c540cd55f56d5e9ed44664527c4433a"
+  },
+  "result": {
+    "total": 6,
+    "killed": 6,
+    "survived": 0,
+    "mismatch": 0,
+    "expected_nodes_match": "完全集合で一致"
+  },
+  "mutations": [
+    {
+      "id": "MUT-T1841-M1-HISTORY-CHECK-REMOVED",
+      "anchor": "require_b4_bootstrap_history_empty の admitted history 検査ブロックを return へ置換",
+      "reason_killed": "共通検査が消えた",
+      "status": "KILLED",
+      "failed_node_count": 8,
+      "duration_s": 37.4
+    },
+    {
+      "id": "MUT-T1841-M2-GATE-APPLIES-TO-EVERY-STATE",
+      "anchor": "if not b4_bootstrap(state): return を if False: return へ置換",
+      "reason_killed": "bootstrap を名乗らない正当な継続にも検査が適用され過剰拒否になる",
+      "status": "KILLED",
+      "failed_node_count": 1,
+      "duration_s": 38.4,
+      "erratum": "第 1 回 probe ではこの変異が SURVIVED した。正当な継続が拒否されないことを確かめるテストが 1 件も無かったためである。段 3 と段 6 の敵対レビュー 4 本はいずれもこの穴を指摘しておらず、変異走行だけが暴いた。正例 test_b4_nonempty_admitted_history_allows_valid_continuation を追加 (commit 1a1f6f6de) してから再走し KILLED になった。初回結果は消さず本欄に残す (DW-M02)。"
+    },
+    {
+      "id": "MUT-T1841-M3-BASE-CALL-REMOVED",
+      "anchor": "base driver の drive_iteration から呼出を削除",
+      "reason_killed": "base から呼ばれなくなった",
+      "status": "KILLED",
+      "failed_node_count": 3,
+      "duration_s": 37.7
+    },
+    {
+      "id": "MUT-T1841-M4-SORT-CALL-REMOVED",
+      "anchor": "sort driver の drive_iteration から呼出を削除",
+      "reason_killed": "sort から呼ばれなくなった",
+      "status": "KILLED",
+      "failed_node_count": 3,
+      "duration_s": 38.4
+    },
+    {
+      "id": "MUT-T1841-M5-TRIGGER-CALL-REMOVED",
+      "anchor": "trigger driver の drive_iteration から呼出を削除",
+      "reason_killed": "trigger から呼ばれなくなった",
+      "status": "KILLED",
+      "failed_node_count": 3,
+      "duration_s": 37.6
+    },
+    {
+      "id": "MUT-T1841-M6-BYTE-PRESENCE-REVERTED-TO-PARSE",
+      "anchor": "wal.wal_bytes_present() による byte 存在判定を parse 済み record の有無へ戻す",
+      "reason_killed": "末尾が改行で終わらない非空 WAL を空扱いし偽 bootstrap を通す",
+      "status": "KILLED",
+      "failed_node_count": 2,
+      "duration_s": 37.8
+    }
+  ],
+  "positive_control": {
+    "id": "P1",
+    "nodes": [
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-missing]",
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[base-zero-byte]",
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-missing]",
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[sort-zero-byte]",
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-missing]",
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_true_bootstrap_reaches_synthesis_for_all_drivers[trigger-zero-byte]",
+      "orchestrator/tests/test_p3_s4_loop.py::test_b4_nonempty_admitted_history_allows_valid_continuation"
+    ],
+    "note": "変異なしで PASS。受理集合を縮小する wave のため承認外の過剰拒否を検出する目的で登録した (DW-M01)。"
+  },
+  "acceptance_set_change": {
+    "newly_rejected": [
+      "bootstrap を名乗る state だが campaign の admitted history が非空",
+      "bootstrap を名乗る state だが WAL に物理 byte があり parse 済み record が空 (末尾切れ・汚染)"
+    ],
+    "unchanged": [
+      "真の bootstrap (WAL 不在 / zero-byte)",
+      "bootstrap を名乗らない正当な継続",
+      "B-4 mode でない通常走行",
+      "run_one_iteration() 直呼び経路 (T-1840 の scope、本 wave は塞いでいない)"
+    ]
+  }
+}

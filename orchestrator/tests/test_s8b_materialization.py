@@ -467,7 +467,9 @@ def test_materialization_does_not_import_oracle_or_floor():
 # --------------------------------------------------------------------------- #
 
 class _FakeBuildResult:
-    def __init__(self, canonical: str, contract_sha256: str, *, out_root: Path):
+    def __init__(
+            self, canonical: str, contract_sha256: str, *, out_root: Path,
+            ccbench_root: str, expected_materialization_sha256: str):
         raw = canonical.encode("utf-8")
         self.bin_sha256 = hashlib.sha256(raw).hexdigest()
         binary = out_root / "fixed" / "bin" / self.bin_sha256
@@ -480,8 +482,27 @@ class _FakeBuildResult:
         self.configure_argv = ["cfg", str(out_root.parent / "cc"), str(out_root), canonical]
         self.build_argv = ["build", str(out_root), canonical]
         self.cached = True
-        self.ccbench_root = str(out_root.parent / "cc")
+        self.ccbench_root = ccbench_root
         self.contract_sha256 = contract_sha256
+        compiler_input = Path(ccbench_root) / "include" / "fixture.hh"
+        self.compiler_input_manifest = {
+            "schema_version": "s8b-compiler-input/v1",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": "ycsb_silo.exe",
+            "depfile_count": 1,
+            "inputs": [{
+                "path": "include/fixture.hh",
+                "sha256": hashlib.sha256(
+                    compiler_input.read_bytes()
+                ).hexdigest(),
+            }],
+        }
+        self.compiler_input_manifest_sha256 = hashlib.sha256(json.dumps(
+            self.compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        self.source_snapshot_sha256 = expected_materialization_sha256
+        self.expected_materialization_sha256 = expected_materialization_sha256
 
 
 def test_floor_manifest_golden_stable(tmp_path):
@@ -496,6 +517,7 @@ def test_floor_manifest_golden_stable(tmp_path):
     entry_v1 = {
         "configuration": "sort_best",
         "flags": {"BACKOFF_FIXED": 5, "SPIN": 1},
+        "comparator": "return fixture_a < fixture_b;",
     }
     freeze = {"holdouts": {"H1": {"variant_binding": {"entries": {
         "stock": entry_stock, "sort_best": entry_v1}}}}}
@@ -512,8 +534,12 @@ def test_floor_manifest_golden_stable(tmp_path):
         entry = cell["variant"]
         genome = Genome("silo", dict(entry["flags"]))
         token = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
+        ccbench = tmp_path / "cc"
+        compiler_input = ccbench / "include" / "fixture.hh"
+        compiler_input.parent.mkdir(parents=True, exist_ok=True)
+        compiler_input.write_bytes(b"materialization golden compiler input\n")
         yield PreparedCell(genome=genome, src_token=token,
-                           ccbench_dir=str(tmp_path / "cc"),
+                           ccbench_dir=str(ccbench),
                            cache_root=str(tmp_path / "ca"),
                            oracle_attempt=(
                                fake_sort_swo_pass_attempt()
@@ -562,16 +588,69 @@ def test_floor_manifest_golden_stable(tmp_path):
             tracked_paths=(),
         )
 
+    gate_state = {"digest": None}
+
+    def fixture_expected_materialization(**kwargs):
+        digest = hashlib.sha256(
+            b"materialization-golden-expected\0"
+            + json.dumps(
+                kwargs["declaration"], ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        gate_state["digest"] = digest
+        return digest
+
+    def fixture_exact_materialization(_root, expected):
+        assert expected == gate_state["digest"]
+        return expected
+
+    def fixture_protect_snapshot(root):
+        return floor._expected_materialization.SnapshotPermissionState(
+            root=str(root), modes=(), tree_digest=gate_state["digest"],
+        )
+
+    def fixture_build(genome, **kwargs):
+        descriptor = kwargs["expected_materialization_descriptor"]
+        return _FakeBuildResult(
+            genome.canonical(), kwargs["contract"].contract_sha256,
+            out_root=tmp_path / "out",
+            ccbench_root=kwargs["ccbench_dir"],
+            expected_materialization_sha256=(
+                fixture_expected_materialization(
+                    declaration=descriptor.declaration,
+                )
+            ),
+        )
+
     with mock.patch.object(
             floor.buildcache, "build_v2",
-            side_effect=lambda genome, **kw: _FakeBuildResult(
-                genome.canonical(), kw["contract"].contract_sha256,
-                out_root=tmp_path / "out")), \
+            side_effect=fixture_build), \
             mock.patch.object(
                 floor.source_digest, "resolve_evidence", fixture_evidence,
             ), \
             mock.patch.object(
                 floor, "_bind_current_toolchain", fixture_toolchain_binding,
+            ), \
+            mock.patch.object(
+                floor._expected_materialization,
+                "produce_expected_materialization_from_declaration",
+                fixture_expected_materialization,
+            ), \
+            mock.patch.object(
+                floor._expected_materialization,
+                "assert_expected_materialization",
+                fixture_exact_materialization,
+            ), \
+            mock.patch.object(
+                floor._expected_materialization,
+                "make_snapshot_non_writable",
+                fixture_protect_snapshot,
+            ), \
+            mock.patch.object(
+                floor._expected_materialization,
+                "restore_snapshot_permissions",
+                lambda _state: None,
             ):
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
@@ -616,7 +695,7 @@ def test_floor_manifest_golden_stable(tmp_path):
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     actual_sha256 = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     assert actual_sha256 == (
-        "c30201848c04b1839941cea52415dd47927e6e1e983815c231a02774f11f777d"
+        "fedf839a09e127a82ccb4f2cda47f2a3d2770ae33f7f05bf9ae59a9678132a17"
     ), actual_sha256
 
 

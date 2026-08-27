@@ -1199,6 +1199,30 @@ def b4_bootstrap(state: LoopState) -> bool:
     return state.iteration == 0 and not state.whiteboard
 
 
+def require_b4_bootstrap_history_empty(
+    layout: CampaignLayout,
+    state: LoopState,
+) -> None:
+    """Reject checkpoint bootstrap claims that contradict admitted history."""
+    if not b4_bootstrap(state):
+        return
+    if not wal.wal_bytes_present(layout):
+        return
+    records = wal.read_records(layout)
+    if not records:
+        raise B4ProtocolError(
+            "B-4 bootstrap conflicts with non-empty campaign WAL bytes"
+        )
+    history = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    if history.records:
+        raise B4ProtocolError(
+            "B-4 bootstrap conflicts with non-empty admitted campaign history"
+        )
+
+
 def b4_terminal_receipt_sha256(path: str | os.PathLike[str]) -> str:
     try:
         receipt_bytes = Path(path).read_bytes()
@@ -1453,6 +1477,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         state = load_loop_state(layout)
         if state is None:
             state = LoopState(start_wall=time.time())
+        require_b4_bootstrap_history_empty(layout, state)
         authorization = require_b4_iteration_authorization(
             cfg,
             layout,
