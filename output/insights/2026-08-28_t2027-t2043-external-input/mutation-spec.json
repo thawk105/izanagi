@@ -10,7 +10,8 @@
       "expected_status": "KILLED",
       "hang_risk": false,
       "expected_nodes": [
-        "orchestrator/tests/test_buildcache_v2.py::test_v2_schema_pin_separates_legacy_completion_without_fallback"
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_schema_pin_separates_legacy_completion_without_fallback",
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_hit_rebinds_fetchcontent_inputs_to_current_root"
       ],
       "replacements": [
         {
@@ -26,7 +27,8 @@
       "expected_status": "KILLED",
       "hang_risk": false,
       "expected_nodes": [
-        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_manifest_classifies_fetchcontent_root_relative"
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_manifest_classifies_fetchcontent_root_relative",
+        "orchestrator/tests/test_s8b_compiler_input.py::test_v2_rejects_noncanonical_root_tag"
       ],
       "replacements": [
         {
@@ -74,7 +76,8 @@
       "expected_status": "KILLED",
       "hang_risk": false,
       "expected_nodes": [
-        "orchestrator/tests/test_s8b_binary_admission.py::test_issue_v2_receipt_rechecks_current_fetchcontent_root"
+        "orchestrator/tests/test_s8b_binary_admission.py::test_issue_v2_receipt_rechecks_current_fetchcontent_root",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort"
       ],
       "replacements": [
         {
