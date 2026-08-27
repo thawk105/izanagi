@@ -1959,25 +1959,10 @@ def test_floor_job_exports_exact_reservation_fields() -> None:
     assert actual == set(reservation._ENV_FIELDS.values())
 
 
-def test_floor_job_confirmation_dataflow_and_admission_order_are_fixed() -> None:
+def test_floor_job_has_no_confirmation_dataflow_and_keeps_admission_order() -> None:
     source = JOB.read_text(encoding="utf-8")
-    confirmation = "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT"
-
-    occurrences = tuple(
-        line.strip() for line in source.splitlines() if confirmation in line
-    )
-    assert occurrences == (
-        'if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]; then',
-        'if [[ "$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" '
-        '!= "$IZANAGI_SUBMISSION_NONCE" ]]; then',
-        'if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]; then',
-    )
-    assert re.search(rf"\b{confirmation}\s*=", source) is None
-    assert re.search(rf"\$\{{{confirmation}(?::?=)", source) is None
-    for declaration in ("unset", "export", "declare", "local"):
-        assert re.search(
-            rf"(?m)^\s*{declaration}\b[^\n]*\b{confirmation}\b", source
-        ) is None
+    assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in source
+    assert "--confirm-irreversible-pilot-holdout" not in source
 
     unset_targets: list[str] = []
     for line in source.splitlines():
@@ -1991,8 +1976,6 @@ def test_floor_job_confirmation_dataflow_and_admission_order_are_fixed() -> None
 
     ordered_anchors = (
         'git -C "$REPO_ROOT" cat-file blob "$PREFLIGHT_HELPER_SPEC"',
-        'if [[ "$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" '
-        '!= "$IZANAGI_SUBMISSION_NONCE" ]]; then',
         "receipt_rc=0",
         'timeout 60 "${gflags_configure_argv[@]}"',
         '"${driver_argv[@]}" \\',
@@ -2002,9 +1985,7 @@ def test_floor_job_confirmation_dataflow_and_admission_order_are_fixed() -> None
     assert anchor_indexes == tuple(sorted(anchor_indexes))
 
 
-def _run_floor_driver_tail(
-    tmp_path: Path, *, confirmation: str | None
-) -> tuple[str, list[str]]:
+def _run_floor_driver_tail(tmp_path: Path) -> tuple[str, list[str]]:
     source = JOB.read_text(encoding="utf-8")
     repo = tmp_path / "repo"
     driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
@@ -2037,17 +2018,12 @@ def _run_floor_driver_tail(
         "checkpoint_event() { return 0; }",
         "write_failure() { return 0; }",
     ]
-    if confirmation is not None:
-        prefix_lines.append(
-            "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT="
-            + shlex.quote(confirmation)
-        )
     prefix = "\n".join([*prefix_lines, ""])
     result = subprocess.run(
         [
             "bash",
             "-c",
-            prefix + _confirmation_binding_fragment() + _driver_tail(),
+            prefix + _driver_tail(),
         ],
         capture_output=True,
         text=True,
@@ -2057,20 +2033,10 @@ def _run_floor_driver_tail(
     return source, actual_argv
 
 
-@pytest.mark.parametrize(
-    ("confirmation", "confirmation_argv"),
-    [
-        (None, []),
-        ("d" * 32, ["--confirm-irreversible-pilot-holdout"]),
-    ],
-    ids=["unconfirmed-four-arguments", "confirmed-flag-appended-once"],
-)
 def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
-    tmp_path: Path, confirmation: str | None, confirmation_argv: list[str]
+    tmp_path: Path,
 ) -> None:
-    source, actual_argv = _run_floor_driver_tail(
-        tmp_path, confirmation=confirmation
-    )
+    source, actual_argv = _run_floor_driver_tail(tmp_path)
     assert actual_argv == [
         "--mode",
         "pilot",
@@ -2078,11 +2044,8 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(
         str(tmp_path / "repo/output/s8b-freeze/floor_protocol.json"),
         "--fetchcontent-base-dir",
         "/tmp/izanagi-floor-fetchcontent",
-        *confirmation_argv,
     ]
-    assert actual_argv.count("--confirm-irreversible-pilot-holdout") == len(
-        confirmation_argv
-    )
+    assert "--confirm-irreversible-pilot-holdout" not in actual_argv
 
     source_tokens = shlex.split(source, comments=True, posix=True)
     driver_path = "orchestrator/campaign/s8b_floor_campaign.py"
@@ -2516,33 +2479,9 @@ def test_submit_floor_unreadable_default_persists_sidecar_for_consumer(
     assert external["index_write_status"] == "failed"
 
 
-def test_submit_floor_explicit_confirmation_exports_submission_nonce(
+def test_submit_floor_export_spec_has_no_confirmation_env(
     tmp_path: Path,
 ) -> None:
-    repo, submission, qsub_args_path, _ = _successful_submission(
-        tmp_path, "--confirm-irreversible-pilot-holdout"
-    )
-    receipt = json.loads(
-        (submission / "submit-receipt.json").read_text(encoding="utf-8")
-    )
-    qsub_args = [
-        item.decode("utf-8")
-        for item in qsub_args_path.read_bytes().split(b"\0")
-        if item
-    ]
-    assert qsub_args[qsub_args.index("-v") + 1] == (
-        "IZANAGI_SUBMISSION_NONCE="
-        + receipt["nonce"]
-        + ",IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT="
-        + receipt["nonce"]
-    )
-    assert set(receipt) == RECEIPT_KEYS
-
-
-def test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation(
-    tmp_path: Path,
-) -> None:
-    """Ambient confirmation does not alter submitter-generated qsub argv."""
     repo, submission, qsub_args_path, _ = _successful_submission(
         tmp_path,
         extra_env={"IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT": "1"},
@@ -2555,100 +2494,33 @@ def test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation(
         for item in qsub_args_path.read_bytes().split(b"\0")
         if item
     ]
-    assert qsub_args[qsub_args.index("-v") + 1] == (
-        "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"]
+    export_spec = qsub_args[qsub_args.index("-v") + 1]
+    assert export_spec == "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"]
+    assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in export_spec
+    submit_source = SUBMIT.read_text(encoding="utf-8")
+    export_start = submit_source.index(
+        'export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"'
     )
-    assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in qsub_args
-    _, driver_argv = _run_floor_driver_tail(
-        tmp_path / "job-environment", confirmation=None
-    )
-    assert driver_argv == [
-        "--mode",
-        "pilot",
-        "--protocol",
-        str(
-            tmp_path
-            / "job-environment/repo/output/s8b-freeze/floor_protocol.json"
-        ),
-        "--fetchcontent-base-dir",
-        "/tmp/izanagi-floor-fetchcontent",
+    export_end = submit_source.index('SCHEDULER_STDOUT=', export_start)
+    assert "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" not in submit_source[
+        export_start:export_end
     ]
+    assert set(receipt) == RECEIPT_KEYS
 
 
-def test_submit_floor_confirmation_dry_run_preserves_receipt_bytes(
+def test_submit_floor_rejects_removed_confirmation_option_without_artifacts(
     tmp_path: Path,
 ) -> None:
     repo = _fixture_repo(tmp_path)
     bin_dir, sentinel = _sentinel_bin(tmp_path)
-    fixed_nonce = "e" * 32
-    real_python = str(Path(sys.executable).resolve(strict=True))
-    (bin_dir / "python3").write_text(
-        "#!/bin/sh\n"
-        "if [ \"$#\" -eq 3 ] && [ \"$1\" = -I ] && [ \"$2\" = -B ] "
-        "&& [ \"$3\" = - ]; then\n"
-        "  cat >/dev/null\n"
-        f"  printf '%s\\n' {fixed_nonce}\n"
-        "  exit 0\n"
-        "fi\n"
-        f"exec {shlex.quote(real_python)} \"$@\"\n",
-        encoding="utf-8",
-    )
-    (bin_dir / "python3").chmod(0o755)
-    (bin_dir / "date").write_text(
-        "#!/bin/sh\nprintf '%s\\n' 1700000000\n", encoding="utf-8"
-    )
-    (bin_dir / "date").chmod(0o755)
-    job = repo / "tools/pegasus/floor_campaign.sh"
-    attempts_default = repo / "output/dry-default"
-    attempts_confirmed = repo / "output/dry-confirmed"
-    common = (
-        "--dry-run",
-        "--repo-root",
-        str(repo),
-        "--job-script",
-        str(job),
-    )
-    default_result = _submit(
-        repo,
-        bin_dir,
-        *common,
-        "--attempts-root",
-        str(attempts_default),
-    )
-    confirmed_result = _submit(
-        repo,
-        bin_dir,
-        *common,
-        "--attempts-root",
-        str(attempts_confirmed),
-        "--confirm-irreversible-pilot-holdout",
-    )
-    assert default_result.returncode == 0, default_result.stderr
-    assert confirmed_result.returncode == 0, confirmed_result.stderr
-    assert not sentinel.exists()
-    default_submission = _only_submission(repo, "output/dry-default")
-    confirmed_submission = _only_submission(repo, "output/dry-confirmed")
-    for name, keys in (
-        ("pre-submit.json", PRE_KEYS),
-        ("submit-receipt.json", RECEIPT_KEYS),
-    ):
-        default_bytes = (default_submission / name).read_bytes()
-        confirmed_bytes = (confirmed_submission / name).read_bytes()
-        assert confirmed_bytes == default_bytes
-        assert set(json.loads(confirmed_bytes)) == keys
-
-
-def test_submit_floor_confirmation_is_zero_arity(tmp_path: Path) -> None:
-    repo = _fixture_repo(tmp_path)
-    bin_dir, sentinel = _sentinel_bin(tmp_path)
     result = _submit(
-        repo,
-        bin_dir,
-        "--confirm-irreversible-pilot-holdout",
-        "true",
+        repo, bin_dir, "--confirm-irreversible-pilot-holdout",
     )
     assert result.returncode == 2
-    assert "unknown argument: true" in result.stderr
+    assert (
+        "unknown argument: --confirm-irreversible-pilot-holdout"
+        in result.stderr
+    )
     assert not sentinel.exists()
     assert not (repo / "output/env").exists()
 
@@ -3626,73 +3498,6 @@ def _receipt_validator_fragment() -> str:
     # receipt-only fragment; the phase has its own integration coverage.
     end = source.index("CURRENT_STAGE=fetchcontent-staging", start)
     return source[start:end]
-
-
-def _confirmation_binding_fragment() -> str:
-    source = JOB.read_text(encoding="utf-8")
-    start = source.index(
-        'if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]'
-    )
-    end = source.index('SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/', start)
-    return source[start:end]
-
-
-@pytest.mark.parametrize(
-    "confirmation",
-    ["", "1", "f" * 32, "true", "*", "?", "-n", "line\nbreak"],
-    ids=[
-        "empty",
-        "literal-one",
-        "different-nonce",
-        "literal-true",
-        "asterisk",
-        "question-mark",
-        "leading-hyphen",
-        "newline",
-    ],
-)
-def test_floor_job_rejects_confirmation_not_bound_to_submission_nonce(
-    tmp_path: Path, confirmation: str
-) -> None:
-    failure_args = tmp_path / "failure.args"
-    build_marker = tmp_path / "build-invoked"
-    driver_marker = tmp_path / "driver-invoked"
-    nonce = "d" * 32
-    prefix = "\n".join(
-        [
-            "set -Eeuo pipefail",
-            f"IZANAGI_SUBMISSION_NONCE={nonce}",
-            "export IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT="
-            + shlex.quote(confirmation),
-            "write_failure() { printf '%s\\0' \"$@\" >"
-            + shlex.quote(str(failure_args))
-            + "; }",
-            "",
-        ]
-    )
-    suffix = "\n".join(
-        [
-            ": >" + shlex.quote(str(build_marker)),
-            ": >" + shlex.quote(str(driver_marker)),
-        ]
-    )
-    result = subprocess.run(
-        ["bash", "-c", prefix + _confirmation_binding_fragment() + suffix],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 2, result.stderr
-    assert [
-        value.decode("utf-8")
-        for value in failure_args.read_bytes().split(b"\0")
-        if value
-    ] == [
-        "2",
-        "submit_binding",
-        "pilot holdout confirmation must exactly match submission nonce",
-    ]
-    assert not build_marker.exists()
-    assert not driver_marker.exists()
 
 
 @pytest.mark.parametrize(
