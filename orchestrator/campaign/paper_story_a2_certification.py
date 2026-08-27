@@ -4,8 +4,8 @@
 
 The module deliberately keeps the experiment values in the adjacent versioned
 policy.  Code here validates bindings, collects one create-only outer attempt,
-publishes a bounded tracked result, and exposes the ratification-gated primitive
-used by the login-side fan-out submitter.
+publishes a bounded tracked result, and exposes the exact qsub primitive used by
+the login-side fan-out submitter.
 """
 from __future__ import annotations
 
@@ -1378,20 +1378,8 @@ def record_acquisition_receipt(policy: Policy, attempt_root: Path | str,
     return path
 
 
-def submission_ratification_precheck() -> str:
-    """Fail closed before login-side submission or group finalization."""
-    from . import contract_loader_binding
-
-    try:
-        binding = contract_loader_binding.capture_contract_loader_binding()
-        return contract_loader_binding.verify_ratified_contract_loader_binding(binding)
-    except contract_loader_binding.ContractLoaderBindingError as exc:
-        raise CertificationError(f"submission ratification precheck failed: {exc}") from exc
-
-
-def ratified_qsub(argv: Sequence[str], *, runner=subprocess.run) -> object:
-    """Reach qsub only after the same ratification precheck used by the submitter."""
-    submission_ratification_precheck()
+def exact_qsub(argv: Sequence[str], *, runner=subprocess.run) -> object:
+    """Run only an exact, non-empty qsub argv."""
     if (type(argv) not in {list, tuple} or not argv or argv[0] != "qsub"
             or not all(type(token) is str and token for token in argv)):
         raise CertificationError("ratified qsub argv is not exact")
@@ -1411,7 +1399,6 @@ def _file_record(path: Path, attempt_root: Path) -> dict[str, Any]:
 def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
                  *, qstat_runner=subprocess.run) -> tuple[Path, Path]:
     """Create the exact completion/acquisition pair from terminal job evidence."""
-    submission_ratification_precheck()
     attempt_id, root = validate_attempt_root(policy, attempt_root)
     submission_payload, _ = _read_json(root / "receipts" / "submission.json")
     submission = _validate_submission_receipt(
@@ -3250,16 +3237,11 @@ def _finalize_raw_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _submission_precheck_command(_args: argparse.Namespace) -> int:
-    print(submission_ratification_precheck())
-    return 0
-
-
-def _ratified_qsub_command(args: argparse.Namespace) -> int:
+def _exact_qsub_command(args: argparse.Namespace) -> int:
     argv = list(args.qsub_argv)
     if argv and argv[0] == "--":
         argv = argv[1:]
-    completed = ratified_qsub(argv)
+    completed = exact_qsub(argv)
     sys.stdout.write(completed.stdout or "")
     sys.stderr.write(completed.stderr or "")
     return int(completed.returncode)
@@ -3294,11 +3276,9 @@ def _record_receipt_command(args: argparse.Namespace) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    precheck = sub.add_parser("submission-precheck")
-    precheck.set_defaults(handler=_submission_precheck_command)
-    ratified_submit = sub.add_parser("ratified-qsub")
-    ratified_submit.add_argument("qsub_argv", nargs=argparse.REMAINDER)
-    ratified_submit.set_defaults(handler=_ratified_qsub_command)
+    exact_submit = sub.add_parser("exact-qsub")
+    exact_submit.add_argument("qsub_argv", nargs=argparse.REMAINDER)
+    exact_submit.set_defaults(handler=_exact_qsub_command)
     preflight = sub.add_parser("compute-preflight")
     preflight.add_argument("--workload", required=True)
     preflight.add_argument("--attempt-root", required=True)

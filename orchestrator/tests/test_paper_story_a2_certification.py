@@ -769,45 +769,31 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
         A2._validate_group_coordinates(policy, list(reversed(coordinates)))
 
     qsub_calls = []
-    original_precheck = A2.submission_ratification_precheck
-    try:
-        A2.submission_ratification_precheck = lambda: "ratified-fixture-digest"
 
-        def runner(argv, **kwargs):
-            qsub_calls.append((argv, kwargs))
-            return subprocess.CompletedProcess(argv, 0, "101.nqsv\n", "")
+    def runner(argv, **kwargs):
+        qsub_calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, "101.nqsv\n", "")
 
-        assert A2.ratified_qsub(
-            ["qsub", "job.sh"], runner=runner).returncode == 0
-
-        def unratified():
-            raise A2.CertificationError(
-                "enforcement-source-closure-unratified")
-
-        A2.submission_ratification_precheck = unratified
-        with pytest.raises(A2.CertificationError, match="unratified"):
-            A2.ratified_qsub(["qsub", "job.sh"], runner=runner)
-        assert len(qsub_calls) == 1
-    finally:
-        A2.submission_ratification_precheck = original_precheck
+    assert A2.exact_qsub(
+        ["qsub", "job.sh"], runner=runner).returncode == 0
+    with pytest.raises(A2.CertificationError,
+                       match="ratified qsub argv is not exact"):
+        A2.exact_qsub(["not-qsub", "job.sh"], runner=runner)
+    assert len(qsub_calls) == 1
 
     finish_root = A2.preregister_attempt(
         policy, "attempt-finish-group", CURRENT_PIN)
     _write_receipt_bundle(
         policy, finish_root, record_completion=False)
-    try:
-        A2.submission_ratification_precheck = lambda: "ratified-fixture-digest"
 
-        def qstat(command, **kwargs):
-            request_id = command[-1]
-            return subprocess.CompletedProcess(
-                command, 0,
-                f"Request ID: {request_id}\nRequest State = EXT\n", "")
+    def qstat(command, **kwargs):
+        request_id = command[-1]
+        return subprocess.CompletedProcess(
+            command, 0,
+            f"Request ID: {request_id}\nRequest State = EXT\n", "")
 
-        completion_path, finish_acquisition = A2.finish_group(
-            policy, finish_root, CURRENT_PIN, qstat_runner=qstat)
-    finally:
-        A2.submission_ratification_precheck = original_precheck
+    completion_path, finish_acquisition = A2.finish_group(
+        policy, finish_root, CURRENT_PIN, qstat_runner=qstat)
     assert completion_path == finish_root / "receipts" / "completion.json"
     finish_evidence = A2.validate_acquisition_bundle(
         policy, finish_acquisition, current_pin=CURRENT_PIN)

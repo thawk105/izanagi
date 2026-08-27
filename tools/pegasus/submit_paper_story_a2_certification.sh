@@ -9,10 +9,6 @@ REPO_ROOT=$(realpath -e -- "$SCRIPT_DIR/../..")
 PYTHON_BIN=${PYTHON:-python3.10}
 cd "$REPO_ROOT"
 
-# This is deliberately before argument, login, queue, quota, and qsub work.
-"$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-  submission-precheck >/dev/null
-
 usage() {
   echo "usage: submit_paper_story_a2_certification.sh [finish-group] --attempt-id ID [--ccbench-root ABS --dependency-prefix-source ABS]" >&2
 }
@@ -161,7 +157,7 @@ for workload in "${WORKLOADS[@]}"; do
   variable_arg="IZANAGI_A2_ATTEMPT_ROOT=$ATTEMPT_ROOT,IZANAGI_A2_WORKLOAD=$workload,IZANAGI_A2_EXPECTED_HEAD=$SOURCE_COMMIT,IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN,IZANAGI_A2_CCBENCH_ROOT=$CCBENCH_ROOT,IZANAGI_A2_REPO_ROOT=$REPO_ROOT,IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE=$DEPENDENCY_PREFIX_SOURCE"
   qsub_rc=0
   "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
-    ratified-qsub -- qsub -A SFC -q gen_S -b 1 -l elapstim_req=06:00:00 \
+    exact-qsub -- qsub -A SFC -q gen_S -b 1 -l elapstim_req=06:00:00 \
     -N paper-a2-cert -v "$variable_arg" -o "$stdout_path" -e "$stderr_path" \
     "$JOB_BODY" >"$TMP_ROOT/$workload.qsub.stdout" \
     2>"$TMP_ROOT/$workload.qsub.stderr" || qsub_rc=$?

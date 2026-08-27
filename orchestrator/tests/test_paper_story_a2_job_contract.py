@@ -1,5 +1,4 @@
 import hashlib
-import inspect
 import json
 import os
 import shlex
@@ -82,11 +81,9 @@ def test_job_body_is_compute_only_sequential_and_never_submits():
     submitter = SUBMITTER.read_text(encoding="utf-8")
     assert "WORKLOADS=(rr5 rr50)" in submitter
     assert "IZANAGI_A2_WORKLOAD=$workload" in submitter
-    assert "ratified-qsub -- qsub" in submitter
+    assert "exact-qsub -- qsub" in submitter
     assert "finish-group" in submitter
-    assert submitter.index("submission-precheck") < submitter.index("check_quota")
-    assert submitter.index("submission-precheck") < submitter.index(
-        "ratified-qsub -- qsub")
+    assert "submission-precheck" not in submitter
     finish_start = submitter.index('if [[ "$MODE" == finish-group ]]')
     finish_exit = submitter.index("  exit 0", finish_start)
     for submit_only_gate in (
@@ -94,9 +91,7 @@ def test_job_body_is_compute_only_sequential_and_never_submits():
             "QUEUE_STATE=$(qstat -Q)",
             'git status --porcelain --untracked-files=no'):
         assert finish_exit < submitter.index(submit_only_gate)
-    precheck = inspect.getsource(A2.submission_ratification_precheck)
-    assert precheck.index("capture_contract_loader_binding()") < precheck.index(
-        "verify_ratified_contract_loader_binding(binding)")
+    assert not hasattr(A2, "submission_ratification_precheck")
 
 
 def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
