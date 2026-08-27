@@ -19,6 +19,8 @@ from orchestrator.campaign import s8b_floor_campaign
 from orchestrator.campaign import s8b_floor_contract
 from orchestrator.campaign import s8b_floor_stats
 from orchestrator.campaign import s8b_holdout_admission as admission
+from orchestrator.campaign import s8b_oracle_manifest
+from orchestrator.campaign import s8b_ratified_freeze
 from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.holdout_observation import (
     HoldoutObservationError,
@@ -237,17 +239,19 @@ def _reserve(
             nondefault_seams=(
                 [] if nondefault_seams is None else nondefault_seams
             ),
-            irreversible_pilot_approved=True,
         )
 
 
-def _parallel_reserve(args: tuple[str, dict, dict, str]) -> str:
+def _parallel_reserve(
+    args: tuple[str, dict, dict, str],
+) -> tuple[str, str | None]:
     root_text, protocol, freeze, run_id = args
     try:
-        _reserve(Path(root_text), protocol, freeze, run_id=run_id)
+        reservation = _reserve(Path(root_text), protocol, freeze, run_id=run_id)
+        admission.finalize_floor_holdout_admissions(reservation)
     except admission.HoldoutAdmissionError:
-        return "refused"
-    return "admitted"
+        return "refused", None
+    return "admitted", reservation.measurement_generation_digest
 
 
 def test_shared_root_is_identical_across_two_worktrees_and_provisions_parents(tmp_path):
@@ -262,11 +266,13 @@ def test_shared_root_is_identical_across_two_worktrees_and_provisions_parents(tm
     assert first.is_dir()
     assert (first / "claims").is_dir()
     assert (first / "consumed").is_dir()
+    assert (first / "measurement-generation-claims").is_dir()
+    assert (first / "measurement-generation-consumed").is_dir()
     assert (first / "refreeze-disqualifications").is_dir()
     assert (first / "ledger.lock").is_file()
 
 
-def test_two_worktrees_parallel_fresh_runs_cannot_both_claim_the_same_keys(tmp_path):
+def test_floor_parallel_reservations_use_distinct_measurement_generations(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
     linked = tmp_path / "linked"
     _git(root, "worktree", "add", "--detach", str(linked), "HEAD")
@@ -276,7 +282,12 @@ def test_two_worktrees_parallel_fresh_runs_cannot_both_claim_the_same_keys(tmp_p
     ]
     with ProcessPoolExecutor(max_workers=2) as executor:
         outcomes = list(executor.map(_parallel_reserve, args))
-    assert sorted(outcomes) == ["admitted", "refused"]
+    assert [status for status, _digest in outcomes] == ["admitted", "admitted"]
+    assert len({digest for _status, digest in outcomes}) == 2
+    rows = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "ledger.jsonl"
+    )
+    assert len(rows) == 24
 
 
 def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
@@ -295,15 +306,19 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
     }
     claims = [
         json.loads(path.read_text())
-        for path in (admission.shared_admission_root(root) / "claims").iterdir()
+        for path in (
+            admission.shared_admission_root(root)
+            / "measurement-generation-claims"
+        ).iterdir()
     ]
     assert len(claims) == 12
     assert all(set(claim["key"]) == effect_key for claim in claims)
     assert {claim["schema_version"] for claim in claims} == {
-        "s8b-holdout-cell-claim/v2"
+        "s8b-holdout-measurement-generation-cell-claim/v1"
     }
     assert {claim["entry_kind"] for claim in claims} == {"fresh"}
     assert {tuple(claim["nondefault_seams"]) for claim in claims} == {()}
+    assert all("irreversible_pilot_approved" not in claim for claim in claims)
     for row in rows:
         assert row["attempt_count"] == 10
         assert len(row["attempt_ids"]) == 10
@@ -314,7 +329,10 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
         assert row["observation_role"] == (
             admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN
         )
-        assert row["irreversible_pilot_approved"] is True
+        assert "irreversible_pilot_approved" not in row
+        assert row["measurement_generation_digest"] == (
+            reservation.measurement_generation_digest
+        )
     assert "confirm_user_freeze" not in protocol
 
 
@@ -369,16 +387,6 @@ def test_observation_role_is_closed_and_separates_two_authorized_producers():
         admission._key_fields(  # noqa: SLF001 - unknown role must fail closed
             **common, observation_role="caller_selected_role",
         )
-
-
-def test_oracle_and_n_pilot_claim_producers_remain_explicitly_v1():
-    for producer in (
-        admission.reserve_oracle_holdout_observations,
-        admission.reserve_n_pilot_holdout_observations,
-    ):
-        source = inspect.getsource(producer)
-        assert '"schema_version": _CLAIM_SCHEMA_V1' in source
-        assert '"schema_version": _CLAIM_SCHEMA,' not in source
 
 
 @pytest.mark.parametrize(
@@ -495,56 +503,226 @@ def _reserve_r33(root: Path, protocol: dict, freeze: dict, *, run_id: str):
     return r33_protocol, protocol_sha256, cells, schedule, receipt
 
 
-def test_n_pilot_requires_exact_irreversible_approval_before_claim(tmp_path):
-    root, floor_protocol, freeze = _init_repo(tmp_path)
-    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
-        floor_protocol, freeze,
+def _reserve_oracle_fixture(root: Path, protocol: dict, freeze: dict):
+    floor_cells, _schedule = _cells_and_schedule(protocol, freeze)
+    schedule_rows = [
+        {
+            "schedule_index": index,
+            "block_id": "b0",
+            "holdout_id": cell["freeze_holdout_key"],
+            "configuration_id": cell["configuration_id"],
+        }
+        for index, cell in enumerate(floor_cells)
+    ]
+    manifest = {
+        "freeze": {"sha256": protocol["freeze"]["sha256"]},
+        "schedule_sha256": "a" * 64,
+        "run_contract": {
+            "reps": protocol["reps"],
+            "ccbench_pin": protocol["ccbench_pin"],
+            "env_tag": protocol["env_tag"],
+        },
+        "schedule": {"rows": schedule_rows},
+        "campaign_ids": {"b0": "oracle-campaign"},
+        "campaign_config_preimages": {"b0": {}},
+    }
+    verified = object.__new__(s8b_oracle_manifest.VerifiedManifest)
+    object.__setattr__(verified, "document", manifest)
+    object.__setattr__(verified, "sha256", hashlib.sha256(
+        _canonical(manifest)
+    ).hexdigest())
+    ratified = s8b_ratified_freeze.RatifiedFreeze(
+        document=freeze,
+        sha256=protocol["freeze"]["sha256"],
+        generation_number=1,
+        activation_head="f" * 40,
+        generation_commit="e" * 40,
     )
-    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
-        admission.reserve_n_pilot_holdout_observations(
-            repo_root=root,
-            protocol=protocol,
-            protocol_sha256=protocol_sha256,
-            verified_freeze_document=freeze,
-            freeze_sha256=floor_protocol["freeze"]["sha256"],
-            cells=cells,
-            schedule=schedule,
-            campaign_run_id="n-pilot-attempt",
-            irreversible_pilot_approved=False,
-        )
-    assert not admission.shared_admission_root(root).exists()
+    floor = s8b_ratified_freeze.VerifiedFloorArtifact(
+        path="fixture/result.json",
+        raw_bytes=b"{}",
+        sha256=hashlib.sha256(b"{}").hexdigest(),
+        document={},
+    )
+    launch_validated = s8b_ratified_freeze.LaunchValidatedFreeze(
+        ratified=ratified,
+        activation_head=ratified.activation_head,
+        search_digest="d" * 64,
+        symlink_gitlink_inventory=(),
+        floor_artifact=floor,
+        binaries_by_cell={},
+    )
+    return admission.reserve_oracle_holdout_observations(
+        repo_root=root,
+        verified_manifest=verified,
+        launch_validated=launch_validated,
+        block_id="b0",
+    )
 
 
-@pytest.mark.parametrize(
-    "approval",
-    [1, "true", False, 0, None],
-    ids=["truthy-int", "truthy-str", "false", "zero", "none"],
-)
-def test_n_pilot_rejects_non_true_approval_before_any_admission_write(
-    tmp_path, approval,
+def _produced_non_floor_documents(tmp_path: Path):
+    produced = {}
+    for role in (
+        admission.OBSERVATION_ROLE_ORACLE_DRIVER,
+        admission.OBSERVATION_ROLE_N_PILOT,
+        admission.OBSERVATION_ROLE_N_PILOT_R33,
+    ):
+        case_root = tmp_path / role
+        case_root.mkdir()
+        root, floor_protocol, freeze = _init_repo(case_root)
+        if role == admission.OBSERVATION_ROLE_ORACLE_DRIVER:
+            _reserve_oracle_fixture(root, floor_protocol, freeze)
+        elif role == admission.OBSERVATION_ROLE_N_PILOT:
+            protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+                floor_protocol, freeze,
+            )
+            admission.reserve_n_pilot_holdout_observations(
+                repo_root=root,
+                protocol=protocol,
+                protocol_sha256=protocol_sha256,
+                verified_freeze_document=freeze,
+                freeze_sha256=floor_protocol["freeze"]["sha256"],
+                cells=cells,
+                schedule=schedule,
+                campaign_run_id="legacy-schema",
+                irreversible_pilot_approved=False,
+            )
+        else:
+            _reserve_r33(root, floor_protocol, freeze, run_id="r33-schema")
+        shared = admission.shared_admission_root(root)
+        claims = [
+            json.loads(path.read_bytes())
+            for path in (shared / "measurement-generation-claims").iterdir()
+        ]
+        rows = admission._read_ledger(shared / "ledger.jsonl")  # noqa: SLF001
+        produced[role] = (claims[0], rows[0])
+    return produced
+
+
+def test_oracle_and_n_pilot_producers_use_measurement_generation_schema(
+    tmp_path,
 ):
-    root, floor_protocol, freeze = _init_repo(tmp_path)
-    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
-        floor_protocol, freeze,
-    )
+    for role, (claim, row) in _produced_non_floor_documents(tmp_path).items():
+        assert set(claim) == set(
+            admission._MEASUREMENT_GENERATION_CLAIM_KEYS_BY_ROLE[role]  # noqa: SLF001
+        )
+        assert set(row) == set(
+            admission._MEASUREMENT_GENERATION_LEDGER_KEYS_BY_ROLE[role]  # noqa: SLF001
+        )
+        assert admission._measurement_generation_claim_identity(  # noqa: SLF001
+            claim
+        ) == claim["measurement_generation_claim_digest"]
+        assert admission._measurement_generation_ledger_claim_digest(  # noqa: SLF001
+            row
+        ) == row["measurement_generation_claim_digest"]
 
-    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
-        admission.reserve_n_pilot_holdout_observations(
-            repo_root=root,
-            protocol=protocol,
+
+@pytest.mark.parametrize("document_kind", ["claim", "ledger"])
+@pytest.mark.parametrize("tamper", ["extra-key", "missing-key"])
+def test_non_floor_measurement_generation_rejects_inexact_schema(
+    tmp_path, document_kind, tamper,
+):
+    for claim, row in _produced_non_floor_documents(tmp_path).values():
+        document = dict(claim if document_kind == "claim" else row)
+        if tamper == "extra-key":
+            document["extra"] = "forbidden"
+        else:
+            document.pop("attempt_ids")
+        validator = (
+            admission._measurement_generation_claim_identity  # noqa: SLF001
+            if document_kind == "claim"
+            else admission._measurement_generation_ledger_claim_digest  # noqa: SLF001
+        )
+        with pytest.raises(admission.HoldoutAdmissionError, match="exact shape"):
+            validator(document)
+
+
+@pytest.mark.parametrize("document_kind", ["claim", "ledger"])
+@pytest.mark.parametrize("tamper", ["id-mismatch", "digest-mismatch"])
+def test_non_floor_measurement_generation_rejects_identity_mismatch(
+    tmp_path, document_kind, tamper,
+):
+    for claim, row in _produced_non_floor_documents(tmp_path).values():
+        document = dict(claim if document_kind == "claim" else row)
+        field = (
+            "measurement_generation_id"
+            if tamper == "id-mismatch"
+            else "measurement_generation_digest"
+        )
+        document[field] = "0" * 64
+        validator = (
+            admission._measurement_generation_claim_identity  # noqa: SLF001
+            if document_kind == "claim"
+            else admission._measurement_generation_ledger_claim_digest  # noqa: SLF001
+        )
+        with pytest.raises(admission.HoldoutAdmissionError, match="identity digest"):
+            validator(document)
+
+
+def test_r33_measurement_generation_requires_transaction_identity(tmp_path):
+    documents = _produced_non_floor_documents(tmp_path)
+    claim, row = documents[admission.OBSERVATION_ROLE_N_PILOT_R33]
+    for document, validator in (
+        (claim, admission._r33_claim_key_digest),  # noqa: SLF001
+        (row, admission._r33_ledger_key_digest),  # noqa: SLF001
+    ):
+        with pytest.raises(admission.HoldoutAdmissionError, match="transaction"):
+            validator(document, expected_transaction_id="0" * 64)
+
+
+def test_n_pilot_approval_argument_is_inert(tmp_path):
+    observed = []
+    for label, approval in (("true", True), ("false", False)):
+        case_root = tmp_path / label
+        case_root.mkdir()
+        root, floor_protocol, freeze = _init_repo(case_root)
+        protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+            floor_protocol, freeze,
+        )
+        result = admission.reserve_n_pilot_holdout_observations(
+            repo_root=root, protocol=protocol,
             protocol_sha256=protocol_sha256,
             verified_freeze_document=freeze,
             freeze_sha256=floor_protocol["freeze"]["sha256"],
-            cells=cells,
-            schedule=schedule,
+            cells=cells, schedule=schedule,
             campaign_run_id="n-pilot-attempt",
             irreversible_pilot_approved=approval,
         )
+        rows = admission._read_ledger(  # noqa: SLF001
+            admission.shared_admission_root(root) / "ledger.jsonl"
+        )
+        observed.append((set(result), len(rows), {
+            row["schema_version"] for row in rows
+        }, {row["observation_role"] for row in rows}))
+    assert observed[0] == observed[1]
 
-    shared = admission.shared_admission_root(root)
-    assert not (shared / "claims").exists()
-    assert not (shared / "ledger.jsonl").exists()
-    assert not (shared / "attempt-ledger.jsonl").exists()
+    r33_observed = []
+    for label, approval in (("true", True), ("false", False)):
+        case_root = tmp_path / f"r33-{label}"
+        case_root.mkdir()
+        root, floor_protocol, freeze = _init_repo(case_root)
+        protocol, protocol_sha256, cells, schedule = _r33_fixture(
+            floor_protocol, freeze,
+        )
+        receipt = admission.reserve_n_pilot_holdout_observations(
+            repo_root=root, protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            verified_freeze_document=freeze,
+            freeze_sha256=floor_protocol["freeze"]["sha256"],
+            cells=cells, schedule=schedule,
+            campaign_run_id="r33-approval-inert",
+            irreversible_pilot_approved=approval,
+        )
+        rows = admission._read_ledger(  # noqa: SLF001
+            admission.shared_admission_root(root) / "ledger.jsonl"
+        )
+        r33_observed.append((
+            isinstance(receipt, admission.NPilotReservationReceipt),
+            receipt["cell_count"], len(rows),
+            {row["schema_version"] for row in rows},
+            {row["observation_role"] for row in rows},
+        ))
+    assert r33_observed[0] == r33_observed[1]
 
 
 def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp_path):
@@ -575,7 +753,8 @@ def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp
     }
     assert len({row["schedule_sha256"] for row in rows}) == 1
     assert {row["campaign_run_id"] for row in rows} == {"n-pilot-attempt"}
-    assert {row["irreversible_pilot_approved"] for row in rows} == {True}
+    assert all("irreversible_pilot_approved" not in row for row in rows)
+    assert len({row["measurement_generation_digest"] for row in rows}) == 1
     assert {row["reps"] for row in rows} == {floor_protocol["reps"]}
 
     token = admission.consume_n_pilot_attempt_ticket(
@@ -601,6 +780,66 @@ def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp
     assert attempt_rows[0]["observation_role"] == admission.OBSERVATION_ROLE_N_PILOT
 
 
+def test_legacy_n_pilot_repeated_reservation_is_admitted(tmp_path):
+    root, floor_protocol, freeze = _init_repo(tmp_path)
+    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+        floor_protocol, freeze,
+    )
+    reservations = []
+    for run_id in ("legacy-n-pilot-a", "legacy-n-pilot-b"):
+        reservations.append(admission.reserve_n_pilot_holdout_observations(
+            repo_root=root, protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            verified_freeze_document=freeze,
+            freeze_sha256=floor_protocol["freeze"]["sha256"],
+            cells=cells, schedule=schedule, campaign_run_id=run_id,
+            irreversible_pilot_approved=False,
+        ))
+    rows = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "ledger.jsonl"
+    )
+    assert all(isinstance(item, dict) for item in reservations)
+    assert len(rows) == 24
+    assert len({row["measurement_generation_digest"] for row in rows}) == 2
+
+
+def test_legacy_n_pilot_same_logical_attempt_consumes_in_two_generations(
+    tmp_path,
+):
+    root, floor_protocol, freeze = _init_repo(tmp_path)
+    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+        floor_protocol, freeze,
+    )
+    run_ids = ("same-logical-attempt-a", "same-logical-attempt-b")
+    reservations = [
+        admission.reserve_n_pilot_holdout_observations(
+            repo_root=root,
+            protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            verified_freeze_document=freeze,
+            freeze_sha256=floor_protocol["freeze"]["sha256"],
+            cells=cells,
+            schedule=schedule,
+            campaign_run_id=run_id,
+            irreversible_pilot_approved=False,
+        )
+        for run_id in run_ids
+    ]
+    first = admission.consume_n_pilot_attempt_ticket(
+        reservations[0][0], schedule_index=0,
+    )
+    second = admission.consume_n_pilot_attempt_ticket(
+        reservations[1][0], schedule_index=0,
+    )
+    assert first.attempt_id.removeprefix(f"{run_ids[0]}::") == (
+        second.attempt_id.removeprefix(f"{run_ids[1]}::")
+    )
+    shared = admission.shared_admission_root(root)
+    assert len(list((
+        shared / "measurement-generation-consumed"
+    ).iterdir())) == 2
+
+
 def test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
     _r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
@@ -618,7 +857,7 @@ def test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest(tmp_path)
     assert all(len(cell["global_schedule_indexes"]) == 33 for cell in receipt["cells"])
 
     shared = admission.shared_admission_root(root)
-    assert len(list((shared / "claims").iterdir())) == 12
+    assert len(list((shared / "measurement-generation-claims").iterdir())) == 12
     rows = admission._read_ledger(shared / "ledger.jsonl")
     assert len(rows) == 12
     assert {row["observation_role"] for row in rows} == {
@@ -641,6 +880,67 @@ def test_r33_reserve_returns_authoritative_receipt_and_opaque_manifest(tmp_path)
     assert not forbidden.intersection(json.dumps(manifest))
     assert all(set(cell) == {"cell_ref", "global_schedule_indexes"}
                for cell in manifest["cells"])
+
+
+def test_r33_repeated_reservation_uses_new_generation(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    first = _reserve_r33(root, protocol, freeze, run_id="r33-repeat-a")[-1]
+    second = _reserve_r33(root, protocol, freeze, run_id="r33-repeat-b")[-1]
+    assert isinstance(first, admission.NPilotReservationReceipt)
+    assert isinstance(second, admission.NPilotReservationReceipt)
+    assert first["transaction_id"] == admission._new_measurement_generation(  # noqa: SLF001
+        observation_role=admission.OBSERVATION_ROLE_N_PILOT_R33,
+        campaign_run_id="r33-repeat-a",
+    )[0]
+    assert second["transaction_id"] == admission._new_measurement_generation(  # noqa: SLF001
+        observation_role=admission.OBSERVATION_ROLE_N_PILOT_R33,
+        campaign_run_id="r33-repeat-b",
+    )[0]
+    assert first["transaction_id"] != second["transaction_id"]
+    assert {
+        cell["claim_digest"] for cell in first["cells"]
+    }.isdisjoint({cell["claim_digest"] for cell in second["cells"]})
+    rows = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "ledger.jsonl"
+    )
+    assert len(rows) == 24
+    assert len({row["measurement_generation_digest"] for row in rows}) == 2
+
+
+def test_r33_same_logical_attempt_consumes_in_two_generations(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    run_ids = ("r33-same-logical-attempt-a", "r33-same-logical-attempt-b")
+    first_fixture = _reserve_r33(
+        root, protocol, freeze, run_id=run_ids[0],
+    )
+    second_fixture = _reserve_r33(
+        root, protocol, freeze, run_id=run_ids[1],
+    )
+    observations = []
+    for r33_protocol, _sha, _cells, _schedule, receipt in (
+        first_fixture, second_fixture,
+    ):
+        cell = next(
+            item for item in receipt["cells"]
+            if 0 in item["global_schedule_indexes"]
+        )
+        observations.append(admission.consume_n_pilot_attempt_ticket(
+            receipt,
+            repo_root=root,
+            protocol=r33_protocol,
+            verified_freeze_document=freeze,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            schedule_sha256=receipt["schedule_sha256"],
+            global_schedule_index=0,
+            expected_cell_id=cell["cell_id"],
+        ))
+    assert observations[0].attempt_id.removeprefix(f"{run_ids[0]}::") == (
+        observations[1].attempt_id.removeprefix(f"{run_ids[1]}::")
+    )
+    shared = admission.shared_admission_root(root)
+    assert len(list((
+        shared / "measurement-generation-consumed"
+    ).iterdir())) == 2
 
 
 def test_r33_reserve_separates_raw_freeze_digest_from_canonical_freeze_digest(tmp_path):
@@ -714,6 +1014,29 @@ def test_r33_consume_reloads_receipt_without_process_local_state(tmp_path, monke
     assert len(admission._n_pilot_cell_states) == before  # noqa: SLF001
 
 
+def test_r33_attempt_ticket_is_durably_single_use(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
+        root, protocol, freeze, run_id="r33-single-use",
+    )
+    cell = next(
+        item for item in receipt["cells"]
+        if 0 in item["global_schedule_indexes"]
+    )
+    kwargs = {
+        "repo_root": root,
+        "protocol": r33_protocol,
+        "verified_freeze_document": freeze,
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "schedule_sha256": receipt["schedule_sha256"],
+        "global_schedule_index": 0,
+        "expected_cell_id": cell["cell_id"],
+    }
+    admission.consume_n_pilot_attempt_ticket(receipt, **kwargs)
+    with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
+        admission.consume_n_pilot_attempt_ticket(receipt, **kwargs)
+
+
 def test_r33_consume_resolves_public_manifest_to_authoritative_receipt(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
     r33_protocol, _protocol_sha256, _cells, _schedule, receipt = _reserve_r33(
@@ -752,7 +1075,7 @@ def test_r33_precommit_failure_has_no_visible_claim_and_can_be_aborted(tmp_path,
 
     shared = admission.shared_admission_root(root)
     assert not (shared / "ledger.jsonl").exists()
-    assert list((shared / "claims").iterdir()) == []
+    assert list((shared / "measurement-generation-claims").iterdir()) == []
     transaction = next((shared / "transactions").iterdir())
     abort = admission.abort_unpublished_n_pilot_transaction(
         repo_root=root,
@@ -800,7 +1123,7 @@ def test_r33_commit_recovery_allows_foreign_append_and_is_idempotent(tmp_path, m
     assert (shared / "ledger.jsonl").read_bytes() == once
     rows = admission._read_ledger(shared / "ledger.jsonl")
     assert len(rows) == 13
-    assert len(list((shared / "claims").iterdir())) == 12
+    assert len(list((shared / "measurement-generation-claims").iterdir())) == 12
     assert len(list((shared / "receipts").iterdir())) == 1
     assert transaction.is_dir()
 
@@ -845,43 +1168,24 @@ def test_r33_consume_marker_recovery_rebuilds_missing_attempt_row(tmp_path, monk
         )
     monkeypatch.setattr(admission, "_append_ledger", original)
     shared = admission.shared_admission_root(root)
-    assert len(list((shared / "consumed").iterdir())) == 1
+    assert len(list((shared / "measurement-generation-consumed").iterdir())) == 1
     with admission._locked(shared):
         admission._recover_n_pilot_attempt_ledger_locked(shared)  # noqa: SLF001
         admission._recover_n_pilot_attempt_ledger_locked(shared)  # noqa: SLF001
     assert len(admission._read_ledger(shared / "attempt-ledger.jsonl")) == 1
 
 
-def test_pilot_claim_requires_irreversible_approval_before_claim(tmp_path):
-    root, protocol, freeze = _init_repo(tmp_path)
-    cells, schedule = _cells_and_schedule(protocol, freeze)
-    out_root = root / "out"
-    run_id = "run-a"
-    run_relpath = f"env/fixture-env/calibration/s8b-floor-pilot/{run_id}"
-    run_dir = out_root / run_relpath
-    run_dir.mkdir(parents=True)
-    (run_dir / "manifest.json").write_text(json.dumps({
-        "protocol_sha256": hashlib.sha256(_canonical(protocol)).hexdigest(),
-        "freeze_sha256": protocol["freeze"]["sha256"],
-        "reps": protocol["reps"],
-    }, sort_keys=True) + "\n", encoding="utf-8")
-    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
-        admission.reserve_floor_holdout_observations(
-            repo_root=root, protocol=protocol,
-            verified_freeze_document=freeze,
-            freeze_sha256=protocol["freeze"]["sha256"],
-            cells=cells, schedule=schedule, campaign_run_id=run_id,
-            out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
-            mode="pilot", resume=False, nondefault_seams=[],
-            irreversible_pilot_approved=False,
-        )
-    shared = admission.shared_admission_root(root)
-    assert not shared.exists()
+def test_floor_reservation_signature_has_no_approval_argument():
+    parameters = inspect.signature(
+        admission.reserve_floor_holdout_observations
+    ).parameters
+    assert "irreversible_pilot_approved" not in parameters
 
 
-def test_protocol_master_seed_change_does_not_reset_cell_key(tmp_path):
+def test_effect_key_is_stable_across_measurement_generations(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
-    _reserve(root, protocol, freeze, run_id="run-a")
+    first = _reserve(root, protocol, freeze, run_id="run-a")
+    admission.finalize_floor_holdout_admissions(first)
 
     changed, same_freeze = _fixture_documents(master_seed="seed-b")
     _write_fixed_documents(root, changed, same_freeze)
@@ -889,28 +1193,187 @@ def test_protocol_master_seed_change_does_not_reset_cell_key(tmp_path):
     _git(root, "-c", "user.name=fixture", "-c", "user.email=f@example.invalid",
          "commit", "-m", "change schedule seed")
 
-    with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
-        _reserve(root, changed, same_freeze, run_id="run-b")
+    second = _reserve(root, changed, same_freeze, run_id="run-b")
+    admission.finalize_floor_holdout_admissions(second)
+    rows = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "ledger.jsonl"
+    )
+    assert len(rows) == 24
+    first_effects = {
+        row["cell_effect_digest"]
+        for row in rows if row["campaign_run_id"] == "run-a"
+    }
+    second_effects = {
+        row["cell_effect_digest"]
+        for row in rows if row["campaign_run_id"] == "run-b"
+    }
+    assert first_effects == second_effects
+    assert first.measurement_generation_digest != (
+        second.measurement_generation_digest
+    )
 
 
-def test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal(tmp_path):
+def test_floor_fresh_rereservation_appends_generation_rows(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
     first = _reserve(root, protocol, freeze, run_id="run-a")
     admission.finalize_floor_holdout_admissions(first)
-    ledger = admission.shared_admission_root(root) / "ledger.jsonl"
+    second = _reserve(root, protocol, freeze, run_id="run-b")
+    admission.finalize_floor_holdout_admissions(second)
+    rows = admission._read_ledger(  # noqa: SLF001
+        admission.shared_admission_root(root) / "ledger.jsonl"
+    )
+    assert len(rows) == 24
+    assert {row["campaign_run_id"] for row in rows} == {"run-a", "run-b"}
+    assert len({row["measurement_generation_digest"] for row in rows}) == 2
+
+
+def _place_legacy_floor_bytes(root: Path, protocol: dict, freeze: dict):
+    cells = s8b_floor_contract.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = s8b_floor_contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    completed = [{
+        "cell_id": row["cell_id"],
+        "attempt_id": f"{row['cell_id']}::seq{row['seq']}",
+        "probe_before": {"competing": False},
+    } for row in schedule]
+    evidence = build_floor_admission_evidence(
+        admission.shared_admission_root(root),
+        protocol=protocol, freeze=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256="b" * 64,
+        campaign_run_id="legacy-floor-run",
+        run_relpath=(
+            "env/fixture-env/calibration/s8b-floor-pilot/legacy-floor-run"
+        ),
+        mode="pilot", cells=cells, schedule=schedule, sessions=completed,
+    )
+    lifecycle = []
+    for row, session in zip(schedule, completed, strict=True):
+        lifecycle.append({
+            "event": "session-start", "seq": row["seq"],
+            "round": row["round"], "kind": "planned",
+            "retry_ordinal": None, "cell_id": row["cell_id"],
+            "attempt_id": session["attempt_id"], "trigger": None,
+        })
+        lifecycle.append({
+            "event": "session", "kind": "planned", "valid": True,
+            **session,
+        })
+    return evidence, cells, schedule, lifecycle
+
+
+def test_floor_rereservation_ignores_legacy_cell_claims(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    evidence, _cells, _schedule, _lifecycle = _place_legacy_floor_bytes(
+        root, protocol, freeze,
+    )
+    legacy_claims = {
+        path.name: path.read_bytes() for path in (evidence.root / "claims").iterdir()
+    }
+
+    reservation = _reserve(root, protocol, freeze, run_id="fresh-after-legacy")
+
+    assert reservation.measurement_generation_digest
+    assert {
+        path.name: path.read_bytes() for path in (evidence.root / "claims").iterdir()
+    } == legacy_claims
+
+
+def test_floor_rereservation_ignores_legacy_cell_and_attempt_bytes_end_to_end(
+    tmp_path,
+):
+    root, protocol, freeze = _init_repo(tmp_path)
+    evidence, cells, schedule, legacy_lifecycle = _place_legacy_floor_bytes(
+        root, protocol, freeze,
+    )
+    legacy_claim_bytes = {
+        path.name: path.read_bytes() for path in (evidence.root / "claims").iterdir()
+    }
+    legacy_marker_bytes = {
+        path.name: path.read_bytes() for path in (evidence.root / "consumed").iterdir()
+    }
+
+    reservation = _reserve(root, protocol, freeze, run_id="fresh-integrated")
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
+    production_cells, _production_schedule = _cells_and_schedule(protocol, freeze)
+    cell = production_cells[0]
+    row = next(item for item in schedule if item["cell_id"] == cell["cell_id"])
+    attempt_id = f"{cell['cell_id']}::seq{row['seq']}"
+    run_dir = (
+        root / "out/env/fixture-env/calibration/s8b-floor-pilot/fresh-integrated"
+    )
+    (run_dir / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start", "seq": row["seq"],
+        "round": row["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    observation = admission.consume_attempt_ticket(
+        admitted[cell["cell_id"]], attempt_id=attempt_id,
+    )
+    assert_issued_holdout_observation(observation)
+
+    inspection = admission.inspect_floor_holdout_admission_evidence(
+        repo_root=root, protocol=protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256="b" * 64,
+        campaign_run_id="legacy-floor-run",
+        run_relpath=(
+            "env/fixture-env/calibration/s8b-floor-pilot/legacy-floor-run"
+        ),
+        mode="pilot", cells=cells, schedule=schedule,
+        sessions=legacy_lifecycle,
+    )
+    assert inspection == evidence.expected_receipt
+    assert {
+        path.name: path.read_bytes() for path in (evidence.root / "claims").iterdir()
+    } == legacy_claim_bytes
+    assert {
+        path.name: path.read_bytes() for path in (evidence.root / "consumed").iterdir()
+    } == legacy_marker_bytes
+
+
+def test_resume_api_has_no_caller_journal_or_manifest_self_report():
+    reserve_parameters = inspect.signature(
+        admission.reserve_floor_holdout_observations
+    ).parameters
+    finalize_parameters = inspect.signature(
+        admission.finalize_floor_holdout_admissions
+    ).parameters
+    assert "journal_exists" not in reserve_parameters
+    assert "measurement_started" not in reserve_parameters
+    assert "manifest_sha256" not in finalize_parameters
+
+
+def test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal(
+    tmp_path,
+):
+    root, protocol, freeze = _init_repo(tmp_path)
+    first = _reserve(root, protocol, freeze, run_id="crash-point")
+    admission.finalize_floor_holdout_admissions(first)
+    shared = admission.shared_admission_root(root)
+    ledger = shared / "ledger.jsonl"
     before = ledger.read_bytes()
 
     with pytest.raises(admission.HoldoutAdmissionError, match="journal is absent"):
-        _reserve(root, protocol, freeze, run_id="run-a", resume=True)
+        _reserve(root, protocol, freeze, run_id="crash-point", resume=True)
 
-    resumed = _reserve(
-        root, protocol, freeze, run_id="run-a", resume=True, journal_exists=True,
+    second = _reserve(
+        root, protocol, freeze, run_id="crash-point",
+        resume=True, journal_exists=True,
     )
-    admission.finalize_floor_holdout_admissions(resumed)
+    admission.finalize_floor_holdout_admissions(second)
     assert ledger.read_bytes() == before
+    assert first.measurement_generation_digest == second.measurement_generation_digest
 
     manifest_path = (
-        root / "out/env/fixture-env/calibration/s8b-floor-pilot/run-a/manifest.json"
+        root
+        / "out/env/fixture-env/calibration/s8b-floor-pilot/crash-point/manifest.json"
     )
     changed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     changed_manifest["evidence_only_change"] = True
@@ -925,23 +1388,32 @@ def test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal
     journal_path.write_text(
         json.dumps(journal_row, sort_keys=True) + "\n", encoding="utf-8"
     )
-    mismatched = _reserve(
-        root, protocol, freeze, run_id="run-a", resume=True, journal_exists=True,
+    with pytest.raises(admission.HoldoutAdmissionError, match="same run identity"):
+        _reserve(
+            root, protocol, freeze, run_id="crash-point",
+            resume=True, journal_exists=True,
+        )
+
+
+def test_resume_ledger_run_identity_check_is_independent_of_generation_derivation(
+    tmp_path,
+):
+    root, protocol, freeze = _init_repo(tmp_path)
+    first = _reserve(root, protocol, freeze, run_id="ledger-identity")
+    admission.finalize_floor_holdout_admissions(first)
+    ledger = admission.shared_admission_root(root) / "ledger.jsonl"
+    rows = admission._read_ledger(ledger)  # noqa: SLF001
+    rows[0]["manifest_sha256"] = "0" * 64
+    ledger.write_bytes(b"".join(
+        admission._canonical_line(row) for row in rows  # noqa: SLF001
+    ))
+
+    resumed = _reserve(
+        root, protocol, freeze, run_id="ledger-identity",
+        resume=True, journal_exists=True,
     )
     with pytest.raises(admission.HoldoutAdmissionError, match="same run identity"):
-        admission.finalize_floor_holdout_admissions(mismatched)
-
-
-def test_resume_api_has_no_caller_journal_or_manifest_self_report():
-    reserve_parameters = inspect.signature(
-        admission.reserve_floor_holdout_observations
-    ).parameters
-    finalize_parameters = inspect.signature(
-        admission.finalize_floor_holdout_admissions
-    ).parameters
-    assert "journal_exists" not in reserve_parameters
-    assert "measurement_started" not in reserve_parameters
-    assert "manifest_sha256" not in finalize_parameters
+        admission.finalize_floor_holdout_admissions(resumed)
 
 
 @pytest.mark.parametrize(
@@ -957,21 +1429,27 @@ def test_resume_claim_transition_table_is_run_wide_and_marker_guarded(
     tmp_path, claims_to_keep, expected_entry_kinds,
 ):
     root, protocol, freeze = _init_repo(tmp_path)
-    _reserve(root, protocol, freeze, run_id="crash-point")
+    first = _reserve(root, protocol, freeze, run_id="crash-point")
+    admission.finalize_floor_holdout_admissions(first)
     shared = admission.shared_admission_root(root)
-    claim_paths = sorted((shared / "claims").iterdir())
+    claim_paths = sorted((shared / "measurement-generation-claims").iterdir())
     assert len(claim_paths) == 12
     for path in claim_paths[claims_to_keep:]:
         path.unlink()
 
-    _reserve(
+    resumed = _reserve(
         root, protocol, freeze, run_id="crash-point",
         resume=True, journal_exists=True,
     )
+    admission.finalize_floor_holdout_admissions(resumed)
 
-    claims = [json.loads(path.read_bytes()) for path in (shared / "claims").iterdir()]
+    claims = [
+        json.loads(path.read_bytes())
+        for path in (shared / "measurement-generation-claims").iterdir()
+    ]
     assert len(claims) == 12
     assert {claim["entry_kind"] for claim in claims} == expected_entry_kinds
+    assert resumed.measurement_generation_digest == first.measurement_generation_digest
     markers = list((shared / "refreeze-disqualifications").iterdir())
     assert len(markers) == 1
     marker = json.loads(markers[0].read_bytes())
@@ -981,24 +1459,23 @@ def test_resume_claim_transition_table_is_run_wide_and_marker_guarded(
 
 def test_resume_preserves_existing_v1_claims_immutably(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
-    _reserve(root, protocol, freeze, run_id="legacy-v1")
+    first = _reserve(root, protocol, freeze, run_id="generation-v1")
+    admission.finalize_floor_holdout_admissions(first)
     shared = admission.shared_admission_root(root)
-    before = {}
-    for path in (shared / "claims").iterdir():
-        claim = json.loads(path.read_bytes())
-        claim["schema_version"] = "s8b-holdout-cell-claim/v1"
-        claim.pop("entry_kind")
-        claim.pop("nondefault_seams")
-        path.write_bytes(canonical_json_line(claim))
-        before[path.name] = path.read_bytes()
+    before = {
+        path.name: path.read_bytes()
+        for path in (shared / "measurement-generation-claims").iterdir()
+    }
 
-    _reserve(
-        root, protocol, freeze, run_id="legacy-v1",
+    resumed = _reserve(
+        root, protocol, freeze, run_id="generation-v1",
         resume=True, journal_exists=True,
     )
+    admission.finalize_floor_holdout_admissions(resumed)
 
     after = {
-        path.name: path.read_bytes() for path in (shared / "claims").iterdir()
+        path.name: path.read_bytes()
+        for path in (shared / "measurement-generation-claims").iterdir()
     }
     assert after == before
     assert len(list((shared / "refreeze-disqualifications").iterdir())) == 1
@@ -1006,32 +1483,107 @@ def test_resume_preserves_existing_v1_claims_immutably(tmp_path):
 
 def test_resume_backfills_partial_v1_claim_set_without_schema_upgrade(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
-    _reserve(root, protocol, freeze, run_id="legacy-v1-partial")
+    first = _reserve(root, protocol, freeze, run_id="generation-v1-partial")
+    admission.finalize_floor_holdout_admissions(first)
     shared = admission.shared_admission_root(root)
-    claim_paths = sorted((shared / "claims").iterdir())
+    claim_paths = sorted((shared / "measurement-generation-claims").iterdir())
     retained_path = claim_paths[0]
-    retained = json.loads(retained_path.read_bytes())
-    retained["schema_version"] = "s8b-holdout-cell-claim/v1"
-    retained.pop("entry_kind")
-    retained.pop("nondefault_seams")
-    retained_path.write_bytes(canonical_json_line(retained))
     retained_before = retained_path.read_bytes()
     for path in claim_paths[1:]:
         path.unlink()
 
-    _reserve(
-        root, protocol, freeze, run_id="legacy-v1-partial",
+    resumed = _reserve(
+        root, protocol, freeze, run_id="generation-v1-partial",
         resume=True, journal_exists=True,
     )
+    admission.finalize_floor_holdout_admissions(resumed)
 
     claims = [
-        json.loads(path.read_bytes()) for path in (shared / "claims").iterdir()
+        json.loads(path.read_bytes())
+        for path in (shared / "measurement-generation-claims").iterdir()
     ]
     assert len(claims) == 12
     assert {claim["schema_version"] for claim in claims} == {
-        "s8b-holdout-cell-claim/v1"
+        "s8b-holdout-measurement-generation-cell-claim/v1"
     }
     assert retained_path.read_bytes() == retained_before
+
+
+def test_resume_reservation_reuses_measurement_generation(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    first = _reserve(root, protocol, freeze, run_id="resume-reuse")
+    admission.finalize_floor_holdout_admissions(first)
+    second = _reserve(
+        root, protocol, freeze, run_id="resume-reuse",
+        resume=True, journal_exists=True,
+    )
+    admission.finalize_floor_holdout_admissions(second)
+    shared = admission.shared_admission_root(root)
+    claims = list((shared / "measurement-generation-claims").iterdir())
+    rows = admission._read_ledger(shared / "ledger.jsonl")  # noqa: SLF001
+    assert len(claims) == 12
+    assert len(rows) == 12
+    assert first.measurement_generation_digest == second.measurement_generation_digest
+
+
+def test_same_campaign_run_reuses_generation_identity_and_fresh_reclaim_fails(
+    tmp_path,
+):
+    root, protocol, freeze = _init_repo(tmp_path)
+    first = _reserve(root, protocol, freeze, run_id="same-fresh")
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match="measurement generation claim identity was unexpectedly reused",
+    ):
+        _reserve(root, protocol, freeze, run_id="same-fresh")
+    third = _reserve(root, protocol, freeze, run_id="different-fresh")
+    assert first.measurement_generation_digest != (
+        third.measurement_generation_digest
+    )
+
+
+def test_measurement_generation_identity_is_deterministic_and_role_scoped():
+    run_id = "deterministic-run"
+    expected_id = hashlib.sha256(json.dumps(
+        {
+            "campaign_run_id": run_id,
+            "observation_role": admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    expected_digest = hashlib.sha256(json.dumps(
+        {
+            "campaign_run_id": run_id,
+            "measurement_generation_id": expected_id,
+            "observation_role": admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    first = admission._new_measurement_generation(  # noqa: SLF001
+        observation_role=admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        campaign_run_id=run_id,
+    )
+    second = admission._new_measurement_generation(  # noqa: SLF001
+        observation_role=admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        campaign_run_id=run_id,
+    )
+    other_run = admission._new_measurement_generation(  # noqa: SLF001
+        observation_role=admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        campaign_run_id="deterministic-run-b",
+    )
+    other_role = admission._new_measurement_generation(  # noqa: SLF001
+        observation_role=admission.OBSERVATION_ROLE_N_PILOT,
+        campaign_run_id=run_id,
+    )
+    assert first == second
+    assert first == (expected_id, expected_digest)
+    assert len({first, other_run, other_role}) == 3
 
 
 def test_resume_rejects_actual_terminal_journal(tmp_path):
@@ -1126,7 +1678,7 @@ def test_resolved_record_bytes_mismatch_is_rejected_before_any_cell_claim(tmp_pa
             resolver_record=mismatched,
         )
 
-    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+    assert list((admission.shared_admission_root(root) / "measurement-generation-claims").iterdir()) == []
 
 
 def test_resolved_record_sha256_mismatch_is_rejected_before_any_cell_claim(tmp_path):
@@ -1146,7 +1698,7 @@ def test_resolved_record_sha256_mismatch_is_rejected_before_any_cell_claim(tmp_p
             resolver_record=mismatched,
         )
 
-    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+    assert list((admission.shared_admission_root(root) / "measurement-generation-claims").iterdir()) == []
 
 
 def test_resolver_exception_is_rejected_before_any_cell_claim(tmp_path):
@@ -1160,7 +1712,7 @@ def test_resolver_exception_is_rejected_before_any_cell_claim(tmp_path):
             ),
         )
 
-    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+    assert list((admission.shared_admission_root(root) / "measurement-generation-claims").iterdir()) == []
 
 
 def test_resolver_invalid_record_type_is_rejected_before_any_cell_claim(tmp_path):
@@ -1172,7 +1724,7 @@ def test_resolver_invalid_record_type_is_rejected_before_any_cell_claim(tmp_path
             resolver_record=object(),
         )
 
-    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+    assert list((admission.shared_admission_root(root) / "measurement-generation-claims").iterdir()) == []
 
 
 def test_resolver_record_without_fixed_commit_is_rejected_before_any_cell_claim(
@@ -1192,7 +1744,7 @@ def test_resolver_record_without_fixed_commit_is_rejected_before_any_cell_claim(
             resolver_record=missing_commit,
         )
 
-    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+    assert list((admission.shared_admission_root(root) / "measurement-generation-claims").iterdir()) == []
 
 
 def test_supplied_protocol_mismatch_remains_rejected_before_any_cell_claim(tmp_path):
@@ -1203,7 +1755,7 @@ def test_supplied_protocol_mismatch_remains_rejected_before_any_cell_claim(tmp_p
     with pytest.raises(admission.HoldoutAdmissionError, match="supplied protocol"):
         _reserve(root, supplied, freeze, run_id="run-supplied-mismatch")
 
-    assert list((admission.shared_admission_root(root) / "claims").iterdir()) == []
+    assert list((admission.shared_admission_root(root) / "measurement-generation-claims").iterdir()) == []
 
 
 def test_committed_versioned_protocol_admits_with_dirty_legacy_worktree(tmp_path):
@@ -1264,7 +1816,9 @@ def test_worktree_byte_drift_is_rejected_before_any_cell_claim(tmp_path, filenam
     with pytest.raises(admission.HoldoutAdmissionError, match="HEAD and working-tree"):
         _reserve(root, protocol, freeze, run_id="run-a")
 
-    claim_root = admission.shared_admission_root(root) / "claims"
+    claim_root = (
+        admission.shared_admission_root(root) / "measurement-generation-claims"
+    )
     assert list(claim_root.iterdir()) == []
 
 
@@ -1292,19 +1846,9 @@ def _issued_cell(tmp_path: Path):
 
 def _floor_expected_marker(admitted, attempt_id: str) -> dict:
     state = admission._cell_state(admitted)  # noqa: SLF001
-    return {
-        "schema_version": admission._ATTEMPT_SCHEMA,  # noqa: SLF001
-        "event": "consume",
-        "claim_digest": state.claim_digest,
-        "attempt_id": attempt_id,
-        "campaign_run_id": state.row["campaign_run_id"],
-        "manifest_sha256": state.row["manifest_sha256"],
-        "run_relpath": state.row["run_relpath"],
-        "cell_id": state.row["cell_id"],
-        "freeze_holdout_key": state.row["freeze_holdout_key"],
-        "configuration_id": state.row["configuration_id"],
-        "observation_role": admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
-    }
+    return admission._floor_attempt_document_for_state(  # noqa: SLF001
+        state, attempt_id=attempt_id,
+    )
 
 
 def _issued_inspection_kwargs(
@@ -1463,12 +2007,47 @@ def test_attempt_ticket_is_durably_single_use(tmp_path):
     with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
         admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
     shared = admission.shared_admission_root(root)
-    consumed = shared / "consumed"
+    consumed = shared / "measurement-generation-consumed"
     assert len(list(consumed.iterdir())) == 1
     attempt_rows = admission._read_ledger(shared / "attempt-ledger.jsonl")
     assert attempt_rows[0]["observation_role"] == (
         admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN
     )
+
+
+def test_floor_attempt_single_use_is_scoped_to_measurement_generation(tmp_path):
+    root, protocol, cell, first_admitted, attempt_id, _manifest = _issued_cell(
+        tmp_path,
+    )
+    _fixture_protocol, freeze = _fixture_documents()
+    cells, schedule = _cells_and_schedule(protocol, freeze)
+    second_reservation = _reserve(
+        root, protocol, freeze, run_id="run-b",
+    )
+    second = admission.finalize_floor_holdout_admissions(second_reservation)
+    scheduled = next(row for row in schedule if row["cell_id"] == cell["cell_id"])
+    second_run = root / "out/env/fixture-env/calibration/s8b-floor-pilot/run-b"
+    (second_run / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start", "seq": scheduled["seq"],
+        "round": scheduled["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+
+    first_token = admission.consume_attempt_ticket(
+        first_admitted, attempt_id=attempt_id,
+    )
+    second_token = admission.consume_attempt_ticket(
+        second[cell["cell_id"]], attempt_id=attempt_id,
+    )
+    assert first_token.attempt_id == second_token.attempt_id == attempt_id
+    with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
+        admission.consume_attempt_ticket(first_admitted, attempt_id=attempt_id)
+    markers = list((
+        admission.shared_admission_root(root)
+        / "measurement-generation-consumed"
+    ).iterdir())
+    assert len(markers) == 2
 
 
 def test_cut6_rebuilds_attempt_row_and_reissues_same_attempt_under_lock(
@@ -1497,7 +2076,7 @@ def test_cut6_rebuilds_attempt_row_and_reissues_same_attempt_under_lock(
 
     assert token.attempt_id == attempt_id
     assert token.permitted_run_once_calls == protocol["reps"]
-    assert len(list((shared / "consumed").iterdir())) == 1
+    assert len(list((shared / "measurement-generation-consumed").iterdir())) == 1
     rows = admission._read_ledger(shared / "attempt-ledger.jsonl")  # noqa: SLF001
     assert rows == [_floor_expected_marker(admitted, attempt_id)]
     assert all("retry" not in row["attempt_id"] for row in rows)
@@ -1549,7 +2128,7 @@ def test_cut6_marker_absence_does_not_invent_requested_attempt_row(tmp_path):
 
     assert recovered is False
     assert not (shared / "attempt-ledger.jsonl").exists()
-    assert list((shared / "consumed").iterdir()) == []
+    assert list((shared / "measurement-generation-consumed").iterdir()) == []
 
 
 def test_cut6_orphan_attempt_row_without_marker_is_rejected(tmp_path):
@@ -1573,7 +2152,7 @@ def test_cut6_recovery_requires_exact_marker_rederived_from_claim(
     root, _protocol, _cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
     _crash_floor_after_marker(monkeypatch, admitted, attempt_id)
     shared = admission.shared_admission_root(root)
-    marker_path = next((shared / "consumed").iterdir())
+    marker_path = next((shared / "measurement-generation-consumed").iterdir())
     marker = json.loads(marker_path.read_text(encoding="utf-8"))
     if tamper == "extra-key":
         marker["extra"] = "forbidden"
@@ -1662,7 +2241,9 @@ def test_retry_ticket_without_failed_planned_trigger_is_rejected(tmp_path):
         admission.consume_attempt_ticket(
             admitted[cell["cell_id"]], attempt_id=retry_id,
         )
-    consumed = admission.shared_admission_root(root) / "consumed"
+    consumed = (
+        admission.shared_admission_root(root) / "measurement-generation-consumed"
+    )
     assert list(consumed.iterdir()) == []
 
 
@@ -1730,7 +2311,9 @@ def test_legacy_retry_rejects_extra_completion_for_same_trigger(tmp_path):
     })
     with pytest.raises(admission.HoldoutAdmissionError, match="exactly one"):
         admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
-    consumed = admission.shared_admission_root(root) / "consumed"
+    consumed = (
+        admission.shared_admission_root(root) / "measurement-generation-consumed"
+    )
     assert list(consumed.iterdir()) == []
 
 
@@ -2196,7 +2779,10 @@ def test_registry_recovery_without_consumed_trigger_marker_is_rejected(
 
     with pytest.raises(admission.HoldoutAdmissionError, match="no consume marker"):
         admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
-    assert list((admission.shared_admission_root(root) / "consumed").iterdir()) == []
+    assert list((
+        admission.shared_admission_root(root)
+        / "measurement-generation-consumed"
+    ).iterdir()) == []
 
 
 def test_unverified_registry_recovery_row_is_rejected(tmp_path, monkeypatch):
@@ -2309,7 +2895,10 @@ def test_retry_ordinal_above_frozen_attempt_set_is_rejected(tmp_path):
 
     with pytest.raises(admission.HoldoutAdmissionError, match="frozen ticket set"):
         admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
-    assert list((admission.shared_admission_root(root) / "consumed").iterdir()) == []
+    assert list((
+        admission.shared_admission_root(root)
+        / "measurement-generation-consumed"
+    ).iterdir()) == []
 
 
 def test_cell_coordinates_are_evidence_checks_not_extra_key_fields(tmp_path):
@@ -2385,7 +2974,6 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
             cells=cells, schedule=schedule, campaign_run_id=run_id,
             out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
             mode="pilot", resume=False, nondefault_seams=[],
-            irreversible_pilot_approved=True,
         )
     admitted = admission.finalize_floor_holdout_admissions(reservation)
     cell = cells[0]
@@ -2403,9 +2991,13 @@ def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
     spawns = []
 
     def subprocess_spy(*_args, **_kwargs):
-        assert len(list((shared / "claims").iterdir())) == 12
+        assert len(list((
+            shared / "measurement-generation-claims"
+        ).iterdir())) == 12
         assert len(admission._read_ledger(shared / "ledger.jsonl")) == 12
-        assert len(list((shared / "consumed").iterdir())) == 1
+        assert len(list((
+            shared / "measurement-generation-consumed"
+        ).iterdir())) == 1
         assert len(admission._read_ledger(shared / "attempt-ledger.jsonl")) == 1
         spawns.append("run_once")
         return type("Completed", (), {

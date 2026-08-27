@@ -6950,8 +6950,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  fetchcontent_base_dir=None,
                  after_certificate_issued_fn=None,
                  durable_root_policy=None, perf_preflight_fn=None,
-                 protocol_path: Path | str | None = None,
-                 confirm_irreversible_pilot_holdout=False) -> dict:
+                 protocol_path: Path | str | None = None) -> dict:
     """Production wrapper with no caller-provided callable seams."""
     mode = _validate_mode(mode)
     nondefault_seams = _nondefault_campaign_seams(
@@ -6976,15 +6975,6 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         if non_default:
             raise FloorCampaignError(
                 f"official mode への非 default seam 注入を拒否する: {non_default}")
-    if type(confirm_irreversible_pilot_holdout) is not bool:
-        raise FloorCampaignError(
-            "confirm_irreversible_pilot_holdout が exact bool でない"
-        )
-    if mode == "pilot" and not confirm_irreversible_pilot_holdout:
-        raise FloorCampaignError(
-            "pilot holdout は将来の official と共有する一回性 key を不可逆消費するため、"
-            "明示承認が必要"
-        )
     if mode == "official":
         _assert_official_permitted(mode)
     authority_root = ROOT if repo_root is None else Path(repo_root)
@@ -7004,7 +6994,6 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
-        confirm_irreversible_pilot_holdout=confirm_irreversible_pilot_holdout,
     )
 
 
@@ -7017,8 +7006,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        after_certificate_issued_fn=None,
                        durable_root_policy=None, _floor_preflight_fn=None,
                        perf_preflight_fn=None, _holdout_repo_root=None,
-                       _holdout_signature_source=None,
-                       confirm_irreversible_pilot_holdout=False) -> dict:
+                       _holdout_signature_source=None) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
@@ -7072,15 +7060,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             raise AssertionError("result assembly より前に refreeze finalizer が呼ばれた")
         result["eligible_for_refreeze"] = eligible_for_refreeze
 
-    if type(confirm_irreversible_pilot_holdout) is not bool:
-        raise FloorCampaignError(
-            "confirm_irreversible_pilot_holdout が exact bool でない"
-        )
-    if mode == "pilot" and not confirm_irreversible_pilot_holdout:
-        raise FloorCampaignError(
-            "pilot holdout は将来の official と共有する一回性 key を不可逆消費するため、"
-            "明示承認が必要"
-        )
     if mode == "official" and perf_preflight_fn is not None:
         raise FloorCampaignError(
             "official mode への非 default seam 注入を拒否する: ['perf_preflight_fn']"
@@ -7672,7 +7651,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 run_dir=run_dir, run_relpath=run_relpath, mode=mode,
                 resume=resume_dir is not None,
                 nondefault_seams=sorted(nondefault_seams),
-                irreversible_pilot_approved=confirm_irreversible_pilot_holdout,
                 _neutral_holdouts=_holdout_signature_source,
             )
         )
@@ -8192,10 +8170,6 @@ def _parser() -> argparse.ArgumentParser:
         "--fetchcontent-base-dir", type=Path, default=None,
         help="staged FetchContent payload の base directory (pilot専用の非default seam)",
     )
-    parser.add_argument(
-        "--confirm-irreversible-pilot-holdout", action="store_true",
-        help="pilot が将来の official と共有する一回性 key を不可逆消費することを承認する",
-    )
     return parser
 
 
@@ -8420,9 +8394,6 @@ def main(argv=None) -> int:
             resume_dir=args.resume,
             fetchcontent_base_dir=args.fetchcontent_base_dir,
             protocol_path=supplied_protocol_path,
-            confirm_irreversible_pilot_holdout=(
-                args.confirm_irreversible_pilot_holdout
-            ),
         )
     except SortSwoOracleUnavailable as exc:
         return _emit_sort_swo_unavailable(exc)
