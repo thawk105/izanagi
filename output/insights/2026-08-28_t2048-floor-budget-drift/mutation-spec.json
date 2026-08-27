@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "category": "negative",
+      "id": "M1-SHARED-PREBUILD-OMISSION",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_budget_comments_preserve_m1_m2_labeled_relationships"
+      ],
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "# 12-cell subtotal                     = 12 * (900 + (8+2) * (5*5 + 120)) = 28200\n# shared dependency prebuild           = 900 + 900 = 1800\n# driver required_s                    = 28200 + 1800 = 30000\n# driver finalize reserve              =   600\n# driver preflight minimum envelope    = 30000 + 600 = 30600\n",
+          "new": "# driver required_s                    = 12 * (900 + (8+2) * (5*5 + 120)) = 28200\n# driver finalize reserve              =   600\n# driver preflight minimum envelope    = 28200 + 600 = 28800\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M2-HEADROOM-LABEL-SWAP",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_budget_comments_preserve_m1_m2_labeled_relationships"
+      ],
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "# raw headroom                         = 36000 - 30600 = 5400\n# job prologue (gflags/glog build・qstat・git・hash) 見積          ≈  900\n# estimated residual headroom          ≈ 5400 - 900 = 4500 (保証値・実測値ではない)\n",
+          "new": "# estimated residual headroom          = 36000 - 30600 = 5400\n# job prologue (gflags/glog build・qstat・git・hash) 見積          ≈  900\n# raw headroom                         ≈ 5400 - 900 = 4500 (保証値・実測値ではない)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "id": "M3-README-LEGACY-ENVELOPE",
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_readme_section_5_preserves_m3_labeled_envelope"
+      ],
+      "replacements": [
+        {
+          "file": "tools/pegasus/README.md",
+          "old": "- scheduler への walltime 要求宣言は job script の `10:00:00` (36000 秒)。policy の\n  `floor_walltime_s=36000` は期待値・submit receipt 値で、job は qstat の実効\n  `(Per-Req) Elapse Time Limit` との一致を fail-closed で検査する。現行 driver の\n  minimum envelope は required 30000 (12-cell subtotal 28200 + shared prebuild 1800) +\n  finalize reserve 600 = 30600 秒である。\n",
+          "new": "- walltime は policy の `floor_walltime_s` (36000 = 10:00:00)。driver が導出する envelope\n  (required 28200 + finalize 600 = 28800) を上回る値であり、job は qstat の\n  `(Per-Req) Elapse Time Limit` と policy の一致を fail-closed で検査する。\n"
+        }
+      ]
+    }
+  ]
+}
