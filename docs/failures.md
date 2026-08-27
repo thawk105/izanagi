@@ -8120,6 +8120,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
   `web_search` 由来の重複 key 行を探す。
 
+
+- **再発: 2026-08-27** — 本 wave が D1188 で恒久対処するまでの間に、
+  親が F259 を出した実物の走行 (99 行中 22 行が `web_search` item の `id` 重複) を
+  現行コードで再生し、因果を確定した。同 attempt の rollout 259 行に重複 key は無く、
+  反実仮想 (`stdout_invalid=False`) で `evidence_status=complete` になる。
+  **stdout 経路だけを直せば足りる**ことの実測根拠である。
+  F259 の恒久対応欄が挙げていた「検証側を緩めない」は維持した — 緩めたのは拒否の**定義域**であり、
+  成果物側の重複 key 拒否は 1 bit も変えていない。
+- **supersede: 2026-08-27** — 恒久対応欄の「子 prompt に Web 検索の禁止を絶対制約として書く」は D1149 のユーザー裁定で撤回された。Web 検索は許可され、拒否の定義域を成果物側へ限る形で D1188 が実装した。`DW-C01` の無条件禁止の文言も既裁定 [T-981] と整合する形へ改めた。
 ### F260. codex 子の成果物が 1 文字の非 NFC で全損した [コンテキスト浪費]
 
 - 事象: 段 2 の plan 子が 29,958 bytes の正常な成果物を出し `codex_exit_code=0`・
@@ -8210,6 +8219,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受理条件は既に fail-closed である。欠けているのは**理由の記録**で、
   現状 receipt には「どの行のどの検査で落ちたか」が一切残らない。上記 3 案のうち
   「理由を receipt へ書く」はどの案を採っても要る。
+- **supersede: 2026-08-27** — 恒久対応欄が挙げた 3 案のうち「`evidence_status=invalid` の理由を receipt へ書く」と「stdout event の重複キー扱いを分離する」は本 wave で実装した (D1189 と D1188)。残る「consult / review 段で web_search を既定無効にする」は D1149 が却下しており、[T-981] の残件として [T-2040] でユーザー裁定へ返す。
 
 ### F264. 多軸で書いたテストが値側 literal の検査を恒真にした [恒真ゲート] [検査漏れ]
 
@@ -18789,3 +18799,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   識別子だけでなく呼出し関係で閉包を引く。** 定数名の不在を機構の不在の根拠にしない。
 - 再発検知: 「テスト参照 0 件」「未被覆」を主張する所見は、
   **実体の関数名・呼出し関係で引き直したか**を確認してから採用する。
+
+### F728. repo 内の意図的な非 NFC fixture を読むだけで codex 子の成果物が全損する [コンテキスト浪費] [手順漏れ]
+
+- 事象: 段 3 の敵対レンズ 1 本が `codex_exit_code=0` / `validator_rc=0` /
+  成果物 7,543 bytes 健在のまま `evidence_status=invalid` で捨てられた。
+  728 秒を空費した。同じ prompt を地雷回避文つきで再投入すると rc=0 で通った。
+- 根本原因: `orchestrator/tests/test_check_docs.py` の 2 行 (NFC 検査自身の fixture) が
+  **意図的に非 NFC** である。子がその範囲を読むと、Codex CLI が tool 出力を
+  `custom_tool_call_output` として rollout へ**非 NFC のまま記録**し、
+  `tools/codex_worker_launch.py` の rollout NFC 検査が落として attempt ごと捨てられる。
+  **子が引用を選んだのではなく、読んだ時点で死ぬ。** 引用の禁止では防げない。
+  結合記号は **U+309A** (KATAKANA-HIRAGANA SEMI-VOICED SOUND MARK) で、
+  F260 が名指しする U+0300-U+036F の**範囲外**である。既存の対策文言は 1 文字も防げない。
+- 地雷の所在は完全に特定した。親が tracked 16,077 file を全走査し、
+  **非 NFC はこの 1 file 2 行だけ**であることを実測した。
+- 恒久対応: 現時点では**運用回避だけ**である。親が段 3・5・6 の全子 prompt へ
+  「当該 2 行を含む範囲を読むな。行番号で避けろ」を入れ、再投入と後続の子 4 本が
+  すべて rc=0 で通ることを実測した。**恒久対処は
+  [T-2041] でユーザー裁定へ返す** — 候補は
+  (a) fixture を実行時合成へ変え repo 内 bytes を NFC に保つ (親の推奨)、
+  (b) rollout の NFC 検査を tool 出力の記録に限って緩める (規律 2 の面に触れるため推奨しない)、
+  (c) 恒久的に prompt へ回避を書き続ける。
+- 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
+  `invalid` かつ `codex_exit_code=0` なら stdout と rollout の各行を
+  `unicodedata.normalize('NFC', s) == s` で走査する。非 NFC 行が
+  `custom_tool_call_output` なら本型である (子の作文由来の F260 と区別できる)。
+  repo 側の全走査は `git ls-files` 全件に同じ述語を当てれば取れる。
