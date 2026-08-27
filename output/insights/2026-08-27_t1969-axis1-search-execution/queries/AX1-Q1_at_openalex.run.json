@@ -1,0 +1,80 @@
+{
+ "schema": "izanagi-axis1-search-evidence/v1",
+ "query_id": "AX1-Q1@openalex",
+ "pass_number": 1,
+ "window_number": 1,
+ "request": [
+  "https://api.openalex.org/works?filter=title_and_abstract.search:(%22concurrency%20control%22%20OR%20%22transaction%20processing%22%20OR%20%22serializability%22%20OR%20%22isolation%20level%22%20OR%20%22two-phase%20locking%22%20OR%20%22optimistic%20concurrency%20control%22%20OR%20%22multi-version%20concurrency%20control%22%20OR%20%22snapshot%20isolation%22%20OR%20%22transactional%20memory%22%20OR%20%22lock%20manager%22%20OR%20%22conflict%20detection%22%20OR%20%22OLTP%22)%20AND%20(%22program%20synthesis%22%20OR%20%22automatic%20generation%22%20OR%20%22code%20generation%22%20OR%20%22evolutionary%20search%22%20OR%20%22genetic%20programming%22%20OR%20%22large%20language%20model%22%20OR%20%22LLM%20agent%22%20OR%20%22reinforcement%20learning%22%20OR%20%22learned%22%20OR%20%22auto-tuning%22%20OR%20%22compiler%20injection%22%20OR%20%22superoptimization%22)%20AND%20(%22protocol%22%20OR%20%22algorithm%22%20OR%20%22policy%22%20OR%20%22source%20code%22%20OR%20%22implementation%22%20OR%20%22intermediate%20representation%22%20OR%20%22action%20space%22%20OR%20%22design%20space%22%20OR%20%22variant%22),to_publication_date:2026-12-31&per-page=200&cursor=%2A",
+  "https://api.openalex.org/works?filter=title_and_abstract.search:(%22concurrency%20control%22%20OR%20%22transaction%20processing%22%20OR%20%22serializability%22%20OR%20%22isolation%20level%22%20OR%20%22two-phase%20locking%22%20OR%20%22optimistic%20concurrency%20control%22%20OR%20%22multi-version%20concurrency%20control%22%20OR%20%22snapshot%20isolation%22%20OR%20%22transactional%20memory%22%20OR%20%22lock%20manager%22%20OR%20%22conflict%20detection%22%20OR%20%22OLTP%22)%20AND%20(%22program%20synthesis%22%20OR%20%22automatic%20generation%22%20OR%20%22code%20generation%22%20OR%20%22evolutionary%20search%22%20OR%20%22genetic%20programming%22%20OR%20%22large%20language%20model%22%20OR%20%22LLM%20agent%22%20OR%20%22reinforcement%20learning%22%20OR%20%22learned%22%20OR%20%22auto-tuning%22%20OR%20%22compiler%20injection%22%20OR%20%22superoptimization%22)%20AND%20(%22protocol%22%20OR%20%22algorithm%22%20OR%20%22policy%22%20OR%20%22source%20code%22%20OR%20%22implementation%22%20OR%20%22intermediate%20representation%22%20OR%20%22action%20space%22%20OR%20%22design%20space%22%20OR%20%22variant%22),to_publication_date:2026-12-31&per-page=200&cursor=Ils3LjkzMzE2MTMsIDE3MDg0NzM2MDAwMDAsICdodHRwczovL29wZW5hbGV4Lm9yZy9XNDM5OTkzOTc2NyddIg%3D%3D",
+  "https://api.openalex.org/works?filter=title_and_abstract.search:(%22concurrency%20control%22%20OR%20%22transaction%20processing%22%20OR%20%22serializability%22%20OR%20%22isolation%20level%22%20OR%20%22two-phase%20locking%22%20OR%20%22optimistic%20concurrency%20control%22%20OR%20%22multi-version%20concurrency%20control%22%20OR%20%22snapshot%20isolation%22%20OR%20%22transactional%20memory%22%20OR%20%22lock%20manager%22%20OR%20%22conflict%20detection%22%20OR%20%22OLTP%22)%20AND%20(%22program%20synthesis%22%20OR%20%22automatic%20generation%22%20OR%20%22code%20generation%22%20OR%20%22evolutionary%20search%22%20OR%20%22genetic%20programming%22%20OR%20%22large%20language%20model%22%20OR%20%22LLM%20agent%22%20OR%20%22reinforcement%20learning%22%20OR%20%22learned%22%20OR%20%22auto-tuning%22%20OR%20%22compiler%20injection%22%20OR%20%22superoptimization%22)%20AND%20(%22protocol%22%20OR%20%22algorithm%22%20OR%20%22policy%22%20OR%20%22source%20code%22%20OR%20%22implementation%22%20OR%20%22intermediate%20representation%22%20OR%20%22action%20space%22%20OR%20%22design%20space%22%20OR%20%22variant%22),to_publication_date:2026-12-31&per-page=200&cursor=IlsyLjAwMDM4ODksIDE1NjEwNzUyMDAwMDAsICdodHRwczovL29wZW5hbGV4Lm9yZy9XMzE2MTQ0Nzc5MSddIg%3D%3D",
+  "https://api.openalex.org/works?filter=title_and_abstract.search:(%22concurrency%20control%22%20OR%20%22transaction%20processing%22%20OR%20%22serializability%22%20OR%20%22isolation%20level%22%20OR%20%22two-phase%20locking%22%20OR%20%22optimistic%20concurrency%20control%22%20OR%20%22multi-version%20concurrency%20control%22%20OR%20%22snapshot%20isolation%22%20OR%20%22transactional%20memory%22%20OR%20%22lock%20manager%22%20OR%20%22conflict%20detection%22%20OR%20%22OLTP%22)%20AND%20(%22program%20synthesis%22%20OR%20%22automatic%20generation%22%20OR%20%22code%20generation%22%20OR%20%22evolutionary%20search%22%20OR%20%22genetic%20programming%22%20OR%20%22large%20language%20model%22%20OR%20%22LLM%20agent%22%20OR%20%22reinforcement%20learning%22%20OR%20%22learned%22%20OR%20%22auto-tuning%22%20OR%20%22compiler%20injection%22%20OR%20%22superoptimization%22)%20AND%20(%22protocol%22%20OR%20%22algorithm%22%20OR%20%22policy%22%20OR%20%22source%20code%22%20OR%20%22implementation%22%20OR%20%22intermediate%20representation%22%20OR%20%22action%20space%22%20OR%20%22design%20space%22%20OR%20%22variant%22),to_publication_date:2026-12-31&per-page=200&cursor=IlswLjkwMTUxNjMsIDE3NzkyMzUyMDAwMDAsICdodHRwczovL29wZW5hbGV4Lm9yZy9XNzE2NDQyMjEyMSddIg%3D%3D"
+ ],
+ "normalized_request": {
+  "endpoint": "https://api.openalex.org/works",
+  "search_field": "title_and_abstract.search + to_publication_date",
+  "filter_body": "title_and_abstract.search:(\"concurrency control\" OR \"transaction processing\" OR \"serializability\" OR \"isolation level\" OR \"two-phase locking\" OR \"optimistic concurrency control\" OR \"multi-version concurrency control\" OR \"snapshot isolation\" OR \"transactional memory\" OR \"lock manager\" OR \"conflict detection\" OR \"OLTP\") AND (\"program synthesis\" OR \"automatic generation\" OR \"code generation\" OR \"evolutionary search\" OR \"genetic programming\" OR \"large language model\" OR \"LLM agent\" OR \"reinforcement learning\" OR \"learned\" OR \"auto-tuning\" OR \"compiler injection\" OR \"superoptimization\") AND (\"protocol\" OR \"algorithm\" OR \"policy\" OR \"source code\" OR \"implementation\" OR \"intermediate representation\" OR \"action space\" OR \"design space\" OR \"variant\"),to_publication_date:2026-12-31",
+  "sort": "index default (no sort parameter sent)",
+  "page_size": 200,
+  "position_transition": "cursor=* then cursor=meta.next_cursor of the previous page",
+  "field_projection": "full work object (no select parameter sent)"
+ },
+ "interpreted_query": [
+  "works where date <= (2026-12-31)\n  and title/abstract has (\n    (\n      stemmed \"LLM agent\" or stemmed \"auto-tuning\"\n      or stemmed \"automatic generation\" or stemmed \"code generation\"\n      or stemmed \"compiler injection\" or stemmed \"evolutionary search\"\n      or stemmed \"genetic programming\" or stemmed \"large language model\"\n      or stemmed \"learned\" or stemmed \"program synthesis\"\n      or stemmed \"reinforcement learning\" or stemmed \"superoptimization\"\n    )\n    and (\n      stemmed \"OLTP\" or stemmed \"concurrency control\"\n      or stemmed \"conflict detection\" or stemmed \"isolation level\"\n      or stemmed \"lock manager\" or stemmed \"multi-version concurrency control\"\n      or stemmed \"optimistic concurrency control\" or stemmed \"serializability\"\n      or stemmed \"snapshot isolation\" or stemmed \"transaction processing\"\n      or stemmed \"transactional memory\" or stemmed \"two-phase locking\"\n    )\n    and (\n      stemmed \"action space\" or stemmed \"algorithm\" or stemmed \"design space\"\n      or stemmed \"implementation\" or stemmed \"intermediate representation\"\n      or stemmed \"policy\" or stemmed \"protocol\" or stemmed \"source code\"\n      or stemmed \"variant\"\n    )\n  )"
+ ],
+ "expected_interpreted_query": "works where date <= (2026-12-31) and title/abstract has (<stemmed disjunctions>)",
+ "retrieved_at": {
+  "start": null,
+  "end": null,
+  "note": "この走行は 1 request ごとの時刻を記録していない。file の保存時刻だけが残っている。復元値で埋めない",
+  "file_saved_at": {
+   "saved_utc": "2026-08-27T01:17:03+00:00",
+   "saved_jst": "2026-08-27T10:17:03+09:00"
+  }
+ },
+ "api_identification": {
+  "endpoint": "https://api.openalex.org/works",
+  "version": null,
+  "note": "3 索引とも API の版番号を返さない。応答に実在した必須 field 名で代用する",
+  "required_fields_present": [
+   "meta.count",
+   "meta.per_page",
+   "meta.next_cursor",
+   "meta.x_query.oql"
+  ]
+ },
+ "declared_total": 722,
+ "declared_total_per_page": [
+  722,
+  722,
+  722,
+  722
+ ],
+ "declared_total_stable": true,
+ "pages": {
+  "count": 4,
+  "file": "queries/AX1-Q1_at_openalex.pages.json.gz"
+ },
+ "returned_record_count": 724,
+ "retrieved_unique": 718,
+ "primary_key_digest": "16c6c00bf8e25e2c45eae11c9194403f09e43f1d9cfd529dece854c18996d50a",
+ "second_pass_digest": null,
+ "second_pass_note": "契約 §7.1 の 2 走一致は複数窓にまたがった枝への要求である。本枝は 1 走が中断なく完了しているため必須ではない。値がある場合は追加証拠である",
+ "completion": {
+  "1_interpreted_query_match": true,
+  "2_page_continuity": true,
+  "3_declared_vs_actual": false,
+  "4_primary_key_unique": false,
+  "5_unique_equals_total": false,
+  "6_normal_termination": true,
+  "complete": false
+ },
+ "duplicate_primary_key_count": 6,
+ "failure": [],
+ "records": {
+  "file": "queries/AX1-Q1_at_openalex.records.jsonl.gz",
+  "line_count": 724
+ },
+ "classification_executed": false,
+ "classification_basis": null,
+ "classification_note": "本走行は record ごとの `検出` / `近傍` / `除外` / `要裁定` の個別判定を 1 件も行っていない。record 行に判定欄は無い。取得状態を判定済み件数へ変換してはならない"
+}

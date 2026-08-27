@@ -539,6 +539,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_mocc_trace.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_oracle_n_pilot.sh` | `local-ok` | `login-side submitter; compute work stays in job body (未実測)` |
+| `tools/pegasus/submit_paper_story_a2_certification.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_silo_ladder_rung1.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |

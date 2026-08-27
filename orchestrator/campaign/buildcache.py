@@ -1041,9 +1041,11 @@ def _assert_fetchcontent_fully_disconnected_effective(build_dir: str) -> None:
 def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
     """cache 入力と生成済み build system から masstree root を読む。
 
-    この形は CMake 3.25.0、CCBench pin
+    この cache / DependInfo の形は CMake 3.22.1 と 3.25.0、CCBench pin
     ``511c9538e4e8efa54b45cda62e72389ed3b706ec``、Unix Makefiles 生成器で
-    実測された。CCBench pin 更新時は生成物の形を再実測すること。
+    同一と実測された。base-only では空値の
+    ``FETCHCONTENT_SOURCE_DIR_MASSTREE`` 行が常に 1 行存在する。
+    CCBench pin 更新時は生成物の形を再実測すること。
     """
     cache = os.path.join(build_dir, "CMakeCache.txt")
     cache_keys = (
@@ -1081,7 +1083,8 @@ def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
         raise BuildCacheError(
             "CMakeCache.txt の FetchContent masstree 解決 key が一意でない"
         )
-    if matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"]:
+    if (matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"]
+            and matches["FETCHCONTENT_SOURCE_DIR_MASSTREE"][0] != ""):
         selected_key = "FETCHCONTENT_SOURCE_DIR_MASSTREE"
         recorded = matches[selected_key][0]
         cache_root = recorded

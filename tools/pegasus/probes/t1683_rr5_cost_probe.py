@@ -17,7 +17,7 @@ from orchestrator.campaign.s2_verify_calibration import _parse_abort_counts, _pa
 CONTRACT = env_contract.lookup("pegasus"); ENV_TAG = CONTRACT.env_tag
 CLOCKS_PER_US = CONTRACT.clocks_per_us; NUMA = list(CONTRACT.numactl)
 RUN_TIMEOUT_S = 900.0; VERIFIER_TIMEOUT_S = 7200.0; MIN_FREE_DISK_GB = 60.0
-POLICY_PATH = ROOT / "orchestrator" / "campaign" / "paper_story_a2_certification.v1.json"
+POLICY_PATH = ROOT / "orchestrator" / "campaign" / "paper_story_a2_certification.v2.json"
 COMMON_DEFINE_NAMES = ("NO_WAIT_LOCKING_IN_VALIDATION", "NO_WAIT_OF_TICTOC", "WAL", "BACKOFF_NOINLINE")
 
 def _required(mapping: dict, key: str, context: str):
