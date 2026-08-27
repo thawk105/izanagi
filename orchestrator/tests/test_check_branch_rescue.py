@@ -1018,6 +1018,12 @@ def test_m16_git_allowlist_rejects_forbidden_command_before_spawn(
     assert any(argv[:2] == [sys.executable, str(checker)] for argv in spawned)
     assert any(argv[:2] == [sys.executable, str(audit)] for argv in spawned)
     assert all(env["GIT_NO_LAZY_FETCH"] == "1" for env in child_envs)
+    python_child_envs = [
+        env for argv, env in zip(spawned, child_envs)
+        if argv[0] == sys.executable
+    ]
+    assert len(python_child_envs) == 2
+    assert all(env["PYTHONDONTWRITEBYTECODE"] == "1" for env in python_child_envs)
     git_argv = [argv for argv in spawned if argv[0] == "git"]
     observed_commands = {
         next(token for token in argv[1:] if token in TOOL.GIT_COMMAND_ALLOWLIST)

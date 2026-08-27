@@ -1504,12 +1504,16 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
     if overall_remaining <= 0:
         return _empty_landed("overall-timeout")
     try:
-        with _no_lazy_fetch_child_env() as env:
+        with _no_lazy_fetch_child_env() as child_env:
+            python_env = {
+                **child_env,
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }
             result = subprocess.run(
                 [sys.executable, str(checker), "--repo", str(repo),
                  "--timeout-seconds", str(timeout), oid],
                 cwd=repo,
-                env=env,
+                env=python_env,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -1719,11 +1723,14 @@ def _read_ledger(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]
 
 
 def _audit(repo: Path, audit_tool: Path, timeout: float) -> tuple[list[str], dict[str, Any], list[dict[str, Any]]]:
-    env = _child_env()
+    python_env = {
+        **_child_env(),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
     try:
         result = subprocess.run(
             [sys.executable, str(audit_tool), "--repo", str(repo)],
-            cwd=repo, env=env, stdin=subprocess.DEVNULL,
+            cwd=repo, env=python_env, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             timeout=max(0.001, timeout), check=False,
         )
