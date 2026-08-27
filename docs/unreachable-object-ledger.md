@@ -52,6 +52,9 @@ entry は 1 object につき 1 JSON とし、この文書の末尾へ `- ` に�
 再検査できた場合だけ使い、`rescue_ref`、`resolved_at`、`resolution_note` を記録する。
 `accepted-loss` は人間が喪失を明示的に受容した場合、`reachable-again` は救出操作とは別に恒久 ref から
 再び到達可能と確認した場合、`object-missing` は object が既に存在しないと確認した場合に使う。
+`pending` は 3 解決 field をすべて null とする。`rescued` は full refname の `rescue_ref`、
+`resolved_at`、非空の `resolution_note` を必須とする。それ以外の解決 status は `resolved_at` と
+非空の `resolution_note` を必須とし、`rescue_ref` は null とする。
 解決済みまたは陳腐化した entry は削除せず、解決 field を更新して監査履歴として残す。
 
 `tools/check_branch_rescue.py` はこの台帳を自動編集しない。追記候補と判断材料を JSON へ出すだけであり、
@@ -69,7 +72,9 @@ python3 tools/check_branch_rescue.py --ledger-check \
 `--branch` と `--retire-worktree` は必要な回数だけ反復する。一候補ずつ別々に実行してはならない。
 候補が無い台帳照合だけの場合は `python3 tools/check_branch_rescue.py --ledger-check` とする。
 `--ledger-check` は dangling audit の要確認 commit と台帳を照合し、未記帳 object および期限が
-近いか過ぎた `pending` entry を JSON の通知へ出す。これは object を保持せず、台帳も変更しない。
+近いか過ぎた `pending` entry を JSON の通知へ出す。`rescued`、`reachable-again`、`object-missing` の
+entry が dangling audit で再報告された場合も stale resolution として通知する。人間が明示裁定した
+`accepted-loss` は再報告だけで stale としない。これは object を保持せず、台帳も変更しない。
 
 rc の契約は次のとおりであり、削除可否そのものを表さない。
 
@@ -77,7 +82,7 @@ rc の契約は次のとおりであり、削除可否そのものを表さな�
 |---|---|
 | `0` | root snapshot、閉包、全 commit の判定と期限を含む可視化が完全 |
 | `2` | timeout、上限超過、root 移動、期限算出不能、台帳 parse 不能などで技術的に不完全 |
-| `3` | 可視化は完全だが、未記帳 object または期限が近い未裁定 entry の通知あり |
+| `3` | 可視化は完全だが、未記帳 object、期限が近い未裁定 entry、または stale resolution の通知あり |
 | `64` | usage error |
 
 rc `1` は使わない。`not-landed` は技術的失敗ではなく JSON 内の判断材料である。全 rc と JSON 結果を

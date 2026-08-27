@@ -679,18 +679,30 @@ def _absolute_prune_expiry(git: Git, value: str) -> dt.datetime | None:
 def _scoped_reflog_config(git: Git) -> list[dict[str, str]]:
     result = git.run([
         "config", "--show-origin", "--get-regexp",
-        r"^gc\..*\.reflogExpireUnreachable$",
+        r"^gc\..*\.reflogExpire(Unreachable)?$",
     ], allowed=(0, 1))
     if result.returncode == 1:
         return []
     values: list[dict[str, str]] = []
     for line in _strict_text(result.stdout, "config-parse-error").splitlines():
-        match = re.match(r"^(\S+)\s+(gc\.(.*)\.reflogexpireunreachable)\s+(.*)$", line,
-                         re.IGNORECASE)
+        match = re.match(
+            r"^(\S+)\s+gc\.(.+)\.(reflogexpire(?:unreachable)?)\s+(.*)$",
+            line,
+            re.IGNORECASE,
+        )
         if match is None:
             raise RescueError("config-parse-error", "cannot parse scoped reflog expiry")
-        values.append({"source": match.group(1), "pattern": match.group(3),
-                       "effective": match.group(4)})
+        setting = (
+            "unreachable"
+            if match.group(3).lower() == "reflogexpireunreachable"
+            else "ordinary"
+        )
+        values.append({
+            "source": match.group(1),
+            "pattern": match.group(2),
+            "setting": setting,
+            "effective": match.group(4),
+        })
     return values
 
 
@@ -702,15 +714,28 @@ def _reflog_expiry(refname: str, timestamp: dt.datetime, now: dt.datetime,
         "source": str(config["gc_reflog_expire_unreachable"]["source"]),
         "name": "gc.reflogExpireUnreachable",
     }
-    for item in scoped:
-        if fnmatch.fnmatchcase(refname, item["pattern"]):
-            unreachable = {"effective": item["effective"], "source": item["source"],
-                           "name": f"gc.{item['pattern']}.reflogExpireUnreachable"}
     ordinary = {
         "effective": str(config["gc_reflog_expire"]["effective"]),
         "source": str(config["gc_reflog_expire"]["source"]),
         "name": "gc.reflogExpire",
     }
+    for item in scoped:
+        if not fnmatch.fnmatchcase(refname, item["pattern"]):
+            continue
+        suffix = (
+            "reflogExpireUnreachable"
+            if item["setting"] == "unreachable"
+            else "reflogExpire"
+        )
+        selected = {
+            "effective": item["effective"],
+            "source": item["source"],
+            "name": f"gc.{item['pattern']}.{suffix}",
+        }
+        if item["setting"] == "unreachable":
+            unreachable = selected
+        else:
+            ordinary = selected
     candidates = []
     for item in (ordinary, unreachable):
         if item["effective"].strip().lower() == "never":
@@ -1509,8 +1534,18 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
         return _empty_landed("checker-decision-invalid", elapsed)
     verdict = decision.get("verdict")
     expected = {"landed": 0, "not-landed": 1, "indeterminate": 2}
-    if verdict not in expected or expected[verdict] != result.returncode:
+    if (not isinstance(verdict, str)
+            or verdict not in expected
+            or expected[verdict] != result.returncode):
         return _empty_landed("checker-rc-verdict-mismatch", elapsed)
+    branch = payload.get("branch")
+    if (not isinstance(branch, dict)
+            or branch.get("input") != oid
+            or branch.get("tip") != oid):
+        return _empty_landed("checker-target-contract-invalid", elapsed)
+    expected_conclusive = verdict != "indeterminate"
+    if decision.get("conclusive") is not expected_conclusive:
+        return _empty_landed("checker-conclusive-contract-invalid", elapsed)
     if payload.get("branch_delete_authorized") is not False:
         return _empty_landed("checker-authorization-contract-invalid", elapsed)
     observations = payload.get("observations", {})
@@ -1519,13 +1554,13 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
         "schema": LANDED_SCHEMA,
         "verdict": verdict,
         "reason": str(decision.get("reason", "")),
-        "conclusive": decision.get("conclusive") is True,
+        "conclusive": expected_conclusive,
         "checker_rc": result.returncode,
         "elapsed_seconds": round(elapsed, 6),
         "corpus_bytes_read": corpus.get("bytes_read") if isinstance(corpus, dict) else None,
         "report_sha256": hashlib.sha256(result.stdout).hexdigest(),
         "manual_review_required": payload.get("manual_review_required") is not False,
-        "complete": verdict != "indeterminate",
+        "complete": expected_conclusive,
     }
 
 
@@ -1550,6 +1585,24 @@ def _valid_timestamp(value: object) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _valid_full_refname(value: object) -> bool:
+    if not isinstance(value, str) or not value.startswith("refs/"):
+        return False
+    if (value.endswith(("/", ".")) or "//" in value or ".." in value
+            or "@{" in value):
+        return False
+    if any(ord(character) < 32 or ord(character) == 127
+           or character in " ~^:?*[\\" for character in value):
+        return False
+    components = value.split("/")
+    return all(
+        component
+        and not component.startswith(".")
+        and not component.endswith(".lock")
+        for component in components
+    )
 
 
 def _validate_ledger_entry(entry: object) -> tuple[bool, str]:
@@ -1601,6 +1654,28 @@ def _validate_ledger_entry(entry: object) -> tuple[bool, str]:
             return False, f"ledger-entry-timestamp-invalid:{field}"
     if entry["resolved_at"] is not None and not _valid_timestamp(entry["resolved_at"]):
         return False, "ledger-entry-timestamp-invalid:resolved_at"
+    status = entry["status"]
+    resolved_at = entry["resolved_at"]
+    rescue_ref = entry["rescue_ref"]
+    resolution_note = entry["resolution_note"]
+    if status == "pending":
+        coherent = resolved_at is None and rescue_ref is None and resolution_note is None
+    elif status == "rescued":
+        coherent = (
+            resolved_at is not None
+            and _valid_full_refname(rescue_ref)
+            and isinstance(resolution_note, str)
+            and bool(resolution_note.strip())
+        )
+    else:
+        coherent = (
+            resolved_at is not None
+            and rescue_ref is None
+            and isinstance(resolution_note, str)
+            and bool(resolution_note.strip())
+        )
+    if not coherent:
+        return False, "ledger-entry-resolution-fields-invalid"
     return True, "ok"
 
 
@@ -1710,6 +1785,20 @@ def _ledger_check(repo: Path, ledger_path: Path, audit_tool: Path, now: dt.datet
          "message": "audit reported an unreachable commit with no ledger entry"}
         for oid in missing
     ]
+    for oid in audit_commits:
+        entry = by_oid.get(oid)
+        if entry is None or entry["status"] not in {
+            "rescued", "reachable-again", "object-missing",
+        }:
+            continue
+        notifications.append({
+            "kind": "stale-ledger-resolution",
+            "object_oid": oid,
+            "entry_id": entry["entry_id"],
+            "urgency": "due",
+            "status": entry["status"],
+            "message": "audit re-reported an unreachable commit with a stale ledger resolution",
+        })
     seven_days = now + dt.timedelta(days=7)
     for entry in entries:
         if entry["status"] != "pending":

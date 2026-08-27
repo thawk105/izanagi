@@ -86,8 +86,25 @@ def _empty_child(repo: Path, parent: str | None = None) -> str:
     return _git(repo, "commit-tree", tree, "-p", parent).stdout.strip()
 
 
-def _make_fake_landed(path: Path, verdict: str = "landed", *, mutate: bool = False) -> Path:
-    rc = {"landed": 0, "not-landed": 1, "indeterminate": 2}[verdict]
+def _make_fake_landed(
+    path: Path,
+    verdict: Any = "landed",
+    *,
+    mutate: bool = False,
+    target_binding: str = "matching",
+    conclusive: bool | None = None,
+    checker_rc: int | None = None,
+) -> Path:
+    if checker_rc is None:
+        rc = (
+            {"landed": 0, "not-landed": 1, "indeterminate": 2}.get(verdict, 0)
+            if isinstance(verdict, str)
+            else 0
+        )
+    else:
+        rc = checker_rc
+    decision_conclusive = verdict != "indeterminate" if conclusive is None else conclusive
+    reason = f"fake-{verdict}"
     body = f"""#!/usr/bin/env python3
 import json
 import subprocess
@@ -99,10 +116,25 @@ payload = {{
     "schema": "izanagi-branch-landed-v1",
     "branch_delete_authorized": False,
     "manual_review_required": True,
-    "decision": {{"verdict": {verdict!r}, "reason": "fake-{verdict}",
-                   "conclusive": {verdict != 'indeterminate'!r}}},
+    "decision": {{"verdict": {verdict!r}, "reason": {reason!r},
+                   "conclusive": {decision_conclusive!r}}},
     "observations": {{"ledger_corpus": {{"bytes_read": 0}}}},
 }}
+oid = sys.argv[-1]
+other_oid = ("0" if oid[0] != "0" else "1") * len(oid)
+target_binding = {target_binding!r}
+if target_binding == "matching":
+    payload["branch"] = {{"input": oid, "tip": oid}}
+elif target_binding == "missing-input":
+    payload["branch"] = {{"tip": oid}}
+elif target_binding == "missing-tip":
+    payload["branch"] = {{"input": oid}}
+elif target_binding == "different-input":
+    payload["branch"] = {{"input": other_oid, "tip": oid}}
+elif target_binding == "different-tip":
+    payload["branch"] = {{"input": oid, "tip": other_oid}}
+elif target_binding != "missing-branch":
+    raise AssertionError("unknown target binding fixture")
 print(json.dumps(payload, sort_keys=True))
 raise SystemExit({rc})
 """
@@ -230,6 +262,31 @@ def _ledger_entry(oid: str, *, retained: bool = False) -> dict[str, Any]:
         "rescue_ref": None,
         "resolution_note": None,
         "object_retention_provided": retained,
+    }
+
+
+def _resolved_ledger_entry(oid: str, status: str, entry_id: str) -> dict[str, Any]:
+    entry = _ledger_entry(oid)
+    entry.update({
+        "entry_id": entry_id,
+        "status": status,
+        "resolved_at": "2030-01-10T00:00:00Z",
+        "rescue_ref": f"refs/heads/rescue/{entry_id}" if status == "rescued" else None,
+        "resolution_note": f"resolved as {status}",
+    })
+    return entry
+
+
+def _reflog_config(ordinary: str, unreachable: str) -> dict[str, dict[str, Any]]:
+    return {
+        "gc_reflog_expire": {
+            "effective": ordinary,
+            "source": "global-ordinary",
+        },
+        "gc_reflog_expire_unreachable": {
+            "effective": unreachable,
+            "source": "global-unreachable",
+        },
     }
 
 
@@ -443,6 +500,85 @@ def test_m08_not_landed_is_content_not_technical_failure(tmp_path: Path):
     assert payload["decision_inputs"]["visualization_complete"] is True
 
 
+@pytest.mark.parametrize(
+    "target_binding",
+    [
+        "missing-branch",
+        "missing-input",
+        "missing-tip",
+        "different-input",
+        "different-tip",
+    ],
+)
+def test_landed_checker_report_is_bound_to_requested_full_oid(
+    tmp_path: Path, target_binding: str,
+):
+    repo = _init_repo(tmp_path)
+    oid = _git(repo, "rev-parse", "main").stdout.strip()
+    checker = _make_fake_landed(
+        tmp_path / "landed.py", target_binding=target_binding,
+    )
+
+    assessment = TOOL._landed_assessment(repo, checker, oid, 5.0, 5.0)
+
+    assert assessment["verdict"] == "indeterminate"
+    assert assessment["reason"] == "checker-target-contract-invalid"
+    assert assessment["conclusive"] is False
+    assert assessment["complete"] is False
+
+
+@pytest.mark.parametrize(
+    ("verdict", "conclusive"),
+    [
+        ("landed", False),
+        ("not-landed", False),
+        ("indeterminate", True),
+    ],
+)
+def test_landed_checker_report_rejects_conclusive_mismatch(
+    tmp_path: Path, verdict: str, conclusive: bool,
+):
+    repo = _init_repo(tmp_path)
+    oid = _git(repo, "rev-parse", "main").stdout.strip()
+    checker = _make_fake_landed(
+        tmp_path / "landed.py", verdict, conclusive=conclusive,
+    )
+
+    assessment = TOOL._landed_assessment(repo, checker, oid, 5.0, 5.0)
+
+    assert assessment["verdict"] == "indeterminate"
+    assert assessment["reason"] == "checker-conclusive-contract-invalid"
+    assert assessment["conclusive"] is False
+    assert assessment["complete"] is False
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    [
+        pytest.param(["landed"], id="array"),
+        pytest.param({"verdict": "landed"}, id="object"),
+        pytest.param(True, id="bool"),
+        pytest.param(None, id="null"),
+        pytest.param(0, id="number"),
+    ],
+)
+def test_landed_checker_report_rejects_non_string_verdict(
+    tmp_path: Path, verdict: Any,
+):
+    repo = _init_repo(tmp_path)
+    oid = _git(repo, "rev-parse", "main").stdout.strip()
+    checker = _make_fake_landed(
+        tmp_path / "landed.py", verdict, checker_rc=0,
+    )
+
+    assessment = TOOL._landed_assessment(repo, checker, oid, 5.0, 5.0)
+
+    assert assessment["verdict"] == "indeterminate"
+    assert assessment["reason"] == "checker-rc-verdict-mismatch"
+    assert assessment["conclusive"] is False
+    assert assessment["complete"] is False
+
+
 def test_m09_loose_deadline_uses_object_mtime_not_now(tmp_path: Path):
     repo = _init_repo(tmp_path)
     topic = _empty_child(repo)
@@ -461,6 +597,148 @@ def test_m09_loose_deadline_uses_object_mtime_not_now(tmp_path: Path):
     assert retention["loose_mtime"] == "2030-01-14T00:00:00Z"
     assert retention["loss_possible_not_before"] == "2030-01-28T00:00:00Z"
     assert retention["loss_possible_not_before"] != "2030-01-29T00:00:00Z"
+
+
+@pytest.mark.parametrize(
+    ("ordinary", "unreachable", "expected_deadline", "expected_setting"),
+    [
+        ("5.days.ago", "30.days.ago", "2030-01-06T00:00:00Z", "gc.reflogExpire"),
+        (
+            "90.days.ago",
+            "4.days.ago",
+            "2030-01-05T00:00:00Z",
+            "gc.reflogExpireUnreachable",
+        ),
+        ("never", "6.days.ago", "2030-01-07T00:00:00Z", "gc.reflogExpireUnreachable"),
+        ("6.days.ago", "never", "2030-01-07T00:00:00Z", "gc.reflogExpire"),
+        ("never", "never", "9999-12-31T23:59:59Z", "gc.reflogExpire=never"),
+    ],
+)
+def test_reflog_expiry_uses_both_global_candidates_and_never(
+    ordinary: str,
+    unreachable: str,
+    expected_deadline: str,
+    expected_setting: str,
+):
+    timestamp = dt.datetime(2030, 1, 1, tzinfo=dt.timezone.utc)
+    deadline, setting, _source, status = TOOL._reflog_expiry(
+        "refs/heads/topic",
+        timestamp,
+        timestamp,
+        _reflog_config(ordinary, unreachable),
+        [],
+    )
+
+    assert deadline == expected_deadline
+    assert setting == expected_setting
+    assert status == "determinate"
+
+
+@pytest.mark.parametrize(
+    ("refname", "scoped_ordinary", "scoped_unreachable", "expected_deadline", "expected_setting"),
+    [
+        (
+            "refs/heads/topic",
+            "3.days.ago",
+            "8.days.ago",
+            "2030-01-04T00:00:00Z",
+            "gc.refs/heads/*.reflogExpire",
+        ),
+        (
+            "refs/heads/topic",
+            "never",
+            "8.days.ago",
+            "2030-01-09T00:00:00Z",
+            "gc.refs/heads/*.reflogExpireUnreachable",
+        ),
+        (
+            "refs/heads/topic",
+            "3.days.ago",
+            "never",
+            "2030-01-04T00:00:00Z",
+            "gc.refs/heads/*.reflogExpire",
+        ),
+        (
+            "refs/heads/topic",
+            "never",
+            "never",
+            "9999-12-31T23:59:59Z",
+            "gc.reflogExpire=never",
+        ),
+        (
+            "refs/tags/topic",
+            "1.days.ago",
+            "2.days.ago",
+            "2030-01-31T00:00:00Z",
+            "gc.reflogExpireUnreachable",
+        ),
+    ],
+)
+def test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs(
+    refname: str,
+    scoped_ordinary: str,
+    scoped_unreachable: str,
+    expected_deadline: str,
+    expected_setting: str,
+):
+    timestamp = dt.datetime(2030, 1, 1, tzinfo=dt.timezone.utc)
+    scoped = [
+        {
+            "source": "scoped-ordinary",
+            "pattern": "refs/heads/*",
+            "setting": "ordinary",
+            "effective": scoped_ordinary,
+        },
+        {
+            "source": "scoped-unreachable",
+            "pattern": "refs/heads/*",
+            "setting": "unreachable",
+            "effective": scoped_unreachable,
+        },
+    ]
+    deadline, setting, _source, status = TOOL._reflog_expiry(
+        refname,
+        timestamp,
+        timestamp,
+        _reflog_config("90.days.ago", "30.days.ago"),
+        scoped,
+    )
+
+    assert deadline == expected_deadline
+    assert setting == expected_setting
+    assert status == "determinate"
+
+
+def test_scoped_reflog_config_reads_ordinary_and_unreachable(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    _git(repo, "config", "gc.refs/heads/*.reflogExpire", "2.days.ago")
+    _git(repo, "config", "gc.refs/heads/*.reflogExpireUnreachable", "7.days.ago")
+    git = TOOL.Git(repo, TOOL.time.monotonic() + 10.0)
+
+    with mock.patch.dict(os.environ, {
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+    }, clear=False):
+        config, scoped = TOOL._config_snapshot(git)
+    observed = {
+        (item["pattern"], item["setting"], item["effective"])
+        for item in scoped
+    }
+    deadline, setting, _source, status = TOOL._reflog_expiry(
+        "refs/heads/topic",
+        dt.datetime(2030, 1, 1, tzinfo=dt.timezone.utc),
+        dt.datetime(2030, 1, 1, tzinfo=dt.timezone.utc),
+        config,
+        scoped,
+    )
+
+    assert observed == {
+        ("refs/heads/*", "ordinary", "2.days.ago"),
+        ("refs/heads/*", "unreachable", "7.days.ago"),
+    }
+    assert deadline == "2030-01-03T00:00:00Z"
+    assert setting == "gc.refs/heads/*.reflogExpire"
+    assert status == "determinate"
 
 
 def test_m10_m26_packed_mtime_never_becomes_determinate_deadline(tmp_path: Path):
@@ -565,6 +843,72 @@ def test_m14_unledgered_audit_finding_returns_rc3(tmp_path: Path):
         "entry_id": None, "urgency": "due",
         "message": "audit reported an unreachable commit with no ledger entry",
     }]
+
+
+def test_audit_re_report_notifies_stale_resolutions_except_accepted_loss(
+    tmp_path: Path,
+):
+    repo = _init_repo(tmp_path)
+    rows = [
+        _resolved_ledger_entry("1" * 40, "rescued", "e-rescued"),
+        _resolved_ledger_entry("2" * 40, "reachable-again", "e-reachable"),
+        _resolved_ledger_entry("3" * 40, "object-missing", "e-missing"),
+        _resolved_ledger_entry("4" * 40, "accepted-loss", "e-accepted"),
+    ]
+    ledger = repo / "docs" / "unreachable-object-ledger.md"
+    ledger.parent.mkdir()
+    ledger.write_text(
+        "# Ledger\n\n" + "".join(f"- {json.dumps(row)}\n" for row in rows),
+        encoding="utf-8",
+    )
+    audit = _make_fake_audit(
+        tmp_path / "audit.py", [row["object_oid"] for row in rows],
+    )
+
+    rc, payload, process = _run_tool(
+        repo,
+        "--ledger-check",
+        "--audit-tool",
+        str(audit),
+        "--now",
+        "2030-01-15T00:00:00Z",
+    )
+
+    assert rc == 3, process.stdout + process.stderr
+    assert payload["decision_inputs"]["visualization_complete"] is True
+    assert payload["ledger"]["unledgered_commits"] == []
+    assert payload["ledger"]["notifications"] == [
+        {
+            "kind": "stale-ledger-resolution",
+            "object_oid": "1" * 40,
+            "entry_id": "e-rescued",
+            "urgency": "due",
+            "status": "rescued",
+            "message": (
+                "audit re-reported an unreachable commit with a stale ledger resolution"
+            ),
+        },
+        {
+            "kind": "stale-ledger-resolution",
+            "object_oid": "2" * 40,
+            "entry_id": "e-reachable",
+            "urgency": "due",
+            "status": "reachable-again",
+            "message": (
+                "audit re-reported an unreachable commit with a stale ledger resolution"
+            ),
+        },
+        {
+            "kind": "stale-ledger-resolution",
+            "object_oid": "3" * 40,
+            "entry_id": "e-missing",
+            "urgency": "due",
+            "status": "object-missing",
+            "message": (
+                "audit re-reported an unreachable commit with a stale ledger resolution"
+            ),
+        },
+    ]
 
 
 def test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed(tmp_path: Path):
@@ -1190,6 +1534,7 @@ def test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child(
         "import json\n"
         "import os\n"
         "import subprocess\n"
+        "import sys\n"
         f"missing_oid = {missing_oid!r}\n"
         "probe_env = dict(os.environ)\n"
         "probe_env.pop('GIT_NO_LAZY_FETCH', None)\n"
@@ -1202,6 +1547,7 @@ def test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child(
         "    'branch_delete_authorized': False,\n"
         "    'manual_review_required': True,\n"
         "    'decision': {'verdict': 'landed', 'reason': 'wrapper-probed', 'conclusive': True},\n"
+        "    'branch': {'input': sys.argv[-1], 'tip': sys.argv[-1]},\n"
         "    'observations': {'ledger_corpus': {'bytes_read': 0}},\n"
         "}\n"
         "print(json.dumps(payload, sort_keys=True))\n",
