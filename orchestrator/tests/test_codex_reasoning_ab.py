@@ -65,6 +65,15 @@ M18 -> test_m18_prelaunch_marker_never_hides_nonzero_accounting
 M19 -> test_m19_verify_snapshot_rejects_task_manifest_option_by_fallback
 M20 -> test_m20_render_prompt_binds_external_task_manifest
 M21 -> test_m17_m21_p05_unavailable_cost_is_noncertifying_and_denominators_are_explicit
+
+T-1434 adjudication-oracle mutation nodes:
+M1 -> test_load_adjudication_rejects_cross_task_equivalent_from_manifest_union[parent]
+M2 -> test_load_adjudication_rejects_cross_task_equivalent_from_manifest_union[second-reader]
+M3/M9 -> test_replay_manifest_forwards_external_task_manifest_to_real_adjudication_loader
+M7 -> test_replay_manifest_forwards_external_task_manifest_digest_at_loader_boundary
+M4/M5 -> test_aggregate_verified_rejects_adjudication_oracle_kind_mismatch
+M6 -> test_aggregate_verified_rejects_cross_task_equivalent_from_manifest_union
+M8 -> test_load_adjudication_dimension_join_failure_is_reasoned_and_not_joined
 """
 from __future__ import annotations
 
@@ -1670,7 +1679,12 @@ def _full_manifest(
         packet_id = mapping["packet_id"]
         run_id = mapping["run_id"]
         readers = readers_by_packet[packet_id]
+        slot_id = next(
+            row["slot_id"] for row in completions if row["run_id"] == run_id
+        )
+        slot = next(row for row in slots if row["slot_id"] == slot_id)
         combined = {
+            "oracle_kind": TOOL._slot_dimensions(slot)["oracle_kind"],
             "r1_detected": (
                 readers["parent"]["r1_detected"] is True
                 and readers["second-reader"]["r1_detected"] is True
@@ -1685,9 +1699,7 @@ def _full_manifest(
         }
         judgments.append(
             {
-                "slot_id": next(
-                    row["slot_id"] for row in completions if row["run_id"] == run_id
-                ),
+                "slot_id": slot_id,
                 "packet_id": packet_id,
                 "score_input_sha256": mapping["score_input_sha256"],
                 "combined_verdict_sha256": TOOL._sha256(
@@ -9010,6 +9022,9 @@ def test_bound_price_reaches_supervisor_replay_verify_and_aggregate_consumers(
     )
     verdicts = {
         slot["slot_id"]: {
+            "oracle_kind": task_manifest["tasks"][
+                slot["benchmark_task_id"]
+            ]["oracle_kind"],
             "r1_detected": True,
             "findings": [],
             "reader_agreement": True,
@@ -12084,6 +12099,7 @@ def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[
                 }
             )
             verdicts[slot_id] = {
+                "oracle_kind": TOOL._manifest_task(case=case)["oracle_kind"],
                 "r1_detected": case == "POS",
                 "findings": [],
                 "reader_agreement": True,
@@ -12091,9 +12107,12 @@ def _aggregate_rows() -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[
     return slots, attempts, verdicts
 
 
-def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
-    tmp_path: Path,
-) -> None:
+def _task_specific_aggregate_rows() -> tuple[
+    dict[str, Any],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, dict[str, Any]],
+]:
     task_manifest = _synthetic_task_manifest(
         (
             ("alpha", "POS", "positive", "alpha-finding"),
@@ -12116,6 +12135,16 @@ def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
                     "price_version": None,
                 }
             )
+        verdicts[slot["slot_id"]]["oracle_kind"] = task_manifest["tasks"][
+            task_id
+        ]["oracle_kind"]
+    return task_manifest, slots, attempts, verdicts
+
+
+def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
+    tmp_path: Path,
+) -> None:
+    task_manifest, slots, attempts, verdicts = _task_specific_aggregate_rows()
     beta_slot = next(row for row in slots if row["benchmark_task_id"] == "beta")
     verdicts[beta_slot["slot_id"]]["findings"] = [
         {
@@ -12156,6 +12185,71 @@ def test_aggregate_verified_uses_oracle_kind_and_keeps_task_model_axes_separate(
     assert result["decision"]["by_axis"]
 
 
+def test_aggregate_verified_rejects_cross_task_equivalent_from_manifest_union(
+    tmp_path: Path,
+) -> None:
+    task_manifest, slots, attempts, verdicts = _task_specific_aggregate_rows()
+    beta_slot = next(
+        row for row in slots if row["benchmark_task_id"] == "beta"
+    )
+    assert "alpha-finding" in TOOL.known_finding_ids_for_manifest(task_manifest)
+    assert "alpha-finding" not in TOOL.known_finding_ids_for_manifest(
+        task_manifest, benchmark_task_id="beta"
+    )
+    verdicts[beta_slot["slot_id"]]["findings"] = [
+        {
+            "real": False,
+            "equivalent_to": "alpha-finding",
+            "root_cause": None,
+            "severity": "LOW",
+            "must_fix": False,
+        }
+    ]
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / "cross-task-aggregate.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+    )
+    expected_reason = f"{beta_slot['slot_id']}: unknown equivalent finding id"
+    assert result["failure_reasons"].count(expected_reason) == 1
+    assert result["valid"] is False
+    assert result["experiment_complete"] is False
+
+
+@pytest.mark.parametrize("oracle_kind", ("wrong", "missing"))
+def test_aggregate_verified_rejects_adjudication_oracle_kind_mismatch(
+    oracle_kind: str,
+    tmp_path: Path,
+) -> None:
+    task_manifest, slots, attempts, verdicts = _task_specific_aggregate_rows()
+    beta_slot = next(
+        row for row in slots if row["benchmark_task_id"] == "beta"
+    )
+    beta_verdict = verdicts[beta_slot["slot_id"]]
+    if oracle_kind == "wrong":
+        beta_verdict["oracle_kind"] = "positive"
+    else:
+        del beta_verdict["oracle_kind"]
+    result = TOOL._aggregate_verified(
+        _canonical(tmp_path / f"oracle-kind-{oracle_kind}.json", {}),
+        slots,
+        attempts,
+        verdicts,
+        [],
+        task_manifest=task_manifest,
+    )
+    expected_reason = (
+        f"{beta_slot['slot_id']}: adjudication oracle_kind does not match "
+        "scheduled slot"
+    )
+    assert result["failure_reasons"].count(expected_reason) == 1
+    assert result["valid"] is False
+    assert result["experiment_complete"] is False
+
+
 def test_bound_price_aggregate_rejects_attempt_price_mismatch(
     tmp_path: Path,
 ) -> None:
@@ -12190,6 +12284,7 @@ def test_bound_price_aggregate_rejects_attempt_price_mismatch(
             }
         )
         verdicts[slot["slot_id"]] = {
+            "oracle_kind": slot["oracle_kind"],
             "r1_detected": True,
             "findings": [],
             "reader_agreement": True,
@@ -13111,6 +13206,585 @@ def test_task_manifest_digest_is_recorded_through_packet_freeze_and_reveal(
     assert revealed["task_manifest_sha256"] == expected
 
 
+def _task_specific_adjudication_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    cross_task_reader: str | None = None,
+    external_transport: bool = False,
+) -> dict[str, Any]:
+    task_manifest_value = _synthetic_task_manifest(
+        (
+            ("alpha", "POS", "positive", "alpha-finding"),
+            ("beta", "NEG", "negative", "beta-finding"),
+        )
+    )
+    task_manifest_path = (
+        _canonical(tmp_path / "task-manifest.json", task_manifest_value)
+        if external_transport
+        else None
+    )
+    task_manifest = (
+        TOOL._load_task_manifest(task_manifest_path)
+        if task_manifest_path is not None
+        else task_manifest_value
+    )
+    task_manifest_sha256 = TOOL._task_manifest_sha256(task_manifest)
+    schedule_rows: list[dict[str, Any]] = []
+    for task_number, task_id in enumerate(("alpha", "beta"), 1):
+        block_id = f"task-block-{task_number:02d}"
+        for block_order, (arm, model) in enumerate(
+            (("max", "gpt-5.6-sol"), ("high", "gpt-5.6-luna")),
+            1,
+        ):
+            schedule_rows.append(
+                _v3_slot(
+                    slot_id=f"s{(task_number - 1) * 2 + block_order:02d}",
+                    task_id=task_id,
+                    block_id=block_id,
+                    block_order=block_order,
+                    arm=arm,
+                    requested_model=model,
+                )
+            )
+    schedule = {
+        "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
+        "slots": schedule_rows,
+    }
+    run_root = tmp_path / "replay-run"
+    attempts_root = run_root / "attempts"
+    sessions_root = tmp_path / "sessions"
+    attempts_root.mkdir(parents=True)
+    sessions_root.mkdir()
+    schedule_path = run_root / "schedule.json"
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    snapshot_oracle = {
+        "snapshot": os.fspath(snapshot.resolve()),
+        "submodule_manifest_sha256": "c" * 64,
+    }
+    snapshot_oracle_path = _canonical(
+        tmp_path / "snapshot-oracle.json", snapshot_oracle
+    )
+    snapshot_oracle_sha256 = TOOL._sha256(snapshot_oracle_path.read_bytes())
+    prompt = tmp_path / "prompt.txt"
+    prompt.write_bytes(b"task-specific adjudication prompt")
+    prompt_sha256 = TOOL._sha256(prompt.read_bytes())
+    for slot in schedule_rows:
+        slot["case"] = slot["legacy_case"]
+        slot["prompt_sha256"] = prompt_sha256
+        slot["snapshot_manifest_sha256"] = snapshot_oracle_sha256
+    schedule_path = _canonical(schedule_path, schedule)
+    schedule_sha256 = TOOL._sha256(schedule_path.read_bytes())
+    attempt_descriptors: list[dict[str, Any]] = []
+    packet_attempts: list[dict[str, Any]] = []
+    receipts: dict[str, dict[str, Any]] = {}
+    scores: dict[str, dict[str, Any]] = {}
+    supervisor_completions: list[dict[str, Any]] = []
+    final_attempts: dict[str, dict[str, Any]] = {}
+    for index, slot in enumerate(schedule_rows, 1):
+        run_id = f"r{index:02d}"
+        attempt_root = attempts_root / run_id
+        attempt_root.mkdir()
+        events = _canonical(attempt_root / "events.jsonl", {"events": index})
+        done = _canonical(attempt_root / "done.json", {"done": index})
+        output = attempt_root / "answer.md"
+        output.write_text(_long_output(), encoding="utf-8")
+        output_sha256 = TOOL._sha256(output.read_bytes())
+        rollout = _canonical(
+            sessions_root / f"rollout-{run_id}.jsonl", {"rollout": index}
+        )
+        launch = _canonical(
+            attempt_root / "launch.json",
+            {
+                "run_id": run_id,
+                "slot_id": slot["slot_id"],
+                "attempt": 1,
+                "parent_run_id": None,
+                "case": slot["case"],
+                "arm": slot["arm"],
+                "requested_model": slot["requested_model"],
+                "schedule_sha256": schedule_sha256,
+                "prompt": {"sha256": prompt_sha256},
+                "snapshot_oracle": {"sha256": snapshot_oracle_sha256},
+                "treatment_identity_sha256": f"identity-{slot['benchmark_task_id']}",
+            },
+        )
+        receipt = {
+            "run_id": run_id,
+            "rollout_path": os.fspath(rollout.resolve()),
+            "wall_clock_ms": 0,
+            "failure_reasons": [],
+            "failure_class": None,
+            "valid": True,
+            "input_tokens": 1,
+            "cached_input_tokens": 0,
+            "output_tokens": 1,
+            "reasoning_output_tokens": 0,
+            "cli_reported": 2,
+            "model_calls": 1,
+            "token_usage_observations": _token_usage_observations(),
+            "turn_protocol": "single-turn-required",
+            "rate_limited": False,
+            "retry": False,
+            "compaction_observed": False,
+        }
+        score = {"valid": True, "r1_candidate": True, "decision": "NO-GO"}
+        receipt_path = _canonical(attempt_root / "receipt.json", receipt)
+        score_path = _canonical(attempt_root / "score.json", score)
+        attempts_row = {
+            "run_id": run_id,
+            "slot_id": slot["slot_id"],
+            "attempt": 1,
+            "parent_run_id": None,
+            "launch_receipt": _descriptor(launch, tmp_path),
+            "events": _descriptor(events, tmp_path),
+            "done": _descriptor(done, tmp_path),
+            "prompt": _descriptor(prompt, tmp_path),
+            "output": _descriptor(output, tmp_path),
+            "snapshot_oracle": _descriptor(snapshot_oracle_path, tmp_path),
+            "snapshot_after": _descriptor(snapshot_oracle_path, tmp_path),
+            "rollout": _descriptor(rollout, tmp_path),
+            "receipt": _descriptor(receipt_path, tmp_path),
+            "score": _descriptor(score_path, tmp_path),
+        }
+        attempt_descriptors.append(attempts_row)
+        packet_attempts.append(
+            {
+                "slot_id": slot["slot_id"],
+                "attempt": 1,
+                "run_id": run_id,
+                "output": _descriptor(output, tmp_path),
+            }
+        )
+        receipts[run_id] = receipt
+        scores[run_id] = score
+        supervisor_completions.append(
+            {"run_id": run_id, "process_started": True, "process_wall_ms": 0}
+        )
+        final_attempts[slot["slot_id"]] = {
+            "run_id": run_id,
+            "output_sha256": output_sha256,
+        }
+
+    # The schedule descriptor is deliberately part of the packet source.  This
+    # fixture must exercise the v3 paired-schedule path, not compatibility mode.
+    packet_source = _canonical(
+        tmp_path / "packet-source.json",
+        {
+            "task_manifest_sha256": task_manifest_sha256,
+            "schedule": _descriptor(schedule_path, tmp_path),
+            "attempts": packet_attempts,
+        },
+    )
+    custodian = tmp_path / "custodian"
+    packet_result = TOOL.make_packets(
+        packet_source,
+        tmp_path / "packets",
+        custodian,
+        task_manifest=task_manifest,
+    )
+    packet_state_path = Path(packet_result["packet_state"])
+    packet_state = json.loads(packet_state_path.read_text(encoding="utf-8"))
+    private_path = TOOL._custodian_mapping_path(custodian)
+    private = json.loads(private_path.read_text(encoding="utf-8"))
+    private_by_packet = {
+        row["packet_id"]: row for row in private["mapping"]
+    }
+    slot_by_id = {row["slot_id"]: row for row in schedule_rows}
+    cross_task_packet_id = next(
+        row["packet_id"]
+        for row in private["mapping"]
+        if slot_by_id[row["slot_id"]]["benchmark_task_id"] == "beta"
+    )
+
+    verdict_inputs: dict[str, Path] = {}
+    for reader in ("parent", "second-reader"):
+        verdict_rows: list[dict[str, Any]] = []
+        for packet in packet_state["packets"]:
+            packet_id = packet["packet_id"]
+            mapped_slot = slot_by_id[
+                private_by_packet[packet_id]["slot_id"]
+            ]
+            task_id = mapped_slot["benchmark_task_id"]
+            finding_id = f"{task_id}-finding"
+            if reader == cross_task_reader and packet_id == cross_task_packet_id:
+                finding_id = "alpha-finding"
+            verdict_rows.append(
+                {
+                    "packet_id": packet_id,
+                    "r1_detected": True,
+                    "findings": [
+                        {
+                            "real": True,
+                            "equivalent_to": finding_id,
+                            "root_cause": None,
+                            "severity": "LOW",
+                            "must_fix": False,
+                        }
+                    ],
+                }
+            )
+        verdict_inputs[reader] = _canonical(
+            tmp_path / f"{reader}-verdicts.json", {"verdicts": verdict_rows}
+        )
+    verdict_log = tmp_path / "verdicts.jsonl"
+    append_results = {
+        reader: TOOL.append_verdicts(
+            packet_state_path,
+            verdict_log,
+            reader,
+            verdict_inputs[reader],
+            task_manifest=task_manifest,
+        )
+        for reader in ("parent", "second-reader")
+    }
+    freeze_path = tmp_path / "verdict-freeze.json"
+    freeze = TOOL.freeze_verdicts(
+        packet_state_path,
+        verdict_log,
+        freeze_path,
+        task_manifest=task_manifest,
+    )
+    revealed_path = tmp_path / "revealed-map.json"
+    revealed = TOOL.reveal_mapping(
+        packet_state_path,
+        custodian,
+        verdict_log,
+        freeze_path,
+        revealed_path,
+        task_manifest=task_manifest,
+    )
+    for index, artifact in enumerate(
+        (packet_state_path, verdict_log, freeze_path, revealed_path), 1
+    ):
+        timestamp_ns = TOOL.PACKET_MTIME_NS + index * 1_000_000
+        os.utime(artifact, ns=(timestamp_ns, timestamp_ns))
+
+    logged_rows = [
+        json.loads(line)
+        for line in verdict_log.read_text(encoding="utf-8").splitlines()
+    ]
+    readers_by_packet: dict[str, dict[str, dict[str, Any]]] = {}
+    for row in logged_rows:
+        readers_by_packet.setdefault(row["packet_id"], {})[row["reader"]] = row
+    slot_by_run = {
+        attempt["run_id"]: slot_by_id[slot_id]
+        for slot_id, attempt in final_attempts.items()
+    }
+    judgments: list[dict[str, Any]] = []
+    for mapping in revealed["mapping"]:
+        packet_id = mapping["packet_id"]
+        slot = slot_by_run[mapping["run_id"]]
+        readers = readers_by_packet[packet_id]
+        parent_finding = readers["parent"]["findings"][0]
+        second_finding = readers["second-reader"]["findings"][0]
+        finding_fields = ("equivalent_to", "root_cause", "severity", "must_fix")
+        conservative_findings = (
+            [parent_finding]
+            if all(
+                parent_finding[field] == second_finding[field]
+                for field in finding_fields
+            )
+            else []
+        )
+        combined = {
+            "oracle_kind": TOOL._slot_dimensions(
+                slot, task_manifest=task_manifest
+            )["oracle_kind"],
+            "r1_detected": True,
+            "findings": conservative_findings,
+            "reader_agreement": True,
+            "reader_rows_sha256": TOOL._sha256(
+                TOOL._canonical_bytes(
+                    [readers["parent"], readers["second-reader"]]
+                )
+            ),
+        }
+        judgments.append(
+            {
+                "slot_id": slot["slot_id"],
+                "packet_id": packet_id,
+                "score_input_sha256": mapping["score_input_sha256"],
+                "combined_verdict_sha256": TOOL._sha256(
+                    TOOL._canonical_bytes(combined)
+                ),
+                "r1_detected": combined["r1_detected"],
+                "reader_agreement": combined["reader_agreement"],
+            }
+        )
+
+    ledger_path = _canonical(run_root / "attempt-ledger.jsonl", {})
+    material = {
+        "schema_version": TOOL.SCHEMA_VERSION,
+        "task_manifest_sha256": task_manifest_sha256,
+        "run_root": run_root.name,
+        "attempts_root": f"{run_root.name}/attempts",
+        "attempt_ledger": _descriptor(ledger_path, tmp_path),
+        "max_schedule_gap_ms": TOOL.MAX_SCHEDULE_GAP_MS,
+        "max_inter_block_gap_ms": TOOL.MAX_INTER_BLOCK_GAP_MS,
+        "schedule": _descriptor(schedule_path, tmp_path),
+        "schedule_sha256": schedule_sha256,
+        "attempts": attempt_descriptors,
+        "packet_state": _descriptor(packet_state_path, tmp_path),
+        "verdict_log": _descriptor(verdict_log, tmp_path),
+        "verdict_freeze": _descriptor(freeze_path, tmp_path),
+        "revealed_map": _descriptor(revealed_path, tmp_path),
+        "judgments": judgments,
+    }
+    material_path = _canonical(tmp_path / "material.json", material)
+    slots, schedule_reasons = TOOL._validate_schedule(
+        schedule, task_manifest=task_manifest
+    )
+    assert schedule_reasons == []
+
+    monkeypatch.setattr(
+        TOOL,
+        "_validate_supervisor_ledger",
+        lambda *args, **kwargs: (copy.deepcopy(supervisor_completions), []),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "verify_snapshot",
+        lambda *args, **kwargs: copy.deepcopy(snapshot_oracle),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "collect_run",
+        lambda **kwargs: (copy.deepcopy(receipts[kwargs["run_id"]]), 0),
+    )
+    monkeypatch.setattr(
+        TOOL,
+        "score_run",
+        lambda _path, run_id: (copy.deepcopy(scores[run_id]), 0),
+    )
+    return {
+        "append_results": append_results,
+        "cross_task_packet_id": cross_task_packet_id,
+        "final_attempts": final_attempts,
+        "freeze": freeze,
+        "logged_rows": logged_rows,
+        "manifest": material,
+        "manifest_path": material_path,
+        "packet_state": packet_state,
+        "packet_source": packet_source,
+        "private": private,
+        "revealed": revealed,
+        "schedule": schedule,
+        "sessions_root": sessions_root,
+        "slots": slots,
+        "task_manifest": task_manifest,
+        "task_manifest_path": task_manifest_path,
+    }
+
+
+def test_replay_manifest_forwards_external_task_manifest_to_real_adjudication_loader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path, monkeypatch, external_transport=True
+    )
+    task_manifest = fixture["task_manifest"]
+    expected_digest = TOOL._task_manifest_sha256(task_manifest)
+    task_manifest_path = fixture["task_manifest_path"]
+    assert isinstance(task_manifest_path, Path)
+    assert task_manifest_path.read_bytes() == TOOL._canonical_bytes(
+        task_manifest
+    )
+    packet_source = json.loads(
+        fixture["packet_source"].read_text(encoding="utf-8")
+    )
+    assert set(packet_source["schedule"]) == {"path", "sha256"}
+    assert len(packet_source["attempts"]) == 4
+    assert {
+        (slot["benchmark_task_id"], slot["block_id"])
+        for slot in fixture["slots"]
+    } == {("alpha", "task-block-01"), ("beta", "task-block-02")}
+    assert all(
+        result["appended"] == 4
+        and result["task_manifest_sha256"] == expected_digest
+        for result in fixture["append_results"].values()
+    )
+    for artifact in (
+        packet_source,
+        fixture["schedule"],
+        fixture["packet_state"],
+        fixture["private"],
+        fixture["freeze"],
+        fixture["revealed"],
+        fixture["manifest"],
+    ):
+        assert artifact["task_manifest_sha256"] == expected_digest
+    assert all(
+        row["task_manifest_sha256"] == expected_digest
+        for row in fixture["logged_rows"]
+    )
+
+    slots, _, verdicts, reasons = TOOL._replay_manifest(
+        fixture["manifest_path"],
+        fixture["sessions_root"],
+        task_manifest=task_manifest,
+    )
+    assert reasons == []
+    assert len(slots) == len(verdicts) == 4
+    for slot in slots:
+        task_id = slot["benchmark_task_id"]
+        verdict = verdicts[slot["slot_id"]]
+        assert verdict["oracle_kind"] == task_manifest["tasks"][task_id][
+            "oracle_kind"
+        ]
+        assert [
+            finding["equivalent_to"] for finding in verdict["findings"]
+        ] == [f"{task_id}-finding"]
+
+    rc = TOOL.main(
+        [
+            "verify",
+            "--manifest",
+            os.fspath(fixture["manifest_path"]),
+            "--sessions-root",
+            os.fspath(fixture["sessions_root"]),
+            "--task-manifest",
+            os.fspath(task_manifest_path),
+        ]
+    )
+    verified = json.loads(capfd.readouterr().out)
+    assert rc == 0
+    assert verified["valid"] is True
+    assert verified["experiment_complete"] is True
+
+
+def test_replay_manifest_forwards_external_task_manifest_digest_at_loader_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path, monkeypatch, external_transport=True
+    )
+    task_manifest = fixture["task_manifest"]
+    captured_task_manifests: list[dict[str, Any]] = []
+    original_load_adjudication = TOOL._load_adjudication
+
+    def capture_task_manifest(
+        manifest_path: Path,
+        manifest: dict[str, Any],
+        slots: list[dict[str, Any]],
+        final_attempts: dict[str, dict[str, Any]],
+        *,
+        snapshot_verified_run_ids: set[str],
+        task_manifest: dict[str, Any] = TOOL.TASK_MANIFEST,
+    ) -> tuple[dict[str, dict[str, Any]], list[str]]:
+        captured_task_manifests.append(task_manifest)
+        return original_load_adjudication(
+            manifest_path,
+            manifest,
+            slots,
+            final_attempts,
+            snapshot_verified_run_ids=snapshot_verified_run_ids,
+            task_manifest=task_manifest,
+        )
+
+    monkeypatch.setattr(TOOL, "_load_adjudication", capture_task_manifest)
+    TOOL._replay_manifest(
+        fixture["manifest_path"],
+        fixture["sessions_root"],
+        task_manifest=task_manifest,
+    )
+
+    assert TOOL._task_manifest_sha256(
+        captured_task_manifests[-1]
+    ) == TOOL._task_manifest_sha256(task_manifest)
+
+
+@pytest.mark.parametrize("reader", ("parent", "second-reader"))
+def test_load_adjudication_rejects_cross_task_equivalent_from_manifest_union(
+    reader: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path, monkeypatch, cross_task_reader=reader
+    )
+    task_manifest = fixture["task_manifest"]
+    assert "alpha-finding" in TOOL.known_finding_ids_for_manifest(task_manifest)
+    assert "alpha-finding" not in TOOL.known_finding_ids_for_manifest(
+        task_manifest, benchmark_task_id="beta"
+    )
+    assert all(
+        result["appended"] == 4
+        for result in fixture["append_results"].values()
+    )
+    target_row = next(
+        row
+        for row in fixture["logged_rows"]
+        if row["packet_id"] == fixture["cross_task_packet_id"]
+        and row["reader"] == reader
+    )
+    assert target_row["findings"][0]["equivalent_to"] == "alpha-finding"
+
+    # Direct _load_adjudication calls validate artifact digests, but the
+    # material manifest's own exact digest is an entrypoint-level D931 gate.
+    joined, reasons = TOOL._load_adjudication(
+        fixture["manifest_path"],
+        fixture["manifest"],
+        fixture["slots"],
+        fixture["final_attempts"],
+        snapshot_verified_run_ids={
+            attempt["run_id"]
+            for attempt in fixture["final_attempts"].values()
+        },
+        task_manifest=task_manifest,
+    )
+    expected_reason = (
+        f"{fixture['cross_task_packet_id']}: {reader} finding equivalent_to "
+        "is unknown for benchmark task beta: alpha-finding"
+    )
+    assert reasons.count(expected_reason) == 1
+    assert len(joined) == 4
+
+
+def test_load_adjudication_dimension_join_failure_is_reasoned_and_not_joined(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _task_specific_adjudication_fixture(tmp_path, monkeypatch)
+    malformed_slots = copy.deepcopy(fixture["slots"])
+    malformed_slot = malformed_slots[0]
+    malformed_slot["stage"] = "malformed-stage"
+    target_run_id = fixture["final_attempts"][malformed_slot["slot_id"]][
+        "run_id"
+    ]
+    target_packet_id = next(
+        row["packet_id"]
+        for row in fixture["revealed"]["mapping"]
+        if row["run_id"] == target_run_id
+    )
+
+    # Direct _load_adjudication calls do not perform the material manifest's
+    # own exact digest check; verify/aggregate entrypoints own that D931 gate.
+    joined, reasons = TOOL._load_adjudication(
+        fixture["manifest_path"],
+        fixture["manifest"],
+        malformed_slots,
+        fixture["final_attempts"],
+        snapshot_verified_run_ids={
+            attempt["run_id"]
+            for attempt in fixture["final_attempts"].values()
+        },
+        task_manifest=fixture["task_manifest"],
+    )
+    expected_reason = (
+        f"{target_packet_id}: schedule slot dimension join failed: "
+        f"{malformed_slot['slot_id']}"
+    )
+    assert reasons.count(expected_reason) == 1
+    assert malformed_slot["slot_id"] not in joined
+    assert len(joined) == 3
+
+
 def test_m15_reveal_mapping_rejects_private_manifest_exchange(
     tmp_path: Path,
 ) -> None:
@@ -13936,6 +14610,7 @@ def _verdict_packet_swap_restore_fixture(
             if row["packet_id"] == packet_id
         }
         combined = {
+            "oracle_kind": TOOL._slot_dimensions(slot)["oracle_kind"],
             "r1_detected": detected,
             "findings": [],
             "reader_agreement": True,
@@ -14329,6 +15004,7 @@ def _bound_cost_aggregate(
             }
         )
         verdicts[slot["slot_id"]] = {
+            "oracle_kind": slot["oracle_kind"],
             "r1_detected": True,
             "findings": [],
             "reader_agreement": True,
@@ -14800,7 +15476,10 @@ def test_m08_p02_p04_null_v3_and_legacy_emit_no_cost_keys(
         _canonical(tmp_path / "null-v3.json", {"schedule": {}}),
         slots,
         attempts,
-        {},
+        {
+            slot["slot_id"]: {"oracle_kind": slot["oracle_kind"]}
+            for slot in slots
+        },
         [],
         task_manifest=task_manifest,
     )
@@ -14918,7 +15597,10 @@ def test_schedule_descriptor_absence_emits_no_cost_keys(tmp_path: Path) -> None:
         _canonical(tmp_path / "descriptorless.json", {}),
         slots,
         attempts,
-        {},
+        {
+            slot["slot_id"]: {"oracle_kind": slot["oracle_kind"]}
+            for slot in slots
+        },
         [],
         task_manifest=task_manifest,
     )
@@ -14950,7 +15632,10 @@ def test_f4_aggregate_uses_loaded_descriptor_state_without_manifest_reread(
         manifest,
         slots,
         attempts,
-        {},
+        {
+            slot["slot_id"]: {"oracle_kind": slot["oracle_kind"]}
+            for slot in slots
+        },
         [],
         task_manifest=task_manifest,
     )

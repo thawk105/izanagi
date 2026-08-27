@@ -109,6 +109,10 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Read-only Git HEAD/status probes bind the driver worktree; neither
     # command names or executes a CCBench binary.
     ("campaign/paper_story_a2_certification.py", "<module>.compute_preflight"): 2,
+    # Login-side terminal qstat observation; it never names a CCBench binary.
+    ("campaign/paper_story_a2_certification.py", "<module>.finish_group"): 1,
+    # Exact scheduler submission argv; CCBench remains compute-job-owned.
+    ("campaign/paper_story_a2_certification.py", "<module>.exact_qsub"): 1,
     # Read-only Git HEAD/status probes bind the delegated CCBench source tree;
     # measurement itself remains owned by run_campaign().
     ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 2,

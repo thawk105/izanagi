@@ -1,0 +1,130 @@
+{
+ "baseline": {
+  "collection_sha256": "e1017b544fbbe363c7bde22192309e4152e39262bb1797ba40660ce837ed0df1",
+  "duration_s": 43.847,
+  "failed_nodes": [],
+  "rc": 0,
+  "status": "PASSED",
+  "test_output_sha256": "29b450a0b7639fc187009ae8b7869939f5baae355f72ac08210860ea441aaa3e"
+ },
+ "mutations": [
+  {
+   "duration_s": 33.379,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_policy_is_the_exact_literal_four_cell_protocol"
+   ],
+   "id": "M1",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 28.446,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "id": "M2",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 53.239,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "id": "M3",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 28.768,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[stale-raw]"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_compute_preflight_rejects_each_m7_boundary[stale-raw]"
+   ],
+   "id": "M4",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 33.715,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "id": "M5",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 28.483,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "id": "M6",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 28.75,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_m10_full_submission_and_completion_receipts_are_cross_bound"
+   ],
+   "id": "M7",
+   "matches_expectation": true,
+   "status": "KILLED"
+  },
+  {
+   "duration_s": 28.925,
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_raw_manifest_binds_campaign_lock_and_wal_and_freezes_raw_bytes"
+   ],
+   "id": "M8",
+   "matches_expectation": true,
+   "status": "KILLED"
+  }
+ ],
+ "repo_head": "6d7697b952fcd7f31ae94c7ede6bb4da903aff71",
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "5eaf67b5d5eeed2912ab47dbaadad326b8a554267ab310fc827e3b19b6d74a10",
+ "summary": {
+  "KILLED": 8,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 8,
+  "matching": 8,
+  "recorded": 8,
+  "registered": 8
+ }
+}

@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "t810-live-reader-unregistered",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if set(classified) != set(expected):\n        raise RuntimeError(\"real-repo access map is incomplete\")\n    return MappingProxyType(classified)",
+          "new": "    if set(classified) != set(expected):\n        raise RuntimeError(\"real-repo access map is incomplete\")\n    classified.pop(\n        \"test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union\",\n        None,\n    )\n    return MappingProxyType(classified)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "nested-collection-node-unregistered",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if set(classified) != set(expected):\n        raise RuntimeError(\"real-repo access map is incomplete\")\n    return MappingProxyType(classified)",
+          "new": "    if set(classified) != set(expected):\n        raise RuntimeError(\"real-repo access map is incomplete\")\n    classified.pop(\n        \"test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order\",\n        None,\n    )\n    return MappingProxyType(classified)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "invariant-candidate-write-downgraded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8c_preregistration_invariant.py",
+          "old": "    with real_repo_fixture_lock(\"write\", None):\n        candidate = _candidate_commit(tmp_path_factory.mktemp(\"s8c-candidate\"))",
+          "new": "    with real_repo_fixture_lock(\"read\", None):\n        candidate = _candidate_commit(tmp_path_factory.mktemp(\"s8c-candidate\"))"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "predicate-candidate-lock-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8c_preregistration_predicates.py",
+          "old": "    with real_repo_fixture_lock(\"write\", None):\n        candidate = _candidate_commit_with_worktree(\n            tmp_path_factory.mktemp(\"c06-candidate\")\n        )\n    with real_repo_fixture_lock(\"read\", None):\n        yield candidate",
+          "new": "    candidate = _candidate_commit_with_worktree(\n        tmp_path_factory.mktemp(\"c06-candidate\")\n    )\n    yield candidate"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "campaign-scan-lock-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_campaign_import_invariant.py",
+          "old": "    with real_repo_fixture_lock(\"read\", \"read\"):\n        yield scan_repository(REPOSITORY)",
+          "new": "    yield scan_repository(REPOSITORY)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "parent-key-uses-worktree-root",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    common_dir = _real_repo_common_dir(resource, repo_root=repo_root)\n    digest = hashlib.sha256(os.fsencode(common_dir)).hexdigest()",
+          "new": "    common_dir = _real_repo_common_dir(resource, repo_root=repo_root)\n    digest = hashlib.sha256(\n        os.fsencode(common_dir)\n        + os.fsencode(_real_repo_worktree_root(repo_root))\n    ).hexdigest()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "legacy-key-not-acquired",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    legacy = _real_repo_legacy_lock_path(resource)\n    with _real_repo_lock_path_context(\n        resource,\n        access_mode,\n        legacy,\n        deadline=deadline,\n        retry_interval_s=retry,\n    ):\n        common = _real_repo_lock_path(resource)",
+          "new": "    legacy = _real_repo_legacy_lock_path(resource)\n    with contextlib.nullcontext():\n        common = _real_repo_lock_path(resource)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "conflict-edge-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/acceptance_shards.py",
+          "old": "    (\"real-repo\", \"s8c-preregistration-candidate\"),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "prewarm-lock-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        with _real_repo_locks(RealRepoAccess(\"read\", None)):\n            memo_module.prewarm_real_repo_receipt(\n                run_id=run_id,\n                session_id=session_id,\n            )",
+          "new": "        memo_module.prewarm_real_repo_receipt(\n            run_id=run_id,\n            session_id=session_id,\n        )"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
