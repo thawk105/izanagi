@@ -261,7 +261,15 @@ def _fake_build_environment(
     )
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", lambda *a, **k: None)
 
-    def fake_compiler_inputs(_build_dir, snapshot_root, *, target):
+    def fake_compiler_inputs(
+            _build_dir, snapshot_root, *, target,
+            allow_external_inputs=False,
+            expected_evolve_block_sources=None,
+            origin_fetchcontent_masstree_root=None,
+            current_fetchcontent_masstree_root=None):
+        del expected_evolve_block_sources
+        assert origin_fetchcontent_masstree_root is not None
+        assert current_fetchcontent_masstree_root is not None
         source = Path(snapshot_root).resolve() / "compiler-input.hh"
         payload = source.read_bytes()
         manifest = {
@@ -270,10 +278,13 @@ def _fake_build_environment(
             "target": target,
             "depfile_count": 1,
             "inputs": [{
+                "root": "snapshot",
                 "path": "compiler-input.hh",
                 "sha256": hashlib.sha256(payload).hexdigest(),
             }],
         }
+        if allow_external_inputs:
+            manifest["input_policy"] = "snapshot-and-external-hashes/v1"
         return buildcache.s8b_compiler_input.CompilerInputManifest(
             manifest,
             buildcache.s8b_compiler_input.manifest_sha256(manifest),
@@ -287,13 +298,13 @@ def _fake_build_environment(
 
     def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
         if what == "configure":
+            bdir = Path(cmd[cmd.index("-B") + 1])
+            bdir.mkdir(parents=True, exist_ok=True)
             base_tokens = [
                 token for token in cmd
                 if token.startswith("-DFETCHCONTENT_BASE_DIR=")
             ]
             if base_tokens:
-                bdir = Path(cmd[cmd.index("-B") + 1])
-                bdir.mkdir(parents=True, exist_ok=True)
                 base = Path(base_tokens[0].split("=", 1)[1])
                 masstree_tokens = [
                     token for token in cmd
@@ -321,22 +332,31 @@ def _fake_build_environment(
                     cache_lines.append(
                         "FETCHCONTENT_FULLY_DISCONNECTED:BOOL=ON\n"
                     )
-                (bdir / "CMakeCache.txt").write_text(
-                    "".join(cache_lines),
-                    encoding="utf-8",
-                )
-                generated_root = (
-                    Path(masstree_build_root)
-                    if masstree_build_root is not None
-                    else configured_root
-                )
-                _write_masstree_depend_info(
-                    bdir,
-                    ((
-                        generated_root / "config.h",
-                        generated_root / "libkohler_masstree_json.a",
-                    ),),
-                )
+            else:
+                base = bdir / "_deps"
+                configured_root = base / "masstree-src"
+                cache_lines = [
+                    "CMAKE_GENERATOR:INTERNAL=Unix Makefiles\n",
+                    "FETCHCONTENT_SOURCE_DIR_MASSTREE:PATH=\n",
+                    f"FETCHCONTENT_BASE_DIR:PATH={base}\n",
+                ]
+            configured_root.mkdir(parents=True, exist_ok=True)
+            (bdir / "CMakeCache.txt").write_text(
+                "".join(cache_lines),
+                encoding="utf-8",
+            )
+            generated_root = (
+                Path(masstree_build_root)
+                if masstree_build_root is not None
+                else configured_root
+            )
+            _write_masstree_depend_info(
+                bdir,
+                ((
+                    generated_root / "config.h",
+                    generated_root / "libkohler_masstree_json.a",
+                ),),
+            )
         if what == "build":
             bdir = Path(cmd[cmd.index("--build") + 1])
             binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
@@ -350,13 +370,15 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
            ccbench_dir: str = "", timeout_s: int | None = None,
            source_snapshot_sha256: str | None = None,
            bind_source_snapshot: bool = False,
+           expected_materialization_descriptor=None,
            dependency_prefix: str = "", site: str | None = None,
            expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
            fetchcontent_dependency_receipt=None, declared_use_class=None,
            fetchcontent_archive_sha256=None,
            post_oracle_dependency_binding=None,
            masstree_source_dir=None, mimalloc_source_dir=None,
-           googletest_source_dir=None):
+           googletest_source_dir=None,
+           current_compiler_input_masstree_root=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     if bind_source_snapshot or source_snapshot_sha256 is not None:
@@ -375,9 +397,17 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
                     source_path.resolve(),
                 )
             )
-    context, evidence, admission = _admission_bundle(
-        genome, "a" * 40, source_root,
-    )
+    if expected_materialization_descriptor is None:
+        context, evidence, admission = _admission_bundle(
+            genome, "a" * 40, source_root,
+        )
+    else:
+        context, evidence, admission = _review_admission_bundle(
+            genome, "a" * 40, source_root,
+            input_sha256=(
+                expected_materialization_descriptor.declaration_sha256
+            ),
+        )
     kwargs = dict(
         admission=admission,
         build_context=context,
@@ -394,6 +424,10 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
     )
     if source_snapshot_sha256 is not None:
         kwargs["source_snapshot_sha256"] = source_snapshot_sha256
+    if expected_materialization_descriptor is not None:
+        kwargs["expected_materialization_descriptor"] = (
+            expected_materialization_descriptor
+        )
     if dependency_prefix:
         kwargs["dependency_prefix"] = dependency_prefix
     if site is not None:
@@ -418,6 +452,10 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["mimalloc_source_dir"] = mimalloc_source_dir
     if googletest_source_dir is not None:
         kwargs["googletest_source_dir"] = googletest_source_dir
+    if current_compiler_input_masstree_root is not None:
+        kwargs["current_compiler_input_masstree_root"] = (
+            current_compiler_input_masstree_root
+        )
     return buildcache.build_v2(
         genome,
         **kwargs,
@@ -2629,7 +2667,143 @@ def test_v2_identity_optional_snapshot_preserves_legacy_digest_and_separates_pro
         "e65e196014c1b0f6bac649bc33b07ad201388a7d9f4ef637a7a5bf03fdcb0c88"
     )
     assert first[0]["source_snapshot_sha256"] == "1" * 64
+    assert first[0]["compiler_input_manifest_schema"] == (
+        buildcache.s8b_compiler_input.MANIFEST_SCHEMA
+    )
     assert first[1] != second[1]
+
+
+def test_v2_schema_pin_separates_legacy_completion_without_fallback(
+        tmp_path, monkeypatch):
+    """受理: v2 schema は旧v1と別identityでfresh v2を発行する。
+
+    拒否: 選択済みinvalid entryをfreshへ降格しない契約はM9の別nodeで検査する。
+    """
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    genome = Genome("silo", {"BACK_OFF": 1})
+    contract = _contract(1)
+    source_root = (tmp_path / "ccbench").resolve()
+    source_root.mkdir()
+    source = source_root / "compiler-input.hh"
+    source.write_bytes(b"compiler input fixture\n")
+    source_snapshot_sha256 = (
+        buildcache.s8b_expected_materialization.snapshot_tree_digest(
+            source_root,
+        )
+    )
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(source_root),
+    )
+    toolchain = buildcache._toolchain_manifest("test-cc", "test-cxx")
+    request_preimage, request_digest = buildcache._v2_identity(
+        genome, "a" * 40, True, "stock", "test-cc", "test-cxx",
+        toolchain,
+        source_snapshot_sha256=source_snapshot_sha256,
+        site=buildcache._resolve_site(None), dependency_prefix=[],
+        admission=dict(admission.as_cache_identity()),
+    )
+    legacy_preimage = dict(request_preimage)
+    pinned_schema = legacy_preimage.pop(
+        "compiler_input_manifest_schema", None,
+    )
+    legacy_digest = hashlib.sha256(
+        json.dumps(
+            legacy_preimage, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
+
+    legacy_input_manifest = {
+        "schema_version": "s8b-compiler-input/v1",
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": "ycsb_silo.exe",
+        "depfile_count": 1,
+        "inputs": [{
+            "path": "compiler-input.hh",
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }],
+    }
+    legacy_input_digest = (
+        buildcache.s8b_compiler_input.manifest_sha256(
+            legacy_input_manifest,
+        )
+    )
+    assert buildcache.s8b_compiler_input.validate_compiler_input_manifest(
+        legacy_input_manifest,
+        legacy_input_digest,
+        snapshot_root=source_root,
+        target="ycsb_silo.exe",
+    ) == legacy_input_manifest
+
+    legacy_entry = (
+        tmp_path / "cache" / "contracts" / contract.contract_sha256
+        / legacy_digest
+    )
+    legacy_binary = legacy_entry / "cc" / "silo" / "ycsb_silo.exe"
+    legacy_binary.parent.mkdir(parents=True)
+    legacy_payload = b"legacy-v1-binary"
+    legacy_binary.write_bytes(legacy_payload)
+    legacy_completion = {
+        "schema_version": "buildcache/v2",
+        "completion_marker": "complete",
+        "full_build_digest": legacy_digest,
+        "contract_sha256": contract.contract_sha256,
+        "preimage": legacy_preimage,
+        "admission": dict(admission.as_cache_identity()),
+        "toolchain": toolchain,
+        "binary": {
+            "relative_path": "cc/silo/ycsb_silo.exe",
+            "sha256": hashlib.sha256(legacy_payload).hexdigest(),
+        },
+        "compiler_input_manifest": legacy_input_manifest,
+        "compiler_input_manifest_sha256": legacy_input_digest,
+    }
+    (legacy_entry / "completion.json").write_text(
+        json.dumps(legacy_completion), encoding="utf-8",
+    )
+
+    run_phases = []
+    original_run = buildcache._run
+
+    def record_run(cmd, what, **kwargs):
+        run_phases.append(what)
+        return original_run(cmd, what, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_run", record_run)
+    fresh = buildcache.build_v2(
+        genome,
+        admission=admission,
+        build_context=context,
+        source_evidence=evidence,
+        source_snapshot_sha256=source_snapshot_sha256,
+        contract=contract,
+        ccbench_commit="a" * 40,
+        trace=True,
+        src_token="stock",
+        cc="test-cc",
+        cxx="test-cxx",
+        cache_root=str(tmp_path / "cache"),
+        ccbench_dir=str(source_root),
+    )
+    published = json.loads(
+        (Path(fresh.build_dir) / "completion.json").read_text(
+            encoding="utf-8",
+        )
+    )
+
+    assert pinned_schema == buildcache.s8b_compiler_input.MANIFEST_SCHEMA
+    assert request_digest != legacy_digest
+    assert fresh.cached is False
+    assert run_phases == ["configure", "build"]
+    assert Path(fresh.build_dir).name == request_digest
+    assert Path(fresh.build_dir) != legacy_entry
+    assert published["preimage"]["compiler_input_manifest_schema"] == (
+        buildcache.s8b_compiler_input.MANIFEST_SCHEMA
+    )
+    assert published["compiler_input_manifest"]["schema_version"] == (
+        buildcache.s8b_compiler_input.MANIFEST_SCHEMA
+    )
 
 
 def test_descriptor_compiler_input_policy_has_distinct_v2_identity():
@@ -2884,10 +3058,10 @@ def test_v2_collects_manifest_before_staging_discard(tmp_path, monkeypatch):
     )
     original_discard = buildcache._discard_build_dir
 
-    def observe_collect(build_dir, snapshot_root, *, target):
+    def observe_collect(build_dir, snapshot_root, **kwargs):
         assert Path(build_dir).is_dir()
         events.append("collect")
-        return original_collect(build_dir, snapshot_root, target=target)
+        return original_collect(build_dir, snapshot_root, **kwargs)
 
     def observe_discard(path):
         if ".staging-" in str(path):
@@ -2926,6 +3100,165 @@ def test_v2_hit_revalidates_compiler_input_bytes_without_rebuilding(
 
     with pytest.raises(buildcache.BuildCacheError, match="compiler input manifest"):
         _build(tmp_path, _contract(1), bind_source_snapshot=True)
+    assert calls == []
+
+
+def _install_fetchcontent_compiler_manifest_collector(monkeypatch):
+    def collect(
+            _build_dir, _snapshot_root, *, target, allow_external_inputs,
+            expected_evolve_block_sources,
+            origin_fetchcontent_masstree_root,
+            current_fetchcontent_masstree_root):
+        assert allow_external_inputs is True
+        assert expected_evolve_block_sources is None
+        origin = Path(origin_fetchcontent_masstree_root)
+        current = Path(current_fetchcontent_masstree_root)
+        relative = Path("tracked.hh")
+        digest = hashlib.sha256((origin / relative).read_bytes()).hexdigest()
+        assert hashlib.sha256((current / relative).read_bytes()).hexdigest() == digest
+        manifest = {
+            "schema_version": buildcache.s8b_compiler_input.MANIFEST_SCHEMA,
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "target": target,
+            "depfile_count": 1,
+            "inputs": [{
+                "root": "fetchcontent-masstree",
+                "path": relative.as_posix(),
+                "sha256": digest,
+            }],
+            "input_policy": "snapshot-and-external-hashes/v1",
+        }
+        return buildcache.s8b_compiler_input.CompilerInputManifest(
+            manifest,
+            buildcache.s8b_compiler_input.manifest_sha256(manifest),
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_compiler_input,
+        "collect_compiler_input_manifest",
+        collect,
+    )
+
+
+def _v2_fetchcontent_rebind_fixture(tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _install_fetchcontent_compiler_manifest_collector(monkeypatch)
+    source_root = tmp_path / "ccbench"
+    source_root.mkdir()
+    (source_root / "compiler-input.hh").write_bytes(
+        b"compiler input fixture\n"
+    )
+    genome = Genome("silo", {"BACK_OFF": 1})
+    descriptor = (
+        buildcache.s8b_expected_materialization.
+        expected_materialization_descriptor(
+            ccbench_commit="a" * 40,
+            configuration="stock_common",
+            declaration={
+                "configuration": "stock_common",
+                "flags": {"BACK_OFF": 1},
+            },
+        )
+    )
+    evidence = _source_evidence(genome, "a" * 40, str(source_root))
+    snapshot_sha256 = (
+        buildcache.s8b_expected_materialization.snapshot_tree_digest(
+            source_root
+        )
+    )
+
+    @contextlib.contextmanager
+    def admitted_snapshot(**kwargs):
+        assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
+        assert kwargs["configuration"] == descriptor.configuration
+        assert kwargs["declaration"] == descriptor.declaration
+        yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
+            source_snapshot_sha256=snapshot_sha256,
+            expected_materialization_sha256=snapshot_sha256,
+            source_evidence=evidence,
+        )
+
+    monkeypatch.setattr(
+        buildcache.s8b_expected_materialization,
+        "admitted_build_snapshot",
+        admitted_snapshot,
+    )
+    base_a = tmp_path / "fetchcontent-a"
+    base_a.mkdir()
+    receipt = _write_fetchcontent_dependency(base_a)
+    first = _build(
+        tmp_path, _contract(1),
+        expected_materialization_descriptor=descriptor,
+        fetchcontent_base_dir=str(base_a.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        current_compiler_input_masstree_root=(
+            base_a.resolve() / "masstree-src"
+        ),
+    )
+    base_b = tmp_path / "fetchcontent-b"
+    base_b.mkdir()
+    shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    shutil.rmtree(base_a)
+    return first, base_b, receipt, descriptor
+
+
+def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(
+        tmp_path, monkeypatch):
+    first, base_b, receipt, descriptor = _v2_fetchcontent_rebind_fixture(
+        tmp_path, monkeypatch,
+    )
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+    hit = _build(
+        tmp_path, _contract(1),
+        expected_materialization_descriptor=descriptor,
+        fetchcontent_base_dir=str(base_b.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+        current_compiler_input_masstree_root=(
+            base_b.resolve() / "masstree-src"
+        ),
+    )
+
+    assert first.cached is False
+    assert hit.cached is True
+    assert hit.build_dir == first.build_dir
+    assert calls == []
+
+
+@pytest.mark.parametrize("mutation", ["missing", "hash", "symlink"])
+def test_v2_hit_validation_failure_never_rebuilds(
+        tmp_path, monkeypatch, mutation):
+    _first, base_b, receipt, descriptor = _v2_fetchcontent_rebind_fixture(
+        tmp_path, monkeypatch,
+    )
+    header = base_b / "masstree-src" / "tracked.hh"
+    if mutation == "missing":
+        header.unlink()
+    elif mutation == "hash":
+        header.write_bytes(b"current bytes drift\n")
+    else:
+        target = base_b / "replacement.hh"
+        target.write_bytes(header.read_bytes())
+        header.unlink()
+        header.symlink_to(target)
+    calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    with pytest.raises(buildcache.BuildCacheError, match="compiler input manifest"):
+        _build(
+            tmp_path, _contract(1),
+            expected_materialization_descriptor=descriptor,
+            fetchcontent_base_dir=str(base_b.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+            current_compiler_input_masstree_root=(
+                base_b.resolve() / "masstree-src"
+            ),
+        )
     assert calls == []
 
 

@@ -79,6 +79,7 @@ def test_manifest_is_complete_canonical_and_root_independent(tmp_path):
         "target": TARGET,
         "depfile_count": 1,
         "inputs": [{
+            "root": "snapshot",
             "path": "include/unrelated.hh",
             "sha256": hashlib.sha256(b"#define VALUE 7\n").hexdigest(),
         }],
@@ -297,7 +298,8 @@ def test_descriptor_policy_hashes_external_input_without_snapshot_membership(
         "snapshot-and-external-hashes/v1"
     )
     assert collected.manifest["inputs"] == [{
-        "path": str(outside.resolve()),
+        "root": "filesystem",
+        "path": str(outside.resolve()).lstrip("/"),
         "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
     }]
     assert collected.manifest["evolve_block_sources"] == [{
@@ -307,6 +309,184 @@ def test_descriptor_policy_hashes_external_input_without_snapshot_membership(
     assert "include/predicate.hh" not in {
         entry["path"] for entry in collected.manifest["inputs"]
     }
+
+
+def _fetchcontent_fixture(tmp_path: Path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    base_a = tmp_path / "base-a"
+    base_b = tmp_path / "base-b"
+    relative = Path("include") / "x.hh"
+    for base in (base_a, base_b):
+        source = base / "masstree-src"
+        (source / relative).parent.mkdir(parents=True)
+        (source / relative).write_bytes(b"portable masstree header\n")
+    build = tmp_path / "build"
+    _write_build_shape(
+        build, snapshot, input_path=base_a / "masstree-src" / relative,
+    )
+    return snapshot, build, base_a, base_b, relative
+
+
+def test_v2_manifest_classifies_fetchcontent_root_relative(tmp_path):
+    snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+
+    assert collected.manifest["schema_version"] == compiler_input.MANIFEST_SCHEMA
+    assert collected.manifest["inputs"] == [{
+        "root": "fetchcontent-masstree",
+        "path": relative.as_posix(),
+        "sha256": hashlib.sha256(b"portable masstree header\n").hexdigest(),
+    }]
+    assert str(base_a) not in repr(collected.manifest)
+    assert str(base_b) not in repr(collected.manifest)
+
+
+def test_v2_validator_rebinds_fetchcontent_inputs_to_current_root(tmp_path):
+    snapshot, build, base_a, base_b, _relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+    import shutil
+    shutil.rmtree(base_a)
+
+    assert compiler_input.validate_compiler_input_manifest(
+        collected.manifest, collected.manifest_sha256,
+        snapshot_root=snapshot, target=TARGET,
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    ) == collected.manifest
+
+
+def test_v2_current_fetchcontent_bytes_drift_is_rejected(tmp_path):
+    snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+    (base_b / "masstree-src" / relative).write_bytes(b"drift\n")
+    with pytest.raises(compiler_input.CompilerInputError, match="bytes differ"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_fetchcontent_masstree_root=base_b / "masstree-src",
+        )
+
+
+def test_v2_missing_current_fetchcontent_input_is_rejected(tmp_path):
+    snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+    (base_b / "masstree-src" / relative).unlink()
+    with pytest.raises(compiler_input.CompilerInputError, match="unavailable"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_fetchcontent_masstree_root=base_b / "masstree-src",
+        )
+
+
+@pytest.mark.parametrize("symlink_kind", ["leaf", "component", "root"])
+def test_v2_current_fetchcontent_symlink_component_is_rejected(
+        tmp_path, symlink_kind):
+    snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+    root = base_b / "masstree-src"
+    if symlink_kind == "leaf":
+        leaf = root / relative
+        target = base_b / "leaf-target.hh"
+        target.write_bytes(leaf.read_bytes())
+        leaf.unlink()
+        leaf.symlink_to(target)
+        current = root
+    elif symlink_kind == "component":
+        include = root / "include"
+        target = base_b / "include-target"
+        include.rename(target)
+        include.symlink_to(target, target_is_directory=True)
+        current = root
+    else:
+        target = base_b / "masstree-real"
+        root.rename(target)
+        root.symlink_to(target, target_is_directory=True)
+        current = root
+    with pytest.raises(compiler_input.CompilerInputError, match="symlink|canonical"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_fetchcontent_masstree_root=current,
+        )
+
+
+def test_v2_current_fetchcontent_nonregular_leaf_is_rejected(tmp_path):
+    snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+    leaf = base_b / "masstree-src" / relative
+    leaf.unlink()
+    leaf.mkdir()
+    with pytest.raises(compiler_input.CompilerInputError, match="regular file"):
+        compiler_input.validate_compiler_input_manifest(
+            collected.manifest, collected.manifest_sha256,
+            snapshot_root=snapshot,
+            current_fetchcontent_masstree_root=base_b / "masstree-src",
+        )
+
+
+def test_v2_rejects_noncanonical_root_tag(tmp_path):
+    snapshot, build, base_a, base_b, relative = _fetchcontent_fixture(tmp_path)
+    collected = compiler_input.collect_compiler_input_manifest(
+        build, snapshot, target=TARGET, allow_external_inputs=True,
+        origin_fetchcontent_masstree_root=base_a / "masstree-src",
+        current_fetchcontent_masstree_root=base_b / "masstree-src",
+    )
+    forged = copy.deepcopy(collected.manifest)
+    forged["inputs"][0].update({
+        "root": "filesystem",
+        "path": str(base_b / "masstree-src" / relative).lstrip("/"),
+    })
+    digest = compiler_input.manifest_sha256(forged)
+    with pytest.raises(compiler_input.CompilerInputError, match="root tag"):
+        compiler_input.validate_compiler_input_manifest(
+            forged, digest, snapshot_root=snapshot,
+            current_fetchcontent_masstree_root=base_b / "masstree-src",
+        )
+
+
+def test_v2_unknown_fetchcontent_root_is_not_classified_as_filesystem(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    base = tmp_path / "fetchcontent"
+    masstree = base / "masstree-src"
+    masstree.mkdir(parents=True)
+    unknown = base / "mimalloc-src" / "include" / "mimalloc.h"
+    unknown.parent.mkdir(parents=True)
+    unknown.write_bytes(b"unknown fetchcontent\n")
+    build = tmp_path / "build"
+    _write_build_shape(build, snapshot, input_path=unknown)
+
+    with pytest.raises(compiler_input.CompilerInputError, match="unsupported FetchContent"):
+        compiler_input.collect_compiler_input_manifest(
+            build, snapshot, target=TARGET, allow_external_inputs=True,
+            origin_fetchcontent_masstree_root=masstree,
+            current_fetchcontent_masstree_root=masstree,
+        )
 
 
 def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):
@@ -325,6 +505,33 @@ def test_external_input_bytes_drift_is_rejected_by_validator(tmp_path):
         compiler_input.validate_compiler_input_manifest(
             collected.manifest, collected.manifest_sha256,
             snapshot_root=snapshot, target=TARGET,
+        )
+
+
+def test_legacy_v1_missing_absolute_input_remains_fail_closed(tmp_path):
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    outside = tmp_path / "legacy-staging" / "header.hh"
+    outside.parent.mkdir()
+    outside.write_bytes(b"legacy external bytes\n")
+    manifest = {
+        "schema_version": compiler_input.LEGACY_MANIFEST_SCHEMA,
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": TARGET,
+        "depfile_count": 1,
+        "inputs": [{
+            "path": str(outside.resolve()),
+            "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
+        }],
+        "input_policy": "snapshot-and-external-hashes/v1",
+    }
+    digest = compiler_input.manifest_sha256(manifest)
+    outside.unlink()
+
+    with pytest.raises(compiler_input.CompilerInputError, match="unavailable"):
+        compiler_input.validate_compiler_input_manifest(
+            manifest, digest, snapshot_root=snapshot, target=TARGET,
+            current_fetchcontent_masstree_root=tmp_path / "unused-current-root",
         )
 
 
