@@ -149,9 +149,11 @@ class _Scheduler:
             + accounting,
         )
         request_sha256 = self.result_request_sha256
+        request_payload = None
         if request_sha256 is None:
             request_path = cwd / "request.json"
             if request_path.is_file():
+                request_payload = json.loads(request_path.read_text(encoding="utf-8"))
                 request_sha256 = hashlib.sha256(
                     request_path.read_bytes(),
                 ).hexdigest()
@@ -166,6 +168,12 @@ class _Scheduler:
         }
         if request_sha256 is not None:
             result["request_sha256"] = request_sha256
+        if request_payload is not None and "runner_binding" in request_payload:
+            result["runner_binding"] = {
+                "schema_version": DC._RUNNER_BINDING_REPORT_SCHEMA,
+                **request_payload["runner_binding"],
+                "runner_executed_sha256": "a" * 64,
+            }
         (cwd / "result.json").write_text(
             json.dumps(result) + "\n",
             encoding="utf-8",
@@ -262,16 +270,20 @@ def _dispatch(
 ):
     clock = _Clock()
     run_command = kwargs.pop("run_command", scheduler)
-    rc = DC.dispatch(
-        ["orchestrator/tests/test_sample.py", "-q"],
-        repo_root=_REPO,
-        output_root=tmp_path / "dispatch",
-        environ={
+    environ = kwargs.pop(
+        "environ",
+        {
             "PATH": os.environ.get("PATH", ""),
             "IZANAGI_TASK_RUN_ID": "must-not-propagate",
             "IZANAGI_TASK_RUNS_ROOT": "/private/ledger",
             "PYTEST_ADDOPTS": "-q",
         },
+    )
+    rc = DC.dispatch(
+        ["orchestrator/tests/test_sample.py", "-q"],
+        repo_root=_REPO,
+        output_root=tmp_path / "dispatch",
+        environ=environ,
         run_command=run_command,
         clock=clock,
         sleep=clock.sleep,
@@ -4065,6 +4077,412 @@ def _job_run_with_mocked_child(
             mock.patch.object(DC.subprocess, "call", side_effect=record):
         rc = DC._job_run(request_path, expected)
     return rc, calls
+
+
+def _binding_environment(write_fd: int, *, shard_count: str = "1") -> dict[str, str]:
+    return {
+        "PATH": os.environ.get("PATH", ""),
+        DC._ACCEPTANCE_SHARDS_ENV: shard_count,
+        DC._RUNNER_BINDING_FD_ENV: str(write_fd),
+        DC._RUNNER_BINDING_NONCE_ENV: "1" * 64,
+        DC._RUNNER_BINDING_TESTED_MAIN_ENV: "a" * 40,
+    }
+
+
+def test_bound_child_executes_main_blob_not_worktree(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    marker = tmp_path / "executed.txt"
+    main_source = (
+        "from pathlib import Path\n"
+        "def main(argv):\n"
+        "    Path(argv[0]).write_text('main\\n', encoding='ascii')\n"
+        "    return 0\n"
+    ).encode("ascii")
+    tip_source = (
+        "from pathlib import Path\n"
+        "def main(argv):\n"
+        "    Path(argv[0]).write_text('tip\\n', encoding='ascii')\n"
+        "    return 0\n"
+    ).encode("ascii")
+    runner_path = tools / "run_tests.py"
+    runner_path.write_bytes(main_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "main runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_path.write_bytes(tip_source)
+
+    binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    original_read_bytes = Path.read_bytes
+
+    def main_bytes_for_digest(path: Path) -> bytes:
+        if path == runner_path:
+            return main_source
+        return original_read_bytes(path)
+
+    # M8 owns the execution-source distinction. M9 separately owns pathname
+    # re-hashing, so keep that independent mutation from changing this fixture.
+    with mock.patch.object(Path, "read_bytes", main_bytes_for_digest):
+        rc, digest = DC._run_bound_tests_child(
+            repo,
+            [str(marker)],
+            {
+                "PATH": os.environ.get("PATH", ""),
+                "PYTHONDONTWRITEBYTECODE": "1",
+            },
+            binding,
+        )
+
+    assert rc == 0
+    assert digest == hashlib.sha256(main_source).hexdigest()
+    assert marker.read_text(encoding="ascii") == "main\n"
+    assert runner_path.read_bytes() == tip_source
+
+
+def test_bound_child_reports_digest_of_executed_buffer(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    main_source = b"def main(argv):\n    del argv\n    return 0\n"
+    tip_source = b"# tip-only comment\n" + main_source
+    runner_path = tools / "run_tests.py"
+    runner_path.write_bytes(main_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "main runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_path.write_bytes(tip_source)
+
+    binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    rc, digest = DC._run_bound_tests_child(
+        repo,
+        [],
+        {"PATH": os.environ.get("PATH", ""), "PYTHONDONTWRITEBYTECODE": "1"},
+        binding,
+    )
+
+    assert rc == 0
+    assert hashlib.sha256(main_source).digest() != hashlib.sha256(
+        tip_source
+    ).digest()
+    assert digest == hashlib.sha256(main_source).hexdigest()
+
+
+def test_job_run_emits_exact_runner_binding_report_for_bound_request(tmp_path):
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    runner_source = b"def main(argv):\n    del argv\n    return 0\n"
+    (tools / "run_tests.py").write_bytes(runner_source)
+    git_env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=git_env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    git("add", "tools/run_tests.py")
+    git("commit", "-m", "bound runner")
+    tested_main = git("rev-parse", "HEAD")
+    runner_binding = {
+        "tested_main": tested_main,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    request_payload = {
+        "schema_version": DC._REQUEST_SCHEMA,
+        "repo_root": str(repo.resolve()),
+        "task": "tests",
+        "args": [],
+        "environment": {},
+        "request_binding": DC._REQUEST_BINDING,
+        "runner_binding": runner_binding,
+    }
+    submission = tmp_path / "submission"
+    submission.mkdir()
+    request_path = submission / "request.json"
+    request_path.write_text(
+        DC._canonical_json_text(request_payload), encoding="utf-8"
+    )
+    request_sha256 = hashlib.sha256(request_path.read_bytes()).hexdigest()
+    probe_path = submission / "interpreter_probe.py"
+    probe_path.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    (submission / "dispatch.sh").write_text(
+        DC._job_script(
+            repo_root=repo,
+            submission_dir=submission,
+            request_path=request_path,
+            probe_path=probe_path,
+            request_sha256=request_sha256,
+            walltime="00:30:00",
+            task="tests",
+        ),
+        encoding="utf-8",
+    )
+
+    fake_uname = type("Uname", (), {"nodename": "bnode114"})()
+    original_cwd = Path.cwd()
+    try:
+        with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
+                mock.patch.object(DC.os, "uname", return_value=fake_uname), \
+                mock.patch.object(DC, "_import_probe_modules"):
+            rc = DC._job_run(request_path, request_sha256)
+    finally:
+        os.chdir(original_cwd)
+
+    result = json.loads(
+        (submission / "result.json").read_text(encoding="utf-8")
+    )
+    assert rc == 0
+    assert result["error"] is None
+    assert result["runner_binding"] == {
+        "schema_version": DC._RUNNER_BINDING_REPORT_SCHEMA,
+        **runner_binding,
+        "runner_executed_sha256": hashlib.sha256(runner_source).hexdigest(),
+    }
+
+
+def test_manifest_present_adds_runner_binding_to_request(tmp_path):
+    read_fd, write_fd = os.pipe()
+    scheduler = _Scheduler()
+    try:
+        rc, submission = _dispatch(
+            tmp_path,
+            scheduler,
+            environ=_binding_environment(write_fd, shard_count="1"),
+        )
+    finally:
+        os.close(write_fd)
+    try:
+        raw_report = os.read(read_fd, 65536)
+    finally:
+        os.close(read_fd)
+
+    assert rc == 0
+    request = json.loads((submission / "request.json").read_text(encoding="utf-8"))
+    assert request["runner_binding"] == {
+        "tested_main": "a" * 40,
+        "nonce": "1" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    assert "source" not in request["runner_binding"]
+    assert "runner_source_b64" not in request["runner_binding"]
+    assert set(request["environment"]).isdisjoint(DC._RUNNER_BINDING_ENV_KEYS)
+    report = json.loads(raw_report.decode("ascii"))
+    assert report["tested_main"] == "a" * 40
+    assert report["runner_executed_sha256"] == "a" * 64
+
+
+def test_binding_report_writer_requires_live_pipe_fd(tmp_path):
+    report = {
+        "schema_version": DC._RUNNER_BINDING_REPORT_SCHEMA,
+        "tested_main": "a" * 40,
+        "nonce": "1" * 64,
+        "runner_executed_sha256": "b" * 64,
+        "shard_count": 1,
+        "shard_index": 0,
+    }
+    regular_fd = os.open(
+        tmp_path / "not-a-pipe",
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o600,
+    )
+    try:
+        with pytest.raises(DC.DispatchError, match="not a pipe"):
+            DC._write_runner_binding_report(regular_fd, report)
+    finally:
+        os.close(regular_fd)
+
+    read_fd, closed_write_fd = os.pipe()
+    os.close(closed_write_fd)
+    try:
+        with pytest.raises(DC.DispatchError, match="cannot inspect"):
+            DC._write_runner_binding_report(closed_write_fd, report)
+    finally:
+        os.close(read_fd)
+
+
+def test_binding_report_preserves_intent_shard_index(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    artifact = tmp_path / "session" / "shard-1" / "dispatch"
+    control = repo / "output" / "pegasus-dispatch"
+    registry = tmp_path / "session" / "dispatch-intents"
+    read_fd, write_fd = os.pipe()
+    scheduler = _Scheduler()
+    clock = _Clock()
+    try:
+        rc = DC.dispatch(
+            ["--izanagi-acceptance-shard-index=0"],
+            task="tests",
+            repo_root=repo,
+            environ=_binding_environment(write_fd, shard_count="3"),
+            artifact_root=artifact,
+            control_root=control,
+            intent_registry_root=registry,
+            intent_group_id="session",
+            intent_shard_index=1,
+            run_command=scheduler,
+            clock=clock,
+            sleep=clock.sleep,
+            poll_interval_s=5,
+            queue_wait_timeout_s=20,
+            accounting_grace_s=0,
+            nonce="binding-index-one",
+        )
+    finally:
+        os.close(write_fd)
+    try:
+        report = json.loads(os.read(read_fd, 65536).decode("ascii"))
+    finally:
+        os.close(read_fd)
+
+    request = json.loads(
+        (artifact / "binding-index-one" / "request.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert rc == 0
+    assert request["args"] == ["--izanagi-acceptance-shard-index=0"]
+    assert request["runner_binding"]["shard_index"] == 1
+    assert report["shard_index"] == 1
+
+
+def test_partial_manifest_environment_fails_closed(tmp_path):
+    scheduler = _Scheduler()
+    with pytest.raises(ValueError):
+        DC._dispatch_impl(
+            [],
+            repo_root=_REPO,
+            output_root=tmp_path / "dispatch",
+            environ={DC._RUNNER_BINDING_NONCE_ENV: "1" * 64},
+            run_command=scheduler,
+            nonce="partial-binding",
+        )
+    assert scheduler.commands == []
+
+
+def test_binding_applies_only_to_tests_task(tmp_path):
+    read_fd, write_fd = os.pipe()
+    scheduler = _Scheduler()
+    try:
+        rc, submission = _dispatch(
+            tmp_path,
+            scheduler,
+            task="provenance",
+            environ=_binding_environment(write_fd),
+        )
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
+
+    assert rc == 0
+    request = json.loads((submission / "request.json").read_text(encoding="utf-8"))
+    assert request["task"] == "provenance"
+    assert "runner_binding" not in request
+
+
+def test_unbound_tests_request_keeps_pathname_execution(tmp_path):
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {
+                "schema_version": DC._REQUEST_SCHEMA,
+                "repo_root": str(_REPO),
+                "task": "tests",
+                "args": ["orchestrator/tests/test_sample.py"],
+                "environment": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+
+    assert rc == 0
+    assert len(calls) == 1
+    argv, kwargs = calls[0]
+    assert argv == [
+        sys.executable,
+        str(_REPO / "tools" / "run_tests.py"),
+        "orchestrator/tests/test_sample.py",
+    ]
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    dispatch_rc, submission = _dispatch(
+        tmp_path / "parent",
+        _Scheduler(),
+    )
+    assert dispatch_rc == 0
+    assert (submission / "receipt.json").is_file()
 
 
 def test_job_run_rejects_allowlist_external_environment_before_child(tmp_path):
