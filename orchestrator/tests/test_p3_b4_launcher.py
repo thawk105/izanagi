@@ -2,9 +2,12 @@
 """Mutation-red tests for the exclusive P3 B-4 launcher chokepoints."""
 from __future__ import annotations
 
+import ast
 from dataclasses import replace
+import inspect
 import json
 from pathlib import Path
+import sys
 from unittest import mock
 
 import pytest
@@ -21,6 +24,7 @@ from orchestrator.campaign import wal
 from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import STAGE_COMMIT, WalRecord
 from orchestrator.verifier.commit_receipt import CommitReceiptError
+import commit_receipt_support
 from test_p3_b4_closed_critic import (  # noqa: E402
     _committed_admission_fixture,
     _production_launch_context as _verified_b4_context,
@@ -87,14 +91,69 @@ def _commit_record():
     )
 
 
+def _commit_with_live_receipt(layout):
+    record = _commit_record()
+    receipt = commit_receipt_support.campaign_receipt(
+        layout,
+        record.variant,
+        record.payload,
+    )
+    return wal.append(layout, record, commit_receipt=receipt)
+
+
+def _production_text_context(cfg, admission, *, seal):
+    verified = A.verify_b4_admission_record(
+        admission.record_path,
+        repository_root=admission.repository,
+    )
+    values = {
+        "evidence_class": "production",
+        "driver_kind": "base",
+        "arm": "on",
+        "admission_record_sha256": verified.admission_record_sha256,
+        "admission_record_commit": verified.admission_record_commit,
+        "campaign_id": str(ident.campaign_id(cfg)),
+    }
+    return B4L.B4LaunchContext(
+        _seal=seal,
+        **values,
+        context_sha256=B4L._context_sha256(**values),
+    )
+
+
+def _with_campaign_id(context, campaign_id):
+    values = {
+        "evidence_class": context.evidence_class,
+        "driver_kind": context.driver_kind,
+        "arm": context.arm,
+        "admission_record_sha256": context.admission_record_sha256,
+        "admission_record_commit": context.admission_record_commit,
+        "campaign_id": campaign_id,
+    }
+    return replace(
+        context,
+        campaign_id=campaign_id,
+        context_sha256=B4L._context_sha256(**values),
+    )
+
+
 def test_m11_real_wal_commit_requires_launch_sidecar(tmp_path):
     """M11: real wal.append rejects a marked lock when sidecar is absent."""
-    _cfg, layout = _marked_layout(tmp_path)
+    cfg, layout = _marked_layout(tmp_path)
+
+    def append_without_sidecar(_context, launch_layout):
+        (Path(launch_layout.root) / B4L.B4_LAUNCH_SIDECAR).unlink()
+        return _commit_with_live_receipt(launch_layout)
+
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
         match="requires b4_launch_context.json",
     ):
-        wal.append(layout, _commit_record())
+        _production_context(
+            cfg,
+            action=append_without_sidecar,
+            layout=layout,
+        )
     assert not Path(layout.wal_file).exists()
 
 
@@ -107,7 +166,7 @@ def test_m12_real_wal_commit_rejects_sidecar_for_another_campaign(tmp_path):
         sidecar = json.loads(path.read_bytes())
         sidecar["campaign_id"] = "another-campaign"
         path.write_bytes(B4L._canonical_json_bytes(sidecar))
-        return wal.append(launch_layout, _commit_record())
+        return _commit_with_live_receipt(launch_layout)
 
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
@@ -139,7 +198,7 @@ def test_m13_real_wal_commit_rejects_sidecar_for_other_live_context(tmp_path):
         (Path(launch_layout.root) / B4L.B4_LAUNCH_SIDECAR).write_bytes(
             sidecar_bytes
         )
-        return wal.append(launch_layout, _commit_record())
+        return _commit_with_live_receipt(launch_layout)
 
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
@@ -154,10 +213,17 @@ def test_m13_real_wal_commit_rejects_sidecar_for_other_live_context(tmp_path):
     assert not Path(layout.wal_file).exists()
 
 
-def test_m14_real_production_pair_factory_requires_launch_context(tmp_path):
+def test_m14_real_production_pair_factory_requires_launch_context(
+    tmp_path, monkeypatch,
+):
     """M14: the real production factory rejects before record or artifact I/O."""
     on_cfg, off_cfg = _marked_base_pair()
+    admission = _committed_admission_fixture(
+        expected_model="claude-opus-5-m14",
+    )
+    unsealed = _production_text_context(on_cfg, admission, seal=object())
     artifact_root = tmp_path / "m14-artifacts"
+    monkeypatch.setattr(C.shutil, "which", lambda _name: sys.executable)
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
         match="production pair factory",
@@ -166,18 +232,28 @@ def test_m14_real_production_pair_factory_requires_launch_context(tmp_path):
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
-            admission_record_path=tmp_path / "missing-admission.json",
+            admission_record_path=admission.record_path,
             expected_driver_kind="base",
-            _b4_launch_context=None,
+            _b4_launch_context=unsealed,
+            repository_root=admission.repository,
         )
     assert not artifact_root.exists()
 
 
-def test_m15_real_production_pair_factory_rejects_cross_driver_context(tmp_path):
+def test_m15_real_production_pair_factory_rejects_cross_driver_context(
+    tmp_path, monkeypatch,
+):
     """M15: the real factory checks exact context and expected driver kind."""
     on_cfg, off_cfg = _marked_base_pair()
-    context = _production_context(driver_kind="sort")
+    admission = _committed_admission_fixture(
+        expected_model="claude-opus-5-m15",
+    )
+    context = _with_campaign_id(
+        _production_context(driver_kind="sort", admission=admission),
+        str(ident.campaign_id(on_cfg)),
+    )
     artifact_root = tmp_path / "m15-artifacts"
+    monkeypatch.setattr(C.shutil, "which", lambda _name: sys.executable)
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
         match="driver kind differs",
@@ -186,27 +262,29 @@ def test_m15_real_production_pair_factory_rejects_cross_driver_context(tmp_path)
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
-            admission_record_path=tmp_path / "missing-admission.json",
+            admission_record_path=admission.record_path,
             expected_driver_kind="base",
             _b4_launch_context=context,
+            repository_root=admission.repository,
         )
     assert not artifact_root.exists()
 
 
-def test_m16_test_seal_cannot_be_promoted_by_evidence_class(tmp_path):
+def test_m16_test_seal_cannot_be_promoted_by_evidence_class(
+    tmp_path, monkeypatch,
+):
     """M16: the real factory rejects test seal identity despite production text."""
     on_cfg, off_cfg = _marked_base_pair()
-    campaign_id = str(ident.campaign_id(on_cfg))
-    forged = B4L._new_context(
-        seal=B4L._B4_TEST_CONTEXT_SEAL,
-        evidence_class="production",
-        driver_kind="base",
-        arm="on",
-        admission_record_sha256="1" * 64,
-        admission_record_commit="2" * 40,
-        campaign_id=campaign_id,
+    admission = _committed_admission_fixture(
+        expected_model="claude-opus-5-m16",
+    )
+    forged = _production_text_context(
+        on_cfg,
+        admission,
+        seal=_test_context()._seal,
     )
     artifact_root = tmp_path / "m16-artifacts"
+    monkeypatch.setattr(C.shutil, "which", lambda _name: sys.executable)
     with pytest.raises(
         B4L.B4LauncherAuthorizationError,
         match="test-only",
@@ -215,9 +293,10 @@ def test_m16_test_seal_cannot_be_promoted_by_evidence_class(tmp_path):
             on_cfg=on_cfg,
             off_cfg=off_cfg,
             artifact_root=artifact_root,
-            admission_record_path=tmp_path / "missing-admission.json",
+            admission_record_path=admission.record_path,
             expected_driver_kind="base",
             _b4_launch_context=forged,
+            repository_root=admission.repository,
         )
     assert forged.evidence_class == "production"
     assert not artifact_root.exists()
@@ -262,18 +341,102 @@ def test_g9_bootstrap_uses_real_verifier_before_driver(tmp_path, monkeypatch):
     assert driver_spy.call_count == 0
 
 
-def test_production_issuer_and_activation_are_not_module_attributes():
-    """F1: only closure launchers can mint and activate the production seal."""
-    for name in (
-        "_create_b4_production_context",
-        "_bind_b4_campaign",
-        "_write_b4_launch_sidecar",
-        "_activate_b4_launch_context",
-        "_B4_PRODUCTION_CONTEXT_SEAL",
-        "_ACTIVE_B4_LAUNCH_CONTEXT",
-        "_build_launcher_closure",
-    ):
-        assert not hasattr(B4L, name)
+def test_module_attributes_cannot_mint_a_production_context(monkeypatch):
+    """F1: try every direct module attribute as a context or context factory.
+
+    Function closure cells are intentionally not traversed.  Resistance to
+    same-process closure introspection and module-attribute replacement is a
+    documented non-guarantee, not a property asserted by this test.
+    """
+    admission = _committed_admission_fixture(
+        expected_model="claude-opus-5-module-surface",
+    )
+    monkeypatch.setattr(C, "REPOSITORY_ROOT", admission.repository)
+    verified = A.verify_b4_admission_record(
+        admission.record_path,
+        repository_root=admission.repository,
+    )
+    campaign_id = "module-surface-campaign"
+    attributes = tuple(vars(B4L).values())
+
+    def context_for(seal):
+        values = {
+            "evidence_class": "production",
+            "driver_kind": "base",
+            "arm": "on",
+            "admission_record_sha256": verified.admission_record_sha256,
+            "admission_record_commit": verified.admission_record_commit,
+            "campaign_id": campaign_id,
+        }
+        return B4L.B4LaunchContext(
+            _seal=seal,
+            **values,
+            context_sha256=B4L._context_sha256(**values),
+        )
+
+    def assert_rejected(candidate):
+        if type(candidate) is B4L.B4LaunchContext:
+            candidate = _with_campaign_id(candidate, campaign_id)
+        with pytest.raises(B4L.B4LauncherAuthorizationError):
+            B4L.require_b4_production_context(
+                candidate,
+                expected_driver_kind="base",
+                expected_campaign_id=campaign_id,
+                expected_arm="on",
+                boundary="module attribute surface",
+            )
+
+    def invoke_context_factory(factory, seal):
+        if factory is B4L.B4LaunchContext:
+            return context_for(seal)
+        if not inspect.isfunction(factory):
+            return None
+        if factory.__module__ != B4L.__name__:
+            return None
+        signature = inspect.signature(factory)
+        if "B4LaunchContext" not in str(signature.return_annotation):
+            return None
+        supplied = {
+            "seal": seal,
+            "_seal": seal,
+            "context": context_for(seal),
+            "evidence_class": "production",
+            "driver_kind": "base",
+            "arm": "on",
+            "admission_record_sha256": verified.admission_record_sha256,
+            "admission_record_commit": verified.admission_record_commit,
+            "campaign_id": campaign_id,
+            "admission_record_path": admission.record_path,
+            "boundary": "module attribute factory",
+            "expected_driver_kind": "base",
+            "expected_campaign_id": campaign_id,
+            "expected_arm": "on",
+        }
+        kwargs = {}
+        for parameter in signature.parameters.values():
+            if parameter.kind in {
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD,
+            }:
+                continue
+            if parameter.name in supplied:
+                kwargs[parameter.name] = supplied[parameter.name]
+            elif parameter.default is inspect.Parameter.empty:
+                return None
+        try:
+            return factory(**kwargs)
+        except (B4L.B4LauncherAuthorizationError, TypeError, ValueError):
+            return None
+
+    for attribute in attributes:
+        assert_rejected(attribute)
+        for seal in attributes:
+            produced = invoke_context_factory(attribute, seal)
+            if type(produced) is tuple:
+                for item in produced:
+                    assert_rejected(item)
+            elif produced is not None:
+                assert_rejected(produced)
 
 
 def test_launch_sidecar_is_overwritable_for_remeasurement(tmp_path):
@@ -408,10 +571,35 @@ def test_existing_unreadable_lock_rejects_commit(tmp_path):
 
 
 def test_all_drivers_and_wal_import_the_protocol_constants():
-    """F4: the marker has one low-level source of truth."""
+    """F4: source imports one protocol definition and repeats no literals."""
+    protocol_source = Path(B4P.__file__).read_text(encoding="utf-8")
+    protocol_literals = {
+        node.value
+        for node in ast.walk(ast.parse(protocol_source))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    assert B4P.B4_PROTOCOL_KEY in protocol_literals
+    assert B4P.B4_PROTOCOL_VALUE in protocol_literals
+
     for module in (L, S, T, wal):
-        assert module.B4_PROTOCOL_KEY is B4P.B4_PROTOCOL_KEY
-        assert module.B4_PROTOCOL_VALUE is B4P.B4_PROTOCOL_VALUE
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        literals = {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
+        assert B4P.B4_PROTOCOL_KEY not in literals
+        assert B4P.B4_PROTOCOL_VALUE not in literals
+        protocol_imports = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.level == 1
+            and node.module == "p3_b4_protocol"
+            for alias in node.names
+        }
+        assert {"B4_PROTOCOL_KEY", "B4_PROTOCOL_VALUE"} <= protocol_imports
 
 
 def test_unmarked_commit_does_not_execute_b4_sink_gate(tmp_path, monkeypatch):

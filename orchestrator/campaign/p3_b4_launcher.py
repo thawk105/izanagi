@@ -38,6 +38,11 @@ Arm = Literal["on", "off"]
 B4_LAUNCH_SIDECAR = "b4_launch_context.json"
 B4_LAUNCH_SIDECAR_SCHEMA = "p3-b4-launch-context/v1"
 
+_TRUST_NON_GUARANTEES = (
+    "same-process closure introspection and module attribute replacement "
+    "are not resisted",
+)
+
 _B4_TEST_CONTEXT_SEAL = object()
 
 
@@ -92,31 +97,6 @@ def _context_sha256(**kwargs: Any) -> str:
     return hashlib.sha256(_canonical_json_bytes(_context_value(**kwargs))).hexdigest()
 
 
-def _new_context(
-    *,
-    seal: object,
-    evidence_class: Literal["production", "test-only"],
-    driver_kind: DriverKind,
-    arm: Arm,
-    admission_record_sha256: str,
-    admission_record_commit: str,
-    campaign_id: str | None = None,
-) -> B4LaunchContext:
-    values = {
-        "evidence_class": evidence_class,
-        "driver_kind": driver_kind,
-        "arm": arm,
-        "admission_record_sha256": admission_record_sha256,
-        "admission_record_commit": admission_record_commit,
-        "campaign_id": campaign_id,
-    }
-    return B4LaunchContext(
-        _seal=seal,
-        **values,
-        context_sha256=_context_sha256(**values),
-    )
-
-
 def _validate_context_shape(context: object) -> B4LaunchContext:
     if type(context) is not B4LaunchContext:
         raise B4LauncherAuthorizationError("B-4 launch context is not sealed")
@@ -155,22 +135,6 @@ def _validate_context_shape(context: object) -> B4LaunchContext:
     if context.context_sha256 != expected:
         raise B4LauncherAuthorizationError("B-4 launch context digest differs")
     return context
-
-
-def create_b4_launch_context_for_test(
-    *,
-    driver_kind: DriverKind,
-    arm: Arm = "on",
-) -> B4LaunchContext:
-    """Create an unmistakably test-only context for config fixtures."""
-    return _new_context(
-        seal=_B4_TEST_CONTEXT_SEAL,
-        evidence_class="test-only",
-        driver_kind=driver_kind,
-        arm=arm,
-        admission_record_sha256="0" * 64,
-        admission_record_commit="0" * 40,
-    )
 
 
 DRIVER_REGISTRY = {
@@ -230,11 +194,50 @@ def _driver_argv(
 
 
 def _build_launcher_closure():
-    """Close production issuance and activation over an unreachable seal."""
+    """Keep production issuance off the module's direct attribute surface."""
     production_seal = object()
     active_context: contextvars.ContextVar[B4LaunchContext | None] = (
         contextvars.ContextVar("active_b4_launch_context", default=None)
     )
+
+    def new_context(
+        *,
+        seal: object,
+        evidence_class: Literal["production", "test-only"],
+        driver_kind: DriverKind,
+        arm: Arm,
+        admission_record_sha256: str,
+        admission_record_commit: str,
+        campaign_id: str | None = None,
+    ) -> B4LaunchContext:
+        values = {
+            "evidence_class": evidence_class,
+            "driver_kind": driver_kind,
+            "arm": arm,
+            "admission_record_sha256": admission_record_sha256,
+            "admission_record_commit": admission_record_commit,
+            "campaign_id": campaign_id,
+        }
+        return B4LaunchContext(
+            _seal=seal,
+            **values,
+            context_sha256=_context_sha256(**values),
+        )
+
+    def create_test_context(
+        *,
+        driver_kind: DriverKind,
+        arm: Arm = "on",
+    ) -> B4LaunchContext:
+        """Create an unmistakably test-only context for config fixtures."""
+        return new_context(
+            seal=_B4_TEST_CONTEXT_SEAL,
+            evidence_class="test-only",
+            driver_kind=driver_kind,
+            arm=arm,
+            admission_record_sha256="0" * 64,
+            admission_record_commit="0" * 40,
+        )
 
     def require_production_seal(
         context: object, *, boundary: str,
@@ -244,14 +247,18 @@ def _build_launcher_closure():
                 f"B-4 {boundary} requires a production launch context"
             )
         context = _validate_context_shape(context)
+        if (
+            context._seal is not production_seal
+            and context._seal is not _B4_TEST_CONTEXT_SEAL
+        ):
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} requires a production launch context"
+            )
         if context._seal is _B4_TEST_CONTEXT_SEAL:
             raise B4LauncherAuthorizationError(
                 f"test-only B-4 launch context cannot authorize {boundary}"
             )
-        if (
-            context._seal is not production_seal
-            or context.evidence_class != "production"
-        ):
+        if context.evidence_class != "production":
             raise B4LauncherAuthorizationError(
                 f"B-4 {boundary} requires a production launch context"
             )
@@ -328,7 +335,7 @@ def _build_launcher_closure():
             admission_record_path,
             repository_root=p3_b4_closed_critic.REPOSITORY_ROOT,
         )
-        return _new_context(
+        return new_context(
             seal=production_seal,
             evidence_class="production",
             driver_kind=driver_kind,
@@ -469,7 +476,12 @@ def _build_launcher_closure():
             expected_arm=expected_arm,
             boundary="certified sink",
         )
-        if value != sidecar_value(context):
+        expected_sidecar = sidecar_value(context)
+        if any(
+            value[key] != expected_sidecar[key]
+            for key in expected_sidecar
+            if key != "campaign_id"
+        ):
             raise B4LauncherAuthorizationError(
                 "B-4 launch sidecar differs from the live launch context"
             )
@@ -571,6 +583,7 @@ def _build_launcher_closure():
                 )
 
     return (
+        create_test_context,
         require_any_context,
         require_production_context,
         verify_launch_context,
@@ -580,6 +593,7 @@ def _build_launcher_closure():
 
 
 (
+    create_b4_launch_context_for_test,
     require_b4_any_context,
     require_b4_production_context,
     verify_b4_launch_context,
