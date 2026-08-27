@@ -40646,3 +40646,17 @@ object が missing のときは `rc=2` とし、空として扱わない。
 - **検証できない worktree-private ref を負 root へ入れる** — gc が root として honor する範囲を
   起動側の ref store と同一視できない。入れる向きが過小報告になるので、
   存在を検出したら `issues` へ出して rc=2 にする。
+
+## D1234. tested-main実行束縛を残してmain-tip runner等値だけを外す (2026-08-28)
+
+**決定:** 今回の直接ユーザー指示をD1196が要求した再裁定として確定する。launcher/landのtested-main / tested-tip runner blob等値2述語だけを外し、tested-main bytes実行、実行後再読、全shard binding report、receipt main digest、waiter/checker束縛は維持する。D987は最終incorporated mainとtested mainのrunner blob net差で判定し、変わった場合だけ旧receipt再利用を拒否する。
+
+**理由:**
+- D1151が残した材料運搬は着地済みで、tested-main実行とshard申告を保ったままtip側runner変更をproduction経路で検査できる。
+- 保証対象は最終着地物である。main履歴の途中でrunnerを変更後に同じblobへ戻した場合、最終保証対象は変わらず再受入の増分が無い。
+- D987をprovenance前と再preflight後に検査すると、恒久的な再受入要求が先行infrastructure赤でretryableへ隠れることとTOCTOUの両方を防げる。
+
+**却下した選択肢:**
+- tested-main実行束縛も外す — D1151が維持したproof chainを弱める。
+- forward-mainの各区間で一度でもrunnerが変われば拒否する — 最終blobが同じ正例まで過剰拒否する。
+- schema拡張・一般receipt再設計・段階Rを同時に行う — 今回のexact 2述語とD987の変更単位を越える。

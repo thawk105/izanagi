@@ -2709,6 +2709,8 @@
   hang を捕まえる上界は消していない。`_communicate_launcher` の
   `process.communicate(timeout=10)` が元から在り、そのまま残っている。
   消したのはその内側にあった、より厳しく環境依存な 2 秒の期限だけである。
+
+- **再発: 2026-08-28** — `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean` が計算ノードのfile走とexact node単独走で、F57既載の `Pegasus compute では receipt state 内で一意な required authorization_contract だけを受理する` と同じ本文で決定的に赤になった。本wave差分から到達しないためD873/D1144に従いF57 / T-1079へexact node holdを登録し、hold contract 37 passed、land file 299 passed / 1 skippedを確認した。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
