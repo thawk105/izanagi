@@ -1,0 +1,600 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de4a74a4e5a994fe23694747cf4c6096/izdw-de4a74a4e5.o954066",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/de4a74a4e5a994fe23694747cf4c6096/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n......................................                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n============================== 38 passed in 5.18s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "2f9e8c768c0f093ef66f3d615574a65754acd9d6242087a17a90783dcdad5f3d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+    "duration_s": 27.702,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "070047986d9c0cfb16d1bf78a599dc5073af9802357044e1d5905ebbdde03379",
+    "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+    "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+    "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+    "status": "PASSED",
+    "test_output_sha256": "2f9e8c768c0f093ef66f3d615574a65754acd9d6242087a17a90783dcdad5f3d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+  },
+  "date": "2026-08-27T19:00:54.288492+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74a60f958dc92fbf6f9717cb06d536ff/izdw-74a60f958d.o954068",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/74a60f958dc92fbf6f9717cb06d536ff/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n............................F.....F...                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________ test_semantically_consistent_finding_change_is_stopped_by_pin _________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_semantically_consistent_finding_change_is_stopped_by_pin() -> None:\n        value = _slice_value()\n        finding = value[\"tasks\"][\"T-1222-population-closure:plan:0\"][\n            \"oracle_findings\"\n        ][0]\n        finding[\"detection_condition\"] += \" Extra text is forbidden by the pin.\"\n>       with pytest.raises(TOOL.WiringSliceError) as caught:\nE       Failed: DID NOT RAISE WiringSliceError\n\norchestrator/tests/test_t189_oracle_wiring_slice.py:139: Failed\n_____________ test_or_m1_loader_pins_checked_in_slice_semantic_sha _____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_or_m1_loader_pins_checked0')\n\n    def test_or_m1_loader_pins_checked_in_slice_semantic_sha(tmp_path: Path) -> None:\n        assert TOOL._sha256(_WIRING_SLICE_PATH.read_bytes()) == _WIRING_SLICE_SHA256\n        assert TOOL._WIRING_SLICE_MANIFEST_RAW_SHA256 == _WIRING_SLICE_SHA256\n        assert TOOL.WIRING_SLICE.SLICE_SHA256 == _WIRING_SLICE_SHA256\n        loaded = TOOL._load_task_manifest(\n            _WIRING_SLICE_PATH,\n            profile=_WIRING_SLICE_PROFILE,\n        )\n        assert loaded[\"manifest_kind\"] == \"t189-task-oracle-wiring-slice\"\n        assert TOOL._task_manifest_sha256(loaded) == _WIRING_SLICE_SHA256\n    \n        mutated = copy.deepcopy(loaded)\n        mutated[\"tasks\"][\"T-1222-population-closure:plan:0\"][\"oracle_findings\"][0][\n            \"detection_condition\"\n        ] += \" A semantic mutation must not acquire the checked-in pin.\"\n        path = _canonical(tmp_path / \"mutated-slice.json\", mutated)\n        with pytest.raises(TOOL.ValidationError) as caught:\n            TOOL._load_task_manifest(path, profile=_WIRING_SLICE_PROFILE)\n>       assert caught.value.reasons == (\n            \"wiring_slice: semantic SHA-256 pin mismatch\",\n        )\nE       AssertionError: assert ('oracle wiri...in mismatch',) == ('wiring_slic...in mismatch',)\nE         \nE         At index 0 diff: 'oracle wiring slice raw SHA-256 pin mismatch' != 'wiring_slice: semantic SHA-256 pin mismatch'\nE         Use -v to get more diff\n\norchestrator/tests/test_codex_reasoning_ab.py:6169: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha\n========================= 2 failed, 36 passed in 5.11s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1620 retained_bytes=1620 omitted_bytes=0 rendered_excerpt_bytes=1683 sha256=d9834791d3f8e4e360e33d48260b3753233b86789034ef23289c95c783729e8a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_or_m1_loader_pins_checked0')\n> \n>     def test_or_m1_loader_pins_checked_in_slice_semantic_sha(tmp_path: Path) -> None:\n>         assert TOOL._sha256(_WIRING_SLICE_PATH.read_bytes()) == _WIRING_SLICE_SHA256\n>         assert TOOL._WIRING_SLICE_MANIFEST_RAW_SHA256 == _WIRING_SLICE_SHA256\n>         assert TOOL.WIRING_SLICE.SLICE_SHA256 == _WIRING_SLICE_SHA256\n>         loaded = TOOL._load_task_manifest(\n>             _WIRING_SLICE_PATH,\n>             profile=_WIRING_SLICE_PROFILE,\n>         )\n>         assert loaded[\"manifest_kind\"] == \"t189-task-oracle-wiring-slice\"\n>         assert TOOL._task_manifest_sha256(loaded) == _WIRING_SLICE_SHA256\n>     \n>         mutated = copy.deepcopy(loaded)\n>         mutated[\"tasks\"][\"T-1222-population-closure:plan:0\"][\"oracle_findings\"][0][\n>             \"detection_condition\"\n>         ] += \" A semantic mutation must not acquire the checked-in pin.\"\n>         path = _canonical(tmp_path / \"mutated-slice.json\", mutated)\n>         with pytest.raises(TOOL.ValidationError) as caught:\n>             TOOL._load_task_manifest(path, profile=_WIRING_SLICE_PROFILE)\n> >       assert caught.value.reasons == (\n>             \"wiring_slice: semantic SHA-256 pin mismatch\",\n>         )\n> E       AssertionError: assert ('oracle wiri...in mismatch',) == ('wiring_slic...in mismatch',)\n> E         \n> E         At index 0 diff: 'oracle wiring slice raw SHA-256 pin mismatch' != 'wiring_slice: semantic SHA-256 pin mismatch'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:6169: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=525 retained_bytes=525 omitted_bytes=0 rendered_excerpt_bytes=550 sha256=d9d0e4206284641174835aef9e085bcbb7ff606f3c9b48fd28ca552c359d0b4b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_semantically_consistent_finding_change_is_stopped_by_pin() -> None:\n>         value = _slice_value()\n>         finding = value[\"tasks\"][\"T-1222-population-closure:plan:0\"][\n>             \"oracle_findings\"\n>         ][0]\n>         finding[\"detection_condition\"] += \" Extra text is forbidden by the pin.\"\n> >       with pytest.raises(TOOL.WiringSliceError) as caught:\n> E       Failed: DID NOT RAISE WiringSliceError\n> \n> orchestrator/tests/test_t189_oracle_wiring_slice.py:139: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2145 retained_bytes=2145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3411 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "895de7517c7427db3911f46fcec35f1ec813e62ed697fdf5ab66a3f0c590e5ec"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+      "duration_s": 27.401,
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha"
+      ],
+      "hang_risk": false,
+      "id": "OR-M1",
+      "injection_diff_sha256": "f449fe4b72b85ebbd52bc8287fe1251641208829028d1a99fb8dca677c650cc2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "30619d171c18127b1759de1c12520130a40f70e2be1d264acacfe3cb6a348bbf",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "new": "    if False and require_pin and semantic_sha256 != SLICE_SHA256:\n",
+          "old": "    if require_pin and semantic_sha256 != SLICE_SHA256:\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "    \"0747d10c8cafbe0581855141815bee7f242e484bd32dc960e2284d8c89a09045\"\n",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+        }
+      ],
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "KILLED",
+      "test_output_sha256": "895de7517c7427db3911f46fcec35f1ec813e62ed697fdf5ab66a3f0c590e5ec",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6b49a7be09c07ea8399ae64cc46cae38/izdw-6b49a7be09.o954069",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6b49a7be09c07ea8399ae64cc46cae38/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n.....................................F                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n______ test_or_m2_main_rejects_forbidden_slice_command_before_side_effect ______\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_or_m2_main_rejects_forbid0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a974d2f340>\ncapfd = <_pytest.capture.CaptureFixture object at 0x14a974d2f880>\n\n    def test_or_m2_main_rejects_forbidden_slice_command_before_side_effect(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        snapshot = tmp_path / \"must-not-exist\"\n        sentinel_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []\n    \n        def side_effect_sentinel(*args: Any, **kwargs: Any) -> dict[str, Any]:\n            sentinel_calls.append((args, kwargs))\n            raise AssertionError(\"build_snapshot side-effect sentinel reached\")\n    \n        monkeypatch.setattr(TOOL, \"build_snapshot\", side_effect_sentinel)\n>       rc = TOOL.main(\n            [\n                \"build-snapshot\",\n                \"--snapshot\", os.fspath(snapshot),\n                \"--benchmark-task-id\", \"T-1222-population-closure:plan:0\",\n                \"--task-manifest\", os.fspath(_WIRING_SLICE_PATH),\n                \"--task-manifest-profile\", _WIRING_SLICE_PROFILE,\n            ]\n        )\n\norchestrator/tests/test_codex_reasoning_ab.py:13814: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/codex_reasoning_ab.py:12331: in main\n    result = build_snapshot(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktre...ain_rejects_forbid0/must-not-exist'), PosixPath('/home/SFC/tanab/.codex/sessions'), 'T-1222-population-closure:plan:0')\nkwargs = {'task_manifest': {'acceptance_contract': {'fix_gate_eligible': False, 'routing_evidence_eligible': False, 'task_accep... 'relative_to': 'repository-root', 'sha256': '012fc92349583922028811b52e726e255c1b836e33f6516818664cc4686fe477'}, ...}}\n\n    def side_effect_sentinel(*args: Any, **kwargs: Any) -> dict[str, Any]:\n        sentinel_calls.append((args, kwargs))\n>       raise AssertionError(\"build_snapshot side-effect sentinel reached\")\nE       AssertionError: build_snapshot side-effect sentinel reached\n\norchestrator/tests/test_codex_reasoning_ab.py:13811: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect\n========================= 1 failed, 37 passed in 5.24s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=2374 retained_bytes=2374 omitted_bytes=0 rendered_excerpt_bytes=2463 sha256=8fae83a140f4addfd3173a22f5b2cb958f9d01597a156ad0af7d34cbedd18a6d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_or_m2_main_rejects_forbid0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a974d2f340>\n> capfd = <_pytest.capture.CaptureFixture object at 0x14a974d2f880>\n> \n>     def test_or_m2_main_rejects_forbidden_slice_command_before_side_effect(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         capfd: pytest.CaptureFixture[str],\n>     ) -> None:\n>         snapshot = tmp_path / \"must-not-exist\"\n>         sentinel_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []\n>     \n>         def side_effect_sentinel(*args: Any, **kwargs: Any) -> dict[str, Any]:\n>             sentinel_calls.append((args, kwargs))\n>             raise AssertionError(\"build_snapshot side-effect sentinel reached\")\n>     \n>         monkeypatch.setattr(TOOL, \"build_snapshot\", side_effect_sentinel)\n> >       rc = TOOL.main(\n>             [\n>                 \"build-snapshot\",\n>                 \"--snapshot\", os.fspath(snapshot),\n>                 \"--benchmark-task-id\", \"T-1222-population-closure:plan:0\",\n>                 \"--task-manifest\", os.fspath(_WIRING_SLICE_PATH),\n>                 \"--task-manifest-profile\", _WIRING_SLICE_PROFILE,\n>             ]\n>         )\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:13814: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/codex_reasoning_ab.py:12331: in main\n>     result = build_snapshot(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktre...ain_rejects_forbid0/must-not-exist'), PosixPath('/home/SFC/tanab/.codex/sessions'), 'T-1222-population-closure:plan:0')\n> kwargs = {'task_manifest': {'acceptance_contract': {'fix_gate_eligible': False, 'routing_evidence_eligible': False, 'task_accep... 'relative_to': 'repository-root', 'sha256': '012fc92349583922028811b52e726e255c1b836e33f6516818664cc4686fe477'}, ...}}\n> \n>     def side_effect_sentinel(*args: Any, **kwargs: Any) -> dict[str, Any]:\n>         sentinel_calls.append((args, kwargs))\n> >       raise AssertionError(\"build_snapshot side-effect sentinel reached\")\n> E       AssertionError: build_snapshot side-effect sentinel reached\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:13811: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2374 retained_bytes=2374 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3204 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8887da0ff18c3d21cb9e0c50a3f20be1e5cf47798976a8fc24af90c73f7eb6ff"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+      "duration_s": 190.269,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect"
+      ],
+      "hang_risk": false,
+      "id": "OR-M2",
+      "injection_diff_sha256": "444fcab85d973058412d1af2bfd4b3e4596e5b59f381e625b837dcff80577fa5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8da198f1e1ad1f97dae802382243eb7cf826b7510a16cf0a7b58395691bda670",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "        and False\n",
+          "old": "        and command not in WIRING_SLICE.SUPPORTED_COMMANDS\n"
+        }
+      ],
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "KILLED",
+      "test_output_sha256": "8887da0ff18c3d21cb9e0c50a3f20be1e5cf47798976a8fc24af90c73f7eb6ff",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b0ac166bed57370f623e27027d7dc09/izdw-3b0ac166be.o954076",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3b0ac166bed57370f623e27027d7dc09/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n............................F.....F...                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n_ test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch] _\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\nmutation = 'projection'\nreason = 'known_finding_ids: oracle finding projection mismatch'\n\n    @pytest.mark.parametrize(\n        (\"mutation\", \"reason\"),\n        (\n            (\"unknown-top\", \"wiring_slice: field set mismatch\"),\n            (\"unknown-task\", \"task row is closed\"),\n            (\"missing-profile\", \"wiring_slice: field set mismatch\"),\n            (\"projection\", \"known_finding_ids: oracle finding projection mismatch\"),\n            (\"status\", \"task_acceptance_status: must be unbound\"),\n            (\"allowlist\", \"supported_commands: allowlist mismatch\"),\n        ),\n    )\n    def test_closed_slice_schema_rejects_single_field_mutations(\n        mutation: str, reason: str,\n    ) -> None:\n        value = _slice_value()\n        first = value[\"tasks\"][\"T-1222-population-closure:plan:0\"]\n        if mutation == \"unknown-top\":\n            value[\"unknown\"] = True\n        elif mutation == \"unknown-task\":\n            first[\"unknown\"] = True\n        elif mutation == \"missing-profile\":\n            del value[\"slice_schema_version\"]\n        elif mutation == \"projection\":\n            first[\"known_finding_ids\"] = [\"wrong-finding\"]\n        elif mutation == \"status\":\n            first[\"task_acceptance_status\"] = \"bound\"\n        else:\n            value[\"supported_commands\"].append(\"build-snapshot\")\n>       with pytest.raises(TOOL.WiringSliceError) as caught:\nE       Failed: DID NOT RAISE WiringSliceError\n\norchestrator/tests/test_t189_oracle_wiring_slice.py:125: Failed\n__________ test_or_m3_production_validator_rejects_projection_change ___________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_or_m3_production_validator_rejects_projection_change() -> None:\n        value = json.loads(_WIRING_SLICE_PATH.read_bytes())\n        value[\"tasks\"][\"T-1222-population-closure:plan:0\"][\n            \"known_finding_ids\"\n        ] = [\"wrong-finding\"]\n>       with pytest.raises(TOOL.ValidationError) as caught:\nE       Failed: DID NOT RAISE ValidationError\n\norchestrator/tests/test_codex_reasoning_ab.py:6179: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change\n========================= 2 failed, 36 passed in 5.13s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]\" nodeid_bytes=174 nodeid_omitted_bytes=0 source_bytes=1526 retained_bytes=1526 omitted_bytes=0 rendered_excerpt_bytes=1601 sha256=c53ccd8b920e78ac445707218be7f202bbfaf4a79e4a2feaf7cdf971ece964dd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> mutation = 'projection'\n> reason = 'known_finding_ids: oracle finding projection mismatch'\n> \n>     @pytest.mark.parametrize(\n>         (\"mutation\", \"reason\"),\n>         (\n>             (\"unknown-top\", \"wiring_slice: field set mismatch\"),\n>             (\"unknown-task\", \"task row is closed\"),\n>             (\"missing-profile\", \"wiring_slice: field set mismatch\"),\n>             (\"projection\", \"known_finding_ids: oracle finding projection mismatch\"),\n>             (\"status\", \"task_acceptance_status: must be unbound\"),\n>             (\"allowlist\", \"supported_commands: allowlist mismatch\"),\n>         ),\n>     )\n>     def test_closed_slice_schema_rejects_single_field_mutations(\n>         mutation: str, reason: str,\n>     ) -> None:\n>         value = _slice_value()\n>         first = value[\"tasks\"][\"T-1222-population-closure:plan:0\"]\n>         if mutation == \"unknown-top\":\n>             value[\"unknown\"] = True\n>         elif mutation == \"unknown-task\":\n>             first[\"unknown\"] = True\n>         elif mutation == \"missing-profile\":\n>             del value[\"slice_schema_version\"]\n>         elif mutation == \"projection\":\n>             first[\"known_finding_ids\"] = [\"wrong-finding\"]\n>         elif mutation == \"status\":\n>             first[\"task_acceptance_status\"] = \"bound\"\n>         else:\n>             value[\"supported_commands\"].append(\"build-snapshot\")\n> >       with pytest.raises(TOOL.WiringSliceError) as caught:\n> E       Failed: DID NOT RAISE WiringSliceError\n> \n> orchestrator/tests/test_t189_oracle_wiring_slice.py:125: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=472 retained_bytes=472 omitted_bytes=0 rendered_excerpt_bytes=495 sha256=826aa329b53e05aa65b8cbab15e50f6a8ad6a1676ecb0ca1417ecfd5748783d1\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_or_m3_production_validator_rejects_projection_change() -> None:\n>         value = json.loads(_WIRING_SLICE_PATH.read_bytes())\n>         value[\"tasks\"][\"T-1222-population-closure:plan:0\"][\n>             \"known_finding_ids\"\n>         ] = [\"wrong-finding\"]\n> >       with pytest.raises(TOOL.ValidationError) as caught:\n> E       Failed: DID NOT RAISE ValidationError\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:6179: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1998 retained_bytes=1998 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3340 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cc193a493ab76e2de22680512b738ff85fbd5512184ccbfd7da703b8f5525153"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+      "duration_s": 32.136,
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change"
+      ],
+      "hang_risk": false,
+      "id": "OR-M3",
+      "injection_diff_sha256": "75c89a52b5f8bb96442622cb8df141189503040223cba27b64656fbe252e608e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "80f4289e299b8ffc4355d30a30e06acf1b3eb483f512a02ff4290efe673baa8b",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "new": "    if False and item[\"known_finding_ids\"] != projection:\n",
+          "old": "    if item[\"known_finding_ids\"] != projection:\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "    \"b1fc348a1c44e80bbbcc6b4c359a05ad4de94e7d3e42998a6b05e4d4d7c49044\"\n",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+        }
+      ],
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "KILLED",
+      "test_output_sha256": "cc193a493ab76e2de22680512b738ff85fbd5512184ccbfd7da703b8f5525153",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38175156f4d7e3d194e029875cc5b6de/izdw-38175156f4.o954078",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/38175156f4d7e3d194e029875cc5b6de/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n..................................F...                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n_____________ test_or_m4_receipt_ordinal_is_needed_for_unique_join _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_or_m4_receipt_ordinal_is_needed_for_unique_join() -> None:\n        catalog = CATALOG.validate_task_catalog(\n            strict_loads(\n                _CATALOG.read_bytes(),\n                label=\"catalog-fixture\",\n                max_bytes=DEFAULT_MAX_JSON_BYTES,\n            )\n        )\n        task = next(iter(TOOL.load_wiring_slice(_SLICE)[\"tasks\"].values()))\n        target = next(\n            row\n            for row in catalog[\"candidates\"]\n            if row[\"wave_id\"] == task[\"provenance\"][\"catalog_join\"][\"wave_id\"]\n            and row[\"dev_wave_stage\"] == \"plan\"\n            and row[\"receipt_ordinal\"] == 0\n        )\n        synthetic = copy.deepcopy(catalog)\n        second_ordinal = copy.deepcopy(target)\n        second_ordinal[\"receipt_ordinal\"] = 1\n        synthetic[\"candidates\"].append(second_ordinal)\n>       assert TOOL._catalog_row_for_task(synthetic, task) == target\n\norchestrator/tests/test_t189_oracle_wiring_slice.py:226: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/t189_oracle_wiring_slice.py:766: in _catalog_row_for_task\n    return _fail(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nlabel = 'catalog_join[T-1222-population-closure:plan:0]'\nreason = 'must match exactly one candidate row'\n\n    def _fail(label: str, reason: str) -> Any:\n>       raise WiringSliceError(f\"{label}: {reason}\")\nE       tools.t189_oracle_wiring_slice.WiringSliceError: catalog_join[T-1222-population-closure:plan:0]: must match exactly one candidate row\n\ntools/t189_oracle_wiring_slice.py:140: WiringSliceError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join\n========================= 1 failed, 37 passed in 5.19s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1658 retained_bytes=1658 omitted_bytes=0 rendered_excerpt_bytes=1735 sha256=06ea3909d9563cf5f7c168d29de8fad0cf935cfb1a7d8d600e09b07ffb21c55a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_or_m4_receipt_ordinal_is_needed_for_unique_join() -> None:\n>         catalog = CATALOG.validate_task_catalog(\n>             strict_loads(\n>                 _CATALOG.read_bytes(),\n>                 label=\"catalog-fixture\",\n>                 max_bytes=DEFAULT_MAX_JSON_BYTES,\n>             )\n>         )\n>         task = next(iter(TOOL.load_wiring_slice(_SLICE)[\"tasks\"].values()))\n>         target = next(\n>             row\n>             for row in catalog[\"candidates\"]\n>             if row[\"wave_id\"] == task[\"provenance\"][\"catalog_join\"][\"wave_id\"]\n>             and row[\"dev_wave_stage\"] == \"plan\"\n>             and row[\"receipt_ordinal\"] == 0\n>         )\n>         synthetic = copy.deepcopy(catalog)\n>         second_ordinal = copy.deepcopy(target)\n>         second_ordinal[\"receipt_ordinal\"] = 1\n>         synthetic[\"candidates\"].append(second_ordinal)\n> >       assert TOOL._catalog_row_for_task(synthetic, task) == target\n> \n> orchestrator/tests/test_t189_oracle_wiring_slice.py:226: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/t189_oracle_wiring_slice.py:766: in _catalog_row_for_task\n>     return _fail(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> label = 'catalog_join[T-1222-population-closure:plan:0]'\n> reason = 'must match exactly one candidate row'\n> \n>     def _fail(label: str, reason: str) -> Any:\n> >       raise WiringSliceError(f\"{label}: {reason}\")\n> E       tools.t189_oracle_wiring_slice.WiringSliceError: catalog_join[T-1222-population-closure:plan:0]: must match exactly one candidate row\n> \n> tools/t189_oracle_wiring_slice.py:140: WiringSliceError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1658 retained_bytes=1658 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2468 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "48fab8f8e07546cc875e191739a4ff8c507950f9cc13b8cf25327648c17fc763"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+      "duration_s": 26.92,
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join"
+      ],
+      "hang_risk": false,
+      "id": "OR-M4",
+      "injection_diff_sha256": "48ce4966db008a97d4ece755da96c8860ab7e694812075db4e7e24ded32febdf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "38abff573f5853708f2a17f75e32e1036d18bd2e8f7b1e16040d483d6e1e0ea1",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "new": "        and True\n",
+          "old": "        and row[\"receipt_ordinal\"] == join[\"receipt_ordinal\"]\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "    \"727c4bd7a506727b32229c5ac6e2137d3d8dfa617c6a4409594c78cc80429ad0\"\n",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+        }
+      ],
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "KILLED",
+      "test_output_sha256": "48fab8f8e07546cc875e191739a4ff8c507950f9cc13b8cf25327648c17fc763",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe76b711e1088870c3f7ff40c400f843/izdw-fe76b711e1.o954080",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/fe76b711e1088870c3f7ff40c400f843/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n.............................F........                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n__________ test_or_m5_physical_prompt_byte_change_has_one_sha_reason ___________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_or_m5_physical_prompt_byt0')\n\n    def test_or_m5_physical_prompt_byte_change_has_one_sha_reason(tmp_path: Path) -> None:\n        jobs = tmp_path / \"jobs\"\n        jobs.mkdir()\n        task = _synthetic_jobs_task(jobs)\n        rooted = TOOL._root(jobs, label=\"jobs-root\")\n        TOOL._audit_jobs_task(task, rooted)\n        (jobs / \"wave/prompt.md\").write_bytes(b\"line one\\nline Xwo\\n\")\n>       with pytest.raises(TOOL.WiringSliceError) as caught:\nE       Failed: DID NOT RAISE WiringSliceError\n\norchestrator/tests/test_t189_oracle_wiring_slice.py:286: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason\n========================= 1 failed, 37 passed in 5.21s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=673 retained_bytes=673 omitted_bytes=0 rendered_excerpt_bytes=710 sha256=e1a9340f157bee2e103caf9badd8c4b599bee03859c6c7e7294b47e01d2aa802\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_or_m5_physical_prompt_byt0')\n> \n>     def test_or_m5_physical_prompt_byte_change_has_one_sha_reason(tmp_path: Path) -> None:\n>         jobs = tmp_path / \"jobs\"\n>         jobs.mkdir()\n>         task = _synthetic_jobs_task(jobs)\n>         rooted = TOOL._root(jobs, label=\"jobs-root\")\n>         TOOL._audit_jobs_task(task, rooted)\n>         (jobs / \"wave/prompt.md\").write_bytes(b\"line one\\x5cnline Xwo\\x5cn\")\n> >       with pytest.raises(TOOL.WiringSliceError) as caught:\n> E       Failed: DID NOT RAISE WiringSliceError\n> \n> orchestrator/tests/test_t189_oracle_wiring_slice.py:286: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=673 retained_bytes=673 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1443 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b7379b576beedbfa6d81f6def90088ca6e975398745c9ebbb8b1b816455c9922"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+      "duration_s": 27.259,
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason"
+      ],
+      "hang_risk": false,
+      "id": "OR-M5",
+      "injection_diff_sha256": "b23bdaf5413bae1f536d1be59d7c563364bb07b9078f2ff0a91da98c375eefd3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9814788df86e7da1d51d3e486ebda9d2d48921fda597e1d5a1947439ec6b316a",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "new": "    if False and hashlib.sha256(raw).hexdigest() != evidence[\"sha256\"]:\n",
+          "old": "    if hashlib.sha256(raw).hexdigest() != evidence[\"sha256\"]:\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "    \"73dd8b96a64405f7283b7b89965d555cecfa639b1fcb766778e96199822bf94c\"\n",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+        }
+      ],
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "KILLED",
+      "test_output_sha256": "b7379b576beedbfa6d81f6def90088ca6e975398745c9ebbb8b1b816455c9922",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e7727dbd190932cfa2e721d2561b87c/izdw-3e7727dbd1.o954081",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3e7727dbd190932cfa2e721d2561b87c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [38 items]\n\n................................FFF...                                   [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n______ test_or_m6_adjudication_reason_is_task_specific_for_checked_slice _______\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_or_m6_adjudication_reason0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146f64403370>\n\n    def test_or_m6_adjudication_reason_is_task_specific_for_checked_slice(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        fixture = _task_specific_adjudication_fixture(\n            tmp_path,\n            monkeypatch,\n            cross_task_reader=\"parent\",\n            fixed_task_manifest_path=_WIRING_SLICE_PATH,\n        )\n        joined, reasons = TOOL._load_adjudication(\n            fixture[\"manifest_path\"],\n            fixture[\"manifest\"],\n            fixture[\"slots\"],\n            fixture[\"final_attempts\"],\n            snapshot_verified_run_ids={\n                attempt[\"run_id\"]\n                for attempt in fixture[\"final_attempts\"].values()\n            },\n            task_manifest=fixture[\"task_manifest\"],\n        )\n        expected_reason = (\n            f\"{fixture['cross_task_packet_id']}: parent finding equivalent_to \"\n            \"is unknown \"\n            f\"for benchmark task {fixture['target_task_id']}: \"\n            f\"{fixture['source_finding_id']}\"\n        )\n>       assert reasons.count(expected_reason) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <built-in method count of list object at 0x146f5fba6480>('67baa629517827e3109f0cd65bda74b1: parent finding equivalent_to is unknown for benchmark task dev-wave-t1393-finish-trial-indeterminate:plan:0: T1222-PLAN-SERVE-CHILD-IMPORT-GROWTH-ISOLATION')\nE        +    where <built-in method count of list object at 0x146f5fba6480> = [].count\n\norchestrator/tests/test_codex_reasoning_ab.py:14113: AssertionError\n___ test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate] ____\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\nentrypoint = 'aggregate'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_or_m6_checked_slice_full_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1551fb546230>\ncapfd = <_pytest.capture.CaptureFixture object at 0x1551fb5466b0>\n\n    @pytest.mark.parametrize(\"entrypoint\", (\"verify\", \"aggregate\"))\n    def test_or_m6_checked_slice_full_cli_rejects_cross_task_finding(\n        entrypoint: str,\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _task_specific_adjudication_fixture(\n            tmp_path,\n            monkeypatch,\n            cross_task_reader=\"parent\",\n            fixed_task_manifest_path=_WIRING_SLICE_PATH,\n        )\n        assert all(\n            result[\"appended\"] == 4\n            for result in fixture[\"append_results\"].values()\n        )\n        target = next(\n            row\n            for row in fixture[\"logged_rows\"]\n            if row[\"packet_id\"] == fixture[\"cross_task_packet_id\"]\n            and row[\"reader\"] == \"parent\"\n        )\n        assert target[\"findings\"][0][\"equivalent_to\"] == fixture[\n            \"source_finding_id\"\n        ]\n    \n        rc = TOOL.main(\n            [\n                entrypoint,\n                \"--manifest\", os.fspath(fixture[\"manifest_path\"]),\n                \"--sessions-root\", os.fspath(fixture[\"sessions_root\"]),\n                \"--task-manifest\", os.fspath(_WIRING_SLICE_PATH),\n                \"--task-manifest-profile\", _WIRING_SLICE_PROFILE,\n            ]\n        )\n        result = json.loads(capfd.readouterr().out)\n>       assert rc == TOOL.RC_AGGREGATE\nE       assert 0 == 24\nE        +  where 24 = TOOL.RC_AGGREGATE\n\norchestrator/tests/test_codex_reasoning_ab.py:14071: AssertionError\n_____ test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify] _____\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\nentrypoint = 'verify'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_or_m6_checked_slice_full_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b3da60b2b0>\ncapfd = <_pytest.capture.CaptureFixture object at 0x14b3da60b6a0>\n\n    @pytest.mark.parametrize(\"entrypoint\", (\"verify\", \"aggregate\"))\n    def test_or_m6_checked_slice_full_cli_rejects_cross_task_finding(\n        entrypoint: str,\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capfd: pytest.CaptureFixture[str],\n    ) -> None:\n        fixture = _task_specific_adjudication_fixture(\n            tmp_path,\n            monkeypatch,\n            cross_task_reader=\"parent\",\n            fixed_task_manifest_path=_WIRING_SLICE_PATH,\n        )\n        assert all(\n            result[\"appended\"] == 4\n            for result in fixture[\"append_results\"].values()\n        )\n        target = next(\n            row\n            for row in fixture[\"logged_rows\"]\n            if row[\"packet_id\"] == fixture[\"cross_task_packet_id\"]\n            and row[\"reader\"] == \"parent\"\n        )\n        assert target[\"findings\"][0][\"equivalent_to\"] == fixture[\n            \"source_finding_id\"\n        ]\n    \n        rc = TOOL.main(\n            [\n                entrypoint,\n                \"--manifest\", os.fspath(fixture[\"manifest_path\"]),\n                \"--sessions-root\", os.fspath(fixture[\"sessions_root\"]),\n                \"--task-manifest\", os.fspath(_WIRING_SLICE_PATH),\n                \"--task-manifest-profile\", _WIRING_SLICE_PROFILE,\n            ]\n        )\n        result = json.loads(capfd.readouterr().out)\n>       assert rc == TOOL.RC_AGGREGATE\nE       assert 0 == 24\nE        +  where 24 = TOOL.RC_AGGREGATE\n\norchestrator/tests/test_codex_reasoning_ab.py:14071: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]\nFAILED orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]\n========================= 3 failed, 35 passed in 5.10s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1833 retained_bytes=1833 omitted_bytes=0 rendered_excerpt_bytes=1932 sha256=4ee3ddd100ad7ac8e035785ff84d2051d8e5053b39021a6797da124f095e5192\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n> entrypoint = 'aggregate'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_or_m6_checked_slice_full_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1551fb546230>\n> capfd = <_pytest.capture.CaptureFixture object at 0x1551fb5466b0>\n> \n>     @pytest.mark.parametrize(\"entrypoint\", (\"verify\", \"aggregate\"))\n>     def test_or_m6_checked_slice_full_cli_rejects_cross_task_finding(\n>         entrypoint: str,\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         capfd: pytest.CaptureFixture[str],\n>     ) -> None:\n>         fixture = _task_specific_adjudication_fixture(\n>             tmp_path,\n>             monkeypatch,\n>             cross_task_reader=\"parent\",\n>             fixed_task_manifest_path=_WIRING_SLICE_PATH,\n>         )\n>         assert all(\n>             result[\"appended\"] == 4\n>             for result in fixture[\"append_results\"].values()\n>         )\n>         target = next(\n>             row\n>             for row in fixture[\"logged_rows\"]\n>             if row[\"packet_id\"] == fixture[\"cross_task_packet_id\"]\n>             and row[\"reader\"] == \"parent\"\n>         )\n>         assert target[\"findings\"][0][\"equivalent_to\"] == fixture[\n>             \"source_finding_id\"\n>         ]\n>     \n>         rc = TOOL.main(\n>             [\n>                 entrypoint,\n>                 \"--manifest\", os.fspath(fixture[\"manifest_path\"]),\n>                 \"--sessions-root\", os.fspath(fixture[\"sessions_root\"]),\n>                 \"--task-manifest\", os.fspath(_WIRING_SLICE_PATH),\n>                 \"--task-manifest-profile\", _WIRING_SLICE_PROFILE,\n>             ]\n>         )\n>         result = json.loads(capfd.readouterr().out)\n> >       assert rc == TOOL.RC_AGGREGATE\n> E       assert 0 == 24\n> E        +  where 24 = TOOL.RC_AGGREGATE\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:14071: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1830 retained_bytes=1830 omitted_bytes=0 rendered_excerpt_bytes=1929 sha256=ea8e4df0eee776bd43885cb7398cb972516d4fb8487ecca800fbc14813349364\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> entrypoint = 'verify'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw36/test_or_m6_checked_slice_full_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b3da60b2b0>\n> capfd = <_pytest.capture.CaptureFixture object at 0x14b3da60b6a0>\n> \n>     @pytest.mark.parametrize(\"entrypoint\", (\"verify\", \"aggregate\"))\n>     def test_or_m6_checked_slice_full_cli_rejects_cross_task_finding(\n>         entrypoint: str,\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         capfd: pytest.CaptureFixture[str],\n>     ) -> None:\n>         fixture = _task_specific_adjudication_fixture(\n>             tmp_path,\n>             monkeypatch,\n>             cross_task_reader=\"parent\",\n>             fixed_task_manifest_path=_WIRING_SLICE_PATH,\n>         )\n>         assert all(\n>             result[\"appended\"] == 4\n>             for result in fixture[\"append_results\"].values()\n>         )\n>         target = next(\n>             row\n>             for row in fixture[\"logged_rows\"]\n>             if row[\"packet_id\"] == fixture[\"cross_task_packet_id\"]\n>             and row[\"reader\"] == \"parent\"\n>         )\n>         assert target[\"findings\"][0][\"equivalent_to\"] == fixture[\n>             \"source_finding_id\"\n>         ]\n>     \n>         rc = TOOL.main(\n>             [\n>                 entrypoint,\n>                 \"--manifest\", os.fspath(fixture[\"manifest_path\"]),\n>                 \"--sessions-root\", os.fspath(fixture[\"sessions_root\"]),\n>                 \"--task-manifest\", os.fspath(_WIRING_SLICE_PATH),\n>                 \"--task-manifest-profile\", _WIRING_SLICE_PROFILE,\n>             ]\n>         )\n>         result = json.loads(capfd.readouterr().out)\n> >       assert rc == TOOL.RC_AGGREGATE\n> E       assert 0 == 24\n> E        +  where 24 = TOOL.RC_AGGREGATE\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:14071: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1762 retained_bytes=1762 omitted_bytes=0 rendered_excerpt_bytes=1839 sha256=a6cba7426b657ad2d84333b243be9a1f7878bdf71ff0a437a6573d67391972cb\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_or_m6_adjudication_reason0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146f64403370>\n> \n>     def test_or_m6_adjudication_reason_is_task_specific_for_checked_slice(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         fixture = _task_specific_adjudication_fixture(\n>             tmp_path,\n>             monkeypatch,\n>             cross_task_reader=\"parent\",\n>             fixed_task_manifest_path=_WIRING_SLICE_PATH,\n>         )\n>         joined, reasons = TOOL._load_adjudication(\n>             fixture[\"manifest_path\"],\n>             fixture[\"manifest\"],\n>             fixture[\"slots\"],\n>             fixture[\"final_attempts\"],\n>             snapshot_verified_run_ids={\n>                 attempt[\"run_id\"]\n>                 for attempt in fixture[\"final_attempts\"].values()\n>             },\n>             task_manifest=fixture[\"task_manifest\"],\n>         )\n>         expected_reason = (\n>             f\"{fixture['cross_task_packet_id']}: parent finding equivalent_to \"\n>             \"is unknown \"\n>             f\"for benchmark task {fixture['target_task_id']}: \"\n>             f\"{fixture['source_finding_id']}\"\n>         )\n> >       assert reasons.count(expected_reason) == 1\n> E       AssertionError: assert 0 == 1\n> E        +  where 0 = <built-in method count of list object at 0x146f5fba6480>('67baa629517827e3109f0cd65bda74b1: parent finding equivalent_to is unknown for benchmark task dev-wave-t1393-finish-trial-indeterminate:plan:0: T1222-PLAN-SERVE-CHILD-IMPORT-GROWTH-ISOLATION')\n> E        +    where <built-in method count of list object at 0x146f5fba6480> = [].count\n> \n> orchestrator/tests/test_codex_reasoning_ab.py:14113: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5425 retained_bytes=5425 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7355 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "52430f5d9568c2e3e9c59a1ddb7449be14fad7665a0425f78f7a4a77652788ce"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "53f975ea1c9c591eedaee413708d166c18da4900ff447a9895700ac2d4738eb5",
+      "duration_s": 27.226,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]"
+      ],
+      "hang_risk": false,
+      "id": "OR-M6",
+      "injection_diff_sha256": "6c34c177f30939eff88f8313f23078f5748235a569662d7c508292ad04a49f8e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1362f564be38fe16e89221dd18ab7d4b2f9128c9eb5f7d11fa4ae15de9576492",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "def _adjudication_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 diagnostic anchor: intentionally weakened to manifest union.\"\"\"\n    return known_finding_ids_for_manifest(task_manifest)\n",
+          "old": "def _adjudication_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 diagnostic anchor: narrow revealed verdicts to their task.\"\"\"\n    return known_finding_ids_for_manifest(\n        task_manifest,\n        benchmark_task_id=benchmark_task_id,\n    )\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "new": "def _aggregate_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 correctness anchor: intentionally weakened to manifest union.\"\"\"\n    return known_finding_ids_for_manifest(task_manifest)\n",
+          "old": "def _aggregate_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 correctness anchor: independently narrow aggregate inputs.\"\"\"\n    return known_finding_ids_for_manifest(\n        task_manifest,\n        benchmark_task_id=benchmark_task_id,\n    )\n"
+        }
+      ],
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "KILLED",
+      "test_output_sha256": "52430f5d9568c2e3e9c59a1ddb7449be14fad7665a0425f78f7a4a77652788ce",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6af5f8258e6968dd69d50fcad6579431/izdw-6af5f8258e.o954064",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6af5f8258e6968dd69d50fcad6579431/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_checked_in_slice_has_fixed_raw_pin_and_exact_canonical_bytes\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_portable_verifier_joins_checked_in_catalog_and_classification\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_optional_jobs_root_audits_pinned_prompt_and_receipt_bytes\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-top-wiring_slice: field set mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-task-task row is closed]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[missing-profile-wiring_slice: field set mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[status-task_acceptance_status: must be unbound]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[allowlist-supported_commands: allowlist mismatch]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[pretty]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[missing-lf]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[extra-lf]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_symlink_transport\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_duplicate_key\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nan\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_infinity\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nested_float\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_invalid_utf8\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_classification_join_rejects_task_type_drift_at_join_layer\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[symlink]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[directory]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[invalid-utf8]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[line-range]\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_root_rejects_lexical_ancestor_symlink\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_symlink_directory_component\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_final_path_swap_at_read_seam\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_intermediate_directory_swap_at_read_seam\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_never_reloads_classification_by_path\norchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_cli_failure_separates_integrity_from_task_acceptance\norchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha\norchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change\norchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect\norchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice\norchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]\norchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]\nIZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n38 tests collected in 1.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "dfbbc2519e1049034526d5b98e6a59385ca472bbf3e6b29652b4c8c4f4449435"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_checked_in_slice_has_fixed_raw_pin_and_exact_canonical_bytes",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_portable_verifier_joins_checked_in_catalog_and_classification",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_optional_jobs_root_audits_pinned_prompt_and_receipt_bytes",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-top-wiring_slice: field set mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[unknown-task-task row is closed]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[missing-profile-wiring_slice: field set mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[status-task_acceptance_status: must be unbound]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[allowlist-supported_commands: allowlist mismatch]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[pretty]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[missing-lf]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_noncanonical_raw_framing[extra-lf]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_slice_loader_rejects_symlink_transport",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_duplicate_key",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nan",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_infinity",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_nested_float",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_direct_loader_rejects_invalid_utf8",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_classification_join_rejects_task_type_drift_at_join_layer",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[symlink]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[directory]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[invalid-utf8]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_repo_evidence_path_and_text_checks_fail_closed[line-range]",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_root_rejects_lexical_ancestor_symlink",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_symlink_directory_component",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_final_path_swap_at_read_seam",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_rooted_reader_rejects_intermediate_directory_swap_at_read_seam",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_never_reloads_classification_by_path",
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_verifier_cli_failure_separates_integrity_from_task_acceptance",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]"
+      ],
+      "duration_s": 21.815,
+      "rc": 0,
+      "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+      "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+      "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+      "status": "PASSED",
+      "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "OR-M1": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin",
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f449fe4b72b85ebbd52bc8287fe1251641208829028d1a99fb8dca677c650cc2",
+        "replacements": [
+          {
+            "file": "tools/t189_oracle_wiring_slice.py",
+            "new": "    if False and require_pin and semantic_sha256 != SLICE_SHA256:\n",
+            "old": "    if require_pin and semantic_sha256 != SLICE_SHA256:\n"
+          },
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "    \"0747d10c8cafbe0581855141815bee7f242e484bd32dc960e2284d8c89a09045\"\n",
+            "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+          }
+        ]
+      },
+      "OR-M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "444fcab85d973058412d1af2bfd4b3e4596e5b59f381e625b837dcff80577fa5",
+        "replacements": [
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "        and False\n",
+            "old": "        and command not in WIRING_SLICE.SUPPORTED_COMMANDS\n"
+          }
+        ]
+      },
+      "OR-M3": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]",
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "75c89a52b5f8bb96442622cb8df141189503040223cba27b64656fbe252e608e",
+        "replacements": [
+          {
+            "file": "tools/t189_oracle_wiring_slice.py",
+            "new": "    if False and item[\"known_finding_ids\"] != projection:\n",
+            "old": "    if item[\"known_finding_ids\"] != projection:\n"
+          },
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "    \"b1fc348a1c44e80bbbcc6b4c359a05ad4de94e7d3e42998a6b05e4d4d7c49044\"\n",
+            "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+          }
+        ]
+      },
+      "OR-M4": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "48ce4966db008a97d4ece755da96c8860ab7e694812075db4e7e24ded32febdf",
+        "replacements": [
+          {
+            "file": "tools/t189_oracle_wiring_slice.py",
+            "new": "        and True\n",
+            "old": "        and row[\"receipt_ordinal\"] == join[\"receipt_ordinal\"]\n"
+          },
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "    \"727c4bd7a506727b32229c5ac6e2137d3d8dfa617c6a4409594c78cc80429ad0\"\n",
+            "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+          }
+        ]
+      },
+      "OR-M5": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b23bdaf5413bae1f536d1be59d7c563364bb07b9078f2ff0a91da98c375eefd3",
+        "replacements": [
+          {
+            "file": "tools/t189_oracle_wiring_slice.py",
+            "new": "    if False and hashlib.sha256(raw).hexdigest() != evidence[\"sha256\"]:\n",
+            "old": "    if hashlib.sha256(raw).hexdigest() != evidence[\"sha256\"]:\n"
+          },
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "    \"73dd8b96a64405f7283b7b89965d555cecfa639b1fcb766778e96199822bf94c\"\n",
+            "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n"
+          }
+        ]
+      },
+      "OR-M6": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]",
+          "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6c34c177f30939eff88f8313f23078f5748235a569662d7c508292ad04a49f8e",
+        "replacements": [
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "def _adjudication_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 diagnostic anchor: intentionally weakened to manifest union.\"\"\"\n    return known_finding_ids_for_manifest(task_manifest)\n",
+            "old": "def _adjudication_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 diagnostic anchor: narrow revealed verdicts to their task.\"\"\"\n    return known_finding_ids_for_manifest(\n        task_manifest,\n        benchmark_task_id=benchmark_task_id,\n    )\n"
+          },
+          {
+            "file": "tools/codex_reasoning_ab.py",
+            "new": "def _aggregate_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 correctness anchor: intentionally weakened to manifest union.\"\"\"\n    return known_finding_ids_for_manifest(task_manifest)\n",
+            "old": "def _aggregate_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 correctness anchor: independently narrow aggregate inputs.\"\"\"\n    return known_finding_ids_for_manifest(\n        task_manifest,\n        benchmark_task_id=benchmark_task_id,\n    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "070047986d9c0cfb16d1bf78a599dc5073af9802357044e1d5905ebbdde03379",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "644695f7b072506e2c90e3417d86600048dfa9a1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_t189_oracle_wiring_slice.py",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+      "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "607b162cadf0d757cf8adc7339b142f5703fbe38",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0211510828cd713579c7ad642fa24287503e2cded9f1ecddb4a042cfadac9353",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "058b1ca7c0d561ca58b3a3efd8c98fba5666b27b17628b50159d2f5d271f7b8f",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-oracle-realdata/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "1ad91d11850f0434cf3b8f3e7b43a52e6b604936c22e118d4060a73c504d63a5",
+  "updated_at": "2026-08-27T19:07:26.762849+00:00"
+}
