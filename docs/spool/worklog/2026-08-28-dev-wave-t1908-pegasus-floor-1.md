@@ -29,7 +29,7 @@ title: [T-1908] Pegasus write-heavy / balanced の current-pin floor scoping を
   read-heavy と判定器 / 成果物への版束縛を含む [T-1942] は完了させず、変更していない。
 - 実装差分 0 のため D95 author と変異 matrix は免除。焦点検査は scoping driver 10 passed、repo-wide
   unknownness scan は初回 local OOM を緑に数えず、計算ノード再走 1 passed。全受入は
-  18,033 passed / 61 skipped、child-green。`check_codex_agents` と `check_docs` は緑、provenance は
+  18,185 passed / 61 skipped、child-green。`check_codex_agents` と `check_docs` は緑、provenance は
   新規違反 0。最初の artifact commit 前に `git diff --check` が hard-break の末尾空白を検出したが、
   連続 command が停止せず commit まで進んだため、意味不変の補正 commit を追加して以後は個別 rc で閉じた。
 - エージェント工数: worker 0。既存 driver 無変更の docs / calibration artifact wave のため、
