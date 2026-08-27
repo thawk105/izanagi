@@ -293,20 +293,38 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   - **「その決定で次を合成した」ことは閉じていない。** proposal が持つ receipt hash は
     proposal 作成者の**自己申告**であり、legacy critic の出力から作った proposal に valid な
     receipt hash を書き写せば通る。**本書の関門は「閉じた critic が併存した」ことまでを示す。**
-  - `run_one_iteration()` の Python API 直呼びは sanctioned CLI の gate を迂回する。
+  - `run_one_iteration()` の Python API 直呼びは、**2026-08-27 の専用起動器で列挙した境界について
+    閉じた** — 3 driver の `default_cfg` / `run_one_iteration` / `drive_iteration`、
+    production factory、certified sink の COMMIT 合流点である。閉じた根拠は、
+    exact marker を持つ campaign がこれらの境界で、起動器だけが鋳造できる封印済みの起動 context と、
+    権威 layout に置かれた起動記録との一致を要求することである。
+    **ただし、marker を持たない campaign を報告時だけ B-4 と名乗る経路は開いている。**
+    **COMMIT の後に campaign lock を書き換えて B-4 と名乗り直す経路も開いている** —
+    sink の関門は COMMIT の時点で exact marker が存在した経路だけを閉じる。
   - `policy_hint` は無加工で planner payload へ入る。
   - legacy の `Agent(subagent_type='critic')` route は、B-4 の正式標本としては不適格になったが、
     走ること自体は止まらない。
-  - **B-4 protocol marker は自己申告である。** campaign identity に残るため provenance にはなるが、
-    分類の権限を証明しない。marker を付けて任意の config を B-4 と名乗ること、および marker 不在の
-    campaign を報告時だけ B-4 と名乗ることは、いずれも機械では止まらない。
-    **marker は必要条件であって十分条件ではない。**
+  - **B-4 protocol marker の自己申告は、一部だけ閉じた (2026-08-27)。**
+    **閉じたのは「封印されていない marker の作成」である** — sanctioned な 3 driver の
+    `default_cfg` は、起動器だけが鋳造できる封印済みの起動 context が無ければ marker を作らない。
+    試験用の封印でも marker は作れるが、標本を生む境界 (反復・駆動・certified sink・
+    production factory) はすべて production の封印を要求するため、試験用の封印から
+    certified な標本は 1 つも作れない。
+    **閉じていないのは次である。marker 不在の campaign を報告時だけ B-4 と名乗ること。
+    COMMIT の後に lock を書き換えて B-4 と名乗り直すこと。**
+    **marker は依然として必要条件であって十分条件ではない。**
   - **certified の実行主体は認証されない。** production factory は `PATH` 上の `claude` を
     解決するだけで、その binary の identity を認証しない。PATH 上に schema 適合の偽 `claude` を
     置けば、任意の決定について `evidence_class=="certified"` の receipt を作れる。
   - **pair の完全性と receipt shopping。** 関門は receipt 1 枚を検証するが、on と off が同じ
     block・同じ precursor・同じ model/prompt から来たことを強制しない。複数の pair を作り
     都合のよい receipt を選ぶ経路が残る (同一 receipt の再消費だけは閉じた)。
+
+  **起動器が保証しないこと (2026-08-27):** 同一 process からの closure 内省と module 属性の
+  書換えに対する耐性は保証しない。Python では `__closure__` の走査を塞げないため、
+  同一 process 内から封印と発行者へ到達できる。**閉じたとは書かない。**
+  内省を要しない素直な経路 (任意の封印を受け取る生成関数が module の属性として見えること) は
+  塞いである。
 
   同 module が保証しないことは receipt の非保証 field に列挙してある — 間接識別子
   (variant label / src token / genome label / WAL 由来自由文) の非開示、報告されない local な
