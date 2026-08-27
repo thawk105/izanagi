@@ -74,6 +74,14 @@ M7 -> test_replay_manifest_forwards_external_task_manifest_digest_at_loader_boun
 M4/M5 -> test_aggregate_verified_rejects_adjudication_oracle_kind_mismatch
 M6 -> test_aggregate_verified_rejects_cross_task_equivalent_from_manifest_union
 M8 -> test_load_adjudication_dimension_join_failure_is_reasoned_and_not_joined
+
+T-1434 oracle-wiring-slice mutation nodes:
+OR-M1 -> test_or_m1_loader_pins_checked_in_slice_semantic_sha
+OR-M2 -> test_or_m2_main_rejects_forbidden_slice_command_before_side_effect
+OR-M3 -> test_or_m3_production_validator_rejects_projection_change
+OR-M6 diagnostic -> test_or_m6_adjudication_reason_is_task_specific_for_checked_slice
+OR-M6 dual-layer correctness -> test_or_m6_checked_slice_full_cli_rejects_cross_task_finding
+OR-M7 -> test_or_m7_checked_slice_keeps_acceptance_unbound_when_valid
 """
 from __future__ import annotations
 
@@ -100,6 +108,15 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TOOL_PATH = _ROOT / "tools" / "codex_reasoning_ab.py"
+_WIRING_SLICE_PATH = (
+    _ROOT
+    / "output/t189-routing-preregistration/task-oracle-wiring-slice-v1.json"
+)
+_WIRING_SLICE_SHA256 = (
+    "96a39ee259f985525df0a1206665dd331eb23b24e365b84e4558bfe115e75767"
+)
+_WIRING_SLICE_PROFILE = "t189-oracle-wiring-slice-v1"
+_WIRING_SLICE_TOOL_PATH = _ROOT / "tools/t189_oracle_wiring_slice.py"
 _SPEC = importlib.util.spec_from_file_location(
     "codex_reasoning_ab_under_test", _TOOL_PATH
 )
@@ -6131,6 +6148,175 @@ def test_task_manifest_loader_accepts_only_strict_canonical_json_object(
     )
 
 
+def test_or_m1_loader_pins_checked_in_slice_semantic_sha(tmp_path: Path) -> None:
+    assert TOOL._sha256(_WIRING_SLICE_PATH.read_bytes()) == _WIRING_SLICE_SHA256
+    assert TOOL._WIRING_SLICE_MANIFEST_RAW_SHA256 == _WIRING_SLICE_SHA256
+    assert TOOL.WIRING_SLICE.SLICE_SHA256 == _WIRING_SLICE_SHA256
+    loaded = TOOL._load_task_manifest(
+        _WIRING_SLICE_PATH,
+        profile=_WIRING_SLICE_PROFILE,
+    )
+    assert loaded["manifest_kind"] == "t189-task-oracle-wiring-slice"
+    assert TOOL._task_manifest_sha256(loaded) == _WIRING_SLICE_SHA256
+
+    mutated = copy.deepcopy(loaded)
+    mutated["tasks"]["T-1222-population-closure:plan:0"]["oracle_findings"][0][
+        "detection_condition"
+    ] += " A semantic mutation must not acquire the checked-in pin."
+    path = _canonical(tmp_path / "mutated-slice.json", mutated)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(path, profile=_WIRING_SLICE_PROFILE)
+    assert caught.value.reasons == (
+        "wiring_slice: semantic SHA-256 pin mismatch",
+    )
+
+
+def test_or_m3_production_validator_rejects_projection_change() -> None:
+    value = json.loads(_WIRING_SLICE_PATH.read_bytes())
+    value["tasks"]["T-1222-population-closure:plan:0"][
+        "known_finding_ids"
+    ] = ["wrong-finding"]
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._validate_task_manifest(value, profile=_WIRING_SLICE_PROFILE)
+    assert caught.value.reasons == (
+        "wiring_slice.tasks[T-1222-population-closure:plan:0]."
+        "known_finding_ids: oracle finding projection mismatch",
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    (
+        ("unknown", "wiring_slice: field set mismatch"),
+        (
+            "status",
+            "wiring_slice.tasks[T-1222-population-closure:plan:0]."
+            "task_acceptance_status: must be unbound",
+        ),
+        (
+            "kind-downgrade",
+            "task manifest kind downgrade from oracle wiring slice",
+        ),
+    ),
+)
+def test_production_loader_rejects_slice_schema_and_kind_downgrades(
+    mutation: str, expected: str,
+) -> None:
+    value = json.loads(_WIRING_SLICE_PATH.read_bytes())
+    if mutation == "unknown":
+        value["unknown"] = True
+    elif mutation == "status":
+        value["tasks"]["T-1222-population-closure:plan:0"][
+            "task_acceptance_status"
+        ] = "bound"
+    else:
+        value["manifest_kind"] = "t181-task-manifest"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._validate_task_manifest(value, profile=_WIRING_SLICE_PROFILE)
+    assert caught.value.reasons == (expected,)
+
+
+def test_slice_loader_rejects_missing_lf_without_weakening_t181_loader(
+    tmp_path: Path,
+) -> None:
+    slice_path = tmp_path / "slice-no-lf.json"
+    slice_path.write_bytes(_WIRING_SLICE_PATH.read_bytes()[:-1])
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(slice_path, profile=_WIRING_SLICE_PROFILE)
+    assert caught.value.reasons == (
+        "oracle wiring slice bytes must be sorted compact UTF-8 with exactly one LF",
+    )
+
+    t181_path = tmp_path / "t181-without-lf.json"
+    t181_path.write_bytes(TOOL._canonical_bytes(_synthetic_task_manifest())[:-1])
+    assert TOOL._load_task_manifest(t181_path)["manifest_kind"] == (
+        "t181-task-manifest"
+    )
+
+
+def test_slice_kind_requires_explicit_profile() -> None:
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._load_task_manifest(_WIRING_SLICE_PATH)
+    assert caught.value.reasons == ("task manifest kind mismatch",)
+
+
+def test_profile_rejects_complete_slice_field_removal_and_t181_envelope() -> None:
+    value = json.loads(_WIRING_SLICE_PATH.read_bytes())
+    for field in tuple(value):
+        if field not in {"manifest_kind", "schema_version", "tasks"}:
+            del value[field]
+    value["manifest_kind"] = "t181-task-manifest"
+    value["shared_provenance"] = copy.deepcopy(
+        TOOL.TASK_MANIFEST["shared_provenance"]
+    )
+    slice_task_fields = {
+        "fix_gate_eligible",
+        "oracle_findings",
+        "replay_artifact_sufficiency",
+        "routing_evidence_eligible",
+        "t189_stage_boundary",
+        "task_acceptance_status",
+    }
+    for task in value["tasks"].values():
+        for field in slice_task_fields:
+            task.pop(field, None)
+
+    TOOL._validate_task_manifest(value)
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._validate_task_manifest(value, profile=_WIRING_SLICE_PROFILE)
+    assert caught.value.reasons == (
+        "task manifest kind downgrade from oracle wiring slice",
+    )
+
+
+def test_t181_unknown_top_level_field_remains_accepted(tmp_path: Path) -> None:
+    value = _synthetic_task_manifest()
+    value["section8_complete"] = False
+    path = _canonical(tmp_path / "t181-extension.json", value)
+    assert TOOL._load_task_manifest(path) == value
+
+
+def test_pinned_verifier_loader_accepts_the_authenticated_regular_file() -> None:
+    loaded = TOOL._load_pinned_wiring_slice_module(_WIRING_SLICE_TOOL_PATH)
+    assert loaded.SLICE_KIND == "t189-task-oracle-wiring-slice"
+
+
+def test_pinned_verifier_loader_rejects_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(ImportError, match="unavailable or unsafe"):
+        TOOL._load_pinned_wiring_slice_module(tmp_path / "missing.py")
+
+
+def test_pinned_verifier_loader_rejects_symlink(tmp_path: Path) -> None:
+    path = tmp_path / "verifier.py"
+    path.symlink_to(_WIRING_SLICE_TOOL_PATH)
+    with pytest.raises(ImportError, match="unavailable or unsafe"):
+        TOOL._load_pinned_wiring_slice_module(path)
+
+
+def test_pinned_verifier_loader_rejects_one_byte_change(tmp_path: Path) -> None:
+    raw = bytearray(_WIRING_SLICE_TOOL_PATH.read_bytes())
+    raw[0] ^= 1
+    path = tmp_path / "verifier.py"
+    path.write_bytes(raw)
+    with pytest.raises(ImportError, match="SHA-256 pin mismatch"):
+        TOOL._load_pinned_wiring_slice_module(path)
+
+
+def test_pinned_verifier_loader_rejects_constant_change(tmp_path: Path) -> None:
+    original = (
+        b'SLICE_KIND = "t189-task-oracle-wiring-slice"'
+    )
+    replacement = (
+        b'SLICE_KIND = "t189-task-oracle-wiring-slicf"'
+    )
+    raw = _WIRING_SLICE_TOOL_PATH.read_bytes()
+    assert raw.count(original) == 1
+    path = tmp_path / "verifier.py"
+    path.write_bytes(raw.replace(original, replacement, 1))
+    with pytest.raises(ImportError, match="SHA-256 pin mismatch"):
+        TOOL._load_pinned_wiring_slice_module(path)
+
+
 def test_m11_task_manifest_loader_rejects_invalid_utf8_before_json_recovery(
     tmp_path: Path,
 ) -> None:
@@ -9559,6 +9745,14 @@ def test_task_manifest_cli_option_surface_is_closed() -> None:
             for action in parser._actions
         )
     }
+    profile_verbs = {
+        name
+        for name, parser in subparsers_action.choices.items()
+        if any(
+            "--task-manifest-profile" in action.option_strings
+            for action in parser._actions
+        )
+    }
     assert option_verbs == {
         "build-snapshot",
         "render-prompt",
@@ -9572,6 +9766,7 @@ def test_task_manifest_cli_option_surface_is_closed() -> None:
         "reveal-mapping",
     }
     assert "verify-snapshot" not in option_verbs
+    assert profile_verbs == option_verbs
     assert not option_verbs & {
         "freeze-stage2-plan-replayer",
         "replay-stage2-plan",
@@ -13212,26 +13407,41 @@ def _task_specific_adjudication_fixture(
     *,
     cross_task_reader: str | None = None,
     external_transport: bool = False,
+    fixed_task_manifest_path: Path | None = None,
 ) -> dict[str, Any]:
-    task_manifest_value = _synthetic_task_manifest(
-        (
-            ("alpha", "POS", "positive", "alpha-finding"),
-            ("beta", "NEG", "negative", "beta-finding"),
+    if fixed_task_manifest_path is None:
+        task_manifest_value = _synthetic_task_manifest(
+            (
+                ("alpha", "POS", "positive", "alpha-finding"),
+                ("beta", "NEG", "negative", "beta-finding"),
+            )
         )
-    )
-    task_manifest_path = (
-        _canonical(tmp_path / "task-manifest.json", task_manifest_value)
-        if external_transport
-        else None
-    )
-    task_manifest = (
-        TOOL._load_task_manifest(task_manifest_path)
-        if task_manifest_path is not None
-        else task_manifest_value
-    )
+        task_manifest_path = (
+            _canonical(tmp_path / "task-manifest.json", task_manifest_value)
+            if external_transport
+            else None
+        )
+        task_manifest = (
+            TOOL._load_task_manifest(task_manifest_path)
+            if task_manifest_path is not None
+            else task_manifest_value
+        )
+    else:
+        assert not external_transport
+        task_manifest_path = fixed_task_manifest_path
+        task_manifest = TOOL._load_task_manifest(
+            task_manifest_path,
+            profile=_WIRING_SLICE_PROFILE,
+        )
+    task_ids = tuple(task_manifest["tasks"])
+    assert len(task_ids) == 2
+    source_task_id, target_task_id = task_ids
+    source_finding_id = task_manifest["tasks"][source_task_id][
+        "known_finding_ids"
+    ][0]
     task_manifest_sha256 = TOOL._task_manifest_sha256(task_manifest)
     schedule_rows: list[dict[str, Any]] = []
-    for task_number, task_id in enumerate(("alpha", "beta"), 1):
+    for task_number, task_id in enumerate(task_ids, 1):
         block_id = f"task-block-{task_number:02d}"
         for block_order, (arm, model) in enumerate(
             (("max", "gpt-5.6-sol"), ("high", "gpt-5.6-luna")),
@@ -13247,6 +13457,12 @@ def _task_specific_adjudication_fixture(
                     requested_model=model,
                 )
             )
+            schedule_rows[-1]["legacy_case"] = task_manifest["tasks"][task_id][
+                "legacy_case"
+            ]
+            schedule_rows[-1]["stage"] = task_manifest["tasks"][task_id][
+                "stage"
+            ]
     schedule = {
         "schema_version": TOOL.TASK_MANIFEST_SCHEMA_VERSION,
         "task_manifest_sha256": task_manifest_sha256,
@@ -13396,7 +13612,7 @@ def _task_specific_adjudication_fixture(
     cross_task_packet_id = next(
         row["packet_id"]
         for row in private["mapping"]
-        if slot_by_id[row["slot_id"]]["benchmark_task_id"] == "beta"
+        if slot_by_id[row["slot_id"]]["benchmark_task_id"] == target_task_id
     )
 
     verdict_inputs: dict[str, Path] = {}
@@ -13408,9 +13624,9 @@ def _task_specific_adjudication_fixture(
                 private_by_packet[packet_id]["slot_id"]
             ]
             task_id = mapped_slot["benchmark_task_id"]
-            finding_id = f"{task_id}-finding"
+            finding_id = task_manifest["tasks"][task_id]["known_finding_ids"][0]
             if reader == cross_task_reader and packet_id == cross_task_packet_id:
-                finding_id = "alpha-finding"
+                finding_id = source_finding_id
             verdict_rows.append(
                 {
                     "packet_id": packet_id,
@@ -13576,7 +13792,326 @@ def _task_specific_adjudication_fixture(
         "slots": slots,
         "task_manifest": task_manifest,
         "task_manifest_path": task_manifest_path,
+        "source_finding_id": source_finding_id,
+        "source_task_id": source_task_id,
+        "target_task_id": target_task_id,
     }
+
+
+def test_or_m2_main_rejects_forbidden_slice_command_before_side_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    snapshot = tmp_path / "must-not-exist"
+    sentinel_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    def side_effect_sentinel(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        sentinel_calls.append((args, kwargs))
+        raise AssertionError("build_snapshot side-effect sentinel reached")
+
+    monkeypatch.setattr(TOOL, "build_snapshot", side_effect_sentinel)
+    rc = TOOL.main(
+        [
+            "build-snapshot",
+            "--snapshot", os.fspath(snapshot),
+            "--benchmark-task-id", "T-1222-population-closure:plan:0",
+            "--task-manifest", os.fspath(_WIRING_SLICE_PATH),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == TOOL.RC_ROUTING
+    assert result["valid"] is False
+    assert result["failure_reasons"] == [
+        "oracle wiring slice command is not allowed: build-snapshot"
+    ]
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+    assert sentinel_calls == []
+    assert not snapshot.exists()
+
+
+def test_profile_pin_failure_full_cli_keeps_conservative_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(TOOL, "_WIRING_SLICE_MANIFEST_RAW_SHA256", "0" * 64)
+    rc = TOOL.main(
+        [
+            "verify",
+            "--manifest", os.fspath(tmp_path / "unused-material.json"),
+            "--sessions-root", os.fspath(tmp_path / "sessions"),
+            "--task-manifest", os.fspath(_WIRING_SLICE_PATH),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == TOOL.RC_ROUTING
+    assert result["valid"] is False
+    assert result["failure_reasons"] == [
+        "oracle wiring slice raw SHA-256 pin mismatch"
+    ]
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+
+
+def test_tampered_slice_semantic_pin_failure_full_cli_is_conservative(
+    tmp_path: Path,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    value = json.loads(_WIRING_SLICE_PATH.read_bytes())
+    value["tasks"]["T-1222-population-closure:plan:0"]["oracle_findings"][0][
+        "detection_condition"
+    ] += " Tampered."
+    path = _canonical(tmp_path / "tampered-slice.json", value)
+    rc = TOOL.main(
+        [
+            "verify",
+            "--manifest", os.fspath(tmp_path / "unused-material.json"),
+            "--sessions-root", os.fspath(tmp_path / "sessions"),
+            "--task-manifest", os.fspath(path),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == TOOL.RC_ROUTING
+    assert result["valid"] is False
+    assert result["failure_reasons"] == [
+        "wiring_slice: semantic SHA-256 pin mismatch"
+    ]
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+
+
+@pytest.mark.parametrize("mutation", ("missing", "schema"))
+def test_profile_hint_normalizes_load_and_schema_failures(
+    mutation: str,
+    tmp_path: Path,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "slice.json"
+    if mutation == "schema":
+        value = json.loads(_WIRING_SLICE_PATH.read_bytes())
+        value["unknown"] = True
+        _canonical(path, value)
+    rc = TOOL.main(
+        [
+            "verify",
+            "--manifest", os.fspath(tmp_path / "unused-material.json"),
+            "--sessions-root", os.fspath(tmp_path / "sessions"),
+            "--task-manifest", os.fspath(path),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == TOOL.RC_ROUTING
+    assert result["valid"] is False
+    if mutation == "missing":
+        assert result["failure_reasons"][0].startswith(
+            "cannot read profiled task manifest"
+        )
+    else:
+        assert result["failure_reasons"] == [
+            "wiring_slice: field set mismatch"
+        ]
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+
+
+def test_slice_verify_early_failure_is_incomplete_and_undecided(
+    tmp_path: Path,
+) -> None:
+    task_manifest = TOOL._load_task_manifest(
+        _WIRING_SLICE_PATH,
+        profile=_WIRING_SLICE_PROFILE,
+    )
+    result, rc = TOOL.verify_manifest(
+        tmp_path / "unused-material.json",
+        sessions_root=None,
+        task_manifest=task_manifest,
+    )
+    assert rc == TOOL.RC_AGGREGATE
+    assert result["valid"] is False
+    assert result["failure_reasons"] == ["sessions-root is required"]
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+
+
+@pytest.mark.parametrize("entrypoint", ("verify", "aggregate"))
+def test_or_m7_checked_slice_keeps_acceptance_unbound_when_valid(
+    entrypoint: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path,
+        monkeypatch,
+        fixed_task_manifest_path=_WIRING_SLICE_PATH,
+    )
+    assert all(
+        result["appended"] == 4
+        for result in fixture["append_results"].values()
+    )
+    rc = TOOL.main(
+        [
+            entrypoint,
+            "--manifest", os.fspath(fixture["manifest_path"]),
+            "--sessions-root", os.fspath(fixture["sessions_root"]),
+            "--task-manifest", os.fspath(_WIRING_SLICE_PATH),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == 0
+    assert result["valid"] is True
+    assert result["experiment_complete"] is True
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+
+
+def test_slice_material_digest_mismatch_full_cli_is_incomplete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path,
+        monkeypatch,
+        fixed_task_manifest_path=_WIRING_SLICE_PATH,
+    )
+    material = copy.deepcopy(fixture["manifest"])
+    material["task_manifest_sha256"] = "0" * 64
+    fixture["manifest_path"].write_bytes(TOOL._canonical_bytes(material))
+
+    rc = TOOL.main(
+        [
+            "verify",
+            "--manifest", os.fspath(fixture["manifest_path"]),
+            "--sessions-root", os.fspath(fixture["sessions_root"]),
+            "--task-manifest", os.fspath(_WIRING_SLICE_PATH),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == TOOL.RC_AGGREGATE
+    assert result["valid"] is False
+    assert "material manifest task_manifest_sha256 mismatch" in result[
+        "failure_reasons"
+    ]
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+
+
+@pytest.mark.parametrize("entrypoint", ("verify", "aggregate"))
+def test_or_m6_checked_slice_full_cli_rejects_cross_task_finding(
+    entrypoint: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path,
+        monkeypatch,
+        cross_task_reader="parent",
+        fixed_task_manifest_path=_WIRING_SLICE_PATH,
+    )
+    assert all(
+        result["appended"] == 4
+        for result in fixture["append_results"].values()
+    )
+    target = next(
+        row
+        for row in fixture["logged_rows"]
+        if row["packet_id"] == fixture["cross_task_packet_id"]
+        and row["reader"] == "parent"
+    )
+    assert target["findings"][0]["equivalent_to"] == fixture[
+        "source_finding_id"
+    ]
+
+    rc = TOOL.main(
+        [
+            entrypoint,
+            "--manifest", os.fspath(fixture["manifest_path"]),
+            "--sessions-root", os.fspath(fixture["sessions_root"]),
+            "--task-manifest", os.fspath(_WIRING_SLICE_PATH),
+            "--task-manifest-profile", _WIRING_SLICE_PROFILE,
+        ]
+    )
+    result = json.loads(capfd.readouterr().out)
+    assert rc == TOOL.RC_AGGREGATE
+    assert result["valid"] is False
+    assert result["experiment_complete"] is False
+    assert result["decision"] is None
+    assert result["task_acceptance_status"] == "unbound"
+    assert result["fix_gate_eligible"] is False
+    assert result["routing_evidence_eligible"] is False
+    assert result["routing_evidence_status"] == "inconclusive"
+    assert any(
+        "finding equivalent_to is unknown for benchmark task "
+        f"{fixture['target_task_id']}" in reason
+        for reason in result["failure_reasons"]
+    )
+
+
+def test_or_m6_adjudication_reason_is_task_specific_for_checked_slice(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _task_specific_adjudication_fixture(
+        tmp_path,
+        monkeypatch,
+        cross_task_reader="parent",
+        fixed_task_manifest_path=_WIRING_SLICE_PATH,
+    )
+    joined, reasons = TOOL._load_adjudication(
+        fixture["manifest_path"],
+        fixture["manifest"],
+        fixture["slots"],
+        fixture["final_attempts"],
+        snapshot_verified_run_ids={
+            attempt["run_id"]
+            for attempt in fixture["final_attempts"].values()
+        },
+        task_manifest=fixture["task_manifest"],
+    )
+    expected_reason = (
+        f"{fixture['cross_task_packet_id']}: parent finding equivalent_to "
+        "is unknown "
+        f"for benchmark task {fixture['target_task_id']}: "
+        f"{fixture['source_finding_id']}"
+    )
+    assert reasons.count(expected_reason) == 1
+    assert len(joined) == 4
 
 
 def test_replay_manifest_forwards_external_task_manifest_to_real_adjudication_loader(

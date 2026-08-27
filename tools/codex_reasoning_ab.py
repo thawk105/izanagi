@@ -24,6 +24,7 @@ import stat
 import subprocess
 import sys
 import time
+import types
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,6 +71,83 @@ except BaseException:
     if sys.modules.get(_PRICE_SNAPSHOT_MODULE_NAME) is PRICE_SNAPSHOT:
         sys.modules.pop(_PRICE_SNAPSHOT_MODULE_NAME, None)
     raise
+
+
+_WIRING_SLICE_TOOL_PATH = Path(__file__).with_name("t189_oracle_wiring_slice.py")
+_WIRING_SLICE_TOOL_SHA256 = (
+    "30b12be68ae67f0c78faefce77cdd27aa23fa63f9dc0bfd9e3473a2590817577"
+)
+WIRING_SLICE_PROFILE = "t189-oracle-wiring-slice-v1"
+_WIRING_SLICE_MANIFEST_KIND = "t189-task-oracle-wiring-slice"
+_WIRING_SLICE_MANIFEST_RAW_SHA256 = (
+    "96a39ee259f985525df0a1206665dd331eb23b24e365b84e4558bfe115e75767"
+)
+
+
+def _file_identity(metadata: os.stat_result) -> tuple[int, int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        stat.S_IFMT(metadata.st_mode),
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+
+
+def _load_pinned_wiring_slice_module(path: Path) -> types.ModuleType:
+    """Compile and execute the verifier bytes authenticated by this parent."""
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise ImportError(
+            f"oracle wiring slice verifier is unavailable or unsafe: {path}"
+        ) from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ImportError(
+                f"oracle wiring slice verifier is not a regular file: {path}"
+            )
+        with os.fdopen(os.dup(descriptor), "rb") as stream:
+            raw = stream.read()
+        after = os.fstat(descriptor)
+        if _file_identity(before) != _file_identity(after):
+            raise ImportError(
+                f"oracle wiring slice verifier changed while reading: {path}"
+            )
+    finally:
+        os.close(descriptor)
+    if hashlib.sha256(raw).hexdigest() != _WIRING_SLICE_TOOL_SHA256:
+        raise ImportError("oracle wiring slice verifier SHA-256 pin mismatch")
+
+    module_name = f"t189_oracle_wiring_slice_for_reasoning_ab_{uuid.uuid4().hex}"
+    module = types.ModuleType(module_name)
+    module.__file__ = os.fspath(path)
+    module.__package__ = "tools"
+    sys.modules[module_name] = module
+    try:
+        code = compile(raw, os.fspath(path), "exec")
+        original_dont_write_bytecode = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            exec(code, module.__dict__)
+        finally:
+            sys.dont_write_bytecode = original_dont_write_bytecode
+    except BaseException:
+        if sys.modules.get(module_name) is module:
+            sys.modules.pop(module_name, None)
+        raise
+    return module
+
+
+WIRING_SLICE = _load_pinned_wiring_slice_module(_WIRING_SLICE_TOOL_PATH)
+if (
+    WIRING_SLICE.SLICE_KIND != _WIRING_SLICE_MANIFEST_KIND
+    or WIRING_SLICE.SLICE_SHA256 != _WIRING_SLICE_MANIFEST_RAW_SHA256
+):
+    raise ImportError("oracle wiring slice verifier constants mismatch parent pins")
 
 
 LEGACY_SCHEMA_VERSION = 2
@@ -851,7 +929,7 @@ def derive_independent_golden(
     verify_source_sha: bool = True,
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> dict[str, bytes]:
-    _validate_task_manifest(task_manifest)
+    _validate_materialized_task_manifest(task_manifest)
     shared = task_manifest["shared_provenance"]
     auxiliary = shared["auxiliary_sessions"]
     paths = {
@@ -2590,6 +2668,8 @@ _resolve_benchmark_task_id = resolve_benchmark_task_id
 
 def _validate_task_manifest(
     manifest: Mapping[str, Any] = TASK_MANIFEST,
+    *,
+    profile: str | None = None,
 ) -> None:
     """Validate the v3 manifest envelope without validating live artifacts."""
     if not isinstance(manifest, Mapping):
@@ -2600,7 +2680,21 @@ def _validate_task_manifest(
         or schema_version != TASK_MANIFEST_SCHEMA_VERSION
     ):
         raise ValidationError("task manifest schema_version must be 3", RC_ROUTING)
-    if manifest.get("manifest_kind") != "t181-task-manifest":
+    manifest_kind = manifest.get("manifest_kind")
+    if profile is not None and profile != WIRING_SLICE_PROFILE:
+        raise ValidationError("task manifest profile mismatch", RC_ROUTING)
+    if profile == WIRING_SLICE_PROFILE:
+        if manifest_kind != _WIRING_SLICE_MANIFEST_KIND:
+            raise ValidationError(
+                "task manifest kind downgrade from oracle wiring slice",
+                RC_ROUTING,
+            )
+        try:
+            WIRING_SLICE.validate_wiring_slice(manifest)
+        except WIRING_SLICE.WiringSliceError as exc:
+            raise ValidationError(str(exc), RC_ROUTING) from exc
+        return
+    if manifest_kind != "t181-task-manifest":
         raise ValidationError("task manifest kind mismatch", RC_ROUTING)
     tasks = _manifest_tasks(manifest)
     for key, task in tasks.items():
@@ -2670,17 +2764,66 @@ def _validate_task_manifest(
             )
 
 
+def _validate_materialized_task_manifest(
+    manifest: Mapping[str, Any] = TASK_MANIFEST,
+) -> None:
+    """Validate an in-memory manifest after its transport boundary was checked."""
+    profile = (
+        WIRING_SLICE_PROFILE
+        if isinstance(manifest, Mapping)
+        and manifest.get("manifest_kind") == _WIRING_SLICE_MANIFEST_KIND
+        else None
+    )
+    _validate_task_manifest(manifest, profile=profile)
+
+
 validate_task_manifest = _validate_task_manifest
 
 
-def _load_task_manifest(path: Path) -> dict[str, Any]:
-    """Load one strict UTF-8 JSON task-manifest envelope."""
+def _read_profile_manifest_bytes(path: Path) -> bytes:
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
     try:
-        raw = path.read_bytes()
+        descriptor = os.open(path, flags)
     except OSError as exc:
         raise ValidationError(
-            f"cannot read task manifest {path}: {exc}", RC_ROUTING
+            f"cannot read profiled task manifest {path}: unsafe or unavailable",
+            RC_ROUTING,
         ) from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValidationError(
+                "profiled task manifest must be a non-symlink regular file",
+                RC_ROUTING,
+            )
+        with os.fdopen(os.dup(descriptor), "rb") as stream:
+            raw = stream.read()
+        after = os.fstat(descriptor)
+        if _file_identity(before) != _file_identity(after):
+            raise ValidationError(
+                "profiled task manifest changed while reading",
+                RC_ROUTING,
+            )
+        return raw
+    finally:
+        os.close(descriptor)
+
+
+def _load_task_manifest(
+    path: Path, *, profile: str | None = None,
+) -> dict[str, Any]:
+    """Load one strict UTF-8 JSON task-manifest envelope."""
+    if profile is not None and profile != WIRING_SLICE_PROFILE:
+        raise ValidationError("task manifest profile mismatch", RC_ROUTING)
+    if profile == WIRING_SLICE_PROFILE:
+        raw = _read_profile_manifest_bytes(path)
+    else:
+        try:
+            raw = path.read_bytes()
+        except OSError as exc:
+            raise ValidationError(
+                f"cannot read task manifest {path}: {exc}", RC_ROUTING
+            ) from exc
     try:
         text = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError as exc:
@@ -2711,14 +2854,71 @@ def _load_task_manifest(path: Path) -> dict[str, Any]:
         ) from exc
     if not isinstance(value, dict):
         raise ValidationError("task manifest is not an object", RC_ROUTING)
-    _validate_task_manifest(value)
+    _validate_task_manifest(value, profile=profile)
+    if (
+        profile == WIRING_SLICE_PROFILE
+        and raw != _canonical_bytes(value)
+    ):
+        raise ValidationError(
+            "oracle wiring slice bytes must be sorted compact UTF-8 "
+            "with exactly one LF",
+            RC_ROUTING,
+        )
+    if (
+        profile == WIRING_SLICE_PROFILE
+        and hashlib.sha256(raw).hexdigest()
+        != _WIRING_SLICE_MANIFEST_RAW_SHA256
+    ):
+        raise ValidationError(
+            "oracle wiring slice raw SHA-256 pin mismatch",
+            RC_ROUTING,
+        )
     return value
+
+
+def _require_task_manifest_command(
+    task_manifest: Mapping[str, Any], command: str, *, profile: str | None = None,
+) -> None:
+    if (
+        profile == WIRING_SLICE_PROFILE
+        and command not in WIRING_SLICE.SUPPORTED_COMMANDS
+    ):
+        raise ValidationError(
+            f"oracle wiring slice command is not allowed: {command}",
+            RC_ROUTING,
+        )
+
+
+def _with_wiring_slice_status(
+    result: Mapping[str, Any],
+    task_manifest: Mapping[str, Any] | None = None,
+    *,
+    profile: str | None = None,
+) -> dict[str, Any]:
+    output = dict(result)
+    is_wiring_slice = profile == WIRING_SLICE_PROFILE or (
+        task_manifest is not None
+        and task_manifest.get("manifest_kind") == _WIRING_SLICE_MANIFEST_KIND
+    )
+    if is_wiring_slice:
+        output.update(
+            {
+                "task_acceptance_status": "unbound",
+                "fix_gate_eligible": False,
+                "routing_evidence_eligible": False,
+                "routing_evidence_status": "inconclusive",
+            }
+        )
+        if output.get("valid") is False:
+            output["experiment_complete"] = False
+            output["decision"] = None
+    return output
 
 
 def _task_manifest_sha256(
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> str:
-    _validate_task_manifest(task_manifest)
+    _validate_materialized_task_manifest(task_manifest)
     try:
         canonical = _canonical_bytes(task_manifest)
     except (TypeError, ValueError) as exc:
@@ -2890,7 +3090,7 @@ def normalize_legacy_schedule(
     The live _validate_schedule path calls this compatibility normalizer before
     supervisor or replay consumers receive a slot.
     """
-    _validate_task_manifest(manifest)
+    _validate_materialized_task_manifest(manifest)
     if (
         not isinstance(schedule, Mapping)
         or schedule.get("schema_version") != LEGACY_SCHEMA_VERSION
@@ -2925,7 +3125,7 @@ def normalize_schedule(
     The live _validate_schedule path calls this normalizer before supervisor or
     replay consumers receive a slot.
     """
-    _validate_task_manifest(manifest)
+    _validate_materialized_task_manifest(manifest)
     if not isinstance(schedule, Mapping):
         raise ValidationError("schedule is not an object", RC_ROUTING)
     version = schedule.get("schema_version")
@@ -3043,6 +3243,26 @@ def known_finding_ids_for_manifest(
 
 
 _known_finding_ids_for_manifest = known_finding_ids_for_manifest
+
+
+def _adjudication_known_finding_ids_for_task(
+    task_manifest: Mapping[str, Any], benchmark_task_id: str,
+) -> set[str]:
+    """OR-M6 diagnostic anchor: narrow revealed verdicts to their task."""
+    return known_finding_ids_for_manifest(
+        task_manifest,
+        benchmark_task_id=benchmark_task_id,
+    )
+
+
+def _aggregate_known_finding_ids_for_task(
+    task_manifest: Mapping[str, Any], benchmark_task_id: str,
+) -> set[str]:
+    """OR-M6 correctness anchor: independently narrow aggregate inputs."""
+    return known_finding_ids_for_manifest(
+        task_manifest,
+        benchmark_task_id=benchmark_task_id,
+    )
 
 
 def _prepare_snapshot_case(
@@ -9402,9 +9622,9 @@ def _load_adjudication(
         parent_verdict = reader_rows.get("parent", {})
         second_verdict = reader_rows.get("second-reader", {})
         try:
-            known_finding_ids = known_finding_ids_for_manifest(
+            known_finding_ids = _adjudication_known_finding_ids_for_task(
                 task_manifest,
-                benchmark_task_id=dimensions["benchmark_task_id"],
+                dimensions["benchmark_task_id"],
             )
         except ValidationError as exc:
             reasons.extend(f"{packet_id}: {reason}" for reason in exc.reasons)
@@ -10217,9 +10437,9 @@ def _aggregate_verified(
             if not isinstance(finding, dict):
                 continue
             equivalent = finding.get("equivalent_to")
-            known_finding_ids = known_finding_ids_for_manifest(
+            known_finding_ids = _aggregate_known_finding_ids_for_task(
                 task_manifest,
-                benchmark_task_id=dimensions["benchmark_task_id"],
+                dimensions["benchmark_task_id"],
             )
             if equivalent is not None and equivalent not in known_finding_ids:
                 reasons.append(f"{slot_id}: unknown equivalent finding id")
@@ -10570,7 +10790,7 @@ def _aggregate_verified(
     }
     if normalized_cost_axis_ledger is not None:
         result["normalized_cost_axis_ledger"] = normalized_cost_axis_ledger
-    return result
+    return _with_wiring_slice_status(result, task_manifest)
 
 
 def _validate_supervisor_ledger(
@@ -11275,13 +11495,14 @@ def verify_manifest(
     task_manifest: Mapping[str, Any] = TASK_MANIFEST,
 ) -> tuple[dict[str, Any], int]:
     if sessions_root is None:
-        return {
+        output = {
             "schema_version": SCHEMA_VERSION,
             "task_manifest_sha256": _task_manifest_sha256(task_manifest),
             "valid": False,
             "failure_reasons": ["sessions-root is required"],
             "certification_scope": _certification_scope(),
-        }, RC_AGGREGATE
+        }
+        return _with_wiring_slice_status(output, task_manifest), RC_AGGREGATE
     try:
         slots, attempts, verdicts, reasons = _replay_manifest(
             manifest_path,
@@ -11307,6 +11528,7 @@ def verify_manifest(
         "task_manifest_sha256", _task_manifest_sha256(task_manifest)
     )
     output["certification_scope"] = _certification_scope()
+    output = _with_wiring_slice_status(output, task_manifest)
     return output, 0 if output.get("valid") else RC_AGGREGATE
 
 
@@ -11889,6 +12111,10 @@ def _add_benchmark_task_selector(
 
 def _add_task_manifest_option(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--task-manifest", type=Path)
+    parser.add_argument(
+        "--task-manifest-profile",
+        choices=(WIRING_SLICE_PROFILE,),
+    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -12065,11 +12291,29 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    task_manifest: Mapping[str, Any] = TASK_MANIFEST
+    task_manifest_profile = getattr(args, "task_manifest_profile", None)
     try:
+        if (
+            task_manifest_profile is not None
+            and getattr(args, "task_manifest", None) is None
+        ):
+            raise ValidationError(
+                "task manifest profile requires --task-manifest",
+                RC_ROUTING,
+            )
         task_manifest = (
-            _load_task_manifest(args.task_manifest)
+            _load_task_manifest(
+                args.task_manifest,
+                profile=task_manifest_profile,
+            )
             if getattr(args, "task_manifest", None) is not None
             else TASK_MANIFEST
+        )
+        _require_task_manifest_command(
+            task_manifest,
+            args.command,
+            profile=task_manifest_profile,
         )
         benchmark_task_id: str | None = None
         if args.command in {
@@ -12291,6 +12535,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 }
             )
         rc = exc.rc
+    result = _with_wiring_slice_status(
+        result,
+        task_manifest,
+        profile=task_manifest_profile,
+    )
     sys.stdout.buffer.write(_canonical_bytes(result))
     return rc
 
