@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
@@ -181,6 +182,7 @@ _RUNNER_BINDING_FIELDS = frozenset(
     {"tested_main", "nonce", "shard_count", "shard_index"}
 )
 _RUNNER_BINDING_REPORT_SCHEMA = "dev-wave-runner-binding-report/v1"
+_BOUND_XDIST_ROOT_RESULT_FIELD = "bound_xdist_distribution_root"
 _RUNNER_BINDING_REPORT_FIELDS = frozenset(
     {
         "schema_version",
@@ -192,16 +194,16 @@ _RUNNER_BINDING_REPORT_FIELDS = frozenset(
     }
 )
 _BOUND_RUNNER_BOOTSTRAP = (
-    "import os,sys\n"
-    "if os.environ.get('PYTHONDONTWRITEBYTECODE'):\n"
-    "    sys.dont_write_bytecode = True\n"
+    "import sys\n"
+    "sys.dont_write_bytecode = True\n"
+    "sys.path.append(sys.argv[2])\n"
     "source = sys.stdin.buffer.read()\n"
     "namespace = {\n"
     "    '__name__': '_izanagi_acceptance_runner',\n"
     "    '__file__': sys.argv[1],\n"
     "}\n"
     "exec(compile(source, namespace['__file__'], 'exec'), namespace)\n"
-    "raise SystemExit(namespace['main'](sys.argv[2:]))\n"
+    "raise SystemExit(namespace['main'](sys.argv[3:]))\n"
 )
 # v1 を生成していた a34266d2 の正規 request overlay 集合。現行 tests の
 # allowlist と混ぜると、queue 待ち中の正規 v1 request を過剰拒否する。
@@ -856,6 +858,7 @@ def _run_bound_tests_child(
     argv: Sequence[str],
     child_env: Mapping[str, str],
     runner_binding: Mapping[str, Any],
+    xdist_distribution_root: Path,
 ) -> tuple[int, str]:
     canonical_runner_path = repo_root / "tools" / "run_tests.py"
     child_argv = [
@@ -864,6 +867,7 @@ def _run_bound_tests_child(
         "-c",
         _BOUND_RUNNER_BOOTSTRAP,
         str(canonical_runner_path),
+        str(xdist_distribution_root),
         *argv,
     ]
     blob = subprocess.run(
@@ -893,6 +897,44 @@ def _run_bound_tests_child(
         shell=False,
     )
     return int(completed.returncode), actual_digest
+
+
+def _resolve_xdist_distribution_root() -> Path:
+    """import 済み xdist を包含する distribution root だけを受理する。"""
+
+    try:
+        located = importlib.metadata.distribution(
+            "pytest-xdist"
+        ).locate_file("")
+        root = Path(located)
+    except Exception as exc:
+        raise DispatchError("cannot resolve pytest-xdist distribution root") from exc
+    if not root.is_absolute():
+        raise DispatchError("pytest-xdist distribution root is not absolute")
+    try:
+        resolved_root = root.resolve(strict=True)
+    except OSError as exc:
+        raise DispatchError("cannot resolve pytest-xdist distribution root") from exc
+    if not resolved_root.is_dir():
+        raise DispatchError("pytest-xdist distribution root is not a directory")
+
+    xdist_module = sys.modules.get("xdist")
+    module_file = getattr(xdist_module, "__file__", None)
+    if not isinstance(module_file, str):
+        raise DispatchError("imported xdist has no file path")
+    module_path = Path(module_file)
+    if not module_path.is_absolute():
+        raise DispatchError("imported xdist file path is not absolute")
+    try:
+        resolved_module_path = module_path.resolve(strict=True)
+        resolved_module_path.relative_to(resolved_root)
+    except (OSError, ValueError) as exc:
+        raise DispatchError(
+            "imported xdist is outside pytest-xdist distribution root"
+        ) from exc
+    if not resolved_module_path.is_file():
+        raise DispatchError("imported xdist file path is not a file")
+    return resolved_root
 
 
 def _runner_binding_report(
@@ -1157,6 +1199,7 @@ def _job_run(
     hostname = ""
     request_sha256: Optional[str] = None
     runner_report: Optional[dict[str, Any]] = None
+    bound_xdist_root: Optional[Path] = None
     try:
         if sys.version_info < (3, 10):
             raise DispatchError("interpreter version < 3.10")
@@ -1192,6 +1235,8 @@ def _job_run(
             ):
                 raise DispatchError("bound job envelope または PBS_JOBID が不正です")
         _import_probe_modules(spec)
+        if runner_binding is not None:
+            bound_xdist_root = _resolve_xdist_distribution_root()
 
         repo_root = Path(request["repo_root"]).resolve()
         requested_env = request.get("environment", {})
@@ -1229,11 +1274,13 @@ def _job_run(
         child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
         stage = "child"
         if runner_binding is not None:
+            assert bound_xdist_root is not None
             child_rc, actual_digest = _run_bound_tests_child(
                 repo_root,
                 argv,
                 child_env,
                 runner_binding,
+                bound_xdist_root,
             )
             runner_report = _runner_binding_report(runner_binding, actual_digest)
         else:
@@ -1272,6 +1319,8 @@ def _job_run(
     }
     if error is None and runner_report is not None:
         payload["runner_binding"] = runner_report
+        assert bound_xdist_root is not None
+        payload[_BOUND_XDIST_ROOT_RESULT_FIELD] = str(bound_xdist_root)
     try:
         _write_json_x(result_path, payload)
     except OSError:

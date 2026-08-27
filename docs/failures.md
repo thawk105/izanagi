@@ -8120,6 +8120,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
   `web_search` 由来の重複 key 行を探す。
 
+
+- **再発: 2026-08-27** — 本 wave が D1188 で恒久対処するまでの間に、
+  親が F259 を出した実物の走行 (99 行中 22 行が `web_search` item の `id` 重複) を
+  現行コードで再生し、因果を確定した。同 attempt の rollout 259 行に重複 key は無く、
+  反実仮想 (`stdout_invalid=False`) で `evidence_status=complete` になる。
+  **stdout 経路だけを直せば足りる**ことの実測根拠である。
+  F259 の恒久対応欄が挙げていた「検証側を緩めない」は維持した — 緩めたのは拒否の**定義域**であり、
+  成果物側の重複 key 拒否は 1 bit も変えていない。
+- **supersede: 2026-08-27** — 恒久対応欄の「子 prompt に Web 検索の禁止を絶対制約として書く」は D1149 のユーザー裁定で撤回された。Web 検索は許可され、拒否の定義域を成果物側へ限る形で D1188 が実装した。`DW-C01` の無条件禁止の文言も既裁定 [T-981] と整合する形へ改めた。
 ### F260. codex 子の成果物が 1 文字の非 NFC で全損した [コンテキスト浪費]
 
 - 事象: 段 2 の plan 子が 29,958 bytes の正常な成果物を出し `codex_exit_code=0`・
@@ -8210,6 +8219,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 受理条件は既に fail-closed である。欠けているのは**理由の記録**で、
   現状 receipt には「どの行のどの検査で落ちたか」が一切残らない。上記 3 案のうち
   「理由を receipt へ書く」はどの案を採っても要る。
+- **supersede: 2026-08-27** — 恒久対応欄が挙げた 3 案のうち「`evidence_status=invalid` の理由を receipt へ書く」と「stdout event の重複キー扱いを分離する」は本 wave で実装した (D1189 と D1188)。残る「consult / review 段で web_search を既定無効にする」は D1149 が却下しており、[T-981] の残件として [T-2040] でユーザー裁定へ返す。
 
 ### F264. 多軸で書いたテストが値側 literal の検査を恒真にした [恒真ゲート] [検査漏れ]
 
@@ -18738,3 +18748,81 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   既存記述の削減は安全義務の弱化になり、例外収容に必要な独立 3 例も本件 1 例しか無い。
 - 再発検知: consumer 焦点走。本件はこれで検出できた。閉包から外した file が実際には
   producer を起動していた場合、受入全走より前に赤で返る。
+
+### F726. 受入子を隔離した結果 user site の依存が消え、全 wave の受入が取れなくなった [恒真ゲート] [検査漏れ]
+
+- 事象: 2026-08-27 の午後、**受入全走が全 wave で取れなくなった。**
+  少なくとも 3 つの dev-wave (t2010 / t1981 / t2001) が land 前で停止し、
+  合計 10 回以上の受入投入がすべて `rc=70 / source_rc=16` で失敗した。
+  最後の緑受入は 14:27 (`tested_main = 98f61815c`)。
+- 根本原因: `b93861570` が `runner_binding` 経路を導入し、同 commit で計算ノードの
+  内側 runner に **`-I` (isolated mode) を新規追加**した。`-I` は `-s` を含むので
+  user site が `sys.path` から落ちる。**`pytest-xdist` は user site にしか無い**ため
+  import できず、`tools/run_tests.py` が `_PEGASUS_DISPATCH_RC` (=16) を返す。
+  発生点は同 file の内部 shard 検査による**無言の return** であり、
+  `K=1` の通常経路では逐語の診断が出る。**現れ方が K に依存するため、
+  wave ごとに症状が違って見えた** (逐語を見た wave と 0 byte stdout の wave が混在した)。
+- **機構は自分の受入で一度も実行されないまま着地した。** `b93861570` の commit message 自身が
+  「manifest が 1 key も無ければ現行の pathname 起動を維持する
+  (段階 P 自身の受入がこの経路を通る)」と書いており、
+  `git merge-base --is-ancestor b93861570 98f61815c` は偽である。
+- 恒久対応: D1187 — 外側で検証した distribution root を
+  positional argv で隔離子へ渡し、bootstrap は末尾 `append` するだけにする。
+  `-I` は維持する。**正例は実子を起動して marker JSON から `xdist.__file__` の
+  注入 root 配下性 / version / isolated・ignore_environment・no_user_site の 3 flag /
+  実行 digest を検査する** (`orchestrator/tests/test_pegasus_dispatch_compute.py` の
+  `test_bound_child_imports_xdist_from_validated_appended_root`)。
+  負例は注入除去・`.pth` と `usercustomize.py` の不実行・敵対的 `PYTHONUSERBASE` /
+  `PYTHONPATH`・外側検証の fail-closed の 4 面。
+- 再発検知: 受入が `rc=70 / source_rc=16` で落ちたら、まず
+  `request.json` に `runner_binding` があるかを見る。あれば束縛経路である。
+  計算ノードの子の rc=16 は `error: null` を伴い、例外ではなく**正常終了として 16 を返している**。
+  束縛経路だけが落ち非束縛の dispatch が通るなら本型を疑う。
+
+### F727. 別名で grep して実装を「未被覆」と誤判定した [検査漏れ]
+
+- 事象: 束縛起動の機構について「テスト参照 0 件、正例が存在しない」と 2 セッションが判断し、
+  親もそれを裁定文へ取り込んだ。**実際には正例が 3 本あった**
+  (`orchestrator/tests/test_pegasus_dispatch_compute.py` の
+  `test_bound_child_executes_main_blob_not_worktree` /
+  `test_bound_child_reports_digest_of_executed_buffer` /
+  `test_job_run_emits_exact_runner_binding_report_for_bound_request`)。
+- 根本原因: `_bound_runner` / `_BOUND_RUNNER` で grep したが、
+  **実体の関数名は `_run_bound_tests_child`** である。別名束縛を落とした。
+  定数 `_BOUND_RUNNER_BOOTSTRAP` の参照が 0 件だったのは事実で、
+  そこから「機構が未被覆」へ飛躍した。
+- 影響: 誤りのまま進むと**既存の正例を重複させる新テストを書く**ことになり、
+  実際に欠けていた面 (`-I` 下の dependency path) は空いたままになる。
+  本 wave では実装前に訂正され、新テストは dependency 面だけを足す形になった。
+- 恒久対応: memory `authoritative-closure-before-counting` /
+  `pin-closure-search` の再確認。**「N 件」「0 件」と書く前に、
+  識別子だけでなく呼出し関係で閉包を引く。** 定数名の不在を機構の不在の根拠にしない。
+- 再発検知: 「テスト参照 0 件」「未被覆」を主張する所見は、
+  **実体の関数名・呼出し関係で引き直したか**を確認してから採用する。
+
+### F728. repo 内の意図的な非 NFC fixture を読むだけで codex 子の成果物が全損する [コンテキスト浪費] [手順漏れ]
+
+- 事象: 段 3 の敵対レンズ 1 本が `codex_exit_code=0` / `validator_rc=0` /
+  成果物 7,543 bytes 健在のまま `evidence_status=invalid` で捨てられた。
+  728 秒を空費した。同じ prompt を地雷回避文つきで再投入すると rc=0 で通った。
+- 根本原因: `orchestrator/tests/test_check_docs.py` の 2 行 (NFC 検査自身の fixture) が
+  **意図的に非 NFC** である。子がその範囲を読むと、Codex CLI が tool 出力を
+  `custom_tool_call_output` として rollout へ**非 NFC のまま記録**し、
+  `tools/codex_worker_launch.py` の rollout NFC 検査が落として attempt ごと捨てられる。
+  **子が引用を選んだのではなく、読んだ時点で死ぬ。** 引用の禁止では防げない。
+  結合記号は **U+309A** (KATAKANA-HIRAGANA SEMI-VOICED SOUND MARK) で、
+  F260 が名指しする U+0300-U+036F の**範囲外**である。既存の対策文言は 1 文字も防げない。
+- 地雷の所在は完全に特定した。親が tracked 16,077 file を全走査し、
+  **非 NFC はこの 1 file 2 行だけ**であることを実測した。
+- 恒久対応: 現時点では**運用回避だけ**である。親が段 3・5・6 の全子 prompt へ
+  「当該 2 行を含む範囲を読むな。行番号で避けろ」を入れ、再投入と後続の子 4 本が
+  すべて rc=0 で通ることを実測した。**恒久対処は
+  [T-2041] でユーザー裁定へ返す** — 候補は
+  (a) fixture を実行時合成へ変え repo 内 bytes を NFC に保つ (親の推奨)、
+  (b) rollout の NFC 検査を tool 出力の記録に限って緩める (規律 2 の面に触れるため推奨しない)、
+  (c) 恒久的に prompt へ回避を書き続ける。
+- 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
+  `invalid` かつ `codex_exit_code=0` なら stdout と rollout の各行を
+  `unicodedata.normalize('NFC', s) == s` で走査する。非 NFC 行が
+  `custom_tool_call_output` なら本型である (子の作文由来の F260 と区別できる)。
+  repo 側の全走査は `git ls-files` 全件に同じ述語を当てれば取れる。

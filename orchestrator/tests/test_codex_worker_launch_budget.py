@@ -387,6 +387,9 @@ def _run_case(
 def _as_v3(receipt_v4: dict[str, Any]) -> dict[str, Any]:
     receipt = copy.deepcopy(receipt_v4)
     receipt["schema_version"] = 3
+    receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
+    for attempt in receipt["attempts"]:
+        attempt.pop("evidence_issues")
     receipt["limits"].pop("preparation_admission_bound_s")
     receipt["limits"].pop("finalization_admission_bound_s")
     receipt["actuals"].pop("preparation_wall_clock_s")
@@ -438,7 +441,7 @@ def _accepted_case(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Path]]:
     _completed, receipt, paths = _run_case(
         tmp_path / "accepted", expected_rc=0
     )
-    assert receipt["schema_version"] == 4
+    assert receipt["schema_version"] == 5
     assert receipt["outcome"] == "accepted"
     return receipt, paths
 
@@ -885,7 +888,7 @@ def test_check_receipt_accepts_v4_and_binds_all_three_limits(
 
     assert completed.returncode == 0, completed.stderr
     report = json.loads(completed.stdout)
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 5
     assert report["limits_self_asserted"] == []
 
 

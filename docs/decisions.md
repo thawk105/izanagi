@@ -39560,3 +39560,145 @@ flag・環境変数・「manifest 無しなら申告を要求しない」とい�
   tip 側の待ち手が環境を落とすだけで執行を外せる。
 - **launcher が dispatch 可否を自分で判定して要求を切り替える** — 判定に使う module が
   tip 側なので、束縛の起点を被検査側へ戻すことになる。
+
+## D1187. 束縛 runner の dependency は外側で検証した path を argv で渡して開ける (2026-08-27)
+
+**決定:** 計算ノードの束縛 runner (`tools/pegasus/dispatch_compute.py` の
+`_run_bound_tests_child`) が `-I` によって user site を失い `pytest-xdist` を見失う障害を、
+次の形で直す。**`-I` は維持する。**
+
+1. **外側の `_job_run()`** (非隔離、既に import probe 済み) で
+   `importlib.metadata.distribution("pytest-xdist").locate_file("")` から root を解決する。
+2. 外側で **絶対 path** ・ **実在 directory** ・ **import 済み `xdist.__file__` の包含**を検査し、
+   どれかを満たさなければ `DispatchError` で **fail-closed** に止める。
+3. 検証済みの root を **positional argv** で隔離子へ渡す。**環境変数では渡さない。**
+4. `_BOUND_RUNNER_BOOTSTRAP` は source を compile する前に **`sys.path.append()`** するだけとし、
+   **子の中で `site` にも `os.environ` にも問い合わせない。**
+5. 注入した root を result payload の `bound_xdist_distribution_root` へ記録する。
+
+**先頭挿入 (`sys.path.insert(0, ...)`) と `site.addsitedir()` は禁止する。**
+
+**理由:**
+
+- **`site.getusersitepackages()` は使えない。倒れ方が逆である。**
+  `PYTHONUSERBASE` を差し替えると `site` 経路は攻撃者の path を黙って返し (fail-open)、
+  `importlib.metadata` 経路は `PackageNotFoundError` で止まる (fail-closed)。
+  `-I` は startup の環境解釈を止めるが `site._getuserbase()` の `os.environ` 読取りは止めない。
+  子の中で `site` に問い合わせると **`-I` が閉じた注入面を開き直す**。
+- **テストの受理集合は広がらない。** 実 pytest 子は元から `-I` 無しで起動されており
+  (`tools/run_tests.py` の `cmd = [python_executable, "-m", "pytest"]`)、
+  テスト本体は user site を既に見えていた。壊れていたのは**可用性を判定する gate が
+  隔離側にあった**点だけである。広がるのは control runner 自身の import 面であり、
+  そこを guardrail で狭める。
+- **末尾 `append` に限れば `.pth` と `usercustomize` は実行されない。**
+  先頭挿入は system site を shadow して**従来通っていた入力を新規拒否**しうる
+  (受理集合を狭める方向の害)。`addsitedir` は `.pth` を実行してしまう。
+- **`-s` を落とすこと自体が必須防護だという契約は一次資料に存在しない。**
+  `-I` を入れた commit の message は「候補外 launcher が受領証を作る / blob bytes を stdin で渡す /
+  pathname から import しない / 実行後に blob を再取得して照合」を明記するが、
+  `-E` と `-s` の個別の脅威モデルは message にも diff の負例にも無い。
+  同 commit のテストも pathname 側を毒化するだけで user site を毒化していない。
+
+**却下した選択肢:**
+
+- **`PYTHONPATH` で復元** — `-I` が `-E` を含むため無効。`PYTHONPATH` は tests の
+  env allowlist にも無い。
+- **`-I` を廃止 / `-E` だけにする** — user site に加え `.pth` が追加する任意 directory、
+  `.pth` 内 `import` 行によるコード実行、`usercustomize` などの startup hook、
+  `-c` の cwd まで受理される。本決定より実質的に広く、隔離境界を実際に壊す。
+- **xdist を system site へ導入** — repo 外の環境変更。全 node への展開漏れと version drift を
+  repo の検査で固定できない。
+- **gate を実 pytest 子へ移す** — 設計としては最良だが `tools/run_tests.py` の変更を要し、
+  land が main と tip の blob 一致を要求するため wave branch で land できない。
+  **land 契約側の課題として別途起票した。**
+- **`runner_binding` 経路の機能撤退** — launcher が K 件の binding report を必須とするため
+  receipt が発行されない。診断には使えるが land 用の修理にならない。
+
+**この決定が保証しないこと:**
+
+- 末尾 `append` では user site の `.pth` が追加する path は復元されない。
+  **`.pth` 経由でしか入らない依存が将来要求されたとき、同じ無言 rc=16 が再発する。**
+- `tools/run_tests.py` は repository root 挿入より前に `packaging.version` を import するため、
+  **root 挿入前に import される module だけは user site から来うる。**
+
+## D1188. Codex CLI stdout の重複 key を許容する条件を 4 つの述語で閉じる (2026-08-27)
+
+**決定:** D1149 が要求した「Codex CLI 自身が吐く stdout event 行の重複 key を異常として記録し
+attempt を落とさない」を、`orchestrator/codex_roles/events.py` の**名前で opt-in する別入口**
+(`parse_jsonl_allowing_duplicate_keys`) として実装する。既存の `strict_json_loads` と
+`parse_jsonl` は署名も挙動も変えない。
+
+許容するのは次の T1〜T4 を**すべて**満たす行に限る。1 つでも欠ければ従来どおり拒否する。
+
+- **T1**: event object の top-level key が一意であること。重複は top-level より下でだけ許す。
+- **T2**: その event の `type` が `STDOUT_CONSUMED_EVENT_TYPES` に含まれないこと。
+  この定数は 1 箇所だけに置き、許容述語と `_consume_stdout_event` の**両方が参照する**。
+- **T3**: last-wins で捨てられる側を含む元 tree 全体が、既存の domain 検査
+  (UTF-8 / NFC / 有限数 / 深さ / key 型) を通ること。
+- **T4**: 重複 key 以外の拒否理由が 1 つも無いこと。
+
+許容した行は評価に一切寄与させず読み飛ばし、行番号を issue として記録する。
+
+**理由:**
+
+- **T1 と T2 が無いと D68 (4) の隠蔽が成立する。** last-wins 正規化だけでは
+  `{"type":"thread.started","thread_id":"不正","thread_id":"正当"}` のように
+  **先の値の不正を後の値で隠せる**。同型で `turn.completed` の `usage` も騙せ、
+  `{"type":"error","type":"thread.started",...}` は event 種そのものを化けさせられる。
+  段 3 の敵対レンズが 3 反例を構成し、親が経路で確認した。
+- **境界を key 名や `web_search` に結び付けない。** `id` を名指しで許すと CLI の次版で
+  別 key が重複したとき同じ全損が再発し、逆に「重複なら何でも許す」と T4 が崩れる。
+  境界は producer 固有入口と**意味射影**で閉じる。
+- **T2 を定数の共有で書く。** `_consume_stdout_event` が消費する型と許容述語が参照する型が
+  ずれると、将来 consume 対象が増えたときに隠蔽経路が開く。片方だけ拡張すると壊れる形にした。
+- **T3 は捨てられる側も検査する。** last-wins で消える値に domain 違反を置けば、
+  検査を通り抜けた不正値が「あったこと」自体が記録から消える。
+- 成果物側 (外側 event、最終 agent message、内側 `result_json`、rollout の 3 経路) の
+  重複 key 拒否は 1 bit も緩めない。規律 2 の面である。
+
+**却下した選択肢:**
+
+- **既存入口へ `allow_duplicates` 引数を足す** — 既定値の取り違えで全 consumer が緩む。
+  `strict_json_loads` は probe / launcher / run_codex_role の consumer を持つ。
+- **許容を `id` の重複だけに限る** — CLI の版に依存し、次版の別 key で再発する。
+- **重複 key の拒否そのものを外す** — D1149 が却下済み。成果物側の健全性検査に触れる。
+- **rollout 側も同じ入口へ寄せる** — 実測した attempt の rollout に重複 key は無く、
+  緩める必要が無い。evidence payload 境界の内側である。
+
+## D1189. evidence_status の complete は「致命的異常なし」であって「異常なし」ではない (2026-08-27)
+
+**決定:** codex worker receipt を schema v5 へ上げ、attempt へ `evidence_issues` を追加する。
+`evidence_status` の 3 値 (`complete` / `missing` / `invalid`) は変えないが、
+**`complete` の意味を「致命的異常が無い」へ改める。** 異常ゼロを要求する読み手は
+`evidence_issues` を読む。この規約を `_evidence_status` の docstring に書く。
+
+`missing` と `invalid` の判定順序は**従来どおり `missing` を先に置く**。
+
+v1〜v4 の receipt は従来の field 集合で読み、`evidence_issues` を要求しない。
+再計算時の照合も v5 のときだけ `evidence_issues` を比較する。
+
+**理由:**
+
+- D1149 と既裁定 [T-981] が「`evidence_status=invalid` の理由を receipt へ記録する」を要求する。
+  理由を残す場所が要り、既存 field は流用できない — `failure_class` は accepted 時に
+  `None` 必須で束縛されており、意味を壊す。
+- **前方非互換は version を上げても上げなくても避けられない。** attempt の field 集合は
+  `_closed_object` が完全一致 (`set(value) != fields`) を要求するので、field を 1 つ足せば
+  旧 reader は必ず拒否する。version を上げない利点が無いため上げる (診断が正確になる)。
+  この限界は主張せず記録する。
+- **判定順序を変えてはならない。** 致命的 issue を `missing` より先に判定すると、
+  session 欠落と stdout 異常を同時に持つ既存 v1〜v4 receipt が `missing` から `invalid` へ
+  再計算され、`check-receipt` が過去の正当な receipt を拒否する。
+  親が旧実装と新実装へ同一状態を与えて実測した。`missing` は既に fail-closed であり、
+  順序を戻しても受理集合は広がらない。
+- 理由の記録が無ければ、同じ `invalid` が重複 key 由来か非 NFC 由来かを次の走行が
+  推定でしか辿れない。本 wave 自身がその 2 種を 1 日で両方踏んだ。
+
+**却下した選択肢:**
+
+- **receipt へ新 field を足さず既存 field を流用する** (親の当初案) — 段 3 の 2 レンズが
+  独立に反対した。accepted な attempt の異常を意味を壊さずに書ける既存 field が無い。
+- **`evidence_status` に第 4 の値を足す** — 値を読む全 consumer の分岐が増え、
+  旧 receipt との意味互換も壊れる。
+- **schema を上げず optional field にする** — `_closed_object` の完全一致により
+  旧 reader の拒否は同じで、拒否理由の診断だけが不正確になる。
