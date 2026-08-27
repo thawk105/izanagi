@@ -60,6 +60,13 @@ title: [T-1825] 掃除で失われる commit を掃除の前に可視化する�
   (b) 変異走行中に計算ノードへ投入する検査を重ねて孤児 hold を作った
   ({{F:concurrent-dispatch-during-mutation-creates-orphan-hold}})。対象 job は `child_rc=0` で
   正常終了しており、手順どおり `qdel` を打たず終端を待って解消した。
+- **段 8 の自己改善は予算で止めて裁定へ返した。** 実測 2 件 (待ち手の通知経路、変異中の並行投入) を
+  `DW-C01` と `DW-M05` へ 1 行ずつ統合しようとしたが、`DW-C01` は現況 996 bytes に対し
+  単節予算 1000 bytes で空き 4 bytes、かつ節全体が exact 契約で pin されている。
+  `DW-M05` への 80 bytes は L1.5 の unique footprint を 9566 → 9644 にして予算を超える。
+  `docs/skill-self-improvement.md` は「予算に収まらなければ reference へ統合し、それでも
+  意味等価にできなければ変更を止めてユーザー裁定へ返す。予算値を上げる変更は独立審査対象」と
+  定めているので、変更を戻した。両件の恒久対応と再発検知は failures 台帳に入っている。
 - 子の工数: codex 子 11 本 (plan 1 / consult 2 / author 2 / review 2 / fix 3 / focus 1)。
   いずれも `gpt-5.6-sol` / `reasoning=xhigh`。うち fix 2 本は成果物ゼロで正しく停止した。
   子は sandbox の制約 (`qstat -Q` rc=1 → dispatch rc=16) で pytest を一度も実走できず、
@@ -92,6 +99,12 @@ title: [T-1825] 掃除で失われる commit を掃除の前に可視化する�
   削除時まで残る保証もない。是正には `docs/dev-wave/operations.md` の DW-O28 本文
   (「branch は `git branch -d` だけで消す」) の変更が要り、D978 の CAS 裁定は
   `/cleanup-branches` を対象として DW-O28 を対象としていない。
+- {{T:dev-wave-contract-budget-for-measured-corrections}} **P2・新規**: 実測で得た作法 2 件を
+  dev-wave の契約本文へ入れる余地を作るか裁定する。(a) 子の完了を待つ待ち手は通知が届く経路で
+  張ること (detach は完了を待たない生産者だけ)、(b) 変異走行中は同一 worktree からの
+  計算ノード投入も止めること。前者の宛先 `DW-C01` は空き 4 bytes で節全体が exact 契約、
+  後者の宛先 `DW-M05` は L1.5 予算を 78 bytes 超える。無損失圧縮で余地を作るか、
+  予算値を上げるか、契約本文へは入れず failures 台帳だけに留めるかの選択である。
 - {{T:rescue-notification-firing-point}} **P2・新規**: 到達不能 object の期限通知に、
   gc の窓 (既定 2 週間) に間に合う頻度の発火点を選ぶ。現行は `/cleanup-branches` §1 の
   手動起動だけで、実行間隔を記録から引けない。`tools/check_wave_startup.py` は全 wave 起動時に
