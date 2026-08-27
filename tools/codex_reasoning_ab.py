@@ -9368,6 +9368,9 @@ def _load_adjudication(
         for row in slots
         if row.get("slot_id") in final_attempts
     }
+    slot_dimensions = _slot_dimension_map(
+        slots, reasons, task_manifest=task_manifest
+    )
     for packet_id, mapping_row in mapping.items():
         run_id = mapping_row.get("run_id")
         if run_id not in snapshot_verified_run_ids:
@@ -9375,10 +9378,51 @@ def _load_adjudication(
                 f"{packet_id}: material packet source run lacks replayed "
                 f"snapshot evidence: {run_id}"
             )
+        slot = slot_by_run.get(run_id)
+        attempt = next(
+            (
+                value
+                for value in final_attempts.values()
+                if value.get("run_id") == run_id
+            ),
+            None,
+        )
+        if slot is None or attempt is None:
+            reasons.append(f"{packet_id}: run_id join failed")
+            continue
+        slot_id = str(slot["slot_id"])
+        dimensions = slot_dimensions.get(slot_id)
+        if dimensions is None:
+            reasons.append(
+                f"{packet_id}: schedule slot dimension join failed: {slot_id}"
+            )
+            continue
         packet = packets.get(packet_id, {})
         reader_rows = verdict_by_packet.get(packet_id, {})
         parent_verdict = reader_rows.get("parent", {})
         second_verdict = reader_rows.get("second-reader", {})
+        try:
+            known_finding_ids = known_finding_ids_for_manifest(
+                task_manifest,
+                benchmark_task_id=dimensions["benchmark_task_id"],
+            )
+        except ValidationError as exc:
+            reasons.extend(f"{packet_id}: {reason}" for reason in exc.reasons)
+            continue
+        for reader, raw_verdict in reader_rows.items():
+            for finding in raw_verdict.get("findings", []):
+                if isinstance(finding, dict):
+                    equivalent = finding.get("equivalent_to")
+                    if (
+                        equivalent is not None
+                        and equivalent not in known_finding_ids
+                    ):
+                        reasons.append(
+                            f"{packet_id}: {reader} finding equivalent_to "
+                            "is unknown "
+                            f"for benchmark task {dimensions['benchmark_task_id']}: "
+                            f"{equivalent}"
+                        )
         agreement = parent_verdict.get("r1_detected") == second_verdict.get(
             "r1_detected"
         )
@@ -9404,6 +9448,7 @@ def _load_adjudication(
             and reader_findings["second-reader"].get("real") is True
         ]
         verdict = {
+            "oracle_kind": dimensions["oracle_kind"],
             "r1_detected": (
                 parent_verdict.get("r1_detected") is True
                 and second_verdict.get("r1_detected") is True
@@ -9416,14 +9461,6 @@ def _load_adjudication(
                 )
             ),
         }
-        slot = slot_by_run.get(run_id)
-        attempt = next(
-            (value for value in final_attempts.values() if value.get("run_id") == run_id),
-            None,
-        )
-        if slot is None or attempt is None:
-            reasons.append(f"{packet_id}: run_id join failed")
-            continue
         output_sha = attempt.get("output_sha256")
         if any(
             row.get("packet_sha256_at_read") != output_sha
@@ -10157,6 +10194,10 @@ def _aggregate_verified(
         if dimensions is None:
             continue
         verdict = verdicts.get(slot_id, {})
+        if verdict.get("oracle_kind") != dimensions["oracle_kind"]:
+            reasons.append(
+                f"{slot_id}: adjudication oracle_kind does not match scheduled slot"
+            )
         axis_key = tuple(dimensions.get(field) for field in _AXIS_FIELDS) + (
             dimensions["arm"],
         )

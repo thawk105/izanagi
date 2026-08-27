@@ -123,7 +123,9 @@ def _write_runner(
     source = f'''\
 def main(argv):
     del argv
+    import hashlib
     import json
+    import os
     from pathlib import Path
     import subprocess
 
@@ -178,6 +180,28 @@ def main(argv):
         raise SystemExit("child commit message mismatch")
     with phase.open("ab") as stream:
         stream.write(b"verified\\n")
+    binding_k = int(os.environ["IZANAGI_ACCEPTANCE_SHARDS"])
+    binding_source = Path(__file__).read_bytes()
+    binding_report = {{
+        "schema_version": "dev-wave-runner-binding-report/v1",
+        "tested_main": os.environ[
+            "IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN"
+        ],
+        "nonce": os.environ["IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE"],
+        "runner_executed_sha256": hashlib.sha256(binding_source).hexdigest(),
+        "shard_count": binding_k,
+        "shard_index": 0,
+    }}
+    binding_line = (json.dumps(
+        binding_report,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    ) + "\\n").encode("ascii")
+    os.write(
+        int(os.environ["IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD"]),
+        binding_line,
+    )
     print(
         'IZANAGI_EFFECTIVE_SCHEDULER_V1 '
         '{{"effective_scheduler":"serial"}}'
@@ -218,6 +242,7 @@ def _tool_environment(repo: Path) -> dict[str, str]:
         "GIT_AUTHOR_EMAIL": "boundary@example.invalid",
         "GIT_COMMITTER_NAME": "Boundary Test",
         "GIT_COMMITTER_EMAIL": "boundary@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
     assert "IZANAGI_WAVE_LEASE_DIR" not in env
     assert "PYTEST_ADDOPTS" not in env

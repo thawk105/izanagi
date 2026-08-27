@@ -177,9 +177,15 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   outcome を生成も閲覧もしない配線 probe に限る。「正式標本ではない」と分類して outcome を先に
   生成・閲覧することを禁じる。**build を伴う sanctioned CLI 経路はこの probe にならない** —
   同経路は次の synthesis を実行して primary / secondary outcome を生成するためである。
-  `--no-build` 経路も §3.1 の切替点を通らない (digest を生成しない) ため probe にならない。
-  その条件を満たす sanctioned CLI が無い場合は、用意されるまで
-  対象 driver と軸を記入しない。(i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
+  **`--no-build` 経路が probe にならない理由は driver ごとに異なる (2026-08-27 実測、[T-1769])。**
+  base と trigger では切替点が `do_build` の内側にあり到達しない。**sort では切替点が無条件であり
+  `--no-build` でも到達する。** それでも sort の `--no-build` は probe にならない — iteration を
+  実走して checkpoint と whiteboard 結果を書き、synthesis 記録を生成するためである。
+  **(ii) を実行する sanctioned CLI は `orchestrator/campaign/p3_b4_wiring_probe.py` として実在する
+  (2026-08-27 新設)。** ただし CLI の実在は (i) を充足せず、§5 の欄を埋める権限も与えない。
+  候補集合・各 exact command・証拠 path と hash・0 件/複数件の決定規則・記入者・レビュー者を
+  人間の指名を含む別 commit で先に freeze しない限り、対象 driver と軸を記入しない。
+  (i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
 - **赤 precursor の母集合**: B-4 の出力を見る前に freeze する。赤が出なかった block も
   除外・差替えせず「treatment 未発火」として全件報告する (§7)。
   **母集合を決める適格性述語・順序・選択関数・完全性要件は §5.1.1 で凍結済みである。**
@@ -700,14 +706,38 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
 
 ## 10. 本書が閉じないこと
 
-- **§5.1 (ii) を満たす非標本 probe。現時点で、その条件を満たす sanctioned CLI は存在しない。**
-  build を伴う経路は次の synthesis と outcome を生成するため probe にならず、`--no-build` 経路は
-  §3.1 の切替点を通らない。probe は §5.1 (ii) の 4 検査 (候補 driver で切替点を通ること、
+- **§5.1 (i) の先行 freeze と人間の指名。** §5.1 (ii) の 4 検査 (候補 driver で切替点を通ること、
   on で赤詳細が出現すること、off で §8 の項目 1・2 が成立すること、on/off の campaign identity が
-  分離すること) を、**next synthesis と primary / secondary outcome を生成も閲覧もせずに**
-  行えなければならない。§5.1 (i) の先行 freeze (候補集合・exact command・証拠 path と hash・
-  0 件/複数件の決定規則・記入者・レビュー者) も依存条件である。
-  **これが用意されるまで「対象 driver と軸」の欄は埋められず、したがって本書は発効しない。**
+  分離すること) を、**next synthesis と primary / secondary outcome を生成も閲覧もせずに**行う
+  sanctioned CLI は `orchestrator/campaign/p3_b4_wiring_probe.py` として実在する
+  (2026-08-27 新設、[T-1769])。outcome を生成しないことは、certified writer authorization・
+  loop state 永続化・whiteboard 射影の 3 権威点からの逆到達閉包を遮断集合とし、実 producer 9 本と
+  実 CLI 経路を名指しした負例で発火を示す機構で保証する
+  (変異 14 件: baseline 緑・KILLED 9・SURVIVED 5・MISMATCH 0)。
+  **本 wave の実走は道具の dogfood であり、§5.1 (ii) の採用証拠ではない。**
+  残るのは §5.1 (i) の先行 freeze — 候補集合・各 exact command・証拠 path と hash・
+  0 件/複数件の決定規則・**記入者とレビュー者** — であり、**人間の指名を含むため AI が確定できない。**
+  この先行 freeze を別 commit で固定し、その版に従って (ii) を実測するまで
+  **「対象 driver と軸」の欄は埋められず、したがって本書は発効しない。**
+
+- **probe が閉じないこと (2026-08-27 に実測して明記、[T-1769])。**
+  - **承認経路は deny-only の legacy 台帳を読む。** `make_critic_digest` は
+    `require_admitted_campaign` が発行する exact な型しか受け取らないため、この読みは迂回できない
+    (迂回は正しさゲートの緩和になる、規律 2)。読むのは legacy campaign 3 件の承認 metadata であって
+    B-4 の primary / secondary outcome ではなく、その 3 件の既知性は §9 が既に開示している。
+    probe は読んだ台帳の path と sha256 を証拠へ記録し、それ以外の実 campaign artifact を
+    1 件も読まないことを ledger で示す。
+  - **遮断集合は生成器の完全目録ではない。** 3 権威点のいずれにも到達しない生成器はこの層では
+    覆わない。閲覧側は隔離層 (保護領域の read/write 拒否) が受け持つ。
+  - **切替点通過の証拠は composite である。** 候補 driver の CLI 経路への静的到達性と、
+    probe から実 `make_critic_digest` を on/off 各 1 回呼んだ観測を併せたものであり、
+    **driver が runtime に切替点を通ったことは主張しない。**
+  - **trigger の site 射影 identity は、計測契約を発行できる site でしか測れない。**
+    login site では production が拒否するため「未測定」と記録する。
+  - **publish 直前の違反 ledger 照合 5 か所は到達不能である。** ledger へ追記する箇所は追記の直後に
+    必ず例外を送出するため、違反が記録されたまま publish へ到達する状態は起こらない。
+    両層同時変異でも生存することを実測した。多重防御として残すが発火する保証には数えない。
+  - **任意の native code や同権限 process による interpreter 改変は主張しない。**
 - 対象 driver と軸の選定そのもの (§5.1 の手順)。
 - 旧登録の B-4 記述を本書が supersede するかどうかのユーザー裁定。
 - **critic の決定と proposal 本文の因果的束縛。** 2026-08-26 の必須配線は、閉じた critic
