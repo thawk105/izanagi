@@ -1045,6 +1045,33 @@ def _write_exact_runner(repo: Path, source: str) -> None:
     (repo / "tools" / "run_tests.py").write_text(
         "def main(argv):\n"
         "    del argv\n"
+        "    import hashlib as _binding_hashlib\n"
+        "    import json as _binding_json\n"
+        "    import os as _binding_os\n"
+        "    _binding_fd = _binding_os.environ.get(\n"
+        "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD')\n"
+        "    _binding_nonce = _binding_os.environ.get(\n"
+        "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE')\n"
+        "    _binding_main = _binding_os.environ.get(\n"
+        "        'IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN')\n"
+        "    _binding_k = _binding_os.environ.get('IZANAGI_ACCEPTANCE_SHARDS')\n"
+        "    if all((_binding_fd, _binding_nonce, _binding_main, _binding_k)):\n"
+        "        _binding_source = __import__('pathlib').Path(__file__).read_bytes()\n"
+        "        _binding_digest = _binding_hashlib.sha256(\n"
+        "            _binding_source).hexdigest()\n"
+        "        for _binding_index in range(int(_binding_k)):\n"
+        "            _binding_report = {\n"
+        "                'schema_version': 'dev-wave-runner-binding-report/v1',\n"
+        "                'tested_main': _binding_main,\n"
+        "                'nonce': _binding_nonce,\n"
+        "                'runner_executed_sha256': _binding_digest,\n"
+        "                'shard_count': int(_binding_k),\n"
+        "                'shard_index': _binding_index,\n"
+        "            }\n"
+        "            _binding_line = (_binding_json.dumps(\n"
+        "                _binding_report, ensure_ascii=True, sort_keys=True,\n"
+        "                separators=(',', ':')) + '\\n').encode('ascii')\n"
+        "            _binding_os.write(int(_binding_fd), _binding_line)\n"
         f"{body}"
         "    return 0\n",
         encoding="utf-8",
@@ -1088,6 +1115,7 @@ def _real_waiter_repo(
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
         "PYTHONDONTWRITEBYTECODE": "1",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> None:
@@ -8954,6 +8982,7 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     waiter_env = {
         **git_env,
         "IZANAGI_WAVE_LEASE_DIR": str(lease),
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
     }
 
@@ -9070,6 +9099,7 @@ def _run_runtime_waiter_bytes_case(
     }
 
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["IZANAGI_ACCEPTANCE_SHARDS"] = "1"
 
     def git(repo: Path, *args: str) -> str:
         return subprocess.run(
@@ -9212,6 +9242,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> str:
@@ -9324,6 +9355,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> None:
@@ -9404,6 +9436,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "GIT_AUTHOR_EMAIL": "test@example.invalid",
         "GIT_COMMITTER_NAME": "Test",
         "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        "IZANAGI_ACCEPTANCE_SHARDS": "1",
     }
 
     def git(*args: str) -> None:

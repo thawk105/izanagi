@@ -1,0 +1,558 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/994a3ff3aaffc5e0e120f78ea7dafe1b/izdw-994a3ff3aa.o951901",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/994a3ff3aaffc5e0e120f78ea7dafe1b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 passed in 49.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "aa3507320d4d5fe574139825d4c74ab9b5ecb9e7cbdf578a970fef9c90be861d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "4af20a741555e3a2acfd0f982ac20689fa35dca80b0ef0f4fe79db90823cfd42",
+    "duration_s": 135.613,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "efc71700cafd43addc106d7ad3314aaae90d22430a0fcdb5f8494b44aede0cda",
+    "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+    "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+    "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+    "status": "PASSED",
+    "test_output_sha256": "aa3507320d4d5fe574139825d4c74ab9b5ecb9e7cbdf578a970fef9c90be861d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+  },
+  "date": "2026-08-27T01:15:28.881828+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/73c2e5796032710aed449ce846783417/izdw-73c2e57960.o951902",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/73c2e5796032710aed449ce846783417/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 passed in 48.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2fe76d3eb198cc607c4fe004887559fbeabbde0954acf4392f626b660bd2d1a6"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "4af20a741555e3a2acfd0f982ac20689fa35dca80b0ef0f4fe79db90823cfd42",
+      "duration_s": 484.95,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MWB09",
+      "injection_diff_sha256": "786b507b01de5ed2fd296ac8756dea8297a205a52148ea8c91e93a34a76e88de",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "50d5bb6adacad904a4824adf6669519f37163a96e5ed5ccfe91b10507dc9c7c5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.blocked_outcome_attempts:\n            raise ProbeIsolationError(\"blocked outcome attempt preceded publish\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ],
+      "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+      "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+      "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+      "status": "SURVIVED",
+      "test_output_sha256": "2fe76d3eb198cc607c4fe004887559fbeabbde0954acf4392f626b660bd2d1a6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ae4c33a74febfd403e271ba5ed404504/izdw-ae4c33a74f.o951909",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ae4c33a74febfd403e271ba5ed404504/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 passed in 48.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "44b2970c6f4c7564ad53fcf8c8b637f00980847cfc63089dce2d75bf8172f70f"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "4af20a741555e3a2acfd0f982ac20689fa35dca80b0ef0f4fe79db90823cfd42",
+      "duration_s": 74.107,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MWB11",
+      "injection_diff_sha256": "6461a82eb7e8bb77da930f8b4ac00442062ea3f4a20ee7175078c72b70aa1b2c",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "52316ff28586fcdd3a867df0db83c9ecc9171405573f55208803266c7c1ac0f0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "            if getattr(module, qualname).__code__ is not code:\n                raise ProbeIsolationError(f\"sealed function code changed: {symbol}\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ],
+      "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+      "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+      "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+      "status": "SURVIVED",
+      "test_output_sha256": "44b2970c6f4c7564ad53fcf8c8b637f00980847cfc63089dce2d75bf8172f70f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1f82bf326c3c617db86d1a286321493f/izdw-1f82bf326c.o951911",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1f82bf326c3c617db86d1a286321493f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 passed in 48.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "b69c58ea0a12c5519808746dc267c99a3465dd59f400086553e8cbb7fd685415"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "4af20a741555e3a2acfd0f982ac20689fa35dca80b0ef0f4fe79db90823cfd42",
+      "duration_s": 74.672,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MWB12",
+      "injection_diff_sha256": "8499b045fafd21cd1efe530df636cd5252df05edc03450e9533f933d2b5d2ed0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "694194325a232576c0f55c827b41352e8075419b2ad5ffe8dad55d031d84df60",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if guard.overlay_read_paths != {expected_overlay}:\n        raise ProbeIsolationError(\n            \"admission read set differed from the named deny-only overlay\"\n        )\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ],
+      "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+      "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+      "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+      "status": "SURVIVED",
+      "test_output_sha256": "b69c58ea0a12c5519808746dc267c99a3465dd59f400086553e8cbb7fd685415",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0aca15d04cab0805fc5a7c9e6caf8360/izdw-0aca15d04c.o951916",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0aca15d04cab0805fc5a7c9e6caf8360/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 passed in 48.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2e75a56843bda31cfd5c34dc99e85beb5985dd1a3f791452a86171e3af623c27"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "4af20a741555e3a2acfd0f982ac20689fa35dca80b0ef0f4fe79db90823cfd42",
+      "duration_s": 100.296,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MWB13",
+      "injection_diff_sha256": "0e65ec34ea97842f588419f0fabba0a812672a16133f389e20ea7344bc08edc2",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "5912a34c092533240757dc27993e27355ac05a3b2993066669708607ac8921b7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if guard.protected_read_attempts or guard.protected_write_attempts:\n        raise ProbeIsolationError(\"protected campaign access occurred\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ],
+      "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+      "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+      "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+      "status": "SURVIVED",
+      "test_output_sha256": "2e75a56843bda31cfd5c34dc99e85beb5985dd1a3f791452a86171e3af623c27",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8357e9e242b20b607fa55ba425687fdf/izdw-8357e9e242.o951925",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8357e9e242b20b607fa55ba425687fdf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................................................              [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 passed in 49.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "833de9c99645fc04161b068040eba827148d7310b843f56a9553c0a5213be170"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "4af20a741555e3a2acfd0f982ac20689fa35dca80b0ef0f4fe79db90823cfd42",
+      "duration_s": 74.824,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MWB14",
+      "injection_diff_sha256": "176a66fe79ae39bc1e9dff03e6b1e25d404d5e18f73ecdfb4778c2cb7ebe2b22",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "205a65b173c08916638f80a6a034d825cdcd4c6f5b4f53ff567baa1f7bd1d7bf",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.interpreter_mutation_attempts:\n            raise ProbeIsolationError(\"interpreter mutation attempt preceded publish\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ],
+      "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+      "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+      "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+      "status": "SURVIVED",
+      "test_output_sha256": "833de9c99645fc04161b068040eba827148d7310b843f56a9553c0a5213be170",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/afd96d67db011ceec152a67a2ab4ca4f/izdw-afd96d67db.o951900",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/afd96d67db011ceec152a67a2ab4ca4f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards\norchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_covers_exact_runtime_import_closure\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib\\nfrom . import p3_s4_loop as L-loader = importlib.import_module\\n    loader(name)-dynamic import]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys\\nfrom . import p3_s4_loop as L-mods = sys.modules\\n    mods[name].make_critic_digest()-sys.modules callable]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr\\n    getter(L, name)()-non-literal getattr]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()\\n    target()-unresolved local assignment]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\natexit.register(lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\ndef helper():\\n    atexit.register(lambda: None)\\nhelper()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit\\n@atexit.register\\ndef cleanup():\\n    pass]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal\\nsignal.signal(signal.SIGTERM, lambda *_: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref\\nweakref.finalize(object(), lambda: None)]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading\\nthreading.Thread().start()]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import\norchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate\norchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers\norchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived\norchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent\norchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site\norchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception\norchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields\norchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation\norchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked\norchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal\norchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish\norchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]\norchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected\norchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes\nIZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n59 tests collected in 0.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "c7f3b5fd55359876e4860d9fdf031323d266aaa8e8d5d73a25dac40178b1a8ac"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_child_runner_is_isolated_bytecode_free_and_clean",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_avoids_materializer_and_exploration_driver_classification",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cli_has_no_root_or_negative_control_injection",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_candidate_paths_and_driver_specific_guards",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_static_preflight_covers_exact_runtime_import_closure",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import importlib/nfrom . import p3_s4_loop as L-loader = importlib.import_module/n    loader(name)-dynamic import]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[import sys/nfrom . import p3_s4_loop as L-mods = sys.modules/n    mods[name].make_critic_digest()-sys.modules callable]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-getter = getattr/n    getter(L, name)()-non-literal getattr]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_aliased_dynamic_bindings_on_proof_path_fail_closed[from . import p3_s4_loop as L-target = choose()/n    target()-unresolved local assignment]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_nonliteral_getattr_on_proof_path_fails_closed",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/natexit.register(lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/ndef helper():/n    atexit.register(lambda: None)/nhelper()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import atexit/n@atexit.register/ndef cleanup():/n    pass]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import signal/nsignal.signal(signal.SIGTERM, lambda *_: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import weakref/nweakref.finalize(object(), lambda: None)]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_import_time_delayed_effects_are_rejected[import threading/nthreading.Thread().start()]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_preexisting_non_main_thread_rejects_main_before_import",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_sort.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.run_one_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop_trigger_gating.drive_iteration]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_evidence_hook_booleans_are_observation_derived",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_identity_preimage_hash_uses_versioned_domain_and_hides_cfg_hash8",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_records_resolver_site_and_verbatim_refusal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_trigger_site_projection_is_measured_when_production_accepts_site",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_seal_uses_import_free_excepthook_and_preserves_primary_exception",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_fixture_is_type_generated_reserved_and_rejects_outcome_fields",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_record_diff_reject_requires_issued_layout_root_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_workspace_symlink_to_protected_root_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_ambient_temp_inside_campaign_root_is_rejected_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_protected_wal_read_and_write_without_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[symlink]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_resolves_preopened_fd_before_protected_mutation",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_profile_setters_and_code_assignment_are_continuously_blocked",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_exec_compile_and_new_import_are_rejected_after_seal",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_does_not_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_cleanup_failure_keeps_primary_exception_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+      ],
+      "duration_s": 22.156,
+      "rc": 0,
+      "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+      "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+      "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+      "status": "PASSED",
+      "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MWB09": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "786b507b01de5ed2fd296ac8756dea8297a205a52148ea8c91e93a34a76e88de",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "        if self.blocked_outcome_attempts:\n            raise ProbeIsolationError(\"blocked outcome attempt preceded publish\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+          }
+        ]
+      },
+      "MWB11": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "6461a82eb7e8bb77da930f8b4ac00442062ea3f4a20ee7175078c72b70aa1b2c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "            if getattr(module, qualname).__code__ is not code:\n                raise ProbeIsolationError(f\"sealed function code changed: {symbol}\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+          }
+        ]
+      },
+      "MWB12": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "8499b045fafd21cd1efe530df636cd5252df05edc03450e9533f933d2b5d2ed0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if guard.overlay_read_paths != {expected_overlay}:\n        raise ProbeIsolationError(\n            \"admission read set differed from the named deny-only overlay\"\n        )\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+          }
+        ]
+      },
+      "MWB13": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "0e65ec34ea97842f588419f0fabba0a812672a16133f389e20ea7344bc08edc2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if guard.protected_read_attempts or guard.protected_write_attempts:\n        raise ProbeIsolationError(\"protected campaign access occurred\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+          }
+        ]
+      },
+      "MWB14": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "176a66fe79ae39bc1e9dff03e6b1e25d404d5e18f73ecdfb4778c2cb7ebe2b22",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "        if self.interpreter_mutation_attempts:\n            raise ProbeIsolationError(\"interpreter mutation attempt preceded publish\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+            "new": "",
+            "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "efc71700cafd43addc106d7ad3314aaae90d22430a0fcdb5f8494b44aede0cda",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "5327d823f4520da878b46aeb580f984a265d6062",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_wiring_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "dispatch_head_blob_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9de9df47419a68c65176c0bddc5a1be2655e9ccb",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "400decd3a3a9d74e8124517a85d0a971ec5998050cdfb7f9ef95967b7975ea77",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "60f4398da08179576a9bfbbc5cd560dd7eea0123cd6140ef8b9448c82018bf7a",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 5,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1769d/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "6ab9fe231797daf12500f921bf55dc5f1af4adb3dca5199b75954362114860db",
+  "updated_at": "2026-08-27T01:32:09.824763+00:00"
+}

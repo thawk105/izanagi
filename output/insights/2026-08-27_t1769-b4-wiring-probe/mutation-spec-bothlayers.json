@@ -1,0 +1,123 @@
+{
+  "estimated_run_seconds": 420,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MWB09",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.blocked_outcome_attempts:\n            raise ProbeIsolationError(\"blocked outcome attempt preceded publish\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ]
+    },
+    {
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MWB11",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "            if getattr(module, qualname).__code__ is not code:\n                raise ProbeIsolationError(f\"sealed function code changed: {symbol}\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ]
+    },
+    {
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MWB12",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if guard.overlay_read_paths != {expected_overlay}:\n        raise ProbeIsolationError(\n            \"admission read set differed from the named deny-only overlay\"\n        )\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ]
+    },
+    {
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MWB13",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if guard.protected_read_attempts or guard.protected_write_attempts:\n        raise ProbeIsolationError(\"protected campaign access occurred\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ]
+    },
+    {
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MWB14",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.interpreter_mutation_attempts:\n            raise ProbeIsolationError(\"interpreter mutation attempt preceded publish\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        guard.blocked_outcome_attempts\n        or guard.failed_check_attempts\n        or guard.forbidden_subprocess_attempts\n        or guard.interpreter_mutation_attempts\n    ):\n        raise ProbeIsolationError(\"interdiction ledger is non-empty\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if (\n        admission[\"other_campaign_artifact_reads\"] != 0\n        or isolation[\"protected_read_attempts\"] != 0\n        or isolation[\"protected_write_attempts\"] != 0\n        or interdiction[\"blocked_outcome_attempts\"] != []\n        or interdiction[\"failed_check_attempts\"] != []\n        or interdiction[\"forbidden_subprocess_attempts\"] != 0\n        or interdiction[\"interpreter_mutation_attempts\"] != []\n    ):\n        raise ProbeIsolationError(\"evidence violation ledger is non-empty\")\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

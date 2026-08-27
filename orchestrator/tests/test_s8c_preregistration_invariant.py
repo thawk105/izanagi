@@ -358,10 +358,16 @@ def _assert_machine_contract_function_pins(
     assert missing == frozenset()
 
 
-@pytest.fixture(scope="session")
-def repository_candidate_commit(tmp_path_factory: pytest.TempPathFactory) -> str:
-    """実 repository の候補 commit を session 内で一度だけ合成する。"""
-    return _candidate_commit(tmp_path_factory.mktemp("s8c-candidate"))
+@pytest.fixture(scope="module")
+def repository_candidate_commit(
+    tmp_path_factory: pytest.TempPathFactory,
+    real_repo_fixture_lock,
+) -> str:
+    """候補生成を parent EX、その全 consumer 寿命を parent SH で覆う。"""
+    with real_repo_fixture_lock("write", None):
+        candidate = _candidate_commit(tmp_path_factory.mktemp("s8c-candidate"))
+    with real_repo_fixture_lock("read", None):
+        yield candidate
 
 
 @pytest.fixture(scope="module")

@@ -1,6 +1,6 @@
 {
   "schema": "izanagi-s1-9pair-figure-provenance/v1",
-  "generated_utc": "2026-08-26T09:26:20.791389Z",
+  "generated_utc": "2026-08-26T16:54:23.355492Z",
   "generator": "plot_s1_9pair.py",
   "generator_source": {
     "path": "tools/plotting/plot_s1_9pair.py",
@@ -13,7 +13,7 @@
     },
     {
       "path": "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison.pdf",
-      "sha256": "5b33633ab09437aecae0f32a89548fb874581b0fa3ad7c17f7d29fc28bd88433"
+      "sha256": "669ad045fe34dbd73e4a157168656c15bc2d2ef3fe214f441edb79ce33db70fa"
     }
   ],
   "inputs": [
@@ -41,7 +41,7 @@
         "campaign_verifier_epoch": "E0",
         "state": "E0",
         "reason_code": "v1-authority-absent",
-        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "identity_scope": "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
         "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
       },
       "admission_decision": {
@@ -57,7 +57,7 @@
         "attempt_receipt_sha256s": [],
         "validator": {
           "identity": "orchestrator.campaign.artifact_admission",
-          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+          "sha256": "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
         },
         "overlay": {
           "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
@@ -79,7 +79,7 @@
         "campaign_verifier_epoch": "E0",
         "state": "E0",
         "reason_code": "v1-authority-absent",
-        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "identity_scope": "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
         "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
       },
       "admission_decision": {
@@ -95,7 +95,7 @@
         "attempt_receipt_sha256s": [],
         "validator": {
           "identity": "orchestrator.campaign.artifact_admission",
-          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+          "sha256": "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
         },
         "overlay": {
           "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
@@ -117,7 +117,7 @@
         "campaign_verifier_epoch": "E0",
         "state": "E0",
         "reason_code": "v1-authority-absent",
-        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "identity_scope": "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
         "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
       },
       "admission_decision": {
@@ -133,7 +133,7 @@
         "attempt_receipt_sha256s": [],
         "validator": {
           "identity": "orchestrator.campaign.artifact_admission",
-          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+          "sha256": "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
         },
         "overlay": {
           "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",
@@ -155,7 +155,7 @@
         "campaign_verifier_epoch": "E0",
         "state": "E0",
         "reason_code": "v1-authority-absent",
-        "identity_scope": "enforcement source closure (exact 25 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
+        "identity_scope": "enforcement source closure (exact 27 path; witness gate、S8C 判定器、批准比較、receipt 発行・検証面を含む)",
         "excluded_scope": "verifier package のうち orchestrator/verifier/__main__.py と orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の implementation bytes は束縛しない"
       },
       "admission_decision": {
@@ -171,7 +171,7 @@
         "attempt_receipt_sha256s": [],
         "validator": {
           "identity": "orchestrator.campaign.artifact_admission",
-          "sha256": "267ffdb0884657c4de54427b8bd76058198ed21250da5198cc1b5e770451287f"
+          "sha256": "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
         },
         "overlay": {
           "ledger_sha256": "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93",

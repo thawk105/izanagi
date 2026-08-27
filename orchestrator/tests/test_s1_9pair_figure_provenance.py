@@ -43,6 +43,7 @@ OUT_PREFIX_REL = Path(
     "docs/paper-story/figures/fig4_s1a_9pair_direct_comparison")
 README_REL = Path("docs/paper-story/figures/README.md")
 GENERATOR_REL = Path("tools/plotting/plot_s1_9pair.py")
+ADMISSION_VALIDATOR_REL = Path("orchestrator/campaign/artifact_admission.py")
 REPORT_REL = Path("output/reports/s1_direct_comparison/report.json")
 FREEZE_REL = Path("output/s1-freeze/measurement_freeze.json")
 FROZEN_TEST_REL = Path("orchestrator/tests/test_frozen_artifacts.py")
@@ -67,6 +68,38 @@ CAMPAIGNS = {
 READ_RATIOS = {"write-heavy": 5, "balanced": 50, "read-heavy": 95}
 T_DF7 = 2.365
 REPORT_FREEZE_SHA = "5c719c076e17f385a781933c081bf02abcd85b9edb01ad8c50a37740c134a191"
+CURRENT_E0_EPOCH = {
+    "campaign_verifier_epoch": "E0",
+    "state": "E0",
+    "reason_code": "v1-authority-absent",
+    "identity_scope": (
+        "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
+        "receipt 発行・検証面を含む)"
+    ),
+    "excluded_scope": (
+        "verifier package のうち orchestrator/verifier/__main__.py と "
+        "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
+        "implementation bytes は束縛しない"
+    ),
+}
+FROZEN_E0_EPOCH = {
+    "campaign_verifier_epoch": "E0",
+    "state": "E0",
+    "reason_code": "v1-authority-absent",
+    "identity_scope": (
+        "enforcement source closure (exact 27 path; witness gate、S8C 判定器、"
+        "批准比較、receipt 発行・検証面を含む)"
+    ),
+    "excluded_scope": (
+        "verifier package のうち orchestrator/verifier/__main__.py と "
+        "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
+        "implementation bytes は束縛しない"
+    ),
+}
+ADMISSION_VALIDATOR_IDENTITY = "orchestrator.campaign.artifact_admission"
+FROZEN_ADMISSION_VALIDATOR_SHA256 = (
+    "ad5ccf08fac75d4f8f61fa00de11be9378d67131315a9cdb0a22a796be280f1e"
+)
 EXPECTED_TOP_KEYS = {
     "schema", "generated_utc", "generator", "generator_source", "outputs",
     "inputs", "facts", "reproduction", "caption",
@@ -334,20 +367,20 @@ def _real_inputs() -> tuple[dict, dict, dict[str, dict]]:
                           key=lambda row: row["schedule_index"])
         if evidence != expected:
             _reject(f"WAL/report accepted evidence differs: {role}")
+        epoch = {
+            "campaign_verifier_epoch": view.campaign_verifier_epoch.campaign_verifier_epoch,
+            "state": view.campaign_verifier_epoch.state,
+            "reason_code": view.campaign_verifier_epoch.reason_code,
+            "identity_scope": view.campaign_verifier_epoch.identity_scope,
+            "excluded_scope": view.campaign_verifier_epoch.excluded_scope,
+        }
         if (view.read_purpose is not CampaignReadPurpose.HISTORICAL_RAW
-                or view.campaign_verifier_epoch.state != "E0"):
+                or epoch != CURRENT_E0_EPOCH):
             _reject(f"HISTORICAL_RAW E0 differs: {role}")
         campaigns[role] = {
             "dir": directory, "wal": expected_wal, "lock": expected_lock,
             "evidence": evidence, "benches": benches,
             "receipt": view.decision.as_receipt(),
-            "epoch": {
-                "campaign_verifier_epoch": view.campaign_verifier_epoch.campaign_verifier_epoch,
-                "state": view.campaign_verifier_epoch.state,
-                "reason_code": view.campaign_verifier_epoch.reason_code,
-                "identity_scope": view.campaign_verifier_epoch.identity_scope,
-                "excluded_scope": view.campaign_verifier_epoch.excluded_scope,
-            },
         }
     return report, freeze, campaigns
 
@@ -614,6 +647,23 @@ def _validate_output_digest(path: Path, recorded_sha256: object, label: str) -> 
         _reject(f"output SHA256 mismatch: {label}")
 
 
+def _frozen_admission_receipt(current: Mapping) -> dict:
+    """Pin the generation-time validator while checking the live one separately."""
+    live_validator = {
+        "identity": ADMISSION_VALIDATOR_IDENTITY,
+        "sha256": _sha256(ROOT / ADMISSION_VALIDATOR_REL),
+    }
+    if current.get("validator") != live_validator:
+        _reject("live admission validator bytes differ")
+    return {
+        **current,
+        "validator": {
+            "identity": ADMISSION_VALIDATOR_IDENTITY,
+            "sha256": FROZEN_ADMISSION_VALIDATOR_SHA256,
+        },
+    }
+
+
 def validate_real_provenance(provenance: Mapping) -> None:
     if set(provenance) != EXPECTED_TOP_KEYS or provenance.get("schema") != SCHEMA:
         _reject("provenance top-level/schema differs")
@@ -677,8 +727,11 @@ def validate_real_provenance(provenance: Mapping) -> None:
             "lock": campaign["lock"].relative_to(ROOT).as_posix(),
             "lock_sha256": _sha256(campaign["lock"]),
             "read_purpose": "HISTORICAL_RAW",
-            "campaign_verifier_epoch": campaign["epoch"],
-            "admission_decision": campaign["receipt"],
+            # The landed provenance is a frozen generation-time receipt.  Keep
+            # its historical scope exact while independently checking the live
+            # admitted view against CURRENT_E0_EPOCH above.
+            "campaign_verifier_epoch": FROZEN_E0_EPOCH,
+            "admission_decision": _frozen_admission_receipt(campaign["receipt"]),
         }
         for key, value in expected.items():
             if row.get(key) != value:

@@ -1,0 +1,247 @@
+{
+  "estimated_run_seconds": 960,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW01",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    guard.install_audit()\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_second_main_call_in_same_interpreter_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW02",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    guard.seal(inventory, runtime.modules)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_anchor_seed_alone_load_bears_pipeline_evaluate",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_names_real_producers_and_excludes_probe_consumers",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_main_wiring_interdicts_real_pipeline_and_publishes_nothing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_module_swap_writer_restore_is_rejected_at_publish",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.pipeline.evaluate]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW03",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    f\"{_CAMPAIGN_PACKAGE}.execution_guard.require_certified_writer_authorization\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.save_loop_state]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_save_loop_state_seed_is_independently_load_bearing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW04",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    f\"{_CAMPAIGN_PACKAGE}.p3_s4_loop.save_loop_state\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[base]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[sort]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_actual_main_positive_baseline_all_drivers[trigger]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_project_whiteboard_seed_is_independently_load_bearing",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_real_producer_entry_is_interdicted_before_body[orchestrator.campaign.p3_s4_loop.project_whiteboard]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW05",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    f\"{_CAMPAIGN_PACKAGE}.p3_s4_loop.project_whiteboard\",\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[link]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[rename]",
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_audit_blocks_each_protected_destination_with_dir_fd_without_mutation[replace]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW06",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "        if source is None or destination is None:\n            raise ProbeIsolationError(f\"{event} audit path cannot be resolved\")\n        return (source,)\n",
+          "old": "        if source is None or destination is None:\n            raise ProbeIsolationError(f\"{event} audit path cannot be resolved\")\n        return source, destination\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_inventory_builder_rejects_recorded_unresolved_issue"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW07",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if issues:\n            raise StaticInventoryError(\n                f\"unresolved binding entered generation inventory {symbol}: {issues}\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_publish_observes_each_real_write_and_link_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW08",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "    window[\"active_during_json_publish\"] = True\n",
+          "old": "    window[\"active_during_json_publish\"] = guard.publish_boundary_active(\n        \"json-publish-window-open\"\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MW09",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.blocked_outcome_attempts:\n            raise ProbeIsolationError(\"blocked outcome attempt preceded publish\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_failed_check_publish_gate_is_schema_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MW10",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.failed_check_attempts:\n            raise ProbeIsolationError(\"failed check attempt preceded publish\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MW11",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "            if getattr(module, qualname).__code__ is not code:\n                raise ProbeIsolationError(f\"sealed function code changed: {symbol}\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MW12",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if guard.overlay_read_paths != {expected_overlay}:\n        raise ProbeIsolationError(\n            \"admission read set differed from the named deny-only overlay\"\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MW13",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "    if guard.protected_read_attempts or guard.protected_write_attempts:\n        raise ProbeIsolationError(\"protected campaign access occurred\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "MW14",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_wiring_probe.py",
+          "new": "",
+          "old": "        if self.interpreter_mutation_attempts:\n            raise ProbeIsolationError(\"interpreter mutation attempt preceded publish\")\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

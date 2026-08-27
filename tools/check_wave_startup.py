@@ -19,6 +19,7 @@ _SUBMODULE_MARKER = Path("external/ccbench/CMakeLists.txt")
 _SUBMODULE_GIT = Path("external/ccbench/.git")
 _HANDOFF_DIR = Path("docs/handoff")
 _MAIN_REF = "refs/heads/main"
+_SUPPORTED_MODES = ("fresh", "resume", "midflight")
 _READ_ONLY_GIT_SUBCOMMANDS = frozenset(
     {"ls-files", "rev-list", "rev-parse", "status", "symbolic-ref"}
 )
@@ -30,6 +31,11 @@ class GitResult:
     returncode: int
     stdout: str
     stderr: str
+
+
+@dataclass(frozen=True)
+class _RepositoryObservations:
+    main_behind_count: str | None = None
 
 
 def _git_env() -> dict[str, str]:
@@ -77,7 +83,7 @@ def _git(repo: Path, *args: str) -> GitResult:
 
 
 def _git_raw(repo: Path, *args: str) -> GitResult:
-    """NUL 区切りを壊さず、許可した読み取り専用 git command を実行する。"""
+    """stdout を正規化せず、許可した読み取り専用 git command を実行する。"""
     return _run_git(repo, *args, strip_stdout=False)
 
 
@@ -194,6 +200,39 @@ def _check_head_contains_main(repo: Path) -> list[str]:
             "待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）"
         )
     return failures
+
+
+def _check_main_divergence_measurable(
+    repo: Path,
+) -> tuple[list[str], str | None]:
+    """raw commit graph 上の main 乖離を canonical な件数として測定する。"""
+    result = _git_raw(repo, "rev-list", "--count", f"HEAD..{_MAIN_REF}")
+    if result.returncode != 0:
+        return (
+            [
+                "HEAD/local main divergence measurement: git の読み取りに失敗 "
+                f"({_one_line(result.stderr)}): HEAD と {_MAIN_REF} の実在・履歴を確認する"
+            ],
+            None,
+        )
+    raw_count = result.stdout
+    count = raw_count[:-1] if raw_count.endswith("\n") else raw_count
+    if (
+        not raw_count.endswith("\n")
+        or not count
+        or not count.isascii()
+        or not count.isdecimal()
+        or (count != "0" and count.startswith("0"))
+    ):
+        return (
+            [
+                "HEAD/local main divergence measurement: rev-list の出力が canonical な"
+                "非負の ASCII 整数でない "
+                f"({_one_line(count)}): git repository を確認する"
+            ],
+            None,
+        )
+    return [], count
 
 
 def _check_no_operation_in_progress(repo: Path) -> list[str]:
@@ -468,26 +507,78 @@ def check_repository(
     external_handoff: Path | None = None,
 ) -> list[str]:
     """全適用項目を検査し、是正案付きの failure を集約する。"""
+    failures, _observations = _collect_repository_checks(
+        repo,
+        mode=mode,
+        forbid_worktree_handoff=forbid_worktree_handoff,
+        external_handoff=external_handoff,
+    )
+    return failures
+
+
+def _collect_repository_checks(
+    repo: Path,
+    *,
+    mode: str = "fresh",
+    forbid_worktree_handoff: bool = False,
+    external_handoff: Path | None = None,
+) -> tuple[list[str], _RepositoryObservations]:
+    """検査 failure と、同じ検査で得た観測値を集約する。"""
     repo = repo.resolve()
+    if mode not in _SUPPORTED_MODES:
+        return (
+            [
+                f"unsupported startup mode {mode!r}: "
+                "fresh / resume / midflight のいずれかを明示する"
+            ],
+            _RepositoryObservations(),
+        )
+    if mode == "midflight" and (
+        forbid_worktree_handoff or external_handoff is not None
+    ):
+        return (
+            [
+                "midflight mode does not accept --forbid-worktree-handoff / "
+                "--external-handoff; 開始 gate には fresh / resume を使う"
+            ],
+            _RepositoryObservations(),
+        )
+
     failures: list[str] = []
     if mode == "fresh":
         failures.extend(_check_head_matches_main(repo))
-    elif mode == "resume":
+        failures.extend(_check_main_is_direct_ref(repo))
+        failures.extend(_check_fresh_branch(repo))
+        failures.extend(_check_no_operation_in_progress(repo))
+        failures.extend(_check_clean_tree(repo))
+        failures.extend(_check_submodule_marker(repo))
+        if forbid_worktree_handoff or external_handoff is not None:
+            failures.extend(_check_worktree_handoff(repo))
+        if external_handoff is not None:
+            failures.extend(_check_external_handoff_file(repo, external_handoff))
+        return failures, _RepositoryObservations()
+
+    if mode == "resume":
         failures.extend(_check_head_contains_main(repo))
-    else:
-        failures.append(
-            f"unsupported startup mode {mode!r}: fresh または resume を明示する"
-        )
+        failures.extend(_check_main_is_direct_ref(repo))
+        failures.extend(_check_fresh_branch(repo))
+        failures.extend(_check_no_operation_in_progress(repo))
+        failures.extend(_check_clean_tree(repo))
+        failures.extend(_check_submodule_marker(repo))
+        if forbid_worktree_handoff or external_handoff is not None:
+            failures.extend(_check_worktree_handoff(repo))
+        if external_handoff is not None:
+            failures.extend(_check_external_handoff_file(repo, external_handoff))
+        return failures, _RepositoryObservations()
+
+    failures.extend(_check_no_grafts(repo))
+    measurement_failures, main_behind_count = _check_main_divergence_measurable(repo)
+    failures.extend(measurement_failures)
     failures.extend(_check_main_is_direct_ref(repo))
     failures.extend(_check_fresh_branch(repo))
     failures.extend(_check_no_operation_in_progress(repo))
-    failures.extend(_check_clean_tree(repo))
     failures.extend(_check_submodule_marker(repo))
-    if forbid_worktree_handoff or external_handoff is not None:
-        failures.extend(_check_worktree_handoff(repo))
-    if external_handoff is not None:
-        failures.extend(_check_external_handoff_file(repo, external_handoff))
-    return failures
+    return failures, _RepositoryObservations(main_behind_count=main_behind_count)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -506,11 +597,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=("fresh", "resume"),
+        choices=_SUPPORTED_MODES,
         default="fresh",
         help=(
             "fresh は HEAD==main、resume は HEAD が direct main を包含することを要求し、"
-            "その他の開始条件は共通"
+            "その他の開始条件は共通。midflight は段 5 実装子 dispatch 直前専用で、"
+            "開始 gate (fresh / resume) の代用ではない。HEAD/main 関係・clean tree・"
+            "handoff を検査せず、main 乖離量は関門でない"
         ),
     )
     parser.add_argument(
@@ -528,7 +621,15 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if args.mode == "midflight" and (
+        args.forbid_worktree_handoff or args.external_handoff is not None
+    ):
+        parser.error(
+            "--mode midflight does not accept --forbid-worktree-handoff / "
+            "--external-handoff"
+        )
     repo = args.repo.resolve()
     # 可視化は検査結果に依らず必ず先に出す (rc には一切影響させない)。
     # flush は stdout が pipe のとき NG 行 (stderr) との前後関係を保つため。
@@ -540,12 +641,50 @@ def main(argv: Sequence[str] | None = None) -> int:
             "可視化のみ省略し検査は続行する"
         )
     print(f"INFO: {divergence}", flush=True)
-    failures = check_repository(
+    failures, observations = _collect_repository_checks(
         repo,
         mode=args.mode,
         forbid_worktree_handoff=args.forbid_worktree_handoff,
         external_handoff=args.external_handoff,
     )
+    if args.mode == "midflight":
+        print(
+            "NOTE: midflight は段 5 実装子 dispatch 直前専用で、"
+            "開始 gate (fresh / resume) の代用ではない; "
+            "HEAD/main 関係・clean tree・handoff を検査しない",
+            flush=True,
+        )
+        if observations.main_behind_count is not None:
+            print(
+                "NOTE: local main より "
+                f"{observations.main_behind_count} commit 遅れている "
+                "(gate の実測値; これは関門ではない)",
+                flush=True,
+            )
+        try:
+            clean_tree_failures = _check_clean_tree(repo)
+        except Exception:
+            clean_tree_failures = None
+        if clean_tree_failures == []:
+            print(
+                "NOTE: working tree is clean "
+                "(midflight は clean tree を検査しない)",
+                flush=True,
+            )
+        elif clean_tree_failures == [
+            "working tree is not clean: 変更を commit または退避してから再実行する"
+        ]:
+            print(
+                "NOTE: working tree is not clean "
+                "(midflight は clean tree を検査しない)",
+                flush=True,
+            )
+        else:
+            print(
+                "NOTE: working tree cleanliness could not be observed "
+                "(midflight は clean tree を検査しない; これは関門ではない)",
+                flush=True,
+            )
     if failures:
         for failure in failures:
             print(f"NG: {failure}", file=sys.stderr)

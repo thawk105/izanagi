@@ -97,9 +97,6 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/certified_writer_admission.py", "<module>._git"): 1,
     ("campaign/certified_writer_preflight.py", "<module>._committed_blob"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
-    # Fixed /usr/bin/git, bounded timeout, sanitized environment, and only
-    # read-only repository/ledger inspection; never names or runs CCBench.
-    ("campaign/enforcement_source_ratification.py", "<module>._git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     ("campaign/layer3_report.py", "<module>._git_head"): 1,
     # Fixed OpenSSL Ed25519 signature verification for an external pin;
@@ -112,6 +109,10 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Read-only Git HEAD/status probes bind the driver worktree; neither
     # command names or executes a CCBench binary.
     ("campaign/paper_story_a2_certification.py", "<module>.compute_preflight"): 2,
+    # Login-side terminal qstat observation; it never names a CCBench binary.
+    ("campaign/paper_story_a2_certification.py", "<module>.finish_group"): 1,
+    # Exact scheduler submission argv; CCBench remains compute-job-owned.
+    ("campaign/paper_story_a2_certification.py", "<module>.exact_qsub"): 1,
     # Read-only Git HEAD/status probes bind the delegated CCBench source tree;
     # measurement itself remains owned by run_campaign().
     ("campaign/paper_story_a2_certification.py", "<module>.run_workload"): 2,

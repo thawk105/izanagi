@@ -17,6 +17,7 @@ import re
 import secrets
 import shlex
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -163,6 +164,45 @@ _REQUEST_SCHEMA = "pegasus-dispatch-request/v2"
 _LEGACY_REQUEST_SCHEMA = "pegasus-dispatch-request/v1"
 _REQUEST_BINDING = "sha256-job-script/v1"
 _REQUEST_SHA256_ENV = "IZANAGI_DISPATCH_REQUEST_SHA256"
+_ACCEPTANCE_SHARDS_ENV = "IZANAGI_ACCEPTANCE_SHARDS"
+_RUNNER_BINDING_FD_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD"
+_RUNNER_BINDING_NONCE_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE"
+_RUNNER_BINDING_TESTED_MAIN_ENV = (
+    "IZANAGI_ACCEPTANCE_RUNNER_BINDING_TESTED_MAIN"
+)
+_RUNNER_BINDING_ENV_KEYS = frozenset(
+    {
+        _RUNNER_BINDING_FD_ENV,
+        _RUNNER_BINDING_NONCE_ENV,
+        _RUNNER_BINDING_TESTED_MAIN_ENV,
+    }
+)
+_RUNNER_BINDING_FIELDS = frozenset(
+    {"tested_main", "nonce", "shard_count", "shard_index"}
+)
+_RUNNER_BINDING_REPORT_SCHEMA = "dev-wave-runner-binding-report/v1"
+_RUNNER_BINDING_REPORT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "tested_main",
+        "nonce",
+        "runner_executed_sha256",
+        "shard_count",
+        "shard_index",
+    }
+)
+_BOUND_RUNNER_BOOTSTRAP = (
+    "import os,sys\n"
+    "if os.environ.get('PYTHONDONTWRITEBYTECODE'):\n"
+    "    sys.dont_write_bytecode = True\n"
+    "source = sys.stdin.buffer.read()\n"
+    "namespace = {\n"
+    "    '__name__': '_izanagi_acceptance_runner',\n"
+    "    '__file__': sys.argv[1],\n"
+    "}\n"
+    "exec(compile(source, namespace['__file__'], 'exec'), namespace)\n"
+    "raise SystemExit(namespace['main'](sys.argv[2:]))\n"
+)
 # v1 を生成していた a34266d2 の正規 request overlay 集合。現行 tests の
 # allowlist と混ぜると、queue 待ち中の正規 v1 request を過剰拒否する。
 _LEGACY_V1_ENV_ALLOWLIST = frozenset({
@@ -735,6 +775,184 @@ def _resolve_request(request: Mapping[str, Any]) -> tuple[str, Any]:
     raise DispatchError(f"未知の request schema_version です: {schema!r}")
 
 
+def _runner_binding_from_environment(
+    command_env: Mapping[str, str],
+    *,
+    task: str,
+    intent_shard_index: Optional[int],
+) -> tuple[Optional[dict[str, Any]], Optional[int]]:
+    present = {name for name in _RUNNER_BINDING_ENV_KEYS if name in command_env}
+    if not present:
+        return None, None
+    if present != _RUNNER_BINDING_ENV_KEYS:
+        raise ValueError("runner binding environment is incomplete")
+
+    raw_fd = command_env[_RUNNER_BINDING_FD_ENV]
+    nonce = command_env[_RUNNER_BINDING_NONCE_ENV]
+    tested_main = command_env[_RUNNER_BINDING_TESTED_MAIN_ENV]
+    raw_shard_count = command_env.get(_ACCEPTANCE_SHARDS_ENV)
+    if re.fullmatch(r"(?:0|[1-9][0-9]*)", raw_fd) is None:
+        raise ValueError("runner binding fd is invalid")
+    if re.fullmatch(r"[0-9a-f]{64}", nonce) is None:
+        raise ValueError("runner binding nonce is invalid")
+    if re.fullmatch(r"[0-9a-f]{40}", tested_main) is None:
+        raise ValueError("runner binding tested-main is invalid")
+    if raw_shard_count not in {"1", "2", "3"}:
+        raise ValueError("runner binding shard count is invalid")
+    shard_count = int(raw_shard_count)
+    shard_index = 0 if intent_shard_index is None else intent_shard_index
+    if (
+        type(shard_index) is not int
+        or shard_index < 0
+        or shard_index >= shard_count
+    ):
+        raise ValueError("runner binding shard index is invalid")
+    if task != "tests":
+        return None, None
+    assert TASKS[task].argv_policy == "passthrough"
+    assert TASKS[task].child_script == ("tools", "run_tests.py")
+    return (
+        {
+            "tested_main": tested_main,
+            "nonce": nonce,
+            "shard_count": shard_count,
+            "shard_index": shard_index,
+        },
+        int(raw_fd),
+    )
+
+
+def _validated_runner_binding(
+    request: Mapping[str, Any], *, task: str
+) -> Optional[dict[str, Any]]:
+    value = request.get("runner_binding")
+    if value is None:
+        return None
+    if task != "tests" or type(value) is not dict:
+        raise DispatchError("runner_binding is only valid for tests requests")
+    if set(value) != _RUNNER_BINDING_FIELDS:
+        raise DispatchError("runner_binding fields are invalid")
+    tested_main = value["tested_main"]
+    nonce = value["nonce"]
+    shard_count = value["shard_count"]
+    shard_index = value["shard_index"]
+    if (
+        type(tested_main) is not str
+        or re.fullmatch(r"[0-9a-f]{40}", tested_main) is None
+        or type(nonce) is not str
+        or re.fullmatch(r"[0-9a-f]{64}", nonce) is None
+        or type(shard_count) is not int
+        or shard_count not in {1, 2, 3}
+        or type(shard_index) is not int
+        or shard_index < 0
+        or shard_index >= shard_count
+    ):
+        raise DispatchError("runner_binding values are invalid")
+    return dict(value)
+
+
+def _run_bound_tests_child(
+    repo_root: Path,
+    argv: Sequence[str],
+    child_env: Mapping[str, str],
+    runner_binding: Mapping[str, Any],
+) -> tuple[int, str]:
+    canonical_runner_path = repo_root / "tools" / "run_tests.py"
+    child_argv = [
+        sys.executable,
+        "-I",
+        "-c",
+        _BOUND_RUNNER_BOOTSTRAP,
+        str(canonical_runner_path),
+        *argv,
+    ]
+    blob = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "cat-file",
+            "blob",
+            f"{runner_binding['tested_main']}:tools/run_tests.py",
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=child_env,
+    )
+    if blob.returncode != 0:
+        raise DispatchError("cannot read tested-main runner blob")
+    source = blob.stdout
+    actual_digest = hashlib.sha256(source).hexdigest()
+    completed = subprocess.run(
+        child_argv,
+        check=False,
+        cwd=str(repo_root),
+        env=child_env,
+        input=source,
+        shell=False,
+    )
+    return int(completed.returncode), actual_digest
+
+
+def _runner_binding_report(
+    runner_binding: Mapping[str, Any], actual_digest: str
+) -> dict[str, Any]:
+    return {
+        "schema_version": _RUNNER_BINDING_REPORT_SCHEMA,
+        "tested_main": runner_binding["tested_main"],
+        "nonce": runner_binding["nonce"],
+        "runner_executed_sha256": actual_digest,
+        "shard_count": runner_binding["shard_count"],
+        "shard_index": runner_binding["shard_index"],
+    }
+
+
+def _validated_runner_binding_report(
+    result: Mapping[str, Any], runner_binding: Mapping[str, Any]
+) -> dict[str, Any]:
+    report = result.get("runner_binding")
+    if type(report) is not dict or set(report) != _RUNNER_BINDING_REPORT_FIELDS:
+        raise DispatchError("result runner_binding report is missing or invalid")
+    if report.get("schema_version") != _RUNNER_BINDING_REPORT_SCHEMA:
+        raise DispatchError("result runner_binding schema is invalid")
+    for field in ("tested_main", "nonce", "shard_count", "shard_index"):
+        if report.get(field) != runner_binding[field]:
+            raise DispatchError(f"result runner_binding {field} mismatch")
+    digest = report.get("runner_executed_sha256")
+    if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+        raise DispatchError("result runner_binding digest is invalid")
+    return dict(report)
+
+
+def _write_runner_binding_report(fd: int, report: Mapping[str, Any]) -> None:
+    try:
+        mode = os.fstat(fd).st_mode
+    except OSError as exc:
+        raise DispatchError("cannot inspect runner binding report fd") from exc
+    if not stat.S_ISFIFO(mode):
+        raise DispatchError("runner binding report fd is not a pipe")
+    pending = memoryview(
+        (
+            json.dumps(
+                report,
+                ensure_ascii=True,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode("ascii")
+    )
+    while pending:
+        try:
+            written = os.write(fd, pending)
+        except OSError as exc:
+            raise DispatchError("cannot write runner binding report") from exc
+        if written <= 0:
+            raise DispatchError("short runner binding report write")
+        pending = pending[written:]
+
+
 def _import_probe_modules(spec: _TaskSpec) -> None:
     """task が要求する module だけを子起動前に import 検査する。"""
 
@@ -938,6 +1156,7 @@ def _job_run(
     interpreter = str(Path(sys.executable).resolve())
     hostname = ""
     request_sha256: Optional[str] = None
+    runner_report: Optional[dict[str, Any]] = None
     try:
         if sys.version_info < (3, 10):
             raise DispatchError("interpreter version < 3.10")
@@ -948,6 +1167,7 @@ def _job_run(
         if task not in TASKS:
             raise DispatchError(f"未知の task です: {task!r}")
         spec = TASKS[task]
+        runner_binding = _validated_runner_binding(request, task=task)
         if expected_request_sha256 is None:
             # 旧 script は hash 引数を持たない。queue 内の v1/v2 を一方向 bump で
             # 殺さないため歴史的 2 task だけを grandfather するが、新規 request
@@ -1007,19 +1227,32 @@ def _job_run(
         executable_dir = str(Path(sys.executable).resolve().parent)
         child_env["PATH"] = executable_dir + os.pathsep + child_env.get("PATH", "")
         child_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
-        child_argv = (
-            list(argv)
-            if spec.argv_policy == "generic-v1"
-            else [sys.executable, str(repo_root.joinpath(*spec.child_script)), *argv]
-        )
         stage = "child"
-        child_rc = subprocess.call(
-            child_argv,
-            cwd=str(repo_root),
-            env=child_env,
-            stdin=subprocess.DEVNULL,
-            shell=False,
-        )
+        if runner_binding is not None:
+            child_rc, actual_digest = _run_bound_tests_child(
+                repo_root,
+                argv,
+                child_env,
+                runner_binding,
+            )
+            runner_report = _runner_binding_report(runner_binding, actual_digest)
+        else:
+            child_argv = (
+                list(argv)
+                if spec.argv_policy == "generic-v1"
+                else [
+                    sys.executable,
+                    str(repo_root.joinpath(*spec.child_script)),
+                    *argv,
+                ]
+            )
+            child_rc = subprocess.call(
+                child_argv,
+                cwd=str(repo_root),
+                env=child_env,
+                stdin=subprocess.DEVNULL,
+                shell=False,
+            )
     except Exception as exc:
         stage = stage if stage != "child" else "child-launch"
         error = f"{type(exc).__name__}: {exc}"
@@ -1037,6 +1270,8 @@ def _job_run(
         "error": error,
         "request_sha256": request_sha256,
     }
+    if error is None and runner_report is not None:
+        payload["runner_binding"] = runner_report
     try:
         _write_json_x(result_path, payload)
     except OSError:
@@ -2794,6 +3029,13 @@ def _dispatch_impl(
         sleep = deadline_bounded_sleep
 
     command_env = dict(os.environ if environ is None else environ)
+    runner_binding, runner_binding_fd = _runner_binding_from_environment(
+        command_env,
+        task=task,
+        intent_shard_index=intent_shard_index,
+    )
+    for name in _RUNNER_BINDING_ENV_KEYS:
+        command_env.pop(name, None)
     request_env = {
         key: command_env[key]
         for key in spec.env_allowlist if key in command_env
@@ -2862,6 +3104,8 @@ def _dispatch_impl(
         "environment": request_env,
         "request_binding": _REQUEST_BINDING,
     }
+    if runner_binding is not None:
+        request_payload["runner_binding"] = runner_binding
     request_text = _canonical_json_text(request_payload)
     request_sha256 = hashlib.sha256(request_text.encode("utf-8")).hexdigest()
     receipt["request"]["sha256"] = request_sha256
@@ -3457,6 +3701,12 @@ def _dispatch_impl(
         if type(child_rc) is not int:
             raise DispatchError("result.child_rc が int ではありません")
         observed_child_rc = child_rc
+        if runner_binding is not None:
+            assert runner_binding_fd is not None
+            binding_report = _validated_runner_binding_report(
+                result, runner_binding
+            )
+            _write_runner_binding_report(runner_binding_fd, binding_report)
 
         receipt["outcome"] = {
             "kind": "child",

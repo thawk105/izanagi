@@ -35,6 +35,10 @@
   §5 の数値欄が埋まり、§6 の前提条件がすべて充足し、
   その版が commit されるまで発効しない。**本書に書かれた宣言では発効しない。**
 - 未記入の欄には placeholder 語だけを置く。値セルに説明文・条件を書かない。
+- **例外は「実行責任者・開始時刻」欄 1 行だけである。** この欄は独立に決まる 2 値を 1 セルに
+  持つため、片方が確定し片方が未確定の状態を取りうる。確定した値と placeholder 語を
+  `名前 = 値` の形で並べてよい。説明文・条件は書かない。placeholder 語が 1 つでも残る限り
+  実走前検査は閉じたままである。他の 9 欄へこの例外を広げない。
 - 本書が定める規範は §5.1 と §7 に置き、§5 の値セルへは書かない
   (値セルは凍結範囲外であり、そこへ置いた解除条件は次世代の契約なしに緩められる)。
 
@@ -153,14 +157,14 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 |---|---|
 |対象 driver と軸|未記入|
 |赤 precursor の母集合 (workload・赤形状・初期 proposal)|未記入|
-|アームあたり block 数 n と検定単位|未記入|
+|アームあたり block 数 n と検定単位|n = 201、検定単位 = block|
 |primary outcome の演算定義 (純関数)|未記入|
 |floor (対象動作点で再実測した between-run floor) の artifact パスと hash|未記入|
 |校正済み `PerfConfig` (records / threads / reps / extime) の artifact パスと hash|未記入|
 |総計測予算 (role query 数・build/verify/bench admission 数・累積 bench 秒) と arm ごとの上限|未記入|
 |env_tag (実測環境)|未記入|
 |model snapshot / prompt hash / projection hash|未記入|
-|実行責任者・開始時刻|未記入|
+|実行責任者・開始時刻|実行責任者 = thawk105、開始時刻 = 未記入|
 
 ### 5.1 欄別の解除条件 (規範。§5 の値セルへ書かない)
 
@@ -173,18 +177,38 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   outcome を生成も閲覧もしない配線 probe に限る。「正式標本ではない」と分類して outcome を先に
   生成・閲覧することを禁じる。**build を伴う sanctioned CLI 経路はこの probe にならない** —
   同経路は次の synthesis を実行して primary / secondary outcome を生成するためである。
-  `--no-build` 経路も §3.1 の切替点を通らない (digest を生成しない) ため probe にならない。
-  その条件を満たす sanctioned CLI が無い場合は、用意されるまで
-  対象 driver と軸を記入しない。(i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
+  **`--no-build` 経路が probe にならない理由は driver ごとに異なる (2026-08-27 実測、[T-1769])。**
+  base と trigger では切替点が `do_build` の内側にあり到達しない。**sort では切替点が無条件であり
+  `--no-build` でも到達する。** それでも sort の `--no-build` は probe にならない — iteration を
+  実走して checkpoint と whiteboard 結果を書き、synthesis 記録を生成するためである。
+  **(ii) を実行する sanctioned CLI は `orchestrator/campaign/p3_b4_wiring_probe.py` として実在する
+  (2026-08-27 新設)。** ただし CLI の実在は (i) を充足せず、§5 の欄を埋める権限も与えない。
+  候補集合・各 exact command・証拠 path と hash・0 件/複数件の決定規則・記入者・レビュー者を
+  人間の指名を含む別 commit で先に freeze しない限り、対象 driver と軸を記入しない。
+  (i) と (ii) は実走開始前に完了させ、実走開始後は差し替えない。**
 - **赤 precursor の母集合**: B-4 の出力を見る前に freeze する。赤が出なかった block も
   除外・差替えせず「treatment 未発火」として全件報告する (§7)。
+  **母集合を決める適格性述語・順序・選択関数・完全性要件は §5.1.1 で凍結済みである。**
+  この欄を埋めてよいのは、その規則から一意に決まる `analysis_manifest` が実在し、
+  **その artifact path と sha256 と行数、および `scheduled_attempt_registry` の
+  artifact path と sha256** を値として書けるときだけである。規則への参照だけで埋めてはならない
+  — 中身の実在なしに実走前検査を通す経路になる。
+  生成後の追加・削除・並べ替え・driver の差替えは、§5.1.1 に従い `design_not_feasible` とする。
 - **n と検定単位**: 検定単位は **block** とする (試行は path-dependent で独立でない)。
-  n は B-4 データを含まない凍結済み母集合と事前固定した最小重要効果から検定力を概算して決める。
+  n は B-4 データを含まない凍結済み母集合と事前固定した最小重要効果から決める。
+  **導出は §5.1.1 が正本である。** 近似ではなく、そこで凍結した統計モデルのもとで
+  **厳密検定の検出力そのもの**から求め、pilot を使わない。値は §5 の欄に記入済みである。
   **予算上 n を確保できないなら「記述統計に留め有意性を主張しない」と本書に先に宣言してから実走する。**
 - **primary outcome**: 純関数として固定する。次をすべて定義してから記入する —
   参照点 (precursor 基準か arm 内前後か)、tie の扱い、欠測の順位、非 certified 同士の順位、
   certified と非 certified の順序、確率優越 A の定義。**secondary (certified 到達までの
   iteration 数・certified 率) は primary 判定に使わない。**
+  **6 点はすべて §5.1.1 で定義済みである。** それでもこの欄はまだ埋めない。
+  実走前検査は値セルの型・意味・参照先の実在を検査しないため、定義への参照だけで埋めると、
+  **実装が無いまま他の欄が揃った時点で関門が開く**経路になる。
+  この欄を埋めてよいのは、raw な試行記録から §5.1.1 の入力型を作る経路が実装され、
+  その実装が §5.1.1 の定義と一致することを検査する consumer が実在し、
+  **その artifact path と sha256 を値として書けるとき**だけである (§6 の前提条件も参照)。
 - **floor**: `docs/phase3-main-experiment.md` の流用禁止規則に従う。既存の 3.0% (D19) と
   48 スレッド動作点の calibration を**流用しない**。対象動作点で再実測し保守側 (最大) を採る。
 - **校正済み `PerfConfig`**: `p3_s4_loop.default_perf()` は自ら「性能比較用 calibration ではない」と
@@ -201,6 +225,291 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
   **この欄は計測に依存しないので、計測待ちを空欄の理由にしない。** 指名がないまま実走しない。
 - **開始時刻**: timezone 付きの**予定**開始時刻を記入し、「この時刻より前に実走を開始しない」と読む。
   実際の開始時刻は実走成果物側に別途記録し、**本欄を後から実測値へ書き換えない。**
+
+#### 5.1.1 分析契約の一括凍結 (D1082)
+
+D1082 に従い、**赤 precursor の母集合・最小重要効果・n・primary outcome の純関数を
+同じ変更単位で凍結する。** 最小重要効果は pilot と独立に固定する。
+
+**何を凍結し、何が後に残るかを取り違えない。**
+
+- **今この変更単位で確定するもの:** 最小重要効果の値、n の値、primary outcome の演算と
+  実験 verdict の関数、そして母集合を決める適格性述語・順序・選択関数・完全性要件と
+  割当の無作為化要求。**4 項目とも、後日の裁量判断へ先送りしない。**
+- **後に残るもの:** 母集合の**実体** (`analysis_manifest` の bytes) と、それが依存する
+  §5 の他欄 (対象 driver と軸、校正済み `PerfConfig`、floor)。
+  これらは本節の規則と §5.1 の解除条件から**一意に決まる**。
+  実体の生成は凍結済み規則の機械適用であって、新たな凍結判断ではない。
+- **禁じるもの:** 規則の外で母集合を選び直すこと。項目ごとに別の時期へ凍結を先送りすること。
+  実体を見てから規則を変えること。
+
+**本節の規則は、それ自体では何も機械強制しない。** 本節末の発効条件を参照する。
+
+##### 赤 precursor の母集合 (適格性述語・順序・選択関数)
+
+**台帳を 2 つに分ける。1 つの台帳に 3 つの役割を負わせない。**
+
+- **`scheduled_attempt_registry`** — 予定した attempt を**全件**残す append-only の台帳。
+  生成失敗・赤の非再現・重複・破損・screening のみの赤も、除外理由にせず固定 enum の理由を
+  付けて残す。成功した attempt だけを載せる経路を禁じる。§7.1 の全件報告はこの台帳が担う。
+- **`analysis_manifest`** — 上の台帳から適格性述語で選んだ分析対象。母集合はこの**全行**である。
+
+**適格性述語** (結果を見る前に固定する。これ以外の理由で行を落とさない):
+
+- `whiteboard.result` が `rejected` であり、かつ §3.1 が digest へ載せる 4 クラス
+  (verify-red / liveness / other / diff-quarantine) の少なくとも 1 件を持つ。
+  **screening だけの赤は適格でない。** §3.2 のとおり screening は**両アームとも** digest に
+  載らず treatment の差分ではないため、構造的に treatment が発火しえない。
+  これは結果を見る前の定義上の除外であり、事後の間引きではない。
+- workload が、その driver の校正済み `PerfConfig` が定める workload に属する。
+  **その workload を全件使う。** 結果を見てからの部分集合化を禁じる。
+- 初期 proposal が、事前に固定した bootstrap 集合に属する。実走開始後に足さない。
+- 後述の共通参照点 (`reference`) が一意に定まる。
+- precursor を作った走行が**どちらのアームの digest も受けていない**。
+  片アームの digest を受けた precursor から作った block は pair として成立しないので、
+  適格でないとし、`scheduled_attempt_registry` には protocol violation の理由で残す。
+
+**順序と選択関数:**
+
+- `analysis_manifest` の行は、`scheduled_attempt_registry` の canonical 順序 (registry へ
+  追記された順。同着は attempt id の辞書順) を保って並べる。
+- 適格行が n 未満なら `design_not_feasible` とし、実走しない。**n を予算へ合わせて切り下げない。**
+- 適格行が n を超える場合は、上の順序で**先頭 n 行**を採る。結果を見てから選び直さない。
+
+**割当の無作為化 (帰無分布の前提):**
+
+- 各 block について、on / off を実行 slot へ割り当てる 2 通りのうち 1 つを、**確率 `1/2` ずつ、
+  block ごとに独立に**、**実走前に**選び、その schedule を `analysis_manifest` へ固定する。
+  この無作為化が、後述の検定が使う「block 内でアーム label を交換してよい」という
+  sharp な帰無仮説を成立させる。無作為化なしでは帰無分布は二項分布にならない。
+- schedule を実走後に変えた block、および schedule どおりに実行されなかった block は
+  protocol violation とする。**遵守の結果を verdict 関数の入力に含める。**
+- この無作為化は測定順序の効果も同時に扱う。**逆順 1 本による順序効果の否定は行わない** (D1095)。
+
+**完全性:**
+
+- `analysis_manifest` は生成器と `scheduled_attempt_registry` から再生成でき、
+  行集合と順序が exact に一致することを確かめられなければならない。
+  **hash を記録するだけでは完全性の証明にならない。**
+- 生成後の**追加・削除・並べ替え・driver の差替え**は `design_not_feasible` とし、実走しない。
+- **registry 側の protocol violation を manifest から外して洗い落とせない。**
+  `scheduled_attempt_registry` に protocol violation の理由を持つ行が 1 件でもあれば、
+  その件数を verdict 関数の入力に渡し、実験全体を protocol violation とする。
+  違反 attempt を後続の適格行で置き換えて成立を得る経路を、この規則が塞ぐ。
+
+##### 最小重要効果 (pilot と独立に固定)
+
+**最小重要効果は確率優越 `A_min = 0.60` とする。** 無次元、尺度は 0 以上 1 以下、
+大きいほど on が良い。差なしは `A = 0.50` であり、検出対象の差は `0.10` である。
+これは tie を半分ずつ数えた後で、on の勝ち率が off の勝ち率を 20 percentage point 上回ることに等しい。
+これより小さい改善を B-4 の機序証拠として重要とは扱わない。
+
+**この値は次のいずれからも導いていない** — §9 の既知結果、pilot、算出した n、総計測予算、
+対象 driver、対象軸、赤形状の頻度、欠測率、観測された `A`。
+本書の estimand は狭い機序主張 (§2.1) であり、大効果を主張する実験ではないので、
+慣用的な大効果の閾値をこの estimand の重要性へ流用しない。
+**実行可能性を理由に `A_min` を上げない。** 後述のとおり `A_min` を上げるほど必要 block 数は
+減るため、実行可能性で選べば必ず上げる方向へ倒れる。その方向の変更を禁じる。
+
+**`A_min` は必要 block 数の導出にだけ使う。判定の閾値にしない。**
+標本値が `A_min` に届いたことを成立の条件にすると、真値がちょうど `A_min` のとき成立確率が
+おおむね半分で頭打ちになり、n をいくら増やしても目標検出力に到達しない。
+代わりに、成立と報告する走行では `A_hat` の点推定、tie 件数、非 tie 数 `m`、および
+後述の `theta` の厳密な信頼区間を必ず併記し、
+点推定が `A_min` を下回る場合は**「最小重要効果に満たない効果」と明記する**。
+
+##### n と検定単位
+
+検定単位は **block** とする。1 つの block 内の on / off は同じ precursor に対する pair であり、
+iteration や session 内 rep を独立な検定単位へ昇格させない。
+
+**pilot を置かない。分散の推定に標本を使わない。**
+必要 block 数は、下に定める厳密検定そのものの検出力から直接求める。**正規近似を使わない。**
+これは pilot が「必要 block 数を小さくする」自由度を持たない形であり、
+D1082 が最小重要効果を pilot から切り離した理由をそのまま n へも適用したものである。
+**本契約は pilot を持たない。** pilot を導入するなら、結果を閲覧する前に、
+本節の 4 項目すべてを同時に凍結し直す新しい事前登録が要る。現発効版へ遡及適用しない。
+
+**検出力を計算する統計モデルを先に固定する。**
+
+- block は母集合から**独立同分布**に引かれるものとする。
+- 各 block は、on 上位を確率 `a`、tie を確率 `t`、off 上位を確率 `1 - a - t` で取る。
+- 対立仮説は「真の `A = a + t/2` が `A_min = 0.60`」とする。`t` は固定しない。
+  `A` を保つ `t` の全域 (`p = a / (1 - t)` が 1 を超えない範囲) について検出力を要求する。
+- 検定する帰無仮説は、**各 block 内でアーム label を交換してよい**という sharp null である。
+  §5.1.1 の割当無作為化 (2 通りの割当を確率 `1/2` ずつ、block ごとに独立) がこれを成立させる。
+
+導出は次のとおりである。
+
+- 片側の有意水準は**方向ごとに `0.025`** (両方向あわせて `0.05`)、目標検出力は `0.80` とする。
+- **`t` を動かすと検出力は単調には動かない。** 非 tie 数が減る効果と、非 tie 上の on 勝率
+  `(A - t/2) / (1 - t)` が上がる効果に加え、棄却境界が離散に動くためである。
+  したがって「tie 率 0 が最悪」と仮定せず、**許容する `t` の全域での最小値**で n を決める。
+- この条件で厳密符号検定の検出力が全域で `0.80` 以上になる最小の block 数は **`n = 201`**
+  である。最悪は `t` が約 `0.009` のときで、そのときの検出力は約 `0.8017`。
+  参考までに `t = 0` では約 `0.8104`、`t = 0.1` では約 `0.8354` である。
+- 棄却境界は実走後に観測された非 tie block 数から同じ規則で決める。n から先に固定しない。
+
+**適格な block を 201 件確保できない場合、n を予算に合わせて切り下げない。**
+その場合は実走前に「記述統計に留め有意性を主張しない」と本書へ明記してから実走するか、
+実走しない。この分岐の判定は結果を見る前に行う。
+
+##### primary outcome の純関数
+
+**入力**は次の 4 つだけである。関数はこれ以外を参照しない。
+
+1. `floor` — §5 の凍結 artifact から読んだ値。関数の**引数として渡す**。関数内で導出しない。
+   値域は `0` 以上 `1` 未満の有限値。範囲外・非数・欠落は下の `analysis_invalid` とする。
+2. `contract_binding` — 凍結側の期待値。次を持つ。
+   - `manifest_sha256`、`registry_sha256`
+   - block ごとの期待値: `block_id`、`reference_tps`、`reference_snapshot_hash`、
+     `reference_receipt_hash`、割当 schedule
+   - `expected_block_count` (= n)
+   **観測側の値はこの期待値と exact に一致しなければならない。**
+   一致検査を関数の外へ出さない。外に出すと参照点や違反件数の差替えを関数が検出できない。
+3. `registry_violation_count` — `scheduled_attempt_registry` 上で下の理由 enum のいずれかを
+   持つ行数 (`0` 以上の整数)。負値・非整数・欠落は `analysis_invalid` とする。
+   **registry の protocol violation 理由 enum** は次で固定する —
+   `arm_digest_contaminated_precursor` (precursor がどちらかのアームの digest を受けた)、
+   `assignment_schedule_violated`、`arm_asymmetric_gate` (§4 のアーム非対称)、
+   `env_tag_mismatch` (§5.1 の env_tag 規範違反)、`manifest_mutated_after_freeze`。
+4. block の列。各 block は次を持つ。
+   - `block_id` — `analysis_manifest` の canonical id
+   - `reference_tps` — 後述の共通参照点の throughput (有限の正)
+   - `reference_snapshot_hash`、`reference_receipt_hash` — 参照点の出所。
+     `analysis_manifest` に固定された値と一致しなければならない。
+   - `assignment_followed` — 無作為化 schedule どおりに実行されたかの真偽値
+   - **アームごと**に `precursor_hash`、`status`、`throughput`、`treatment_fired`、
+     `contaminated`、`protocol_ok`
+   - `status` の値域は `certified` / `rejected` / `aborted` / `missing` のちょうど 4 値。
+     `certified` のときだけ `throughput` を有限の正として持ち、他の 3 値では値を持たない。
+   - `treatment_fired` は**そのアームで treatment が発火したか**を表す真偽値である
+     (on では赤詳細が digest へ載ったこと、off では載らなかったことが確認できたこと)。
+   - `contaminated`、`protocol_ok`、`assignment_followed` は真偽値。
+   - `duplicate`、`dry-pass`、実行前の停止、crash、終端記録の不在は、すべて `missing` へ写す。
+     **行そのものを落とさない。**
+   - 真偽値が真偽値でない、field が欠落している、`block_id` が `analysis_manifest` に無い
+     場合は下の `analysis_invalid` とする。
+
+**共通参照点** `reference_tps` は、その block の precursor から祖先方向へ辿って最初に現れる
+certified snapshot の session-level throughput とする。**参照点はこれ 1 つとし、
+arm 内前後の別基準を使わない。** 該当する祖先が無い、複数の候補が同着で並ぶ、
+対応する throughput の receipt が `PerfConfig` と `env_tag` の一致で特定できない場合は、
+その block を適格でないとする (実走前に判明するため `design_not_feasible` の対象であり、
+実走後に判明したら protocol violation とする)。**代替基準へ切り替えない。**
+参照点の出所 (`reference_snapshot_hash` と `reference_receipt_hash`) は
+`analysis_manifest` に固定し、分析時に差し替えられないようにする。
+
+**アームの順位**は次で固定する (良い順)。
+
+1. `certified`
+2. `rejected` と `aborted` — **この 2 つの間だけが常に tie である。**
+3. `missing`
+
+`certified` は throughput にかかわらず、すべての非 certified より上とする。
+`missing` は `rejected` と `aborted` の**下**であり、tie ではない。**除外もしない** (§7.1)。
+`rejected` と `aborted` を互いに tie とするのは、§4 が reject に fitness を付けないと定めるため、
+性能に類する量で両者を並べないからである。
+
+両アームが `certified` の block では、アームごとに
+`利得 = throughput / reference_tps - 1` を取り、
+2 つの利得の差の絶対値が `floor` 以下なら tie、それ以外は利得の大きいアームを上位とする。
+境界値は tie に含める。
+
+block score `X` は、on が上位なら `1`、tie なら `1/2`、off が上位なら `0` とする。
+
+**確率優越 A** は、母集合から事前規則どおりに選ばれた 1 block について
+`A = P(on が上位) + (1/2) * P(tie)` と定義する。標本推定値 `A_hat` は全 block の `X` の
+相加平均であり、有理数として exact に計算する。**`A` は母数、`A_hat` は標本値であり、
+判定文では取り違えない。**
+
+**純関数性** — 入力は上の 3 つだけであり、file system・時刻・環境変数・乱数・
+network・model・global state を参照しない。同じ入力から常に同じ値を返す。
+
+**入力検証を先に完了させる。** 下の理由 enum の判定を**すべて**行い、1 つでも当たれば
+`analysis_invalid` を返して終わる。**verdict の分岐評価はその後に始める。**
+検証前に値を読んで分岐しない (負の値や不正な型が分岐へ流れ込まないようにするため)。
+
+**`analysis_invalid` の理由 enum** (いずれかに当たれば、行を除外せず出力全体を無効とする):
+
+- `block_count_mismatch` — block 数が `expected_block_count` と異なる
+- `duplicate_block_id` / `unknown_block_id` — id の重複、`contract_binding` に無い id
+- `precursor_hash_mismatch` — 同じ block の両アームの `precursor_hash` が一致しない
+- `reference_binding_mismatch` — 参照点の `reference_tps`・`reference_snapshot_hash`・
+  `reference_receipt_hash` のいずれかが `contract_binding` の期待値と一致しない
+- `reference_value_domain_error` — `reference_tps` が有限の正でない
+- `status_domain_error` — `status` が値域外
+- `throughput_contract_error` — `certified` なのに `throughput` が無い、
+  または `certified` でないのに `throughput` がある、値が有限の正でない
+- `floor_domain_error` — `floor` が値域外・非数・欠落
+- `violation_count_domain_error` — `registry_violation_count` が負・非整数・欠落
+- `binding_domain_error` — `contract_binding` の hash・id・期待値が欠落、型違反、
+  または `expected_block_count` が正の整数でない
+- `field_missing_or_ill_typed` — 上のいずれにも分類されない欠落または型違反 (受け皿)
+
+**この enum は全域である。** 受け皿を含むため、入力契約に反する入力は必ずどれかに当たる。
+
+`analysis_invalid` の実験としての扱いは次節で定める。
+
+**検定**は、tie でない block だけを取った**厳密な符号検定**とする。
+アーム label の block 内交換で値が変わるのは tie でない block だけなので、
+帰無分布は非 tie block 数 `m` を試行数とする対称二項分布に一致する。
+**この一致は、上で定めた実走前の無作為な割当が成立している場合にだけ言える。**
+無作為化されていない割当では、block ごとの勝率が不均一なとき帰無分布は二項分布にならない。
+割当が事前無作為化されていない走行は protocol violation とする。
+**全 label 交換の逐一列挙は要求しない** (block 数に対して実行不能になるため)。
+
+方向ごとに 2 つの片側 p 値を定める。`W` を on が上位の非 tie block 数として、
+`p_on` は `Bin(m, 1/2)` の上側 `P(W' >= W)`、`p_off` は下側 `P(W' <= W)` とする。
+**方向ごとの有意水準は `0.025`**、両方向あわせて `0.05` とする。`m = 0` のときは
+`p_on = p_off = 1` とする。多重比較は B-4 独立の族で Holm 補正する (§7.1)。
+primary は 1 つなので補正後の値は未補正値と一致する。
+
+##### 実験 verdict は全域関数とし、§7.1 の 4 分類へ写す
+
+`A_hat` と p 値だけで判定しない。**入力検証を先に完了させたうえで**、
+次を上から順に評価し、**最初に当たった分岐で確定する**。
+どの入力でも必ず 1 つに当たる (全域関数)。
+
+1. 出力が `analysis_invalid` — **protocol violation**。理由 enum を併記する。
+   入力契約に反する解析は成立とも不成立とも読めず、事前条件違反なので §7.1 の
+   protocol violation に当たる (判定不能ではない)。
+2. `registry_violation_count` が `0` より大きい、いずれかの block でいずれかのアームの
+   `protocol_ok` が偽、または `assignment_followed` が偽 — **protocol violation**。
+   §7.1 は protocol violation を独立の分類として持つので、判定不能へ畳まない。
+   個々の block も全件報告する。
+   **`protocol_ok` は汚染を含まない。** 汚染は次の分岐が扱う。両方が同時に真の場合は、
+   上から順の評価によりこの分岐が先に当たり、**protocol violation が優先する**。
+   事前条件違反は、汚染の有無にかかわらず解析の前提を壊すためである。
+3. いずれかの block で `contaminated` が真 — **判定不能**。
+   §7.1 が off 汚染を判定不能と定めるため、その分類に従う。
+4. 両アームとも `treatment_fired` が真である block の数が n に満たない — **判定不能**。
+   §7.1 の「n 不足」「treatment 未発火」がここに当たる。
+5. `p_on` が `0.025` 以下 — **成立**。`A_hat` の点推定、tie 件数、`m`、
+   下の `theta` の信頼区間を必ず併記する。
+   `A_hat` が `A_min` を下回るなら「最小重要効果に満たない効果」と明記する。
+6. `p_off` が `0.025` 以下 — **不成立**。
+7. それ以外 — **判定不能**。**「還流に価値なし」とは書かない** (§7.1)。
+
+分岐 5 と 6 は排他である (同じ `m` に対して両側の尾がともに `0.025` 以下にはならない。
+2 つの尾の和は必ず 1 を超えるため)。
+
+**信頼区間**は、非 tie block 上の `theta = P(on が上位 | tie でない)` に対する
+Clopper-Pearson の厳密両側 95% 区間とする。**これは `theta` の区間であって `A` の区間ではない。
+本書は `A` の信頼区間を定めない。** 報告では `A_hat`、tie 件数、`m`、`theta` の区間を
+並べて書き、取り違えない。`m = 0` のときは区間を `[0, 1]` とし、`theta` は推定不能と書く。
+
+##### 本節が発効の条件として要求すること
+
+本節は文面であり、それ自体は何も機械強制しない。**次が実在するまで本書は発効しない。**
+現在どこまで閉じているかという可変の現在地は §7.2 と §10 が正本であり、ここへ再掲しない。
+
+- raw な試行記録から本節の入力型を作る経路 (adapter) と、その実装が本節の定義と一致することを
+  検査する consumer。
+- `scheduled_attempt_registry` と `analysis_manifest` の生成器と、再生成による完全性の検査。
+- 実走前の割当無作為化 schedule と、それが実走で守られたことの検査。
+
+**`n = 201` は総計測予算を超える見込みが高い。** その場合の分岐は上に事前宣言したとおりである。
 
 ## 6. 実走の前提条件 (1 つでも未充足なら実走しない)
 
@@ -257,6 +566,12 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 6. 対象動作点の floor が再実測済みで、その artifact が本書から参照されている。
 7. 負の対照 (§8) が緑である。
 8. 実行環境が確定し、単独性が確認されている。
+9. **§5.1.1 の分析契約を実行する経路が実在する。** raw な試行記録から §5.1.1 の入力型を作る
+   adapter、その実装が §5.1.1 の定義と一致することを検査する consumer、
+   `scheduled_attempt_registry` と `analysis_manifest` の生成器と再生成による完全性検査、
+   実走前の割当無作為化 schedule とその遵守検査が、いずれも実在する。
+   **文面だけの分析契約で実走しない。** 実走前検査は値セルの型・意味・参照先を検査しないので、
+   この条件は機械では代替されない。
 
 ## 7. 全件報告規則と、その機械強制の現在地
 
@@ -399,19 +714,48 @@ D39 残存リスク (b) が求める「off が rejection を一切見ないこ�
 |2026-07-12|`docs/archive/worklog-phase3-0702-0713.md`|F 段 (trigger-gating 軸) の実 LLM 駆動 2 iteration。iteration 1 = certified (variant `e1785940172e`、275,614 tps、CV 1.65%)、critic はノイズ内で帰属不能 (+0.27% < floor 3.0%)・decrease 逆方向推奨 → iteration 2 の `prior_critic_reverse=true`。iteration 2 = certified (variant `ca5206c3dac5`、276,472 tps、CV 0.46%)、critic は真の tie・探索停止推奨。両 iteration とも verify legacy+S2 serializable・0 anomalies・auditor pass|**正式標本へ算入しない。** off アームの対照が無く、軸も本書の対象軸と一致するとは限らない|
 |2026-07-06|D37|赤 2 本の実走 (fixture trace 注入の半実)。「赤 → 構造化 → critic が読んで形状別の方向を返す」まで実証|**正式標本へ算入しない。** fixture 由来|
 
+**D1082 に基づく分析契約の凍結時点 (§5.1.1) について:** 上表の 2 件のほかに、B-4 の
+next synthesis・primary outcome・secondary outcome を新たに生成も閲覧もしていない。
+分析用の pilot も実施していない (§5.1.1 のとおり本契約は pilot を持たない)。
+**凍結は、本書に基づく B-4 の正式標本より先である。**
+
 したがって本書に基づく成果は、**未知結果に対する confirmatory ではなく、
 既知結果に informed された登録追試**として報告する。
 
 ## 10. 本書が閉じないこと
 
-- **§5.1 (ii) を満たす非標本 probe。現時点で、その条件を満たす sanctioned CLI は存在しない。**
-  build を伴う経路は次の synthesis と outcome を生成するため probe にならず、`--no-build` 経路は
-  §3.1 の切替点を通らない。probe は §5.1 (ii) の 4 検査 (候補 driver で切替点を通ること、
+- **§5.1 (i) の先行 freeze と人間の指名。** §5.1 (ii) の 4 検査 (候補 driver で切替点を通ること、
   on で赤詳細が出現すること、off で §8 の項目 1・2 が成立すること、on/off の campaign identity が
-  分離すること) を、**next synthesis と primary / secondary outcome を生成も閲覧もせずに**
-  行えなければならない。§5.1 (i) の先行 freeze (候補集合・exact command・証拠 path と hash・
-  0 件/複数件の決定規則・記入者・レビュー者) も依存条件である。
-  **これが用意されるまで「対象 driver と軸」の欄は埋められず、したがって本書は発効しない。**
+  分離すること) を、**next synthesis と primary / secondary outcome を生成も閲覧もせずに**行う
+  sanctioned CLI は `orchestrator/campaign/p3_b4_wiring_probe.py` として実在する
+  (2026-08-27 新設、[T-1769])。outcome を生成しないことは、certified writer authorization・
+  loop state 永続化・whiteboard 射影の 3 権威点からの逆到達閉包を遮断集合とし、実 producer 9 本と
+  実 CLI 経路を名指しした負例で発火を示す機構で保証する
+  (変異 14 件: baseline 緑・KILLED 9・SURVIVED 5・MISMATCH 0)。
+  **本 wave の実走は道具の dogfood であり、§5.1 (ii) の採用証拠ではない。**
+  残るのは §5.1 (i) の先行 freeze — 候補集合・各 exact command・証拠 path と hash・
+  0 件/複数件の決定規則・**記入者とレビュー者** — であり、**人間の指名を含むため AI が確定できない。**
+  この先行 freeze を別 commit で固定し、その版に従って (ii) を実測するまで
+  **「対象 driver と軸」の欄は埋められず、したがって本書は発効しない。**
+
+- **probe が閉じないこと (2026-08-27 に実測して明記、[T-1769])。**
+  - **承認経路は deny-only の legacy 台帳を読む。** `make_critic_digest` は
+    `require_admitted_campaign` が発行する exact な型しか受け取らないため、この読みは迂回できない
+    (迂回は正しさゲートの緩和になる、規律 2)。読むのは legacy campaign 3 件の承認 metadata であって
+    B-4 の primary / secondary outcome ではなく、その 3 件の既知性は §9 が既に開示している。
+    probe は読んだ台帳の path と sha256 を証拠へ記録し、それ以外の実 campaign artifact を
+    1 件も読まないことを ledger で示す。
+  - **遮断集合は生成器の完全目録ではない。** 3 権威点のいずれにも到達しない生成器はこの層では
+    覆わない。閲覧側は隔離層 (保護領域の read/write 拒否) が受け持つ。
+  - **切替点通過の証拠は composite である。** 候補 driver の CLI 経路への静的到達性と、
+    probe から実 `make_critic_digest` を on/off 各 1 回呼んだ観測を併せたものであり、
+    **driver が runtime に切替点を通ったことは主張しない。**
+  - **trigger の site 射影 identity は、計測契約を発行できる site でしか測れない。**
+    login site では production が拒否するため「未測定」と記録する。
+  - **publish 直前の違反 ledger 照合 5 か所は到達不能である。** ledger へ追記する箇所は追記の直後に
+    必ず例外を送出するため、違反が記録されたまま publish へ到達する状態は起こらない。
+    両層同時変異でも生存することを実測した。多重防御として残すが発火する保証には数えない。
+  - **任意の native code や同権限 process による interpreter 改変は主張しない。**
 - 対象 driver と軸の選定そのもの (§5.1 の手順)。
 - 旧登録の B-4 記述を本書が supersede するかどうかのユーザー裁定。
 - **critic の決定と proposal 本文の因果的束縛。** 2026-08-26 の必須配線は、閉じた critic

@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,9 @@ _CONTRACT_SHA = hashlib.sha256(b"contract").hexdigest()
 _SOURCE_TOKEN = hashlib.sha256(b"source-token").hexdigest()
 _CCBENCH_PIN = "1" * 40
 _GENOME = '{"fixture":"s8b-admission"}'
+_EXPECTED_MATERIALIZATION_SHA = hashlib.sha256(
+    b"s8b-admission-expected-materialization"
+).hexdigest()
 
 
 def _canonical_sha(value: dict) -> str:
@@ -59,8 +63,21 @@ def _honest_record(
     holdout_id: str = "h1", configuration_id: str = "cfg",
     binary_bytes: bytes = b"honest-s8b-binary",
 ) -> dict:
-    source_root = tmp_path / root_name
-    source_root.mkdir(parents=True, exist_ok=True)
+    source_root = Path(tempfile.mkdtemp(prefix=f"{root_name}-", dir=tmp_path))
+    compiler_input = source_root / "include" / "fixture.hh"
+    compiler_input.parent.mkdir()
+    compiler_input.write_bytes(b"fixture compiler input\n")
+    compiler_input_manifest = {
+        "schema_version": "s8b-compiler-input/v1",
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": "ycsb_fixture.exe",
+        "depfile_count": 1,
+        "inputs": [{
+            "path": "include/fixture.hh",
+            "sha256": hashlib.sha256(compiler_input.read_bytes()).hexdigest(),
+        }],
+    }
+    compiler_input_manifest_sha256 = _canonical_sha(compiler_input_manifest)
     source = SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,
         source_root=str(source_root.resolve()),
@@ -86,6 +103,10 @@ def _honest_record(
         cell_id=cell_id, holdout_id=holdout_id, configuration_id=configuration_id,
         binding=binding, binary=binary, binary_sha256=binary_sha,
         contract_sha256=_CONTRACT_SHA, trace=False,
+        source_snapshot_sha256=_EXPECTED_MATERIALIZATION_SHA,
+        expected_materialization_sha256=_EXPECTED_MATERIALIZATION_SHA,
+        compiler_input_manifest=compiler_input_manifest,
+        compiler_input_manifest_sha256=compiler_input_manifest_sha256,
     )
     record = {
         "cell_id": cell_id,
@@ -301,6 +322,26 @@ def test_historical_validation_does_not_require_current_policy(tmp_path: Path):
         expected_entry_sha256=record["binding"]["entry_sha256"],
         expected_binding_sha256=record["binding"]["binding_sha256"],
     ) == receipt
+
+
+def test_historical_validation_rejects_v1_and_missing_proof(tmp_path: Path):
+    record = _honest_record(tmp_path)
+    for mutation in ("v1", "missing-proof"):
+        candidate = copy.deepcopy(record)
+        receipt = candidate["admission_receipt"]
+        if mutation == "v1":
+            receipt["schema"] = "s8b-binary-admission/v1"
+        else:
+            receipt.pop("proof")
+        unsigned = dict(receipt)
+        unsigned.pop("receipt_sha256")
+        receipt["receipt_sha256"] = _canonical_sha(unsigned)
+        with pytest.raises(A.BinaryAdmissionError):
+            A.validate_portable_binary_record(
+                candidate, expected_policy=None,
+                expected_ccbench_pin=_CCBENCH_PIN,
+                expected_contract_sha256=_CONTRACT_SHA,
+            )
 
 
 @pytest.mark.parametrize(
