@@ -1,0 +1,527 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5290cc45a0d5486d4a6e404274dca080/izdw-5290cc45a0.o952006",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5290cc45a0d5486d4a6e404274dca080/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n33 passed in 3.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "1ceb1cb76112c916a9e54f1c542155cb499bbc2dbbcc04a877452b7b539bc56d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+    "duration_s": 27.549,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a2e083939a76ffd7f74ed273cea3661ea12fd92cf16a7e01f9934fdc9a430ed1",
+    "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+    "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+    "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+    "status": "PASSED",
+    "test_output_sha256": "1ceb1cb76112c916a9e54f1c542155cb499bbc2dbbcc04a877452b7b539bc56d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+  },
+  "date": "2026-08-27T02:34:39.763143+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b86d6804ce47c54279a587d3e9a382ed/izdw-b86d6804ce.o952010",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b86d6804ce47c54279a587d3e9a382ed/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F.                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n____________________ test_verify_rejects_noncanonical_bytes ____________________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_verify_rejects_noncanonic0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146803f4f4c0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x146803f4fa30>\n\n    def test_verify_rejects_noncanonical_bytes(tmp_path, monkeypatch, capsys):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        candidate = tmp_path / \"noncanonical-candidate.json\"\n        _write_candidate(candidate, _approval(holdout_ids), canonical=False)\n    \n>       assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x1468080b3370>(['verify', '--candidate', '/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_verify_rejects_noncanonic0/noncanonical-candidate.json'])\nE        +    where <function main at 0x1468080b3370> = TOOL.main\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:521: AssertionError\n----------------------------- Captured stdout call -----------------------------\nraw_sha256=e5fd65883577b28077c88490578fa5c5806bbf077d0105471001ad79d0ea2d7f\nBUDGET_APPROVAL_SHA256: Optional[str] = \"e5fd65883577b28077c88490578fa5c5806bbf077d0105471001ad79d0ea2d7f\"\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes\n1 failed, 32 passed in 3.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1083 retained_bytes=1083 omitted_bytes=0 rendered_excerpt_bytes=1122 sha256=f65ddd3fb79c76e5c65c3035f571a9c8b919e77e6f448bf83e62f2669cefd8bc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_verify_rejects_noncanonic0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146803f4f4c0>\n> capsys = <_pytest.capture.CaptureFixture object at 0x146803f4fa30>\n> \n>     def test_verify_rejects_noncanonical_bytes(tmp_path, monkeypatch, capsys):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         candidate = tmp_path / \"noncanonical-candidate.json\"\n>         _write_candidate(candidate, _approval(holdout_ids), canonical=False)\n>     \n> >       assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 1\n> E       AssertionError: assert 0 == 1\n> E        +  where 0 = <function main at 0x1468080b3370>(['verify', '--candidate', '/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_verify_rejects_noncanonic0/noncanonical-candidate.json'])\n> E        +    where <function main at 0x1468080b3370> = TOOL.main\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:521: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1083 retained_bytes=1083 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1845 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3006188345574455d63ecc316be20b0ce555723818ed96d25b36dcf38db557e9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+      "duration_s": 27.783,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes"
+      ],
+      "hang_risk": false,
+      "id": "MU-1",
+      "injection_diff_sha256": "f7cbf85a9a72bd75f713b8ee3bd4a83f15aaed0d6bea6a8ae744194fb07d4c8b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "40eccd8c5715c0a1b5bec65a1ccf549a5021d67e269c9bd1bdc7f24256bc4ed0",
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "new": "",
+          "old": "    if _freeze._canonical_bytes(approval) != raw:\n        raise _freeze.FreezeError(\"budget approval raw bytes が canonical JSON でない\")\n"
+        }
+      ],
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "KILLED",
+      "test_output_sha256": "3006188345574455d63ecc316be20b0ce555723818ed96d25b36dcf38db557e9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/66b06e26ba2df855b7024bf879cee373/izdw-66b06e26ba.o952011",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/66b06e26ba2df855b7024bf879cee373/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FF.                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n_________ test_verify_rejects_each_approval_contract_violation[scope] __________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_verify_rejects_each_appro0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15017fa6b4f0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x15017fa6b820>\nmutation = <function <lambda> at 0x15017fca8430>\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        [\n            lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n            lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n            lambda approval, holdouts: approval.update(approver=\"  \"),\n            lambda approval, holdouts: approval.update(\n                approved_at=\"2026-01-01T00:00:00+00:00\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                oracle_shared=False\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                total_bench_s=-len(holdouts)\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                extra=\"unexpected\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"][\n                \"per_holdout_bench_s\"\n            ].pop(holdouts[0]),\n            lambda approval, holdouts: approval[\"budget\"][\n                \"per_holdout_bench_s\"\n            ].update({holdouts[0]: -len(holdouts[0])}),\n        ],\n        ids=[\n            \"approval-keys\",\n            \"scope\",\n            \"approver\",\n            \"timestamp\",\n            \"oracle-shared\",\n            \"total-finite-nonnegative\",\n            \"budget-keys\",\n            \"holdout-exact-set\",\n            \"per-holdout-finite-nonnegative\",\n        ],\n    )\n    def test_verify_rejects_each_approval_contract_violation(\n            tmp_path, monkeypatch, capsys, mutation):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        approval = _approval(holdout_ids)\n        mutation(approval, holdout_ids)\n        candidate = tmp_path / \"invalid-candidate.json\"\n        _write_candidate(candidate, approval)\n        before_tmp = _tree_snapshot(tmp_path)\n    \n>       assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x15017fc93370>(['verify', '--candidate', '/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_verify_rejects_each_appro0/invalid-candidate.json'])\nE        +    where <function main at 0x15017fc93370> = TOOL.main\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:487: AssertionError\n----------------------------- Captured stdout call -----------------------------\nraw_sha256=a61630c98f51c9c0ccd8177caefe3b1908ea0ed21c0475fb5a5b9edeba49dcc5\nBUDGET_APPROVAL_SHA256: Optional[str] = \"a61630c98f51c9c0ccd8177caefe3b1908ea0ed21c0475fb5a5b9edeba49dcc5\"\n_________ test_verify_and_loader_reject_same_contract_violation[scope] _________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_verify_and_loader_reject_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c7decdd720>\nmutation = <function <lambda> at 0x14c7decebc70>\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        [\n            lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n            lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n            lambda approval, holdouts: approval.update(approver=\"  \"),\n            lambda approval, holdouts: approval.update(\n                approved_at=\"2026-01-01T00:00:00+00:00\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                extra=\"unexpected\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                oracle_shared=False\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                total_bench_s=-1\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                total_bench_s=-0.0\n            ),\n            lambda approval, holdouts: approval[\"budget\"][\n                \"per_holdout_bench_s\"\n            ].pop(holdouts[0]),\n        ],\n        ids=[\n            \"approval-extra-key\",\n            \"scope\",\n            \"empty-approver\",\n            \"timestamp\",\n            \"budget-extra-key\",\n            \"oracle-shared\",\n            \"negative\",\n            \"negative-zero\",\n            \"holdout-missing\",\n        ],\n    )\n    def test_verify_and_loader_reject_same_contract_violation(\n            tmp_path, monkeypatch, mutation):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        approval = _approval(holdout_ids)\n        mutation(approval, holdout_ids)\n        candidate = tmp_path / \"invalid-candidate.json\"\n        raw = _write_candidate(candidate, approval)\n        canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n        canonical.parent.mkdir(parents=True, exist_ok=True)\n        canonical.write_bytes(raw)\n        matching_pin = hashlib.sha256(raw).hexdigest()\n    \n>       with pytest.raises(FREEZE.FreezeError):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:368: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]\n2 failed, 31 passed in 3.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2624 retained_bytes=2624 omitted_bytes=0 rendered_excerpt_bytes=2747 sha256=8470ac265f0bf6b2c97a34f3985a352eff9e7faa7942460f0b30a195c1aee934\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_verify_rejects_each_appro0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15017fa6b4f0>\n> capsys = <_pytest.capture.CaptureFixture object at 0x15017fa6b820>\n> mutation = <function <lambda> at 0x15017fca8430>\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         [\n>             lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n>             lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n>             lambda approval, holdouts: approval.update(approver=\"  \"),\n>             lambda approval, holdouts: approval.update(\n>                 approved_at=\"2026-01-01T00:00:00+00:00\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 oracle_shared=False\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 total_bench_s=-len(holdouts)\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 extra=\"unexpected\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"][\n>                 \"per_holdout_bench_s\"\n>             ].pop(holdouts[0]),\n>             lambda approval, holdouts: approval[\"budget\"][\n>                 \"per_holdout_bench_s\"\n>             ].update({holdouts[0]: -len(holdouts[0])}),\n>         ],\n>         ids=[\n>             \"approval-keys\",\n>             \"scope\",\n>             \"approver\",\n>             \"timestamp\",\n>             \"oracle-shared\",\n>             \"total-finite-nonnegative\",\n>             \"budget-keys\",\n>             \"holdout-exact-set\",\n>             \"per-holdout-finite-nonnegative\",\n>         ],\n>     )\n>     def test_verify_rejects_each_approval_contract_violation(\n>             tmp_path, monkeypatch, capsys, mutation):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         approval = _approval(holdout_ids)\n>         mutation(approval, holdout_ids)\n>         candidate = tmp_path / \"invalid-candidate.json\"\n>         _write_candidate(candidate, approval)\n>         before_tmp = _tree_snapshot(tmp_path)\n>     \n> >       assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 1\n> E       AssertionError: assert 0 == 1\n> E        +  where 0 = <function main at 0x15017fc93370>(['verify', '--candidate', '/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_verify_rejects_each_appro0/invalid-candidate.json'])\n> E        +    where <function main at 0x15017fc93370> = TOOL.main\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:487: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=2367 retained_bytes=2367 omitted_bytes=0 rendered_excerpt_bytes=2490 sha256=a658b8b57635cb8f530e65f2b8a20f209dc78b53b9a5658f928558875acfeafa\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw9/test_verify_and_loader_reject_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c7decdd720>\n> mutation = <function <lambda> at 0x14c7decebc70>\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         [\n>             lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n>             lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n>             lambda approval, holdouts: approval.update(approver=\"  \"),\n>             lambda approval, holdouts: approval.update(\n>                 approved_at=\"2026-01-01T00:00:00+00:00\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 extra=\"unexpected\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 oracle_shared=False\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 total_bench_s=-1\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 total_bench_s=-0.0\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"][\n>                 \"per_holdout_bench_s\"\n>             ].pop(holdouts[0]),\n>         ],\n>         ids=[\n>             \"approval-extra-key\",\n>             \"scope\",\n>             \"empty-approver\",\n>             \"timestamp\",\n>             \"budget-extra-key\",\n>             \"oracle-shared\",\n>             \"negative\",\n>             \"negative-zero\",\n>             \"holdout-missing\",\n>         ],\n>     )\n>     def test_verify_and_loader_reject_same_contract_violation(\n>             tmp_path, monkeypatch, mutation):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         approval = _approval(holdout_ids)\n>         mutation(approval, holdout_ids)\n>         candidate = tmp_path / \"invalid-candidate.json\"\n>         raw = _write_candidate(candidate, approval)\n>         canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n>         canonical.parent.mkdir(parents=True, exist_ok=True)\n>         canonical.write_bytes(raw)\n>         matching_pin = hashlib.sha256(raw).hexdigest()\n>     \n> >       with pytest.raises(FREEZE.FreezeError):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:368: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4991 retained_bytes=4991 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6441 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b56132aa79871b3f258e96f81568dc832cfdbe1d977d19696a9baa49177a736e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+      "duration_s": 27.382,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]"
+      ],
+      "hang_risk": false,
+      "id": "MU-2",
+      "injection_diff_sha256": "42197441c743c4aa01f38595ea542b8b6f85d65646632f639adb289810349d28",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "110935471faf8c9365a7001fa1d08bc1e73de94f05c044f000716fd8683e575c",
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "new": "",
+          "old": "    if approval.get(\"scope\") != _freeze.BUDGET_APPROVAL_SCOPE:\n        raise _freeze.FreezeError(\"budget approval.scope が固定値と不一致\")\n"
+        }
+      ],
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "KILLED",
+      "test_output_sha256": "b56132aa79871b3f258e96f81568dc832cfdbe1d977d19696a9baa49177a736e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a7dd0eb0c81ee2d5388298721436a7e/izdw-0a7dd0eb0c.o952012",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a7dd0eb0c81ee2d5388298721436a7e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................FFF.                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n____ test_verify_and_loader_reject_same_contract_violation[holdout-missing] ____\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_verify_and_loader_reject_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a6f8327ca0>\nmutation = <function <lambda> at 0x14a6f82ac0d0>\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        [\n            lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n            lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n            lambda approval, holdouts: approval.update(approver=\"  \"),\n            lambda approval, holdouts: approval.update(\n                approved_at=\"2026-01-01T00:00:00+00:00\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                extra=\"unexpected\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                oracle_shared=False\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                total_bench_s=-1\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                total_bench_s=-0.0\n            ),\n            lambda approval, holdouts: approval[\"budget\"][\n                \"per_holdout_bench_s\"\n            ].pop(holdouts[0]),\n        ],\n        ids=[\n            \"approval-extra-key\",\n            \"scope\",\n            \"empty-approver\",\n            \"timestamp\",\n            \"budget-extra-key\",\n            \"oracle-shared\",\n            \"negative\",\n            \"negative-zero\",\n            \"holdout-missing\",\n        ],\n    )\n    def test_verify_and_loader_reject_same_contract_violation(\n            tmp_path, monkeypatch, mutation):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        approval = _approval(holdout_ids)\n        mutation(approval, holdout_ids)\n        candidate = tmp_path / \"invalid-candidate.json\"\n        raw = _write_candidate(candidate, approval)\n        canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n        canonical.parent.mkdir(parents=True, exist_ok=True)\n        canonical.write_bytes(raw)\n        matching_pin = hashlib.sha256(raw).hexdigest()\n    \n>       with pytest.raises(FREEZE.FreezeError):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:368: Failed\n_____________ test_design_asymmetry_loader_uses_caller_holdout_ids _____________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_design_asymmetry_loader_u0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d6544a74f0>\n\n    def test_design_asymmetry_loader_uses_caller_holdout_ids(\n            tmp_path, monkeypatch):\n        repo = tmp_path / \"repo\"\n        active_holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        caller_holdout_ids = active_holdout_ids[1:]\n        approval = _approval(caller_holdout_ids)\n        candidate = tmp_path / \"caller-scoped-candidate.json\"\n        raw = _write_candidate(candidate, approval)\n        canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n        canonical.parent.mkdir(parents=True, exist_ok=True)\n        canonical.write_bytes(raw)\n        matching_pin = hashlib.sha256(raw).hexdigest()\n    \n>       with pytest.raises(\n                FREEZE.FreezeError, match=\"holdout 集合が不一致\"):\nE               Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:429: Failed\n___ test_verify_rejects_each_approval_contract_violation[holdout-exact-set] ____\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_verify_rejects_each_appro0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14906a9934f0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14906a993820>\nmutation = <function <lambda> at 0x14906aaa8790>\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        [\n            lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n            lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n            lambda approval, holdouts: approval.update(approver=\"  \"),\n            lambda approval, holdouts: approval.update(\n                approved_at=\"2026-01-01T00:00:00+00:00\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                oracle_shared=False\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                total_bench_s=-len(holdouts)\n            ),\n            lambda approval, holdouts: approval[\"budget\"].update(\n                extra=\"unexpected\"\n            ),\n            lambda approval, holdouts: approval[\"budget\"][\n                \"per_holdout_bench_s\"\n            ].pop(holdouts[0]),\n            lambda approval, holdouts: approval[\"budget\"][\n                \"per_holdout_bench_s\"\n            ].update({holdouts[0]: -len(holdouts[0])}),\n        ],\n        ids=[\n            \"approval-keys\",\n            \"scope\",\n            \"approver\",\n            \"timestamp\",\n            \"oracle-shared\",\n            \"total-finite-nonnegative\",\n            \"budget-keys\",\n            \"holdout-exact-set\",\n            \"per-holdout-finite-nonnegative\",\n        ],\n    )\n    def test_verify_rejects_each_approval_contract_violation(\n            tmp_path, monkeypatch, capsys, mutation):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        approval = _approval(holdout_ids)\n        mutation(approval, holdout_ids)\n        candidate = tmp_path / \"invalid-candidate.json\"\n        _write_candidate(candidate, approval)\n        before_tmp = _tree_snapshot(tmp_path)\n    \n>       assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x14906aaa3370>(['verify', '--candidate', '/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_verify_rejects_each_appro0/invalid-candidate.json'])\nE        +    where <function main at 0x14906aaa3370> = TOOL.main\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:487: AssertionError\n----------------------------- Captured stdout call -----------------------------\nraw_sha256=06ea952da8684d2f9c436fd9a00f954fe47bfdf8fe7c7024feb238e85a8de667\nBUDGET_APPROVAL_SHA256: Optional[str] = \"06ea952da8684d2f9c436fd9a00f954fe47bfdf8fe7c7024feb238e85a8de667\"\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]\n3 failed, 30 passed in 3.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=2624 retained_bytes=2624 omitted_bytes=0 rendered_excerpt_bytes=2747 sha256=c543cf39196ebd383dbf028021114cb5749f02f78eaeb8fbc4669cd6bf5ce13d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_verify_rejects_each_appro0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14906a9934f0>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14906a993820>\n> mutation = <function <lambda> at 0x14906aaa8790>\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         [\n>             lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n>             lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n>             lambda approval, holdouts: approval.update(approver=\"  \"),\n>             lambda approval, holdouts: approval.update(\n>                 approved_at=\"2026-01-01T00:00:00+00:00\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 oracle_shared=False\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 total_bench_s=-len(holdouts)\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 extra=\"unexpected\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"][\n>                 \"per_holdout_bench_s\"\n>             ].pop(holdouts[0]),\n>             lambda approval, holdouts: approval[\"budget\"][\n>                 \"per_holdout_bench_s\"\n>             ].update({holdouts[0]: -len(holdouts[0])}),\n>         ],\n>         ids=[\n>             \"approval-keys\",\n>             \"scope\",\n>             \"approver\",\n>             \"timestamp\",\n>             \"oracle-shared\",\n>             \"total-finite-nonnegative\",\n>             \"budget-keys\",\n>             \"holdout-exact-set\",\n>             \"per-holdout-finite-nonnegative\",\n>         ],\n>     )\n>     def test_verify_rejects_each_approval_contract_violation(\n>             tmp_path, monkeypatch, capsys, mutation):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         approval = _approval(holdout_ids)\n>         mutation(approval, holdout_ids)\n>         candidate = tmp_path / \"invalid-candidate.json\"\n>         _write_candidate(candidate, approval)\n>         before_tmp = _tree_snapshot(tmp_path)\n>     \n> >       assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 1\n> E       AssertionError: assert 0 == 1\n> E        +  where 0 = <function main at 0x14906aaa3370>(['verify', '--candidate', '/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_verify_rejects_each_appro0/invalid-candidate.json'])\n> E        +    where <function main at 0x14906aaa3370> = TOOL.main\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:487: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=2369 retained_bytes=2369 omitted_bytes=0 rendered_excerpt_bytes=2492 sha256=0d57f7ecdf75317553fe75957ba3ffd314981fc02f4b00708cd9db39518256e9\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_verify_and_loader_reject_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a6f8327ca0>\n> mutation = <function <lambda> at 0x14a6f82ac0d0>\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         [\n>             lambda approval, holdouts: approval.update(extra=\"unexpected\"),\n>             lambda approval, holdouts: approval.update(scope=\"wrong-scope\"),\n>             lambda approval, holdouts: approval.update(approver=\"  \"),\n>             lambda approval, holdouts: approval.update(\n>                 approved_at=\"2026-01-01T00:00:00+00:00\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 extra=\"unexpected\"\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 oracle_shared=False\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 total_bench_s=-1\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"].update(\n>                 total_bench_s=-0.0\n>             ),\n>             lambda approval, holdouts: approval[\"budget\"][\n>                 \"per_holdout_bench_s\"\n>             ].pop(holdouts[0]),\n>         ],\n>         ids=[\n>             \"approval-extra-key\",\n>             \"scope\",\n>             \"empty-approver\",\n>             \"timestamp\",\n>             \"budget-extra-key\",\n>             \"oracle-shared\",\n>             \"negative\",\n>             \"negative-zero\",\n>             \"holdout-missing\",\n>         ],\n>     )\n>     def test_verify_and_loader_reject_same_contract_violation(\n>             tmp_path, monkeypatch, mutation):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         approval = _approval(holdout_ids)\n>         mutation(approval, holdout_ids)\n>         candidate = tmp_path / \"invalid-candidate.json\"\n>         raw = _write_candidate(candidate, approval)\n>         canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n>         canonical.parent.mkdir(parents=True, exist_ok=True)\n>         canonical.write_bytes(raw)\n>         matching_pin = hashlib.sha256(raw).hexdigest()\n>     \n> >       with pytest.raises(FREEZE.FreezeError):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:368: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1102 retained_bytes=1102 omitted_bytes=0 rendered_excerpt_bytes=1169 sha256=bd51dbb1b24ad59bf7877a02fccb1f8eee70c46cbf048255c455f272ac223641\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_design_asymmetry_loader_u0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d6544a74f0>\n> \n>     def test_design_asymmetry_loader_uses_caller_holdout_ids(\n>             tmp_path, monkeypatch):\n>         repo = tmp_path / \"repo\"\n>         active_holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         caller_holdout_ids = active_holdout_ids[1:]\n>         approval = _approval(caller_holdout_ids)\n>         candidate = tmp_path / \"caller-scoped-candidate.json\"\n>         raw = _write_candidate(candidate, approval)\n>         canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n>         canonical.parent.mkdir(parents=True, exist_ok=True)\n>         canonical.write_bytes(raw)\n>         matching_pin = hashlib.sha256(raw).hexdigest()\n>     \n> >       with pytest.raises(\n>                 FREEZE.FreezeError, match=\"holdout \\u96c6\\u5408\\u304c\\u4e0d\\u4e00\\u81f4\"):\n> E               Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:429: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=6095 retained_bytes=6095 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8085 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2894ecb6adeec0e457d195d20797a953beb7d20a4b9d7526772eb127e6a31dfd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+      "duration_s": 27.22,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]"
+      ],
+      "hang_risk": false,
+      "id": "MU-3",
+      "injection_diff_sha256": "b1c907c6d51dc17d2656fb31fbc3601393762ad5c4daf6236a5fd4e33fdc2ca6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6f21bbdba9397ab038c323541ee8d25cccc62ce8b2038b938ed19568648253c5",
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "new": "        holdout_ids=tuple(sorted((approval.get(\"budget\") or {}).get(\"per_holdout_bench_s\", {}))),\n",
+          "old": "        holdout_ids=_active_v1_holdout_ids(),\n"
+        }
+      ],
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "KILLED",
+      "test_output_sha256": "2894ecb6adeec0e457d195d20797a953beb7d20a4b9d7526772eb127e6a31dfd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9b660f606eda90fa3256d9fbe00f0f74/izdw-9b660f606e.o952014",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9b660f606eda90fa3256d9fbe00f0f74/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F.                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________ test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal ________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_skeleton_rejects_repo_exi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dc37cd3130>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14dc37cd3550>\n\n    def test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal(\n            tmp_path, monkeypatch, capsys):\n        repo = tmp_path / \"repo\"\n        repo.mkdir()\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n    \n        internal_parent = repo / \"drafts\"\n        internal_parent.mkdir()\n        internal = internal_parent / \"candidate.json\"\n>       assert TOOL.main([\"skeleton\", \"--out\", str(internal)]) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = <function main at 0x14dc37d072e0>(['skeleton', '--out', '/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_skeleton_rejects_repo_exi0/repo/drafts/candidate.json'])\nE        +    where <function main at 0x14dc37d072e0> = TOOL.main\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:199: AssertionError\n----------------------------- Captured stdout call -----------------------------\ncreated non-approval skeleton: /tmp/pytest-of-tanab/pytest-0/popen-gw3/test_skeleton_rejects_repo_exi0/repo/drafts/candidate.json\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal\n1 failed, 32 passed in 3.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1071 retained_bytes=1071 omitted_bytes=0 rendered_excerpt_bytes=1114 sha256=03b658ecde8e76dd2a8638362618625d4e6b62f848d5880e8ad3321bb85d7b47\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_skeleton_rejects_repo_exi0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dc37cd3130>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14dc37cd3550>\n> \n>     def test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal(\n>             tmp_path, monkeypatch, capsys):\n>         repo = tmp_path / \"repo\"\n>         repo.mkdir()\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>     \n>         internal_parent = repo / \"drafts\"\n>         internal_parent.mkdir()\n>         internal = internal_parent / \"candidate.json\"\n> >       assert TOOL.main([\"skeleton\", \"--out\", str(internal)]) == 1\n> E       AssertionError: assert 0 == 1\n> E        +  where 0 = <function main at 0x14dc37d072e0>(['skeleton', '--out', '/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_skeleton_rejects_repo_exi0/repo/drafts/candidate.json'])\n> E        +    where <function main at 0x14dc37d072e0> = TOOL.main\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:199: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1071 retained_bytes=1071 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1862 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b15759db109b3dfdaaffd1cdd9079fd5e9a9955c8d2132bb1794d5070ccb482e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+      "duration_s": 27.458,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal"
+      ],
+      "hang_risk": false,
+      "id": "MU-4",
+      "injection_diff_sha256": "ba72d17411f8914d5180685aaeaff014d3c40eade63f765757c9cde8b5729255",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ffbd19c610a29a98326f7f313a1607d9552457bf7758459886f9622dbfb5816a",
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "new": "",
+          "old": "    if _is_within(normalized, repo_root):\n        raise PreflightError(\"--out は repository の外を指定すること\")\n"
+        }
+      ],
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "KILLED",
+      "test_output_sha256": "b15759db109b3dfdaaffd1cdd9079fd5e9a9955c8d2132bb1794d5070ccb482e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aab70c14d73c7d3ae31c1efbad547dcd/izdw-aab70c14d7.o952015",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aab70c14d73c7d3ae31c1efbad547dcd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F.                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n__ test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_n1_has_no_approver_input_0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14f8891b7970>\n\n    def test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values(\n            tmp_path, capsys):\n        options = _all_option_strings(TOOL._parser())\n        assert options == _EXPECTED_CLI_OPTIONS\n    \n        source = TOOL_PATH.read_text(encoding=\"utf-8\")\n        tree = ast.parse(source, filename=str(TOOL_PATH))\n        assert _imported_names(tree) == _EXPECTED_TOOL_IMPORTS\n    \n        out = tmp_path / \"approval-skeleton.json\"\n        assert TOOL.main([\"skeleton\", \"--out\", str(out)]) == 0\n        capsys.readouterr()\n>       assert out.read_bytes() == _EXPECTED_SKELETON\nE       assert b'{\"approver\"...an-approval\"}' == b'{\"required_...an-approval\"}'\nE         \nE         At index 2 diff: b'a' != b'r'\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:147: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values\n1 failed, 32 passed in 3.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=1050 retained_bytes=1050 omitted_bytes=0 rendered_excerpt_bytes=1099 sha256=02ec3d74149d59c6462744ceba64542f62e0b6ec27d575707d53254b11294b29\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_n1_has_no_approver_input_0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14f8891b7970>\n> \n>     def test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values(\n>             tmp_path, capsys):\n>         options = _all_option_strings(TOOL._parser())\n>         assert options == _EXPECTED_CLI_OPTIONS\n>     \n>         source = TOOL_PATH.read_text(encoding=\"utf-8\")\n>         tree = ast.parse(source, filename=str(TOOL_PATH))\n>         assert _imported_names(tree) == _EXPECTED_TOOL_IMPORTS\n>     \n>         out = tmp_path / \"approval-skeleton.json\"\n>         assert TOOL.main([\"skeleton\", \"--out\", str(out)]) == 0\n>         capsys.readouterr()\n> >       assert out.read_bytes() == _EXPECTED_SKELETON\n> E       assert b'{\"approver\"...an-approval\"}' == b'{\"required_...an-approval\"}'\n> E         \n> E         At index 2 diff: b'a' != b'r'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:147: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1050 retained_bytes=1050 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1858 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c516acfba3cd8079def0556c3db0ed18861c2e90fce3232d0454133ba72ce516"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+      "duration_s": 27.606,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values"
+      ],
+      "hang_risk": false,
+      "id": "MU-5",
+      "injection_diff_sha256": "de29ed8ef9f778f72259d840116177edd6e35d7d81304f7e4542a9cf5dc6d2d4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "60f2bc91b889bd01d01c50f7387655653c1b2a9b90093c7b68d88819171b320c",
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "new": "        \"approver\": \"\",\n        \"status\": \"draft-not-an-approval\",\n",
+          "old": "        \"status\": \"draft-not-an-approval\",\n"
+        }
+      ],
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "KILLED",
+      "test_output_sha256": "c516acfba3cd8079def0556c3db0ed18861c2e90fce3232d0454133ba72ce516",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/61dce0fd36fdc62868f7fea8d789ead8/izdw-61dce0fd36.o952017",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/61dce0fd36fdc62868f7fea8d789ead8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FF.                                        [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n=================================== FAILURES ===================================\n________ test_design_asymmetry_verify_accepts_arbitrary_candidate_path _________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_design_asymmetry_verify_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148f7f333e80>\n\n    def test_design_asymmetry_verify_accepts_arbitrary_candidate_path(\n            tmp_path, monkeypatch):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n        candidate = tmp_path / \"arbitrary-location.json\"\n        raw = _write_candidate(candidate, _approval(holdout_ids))\n        matching_pin = hashlib.sha256(raw).hexdigest()\n    \n        assert TOOL._verify_candidate(candidate) == matching_pin\n>       with pytest.raises(FREEZE.FreezeError, match=\"nofollow .*読めない\"):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:409: Failed\n______ test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes _______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_verify_success_prints_has0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c82c38f4f0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14c82c38fac0>\n\n    def test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes(\n            tmp_path, monkeypatch, capsys):\n        repo = tmp_path / \"repo\"\n        holdout_ids = _install_active_v1(repo)\n        monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n    \n        source = repo / FREEZE.SCRIPT_REL\n        source.parent.mkdir(parents=True, exist_ok=True)\n        source.write_bytes(b\"production-source-sentinel\")\n        canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n        canonical.parent.mkdir(parents=True, exist_ok=True)\n        canonical.write_bytes(b\"canonical-approval-sentinel\")\n        budget = repo / \"output/s8b-freeze-budget-inputs/g1.json\"\n        budget.parent.mkdir(parents=True, exist_ok=True)\n        budget.write_bytes(b\"budget-sentinel\")\n        other = repo / \"unrelated.bin\"\n        other.write_bytes(b\"unrelated-sentinel\")\n    \n        candidate = tmp_path / \"human-candidate.json\"\n        raw = _write_candidate(candidate, _approval(holdout_ids))\n        before_tmp = _tree_snapshot(tmp_path)\n        before_repo = _tree_snapshot(repo)\n        before_candidate = candidate.read_bytes()\n    \n        assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 0\n    \n        captured = capsys.readouterr()\n        expected_sha256 = hashlib.sha256(raw).hexdigest()\n        assert captured.err == \"\"\n        assert captured.out.splitlines() == [\n            f\"raw_sha256={expected_sha256}\",\n            f'BUDGET_APPROVAL_SHA256: Optional[str] = \"{expected_sha256}\"',\n        ]\n>       assert _tree_snapshot(tmp_path) == before_tmp\nE       assert {'human-candi...y', b''), ...} == {'human-candi...y', b''), ...}\nE         \nE         Omitting 12 identical items, use -vv to show\nE         Differing items:\nE         {'repo/output/s8b-freeze-budget-approvals/g1.json': ('file', b'{\"approved_at\":\"2026-01-01T00:00:00Z\",\"approver\":\"fixtu...shared\":true,\"per_holdout_bench_s\":{\"rr20\":4,\"rr80\":4},\"total_bench_s\":8},\"scope\":\"s8b-holdout-freeze/v2:g1-budget\"}')} != {'repo/output/s8b-freeze-budget-approvals/g1.json': ('file', b'canonical-approval-sentinel')}\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_budget_approval_preflight.py:291: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path\nFAILED orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes\n2 failed, 31 passed in 3.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=2474 retained_bytes=2474 omitted_bytes=0 rendered_excerpt_bytes=2571 sha256=d694dcbb43db9157315d45f0863af51e67c1e51857a0d6ba1a722e70a62c8ee3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_verify_success_prints_has0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c82c38f4f0>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14c82c38fac0>\n> \n>     def test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes(\n>             tmp_path, monkeypatch, capsys):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>     \n>         source = repo / FREEZE.SCRIPT_REL\n>         source.parent.mkdir(parents=True, exist_ok=True)\n>         source.write_bytes(b\"production-source-sentinel\")\n>         canonical = repo / FREEZE.BUDGET_APPROVAL_REL\n>         canonical.parent.mkdir(parents=True, exist_ok=True)\n>         canonical.write_bytes(b\"canonical-approval-sentinel\")\n>         budget = repo / \"output/s8b-freeze-budget-inputs/g1.json\"\n>         budget.parent.mkdir(parents=True, exist_ok=True)\n>         budget.write_bytes(b\"budget-sentinel\")\n>         other = repo / \"unrelated.bin\"\n>         other.write_bytes(b\"unrelated-sentinel\")\n>     \n>         candidate = tmp_path / \"human-candidate.json\"\n>         raw = _write_candidate(candidate, _approval(holdout_ids))\n>         before_tmp = _tree_snapshot(tmp_path)\n>         before_repo = _tree_snapshot(repo)\n>         before_candidate = candidate.read_bytes()\n>     \n>         assert TOOL.main([\"verify\", \"--candidate\", str(candidate)]) == 0\n>     \n>         captured = capsys.readouterr()\n>         expected_sha256 = hashlib.sha256(raw).hexdigest()\n>         assert captured.err == \"\"\n>         assert captured.out.splitlines() == [\n>             f\"raw_sha256={expected_sha256}\",\n>             f'BUDGET_APPROVAL_SHA256: Optional[str] = \"{expected_sha256}\"',\n>         ]\n> >       assert _tree_snapshot(tmp_path) == before_tmp\n> E       assert {'human-candi...y', b''), ...} == {'human-candi...y', b''), ...}\n> E         \n> E         Omitting 12 identical items, use -vv to show\n> E         Differing items:\n> E         {'repo/output/s8b-freeze-budget-approvals/g1.json': ('file', b'{\"approved_at\":\"2026-01-01T00:00:00Z\",\"approver\":\"fixtu...shared\":true,\"per_holdout_bench_s\":{\"rr20\":4,\"rr80\":4},\"total_bench_s\":8},\"scope\":\"s8b-holdout-freeze/v2:g1-budget\"}')} != {'repo/output/s8b-freeze-budget-approvals/g1.json': ('file', b'canonical-approval-sentinel')}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:291: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=900 retained_bytes=900 omitted_bytes=0 rendered_excerpt_bytes=951 sha256=9dd30919a376a1928b241e1c66f492b70fee702eb3e896d7f5af204aeadbb3cf\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_design_asymmetry_verify_a0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148f7f333e80>\n> \n>     def test_design_asymmetry_verify_accepts_arbitrary_candidate_path(\n>             tmp_path, monkeypatch):\n>         repo = tmp_path / \"repo\"\n>         holdout_ids = _install_active_v1(repo)\n>         monkeypatch.setattr(TOOL, \"_REPO_ROOT\", repo)\n>         candidate = tmp_path / \"arbitrary-location.json\"\n>         raw = _write_candidate(candidate, _approval(holdout_ids))\n>         matching_pin = hashlib.sha256(raw).hexdigest()\n>     \n>         assert TOOL._verify_candidate(candidate) == matching_pin\n> >       with pytest.raises(FREEZE.FreezeError, match=\"nofollow .*\\u8aad\\u3081\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_budget_approval_preflight.py:409: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3374 retained_bytes=3374 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4730 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "34ff735417493d745c582c0f197487be70061f078234476b1bb54e29f8f647ce"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d982d3f11c97dd3de8990e6dd796a3d5292a89ffdb5c13b8980a482b5b706168",
+      "duration_s": 27.622,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes"
+      ],
+      "hang_risk": false,
+      "id": "MU-6",
+      "injection_diff_sha256": "c5e3768fb2aab1c578d14b67ba333050490c8cdc1ae5ca2756177f4927bbbbac",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ff17e0d3c7e2c1e44e0c0a9d7c25d17cbaaef693409cd2f76d3add8e8f40ddb2",
+      "replacements": [
+        {
+          "file": "tools/s8b_budget_approval_preflight.py",
+          "new": "    _emitted = _REPO_ROOT / _freeze.BUDGET_APPROVAL_REL\n    _emitted.parent.mkdir(parents=True, exist_ok=True)\n    _emitted.write_bytes(raw)\n    return hashlib.sha256(raw).hexdigest()\n",
+          "old": "    return hashlib.sha256(raw).hexdigest()\n"
+        }
+      ],
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "KILLED",
+      "test_output_sha256": "34ff735417493d745c582c0f197487be70061f078234476b1bb54e29f8f647ce",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/df0c1272d1bfbafd02c758eba7ff6d30/izdw-df0c1272d1.o952005",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/df0c1272d1bfbafd02c758eba7ff6d30/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_does_not_fill_empty_approver_from_environment\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_n2_skeleton_at_contract_path_is_rejected_even_with_matching_pin\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_dangling_symlink_leaf_via_nofollow_without_excl\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_relative_skeleton_out_is_argparse_error\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_accept_same_canonical_candidate\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[approval-extra-key]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[empty-approver]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[timestamp]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[budget-extra-key]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[oracle-shared]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[negative]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[negative-zero]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_does_not_enforce_authority_pin\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[approval-keys]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[approver]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[timestamp]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[oracle-shared]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[total-finite-nonnegative]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[budget-keys]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[per-holdout-finite-nonnegative]\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_timestamp_after_parser_accepts\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_symlink_candidate\norchestrator/tests/test_s8b_budget_approval_preflight.py::test_direct_cli_import_is_cwd_independent\nIZANAGI_FLAKY_HOLD_SUMMARY_V1 {\"registered_node_count\":0,\"matched_node_count\":0,\"skipped_node_count\":0,\"registry_sha256\":\"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}\n\n33 tests collected in 0.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ba30b1f1acd8ebc0d90e2ece977a4823a6f514b3a875ce9abac6556ed3a68f65"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_does_not_fill_empty_approver_from_environment",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n2_skeleton_at_contract_path_is_rejected_even_with_matching_pin",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_dangling_symlink_leaf_via_nofollow_without_excl",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_relative_skeleton_out_is_argparse_error",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_accept_same_canonical_candidate",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[approval-extra-key]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[empty-approver]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[timestamp]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[budget-extra-key]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[oracle-shared]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[negative]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[negative-zero]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_does_not_enforce_authority_pin",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[approval-keys]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[approver]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[timestamp]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[oracle-shared]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[total-finite-nonnegative]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[budget-keys]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[per-holdout-finite-nonnegative]",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_timestamp_after_parser_accepts",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_symlink_candidate",
+        "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_direct_cli_import_is_cwd_independent"
+      ],
+      "duration_s": 21.99,
+      "rc": 0,
+      "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+      "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+      "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+      "status": "PASSED",
+      "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MU-1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_noncanonical_bytes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f7cbf85a9a72bd75f713b8ee3bd4a83f15aaed0d6bea6a8ae744194fb07d4c8b",
+        "replacements": [
+          {
+            "file": "tools/s8b_budget_approval_preflight.py",
+            "new": "",
+            "old": "    if _freeze._canonical_bytes(approval) != raw:\n        raise _freeze.FreezeError(\"budget approval raw bytes が canonical JSON でない\")\n"
+          }
+        ]
+      },
+      "MU-2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[scope]",
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[scope]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "42197441c743c4aa01f38595ea542b8b6f85d65646632f639adb289810349d28",
+        "replacements": [
+          {
+            "file": "tools/s8b_budget_approval_preflight.py",
+            "new": "",
+            "old": "    if approval.get(\"scope\") != _freeze.BUDGET_APPROVAL_SCOPE:\n        raise _freeze.FreezeError(\"budget approval.scope が固定値と不一致\")\n"
+          }
+        ]
+      },
+      "MU-3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_loader_uses_caller_holdout_ids",
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_and_loader_reject_same_contract_violation[holdout-missing]",
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_rejects_each_approval_contract_violation[holdout-exact-set]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b1c907c6d51dc17d2656fb31fbc3601393762ad5c4daf6236a5fd4e33fdc2ca6",
+        "replacements": [
+          {
+            "file": "tools/s8b_budget_approval_preflight.py",
+            "new": "        holdout_ids=tuple(sorted((approval.get(\"budget\") or {}).get(\"per_holdout_bench_s\", {}))),\n",
+            "old": "        holdout_ids=_active_v1_holdout_ids(),\n"
+          }
+        ]
+      },
+      "MU-4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_skeleton_rejects_repo_existing_leaf_and_symlink_traversal"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ba72d17411f8914d5180685aaeaff014d3c40eade63f765757c9cde8b5729255",
+        "replacements": [
+          {
+            "file": "tools/s8b_budget_approval_preflight.py",
+            "new": "",
+            "old": "    if _is_within(normalized, repo_root):\n        raise PreflightError(\"--out は repository の外を指定すること\")\n"
+          }
+        ]
+      },
+      "MU-5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_n1_has_no_approver_input_source_and_skeleton_has_no_authority_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "de29ed8ef9f778f72259d840116177edd6e35d7d81304f7e4542a9cf5dc6d2d4",
+        "replacements": [
+          {
+            "file": "tools/s8b_budget_approval_preflight.py",
+            "new": "        \"approver\": \"\",\n        \"status\": \"draft-not-an-approval\",\n",
+            "old": "        \"status\": \"draft-not-an-approval\",\n"
+          }
+        ]
+      },
+      "MU-6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_design_asymmetry_verify_accepts_arbitrary_candidate_path",
+          "orchestrator/tests/test_s8b_budget_approval_preflight.py::test_verify_success_prints_hash_and_pin_and_changes_no_repo_bytes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c5e3768fb2aab1c578d14b67ba333050490c8cdc1ae5ca2756177f4927bbbbac",
+        "replacements": [
+          {
+            "file": "tools/s8b_budget_approval_preflight.py",
+            "new": "    _emitted = _REPO_ROOT / _freeze.BUDGET_APPROVAL_REL\n    _emitted.parent.mkdir(parents=True, exist_ok=True)\n    _emitted.write_bytes(raw)\n    return hashlib.sha256(raw).hexdigest()\n",
+            "old": "    return hashlib.sha256(raw).hexdigest()\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a2e083939a76ffd7f74ed273cea3661ea12fd92cf16a7e01f9934fdc9a430ed1",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_budget_approval_preflight.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "f6abc8b56f0e507d565a9b251115cc14fb70c85b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_budget_approval_preflight.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "dispatch_head_blob_sha256": "81a57b677436de2905d7259020a1032f73a66713f57245d2795ad1abd82a3bc6",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6c9bd8e1a91b9590a2099d617b9430d52edf9ac0",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "52d91d6e928108fd419305c575c3dea381c061c7590de9f9d3f02e02577c0c04",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "23b6711d8b2eb87c78011a4953e2e5a6128f62550a14d80635a02eb8f8d7aac4",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-t1675/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "2e0c6f40aca4d2e4197d05aec1f3bfbab1377c04376ea43f7c9e7cd4acebaaa4",
+  "updated_at": "2026-08-27T02:38:18.983990+00:00"
+}

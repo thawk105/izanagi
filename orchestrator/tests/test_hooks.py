@@ -2620,6 +2620,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/submit_floor.sh": "local-ok",
     "tools/pegasus/submit_mocc_trace.sh": "local-ok",
     "tools/pegasus/submit_oracle_n_pilot.sh": "local-ok",
+    "tools/pegasus/submit_paper_story_a2_certification.sh": "local-ok",
     "tools/pegasus/submit_silo_ladder_rung1.sh": "local-ok",
     "tools/pegasus/submit_t126_qualification.sh": "unknown",
     "tools/pegasus/t126_qualification.sh": "dispatch-required",
@@ -2929,10 +2930,16 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_oracle_n_pilot.sh": {
-        "class": "local-ok",
-        "reason": "login-side PBS oracle n pilot submitter",
-        "primary_gate": "qsub submission; compute work stays in job body",
-        "evidence": "login-side submitter; compute work stays in job body (未実測)"
+      "class": "local-ok",
+      "reason": "login-side PBS oracle n pilot submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "login-side submitter; compute work stays in job body (未実測)"
+    },
+    "tools/pegasus/submit_paper_story_a2_certification.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS paper-story A-2 two-workload submitter and finisher",
+      "primary_gate": "ratification precheck then qsub fan-out; compute work stays in independent job bodies",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_silo_ladder_rung1.sh": {
         "class": "local-ok",
@@ -3432,6 +3439,8 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
         "tools/pegasus/submit_mocc_trace.sh": "static login-side submitter classification",
         "tools/pegasus/submit_oracle_n_pilot.sh":
             "login-side submitter; compute work stays in job body (未実測)",
+        "tools/pegasus/submit_paper_story_a2_certification.sh":
+            "static login-side submitter classification",
         "tools/pegasus/submit_silo_ladder_rung1.sh":
             "legacy-admitted (未実測)",
     }

@@ -29,6 +29,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from packaging.version import InvalidVersion, Version
+import pytest
 
 HERE = Path(__file__).resolve().parent
 ORCHESTRATOR = HERE.parent
@@ -57,6 +58,12 @@ _REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
     "test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
     # foreign module の import-time temp 境界と実 output の不変を検査する reader。
     "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+    "test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+    "test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+    "test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+    "test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
@@ -156,6 +163,12 @@ _REAL_REPO_PARENT_ONLY_NODES_GOLDEN = frozenset({
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
     "test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+    "test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+    "test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+    "test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+    "test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
@@ -233,6 +246,7 @@ def _real_repo_access_golden() -> dict[str, tuple[str | None, str | None]]:
 
 # suite で許す xdist group 名の独立 oracle。conftest や marker 定数から導出しない。
 _XDIST_GROUP_NAMES_GOLDEN = frozenset({
+    "campaign-repository-scan",
     "dev-waves-runtime",
     "real-repo",
     "s8c-predicate-snapshot",
@@ -244,6 +258,94 @@ _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN = frozenset({
     "test_s8c_preregistration_predicates.py::test_current_repository_snapshot_exactly_matches_head",
     "test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
 })
+
+_S8C_PREREGISTRATION_CANDIDATE_NODES_GOLDEN = frozenset({
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain",
+    "test_s8c_preregistration_invariant.py::test_candidate_freeze_batch_is_bounded_by_frozen_touch_points",
+    "test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation",
+    "test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates",
+    "test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan",
+})
+
+_CAMPAIGN_REPOSITORY_SCAN_NODES_GOLDEN = frozenset({
+    "test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels",
+    "test_campaign_import_invariant.py::test_real_repository_legacy_namespace_matches_exception_ledger",
+    "test_campaign_import_invariant.py::test_real_campaign_package_has_canonical_direct_bootstrap",
+    "test_campaign_import_invariant.py::test_real_current_docs_have_no_legacy_module_command",
+    "test_campaign_import_invariant.py::test_real_campaign_package_uses_relative_sibling_imports",
+    "test_campaign_import_invariant.py::test_known_exception_ledger_is_unique_rationalized_and_commented",
+})
+
+_LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN = {
+    "campaign-repository-scan": _CAMPAIGN_REPOSITORY_SCAN_NODES_GOLDEN,
+    "s8c-predicate-snapshot": _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN,
+    "s8c-preregistration-candidate": _S8C_PREREGISTRATION_CANDIDATE_NODES_GOLDEN,
+}
+
+# Production matrix から導出しない exact golden。各辺は下の実 fixture / resource
+# access literal によって独立に理由付けされる。
+_REAL_REPO_GROUP_CONFLICT_EDGES_GOLDEN = frozenset({
+    ("campaign-repository-scan", "real-repo"),
+    ("campaign-repository-scan", "s8c-predicate-snapshot"),
+    ("campaign-repository-scan", "s8c-preregistration-candidate"),
+    ("real-repo", "s8c-predicate-snapshot"),
+    ("real-repo", "s8c-preregistration-candidate"),
+    ("s8c-predicate-snapshot", "s8c-preregistration-candidate"),
+})
+
+_T810_LIVE_AUTHORITY_NODES_GOLDEN = frozenset({
+    "test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+    "test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
+})
+
+_NESTED_COLLECTION_NODES_GOLDEN = frozenset({
+    "test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+    "test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+    "test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+})
+
+_REAL_REPO_FIXTURE_ACCESS_GOLDEN = {
+    "test_s8c_preregistration_invariant.py::repository_candidate_commit[module]": {
+        "group": "s8c-preregistration-candidate",
+        "consumers": _S8C_PREREGISTRATION_CANDIDATE_NODES_GOLDEN,
+        "accesses": (("parent", "write"), ("parent", "read")),
+    },
+    "test_s8c_preregistration_predicates.py::current_commit_snapshot[module]": {
+        "group": "s8c-predicate-snapshot",
+        "consumers": _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN,
+        "accesses": (("parent", "read"),),
+    },
+    "test_s8c_preregistration_predicates.py::repository_candidate_commit[function]": {
+        # The only consumer shares its file component with this retained group.
+        "group": "s8c-predicate-snapshot",
+        "consumers": frozenset({
+            "test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module",
+        }),
+        "accesses": (("parent", "write"), ("parent", "read")),
+    },
+    "test_campaign_import_invariant.py::repository_scan[module]": {
+        "group": "campaign-repository-scan",
+        "consumers": _CAMPAIGN_REPOSITORY_SCAN_NODES_GOLDEN,
+        "accesses": (("parent", "read"), ("ccbench", "read")),
+    },
+}
+
+_SAME_PROCESS_FIXTURE_MODE_COMPATIBILITY_GOLDEN = ({
+    "outer": (
+        "test_s8c_preregistration_predicates.py::"
+        "current_commit_snapshot[module]"
+    ),
+    "inner": (
+        "test_s8c_preregistration_predicates.py::"
+        "repository_candidate_commit[function]"
+    ),
+    "resource": "parent",
+    "outer_mode": "read",
+    "inner_mode": "write",
+    "effective_mode": "write",
+    "restored_mode": "read",
+},)
 
 # Independent oracle for the sort-SWO environment consumer registry.  This is
 # intentionally a second literal rather than an import/derivation from
@@ -738,9 +840,9 @@ def _collect_xdist_group_report(
                             raise TypeError(
                                 f"{item.nodeid}: {name} の FixtureDef 属性が不正"
                             )
-                        # function scope は node 間で instance を共有しない。空 baseid の
-                        # pytest/plugin 組込み fixture も repo 固有の共有 fixture ではない。
-                        if scope != "function" and baseid:
+                        # fixture-owned lock の function consumer も C3 の閉包に必要。
+                        # 空 baseid の pytest/plugin 組込み fixture だけを除外する。
+                        if baseid:
                             closure.add(f"{baseid}::{argname}[{scope}]")
                     return sorted(closure)
 
@@ -1101,19 +1203,130 @@ def _fixture_consumers_from_report(report: list[dict]) -> dict[str, set[str]]:
     return actual
 
 
+def _assert_long_lived_fixture_group_contract(
+    report: list[dict], resource_nodes: set[str] | frozenset[str], suite_conftest,
+) -> None:
+    """Pin every fixture owner, its consumers, disjointness, and nested modes."""
+    actual_by_group = {
+        group: {
+            entry["canonical_node"]
+            for entry in report
+            if entry["marks"] and entry["marks"][0]["args"][0] == group
+        }
+        for group in _LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN
+    }
+    assert actual_by_group == {
+        group: set(nodes)
+        for group, nodes in _LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN.items()
+    }, (
+        "long-lived fixture loadgroup consumers が独立 golden と不一致: "
+        f"actual={actual_by_group!r}"
+    )
+    consumers = _fixture_consumers_from_report(report)
+    actual_fixture_consumers = {}
+    for fixture, contract in _REAL_REPO_FIXTURE_ACCESS_GOLDEN.items():
+        matches = {
+            name: nodes for name, nodes in consumers.items()
+            if name.endswith(fixture)
+        }
+        assert len(matches) == 1, (
+            f"long-lived fixture literal が collection に一意でない: "
+            f"fixture={fixture!r} matches={sorted(matches)!r}"
+        )
+        actual = next(iter(matches.values()))
+        assert actual == set(contract["consumers"]), (
+            f"fixture-owned lock consumer 閉包が不一致: fixture={fixture!r} "
+            f"actual={sorted(actual)!r} "
+            f"expected={sorted(contract['consumers'])!r}"
+        )
+        actual_fixture_consumers[fixture] = actual
+
+    literal_fixture_nodes = set().union(*(
+        set(contract["consumers"])
+        for contract in _REAL_REPO_FIXTURE_ACCESS_GOLDEN.values()
+    ))
+    live_fixture_nodes = set().union(*actual_fixture_consumers.values())
+    assert live_fixture_nodes == literal_fixture_nodes, (
+        "fixture-owned consumer の literal/live 集合が不一致: "
+        f"literal={sorted(literal_fixture_nodes)!r} "
+        f"live={sorted(live_fixture_nodes)!r}"
+    )
+    assert live_fixture_nodes.isdisjoint(resource_nodes), (
+        "fixture-owned lock node と node-protocol resource node が重複した: "
+        f"overlap={sorted(live_fixture_nodes & set(resource_nodes))!r}"
+    )
+
+    for contract in _SAME_PROCESS_FIXTURE_MODE_COMPATIBILITY_GOLDEN:
+        outer = contract["outer"]
+        inner = contract["inner"]
+        assert outer in actual_fixture_consumers and inner in actual_fixture_consumers
+        assert outer.partition("::")[0] == inner.partition("::")[0]
+        outer_accesses = set(_REAL_REPO_FIXTURE_ACCESS_GOLDEN[outer]["accesses"])
+        inner_accesses = set(_REAL_REPO_FIXTURE_ACCESS_GOLDEN[inner]["accesses"])
+        assert (contract["resource"], contract["outer_mode"]) in outer_accesses
+        assert (contract["resource"], contract["inner_mode"]) in inner_accesses
+        holder_modes = Counter({
+            (1, contract["outer_mode"]): 1,
+            (1, contract["inner_mode"]): 1,
+        })
+        assert suite_conftest._real_repo_strongest_lock_mode(holder_modes) == (
+            contract["effective_mode"]
+        )
+        del holder_modes[(1, contract["inner_mode"])]
+        assert suite_conftest._real_repo_strongest_lock_mode(holder_modes) == (
+            contract["restored_mode"]
+        )
+
+
+def _conflict_edges_from_independent_access_literals():
+    """Derive a control from fixture/resource literals, never from production edges."""
+    accesses: dict[str, set[tuple[str, str]]] = {
+        group: set() for group in {
+            "real-repo",
+            *_LONG_LIVED_FIXTURE_GROUP_NODES_GOLDEN,
+        }
+    }
+    for parent, ccbench in _real_repo_access_golden().values():
+        if parent is not None:
+            accesses["real-repo"].add(("parent", parent))
+        if ccbench is not None:
+            accesses["real-repo"].add(("ccbench", ccbench))
+    for contract in _REAL_REPO_FIXTURE_ACCESS_GOLDEN.values():
+        accesses[contract["group"]].update(contract["accesses"])
+
+    edges = set()
+    groups = sorted(accesses)
+    for index, left in enumerate(groups):
+        for right in groups[index + 1:]:
+            if any(
+                left_resource == right_resource
+                and "write" in {left_mode, right_mode}
+                for left_resource, left_mode in accesses[left]
+                for right_resource, right_mode in accesses[right]
+            ):
+                edges.add((left, right))
+    return frozenset(edges)
+
+
 def _assert_fixture_closure_complete(
     report: list[dict], canonical_nodes: set[str] | frozenset[str],
 ) -> None:
     """正本を seed とする共有 fixture consumer 閉包が欠けていないことを検査する。"""
     consumers = _fixture_consumers_from_report(report)
-    assert consumers, "fixture consumer 導出結果が空 — detector 退行の疑い"
+    # function scope は consumer ごとに実体を作り直し、consumer 間で共有しない。
+    # この共有閉包の候補は、同じ実体を共有する session / module scope に限る。
+    shared_consumers = {
+        fixture: nodes for fixture, nodes in consumers.items()
+        if fixture.endswith(("[session]", "[module]"))
+    }
+    assert shared_consumers, "共有 fixture consumer 導出結果が空 — detector 退行の疑い"
     for filename, fixture_name in (
         ("test_s1_measurement_freeze.py", "real_known_axes_doc"),
         ("test_codex_reasoning_ab.py", "benchmark_snapshots"),
     ):
         literal = f"{filename}::{fixture_name}[module]"
         matches = [
-            nodes for fixture, nodes in consumers.items()
+            nodes for fixture, nodes in shared_consumers.items()
             if fixture.endswith(literal)
         ]
         assert len(matches) == 1, (
@@ -1124,13 +1337,13 @@ def _assert_fixture_closure_complete(
             f"consumers={sorted(matches[0])!r}"
         )
     seeded = {
-        fixture for fixture, nodes in consumers.items()
+        fixture for fixture, nodes in shared_consumers.items()
         if nodes & set(canonical_nodes)
     }
     missing = {
-        fixture: sorted(consumers[fixture] - set(canonical_nodes))
+        fixture: sorted(shared_consumers[fixture] - set(canonical_nodes))
         for fixture in seeded
-        if consumers[fixture] - set(canonical_nodes)
+        if shared_consumers[fixture] - set(canonical_nodes)
     }
     assert not missing, (
         "REAL_REPO_CLASSIFIED_NODES が共有 fixture consumer について閉じていない: "
@@ -1254,24 +1467,6 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     _require_pytest()
     report = _collect_xdist_group_report(HERE, cwd=ROOT)
     _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)
-    s8c_predicate_snapshot_entries = [
-        entry
-        for entry in report
-        if entry["marks"]
-        and entry["marks"][0]["args"][0] == "s8c-predicate-snapshot"
-    ]
-    s8c_predicate_snapshot_nodes = {
-        entry["canonical_node"] for entry in s8c_predicate_snapshot_entries
-    }
-    assert s8c_predicate_snapshot_nodes == _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN, (
-        "s8c-predicate-snapshot group が独立 golden と不一致: "
-        f"missing={sorted(_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN - s8c_predicate_snapshot_nodes)} "
-        f"extra={sorted(s8c_predicate_snapshot_nodes - _S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN)}"
-    )
-    assert len(s8c_predicate_snapshot_entries) == 3, (
-        "s8c-predicate-snapshot group の item 件数が不一致: "
-        f"actual={len(s8c_predicate_snapshot_entries)} expected=3"
-    )
 
     suite_conftest = _load_suite_conftest()
     golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)
@@ -1296,6 +1491,9 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
     )
     assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(
         _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN
+    )
+    _assert_long_lived_fixture_group_contract(
+        report, resource_golden, suite_conftest,
     )
     _assert_real_repo_suffix_strip_mutation_killer(suite_conftest)
     _assert_fixture_closure_complete(report, resource_golden)
@@ -1429,6 +1627,20 @@ def test_shard_assignment_preserves_live_xdist_group_components_and_split_contro
     records = tuple(sorted(records))
     assignment = acceptance_shards.allocate(records, 3)
     assert acceptance_shards.assignment_closure_gate(records, assignment.selected)
+    expected_conflict_component = {
+        "campaign-repository-scan",
+        "real-repo",
+        "s8c-predicate-snapshot",
+        "s8c-preregistration-candidate",
+    }
+    matching_components = [
+        component for component in assignment.components
+        if set(component["groups"]) == expected_conflict_component
+    ]
+    assert len(matching_components) == 1, (
+        "conflicting runtime groups が同一 shard component に union されていない: "
+        f"components={assignment.components!r}"
+    )
 
     suite_conftest = _load_suite_conftest()
     state_records = [
@@ -1768,10 +1980,13 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
         writer_acquired_at.append(simulated_clock["now"])
 
     with mock.patch.object(
-            suite_conftest, "_real_repo_lock_path",
-            return_value=tmp_path / "simulated-ccbench.lock",
+            suite_conftest, "_real_repo_legacy_lock_path",
+            return_value=tmp_path / "simulated-ccbench-legacy.lock",
             ), mock.patch.object(
-                suite_conftest, "_open_real_repo_lock", return_value=91,
+                suite_conftest, "_real_repo_lock_path",
+                return_value=tmp_path / "simulated-ccbench-common.lock",
+            ), mock.patch.object(
+                suite_conftest, "_open_real_repo_lock", side_effect=(91, 92),
             ), mock.patch.object(
                 suite_conftest.fcntl, "flock", side_effect=simulated_flock,
             ), mock.patch.object(
@@ -1781,7 +1996,7 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
             ), mock.patch.object(suite_conftest.os, "close"):
         with suite_conftest._real_repo_file_lock(
                 "ccbench", "write", retry_interval_s=1.0):
-            assert writer_acquired_at == [147.0]
+            assert writer_acquired_at == [147.0, 147.0]
     assert 120.0 < writer_acquired_at[0] < (
         suite_conftest._REAL_REPO_LOCK_TIMEOUT_S
     )
@@ -1900,16 +2115,72 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
         "missing/mismatched resource stamps reached an unlocked protocol body"
     )
 
-    with suite_conftest._real_repo_file_lock("parent", "write"):
-        with suite_conftest.pytest.raises(RuntimeError) as excinfo:
-            with suite_conftest._real_repo_file_lock(
-                    "parent", "read", timeout_s=0.01, retry_interval_s=0.001):
-                raise AssertionError("contended lock must not be acquired")
+    legacy_path = suite_conftest._real_repo_legacy_lock_path("parent")
+    holder_script = textwrap.dedent(
+        """
+        import fcntl
+        import os
+        import sys
+
+        fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            print("ready", flush=True)
+            sys.stdin.buffer.read(1)
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+        """
+    )
+    holder = subprocess.Popen(
+        [sys.executable, "-c", holder_script, os.fspath(legacy_path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert holder.stdout is not None and holder.stdin is not None
+    resolver_events = []
+    original_common_dir = suite_conftest._real_repo_common_dir
+
+    def recording_common_dir(resource, *, repo_root=None):
+        resolver_events.append(("resolver", resource))
+        return original_common_dir(resource, repo_root=repo_root)
+
+    try:
+        assert holder.stdout.readline() == b"ready\n"
+        with mock.patch.object(
+                suite_conftest, "_real_repo_common_dir", recording_common_dir):
+            with suite_conftest.pytest.raises(RuntimeError) as excinfo:
+                with suite_conftest._real_repo_file_lock(
+                        "parent", "read", timeout_s=0.01,
+                        retry_interval_s=0.001):
+                    raise AssertionError("contended lock must not be acquired")
+        assert resolver_events == [], (
+            "legacy EX holder 中に common-dir resolver が呼ばれた"
+        )
+    finally:
+        holder.stdin.write(b"x")
+        holder.stdin.close()
+        holder.wait(timeout=5)
+        if holder.returncode != 0:
+            assert holder.stderr is not None
+            raise AssertionError(holder.stderr.read().decode("utf-8", "replace"))
     message = str(excinfo.value)
     assert "fails-closed" in message
     assert "resource=parent" in message
     assert "mode=read" in message
     assert "holders=" in message
+
+    with mock.patch.object(
+            suite_conftest, "_real_repo_common_dir", recording_common_dir):
+        with suite_conftest._real_repo_file_lock(
+                "parent", "read", timeout_s=1.0,
+                retry_interval_s=0.001):
+            resolver_events.append(("body", "parent"))
+    assert resolver_events == [
+        ("resolver", "parent"),
+        ("body", "parent"),
+    ], "legacy lock release 後の resolver/body 呼出し順が不正"
 
     with suite_conftest.pytest.raises(ValueError):
         with suite_conftest._real_repo_file_lock("ccbench", "write"):
@@ -3489,6 +3760,535 @@ def _receipt_hook_item(nodeid):
     return SimpleNamespace(
         path=HERE / filename, name=function, originalname=function,
     )
+
+
+def _fixture_body(function):
+    body = inspect.unwrap(function)
+    assert callable(body) and body is not function, (
+        f"実 fixture function を unwrap できない: {function!r}"
+    )
+    return body
+
+
+def _recorded_actual_fixture_execution(case: str, temporary: Path):
+    """Execute the named production fixture body under a recording real lock."""
+    suite_conftest = _load_suite_conftest()
+    events = []
+    active = []
+
+    @contextlib.contextmanager
+    def recorded_locks(access):
+        vector = (access.parent, access.ccbench)
+        events.append(("enter", vector))
+        active.append(vector)
+        try:
+            yield
+        finally:
+            assert active.pop() == vector
+            events.append(("exit", vector))
+
+    tmp_factory = SimpleNamespace(mktemp=lambda _name: temporary)
+    with mock.patch.object(suite_conftest, "_real_repo_locks", recorded_locks):
+        lock_factory = _fixture_body(
+            suite_conftest.real_repo_fixture_lock
+        )()
+
+        if case == "invariant-candidate":
+            from orchestrator.tests import test_s8c_preregistration_invariant as sut
+
+            def build(_path):
+                events.append(("builder", tuple(active)))
+                assert active == [("write", None)]
+                return "a" * 40
+
+            patchers = (mock.patch.object(sut, "_candidate_commit", build),)
+            fixture = _fixture_body(sut.repository_candidate_commit)
+            arguments = (tmp_factory, lock_factory)
+            expected = "a" * 40
+        elif case == "predicate-candidate":
+            from orchestrator.tests import test_s8c_preregistration_predicates as sut
+
+            def build(_path):
+                events.append(("builder", tuple(active)))
+                assert active == [("write", None)]
+                return "b" * 40
+
+            patchers = (
+                mock.patch.object(sut, "_candidate_commit_with_worktree", build),
+            )
+            fixture = _fixture_body(sut.repository_candidate_commit)
+            arguments = (tmp_factory, lock_factory)
+            expected = "b" * 40
+        elif case == "campaign-scan":
+            from orchestrator.tests import test_campaign_import_invariant as sut
+
+            expected = object()
+
+            def scan(root):
+                events.append(("read", root, tuple(active)))
+                assert root == sut.REPOSITORY
+                assert active == [("read", "read")]
+                return expected
+
+            patchers = (mock.patch.object(sut, "scan_repository", scan),)
+            fixture = _fixture_body(sut.repository_scan)
+            arguments = (lock_factory,)
+        elif case == "current-commit-snapshot":
+            from orchestrator.tests import test_s8c_preregistration_predicates as sut
+
+            expected = (temporary, "c" * 40, ("evaluated",), "d" * 40, ("actual",))
+
+            def snapshot(_path):
+                events.append(("read", "snapshot", tuple(active)))
+                assert active == [("read", None)]
+                return temporary, "c" * 40, "d" * 40, ("actual",)
+
+            def evaluate(head, *, repo_root):
+                events.append(("read", "evaluate", tuple(active)))
+                assert active == [("read", None)]
+                assert head == "c" * 40 and repo_root == temporary
+                return ("evaluated",)
+
+            registry = SimpleNamespace(evaluate_all=evaluate)
+            patchers = (
+                mock.patch.object(sut, "_snapshot_current_commit", snapshot),
+                mock.patch.object(sut.M, "get_registry", return_value=registry),
+            )
+            fixture = _fixture_body(sut.current_commit_snapshot)
+            arguments = (tmp_factory, lock_factory)
+        else:
+            raise AssertionError(f"unknown actual fixture case: {case}")
+
+        with contextlib.ExitStack() as stack:
+            for patcher in patchers:
+                stack.enter_context(patcher)
+            generator = fixture(*arguments)
+            value = next(generator)
+            events.append(("yield", tuple(active)))
+            assert value == expected
+            with pytest.raises(StopIteration):
+                next(generator)
+    assert active == []
+    return events
+
+
+def test_current_commit_snapshot_actual_fixture_owns_parent_reader_context():
+    with tempfile.TemporaryDirectory(prefix="izanagi-current-snapshot-lock-") as raw:
+        events = _recorded_actual_fixture_execution(
+            "current-commit-snapshot", Path(raw),
+        )
+    assert events == [
+        ("enter", ("read", None)),
+        ("read", "snapshot", (("read", None),)),
+        ("read", "evaluate", (("read", None),)),
+        ("yield", (("read", None),)),
+        ("exit", ("read", None)),
+    ]
+
+
+def test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture(
+        tmp_path):
+    """実 fixture の SH 寿命中に同じ fd を EX へ昇格し SH へ戻す。"""
+    suite_conftest = _load_suite_conftest()
+    from orchestrator.tests import test_s8c_preregistration_predicates as sut
+
+    tmp_factory = SimpleNamespace(mktemp=lambda _name: tmp_path)
+    events = []
+    outer_fds = None
+
+    def parent_states():
+        return tuple(sorted(
+            (path.name, state.fd, state.mode, sum(state.holders.values()))
+            for (resource, path), state in (
+                suite_conftest._REAL_REPO_PROCESS_LOCKS.items()
+            )
+            if resource == "parent"
+        ))
+
+    def snapshot(_path):
+        events.append(("snapshot", tuple(row[2] for row in parent_states())))
+        return tmp_path, "a" * 40, "b" * 40, ("actual",)
+
+    def build(_path):
+        current = parent_states()
+        events.append(("candidate-build", tuple(row[2] for row in current)))
+        assert outer_fds is not None
+        assert {row[1] for row in current} == outer_fds
+        return "c" * 40
+
+    registry = SimpleNamespace(
+        evaluate_all=lambda head, *, repo_root: ("evaluated",),
+    )
+    with mock.patch.object(
+            suite_conftest, "_REAL_REPO_LOCK_DIRECTORY", tmp_path,
+            ), mock.patch.object(
+                suite_conftest, "_REAL_REPO_LOCK_TIMEOUT_S", 2.0,
+            ), mock.patch.object(
+                suite_conftest, "_REAL_REPO_LOCK_RETRY_INTERVAL_S", 0.002,
+            ), mock.patch.object(
+                sut, "_snapshot_current_commit", snapshot,
+            ), mock.patch.object(
+                sut.M, "get_registry", return_value=registry,
+            ), mock.patch.object(
+                sut, "_candidate_commit_with_worktree", build,
+            ):
+        lock_factory = _fixture_body(
+            suite_conftest.real_repo_fixture_lock
+        )()
+        snapshot_fixture = _fixture_body(sut.current_commit_snapshot)(
+            tmp_factory, lock_factory,
+        )
+        snapshot_value = next(snapshot_fixture)
+        assert snapshot_value[1] == "a" * 40
+        outer_state = parent_states()
+        assert tuple(row[2] for row in outer_state) == ("read", "read")
+        outer_fds = {row[1] for row in outer_state}
+
+        started = time.monotonic()
+        candidate_fixture = _fixture_body(sut.repository_candidate_commit)(
+            tmp_factory, lock_factory,
+        )
+        assert next(candidate_fixture) == "c" * 40
+        assert time.monotonic() - started < 2.0
+        assert tuple(row[2] for row in parent_states()) == ("read", "read")
+        with pytest.raises(StopIteration):
+            next(candidate_fixture)
+        assert tuple(row[2] for row in parent_states()) == ("read", "read")
+        with pytest.raises(StopIteration):
+            next(snapshot_fixture)
+
+    assert events == [
+        ("snapshot", ("read", "read")),
+        ("candidate-build", ("write", "write")),
+    ]
+    assert suite_conftest._REAL_REPO_PROCESS_LOCKS == {}
+
+
+_REAL_REPO_CLOSURE_MUTATION_IDS = (
+    "t810-live-reader-unregistered",
+    "invariant-candidate-write-downgraded",
+    "predicate-candidate-lock-removed",
+    "campaign-scan-lock-removed",
+    "parent-key-uses-worktree-root",
+    "legacy-key-not-acquired",
+    "conflict-edge-removed",
+    "prewarm-lock-removed",
+    "nested-collection-node-unregistered",
+)
+
+
+@pytest.mark.parametrize(
+    "mutation_id",
+    _REAL_REPO_CLOSURE_MUTATION_IDS,
+    ids=_REAL_REPO_CLOSURE_MUTATION_IDS,
+)
+def test_real_repo_closure_mutations(mutation_id, tmp_path):
+    """One direct gate per preregistered closure mutation, without fallback gates."""
+    suite_conftest = _load_suite_conftest()
+
+    if mutation_id == "t810-live-reader-unregistered":
+        actual = {
+            node: suite_conftest.REAL_REPO_ACCESS_BY_NODE.get(node)
+            for node in _T810_LIVE_AUTHORITY_NODES_GOLDEN
+        }
+        assert actual == {
+            node: suite_conftest.RealRepoAccess("read", None)
+            for node in _T810_LIVE_AUTHORITY_NODES_GOLDEN
+        }, f"T810 live-authority parent reader missing: {actual!r}"
+        return
+
+    if mutation_id == "invariant-candidate-write-downgraded":
+        events = _recorded_actual_fixture_execution(
+            "invariant-candidate", tmp_path,
+        )
+        assert events == [
+            ("enter", ("write", None)),
+            ("builder", (("write", None),)),
+            ("exit", ("write", None)),
+            ("enter", ("read", None)),
+            ("yield", (("read", None),)),
+            ("exit", ("read", None)),
+        ], f"invariant candidate fixture lock phases changed: {events!r}"
+        return
+
+    if mutation_id == "predicate-candidate-lock-removed":
+        events = _recorded_actual_fixture_execution(
+            "predicate-candidate", tmp_path,
+        )
+        assert events == [
+            ("enter", ("write", None)),
+            ("builder", (("write", None),)),
+            ("exit", ("write", None)),
+            ("enter", ("read", None)),
+            ("yield", (("read", None),)),
+            ("exit", ("read", None)),
+        ], f"predicate candidate fixture lock phases changed: {events!r}"
+        return
+
+    if mutation_id == "campaign-scan-lock-removed":
+        events = _recorded_actual_fixture_execution("campaign-scan", tmp_path)
+        assert events == [
+            ("enter", ("read", "read")),
+            ("read", Path(ROOT), (("read", "read"),)),
+            ("yield", (("read", "read"),)),
+            ("exit", ("read", "read")),
+        ], f"campaign repository_scan fixture lock phases changed: {events!r}"
+        return
+
+    if mutation_id == "parent-key-uses-worktree-root":
+        repository = tmp_path / "repository"
+        linked = tmp_path / "linked"
+        repository.mkdir()
+        subprocess.run(
+            ["git", "init", "-q", "-b", "main", str(repository)], check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repository), "config", "user.name", "fixture"],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "git", "-C", str(repository), "config", "user.email",
+                "fixture@example.invalid",
+            ],
+            check=True,
+        )
+        (repository / "tracked").write_text("fixture\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "-C", str(repository), "add", "tracked"], check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repository), "commit", "-qm", "fixture"],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "git", "-C", str(repository), "worktree", "add", "-q",
+                "--detach", str(linked), "HEAD",
+            ],
+            check=True,
+        )
+        with mock.patch.dict(
+            os.environ,
+            {
+                "GIT_COMMON_DIR": str(tmp_path / "poison-common.git"),
+                "GIT_DIR": str(tmp_path / "poison.git"),
+                "GIT_INDEX_FILE": str(tmp_path / "poison.index"),
+                "GIT_WORK_TREE": str(tmp_path / "poison-worktree"),
+            },
+            clear=False,
+        ):
+            direct = suite_conftest._real_repo_lock_path(
+                "parent", repo_root=repository,
+            )
+            sibling = suite_conftest._real_repo_lock_path(
+                "parent", repo_root=linked,
+            )
+            from tools import acceptance_shards
+            assert acceptance_shards._git_common_dir(repository) == (
+                repository / ".git"
+            ).resolve()
+        assert direct == sibling, (
+            "sibling worktrees did not share the parent common-dir lock key"
+        )
+        assert suite_conftest._real_repo_legacy_lock_path(
+            "parent", repo_root=repository,
+        ) != suite_conftest._real_repo_legacy_lock_path(
+            "parent", repo_root=linked,
+        )
+        return
+
+    if mutation_id == "legacy-key-not-acquired":
+        legacy = tmp_path / "legacy.lock"
+        common = tmp_path / "common.lock"
+        events = []
+
+        @contextlib.contextmanager
+        def record_path(resource, mode, path, *, deadline, retry_interval_s):
+            events.append(("enter", resource, mode, path))
+            try:
+                yield
+            finally:
+                events.append(("exit", resource, mode, path))
+
+        with mock.patch.object(
+            suite_conftest, "_real_repo_legacy_lock_path", return_value=legacy,
+        ), mock.patch.object(
+            suite_conftest, "_real_repo_lock_path", return_value=common,
+        ), mock.patch.object(
+            suite_conftest, "_real_repo_lock_path_context", record_path,
+        ):
+            with suite_conftest._real_repo_file_lock("parent", "write"):
+                events.append(("body",))
+        assert events == [
+            ("enter", "parent", "write", legacy),
+            ("enter", "parent", "write", common),
+            ("body",),
+            ("exit", "parent", "write", common),
+            ("exit", "parent", "write", legacy),
+        ], f"legacy/common key acquisition order or mode changed: {events!r}"
+
+        entered = threading.Event()
+        failures = []
+
+        def acquire_new_reader():
+            try:
+                with suite_conftest._real_repo_file_lock(
+                    "parent", "read", timeout_s=2.0, retry_interval_s=0.01,
+                ):
+                    entered.set()
+            except BaseException as exc:
+                failures.append(exc)
+
+        legacy_fd = suite_conftest._open_real_repo_lock(legacy)
+        suite_conftest.fcntl.flock(legacy_fd, suite_conftest.fcntl.LOCK_EX)
+        try:
+            with mock.patch.object(
+                suite_conftest, "_real_repo_legacy_lock_path", return_value=legacy,
+            ), mock.patch.object(
+                suite_conftest, "_real_repo_lock_path", return_value=common,
+            ):
+                thread = threading.Thread(target=acquire_new_reader)
+                thread.start()
+                time.sleep(0.05)
+                assert not entered.is_set(), (
+                    "legacy EX holder did not block the dual-key reader"
+                )
+                suite_conftest.fcntl.flock(
+                    legacy_fd, suite_conftest.fcntl.LOCK_UN,
+                )
+                thread.join(2.0)
+                assert not thread.is_alive()
+        finally:
+            try:
+                suite_conftest.fcntl.flock(
+                    legacy_fd, suite_conftest.fcntl.LOCK_UN,
+                )
+            finally:
+                suite_conftest.os.close(legacy_fd)
+        assert not failures
+        assert entered.is_set()
+        return
+
+    if mutation_id == "conflict-edge-removed":
+        from tools import acceptance_shards
+        # C1: exact matrix is the first gate.  The controls below cannot hide
+        # an edge deletion by deriving their expectation from production.
+        assert (
+            acceptance_shards.REAL_REPO_GROUP_CONFLICT_EDGES
+            == _REAL_REPO_GROUP_CONFLICT_EDGES_GOLDEN
+        ), "real-repo shard conflict matrix differs from independent exact golden"
+        assert (
+            _conflict_edges_from_independent_access_literals()
+            == _REAL_REPO_GROUP_CONFLICT_EDGES_GOLDEN
+        ), "fixture/resource access literals do not justify the edge golden"
+        records = (
+            acceptance_shards.ItemRecord(
+                next(iter(sorted(_CAMPAIGN_REPOSITORY_SCAN_NODES_GOLDEN))),
+                "orchestrator/tests/test_campaign_import_invariant.py",
+                "campaign-repository-scan",
+            ),
+            acceptance_shards.ItemRecord(
+                next(iter(sorted(_T810_LIVE_AUTHORITY_NODES_GOLDEN))),
+                "orchestrator/tests/test_t810_coordinator.py",
+                "real-repo",
+            ),
+            acceptance_shards.ItemRecord(
+                next(iter(sorted(_S8C_PREDICATE_SNAPSHOT_NODES_GOLDEN))),
+                "orchestrator/tests/test_s8c_preregistration_predicates.py",
+                "s8c-predicate-snapshot",
+            ),
+            acceptance_shards.ItemRecord(
+                next(iter(sorted(_S8C_PREREGISTRATION_CANDIDATE_NODES_GOLDEN))),
+                "orchestrator/tests/test_s8c_preregistration_invariant.py",
+                "s8c-preregistration-candidate",
+            ),
+        )
+        components = acceptance_shards._components(records)
+        assert len(components) == 1
+        assert set(components[0]["groups"]) == {
+            "campaign-repository-scan",
+            "real-repo",
+            "s8c-predicate-snapshot",
+            "s8c-preregistration-candidate",
+        }
+        return
+
+    if mutation_id == "prewarm-lock-removed":
+        cases = (
+            (
+                "receipt",
+                suite_conftest._prewarm_receipt_memo,
+                suite_conftest._receipt_memo_module,
+                "_receipt_memo_module",
+                "prewarm_real_repo_receipt",
+                "finish_real_repo_receipt_session",
+                next(iter(sorted(_RECEIPT_MEMO_CONSUMERS_GOLDEN))),
+                suite_conftest._RECEIPT_MEMO_SESSION_ID_ATTR,
+            ),
+            (
+                "oracle",
+                suite_conftest._prewarm_oracle_environment_memo,
+                suite_conftest._oracle_environment_memo_module,
+                "_oracle_environment_memo_module",
+                "prewarm_oracle_environment",
+                "finish_oracle_environment_session",
+                next(iter(sorted(ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN))),
+                suite_conftest._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR,
+            ),
+        )
+        for (
+            label, prewarm, _module_owner, module_attr, endpoint_attr,
+            finish_attr, consumer, session_attr,
+        ) in cases:
+            active = []
+            events = []
+
+            @contextlib.contextmanager
+            def locks(access):
+                vector = (access.parent, access.ccbench)
+                active.append(vector)
+                events.append(("enter", vector))
+                try:
+                    yield
+                finally:
+                    assert active.pop() == vector
+                    events.append(("exit", vector))
+
+            def endpoint(**_kwargs):
+                events.append(("endpoint", tuple(active)))
+                assert active == [("read", None)]
+
+            config = _ReceiptHookConfig({"collectonly": False})
+            setattr(config, session_attr, f"{label}-session")
+            fake_module = SimpleNamespace(**{
+                endpoint_attr: endpoint,
+                finish_attr: mock.Mock(),
+            })
+            with mock.patch.object(suite_conftest, "_real_repo_locks", locks), \
+                    mock.patch.object(
+                        suite_conftest, module_attr, return_value=fake_module,
+                    ):
+                prewarm(config, [consumer], run_id=None)
+            assert events == [
+                ("enter", ("read", None)),
+                ("endpoint", (("read", None),)),
+                ("exit", ("read", None)),
+            ], f"{label} prewarm endpoint escaped parent SH: {events!r}"
+        return
+
+    if mutation_id == "nested-collection-node-unregistered":
+        actual = {
+            node: suite_conftest.REAL_REPO_ACCESS_BY_NODE.get(node)
+            for node in _NESTED_COLLECTION_NODES_GOLDEN
+        }
+        assert actual == {
+            node: suite_conftest.RealRepoAccess("read", None)
+            for node in _NESTED_COLLECTION_NODES_GOLDEN
+        }, f"nested whole-suite collection parent reader missing: {actual!r}"
+        return
+
+    raise AssertionError(f"unhandled real-repo closure mutation id: {mutation_id}")
 
 
 def test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env():

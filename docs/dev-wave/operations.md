@@ -32,6 +32,8 @@ prompt 先頭は AGENTS.md の単独段例外と同形式。
 WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
 Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
 prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
+Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
+subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
 
 ## DW-O04 — 防護パスを含む commit message
 
@@ -78,6 +80,7 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 復旧・stage・復元の後に再走し、gate の赤を受入結果にしない。
 `output/` 配下の一括削除は `git ls-files -- <path>` の空を確認してから行う。`git status` は
 tracked 無変更を出さず不在証明にならない。理解だけの `rm -rf` は別 wave の tracked file を消す。
+変異 scratch は `rm -rf` の後 `git worktree prune` まで行う。登録残置で次走が共有木検査で止まる。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
