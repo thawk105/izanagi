@@ -293,6 +293,34 @@ def _build_launcher_closure():
             )
         return context
 
+    def validate_production_context(
+        context: object,
+        *,
+        expected_driver_kind: DriverKind,
+        expected_campaign_id: str,
+        expected_arm: Arm,
+        boundary: str,
+    ) -> tuple[B4LaunchContext, bool]:
+        """Validate exact production expectations and report campaign drift."""
+        context = require_production_seal(context, boundary=boundary)
+        if context.driver_kind != expected_driver_kind:
+            raise B4LauncherAuthorizationError(
+                f"B-4 launch context driver kind differs at {boundary}"
+            )
+        if expected_arm not in {"on", "off"}:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} expected arm is invalid"
+            )
+        if context.arm != expected_arm:
+            raise B4LauncherAuthorizationError(
+                f"B-4 launch context arm differs at {boundary}"
+            )
+        if type(expected_campaign_id) is not str or not expected_campaign_id:
+            raise B4LauncherAuthorizationError(
+                f"B-4 {boundary} expected campaign id is invalid"
+            )
+        return context, context.campaign_id != expected_campaign_id
+
     def require_production_context(
         context: object,
         *,
@@ -302,26 +330,16 @@ def _build_launcher_closure():
         boundary: str,
     ) -> B4LaunchContext:
         """Require exact production kind, campaign, arm, seal, and digest."""
-        context = require_production_seal(context, boundary=boundary)
-        if context.driver_kind != expected_driver_kind:
-            raise B4LauncherAuthorizationError(
-                f"B-4 launch context driver kind differs at {boundary}"
-            )
-        if type(expected_campaign_id) is not str or not expected_campaign_id:
-            raise B4LauncherAuthorizationError(
-                f"B-4 {boundary} expected campaign id is invalid"
-            )
-        if context.campaign_id != expected_campaign_id:
+        context, campaign_id_differs = validate_production_context(
+            context,
+            expected_driver_kind=expected_driver_kind,
+            expected_campaign_id=expected_campaign_id,
+            expected_arm=expected_arm,
+            boundary=boundary,
+        )
+        if campaign_id_differs:
             raise B4LauncherAuthorizationError(
                 f"B-4 launch context campaign id differs at {boundary}"
-            )
-        if expected_arm not in {"on", "off"}:
-            raise B4LauncherAuthorizationError(
-                f"B-4 {boundary} expected arm is invalid"
-            )
-        if context.arm != expected_arm:
-            raise B4LauncherAuthorizationError(
-                f"B-4 launch context arm differs at {boundary}"
             )
         return context
 
@@ -457,6 +475,18 @@ def _build_launcher_closure():
             raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid")
         if value.get("schema_version") != B4_LAUNCH_SIDECAR_SCHEMA:
             raise B4LauncherAuthorizationError("B-4 launch sidecar is invalid")
+        context = active_context.get()
+        if type(context) is not B4LaunchContext:
+            raise B4LauncherAuthorizationError(
+                "B-4 COMMIT requires the live launch context"
+            )
+        context, campaign_id_differs = validate_production_context(
+            context,
+            expected_driver_kind=expected_driver_kind,
+            expected_campaign_id=expected_campaign_id,
+            expected_arm=expected_arm,
+            boundary="certified sink",
+        )
         if (
             Path(layout.root).name != expected_campaign_id
             or value.get("campaign_id") != expected_campaign_id
@@ -464,18 +494,10 @@ def _build_launcher_closure():
             raise B4LauncherAuthorizationError(
                 "B-4 launch sidecar is bound to another campaign"
             )
-        context = active_context.get()
-        if type(context) is not B4LaunchContext:
+        if campaign_id_differs:
             raise B4LauncherAuthorizationError(
-                "B-4 COMMIT requires the live launch context"
+                "B-4 launch context campaign id differs at certified sink"
             )
-        context = require_production_context(
-            context,
-            expected_driver_kind=expected_driver_kind,
-            expected_campaign_id=expected_campaign_id,
-            expected_arm=expected_arm,
-            boundary="certified sink",
-        )
         expected_sidecar = sidecar_value(context)
         if any(
             value[key] != expected_sidecar[key]
