@@ -35,13 +35,18 @@ def _visible_markdown_lines(text: str) -> list[str]:
             return []
         lines = lines[closing + 1:]
     visible: list[str] = []
-    in_fence = False
+    fence: tuple[str, int] | None = None
     for line in lines:
-        stripped = line.lstrip()
-        if stripped.startswith("```"):
-            in_fence = not in_fence
+        marker = re.match(r"^[ ]{0,3}(`{3,}|~{3,})", line)
+        if fence is None and marker is not None:
+            token = marker.group(1)
+            fence = (token[0], len(token))
             continue
-        if in_fence:
+        if fence is not None:
+            closing = re.fullmatch(r"[ ]{0,3}([`~]+)[ \t]*", line)
+            if (closing is not None and closing.group(1)[0] == fence[0]
+                    and len(closing.group(1)) >= fence[1]):
+                fence = None
             continue
         if line.strip():
             visible.append(line)
@@ -139,5 +144,16 @@ def test_b3_mentions_and_negative_instructions_do_not_count_as_execution_edges()
 
 - 全候補を一回で `python3 tools/check_branch_rescue.py --ledger-check` に渡すとは書くが実行しない
 - `python3 tools/audit_dangling_commits.py` と `docs/unreachable-object-ledger.md` は単なる言及
+"""
+    assert _has_cleanup_execution_edges(text) is False
+
+
+def test_b3_tilde_fence_bullets_do_not_count_as_execution_edges() -> None:
+    text = """## 1. 棚卸し (削除の前に全量を見る)
+
+~~~text
+- 全削除・撤去候補を 1 回で `python3 tools/check_branch_rescue.py --ledger-check` に渡して実行する
+- `python3 tools/audit_dangling_commits.py` を実行し `docs/unreachable-object-ledger.md` と照合する
+~~~
 """
     assert _has_cleanup_execution_edges(text) is False

@@ -84,11 +84,13 @@ rc `1` は使わない。`not-landed` は技術的失敗ではなく JSON 内の
 `/cleanup-branches` §5 の報告へ含める。
 
 `retention.loss_possible_not_before` は object が失われうる最早時刻の下界である。object 自身の loose
-mtime と実効 prune 期限から算術で導けた場合は `determinate`、packed、loose-and-packed、alternate
-ODB、prunable worktree root、または未知形の `gc.pruneExpire` により assessment time へ倒す場合は
-`conservative-floor` とする。この 2 値は rc `0` の完全な答えである。storage 分類不能、走行中の stat
-変化、config scope 読取不能、assessment time 不明だけを `indeterminate` とし、下界は null、rc は
-`2` とする。`gc.pruneExpire=never` は `determinate` である。
+mtime と実効 prune 期限から算術で導けた場合は `determinate` とする。相対期限は mtime へ保持期間を
+加算し、有効な ISO 形式の絶対期限は mtime と Git が解釈した cutoff を比較して下界を導く。packed、
+loose-and-packed、alternate ODB、prunable worktree root、または相対期限でも絶対期限でもない未知形の
+`gc.pruneExpire` により assessment time へ倒す場合は `conservative-floor` とする。この 2 値は rc `0`
+の完全な答えである。storage 分類不能、走行中の stat 変化、config scope 読取不能、assessment time
+不明だけを `indeterminate` とし、下界は null、rc は `2` とする。`gc.pruneExpire=never` は
+`determinate` である。
 
 ### dangling audit の分岐
 

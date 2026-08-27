@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 from typing import Any
@@ -867,6 +868,25 @@ def test_a1_candidate_reflog_parse_failure_is_rc2(tmp_path: Path):
     assert any(issue["code"] == "reflog-parse-error" for issue in payload["issues"])
 
 
+def test_a1_candidate_reflog_missing_object_is_defined_rc2(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    missing_oid = _empty_child(repo)
+    _git(repo, "branch", "topic", missing_oid)
+    _git(repo, "branch", "-f", "topic", "main")
+    object_path = repo / ".git" / "objects" / missing_oid[:2] / missing_oid[2:]
+    object_path.unlink()
+
+    rc, payload, _ = _run_tool(repo, "--branch", "topic")
+    assert rc == 2
+    assert payload["root_snapshot"]["complete"] is False
+    assert missing_oid not in payload["deletion_loss_closure"]["stdin_positive_oids"]
+    assert any(
+        issue["code"] == "removed-reflog-object-missing"
+        and missing_oid in str(issue["subject"])
+        for issue in payload["issues"]
+    )
+
+
 def test_a2_a6_production_cli_rejects_child_path_and_time_injection(tmp_path: Path):
     repo = _init_repo(tmp_path)
     _git(repo, "branch", "topic", "main")
@@ -906,6 +926,27 @@ def test_m20_a4_effective_global_prune_config_is_observed(tmp_path: Path):
     retention = _commit_row(payload, topic)["retention"]
     assert retention["loss_possible_not_before"] == "2030-01-15T00:00:00Z"
     assert payload["gc"]["config"]["gc_prune_expire"]["source"].startswith("file:")
+
+
+def test_a4_absolute_prune_expiry_is_determinate(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    topic = _empty_child(repo)
+    _git(repo, "branch", "topic", topic)
+    _git(repo, "config", "gc.pruneExpire", "2030-02-01")
+    object_path = repo / ".git" / "objects" / topic[:2] / topic[2:]
+    mtime = dt.datetime(2030, 1, 20, tzinfo=dt.timezone.utc).timestamp()
+    os.utime(object_path, (mtime, mtime))
+    checker = _make_fake_landed(tmp_path / "landed.py")
+
+    rc, payload, process = _run_tool(
+        repo, "--branch", "topic", "--landed-checker", str(checker),
+        "--now", "2030-01-15T00:00:00Z",
+    )
+    assert rc == 0, process.stdout + process.stderr
+    retention = _commit_row(payload, topic)["retention"]
+    assert retention["deadline_status"] == "determinate"
+    assert retention["lower_bound_basis"] == "loose-object-mtime-vs-absolute-prune-expire"
+    assert retention["loss_possible_not_before"] == "2030-01-15T00:00:00Z"
 
 
 def test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path(tmp_path: Path):
@@ -996,6 +1037,21 @@ def test_a8_git_ref_rules_and_non_utf8_ref_are_reversible(tmp_path: Path):
     assert payload["candidates"][0]["input"] == "topic+rescue"
 
 
+def test_a8_non_utf8_ref_is_stable_in_snapshot_digest(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    oid = _git(repo, "rev-parse", "main").stdout.strip()
+    _git(repo, "branch", "topic", "main")
+    raw_ref = os.fsencode(repo / ".git" / "refs" / "tags") + b"/nonutf8-\xff"
+    with open(raw_ref, "wb") as stream:
+        stream.write(oid.encode("ascii") + b"\n")
+
+    rc, payload, process = _run_tool(repo, "--branch", "topic")
+    assert rc == 0, process.stdout + process.stderr
+    assert payload["root_snapshot"]["stable"] is True
+    names = [root["name"] for root in payload["root_snapshot"]["roots"]]
+    assert b"refs/tags/nonutf8-\xff" in [os.fsencode(name) for name in names]
+
+
 def test_a9_out_of_range_reflog_timestamp_is_defined_rc2(tmp_path: Path):
     repo = _init_repo(tmp_path)
     oid = _git(repo, "rev-parse", "main").stdout.strip()
@@ -1009,6 +1065,25 @@ def test_a9_out_of_range_reflog_timestamp_is_defined_rc2(tmp_path: Path):
     rc, payload, _ = _run_tool(repo, "--branch", "topic")
     assert rc == 2
     assert any(issue["code"] == "reflog-parse-error" for issue in payload["issues"])
+
+
+def test_a9_reflog_expiry_addition_overflow_is_defined_rc2(tmp_path: Path):
+    repo = _init_repo(tmp_path)
+    oid = _git(repo, "rev-parse", "main").stdout.strip()
+    _git(repo, "branch", "topic", "main")
+    log = repo / ".git" / "logs" / "refs" / "heads" / "topic"
+    log.write_text(
+        f"{oid} {oid} Test <test@example.invalid> 253402214400 +0000\tfixture\n",
+        encoding="ascii",
+    )
+
+    rc, payload, _ = _run_tool(repo, "--branch", "topic")
+    assert rc == 2
+    assert any(
+        issue["code"] == "reflog-parse-error"
+        and "expiry" in issue["message"]
+        for issue in payload["issues"]
+    )
 
 
 def test_a10_ledger_rejects_sample_threshold_not_derived_from_gc_auto() -> None:
@@ -1039,11 +1114,54 @@ def test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ):
     repo = _init_repo(tmp_path)
-    _topic_with_file(repo)
-    _git(repo, "remote", "add", "origin", ".")
+    main = _git(repo, "rev-parse", "main").stdout.strip()
+    missing_oid = _empty_child(repo, main)
+    tree = _git(repo, "rev-parse", f"{main}^{{tree}}").stdout.strip()
+    live_oid = _git(repo, "commit-tree", tree, "-p", main, "-m", "live").stdout.strip()
+    assert live_oid != missing_oid
+    _git(repo, "branch", "topic", missing_oid)
+    remote = tmp_path / "remote.git"
+    _git(tmp_path, "clone", "--bare", str(repo), str(remote))
+    _git(repo, "branch", "-f", "topic", live_oid)
+    _git(repo, "remote", "add", "origin", str(remote))
     _git(repo, "config", "remote.origin.promisor", "true")
     _git(repo, "config", "extensions.partialClone", "origin")
-    checker = _make_fake_landed(tmp_path / "landed.py")
+    object_path = repo / ".git" / "objects" / missing_oid[:2] / missing_oid[2:]
+    object_path.unlink()
+
+    trap_dir = tmp_path / "trap-bin"
+    trap_dir.mkdir()
+    trap_marker = tmp_path / "untrusted-python-ran"
+    trap_python = trap_dir / "python3"
+    trap_python.write_text(
+        "#!/bin/sh\n"
+        f"printf hit > {shlex.quote(str(trap_marker))}\n"
+        f"exec {shlex.quote(str(Path(sys.executable).resolve()))} \"$@\"\n",
+        encoding="utf-8",
+    )
+    trap_python.chmod(0o700)
+    checker = tmp_path / "landed.py"
+    checker.write_text(
+        "import json\n"
+        "import os\n"
+        "import subprocess\n"
+        f"missing_oid = {missing_oid!r}\n"
+        "probe_env = dict(os.environ)\n"
+        "probe_env.pop('GIT_NO_LAZY_FETCH', None)\n"
+        "probe = subprocess.run(['git', 'cat-file', '-t', missing_oid], env=probe_env,\n"
+        "                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)\n"
+        "if probe.returncode == 0:\n"
+        "    raise SystemExit(17)\n"
+        "payload = {\n"
+        "    'schema': 'izanagi-branch-landed-v1',\n"
+        "    'branch_delete_authorized': False,\n"
+        "    'manual_review_required': True,\n"
+        "    'decision': {'verdict': 'landed', 'reason': 'wrapper-probed', 'conclusive': True},\n"
+        "    'observations': {'ledger_corpus': {'bytes_read': 0}},\n"
+        "}\n"
+        "print(json.dumps(payload, sort_keys=True))\n",
+        encoding="utf-8",
+    )
     real_spawn = TOOL.subprocess.run
     observed_envs: list[dict[str, str]] = []
 
@@ -1055,11 +1173,16 @@ def test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child(
     monkeypatch.setattr(TOOL.subprocess, "run", recording_spawn)
     rc, payload, _ = _run_tool(
         repo, "--branch", "topic", "--landed-checker", str(checker),
+        env={"PATH": str(trap_dir) + os.pathsep + os.environ["PATH"]},
     )
     after = _repository_control_bytes(repo)
-    assert rc == 0, payload["issues"]
+    issue_codes = [issue["code"] for issue in payload["issues"]]
+    assert rc == 2, issue_codes
+    assert "removed-reflog-object-missing" in issue_codes, (issue_codes, payload["issues"])
+    assert _commit_row(payload, live_oid)["landed_assessment"]["complete"] is True
     assert observed_envs
     assert all(env.get("GIT_NO_LAZY_FETCH") == "1" for env in observed_envs)
+    assert trap_marker.exists() is False
     assert after == before
 
 

@@ -227,13 +227,18 @@ def _child_env() -> dict[str, str]:
 @contextlib.contextmanager
 def _no_lazy_fetch_child_env() -> Iterator[dict[str, str]]:
     env = _child_env()
-    real_git = shutil.which("git", path=env["PATH"])
-    if real_git is None:
+    located_git = shutil.which("git", path=env["PATH"])
+    if located_git is None:
         raise OSError("git executable is unavailable")
+    real_git = str(Path(located_git).resolve(strict=True))
+    interpreter = str(Path(sys.executable).resolve(strict=True))
+    if (not Path(interpreter).is_absolute()
+            or any(character.isspace() for character in interpreter)):
+        raise OSError("current Python interpreter path is not usable as a shebang")
     with tempfile.TemporaryDirectory(prefix="izanagi-branch-rescue-git-") as directory:
         wrapper = Path(directory) / "git"
         wrapper.write_text(
-            "#!/usr/bin/env python3\n"
+            f"#!{interpreter}\n"
             "import os\n"
             "import sys\n"
             "os.environ['GIT_NO_LAZY_FETCH'] = '1'\n"
@@ -637,6 +642,40 @@ def _duration(value: str) -> dt.timedelta | None:
     return dt.timedelta(seconds=amount * seconds)
 
 
+def _absolute_prune_expiry(git: Git, value: str) -> dt.datetime | None:
+    candidate = value.strip()
+    date_only = re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", candidate)
+    date_time = re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}"
+        r"(?::[0-9]{2})?(?:Z|[+-][0-9]{2}:?[0-9]{2})?",
+        candidate,
+    )
+    try:
+        if date_only is not None:
+            dt.date.fromisoformat(candidate)
+        elif date_time is not None:
+            normalized = candidate[:-1] + "+00:00" if candidate.endswith("Z") else candidate
+            dt.datetime.fromisoformat(normalized)
+        else:
+            return None
+    except ValueError:
+        return None
+    result = git.run(["rev-parse", f"--since={candidate}"], allowed=(0, 128, 129))
+    if result.returncode != 0:
+        return None
+    try:
+        parsed = result.stdout.decode("ascii").strip()
+    except UnicodeDecodeError as exc:
+        raise RescueError("config-parse-error", "Git returned a non-ASCII absolute expiry") from exc
+    match = re.fullmatch(r"--max-age=(-?[0-9]+)", parsed)
+    if match is None:
+        raise RescueError("config-parse-error", "Git returned an invalid absolute expiry")
+    try:
+        return dt.datetime.fromtimestamp(int(match.group(1)), tz=dt.timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def _scoped_reflog_config(git: Git) -> list[dict[str, str]]:
     result = git.run([
         "config", "--show-origin", "--get-regexp",
@@ -723,9 +762,15 @@ def _read_reflog(path: Path, name: str, now: dt.datetime,
                 "reflog-parse-error", "reflog timestamp is outside the supported range",
                 subject=f"{path}:{line_number}",
             ) from exc
-        deadline, setting, source, deadline_status = _reflog_expiry(
-            name, timestamp_value, now, config, scoped,
-        )
+        try:
+            deadline, setting, source, deadline_status = _reflog_expiry(
+                name, timestamp_value, now, config, scoped,
+            )
+        except (OverflowError, ValueError) as exc:
+            raise RescueError(
+                "reflog-parse-error", "reflog expiry is outside the supported range",
+                subject=f"{path}:{line_number}",
+            ) from exc
         for kind, oid in (("reflog-old", old), ("reflog-new", new)):
             if set(oid) == {"0"}:
                 continue
@@ -994,7 +1039,14 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
                         "reason": "candidate branch reflog is removed with its ref",
                         "wrong_inclusion_bias": "under-report",
                     })
-                    if types.get(oid) == "commit":
+                    object_type = types.get(oid)
+                    if object_type is None:
+                        issues.append(_issue(
+                            "removed-reflog-object-missing", "root-snapshot",
+                            "candidate reflog object is missing and cannot be classified",
+                            subject=f"{refname}:{oid}",
+                        ))
+                    elif object_type == "commit":
                         removed_source_oids.append((f"candidate-reflog:{refname}", oid))
                 continue
             reflog_file_count += 1
@@ -1034,11 +1086,19 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
         if worktree.path in retired:
             types = _cat_types(git, (entry["oid"] for entry in entries))
             for entry in entries:
-                if types.get(entry["oid"]) == "commit":
-                    removed_source_oids.append((f"worktree-reflog:{worktree.path}", entry["oid"]))
+                oid = entry["oid"]
+                object_type = types.get(oid)
+                if object_type is None:
+                    issues.append(_issue(
+                        "removed-reflog-object-missing", "root-snapshot",
+                        "retired worktree reflog object is missing and cannot be classified",
+                        subject=f"{worktree.path}:{oid}",
+                    ))
+                elif object_type == "commit":
+                    removed_source_oids.append((f"worktree-reflog:{worktree.path}", oid))
                 excluded.append({
                     "kind": "retired-worktree-reflog", "name": entry["name"],
-                    "oid": entry["oid"],
+                    "oid": oid,
                     "reason": "retired worktree reflog is removed by the modeled cleanup",
                     "wrong_inclusion_bias": "under-report",
                 })
@@ -1099,7 +1159,7 @@ def _snapshot(git: Git, root: Path, common: Path, objects: Path,
         "alternates": alternates,
     }
     digest = hashlib.sha256(json.dumps(
-        canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
     ).encode("utf-8")).hexdigest()
     return Snapshot(
         digest=digest,
@@ -1281,7 +1341,8 @@ def _pack_index(git: Git, object_directories: Sequence[Path]) -> tuple[dict[str,
 
 def _retention(git: Git, oid: str, now: dt.datetime, objects: Path,
                alternate_dirs: Sequence[Path], pack_map: dict[str, Path],
-               prune_config: dict[str, Any], temporary_roots: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], bool]:
+               prune_config: dict[str, Any], temporary_roots: Sequence[dict[str, Any]],
+               *, absolute_prune_expiry: dt.datetime | None = None) -> tuple[dict[str, Any], bool]:
     object_type = _cat_types(git, [oid]).get(oid)
     loose = objects / oid[:2] / oid[2:]
     alternate_loose = next((directory / oid[:2] / oid[2:] for directory in alternate_dirs
@@ -1340,6 +1401,11 @@ def _retention(git: Git, oid: str, now: dt.datetime, objects: Path,
         basis = "loose-object-mtime-plus-prune-expire"
         status = "determinate"
         reason = "loose object mtime and gc.pruneExpire provide a lower bound"
+    elif storage == "loose" and loose_mtime is not None and absolute_prune_expiry is not None:
+        lower_bound = now if loose_mtime <= absolute_prune_expiry else NEVER_LOSS_FLOOR
+        basis = "loose-object-mtime-vs-absolute-prune-expire"
+        status = "determinate"
+        reason = "loose object mtime and absolute gc.pruneExpire cutoff provide a lower bound"
     else:
         lower_bound = now
         basis = (
@@ -1773,6 +1839,9 @@ def assess(
                               scope="ledger", subject=str(ledger_path)) from exc
         payload["ledger"]["path"] = str(ledger_path)
         config, scoped = _config_snapshot(git)
+        absolute_prune_expiry = _absolute_prune_expiry(
+            git, str(config["gc_prune_expire"]["effective"]),
+        )
 
         if args.branch or args.retire_worktree:
             start_snapshot = _snapshot(
@@ -1813,6 +1882,7 @@ def assess(
                 retention, retention_complete = _retention(
                     git, commit["oid"], now, objects, alternate_dirs, pack_map,
                     config["gc_prune_expire"], start_snapshot.temporary_roots,
+                    absolute_prune_expiry=absolute_prune_expiry,
                 )
                 commit["retention"] = retention
                 if not retention_complete:
