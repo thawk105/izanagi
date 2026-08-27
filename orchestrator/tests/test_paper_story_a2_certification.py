@@ -780,6 +780,7 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
                        match="ratified qsub argv is not exact"):
         A2.exact_qsub(["not-qsub", "job.sh"], runner=runner)
     assert len(qsub_calls) == 1
+    assert qsub_calls[0] == (["qsub", "job.sh"], {"check": False})
 
     finish_root = A2.preregister_attempt(
         policy, "attempt-finish-group", CURRENT_PIN)
@@ -799,6 +800,179 @@ def test_m10_full_submission_and_completion_receipts_are_cross_bound(tmp_path):
         policy, finish_acquisition, current_pin=CURRENT_PIN)
     assert finish_evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
     assert finish_evidence["raw_manifest_valid"] is True
+
+
+def test_scheduler_request_id_diagnostic_is_create_only_and_non_symlink(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-request-sidecar", CURRENT_PIN)
+    scheduler = root / "jobs" / "rr5" / "scheduler"
+    fsync_calls = []
+    original_fsync_dir = A2._fsync_dir
+
+    def observed_fsync(path):
+        fsync_calls.append(path)
+        original_fsync_dir(path)
+
+    monkeypatch.setattr(A2, "_fsync_dir", observed_fsync)
+    sidecar = A2.record_scheduler_request_id(
+        policy, root, "rr5", "0:945411.nqsv.")
+    assert sidecar == scheduler / "request-id"
+    assert sidecar.is_file() and not sidecar.is_symlink()
+    assert sidecar.read_bytes() == b"945411.nqsv\n"
+    assert fsync_calls == [scheduler]
+    with pytest.raises(FileExistsError):
+        A2.record_scheduler_request_id(
+            policy, root, "rr5", "945411.nqsv")
+
+    second = A2.preregister_attempt(
+        policy, "attempt-request-sidecar-symlink", CURRENT_PIN)
+    linked = second / "jobs" / "rr5" / "scheduler" / "request-id"
+    linked.symlink_to(tmp_path / "decoy-request-id")
+    with pytest.raises(FileExistsError):
+        A2.record_scheduler_request_id(
+            policy, second, "rr5", "945411.nqsv")
+
+
+def test_qsub_diagnostics_fsync_both_files_then_scheduler_directory(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-qsub-diagnostics", CURRENT_PIN)
+    scheduler = root / "jobs" / "rr5" / "scheduler"
+    stdout_path = scheduler / "qsub.stdout"
+    stderr_path = scheduler / "qsub.stderr"
+    stdout_path.write_bytes(b"Request 945411.nqsv submitted\n")
+    stderr_path.write_bytes(b"")
+    fsync_targets = []
+    original_fsync = A2.os.fsync
+
+    def observed_fsync(descriptor):
+        fsync_targets.append(Path(f"/proc/self/fd/{descriptor}").resolve())
+        original_fsync(descriptor)
+
+    monkeypatch.setattr(A2.os, "fsync", observed_fsync)
+    assert A2.durabilize_scheduler_qsub_diagnostics(
+        policy, root, "rr5") == (stdout_path, stderr_path)
+    assert fsync_targets == [stdout_path, stderr_path, scheduler]
+
+
+def _terminal_qstat(command, **kwargs):
+    request_id = command[-1]
+    return subprocess.CompletedProcess(
+        command, 0,
+        f"Request ID: {request_id}\nRequest State = EXT\n", "")
+
+
+def test_m4_finish_rejects_compute_request_mismatch_without_raw_manifest(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-prevalidate-m4", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    compute_path = root / "jobs" / "rr5" / "compute-result.json"
+    compute, _ = A2._read_json(compute_path)
+    compute["pbs_jobid"] = "945412.nqsv"
+    compute_path.write_bytes(A2._canonical_json(compute))
+
+    with pytest.raises(A2.CertificationError, match="compute result identity"):
+        A2.finish_group(
+            policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert not (root / "raw-manifest.json").exists()
+    assert not (root / "receipts" / "completion.json").exists()
+    assert not (root / "receipts" / "acquisition.json").exists()
+
+
+def test_m5_finish_prevalidates_each_job_against_its_own_request(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-prevalidate-m5", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    original_validate = A2._validate_completion_job
+    first_calls = []
+
+    def observed_validate(
+            observed_policy, payload, attempt_id, attempt_root, current_pin,
+            workload_id, request_id, submission, job_body_sha256):
+        if len(first_calls) < 2:
+            assert not (root / "raw-manifest.json").exists()
+            assert payload["workload"] == workload_id
+            assert payload["request_id"] == request_id
+            assert submission["request_id"] == request_id
+            first_calls.append((workload_id, request_id))
+        return original_validate(
+            observed_policy, payload, attempt_id, attempt_root, current_pin,
+            workload_id, request_id, submission, job_body_sha256)
+
+    monkeypatch.setattr(A2, "_validate_completion_job", observed_validate)
+    A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert first_calls == [
+        ("rr5", "945411.nqsv"), ("rr50", "945412.nqsv")]
+
+
+def test_pc2_canonical_finish_creates_manifest_completion_and_acquisition(
+        tmp_path):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-positive-control", CURRENT_PIN)
+    _write_receipt_bundle(policy, root, record_completion=False)
+    assert not any(
+        (root / "jobs" / workload / "scheduler" / "request-id").exists()
+        for workload in A2.workload_ids(policy))
+
+    completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert completion == root / "receipts" / "completion.json"
+    assert acquisition == root / "receipts" / "acquisition.json"
+    assert (root / "raw-manifest.json").is_file()
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["driver_rcs"] == {"rr5": 0, "rr50": 0}
+    assert evidence["raw_manifest_valid"] is True
+
+
+def test_failed_driver_production_finish_and_collect_are_indeterminate(
+        tmp_path, monkeypatch):
+    policy = _policy(tmp_path)
+    root = A2.preregister_attempt(
+        policy, "attempt-finish-failed-driver", CURRENT_PIN)
+    _write_receipt_bundle(
+        policy, root, driver_rc=7, record_completion=False)
+
+    completion, acquisition = A2.finish_group(
+        policy, root, CURRENT_PIN, qstat_runner=_terminal_qstat)
+    assert completion == root / "receipts" / "completion.json"
+    assert acquisition == root / "receipts" / "acquisition.json"
+    assert not (root / "raw-manifest.json").exists()
+    evidence = A2.validate_acquisition_bundle(
+        policy, acquisition, current_pin=CURRENT_PIN)
+    assert evidence["driver_rcs"] == {"rr5": 7, "rr50": 0}
+    assert evidence["raw_manifest_valid"] is False
+    assert evidence["raw_manifest_reason"] == "driver-nonzero"
+
+    captured = {}
+    monkeypatch.setattr(A2, "load_policy", lambda: policy)
+
+    def forbidden_positive_path(*args, **kwargs):
+        raise AssertionError("failed driver reached positive collector")
+
+    def materialize(_policy, report, _evidence, *, repo_root):
+        captured.update(report)
+        return Path(repo_root) / "captured"
+
+    monkeypatch.setattr(A2, "collect_results", forbidden_positive_path)
+    monkeypatch.setattr(A2, "materialize", materialize)
+    assert A2.main([
+        "collect", "--attempt-root", str(root),
+        "--current-pin", CURRENT_PIN,
+        "--acquisition-receipt", str(acquisition),
+        "--repo-root", str(tmp_path),
+    ]) == 2
+    assert captured["status"] == "indeterminate"
+    assert "compute driver exited nonzero" in captured["reason"]
 
 
 @pytest.mark.parametrize("missing", ("qsub_argv", "qstat_visibility"))

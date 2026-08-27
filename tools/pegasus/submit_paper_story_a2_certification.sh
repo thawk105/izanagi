@@ -135,7 +135,17 @@ CURRENT_PIN=$(git -C "$CCBENCH_ROOT" rev-parse HEAD)
   echo "CCBench must have a clean HEAD" >&2
   exit 2
 }
-if qstat | grep -F "paper-a2-cert" >/dev/null; then
+TMP_ROOT=$(mktemp -d)
+trap 'rm -rf -- "$TMP_ROOT"' EXIT
+inventory_rc=0
+qstat >"$TMP_ROOT/request-inventory.stdout" \
+  2>"$TMP_ROOT/request-inventory.stderr" || inventory_rc=$?
+if [[ "$inventory_rc" -ne 0 || -s "$TMP_ROOT/request-inventory.stderr" ]]; then
+  echo "cannot inventory existing A-2 certification requests" >&2
+  exit 2
+fi
+REQUEST_INVENTORY=$(<"$TMP_ROOT/request-inventory.stdout")
+if [[ "$REQUEST_INVENTORY" == *paper-a2-cert* ]]; then
   echo "an A-2 certification request is already visible" >&2
   exit 2
 fi
@@ -146,30 +156,44 @@ ATTEMPT_ROOT=$("$PYTHON_BIN" -B -m \
 JOB_BODY="$REPO_ROOT/tools/pegasus/paper_story_a2_certification.sh"
 JOB_BODY_SHA256=$(sha256sum -- "$JOB_BODY")
 JOB_BODY_SHA256=${JOB_BODY_SHA256%% *}
-TMP_ROOT=$(mktemp -d)
-trap 'rm -rf -- "$TMP_ROOT"' EXIT
 WORKLOADS=(rr5 rr50)
 
 for workload in "${WORKLOADS[@]}"; do
   job_root="$ATTEMPT_ROOT/jobs/$workload"
   stdout_path="$job_root/scheduler/job.stdout"
   stderr_path="$job_root/scheduler/job.stderr"
+  qsub_stdout_path="$job_root/scheduler/qsub.stdout"
+  qsub_stderr_path="$job_root/scheduler/qsub.stderr"
   variable_arg="IZANAGI_A2_ATTEMPT_ROOT=$ATTEMPT_ROOT,IZANAGI_A2_WORKLOAD=$workload,IZANAGI_A2_EXPECTED_HEAD=$SOURCE_COMMIT,IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN,IZANAGI_A2_CCBENCH_ROOT=$CCBENCH_ROOT,IZANAGI_A2_REPO_ROOT=$REPO_ROOT,IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE=$DEPENDENCY_PREFIX_SOURCE"
+  [[ ! -e "$qsub_stdout_path" && ! -L "$qsub_stdout_path" \
+      && ! -e "$qsub_stderr_path" && ! -L "$qsub_stderr_path" ]] || {
+    echo "qsub diagnostics already exist for $workload" >&2
+    exit 2
+  }
+  set -o noclobber
+  exec {qsub_stdout_fd}>"$qsub_stdout_path"
+  exec {qsub_stderr_fd}>"$qsub_stderr_path"
+  set +o noclobber
   qsub_rc=0
   "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
     exact-qsub -- qsub -A SFC -q gen_S -b 1 -l elapstim_req=06:00:00 \
     -N paper-a2-cert -v "$variable_arg" -o "$stdout_path" -e "$stderr_path" \
-    "$JOB_BODY" >"$TMP_ROOT/$workload.qsub.stdout" \
-    2>"$TMP_ROOT/$workload.qsub.stderr" || qsub_rc=$?
+    "$JOB_BODY" >&"$qsub_stdout_fd" 2>&"$qsub_stderr_fd" || qsub_rc=$?
+  exec {qsub_stdout_fd}>&-
+  exec {qsub_stderr_fd}>&-
+  unset qsub_stdout_fd qsub_stderr_fd
+  "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
+    durabilize-qsub-diagnostics --attempt-root "$ATTEMPT_ROOT" \
+    --workload "$workload"
   if [[ "$qsub_rc" -ne 0 ]]; then
     echo "qsub failed for $workload; no group submission receipt was created" >&2
     exit "$qsub_rc"
   fi
-  [[ ! -s "$TMP_ROOT/$workload.qsub.stderr" ]] || {
+  [[ ! -s "$qsub_stderr_path" ]] || {
     echo "qsub wrote stderr for $workload; no group submission receipt was created" >&2
     exit 2
   }
-  request_id=$("$PYTHON_BIN" -I -B - "$TMP_ROOT/$workload.qsub.stdout" <<'PY'
+  request_id=$("$PYTHON_BIN" -I -B - "$qsub_stdout_path" <<'PY'
 import pathlib, re, sys
 raw = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 matches = re.findall(r"Request[ \t]+(\S+)[ \t]+submitted", raw)
@@ -182,13 +206,16 @@ if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", value):
 print(value)
 PY
   )
+  "$PYTHON_BIN" -B -m orchestrator.campaign.paper_story_a2_certification \
+    record-request-id --attempt-root "$ATTEMPT_ROOT" \
+    --workload "$workload" --request-id "$request_id" >/dev/null
+  printf '%s\n' "$request_id" >"$TMP_ROOT/$workload.request-id"
   qstat -f "$request_id" >"$TMP_ROOT/$workload.qstat.stdout" \
     2>"$TMP_ROOT/$workload.qstat.stderr"
   [[ ! -s "$TMP_ROOT/$workload.qstat.stderr" ]] || {
     echo "qstat visibility wrote stderr for $workload" >&2
     exit 2
   }
-  printf '%s\n' "$request_id" >"$TMP_ROOT/$workload.request-id"
   date -u +%Y-%m-%dT%H:%M:%SZ >"$TMP_ROOT/$workload.observed-at"
 done
 
@@ -205,7 +232,9 @@ temporary = pathlib.Path(temporary)
 jobs = []
 for workload in ("rr5", "rr50"):
     request = (temporary / f"{workload}.request-id").read_text().strip()
-    qsub_stdout = (temporary / f"{workload}.qsub.stdout").read_text()
+    scheduler = pathlib.Path(attempt) / "jobs" / workload / "scheduler"
+    qsub_stdout = (scheduler / "qsub.stdout").read_text()
+    qsub_stderr = (scheduler / "qsub.stderr").read_text()
     qstat_stdout = (temporary / f"{workload}.qstat.stdout").read_text()
     state = a2.target_bound_qstat_state_result(qstat_stdout, request).state
     if state not in a2._SUBMISSION_VISIBLE_STATES:
@@ -230,7 +259,7 @@ for workload in ("rr5", "rr50"):
             variable_arg, "-o", stdout_path, "-e", stderr_path, body,
         ],
         "qsub_stdout": qsub_stdout,
-        "qsub_stderr": "",
+        "qsub_stderr": qsub_stderr,
         "qsub_returncode": 0,
         "request_id": request,
         "qstat_visibility": {

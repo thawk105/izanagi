@@ -1329,6 +1329,48 @@ def record_submission_receipt(policy: Policy, attempt_root: Path | str,
     return path
 
 
+def record_scheduler_request_id(policy: Policy, attempt_root: Path | str,
+                                workload_id: str, request_id: str) -> Path:
+    """Durably retain a diagnostic request ID without making it a receipt."""
+    _, root = validate_attempt_root(policy, attempt_root)
+    normalized = _normalize_request_id(request_id)
+    scheduler_root = workload_job_root(
+        policy, root, workload_id) / "scheduler"
+    _reject_symlink_components(scheduler_root, "scheduler request directory")
+    if not scheduler_root.is_dir():
+        raise CertificationError("scheduler request directory is unavailable")
+    path = scheduler_root / "request-id"
+    _write_bytes_x(path, (normalized + "\n").encode("ascii"))
+    _fsync_dir(scheduler_root)
+    return path
+
+
+def durabilize_scheduler_qsub_diagnostics(
+        policy: Policy, attempt_root: Path | str, workload_id: str,
+) -> tuple[Path, Path]:
+    """Fsync pre-opened qsub diagnostics without making them receipts."""
+    _, root = validate_attempt_root(policy, attempt_root)
+    scheduler_root = workload_job_root(
+        policy, root, workload_id) / "scheduler"
+    _reject_symlink_components(scheduler_root, "qsub diagnostics directory")
+    if not scheduler_root.is_dir():
+        raise CertificationError("qsub diagnostics directory is unavailable")
+    paths = tuple(
+        scheduler_root / filename for filename in ("qsub.stdout", "qsub.stderr"))
+    for path in paths:
+        _reject_symlink_components(path, "qsub diagnostic")
+        if not path.is_file():
+            raise CertificationError("qsub diagnostic is not a regular file")
+        descriptor = os.open(
+            path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    _fsync_dir(scheduler_root)
+    return paths
+
+
 def record_completion_receipt(policy: Policy, attempt_root: Path | str,
                               current_pin: str,
                               payload: Mapping[str, Any]) -> Path:
@@ -1383,7 +1425,7 @@ def exact_qsub(argv: Sequence[str], *, runner=subprocess.run) -> object:
     if (type(argv) not in {list, tuple} or not argv or argv[0] != "qsub"
             or not all(type(token) is str and token for token in argv)):
         raise CertificationError("ratified qsub argv is not exact")
-    return runner(list(argv), check=False, capture_output=True, text=True)
+    return runner(list(argv), check=False)
 
 
 def _file_record(path: Path, attempt_root: Path) -> dict[str, Any]:
@@ -1404,7 +1446,6 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
     submission = _validate_submission_receipt(
         policy, submission_payload, attempt_id, root, current_pin)
     jobs: list[dict[str, Any]] = []
-    all_succeeded = True
     for workload_id, submitted in zip(workload_ids(policy), submission["jobs"]):
         request_id = submitted["request_id"]
         command = ["qstat", "-f", request_id]
@@ -1435,7 +1476,6 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
         driver_status = compute.get("driver_rc")
         if type(driver_status) is not int:
             raise CertificationError("compute result driver_rc is missing")
-        all_succeeded = all_succeeded and driver_status == 0
         jobs.append({
             "workload": workload_id,
             "request_id": request_id,
@@ -1459,6 +1499,17 @@ def finish_group(policy: Policy, attempt_root: Path | str, current_pin: str,
             "scheduler_stderr": _file_record(
                 job_root / "scheduler" / "job.stderr", root),
         })
+    validated_jobs = [
+        _validate_completion_job(
+            policy, job, attempt_id, root, current_pin,
+            workload_id, submitted["request_id"], submitted,
+            submission["job_body_sha256"],
+        )
+        for workload_id, job, submitted in zip(
+            workload_ids(policy), jobs, submission["jobs"])
+    ]
+    all_succeeded = all(
+        binding["driver_rc"] == 0 for binding in validated_jobs)
     manifest_path = None
     manifest_sha = None
     if all_succeeded:
@@ -3231,6 +3282,20 @@ def _preregister_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _record_request_id_command(args: argparse.Namespace) -> int:
+    policy = load_policy()
+    print(record_scheduler_request_id(
+        policy, args.attempt_root, args.workload, args.request_id))
+    return 0
+
+
+def _durabilize_qsub_diagnostics_command(args: argparse.Namespace) -> int:
+    policy = load_policy()
+    durabilize_scheduler_qsub_diagnostics(
+        policy, args.attempt_root, args.workload)
+    return 0
+
+
 def _finalize_raw_command(args: argparse.Namespace) -> int:
     policy = load_policy()
     print(finalize_raw_manifest(policy, args.attempt_root, args.current_pin))
@@ -3242,8 +3307,6 @@ def _exact_qsub_command(args: argparse.Namespace) -> int:
     if argv and argv[0] == "--":
         argv = argv[1:]
     completed = exact_qsub(argv)
-    sys.stdout.write(completed.stdout or "")
-    sys.stderr.write(completed.stderr or "")
     return int(completed.returncode)
 
 
@@ -3291,6 +3354,15 @@ def _parser() -> argparse.ArgumentParser:
     preregister.add_argument("--attempt-id", required=True)
     preregister.add_argument("--current-pin", required=True)
     preregister.set_defaults(handler=_preregister_command)
+    request_id = sub.add_parser("record-request-id")
+    request_id.add_argument("--attempt-root", required=True)
+    request_id.add_argument("--workload", required=True)
+    request_id.add_argument("--request-id", required=True)
+    request_id.set_defaults(handler=_record_request_id_command)
+    diagnostics = sub.add_parser("durabilize-qsub-diagnostics")
+    diagnostics.add_argument("--attempt-root", required=True)
+    diagnostics.add_argument("--workload", required=True)
+    diagnostics.set_defaults(handler=_durabilize_qsub_diagnostics_command)
     run = sub.add_parser("run-workload")
     run.add_argument("--workload", required=True)
     run.add_argument("--attempt-root", required=True)
