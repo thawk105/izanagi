@@ -150,8 +150,8 @@ cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走�
 専用handoffはworktree外（背景jobはrepo外）。untrackedを残してgateを走らせない。
 cwdがworktreeなら作らず、directory/branch不一致をhandoff・worklogに記しwave用へ流用しない。
 開始gateは`tools/check_wave_startup.py`（再開は`--mode resume`、背景jobは
-`--external-handoff`も）。非0なら停止。resumeもbranch・clean tree・main包含を要求。
-gate成功後の前進でgateを再走しない。取り込みは
+`--external-handoff`も）。非0で停止。resumeもbranch・clean tree・main包含を要求。
+段5前midflightを除き成功後は再走しない。取り込みは
 `tools/dev_wave_wait.py acceptance`のpost-claim merge。
 待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
 HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
