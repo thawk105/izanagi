@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-27
 wave: dev-wave-t1840-b4-launcher
 seq: 1
-title: B-4 の専用起動器と識別子を支配点として置き、迂回できないことを負例で示した (コード + docs、branch worktree-dev-wave-t1840-b4-launcher、変異 matrix = baseline PASSED・18/18 一致・KILLED 18・SURVIVED 0・MISMATCH 0)
+title: B-4 の専用起動器を Claude 中断 wave から Codex resume し、独立監査の blocker を閉じた (コード + docs、中間 checkpoint、最終変異・受入は未実施)
 ---
 
 ## 本文
@@ -54,7 +54,26 @@ title: B-4 の専用起動器と識別子を支配点として置き、迂回で
 - **段 6 の fix は 3 巡回した。** 1 巡目が must-fix 7 件、2 巡目が焦点走の赤 8 件の 3 原因、
   3 巡目が焦点再レビューの must-fix 3 件である。`DW-O16` の上限どおり 3 巡で閉じた。
 - 起動時の編集面重複検査で、対象 11 file に触れている branch も稼働 worktree の未 commit も
-  0 件であることを確認した。
+  0 件であることを確認した。**着手時点の話である** — 受入の直前には local main が 179 commit 進み、
+  そのうち複数が本 wave の編集面 (3 driver、base の test file、campaign lock、conftest) に
+  触れていた。**起動時の重複ゼロは、13 時間後の取り込み時点の重複ゼロを意味しない。**
+- **最初の受入は rc=70 (merge-history-provenance) で戻ったが、本 wave の回帰ではなかった。**
+  main に既知違反の登録 data file が 1 件増えており、取り込み前の checker で取り込み後の範囲を
+  監査したため「実行不能」になっていた。main を取り込んだ後は全史監査が rc=0 で通った。
+- **取り込みは競合ゼロで自動 merge できたが、合成は壊れていた。** merge 後の焦点走で 15 件が赤に
+  なり、すべて main 側が並行して追加した B-4 bootstrap の検査だった。原因は 1 つで、
+  関門が入る前に書かれたそれらが識別語付きの設定を封印なしで作っていることである。
+  **関門は正しく発火していた。** 直したのは検査側で、封印済みの試験用 context を渡す形へ移行させた。
+  関門は 1 つも緩めていない。production code にも触れていない。
+  merge commit の combined diff は実装面の path を返さないため、Codex `role=author` 行は要らない。
+  親は当初「両親と異なるか」で判定しようとしたが、これは述語の取り違えだった。
+- **main が新設した B-4 の配線 probe は、本 wave の関門を迂回していない。** 同 probe は識別語を
+  付けない通常の設定しか作らず、関門の対象外である。probe は 1 byte も変えていない。
+- **変異は取り込み後の tip で回し直した。** anchor 18 件は byte 一致、期待 node 22 件も全部
+  存在したが、**期待 node の完全集合が変わりうる**ため実測した。実際に全件 MISMATCH になり、
+  原因は {{F:clean-tree-assert-poisons-mutation}} だった。除外して再走し完全一致を得た。
+- **層予算は取り込みで 2 度きつくなった。** main が予算値と同層の内容を両方変えたためで、
+  そのつど既存記述の削減で収めた。段 8 で足した義務の文は 1 文字も削っていない。
 - **段 3 の敵対相談 1 本が内容フィルタに当たって成果物ゼロで終わった。** 受領証の失敗分類は
   `f45_missing_output`、rollout の終端エラーは `cyber_policy` である。投げ文が
   「支配点を通さずに標本を作る具体的な呼び方を関数名と引数の形まで書け」となっており、
@@ -70,15 +89,38 @@ title: B-4 の専用起動器と識別子を支配点として置き、迂回で
   (縮約した内容は入口が常時読む層で保持している)。上限の引き上げは行っていない。
   (2) 内容フィルタの再発は F644 への追記で閉じた。
 
+**2026-08-28 Codex resume。** 元 worktree は local main 9 commit 遅れ・dirty 4 file のため resume gate が
+拒否した。元 worktree は 1 byte も変更せず、`ff10013b1` から専用 Codex resume worktree を作り、dirty
+4 file は監査後に SHA-256 一致で複製した。main 未到達 10 commit の実装面 5 commit はすべて Codex
+`role=author` を持ち、全史 provenance も新規違反なしだった。
+
+- **read-only Codex focus が「迂回できない」を覆した。** G4 は分類と receipt 検証で lock を二度読みし、
+  campaign id は decoded lock でなく directory basename 由来だった。M08〜M10 も副作用 oracle より先に
+  inner G2 の message 差で落ちていた。manager は blocker / must-fix と裁定し、D95 Codex author へ戻した。
+- fix は同じ lock bytes snapshot、decoded canonical campaign id、明示 lock-absent digest を issuer / sink
+  双方へ束縛した。markerless lock + valid receipt と最初から lockless + explicit absence binding の正例は
+  維持した。一方、**lock に束縛した receipt の発行後に物理 lock を消す旧 fallback は受理集合から除いた。**
+  これは absence-to-marked bypass と同じ穴を開くため、D1033 / 規律2 と両立しない。
+- author の 2 巡目報告は WAL の sentinel 変更を記したが working bytes に残っていなかった。親の報告・実体
+  照合で発見し、3 巡目を WAL 1 file に限って修正した。親実機赤では sidecar check が拒否順序を先取りする
+  取り残しも見つけ、別の D95 author red-fix で閉じた。焦点集合は最終的に **540 passed**。
+- 旧 dirty の `ff10013b1` 変異は 18/18 KILLED だが、resume focus が M08〜M10 の単一理由性を refute したため
+  最終証拠には使わない。resume 初回 21 変異は baseline 607 passed、17 KILLED / 4 MISMATCH。M12 は診断
+  message の過剰固定、M19〜M21 は enforcement closure file の working bytes 変異が contract-loader drift を
+  一様に発火させた runner 汚染である。期待 node へ足さず erratum として台帳を保存した。
+- 最新 main は resume 中に進行し、T-1840 編集面と全面重複した。launcher の削除 commit は無く、T-1840 は
+  worklog で持ち越し、D1223 / D1224 も後続境界と実装子期待値義務を追認している。最終変異前に current
+  main を branch へ取り込み、合成を再監査する。
+- **scope 外は不変:** D1042 / D1043 / D1050 と正式 B-4 実走は実装・実走せず、記録だけを返す。
+
 ## 次の一手差分
 
-### 完了
+### 継続中
 
 - [T-1840] D1033 に従い専用起動器と B-4 識別子を支配点として置いた。識別語の鋳造は封印を要求し、
   certified sink の合流点で起動記録と生きた context の一致を要求する。
-  迂回できないことは負例 18 件で示し、変異 matrix は baseline PASSED・18/18 一致・
-  KILLED 18・SURVIVED 0・MISMATCH 0 である。
-  remaining: none
+  Codex resume の blocker fix と焦点 540 passed まで完了した。初回変異の MISMATCH は erratum として保存した。
+  remaining: current main 取り込み、broad 18 + supplemental 3 の最終変異、受入全走、land
   base: 3814fde85f6722932d4c17a922e16179278fb0d66f8098d360bb014d74d95145
 
 ### 新規

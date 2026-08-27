@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 210,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M19",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "                    campaign_lock_bytes_sha256(lock_snapshot)\n",
+          "new": "                    campaign_lock_bytes_sha256(\n                        _decode_lock_for_b4_classification(layout)[0]\n                    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_commit_receipt_uses_same_lock_snapshot_as_b4_classification"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M20",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/wal.py",
+          "old": "                expected_campaign_id=_b4_campaign_id_from_lock(decoded_lock),\n",
+          "new": "                expected_campaign_id=os.path.basename(layout.root),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_g4_rejects_decoded_campaign_identity_behind_matching_directory"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M21",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/commit_receipt.py",
+          "old": "    actual_lock_identity = (\n        CAMPAIGN_LOCK_ABSENT_SHA256\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n",
+          "new": "    actual_lock_identity = (\n        _receipt_core(record)[\"lock_identity_sha256\"]\n        if lock_identity_sha256 is None\n        else lock_identity_sha256\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_launcher.py::test_m21_absent_lock_snapshot_rejects_restored_marked_receipt"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
