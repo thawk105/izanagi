@@ -6,8 +6,7 @@ umask 077
 # 出典: submit_certify.sh:5-30 @ e9b6f69
 usage() {
   cat <<'EOF'
-usage: submit_floor.sh [--dry-run] [--confirm-irreversible-pilot-holdout]
-                       [--repo-root PATH]
+usage: submit_floor.sh [--dry-run] [--repo-root PATH]
                        [--attempts-root PATH] [--job-script PATH]
 EOF
 }
@@ -30,7 +29,6 @@ REPO_ROOT_RAW="$DEFAULT_REPO_ROOT"
 ATTEMPTS_ROOT_RAW=""
 JOB_SCRIPT_RAW="$SCRIPT_DIR/floor_campaign.sh"
 DRY_RUN=0
-CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=0
 REPO_ROOT_OVERRIDDEN=0
 ATTEMPTS_ROOT_OVERRIDDEN=0
 JOB_SCRIPT_OVERRIDDEN=0
@@ -39,10 +37,6 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
       DRY_RUN=1
-      shift
-      ;;
-    --confirm-irreversible-pilot-holdout)
-      CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=1
       shift
       ;;
     --repo-root)
@@ -625,9 +619,6 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
 fi
 
 export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"
-if [[ "$CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" -eq 1 ]]; then
-  export_spec+=",IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=$NONCE"
-fi
 if [[ "$FORWARD_EVIDENCE_ROOT" -eq 1 ]]; then
   export_spec+=",IZANAGI_FLOOR_JOB_EVIDENCE_ROOT=$EFFECTIVE_EVIDENCE_ROOT"
 fi

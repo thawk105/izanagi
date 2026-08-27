@@ -232,9 +232,9 @@ official mode の guard は変更していない (受理集合は空のまま)�
   2. `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認する
   3. 同 script を明示実行する。投入インタフェースは同 script が正本で、
      `qsub -v VAR=value <script>` 形を自分で発明しない (runbook §8)
-  4. 床値 pilot を実際に走らせるときは `--confirm-irreversible-pilot-holdout` を付けて明示実行する。
-     付けない投入は driver の pilot 承認 gate で拒否される。**承認は一回性 key の不可逆消費を
-     伴う。** 承認は投入引数だけが与える経路で、`tools/pegasus/README.md` の該当項が挙動の正本
+  4. 床値 pilot の投入に**承認引数は要らない** (D1124)。測定の反復を拒否する関門を撤去したため、
+     承認すべき不可逆消費が無い。**同じ cell を何度でも測ってよく**、測定ごとに新しい測定世代を
+     発行して台帳へ追記する。挙動の正本は `tools/pegasus/README.md` の該当項
 - 背景 job セッションからの投入は F49 (ii) の例外で許されるが、投入直後に有効性検査 3 点
   (計算ノード側 marker の実在 / `qstat` 可視 / 会計痕跡) を必ず行う
 - **成果物を repo へ commit しない。** driver は `out_root = repo_output_root()` で repo の

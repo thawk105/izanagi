@@ -222,8 +222,7 @@ monotonic 再検査する。
 ```bash
 # admission-site: login-direct
 tools/pegasus/submit_floor.sh --dry-run   # scheduler を一切呼ばない。副作用あり (下記)
-tools/pegasus/submit_floor.sh             # 人間が明示的に実行する。内部で qsub する
-tools/pegasus/submit_floor.sh --confirm-irreversible-pilot-holdout  # 床値 pilot を実際に走らせる
+tools/pegasus/submit_floor.sh             # 床値 pilot を実際に走らせる。内部で qsub する
 ```
 
 - `--repo-root` / `--attempts-root` / `--job-script` の override は `--dry-run` 専用で、実投入では拒否する。
@@ -238,13 +237,10 @@ tools/pegasus/submit_floor.sh --confirm-irreversible-pilot-holdout  # 床値 pil
   この環境変数が依存を渡す唯一の seam である。
 - **submit receipt は submission の記録であり、人間性の証明ではない。** 実行者が人間か AI かは
   生成物から区別できない。authorization として扱ってはならない。
-- **床値 pilot の不可逆承認は投入引数で渡す。** `--confirm-irreversible-pilot-holdout` を付けない
-  投入では job は driver へ承認 flag を渡さず、driver が pilot を拒否する。承認時は `qsub -v` へ
-  `IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=<submission nonce>` が載り、job が submission nonce との
-  exact 一致を確認してから driver argv へ flag を 1 個足す。値が固定 literal でなく nonce なのは、
-  投入者の環境に残った同名変数だけで全投入が承認済みにならないようにするためである。
-  設定済みで不一致 (空文字を含む) なら build と driver より前に `submit_binding` で停止する。
-  **これは明示 token を要求する運用 gate であって、承認主体の人間性の証明ではない** (D356)。
+- **床値 pilot の投入に承認引数は要らない** (D1124)。性能測定の反復を機械的に拒否する関門を
+  撤去したため、承認すべき不可逆消費が無くなった。`qsub -v` に載るのは submission nonce と
+  (override 時のみ) evidence root だけである。**測定ごとに新しい測定世代を発行して台帳へ追記する**
+  ため、同じ cell を何度でも測ってよい。**official の予算承認は人間手番のまま残る** (D1161)。
 - **wrapper は driver を固定 `--mode pilot` で起動する** ([T-748] 裁定 (c))。mode を環境変数・argv・
   `eval` から受け取る口は持たない。`job-result.json` には driver rc と `"mode": "pilot"` を記録する。
   **official の受理集合は空のままである** — driver 側の CLI / core による official の二重拒否は

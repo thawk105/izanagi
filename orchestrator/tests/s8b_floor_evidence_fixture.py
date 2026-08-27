@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""T-1155/T-1178 の test-only independent evidence builders。"""
+"""Independent builders for historical floor admission evidence bytes.
+
+The claim, ledger, and attempt documents intentionally remain the exact v1/v2
+layout found in the durable ledger.  Current measurement-generation producers
+must coexist with these bytes; this fixture must not learn current digests.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -196,7 +201,7 @@ def build_floor_admission_evidence(
     nondefault_seams: Sequence[str] = (),
     resume_marker: bool = False,
 ) -> FloorAdmissionEvidenceFixture:
-    """tmp 上へ claims/consumed/両 ledger/lock の完全な正例を構築する。"""
+    """Build exact historical claims/consumed/ledger bytes under ``root``."""
 
     if irreversible_pilot_approved is None:
         irreversible_pilot_approved = mode == "pilot"
