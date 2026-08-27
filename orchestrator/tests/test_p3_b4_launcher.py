@@ -515,6 +515,129 @@ def test_g4_uses_decoded_lock_expectations(
     assert not Path(layout.wal_file).exists()
 
 
+def test_g4_rejects_decoded_campaign_identity_behind_matching_directory(
+    tmp_path,
+):
+    """G4 derives campaign id from lock identity, not the layout basename."""
+    cfg, layout = _marked_layout(tmp_path)
+    identity = json.loads(Path(layout.lock_file).read_bytes())
+    identity["search_config"]["records"] += 1
+    Path(layout.lock_file).write_bytes(B4L._canonical_json_bytes(identity))
+
+    with pytest.raises(
+        B4L.B4LauncherAuthorizationError,
+        match="bound to another campaign",
+    ):
+        _production_context(
+            cfg,
+            layout=layout,
+            action=lambda _context, launch_layout: wal.append(
+                launch_layout, _commit_record()
+            ),
+        )
+    assert not Path(layout.wal_file).exists()
+
+
+def test_commit_receipt_uses_same_lock_snapshot_as_b4_classification(
+    tmp_path, monkeypatch,
+):
+    """A markerless classification cannot borrow a later marked lock hash."""
+    _cfg, layout = _marked_layout(tmp_path)
+    marked_lock = Path(layout.lock_file).read_bytes()
+    record = _commit_record()
+    receipt = commit_receipt_support.campaign_receipt(
+        layout,
+        record.variant,
+        record.payload,
+    )
+    markerless_identity = json.loads(marked_lock)
+    markerless_identity["search_config"].pop(B4P.B4_PROTOCOL_KEY)
+    Path(layout.lock_file).write_bytes(
+        B4L._canonical_json_bytes(markerless_identity)
+    )
+    real_classifier = wal._has_exact_b4_protocol_marker
+
+    def replace_lock_after_classification(decoded):
+        marked = real_classifier(decoded)
+        assert marked is False
+        replacement = Path(layout.root) / "campaign.lock.replacement"
+        replacement.write_bytes(marked_lock)
+        replacement.replace(layout.lock_file)
+        return marked
+
+    monkeypatch.setattr(
+        wal,
+        "_has_exact_b4_protocol_marker",
+        replace_lock_after_classification,
+    )
+    with pytest.raises(CommitReceiptError, match="binding mismatch"):
+        wal.append(layout, record, commit_receipt=receipt)
+    assert wal.read_records(layout) == []
+
+
+def test_m21_absent_lock_snapshot_rejects_restored_marked_receipt(
+    tmp_path, monkeypatch,
+):
+    """An absent classification cannot borrow a restored marked lock receipt."""
+    _cfg, layout = _marked_layout(tmp_path)
+    marked_lock = Path(layout.lock_file).read_bytes()
+    record = _commit_record()
+    receipt = commit_receipt_support.campaign_receipt(
+        layout,
+        record.variant,
+        record.payload,
+    )
+    Path(layout.lock_file).unlink()
+    real_classifier = wal._has_exact_b4_protocol_marker
+    gate_spy = mock.Mock(
+        side_effect=AssertionError("absent snapshot reached the B-4 gate")
+    )
+    monkeypatch.setattr(B4L, "verify_b4_launch_context", gate_spy)
+
+    def restore_lock_after_classification(decoded):
+        marked = real_classifier(decoded)
+        assert decoded is None
+        assert marked is False
+        replacement = Path(layout.root) / "campaign.lock.replacement"
+        replacement.write_bytes(marked_lock)
+        replacement.replace(layout.lock_file)
+        return marked
+
+    monkeypatch.setattr(
+        wal,
+        "_has_exact_b4_protocol_marker",
+        restore_lock_after_classification,
+    )
+    with pytest.raises(CommitReceiptError, match="binding mismatch"):
+        wal.append(layout, record, commit_receipt=receipt)
+    assert gate_spy.call_count == 0
+    assert Path(layout.wal_file).read_bytes() == b""
+
+
+def test_markerless_commit_accepts_matching_live_receipt(tmp_path, monkeypatch):
+    ordinary = L.default_cfg()
+    campaign_id = str(ident.campaign_id(ordinary))
+    layout = CampaignLayout(str(tmp_path / campaign_id)).ensure()
+    wal.write_lock(layout, ident.canonical_preimage(ordinary))
+    gate_spy = mock.Mock(
+        side_effect=AssertionError("ordinary COMMIT reached the B-4 gate")
+    )
+    monkeypatch.setattr(B4L, "verify_b4_launch_context", gate_spy)
+
+    committed = _commit_with_live_receipt(layout)
+
+    assert wal.read_records(layout) == [committed]
+    assert gate_spy.call_count == 0
+
+
+def test_lockless_commit_accepts_explicit_absence_binding(tmp_path):
+    layout = CampaignLayout(str(tmp_path / "lockless-campaign")).ensure()
+
+    committed = _commit_with_live_receipt(layout)
+
+    assert wal.read_records(layout) == [committed]
+
+
 def test_production_validator_requires_exact_campaign_and_arm():
     """F3: the central validator rejects both binding dimensions exactly."""
     cfg, _off_cfg = _marked_base_pair()

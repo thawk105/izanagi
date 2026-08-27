@@ -2841,10 +2841,7 @@ def test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress(
     monkeypatch.setattr(
         T, "_run_one_iteration_resolved", observing_run_one_iteration,
     )
-    with pytest.raises(
-        B4_LAUNCHER.B4LauncherAuthorizationError,
-        match="trigger drive_iteration",
-    ):
+    with pytest.raises(B4_LAUNCHER.B4LauncherAuthorizationError) as caught:
         T.drive_iteration(
             raw_cfg,
             T.default_perf(),
@@ -2859,8 +2856,10 @@ def test_m10_b4_trigger_drive_rejects_before_layout_and_state_progress(
             _resolved_site=site,
             _contract=contract,
         )
-    assert not root.exists()
+    # A G3 deletion reaches G2; kill it on effects before pinning the G3 message.
     assert observed_iterations == []
+    assert not root.exists()
+    assert "trigger drive_iteration" in str(caught.value)
 
 
 def test_b4_trigger_certified_receipt_advances_through_shared_gate(

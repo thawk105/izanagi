@@ -3047,10 +3047,7 @@ def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
 
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L, "run_one_iteration", observing_run_one_iteration)
-    with pytest.raises(
-        B4_LAUNCHER.B4LauncherAuthorizationError,
-        match="base drive_iteration",
-    ):
+    with pytest.raises(B4_LAUNCHER.B4LauncherAuthorizationError) as caught:
         L.drive_iteration(
             cfg,
             L.default_perf(),
@@ -3064,8 +3061,10 @@ def test_m08_b4_drive_iteration_rejects_before_layout_and_state_progress(
                 generator_id=GeneratorId.BACKOFF_SWEEP
             ),
         )
-    assert not root.exists()
+    # A G3 deletion reaches G2; kill it on effects before pinning the G3 message.
     assert observed_iterations == []
+    assert not root.exists()
+    assert "base drive_iteration" in str(caught.value)
 
 
 @pytest.mark.parametrize(

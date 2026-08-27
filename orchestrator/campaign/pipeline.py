@@ -31,10 +31,12 @@ from ..holdout_observation import HoldoutObservationAdmission     # noqa: E402
 from ..verifier import (                                        # noqa: E402
     CAMPAIGN_WAL_SINK,
     QUALIFICATION_SINK,
-    campaign_lock_sha256,
     issue_commit_receipt,
     result_to_dict,
     verify_trace_dir_with_capability,
+)
+from ..verifier.commit_receipt import (                          # noqa: E402
+    campaign_lock_sha256_or_absent,
 )
 from ..verifier.parse import ParseError                           # noqa: E402
 
@@ -1166,11 +1168,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
 
     if qualification_policy is None:
         receipt_sink_kind = CAMPAIGN_WAL_SINK
-        receipt_lock_identity = (
-            campaign_lock_sha256(layout)
-            if os.path.lexists(layout.lock_file)
-            else authorized_contract.contract_sha256
-        )
+        receipt_lock_identity = campaign_lock_sha256_or_absent(layout)
     else:
         receipt_sink_kind = QUALIFICATION_SINK
         receipt_lock_identity = (
