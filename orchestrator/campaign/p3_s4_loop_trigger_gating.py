@@ -549,6 +549,7 @@ def default_cfg(
     reflux: bool = True,
     *,
     b4_reflux_ablation: bool = False,
+    _b4_launch_context=None,
 ) -> CampaignConfig:
     """段 8a trigger-gating 自律ループの campaign 設定。
 
@@ -563,6 +564,12 @@ def default_cfg(
         SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2,
     }
     if b4_reflux_ablation:
+        from .p3_b4_launcher import require_b4_any_context
+        require_b4_any_context(
+            _b4_launch_context,
+            expected_driver_kind="trigger",
+            boundary="trigger marker creation",
+        )
         search_config[L.B4_PROTOCOL_KEY] = L.B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s8a-trigger-loop", search_tag="s8a-trigger-autonomous",
@@ -699,8 +706,17 @@ def _run_one_iteration_resolved(
         dependency_prefix: str = "",
         build_context: Optional[BuildRunContext] = None,
         require_source_preimage_artifact: bool = False,
+        _b4_launch_context=None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
+    if campaign_cfg.search_config.get(L.B4_PROTOCOL_KEY) == L.B4_PROTOCOL_VALUE:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind="trigger",
+            boundary="trigger resolved run_one_iteration",
+            require_campaign_binding=True,
+        )
     from .patchharness import applied
     _assert_trigger_proposal_contract(planner, coder)
     if type(build_context) is not BuildRunContext:
@@ -796,12 +812,21 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       layout: Optional[CampaignLayout] = None, log=print,
                       cache_root: str = "", *,
                       dependency_prefix: str = "",
-                      build_context: Optional[BuildRunContext] = None) -> Dict:
+                      build_context: Optional[BuildRunContext] = None,
+                      _b4_launch_context=None) -> Dict:
     """1 iteration の機械部分 (sort 版と同型の構造。genome は _BASE をそのまま焼く —
     FLAG=1 は軸定数モジュールの _BASE に含まれる)。
 
     provenance は書かない (機械部)。実 LLM 駆動と fixture main の funnel は
     `drive_iteration` で、そちらが記録義務を担う。"""
+    if cfg.search_config.get(L.B4_PROTOCOL_KEY) == L.B4_PROTOCOL_VALUE:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind="trigger",
+            boundary="trigger public run_one_iteration",
+            require_campaign_binding=True,
+        )
     _assert_trigger_proposal_contract(planner, coder)
     resolved_site = _current_site()
     contract = _admit_env_contract(resolved_site)
@@ -826,6 +851,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         proposal_path="",
         dependency_prefix=dependency_prefix,
         build_context=build_context,
+        _b4_launch_context=_b4_launch_context,
     )
 
 
@@ -910,7 +936,8 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     _resolved_site: Optional[str] = None,
                     _contract: Optional[
                         env_contract.ExecutionEnvironmentContract
-                    ] = None) -> Dict:
+                    ] = None,
+                    _b4_launch_context=None) -> Dict:
     """段 8a trigger-gating の 1 iteration をメインセッション駆動で回す (sort 版と
     同型の骨格 + provenance 配線)。
 
@@ -954,6 +981,13 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     _assert_resume_allowed(contract, layout)
     b4_mode = L.b4_reflux_ablation_mode(campaign_cfg)
     if b4_mode:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind="trigger",
+            boundary="trigger drive_iteration",
+            require_campaign_binding=True,
+        )
         state = L.load_loop_state(layout)
         if state is None:
             state = L.LoopState(start_wall=time.time())
@@ -1015,6 +1049,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         dependency_prefix=dependency_prefix,
         build_context=build_context,
         require_source_preimage_artifact=_require_source_preimage_artifact,
+        _b4_launch_context=(_b4_launch_context if b4_mode else None),
     )
     provenance_entry = {
         "proposal_path": proposal_path,
@@ -1069,7 +1104,11 @@ def _preview_wire(wire: str, sub: str, root: str) -> Dict:
            "subtype": (res.subtype.value if res.subtype else None), "reason": res.reason}
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(
+    argv: Optional[List[str]] = None,
+    *,
+    _b4_launch_context=None,
+) -> int:
     """fixture proposal で 1 iteration の機械 E2E を実走する (配線実証)。
 
     実 LLM (planner-v4/coder-v4-autonomous-trigger-gating/auditor/critic) はメイン
@@ -1149,6 +1188,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     cfg = default_cfg(
         reflux=(a.reflux == "on"),
         b4_reflux_ablation=a.b4_reflux_ablation,
+        _b4_launch_context=(
+            _b4_launch_context if a.b4_reflux_ablation else None
+        ),
     )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     perf = default_perf()
@@ -1189,7 +1231,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   ),
                                   b4_proposal_receipt_sha256=(
                                       proposal_receipt_sha256
-                                  ))
+                                  ),
+                                  _b4_launch_context=_b4_launch_context)
         expected_layout = exploration_campaign_layout(out["campaign_id"])
         layout = CampaignLayout(out["layout_root"])
         if layout.root != expected_layout.root:

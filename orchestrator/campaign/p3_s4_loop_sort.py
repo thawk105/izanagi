@@ -250,6 +250,7 @@ def default_cfg(
     reflux: bool = True,
     *,
     b4_reflux_ablation: bool = False,
+    _b4_launch_context=None,
 ) -> CampaignConfig:
     """段 5 sort-strategy 自律ループの campaign 設定。
 
@@ -268,6 +269,12 @@ def default_cfg(
         SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2,
     }
     if b4_reflux_ablation:
+        from .p3_b4_launcher import require_b4_any_context
+        require_b4_any_context(
+            _b4_launch_context,
+            expected_driver_kind="sort",
+            boundary="sort marker creation",
+        )
         search_config[L.B4_PROTOCOL_KEY] = L.B4_PROTOCOL_VALUE
     cfg = CampaignConfig(
         spec_slug="p3-s5-sort-loop", search_tag="s5-sort-autonomous",
@@ -301,13 +308,22 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                       state: L.LoopState, sub: str, do_build: bool,
                       layout: Optional[CampaignLayout] = None, log=print,
                       cache_root: str = "",
-                      build_context: Optional[BuildRunContext] = None) -> Dict:
+                      build_context: Optional[BuildRunContext] = None,
+                      _b4_launch_context=None) -> Dict:
     """1 iteration の機械部分を回す (backoff 版 `run_one_iteration` と同型の構造)。
 
     genome は `SORT_VARIANT=1` を焼く (`BACKOFF_FIXED` 相当なし)。auditor gate は
     dry/実 build いずれの経路でも通す (`_quarantine_and_audit` に factoring — backoff 版は
     dry/build で quarantine 呼び出しを重複させていたが、本 driver は auditor gate が
     増えた分ここで共通化した)。"""
+    if cfg.search_config.get(L.B4_PROTOCOL_KEY) == L.B4_PROTOCOL_VALUE:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind="sort",
+            boundary="sort run_one_iteration",
+            require_campaign_binding=True,
+        )
     from .patchharness import applied
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
@@ -427,7 +443,8 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                     cache_root: str = "",
                     build_context: Optional[BuildRunContext] = None,
                     b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
-                    b4_proposal_receipt_sha256: str | None = None) -> Dict:
+                    b4_proposal_receipt_sha256: str | None = None,
+                    _b4_launch_context=None) -> Dict:
     """段 5 sort-strategy の 1 iteration をメインセッション駆動で回す (backoff 版
     `drive_iteration` と同型: checkpoint 復元 → critic feedback 畳込み → 入口
     check_stop → iteration++ → run_one_iteration → checkpoint 保存 → digest 書き出し →
@@ -443,6 +460,13 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     b4_mode = L.b4_reflux_ablation_mode(cfg)
     if b4_mode:
+        from .p3_b4_launcher import require_b4_production_context
+        require_b4_production_context(
+            _b4_launch_context,
+            expected_driver_kind="sort",
+            boundary="sort drive_iteration",
+            require_campaign_binding=True,
+        )
         state = L.load_loop_state(layout)
         if state is None:
             state = L.LoopState(start_wall=time.time())
@@ -494,9 +518,13 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                 "stop_reason": pre.reason, "iteration": state.iteration, "ran": False}
 
     state.iteration += 1
+    iteration_kwargs = {}
+    if b4_mode:
+        iteration_kwargs["_b4_launch_context"] = _b4_launch_context
     out = run_one_iteration(cfg, perf, planner, coder, auditor, state, sub,
                             do_build=do_build, layout=layout, log=log,
-                            cache_root=cache_root, build_context=build_context)
+                            cache_root=cache_root, build_context=build_context,
+                            **iteration_kwargs)
     L.save_loop_state(layout, state)
 
     critic_view = require_admitted_campaign(
@@ -537,7 +565,11 @@ def _preview_diff(implementation_path: str, sub: str, root: str) -> Dict:
            "subtype": (res.subtype.value if res.subtype else None), "reason": res.reason}
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(
+    argv: Optional[List[str]] = None,
+    *,
+    _b4_launch_context=None,
+) -> int:
     """fixture proposal で 1 iteration の機械 E2E を実走する (配線実証)。
 
     実 LLM (planner-v4/coder-v4-autonomous-sort/auditor/critic) はメインセッションが
@@ -608,6 +640,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     cfg = default_cfg(
         reflux=(a.reflux == "on"),
         b4_reflux_ablation=a.b4_reflux_ablation,
+        _b4_launch_context=(
+            _b4_launch_context if a.b4_reflux_ablation else None
+        ),
     )
     cfg = ident.bind_admission_policy(cfg, build_context.policy)
     cfg = ident.bind_environment_contract(cfg, env_contract.lookup(ENV_TAG))
@@ -647,7 +682,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                                   ),
                                   b4_proposal_receipt_sha256=(
                                       proposal_receipt_sha256
-                                  ))
+                                  ),
+                                  _b4_launch_context=_b4_launch_context)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
               f"variant={out.get('variant')} iteration={out['iteration']}")

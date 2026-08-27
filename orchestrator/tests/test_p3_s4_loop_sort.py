@@ -28,7 +28,9 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import ident, p3_s4_loop as L                         # noqa: E402
+from orchestrator.campaign import p3_b4_admission_record as B4_ADMISSION          # noqa: E402
 from orchestrator.campaign import p3_b4_closed_critic as B4_CLOSED                # noqa: E402
+from orchestrator.campaign import p3_b4_launcher as B4_LAUNCHER                   # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as S                           # noqa: E402
 from orchestrator.campaign import wal                                            # noqa: E402
 from orchestrator.campaign.artifact_admission import (                          # noqa: E402
@@ -43,6 +45,28 @@ from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             
 from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from orchestrator.critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
+
+
+_B4_TEST_CONTEXT = B4_LAUNCHER.create_b4_launch_context_for_test(
+    driver_kind="sort"
+)
+_B4_VERIFIED = B4_ADMISSION.VerifiedB4AdmissionRecord(
+    "admission.json", "1" * 64, "2" * 40,
+    "docs/preregistration.md", "3" * 40, "4" * 64,
+    "fixture-model", "5" * 64, "6" * 64,
+)
+
+
+def _b4_production_context(cfg, *, arm="on"):
+    context = B4_LAUNCHER._create_b4_production_context(
+        _B4_VERIFIED,
+        driver_kind="sort",
+        arm=arm,
+    )
+    return B4_LAUNCHER._bind_b4_campaign(
+        context,
+        str(ident.campaign_id(cfg)),
+    )
 
 
 def _oracle_receipt(oracle, materialized="1" * 64, proposal="2" * 64):
@@ -857,7 +881,10 @@ def test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged(
     explicit_false = S.default_cfg(
         reflux=True, b4_reflux_ablation=False,
     )
-    marked = S.default_cfg(reflux=True, b4_reflux_ablation=True)
+    marked = S.default_cfg(
+        reflux=True, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     assert inspect.signature(S.default_cfg).parameters[
         "b4_reflux_ablation"
     ].kind is inspect.Parameter.KEYWORD_ONLY
@@ -903,9 +930,78 @@ def test_b4_sort_marker_is_opt_in_and_ordinary_contract_is_unchanged(
     ) == "ordinary-sort-digest"
 
 
+def test_m02_b4_sort_default_cfg_rejects_unsealed_marker_creation():
+    """M02: the real sort default_cfg cannot mint a marker without G1."""
+    with pytest.raises(
+        B4_LAUNCHER.B4LauncherAuthorizationError,
+        match="sort marker creation",
+    ):
+        S.default_cfg(b4_reflux_ablation=True)
+
+
+def test_m05_b4_sort_run_one_iteration_direct_call_requires_launcher(tmp_path):
+    """M05: real sort iteration rejects before root or loop-state effects."""
+    cfg = S.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
+    root = tmp_path / "m05-campaign"
+    state = L.LoopState()
+    with pytest.raises(
+        B4_LAUNCHER.B4LauncherAuthorizationError,
+        match="sort run_one_iteration",
+    ):
+        S.run_one_iteration(
+            cfg,
+            S.default_perf(),
+            _planner(),
+            S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL),
+            S.AuditorVerdict("pass", "a" * 64),
+            state,
+            "unused",
+            False,
+            layout=CampaignLayout(str(root)),
+        )
+    assert not root.exists()
+    assert state.iteration == 0 and state.whiteboard == []
+
+
+def test_m09_b4_sort_drive_rejects_before_layout_and_state_progress(tmp_path):
+    """M09: G3 owns rejection by absence of root and loop-state progress."""
+    cfg = S.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
+    root = tmp_path / "m09-campaign"
+    layout = CampaignLayout(str(root))
+    with pytest.raises(
+        B4_LAUNCHER.B4LauncherAuthorizationError,
+        match="sort drive_iteration",
+    ):
+        S.drive_iteration(
+            cfg,
+            S.default_perf(),
+            _planner(),
+            S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL),
+            S.AuditorVerdict("pass", "a" * 64),
+            None,
+            "unused",
+            True,
+            layout=layout,
+            build_context=build_run_context(
+                generator_id=GeneratorId.BACKOFF_SWEEP
+            ),
+        )
+    assert not root.exists()
+    assert not Path(L.loop_state_path(layout)).exists()
+
+
 def test_b4_sort_certified_receipt_advances_through_shared_gate(
         tmp_path, monkeypatch):
-    cfg = S.default_cfg(reflux=True, b4_reflux_ablation=True)
+    cfg = S.default_cfg(
+        reflux=True, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     layout = CampaignLayout(root=str(tmp_path / "marked-campaign")).ensure()
     _seed_b4_continuation(layout)
     receipt_path = tmp_path / "terminal.json"
@@ -951,6 +1047,7 @@ def test_b4_sort_certified_receipt_advances_through_shared_gate(
         build_context=build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP),
         b4_closed_critic_receipt=receipt_path,
         b4_proposal_receipt_sha256=receipt_sha256,
+        _b4_launch_context=_b4_production_context(cfg),
     )
     assert out["ran"] is True and out["iteration"] == 2
     assert gate_calls == [(receipt_path, receipt.campaign_id, layout.root)]
@@ -987,7 +1084,10 @@ def test_b4_sort_proposal_rejects_unbound_hash_and_self_reported_reverse():
 
 def test_b4_sort_shared_gate_precedes_fold_candidate_and_artifact_change_m16(
         tmp_path, monkeypatch):
-    cfg = S.default_cfg(reflux=False, b4_reflux_ablation=True)
+    cfg = S.default_cfg(
+        reflux=False, b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     layout = CampaignLayout(root=str(tmp_path / "gate-first")).ensure()
     _seed_b4_continuation(layout)
     receipt_path = tmp_path / "terminal.json"
@@ -1013,6 +1113,7 @@ def test_b4_sort_shared_gate_precedes_fold_candidate_and_artifact_change_m16(
             b4_proposal_receipt_sha256=hashlib.sha256(
                 receipt_path.read_bytes()
             ).hexdigest(),
+            _b4_launch_context=_b4_production_context(cfg, arm="off"),
         )
     assert fold_spy.call_count == 0
     assert candidate_spy.call_count == 0
@@ -1020,7 +1121,10 @@ def test_b4_sort_shared_gate_precedes_fold_candidate_and_artifact_change_m16(
 
 
 def test_b4_sort_no_build_and_fixture_routes_are_write_free(tmp_path, monkeypatch):
-    cfg = S.default_cfg(b4_reflux_ablation=True)
+    cfg = S.default_cfg(
+        b4_reflux_ablation=True,
+        _b4_launch_context=_B4_TEST_CONTEXT,
+    )
     layout = CampaignLayout(root=str(tmp_path / "no-build")).ensure()
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     before = _file_tree_bytes(layout.root)
@@ -1030,6 +1134,7 @@ def test_b4_sort_no_build_and_fixture_routes_are_write_free(tmp_path, monkeypatc
             S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL),
             S.AuditorVerdict("pass", "a" * 64), None,
             sub="unused", do_build=False, layout=layout,
+            _b4_launch_context=_b4_production_context(cfg),
         )
     assert _file_tree_bytes(layout.root) == before
 

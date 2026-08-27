@@ -408,6 +408,22 @@ def _consumed_commit_receipt_ids(fd: int, size: int) -> set[str]:
     return consumed
 
 
+def _has_exact_b4_protocol_marker(layout: CampaignLayout) -> bool:
+    """Classify a valid lock without importing the higher B-4 modules."""
+    if not os.path.lexists(layout.lock_file):
+        return False
+    try:
+        with open(layout.lock_file, encoding="utf-8") as stream:
+            decoded = campaign_lock_codec.decode_campaign_lock(stream.read())
+    except (OSError, campaign_lock_codec.CampaignLockCodecError):
+        return False
+    search_config = decoded.identity["search_config"]
+    return (
+        search_config.get("b4_protocol")
+        == "p3-b4-reflux-ablation/v1"
+    )
+
+
 def append(
         layout: CampaignLayout, record: WalRecord, *, commit_receipt=None,
 ) -> WalRecord:
@@ -415,6 +431,9 @@ def append(
     # 拒否された record で directory/file 側の効果を起こさない。
     if record.stage != STAGE_COMMIT and commit_receipt is not None:
         raise CommitReceiptError("commit receipt supplied for non-COMMIT record")
+    if record.stage == STAGE_COMMIT and _has_exact_b4_protocol_marker(layout):
+        from .p3_b4_launcher import verify_b4_launch_context
+        verify_b4_launch_context(layout)
     line = _record_to_line(record) + "\n"
     parse_line(line)
     encoded = line.encode("utf-8")
