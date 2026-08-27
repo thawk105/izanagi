@@ -1,0 +1,133 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "OR-M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "old": "    if require_pin and semantic_sha256 != SLICE_SHA256:\n",
+          "new": "    if False and require_pin and semantic_sha256 != SLICE_SHA256:\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n",
+          "new": "    \"0747d10c8cafbe0581855141815bee7f242e484bd32dc960e2284d8c89a09045\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_semantically_consistent_finding_change_is_stopped_by_pin",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m1_loader_pins_checked_in_slice_semantic_sha"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "OR-M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        and command not in WIRING_SLICE.SUPPORTED_COMMANDS\n",
+          "new": "        and False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m2_main_rejects_forbidden_slice_command_before_side_effect"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "OR-M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "old": "    if item[\"known_finding_ids\"] != projection:\n",
+          "new": "    if False and item[\"known_finding_ids\"] != projection:\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n",
+          "new": "    \"b1fc348a1c44e80bbbcc6b4c359a05ad4de94e7d3e42998a6b05e4d4d7c49044\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_closed_slice_schema_rejects_single_field_mutations[projection-known_finding_ids: oracle finding projection mismatch]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m3_production_validator_rejects_projection_change"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "OR-M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "old": "        and row[\"receipt_ordinal\"] == join[\"receipt_ordinal\"]\n",
+          "new": "        and True\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n",
+          "new": "    \"727c4bd7a506727b32229c5ac6e2137d3d8dfa617c6a4409594c78cc80429ad0\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m4_receipt_ordinal_is_needed_for_unique_join"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "OR-M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/t189_oracle_wiring_slice.py",
+          "old": "    if hashlib.sha256(raw).hexdigest() != evidence[\"sha256\"]:\n",
+          "new": "    if False and hashlib.sha256(raw).hexdigest() != evidence[\"sha256\"]:\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    \"5a9edd483e91c176083331df3ee37fdce9a7c563f7d7489fb9127742ebd7d469\"\n",
+          "new": "    \"73dd8b96a64405f7283b7b89965d555cecfa639b1fcb766778e96199822bf94c\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t189_oracle_wiring_slice.py::test_or_m5_physical_prompt_byte_change_has_one_sha_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "OR-M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "def _adjudication_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 diagnostic anchor: narrow revealed verdicts to their task.\"\"\"\n    return known_finding_ids_for_manifest(\n        task_manifest,\n        benchmark_task_id=benchmark_task_id,\n    )\n",
+          "new": "def _adjudication_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 diagnostic anchor: intentionally weakened to manifest union.\"\"\"\n    return known_finding_ids_for_manifest(task_manifest)\n"
+        },
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "def _aggregate_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 correctness anchor: independently narrow aggregate inputs.\"\"\"\n    return known_finding_ids_for_manifest(\n        task_manifest,\n        benchmark_task_id=benchmark_task_id,\n    )\n",
+          "new": "def _aggregate_known_finding_ids_for_task(\n    task_manifest: Mapping[str, Any], benchmark_task_id: str,\n) -> set[str]:\n    \"\"\"OR-M6 correctness anchor: intentionally weakened to manifest union.\"\"\"\n    return known_finding_ids_for_manifest(task_manifest)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_adjudication_reason_is_task_specific_for_checked_slice",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[verify]",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_or_m6_checked_slice_full_cli_rejects_cross_task_finding[aggregate]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
