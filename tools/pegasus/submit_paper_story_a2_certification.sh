@@ -130,9 +130,27 @@ DEPENDENCY_PREFIX_SOURCE=$(realpath -e -- "$DEPENDENCY_PREFIX_SOURCE")
   echo "CCBench or dependency prefix source is unavailable" >&2
   exit 2
 }
-CURRENT_PIN=$(git -C "$CCBENCH_ROOT" rev-parse HEAD)
-[[ -n "$CURRENT_PIN" && -z "$(git -C "$CCBENCH_ROOT" status --porcelain --untracked-files=no)" ]] || {
-  echo "CCBench must have a clean HEAD" >&2
+CURRENT_PIN=$("$PYTHON_BIN" -B -c 'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)')
+[[ "$CURRENT_PIN" =~ ^[0-9a-f]{7}$ ]] || {
+  echo "repository canonical CCBench pin must be a short lowercase commit" >&2
+  exit 2
+}
+if ! CCBENCH_FULL_HEAD=$(git -C "$CCBENCH_ROOT" rev-parse --verify 'HEAD^{commit}'); then
+  echo "CCBench HEAD cannot be resolved" >&2
+  exit 2
+fi
+if ! CANONICAL_FULL_HEAD=$(
+  git -C "$CCBENCH_ROOT" rev-parse --verify "${CURRENT_PIN}^{commit}"
+); then
+  echo "repository canonical CCBench pin cannot be resolved" >&2
+  exit 2
+fi
+[[ "$CCBENCH_FULL_HEAD" =~ ^[0-9a-f]{40}$ \
+    && "$CANONICAL_FULL_HEAD" =~ ^[0-9a-f]{40}$ \
+    && "$CCBENCH_FULL_HEAD" == "$CANONICAL_FULL_HEAD" \
+    && "$CCBENCH_FULL_HEAD" == "$CURRENT_PIN"* \
+    && -z "$(git -C "$CCBENCH_ROOT" status --porcelain --untracked-files=no)" ]] || {
+  echo "CCBench must have a clean HEAD exactly resolving the canonical pin" >&2
   exit 2
 }
 TMP_ROOT=$(mktemp -d)

@@ -59,6 +59,8 @@ COMPILE_OUT_SCOPE = (
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _COMMIT_RE = re.compile(r"[0-9a-f]{7,64}")
+_SHORT_COMMIT_RE = re.compile(r"[0-9a-f]{7}")
+_FULL_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _ATTEMPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 _REQUEST_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
 _QSUB_REQUEST_RE = re.compile(r"Request[ \t]+(\S+)[ \t]+submitted")
@@ -514,6 +516,20 @@ def _genome_for_cell(policy: Policy, cell: CellSpec):
         protocol=policy.document["performance_common"]["ccbench_protocol"],
         flags=flags,
     )
+
+
+def _generator_input_sha256(policy: Policy, workload_id: str,
+                            evidence_genome_sha256: str) -> str:
+    """Bind A-2 generator authority to its protocol, workload, and source genome."""
+    if workload_id not in workload_ids(policy):
+        raise CertificationError(f"unknown workload: {workload_id!r}")
+    genome_sha256 = _require_sha(
+        evidence_genome_sha256, "generator evidence genome sha256")
+    return _sha256_bytes(_canonical_json({
+        "policy_protocol_sha256": policy.protocol_sha256,
+        "workload_id": workload_id,
+        "evidence_genome_sha256": genome_sha256,
+    }))
 
 
 def campaign_preimage(policy: Policy, workload_id: str, attempt_id: str,
@@ -2497,8 +2513,12 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
                  dependency_prefix: Path | str, ccbench_dir: Path | str,
                  log=print) -> object:
     """Run one ordered stock/adopted workload pair through run_campaign()."""
-    from . import env_contract
-    from .build_admission import GeneratorId, build_run_context
+    from . import env_contract, pin
+    from .build_admission import (
+        GeneratorId,
+        attest_generator_output,
+        build_run_context,
+    )
     from .layout import (DurableRootPolicy, env_scope_dir,
                          resolve_campaign_output_root)
     from .loop import run_campaign
@@ -2517,15 +2537,34 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     source_root = Path(ccbench_dir).resolve(strict=True)
     if source_root.is_symlink() or not source_root.is_dir():
         raise CertificationError("CCBench source root is unavailable")
-    observed_pin = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=source_root, check=True,
-        capture_output=True, text=True,
-    ).stdout.strip()
-    dirty_source = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
-        cwd=source_root, check=True, capture_output=True, text=True,
-    ).stdout
-    if observed_pin != current_pin or dirty_source:
+    if (type(current_pin) is not str
+            or _SHORT_COMMIT_RE.fullmatch(current_pin) is None
+            or current_pin != pin.CURRENT_PIN):
+        raise CertificationError(
+            "CCBench current pin is not the repository canonical short pin")
+    try:
+        observed_pin = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            cwd=source_root, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        resolved_pin = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{current_pin}^{{commit}}"],
+            cwd=source_root, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        dirty_source = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=source_root, check=True, capture_output=True, text=True,
+        ).stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CertificationError(
+            "CCBench current pin resolver or clean-tree probe failed") from exc
+    if (_FULL_COMMIT_RE.fullmatch(observed_pin) is None
+            or _FULL_COMMIT_RE.fullmatch(resolved_pin) is None
+            or resolved_pin != observed_pin
+            or not observed_pin.startswith(current_pin)
+            or dirty_source):
         raise CertificationError("CCBench current pin or clean-tree binding failed")
     cells = [cell for cell in policy.cells if cell.workload_id == workload_id]
     if len(cells) != 2 or [cell.role for cell in cells] != ["stock", "adopted"]:
@@ -2567,6 +2606,16 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
     expected_toolchain_manifest = buildcache.observed_toolchain_manifest(
         resolved_cc, resolved_cxx,
     )
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REPRO)
+
+    def capability_resolver(evidence):
+        return attest_generator_output(
+            build_context,
+            evidence,
+            generator_input_sha256=_generator_input_sha256(
+                policy, workload_id, evidence.genome_sha256),
+        )
+
     summary = run_campaign(
         cfg, genomes, perf, contract.env_tag, contract.clocks_per_us,
         numactl=contract.numactl, do_bench=True, output_root=str(output_root),
@@ -2574,7 +2623,8 @@ def run_workload(policy: Policy, *, workload_id: str, attempt_root: Path | str,
         dependency_prefix=str(dependency),
         authorization_contract=authorization,
         cache_root=str(cache_root),
-        build_context=build_run_context(generator_id=GeneratorId.BACKOFF_REPRO),
+        build_context=build_context,
+        capability_resolver=capability_resolver,
         declared_use_class="official",
         expected_toolchain_manifest=expected_toolchain_manifest,
         durable_root_policy=durable_policy,

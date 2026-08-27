@@ -222,7 +222,31 @@ if [[ ! -d "$ccbench_root" || -L "$ccbench_root" ]]; then
   echo "CCBench source root is unavailable" >&2
   exit 2
 fi
-if [[ "$(git -C "$ccbench_root" rev-parse HEAD)" != "$IZANAGI_A2_CURRENT_PIN" ]]; then
+repository_current_pin=$(
+  "$PY" -B -c 'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)'
+)
+if [[ ! "$repository_current_pin" =~ ^[0-9a-f]{7}$ \
+   || ! "$IZANAGI_A2_CURRENT_PIN" =~ ^[0-9a-f]{7}$ \
+   || "$IZANAGI_A2_CURRENT_PIN" != "$repository_current_pin" ]]; then
+  echo "CCBench current pin must be a short lowercase commit" >&2
+  exit 2
+fi
+if ! ccbench_full_head=$(
+  git -C "$ccbench_root" rev-parse --verify 'HEAD^{commit}'
+); then
+  echo "CCBench HEAD cannot be resolved" >&2
+  exit 2
+fi
+if ! resolved_current_pin=$(
+  git -C "$ccbench_root" rev-parse --verify "${IZANAGI_A2_CURRENT_PIN}^{commit}"
+); then
+  echo "CCBench current pin cannot be resolved" >&2
+  exit 2
+fi
+if [[ ! "$ccbench_full_head" =~ ^[0-9a-f]{40}$ \
+   || ! "$resolved_current_pin" =~ ^[0-9a-f]{40}$ \
+   || "$ccbench_full_head" != "$resolved_current_pin" \
+   || "$ccbench_full_head" != "$IZANAGI_A2_CURRENT_PIN"* ]]; then
   echo "CCBench current pin mismatch" >&2
   exit 2
 fi

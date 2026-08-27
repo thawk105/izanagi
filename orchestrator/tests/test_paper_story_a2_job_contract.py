@@ -10,12 +10,14 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import paper_story_a2_certification as A2
+from orchestrator.campaign import pin
 
 
 REPO = Path(__file__).resolve().parents[2]
 JOB = REPO / "tools/pegasus/paper_story_a2_certification.sh"
 SUBMITTER = REPO / "tools/pegasus/submit_paper_story_a2_certification.sh"
 REGISTRY = REPO / "tools/pegasus/admission_registry.json"
+CANONICAL_PIN = pin.CURRENT_PIN
 
 
 def _policy(tmp_path):
@@ -30,7 +32,22 @@ def _assert_static_job_contract(source):
     required = {
         "compute-only": "^bnode[0-9]+([.].*)?$",
         "expected-head": "git rev-parse HEAD",
-        "ccbench-pin": "git -C \"$ccbench_root\" rev-parse HEAD",
+        "ccbench-head": (
+            "git -C \"$ccbench_root\" rev-parse --verify 'HEAD^{commit}'"),
+        "ccbench-pin-resolver": (
+            'git -C "$ccbench_root" rev-parse --verify '
+            '"${IZANAGI_A2_CURRENT_PIN}^{commit}"'),
+        "repository-canonical-pin": (
+            "'from orchestrator.campaign.pin import CURRENT_PIN; "
+            "print(CURRENT_PIN)'"),
+        "ccbench-short-pin": (
+            '"$IZANAGI_A2_CURRENT_PIN" =~ ^[0-9a-f]{7}$'),
+        "ccbench-repository-pin": (
+            '"$IZANAGI_A2_CURRENT_PIN" != "$repository_current_pin"'),
+        "ccbench-exact-pin": (
+            '"$ccbench_full_head" != "$resolved_current_pin"'),
+        "ccbench-literal-prefix": (
+            '"$ccbench_full_head" != "$IZANAGI_A2_CURRENT_PIN"*'),
         "clean-tree": "git status --porcelain --untracked-files=no",
         "pbs-job": "PBS_JOBID PBS_NODEFILE PBS_O_WORKDIR",
         "reservation": 'export IZANAGI_RESERVATION_DEADLINE_EPOCH="$deadline_epoch"',
@@ -76,9 +93,35 @@ def _assert_static_job_contract(source):
         raise AssertionError("compute body must not finalize the group manifest")
 
 
+def _assert_static_submitter_pin_contract(source):
+    required = {
+        "canonical-pin": (
+            "CURRENT_PIN=$(\"$PYTHON_BIN\" -B -c "
+            "'from orchestrator.campaign.pin import CURRENT_PIN; "
+            "print(CURRENT_PIN)')"),
+        "short-pin": '"$CURRENT_PIN" =~ ^[0-9a-f]{7}$',
+        "full-head": (
+            "git -C \"$CCBENCH_ROOT\" rev-parse --verify 'HEAD^{commit}'"),
+        "pin-resolver": (
+            'git -C "$CCBENCH_ROOT" rev-parse --verify '
+            '"${CURRENT_PIN}^{commit}"'),
+        "exact-resolution": (
+            '"$CCBENCH_FULL_HEAD" == "$CANONICAL_FULL_HEAD"'),
+        "literal-prefix": '"$CCBENCH_FULL_HEAD" == "$CURRENT_PIN"*',
+        "prereg-short": '--current-pin "$CURRENT_PIN"',
+        "qsub-short": "IZANAGI_A2_CURRENT_PIN=$CURRENT_PIN",
+        "receipt-short": '"current_pin": current',
+    }
+    missing = [label for label, fragment in required.items() if fragment not in source]
+    if missing:
+        raise AssertionError(
+            "submitter pin contract missing: " + ",".join(missing))
+
+
 def test_job_body_is_compute_only_sequential_and_never_submits():
     _assert_static_job_contract(JOB.read_text(encoding="utf-8"))
     submitter = SUBMITTER.read_text(encoding="utf-8")
+    _assert_static_submitter_pin_contract(submitter)
     assert "WORKLOADS=(rr5 rr50)" in submitter
     assert "IZANAGI_A2_WORKLOAD=$workload" in submitter
     assert "exact-qsub -- qsub" in submitter
@@ -97,6 +140,47 @@ def test_job_body_is_compute_only_sequential_and_never_submits():
             'git status --porcelain --untracked-files=no'):
         assert finish_exit < submitter.index(submit_only_gate)
     assert not hasattr(A2, "submission_ratification_precheck")
+
+
+def test_m8_full_pin_forwarding_and_missing_exact_resolver_are_killed():
+    submitter = SUBMITTER.read_text(encoding="utf-8")
+    _assert_static_submitter_pin_contract(submitter)
+    full_pin_mutant = submitter.replace(
+        "CURRENT_PIN=$(\"$PYTHON_BIN\" -B -c "
+        "'from orchestrator.campaign.pin import CURRENT_PIN; "
+        "print(CURRENT_PIN)')",
+        'CURRENT_PIN=$(git -C "$CCBENCH_ROOT" rev-parse --verify '
+        "'HEAD^{commit}')",
+        1,
+    )
+    with pytest.raises(AssertionError, match="canonical-pin"):
+        _assert_static_submitter_pin_contract(full_pin_mutant)
+    submitter_prefix_mutant = submitter.replace(
+        '    && "$CCBENCH_FULL_HEAD" == "$CURRENT_PIN"*',
+        "",
+        1,
+    )
+    with pytest.raises(AssertionError, match="literal-prefix"):
+        _assert_static_submitter_pin_contract(submitter_prefix_mutant)
+
+    job = JOB.read_text(encoding="utf-8")
+    _assert_static_job_contract(job)
+    resolver_mutant = job.replace(
+        'git -C "$ccbench_root" rev-parse --verify '
+        '"${IZANAGI_A2_CURRENT_PIN}^{commit}"',
+        'printf "%s\\n" "$IZANAGI_A2_CURRENT_PIN"',
+        1,
+    )
+    with pytest.raises(AssertionError, match="ccbench-pin-resolver"):
+        _assert_static_job_contract(resolver_mutant)
+
+    prefix_mutant = job.replace(
+        '   || "$ccbench_full_head" != "$IZANAGI_A2_CURRENT_PIN"*',
+        "",
+        1,
+    )
+    with pytest.raises(AssertionError, match="ccbench-literal-prefix"):
+        _assert_static_job_contract(prefix_mutant)
 
 
 def test_job_body_exports_the_exact_reservation_schema_from_job_observations():
@@ -269,7 +353,8 @@ def _run_submitter_harness(
         inventory_text="unrelated-request", inventory_stderr="",
         qsub_fail_workload="", qsub_rc=29,
         qsub_stderr_workload="", qsub_stderr_text="qsub diagnostic\n",
-        precreate_diagnostic=""):
+        precreate_diagnostic="", ccbench_head=None, resolved_pin=None,
+        resolver_rc=0, tracked_dirty=False):
     policy = _policy(tmp_path)
     attempt_id = "submitter-harness"
     attempt_root = policy.durable_base / attempt_id
@@ -285,6 +370,10 @@ def _run_submitter_harness(
     qsub_log_dir.mkdir()
     driver_log.touch()
     event_log.touch()
+    if ccbench_head is None:
+        ccbench_head = CANONICAL_PIN + "1" * (40 - len(CANONICAL_PIN))
+    if resolved_pin is None:
+        resolved_pin = ccbench_head
 
     _write_executable(binary_dir / "hostname", r"""#!/bin/bash
 printf '%s\n' pegasus01
@@ -293,8 +382,17 @@ printf '%s\n' pegasus01
 exit 0
 """)
     _write_executable(binary_dir / "git", fr"""#!/bin/bash
-if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == HEAD ]]; then
-  printf '%s\n' {'1' * 40}
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == 'HEAD^{{commit}}' ]]; then
+  printf '%s\n' "$A2_TEST_CCBENCH_HEAD"
+  exit 0
+fi
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == '{CANONICAL_PIN}^{{commit}}' ]]; then
+  if [[ "$A2_TEST_RESOLVER_RC" -ne 0 ]]; then
+    exit "$A2_TEST_RESOLVER_RC"
+  fi
+  printf '%s\n' "$A2_TEST_RESOLVED_PIN"
   exit 0
 fi
 if [[ ${{1:-}} == rev-parse && ${{2:-}} == HEAD ]]; then
@@ -302,6 +400,9 @@ if [[ ${{1:-}} == rev-parse && ${{2:-}} == HEAD ]]; then
   exit 0
 fi
 if [[ $* == *status* ]]; then
+  if [[ ${{1:-}} == -C && "$A2_TEST_TRACKED_DIRTY" == 1 ]]; then
+    printf '%s\n' ' M tracked.cc'
+  fi
   exit 0
 fi
 exit 97
@@ -434,6 +535,7 @@ os.execv(sys.executable, [sys.executable, *args])
     environment.update({
         "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
         "PYTHON": str(python_wrapper),
+        "PYTHONDONTWRITEBYTECODE": "1",
         "A2_TEST_REPO": str(REPO),
         "A2_TEST_POLICY": str(policy.path),
         "A2_TEST_ATTEMPT_ROOT": str(attempt_root),
@@ -454,6 +556,10 @@ os.execv(sys.executable, [sys.executable, *args])
         "A2_TEST_QSUB_LOG_DIR": str(qsub_log_dir),
         "A2_TEST_EVENT_LOG": str(event_log),
         "A2_TEST_PRECREATE_DIAGNOSTIC": precreate_diagnostic,
+        "A2_TEST_CCBENCH_HEAD": ccbench_head,
+        "A2_TEST_RESOLVED_PIN": resolved_pin,
+        "A2_TEST_RESOLVER_RC": str(resolver_rc),
+        "A2_TEST_TRACKED_DIRTY": "1" if tracked_dirty else "0",
     })
     completed = subprocess.run(
         [
@@ -464,6 +570,134 @@ os.execv(sys.executable, [sys.executable, *args])
         cwd=REPO, env=environment, capture_output=True, text=True, check=False,
     )
     return completed, attempt_root, driver_log.read_text(encoding="utf-8")
+
+
+def _run_compute_pin_harness(
+        tmp_path, *, ccbench_head=None, resolved_pin=None, resolver_rc=0,
+        tracked_dirty=False, current_pin=CANONICAL_PIN):
+    attempt_root = tmp_path / "attempt"
+    job_root = attempt_root / "jobs" / "rr5"
+    for child in (
+            job_root, job_root / "campaigns", job_root / "cache",
+            job_root / "scheduler"):
+        child.mkdir(parents=True, exist_ok=True)
+    ccbench = tmp_path / "ccbench"
+    dependency = tmp_path / "dependency"
+    ccbench.mkdir()
+    dependency.mkdir()
+    binary_dir = tmp_path / "compute-bin"
+    binary_dir.mkdir()
+    if ccbench_head is None:
+        ccbench_head = CANONICAL_PIN + "1" * (40 - len(CANONICAL_PIN))
+    if resolved_pin is None:
+        resolved_pin = ccbench_head
+
+    _write_executable(binary_dir / "hostname", r"""#!/bin/bash
+printf '%s\n' bnode001
+""")
+    _write_executable(binary_dir / "qstat", r"""#!/bin/bash
+[[ ${1:-} == -f ]] || exit 91
+printf '%s\n' \
+  'Request ID: 945411.nqsv' \
+  '(Per-Req) Elapse Time Limit = Max: 21600S' \
+  'Started Request Time = 1700000000'
+""")
+    _write_executable(binary_dir / "git", fr"""#!/bin/bash
+if [[ ${{1:-}} == rev-parse && ${{2:-}} == HEAD ]]; then
+  printf '%s\n' {'2' * 40}
+  exit 0
+fi
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == 'HEAD^{{commit}}' ]]; then
+  printf '%s\n' "$A2_TEST_CCBENCH_HEAD"
+  exit 0
+fi
+if [[ ${{1:-}} == -C && ${{3:-}} == rev-parse && ${{4:-}} == --verify \
+    && ${{5:-}} == '{CANONICAL_PIN}^{{commit}}' ]]; then
+  if [[ "$A2_TEST_RESOLVER_RC" -ne 0 ]]; then
+    exit "$A2_TEST_RESOLVER_RC"
+  fi
+  printf '%s\n' "$A2_TEST_RESOLVED_PIN"
+  exit 0
+fi
+if [[ $* == *status* ]]; then
+  if [[ ${{1:-}} == -C && "$A2_TEST_TRACKED_DIRTY" == 1 ]]; then
+    printf '%s\n' ' M tracked.cc'
+  fi
+  exit 0
+fi
+exit 97
+""")
+    _write_executable(binary_dir / "python3.10", (
+        "#!/bin/bash\n"
+        f"exec {shlex.quote(sys.executable)} \"$@\"\n"
+    ))
+    environment = dict(os.environ)
+    environment.update({
+        "PATH": str(binary_dir) + os.pathsep + environment["PATH"],
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PBS_JOBID": "0:945411.nqsv",
+        "PBS_NODEFILE": str(tmp_path / "nodefile"),
+        "PBS_O_WORKDIR": str(REPO),
+        "IZANAGI_A2_REPO_ROOT": str(REPO),
+        "IZANAGI_A2_EXPECTED_HEAD": "2" * 40,
+        "IZANAGI_A2_CURRENT_PIN": current_pin,
+        "IZANAGI_A2_CCBENCH_ROOT": str(ccbench),
+        "IZANAGI_A2_ATTEMPT_ROOT": str(attempt_root),
+        "IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE": str(dependency),
+        "IZANAGI_A2_WORKLOAD": "rr5",
+        "A2_TEST_CCBENCH_HEAD": ccbench_head,
+        "A2_TEST_RESOLVED_PIN": resolved_pin,
+        "A2_TEST_RESOLVER_RC": str(resolver_rc),
+        "A2_TEST_TRACKED_DIRTY": "1" if tracked_dirty else "0",
+    })
+    completed = subprocess.run(
+        [str(JOB)], cwd=REPO, env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    return completed, job_root
+
+
+@pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
+def test_submitter_production_path_rejects_noncanonical_ccbench_source(
+        tmp_path, mutation):
+    kwargs = {}
+    if mutation == "wrong-prefix":
+        wrong = ("0" if CANONICAL_PIN[0] != "0" else "1") * 40
+        kwargs.update(ccbench_head=wrong, resolved_pin=wrong)
+    elif mutation == "resolver-failure":
+        kwargs["resolver_rc"] = 41
+    else:
+        kwargs["tracked_dirty"] = True
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, **kwargs)
+    assert completed.returncode == 2
+    assert " preregister " not in " " + driver_log
+    assert not attempt_root.exists()
+
+
+@pytest.mark.parametrize(
+    "mutation", ("wrong-prefix", "resolver-failure", "dirty", "ambient-pin"),
+)
+def test_compute_job_production_path_rejects_noncanonical_ccbench_source(
+        tmp_path, mutation):
+    kwargs = {}
+    if mutation == "wrong-prefix":
+        wrong = ("0" if CANONICAL_PIN[0] != "0" else "1") * 40
+        kwargs.update(ccbench_head=wrong, resolved_pin=wrong)
+    elif mutation == "resolver-failure":
+        kwargs["resolver_rc"] = 42
+    elif mutation == "ambient-pin":
+        kwargs["current_pin"] = (
+            ("0" if CANONICAL_PIN[0] != "0" else "1") + CANONICAL_PIN[1:]
+        )
+    else:
+        kwargs["tracked_dirty"] = True
+    completed, job_root = _run_compute_pin_harness(tmp_path, **kwargs)
+    assert completed.returncode == 2
+    result = json.loads((job_root / "compute-result.json").read_text())
+    assert result["driver_rc"] == 2
+    assert not (job_root / "raw").exists()
 
 
 def test_prereg_m1_submitter_fails_closed_when_inventory_qstat_fails(tmp_path):
@@ -596,6 +830,9 @@ def test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract(
     assert completed.stdout.splitlines() == [
         str(receipt_path), "945411.nqsv", "945412.nqsv"]
     assert receipt_path.is_file()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["current_pin"] == CANONICAL_PIN
+    assert len(receipt["current_pin"]) < 40
     assert (tmp_path / "event.log").read_text(encoding="utf-8").splitlines() == [
         "inventory", "qsub:rr5", "visibility:rr5", "qsub:rr50",
         "visibility:rr50",
@@ -625,7 +862,7 @@ def test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract(
             f"IZANAGI_A2_ATTEMPT_ROOT={attempt_root},"
             f"IZANAGI_A2_WORKLOAD={workload},"
             f"IZANAGI_A2_EXPECTED_HEAD={'2' * 40},"
-            f"IZANAGI_A2_CURRENT_PIN={'1' * 40},"
+            f"IZANAGI_A2_CURRENT_PIN={CANONICAL_PIN},"
             f"IZANAGI_A2_CCBENCH_ROOT={tmp_path / 'ccbench'},"
             f"IZANAGI_A2_REPO_ROOT={REPO},"
             f"IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE={tmp_path / 'dependency'}")

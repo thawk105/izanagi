@@ -10,8 +10,15 @@ from pathlib import Path
 
 import pytest
 
-from orchestrator.campaign import buildcache, loop
-from orchestrator.campaign import campaign_lock, env_contract, ident, reservation, wal
+from orchestrator.campaign import build_admission, buildcache, loop, source_digest
+from orchestrator.campaign import (
+    campaign_lock,
+    env_contract,
+    ident,
+    pin,
+    reservation,
+    wal,
+)
 from orchestrator.campaign import paper_story_a2_certification as A2
 from orchestrator.campaign.model import (
     CampaignConfig,
@@ -36,6 +43,7 @@ from orchestrator.campaign.pipeline import (
 
 
 CURRENT_PIN = "1" * 40
+REPO_CURRENT_PIN = pin.CURRENT_PIN
 SOURCE_COMMIT = "2" * 40
 QSTAT_VISIBILITY_FIXTURE = (
     Path(__file__).parent / "fixtures" / "paper_story_a2"
@@ -1639,6 +1647,68 @@ def test_cli_has_no_policy_injection_surface():
         A2._parser().parse_args(["--policy", "/tmp/alternate.json", "preregister"])
 
 
+@pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
+def test_run_workload_production_pin_gate_rejects_noncanonical_source(
+        tmp_path, monkeypatch, mutation):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-pin-negative", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+    canonical_full = REPO_CURRENT_PIN + "1" * (40 - len(REPO_CURRENT_PIN))
+    wrong = ("0" if REPO_CURRENT_PIN[0] != "0" else "1") * 40
+
+    def git_run(command, **kwargs):
+        if command == ["git", "rev-parse", "--verify", "HEAD^{commit}"]:
+            value = wrong if mutation == "wrong-prefix" else canonical_full
+            return subprocess.CompletedProcess(command, 0, value + "\n", "")
+        if command == [
+                "git", "rev-parse", "--verify",
+                f"{REPO_CURRENT_PIN}^{{commit}}"]:
+            if mutation == "resolver-failure":
+                raise subprocess.CalledProcessError(41, command)
+            value = wrong if mutation == "wrong-prefix" else canonical_full
+            return subprocess.CompletedProcess(command, 0, value + "\n", "")
+        if command == [
+                "git", "status", "--porcelain", "--untracked-files=no"]:
+            value = " M tracked.cc\n" if mutation == "dirty" else ""
+            return subprocess.CompletedProcess(command, 0, value, "")
+        raise AssertionError(command)
+
+    monkeypatch.setattr(A2.subprocess, "run", git_run)
+    with pytest.raises(A2.CertificationError, match="CCBench current pin"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            log=lambda *_args: None)
+
+
+@pytest.mark.parametrize("current_pin", ("1" * 40, "abcdef0"))
+def test_run_workload_requires_exact_repository_canonical_short_pin(
+        tmp_path, current_pin):
+    policy = _policy(tmp_path)
+    attempt = A2.preregister_attempt(
+        policy, "run-workload-noncanonical-pin", REPO_CURRENT_PIN)
+    raw_root = A2.workload_job_root(policy, attempt, "rr5") / "raw"
+    raw_root.mkdir()
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    ccbench = tmp_path / "ccbench"
+    ccbench.mkdir()
+
+    with pytest.raises(A2.CertificationError, match="canonical short pin"):
+        A2.run_workload(
+            policy, workload_id="rr5", attempt_root=attempt,
+            raw_root=raw_root, current_pin=current_pin,
+            dependency_prefix=dependency, ccbench_dir=ccbench,
+            log=lambda *_args: None)
+
+
 def test_official_run_observes_and_passes_current_toolchain_manifest(
         tmp_path, monkeypatch):
     source = inspect.getsource(A2.run_workload)
@@ -1646,10 +1716,15 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     passed = "expected_toolchain_manifest=expected_toolchain_manifest"
     assert observed in source and passed in source
     assert source.index(observed) < source.index("summary = run_campaign(")
+    assert "capability_resolver=capability_resolver" in source
+    loop_source = inspect.getsource(loop.run_campaign)
+    assert "source_evidence = source_digest.resolve_evidence(" in loop_source
+    assert "capability_resolver=capability_resolver" in loop_source
+    assert "source_evidence=source_evidence" in loop_source
 
     policy = _policy(tmp_path)
     attempt = A2.preregister_attempt(
-        policy, "actual-run-workload-producer", CURRENT_PIN)
+        policy, "actual-run-workload-producer", REPO_CURRENT_PIN)
     job_root = A2.workload_job_root(policy, attempt, "rr5")
     raw_root = job_root / "raw"
     raw_root.mkdir()
@@ -1658,48 +1733,133 @@ def test_official_run_observes_and_passes_current_toolchain_manifest(
     ccbench = tmp_path / "ccbench"
     ccbench.mkdir()
     calls = {}
+    resolved_repo_pin = subprocess.run(
+        ["git", "-C", str(A2.POLICY_PATH.parents[2] / "external/ccbench"),
+         "rev-parse", "--verify", f"{REPO_CURRENT_PIN}^{{commit}}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
 
     def git_run(command, **kwargs):
-        if command[:3] == ["git", "rev-parse", "HEAD"]:
-            return subprocess.CompletedProcess(command, 0, CURRENT_PIN + "\n", "")
+        if command == ["git", "rev-parse", "--verify", "HEAD^{commit}"]:
+            return subprocess.CompletedProcess(
+                command, 0, resolved_repo_pin + "\n", "")
+        if command == [
+                "git", "rev-parse", "--verify",
+                f"{REPO_CURRENT_PIN}^{{commit}}"]:
+            return subprocess.CompletedProcess(
+                command, 0, resolved_repo_pin + "\n", "")
         if command[:3] == ["git", "status", "--porcelain"]:
             return subprocess.CompletedProcess(command, 0, "", "")
         raise AssertionError(command)
 
-    def producer(cfg, genomes, *args, output_root, **kwargs):
-        cfg = ident.bind_admission_policy(
-            cfg, kwargs["build_context"].policy)
-        layout = loop.campaign_layout(
-            str(ident.campaign_id(cfg)), output_root).ensure()
-        calls["output_root"] = Path(output_root)
-        calls["layout_root"] = Path(layout.root)
-        return A2.SimpleNamespace(
-            results=[A2.SimpleNamespace() for _ in genomes],
-            skipped=0, layout_root=layout.root)
+    def authorize(cfg, authorization_contract, **_kwargs):
+        calls["authorized"] = True
+        return loop._AuthorizationResult(
+            authorized_contract=authorization_contract,
+            execution_receipt=None,
+            bound_cfg=cfg,
+            campaign_identity=str(ident.campaign_id(cfg)),
+        )
+
+    def resolve_evidence(genome, commit, *, ccbench_dir, cxx):
+        index = len(calls.setdefault("evidences", []))
+        assert commit == REPO_CURRENT_PIN
+        assert Path(ccbench_dir) == ccbench
+        assert cxx == "g++"
+        evidence_root = tmp_path / f"source-evidence-{index}"
+        evidence_root.mkdir()
+        genome_sha256 = hashlib.sha256(
+            A2._canonical_json(genome.canonical())).hexdigest()
+        if index == 0:
+            evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str(evidence_root), REPO_CURRENT_PIN, genome_sha256,
+                source_digest.STOCK, "a" * 64, True,
+                hashlib.sha256(b"").hexdigest(), (),
+            )
+        else:
+            evidence = source_digest.SourceEvidence(
+                source_digest.SOURCE_EVIDENCE_SCHEMA,
+                str(evidence_root), REPO_CURRENT_PIN, genome_sha256,
+                "b" * 64, "b" * 64, False, "c" * 64,
+                ("include/backoff.h",),
+            )
+        calls["evidences"].append(evidence)
+        return evidence
+
+    def evaluate(genome, _layout, _env_tag, _commit, _perf,
+                 _clocks_per_us, **kwargs):
+        evidence = kwargs["source_evidence"]
+        resolver = kwargs["capability_resolver"]
+        assert evidence is calls["evidences"][len(calls.setdefault(
+            "admissions", []))]
+        assert kwargs["src_token"] == evidence.src_token
+        assert callable(resolver)
+        receipt = resolver(evidence)
+        admission = build_admission.derive_build_admission(
+            kwargs["build_context"], evidence, generator_receipt=receipt)
+        calls["admissions"].append(admission)
+        calls.setdefault("generator_receipts", []).append(receipt)
+        calls["resolver"] = resolver
+        return loop.EvalResult(
+            genome=genome,
+            variant=variant_id(genome, evidence.src_token),
+            certified=True,
+            aborted=False,
+        )
 
     def raw_producer(_policy, cell, *, layout_root, **kwargs):
-        assert Path(layout_root) == calls["layout_root"]
+        calls.setdefault("layout_roots", []).append(Path(layout_root))
         return {"cell_id": cell.cell_id, "terminal": "commit"}
 
     monkeypatch.setattr(A2.subprocess, "run", git_run)
-    monkeypatch.setattr(loop, "run_campaign", producer)
     monkeypatch.setattr(A2, "_raw_cell_from_wal", raw_producer)
+    monkeypatch.setattr(loop, "_authorize_measurement", authorize)
+    monkeypatch.setattr(
+        loop, "_perform_perf_preflight", lambda *_args, **_kwargs: (None, True))
+    monkeypatch.setattr(
+        loop.ident, "ensure_resumable_wal",
+        lambda *_args, **_kwargs: A2.SimpleNamespace(status="clean"))
+    monkeypatch.setattr(loop.wal, "replay", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(loop.source_digest, "resolve_evidence", resolve_evidence)
+    monkeypatch.setattr(loop, "evaluate", evaluate)
     monkeypatch.setattr(
         buildcache, "compilers_for_current_site", lambda: ("gcc", "g++"))
     monkeypatch.setattr(
         buildcache, "observed_toolchain_manifest",
         lambda *_args, **_kwargs: {"fixture": "toolchain"})
+    monkeypatch.setattr(
+        buildcache, "toolchain_compilers_from_manifest",
+        lambda _manifest: ("gcc", "g++"))
     monkeypatch.setattr(env_contract, "authorize", lambda _tag: object())
 
     A2.run_workload(
         policy, workload_id="rr5", attempt_root=attempt, raw_root=raw_root,
-        current_pin=CURRENT_PIN, dependency_prefix=dependency,
+        current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
         ccbench_dir=ccbench, log=lambda *_args: None)
-    assert calls["output_root"] == job_root
-    assert calls["layout_root"].parent == job_root / "campaigns"
+    assert calls["authorized"] is True
+    assert len(set(calls["layout_roots"])) == 1
+    assert calls["layout_roots"][0].parent == job_root / "campaigns"
     assert not (job_root / "campaigns" / "campaigns").exists()
     assert {path.name for path in raw_root.iterdir()} == {
         "rr5-stock.json", "rr5-fixed10.json"}
+    stock, adopted = calls["admissions"]
+    generator_receipts = calls["generator_receipts"]
+    calls["adopted_receipt"] = generator_receipts[1].as_receipt()
+    calls["adopted_receipt_repeat"] = calls["resolver"](
+        calls["evidences"][1]).as_receipt()
+    assert stock.provenance is build_admission.BuildProvenance.STOCK_BASELINE
+    assert adopted.provenance is build_admission.BuildProvenance.MACHINE_GENERATED
+    assert stock.as_wal_receipt()["generator_receipt"] is None
+    expected_generator_input = hashlib.sha256(A2._canonical_json({
+        "policy_protocol_sha256": policy.protocol_sha256,
+        "workload_id": "rr5",
+        "evidence_genome_sha256": calls[
+            "adopted_receipt"]["source"]["genome_sha256"],
+    })).hexdigest()
+    assert calls["adopted_receipt"]["generator_input_sha256"] \
+        == expected_generator_input
+    assert calls["adopted_receipt_repeat"] == calls["adopted_receipt"]
 
 
 def test_pipeline_runs_correctness_workload_repetitions_without_new_wal_fields():
