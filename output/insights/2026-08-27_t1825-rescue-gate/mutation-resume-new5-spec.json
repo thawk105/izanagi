@@ -1,0 +1,74 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1350.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 600.0,
+ "mutations": [
+  {
+   "id": "M31",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "        r\"^gc\\..*\\.reflogExpire(Unreachable)?$\",\n",
+    "new": "        r\"^gc\\..*\\.reflogExpireUnreachable$\",\n"
+   }],
+   "expected_nodes": ["orchestrator/tests/test_check_branch_rescue.py::test_scoped_reflog_config_reads_ordinary_and_unreachable"],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M32",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "    if (not isinstance(verdict, str)\n            or verdict not in expected\n",
+    "new": "    if (verdict not in expected\n"
+   }],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[array]",
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[object]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M33",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "            or branch.get(\"input\") != oid\n            or branch.get(\"tip\") != oid):\n",
+    "new": "            or branch.get(\"tip\") != oid):\n"
+   }],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-input]",
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-input]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M34",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "    if status == \"pending\":\n",
+    "new": "    if False:\n"
+   }],
+   "expected_nodes": ["orchestrator/tests/test_branch_rescue_ledger.py::test_ledger_status_accepts_only_its_coherent_resolution_shape[pending]"],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M35",
+   "category": "negative",
+   "replacements": [{
+    "file": "tools/check_branch_rescue.py",
+    "old": "            \"rescued\", \"reachable-again\", \"object-missing\",\n",
+    "new": "            \"reachable-again\", \"object-missing\",\n"
+   }],
+   "expected_nodes": ["orchestrator/tests/test_check_branch_rescue.py::test_audit_re_report_notifies_stale_resolutions_except_accepted_loss"],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
