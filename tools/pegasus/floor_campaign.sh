@@ -6,12 +6,15 @@
 #PBS --accept-sigterm=yes
 # 出典: certify_calibration.sh:1-5 @ e9b6f69
 
-# driver required_s                    = 12 * (900 + (8+2) * (5*5 + 120)) = 28200
+# 12-cell subtotal                     = 12 * (900 + (8+2) * (5*5 + 120)) = 28200
+# shared dependency prebuild           = 900 + 900 = 1800
+# driver required_s                    = 28200 + 1800 = 30000
 # driver finalize reserve              =   600
-# driver が要求する capacity           = 28800
-# job prologue (gflags/glog build・qstat・git・hash) 見積          ≈  900
-# driver 定数が hard cap でないことへの余裕 (B-02)                 ≈ 6300
+# driver preflight minimum envelope    = 30000 + 600 = 30600
 # PBS request                          = 36000  (= 10:00:00, gen_S 上限 86400 の範囲内)
+# raw headroom                         = 36000 - 30600 = 5400
+# job prologue (gflags/glog build・qstat・git・hash) 見積          ≈  900
+# estimated residual headroom          ≈ 5400 - 900 = 4500 (保証値・実測値ではない)
 set -Eeuo pipefail
 umask 077
 
