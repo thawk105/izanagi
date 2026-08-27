@@ -197,7 +197,40 @@ def _registry_sha256(registry: Mapping[str, FlakyTestHold]) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
-_FLAKY_TEST_HOLD_ROWS = ()
+_EXPLORATION_EXTERNAL_ROOT_NODE = (
+    "orchestrator/tests/test_dev_wave_land.py::"
+    "test_exploration_external_root_keeps_wave_clean"
+)
+
+
+_FLAKY_TEST_HOLD_ROWS = (
+    (
+        _EXPLORATION_EXTERNAL_ROOT_NODE,
+        FlakyTestHold(
+            known_failure_node_ids=frozenset({_EXPLORATION_EXTERNAL_ROOT_NODE}),
+            same_tree=True,
+            green_observation=(
+                "同一 tree の 10 file 焦点走では当該 node が緑だった"
+            ),
+            green_collection_condition="focused-10-file",
+            green_run_count=1,
+            red_observation=(
+                "同一 tip の受入全走と exact node 単独再走で同じ本文の赤を観測した"
+            ),
+            red_collection_condition=ACCEPTANCE_COLLECTION,
+            failure_signature=(
+                "Pegasus compute では receipt state 内で一意な required "
+                "authorization_contract だけを受理する"
+            ),
+            cause=(
+                "Pegasus compute の receipt state における required "
+                "authorization_contract 一意性判定の site 依存フレーク"
+            ),
+            evidence_id="F57",
+            reintroduction_task_id="t-1079",
+        ),
+    ),
+)
 
 
 FLAKY_TEST_HOLDS = _validate_flaky_test_hold_rows(_FLAKY_TEST_HOLD_ROWS)
