@@ -1,0 +1,28 @@
+{
+  "build_time_network_fetch": true,
+  "build_time_network_fetch_integrity": "ccbench CMake FetchContent fixes masstree content by a SHA pin",
+  "ccbench_cache_root": "/scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/ccbench-cache",
+  "dependency_build_log": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-b10-balanced-profile/output/insights/2026-08-26_b10-balanced-profile/job-logs/b10bal-20260827-06",
+  "dependency_prefix": "/scr/tanab/izanagi-b10-balanced-profile-b10bal-20260827-06/dependency-prefix",
+  "dependency_prefix_cache_identity_bound": false,
+  "fetch_proxy": "http://10.120.96.1:8080",
+  "gflags_expected_pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+  "gflags_pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+  "gflags_source": "/work/SFC/tanab/github/gflags",
+  "glog_expected_pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+  "glog_pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+  "glog_source": "/work/SFC/tanab/github/glog",
+  "limitation": "legacy buildcache.build does not bind the dependency prefix into its cache identity; this job-specific cache root prevents inheritance of an older cache",
+  "time_budget": {
+    "ccbench_build_budget_seconds": 6300,
+    "dependency_build_budget_seconds": 540,
+    "dispatch_walltime": "05:00:00",
+    "inner_budget_seconds": 14400,
+    "record_budget_seconds": 3780,
+    "report_budget_seconds": 3780,
+    "shutdown_margin_seconds": 600,
+    "strictly_below_walltime": true,
+    "total_budget_seconds": 15000,
+    "walltime_seconds": 18000
+  }
+}

@@ -1,0 +1,334 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_s_at_or_above_group_order"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if s >= _L:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_nonidentity_small_order_public_key"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if not _is_identity(_scalar_multiply(public_point, _L)):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ed25519_verify.py::test_matches_cryptography_for_fixed_seed_sequence",
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_message_changed_by_one_bit",
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_rfc8032_message_changed_by_one_bit[rfc8032-msglen-0]",
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_rfc8032_message_changed_by_one_bit[rfc8032-msglen-1023]",
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_rfc8032_message_changed_by_one_bit[rfc8032-msglen-1]",
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_rfc8032_message_changed_by_one_bit[rfc8032-msglen-2]",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_different_signing_key_on_earlier_row_rejects_the_whole_ledger",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_signature_without_domain_prefix_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if not _equal(left, right):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M18",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ed25519_verify.py::test_rejects_small_order_r"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/ed25519_verify.py",
+          "old": "    if _is_identity(r_point):",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_different_signing_key_on_earlier_row_rejects_the_whole_ledger",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_each_final_receipt_signature_is_verified_once",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_signature_without_domain_prefix_is_rejected",
+        "orchestrator/tests/test_ratification_broker.py::test_every_existing_signature_is_checked",
+        "orchestrator/tests/test_ratification_broker.py::test_invalid_signature_on_existing_row_stops_before_approval"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "            verify(",
+          "new": "            (lambda *_a: None)("
+        }
+      ]
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_correctly_signed_duplicate_serial_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_correctly_signed_wrong_previous_hash_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_each_final_receipt_signature_is_verified_once",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_matching_digest_with_different_closure_paths_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_merge_with_identical_parent_ledgers_is_accepted",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_merge_with_prefix_parent_ledgers_is_accepted",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_non_ratify_decision_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_repeated_ledger_blob_oid_is_loaded_once",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_signature_without_domain_prefix_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_single_repository_binding_and_receipt_are_accepted",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_source_batch_aggregate_byte_limit_fails_closed",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_source_commit_must_bind_signed_closure",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_symlink_mode_source_path_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_three_receipt_chain_accepts_the_matching_earlier_row",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_unreachable_source_commit_with_same_closure_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_v2_shallow_repository_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_valid_signed_receipt_for_current_closure_is_accepted",
+        "orchestrator/tests/test_ratification_broker.py::test_approved_receipt_is_signed_committed_and_records_provenance",
+        "orchestrator/tests/test_ratification_broker.py::test_every_remote_git_call_uses_verifier_hardening",
+        "orchestrator/tests/test_ratification_broker.py::test_private_key_bytes_are_not_present_in_remote_tree",
+        "orchestrator/tests/test_ratification_broker.py::test_private_key_bytes_are_not_sent_to_children",
+        "orchestrator/tests/test_ratification_broker.py::test_valid_existing_signature_reaches_approval",
+        "orchestrator/tests/test_ratification_broker.py::test_worktree_ledger_drift_is_rejected_inside_transaction",
+        "orchestrator/tests/test_t671_source_binding.py::test_new_certified_lock_accepts_ratified_closure_digest"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "                _DOMAIN_PREFIX + _canonical_json_bytes(signed),",
+          "new": "                _canonical_json_bytes(signed),"
+        }
+      ]
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_correctly_signed_duplicate_serial_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if type(serial) is not int or serial != line_number:",
+          "new": "        if type(serial) is not int:"
+        }
+      ]
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_correctly_signed_wrong_previous_hash_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if previous != expected_previous:",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_matching_digest_with_different_closure_paths_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "            and row[\"closure_paths\"] == expected_paths",
+          "new": "            and True"
+        }
+      ]
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_v2_repository_with_grafts_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_v2_shallow_repository_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        _assert_full_history_repository(root)",
+          "new": "        pass"
+        }
+      ]
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_source_commit_must_bind_signed_closure"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if digests[source_commit] != row[\"closure_digest_sha256\"]:",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_unreachable_source_commit_with_same_closure_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "    if source_commit not in parents_by_commit:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_trust_root_changed_across_history_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if any(parent_oid != oid for parent_oid in parent_oids):",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "MD1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_non_ratify_decision_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "        if value[\"decision\"] != \"ratify\":",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification.py::test_non_regular_ledger_entries_are_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_non_regular_trust_root_entry_is_rejected",
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_v2_non_regular_ledger_entries_are_rejected[symlink]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification.py",
+          "old": "        if (matching_entry != ((b\"100644\", result[commit]),)\n                and matching_entry != ((b\"100755\", result[commit]),)):",
+          "new": "        if False:"
+        }
+      ]
+    },
+    {
+      "id": "MS1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_enforcement_source_ratification_receipt.py::test_symlink_mode_source_path_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/enforcement_source_ratification_receipt.py",
+          "old": "                if mode not in _REGULAR_SOURCE_MODES:",
+          "new": "                if False:"
+        }
+      ]
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ratification_broker.py::test_c1_and_bidi_bytes_are_escaped_to_injective_ascii",
+        "orchestrator/tests/test_ratification_broker.py::test_first_ratification_displays_all_closure_bytes"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ratification_broker.py",
+          "old": "        elif byte == 0x5C:",
+          "new": "        elif False:"
+        }
+      ]
+    },
+    {
+      "id": "M17",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ratification_broker.py::test_worktree_ledger_drift_is_rejected_inside_transaction"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ratification_broker.py",
+          "old": "        f\"{git_prefix} cat-file blob {oid_q} | cmp - {ledger_q} >/dev/null || exit 73\",",
+          "new": "        \":\","
+        }
+      ]
+    }
+  ]
+}

@@ -166,6 +166,25 @@ def _portable_binary(temp_root: Path, *, cell_id: str, holdout_id: str,
     binding["binding_sha256"] = hashlib.sha256(_canonical_bytes(binding)).hexdigest()
     source_root = temp_root / cell_id.replace("::", "-")
     source_root.mkdir()
+    compiler_input = source_root / "include" / "fixture.hh"
+    compiler_input.parent.mkdir()
+    compiler_input.write_bytes(f"compiler-input:{cell_id}\n".encode())
+    compiler_input_manifest = {
+        "schema_version": "s8b-compiler-input/v1",
+        "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+        "target": "ycsb_fixture.exe",
+        "depfile_count": 1,
+        "inputs": [{
+            "path": "include/fixture.hh",
+            "sha256": hashlib.sha256(compiler_input.read_bytes()).hexdigest(),
+        }],
+    }
+    compiler_input_manifest_sha256 = hashlib.sha256(
+        json.dumps(
+            compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
     source = SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,
         source_root=str(source_root.resolve()), ccbench_commit=_CCBENCH_PIN,
@@ -189,6 +208,14 @@ def _portable_binary(temp_root: Path, *, cell_id: str, holdout_id: str,
         cell_id=cell_id, holdout_id=holdout_id,
         configuration_id=configuration_id, binding=binding, binary=binary,
         binary_sha256=binary_sha, contract_sha256=_CONTRACT_SHA, trace=False,
+        source_snapshot_sha256=hashlib.sha256(
+            f"expected-materialization:{cell_id}".encode()
+        ).hexdigest(),
+        expected_materialization_sha256=hashlib.sha256(
+            f"expected-materialization:{cell_id}".encode()
+        ).hexdigest(),
+        compiler_input_manifest=compiler_input_manifest,
+        compiler_input_manifest_sha256=compiler_input_manifest_sha256,
     )
     record = {
         "cell_id": cell_id, "holdout_id": holdout_id,

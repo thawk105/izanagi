@@ -236,7 +236,6 @@ def _capture_current_loader_binding(
     try:
         binding = contract_loader_binding.capture_contract_loader_binding()
         contract_loader_binding.verify_live_contract_loader_binding(binding)
-        contract_loader_binding.verify_ratified_contract_loader_binding(binding)
         return binding
     except contract_loader_binding.ContractLoaderBindingError as exc:
         raise IdentityMismatch(
