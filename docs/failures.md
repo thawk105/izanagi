@@ -16589,6 +16589,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   clone の submodule url を local path にする場合は `-c protocol.file.allow=always` が要る
   (既定は `user` で submodule の file transport を拒否する)。
 
+
+- **再発: 2026-08-28** — 固定 commit の変異 matrix が全件完走した後、並行 session の main land により共有木事後検査が2回 rc=125。land lease取得後の同一matrix再走で閉じた。
 ### F619. 収集段で落ちた変異走行が resume も fresh 走も塞ぐ [手順漏れ]
 
 - 事象: 変異本走が収集段で `rc=16` (`receipt scheduler_logs.stdout.path がない`、
@@ -16606,6 +16608,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 上記いずれかのメッセージで止まったら resume を繰り返さず、
   新しい `--scratch-root` を作って fresh 走で再投入する。
 
+
+- **再発: 2026-08-28** — collection timeout が result ledger 作成前に発生し、wrapper提示の `--resume` commandは既存`--out`必須で即停止。同型の正本どおり新scratch / outputのfresh走で復帰した。
 ### F620. 汚染を消す修正の正例 test が同じ汚染を作った [テスト代表性] [計測汚染]
 
 - 事象: 実 `output/` の棚卸し検査から git ignore 済み path を除外する修正
