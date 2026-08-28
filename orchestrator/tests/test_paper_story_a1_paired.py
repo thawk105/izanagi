@@ -440,11 +440,9 @@ def _noncertifying_bundle(
     anomalies: object = 0,
 ):
     policy, policy_sha = paired.load_policy()
-    policy = copy.deepcopy(policy)
-    policy["execution"]["durable_measurement_base"] = os.fspath(
-        tmp_path.resolve()
+    monkeypatch.setattr(
+        paired, "_durable_measurement_base", lambda _policy: tmp_path.resolve(),
     )
-    monkeypatch.setattr(paired, "load_policy", lambda: (policy, policy_sha))
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     contract = paired.p2_2.env_contract.lookup("pegasus")
     repo_root = paired._repo_root().resolve(strict=True)
