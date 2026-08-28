@@ -40,10 +40,12 @@ from orchestrator.campaign.model import Genome
 _SCHEMA = "t2000-legacy-build-probe/v3"
 _DIGEST_SCHEMA = "t2000-legacy-build-probe-digest/v3"
 _REAL_NODEID = (
-    "tools/pegasus/probes/test_t2000_legacy_build_probe.py::"
+    "orchestrator/manual_probes/test_t2000_legacy_build_probe.py::"
     "test_t2000_legacy_build_probe"
 )
-_PROBE_RELATIVE_PATH = Path("tools/pegasus/probes/test_t2000_legacy_build_probe.py")
+_PROBE_RELATIVE_PATH = Path(
+    "orchestrator/manual_probes/test_t2000_legacy_build_probe.py"
+)
 _ARTIFACT_RELATIVE_PATH = Path(
     "output/insights/2026-08-28_t2000-legacy-build-probe"
 )
@@ -3380,7 +3382,7 @@ def test_t2000_real_invocation_gate_rejects_implicit_selection(tmp_path: Path) -
         f"{tmp_path / _PROBE_RELATIVE_PATH}::test_t2000_legacy_build_probe"
     )
     noncanonical_nodeid = (
-        f"{Path.cwd()}/tools/pegasus/probes/../probes/"
+        f"{Path.cwd()}/orchestrator/manual_probes/../manual_probes/"
         "test_t2000_legacy_build_probe.py::test_t2000_legacy_build_probe"
     )
     symlink_root = tmp_path / "repo-link"
@@ -3390,8 +3392,8 @@ def test_t2000_real_invocation_gate_rejects_implicit_selection(tmp_path: Path) -
     )
     for argv in (
         (),
-        ("tools/pegasus/probes/test_t2000_legacy_build_probe.py",),
-        ("tools/pegasus/probes",),
+        ("orchestrator/manual_probes/test_t2000_legacy_build_probe.py",),
+        ("orchestrator/manual_probes",),
         (".",),
         ("test_t2000_legacy_build_probe",),
         (other_root_nodeid,),
@@ -3405,7 +3407,8 @@ def test_t2000_real_invocation_gate_rejects_implicit_selection(tmp_path: Path) -
     ):
         assert not _real_invocation_allowed(argv, current)
     assert not _real_invocation_allowed(
-        (_REAL_NODEID,), "tools/pegasus/probes/test_meta.py::test_calls_probe (call)",
+        (_REAL_NODEID,),
+        "orchestrator/manual_probes/test_meta.py::test_calls_probe (call)",
     )
 
     fake_root = tmp_path / "other-checkout"

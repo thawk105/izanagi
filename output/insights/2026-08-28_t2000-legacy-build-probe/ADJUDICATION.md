@@ -8,7 +8,7 @@
 
 - **real・採用:** legacy no-proxyへGit遮断を重ねるとproxy感応性を識別できない。legacy arm間の唯一の差は既存B-10 build経路が使うproxy値の有無にする。
 - **real・採用:** legacy `build()`にはtimeout引数がなく、外側process group supervisorが必要。production関数、PATH、CMake/Git wrapperは変更しない。
-- **real・採用:** probeを`orchestrator/tests/`へ置くと通常全走へ混入する。`tools/pegasus/probes/test_t2000_legacy_build_probe.py`の明示nodeidだけに置く。
+- **real・採用:** probeを`orchestrator/tests/`へ置くと通常全走へ混入する。`orchestrator/manual_probes/test_t2000_legacy_build_probe.py`の明示nodeidだけに置く。
 - **real・採用:** CMakeの`fetchcontent_ref`とpolicy ref、取得後HEADとpolicy pinは別々に照合する。mimalloc tagを40桁pinと誤読しない。
 - **real・採用:** same dependencyは3 repoのHEAD、commit tree、tracked/untracked/ignored clean、alternates不在、legacy観測値とprivate copy値の一致で主張する。取り逃しは裁定不能。
 - **real・採用:** rawでは`ambient_proxy_env_sensitivity`、`non_file_git_transport_needed`、`arbitrary_external_network=not-measured`を分離する。
@@ -19,7 +19,7 @@
 
 ## plan v2
 
-1. 新規実装面は`tools/pegasus/probes/test_t2000_legacy_build_probe.py`だけ。production module、dispatcher、policy、既存testは編集しない。T-2000専用で、汎用APIを公開しない。
+1. 新規実装面は`orchestrator/manual_probes/test_t2000_legacy_build_probe.py`だけ。production module、dispatcher、policy、既存testは編集しない。T-2000専用で、汎用APIを公開しない。
 2. compute/PBS/node/siteをfail-closedで確認し、CCBench HEAD、stock genome、trace=false、compiler/toolchain、source evidence、build context/admission、Pegasus contractを一度確定する。arm前後のidentity hash一致を必須にする。
 3. proxy controlは既存`tools/pegasus/b10_backoff_grid.sh`の単一`BUILD_NETWORK_PROXY_URL`をメモリ内で読み、既存経路と同じlowercase `http_proxy` / `https_proxy`へ設定する。値、URL、hostname、PBS job IDはartifactへ保存せずhashだけにする。Git config隔離とPATHは全armで同一にする。
 4. 検証済み永続cache 3本をjob-local private baseの`masstree-src` / `mimalloc-src` / `googletest-src`へcopyする。private copyだけをpinへreset/cleanし、tracked/untracked/ignored、alternates、tree IDを検査する。共有cacheは変更しない。
