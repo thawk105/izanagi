@@ -4,14 +4,14 @@ ledger: worklog
 authored: 2026-08-28
 wave: dev-wave-task-inventory-prune
 seq: 1
-title: 過剰実装・過剰ガードレール596件をactiveから除外する (docsのみ)
+title: 過剰実装・過剰ガードレール595件をactiveから除外する (docsのみ)
 ---
 
 ## 本文
 
-- ユーザー裁定に従い、active 946件を全件棚卸しした。過剰防壁120件と開発プロセス/衛生476件を見送りへ送り、研究・実験を遅滞させるactive backlogを596件削減する。
+- ユーザー裁定に従い、当初active 946件を全件棚卸しした。過剰防壁120件と開発プロセス/衛生476件を見送り対象としたが、current mainでT-2065が先に裁定・完了したため、残る過剰防壁119件と開発プロセス/衛生476件、計595件を見送りへ送る。
 - 正しさ境界と研究速度の敵対相談を反映し、anomaly即reject、trace/perf分離、前向き事前登録、file-drawer防止、現行研究blockerは維持した。
-- 分類不能8件と別wave所有5件は推測で処理せずcarryし、fold後のactive期待値を350件とした。
+- 分類不能8件と別wave所有5件は推測で処理しない。current mainで完了済みのT-1934を除く所有4件をcarryし、fold後のactive期待値を346件とした。
 
 ## 次の一手差分
 
@@ -494,10 +494,6 @@ title: 過剰実装・過剰ガードレール596件をactiveから除外する 
 - [T-2047] s8b_attempt_registry.py は旧 consumed/ と旧 marker schema だけを読む。現在 producti… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
   base: c42ead267f63d11de7d849ffeaec5dae7eb7f41c52f92329c5774f00ea984dee
-
-- [T-2065] 非 B-4 を含む certified な成果物一般へ 起動由来の権能を要求するかを裁定する。本 wave は識別語を持つ campaign… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: 59b6a88b89f9d16f2195e61b22a1efa4dc7501ac9405ba96d2eaa73bc084ed8e
 
 #### プロセス文書系
 
