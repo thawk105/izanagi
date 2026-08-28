@@ -69,7 +69,7 @@ generator と相互 import しない source-separated replay verifier が seed�
 simulation count、exact bound、alpha spending、最初の通過 n、order index を再計算して一致した。
 これは sampler と数学の独立 oracle ではなく、同一規則の別 source replay である。
 tracked receipt は `sizing-replay-receipt.v2.json`
-(SHA-256 `a147b10f5881eeb000239380cc48580e5217dbc4184fd896ce864f1226a38958`) で、certificate、pilot、
+(SHA-256 `269f070b4603e93b42ebc6433d0f8deb370a021be6afcd452320a63e9a9f0ff3`) で、certificate、pilot、
 generator/verifier source、Python/NumPy runtime、CLI policy、rc=0を束縛する。
 
 ## 4. Canonical machine-readable spec
@@ -156,7 +156,7 @@ generator/verifier source、Python/NumPy runtime、CLI policy、rc=0を束縛す
     "sizing_certificate_path": "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/sizing-certificate.v2.json",
     "sizing_certificate_sha256": "4f4735cf43f227f421b0bfcc2c9f17328736a105def15071838e0ba5d5a3e18a",
     "sizing_replay_receipt_path": "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration/sizing-replay-receipt.v2.json",
-    "sizing_replay_receipt_sha256": "a147b10f5881eeb000239380cc48580e5217dbc4184fd896ce864f1226a38958"
+    "sizing_replay_receipt_sha256": "269f070b4603e93b42ebc6433d0f8deb370a021be6afcd452320a63e9a9f0ff3"
   },
   "execution": {
     "arm_order": "alternate-by-block-baseline-first-on-odd-block-variant-first-on-even-block",
@@ -237,7 +237,7 @@ generator/verifier source、Python/NumPy runtime、CLI policy、rc=0を束縛す
     "root_seed_preimage": "paper-story-a1-headline-sizing-root-seed/v2|20260828|certification-alpha-spending",
     "search_trials": 20000,
     "selection": "ascending-every-n-first-search-and-alpha-spent-certification-pass",
-    "source_separated_replay_receipt_sha256": "a147b10f5881eeb000239380cc48580e5217dbc4184fd896ce864f1226a38958",
+    "source_separated_replay_receipt_sha256": "269f070b4603e93b42ebc6433d0f8deb370a021be6afcd452320a63e9a9f0ff3",
     "success_probability_required": {
       "denominator": 5,
       "numerator": 4

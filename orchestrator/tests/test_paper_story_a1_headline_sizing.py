@@ -103,6 +103,44 @@ def _verifier_arguments(certificate: Path, receipt: Path) -> list[str]:
     ]
 
 
+def _invoke_with_parent_swap(parent: Path, attacker: Path, leaf_name: str, invoke):
+    real_open = verifier.os.open
+    held_parent = parent.with_name(parent.name + "-held")
+    swapped = False
+    parent_descriptor = None
+    leaf_dir_fds: list[int | None] = []
+
+    def swapping_open(open_path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal swapped, parent_descriptor
+        if dir_fd is None:
+            descriptor = real_open(open_path, flags, mode)
+        else:
+            descriptor = real_open(open_path, flags, mode, dir_fd=dir_fd)
+        if (
+            open_path == parent.name
+            and dir_fd is not None
+            and flags & verifier.os.O_DIRECTORY
+            and not swapped
+        ):
+            parent_descriptor = descriptor
+            parent.rename(held_parent)
+            parent.symlink_to(attacker, target_is_directory=True)
+            swapped = True
+        if open_path == leaf_name and not flags & verifier.os.O_DIRECTORY:
+            leaf_dir_fds.append(dir_fd)
+        return descriptor
+
+    verifier.os.open = swapping_open
+    try:
+        observed = invoke()
+    finally:
+        verifier.os.open = real_open
+    assert swapped is True
+    assert parent_descriptor is not None
+    assert leaf_dir_fds == [parent_descriptor]
+    return observed
+
+
 def test_pilot_arm_cv_rederivation_binds_ddof_max_inflation_and_proxy():
     pilot = generator.derive_pilot(PILOT, require_canonical=True)
     assert pilot["path"] == generator.PILOT_RELATIVE_PATH.as_posix()
@@ -161,13 +199,13 @@ def test_pilot_readers_use_one_nofollow_descriptor_for_fstat_and_read():
             real_open = module.os.open
             real_fstat = module.os.fstat
             real_read = module.os.read
-            opened: list[tuple[int, int]] = []
+            opened: list[tuple[int, int, int | None]] = []
             fstat_descriptors: list[int] = []
             read_descriptors: list[int] = []
 
-            def tracked_open(open_path, flags, *args):
-                descriptor = real_open(open_path, flags, *args)
-                opened.append((descriptor, flags))
+            def tracked_open(open_path, flags, *args, **kwargs):
+                descriptor = real_open(open_path, flags, *args, **kwargs)
+                opened.append((descriptor, flags, kwargs.get("dir_fd")))
                 return descriptor
 
             def tracked_fstat(descriptor):
@@ -189,8 +227,25 @@ def test_pilot_readers_use_one_nofollow_descriptor_for_fstat_and_read():
                 module.os.read = real_read
 
             assert observed == b'{"bound":true}\n'
-            assert len(opened) == 1
-            descriptor, flags = opened[0]
+            if module is generator:
+                assert len(opened) == 1
+                descriptor, flags, dir_fd = opened[0]
+                assert dir_fd is None
+            else:
+                absolute_parts = Path(module.os.path.abspath(path)).parts
+                assert len(opened) == len(absolute_parts)
+                for index, (directory_descriptor, flags, dir_fd) in enumerate(
+                    opened[:-1]
+                ):
+                    assert flags & module.os.O_NOFOLLOW
+                    assert flags & module.os.O_DIRECTORY
+                    if index == 0:
+                        assert dir_fd is None
+                    else:
+                        assert dir_fd == opened[index - 1][0]
+                descriptor, flags, dir_fd = opened[-1]
+                assert dir_fd == opened[-2][0]
+                assert not flags & module.os.O_DIRECTORY
             assert flags & module.os.O_NOFOLLOW
             assert fstat_descriptors == [descriptor]
             assert read_descriptors and set(read_descriptors) == {descriptor}
@@ -295,6 +350,172 @@ def test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary():
             assert leaf_open[1] & module.os.O_NOFOLLOW
             assert not leaf_open[1] & module.os.O_DIRECTORY
             assert leaf_open[2] is not None
+
+
+def test_certificate_receipt_and_sources_reject_parent_symlinks_at_callsites():
+    with tempfile.TemporaryDirectory(
+        prefix="a1-headline-sizing-bound-parent-link-"
+    ) as raw_dir:
+        directory = Path(raw_dir)
+        real_parent = directory / "real-parent"
+        real_parent.mkdir()
+        linked_parent = directory / "linked-parent"
+        linked_parent.symlink_to(real_parent, target_is_directory=True)
+
+        certificate_raw = generator.canonical_json_bytes(_small_certificate())
+        certificate = real_parent / "certificate.json"
+        certificate.write_bytes(certificate_raw)
+        linked_certificate = linked_parent / certificate.name
+        _assert_raises(
+            verifier.VerificationError,
+            verifier.load_certificate,
+            linked_certificate,
+        )
+
+        receipt_document = verifier.build_replay_receipt(
+            certificate,
+            hashlib.sha256(certificate_raw).hexdigest(),
+            _verification_config(),
+        )
+        receipt = real_parent / "receipt.json"
+        receipt.write_bytes(verifier.canonical_bytes(receipt_document))
+        _assert_raises(
+            verifier.VerificationError,
+            verifier.load_replay_receipt,
+            linked_parent / receipt.name,
+        )
+
+        source_parent = directory / "source-parent"
+        source_parent.mkdir()
+        source_link = directory / "source-link"
+        source_link.symlink_to(source_parent, target_is_directory=True)
+        source = source_parent / "source.py"
+        source.write_bytes(b"trusted source\n")
+        stable = directory / "stable.py"
+        stable.write_bytes(b"stable source\n")
+        original_generator_path = verifier.GENERATOR_SOURCE_PATH
+        original_verifier_path = verifier.VERIFIER_SOURCE_PATH
+        try:
+            for target_name in ("generator", "verifier"):
+                verifier.GENERATOR_SOURCE_PATH = (
+                    source_link / source.name
+                    if target_name == "generator"
+                    else stable
+                )
+                verifier.VERIFIER_SOURCE_PATH = (
+                    source_link / source.name
+                    if target_name == "verifier"
+                    else stable
+                )
+                _assert_raises(
+                    verifier.VerificationError,
+                    verifier.build_replay_receipt,
+                    certificate,
+                    hashlib.sha256(certificate_raw).hexdigest(),
+                    _verification_config(),
+                )
+        finally:
+            verifier.GENERATOR_SOURCE_PATH = original_generator_path
+            verifier.VERIFIER_SOURCE_PATH = original_verifier_path
+
+
+def test_certificate_receipt_and_source_parent_swaps_stay_on_held_dirfds():
+    certificate_raw = generator.canonical_json_bytes(_small_certificate())
+    certificate_digest = hashlib.sha256(certificate_raw).hexdigest()
+    receipt_raw = verifier.canonical_bytes(
+        verifier.build_replay_receipt(
+            Path("fixture-certificate.json"),
+            certificate_digest,
+            _verification_config(),
+        )
+    )
+    cases = (
+        (
+            "certificate",
+            "certificate.json",
+            certificate_raw,
+            verifier.canonical_bytes(
+                {"attacker": True, "schema_version": verifier.SCHEMA}
+            ),
+            lambda path: verifier.load_certificate(path)[1],
+        ),
+        (
+            "receipt",
+            "receipt.json",
+            receipt_raw,
+            verifier.canonical_bytes(
+                {"attacker": True, "schema_version": verifier.RECEIPT_SCHEMA}
+            ),
+            lambda path: verifier.load_replay_receipt(path)[1],
+        ),
+    )
+    for label, leaf_name, trusted_raw, attacker_raw, loader in cases:
+        with tempfile.TemporaryDirectory(
+            prefix=f"a1-headline-sizing-{label}-swap-"
+        ) as raw_dir:
+            directory = Path(raw_dir)
+            parent = directory / f"{label}-parent"
+            attacker = directory / f"{label}-attacker"
+            parent.mkdir()
+            attacker.mkdir()
+            (parent / leaf_name).write_bytes(trusted_raw)
+            (attacker / leaf_name).write_bytes(attacker_raw)
+            observed = _invoke_with_parent_swap(
+                parent,
+                attacker,
+                leaf_name,
+                lambda: loader(parent / leaf_name),
+            )
+            assert observed == trusted_raw
+            assert observed != attacker_raw
+
+    for target_name in ("generator", "verifier"):
+        with tempfile.TemporaryDirectory(
+            prefix=f"a1-headline-sizing-{target_name}-source-swap-"
+        ) as raw_dir:
+            directory = Path(raw_dir)
+            parent = directory / f"{target_name}-parent"
+            attacker = directory / f"{target_name}-attacker"
+            stable_parent = directory / "stable-parent"
+            parent.mkdir()
+            attacker.mkdir()
+            stable_parent.mkdir()
+            leaf_name = f"trusted-{target_name}.py"
+            trusted_raw = f"trusted {target_name} source\n".encode("ascii")
+            attacker_raw = f"attacker {target_name} source\n".encode("ascii")
+            target_path = parent / leaf_name
+            target_path.write_bytes(trusted_raw)
+            (attacker / leaf_name).write_bytes(attacker_raw)
+            stable_path = stable_parent / "stable-other-source.py"
+            stable_path.write_bytes(b"stable other source\n")
+            original_generator_path = verifier.GENERATOR_SOURCE_PATH
+            original_verifier_path = verifier.VERIFIER_SOURCE_PATH
+            verifier.GENERATOR_SOURCE_PATH = (
+                target_path if target_name == "generator" else stable_path
+            )
+            verifier.VERIFIER_SOURCE_PATH = (
+                target_path if target_name == "verifier" else stable_path
+            )
+            try:
+                observed = _invoke_with_parent_swap(
+                    parent,
+                    attacker,
+                    leaf_name,
+                    lambda: verifier.build_replay_receipt(
+                        Path("fixture-certificate.json"),
+                        certificate_digest,
+                        _verification_config(),
+                    ),
+                )
+            finally:
+                verifier.GENERATOR_SOURCE_PATH = original_generator_path
+                verifier.VERIFIER_SOURCE_PATH = original_verifier_path
+            assert observed["sources"][target_name]["sha256"] == hashlib.sha256(
+                trusted_raw
+            ).hexdigest()
+            assert observed["sources"][target_name]["sha256"] != hashlib.sha256(
+                attacker_raw
+            ).hexdigest()
 
 
 def test_exact_binomial_order_interval_uses_six_arm_bonferroni_target():
@@ -1069,6 +1290,324 @@ def test_replay_receipt_binds_tools_runtime_certificate_and_policy():
         ) == hashlib.sha256(raw).hexdigest()
 
 
+def test_success_stdout_flush_precedes_receipt_publication_positive_control():
+    class RecordingStdout:
+        def __init__(self, receipt_path):
+            self.receipt_path = receipt_path
+            self.fragments: list[str] = []
+            self.flush_count = 0
+
+        def write(self, value):
+            self.fragments.append(value)
+            return len(value)
+
+        def flush(self):
+            self.flush_count += 1
+            assert not self.receipt_path.exists()
+
+    with tempfile.TemporaryDirectory(
+        prefix="a1-headline-sizing-stdout-positive-"
+    ) as raw_dir:
+        directory = Path(raw_dir)
+        certificate = _write_certificate(
+            directory,
+            _small_certificate(),
+            "certificate.json",
+        )
+        receipt = directory / "receipt.json"
+        stdout = RecordingStdout(receipt)
+        original_stdout = verifier.sys.stdout
+        verifier.sys.stdout = stdout
+        try:
+            return_code = verifier.main(_verifier_arguments(certificate, receipt))
+        finally:
+            verifier.sys.stdout = original_stdout
+        assert return_code == 0
+        assert stdout.flush_count == 1
+        assert "source-separated replay verified" in "".join(stdout.fragments)
+        assert receipt.read_bytes() == verifier.canonical_bytes(
+            verifier.build_replay_receipt(
+                certificate,
+                hashlib.sha256(certificate.read_bytes()).hexdigest(),
+                _verification_config(),
+            )
+        )
+        assert {item.name for item in directory.iterdir()} == {
+            certificate.name,
+            receipt.name,
+        }
+
+
+def test_success_stdout_broken_pipe_prevents_receipt_publication():
+    class BrokenPipeStdout:
+        def __init__(self, receipt_path):
+            self.receipt_path = receipt_path
+            self.flush_count = 0
+
+        def write(self, value):
+            return len(value)
+
+        def flush(self):
+            self.flush_count += 1
+            assert not self.receipt_path.exists()
+            raise BrokenPipeError("injected stdout failure")
+
+    with tempfile.TemporaryDirectory(
+        prefix="a1-headline-sizing-stdout-negative-"
+    ) as raw_dir:
+        directory = Path(raw_dir)
+        certificate = _write_certificate(
+            directory,
+            _small_certificate(),
+            "certificate.json",
+        )
+        receipt = directory / "receipt-must-not-exist.json"
+        stdout = BrokenPipeStdout(receipt)
+        original_stdout = verifier.sys.stdout
+        verifier.sys.stdout = stdout
+        try:
+            _assert_raises(
+                BrokenPipeError,
+                verifier.main,
+                _verifier_arguments(certificate, receipt),
+            )
+        finally:
+            verifier.sys.stdout = original_stdout
+        assert stdout.flush_count == 1
+        assert not receipt.exists()
+
+
+def test_fsync_failure_after_full_write_cannot_leave_return_code_zero_receipt():
+    for failure_point in ("fsync", "close"):
+        with tempfile.TemporaryDirectory(
+            prefix=f"a1-headline-sizing-receipt-{failure_point}-failure-"
+        ) as raw_dir:
+            directory = Path(raw_dir)
+            certificate = _write_certificate(
+                directory,
+                _small_certificate(),
+                "certificate.json",
+            )
+            receipt = directory / "receipt-must-not-exist.json"
+            certificate_digest = hashlib.sha256(certificate.read_bytes()).hexdigest()
+            expected_raw = verifier.canonical_bytes(
+                verifier.build_replay_receipt(
+                    certificate,
+                    certificate_digest,
+                    _verification_config(),
+                )
+            )
+            observed_full_writes: list[str] = []
+            real_fsync = verifier.os.fsync
+            real_fdopen = verifier.os.fdopen
+
+            def assert_temporary_bytes():
+                temporary_files = [
+                    item
+                    for item in directory.iterdir()
+                    if item.name not in {certificate.name, receipt.name}
+                ]
+                assert len(temporary_files) == 1
+                assert temporary_files[0].read_bytes() == expected_raw
+
+            def failing_fsync(descriptor):
+                real_fsync(descriptor)
+                assert_temporary_bytes()
+                observed_full_writes.append("fsync")
+                raise OSError(5, "injected receipt fsync failure")
+
+            class CloseFailure:
+                def __init__(self, stream):
+                    self._stream = stream
+                    self._injected = False
+
+                def __getattr__(self, name):
+                    return getattr(self._stream, name)
+
+                def close(self):
+                    if self._injected:
+                        return self._stream.close()
+                    self._stream.close()
+                    self._injected = True
+                    assert_temporary_bytes()
+                    observed_full_writes.append("close")
+                    raise OSError(5, "injected receipt close failure")
+
+            def close_failing_fdopen(*args, **kwargs):
+                return CloseFailure(real_fdopen(*args, **kwargs))
+
+            if failure_point == "fsync":
+                verifier.os.fsync = failing_fsync
+            else:
+                verifier.os.fdopen = close_failing_fdopen
+            try:
+                return_code = verifier.main(
+                    _verifier_arguments(certificate, receipt)
+                )
+            finally:
+                verifier.os.fsync = real_fsync
+                verifier.os.fdopen = real_fdopen
+
+            assert return_code == 1
+            assert observed_full_writes == [failure_point]
+            assert not receipt.exists()
+            assert {item.name for item in directory.iterdir()} == {certificate.name}
+
+
+def test_receipt_parent_swap_cannot_return_zero_when_requested_path_no_longer_names_published_inode():
+    with tempfile.TemporaryDirectory(
+        prefix="a1-headline-sizing-receipt-parent-link-"
+    ) as raw_dir:
+        directory = Path(raw_dir)
+        certificate = _write_certificate(
+            directory,
+            _small_certificate(),
+            "certificate.json",
+        )
+        real_parent = directory / "real-receipt-parent"
+        real_parent.mkdir()
+        linked_parent = directory / "linked-receipt-parent"
+        linked_parent.symlink_to(real_parent, target_is_directory=True)
+        linked_receipt = linked_parent / "receipt-must-not-exist.json"
+
+        assert verifier.main(_verifier_arguments(certificate, linked_receipt)) == 1
+        assert not (real_parent / linked_receipt.name).exists()
+        assert list(real_parent.iterdir()) == []
+
+    with tempfile.TemporaryDirectory(
+        prefix="a1-headline-sizing-receipt-parent-swap-"
+    ) as raw_dir:
+        directory = Path(raw_dir)
+        certificate = _write_certificate(
+            directory,
+            _small_certificate(),
+            "certificate.json",
+        )
+        parent = directory / "receipt-parent-to-swap"
+        attacker = directory / "attacker-receipt-parent"
+        held_parent = directory / "held-receipt-parent"
+        parent.mkdir()
+        attacker.mkdir()
+        receipt = parent / "receipt.json"
+
+        real_open = verifier.os.open
+        real_link = verifier.os.link
+        swapped = False
+        parent_descriptor = None
+        parent_open_attempts = 0
+        temporary_opens = []
+        publication_calls = []
+
+        def swapping_open(open_path, flags, mode=0o777, *, dir_fd=None):
+            nonlocal swapped, parent_descriptor, parent_open_attempts
+            opening_parent = (
+                open_path == parent.name
+                and dir_fd is not None
+                and flags & verifier.os.O_DIRECTORY
+            )
+            if opening_parent:
+                parent_open_attempts += 1
+            if dir_fd is None:
+                descriptor = real_open(open_path, flags, mode)
+            else:
+                descriptor = real_open(open_path, flags, mode, dir_fd=dir_fd)
+            if opening_parent and not swapped:
+                parent_descriptor = descriptor
+                parent.rename(held_parent)
+                parent.symlink_to(attacker, target_is_directory=True)
+                swapped = True
+            if flags & verifier.os.O_CREAT:
+                temporary_opens.append((open_path, flags, dir_fd))
+            return descriptor
+
+        def tracked_link(
+            source,
+            destination,
+            *,
+            src_dir_fd=None,
+            dst_dir_fd=None,
+            follow_symlinks=True,
+        ):
+            publication_calls.append(
+                (source, destination, src_dir_fd, dst_dir_fd, follow_symlinks)
+            )
+            return real_link(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+                follow_symlinks=follow_symlinks,
+            )
+
+        verifier.os.open = swapping_open
+        verifier.os.link = tracked_link
+        try:
+            return_code = verifier.main(_verifier_arguments(certificate, receipt))
+        finally:
+            verifier.os.open = real_open
+            verifier.os.link = real_link
+
+        assert return_code == 1
+        assert swapped is True
+        assert parent_descriptor is not None
+        assert parent_open_attempts == 2
+        assert len(temporary_opens) == 1
+        temporary_name, temporary_flags, temporary_dir_fd = temporary_opens[0]
+        assert temporary_name.startswith(".a1-replay-receipt-")
+        assert temporary_flags & verifier.os.O_EXCL
+        assert temporary_flags & verifier.os.O_NOFOLLOW
+        assert temporary_dir_fd == parent_descriptor
+        assert publication_calls == []
+        assert not receipt.exists()
+        assert not (held_parent / receipt.name).exists()
+        assert not (attacker / receipt.name).exists()
+        assert list(held_parent.iterdir()) == []
+        assert list(attacker.iterdir()) == []
+
+
+def test_published_receipt_survives_temp_cleanup_failure_without_nonzero_flip():
+    with tempfile.TemporaryDirectory(
+        prefix="a1-headline-sizing-receipt-cleanup-failure-"
+    ) as raw_dir:
+        directory = Path(raw_dir)
+        certificate = _write_certificate(
+            directory,
+            _small_certificate(),
+            "certificate.json",
+        )
+        receipt = directory / "receipt.json"
+        certificate_digest = hashlib.sha256(certificate.read_bytes()).hexdigest()
+        expected_raw = verifier.canonical_bytes(
+            verifier.build_replay_receipt(
+                certificate,
+                certificate_digest,
+                _verification_config(),
+            )
+        )
+        real_unlink = verifier.os.unlink
+        cleanup_attempts = []
+
+        def failing_unlink(unlink_path, *, dir_fd=None):
+            cleanup_attempts.append((unlink_path, dir_fd))
+            raise OSError(5, "injected temporary receipt cleanup failure")
+
+        verifier.os.unlink = failing_unlink
+        try:
+            return_code = verifier.main(_verifier_arguments(certificate, receipt))
+        finally:
+            verifier.os.unlink = real_unlink
+
+        assert return_code == 0
+        assert receipt.read_bytes() == expected_raw
+        assert len(cleanup_attempts) == 1
+        temporary_name, cleanup_dir_fd = cleanup_attempts[0]
+        assert temporary_name.startswith(".a1-replay-receipt-")
+        assert cleanup_dir_fd is not None
+        temporary = directory / temporary_name
+        assert temporary.read_bytes() == expected_raw
+        assert temporary.stat().st_ino == receipt.stat().st_ino
+
+
 def test_replay_receipt_rejects_tamper_runtime_and_certificate_drift():
     with tempfile.TemporaryDirectory(prefix="a1-headline-sizing-receipt-red-") as raw_dir:
         directory = Path(raw_dir)
@@ -1232,11 +1771,16 @@ def test_replay_receipt_rejects_noncanonical_json_and_never_overwrites():
         assert str(noncanonical_error) == (
             "replay receipt bytes are not canonical JSON"
         )
+        noncanonical.unlink()
 
         existing = directory / "existing-receipt.json"
         existing.write_bytes(b"do not replace\n")
         assert verifier.main(_verifier_arguments(certificate, existing)) == 1
         assert existing.read_bytes() == b"do not replace\n"
+        assert {item.name for item in directory.iterdir()} == {
+            certificate.name,
+            existing.name,
+        }
 
 
 def test_runtime_contract_rejects_ambient_python_and_numpy_version_drift():
@@ -1479,6 +2023,8 @@ EXPECTED_SELF_TEST_NAMES = frozenset(
         "test_pilot_arm_cv_rederivation_binds_ddof_max_inflation_and_proxy",
         "test_pilot_readers_use_one_nofollow_descriptor_for_fstat_and_read",
         "test_canonical_pilot_parent_swap_cannot_cross_dirfd_boundary",
+        "test_certificate_receipt_and_sources_reject_parent_symlinks_at_callsites",
+        "test_certificate_receipt_and_source_parent_swaps_stay_on_held_dirfds",
         "test_exact_binomial_order_interval_uses_six_arm_bonferroni_target",
         "test_inverse_normal_cdf_algorithm_has_fixed_golden_values",
         "test_inverse_normal_matches_stdlib_normaldist_on_fixed_grid",
@@ -1495,6 +2041,11 @@ EXPECTED_SELF_TEST_NAMES = frozenset(
         "test_certificate_policy_separates_sources_targets_and_binds_selection_rules",
         "test_source_separated_replay_recomputes_positive_certificate",
         "test_replay_receipt_binds_tools_runtime_certificate_and_policy",
+        "test_success_stdout_flush_precedes_receipt_publication_positive_control",
+        "test_success_stdout_broken_pipe_prevents_receipt_publication",
+        "test_fsync_failure_after_full_write_cannot_leave_return_code_zero_receipt",
+        "test_receipt_parent_swap_cannot_return_zero_when_requested_path_no_longer_names_published_inode",
+        "test_published_receipt_survives_temp_cleanup_failure_without_nonzero_flip",
         "test_replay_receipt_rejects_tamper_runtime_and_certificate_drift",
         "test_replay_receipt_detects_tool_source_changes",
         "test_replay_receipt_rejects_noncanonical_json_and_never_overwrites",

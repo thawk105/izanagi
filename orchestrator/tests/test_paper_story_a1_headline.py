@@ -34,7 +34,10 @@ CERTIFICATE = ROOT / headline.SIZING_CERTIFICATE_PATH
 RECEIPT = ROOT / headline.SIZING_REPLAY_RECEIPT_PATH
 GENERATOR_SOURCE = ROOT / headline.SIZING_GENERATOR_SOURCE_PATH
 VERIFIER_SOURCE = ROOT / headline.SIZING_VERIFIER_SOURCE_PATH
-BASE_COMMIT = "8d014c748286c6fec497d0afa10a395f159861b1"
+AUTHOR_BASE_COMMIT = "8d014c748286c6fec497d0afa10a395f159861b1"
+AUTHOR_TIP_COMMIT = "c6dc4012cf5055f925659366553a2e7301b2aa00"
+INTEGRATION_BASE_COMMIT = "61b92342beb259363eb5ed094ac200dd39a7a1f5"
+INTEGRATION_TIP_COMMIT = "ff65e61692801b2de3194ede262d9f53ed317f7b"
 
 
 def _assert_raises(exception_type, function, *args, match: str | None = None, **kwargs):
@@ -204,8 +207,8 @@ def _constant(value: float, n: int = 28) -> list[float]:
 
 def test_canonical_pair_binds_hashes_schema_and_selected_workloads():
     bound = _bound()
-    assert bound.document_sha256 == "48810aa5d855c94a3134bc54ea16389672e86829aa3845016cfb41f1dccca49b"
-    assert bound.raw_spec_sha256 == "3725f2b9b5d54aaa23cdd4add878630b3698fce078066b94715cf7efbf9af9f4"
+    assert bound.document_sha256 == "6133e2143f73c47d8b69909755f5953f926a755df9c62fce4e7bb1a0f29aae03"
+    assert bound.raw_spec_sha256 == "b6605ddcfae7d3c2616cc65abce90ac1d912bea7312325123a989415d63b92c2"
     assert bound.failed_sizing_certificate_sha256 == (
         "da511809ba1ef855c39f78aacee3feba5524c222b80d77f2884b61223aa10efd"
     )
@@ -213,7 +216,7 @@ def test_canonical_pair_binds_hashes_schema_and_selected_workloads():
         "4f4735cf43f227f421b0bfcc2c9f17328736a105def15071838e0ba5d5a3e18a"
     )
     assert bound.sizing_replay_receipt_sha256 == (
-        "a147b10f5881eeb000239380cc48580e5217dbc4184fd896ce864f1226a38958"
+        "269f070b4603e93b42ebc6433d0f8deb370a021be6afcd452320a63e9a9f0ff3"
     )
     assert [
         (
@@ -1246,15 +1249,57 @@ def test_existing_a1_non_touch_manifest_is_empty_from_base():
         "tools/pegasus/admission_registry.json",
         "tools/pegasus/paper_story_a1_paired.sh",
     )
-    committed = subprocess.run(
-        ["git", "diff", "--exit-code", BASE_COMMIT, "--", *manifest],
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
+    ranges = (
+        ("author", AUTHOR_BASE_COMMIT, AUTHOR_TIP_COMMIT),
+        ("integration", INTEGRATION_BASE_COMMIT, INTEGRATION_TIP_COMMIT),
     )
-    assert committed.returncode == 0, committed.stdout + committed.stderr
+    for commit in (
+        AUTHOR_BASE_COMMIT,
+        AUTHOR_TIP_COMMIT,
+        INTEGRATION_BASE_COMMIT,
+        INTEGRATION_TIP_COMMIT,
+    ):
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        assert ancestor.returncode == 0, (
+            f"required proof commit is not a HEAD ancestor: {commit}\n"
+            + ancestor.stdout
+            + ancestor.stderr
+        )
+    for label, base, tip in ranges:
+        ordered = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", base, tip],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        assert ordered.returncode == 0, (
+            f"{label} proof range is not ordered: {base}..{tip}\n"
+            + ordered.stdout
+            + ordered.stderr
+        )
+        committed = subprocess.run(
+            ["git", "diff", "--exit-code", base, tip, "--", *manifest],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        assert committed.returncode == 0, (
+            f"{label} proof range touched the existing A-1 manifest: "
+            f"{base}..{tip}\n"
+            + committed.stdout
+            + committed.stderr
+        )
     worktree = subprocess.run(
         ["git", "status", "--porcelain=v1", "--untracked-files=all", "--", *manifest],
         cwd=ROOT,

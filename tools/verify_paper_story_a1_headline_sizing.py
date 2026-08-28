@@ -175,12 +175,39 @@ def _parse(raw: bytes, label: str) -> dict[str, object]:
 
 
 def _read_regular(path: Path, label: str) -> bytes:
+    """Read one regular file through a held, no-follow directory chain."""
     nofollow = getattr(os, "O_NOFOLLOW", None)
-    if nofollow is None:
-        raise VerificationError("O_NOFOLLOW is required for bound file reads")
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        raise VerificationError(
+            "O_NOFOLLOW and O_DIRECTORY are required for bound file reads"
+        )
+    absolute = Path(os.path.abspath(path))
+    parts = absolute.parts
+    if (
+        not absolute.is_absolute()
+        or len(parts) < 2
+        or any(part in {"", ".", ".."} for part in parts[1:])
+    ):
+        raise VerificationError(f"{label} path is invalid: {path}")
+
+    open_directories: list[int] = []
     descriptor: int | None = None
+    directory_flags = os.O_RDONLY | os.O_CLOEXEC | nofollow | directory
     try:
-        descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | nofollow)
+        open_directories.append(os.open(absolute.anchor, directory_flags))
+        for component in parts[1:-1]:
+            child = os.open(
+                component,
+                directory_flags,
+                dir_fd=open_directories[-1],
+            )
+            open_directories.append(child)
+        descriptor = os.open(
+            parts[-1],
+            os.O_RDONLY | os.O_CLOEXEC | nofollow,
+            dir_fd=open_directories[-1],
+        )
         mode = os.fstat(descriptor).st_mode
         if not stat.S_ISREG(mode):
             raise VerificationError(f"{label} is not a regular non-symlink file")
@@ -195,6 +222,8 @@ def _read_regular(path: Path, label: str) -> bytes:
     finally:
         if descriptor is not None:
             os.close(descriptor)
+        for directory_descriptor in reversed(open_directories):
+            os.close(directory_descriptor)
 
 
 def _reject_symlink_components(path: Path, label: str) -> None:
@@ -329,27 +358,137 @@ def load_replay_receipt(path: Path) -> tuple[dict[str, object], bytes]:
 def write_new_receipt(path: Path, raw: bytes) -> None:
     if type(raw) is not bytes:
         raise VerificationError("replay receipt payload must be bytes")
-    descriptor: int | None = None
-    try:
-        descriptor = os.open(
-            path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
-            0o644,
-        )
-        with os.fdopen(descriptor, "wb", closefd=True) as stream:
-            descriptor = None
-            stream.write(raw)
-            stream.flush()
-            os.fsync(stream.fileno())
-    except FileExistsError as exc:
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
         raise VerificationError(
-            f"replay receipt already exists and will not be overwritten: {path}"
-        ) from exc
+            "O_NOFOLLOW and O_DIRECTORY are required for bound receipt writes"
+        )
+    absolute = Path(os.path.abspath(path))
+    parts = absolute.parts
+    if (
+        not absolute.is_absolute()
+        or len(parts) < 2
+        or any(part in {"", ".", ".."} for part in parts[1:])
+    ):
+        raise VerificationError(f"replay receipt path is invalid: {path}")
+
+    open_directories: list[int] = []
+    descriptor: int | None = None
+    stream = None
+    temporary_name: str | None = None
+    try:
+        directory_flags = os.O_RDONLY | os.O_CLOEXEC | nofollow | directory
+        open_directories.append(os.open(absolute.anchor, directory_flags))
+        for component in parts[1:-1]:
+            child = os.open(
+                component,
+                directory_flags,
+                dir_fd=open_directories[-1],
+            )
+            open_directories.append(child)
+        parent_descriptor = open_directories[-1]
+
+        temporary_flags = (
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | nofollow
+        )
+        for _ in range(128):
+            candidate = f".a1-replay-receipt-{os.urandom(16).hex()}.tmp"
+            try:
+                descriptor = os.open(
+                    candidate,
+                    temporary_flags,
+                    0o644,
+                    dir_fd=parent_descriptor,
+                )
+            except FileExistsError:
+                continue
+            temporary_name = candidate
+            break
+        else:
+            raise VerificationError(
+                f"cannot allocate a temporary replay receipt: {path}"
+            )
+
+        stream = os.fdopen(descriptor, "wb", closefd=True)
+        descriptor = None
+        written = stream.write(raw)
+        if written != len(raw):
+            raise VerificationError(f"short write for replay receipt: {path}")
+        stream.flush()
+        os.fsync(stream.fileno())
+        stream.close()
+        stream = None
+
+        requested_directories: list[int] = []
+        try:
+            requested_directories.append(
+                os.open(absolute.anchor, directory_flags)
+            )
+            for component in parts[1:-1]:
+                child = os.open(
+                    component,
+                    directory_flags,
+                    dir_fd=requested_directories[-1],
+                )
+                requested_directories.append(child)
+            held_parent_status = os.fstat(parent_descriptor)
+            requested_parent_status = os.fstat(requested_directories[-1])
+            held_parent_identity = (
+                held_parent_status.st_dev,
+                held_parent_status.st_ino,
+            )
+            requested_parent_identity = (
+                requested_parent_status.st_dev,
+                requested_parent_status.st_ino,
+            )
+            if requested_parent_identity != held_parent_identity:
+                raise VerificationError(
+                    f"replay receipt parent changed before publication: {path}"
+                )
+
+            try:
+                os.link(
+                    temporary_name,
+                    parts[-1],
+                    src_dir_fd=parent_descriptor,
+                    dst_dir_fd=parent_descriptor,
+                    follow_symlinks=False,
+                )
+            except FileExistsError as exc:
+                raise VerificationError(
+                    "replay receipt already exists and will not be overwritten: "
+                    f"{path}"
+                ) from exc
+        finally:
+            for requested_descriptor in reversed(requested_directories):
+                try:
+                    os.close(requested_descriptor)
+                except OSError:
+                    pass
     except OSError as exc:
         raise VerificationError(f"cannot create replay receipt: {path}: {exc}") from exc
     finally:
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError:
+                pass
         if descriptor is not None:
-            os.close(descriptor)
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if temporary_name is not None and open_directories:
+            try:
+                os.unlink(temporary_name, dir_fd=open_directories[-1])
+            except OSError:
+                pass
+        for directory_descriptor in reversed(open_directories):
+            try:
+                os.close(directory_descriptor)
+            except OSError:
+                pass
 
 
 def require_pilot(path: Path) -> Path:
@@ -1186,15 +1325,16 @@ def main(argv: list[str] | None = None) -> int:
         digest = verify_certificate(args.certificate, args.pilot, config)
         receipt = build_replay_receipt(args.certificate, digest, config)
         receipt_raw = canonical_bytes(receipt)
+        receipt_digest = hashlib.sha256(receipt_raw).hexdigest()
+        print(
+            f"source-separated replay verified {args.certificate} sha256={digest} "
+            f"receipt={args.receipt} receipt_sha256={receipt_digest}",
+            flush=True,
+        )
         write_new_receipt(args.receipt, receipt_raw)
     except VerificationError as exc:
         print(f"verification failed: {exc}", file=sys.stderr)
         return 1
-    receipt_digest = hashlib.sha256(receipt_raw).hexdigest()
-    print(
-        f"source-separated replay verified {args.certificate} sha256={digest} "
-        f"receipt={args.receipt} receipt_sha256={receipt_digest}"
-    )
     return 0
 
 
