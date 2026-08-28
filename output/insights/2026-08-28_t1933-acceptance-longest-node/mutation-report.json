@@ -1,0 +1,298 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8d4599cc1be386a6b3f12baae7c16dfe/izdw-8d4599cc1b.o954394",
+      "receipt_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8d4599cc1be386a6b3f12baae7c16dfe/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\n.                                                                        [100%]\n============================== 1 passed in 38.56s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "049a7efd4c002a537e2168e0999a07956f923404ddfa9eeeeb41116c1455c149"
+    },
+    "artifact_error": null,
+    "collection_sha256": "13346b3234fd5d775aceeaf5e6c00d01cdef0b9dcbea2f84150019a0a6c34e81",
+    "duration_s": 62.638,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "81c6e4b92f720ba8109a7579b06780b3633696072b2f6636316f79f3fede5052",
+    "repo_head": "2ffb32a0e7b9c4983553bb0fbe2393a87efdecc9",
+    "runner_sha256": "12e2c742b64947054d7192757676d3de37fdf752511cbfef3220362b5e4dce9e",
+    "spec_sha256": "75b64ef77c798b144c8061e077526a24ff0546d602b221926d00a9d77e565059",
+    "status": "PASSED",
+    "test_output_sha256": "049a7efd4c002a537e2168e0999a07956f923404ddfa9eeeeb41116c1455c149",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bbba51587afe99c24cbf315228fd1bf3478cffcb4c5180f1391b43df9b1e7659"
+  },
+  "date": "2026-08-28T00:03:15.361053+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cffc082d8850a9b9cccf072ff630d34b/izdw-cffc082d88.o954395",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cffc082d8850a9b9cccf072ff630d34b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_______ test_real_repo_group_collection_exactly_matches_canonical_nodes ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n        \"\"\"全 group marker と real-repo node 集合を独立 golden で監査する。\"\"\"\n        _require_pytest()\n        report = _collect_xdist_group_report(HERE, cwd=ROOT)\n        _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n    \n        suite_conftest = _load_suite_conftest()\n        golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n        golden_access = _real_repo_access_golden()\n        resource_golden = set(golden_access)\n        configured_access = {\n            node_id: (access.parent, access.ccbench)\n            for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n        }\n>       assert configured_access == golden_access, (\n            \"conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: \"\n            f\"missing={sorted(resource_golden - set(configured_access))} \"\n            f\"extra={sorted(set(configured_access) - resource_golden)}\"\n        )\nE       AssertionError: conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: missing=['test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28'] extra=[]\nE       assert {'test_t810_c...', None), ...} == {'test_codex_... 'read'), ...}\nE         \nE         Omitting 98 identical items, use -vv to show\nE         Right contains 1 more item:\nE         {'test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28': ('read',\nE                                                                                                                    'read')}\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:1485: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n============================== 1 failed in 48.75s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1798 retained_bytes=1798 omitted_bytes=0 rendered_excerpt_bytes=1942 sha256=a5a066574b7fe5609db845b8ac904aac5e3c45a1754b0c3971fbaacd79b09f2f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n>         \"\"\"\\u5168 group marker \\u3068 real-repo node \\u96c6\\u5408\\u3092\\u72ec\\u7acb golden \\u3067\\u76e3\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>         _require_pytest()\n>         report = _collect_xdist_group_report(HERE, cwd=ROOT)\n>         _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n>     \n>         suite_conftest = _load_suite_conftest()\n>         golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n>         golden_access = _real_repo_access_golden()\n>         resource_golden = set(golden_access)\n>         configured_access = {\n>             node_id: (access.parent, access.ccbench)\n>             for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n>         }\n> >       assert configured_access == golden_access, (\n>             \"conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: \"\n>             f\"missing={sorted(resource_golden - set(configured_access))} \"\n>             f\"extra={sorted(set(configured_access) - resource_golden)}\"\n>         )\n> E       AssertionError: conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: missing=['test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28'] extra=[]\n> E       assert {'test_t810_c...', None), ...} == {'test_codex_... 'read'), ...}\n> E         \n> E         Omitting 98 identical items, use -vv to show\n> E         Right contains 1 more item:\n> E         {'test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28': ('read',\n> E                                                                                                                    'read')}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:1485: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1798 retained_bytes=1798 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2685 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4db419188b35640fb3e0a660427053dd67df3064ea6bbd704c3ca2859648e84e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "13346b3234fd5d775aceeaf5e6c00d01cdef0b9dcbea2f84150019a0a6c34e81",
+      "duration_s": 77.922,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "hang_risk": false,
+      "id": "acceptance-fastest.production-member",
+      "injection_diff_sha256": "1149ef266b8ca19f670a488a264e2fc18caeb3895eb900c726568d66b3f15feb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2c0d540f4b189f0353ef0f5d067ba9b685af045514bd7577556b8eda8b09151b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "",
+          "old": "    \"test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\",\n"
+        }
+      ],
+      "repo_head": "2ffb32a0e7b9c4983553bb0fbe2393a87efdecc9",
+      "runner_sha256": "12e2c742b64947054d7192757676d3de37fdf752511cbfef3220362b5e4dce9e",
+      "spec_sha256": "75b64ef77c798b144c8061e077526a24ff0546d602b221926d00a9d77e565059",
+      "status": "KILLED",
+      "test_output_sha256": "4db419188b35640fb3e0a660427053dd67df3064ea6bbd704c3ca2859648e84e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbba51587afe99c24cbf315228fd1bf3478cffcb4c5180f1391b43df9b1e7659"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ec6c1ac5e59f2a1bd3990d26d55d61e7/izdw-ec6c1ac5e5.o954396",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ec6c1ac5e59f2a1bd3990d26d55d61e7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_______ test_real_repo_group_collection_exactly_matches_canonical_nodes ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n        \"\"\"全 group marker と real-repo node 集合を独立 golden で監査する。\"\"\"\n        _require_pytest()\n        report = _collect_xdist_group_report(HERE, cwd=ROOT)\n        _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n    \n        suite_conftest = _load_suite_conftest()\n        golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n        golden_access = _real_repo_access_golden()\n        resource_golden = set(golden_access)\n        configured_access = {\n            node_id: (access.parent, access.ccbench)\n            for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n        }\n        assert configured_access == golden_access, (\n            \"conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: \"\n            f\"missing={sorted(resource_golden - set(configured_access))} \"\n            f\"extra={sorted(set(configured_access) - resource_golden)}\"\n        )\n        assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden\n        assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden\n        assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(\n            _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN\n        )\n        assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(\n            _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN\n        )\n>       assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(\n            _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN\n        )\nE       AssertionError: assert {'test_s8b_bi...alls_nothing'} == {'test_s8b_bi...xact_b5', ...}\nE         \nE         Extra items in the right set:\nE         'test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5'\nE         'test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28'\nE         'test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5'\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:1498: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n============================== 1 failed in 37.60s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2168 retained_bytes=2168 omitted_bytes=0 rendered_excerpt_bytes=2311 sha256=c9a3e279ca9131221fa4bf9a92700c038516f720e674cf477cfb0047016f2df7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n>         \"\"\"\\u5168 group marker \\u3068 real-repo node \\u96c6\\u5408\\u3092\\u72ec\\u7acb golden \\u3067\\u76e3\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>         _require_pytest()\n>         report = _collect_xdist_group_report(HERE, cwd=ROOT)\n>         _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n>     \n>         suite_conftest = _load_suite_conftest()\n>         golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n>         golden_access = _real_repo_access_golden()\n>         resource_golden = set(golden_access)\n>         configured_access = {\n>             node_id: (access.parent, access.ccbench)\n>             for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n>         }\n>         assert configured_access == golden_access, (\n>             \"conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: \"\n>             f\"missing={sorted(resource_golden - set(configured_access))} \"\n>             f\"extra={sorted(set(configured_access) - resource_golden)}\"\n>         )\n>         assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden\n>         assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden\n>         assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(\n>             _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN\n>         )\n>         assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(\n>             _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN\n>         )\n> >       assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(\n>             _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN\n>         )\n> E       AssertionError: assert {'test_s8b_bi...alls_nothing'} == {'test_s8b_bi...xact_b5', ...}\n> E         \n> E         Extra items in the right set:\n> E         'test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5'\n> E         'test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28'\n> E         'test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:1498: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2168 retained_bytes=2168 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3054 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "73432be814322ef0e063665de20feff4ee4259103d9949072f2b31ff17ec1ddd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "13346b3234fd5d775aceeaf5e6c00d01cdef0b9dcbea2f84150019a0a6c34e81",
+      "duration_s": 57.553,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "hang_risk": false,
+      "id": "acceptance-fastest.process-memo",
+      "injection_diff_sha256": "b8cd14cc3270ab35324948e4f63c3839c486998c513537bf3f56b9ab1bb7db7e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "168ee3b41a35e3b67396f32c8651f9a656a492674e603eacbcf5db5d3e9cd686",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    \"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\n    \"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\n})\n",
+          "old": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    \"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\n    \"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\n}) | _T080_STUB_FREE_E2E_PROCESS_MEMO_NODES\n"
+        }
+      ],
+      "repo_head": "2ffb32a0e7b9c4983553bb0fbe2393a87efdecc9",
+      "runner_sha256": "12e2c742b64947054d7192757676d3de37fdf752511cbfef3220362b5e4dce9e",
+      "spec_sha256": "75b64ef77c798b144c8061e077526a24ff0546d602b221926d00a9d77e565059",
+      "status": "KILLED",
+      "test_output_sha256": "73432be814322ef0e063665de20feff4ee4259103d9949072f2b31ff17ec1ddd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbba51587afe99c24cbf315228fd1bf3478cffcb4c5180f1391b43df9b1e7659"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a1f5a95e9e599a4b8248b9413d0c1a4/izdw-8a1f5a95e9.o954401",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a1f5a95e9e599a4b8248b9413d0c1a4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_______ test_real_repo_group_collection_exactly_matches_canonical_nodes ________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n        \"\"\"全 group marker と real-repo node 集合を独立 golden で監査する。\"\"\"\n        _require_pytest()\n        report = _collect_xdist_group_report(HERE, cwd=ROOT)\n        _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n    \n        suite_conftest = _load_suite_conftest()\n        golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n        golden_access = _real_repo_access_golden()\n        resource_golden = set(golden_access)\n        configured_access = {\n            node_id: (access.parent, access.ccbench)\n            for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n        }\n>       assert configured_access == golden_access, (\n            \"conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: \"\n            f\"missing={sorted(resource_golden - set(configured_access))} \"\n            f\"extra={sorted(set(configured_access) - resource_golden)}\"\n        )\nE       AssertionError: conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: missing=[] extra=['test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28']\nE       assert {'test_p3_s4_...', None), ...} == {'test_s1_kno... 'read'), ...}\nE         \nE         Omitting 98 identical items, use -vv to show\nE         Left contains 1 more item:\nE         {'test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28': ('read',\nE                                                                                                                    'read')}\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:1484: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n============================== 1 failed in 37.31s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1797 retained_bytes=1797 omitted_bytes=0 rendered_excerpt_bytes=1941 sha256=e72d7c265844051fa7f96177dc656b51e78c905c91b4f3aac4b1a5058da234d4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n>         \"\"\"\\u5168 group marker \\u3068 real-repo node \\u96c6\\u5408\\u3092\\u72ec\\u7acb golden \\u3067\\u76e3\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>         _require_pytest()\n>         report = _collect_xdist_group_report(HERE, cwd=ROOT)\n>         _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n>     \n>         suite_conftest = _load_suite_conftest()\n>         golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n>         golden_access = _real_repo_access_golden()\n>         resource_golden = set(golden_access)\n>         configured_access = {\n>             node_id: (access.parent, access.ccbench)\n>             for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n>         }\n> >       assert configured_access == golden_access, (\n>             \"conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: \"\n>             f\"missing={sorted(resource_golden - set(configured_access))} \"\n>             f\"extra={sorted(set(configured_access) - resource_golden)}\"\n>         )\n> E       AssertionError: conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: missing=[] extra=['test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28']\n> E       assert {'test_p3_s4_...', None), ...} == {'test_s1_kno... 'read'), ...}\n> E         \n> E         Omitting 98 identical items, use -vv to show\n> E         Left contains 1 more item:\n> E         {'test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28': ('read',\n> E                                                                                                                    'read')}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:1484: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1797 retained_bytes=1797 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2684 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "30fbdd86d690ff8e36cccf3f257a86a0d311bcd3495fa82766309df8028a5888"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "13346b3234fd5d775aceeaf5e6c00d01cdef0b9dcbea2f84150019a0a6c34e81",
+      "duration_s": 57.524,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "hang_risk": false,
+      "id": "acceptance-fastest.independent-golden",
+      "injection_diff_sha256": "cc618fadc595153fa7297403e606f2b37a1d2191f7b7a91dcf630409a6f20000",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2c1a52080c0c09151af6167d656484f19a700d96af8d2309c61bab8e0705e211",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "new": "_T080_STUB_FREE_E2E_PROCESS_MEMO_NODES_GOLDEN = frozenset({\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\",\n})\n",
+          "old": "_T080_STUB_FREE_E2E_PROCESS_MEMO_NODES_GOLDEN = frozenset({\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\",\n})\n"
+        }
+      ],
+      "repo_head": "2ffb32a0e7b9c4983553bb0fbe2393a87efdecc9",
+      "runner_sha256": "12e2c742b64947054d7192757676d3de37fdf752511cbfef3220362b5e4dce9e",
+      "spec_sha256": "75b64ef77c798b144c8061e077526a24ff0546d602b221926d00a9d77e565059",
+      "status": "KILLED",
+      "test_output_sha256": "30fbdd86d690ff8e36cccf3f257a86a0d311bcd3495fa82766309df8028a5888",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bbba51587afe99c24cbf315228fd1bf3478cffcb4c5180f1391b43df9b1e7659"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2a3c17fd6558aabc620886e35dc71f14/izdw-2a3c17fd65.o954393",
+        "receipt_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2a3c17fd6558aabc620886e35dc71f14/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n\n1 test collected in 0.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "a78f106df1ec4ca718d28801d08e8bf04146c7e4667a8d824c62589214aaa846"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "duration_s": 26.806,
+      "rc": 0,
+      "repo_head": "2ffb32a0e7b9c4983553bb0fbe2393a87efdecc9",
+      "runner_sha256": "12e2c742b64947054d7192757676d3de37fdf752511cbfef3220362b5e4dce9e",
+      "spec_sha256": "75b64ef77c798b144c8061e077526a24ff0546d602b221926d00a9d77e565059",
+      "status": "PASSED",
+      "tool_sha256": "bbba51587afe99c24cbf315228fd1bf3478cffcb4c5180f1391b43df9b1e7659"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "acceptance-fastest.independent-golden": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cc618fadc595153fa7297403e606f2b37a1d2191f7b7a91dcf630409a6f20000",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_real_repo_serialization.py",
+            "new": "_T080_STUB_FREE_E2E_PROCESS_MEMO_NODES_GOLDEN = frozenset({\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\",\n})\n",
+            "old": "_T080_STUB_FREE_E2E_PROCESS_MEMO_NODES_GOLDEN = frozenset({\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\",\n})\n"
+          }
+        ]
+      },
+      "acceptance-fastest.process-memo": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b8cd14cc3270ab35324948e4f63c3839c486998c513537bf3f56b9ab1bb7db7e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    \"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\n    \"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\n})\n",
+            "old": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    \"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\n    \"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\n}) | _T080_STUB_FREE_E2E_PROCESS_MEMO_NODES\n"
+          }
+        ]
+      },
+      "acceptance-fastest.production-member": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1149ef266b8ca19f670a488a264e2fc18caeb3895eb900c726568d66b3f15feb",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "",
+            "old": "    \"test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "81c6e4b92f720ba8109a7579b06780b3633696072b2f6636316f79f3fede5052",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "2ffb32a0e7b9c4983553bb0fbe2393a87efdecc9",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "435d3bec81a7fad5049c489dd24b2fcbb9b1ceea",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "12e2c742b64947054d7192757676d3de37fdf752511cbfef3220362b5e4dce9e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "75b64ef77c798b144c8061e077526a24ff0546d602b221926d00a9d77e565059",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/mutation-scratch-acceptance-fastest.Y5Txei/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "bbba51587afe99c24cbf315228fd1bf3478cffcb4c5180f1391b43df9b1e7659",
+  "updated_at": "2026-08-28T00:07:41.978797+00:00"
+}

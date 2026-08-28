@@ -1,0 +1,27 @@
+{
+  "schema_version": "izanagi-acceptance-paired-runs/v1",
+  "metric": "maximum pytest JUnit session time across three K=3 shards",
+  "unit": "seconds",
+  "queue_wait_included": false,
+  "pre": {
+    "commit": "dcf9224a157668b4a6e9919841f5f242ee2ae84a",
+    "sessions": [
+      {"id": "943332d470571fd1ecb0e9ec22820eaa", "shards": [244.810, 135.929, 136.331], "max": 244.810},
+      {"id": "f81cd79f4982550a74b86503c275acc8", "shards": [241.432, 135.037, 122.326], "max": 241.432},
+      {"id": "5ba7f3a0016768417d321ab206896b37", "shards": [284.232, 134.693, 128.269], "max": 284.232}
+    ],
+    "median": 244.810
+  },
+  "post": {
+    "commit": "2aa85c451bdd3f876b11702aa9faa3a921720b10",
+    "sessions": [
+      {"id": "aa998e3215de34247134b6c947f27bf8", "shards": [252.175, 171.164, 157.469], "max": 252.175},
+      {"id": "ccb9eef2289452255dca6952fa3540e3", "shards": [239.061, 133.526, 124.420], "max": 239.061},
+      {"id": "27d81550fd3a426308f3eb37fab1cdea", "shards": [245.707, 135.720, 125.306], "max": 245.707}
+    ],
+    "median": 245.707
+  },
+  "median_delta_seconds": 0.897,
+  "median_ratio": 1.003664,
+  "classification": "no-change-under-D357"
+}

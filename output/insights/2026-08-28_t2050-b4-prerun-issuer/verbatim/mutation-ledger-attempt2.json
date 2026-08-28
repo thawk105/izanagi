@@ -1,0 +1,466 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a8abb2646c2991c09f7cf86be1848479/izdw-a8abb2646c.o956302",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a8abb2646c2991c09f7cf86be1848479/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n.............................                                            [100%]\n============================== 29 passed in 4.20s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4f8739a789ae256f5cec56dbef8db886bcccd962a3f19739f3da222f7ad3fa95"
+    },
+    "artifact_error": null,
+    "collection_sha256": "46df2303d20ac584edb21afe4c197d95bf608f1f34db5eb978054a3e7f9d0219",
+    "duration_s": 32.315,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "61eabb34e95ee3f32326453925e244f21a3a6e795c6142bd54e9fab8f81461f8",
+    "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+    "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+    "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+    "status": "PASSED",
+    "test_output_sha256": "4f8739a789ae256f5cec56dbef8db886bcccd962a3f19739f3da222f7ad3fa95",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+  },
+  "date": "2026-08-28T08:26:51.964784+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9b016ecec3a87312083b6ab2d7071dbe/izdw-9b016ecec3.o956303",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9b016ecec3a87312083b6ab2d7071dbe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n................F............                                            [100%]\n=================================== FAILURES ===================================\n_________ test_unplanned_attempt_is_rejected_before_rng_or_publication _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_unplanned_attempt_is_reje0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1545ed649960>\n\n    def test_unplanned_attempt_is_rejected_before_rng_or_publication(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        planned = list(_planned(attempts, tmp_path / \"results\"))\n        planned[0] = replace(\n            planned[0],\n            attempt_id=\"attempt-unplanned\",\n        )\n        assert len(planned) == len(attempts)\n        assert len({item.attempt_id for item in planned}) == len(planned)\n        assert {item.attempt_id for item in planned} != {\n            item.attempt_id for item in attempts\n        }\n        publication_root = tmp_path / \"publication\"\n        calls = _install_counted_seed(monkeypatch)\n    \n>       with pytest.raises(issuer.B4PrerunIssuerError) as caught:\nE       Failed: DID NOT RAISE B4PrerunIssuerError\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:286: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication\n========================= 1 failed, 28 passed in 4.24s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1099 retained_bytes=1099 omitted_bytes=0 rendered_excerpt_bytes=1154 sha256=75dbbde5b89996e9ec2be5f536b166044e3a3c7751082ee0405e12b884c6d1b3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_unplanned_attempt_is_reje0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1545ed649960>\n> \n>     def test_unplanned_attempt_is_rejected_before_rng_or_publication(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         planned = list(_planned(attempts, tmp_path / \"results\"))\n>         planned[0] = replace(\n>             planned[0],\n>             attempt_id=\"attempt-unplanned\",\n>         )\n>         assert len(planned) == len(attempts)\n>         assert len({item.attempt_id for item in planned}) == len(planned)\n>         assert {item.attempt_id for item in planned} != {\n>             item.attempt_id for item in attempts\n>         }\n>         publication_root = tmp_path / \"publication\"\n>         calls = _install_counted_seed(monkeypatch)\n>     \n> >       with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n> E       Failed: DID NOT RAISE B4PrerunIssuerError\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:286: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1099 retained_bytes=1099 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1890 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "31be1f1b01835591af46945ba6c49e38973de001dc111a96b4ee8ab23ee5ef02"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "46df2303d20ac584edb21afe4c197d95bf608f1f34db5eb978054a3e7f9d0219",
+      "duration_s": 26.998,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication"
+      ],
+      "hang_risk": false,
+      "id": "M1-planned-id-set",
+      "injection_diff_sha256": "99e692453b5983ee80a2ef5f22fcacb55e87e5e1115a2077640e574c93c77cc8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dd42725484c9486ae805213b3c9eb01f207f417327cf63e67a84d204927f4834",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "        or False\n",
+          "old": "        or set(mapped_ids) != set(scheduled_ids)\n"
+        }
+      ],
+      "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+      "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+      "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+      "status": "KILLED",
+      "test_output_sha256": "31be1f1b01835591af46945ba6c49e38973de001dc111a96b4ee8ab23ee5ef02",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1794e12d03b544c3ed466e9f394c13c3/izdw-1794e12d03.o956304",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1794e12d03b544c3ed466e9f394c13c3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n...........FF...FFF..........                                            [100%]\n=================================== FAILURES ===================================\n____ test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash ____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash() -> None:\n        parameters = inspect.signature(issuer.issue_b4_prerun_publication).parameters\n        assert set(parameters) == {\n            \"scheduled_inputs\",\n            \"planned_result_artifacts\",\n            \"publication_root\",\n        }\n        assert set(parameters).isdisjoint(\n            {\"seed\", \"seed_hex\", \"results_observed\", \"issuer_sha256\"}\n        )\n    \n        tree = ast.parse(inspect.getsource(issuer))\n        calls = [\n            node\n            for node in ast.walk(tree)\n            if isinstance(node, ast.Call)\n            and isinstance(node.func, ast.Attribute)\n            and isinstance(node.func.value, ast.Name)\n            and node.func.value.id == \"secrets\"\n            and node.func.attr == \"token_bytes\"\n        ]\n>       assert len(calls) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:1016: AssertionError\n__________ test_fewer_than_201_eligible_is_typed_before_root_creation __________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_fewer_than_201_eligible_i0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14985e4357e0>\n\n    def test_fewer_than_201_eligible_is_typed_before_root_creation(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts(EXPECTED_BLOCK_COUNT - 1)\n        publication_root = tmp_path / \"publication\"\n        calls = _install_counted_seed(monkeypatch)\n    \n        with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n            issuer.issue_b4_prerun_publication(\n                scheduled_inputs=attempts,\n                planned_result_artifacts=_planned(attempts, tmp_path / \"results\"),\n                publication_root=str(publication_root),\n            )\n    \n        _assert_reason(caught, issuer.B4PrerunRejectionReason.DESIGN_NOT_FEASIBLE)\n>       assert calls == [32]\nE       assert [] == [32]\nE         \nE         Right contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:423: AssertionError\n_______ test_other_future_result_path_below_publication_root_is_allowed ________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_other_future_result_path_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b5d3efa680>\n\n    def test_other_future_result_path_below_publication_root_is_allowed(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        publication_root = tmp_path / \"publication\"\n        planned = list(_planned(attempts, tmp_path / \"results\"))\n        future_result = publication_root / \"future-results\" / \"attempt-0000.json\"\n        planned[0] = replace(planned[0], artifact_path=str(future_result))\n        calls = _install_counted_seed(monkeypatch)\n    \n        publication = issuer.issue_b4_prerun_publication(\n            scheduled_inputs=attempts,\n            planned_result_artifacts=planned,\n            publication_root=str(publication_root),\n        )\n    \n>       assert calls == [32]\nE       assert [] == [32]\nE         \nE         Right contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:591: AssertionError\n________________ test_same_publication_root_cannot_be_reissued _________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_same_publication_root_can0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14952c164ac0>\n\n    def test_same_publication_root_cannot_be_reissued(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        planned = _planned(attempts, tmp_path / \"results\")\n        publication_root = tmp_path / \"publication\"\n        calls = _install_counted_seed(monkeypatch)\n        issuer.issue_b4_prerun_publication(\n            scheduled_inputs=attempts,\n            planned_result_artifacts=planned,\n            publication_root=str(publication_root),\n        )\n    \n        with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n            issuer.issue_b4_prerun_publication(\n                scheduled_inputs=attempts,\n                planned_result_artifacts=planned,\n                publication_root=str(publication_root),\n            )\n    \n        _assert_reason(caught, issuer.B4PrerunRejectionReason.PUBLICATION_ROOT_EXISTS)\n>       assert calls == [32]\nE       assert [] == [32]\nE         \nE         Right contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:678: AssertionError\n_____ test_issue_publishes_complete_bundle_and_existing_consumers_reverify _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_issue_publishes_complete_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c3022b00a0>\n\n    def test_issue_publishes_complete_bundle_and_existing_consumers_reverify(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        eligible = _eligible_attempts()\n        exceptional = (\n            _attempt(\n                700,\n                reason=ledgers.B4ScheduledAttemptReason.GENERATION_FAILED,\n            ),\n            _attempt(\n                701,\n                reason=ledgers.B4ScheduledAttemptReason.SCREENING_ONLY_RED,\n                red_classes=(ledgers.B4DigestRedClass.SCREENING,),\n            ),\n        )\n        attempts = eligible + exceptional\n        planned = _planned(attempts, tmp_path / \"results\")\n        publication_root = tmp_path / \"publication\"\n        calls = _install_counted_seed(monkeypatch)\n    \n        publication = issuer.issue_b4_prerun_publication(\n            scheduled_inputs=attempts,\n            planned_result_artifacts=planned,\n            publication_root=str(publication_root),\n        )\n    \n        expected_seed = bytes(range(32))\n        expected_seed_sha256 = hashlib.sha256(expected_seed).hexdigest()\n>       assert calls == [32]\nE       assert [] == [32]\nE         \nE         Right contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:200: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify\n========================= 5 failed, 24 passed in 4.16s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1526 retained_bytes=1526 omitted_bytes=0 rendered_excerpt_bytes=1609 sha256=a13f983827570aabe2cd1ed95c69704467e30afc3ee99e08b9ce05067e3d1b7f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_issue_publishes_complete_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c3022b00a0>\n> \n>     def test_issue_publishes_complete_bundle_and_existing_consumers_reverify(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         eligible = _eligible_attempts()\n>         exceptional = (\n>             _attempt(\n>                 700,\n>                 reason=ledgers.B4ScheduledAttemptReason.GENERATION_FAILED,\n>             ),\n>             _attempt(\n>                 701,\n>                 reason=ledgers.B4ScheduledAttemptReason.SCREENING_ONLY_RED,\n>                 red_classes=(ledgers.B4DigestRedClass.SCREENING,),\n>             ),\n>         )\n>         attempts = eligible + exceptional\n>         planned = _planned(attempts, tmp_path / \"results\")\n>         publication_root = tmp_path / \"publication\"\n>         calls = _install_counted_seed(monkeypatch)\n>     \n>         publication = issuer.issue_b4_prerun_publication(\n>             scheduled_inputs=attempts,\n>             planned_result_artifacts=planned,\n>             publication_root=str(publication_root),\n>         )\n>     \n>         expected_seed = bytes(range(32))\n>         expected_seed_sha256 = hashlib.sha256(expected_seed).hexdigest()\n> >       assert calls == [32]\n> E       assert [] == [32]\n> E         \n> E         Right contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:200: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1331 retained_bytes=1331 omitted_bytes=0 rendered_excerpt_bytes=1400 sha256=84f155d430ceae8dcf4c18771ccee4193b1fd0ca99873c221dbdd6ab2d82412b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_same_publication_root_can0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14952c164ac0>\n> \n>     def test_same_publication_root_cannot_be_reissued(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         planned = _planned(attempts, tmp_path / \"results\")\n>         publication_root = tmp_path / \"publication\"\n>         calls = _install_counted_seed(monkeypatch)\n>         issuer.issue_b4_prerun_publication(\n>             scheduled_inputs=attempts,\n>             planned_result_artifacts=planned,\n>             publication_root=str(publication_root),\n>         )\n>     \n>         with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n>             issuer.issue_b4_prerun_publication(\n>                 scheduled_inputs=attempts,\n>                 planned_result_artifacts=planned,\n>                 publication_root=str(publication_root),\n>             )\n>     \n>         _assert_reason(caught, issuer.B4PrerunRejectionReason.PUBLICATION_ROOT_EXISTS)\n> >       assert calls == [32]\n> E       assert [] == [32]\n> E         \n> E         Right contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:678: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1162 retained_bytes=1162 omitted_bytes=0 rendered_excerpt_bytes=1221 sha256=b5c23f9bb3709a8f9e62acccd80c619e1cb7859e828bf202e1c4cf4cbe095ed6\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_other_future_result_path_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b5d3efa680>\n> \n>     def test_other_future_result_path_below_publication_root_is_allowed(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         publication_root = tmp_path / \"publication\"\n>         planned = list(_planned(attempts, tmp_path / \"results\"))\n>         future_result = publication_root / \"future-results\" / \"attempt-0000.json\"\n>         planned[0] = replace(planned[0], artifact_path=str(future_result))\n>         calls = _install_counted_seed(monkeypatch)\n>     \n>         publication = issuer.issue_b4_prerun_publication(\n>             scheduled_inputs=attempts,\n>             planned_result_artifacts=planned,\n>             publication_root=str(publication_root),\n>         )\n>     \n> >       assert calls == [32]\n> E       assert [] == [32]\n> E         \n> E         Right contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:591: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 rendered_excerpt_bytes=1202 sha256=464f0c6024c579abb38f702bc094808bf58edab6e7a1245f18124d80ac57a1d7\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_fewer_than_201_eligible_i0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14985e4357e0>\n> \n>     def test_fewer_than_201_eligible_is_typed_before_root_creation(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts(EXPECTED_BLOCK_COUNT - 1)\n>         publication_root = tmp_path / \"publication\"\n>         calls = _install_counted_seed(monkeypatch)\n>     \n>         with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n>             issuer.issue_b4_prerun_publication(\n>                 scheduled_inputs=attempts,\n>                 planned_result_artifacts=_planned(attempts, tmp_path / \"results\"),\n>                 publication_root=str(publication_root),\n>             )\n>     \n>         _assert_reason(caught, issuer.B4PrerunRejectionReason.DESIGN_NOT_FEASIBLE)\n> >       assert calls == [32]\n> E       assert [] == [32]\n> E         \n> E         Right contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:423: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1034 retained_bytes=1034 omitted_bytes=0 rendered_excerpt_bytes=1091 sha256=5594736f84d87dfdaa71b72cfb821a02d174e27424abe41cf44d5a3f9ab3adb3\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash() -> None:\n>         parameters = inspect.signature(issuer.issue_b4_prerun_publication).parameters\n>         assert set(parameters) == {\n>             \"scheduled_inputs\",\n>             \"planned_result_artifacts\",\n>             \"publication_root\",\n>         }\n>         assert set(parameters).isdisjoint(\n>             {\"seed\", \"seed_hex\", \"results_observed\", \"issuer_sha256\"}\n>         )\n>     \n>         tree = ast.parse(inspect.getsource(issuer))\n>         calls = [\n>             node\n>             for node in ast.walk(tree)\n>             if isinstance(node, ast.Call)\n>             and isinstance(node.func, ast.Attribute)\n>             and isinstance(node.func.value, ast.Name)\n>             and node.func.value.id == \"secrets\"\n>             and node.func.attr == \"token_bytes\"\n>         ]\n> >       assert len(calls) == 1\n> E       assert 0 == 1\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:1016: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=6198 retained_bytes=6198 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9058 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c73fa1bdc3c90f2c2fcc86b12bd58e6140f9984398879e3b91ca117cf00df822"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "46df2303d20ac584edb21afe4c197d95bf608f1f34db5eb978054a3e7f9d0219",
+      "duration_s": 27.133,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify"
+      ],
+      "hang_risk": false,
+      "id": "M2-ignore-csprng-return",
+      "injection_diff_sha256": "14d2caeac742138fcf56363834c3ee690ade603fa12d8c2809e378d87c358942",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ea693d4f6c877a132f45f0112671943e26f0d70ec6bf5b970155b38b03f93766",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "        seed_bytes = b\"\\x00\" * 32\n",
+          "old": "        seed_bytes = secrets.token_bytes(32)\n"
+        }
+      ],
+      "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+      "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+      "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+      "status": "KILLED",
+      "test_output_sha256": "c73fa1bdc3c90f2c2fcc86b12bd58e6140f9984398879e3b91ca117cf00df822",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c0204831a8b2474d6d0b65eb16b3391b/izdw-c0204831a8.o956305",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c0204831a8b2474d6d0b65eb16b3391b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n.......................F.....                                            [100%]\n=================================== FAILURES ===================================\n____________ test_source_receipt_reference_only_tamper_is_rejected _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_source_receipt_reference_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153f8bb01330>\n\n    def test_source_receipt_reference_only_tamper_is_rejected(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        publication_root = tmp_path / \"publication\"\n        _install_counted_seed(monkeypatch)\n        publication = issuer.issue_b4_prerun_publication(\n            scheduled_inputs=attempts,\n            planned_result_artifacts=_planned(attempts, tmp_path / \"results\"),\n            publication_root=str(publication_root),\n        )\n        manifest_path = Path(publication.manifest_path)\n        receipt_path = Path(publication.receipt_path)\n        manifest_payload = json.loads(manifest_path.read_text(encoding=\"utf-8\"))\n        old_source_sha256 = manifest_payload[\"seed_receipt\"][\n            \"source_receipt_sha256\"\n        ]\n        replacement_source_sha256 = \"00\" * 32\n        assert replacement_source_sha256 != old_source_sha256\n        manifest_payload[\"seed_receipt\"][\n            \"source_receipt_sha256\"\n        ] = replacement_source_sha256\n        replaced_manifest = _canonical(manifest_payload)\n        manifest_path.write_bytes(replaced_manifest)\n    \n        receipt_payload = json.loads(receipt_path.read_text(encoding=\"utf-8\"))\n        replacement_manifest_sha256 = hashlib.sha256(replaced_manifest).hexdigest()\n        receipt_payload[\"manifest_artifact\"][\"sha256\"] = (\n            replacement_manifest_sha256\n        )\n        receipt_payload[\"manifest_artifact\"][\"byte_count\"] = len(replaced_manifest)\n        receipt_payload[\"completeness\"][\"manifest_sha256\"] = (\n            replacement_manifest_sha256\n        )\n        receipt_path.write_bytes(_canonical(receipt_payload))\n    \n>       with pytest.raises(issuer.B4PrerunIssuerError) as caught:\nE       Failed: DID NOT RAISE B4PrerunIssuerError\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:370: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected\n========================= 1 failed, 28 passed in 4.19s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2082 retained_bytes=2082 omitted_bytes=0 rendered_excerpt_bytes=2175 sha256=1490d166bc71a031cddb9ef1ada825658a46bfdf1acb31b69124b8be4e0436c3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_source_receipt_reference_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153f8bb01330>\n> \n>     def test_source_receipt_reference_only_tamper_is_rejected(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         publication_root = tmp_path / \"publication\"\n>         _install_counted_seed(monkeypatch)\n>         publication = issuer.issue_b4_prerun_publication(\n>             scheduled_inputs=attempts,\n>             planned_result_artifacts=_planned(attempts, tmp_path / \"results\"),\n>             publication_root=str(publication_root),\n>         )\n>         manifest_path = Path(publication.manifest_path)\n>         receipt_path = Path(publication.receipt_path)\n>         manifest_payload = json.loads(manifest_path.read_text(encoding=\"utf-8\"))\n>         old_source_sha256 = manifest_payload[\"seed_receipt\"][\n>             \"source_receipt_sha256\"\n>         ]\n>         replacement_source_sha256 = \"00\" * 32\n>         assert replacement_source_sha256 != old_source_sha256\n>         manifest_payload[\"seed_receipt\"][\n>             \"source_receipt_sha256\"\n>         ] = replacement_source_sha256\n>         replaced_manifest = _canonical(manifest_payload)\n>         manifest_path.write_bytes(replaced_manifest)\n>     \n>         receipt_payload = json.loads(receipt_path.read_text(encoding=\"utf-8\"))\n>         replacement_manifest_sha256 = hashlib.sha256(replaced_manifest).hexdigest()\n>         receipt_payload[\"manifest_artifact\"][\"sha256\"] = (\n>             replacement_manifest_sha256\n>         )\n>         receipt_payload[\"manifest_artifact\"][\"byte_count\"] = len(replaced_manifest)\n>         receipt_payload[\"completeness\"][\"manifest_sha256\"] = (\n>             replacement_manifest_sha256\n>         )\n>         receipt_path.write_bytes(_canonical(receipt_payload))\n>     \n> >       with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n> E       Failed: DID NOT RAISE B4PrerunIssuerError\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:370: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2082 retained_bytes=2082 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2904 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "aae0c5b04d854fd230dae45fca268a4e51051ee1a4254cb7401a841e6e2e73ad"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "46df2303d20ac584edb21afe4c197d95bf608f1f34db5eb978054a3e7f9d0219",
+      "duration_s": 26.97,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M3-seed-source-receipt-binding",
+      "injection_diff_sha256": "2108833f1d5cdc9d6bbb06e2f7856472d463b40597ee2fa2ce7231fd7c951e75",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0bfee26f8f17daa3ff36ef063b536be6f276ee7417035df6da09e6401b182a6b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "    if False:\n",
+          "old": "    if seed_receipt.source_receipt_sha256 != hashlib.sha256(\n        canonical_json_bytes(value)\n    ).hexdigest():\n"
+        }
+      ],
+      "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+      "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+      "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+      "status": "KILLED",
+      "test_output_sha256": "aae0c5b04d854fd230dae45fca268a4e51051ee1a4254cb7401a841e6e2e73ad",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a1a80c63b025ea843295049ffcd2306/izdw-9a1a80c63b.o956307",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9a1a80c63b025ea843295049ffcd2306/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n..............FFF............                                            [100%]\n=================================== FAILURES ===================================\n___ test_postresult_issuance_is_rejected_before_rng_or_publication[regular] ____\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\nexisting_kind = 'regular'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_postresult_issuance_is_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1466efbcfac0>\n\n    @pytest.mark.parametrize(\"existing_kind\", (\"regular\", \"broken-symlink\"))\n    def test_postresult_issuance_is_rejected_before_rng_or_publication(\n        existing_kind: str,\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        planned = _planned(attempts, tmp_path / \"results\")\n        exact_result_path = Path(planned[0].artifact_path)\n        if existing_kind == \"regular\":\n            exact_result_path.write_bytes(b\"observed\")\n        else:\n            os.symlink(\"missing-result-target\", exact_result_path)\n        publication_root = tmp_path / \"publication\"\n        calls = _install_counted_seed(monkeypatch)\n    \n        with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n            issuer.issue_b4_prerun_publication(\n                scheduled_inputs=attempts,\n                planned_result_artifacts=planned,\n                publication_root=str(publication_root),\n            )\n    \n        _assert_reason(\n            caught,\n            issuer.B4PrerunRejectionReason.RESULT_ARTIFACT_ALREADY_EXISTS,\n        )\n>       assert calls == []\nE       assert [32] == []\nE         \nE         Left contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:403: AssertionError\n_ test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink] _\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\nexisting_kind = 'broken-symlink'\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_postresult_issuance_is_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bb72842ce0>\n\n    @pytest.mark.parametrize(\"existing_kind\", (\"regular\", \"broken-symlink\"))\n    def test_postresult_issuance_is_rejected_before_rng_or_publication(\n        existing_kind: str,\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        planned = _planned(attempts, tmp_path / \"results\")\n        exact_result_path = Path(planned[0].artifact_path)\n        if existing_kind == \"regular\":\n            exact_result_path.write_bytes(b\"observed\")\n        else:\n            os.symlink(\"missing-result-target\", exact_result_path)\n        publication_root = tmp_path / \"publication\"\n        calls = _install_counted_seed(monkeypatch)\n    \n        with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n            issuer.issue_b4_prerun_publication(\n                scheduled_inputs=attempts,\n                planned_result_artifacts=planned,\n                publication_root=str(publication_root),\n            )\n    \n        _assert_reason(\n            caught,\n            issuer.B4PrerunRejectionReason.RESULT_ARTIFACT_ALREADY_EXISTS,\n        )\n>       assert calls == []\nE       assert [32] == []\nE         \nE         Left contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:403: AssertionError\n__________ test_result_path_symlink_component_is_rejected_before_rng ___________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_result_path_symlink_compo0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e74a2c5330>\n\n    def test_result_path_symlink_component_is_rejected_before_rng(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        real_results = tmp_path / \"real-results\"\n        real_results.mkdir()\n        linked_results = tmp_path / \"linked-results\"\n        linked_results.symlink_to(real_results, target_is_directory=True)\n        planned = list(_planned(attempts, real_results))\n        planned[0] = replace(\n            planned[0],\n            artifact_path=str(linked_results / \"attempt-0000.json\"),\n        )\n        calls = _install_counted_seed(monkeypatch)\n    \n        with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n            issuer.issue_b4_prerun_publication(\n                scheduled_inputs=attempts,\n                planned_result_artifacts=planned,\n                publication_root=str(tmp_path / \"publication\"),\n            )\n    \n        _assert_reason(\n            caught,\n            issuer.B4PrerunRejectionReason.RESULT_PATH_SYMLINK_COMPONENT,\n        )\n>       assert calls == []\nE       assert [32] == []\nE         \nE         Left contains one more item: 32\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:531: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng\n========================= 3 failed, 26 passed in 4.21s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1566 retained_bytes=1566 omitted_bytes=0 rendered_excerpt_bytes=1647 sha256=bb55ee71784164653736b43eb5eebc0e20e62474b0d25bb3c9ef5952469d9d91\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> existing_kind = 'broken-symlink'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_postresult_issuance_is_re0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bb72842ce0>\n> \n>     @pytest.mark.parametrize(\"existing_kind\", (\"regular\", \"broken-symlink\"))\n>     def test_postresult_issuance_is_rejected_before_rng_or_publication(\n>         existing_kind: str,\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         planned = _planned(attempts, tmp_path / \"results\")\n>         exact_result_path = Path(planned[0].artifact_path)\n>         if existing_kind == \"regular\":\n>             exact_result_path.write_bytes(b\"observed\")\n>         else:\n>             os.symlink(\"missing-result-target\", exact_result_path)\n>         publication_root = tmp_path / \"publication\"\n>         calls = _install_counted_seed(monkeypatch)\n>     \n>         with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n>             issuer.issue_b4_prerun_publication(\n>                 scheduled_inputs=attempts,\n>                 planned_result_artifacts=planned,\n>                 publication_root=str(publication_root),\n>             )\n>     \n>         _assert_reason(\n>             caught,\n>             issuer.B4PrerunRejectionReason.RESULT_ARTIFACT_ALREADY_EXISTS,\n>         )\n> >       assert calls == []\n> E       assert [32] == []\n> E         \n> E         Left contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:403: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1559 retained_bytes=1559 omitted_bytes=0 rendered_excerpt_bytes=1640 sha256=cce0482429ff4155e0a76de6da97b6a1a5fb43912c8c5bd4e5ecda0a32a70e3d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> existing_kind = 'regular'\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_postresult_issuance_is_re0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1466efbcfac0>\n> \n>     @pytest.mark.parametrize(\"existing_kind\", (\"regular\", \"broken-symlink\"))\n>     def test_postresult_issuance_is_rejected_before_rng_or_publication(\n>         existing_kind: str,\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         planned = _planned(attempts, tmp_path / \"results\")\n>         exact_result_path = Path(planned[0].artifact_path)\n>         if existing_kind == \"regular\":\n>             exact_result_path.write_bytes(b\"observed\")\n>         else:\n>             os.symlink(\"missing-result-target\", exact_result_path)\n>         publication_root = tmp_path / \"publication\"\n>         calls = _install_counted_seed(monkeypatch)\n>     \n>         with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n>             issuer.issue_b4_prerun_publication(\n>                 scheduled_inputs=attempts,\n>                 planned_result_artifacts=planned,\n>                 publication_root=str(publication_root),\n>             )\n>     \n>         _assert_reason(\n>             caught,\n>             issuer.B4PrerunRejectionReason.RESULT_ARTIFACT_ALREADY_EXISTS,\n>         )\n> >       assert calls == []\n> E       assert [32] == []\n> E         \n> E         Left contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:403: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1482 retained_bytes=1482 omitted_bytes=0 rendered_excerpt_bytes=1561 sha256=942147cdbddc946b3ec3b8299bcfa3ab0e0432019b9c9a22de4093e6aa07f2c4\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_result_path_symlink_compo0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e74a2c5330>\n> \n>     def test_result_path_symlink_component_is_rejected_before_rng(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         real_results = tmp_path / \"real-results\"\n>         real_results.mkdir()\n>         linked_results = tmp_path / \"linked-results\"\n>         linked_results.symlink_to(real_results, target_is_directory=True)\n>         planned = list(_planned(attempts, real_results))\n>         planned[0] = replace(\n>             planned[0],\n>             artifact_path=str(linked_results / \"attempt-0000.json\"),\n>         )\n>         calls = _install_counted_seed(monkeypatch)\n>     \n>         with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n>             issuer.issue_b4_prerun_publication(\n>                 scheduled_inputs=attempts,\n>                 planned_result_artifacts=planned,\n>                 publication_root=str(tmp_path / \"publication\"),\n>             )\n>     \n>         _assert_reason(\n>             caught,\n>             issuer.B4PrerunRejectionReason.RESULT_PATH_SYMLINK_COMPONENT,\n>         )\n> >       assert calls == []\n> E       assert [32] == []\n> E         \n> E         Left contains one more item: 32\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:531: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4607 retained_bytes=4607 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6508 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7831ed83f839288c616c7b58e44abdcd06f393f2a94c207228cb78163fe48468"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "46df2303d20ac584edb21afe4c197d95bf608f1f34db5eb978054a3e7f9d0219",
+      "duration_s": 26.901,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng"
+      ],
+      "hang_risk": false,
+      "id": "M4-initial-result-absence",
+      "injection_diff_sha256": "e81f38bdb83dfe69f4c783a8b1418420c54c72e27e751859589472bdce5e1021",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "472f9716434ec26081b5f5e7cfa17e474c1081729b3677b8f6e7c1d09b825f41",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "    if False and inspect_absence:\n",
+          "old": "    if inspect_absence:\n"
+        }
+      ],
+      "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+      "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+      "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+      "status": "KILLED",
+      "test_output_sha256": "7831ed83f839288c616c7b58e44abdcd06f393f2a94c207228cb78163fe48468",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7fcc3f4cf541a1972d686c8bd9ca0806/izdw-7fcc3f4cf5.o956309",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7fcc3f4cf541a1972d686c8bd9ca0806/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n................F............                                            [100%]\n=================================== FAILURES ===================================\n_________________ test_competing_final_receipt_is_not_replaced _________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_competing_final_receipt_i0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1506fceb9e70>\n\n    def test_competing_final_receipt_is_not_replaced(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        attempts = _eligible_attempts()\n        publication_root = tmp_path / \"publication\"\n        sentinel_path = publication_root / \"prerun-issuer-receipt.json\"\n        sentinel_bytes = b\"competing-final-receipt-sentinel\"\n        original_read_relative = issuer._read_relative\n        injected = False\n    \n        def read_and_inject_sentinel(root_fd: int, name: str) -> bytes:\n            nonlocal injected\n            data = original_read_relative(root_fd, name)\n            if name == \".prerun-issuer-receipt.tmp\" and not injected:\n                sentinel_path.write_bytes(sentinel_bytes)\n                injected = True\n            return data\n    \n        monkeypatch.setattr(issuer, \"_read_relative\", read_and_inject_sentinel)\n    \n>       with pytest.raises(issuer.B4PrerunIssuerError) as caught:\nE       Failed: DID NOT RAISE B4PrerunIssuerError\n\norchestrator/tests/test_p3_b4_prerun_issuer.py:702: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced\n========================= 1 failed, 28 passed in 4.19s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1271 retained_bytes=1271 omitted_bytes=0 rendered_excerpt_bytes=1332 sha256=15f65eb67a10c6ebfb7c4672fe8366e134a447ab18c18b436d7d21ea421a972f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_competing_final_receipt_i0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1506fceb9e70>\n> \n>     def test_competing_final_receipt_is_not_replaced(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         attempts = _eligible_attempts()\n>         publication_root = tmp_path / \"publication\"\n>         sentinel_path = publication_root / \"prerun-issuer-receipt.json\"\n>         sentinel_bytes = b\"competing-final-receipt-sentinel\"\n>         original_read_relative = issuer._read_relative\n>         injected = False\n>     \n>         def read_and_inject_sentinel(root_fd: int, name: str) -> bytes:\n>             nonlocal injected\n>             data = original_read_relative(root_fd, name)\n>             if name == \".prerun-issuer-receipt.tmp\" and not injected:\n>                 sentinel_path.write_bytes(sentinel_bytes)\n>                 injected = True\n>             return data\n>     \n>         monkeypatch.setattr(issuer, \"_read_relative\", read_and_inject_sentinel)\n>     \n> >       with pytest.raises(issuer.B4PrerunIssuerError) as caught:\n> E       Failed: DID NOT RAISE B4PrerunIssuerError\n> \n> orchestrator/tests/test_p3_b4_prerun_issuer.py:702: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1271 retained_bytes=1271 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2051 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9b6bbd1a3e56108c543b3e72c016c1c21e36959ba880c1d66828fa918ddcf6e6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "46df2303d20ac584edb21afe4c197d95bf608f1f34db5eb978054a3e7f9d0219",
+      "duration_s": 26.919,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced"
+      ],
+      "hang_risk": false,
+      "id": "M5-overwrite-final-receipt",
+      "injection_diff_sha256": "31861ded601667c494fb22f9fcd902e8098ee7823e5414b97f15580805123d0b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "34c29f1fc57d6a37ed43ee5455ab26852f615058741672db33510f5cf9eac836",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+          "new": "        try:\n            os.unlink(_RECEIPT_NAME, dir_fd=root_fd)\n        except FileNotFoundError:\n            pass\n        os.link(\n",
+          "old": "        os.link(\n"
+        }
+      ],
+      "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+      "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+      "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+      "status": "KILLED",
+      "test_output_sha256": "9b6bbd1a3e56108c543b3e72c016c1c21e36959ba880c1d66828fa918ddcf6e6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/431e92d95277f050db9cc39904fb08fe/izdw-431e92d952.o956301",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/431e92d95277f050db9cc39904fb08fe/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_replaced_seed_is_rejected_at_seed_source_edge\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_duplicate_result_path_is_rejected_before_rng_or_publication\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_ancestor_result_paths_are_rejected_before_rng_or_publication\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_string_prefix_without_component_boundary_is_allowed\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[scheduled-attempt-registry.jsonl]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[analysis-manifest.json]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[prerun-issuer-receipt.json]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[.prerun-issuer-receipt.tmp]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_fixed_artifact_conflict[exact]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_fixed_artifact_conflict[descendant]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_ancestor_result_paths\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_postlink_io_failure_is_commit_uncertain_and_loadable[unlink]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_postlink_io_failure_is_commit_uncertain_and_loadable[directory-fsync]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_postlink_io_failure_is_commit_uncertain_and_loadable[close]\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_publication_uses_parent_dirfd_and_closes_every_fd_once\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_float_commitment_count_is_not_equal_to_json_integer\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_receipt_unknown_key_is_rejected\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_partial_publication_root_is_poisoned_and_not_repaired\norchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash\n\n29 tests collected in 0.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e26f096327be15abb041e5e77caf91c9c3d2e44f729164ba4beb48469145eb22"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_replaced_seed_is_rejected_at_seed_source_edge",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_duplicate_result_path_is_rejected_before_rng_or_publication",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_ancestor_result_paths_are_rejected_before_rng_or_publication",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_string_prefix_without_component_boundary_is_allowed",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[scheduled-attempt-registry.jsonl]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[analysis-manifest.json]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[prerun-issuer-receipt.json]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fixed_artifact_descendant_is_rejected_before_rng_or_publication[.prerun-issuer-receipt.tmp]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_fixed_artifact_conflict[exact]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_fixed_artifact_conflict[descendant]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_loader_rejects_fully_rebound_ancestor_result_paths",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postlink_io_failure_is_commit_uncertain_and_loadable[unlink]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postlink_io_failure_is_commit_uncertain_and_loadable[directory-fsync]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postlink_io_failure_is_commit_uncertain_and_loadable[close]",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_publication_uses_parent_dirfd_and_closes_every_fd_once",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_float_commitment_count_is_not_equal_to_json_integer",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_receipt_unknown_key_is_rejected",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_partial_publication_root_is_poisoned_and_not_repaired",
+        "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash"
+      ],
+      "duration_s": 26.717,
+      "rc": 0,
+      "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+      "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+      "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+      "status": "PASSED",
+      "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-planned-id-set": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_unplanned_attempt_is_rejected_before_rng_or_publication"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "99e692453b5983ee80a2ef5f22fcacb55e87e5e1115a2077640e574c93c77cc8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+            "new": "        or False\n",
+            "old": "        or set(mapped_ids) != set(scheduled_ids)\n"
+          }
+        ]
+      },
+      "M2-ignore-csprng-return": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_issue_publishes_complete_bundle_and_existing_consumers_reverify",
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_fewer_than_201_eligible_is_typed_before_root_creation",
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_other_future_result_path_below_publication_root_is_allowed",
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_same_publication_root_cannot_be_reissued",
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_public_api_has_no_external_seed_result_bool_or_caller_issuer_hash"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "14d2caeac742138fcf56363834c3ee690ade603fa12d8c2809e378d87c358942",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+            "new": "        seed_bytes = b\"\\x00\" * 32\n",
+            "old": "        seed_bytes = secrets.token_bytes(32)\n"
+          }
+        ]
+      },
+      "M3-seed-source-receipt-binding": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_source_receipt_reference_only_tamper_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2108833f1d5cdc9d6bbb06e2f7856472d463b40597ee2fa2ce7231fd7c951e75",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+            "new": "    if False:\n",
+            "old": "    if seed_receipt.source_receipt_sha256 != hashlib.sha256(\n        canonical_json_bytes(value)\n    ).hexdigest():\n"
+          }
+        ]
+      },
+      "M4-initial-result-absence": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[broken-symlink]",
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_postresult_issuance_is_rejected_before_rng_or_publication[regular]",
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_result_path_symlink_component_is_rejected_before_rng"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e81f38bdb83dfe69f4c783a8b1418420c54c72e27e751859589472bdce5e1021",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+            "new": "    if False and inspect_absence:\n",
+            "old": "    if inspect_absence:\n"
+          }
+        ]
+      },
+      "M5-overwrite-final-receipt": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_competing_final_receipt_is_not_replaced"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "31861ded601667c494fb22f9fcd902e8098ee7823e5414b97f15580805123d0b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_prerun_issuer.py",
+            "new": "        try:\n            os.unlink(_RECEIPT_NAME, dir_fd=root_fd)\n        except FileNotFoundError:\n            pass\n        os.link(\n",
+            "old": "        os.link(\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "61eabb34e95ee3f32326453925e244f21a3a6e795c6142bd54e9fab8f81461f8",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_prerun_issuer.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "80da45e6f873255946a51c34c0e0fc8e05608bb7",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_prerun_issuer.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "1c85f6befca0746089ead3f07d9d9792a7fed856",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "992fcc60d8eb09b5cc3882b3b8cf6255efe27e8bbf8856e5fa2a04c50293ca12",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "99f2afe86088c8bb3f1a7a92d89e80eceef8de3fa47c398110e6de7426ea5e33",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2050-b4-issuer/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "2b1526eff43179ebae85de5d9b3381380b0ac1e987fd926575b74a97a56be5f9",
+  "updated_at": "2026-08-28T08:29:56.130234+00:00"
+}

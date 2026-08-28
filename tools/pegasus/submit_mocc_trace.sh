@@ -6,6 +6,7 @@ usage() {
   cat <<'EOF'
 usage: submit_mocc_trace.sh [--dry-run] [--repo-root PATH] [--attempts-root PATH]
                             [--job-script PATH] [--trace-mode {1,0}]
+                            [--t1943-g2-discriminator]
 EOF
 }
 
@@ -15,6 +16,7 @@ JOB_SCRIPT="$SCRIPT_DIR/mocc_trace_pilot.sh"
 ATTEMPTS_ROOT=""
 DRY_RUN=0
 TRACE_MODE=1
+T1943_G2=0
 
 if [[ -n "${PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT+x}" ]]; then
   echo "legacy PEGASUS_EFFECTIVE_CLOCK_TOLERANCE_PCT is forbidden" >&2
@@ -35,10 +37,20 @@ while [[ $# -gt 0 ]]; do
       }
       shift 2
       ;;
+    --t1943-g2-discriminator)
+      T1943_G2=1
+      TRACE_MODE=1
+      shift
+      ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+if [[ "$T1943_G2" -eq 1 && "$TRACE_MODE" -ne 1 ]]; then
+  echo "--t1943-g2-discriminator requires trace mode 1" >&2
+  exit 2
+fi
 
 if [[ ! -f "$JOB_SCRIPT" ]]; then
   echo "job script not found: $JOB_SCRIPT" >&2
@@ -110,6 +122,30 @@ CMAKE_TARGET=${policy_values[9]}
 WORKLOAD_JSON=${policy_values[10]}
 THIRD_PARTY_CACHE_ENV=${policy_values[11]}
 PILOT_WALLTIME=${policy_values[12]}
+if [[ "$T1943_G2" -eq 1 ]]; then
+  python3 - "$WORKLOAD_JSON" <<'PY_T1943_WORKLOAD'
+import json
+import sys
+
+expected = {
+    "extime_s": 3,
+    "records": 10000,
+    "threads": 48,
+    "ycsb_max_ope": 10,
+    "ycsb_rmw": 0,
+    "ycsb_rratio": 50,
+    "zipf_skew": 0.9,
+}
+actual = json.loads(sys.argv[1])
+if (
+    not isinstance(actual, dict)
+    or set(actual) != set(expected)
+    or any(type(actual[key]) is not type(value) or actual[key] != value
+           for key, value in expected.items())
+):
+    raise SystemExit("T-1943 workload tuple differs")
+PY_T1943_WORKLOAD
+fi
 if [[ ! "$THIRD_PARTY_CACHE_ENV" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
   echo "third_party_cache_env is not a valid environment variable name" >&2
   exit 2
@@ -262,6 +298,9 @@ case "$THIRD_PARTY_CACHE_VALUE" in
     ;;
 esac
 EXPORT_SPEC="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_MOCC_TRACE_MODE=$TRACE_MODE,IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT=$ATTEMPTS_ROOT"
+if [[ "$T1943_G2" -eq 1 ]]; then
+  EXPORT_SPEC+=",IZANAGI_MOCC_G2_DISCRIMINATOR=1"
+fi
 if [[ -n "$THIRD_PARTY_CACHE_VALUE" ]]; then
   EXPORT_SPEC+=",$THIRD_PARTY_CACHE_ENV=$THIRD_PARTY_CACHE_VALUE"
 fi
@@ -276,18 +315,21 @@ python3 - "$SUBMISSION_DIR" "$SOURCE_COMMIT" "$JOB_SCRIPT" "$JOB_SCRIPT_SHA256" 
   "$SUBMIT_EPOCH" "$NONCE" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
   "$FINALIZE_RESERVE_S" "$EXPECTED_CPU" "$EXPECTED_CORES" "$BASE_OID" "$NEW_OID" \
   "$CMAKE_TARGET" "$WORKLOAD_JSON" "$POLICY" "$TRACE_MODE" "$DRY_RUN" \
-  "${qsub_cmd[@]}" <<'PY'
+  "$T1943_G2" "${qsub_cmd[@]}" <<'PY'
 import json
 import os
 import sys
 
 (root, source_commit, script, script_sha, submit_epoch, nonce, project, queue,
  nodes, walltime_s, reserve_s, expected_cpu, expected_cores, base_oid, new_oid,
- cmake_target, workload_json, policy_path, trace_mode, dry_run, *qsub_argv) = sys.argv[1:]
+ cmake_target, workload_json, policy_path, trace_mode, dry_run, t1943_g2,
+ *qsub_argv) = sys.argv[1:]
 with open(policy_path, encoding="utf-8") as handle:
     policy = json.load(handle)
 mocc_trace = dict(policy["mocc_trace"])
 mocc_trace["trace_mode"] = int(trace_mode)
+if int(t1943_g2):
+    mocc_trace["t1943_g2_discriminator"] = True
 mocc_trace["workload"] = json.loads(workload_json)
 mocc_trace["workload_note"] = (
     "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
@@ -380,8 +422,10 @@ PY
   ) || { echo "qsub succeeded but request ID could not be parsed" >&2; exit 4; }
 fi
 
-python3 - "$SUBMISSION_DIR/pre-submit.json" "$SUBMISSION_DIR/submit-receipt.json" "$REQUEST_ID" <<'PY'
+python3 - "$SUBMISSION_DIR/pre-submit.json" \
+  "$SUBMISSION_DIR/submit-receipt.json" "$REQUEST_ID" <<'PY'
 import json
+import os
 import sys
 
 source, target, request_id = sys.argv[1:]
@@ -408,9 +452,39 @@ payload = {
     "mocc_trace": pre["mocc_trace"],
     "dry_run": pre["dry_run"],
 }
-with open(target, "x", encoding="utf-8") as handle:
-    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
-    handle.write("\n")
+receipt_bytes = (
+    json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+).encode("utf-8")
+directory = os.path.dirname(target)
+temporary = os.path.join(
+    directory, f".submit-receipt.{pre['submission_nonce']}.tmp"
+)
+fd = os.open(
+    temporary,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+    0o600,
+)
+try:
+    with os.fdopen(fd, "wb") as handle:
+        fd = -1
+        handle.write(receipt_bytes)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.link(temporary, target, follow_symlinks=False)
+    directory_fd = os.open(
+        directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    )
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+finally:
+    if fd >= 0:
+        os.close(fd)
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
 PY
 
 echo "submit receipt: $SUBMISSION_DIR/submit-receipt.json"
