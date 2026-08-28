@@ -4,14 +4,14 @@ ledger: worklog
 authored: 2026-08-28
 wave: dev-wave-task-inventory-prune
 seq: 1
-title: 過剰実装・過剰ガードレール587件をactiveから除外する (docsのみ)
+title: 過剰実装・過剰ガードレール586件をactiveから除外する (docsのみ)
 ---
 
 ## 本文
 
-- ユーザー裁定に従い、当初active 946件を全件棚卸しした。過剰防壁120件と開発プロセス/衛生476件を見送り対象としたが、current mainでT-2065が先に裁定・完了し、再開時の焦点監査で正しさblocker 8件をcarryへ戻した。残る587件のうち、既に見送り台帳へ存在するT-185/T-186は重複active carryを完了終端し、過剰防壁109件と開発プロセス/衛生476件、計585件を新たに見送りへ送る。
+- ユーザー裁定に従い、当初active 946件を全件棚卸しした。過剰防壁120件と開発プロセス/衛生476件を見送り対象としたが、current mainでT-2065が先に裁定・完了し、再開時の焦点監査で正しさblocker 8件をcarryへ戻した。さらにland実測でT-1922の再訪条件が成立したため同項をcarryへ戻す。残る586件のうち、既に見送り台帳へ存在するT-185/T-186は重複active carryを完了終端し、過剰防壁109件と開発プロセス/衛生475件、計584件を新たに見送りへ送る。
 - 正しさ境界と研究速度の敵対相談を反映し、anomaly即reject、trace/perf分離、前向き事前登録、file-drawer防止、現行研究blockerは維持した。再開監査でT-1946/T-1948/T-1950/T-1955/T-1956/T-1957/T-1994/T-2005をproof chain・受理集合・正式実走のblockerと再確認した。
-- 分類不能8件 (T-096/T-097/T-100/T-133/T-163/T-167/T-168/T-169) と別wave所有5件 (T-1861/T-1902/T-1933/T-1934/T-2012) は推測で処理しない。current mainで完了済みのT-1934を除く所有4件をcarryし、entry 1080のactive 937件からfold後のactive期待値を350件とした。
+- 分類不能8件 (T-096/T-097/T-100/T-133/T-163/T-167/T-168/T-169) と別wave所有5件 (T-1861/T-1902/T-1933/T-1934/T-2012) は推測で処理しない。current mainで完了済みのT-1934を除く所有4件をcarryし、entry 1080のactive 937件からfold後のactive期待値を351件とした。
 
 ## 次の一手差分
 
@@ -24,6 +24,11 @@ title: 過剰実装・過剰ガードレール587件をactiveから除外する 
 - [T-186] 見送り台帳に既存の条件付き見送りを正本とし、重複して残ったactive carryを終端する。
   remaining: none
   base: 0235b894e4162d564799b239eef8561afbc2b5610735b36aeaefbe03a5822c9c
+
+### 更新
+
+- [T-1922] **P1・再発火**: `spool_fold.py --dry-run` と land 前 fold gate が `phase3` family の生成後 canonical 重複を検出せず、land が初めて `[T-185]` / `[T-186]` の重複を拒否した。既存の carry/universe 事前検査に加え、`phase3` を含む生成後 canonical 検査を land 前に走らせる。今回の land 結果は `fold_gate_uncovered_families: ["phase3"]` だった。
+  base: c3ddbb0fbf8c4231803d43ac7658d0f90d052b763a842b02279400f72a25684c
 
 ### 見送り
 
@@ -2182,10 +2187,6 @@ title: 過剰実装・過剰ガードレール587件をactiveから除外する 
 - [T-1920] docs/dev-wave/** の L1.5 層予算に 阻まれた収容を D782 の手順で閉じる。**裁定へ返す案件ではない** (D961… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
   base: c3ba343d7d2a4a0a8d8099072f55ccd3da906d9aa9affea8e792b1e6774ca815
-
-- [T-1922] spool_fold.py --dry-run が 生成後 canonical の carry/universe 検査を持たないため、land… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
-  再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
-  base: c3ddbb0fbf8c4231803d43ac7658d0f90d052b763a842b02279400f72a25684c
 
 - [T-1923] orchestrator/tests/acceptance_duration_ledger.json が hold#1 の node を 10… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
