@@ -827,14 +827,16 @@ def _install_paper_story_external_spies(
     original_campaign_config = module.campaign_config
 
     def campaign_config_spy(
-            observed_policy, workload_name, *, contract=None):
+            observed_policy, workload_name, *, contract=None, non_certifying):
         calls["campaign_config"].append((workload_name, contract))
         assert len(calls["campaign_config"]) <= len(_PAPER_STORY_WORKLOAD_ORDER)
         assert observed_policy == policy
         assert workload_name in _PAPER_STORY_WORKLOAD_ORDER
         assert contract is runtime_contract
+        assert non_certifying is True
         return original_campaign_config(
             observed_policy, workload_name, contract=contract,
+            non_certifying=non_certifying,
         )
 
     def forbidden_default_configs(*args, **kwargs):
