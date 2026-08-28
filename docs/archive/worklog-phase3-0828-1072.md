@@ -969,4 +969,3 @@
 - [T-2070] (1071)
 - [T-2071] **P2・新規**: dispatch変異のtimeoutをqueue / Pre-runningと
   child実行に分離し、child開始前の混雑でsource変異を残したorphan-holdへ倒れない実行機構を設計する。
-

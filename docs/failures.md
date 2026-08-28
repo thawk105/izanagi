@@ -19145,3 +19145,31 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: pure fixtureが親promptのrepo-relative argvとambient TMPDIR前提をそのまま再現し、`tools/run_tests.py` とcompute job scriptが作る実consumer入力を通していなかった。
 - 恒久対応: `orchestrator/manual_probes/test_t2000_legacy_build_probe.py` の `test_t2000_real_invocation_gate_*` でrelative/absolute正例と誤root負例を固定し、`test_t2000_compute_scratch_binding_is_exact` でrunbookの `/scr/$PBS_JOBID` 導出と負例を固定した。
 - 再発検知: pure 14 exact nodeと通常suite境界meta-testを `tools/run_tests.py --force-dispatch` 経由で実走する。
+
+### F750. 同一treeのnested patch contextが自分のflockを待ち続けた [手順漏れ] [資源競合]
+
+- 事象: T-1941診断attempt 2でfixed patch適用後にCPU timeが約6秒のまま10分以上停止し、shared submoduleがdirtyになった。
+- 根本原因: 同一treeへ`patchharness.applied()`を入れ子にし、別fdで同じexclusive flockを再取得した。
+- 恒久対応: `orchestrator/campaign/backoff_requested_us.py`は`patchharness.checkout()`の一意tree内でfixedとdiagnosticを逐次適用し、finallyでtouch path unionを復元する。
+- 再発検知: `test_measure_uses_real_isolated_checkout_for_fixed_then_diagnostic`とMU-13がshared baseへの逃げを検出する。
+
+### F751. fixtureのGNU patch緑がproduction git apply失敗を隠した [テスト代表性]
+
+- 事象: T-1941診断attempt 3でGNU `patch --fuzz=0`済みのdiagnostic patchがproduction `git apply`に拒否された。
+- 根本原因: patch形式testがfixture executorだけを使い、production executorと3行context要件を実走しなかった。
+- 恒久対応: `test_fixed_then_diagnostic_uses_production_git_apply_and_reverts_clean`がproduction `patchharness.apply_patch`でfixed→diagnostic→revertを実走する。
+- 再発検知: 関連testとMU-01/MU-02をproduction同型patchへ照準する。
+
+### F752. wait receiptがworker launcher receiptを上書きした [手順漏れ]
+
+- 事象: T-1941 author finalの待機で`dev_wave_wait.py producer --receipt-file`へworker receiptと同じpathを渡し、accepted launcher receiptをproducer receiptで上書きした。
+- 根本原因: DW-O01がproducer待ちを要求する一方、2種類のreceipt pathを分離する義務を明記していなかった。
+- 恒久対応: `docs/dev-wave/operations.md` DW-O01へwait receiptとworker launcher receiptの別path義務を追加した。
+- 再発検知: producer wait投入前に2 pathの文字列不一致を確認し、完了後にworker receipt schemaを照合する。
+
+### F753. compound shellがpreflight赤の後もcommitへ進んだ [手順漏れ]
+
+- 事象: T-1941 implementation commitで`git diff --cached --check`が赤だったが、同一shellが`set -e`無しで後続provenance/commitを実行した。
+- 根本原因: DW-O17の「赤なら止める」を、複数commandを含むshellの終了制御へ写像していなかった。
+- 恒久対応: `docs/dev-wave/operations.md` DW-O17へcompound shellの先頭`set -e`、またはtool call分離を追加した。
+- 再発検知: commit前tool callの先頭と実行結果を確認し、preflight非0後にHEADが進んでいないことを照合する。
