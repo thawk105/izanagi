@@ -13,7 +13,8 @@ title: [T-2006] 非認証成果物型とA-1投入器を認証経路と分離し�
 - 実装/fix commitは`dd6ec73b9..fb7b8dbba`の5本。通常decoderが拒否する非認証lock、registered non-certifying projection、create-only intent/submission/completion、signed sidecar、exact viewをA-1へ結線した。
 - 既存certified gate、v1/v2 lock、result/receipt schema、環境契約、source binding、trace/perf分離、anomaly rejectを維持した。`require_environment_contract=False`、skip、xfail、既存期待値の削除・反転は使っていない。
 - D95 author初回はtoken上限で中断し、別authorが未監査差分を回収した。敵対review2本のreal7件、focusのqstat raw binding1件、親焦点赤をCodex fixで閉じ、最終focusはreal findingなし。
-- 変更5 test filesは670 passed、source closure/fig4/B-4 consumer meta testsは207 passed。checkerとprovenanceはgreen。
+- 初回全受入は共有fixtureとexact process inventory未追随の4件だけが赤 (18,789 passed / 62 skipped)。4件とも本waveへ帰属させ、D95 authorがcreate-only intent、3 process site、non-certifying config/identity/eager layout順序へexact追随させた。production・gate変更、免除、期待値緩和はない。
+- 変更7 test filesは711 passed、source closure/fig4/B-4 consumer meta testsは207 passed。修正後全受入はtested main`93fcb4663`、tested tip`0fad792a2`でchild-green、18,828 passed / 67 skipped、red/flake 0、loadgroup、log SHA`c55e830b...ebd1c`。checkerと全史provenanceはgreen。
 - final tip`fb7b8dbba`の変異matrixはbaseline PASSED、marker/schema/tag/registry/COMMIT/artifact/anomaly/view/submit-onceの9/9 KILLED、expected node完全一致。
 - 正式qsub、正式A-1測定、批准一般の再設計、D905/D906代替、push、次wave起動は行っていない。
 - 一次資料は`output/insights/2026-08-29_t2006-noncertifying-a1/`。

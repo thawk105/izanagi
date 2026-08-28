@@ -24,11 +24,14 @@ D1028/D1038/D1222 の非認証成果物型と A-1 投入器を同一変更単位
 - 初回reviewのreal 7件はcompletion chain、qsub cwd、NQSV `EXT`、legacy anomaly、source closure、volatile field、production fixture bridgeを修正して閉じた。
 - focusで見つけたqstat raw/宣言不一致を共通parserと3負例で閉じ、最終focusは残るreal findingなし。
 - D95 author初回はtoken上限で中断し、別authorが未監査差分を回収した。既存期待値の削除・反転、skip、xfailは行っていない。
+- 初回全受入は共有fixtureとexact process inventoryの未追随4件だけが赤だった。D95 fixとread-only focusで、create-only intent、3 scheduler process site、`non_certifying=True`、admission-policy束縛済みconfig、eager 3-layout順序をexactに追随させた。productionとgateは変更していない。
 
 ## 検査
 
-- 変更5 test files: 670 passed。
+- 変更7 test files: 711 passed。
 - source closure / fig4 / B-4 consumer meta tests: 207 passed。
+- 初回全受入: tested main `c9f868ba8190911c5897dc8b6bdbd1da3d9cc259`、tested tip `41615c0b9c3b773e187ae696fd33962ee70d9398`、4 failed / 18,789 passed / 62 skipped。4件はすべて本waveの共有test fixture/inventoryへ帰属させ、免除せず修正した。
+- 修正後全受入: tested main `93fcb4663b8d488c8f0b9095e29d4bff070288c5`、tested tip `0fad792a27b5e8b60d3799e498c99692d853d6d9`、`child-green`、18,828 passed / 67 skipped、red/flake 0、effective scheduler `loadgroup`、log SHA256 `c55e830b2628c94bbebf7636ed95eb0397f50258a14bf4b480ea7a78228ebd1c`。
 - `check_codex_agents.py`: green。
 - `check_docs.py`: green。
 - provenance: 各commit前message検査とcommit後履歴監査がgreen。
@@ -43,4 +46,5 @@ D1028/D1038/D1222 の非認証成果物型と A-1 投入器を同一変更単位
 
 ## Commit
 
-- `dd6ec73b9..fb7b8dbba`（5本、実装・review fix・fixture fix）。
+- production/review fix: `dd6ec73b9`、`c2136ece6`、`d7ccb67f3`、`4b5892bf0`、`fb7b8dbba`。
+- acceptance fixture/inventory: `ebd7d3ff7`、`575617362`、`32953ac78`、`272cd14cc`。
