@@ -4,7 +4,8 @@
 - default_effect: no-state-change
 - source tips: `209698aedc0bec681eb4f097a93da9e1d7cd9e88`, `7da26497763e53fca32301c0b9990b9fce989b42`
 - stopped reconciliation first-parent main: `c384a90a0de357b0b4b00cddd3bbeef85576fa3e`
-- fresh reconstruction parent main: `9538fe32c095cbe8c3eca45c500fac4a8e781b13`
+- fresh reconstruction initial parent main: `9538fe32c095cbe8c3eca45c500fac4a8e781b13`
+- first acceptance refresh main: `9ca1de05de146f93f62ca4de5d77974bd66f63c5`
 
 本書は可変状態の正本ではない。タスク状態はworklog、設計判断はdecisionsを正本とする。
 
@@ -12,7 +13,7 @@
 
 2本とも負結果であり、短縮達成を主張しない。現行固定argvでは、受理集合、assertion、live repository再観測、独立oracleを保ち、かつ最長nodeへ意味のある効果を持つ安全な共有境界を証明できなかった。
 
-別案として試したT-080 process-memo groupingは、配線と変異検出には成功したが、paired full K=3中央値が244.810秒から245.707秒へ+0.897秒、+0.37%となり、D357の分類では変化なしだった。実装commit `2ffb32a0e`はremoval commit `1bafd884a`で撤去済みであり、fresh reconstructionの履歴にもtreeにも再導入しない。
+別案として試したT-080 process-memo groupingは、配線と変異検出には成功したが、paired full K=3中央値が244.810秒から245.707秒へ+0.897秒、+0.37%となり、D357の分類では変化なしだった。実装commit `2ffb32a0e`はremoval commit `1bafd884a`で撤去済みであり、source tips、旧merge、実装、撤去、停止tipはfresh reconstructionの祖先へ再導入しない。current-main refresh mergeはこの禁止対象と分離する。
 
 ## 最長node waveの負結果
 
