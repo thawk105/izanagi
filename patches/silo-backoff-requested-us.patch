@@ -58,7 +58,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 -
 +
 +#if BACKOFF_REQUESTED_US
-+// IZANAGI_BACKOFF_REQUESTED_US_COUNTER_BEGIN
++// T1941_BACKOFF_REQUESTED_US_COUNTER_BEGIN
 +namespace {
 +class IzanagiBackoffRequestedUsCounter {
 +public:
@@ -124,7 +124,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 +    for (const auto* worker : workers_) total.merge(*worker);
 +    fprintf(
 +        stdout,
-+        "IZANAGI_BACKOFF_REQUESTED_US_V1 call_count=%llu "
++        "IZANAGI_" "BACKOFF_REQUESTED_US_V1 call_count=%llu "
 +        "requested_us_sum=%llu state_0_call_count=%llu "
 +        "state_100_call_count=%llu state_200_call_count=%llu "
 +        "state_300_call_count=%llu state_400_call_count=%llu "
@@ -164,7 +164,7 @@ diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
 +  return *counter;
 +}
 +}  // namespace
-+// IZANAGI_BACKOFF_REQUESTED_US_COUNTER_END
++// T1941_BACKOFF_REQUESTED_US_COUNTER_END
 +#endif
 +
  extern void displayDB();

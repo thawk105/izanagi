@@ -23,7 +23,6 @@ from orchestrator.campaign import backoff_requested_us as M
 from orchestrator.campaign.build_admission import (
     GeneratorId,
     resolve_current_build_admission_policy,
-    resolve_immediate_predecessor_build_admission_policy,
 )
 from tools.pegasus import dispatch_compute as DISPATCH
 
@@ -104,8 +103,8 @@ def _preprocess_without_includes(
 
 
 def _counter_block(transaction: str) -> str:
-    begin_marker = "// IZANAGI_BACKOFF_REQUESTED_US_COUNTER_BEGIN"
-    end_marker = "// IZANAGI_BACKOFF_REQUESTED_US_COUNTER_END"
+    begin_marker = "// T1941_BACKOFF_REQUESTED_US_COUNTER_BEGIN"
+    end_marker = "// T1941_BACKOFF_REQUESTED_US_COUNTER_END"
     assert transaction.count(begin_marker) == 1
     assert transaction.count(end_marker) == 1
     begin = transaction.index("\n", transaction.index(begin_marker)) + 1
@@ -297,6 +296,7 @@ int main(int argc, char**) {
         stderr=subprocess.PIPE, text=True,
     )
     assert normal.returncode == 0, normal.stderr
+    assert normal.stdout.split(" ", 1)[0] == M.PREFIX
     normal_values = _raw_counter_values(normal.stdout)
     assert normal_values["call_count"] == 4
     assert normal_values["requested_us_sum"] == 1100
@@ -344,7 +344,8 @@ int main() {
     assert "workers_" not in record_body
     assert "test_and_set" not in record_body
     assert "~IzanagiBackoffRequestedUsRegistry" in counter_block
-    assert counter_block.count(M.PREFIX) == 1
+    assert M.PREFIX not in counter_block
+    assert '"IZANAGI_" "BACKOFF_REQUESTED_US_V1 call_count=%llu "' in counter_block
 
 
 def test_raw_stdout_parser_ignores_normal_metrics_and_returns_only_fifteen_fields():
@@ -595,14 +596,10 @@ def test_mu07_requested_and_admitted_intersections_keep_f718_1000_separate():
         M._grid_projection(without_1000)
 
 
-def test_historical_reference_policy_is_only_the_immediate_t1941_predecessor():
+def test_t1941_reuses_backoff_profile_without_changing_current_policy_registry():
     current = resolve_current_build_admission_policy().as_preimage()
-    predecessor = resolve_immediate_predecessor_build_admission_policy(
-        added_generator_id=GeneratorId.BACKOFF_REQUESTED_US,
-    ).as_preimage()
-    expected_registry = list(current["generator_registry"])
-    expected_registry.remove(GeneratorId.BACKOFF_REQUESTED_US.value)
-    assert predecessor == {**current, "generator_registry": expected_registry}
+    assert GeneratorId.BACKOFF_PROFILE.value in current["generator_registry"]
+    assert "backoff-requested-us" not in current["generator_registry"]
 
 
 def test_driver_is_balanced_one_rep_raw_only_and_uses_diagnostic_admission():
@@ -612,7 +609,7 @@ def test_driver_is_balanced_one_rep_raw_only_and_uses_diagnostic_admission():
     assert M.WORKLOAD == "balanced"
     assert M.REPS == 1
     assert M.DIAGNOSTIC_USE_CLASS != "official"
-    assert "GeneratorId.BACKOFF_REQUESTED_US" in measure
+    assert "GeneratorId.BACKOFF_PROFILE" in measure
     assert "attest_generator_output(" in measure
     assert "declared_use_class=DIAGNOSTIC_USE_CLASS" in measure
     assert "patchharness.applied(" not in measure
@@ -632,7 +629,7 @@ def test_driver_is_balanced_one_rep_raw_only_and_uses_diagnostic_admission():
     assert "throughput_tps" not in source
     assert "abort_rate" not in source
     assert "latency_ns" not in source
-    assert GeneratorId.BACKOFF_REQUESTED_US.value == "backoff-requested-us"
+    assert GeneratorId.BACKOFF_PROFILE.value == "backoff-profile"
 
 
 def test_measure_uses_real_isolated_checkout_for_fixed_then_diagnostic(

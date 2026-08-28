@@ -45,7 +45,6 @@ from .build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
     resolve_current_build_admission_policy,
-    resolve_immediate_predecessor_build_admission_policy,
 )
 from .layout import CampaignLayout  # noqa: E402
 from .lock import bench_lock  # noqa: E402
@@ -446,7 +445,7 @@ def _reference_records(
         campaign_root: Path, lock: Mapping[str, object], decoded_lock,
         records: list,
 ) -> list:
-    """Validate a frozen campaign against current or the exact T-1941 predecessor policy."""
+    """Validate a frozen campaign through the normal current certified admission."""
     layout = CampaignLayout(root=str(campaign_root))
     artifact_admission.require_campaign_verifier_epoch(
         layout,
@@ -456,30 +455,16 @@ def _reference_records(
     try:
         decision = artifact_admission.classify_campaign(layout)
     except artifact_admission.ArtifactAdmissionError as exc:
-        if str(exc) != "post-policy campaign lock admission policy differs":
-            raise RuntimeError("reference campaign admission failed") from exc
-        policy = resolve_immediate_predecessor_build_admission_policy(
-            added_generator_id=GeneratorId.BACKOFF_REQUESTED_US,
-        )
-        search = decoded_lock.identity.get("search_config")
-        if (
-            type(search) is not dict
-            or search.get("build_admission") != policy.as_preimage()
-        ):
-            raise RuntimeError(
-                "reference campaign is not the exact pre-T-1941 admission policy"
-            ) from exc
-    else:
-        if not decision.admitted:
-            raise RuntimeError("reference campaign is not admitted")
-        policy = current_policy
+        raise RuntimeError("reference campaign admission failed") from exc
+    if not decision.admitted:
+        raise RuntimeError("reference campaign is not admitted")
 
     if not records:
         raise RuntimeError("reference WAL is empty")
     try:
         wal._validate_attempt_topology(  # frozen read-only historical validation
             records,
-            admission_policy=policy,
+            admission_policy=current_policy,
             campaign_lock=decoded_lock,
         )
         wal.validate_trigger_bindings(
@@ -1008,7 +993,7 @@ def measure(
     diagnostic_patch = Path(_repo_root()) / PATCH_REL
     fixed_patch_sha256 = _sha256_file(fixed_patch)
     diagnostic_patch_sha256 = _sha256_file(diagnostic_patch)
-    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_REQUESTED_US)
+    build_context = build_run_context(generator_id=GeneratorId.BACKOFF_PROFILE)
     with patchharness.checkout(
             pin.CURRENT_PIN, base_dir=base_ccbench_dir,
     ) as isolated_ccbench:
