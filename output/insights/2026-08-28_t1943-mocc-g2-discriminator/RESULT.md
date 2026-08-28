@@ -27,6 +27,13 @@ default_effect: no-state-change
 - `267741106e7cec98c8ab667cbb9c7ef8a9b9a4fa`で`os.lstat`へ変更し、real directory正例、directory symlink負例、regular-file負例を固定した。親の関連走は124 passed、焦点再レビューはGO。
 - この失敗のためcompleted pilot receiptとjob-resultは存在しない。上の結果はraw verifier/discriminator bytesへ束縛したnon-certifying observationである。
 
+## local land用のsubmodule境界
+
+- 実cellのouter commit `d8a6410da`は診断gitlink `e9e477ca`をpinしていたが、受入で既存S8b freeze/protocol pinとの衝突11件が発火した。
+- 最終outer gitlinkはapproved BASE `511c9538e4e8efa54b45cda62e72389ed3b706ec`へ戻し、current MoCC policyだけが診断OID `e9e477ca1b55348ab4530de0b1cf663ce4555290`を指す。
+- submit/jobはlocal submodule repositoryで診断OIDをexact commitとして解決し、job scratchへdetach materializeする。receiptの`outer_gitlink_advanced`はfalseである。
+- local main submodule repositoryへ`izanagi-t1943-mocc-g2-readfrom-witness` branchをfetch済み。upstream pushは人間手番のままである。
+
 ## 主要digest
 
 | artifact | SHA-256 |

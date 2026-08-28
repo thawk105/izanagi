@@ -9,8 +9,9 @@ title: [T-1943] MoCC G2 payload-lineage discriminatorを実装し、固定1-cell
 
 ## 本文
 
-- 停止authorの外来差分を回収監査し、D95 Codex author、敵対review 2本、fix 3巡、実機blocker fix、focus 2本を経て、実装commit `d8a6410da`、互換fix `267741106`を作成した。CCBench local branchは`ae6880f7..e9e477ca`の2 commitで、pushしていない。
-- TRACE=0 identity checkerは旧`058d0c4e`から`e9e477ca`まで16 context全一致、関連走は最終124 passed。final固定HEADの変異はbaseline PASSED、事前登録5/5 KILLED、shared snapshot一致、teardown完了だった。
+- 停止authorの外来差分を回収監査し、D95 Codex author、敵対review 2本、fix 3巡、実機/受入blocker fix、focus 3本を経て、実装/fix commit `d8a6410da`、`267741106`、`7cf109b6e`、`a97835f79`を作成した。CCBench local branchは`ae6880f7..e9e477ca`の2 commitで、pushしていない。
+- TRACE=0 identity checkerは旧`058d0c4e`から`e9e477ca`まで16 context全一致。最初のacceptance 12赤はouter gitlinkのS8b freeze衝突11件とpytest-only allowlist漏れ1件で、freezeを変えずouter gitlinkをBASEへ戻し、local main submodule repoへ診断branchを移した。焦点走は200 passed / 2 skippedとS8b pin 1 passed。
+- final固定HEAD `a97835f79`の変異はbaseline PASSED、事前登録5/5 KILLED、shared snapshot一致、teardown完了だった。
 - request `956466.nqsv`の固定1 cellはTRACE=0 absence gateを通り、verifier clean/anomaly 0、専用discriminator `no-g2`を得た。結果依存の追加cellは投入していない。
 - completed receipt公開前に計算ノードPython互換性でartifact classificationが停止したため、結果はnon-certifying raw observationであり、`output/insights/2026-08-28_t1943-mocc-g2-discriminator/RESULT.md`へdigestと主張上限を記録した。失敗は{{F:compute-path-stat-keyword}}。
 - provenanceはouter履歴で新規違反0、既知54件。submodule履歴はIzanagi provenance導入commitを含まずpost-history監査不能で、commit前message検査だけが通った。
