@@ -1,0 +1,521 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/41e010d27b095aa1039db5e1285296b7/izdw-41e010d27b.o956039",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/41e010d27b095aa1039db5e1285296b7/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n..........................                                               [100%]\n============================== 26 passed in 3.85s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "fb8d9fcedb7d10fa9b417a74bae3da63ecb6eb63cfdd5625b711d105cfe1b17d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+    "duration_s": 26.891,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b31041375da1ee97c102efd95664dff70bc017cfdcd947d528a94698741a698d",
+    "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+    "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+    "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+    "status": "PASSED",
+    "test_output_sha256": "fb8d9fcedb7d10fa9b417a74bae3da63ecb6eb63cfdd5625b711d105cfe1b17d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+  },
+  "date": "2026-08-28T07:43:54.724182+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/80363e2a7d539b8e5f11951cd402b98b/izdw-80363e2a7d.o956045",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/80363e2a7d539b8e5f11951cd402b98b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n.......................F..                                               [100%]\n=================================== FAILURES ===================================\n________________ test_ss_m1_exact_ledger_rejects_must_fix_false ________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_ss_m1_exact_ledger_reject0')\n\n    def test_ss_m1_exact_ledger_rejects_must_fix_false(tmp_path: Path) -> None:\n        value = _artifact_value()\n        value[\"oracle_ledger\"][\"findings\"][0][\"must_fix\"] = False  # type: ignore[index]\n        mutated = _write_canonical(tmp_path / \"artifact.json\", value)\n>       with pytest.raises(science.ScienceSliceError, match=\"exact six-finding ledger\"):\nE       Failed: DID NOT RAISE ScienceSliceError\n\norchestrator/tests/test_t1434_t1222_science_slice.py:145: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false\n========================= 1 failed, 25 passed in 3.89s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=619 retained_bytes=619 omitted_bytes=0 rendered_excerpt_bytes=644 sha256=cb47438c59bda07708cb4bb269f3fe57fa9bb8cea588c2902e5497d53253b2bf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_ss_m1_exact_ledger_reject0')\n> \n>     def test_ss_m1_exact_ledger_rejects_must_fix_false(tmp_path: Path) -> None:\n>         value = _artifact_value()\n>         value[\"oracle_ledger\"][\"findings\"][0][\"must_fix\"] = False  # type: ignore[index]\n>         mutated = _write_canonical(tmp_path / \"artifact.json\", value)\n> >       with pytest.raises(science.ScienceSliceError, match=\"exact six-finding ledger\"):\n> E       Failed: DID NOT RAISE ScienceSliceError\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:145: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=619 retained_bytes=619 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1367 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fac7365ee48b17df67d90b376c5844094f99a3fac5993f4913024a1d52ebfe5e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+      "duration_s": 26.962,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false"
+      ],
+      "hang_risk": false,
+      "id": "SS-M1",
+      "injection_diff_sha256": "9ad8dd57d4a3dc765c14b93803be48de46fdcf418bead8acb533c4abc00d41b5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "90be3a34be8f941103699d2dae07cc0dfd63d0e19428fa737e5ab7da6383e849",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "            or False\n",
+          "old": "            or row[\"must_fix\"] is not True\n"
+        },
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "    normalized_for_digest = [dict(row, must_fix=True) for row in value]\n    digest = hashlib.sha256(canonical_bytes(normalized_for_digest) + b\"\\n\").hexdigest()\n",
+          "old": "    digest = hashlib.sha256(canonical_bytes(value) + b\"\\n\").hexdigest()\n"
+        }
+      ],
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "KILLED",
+      "test_output_sha256": "fac7365ee48b17df67d90b376c5844094f99a3fac5993f4913024a1d52ebfe5e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5a93f7b264ee03a1fa21f5ae5554bfa5/izdw-5a93f7b264.o956051",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5a93f7b264ee03a1fa21f5ae5554bfa5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n..................F.......                                               [100%]\n=================================== FAILURES ===================================\n_________ test_ss_m2_reader_consensus_single_reader_miss_cannot_accept _________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ss_m2_reader_consensus_single_reader_miss_cannot_accept() -> None:\n        cells = {\n            (finding_id, stage): \"detected\"\n            for finding_id in science.FINDING_IDS\n            for stage in science.STAGES\n        }\n        matrices = {\"reader-A\": dict(cells), \"reader-B\": dict(cells)}\n        matrices[\"reader-B\"][(science.FINDING_IDS[0], \"plan\")] = \"not-detected\"\n        result = science._evaluate_reader_matrices(\n            matrices, primary_child_green=True,\n        )\n        assert result[\"reader_agreement_status\"] == \"disagreed-cells\"\n>       assert result[\"coverage\"] == {\n            \"agreed_detected\": 5,\n            \"canonical_rational\": \"5/6\",\n            \"oracle_finding_total\": 6,\n        }\nE       AssertionError: assert {'agreed_dete...ing_total': 6} == {'agreed_dete...ing_total': 6}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'agreed_detected': 6} != {'agreed_detected': 5}\nE         {'canonical_rational': '1'} != {'canonical_rational': '5/6'}\nE         Use -v to get more diff\n\norchestrator/tests/test_t1434_t1222_science_slice.py:170: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept\n========================= 1 failed, 25 passed in 3.81s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1207 retained_bytes=1207 omitted_bytes=0 rendered_excerpt_bytes=1264 sha256=22889f9cd8f545b2c5d9fa8e1a054fdcab99f2863152ec81605e279093c2674d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ss_m2_reader_consensus_single_reader_miss_cannot_accept() -> None:\n>         cells = {\n>             (finding_id, stage): \"detected\"\n>             for finding_id in science.FINDING_IDS\n>             for stage in science.STAGES\n>         }\n>         matrices = {\"reader-A\": dict(cells), \"reader-B\": dict(cells)}\n>         matrices[\"reader-B\"][(science.FINDING_IDS[0], \"plan\")] = \"not-detected\"\n>         result = science._evaluate_reader_matrices(\n>             matrices, primary_child_green=True,\n>         )\n>         assert result[\"reader_agreement_status\"] == \"disagreed-cells\"\n> >       assert result[\"coverage\"] == {\n>             \"agreed_detected\": 5,\n>             \"canonical_rational\": \"5/6\",\n>             \"oracle_finding_total\": 6,\n>         }\n> E       AssertionError: assert {'agreed_dete...ing_total': 6} == {'agreed_dete...ing_total': 6}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Differing items:\n> E         {'agreed_detected': 6} != {'agreed_detected': 5}\n> E         {'canonical_rational': '1'} != {'canonical_rational': '5/6'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:170: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1207 retained_bytes=1207 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2006 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6d45d933a451649855c775169aff81f5e163a69f7f19a47db88c8e02c7b867f0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+      "duration_s": 27.128,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept"
+      ],
+      "hang_risk": false,
+      "id": "SS-M2",
+      "injection_diff_sha256": "e1651ffe343472845cd1affeafaf247fed575e7adcd3f2f993726fc00a9ffafe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4f42815ed9e82dfd3dd21df576c77a7d9feca671ee6358a2dddc975ab417ade4",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "                if any(matrices[reader][(finding_id, stage)] == \"detected\" for reader in READER_PATHS)\n",
+          "old": "                if all(matrices[reader][(finding_id, stage)] == \"detected\" for reader in READER_PATHS)\n"
+        }
+      ],
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "KILLED",
+      "test_output_sha256": "6d45d933a451649855c775169aff81f5e163a69f7f19a47db88c8e02c7b867f0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a8f596cd93cccdeda87457ed8556e781/izdw-a8f596cd93.o956052",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a8f596cd93cccdeda87457ed8556e781/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n..................F.......                                               [100%]\n=================================== FAILURES ===================================\n_______________ test_ss_m3_non_child_green_receipt_cannot_accept _______________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ss_m3_non_child_green_receipt_cannot_accept() -> None:\n        cells = {\n            (finding_id, stage): \"detected\"\n            for finding_id in science.FINDING_IDS\n            for stage in science.STAGES\n        }\n        result = science._evaluate_reader_matrices(\n            {\"reader-A\": dict(cells), \"reader-B\": dict(cells)},\n            primary_child_green=False,\n        )\n        assert result[\"coverage\"][\"agreed_detected\"] == 6\n        assert result[\"reader_agreement_status\"] == \"agreed-all-cells\"\n>       assert result[\"retrospective_task_output_acceptance_status\"] == \"not-accepted\"\nE       AssertionError: assert 'accepted' == 'not-accepted'\nE         \nE         - not-accepted\nE         ? ----\nE         + accepted\n\norchestrator/tests/test_t1434_t1222_science_slice.py:190: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept\n========================= 1 failed, 25 passed in 3.90s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=865 retained_bytes=865 omitted_bytes=0 rendered_excerpt_bytes=910 sha256=6085baed8b01c51dad64bf32285b88df3834d1f50fc1763f791dc5f9604698f8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ss_m3_non_child_green_receipt_cannot_accept() -> None:\n>         cells = {\n>             (finding_id, stage): \"detected\"\n>             for finding_id in science.FINDING_IDS\n>             for stage in science.STAGES\n>         }\n>         result = science._evaluate_reader_matrices(\n>             {\"reader-A\": dict(cells), \"reader-B\": dict(cells)},\n>             primary_child_green=False,\n>         )\n>         assert result[\"coverage\"][\"agreed_detected\"] == 6\n>         assert result[\"reader_agreement_status\"] == \"agreed-all-cells\"\n> >       assert result[\"retrospective_task_output_acceptance_status\"] == \"not-accepted\"\n> E       AssertionError: assert 'accepted' == 'not-accepted'\n> E         \n> E         - not-accepted\n> E         ? ----\n> E         + accepted\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:190: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=865 retained_bytes=865 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1635 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "989195e54d2ccdf8cc6e45f5d5b69eb67b48dc7e6a77d08ddaad1132c21d0b28"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+      "duration_s": 26.993,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept"
+      ],
+      "hang_risk": false,
+      "id": "SS-M3",
+      "injection_diff_sha256": "1d65a25e6132d02064febd6fc991ecfbdf2578e91304be69cc1f83f68adc0219",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b26e769ab729a75afc72dd1e5e9a0d0d3e04b39b09fd2a50be6b29a805ff2cf8",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "            if all_reader_consensus_detected\n",
+          "old": "            if all_reader_consensus_detected and primary_child_green\n"
+        }
+      ],
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "KILLED",
+      "test_output_sha256": "989195e54d2ccdf8cc6e45f5d5b69eb67b48dc7e6a77d08ddaad1132c21d0b28",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab9cca2509aa902fb2ec089234a5824e/izdw-ab9cca2509.o956058",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ab9cca2509aa902fb2ec089234a5824e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n.........................F                                               [100%]\n=================================== FAILURES ===================================\n_______________ test_ss_m4_stored_coverage_tampering_is_rejected _______________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_ss_m4_stored_coverage_tam0')\n\n    def test_ss_m4_stored_coverage_tampering_is_rejected(tmp_path: Path) -> None:\n        value = _artifact_value()\n        coverage = value[\"results\"][\"coverage\"]  # type: ignore[index]\n        coverage[\"agreed_detected\"] = 3\n        coverage[\"canonical_rational\"] = \"1/2\"\n        mutated = _write_canonical(tmp_path / \"artifact.json\", value)\n>       with pytest.raises(science.ScienceSliceError, match=\"coverage: physical recomputation mismatch\"):\nE       Failed: DID NOT RAISE ScienceSliceError\n\norchestrator/tests/test_t1434_t1222_science_slice.py:215: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected\n========================= 1 failed, 25 passed in 3.81s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=707 retained_bytes=707 omitted_bytes=0 rendered_excerpt_bytes=736 sha256=f2ca39623c653853c6269b97bac53d36bfde4bb36dc79aaa58ce627dd22611f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_ss_m4_stored_coverage_tam0')\n> \n>     def test_ss_m4_stored_coverage_tampering_is_rejected(tmp_path: Path) -> None:\n>         value = _artifact_value()\n>         coverage = value[\"results\"][\"coverage\"]  # type: ignore[index]\n>         coverage[\"agreed_detected\"] = 3\n>         coverage[\"canonical_rational\"] = \"1/2\"\n>         mutated = _write_canonical(tmp_path / \"artifact.json\", value)\n> >       with pytest.raises(science.ScienceSliceError, match=\"coverage: physical recomputation mismatch\"):\n> E       Failed: DID NOT RAISE ScienceSliceError\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:215: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=707 retained_bytes=707 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1461 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a2f55685f72f73251beb4e2952ef4c12c399c78f1c92b49cf46e349b2f7c05e0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+      "duration_s": 26.915,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "SS-M4",
+      "injection_diff_sha256": "75c9f54c2da2c74d549b3025dcdc55145b3fc82ed29ae309477d0dc46d167771",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6a637275b79c346ee487e978e13f605dbcc36ccf6cd31d44762f39f5034311bb",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "        if field != \"coverage\" and stored[field] != computed[field]:\n",
+          "old": "        if stored[field] != computed[field]:\n"
+        }
+      ],
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "KILLED",
+      "test_output_sha256": "a2f55685f72f73251beb4e2952ef4c12c399c78f1c92b49cf46e349b2f7c05e0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3042af653e3a10817252b57a2726f107/izdw-3042af653e.o956064",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3042af653e3a10817252b57a2726f107/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n......................F.F.                                               [100%]\n=================================== FAILURES ===================================\n_________ test_ss_m5_portable_receipt_never_exposes_physical_semantics _________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_ss_m5_portable_receipt_never_exposes_physical_semantics() -> None:\n        receipt = science.verify_portable(\n            artifact_path=ARTIFACT, repo_root=REPO_ROOT,\n        )\n>       assert receipt[\"retrospective_task_output_acceptance_status\"] == \"not-evaluated\"\nE       AssertionError: assert 'not-accepted' == 'not-evaluated'\nE         \nE         - not-evaluated\nE         + not-accepted\n\norchestrator/tests/test_t1434_t1222_science_slice.py:225: AssertionError\n______________ test_checked_in_artifact_portable_is_not_evaluated ______________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ncapsys = <_pytest.capture.CaptureFixture object at 0x145de1ad69e0>\n\n    def test_checked_in_artifact_portable_is_not_evaluated(capsys: pytest.CaptureFixture[str]) -> None:\n        rc = science.main([\n            \"verify-portable\", os.fspath(ARTIFACT),\n            \"--repo-root\", os.fspath(REPO_ROOT),\n        ])\n        assert rc == 0\n        receipt = json.loads(capsys.readouterr().out)\n        assert receipt[\"artifact_verification_status\"] == \"valid\"\n        assert receipt[\"integrity_status\"] == \"valid\"\n>       assert receipt[\"retrospective_task_output_acceptance_status\"] == \"not-evaluated\"\nE       AssertionError: assert 'not-accepted' == 'not-evaluated'\nE         \nE         - not-evaluated\nE         + not-accepted\n\norchestrator/tests/test_t1434_t1222_science_slice.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated\n========================= 2 failed, 24 passed in 3.86s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=844 retained_bytes=844 omitted_bytes=0 rendered_excerpt_bytes=885 sha256=bb207b549d886de23e38a36daf293b565b25cd80d388b7bb09f7a88afdfb2db1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> capsys = <_pytest.capture.CaptureFixture object at 0x145de1ad69e0>\n> \n>     def test_checked_in_artifact_portable_is_not_evaluated(capsys: pytest.CaptureFixture[str]) -> None:\n>         rc = science.main([\n>             \"verify-portable\", os.fspath(ARTIFACT),\n>             \"--repo-root\", os.fspath(REPO_ROOT),\n>         ])\n>         assert rc == 0\n>         receipt = json.loads(capsys.readouterr().out)\n>         assert receipt[\"artifact_verification_status\"] == \"valid\"\n>         assert receipt[\"integrity_status\"] == \"valid\"\n> >       assert receipt[\"retrospective_task_output_acceptance_status\"] == \"not-evaluated\"\n> E       AssertionError: assert 'not-accepted' == 'not-evaluated'\n> E         \n> E         - not-evaluated\n> E         + not-accepted\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=526 retained_bytes=526 omitted_bytes=0 rendered_excerpt_bytes=553 sha256=9d3a26d807e4a9d3ffa7f32c75453511aa961db87388c055614081c7a0a60c98\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_ss_m5_portable_receipt_never_exposes_physical_semantics() -> None:\n>         receipt = science.verify_portable(\n>             artifact_path=ARTIFACT, repo_root=REPO_ROOT,\n>         )\n> >       assert receipt[\"retrospective_task_output_acceptance_status\"] == \"not-evaluated\"\n> E       AssertionError: assert 'not-accepted' == 'not-evaluated'\n> E         \n> E         - not-evaluated\n> E         + not-accepted\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:225: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1370 retained_bytes=1370 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2619 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cdcd9273892e6bfabde27a5862e15eb0dd40e547b228ab8292bfb62b0df71bc4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+      "duration_s": 31.991,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated"
+      ],
+      "hang_risk": false,
+      "id": "SS-M5",
+      "injection_diff_sha256": "0d1eb33cb117312a8070ba72d0ee13f300a5c361c6bab42d02feb27a8b9dbcf1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "448e44f749df3db41c0263ed03f091d61a6f192dfa330e5b98c8c7b440682d36",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "        \"organizational_independence\": \"not-established\",\n        \"retrospective_task_output_acceptance_status\": \"not-accepted\",\n        \"schema_version\": 1,\n",
+          "old": "        \"organizational_independence\": \"not-established\",\n        \"retrospective_task_output_acceptance_status\": \"not-evaluated\",\n        \"schema_version\": 1,\n"
+        }
+      ],
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "KILLED",
+      "test_output_sha256": "cdcd9273892e6bfabde27a5862e15eb0dd40e547b228ab8292bfb62b0df71bc4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/487e5d8a0b3540849a37fbb1ebb47e93/izdw-487e5d8a0b.o956070",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/487e5d8a0b3540849a37fbb1ebb47e93/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [26 items]\n\n........................F.                                               [100%]\n=================================== FAILURES ===================================\n______ test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin _______\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_ss_m6_changed_target_outp0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150f6b695c30>\n\n    def test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        value = _artifact_value()\n        jobs = _copy_physical_jobs_fixture(tmp_path)\n        target_path = value[\"evidence\"][\"targets\"][0][\"output\"][\"jobs_relative_path\"]\n        target = jobs / target_path\n        target.write_bytes(target.read_bytes() + b\"\\nSS-M6 changed target output bytes\\n\")\n    \n        # Frozen receipts record the original absolute root. Keep that path\n        # projection fixed so only the copied target's bytes can reject this run.\n        absolute_under = science._absolute_under\n        monkeypatch.setattr(\n            science, \"_absolute_under\",\n            lambda _root, relative: absolute_under(JOBS_ROOT, relative),\n        )\n>       with pytest.raises(science.ScienceSliceError):\nE       Failed: DID NOT RAISE ScienceSliceError\n\norchestrator/tests/test_t1434_t1222_science_slice.py:246: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin\n========================= 1 failed, 25 passed in 3.85s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1198 retained_bytes=1198 omitted_bytes=0 rendered_excerpt_bytes=1255 sha256=d61a1a9c650cbbe2ef08fcf17959045c95e17c8a44ebb118f60958bca8938d61\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_ss_m6_changed_target_outp0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150f6b695c30>\n> \n>     def test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         value = _artifact_value()\n>         jobs = _copy_physical_jobs_fixture(tmp_path)\n>         target_path = value[\"evidence\"][\"targets\"][0][\"output\"][\"jobs_relative_path\"]\n>         target = jobs / target_path\n>         target.write_bytes(target.read_bytes() + b\"\\x5cnSS-M6 changed target output bytes\\x5cn\")\n>     \n>         # Frozen receipts record the original absolute root. Keep that path\n>         # projection fixed so only the copied target's bytes can reject this run.\n>         absolute_under = science._absolute_under\n>         monkeypatch.setattr(\n>             science, \"_absolute_under\",\n>             lambda _root, relative: absolute_under(JOBS_ROOT, relative),\n>         )\n> >       with pytest.raises(science.ScienceSliceError):\n> E       Failed: DID NOT RAISE ScienceSliceError\n> \n> orchestrator/tests/test_t1434_t1222_science_slice.py:246: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1198 retained_bytes=1198 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2002 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4b58e1b2aa224650eec1bc8d4e911fe6b09af2e33d94da954a7bad7786a27ab7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0f33dc839bc1e6c60fcb131255e16c1bc579f81a34fab06556a4edbd2b7ebf53",
+      "duration_s": 26.95,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin"
+      ],
+      "hang_risk": false,
+      "id": "SS-M6",
+      "injection_diff_sha256": "4eed4f53d48ece65f7cf35b9a2f868b0322216c61eb980be98a4c20f358886d9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e3c5a336da0121a313aced17666b4bc4cc4bdfa8ab09037dc4016806cba57bb6",
+      "replacements": [
+        {
+          "file": "tools/t1434_t1222_science_slice.py",
+          "new": "    if False and hashlib.sha256(raw).hexdigest() != descriptor[\"sha256\"]:\n",
+          "old": "    if hashlib.sha256(raw).hexdigest() != descriptor[\"sha256\"]:\n"
+        }
+      ],
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "KILLED",
+      "test_output_sha256": "4b58e1b2aa224650eec1bc8d4e911fe6b09af2e33d94da954a7bad7786a27ab7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/20d24410a618930d8f4109aadfe71307/izdw-20d24410a6.o956037",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/20d24410a618930d8f4109aadfe71307/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated\norchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_real_jobs_root_is_valid_negative_observation\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_deleted_finding\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false\norchestrator/tests/test_t1434_t1222_science_slice.py::test_exact_ledger_rejects_detection_condition_tamper\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept\norchestrator/tests/test_t1434_t1222_science_slice.py::test_all_findings_both_stages_both_readers_and_child_green_is_accepted\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics\norchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_noncanonical_json\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_duplicate_key\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_float\norchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_scope_rejects_canonical_false_changed_to_integer_zero\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[missing]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[duplicate]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[extra]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[bad-verdict]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_duplicate_blindness_attestation\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation   ]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation #]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation ####   ]\norchestrator/tests/test_t1434_t1222_science_slice.py::test_git_environment_overrides_are_isolated_and_linked_worktree_still_works\norchestrator/tests/test_t1434_t1222_science_slice.py::test_git_repository_root_must_be_the_exact_top_level\norchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_rejects_symlink_component\n\n26 tests collected in 0.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ec561f71212a0a6bbfc18831b1b5284bf16e0f116f99285ec95147d048d24fc6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_real_jobs_root_is_valid_negative_observation",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_deleted_finding",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_exact_ledger_rejects_detection_condition_tamper",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_all_findings_both_stages_both_readers_and_child_green_is_accepted",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_noncanonical_json",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_duplicate_key",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_rejects_float",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_artifact_scope_rejects_canonical_false_changed_to_integer_zero",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[missing]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[duplicate]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[extra]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_table_rejects_missing_duplicate_extra_and_bad_verdict[bad-verdict]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_duplicate_blindness_attestation",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation   ]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation #]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_reader_markdown_rejects_markdown_equivalent_duplicate_attestation[## Blindness attestation ####   ]",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_git_environment_overrides_are_isolated_and_linked_worktree_still_works",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_git_repository_root_must_be_the_exact_top_level",
+        "orchestrator/tests/test_t1434_t1222_science_slice.py::test_physical_rejects_symlink_component"
+      ],
+      "duration_s": 21.775,
+      "rc": 0,
+      "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+      "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+      "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+      "status": "PASSED",
+      "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "SS-M1": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m1_exact_ledger_rejects_must_fix_false"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9ad8dd57d4a3dc765c14b93803be48de46fdcf418bead8acb533c4abc00d41b5",
+        "replacements": [
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "            or False\n",
+            "old": "            or row[\"must_fix\"] is not True\n"
+          },
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "    normalized_for_digest = [dict(row, must_fix=True) for row in value]\n    digest = hashlib.sha256(canonical_bytes(normalized_for_digest) + b\"\\n\").hexdigest()\n",
+            "old": "    digest = hashlib.sha256(canonical_bytes(value) + b\"\\n\").hexdigest()\n"
+          }
+        ]
+      },
+      "SS-M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m2_reader_consensus_single_reader_miss_cannot_accept"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e1651ffe343472845cd1affeafaf247fed575e7adcd3f2f993726fc00a9ffafe",
+        "replacements": [
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "                if any(matrices[reader][(finding_id, stage)] == \"detected\" for reader in READER_PATHS)\n",
+            "old": "                if all(matrices[reader][(finding_id, stage)] == \"detected\" for reader in READER_PATHS)\n"
+          }
+        ]
+      },
+      "SS-M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m3_non_child_green_receipt_cannot_accept"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1d65a25e6132d02064febd6fc991ecfbdf2578e91304be69cc1f83f68adc0219",
+        "replacements": [
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "            if all_reader_consensus_detected\n",
+            "old": "            if all_reader_consensus_detected and primary_child_green\n"
+          }
+        ]
+      },
+      "SS-M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m4_stored_coverage_tampering_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "75c9f54c2da2c74d549b3025dcdc55145b3fc82ed29ae309477d0dc46d167771",
+        "replacements": [
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "        if field != \"coverage\" and stored[field] != computed[field]:\n",
+            "old": "        if stored[field] != computed[field]:\n"
+          }
+        ]
+      },
+      "SS-M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_checked_in_artifact_portable_is_not_evaluated",
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m5_portable_receipt_never_exposes_physical_semantics"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0d1eb33cb117312a8070ba72d0ee13f300a5c361c6bab42d02feb27a8b9dbcf1",
+        "replacements": [
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "        \"organizational_independence\": \"not-established\",\n        \"retrospective_task_output_acceptance_status\": \"not-accepted\",\n        \"schema_version\": 1,\n",
+            "old": "        \"organizational_independence\": \"not-established\",\n        \"retrospective_task_output_acceptance_status\": \"not-evaluated\",\n        \"schema_version\": 1,\n"
+          }
+        ]
+      },
+      "SS-M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1434_t1222_science_slice.py::test_ss_m6_changed_target_output_bytes_are_rejected_by_direct_pin"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4eed4f53d48ece65f7cf35b9a2f868b0322216c61eb980be98a4c20f358886d9",
+        "replacements": [
+          {
+            "file": "tools/t1434_t1222_science_slice.py",
+            "new": "    if False and hashlib.sha256(raw).hexdigest() != descriptor[\"sha256\"]:\n",
+            "old": "    if hashlib.sha256(raw).hexdigest() != descriptor[\"sha256\"]:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b31041375da1ee97c102efd95664dff70bc017cfdcd947d528a94698741a698d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t1434_t1222_science_slice.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "7cc5ce90713b71cac876cad9514c395d1281c4e2",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t1434_t1222_science_slice.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "dispatch_head_blob_sha256": "be9a55c2867e988804900a2b32f9b9a17676640aa8a2b113c6db09ac62a83c62",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6d1f83ea4f384d572041fb2dd4d37512b3820714",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "187edd0a43afe9078f4d3b2a724f28ca273b967f3940aade4037d83a88e82a32",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d1750b75441faa7b7f8ad2faf2ffa2e118801b09ab7f1983dcc384b12d3920a8",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1434-science-slice/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "11da17c063c8ae6fec018aa7b14f1d857f937d0d120929650288c0f2da149d64"
+  },
+  "tool_sha256": "ac775bc83abdb0c4566e95503c17f6641177d130a7f1872b8da09051ffc4a86d",
+  "updated_at": "2026-08-28T07:47:27.574243+00:00"
+}
