@@ -19138,3 +19138,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: unit testはlogin側Pythonでproduction fragmentを実行し、API keywordの版差を表現していなかった。pilotのchecker/verifierにはinterpreter選定がある一方、このembedded blockはPATHの`python3`を使う非対称も見落とした。
 - 恒久対応: `tools/pegasus/mocc_trace_pilot.sh`は`os.lstat`でno-follow directory判定を行い、`orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory`が禁止API不在、real directory正例、directory symlink/regular-file負例をproduction fragmentで固定する。
 - 再発検知: compute jobのfinalizationで`TypeError: stat() got an unexpected keyword argument 'follow_symlinks'`、または上記回帰nodeの赤を検出する。
+
+### F749. pure probe testがrunnerのselector表現とcompute環境を代表しなかった [テスト代表性]
+
+- 事象: T-2000のexact-node gateとcompute scratch gateはpure testを通ったが、実tests dispatcherはnodeidをabsolute pathへ正規化し、ambient TMPDIRを供給しないため、real request 2回が3 arm前で停止した。
+- 根本原因: pure fixtureが親promptのrepo-relative argvとambient TMPDIR前提をそのまま再現し、`tools/run_tests.py` とcompute job scriptが作る実consumer入力を通していなかった。
+- 恒久対応: `orchestrator/manual_probes/test_t2000_legacy_build_probe.py` の `test_t2000_real_invocation_gate_*` でrelative/absolute正例と誤root負例を固定し、`test_t2000_compute_scratch_binding_is_exact` でrunbookの `/scr/$PBS_JOBID` 導出と負例を固定した。
+- 再発検知: pure 14 exact nodeと通常suite境界meta-testを `tools/run_tests.py --force-dispatch` 経由で実走する。
