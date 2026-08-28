@@ -2983,3 +2983,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-28","base":"44ff4390504dd72b882bdb90ac80aee6d49fa5d1","content_sha256":"5a7cbcb9fe632ba21707a5c0c034f40446bd0aaa7d304abcfde100b49dfd83a4","seq":1,"tested_tip":"ce7cb5f3528cdf2ff3fd63a5d2fc58c87101d89b","wave":"worktree-dev-wave-t2000-legacy-build-probe","wave_ref":"refs/heads/worktree-dev-wave-t2000-legacy-build-probe"}
 - {"allocations":{"F:t2000-runner-env-representativeness":"F749"},"authored":"2026-08-28","base":"44ff4390504dd72b882bdb90ac80aee6d49fa5d1","content_sha256":"b0602c68f7763c6ef671701a2494ad631e7eda1c95f9f7e1d7d01d3adab04391","seq":2,"tested_tip":"ce7cb5f3528cdf2ff3fd63a5d2fc58c87101d89b","wave":"worktree-dev-wave-t2000-legacy-build-probe","wave_ref":"refs/heads/worktree-dev-wave-t2000-legacy-build-probe"}
+
+- {"allocations":{},"authored":"2026-08-28","base":"6ecc6f88bec3f29065918768364d407e6a141228","content_sha256":"93ba91aeb9ef23871780fe60e1dc52b31798e22d1c59fee67dc581a35bb4dbce","seq":1,"tested_tip":"253cc650dd2ce26de20a63fe9aa1ef12cb9cd7fa","wave":"dev-wave-task-inventory-prune","wave_ref":"refs/heads/worktree-dev-wave-task-inventory-prune"}
