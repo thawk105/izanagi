@@ -30,6 +30,15 @@ if [[ ! "${IZANAGI_MOCC_TRACE_MODE:-}" =~ ^[01]$ ]]; then
   echo "IZANAGI_MOCC_TRACE_MODE must be 0 or 1" >&2
   exit 2
 fi
+if [[ ! "${IZANAGI_MOCC_G2_DISCRIMINATOR:-0}" =~ ^[01]$ ]]; then
+  echo "IZANAGI_MOCC_G2_DISCRIMINATOR must be 0 or 1" >&2
+  exit 2
+fi
+T1943_G2=${IZANAGI_MOCC_G2_DISCRIMINATOR:-0}
+if [[ "$T1943_G2" -eq 1 && "$IZANAGI_MOCC_TRACE_MODE" -ne 1 ]]; then
+  echo "T-1943 discriminator mode requires TRACE mode 1" >&2
+  exit 2
+fi
 
 export TMPDIR="/scr/${PBS_JOBID//:/_}"
 if ! mkdir "$TMPDIR"; then
@@ -88,8 +97,18 @@ CHECKER_TOOL_SHA=""
 VERIFIER_PY=""
 VERIFIER_TOOL_PATH=""
 VERIFIER_TOOL_SHA=""
+DISCRIMINATOR_TOOL_PATH=""
+DISCRIMINATOR_TOOL_SHA=""
 CHECKER_REPORT_SHA=""
 VERIFIER_RC="not-run"
+DISCRIMINATOR_RC="not-run"
+DISCRIMINATOR_RESULT="not-run"
+TRACE_MANIFEST_SHA=""
+WITNESS_DIR=""
+WITNESS_MANIFEST_SHA=""
+DISCRIMINATOR_RESULT_SHA=""
+TRACE0_WATERMARK_ABSENCE_SHA=""
+SUBMIT_RECEIPT_SHA=""
 RUN_RC="not-run"
 JUDGMENT_PRE_CAPTURE=""
 JUDGMENT_PRE_SHA=""
@@ -148,14 +167,17 @@ trap 'on_signal HUP' HUP
 
 write_artifact_classification_manifest() {
   python3 - "$ATTEMPT_DIR/artifact-classification-manifest.json" \
-    "$TRACE_MODE" <<'PY_ARTIFACT_MANIFEST'
+    "$TRACE_MODE" "$T1943_G2" <<'PY_ARTIFACT_MANIFEST'
 import json
 import sys
 
-output, trace_mode = sys.argv[1:]
+output, trace_mode, t1943_g2 = sys.argv[1:]
 trace_mode_i = int(trace_mode)
+t1943_g2_i = int(t1943_g2)
 if trace_mode_i not in {0, 1}:
     raise SystemExit("trace mode must be zero or one")
+if t1943_g2_i not in {0, 1} or (t1943_g2_i and trace_mode_i != 1):
+    raise SystemExit("T-1943 discriminator mode differs")
 
 classifications = (
     "correctness_evidence",
@@ -381,6 +403,71 @@ for path_pattern, classification, reason in (
 ):
     add("attempt_dir", path_pattern, classification, reason, modes=(1,))
 
+if t1943_g2_i:
+    for path_pattern, classification, reason in (
+        (
+            "discriminator.stderr",
+            "operational_diagnostic",
+            "Records payload discriminator diagnostics.",
+        ),
+        (
+            "discriminator.rc",
+            "operational_diagnostic",
+            "Records the payload discriminator return code.",
+        ),
+        (
+            "trace0-preprocess-identity.json",
+            "correctness_evidence",
+            "Certifies the TRACE=0 preprocess identity gate.",
+        ),
+        (
+            "trace0-preprocess-identity.stderr",
+            "operational_diagnostic",
+            "Records diagnostics from the TRACE=0 preprocess identity gate.",
+        ),
+        (
+            "trace0-preprocess-identity.rc",
+            "operational_diagnostic",
+            "Records the TRACE=0 preprocess identity gate return code.",
+        ),
+        (
+            "trace0-execution.json",
+            "correctness_evidence",
+            "Records fail-closed skipping when the TRACE=0 identity gate rejects.",
+        ),
+        (
+            "throughput.json",
+            "performance_evidence",
+            "Records TRACE=0 throughput and latency derived from count and elapsed time.",
+        ),
+        (
+            "run/witness",
+            "correctness_evidence",
+            "Separates payload-lineage evidence from the standard trace directory.",
+        ),
+        (
+            "run/witness/witness_*.log",
+            "correctness_evidence",
+            "Payload lineage is isolated from standard verifier trace files.",
+        ),
+        (
+            "witness-manifest.json",
+            "correctness_evidence",
+            "Binds payload witness file names, sizes, and digests.",
+        ),
+        (
+            "trace0-watermark-absence.json",
+            "correctness_evidence",
+            "Certifies T-1943 marker and symbol absence in the TRACE=0 binary.",
+        ),
+        (
+            "discriminator.json",
+            "correctness_evidence",
+            "Records the bounded payload-lineage discriminator conclusion.",
+        ),
+    ):
+        add("attempt_dir", path_pattern, classification, reason, modes=(1,))
+
 for path_pattern, reason in (
     (
         "pbs-job.stdout",
@@ -416,14 +503,14 @@ PY_ARTIFACT_MANIFEST
 
 validate_artifact_classification_manifest() {
   python3 - "$ATTEMPT_DIR/artifact-classification-manifest.json" \
-    "$ATTEMPT_DIR" "$TRACE_MODE" <<'PY_VALIDATE_ARTIFACT_MANIFEST'
+    "$ATTEMPT_DIR" "$TRACE_MODE" "$T1943_G2" <<'PY_VALIDATE_ARTIFACT_MANIFEST'
 import fnmatch
 import json
 import os
 import pathlib
 import sys
 
-manifest_path, attempt_dir, trace_mode = sys.argv[1:]
+manifest_path, attempt_dir, trace_mode, t1943_g2 = sys.argv[1:]
 with open(manifest_path, encoding="utf-8") as handle:
     manifest = json.load(handle)
 
@@ -510,6 +597,33 @@ if unclassified:
     raise ValueError(
         "unclassified or ambiguously classified artifacts: " + repr(unclassified)
     )
+if int(t1943_g2):
+    witness_root = root / "run/witness"
+    try:
+        witness_info = os.lstat(witness_root)
+    except OSError as exc:
+        raise ValueError("T-1943 witness root is unavailable") from exc
+    if not witness_root.is_dir() or witness_root.is_symlink():
+        raise ValueError("T-1943 witness root is not a real directory")
+    if not __import__("stat").S_ISDIR(witness_info.st_mode):
+        raise ValueError("T-1943 witness root is not a directory")
+    witness_root_entries = [
+        entry
+        for entry in attempt_entries
+        if entry["path_pattern"] == "run/witness"
+    ]
+    if len(witness_root_entries) != 1:
+        raise ValueError("T-1943 witness root classification differs")
+elif any(
+    entry["path_pattern"].startswith("run/witness")
+    or entry["path_pattern"].startswith("discriminator")
+    or entry["path_pattern"] in {
+        "witness-manifest.json",
+        "trace0-watermark-absence.json",
+    }
+    for entry in attempt_entries
+):
+    raise ValueError("T-1943 artifact classification leaked into general mode")
 PY_VALIDATE_ARTIFACT_MANIFEST
 }
 
@@ -738,19 +852,88 @@ BASE_OID=${policy_values[12]}
 NEW_OID=${policy_values[13]}
 CMAKE_TARGET=${policy_values[14]}
 WORKLOAD_JSON=${policy_values[15]}
+if [[ "$T1943_G2" -eq 1 ]]; then
+  python3 - "$WORKLOAD_JSON" <<'PY_T1943_WORKLOAD'
+import json
+import sys
+
+expected = {
+    "extime_s": 3,
+    "records": 10000,
+    "threads": 48,
+    "ycsb_max_ope": 10,
+    "ycsb_rmw": 0,
+    "ycsb_rratio": 50,
+    "zipf_skew": 0.9,
+}
+actual = json.loads(sys.argv[1])
+if (
+    not isinstance(actual, dict)
+    or set(actual) != set(expected)
+    or any(type(actual[key]) is not type(value) or actual[key] != value
+           for key, value in expected.items())
+):
+    raise SystemExit("T-1943 workload tuple differs")
+PY_T1943_WORKLOAD
+fi
 
 SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE"
 SUBMIT_SOURCE="$SUBMISSION_DIR/submit-receipt.json"
+ATTEMPT_RECEIPT="$ATTEMPT_DIR/submit-receipt.json"
 for _ in $(seq 1 60); do
-  [[ -f "$SUBMIT_SOURCE" ]] && break
+  submit_pin_rc=0
+  set +e
+  SUBMIT_RECEIPT_SHA=$(python3 - "$SUBMIT_SOURCE" "$ATTEMPT_RECEIPT" <<'PY_SUBMIT_PIN'
+import hashlib
+import os
+import stat
+import sys
+
+source, target = sys.argv[1:]
+try:
+    source_fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+except FileNotFoundError:
+    raise SystemExit(75)
+except OSError as exc:
+    raise SystemExit(f"submit receipt cannot be opened without following: {exc}")
+try:
+    source_info = os.fstat(source_fd)
+    if not stat.S_ISREG(source_info.st_mode):
+        raise SystemExit("submit receipt is not a regular file")
+    with os.fdopen(source_fd, "rb") as handle:
+        source_fd = -1
+        receipt_bytes = handle.read()
+finally:
+    if source_fd >= 0:
+        os.close(source_fd)
+pinned_sha = hashlib.sha256(receipt_bytes).hexdigest()
+target_fd = os.open(
+    target,
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+    0o600,
+)
+with os.fdopen(target_fd, "wb") as handle:
+    handle.write(receipt_bytes)
+    handle.flush()
+    os.fsync(handle.fileno())
+print(pinned_sha)
+PY_SUBMIT_PIN
+  )
+  submit_pin_rc=$?
+  set -e
+  if [[ "$submit_pin_rc" -eq 0 ]]; then
+    break
+  fi
+  if [[ "$submit_pin_rc" -ne 75 ]]; then
+    write_failure 2 submit_binding "submit receipt failed no-follow regular-file pin"
+    exit 2
+  fi
   sleep 1
 done
-if [[ ! -f "$SUBMIT_SOURCE" ]]; then
+if [[ ! "$SUBMIT_RECEIPT_SHA" =~ ^[0-9a-f]{64}$ ]]; then
   write_failure 2 submit_binding "submit receipt did not appear within 60 seconds"
   exit 2
 fi
-cp "$SUBMIT_SOURCE" "$ATTEMPT_DIR/submit-receipt.json"
-ATTEMPT_RECEIPT="$ATTEMPT_DIR/submit-receipt.json"
 
 if ! initialize_judgment_source_state; then
   exit 2
@@ -762,17 +945,33 @@ fi
 CURRENT_SCRIPT_SHA=$(sha256sum "$TOOLS/mocc_trace_pilot.sh" | awk '{print $1}')
 python3 - "$ATTEMPT_RECEIPT" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" "$PBS_JOBID" \
   "$PROJECT" "$QUEUE" "$NODES" "$REQUESTED_S" "$BASE_OID" "$NEW_OID" \
-  "$TRACE_MODE" "$WORKLOAD_JSON" "$ATTEMPTS_ROOT" "$SUBMISSION_DIR" <<'PY'
+  "$TRACE_MODE" "$WORKLOAD_JSON" "$ATTEMPTS_ROOT" "$SUBMISSION_DIR" \
+  "$T1943_G2" "$SUBMIT_RECEIPT_SHA" <<'PY'
+import hashlib
 import json
 import os
+import stat
 import sys
 
 (
     path, commit, script_sha, job_id, project, queue, nodes, requested_s,
-    base_oid, new_oid, trace_mode, workload_json, attempts_root, submission_dir
+    base_oid, new_oid, trace_mode, workload_json, attempts_root, submission_dir,
+    t1943_g2, pinned_sha,
 ) = sys.argv[1:]
-with open(path, encoding="utf-8") as handle:
-    receipt = json.load(handle)
+receipt_fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    receipt_info = os.fstat(receipt_fd)
+    if not stat.S_ISREG(receipt_info.st_mode):
+        raise SystemExit("pinned submit receipt is not a regular file")
+    with os.fdopen(receipt_fd, "rb") as handle:
+        receipt_fd = -1
+        receipt_bytes = handle.read()
+finally:
+    if receipt_fd >= 0:
+        os.close(receipt_fd)
+if hashlib.sha256(receipt_bytes).hexdigest() != pinned_sha:
+    raise SystemExit("pinned submit receipt digest differs")
+receipt = json.loads(receipt_bytes.decode("utf-8"))
 qsub = receipt["qsub"]
 mocc = receipt["mocc_trace"]
 
@@ -794,6 +993,11 @@ checks = {
     "new_oid": mocc.get("new_oid") == new_oid,
     "trace_mode": mocc.get("trace_mode") == int(trace_mode),
     "workload": mocc.get("workload") == json.loads(workload_json),
+    "t1943_g2_discriminator": (
+        mocc.get("t1943_g2_discriminator") is True
+        if int(t1943_g2)
+        else "t1943_g2_discriminator" not in mocc
+    ),
 }
 
 
@@ -814,6 +1018,17 @@ checks.update(
             isinstance(export_spec, str)
             and f"IZANAGI_MOCC_TRACE_ATTEMPTS_ROOT={attempts_root}"
             in export_spec.split(",")
+        ),
+        "t1943_export": (
+            isinstance(export_spec, str)
+            and (
+                "IZANAGI_MOCC_G2_DISCRIMINATOR=1" in export_spec.split(",")
+                if int(t1943_g2)
+                else not any(
+                    item.startswith("IZANAGI_MOCC_G2_DISCRIMINATOR=")
+                    for item in export_spec.split(",")
+                )
+            )
         ),
         "pbs_stdout": option_value(argv, "-o")
         == os.path.join(submission_dir, "pbs-job.stdout"),
@@ -1225,7 +1440,7 @@ PY
   "$CXX_PATH" --version >"$ATTEMPT_DIR/compiler-used.version" 2>&1
 }
 
-if [[ "$TRACE_MODE" -eq 0 ]]; then
+if [[ "$TRACE_MODE" -eq 0 || "$T1943_G2" -eq 1 ]]; then
   # D297 checker is deliberately a hard gate.  Its nonzero result means that
   # TRACE=0 execution is skipped; no fallback or relaxed branch is permitted.
   build_mode 0
@@ -1292,8 +1507,10 @@ with open(sys.argv[1], "x", encoding="utf-8") as handle:
     handle.write("\n")
 PY
   fi
-  if ! verify_post_judgment_source_state; then
-    exit 2
+  if [[ "${T1943_G2:-0}" -ne 1 ]]; then
+    if ! verify_post_judgment_source_state; then
+      exit 2
+    fi
   fi
   if [[ "$CHECKER_RC" -ne 0 ]]; then
     write_failure "$CHECKER_RC" trace0_preprocess_identity \
@@ -1312,6 +1529,71 @@ PY
       "TRACE=0 preprocess identity report hash is not 64 lowercase hex"
     exit 2
   fi
+  if [[ "${T1943_G2:-0}" -eq 1 ]]; then
+    python3 - "$BINARY" "$ATTEMPT_DIR/trace0-watermark-absence.json" <<'PY_T1943_TRACE0'
+import json
+import os
+import pathlib
+import stat
+import subprocess
+import sys
+
+binary = pathlib.Path(sys.argv[1])
+marker = b"IZANAGI_MOCC_G2_WATERMARK_V1"
+forbidden_tokens = {
+    "enable_env": b"IZANAGI_MOCC_G2_WITNESS",
+    "directory_env": b"IZANAGI_MOCC_G2_WITNESS_DIR",
+    "marker": marker,
+    "symbol": b"izanagi_mocc_g2",
+    "witness_file_prefix": b"witness_",
+}
+binary_fd = os.open(binary, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    binary_info = os.fstat(binary_fd)
+    if not stat.S_ISREG(binary_info.st_mode):
+        raise SystemExit("T-1943 TRACE=0 binary is not a regular file")
+    with os.fdopen(os.dup(binary_fd), "rb") as handle:
+        raw = handle.read()
+    os.lseek(binary_fd, 0, os.SEEK_SET)
+    nm = subprocess.run(
+        ["nm", "-a", f"/proc/self/fd/{binary_fd}"],
+        pass_fds=(binary_fd,),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+finally:
+    os.close(binary_fd)
+symbol_token = b"izanagi_mocc_g2"
+present_tokens = sorted(
+    name for name, token in forbidden_tokens.items() if token in raw
+)
+payload = {
+    "schema_version": "mocc-g2-trace0-watermark-absence/v1",
+    "binary_sha256": __import__("hashlib").sha256(raw).hexdigest(),
+    "marker": marker.decode("ascii"),
+    "marker_absent": marker not in raw,
+    "symbol_token": symbol_token.decode("ascii"),
+    "symbol_absent": nm.returncode == 0 and symbol_token not in nm.stdout,
+    "forbidden_binary_tokens": sorted(forbidden_tokens),
+    "present_binary_tokens": present_tokens,
+    "binary_tokens_absent": not present_tokens,
+    "nm_rc": nm.returncode,
+}
+if (
+    not payload["marker_absent"]
+    or not payload["symbol_absent"]
+    or not payload["binary_tokens_absent"]
+):
+    raise SystemExit("T-1943 witness surface leaked into TRACE=0")
+with open(sys.argv[2], "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, sort_keys=True, indent=2)
+    handle.write("\n")
+PY_T1943_TRACE0
+    TRACE0_WATERMARK_ABSENCE_SHA=$(sha256sum \
+      "$ATTEMPT_DIR/trace0-watermark-absence.json" | awk '{print $1}')
+    build_mode 1
+  fi
 else
   build_mode 1
 fi
@@ -1322,6 +1604,10 @@ RUN_DIR="$ATTEMPT_DIR/run"
 TRACE_DIR="$RUN_DIR/trace"
 mkdir "$RUN_DIR"
 mkdir "$TRACE_DIR"
+if [[ "$T1943_G2" -eq 1 ]]; then
+  WITNESS_DIR="$RUN_DIR/witness"
+  mkdir "$WITNESS_DIR"
+fi
 RUN_STDOUT="$RUN_DIR/workload.stdout"
 RUN_STDERR="$RUN_DIR/workload.stderr"
 RUN_ARGV_JSON="$RUN_DIR/workload.argv.json"
@@ -1420,8 +1706,15 @@ PY
 )
 pushd "$TRACE_DIR" >/dev/null
 set +e
-timeout --foreground --signal=TERM --kill-after=30 120 "$BINARY" "${WORKLOAD_ARGV[@]}" \
-  >"$RUN_STDOUT" 2>"$RUN_STDERR"
+if [[ "$T1943_G2" -eq 1 ]]; then
+  IZANAGI_MOCC_G2_WITNESS=1 \
+  IZANAGI_MOCC_G2_WITNESS_DIR="$WITNESS_DIR" \
+    timeout --foreground --signal=TERM --kill-after=30 120 \
+      "$BINARY" "${WORKLOAD_ARGV[@]}" >"$RUN_STDOUT" 2>"$RUN_STDERR"
+else
+  timeout --foreground --signal=TERM --kill-after=30 120 \
+    "$BINARY" "${WORKLOAD_ARGV[@]}" >"$RUN_STDOUT" 2>"$RUN_STDERR"
+fi
 RUN_RC=$?
 set -e
 popd >/dev/null
@@ -1494,34 +1787,111 @@ PY
 )
 
 if [[ "$TRACE_MODE" -eq 1 ]]; then
-  python3 - "$TRACE_DIR" "$ATTEMPT_DIR/trace-manifest.json" <<'PY'
+  python3 - "$TRACE_DIR" "$ATTEMPT_DIR/trace-manifest.json" "$T1943_G2" \
+    "$NEW_OID" "$BINARY_SHA" "$WORKLOAD_JSON" <<'PY'
 import hashlib
 import json
+import os
 import pathlib
+import stat
 import sys
 
 trace_dir = pathlib.Path(sys.argv[1])
+output = sys.argv[2]
+t1943_g2 = int(sys.argv[3])
 paths = sorted(trace_dir.glob("trace_*.log"))
 records = []
 for path in paths:
-    if path.is_symlink() or not path.is_file():
-        raise SystemExit(f"trace artifact is not a regular file: {path}")
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    records.append({"name": path.name, "sha256": digest, "size_bytes": path.stat().st_size})
-with open(sys.argv[2], "x", encoding="utf-8") as handle:
-    json.dump(
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise SystemExit(f"trace artifact is not a regular file: {path}")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            raw = handle.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    records.append(
         {
+            "name": path.name,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "size_bytes": len(raw),
+        }
+    )
+if not records:
+    raise SystemExit("standard trace manifest would be empty")
+if t1943_g2:
+    payload = {
+        "schema_version": "mocc-g2-standard-trace-manifest/v1",
+        "artifact_kind": "standard-trace",
+        "root_dir": str(trace_dir),
+        "source_oid": sys.argv[4],
+        "binary_sha256": sys.argv[5],
+        "workload": json.loads(sys.argv[6]),
+        "files": records,
+    }
+else:
+    payload = {
             "schema_version": "mocc-trace-artifact-manifest/v1",
             "trace_dir": str(trace_dir),
             "files": records,
-        },
-        handle,
-        ensure_ascii=False,
-        sort_keys=True,
-        indent=2,
-    )
+    }
+with open(output, "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
     handle.write("\n")
 PY
+  TRACE_MANIFEST_SHA=$(sha256sum "$ATTEMPT_DIR/trace-manifest.json" | awk '{print $1}')
+  if [[ "$T1943_G2" -eq 1 ]]; then
+    python3 - "$WITNESS_DIR" "$ATTEMPT_DIR/witness-manifest.json" \
+      "$NEW_OID" "$BINARY_SHA" "$WORKLOAD_JSON" <<'PY_T1943_WITNESS_MANIFEST'
+import hashlib
+import json
+import os
+import pathlib
+import stat
+import sys
+
+root = pathlib.Path(sys.argv[1])
+records = []
+for path in sorted(root.glob("witness_*.log")):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise SystemExit(f"witness artifact is not a regular file: {path}")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            raw = handle.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    records.append(
+        {
+            "name": path.name,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "size_bytes": len(raw),
+        }
+    )
+if not records:
+    raise SystemExit("payload witness manifest would be empty")
+payload = {
+    "schema_version": "mocc-g2-payload-witness-manifest/v1",
+    "artifact_kind": "payload-witness",
+    "root_dir": str(root),
+    "source_oid": sys.argv[3],
+    "binary_sha256": sys.argv[4],
+    "workload": json.loads(sys.argv[5]),
+    "files": records,
+}
+with open(sys.argv[2], "x", encoding="utf-8") as handle:
+    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    handle.write("\n")
+PY_T1943_WITNESS_MANIFEST
+    WITNESS_MANIFEST_SHA=$(sha256sum \
+      "$ATTEMPT_DIR/witness-manifest.json" | awk '{print $1}')
+  fi
   VERIFIER_TOOL_PATH=$(realpath -e -- "$REPO_ROOT/orchestrator/verifier/__main__.py")
   if [[ ! -f "$VERIFIER_TOOL_PATH" || -L "$VERIFIER_TOOL_PATH" ]]; then
     write_failure 2 verifier "verifier implementation is not a real file"
@@ -1564,7 +1934,102 @@ PY
   if ! verify_post_judgment_source_state; then
     exit 2
   fi
-  if [[ "$VERIFIER_RC" -ne 0 ]]; then
+  if [[ "$T1943_G2" -eq 1 ]]; then
+    if [[ "$VERIFIER_RC" -ne 0 && "$VERIFIER_RC" -ne 1 ]]; then
+      write_failure "$VERIFIER_RC" verifier \
+        "T-1943 verifier returned an infrastructure or indeterminate rc"
+      exit "$VERIFIER_RC"
+    fi
+    "$VERIFIER_PY" - "$ATTEMPT_DIR/verifier.json" "$VERIFIER_RC" <<'PY_T1943_VERIFIER_COMPLETE'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+if set(payload) != {
+    "runs", "certified_serializable", "non_serializable",
+    "indeterminate", "results",
+}:
+    raise SystemExit("verifier aggregate shape differs")
+if (
+    type(payload["runs"]) is not int
+    or payload["runs"] != 1
+    or not isinstance(payload["results"], list)
+):
+    raise SystemExit("verifier result count differs")
+if len(payload["results"]) != 1:
+    raise SystemExit("verifier result count differs")
+result = payload["results"][0]
+if not isinstance(result, dict) or set(result) != {
+    "trace_dir", "verdict", "certified", "serializable", "stats",
+    "integrity", "anomaly_count", "total_cycles", "anomalies",
+}:
+    raise SystemExit("verifier result shape differs")
+if (
+    not isinstance(result["anomalies"], list)
+    or type(result["anomaly_count"]) is not int
+    or result["anomaly_count"] != len(result["anomalies"])
+    or type(result["total_cycles"]) is not int
+    or result["total_cycles"] < 0
+):
+    raise SystemExit("verifier anomaly framing differs")
+rc = int(sys.argv[2])
+if rc == 1:
+    if (
+        payload["non_serializable"] != 1
+        or result.get("verdict") != "non-serializable"
+        or not result.get("anomalies")
+    ):
+        raise SystemExit("rc=1 is not a completed anomaly result")
+elif (
+    payload["certified_serializable"] != 1
+    or result.get("verdict") != "serializable"
+    or result.get("anomalies") != []
+):
+    raise SystemExit("rc=0 is not a completed certified result")
+PY_T1943_VERIFIER_COMPLETE
+    DISCRIMINATOR_TOOL_PATH=$(realpath -e -- \
+      "$REPO_ROOT/orchestrator/campaign/mocc_g2_discriminator.py")
+    if [[ ! -f "$DISCRIMINATOR_TOOL_PATH" || -L "$DISCRIMINATOR_TOOL_PATH" ]]; then
+      write_failure 2 discriminator "payload discriminator is not a real file"
+      exit 2
+    fi
+    DISCRIMINATOR_TOOL_SHA=$(sha256sum "$DISCRIMINATOR_TOOL_PATH" | awk '{print $1}')
+    discriminator_rc=0
+    discriminator_stdout=$(cd "$REPO_ROOT" && "$VERIFIER_PY" -m \
+      orchestrator.campaign.mocc_g2_discriminator \
+      --trace-manifest "$ATTEMPT_DIR/trace-manifest.json" \
+      --witness-manifest "$ATTEMPT_DIR/witness-manifest.json" \
+      --verifier "$ATTEMPT_DIR/verifier.json" \
+      --output "$ATTEMPT_DIR/discriminator.json" \
+      2>"$ATTEMPT_DIR/discriminator.stderr") || discriminator_rc=$?
+    DISCRIMINATOR_RC=$discriminator_rc
+    printf '%s\n' "$DISCRIMINATOR_RC" >"$ATTEMPT_DIR/discriminator.rc"
+    if [[ "$DISCRIMINATOR_RC" -ne 0 ]]; then
+      write_failure "$DISCRIMINATOR_RC" discriminator \
+        "payload discriminator rejected its bound inputs"
+      exit "$DISCRIMINATOR_RC"
+    fi
+    DISCRIMINATOR_RESULT=$("$VERIFIER_PY" - \
+      "$ATTEMPT_DIR/discriminator.json" "$discriminator_stdout" <<'PY_T1943_RESULT'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+conclusion = payload.get("conclusion")
+if payload.get("schema_version") != "mocc-g2-payload-discriminator/v1":
+    raise SystemExit("discriminator schema differs")
+if conclusion not in {"supported", "contradicted", "indeterminate", "no-g2"}:
+    raise SystemExit("discriminator conclusion differs")
+if sys.argv[2].strip() != conclusion:
+    raise SystemExit("discriminator stdout differs from result")
+print(conclusion)
+PY_T1943_RESULT
+    )
+    DISCRIMINATOR_RESULT_SHA=$(sha256sum \
+      "$ATTEMPT_DIR/discriminator.json" | awk '{print $1}')
+  elif [[ "$VERIFIER_RC" -ne 0 ]]; then
     write_failure "$VERIFIER_RC" verifier \
       "TRACE=1 verifier did not certify the captured trace"
     exit "$VERIFIER_RC"
@@ -1615,8 +2080,17 @@ timeout 30 qstat -x -f "$QSTAT_JOBID" >"$ATTEMPT_DIR/qstat-accounting.stdout" \
   2>"$ATTEMPT_DIR/qstat-accounting.stderr" || qstat_accounting_rc=$?
 printf '%s\n' "$qstat_accounting_rc" >"$ATTEMPT_DIR/qstat-accounting.rc"
 
+if [[ "$T1943_G2" -eq 1 ]]; then
+  if ! validate_artifact_classification_manifest; then
+    write_failure 2 artifact_classification_manifest \
+      "artifact classification manifest does not cover T-1943 job outputs"
+    exit 2
+  fi
+fi
+
 RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$ATTEMPT_RECEIPT" \
-  "$ATTEMPT_DIR/topology.json" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" \
+  "$ATTEMPT_DIR/topology.json" "$SUBMIT_RECEIPT_SHA" \
+  "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" \
   "$PBS_JOBID" "$HOSTNAME_SHORT" "$HOSTNAME_FQDN" "$CPU_MODEL" "$TRACE_MODE" \
   "$CXX_PATH" \
   "$BASE_OID" "$NEW_OID" "$BUILD_DIR" "$BINARY" "$BINARY_SHA" "$RUN_DIR" \
@@ -1628,7 +2102,14 @@ RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$AT
   "$CHECKER_TOOL_PATH" "$CHECKER_TOOL_SHA" \
   "$VERIFIER_TOOL_PATH" "$VERIFIER_TOOL_SHA" \
   "$JUDGMENT_PRE_CAPTURE" "$JUDGMENT_PRE_SHA" \
-  "$JUDGMENT_POST_CAPTURE" "$JUDGMENT_POST_SHA" <<'PY'
+  "$JUDGMENT_POST_CAPTURE" "$JUDGMENT_POST_SHA" \
+  "${T1943_G2:-0}" "${TRACE_MANIFEST_SHA:-}" \
+  "$ATTEMPT_DIR/witness-manifest.json" "${WITNESS_MANIFEST_SHA:-}" \
+  "${DISCRIMINATOR_TOOL_PATH:-}" "${DISCRIMINATOR_TOOL_SHA:-}" \
+  "$ATTEMPT_DIR/discriminator.json" "${DISCRIMINATOR_RESULT_SHA:-}" \
+  "${DISCRIMINATOR_RESULT:-not-run}" "${DISCRIMINATOR_RC:-not-run}" \
+  "$ATTEMPT_DIR/trace0-watermark-absence.json" \
+  "${TRACE0_WATERMARK_ABSENCE_SHA:-}" <<'PY'
 import base64
 import binascii
 import hashlib
@@ -1640,7 +2121,8 @@ import sys
 import time
 
 (
-    output, submit_receipt_path, topology_path, outer_commit, script_sha,
+    output, submit_receipt_path, topology_path, pinned_submit_receipt_sha,
+    outer_commit, script_sha,
     job_id, host, host_fqdn, cpu_model, trace_mode, cxx_path, base_oid, new_oid,
     build_dir, binary, binary_sha, run_dir, trace_dir, run_argv_path,
     commit_count, elapsed_ns, checker_rc, verifier_rc, run_rc,
@@ -1650,6 +2132,12 @@ import time
     verifier_tool_path, verifier_tool_sha,
     judgment_pre_path, judgment_pre_sha,
     judgment_post_path, judgment_post_sha,
+    t1943_g2, trace_manifest_sha,
+    witness_manifest_path, witness_manifest_sha,
+    discriminator_tool_path, discriminator_tool_sha,
+    discriminator_result_path, discriminator_result_sha,
+    discriminator_result, discriminator_rc,
+    trace0_watermark_absence_path, trace0_watermark_absence_sha,
 ) = sys.argv[1:]
 
 
@@ -1668,6 +2156,9 @@ def is_resolved_absolute_file(path):
 
 
 trace_mode_i = int(trace_mode)
+t1943_g2_i = int(t1943_g2)
+if t1943_g2_i not in {0, 1}:
+    reject("T-1943 discriminator mode differs")
 attempt_dir = os.path.dirname(os.path.abspath(output))
 expected_report_path = os.path.join(attempt_dir, "trace0-preprocess-identity.json")
 if os.path.abspath(checker_report_path) != expected_report_path:
@@ -1789,6 +2280,127 @@ def bound_tool(path, expected_sha, label):
     return {"path": path, "sha256": actual_sha}
 
 
+def revalidate_leaf_manifest(
+    manifest_path,
+    expected_sha,
+    expected_root,
+    expected_schema,
+    expected_kind,
+    name_pattern,
+):
+    manifest_bytes = read_regular_bytes(
+        manifest_path, f"T-1943 {expected_kind} manifest"
+    )
+    if hashlib.sha256(manifest_bytes).hexdigest() != expected_sha:
+        reject(f"T-1943 {expected_kind} manifest changed after capture")
+    try:
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"T-1943 {expected_kind} manifest is not strict JSON"
+        ) from exc
+    if not isinstance(manifest, dict) or set(manifest) != {
+        "artifact_kind",
+        "binary_sha256",
+        "files",
+        "root_dir",
+        "schema_version",
+        "source_oid",
+        "workload",
+    }:
+        reject(f"T-1943 {expected_kind} manifest shape differs")
+    if (
+        manifest["schema_version"] != expected_schema
+        or manifest["artifact_kind"] != expected_kind
+        or manifest["root_dir"] != expected_root
+        or manifest["source_oid"] != new_oid
+        or manifest["binary_sha256"] != binary_sha
+        or manifest["workload"] != json.loads(workload_json)
+    ):
+        reject(f"T-1943 {expected_kind} manifest bindings differ")
+    try:
+        root_fd = os.open(
+            expected_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        )
+    except OSError as exc:
+        raise ValueError(f"T-1943 {expected_kind} root is unavailable") from exc
+    try:
+        if not stat.S_ISDIR(os.fstat(root_fd).st_mode):
+            reject(f"T-1943 {expected_kind} root is not a real directory")
+        files = manifest["files"]
+        if not isinstance(files, list) or not files:
+            reject(f"T-1943 {expected_kind} manifest has no leaves")
+        bound_names = set()
+        for entry in files:
+            if not isinstance(entry, dict) or set(entry) != {
+                "name",
+                "sha256",
+                "size_bytes",
+            }:
+                reject(f"T-1943 {expected_kind} leaf binding shape differs")
+            name = entry["name"]
+            digest = entry["sha256"]
+            size = entry["size_bytes"]
+            if (
+                not isinstance(name, str)
+                or re.fullmatch(name_pattern, name) is None
+                or name in bound_names
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                or type(size) is not int
+                or size < 0
+            ):
+                reject(f"T-1943 {expected_kind} leaf binding differs")
+            thread = int(name.removeprefix(
+                "trace_" if expected_kind == "standard-trace" else "witness_"
+            ).removesuffix(".log"))
+            if thread >= json.loads(workload_json)["threads"]:
+                reject(f"T-1943 {expected_kind} leaf thread is outside workload")
+            try:
+                leaf_fd = os.open(
+                    name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=root_fd
+                )
+            except OSError as exc:
+                raise ValueError(
+                    f"T-1943 {expected_kind} leaf {name} is unavailable"
+                ) from exc
+            try:
+                if not stat.S_ISREG(os.fstat(leaf_fd).st_mode):
+                    reject(f"T-1943 {expected_kind} leaf is not a regular file")
+                with os.fdopen(leaf_fd, "rb") as handle:
+                    leaf_fd = -1
+                    leaf_bytes = handle.read()
+            finally:
+                if leaf_fd >= 0:
+                    os.close(leaf_fd)
+            if (
+                len(leaf_bytes) != size
+                or hashlib.sha256(leaf_bytes).hexdigest() != digest
+            ):
+                reject(f"T-1943 {expected_kind} leaf changed after discriminator")
+            bound_names.add(name)
+        actual_names = set()
+        for actual_name in os.listdir(root_fd):
+            try:
+                actual_info = os.stat(
+                    actual_name, dir_fd=root_fd, follow_symlinks=False
+                )
+            except OSError as exc:
+                raise ValueError(
+                    f"T-1943 {expected_kind} root entry is unavailable"
+                ) from exc
+            if not stat.S_ISREG(actual_info.st_mode):
+                reject(f"T-1943 {expected_kind} root contains a non-regular entry")
+            if re.fullmatch(name_pattern, actual_name) is None:
+                reject(f"T-1943 {expected_kind} root contains an unexpected file")
+            actual_names.add(actual_name)
+    finally:
+        os.close(root_fd)
+    if actual_names != bound_names:
+        reject(f"T-1943 {expected_kind} leaf file set changed after discriminator")
+    return manifest_bytes
+
+
 judgment_pre = bound_judgment_capture(
     judgment_pre_path, judgment_pre_sha, "pre_judgment"
 )
@@ -1819,12 +2431,17 @@ if (
     reject("commit count witness does not match the workload result")
 commit_count_sha = hashlib.sha256(commit_count_bytes).hexdigest()
 
-if trace_mode_i == 0:
+if hashlib.sha256(
+    read_regular_bytes(binary, "executed workload binary")
+).hexdigest() != binary_sha:
+    reject("executed workload binary changed after build")
+
+if trace_mode_i == 0 or t1943_g2_i == 1:
     if checker_rc != "0":
         reject("TRACE=0 checker rc is not zero")
     if not is_resolved_absolute_file(checker_py):
         reject("TRACE=0 checker interpreter is not a resolved absolute file")
-    if verifier_py:
+    if verifier_py and not t1943_g2_i:
         reject("TRACE=0 unexpectedly selected a verifier interpreter")
     try:
         checker_report_path = os.open(
@@ -1894,20 +2511,39 @@ if trace_mode_i == 0:
         "guarantee": guarantee,
     }
     checker_interpreter_path = checker_py
-    verifier_interpreter_path = None
+    verifier_interpreter_path = verifier_py if t1943_g2_i else None
     correctness_tools = {
         "trace0_preprocess_identity_checker": bound_tool(
             checker_tool_path, checker_tool_sha, "TRACE=0 identity checker"
         ),
-        "verifier": None,
+        "verifier": (
+            bound_tool(verifier_tool_path, verifier_tool_sha, "TRACE=1 verifier")
+            if t1943_g2_i
+            else None
+        ),
     }
-    throughput_sha = hashlib.sha256(
-        read_regular_bytes(
-            os.path.join(attempt_dir, "throughput.json"),
-            "TRACE=0 throughput evidence",
-        )
-    ).hexdigest()
-    verifier_sha = None
+    if t1943_g2_i:
+        if trace_mode_i != 1:
+            reject("T-1943 receipt is not TRACE=1")
+        if not is_resolved_absolute_file(verifier_py):
+            reject("T-1943 verifier interpreter is not a resolved file")
+        verifier_sha = hashlib.sha256(
+            read_regular_bytes(
+                os.path.join(attempt_dir, "verifier.json"),
+                "T-1943 verifier evidence",
+            )
+        ).hexdigest()
+        throughput_sha = None
+    else:
+        if verifier_py:
+            reject("TRACE=0 unexpectedly selected a verifier interpreter")
+        throughput_sha = hashlib.sha256(
+            read_regular_bytes(
+                os.path.join(attempt_dir, "throughput.json"),
+                "TRACE=0 throughput evidence",
+            )
+        ).hexdigest()
+        verifier_sha = None
 elif trace_mode_i == 1:
     if checker_rc != "not-run":
         reject("TRACE=1 checker rc is not not-run")
@@ -1943,8 +2579,157 @@ elif trace_mode_i == 1:
 else:
     reject("trace mode is not zero or one")
 
-with open(submit_receipt_path, encoding="utf-8") as handle:
-    submit_receipt = json.load(handle)
+t1943_binding = None
+if t1943_g2_i:
+    if verifier_rc not in {"0", "1"} or discriminator_rc != "0":
+        reject("T-1943 verifier/discriminator rc differs")
+    trace_manifest_path = os.path.join(attempt_dir, "trace-manifest.json")
+    if os.path.abspath(witness_manifest_path) != os.path.join(
+        attempt_dir, "witness-manifest.json"
+    ):
+        reject("T-1943 witness manifest path differs")
+    revalidate_leaf_manifest(
+        trace_manifest_path,
+        trace_manifest_sha,
+        trace_dir,
+        "mocc-g2-standard-trace-manifest/v1",
+        "standard-trace",
+        r"trace_(?:0|[1-9][0-9]*)[.]log",
+    )
+    revalidate_leaf_manifest(
+        witness_manifest_path,
+        witness_manifest_sha,
+        os.path.join(run_dir, "witness"),
+        "mocc-g2-payload-witness-manifest/v1",
+        "payload-witness",
+        r"witness_(?:0|[1-9][0-9]*)[.]log",
+    )
+    if os.path.abspath(discriminator_result_path) != os.path.join(
+        attempt_dir, "discriminator.json"
+    ):
+        reject("T-1943 discriminator result path differs")
+    result_bytes = read_regular_bytes(
+        discriminator_result_path, "T-1943 discriminator result"
+    )
+    if hashlib.sha256(result_bytes).hexdigest() != discriminator_result_sha:
+        reject("T-1943 discriminator result changed after execution")
+    try:
+        discriminator_payload = json.loads(result_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("T-1943 discriminator result is not strict JSON") from exc
+    if (
+        discriminator_payload.get("schema_version")
+        != "mocc-g2-payload-discriminator/v1"
+        or discriminator_payload.get("conclusion") != discriminator_result
+        or discriminator_result
+        not in {"supported", "contradicted", "indeterminate", "no-g2"}
+    ):
+        reject("T-1943 discriminator result fields differ")
+    bindings = discriminator_payload.get("bindings")
+    if not isinstance(bindings, dict) or bindings != {
+        "source_oid": new_oid,
+        "binary_sha256": binary_sha,
+        "workload": json.loads(workload_json),
+        "trace_manifest_sha256": trace_manifest_sha,
+        "witness_manifest_sha256": witness_manifest_sha,
+        "verifier_sha256": verifier_sha,
+    }:
+        reject("T-1943 discriminator input bindings differ")
+    expected_absence_path = os.path.join(
+        attempt_dir, "trace0-watermark-absence.json"
+    )
+    if os.path.abspath(trace0_watermark_absence_path) != expected_absence_path:
+        reject("T-1943 TRACE=0 absence path differs")
+    absence_bytes = read_regular_bytes(
+        trace0_watermark_absence_path, "T-1943 TRACE=0 absence result"
+    )
+    if hashlib.sha256(absence_bytes).hexdigest() != trace0_watermark_absence_sha:
+        reject("T-1943 TRACE=0 absence result changed after capture")
+    absence = json.loads(absence_bytes.decode("utf-8"))
+    trace0_binary_path = os.path.join(
+        build_source + "-build-trace0", "cc", "mocc", cmake_target
+    )
+    trace0_binary_sha = hashlib.sha256(
+        read_regular_bytes(trace0_binary_path, "T-1943 TRACE=0 binary")
+    ).hexdigest()
+    try:
+        trace0_sidecar_sha = read_regular_bytes(
+            os.path.join(attempt_dir, "binary-trace0.sha256"),
+            "T-1943 TRACE=0 binary digest sidecar",
+        ).decode("ascii").strip()
+    except UnicodeDecodeError as exc:
+        raise ValueError("T-1943 TRACE=0 binary digest is not ASCII") from exc
+    if (
+        absence.get("schema_version")
+        != "mocc-g2-trace0-watermark-absence/v1"
+        or absence.get("binary_sha256") != trace0_binary_sha
+        or trace0_sidecar_sha != trace0_binary_sha
+        or absence.get("marker_absent") is not True
+        or absence.get("symbol_absent") is not True
+        or absence.get("binary_tokens_absent") is not True
+        or absence.get("present_binary_tokens") != []
+        or set(absence.get("forbidden_binary_tokens", ())) != {
+            "enable_env",
+            "directory_env",
+            "marker",
+            "symbol",
+            "witness_file_prefix",
+        }
+        or absence.get("nm_rc") != 0
+    ):
+        reject("T-1943 TRACE=0 absence result did not pass")
+    correctness_tools["payload_discriminator"] = bound_tool(
+        discriminator_tool_path,
+        discriminator_tool_sha,
+        "T-1943 payload discriminator",
+    )
+    t1943_binding = {
+        "trace_manifest": {
+            "path": "trace-manifest.json",
+            "sha256": trace_manifest_sha,
+        },
+        "witness_manifest": {
+            "path": "witness-manifest.json",
+            "sha256": witness_manifest_sha,
+        },
+        "trace0_watermark_absence": {
+            "path": "trace0-watermark-absence.json",
+            "sha256": trace0_watermark_absence_sha,
+            "binary_sha256": trace0_binary_sha,
+        },
+        "discriminator_result": {
+            "path": "discriminator.json",
+            "sha256": discriminator_result_sha,
+            "conclusion": discriminator_result,
+        },
+    }
+
+submit_receipt_bytes = read_regular_bytes(
+    submit_receipt_path, "submit receipt parent"
+)
+try:
+    submit_receipt = json.loads(submit_receipt_bytes.decode("utf-8"))
+except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    raise ValueError("submit receipt parent is not strict JSON") from exc
+submit_receipt_sha = hashlib.sha256(submit_receipt_bytes).hexdigest()
+if submit_receipt_sha != pinned_submit_receipt_sha:
+    reject("submit receipt parent changed after initial digest pin")
+submit_mocc_trace = submit_receipt.get("mocc_trace")
+if (
+    submit_receipt.get("schema_version") != "pegasus-submit-receipt/v2"
+    or submit_receipt.get("source_commit") != outer_commit
+    or not isinstance(submit_mocc_trace, dict)
+    or submit_mocc_trace.get("base_oid") != base_oid
+    or submit_mocc_trace.get("new_oid") != new_oid
+    or submit_mocc_trace.get("trace_mode") != trace_mode_i
+    or submit_mocc_trace.get("workload") != json.loads(workload_json)
+    or (
+        submit_mocc_trace.get("t1943_g2_discriminator") is not True
+        if t1943_g2_i
+        else "t1943_g2_discriminator" in submit_mocc_trace
+    )
+):
+    reject("submit receipt parent bindings differ at finalization")
 with open(topology_path, encoding="utf-8") as handle:
     topology = json.load(handle)
 with open(run_argv_path, encoding="utf-8") as handle:
@@ -1955,6 +2740,8 @@ mocc_trace["base_oid"] = base_oid
 mocc_trace["new_oid"] = new_oid
 mocc_trace["cmake_target"] = cmake_target
 mocc_trace["workload"] = json.loads(workload_json)
+if t1943_g2_i:
+    mocc_trace["t1943_g2_discriminator"] = True
 mocc_trace["workload_note"] = (
     "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
 )
@@ -1972,7 +2759,11 @@ if trace_mode_i == 0:
         }
     )
 payload = {
-    "schema_version": "mocc-trace-pilot-receipt/v4",
+    "schema_version": (
+        "mocc-trace-pilot-receipt/t1943-g2-v1"
+        if t1943_g2_i
+        else "mocc-trace-pilot-receipt/v4"
+    ),
     "status": "completed",
     "pilot": True,
     "eligible_for_refreeze": False,
@@ -2052,6 +2843,26 @@ payload = {
         "workload_rc": run_rc,
     },
 }
+if t1943_g2_i:
+    payload["t1943_g2_discriminator"] = t1943_binding
+    payload["artifacts"].update(
+        {
+            "trace_manifest_json": "trace-manifest.json",
+            "trace_manifest_sha256": trace_manifest_sha,
+            "witness_manifest_json": "witness-manifest.json",
+            "witness_manifest_sha256": witness_manifest_sha,
+            "discriminator_json": "discriminator.json",
+            "discriminator_sha256": discriminator_result_sha,
+            "trace0_binary_sha256": trace0_binary_sha,
+            "submit_receipt_sha256": submit_receipt_sha,
+        }
+    )
+    payload["gates"].update(
+        {
+            "discriminator_rc": discriminator_rc,
+            "discriminator_conclusion": discriminator_result,
+        }
+    )
 receipt_bytes = (
     json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 ).encode("utf-8")
@@ -2121,8 +2932,23 @@ except UnicodeDecodeError as exc:
 if actual_receipt_sha != receipt_sha or writer_receipt_sha != receipt_sha:
     raise ValueError("receipt sha does not match writer stdout and sidecar")
 receipt = json.loads(receipt_bytes.decode("utf-8"))
-if receipt.get("schema_version") != "mocc-trace-pilot-receipt/v4":
-    raise ValueError("job result requires exact pilot receipt schema v4")
+receipt_schema = receipt.get("schema_version")
+if receipt_schema not in {
+    "mocc-trace-pilot-receipt/v4",
+    "mocc-trace-pilot-receipt/t1943-g2-v1",
+}:
+    raise ValueError("job result requires an exact admitted pilot receipt schema")
+if receipt_schema == "mocc-trace-pilot-receipt/t1943-g2-v1":
+    discriminator_binding = receipt.get("t1943_g2_discriminator")
+    if not isinstance(discriminator_binding, dict):
+        raise ValueError("T-1943 receipt discriminator binding is absent")
+    result_binding = discriminator_binding.get("discriminator_result")
+    if (
+        not isinstance(result_binding, dict)
+        or result_binding.get("conclusion")
+        not in {"supported", "contradicted", "indeterminate", "no-g2"}
+    ):
+        raise ValueError("T-1943 receipt conclusion binding differs")
 report_binding = receipt.get("trace0_preprocess_identity_report")
 if not isinstance(report_binding, dict) or set(report_binding) != {
     "path", "sha256", "schema", "guarantee",
@@ -2156,9 +2982,11 @@ git -C "$CCBENCH_BASE" worktree remove --force "$BUILD_SOURCE" \
   >"$ATTEMPT_DIR/worktree-remove.stdout" \
   2>"$ATTEMPT_DIR/worktree-remove.stderr"
 BUILD_SOURCE=""
-if ! validate_artifact_classification_manifest; then
-  write_failure 2 artifact_classification_manifest \
-    "artifact classification manifest does not cover job outputs"
-  exit 2
+if [[ "$T1943_G2" -ne 1 ]]; then
+  if ! validate_artifact_classification_manifest; then
+    write_failure 2 artifact_classification_manifest \
+      "artifact classification manifest does not cover job outputs"
+    exit 2
+  fi
 fi
 exit 0
