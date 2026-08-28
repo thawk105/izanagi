@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "acceptance-fastest.production-member",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    \"test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\",\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "acceptance-fastest.process-memo",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    \"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\n    \"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\n}) | _T080_STUB_FREE_E2E_PROCESS_MEMO_NODES\n",
+          "new": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    \"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\n    \"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\n    \"test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing\",\n    \"test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal\",\n})\n"
+        }
+      ]
+    },
+    {
+      "id": "acceptance-fastest.independent-golden",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "_T080_STUB_FREE_E2E_PROCESS_MEMO_NODES_GOLDEN = frozenset({\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\",\n})\n",
+          "new": "_T080_STUB_FREE_E2E_PROCESS_MEMO_NODES_GOLDEN = frozenset({\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5\",\n    \"test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\",\n})\n"
+        }
+      ]
+    }
+  ]
+}
