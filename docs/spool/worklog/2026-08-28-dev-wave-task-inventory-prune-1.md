@@ -4,14 +4,14 @@ ledger: worklog
 authored: 2026-08-28
 wave: dev-wave-task-inventory-prune
 seq: 1
-title: 過剰実装・過剰ガードレール595件をactiveから除外する (docsのみ)
+title: 過剰実装・過剰ガードレール587件をactiveから除外する (docsのみ)
 ---
 
 ## 本文
 
-- ユーザー裁定に従い、当初active 946件を全件棚卸しした。過剰防壁120件と開発プロセス/衛生476件を見送り対象としたが、current mainでT-2065が先に裁定・完了したため、残る過剰防壁119件と開発プロセス/衛生476件、計595件を見送りへ送る。
-- 正しさ境界と研究速度の敵対相談を反映し、anomaly即reject、trace/perf分離、前向き事前登録、file-drawer防止、現行研究blockerは維持した。
-- 分類不能8件と別wave所有5件は推測で処理しない。current mainで完了済みのT-1934を除く所有4件をcarryし、fold後のactive期待値を346件とした。
+- ユーザー裁定に従い、当初active 946件を全件棚卸しした。過剰防壁120件と開発プロセス/衛生476件を見送り対象としたが、current mainでT-2065が先に裁定・完了し、再開時の焦点監査で正しさblocker 8件をcarryへ戻した。残る過剰防壁111件と開発プロセス/衛生476件、計587件を見送りへ送る。
+- 正しさ境界と研究速度の敵対相談を反映し、anomaly即reject、trace/perf分離、前向き事前登録、file-drawer防止、現行研究blockerは維持した。再開監査でT-1946/T-1948/T-1950/T-1955/T-1956/T-1957/T-1994/T-2005をproof chain・受理集合・正式実走のblockerと再確認した。
+- 分類不能8件 (T-096/T-097/T-100/T-133/T-163/T-167/T-168/T-169) と別wave所有5件 (T-1861/T-1902/T-1933/T-1934/T-2012) は推測で処理しない。current mainで完了済みのT-1934を除く所有4件をcarryし、entry 1080のactive 937件からfold後のactive期待値を350件とした。
 
 ## 次の一手差分
 
@@ -427,41 +427,17 @@ title: 過剰実装・過剰ガードレール595件をactiveから除外する 
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
   base: 8b70c8b1e7f313a4aeefc8820f342a921ad5ae4b75b776addf67c29931d53bb2
 
-- [T-1946] attempt registry を certified 成果物の proof chain へ**束縛する。既存 certified 成果物へ… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: bee87a701503a939f8e32d85794e98fae703c29e5df30446502f2d76c23148f5
-
 - [T-1947] FloorRetryAuthorization が公開 dataclass で、runner が isinstance しか検査しないため a… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
   base: d24cafd0b45a9679b000519ece5800184ed38c219b1cd4b3ea157896cf1949a5
-
-- [T-1948] attempt registry の parse が 失敗したとき legacy 候補 1 件を受理する fallback があり、候補件数が… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: 53bc5346b5b7dad8a157d6b465ef5385279a9a7f3cafac928bef1189f69d6e31
 
 - [T-1949] 案 A (pin 据え置き) を採用した (D1150)。SS2PL は既存 patch で扱い続ける。 案 C の前提 C-1 (sourc… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
   base: d43288322ac2dae0c5bd96c72518579f75a30d5fc36d829ecd903b8d8200bcfc
 
-- [T-1950] D615 の方向で精密化し、 **D93 は緩めない** (D1217)。 現状は安全側の失敗として働いており、pin 前進と本番 resol… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: c8f868583ba4da8a4ffb80ba4aae2b96fd227016407185bc3103f1324cfb5c4a
-
 - [T-1951] .gitmodules の branch = izanagi-trace を 実際の pin を含む tip へ揃える。現状 upstream… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
   base: c833a08721bd446e521d1df8e1f062759dc4808a52b9ebb848350ccfbf71a493
-
-- [T-1955] 事前登録 binding の検証器が attempt 台帳の genesis を parse しない。hash 一致だけを見て台帳 loade… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: d78a300b3a52baa22f71d8376b7370d138c59d7493dde5e69297422efc0d776c
-
-- [T-1956] 発効 commit が発効束縛 record **だけ**を 導入したことを production が検査していない。親集合の exact 一… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: 3436e598dde860bcb1f650dab152f03634e73661647ce0ae664f06fbf9c2aad3
-
-- [T-1957] manifest schema が 8b の要求する 「cell ごとの反復数」を持たない。key 集合は trial id・arm・hold… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: 9fe27daae5a35056c06ea2112e21ad11d416d7efe8ce54ae5b1a69fe1e479790
 
 - [T-1961] 同じ artifact を対象にする gate を 新設するとき、既存 gate と要求の向き (凍結か追随か) が逆でないかを機械検査する仕… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
@@ -474,14 +450,6 @@ title: 過剰実装・過剰ガードレール595件をactiveから除外する 
 - [T-1989] qualification lane へ署名 gate を付けるかは evidence-only lane の意味を変えるため別裁定とする。 — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
   base: 18d619253ede7f051bb5d66b9ac1b780ef642b98e68cf84c1fedd085a3876d12
-
-- [T-1994] 閉じる。 読み取り専用の束縛または同等の不変 snapshot を計算ノードで実証するまで正式受入を成立させない (D1201)。**親の初版… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: 2b6a3890c9028e07282a5729a26ba32c12db4873f0aef3b50bef4db804d2454f
-
-- [T-2005] B-4 実走前に、3 driver それぞれの 新しい projection closure hash を事前登録と admission re… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
-  再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。
-  base: be779d340eb0815bd1411641384afb77828ea983cd17d6cce1b583fb7906b86a
 
 - [T-2026] 承認 bytes を誰が置くかの 射程衝突を裁定する。D287 は本 pin について「人間がコード diff をレビューして定数を置く」を… — 理由: 現行claimへの具体的影響が立証されない追加防御であり、D205/D730に従いactiveから除外する。
   再訪条件: 独立3実害、現行研究実走blocker、または既発行claimの誤りを実証したとき。

@@ -6000,6 +6000,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同型 (harness の mode 宣言と runner の実経路の不一致) が別の runner で再現したら、
   runner 側に「dispatch mode で呼ばれたら local へ落ちない」検査を足すことを裁定へ返す。
 
+
+- **再発: 2026-08-28** — `--runner-mode dispatch`へ`--force-dispatch`を付けず、baseline test rc=0をreceipt表示0件のPARSE_ERRORとして停止した。DW-M07の既存recipeを読み直して別out/spec履歴のattemptで再走し、最終8/8 KILLEDを得た。
 ### F167. 受入全走が計算ノードの既定 walltime 30 分を超えて SIGKILL された [観測]
 
 - 事象: 受入全走が約 99% まで進んだところで
@@ -19127,3 +19129,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: `.claude/commands/cleanup-branches.md` §0/§6 を共有境界とし、`.agents/skills/cleanup-branches/SKILL.md` は全文不可分適用と安全側 overlay だけを持つ。`docs/skill-self-improvement.md` は cleanup 本走を final 候補報告で終端し、実装・記録を後続の明示 dev-wave に限定する。
 - 再発検知: `tools/check_docs.py` の whole-file pin、`orchestrator/tests/test_check_docs.py` の独立 fixture/byte/1-byte 負例、および command 単体と command+skill の敵対読解で、削除 0・罠・検査赤・外側クラス 2 の各終端を判定する。
 - 家族: F599 と同じく cleanup が共有 main を動かす型だが、F599 は status の見た目を目的化した観測面変更であり、本件は作業種別規律から mutation 権限を誤導出した別原因である。
+
+### F748. login側Pythonでしか試していないembedded validatorが計算ノードでreceipt公開を止めた [テスト代表性] [手順漏れ]
+
+- 事象: T-1943の唯一の計算ノードcellはverifier/discriminatorまで完了したが、artifact classificationの`Path.stat(follow_symlinks=False)`が計算ノードPythonで`TypeError`となり、completed pilot receiptとjob-resultを公開できなかった。
+- 根本原因: unit testはlogin側Pythonでproduction fragmentを実行し、API keywordの版差を表現していなかった。pilotのchecker/verifierにはinterpreter選定がある一方、このembedded blockはPATHの`python3`を使う非対称も見落とした。
+- 恒久対応: `tools/pegasus/mocc_trace_pilot.sh`は`os.lstat`でno-follow directory判定を行い、`orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory`が禁止API不在、real directory正例、directory symlink/regular-file負例をproduction fragmentで固定する。
+- 再発検知: compute jobのfinalizationで`TypeError: stat() got an unexpected keyword argument 'follow_symlinks'`、または上記回帰nodeの赤を検出する。

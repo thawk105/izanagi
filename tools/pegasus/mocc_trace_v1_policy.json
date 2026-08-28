@@ -14,7 +14,7 @@
   "third_party_cache_env": "IZANAGI_PEGASUS_THIRDPARTY_CACHE",
   "mocc_trace": {
     "base_oid": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
-    "new_oid": "058d0c4e5f237d88ec1c2ebe0739113d82906e47",
+    "new_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
     "cmake_target": "ycsb_mocc.exe",
     "trace1_defines": {
       "CCBENCH_TRACE": "1"
