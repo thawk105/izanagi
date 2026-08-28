@@ -959,4 +959,3 @@
 - [T-2068] **P2・新規**: sibling driver非0と別workloadのraw anomalyが併存する場合のouter statusとpartial raw authorityを設計する。
 - [T-2069] **P2・新規**: correctness run argv/binaryの独立観測をA-2 proof chainへ加えるか裁定する。現reportは非観測を明示済み。
 - [T-2070] **P2・新規**: EINVAL fallbackの選択事実とnon-cooperating writer限界をartifact schemaへ束縛するか裁定する。
-
