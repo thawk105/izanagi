@@ -1,7 +1,7 @@
 # T-2000 B-057 変異matrix
 
-- 最終対象commit: `de8be5cce11c9d5bed689fc1bf417ba872c08501`
-- spec SHA-256: `c8911ebe7052094a144105ea37673e5910bf97b04fe72dd74b9f777bf0c4291d`
+- 最終対象commit: `cbaa49e6ab52b8f6bf3fa5665daf4b8465fce67a`
+- spec SHA-256: `bab84aacf2eda90d38d7950c5b87a35d1ba9662e00d65341973a00bcf21170f6`
 - baseline: PASSED
 - summary: KILLED=6, SURVIVED=0, TIMEOUT=0, PARSE_ERROR=0, MISMATCH=0
 
