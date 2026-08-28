@@ -196,17 +196,6 @@ if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   echo "cannot resolve a full outer source commit" >&2
   exit 2
 fi
-if [[ "$T1943_G2" -eq 1 ]]; then
-  OUTER_GITLINK=$(git -C "$REPO_ROOT" ls-tree "$SOURCE_COMMIT" -- \
-    external/ccbench) || {
-    echo "cannot resolve external/ccbench gitlink from outer source commit" >&2
-    exit 2
-  }
-  if [[ "$OUTER_GITLINK" != $'160000 commit '"$NEW_OID"$'\texternal/ccbench' ]]; then
-    echo "outer source commit external/ccbench gitlink differs from policy new_oid" >&2
-    exit 2
-  fi
-fi
 if ! python3 - "$REPO_ROOT" "$ATTEMPTS_ROOT" <<'PY'
 import os
 import stat

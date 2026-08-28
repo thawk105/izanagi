@@ -109,7 +109,6 @@ WITNESS_MANIFEST_SHA=""
 DISCRIMINATOR_RESULT_SHA=""
 TRACE0_WATERMARK_ABSENCE_SHA=""
 SUBMIT_RECEIPT_SHA=""
-OUTER_GITLINK_ADVANCED=0
 RUN_RC="not-run"
 JUDGMENT_PRE_CAPTURE=""
 JUDGMENT_PRE_SHA=""
@@ -942,20 +941,6 @@ fi
 if [[ ! "$CURRENT_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   write_failure 2 source_identity "outer source commit is not a full OID"
   exit 2
-fi
-if [[ "$T1943_G2" -eq 1 ]]; then
-  OUTER_GITLINK=$(git -C "$REPO_ROOT" ls-tree "$CURRENT_COMMIT" -- \
-    external/ccbench) || {
-    write_failure 2 source_identity \
-      "cannot resolve external/ccbench gitlink from current outer commit"
-    exit 2
-  }
-  if [[ "$OUTER_GITLINK" != $'160000 commit '"$NEW_OID"$'\texternal/ccbench' ]]; then
-    write_failure 2 source_identity \
-      "current outer commit external/ccbench gitlink differs from policy new_oid"
-    exit 2
-  fi
-  OUTER_GITLINK_ADVANCED=1
 fi
 CURRENT_SCRIPT_SHA=$(sha256sum "$TOOLS/mocc_trace_pilot.sh" | awk '{print $1}')
 python3 - "$ATTEMPT_RECEIPT" "$CURRENT_COMMIT" "$CURRENT_SCRIPT_SHA" "$PBS_JOBID" \
@@ -2118,7 +2103,7 @@ RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$AT
   "$VERIFIER_TOOL_PATH" "$VERIFIER_TOOL_SHA" \
   "$JUDGMENT_PRE_CAPTURE" "$JUDGMENT_PRE_SHA" \
   "$JUDGMENT_POST_CAPTURE" "$JUDGMENT_POST_SHA" \
-  "${T1943_G2:-0}" "$OUTER_GITLINK_ADVANCED" "${TRACE_MANIFEST_SHA:-}" \
+  "${T1943_G2:-0}" "${TRACE_MANIFEST_SHA:-}" \
   "$ATTEMPT_DIR/witness-manifest.json" "${WITNESS_MANIFEST_SHA:-}" \
   "${DISCRIMINATOR_TOOL_PATH:-}" "${DISCRIMINATOR_TOOL_SHA:-}" \
   "$ATTEMPT_DIR/discriminator.json" "${DISCRIMINATOR_RESULT_SHA:-}" \
@@ -2147,7 +2132,7 @@ import time
     verifier_tool_path, verifier_tool_sha,
     judgment_pre_path, judgment_pre_sha,
     judgment_post_path, judgment_post_sha,
-    t1943_g2, outer_gitlink_advanced, trace_manifest_sha,
+    t1943_g2, trace_manifest_sha,
     witness_manifest_path, witness_manifest_sha,
     discriminator_tool_path, discriminator_tool_sha,
     discriminator_result_path, discriminator_result_sha,
@@ -2174,8 +2159,6 @@ trace_mode_i = int(trace_mode)
 t1943_g2_i = int(t1943_g2)
 if t1943_g2_i not in {0, 1}:
     reject("T-1943 discriminator mode differs")
-if int(outer_gitlink_advanced) != t1943_g2_i:
-    reject("outer gitlink measurement differs from execution mode")
 attempt_dir = os.path.dirname(os.path.abspath(output))
 expected_report_path = os.path.join(attempt_dir, "trace0-preprocess-identity.json")
 if os.path.abspath(checker_report_path) != expected_report_path:
@@ -2817,7 +2800,7 @@ payload = {
         "submodule_base_oid": base_oid,
         "submodule_new_oid": new_oid,
         "materialization": "git worktree add --detach in qsub job body",
-        "outer_gitlink_advanced": bool(int(outer_gitlink_advanced)),
+        "outer_gitlink_advanced": False,
         "judgment_source_state": {
             "guarantee_name": "pre/post endpoint consistency",
             "pre": judgment_pre,

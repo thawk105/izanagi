@@ -40,10 +40,16 @@ def _fake_git(
     source_commit: str,
     *,
     status_path: Path | None = None,
-    gitlink_oid: str = NEW_OID,
+    gitlink_oid: str = BASE_OID,
+    new_oid_available: bool = True,
 ) -> None:
     status_command = (
         f"cat {shlex.quote(str(status_path))}" if status_path is not None else ":"
+    )
+    new_oid_resolution = (
+        f"printf '%s\\n' '{NEW_OID}'; exit 0"
+        if new_oid_available
+        else "exit 128"
     )
     _make_executable(
         bin_dir / "git",
@@ -61,8 +67,7 @@ def _fake_git(
               exit 0
             fi
             if [[ "$2" == "{NEW_OID}^{{commit}}" && "$repo" == *"external/ccbench" ]]; then
-              printf '%s\\n' '{NEW_OID}'
-              exit 0
+              {new_oid_resolution}
             fi
             ;;
           status)
@@ -447,16 +452,30 @@ def test_t1943_build_run_and_rc1_discriminator_order_is_fail_closed() -> None:
     assert 'cp "$SUBMIT_SOURCE"' not in source
     assert "submit_receipt_sha != pinned_submit_receipt_sha" in source
 
-    submit_gitlink = submit_source.index(
-        'git -C "$REPO_ROOT" ls-tree "$SOURCE_COMMIT" --'
+    assert 'ls-tree "$SOURCE_COMMIT"' not in submit_source
+    assert 'ls-tree "$CURRENT_COMMIT"' not in source
+    assert "OUTER_GITLINK_ADVANCED" not in source
+
+    submit_resolution = submit_source.index(
+        'rev-parse "$NEW_OID^{commit}"'
     )
-    submit_qsub = submit_source.index('  "${qsub_cmd[@]}"', submit_gitlink)
-    job_gitlink = source.index(
-        'git -C "$REPO_ROOT" ls-tree "$CURRENT_COMMIT" --'
+    submit_exact = submit_source.index(
+        'if [[ "$CCBENCH_RESOLVED" != "$NEW_OID" ]]', submit_resolution
     )
-    job_build = source.index("check_window before-build", job_gitlink)
-    assert submit_gitlink < submit_qsub
-    assert job_gitlink < job_build
+    submit_qsub = submit_source.index('  "${qsub_cmd[@]}"', submit_exact)
+    job_resolution = source.index(
+        'RESOLVED_NEW=$(git -C "$CCBENCH_BASE" rev-parse "$NEW_OID^{commit}")'
+    )
+    job_exact = source.index(
+        'if [[ "$RESOLVED_NEW" != "$NEW_OID" ]]', job_resolution
+    )
+    materialize = source.index(
+        'git -C "$CCBENCH_BASE" worktree add --detach "$BUILD_SOURCE" "$NEW_OID"',
+        job_exact,
+    )
+    assert submit_resolution < submit_exact < submit_qsub
+    assert job_resolution < job_exact < materialize
+    assert '"outer_gitlink_advanced": False' in source
 
 
 def test_t1943_submit_rejects_nonfixed_workload_before_submission(
@@ -503,7 +522,7 @@ def test_t1943_submit_rejects_nonfixed_workload_before_submission(
         assert not (case_root / "attempts/submissions").exists()
 
 
-def test_t1943_submit_rejects_outer_gitlink_mismatch_before_submission(
+def test_t1943_submit_accepts_base_gitlink_with_available_new_object(
     tmp_path: Path,
 ) -> None:
     repo_root = tmp_path / "repo"
@@ -514,7 +533,74 @@ def test_t1943_submit_rejects_outer_gitlink_mismatch_before_submission(
     )
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    _fake_git(bin_dir, "1" * 40, gitlink_oid="f" * 40)
+    _fake_git(bin_dir, "1" * 40, gitlink_oid=BASE_OID)
+    modeled_gitlink = subprocess.run(
+        [
+            str(bin_dir / "git"),
+            "-C",
+            str(repo_root),
+            "ls-tree",
+            "1" * 40,
+            "--",
+            "external/ccbench",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert modeled_gitlink.returncode == 0, modeled_gitlink.stderr
+    assert modeled_gitlink.stdout == (
+        f"160000 commit {BASE_OID}\texternal/ccbench\n"
+    )
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
+    attempts_root = tmp_path / "attempts"
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(SUBMITTER),
+            "--dry-run",
+            "--repo-root",
+            str(repo_root),
+            "--attempts-root",
+            str(attempts_root),
+            "--job-script",
+            str(PILOT),
+            "--t1943-g2-discriminator",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    submission = next((attempts_root / "submissions").iterdir())
+    receipt = _load_json(submission / "submit-receipt.json")
+    assert receipt["source_commit"] == "1" * 40
+    assert receipt["mocc_trace"]["base_oid"] == BASE_OID
+    assert receipt["mocc_trace"]["new_oid"] == NEW_OID
+
+
+def test_t1943_submit_rejects_absent_new_oid_before_submission(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "tools/pegasus").mkdir(parents=True)
+    (repo_root / "external/ccbench").mkdir(parents=True)
+    (repo_root / "tools/pegasus/mocc_trace_v1_policy.json").write_bytes(
+        POLICY.read_bytes()
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _fake_git(
+        bin_dir,
+        "1" * 40,
+        gitlink_oid=BASE_OID,
+        new_oid_available=False,
+    )
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join((str(bin_dir), environment["PATH"]))
     attempts_root = tmp_path / "attempts"
@@ -540,7 +626,7 @@ def test_t1943_submit_rejects_outer_gitlink_mismatch_before_submission(
     )
 
     assert result.returncode == 2
-    assert "gitlink differs from policy new_oid" in result.stderr
+    assert "required Mocc trace commit is absent" in result.stderr
     assert not (attempts_root / "submissions").exists()
 
 
@@ -2347,7 +2433,6 @@ def _run_mocc_trace_finalization(
         "CCBENCH_BASE": str(tmp_path / "ccbench-base"),
         "FAILURE_PATH": str(failure_path),
         "T1943_G2": "1" if t1943_g2 else "0",
-        "OUTER_GITLINK_ADVANCED": "1" if t1943_g2 else "0",
         "TRACE_MANIFEST_SHA": trace_manifest_sha,
         "WITNESS_MANIFEST_SHA": witness_manifest_sha,
         "DISCRIMINATOR_TOOL_PATH": discriminator_tool_path,
@@ -3313,7 +3398,7 @@ def test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence(
     assert receipt["artifacts"]["submit_receipt_sha256"] == hashlib.sha256(
         (attempt_dir / "submit-receipt.json").read_bytes()
     ).hexdigest()
-    assert receipt["source"]["outer_gitlink_advanced"] is True
+    assert receipt["source"]["outer_gitlink_advanced"] is False
     tools = receipt["correctness_tools"]
     assert set(tools) == {
         "trace0_preprocess_identity_checker",
